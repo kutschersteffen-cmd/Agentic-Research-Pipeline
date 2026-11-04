@@ -181,6 +181,10 @@ class FunnelRecord(BaseModel):
     passages_scored: int
     thresholds: dict[str, float]
     models: list[dict] = Field(default_factory=list)
+    query: str = Field(default="", description="The embedding query built from the taxonomy version.")
+    rerank_query: str = Field(default="", description="The embedding query plus the activity's schema field names.")
+    positive: str = Field(default="", description="The positive statement that decided (see positives).")
+    positives: list[str] = Field(default_factory=list)
 
 
 class CompanyMatch(BaseModel):

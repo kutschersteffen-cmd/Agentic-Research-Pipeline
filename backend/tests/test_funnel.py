@@ -8,6 +8,17 @@ POS = "Makes electrolysers."
 NEG = "Buys electrolysers."
 CON = "Supplies catalysts."
 ACT = ActivityDefinition(name="e", in_scope_description=POS, out_of_scope_description=NEG, contrast_statements=[CON])
+
+
+def entail(row: dict, label: str, pos: str = POS) -> float:
+    """Stand-in NLI score: the fixture's positive score (key POS, or P1/P2 for one statement) for either positive
+    statement, else the label's own score; unspecified is 0.1."""
+    if label.startswith(funnel.POSITIVE_PREFIX):
+        own = "P2" if "the following:" in label else "P1"
+        return row.get(own, row.get(pos, 0.1))
+    return row.get(label, 0.1)
+
+
 TH = {"k1": 25, "k2": 6, "t_rerank": 1.5, "t_entail": 0.8}
 
 
@@ -28,7 +39,7 @@ def stub(monkeypatch, rows, rerank_ok=True):
         calls.embedded.extend(texts)
         out = []
         for t in texts:
-            c = 1.0 if t == POS else rows[t][0]
+            c = rows[t][0] if t in rows else 1.0  # anything not a passage is the query
             out.append([c, float(np.sqrt(max(0.0, 1 - c * c)))])
         return np.asarray(out, dtype=np.float32), {"model": "embed"}
 
@@ -37,7 +48,7 @@ def stub(monkeypatch, rows, rerank_ok=True):
 
     def classify(texts, labels, hypothesis="This text is about {}."):
         assert hypothesis == "{}"
-        return [{lab: rows[t][2].get(lab, 0.1) for lab in labels} for t in texts], {"model": "nli"}
+        return [{lab: entail(rows[t][2], lab) for lab in labels} for t in texts], {"model": "nli"}
 
     monkeypatch.setattr(funnel.models, "embed", embed)
     monkeypatch.setattr(funnel.models, "rerank", rerank)
@@ -147,7 +158,7 @@ def test_passages_embedded_once_per_document_set(monkeypatch):
     other = ActivityDefinition(name="o", in_scope_description=POS, out_of_scope_description=NEG)
     funnel.score_pair(docs(rows), ACT, TH, store)
     funnel.score_pair(docs(rows), other, TH, store)
-    assert sorted(t for t in calls.embedded if t != POS) == ["P1 text.", "P2 text."]
+    assert sorted(t for t in calls.embedded if t in rows) == ["P1 text.", "P2 text."]
 
 
 def test_cached_vectors_used(monkeypatch):
@@ -157,7 +168,7 @@ def test_cached_vectors_used(monkeypatch):
     funnel.passage_vectors(funnel.chunks_for(docs(rows)), store)
     calls.embedded.clear()
     funnel.score_pair(docs(rows), ACT, TH, store)
-    assert calls.embedded == [POS]
+    assert calls.embedded == [funnel.funnel_query(None, ACT).query]
 
 
 def test_no_content_store_still_scores(monkeypatch):
@@ -172,7 +183,7 @@ def test_no_store_passages_embedded_once_across_activities(monkeypatch):  # revi
     other = ActivityDefinition(name="o", in_scope_description=POS, out_of_scope_description=NEG)
     funnel.score_pair(docs(rows), ACT, TH, None)
     funnel.score_pair(docs(rows), other, TH, None)
-    assert sorted(t for t in calls.embedded if t != POS) == ["Memo A text.", "Memo B text."]
+    assert sorted(t for t in calls.embedded if t in rows) == ["Memo A text.", "Memo B text."]
 
 
 def test_memo_keyed_by_text_not_only_chunk_id(monkeypatch):

@@ -11,7 +11,7 @@ from arp.ingestion.parsing import chunk_document
 from arp.llm.base import LLMClient, LLMUsage
 from arp.research.arbitration import compute_arbitration
 from arp.research.company_role import derive_company_role
-from arp.research.funnel import score_pair
+from arp.research.funnel import FunnelQuery, score_pair
 from arp.research.indirect_exposure.exposure import compute_indirect_exposure
 from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.matcher_agents import run_adjudicator, run_advocate, run_opposing
@@ -58,6 +58,7 @@ class MatchState(TypedDict):
     rd_exposure: RDExposureResult | None
     evidence: list[DocumentChunk]
     funnel_thresholds: dict[str, float] | None
+    funnel_query: FunnelQuery | None
     funnel: FunnelRecord | None
     advocate: AgentOpinion | None
     opposing: AgentOpinion | None
@@ -168,9 +169,11 @@ async def _finalize_from_revenue(state: MatchState) -> dict:
 async def _gather_evidence(state: MatchState) -> dict:
     activity = state["activity"]
     settings = state["settings"]
+    # With the funnel on, its wider keyword list (schema fields, stage words) chooses the evidence (spec amendment B).
+    keywords = state["funnel_query"].keywords if state["funnel_query"] else activity.seed_keywords
     all_chunks: list[DocumentChunk] = []
     for doc in state["documents"]:
-        all_chunks.extend(chunk_document(doc, keywords=activity.seed_keywords))
+        all_chunks.extend(chunk_document(doc, keywords=keywords))
 
     content_store = None
     if settings.hybrid_retrieval_enabled:
@@ -188,7 +191,7 @@ async def _gather_evidence(state: MatchState) -> dict:
 
     evidence = select_relevant_chunks(
         all_chunks,
-        activity.seed_keywords,
+        keywords,
         max_chunks=_MAX_EVIDENCE_CHUNKS_PER_CALL,
         hybrid_retrieval_enabled=settings.hybrid_retrieval_enabled,
         content_store=content_store,
@@ -216,7 +219,7 @@ def _funnel_content_store(settings: Settings):
 async def _funnel(state: MatchState) -> dict:
     record = await asyncio.to_thread(  # sync model inference must not block the batch runner's event loop
         score_pair, state["documents"], state["activity"], state["funnel_thresholds"],
-        _funnel_content_store(state["settings"]),
+        _funnel_content_store(state["settings"]), state["funnel_query"],
     )
     return {"funnel": record}
 
@@ -390,6 +393,7 @@ async def match_company_activity(
     rd_resolver: RDResolverContext | None = None,
     company_isic: str | None = None,
     funnel_thresholds: dict[str, float] | None = None,
+    funnel_query: FunnelQuery | None = None,
 ) -> tuple[CompanyMatch, list[LLMUsage]]:
     """Runs the full per-(company, activity) matching decision as a
     LangGraph graph: the zero-LLM indirect-exposure computation, the
@@ -424,6 +428,7 @@ async def match_company_activity(
         "rd_exposure": None,
         "evidence": [],
         "funnel_thresholds": funnel_thresholds,
+        "funnel_query": funnel_query,
         "funnel": None,
         "advocate": None,
         "opposing": None,

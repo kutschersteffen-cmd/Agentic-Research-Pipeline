@@ -14,6 +14,7 @@ from arp.research import funnel
 from arp.schemas.taxonomy import DerivationMethod
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 from arp.storage.taxonomy_store import TaxonomyStore
+from tests.test_funnel import entail
 
 POS = "Makes electrolysers."
 NEG = "Buys electrolysers."
@@ -36,13 +37,13 @@ def models(monkeypatch):
 
     def embed(texts, load=None):
         calls["n"] += 1
-        return np.asarray([[1.0 if t == POS else ROWS[t][0], 0.1] for t in texts], dtype=np.float32), {}
+        return np.asarray([[ROWS[t][0] if t in ROWS else 1.0, 0.1] for t in texts], dtype=np.float32), {}
 
     def rerank(query, texts, score=None):
         return [ROWS[t][1] for t in texts], {}
 
     def classify(texts, labels, hypothesis=""):
-        return [{lab: ROWS[t][2].get(lab, 0.1) for lab in labels} for t in texts], {}
+        return [{lab: entail(ROWS[t][2], lab, POS) for lab in labels} for t in texts], {}
 
     monkeypatch.setattr(funnel.models, "embed", embed)
     monkeypatch.setattr(funnel.models, "rerank", rerank)
@@ -247,3 +248,45 @@ def test_case_documents_get_distinct_content_ids(tmp_path):  # review: same file
     assert len({d.doc_id for d in docs}) == 2
     (tmp_path / "c" / "other" / "2023.txt").write_text("Changed text.")
     assert theme_cli._case_documents(tmp_path, "c")[1].doc_id != docs[1].doc_id
+
+
+def _b_store(tmp_path, activities):
+    store = TaxonomyStore(tmp_path / "tax")
+    return store.create("t", ThemeDefinition(name="t", description="", activities=activities), DerivationMethod.MANUAL)
+
+
+def test_draft_taxonomy_runs(tmp_path, models):  # AC-40
+    t = _b_store(tmp_path, [ActivityDefinition(name="Electrolysers", in_scope_description=POS, out_of_scope_description=NEG,
+                                               seed_keywords=["electrolyser"])])
+    _set(tmp_path, [("a", "core", "all", KEEP)])
+    assert _invoke(tmp_path, taxonomy_id=t.taxonomy_id).exit_code == 0
+
+
+def test_out_rows_carry_rerank_query(tmp_path, models):  # AC-42
+    act = ActivityDefinition(name="Electrolysers", in_scope_description="Makes stacks.", out_of_scope_description=NEG,
+                             seed_keywords=["electrolyser"])
+    t = _b_store(tmp_path, [act])
+    _set(tmp_path, [("a", "core", "all", KEEP)])
+    assert _invoke(tmp_path, "--out", str(tmp_path / "rows.json"), taxonomy_id=t.taxonomy_id).exit_code == 0
+    row = json.loads((tmp_path / "rows.json").read_text())[0]
+    assert row["funnel"]["rerank_query"] == ("Electrolysers: Makes stacks.\nEvidence: Electrolysers: revenue share; "
+                                             "Electrolysers: CapEx share; Electrolysers: OpEx share; "
+                                             "Electrolysers: R&D intensity")
+
+
+def test_out_rows_best_activity(tmp_path, monkeypatch, models):  # AC-48
+    a = ActivityDefinition(name="A", in_scope_description="a.", out_of_scope_description=NEG, seed_keywords=["x"])
+    b = ActivityDefinition(name="B", in_scope_description="b.", out_of_scope_description=NEG, seed_keywords=["x"])
+    t = _b_store(tmp_path, [a, b])
+    _set(tmp_path, [("a", "core", "all", KEEP)])
+
+    def classify(texts, labels, hypothesis=""):  # A's positives 0.85, B's 0.95
+        def score(lab):
+            if lab.startswith(funnel.POSITIVE_PREFIX):
+                return 0.95 if (lab.endswith(" B.") or lab.endswith(": b.")) else 0.85
+            return 0.1
+        return [{lab: score(lab) for lab in labels} for _ in texts], {}
+
+    monkeypatch.setattr(funnel.models, "classify", classify)
+    _invoke(tmp_path, "--out", str(tmp_path / "rows.json"), taxonomy_id=t.taxonomy_id)
+    assert json.loads((tmp_path / "rows.json").read_text())[0]["funnel"]["query"] == "B: b."

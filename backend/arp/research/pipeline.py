@@ -12,6 +12,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
+from arp.research.funnel import funnel_query
 from arp.research.funnel_thresholds import thresholds_for
 from arp.research.indirect_exposure.company_mapper import resolve_company_isic
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
@@ -100,6 +101,7 @@ async def _match_company(
             rd_resolver=rd_resolver,
             company_isic=company_isic,
             funnel_thresholds=funnel_thresholds,
+            funnel_query=funnel_query(theme, activity) if funnel_thresholds is not None else None,
         )
         matches.append(match)
         usages.extend(activity_usages)

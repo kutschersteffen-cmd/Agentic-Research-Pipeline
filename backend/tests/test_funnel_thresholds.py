@@ -43,7 +43,8 @@ def test_unknown_theme_uses_default(tmp_path):  # AC-14
 
 def test_funnel_record_keys():  # AC-17 (shape)
     assert set(FunnelRecord.model_fields) == {"passed", "rerank_max", "entail_positive", "entail_negatives",
-                                              "best_passage", "best_doc_id", "passages_scored", "thresholds", "models"}
+                                              "best_passage", "best_doc_id", "passages_scored", "thresholds", "models",
+                                              "query", "rerank_query", "positive", "positives"}
 
 
 def test_setting_defaults_off():

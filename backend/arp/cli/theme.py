@@ -22,7 +22,7 @@ from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm
 from arp.orchestration.jobs import resume_run
 from arp.research.activity_generator import build_theme
 from arp.research.exposure_layers import load_run_layers, parse_as_of
-from arp.research.funnel import score_pair
+from arp.research.funnel import funnel_query, score_pair
 from arp.research.funnel_thresholds import thresholds_for
 from arp.research.indirect_exposure.core_sectors import classify_theme_core_sectors
 from arp.research.indirect_exposure.criticality import apply_criticality_overlay
@@ -330,10 +330,10 @@ def funnel_report(theme: ThemeDefinition, cases: ExposureSet, documents_dir: Pat
             rows.append({"case_id": case.case_id, "label": case.label, "kept": False, "rerank_max": None,
                          "entail_positive": None, "document": False})
             continue
-        records = [score_pair(docs, a, thresholds, store) for a in theme.activities]
-        best = max(records, key=lambda r: (r.passed, r.entail_positive))
+        records = [score_pair(docs, a, thresholds, store, funnel_query(theme, a)) for a in theme.activities]
+        best = max(records, key=lambda r: (r.passed, r.entail_positive))  # max keeps the first of equals
         rows.append({"case_id": case.case_id, "label": case.label, "kept": best.passed, "rerank_max": best.rerank_max,
-                     "entail_positive": best.entail_positive, "document": True})
+                     "entail_positive": best.entail_positive, "document": True, "funnel": best.model_dump()})
     return rows
 
 

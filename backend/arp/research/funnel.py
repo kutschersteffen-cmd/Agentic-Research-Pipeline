@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import threading
 from collections import OrderedDict
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -13,7 +14,52 @@ from arp import models
 from arp.ingestion.parsing import chunk_document
 from arp.retrieval.embeddings import EMBED_MODEL_NAME
 from arp.schemas.common import DocumentChunk, SourceDocument
-from arp.schemas.thematic import ActivityDefinition, FunnelRecord
+from arp.schemas.thematic import ActivityDefinition, FunnelRecord, ThemeDefinition
+
+# Stage words (spec amendment B): early-stage evidence must reach the funnel, not only revenue language.
+STAGE_WORDS = [
+    "research programme", "prototype", "lab-scale", "proof of concept",
+    "pilot plant", "demonstrator", "first commercial", "pre-series", "order", "FID",
+    "segment revenue", "capacity", "backlog", "market share",
+]
+POSITIVE_PREFIX = "The company researches, develops, pilots, manufactures or sells"
+
+
+@dataclass(frozen=True)
+class FunnelQuery:
+    """What the funnel searches for, built from the whole taxonomy version and its generated schema fields."""
+
+    keywords: list[str]
+    query: str
+    rerank_query: str
+    positives: list[str]
+
+
+def funnel_query(theme: ThemeDefinition | None, activity: ActivityDefinition) -> FunnelQuery:
+    from arp.research.taxonomy_schema import activity_fields  # taxonomy_schema imports the storage layer
+
+    fields = activity_fields(activity, theme.theme_id if theme else "", 0)  # names and keywords only; ids unused
+    keywords: list[str] = []
+    for kw in [*activity.seed_keywords, *(k for f in fields for k in f.seed_keywords), *STAGE_WORDS]:
+        if kw.lower() not in {k.lower() for k in keywords}:
+            keywords.append(kw)
+    # shortcut: getattr until PR #325 adds ThemeDefinition.technologies / .definitions; then read them directly
+    technologies = getattr(theme, "technologies", None) or []
+    definitions = getattr(theme, "definitions", None) or []
+    lines = [
+        f"{activity.name}: {activity.in_scope_description}",
+        theme.description if theme else "",
+        f"Technologies: {', '.join(t.name for t in technologies)}" if technologies else "",
+        f"Definitions: {'; '.join(f'{d.term}: {d.text}' for d in definitions)}" if definitions else "",
+    ]
+    query = "\n".join(line for line in lines if line)
+    return FunnelQuery(
+        keywords=keywords,
+        query=query,
+        rerank_query=f"{query}\nEvidence: {'; '.join(f.name for f in fields)}",
+        positives=[f"{POSITIVE_PREFIX} {activity.name}.",
+                   f"{POSITIVE_PREFIX} the following: {activity.in_scope_description}"],
+    )
 
 
 def chunks_for(documents: list[SourceDocument]) -> list[DocumentChunk]:
@@ -56,24 +102,26 @@ def passage_vectors(chunks: list[DocumentChunk], content_store) -> dict[str, np.
 
 
 def score_pair(
-    documents: list[SourceDocument], activity: ActivityDefinition, thresholds: dict[str, float], content_store=None
+    documents: list[SourceDocument], activity: ActivityDefinition, thresholds: dict[str, float], content_store=None,
+    query: FunnelQuery | None = None,
 ) -> FunnelRecord:
-    positive = activity.in_scope_description
+    q = query or funnel_query(None, activity)
     negatives = [activity.out_of_scope_description, *activity.contrast_statements]
     chunks = chunks_for(documents)
+    base = {"thresholds": thresholds, "query": q.query, "rerank_query": q.rerank_query, "positives": q.positives}
     if not chunks:
         return FunnelRecord(passed=False, rerank_max=None, entail_positive=0.0, best_passage="", best_doc_id="",
-                            passages_scored=0, thresholds=thresholds)
+                            passages_scored=0, positive=q.positives[0], **base)
 
     vectors = passage_vectors(chunks, content_store)
     with _LOCK:
-        query, embed_prov = models.embed([positive])
-    q = query[0] / (np.linalg.norm(query[0]) or 1.0)
-    sims = [float(np.dot(vectors[c.chunk_id], q) / (np.linalg.norm(vectors[c.chunk_id]) or 1.0)) for c in chunks]
+        qv, embed_prov = models.embed([q.query])
+    qn = qv[0] / (np.linalg.norm(qv[0]) or 1.0)
+    sims = [float(np.dot(vectors[c.chunk_id], qn) / (np.linalg.norm(vectors[c.chunk_id]) or 1.0)) for c in chunks]
     top = [chunks[i] for i in sorted(range(len(chunks)), key=lambda i: -sims[i])[: int(thresholds["k1"])]]
 
     with _LOCK:
-        scores, rerank_prov = models.rerank(positive, [c.text for c in top])
+        scores, rerank_prov = models.rerank(q.rerank_query, [c.text for c in top])
     if scores is None:  # rerank service down: keep embedding order and let the debate decide
         rerank_max = None
         kept = top[: int(thresholds["k2"])]
@@ -83,13 +131,14 @@ def score_pair(
         rerank_max = float(max(scores))
 
     with _LOCK:
-        entail, nli_prov = models.classify([c.text for c in kept], [positive, *negatives], hypothesis="{}")
+        entail, nli_prov = models.classify([c.text for c in kept], [*q.positives, *negatives], hypothesis="{}")
     winner = next(
-        (i for i, s in enumerate(entail)
-         if s[positive] >= thresholds["t_entail"] and all(s[positive] > s[n] for n in negatives)),
+        ((i, p) for i, s in enumerate(entail) for p in q.positives
+         if s[p] >= thresholds["t_entail"] and all(s[p] > s[n] for n in negatives)),
         None,
     )
-    best = winner if winner is not None else max(range(len(kept)), key=lambda i: entail[i][positive])
+    best, positive = winner or max(((i, p) for i in range(len(kept)) for p in q.positives),
+                                   key=lambda ip: entail[ip[0]][ip[1]])
     passed = rerank_max is None or (rerank_max >= thresholds["t_rerank"] and winner is not None)
     return FunnelRecord(
         passed=passed,
@@ -99,6 +148,7 @@ def score_pair(
         best_passage=kept[best].text,
         best_doc_id=kept[best].doc_id,
         passages_scored=len(kept),
-        thresholds=thresholds,
         models=[embed_prov, rerank_prov, nli_prov],
+        positive=positive,
+        **base,
     )

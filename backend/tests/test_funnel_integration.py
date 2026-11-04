@@ -16,6 +16,7 @@ from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping, CatalogueDataPoint
 from arp.schemas.thematic import ActivityDefinition, AgentOpinion, ExposureEstimate, MatchVerdict, ThemeDefinition
 from tests.taxonomy_schema_helpers import released_schema
+from tests.test_funnel import entail
 
 POS = "Manufactures electrolysers."
 NEG = "Buys electrolysers made by others."
@@ -54,7 +55,7 @@ class Models:
 
         def embed(texts, load=None):
             self.calls += 1
-            out = [[1.0 if t == POS else rows[t][0], 0.1] for t in texts]
+            out = [[rows[t][0] if t in rows else 1.0, 0.1] for t in texts]
             return np.asarray(out, dtype=np.float32), {"model": "embed"}
 
         def rerank(query, texts, score=None):
@@ -63,7 +64,7 @@ class Models:
 
         def classify(texts, labels, hypothesis=""):
             self.calls += 1
-            return [{lab: rows[t][2].get(lab, 0.1) for lab in labels} for t in texts], {"model": "nli"}
+            return [{lab: entail(rows[t][2], lab, POS) for lab in labels} for t in texts], {"model": "nli"}
 
         monkeypatch.setattr(funnel.models, "embed", embed)
         monkeypatch.setattr(funnel.models, "rerank", rerank)
@@ -182,7 +183,7 @@ async def test_run_json_funnel_keys(tmp_path, fake_llm, monkeypatch):  # AC-17
     match = await _run(tmp_path, fake_llm({}), [_doc("c1", P_LOW)])
     assert set(json.loads(match.model_dump_json())["funnel"]) == {
         "passed", "rerank_max", "entail_positive", "entail_negatives", "best_passage", "best_doc_id",
-        "passages_scored", "thresholds", "models"}
+        "passages_scored", "thresholds", "models", "query", "rerank_query", "positive", "positives"}
 
 
 async def test_revenue_resolved_pair_skips_funnel(tmp_path, fake_llm, monkeypatch):  # Review Focus 1
@@ -232,3 +233,97 @@ async def test_warmed_store_means_one_embed_per_activity(tmp_path, fake_llm, mon
     m.calls = 0
     await _run(tmp_path, _debate_script(fake_llm), docs)
     assert m.calls == 3  # embed (the in-scope statement only), rerank, classify
+
+
+# --- amendment B: the whole taxonomy version and schema feed the funnel (AC-33...AC-51) ----------------------
+
+PILOT = "Our pilot plant started in May."
+CAPEX = "Capex rose to EUR 40m."
+WEATHER = "Weather was mild."
+P1 = "The company researches, develops, pilots, manufactures or sells Electrolysers."
+P2 = "The company researches, develops, pilots, manufactures or sells the following: Makes stacks."
+
+
+def _b_theme():
+    act = ActivityDefinition(name="Electrolysers", in_scope_description="Makes stacks.",
+                             out_of_scope_description="Buys power.", contrast_statements=["Buys stacks."],
+                             seed_keywords=["electrolyser"])
+    return ThemeDefinition(theme_id="tb", name="H2", description="Green hydrogen.", activities=[act])
+
+
+def _pass_rows(*texts):
+    return {t: (0.9, 3.0, {"P1": 0.95}) for t in texts}
+
+
+async def test_stage_word_reaches_funnel(tmp_path, fake_llm, monkeypatch):  # AC-33
+    Models(monkeypatch, _pass_rows(PILOT))
+    match = await _run(tmp_path, _debate_script(fake_llm), [_doc("c1", PILOT)], theme=_b_theme())
+    assert match.funnel is not None
+
+
+async def test_stage_word_ignored_with_setting_off(tmp_path, fake_llm, monkeypatch):  # AC-34
+    Models(monkeypatch, {})
+    match = await _run(tmp_path, fake_llm({}), [_doc("c1", PILOT)], theme=_b_theme(), on=False)
+    assert match.adjudicator_rationale.startswith("No evidence of this activity")
+
+
+async def test_schema_field_keyword_reaches_funnel(tmp_path, fake_llm, monkeypatch):  # AC-35
+    Models(monkeypatch, _pass_rows(CAPEX))
+    match = await _run(tmp_path, _debate_script(fake_llm), [_doc("c1", CAPEX)], theme=_b_theme())
+    assert match.funnel is not None
+
+
+async def test_schema_field_keyword_ignored_with_setting_off(tmp_path, fake_llm, monkeypatch):  # AC-47
+    Models(monkeypatch, {})
+    match = await _run(tmp_path, fake_llm({}), [_doc("c1", CAPEX)], theme=_b_theme(), on=False)
+    assert match.adjudicator_rationale.startswith("No evidence of this activity")
+
+
+async def test_query_strings(tmp_path, fake_llm, monkeypatch):  # AC-36, AC-37, AC-38, AC-39
+    Models(monkeypatch, _pass_rows(PILOT))
+    f = (await _run(tmp_path, _debate_script(fake_llm), [_doc("c1", PILOT)], theme=_b_theme())).funnel
+    assert f.query == "Electrolysers: Makes stacks.\nGreen hydrogen."
+    assert f.rerank_query == f.query + ("\nEvidence: Electrolysers: revenue share; Electrolysers: CapEx share; "
+                                        "Electrolysers: OpEx share; Electrolysers: R&D intensity")
+    assert f.positives == [P1, P2]
+    assert set(f.entail_negatives) == {"Buys power.", "Buys stacks."}
+
+
+async def test_query_with_technologies_and_definitions(tmp_path, fake_llm, monkeypatch):  # AC-45 (PR #325 fields)
+    from types import SimpleNamespace as NS
+
+    theme = _b_theme()
+    object.__setattr__(theme, "technologies", [NS(name="PEM"), NS(name="SOEC")])  # until PR #325 adds the fields
+    object.__setattr__(theme, "definitions", [NS(term="stack", text="cell assembly"), NS(term="BoP", text="balance of plant")])
+    assert funnel.funnel_query(theme, theme.activities[0]).query == (
+        "Electrolysers: Makes stacks.\nGreen hydrogen.\nTechnologies: PEM, SOEC\n"
+        "Definitions: stack: cell assembly; BoP: balance of plant")
+
+
+async def test_all_chunks_scored(tmp_path, fake_llm, monkeypatch):  # AC-43
+    Models(monkeypatch, _pass_rows(PILOT, WEATHER))
+    f = (await _run(tmp_path, _debate_script(fake_llm), [_doc("c1", PILOT), _doc("c1", WEATHER)], theme=_b_theme())).funnel
+    assert f.passages_scored == 2
+
+
+async def test_debate_sees_keyword_selection(tmp_path, fake_llm, monkeypatch):  # AC-44, AC-49
+    Models(monkeypatch, _pass_rows(PILOT, WEATHER))
+    llm = _debate_script(fake_llm)
+    await _run(tmp_path, llm, [_doc("c1", PILOT), _doc("c1", WEATHER)], theme=_b_theme())
+    assert PILOT in llm.prompts[0]
+    assert WEATHER not in llm.prompts[0]
+
+
+async def test_passing_pair_record_keys(tmp_path, fake_llm, monkeypatch):  # AC-46
+    Models(monkeypatch, _pass_rows(PILOT))
+    match = await _run(tmp_path, _debate_script(fake_llm), [_doc("c1", PILOT)], theme=_b_theme())
+    assert match.funnel.passed is True
+    assert len(json.loads(match.model_dump_json())["funnel"]) == 13
+
+
+async def test_second_positive_passes(tmp_path, fake_llm, monkeypatch):  # AC-50, AC-51
+    Models(monkeypatch, {PILOT: (0.9, 3.0, {"P1": 0.10, "P2": 0.90, "Buys power.": 0.2, "Buys stacks.": 0.2})})
+    f = (await _run(tmp_path, _debate_script(fake_llm), [_doc("c1", PILOT)], theme=_b_theme())).funnel
+    assert f.passed is True
+    assert f.positive == f.positives[1]
+    assert f.entail_positive == 0.90
