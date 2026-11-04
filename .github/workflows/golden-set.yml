@@ -100,9 +100,10 @@ jobs:
         env:
           ARP_ANTHROPIC_API_KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
         run: |
-          set -o pipefail
+          set -eo pipefail
           arp db init-postgres
           arp golden-set run | tee -a "$GITHUB_STEP_SUMMARY"
+          arp golden-set run --long | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Compare the golden set with the evidence gate on and off
         # evidence-gate spec AC-31, AC-32: both pass. Tokens are printed, not gated: the golden cases are too short
@@ -116,6 +117,17 @@ jobs:
           arp golden-set run --gate on | tee on.txt | tee -a "$GITHUB_STEP_SUMMARY"
           off=$(tail -1 off.txt | grep -oE '[0-9]+$'); on=$(tail -1 on.txt | grep -oE '[0-9]+$')
           echo "extractor input tokens: gate off $off, gate on $on" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Compare the long golden set with the evidence gate on and off
+        # long-document golden cases spec AC-14 to AC-16: both pass, and the gate cuts extractor input by at least 10%
+        if: steps.key.outputs.present == 'true' && steps.scope.outputs.gate == 'true'
+        env:
+          ARP_ANTHROPIC_API_KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
+        run: |
+          set -eo pipefail
+          arp golden-set run --long --gate off | tee long_off.txt | tee -a "$GITHUB_STEP_SUMMARY"
+          arp golden-set run --long --gate on | tee long_on.txt | tee -a "$GITHUB_STEP_SUMMARY"
+          python scripts/compare_gate_tokens.py long_off.txt long_on.txt --max-ratio 0.9 | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Run the transition-barrier golden set
         if: steps.key.outputs.present == 'true'
