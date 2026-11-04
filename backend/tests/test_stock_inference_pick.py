@@ -48,7 +48,7 @@ def fake_steps(calls=None):
         calls.append(("keywords", sorted(chunks_supporting), sorted(chunks_other)))
         return activities
 
-    async def map_stocks(profiles, activities, chunks, llm):
+    async def map_stocks(profiles, activities, chunks, llm, *, fuzzy_threshold):
         return [], []
 
     async def tiers(theme_definition, mapping, segments, llm, mapper):
@@ -421,3 +421,123 @@ async def test_keywords_no_activities_makes_no_call():
         raise AssertionError("called")
 
     assert await pick_mod.keywords([], {}, {}, [], SimpleNamespace(complete_structured=boom)) == []
+
+
+def _weighted(cid, weight, described=True):
+    return _profile(cid, described).model_copy(update={"weight": weight})
+
+
+def _m(cid, activity_id="a1"):
+    return pick_mod.Mapping(company_id=cid, activity_id=activity_id, reason="r", quote="q", tier="unknown")
+
+
+@pytest.mark.asyncio
+async def test_map_stocks_keeps_only_quotes_grounded_in_the_stocks_own_chunks(fake_llm):  # AC-32, AC-32a
+    A = pick_mod.StockAssignment
+    reply = pick_mod.StockAssignments(assignments=[
+        A(company_id="p1", activity_id="a1", reason="makes stacks", quote="We make PEM stacks."),
+        A(company_id="p3", activity_id="a1", reason="copied", quote="We make PEM stacks."),  # p1's text, not p3's
+        A(company_id="p4", activity_id="none", reason="bakery", quote="We run a bakery chain."),
+        A(company_id="p5", activity_id="a9", reason="no such activity", quote="We sell bread."),
+    ])  # p2 left out of the reply
+    chunks = {"p1": [_chunk("p1", "We make PEM stacks.")], "p2": [_chunk("p2", "We make PEM stacks.")],
+              "p3": [_chunk("p3", "We sell bread.")], "p4": [_chunk("p4", "We run a bakery chain.")],
+              "p5": [_chunk("p5", "We sell bread.")]}
+    profiles = [_profile(c) for c in ("p1", "p2", "p3", "p4", "p5")] + [_profile("p6", described=False)]
+    llm = fake_llm({"StockAssignments": [reply]})
+    mapping, unmapped = await pick_mod.map_stocks(profiles, [_ACT], chunks, llm, fuzzy_threshold=0.92)
+    assert [(m.company_id, m.activity_id, m.tier) for m in mapping] == [("p1", "a1", "unknown"), ("p4", None, "unknown")]
+    assert unmapped == ["p2", "p3", "p5"]
+    assert len(llm.calls) == 1 and "Stock p6" not in llm.prompts[0]
+
+
+def test_coverage_shares_of_profiled_and_fund_weight():  # AC-33
+    run = _run("r1").model_copy(update={
+        "selection": Selection(method="weighted", cutoff_reason="weight_80", total_weight=1.0),
+        "profiles": [_weighted("s1", 0.3), _weighted("s2", 0.2), _weighted("s3", 0.4, described=False)]})
+    c = pick_mod.coverage(run, [_m("s1"), _m("s2", None)], ["s9", "s4"])
+    assert (c.profiled_weight_share, c.fund_weight_share, c.unmapped) == (pytest.approx(0.6), 0.3, ["s4", "s9"])
+    assert pick_mod.coverage_note(c) == "Coverage: 0.60 of profiled weight, 0.30 of fund weight."
+
+
+def test_coverage_unweighted_is_na():  # AC-34
+    c = pick_mod.coverage(_run("r1"), [_m("s1")], [])
+    assert c.profiled_weight_share is None and c.fund_weight_share is None
+    assert pick_mod.coverage_note(c) == "Coverage: n/a of profiled weight, n/a of fund weight."
+
+
+def test_coverage_counts_a_missing_weight_as_zero():  # Review Focus 4
+    run = _run("r1").model_copy(update={
+        "selection": Selection(method="weighted", cutoff_reason="weight_80", total_weight=0.5),
+        "profiles": [_weighted("s1", 0.25), _weighted("s2", None)]})
+    c = pick_mod.coverage(run, [_m("s1"), _m("s2")], [])
+    assert (c.profiled_weight_share, c.fund_weight_share) == (1.0, 0.5)
+
+
+def _seg(cid, label, value=None, pct=None, metric="revenue"):
+    from arp.schemas.revenue_exposure import CatalogueDataPoint
+
+    return CatalogueDataPoint(data_point_id=f"{cid}-{label}", company_id=cid, metric=metric, label=label, value=value,
+                              as_pct_of_total=pct)
+
+
+@pytest.mark.asyncio
+async def test_tiers_from_revenue_share_in_labels_linked_to_the_mapped_activity():  # AC-36
+    from arp.schemas.revenue_exposure import ActivityCatalogueMapping
+    from arp.schemas.thematic import ThemeDefinition
+
+    segments = {"p1": [_seg("p1", "Stacks", pct=0.6), _seg("p1", "Storage", pct=0.4)],
+                "p6": [_seg("p6", "Stacks", 50), _seg("p6", "Total Revenue", 100), _seg("p6", "Stacks", pct=0.9,
+                                                                                         metric="capex")],
+                "p2": [_seg("p2", "Stacks", pct=0.25), _seg("p2", "Storage", pct=0.75)],
+                "p4": [_seg("p4", "Stacks", pct=0.05)]}
+    seen = []
+
+    async def mapper(theme, labels_by_metric, llm):
+        seen.append(labels_by_metric)
+        return [ActivityCatalogueMapping(activity_id="a1", metric="revenue", matched_labels=["Stacks"]),
+                ActivityCatalogueMapping(activity_id="a2", metric="revenue", matched_labels=["Storage"])], None
+
+    a2 = _ACT.model_copy(update={"activity_id": "a2", "name": "Storage"})
+    definition = ThemeDefinition(name="H", description="", activities=[_ACT, a2])
+    mapping = [_m(c) for c in ("p1", "p6", "p2", "p4", "p5")] + [_m("p7", None)]
+    out = await pick_mod.tiers(definition, mapping, segments, None, mapper)
+    assert [(m.company_id, m.tier) for m in out] == [("p1", "core"), ("p6", "core"), ("p2", "enabler"),
+                                                     ("p4", "adopter"), ("p5", "unknown"), ("p7", "unknown")]
+    assert seen == [{"revenue": ["Stacks", "Storage"], "capex": ["Stacks"]}]
+
+
+@pytest.mark.asyncio
+async def test_tiers_without_segments_are_unknown_and_call_nothing():  # AC-39a
+    async def mapper(*a):
+        raise AssertionError("called")
+
+    out = await pick_mod.tiers(None, [_m("p1")], {}, None, mapper)
+    assert [m.tier for m in out] == ["unknown"]
+
+
+@pytest.mark.asyncio
+async def test_pick_stores_sorted_mapping_coverage_and_note(ctx):  # AC-33 through pick
+    run_id, store, tax, kw = ctx
+    _save(_run(run_id).model_copy(update={
+        "selection": Selection(method="weighted", cutoff_reason="weight_80", total_weight=1.0),
+        "profiles": [_weighted("s1", 0.3), _weighted("s2", 0.2), _weighted("s3", 0.5, described=False)]}), store)
+
+    async def map_stocks(profiles, activities, chunks, llm, *, fuzzy_threshold):
+        return [_m("s2", None), _m("s1")], ["s9", "s4"]
+
+    steps = {k: v for k, v in fake_steps().items() if k != "tiers"}  # real tiers: no segments, so unknown
+    run = await pick_mod.pick(run_id, 1, **kw, **{**steps, "map_stocks": map_stocks})
+    assert [(m.company_id, m.tier) for m in run.mapping] == [("s1", "unknown"), ("s2", "unknown")]
+    assert run.coverage.unmapped == ["s4", "s9"] and run.coverage.fund_weight_share == 0.3
+    assert "Coverage: 0.60 of profiled weight, 0.30 of fund weight." in tax.get(run.taxonomy_id).source_notes
+    saved = pick_mod.load_run(run_id, store)
+    assert saved.coverage == run.coverage and [m.company_id for m in saved.mapping] == ["s1", "s2"]
+
+
+@pytest.mark.asyncio
+async def test_pick_unweighted_note_is_na(ctx):  # AC-34 through pick
+    run_id, store, tax, kw = ctx
+    _save(_run(run_id), store)
+    run = await pick_mod.pick(run_id, 1, **kw, **fake_steps())
+    assert "Coverage: n/a of profiled weight, n/a of fund weight." in tax.get(run.taxonomy_id).source_notes

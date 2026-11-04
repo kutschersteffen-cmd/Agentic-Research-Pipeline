@@ -22,9 +22,17 @@ from arp.research.indirect_exposure.factory import resolve_indirect_exposure_mod
 from arp.research.revenue_exposure.mapping import suggest_catalogue_mapping
 from arp.research.stock_inference.profile import _ref, description_chunks
 from arp.research.stock_inference.run import InferFailed, WrongStage, _save, load_run, read_methodology
-from arp.research.stock_inference.schemas import ActivityOrigin, InferRun, InferStock, StockProfile, Theme
+from arp.research.stock_inference.schemas import (
+    ActivityOrigin,
+    Coverage,
+    InferRun,
+    InferStock,
+    Mapping,
+    StockProfile,
+    Theme,
+)
 from arp.research.stock_inference.selection import load_stocks
-from arp.research.stock_inference.stored import load_segments
+from arp.research.stock_inference.stored import _segment_rows, load_segments
 from arp.schemas.authority_taxonomy import SourceCitation
 from arp.schemas.common import Citation, DocumentChunk, SourceDocument
 from arp.schemas.taxonomy import DerivationMethod
@@ -203,10 +211,103 @@ async def keywords(activities: list[ActivityDefinition], chunks_supporting: dict
     return out
 
 
+class StockAssignment(BaseModel):
+    company_id: str
+    activity_id: str = Field(description="One of the activity_ids, or 'none' when the stock does none of them.")
+    reason: str
+    quote: str = Field(description="A verbatim sentence from this stock's own excerpts.")
+
+
+class StockAssignments(BaseModel):
+    assignments: list[StockAssignment]
+
+
+_MAP_SYSTEM = (
+    "Assign every stock to the one activity its excerpts show it doing most, or to 'none' when it does none of "
+    "them. For each stock give its company_id, the activity_id (or 'none'), a one-sentence reason and a verbatim "
+    "quote from that stock's own excerpts."
+)
+
+
+async def map_stocks(profiles: list[StockProfile], activities: list[ActivityDefinition],
+                     chunks: dict[str, list[DocumentChunk]], llm, *, fuzzy_threshold: float
+                     ) -> tuple[list[Mapping], list[str]]:
+    """One call maps every described stock; a mapping is kept only when its quote grounds in that stock's own
+    chunks (a grounded 'none' is kept with `activity_id` None). The rest are returned as unmapped."""
+    described = [p for p in profiles if p.description]
+    if not described:
+        return [], []
+    payload = {"activities": [{"activity_id": a.activity_id, "name": a.name,
+                               "in_scope_description": a.in_scope_description} for a in activities],
+               "stocks": [{"company_id": p.company_id, "name": p.name,
+                           "excerpts": [ch.text for ch in chunks.get(p.company_id, [])]} for p in described]}
+    reply, _ = await llm.complete_structured(system=_MAP_SYSTEM, prompt=json.dumps(payload, indent=1),
+                                             output_model=StockAssignments)
+    ids = {a.activity_id for a in activities}
+    by_id = {a.company_id: a for a in reply.assignments}
+    mapping, unmapped = [], []
+    for p in described:
+        a, own = by_id.get(p.company_id), chunks.get(p.company_id, [])
+        docs = {ch.chunk_id: SourceDocument(doc_id=ch.chunk_id, company_id=ch.company_id, doc_type=ch.doc_type,
+                                            title=ch.doc_id, full_text=ch.text) for ch in own}
+        grounded = a is not None and a.quote.strip() and (a.activity_id in ids or a.activity_id == "none") and any(
+            c.grounded for c in ground_citations([Citation(doc_id=ch.chunk_id, doc_type=ch.doc_type, quote=a.quote)
+                                                  for ch in own], docs, fuzzy_threshold))
+        if grounded:
+            mapping.append(Mapping(company_id=p.company_id, activity_id=None if a.activity_id == "none" else a.activity_id,
+                                   reason=a.reason, quote=a.quote, tier="unknown"))
+        else:
+            unmapped.append(p.company_id)
+    return mapping, unmapped
+
+
+def coverage(run: InferRun, mapping: list[Mapping], unmapped: list[str]) -> Coverage:
+    """Mapped weight over described weight and over `total_weight`; a missing weight counts as 0."""
+    total = run.selection.total_weight
+    weight = {p.company_id: p.weight or 0.0 for p in run.profiles}
+    described = sum(weight[p.company_id] for p in run.profiles if p.description)
+    mapped = sum(weight.get(m.company_id, 0.0) for m in mapping if m.activity_id is not None)
+    return Coverage(profiled_weight_share=mapped / described if total is not None and described else None,
+                    fund_weight_share=mapped / total if total else None, unmapped=sorted(unmapped))
+
+
+def coverage_note(c: Coverage) -> str:
+    def fmt(x):
+        return "n/a" if x is None else f"{x:.2f}"
+
+    return f"Coverage: {fmt(c.profiled_weight_share)} of profiled weight, {fmt(c.fund_weight_share)} of fund weight."
+
+
+def _tier(share: float) -> str:
+    return "core" if share >= 0.5 else "enabler" if share >= 0.2 else "adopter"
+
+
+async def tiers(theme_definition: ThemeDefinition, mapping: list[Mapping], segments: dict, llm, mapper
+                ) -> list[Mapping]:
+    """Company tier from the share of its revenue in segment labels the mapper links to its mapped activity."""
+    if not segments:
+        return mapping
+    labels: dict[str, set[str]] = {}
+    for cid in segments:
+        for r in _segment_rows(segments[cid]):
+            labels.setdefault(r["metric"], set()).add(r["label"])
+    links, _ = await mapper(theme_definition, {m: sorted(ls) for m, ls in labels.items()}, llm)
+    linked = {(x.activity_id, x.metric): set(x.matched_labels) for x in links}
+    out = []
+    for m in mapping:
+        rows = [r for r in _segment_rows(segments.get(m.company_id, []))
+                if r["metric"] == "revenue" and r["share"] is not None]
+        if m.activity_id is not None and rows:
+            mine = linked.get((m.activity_id, "revenue"), set())
+            m = m.model_copy(update={"tier": _tier(sum(r["share"] for r in rows if r["label"] in mine))})
+        out.append(m)
+    return out
+
+
 async def pick(
     run_id: str, rank: int, *, run_store, taxonomy_store, settings: Settings, llm, registry: DocumentSourceRegistry,
     matcher=match_activities, draft=draft_schema, mapper=suggest_catalogue_mapping, fetch=read_methodology,
-    synthesize=synthesize, top_down=top_down, merge=merge, keywords=keywords, map_stocks=_not_yet, tiers=_not_yet,
+    synthesize=synthesize, top_down=top_down, merge=merge, keywords=keywords, map_stocks=map_stocks, tiers=tiers,
     draft_kpis=_not_yet,
 ) -> InferRun:
     run = load_run(run_id, run_store)
@@ -255,7 +356,8 @@ async def pick(
         activities, origins = await merge(stock_acts, method_acts, theme.description, llm, matcher)
         boundary_quotes = [c.quote for a in method_acts for c in a.out_of_scope_citations]
         activities = await keywords(activities, supporting, other, boundary_quotes, llm)
-        mapping, _unmapped = await map_stocks(run.profiles, activities, chunks, llm)
+        mapping, unmapped = await map_stocks(run.profiles, activities, chunks, llm,
+                                             fuzzy_threshold=settings.grounding_fuzzy_threshold)
         definition = ThemeDefinition(name=theme.name, description=theme.description, activities=activities,
                                      scope=theme.description)
         mapping = await tiers(definition, mapping, segments, llm, mapper)
@@ -265,9 +367,12 @@ async def pick(
         notes = f"Inferred by 'arp taxonomy infer pick' from run {run_id}, theme {rank} ({theme.name})."
         if unread:
             notes += f" Methodology not read, skipped in top-down: {', '.join(unread)}."
+        cover = coverage(run, mapping, unmapped)
+        notes += f" {coverage_note(cover)}"
         taxonomy = taxonomy_store.create(run.name, definition, DerivationMethod.STOCK_INFERENCE, notes)
         return _save(run.model_copy(update={"stage": "drafted", "taxonomy_id": taxonomy.taxonomy_id,
-                                            "activities": origins, "mapping": mapping}), run_store)
+                                            "activities": origins, "coverage": cover,
+                                            "mapping": sorted(mapping, key=lambda m: m.company_id)}), run_store)
     except InferFailed:
         raise
     except Exception as e:  # never leave a run half-picked
