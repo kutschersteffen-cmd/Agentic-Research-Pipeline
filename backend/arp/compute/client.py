@@ -128,11 +128,10 @@ def _reason(response: httpx.Response) -> str:
 
 
 def _post(
-    capability: str, url: str, payload: dict, timeout: float, headers: dict[str, str] | None = None,
-    keep: tuple[int, ...] = (404, 422),
+    capability: str, url: str, payload: dict, timeout: float, headers: dict[str, str] | None = None
 ) -> httpx.Response | None:
     """POST with an ID token for the service. A connect error or 429/502/503/504 is retried once.
-    Returns a 2xx response or one whose status is in `keep`; anything else sets the cooldown and returns None."""
+    Returns a 2xx, 404 or 422 response; anything else sets the cooldown and returns None."""
     reason = ""
     for attempt in range(2):
         if attempt:
@@ -150,7 +149,7 @@ def _post(
         if response.status_code in _TRANSIENT:
             reason = _reason(response)
             continue
-        if response.is_success or response.status_code in keep:
+        if response.is_success or response.status_code in (404, 422):
             return response
         _fail(capability, _reason(response))
         return None
@@ -223,13 +222,10 @@ def _models_call(path: str, payload: dict, model: str, read):
     if url is None:
         return None
     with _models_slots:
-        if _cooling("models") or _cooling(f"models:{model}"):
+        if _cooling("models"):
             return None
-        response = _post("models", f"{url}{path}", payload, MODELS_TIMEOUT_S, {"X-ARP-Model": model}, keep=(409,))
+        response = _post("models", f"{url}{path}", payload, MODELS_TIMEOUT_S, {"X-ARP-Model": model})
     if response is None:
-        return None
-    if response.status_code == 409:  # the service does not serve this model: only it cools down, not the others
-        _fail(f"models:{model}", _reason(response))
         return None
     try:
         if not response.is_success:  # 404/422 are passed through for parse only
@@ -247,31 +243,30 @@ def _scores(body: dict, count: int) -> list[float]:
     return scores
 
 
-def _vectors(body: dict, count: int, dim: int) -> np.ndarray:
+def _vectors(body: dict, count: int) -> np.ndarray:
+    from arp.retrieval.embeddings import EMBED_DIM
+
     vectors = np.asarray(body["vectors"], dtype=np.float32)
-    if vectors.shape != (count, dim):
-        raise ValueError(f"vectors of shape {vectors.shape}, expected {(count, dim)}")
+    if vectors.shape != (count, EMBED_DIM):
+        raise ValueError(f"vectors of shape {vectors.shape}, expected {(count, EMBED_DIM)}")
     return vectors
 
 
-def rerank_scores(query: str, texts: list[str], model_header: str = CLOUD_RERANK_MODEL) -> list[float] | None:
-    """Reranker scores from arp-models (the cross-encoder unless `model_header` names another registry
-    reranker), one per text, or None to keep the retrieval order."""
+def rerank_scores(query: str, texts: list[str]) -> list[float] | None:
+    """Cross-encoder scores from arp-models, one per text, or None to keep the retrieval order."""
     payload = {"query": query, "texts": texts}
-    return _models_call("/rerank", payload, model_header, lambda body: _scores(body, len(texts)))
+    return _models_call("/rerank", payload, CLOUD_RERANK_MODEL, lambda body: _scores(body, len(texts)))
 
 
-def embed(texts: list[str], model_header: str | None = None, dim: int | None = None) -> np.ndarray | None:
-    """Vectors of `dim` numbers from arp-models (EMBED_MODEL_NAME's by default), or None to embed every text
-    another way (never a mix)."""
-    from arp.retrieval.embeddings import EMBED_DIM, EMBED_MODEL_NAME
+def embed(texts: list[str]) -> np.ndarray | None:
+    """EMBED_MODEL_NAME vectors from arp-models, or None to embed every text locally (never a mix)."""
+    from arp.retrieval.embeddings import EMBED_MODEL_NAME
 
-    model, width = model_header or EMBED_MODEL_NAME, dim or EMBED_DIM
     parts: list[np.ndarray] = []
     for start in range(0, len(texts), EMBED_BATCH):
         batch = texts[start : start + EMBED_BATCH]
         vectors = _models_call(
-            "/embed", {"texts": batch}, model, lambda body, n=len(batch): _vectors(body, n, width)
+            "/embed", {"texts": batch}, EMBED_MODEL_NAME, lambda body, n=len(batch): _vectors(body, n)
         )
         if vectors is None:
             return None

@@ -170,8 +170,6 @@ def field_evidence(
         limits = {
             "max_chunks": settings.evidence_max_chunks,
             "rerank_candidates": settings.rerank_candidates if settings.rerank_enabled else None,
-            "embed_model": settings.embed_model,
-            "rerank_model": settings.rerank_model,
         }
 
     def select(candidates: list[DocumentChunk], unit_parents: dict[str, DocumentChunk] | None) -> list[DocumentChunk]:

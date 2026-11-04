@@ -67,12 +67,9 @@ def spans(texts: list[str], labels: list[str], threshold: float = 0.5) -> tuple[
 def embed(texts: list[str], load: Callable | None = None) -> tuple[np.ndarray, dict]:
     """(n, dim) float32 vectors, all from the cloud or all local. `load` overrides the local model getter."""
     e = entry("embed")
-    try:
-        remote = client.embed(texts) if texts else None
-    except Exception:  # noqa: BLE001 - the client never raises; whatever does, the local model still answers
-        remote = None
-    if remote is not None and np.shape(remote) == (len(texts), e.dim):  # never another model's vectors
-        return np.asarray(remote, dtype=np.float32), provenance(e, "cloud")
+    remote = client.embed(texts) if texts else None
+    if remote is not None:
+        return remote, provenance(e, "cloud")
     model = load() if load else local.text_embedding(e.hf_id)
     return np.asarray(list(model.embed(texts)), dtype=np.float32), provenance(e, "local")
 

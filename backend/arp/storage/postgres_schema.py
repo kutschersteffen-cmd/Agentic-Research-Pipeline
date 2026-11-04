@@ -223,12 +223,6 @@ _REKEYED: dict[str, tuple[str, str | None, str | None, str | None, str | None]] 
 _REKEY_ARGS = ("issuer_key", "issuer_scheme", "isin", "universe_id")
 
 
-def _chunk_embeddings_any_dim(conn: Connection) -> None:
-    from sqlalchemy import text
-
-    conn.execute(text("ALTER TABLE chunk_embeddings ALTER COLUMN embedding TYPE vector"))
-
-
 def _review_item_links(conn: Connection) -> None:
     """review_item_observations for items queued before the table: as `observations.queue_item` links them."""
     from sqlalchemy import text
@@ -374,11 +368,6 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         description="review_item_observations backfilled: value items to their observation, whole-record items to"
         " their run and company's REVIEW observations",
         apply=_review_item_links,
-    ),
-    SchemaStep(
-        name="chunk_embeddings_any_dim",
-        description="chunk_embeddings.embedding is an untyped vector, so 1024-dim models' rows fit beside MiniLM's 384",
-        apply=_chunk_embeddings_any_dim,
     ),
 )
 

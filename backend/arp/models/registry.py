@@ -16,7 +16,6 @@ class RegistryEntry(BaseModel):
     hf_id: str
     revision: str
     labels: list[str] | None = None
-    dim: int | None = None  # embed models: vector length
 
 
 @functools.cache
@@ -33,11 +32,6 @@ def entry(key: str) -> RegistryEntry:
     if e.hf_id not in allowed:
         raise ValueError(f"model {e.hf_id!r} is not in the allow-list")
     return e
-
-
-def entries(capability: str) -> list[RegistryEntry]:
-    """Every allowed registry entry of `capability`, in registry order."""
-    return [entry(k) for k, e in _load(REGISTRY_PATH).items() if e.capability == capability]
 
 
 def provenance(e: RegistryEntry, where: Literal["cloud", "local"]) -> dict:

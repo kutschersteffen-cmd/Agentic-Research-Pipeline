@@ -25,8 +25,6 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.normalise.locale import decimal_for, detect_language
 from arp.presets.registry import PRESETS
 from arp.retrieval.content_store_factory import content_store_for
-from arp.retrieval.embeddings import EMBED_KEYS
-from arp.retrieval.rerank import RERANK_KEYS
 from arp.schemas.common import CompanyRef, DocType, DocumentChunk, SourceDocument
 from arp.schemas.review import DecisionKind, ReviewDecision, field_item_key, period_key
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
@@ -79,15 +77,6 @@ def recall_at(ranks: list[int | None], k: int) -> float | None:
     return sum(r is not None and r < k for r in ranks) / len(ranks) if ranks else None
 
 
-def _fell_back(explain: dict, evidence: list[DocumentChunk], settings: Settings) -> bool:
-    """The requested embedder, or the requested reranker, did not rank this field (local MiniLM or a local
-    cross-encoder is the requested model, so not a fallback)."""
-    embedder = explain.get("embed_model")
-    if embedder is not None and embedder != EMBED_KEYS[settings.embed_model]:
-        return True
-    return bool(settings.rerank_enabled and evidence and explain.get("rerank_model") != RERANK_KEYS[settings.rerank_model])
-
-
 def _registry(documents_dir: Path, settings: Settings) -> DocumentSourceRegistry:
     """The same local source `golden-set precision` reads, so doc_ids match the run's citations."""
     return DocumentSourceRegistry([LocalFileDocumentSource(
@@ -121,8 +110,7 @@ class _TreeCount:
 
 
 async def run_retrieval_eval(
-    run_store: RunStore, run_id: str, decisions: list[ReviewDecision], *, documents_dir: Path, settings: Settings,
-    count_fallback: bool = False,
+    run_store: RunStore, run_id: str, decisions: list[ReviewDecision], *, documents_dir: Path, settings: Settings
 ) -> dict:
     schema = load_run_schema(run_store, run_id)
     if schema is None:
@@ -134,7 +122,7 @@ async def run_retrieval_eval(
     ranks: list[int | None] = []
     seconds: list[float] = []
     misses: list[dict] = []
-    stale = fallback = 0
+    stale = 0
     trees = _TreeCount(settings)
     by_company: dict[str, list[GoldSpan]] = {}
     for g in gold:
@@ -154,22 +142,19 @@ async def run_retrieval_eval(
             by_field.setdefault(g.field_id, []).append(g)
         for field_id, field_spans in by_field.items():
             started = time.perf_counter()
-            explain: dict = {}
-            evidence = field_evidence(fields[field_id], documents, settings, explain=explain)
+            evidence = field_evidence(fields[field_id], documents, settings)
             seconds.append(time.perf_counter() - started)
-            fallback += _fell_back(explain, evidence, settings)
             for g in field_spans:
                 rank = hit_rank(evidence, g)
                 ranks.append(rank)
                 if rank is None:
                     misses.append({"company_id": company_id, "field_id": field_id, "doc_id": g.doc_id,
                                    "char_start": g.char_start, "char_end": g.char_end})
-    return _report(run_id, settings, ranks, stale, seconds, misses, trees, fallback if count_fallback else None)
+    return _report(run_id, settings, ranks, stale, seconds, misses, trees)
 
 
 def _report(run_id: str | None, settings: Settings, ranks: list[int | None], stale: int, seconds: list[float],
-            misses: list[dict], trees: _TreeCount, fallback: int | None) -> dict:
-    """`fallback` (fields whose requested embedder or reranker did not run) is reported only when given."""
+            misses: list[dict], trees: _TreeCount) -> dict:
     k = settings.evidence_max_chunks
     report = {
         "run_id": run_id,
@@ -188,7 +173,7 @@ def _report(run_id: str | None, settings: Settings, ranks: list[int | None], sta
     if settings.tree_context_enabled:  # off: the report stays byte-identical to before tree context
         report["settings"]["tree_context_enabled"] = True
         report.update(tree_nodes=trees.nodes, tree_nodes_without_summary=trees.unsummarised)
-    return report if fallback is None else report | {"fallback_fields": fallback}
+    return report
 
 
 def _sha256(path: Path) -> str:
@@ -244,9 +229,7 @@ def _contains(chunk_text: str, span_text: str) -> bool:
     return _normalize(span_text) in _normalize(chunk_text)
 
 
-async def run_cases_retrieval_eval(
-    cases_file: Path, *, documents_dir: Path, settings: Settings, count_fallback: bool = False
-) -> dict:
+async def run_cases_retrieval_eval(cases_file: Path, *, documents_dir: Path, settings: Settings) -> dict:
     """Cases mode: gold spans are text in a committed cases file, so CI can run it without a reviewed run (Postgres
     is still needed: the content store opens its document registry there, and hybrid retrieval keeps embeddings there).
     A span is hit at the first evidence chunk of its document that contains it after grounding's
@@ -257,7 +240,7 @@ async def run_cases_retrieval_eval(
     ranks: list[int | None] = []
     seconds: list[float] = []
     misses: list[dict] = []
-    stale = fallback = 0
+    stale = 0
     trees = _TreeCount(settings)
     store = content_store_for(settings)
     by_company: dict[str, list[dict]] = {}
@@ -279,14 +262,12 @@ async def run_cases_retrieval_eval(
             if not live:
                 continue
             started = time.perf_counter()
-            explain: dict = {}
-            evidence = field_evidence(field, documents, settings, explain=explain)
+            evidence = field_evidence(field, documents, settings)
             seconds.append(time.perf_counter() - started)
-            fallback += _fell_back(explain, evidence, settings)
             for span in live:
                 rank = next((i for i, e in enumerate(evidence) if e.doc_id == doc.doc_id and _contains(e.text, span)), None)
                 ranks.append(rank)
                 if rank is None:
                     misses.append({"case_id": c["case_id"], "company_id": company_id, "field_id": field.field_id,
                                    "document": c["document"], "span_text": span})
-    return _report(None, settings, ranks, stale, seconds, misses, trees, fallback if count_fallback else None)
+    return _report(None, settings, ranks, stale, seconds, misses, trees)

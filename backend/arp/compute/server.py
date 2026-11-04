@@ -1,10 +1,9 @@
 """The Cloud Run GPU service behind arp/compute/client.py, deployed twice from
 one image (backend/Dockerfile.compute): arp-parse serves /parse, arp-models
-/rerank and /embed (every registry rerank and embed model, each loaded on first
-use). It runs the same functions the backend runs locally, on a GPU. There is
-no auth in here: Cloud Run admits only callers holding run.invoker. Endpoints
-are plain `def` so they run in the threadpool and /healthz still answers during
-a long parse."""
+/rerank and /embed. It runs the same functions the backend runs locally, on a
+GPU. There is no auth in here: Cloud Run admits only callers holding
+run.invoker. Endpoints are plain `def` so they run in the threadpool and
+/healthz still answers during a long parse."""
 
 from __future__ import annotations
 
@@ -20,7 +19,7 @@ from pydantic import BaseModel, Field
 from arp.compute.client import CLOUD_RERANK_MODEL
 from arp.ingestion.local_files import parse_file_to_text_with_pages, parser_version
 from arp.models import local
-from arp.models.registry import entries, entry, model_header
+from arp.models.registry import entry, model_header
 from arp.retrieval.embeddings import EMBED_MODEL_NAME
 from arp.schemas.common import TableSpan
 
@@ -43,62 +42,18 @@ def _cuda_available() -> bool:
     return torch.cuda.is_available()
 
 
-# What clients send in X-ARP-Model for the two original models; every other one is named hf_id@revision.
-_LEGACY_NAMES = {"embed": EMBED_MODEL_NAME, "rerank": CLOUD_RERANK_MODEL}
-
-
-class _MaxSim:
-    """A ColBERT reranker: a text scores the sum, over the query's token vectors, of each one's best dot
-    product with the text's token vectors."""
-
-    def __init__(self, late) -> None:
-        self._late = late
-        self.model = late.model  # so _require_cuda finds the onnxruntime session
-
-    def rerank(self, query: str, texts: list[str]) -> list[float]:
-        q = np.asarray(next(iter(self._late.query_embed(query))))
-        return [float((q @ np.asarray(d).T).max(axis=1).sum()) for d in self._late.embed(texts)]
-
-
-class _ClsEmbedder:
-    """bge-m3 dense vectors (transformers): the CLS token's last hidden state, L2-normalised, as its model card does."""
-
-    def __init__(self, e) -> None:
-        import torch
-        from transformers import AutoModel, AutoTokenizer
-
-        self._torch = torch
-        self._tokenizer = AutoTokenizer.from_pretrained(e.hf_id, revision=e.revision)
-        self._net = AutoModel.from_pretrained(e.hf_id, revision=e.revision, torch_dtype=torch.float16).to("cuda").eval()
-
-    def embed(self, texts: list[str], batch_size: int = 16):
-        for start in range(0, len(texts), batch_size):
-            batch = self._tokenizer(texts[start : start + batch_size], padding=True, truncation=True,
-                                    max_length=8192, return_tensors="pt").to("cuda")  # 8,192 tokens covers any chunk
-            with self._torch.no_grad():
-                cls = self._net(**batch).last_hidden_state[:, 0]
-            yield from self._torch.nn.functional.normalize(cls.float(), dim=-1).cpu().numpy()
-
-
-def _load_reranker(key: str = "rerank"):
+def _load_reranker():
     import torch  # noqa: F401 -- loads the CUDA/cuDNN libraries onnxruntime-gpu needs
+    from fastembed.rerank.cross_encoder import TextCrossEncoder
 
-    if key == "rerank":
-        from fastembed.rerank.cross_encoder import TextCrossEncoder
-
-        return TextCrossEncoder(CLOUD_RERANK_MODEL, cuda=True)
-    from fastembed import LateInteractionTextEmbedding
-
-    return _MaxSim(LateInteractionTextEmbedding(entry(key).hf_id, cuda=True))
+    return TextCrossEncoder(CLOUD_RERANK_MODEL, cuda=True)
 
 
-def _load_embedder(key: str = "embed"):
-    if key == "embed_bge_m3":
-        return _ClsEmbedder(_torch_model(key))
+def _load_embedder():
     import torch  # noqa: F401 -- loads the CUDA/cuDNN libraries onnxruntime-gpu needs
     from fastembed import TextEmbedding
 
-    return TextEmbedding(EMBED_MODEL_NAME if key == "embed" else entry(key).hf_id, cuda=True)
+    return TextEmbedding(EMBED_MODEL_NAME, cuda=True)
 
 
 def _require_cuda(model):
@@ -109,21 +64,19 @@ def _require_cuda(model):
     return model
 
 
-def _model(name: str, load, check=_require_cuda):
+def _model(name: str, load):
     with _models_lock:  # a burst on a cold instance must not load several copies onto one GPU
         if name not in _models:
-            _models[name] = check(load())
+            _models[name] = _require_cuda(load())
         return _models[name]
 
 
-# One loaded model per registry key; the original models' getters and loaders are still called without one.
-def _reranker(key: str = "rerank"):
-    return _model(key, _load_reranker if key == "rerank" else lambda: _load_reranker(key))
+def _reranker():
+    return _model("rerank", _load_reranker)
 
 
-def _embedder(key: str = "embed"):
-    load = _load_embedder if key == "embed" else lambda: _load_embedder(key)
-    return _model(key, load, (lambda m: m) if key == "embed_bge_m3" else _require_cuda)  # torch, checked on load
+def _embedder():
+    return _model("embed", _load_embedder)
 
 
 def _torch_model(key: str):
@@ -131,14 +84,6 @@ def _torch_model(key: str):
     if not _cuda_available():
         raise HTTPException(503, "CUDA not available")
     return entry(key)
-
-
-def _served(received: str | None, capability: str) -> str:
-    """The registry key of the `capability` model `received` names; 409 for any other name."""
-    for e in entries(capability):
-        if received in (model_header(e), _LEGACY_NAMES.get(e.key)):
-            return e.key
-    raise HTTPException(409, f"model not served by /{capability}: client={received or 'missing'}")
 
 
 def _check_model(received: str | None, expected: str) -> None:
@@ -182,16 +127,14 @@ def parse(request: ParseRequest, x_arp_parser_version: str | None = Header(defau
 
 @app.post("/rerank")
 def rerank(request: RerankRequest, x_arp_model: str | None = Header(default=None)) -> dict:
-    key = _served(x_arp_model, "rerank")
-    model = _reranker() if key == "rerank" else _reranker(key)
-    return {"scores": [float(s) for s in model.rerank(request.query, request.texts)]}
+    _check_model(x_arp_model, CLOUD_RERANK_MODEL)
+    return {"scores": [float(s) for s in _reranker().rerank(request.query, request.texts)]}
 
 
 @app.post("/embed")
 def embed(request: EmbedRequest, x_arp_model: str | None = Header(default=None)) -> dict:
-    key = _served(x_arp_model, "embed")
-    model = _embedder() if key == "embed" else _embedder(key)
-    return {"vectors": np.asarray(list(model.embed(request.texts)), dtype=np.float32).tolist()}
+    _check_model(x_arp_model, EMBED_MODEL_NAME)
+    return {"vectors": np.asarray(list(_embedder().embed(request.texts)), dtype=np.float32).tolist()}
 
 
 class ClassifyRequest(BaseModel):

@@ -16,10 +16,6 @@ from arp.models import local
 # too heavy for the "free, offline, always-on" design goal here.
 EMBED_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 EMBED_DIM = 384
-# Settings.embed_model -> registry key. Only "embed" (this module's model) also runs locally.
-EMBED_KEYS = {"minilm": "embed", "e5-large": "embed_e5_large", "bge-m3": "embed_bge_m3"}
-# (query, passage) prefixes a model expects, from its model card; added only to the text sent to it
-PREFIXES = {"embed_e5_large": ("query: ", "passage: ")}
 
 def _get_model():
     return local.text_embedding(EMBED_MODEL_NAME)

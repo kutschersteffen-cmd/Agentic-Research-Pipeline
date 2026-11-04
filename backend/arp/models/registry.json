@@ -3,34 +3,13 @@
     "key": "embed",
     "capability": "embed",
     "hf_id": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-    "revision": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42",
-    "dim": 384
-  },
-  {
-    "key": "embed_e5_large",
-    "capability": "embed",
-    "hf_id": "intfloat/multilingual-e5-large",
-    "revision": "3d7cfbdacd47fdda877c5cd8a79fbcc4f2a574f3",
-    "dim": 1024
-  },
-  {
-    "key": "embed_bge_m3",
-    "capability": "embed",
-    "hf_id": "BAAI/bge-m3",
-    "revision": "5617a9f61b028005a4858fdac845db406aefb181",
-    "dim": 1024
+    "revision": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42"
   },
   {
     "key": "rerank",
     "capability": "rerank",
     "hf_id": "BAAI/bge-reranker-v2-m3-int8",
     "revision": "main"
-  },
-  {
-    "key": "rerank_colbert",
-    "capability": "rerank",
-    "hf_id": "lightonai/mLateOn",
-    "revision": "bbd883ae1fadb563056ff73b1061ae8172a3fcda"
   },
   {
     "key": "nli",
