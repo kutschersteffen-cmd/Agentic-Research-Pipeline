@@ -36,6 +36,12 @@ def _ref(stock: InferStock) -> CompanyRef:
                       lei=stock.lei, cik=stock.cik)
 
 
+def description_chunks(documents: list[SourceDocument]) -> list[DocumentChunk]:
+    """The 8 chunks of these documents that best match the description query."""
+    chunks = [c for d in documents for c in chunk_document(d, keywords=_KEYWORDS)]
+    return select_relevant_chunks(chunks, _KEYWORDS, max_chunks=8, require_hit=False, fallback_to_all=True)
+
+
 async def discover_missing(stocks: list[InferStock], settings: Settings) -> None:
     from arp.discovery.pipeline import run_discovery
     from arp.storage.run_store import RunStore
@@ -53,8 +59,7 @@ async def profile_stock(
     if not documents:
         return profile.model_copy(update={"error": "no_document"}), []
     try:
-        chunks = [c for d in documents for c in chunk_document(d, keywords=_KEYWORDS)]
-        chunks = select_relevant_chunks(chunks, _KEYWORDS, max_chunks=8, require_hit=False, fallback_to_all=True)
+        chunks = description_chunks(documents)
         result = await extract(_ref(stock), DESCRIPTION_SCHEMA, registry=registry, llm=llm, verifier_llm=verifier_llm,
                                settings=settings, documents=documents, field_limit=field_limit)
         field = result.record.fields[0]

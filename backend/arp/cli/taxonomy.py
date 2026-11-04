@@ -7,6 +7,7 @@ from pathlib import Path
 import typer
 
 from arp.cli._shared import _registry, _resolve_taxonomy_ref_or_exit, _run_store, _taxonomy_store
+from arp.cli.taxonomy_infer import infer_app
 from arp.config import get_settings
 from arp.discovery.site_finder import build_web_search_client
 from arp.llm.factory import build_llm_client
@@ -27,6 +28,7 @@ from arp.universe import load_company_universe
 taxonomy_app = typer.Typer(help="The reusable, versioned taxonomy library.")
 author_app = typer.Typer(help="Author a taxonomy from authority sources, stage by stage.")
 taxonomy_app.add_typer(author_app, name="author")
+taxonomy_app.add_typer(infer_app, name="infer")
 
 
 def _author(fn):
