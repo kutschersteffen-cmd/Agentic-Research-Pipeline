@@ -573,7 +573,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId, initialRun
                                     <ul>
                                       <li>Upstream exposure: {(io.upstream_exposure * 100).toFixed(1)}% — share of this industry's total input requirement traceable to the activity's core sectors</li>
                                       <li>Downstream exposure: {(io.downstream_exposure * 100).toFixed(1)}% — share of this industry's output propagation landing in the activity's core sectors</li>
-                                      <li className="muted">Computed from {io.icio_edition}</li>
+                                      <li className="muted">Computed from {io.io_edition}</li>
                                     </ul>
                                   </>
                                 )}
