@@ -474,11 +474,11 @@ def test_coverage_counts_a_missing_weight_as_zero():  # Review Focus 4
     assert (c.profiled_weight_share, c.fund_weight_share) == (1.0, 0.5)
 
 
-def _seg(cid, label, value=None, pct=None, metric="revenue"):
+def _seg(cid, label, value=None, pct=None, metric="revenue", period=""):
     from arp.schemas.revenue_exposure import CatalogueDataPoint
 
     return CatalogueDataPoint(data_point_id=f"{cid}-{label}", company_id=cid, metric=metric, label=label, value=value,
-                              as_pct_of_total=pct)
+                              as_pct_of_total=pct, period=period)
 
 
 @pytest.mark.asyncio
@@ -504,7 +504,22 @@ async def test_tiers_from_revenue_share_in_labels_linked_to_the_mapped_activity(
     out = await pick_mod.tiers(definition, mapping, segments, None, mapper)
     assert [(m.company_id, m.tier) for m in out] == [("p1", "core"), ("p6", "core"), ("p2", "enabler"),
                                                      ("p4", "adopter"), ("p5", "unknown"), ("p7", "unknown")]
-    assert seen == [{"revenue": ["Stacks", "Storage"], "capex": ["Stacks"]}]
+    assert seen == [{"revenue": ["Stacks", "Storage"]}]  # capex links are never read: no calls for them
+
+
+@pytest.mark.asyncio
+async def test_tiers_use_only_the_latest_period():  # review fold-in: years are not added up
+    from arp.schemas.revenue_exposure import ActivityCatalogueMapping
+    from arp.schemas.thematic import ThemeDefinition
+
+    segments = {"p1": [_seg("p1", "Stacks", pct=0.3, period="2023"), _seg("p1", "Stacks", pct=0.3, period="2024")]}
+
+    async def mapper(theme, labels_by_metric, llm):
+        return [ActivityCatalogueMapping(activity_id="a1", metric="revenue", matched_labels=["Stacks"])], None
+
+    definition = ThemeDefinition(name="H", description="", activities=[_ACT])
+    [m] = await pick_mod.tiers(definition, [_m("p1")], segments, None, mapper)
+    assert m.tier == "enabler"
 
 
 @pytest.mark.asyncio

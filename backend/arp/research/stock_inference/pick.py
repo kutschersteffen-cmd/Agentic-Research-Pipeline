@@ -250,10 +250,11 @@ async def map_stocks(profiles: list[StockProfile], activities: list[ActivityDefi
         a, own = by_id.get(p.company_id), chunks.get(p.company_id, [])
         docs = {ch.chunk_id: SourceDocument(doc_id=ch.chunk_id, company_id=ch.company_id, doc_type=ch.doc_type,
                                             title=ch.doc_id, full_text=ch.text) for ch in own}
-        grounded = a is not None and a.quote.strip() and (a.activity_id in ids or a.activity_id == "none") and any(
-            c.grounded for c in ground_citations([Citation(doc_id=ch.chunk_id, doc_type=ch.doc_type, quote=a.quote)
-                                                  for ch in own], docs, fuzzy_threshold))
-        if grounded:
+        answered = a is not None and bool(a.quote.strip())
+        known = answered and (a.activity_id in ids or a.activity_id == "none")
+        quoted = known and any(c.grounded for c in ground_citations(
+            [Citation(doc_id=ch.chunk_id, doc_type=ch.doc_type, quote=a.quote) for ch in own], docs, fuzzy_threshold))
+        if quoted:
             mapping.append(Mapping(company_id=p.company_id, activity_id=None if a.activity_id == "none" else a.activity_id,
                                    reason=a.reason, quote=a.quote, tier="unknown"))
         else:
@@ -282,23 +283,27 @@ def _tier(share: float) -> str:
     return "core" if share >= 0.5 else "enabler" if share >= 0.2 else "adopter"
 
 
+def _latest_period(rows: list) -> list:
+    """Only the latest `period`'s rows (string max), so shares from several years are not added up."""
+    latest = max((r.period for r in rows), default="")
+    return [r for r in rows if r.period == latest]
+
+
 async def tiers(theme_definition: ThemeDefinition, mapping: list[Mapping], segments: dict, llm, mapper
                 ) -> list[Mapping]:
     """Company tier from the share of its revenue in segment labels the mapper links to its mapped activity."""
     if not segments:
         return mapping
-    labels: dict[str, set[str]] = {}
-    for cid in segments:
-        for r in _segment_rows(segments[cid]):
-            labels.setdefault(r["metric"], set()).add(r["label"])
-    links, _ = await mapper(theme_definition, {m: sorted(ls) for m, ls in labels.items()}, llm)
-    linked = {(x.activity_id, x.metric): set(x.matched_labels) for x in links}
+    revenue = {cid: [r for r in _segment_rows(_latest_period(rows)) if r["metric"] == "revenue"]
+               for cid, rows in segments.items()}
+    labels = sorted({r["label"] for rows in revenue.values() for r in rows})
+    links, _ = await mapper(theme_definition, {"revenue": labels}, llm) if labels else ([], None)
+    linked = {x.activity_id: set(x.matched_labels) for x in links if x.metric == "revenue"}
     out = []
     for m in mapping:
-        rows = [r for r in _segment_rows(segments.get(m.company_id, []))
-                if r["metric"] == "revenue" and r["share"] is not None]
+        rows = [r for r in revenue.get(m.company_id, []) if r["share"] is not None]
         if m.activity_id is not None and rows:
-            mine = linked.get((m.activity_id, "revenue"), set())
+            mine = linked.get(m.activity_id, set())
             m = m.model_copy(update={"tier": _tier(sum(r["share"] for r in rows if r["label"] in mine))})
         out.append(m)
     return out
