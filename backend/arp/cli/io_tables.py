@@ -157,3 +157,28 @@ def links_classify(
         raise typer.Exit(1) from exc
     classified, unlinked = asyncio.run(classify_unlinked(store, portfolio, as_of, model, build_llm_client(settings)))
     typer.echo(f"{classified} classified, {unlinked} left unlinked")
+
+
+@io_app.command("migrate-exiobase")
+def io_migrate_exiobase(
+    file: Path = typer.Option(None, "--file", exists=True, dir_okay=False, help="Convert this one theme, taxonomy or run theme.json file in place."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Print what would change, write nothing."),
+) -> None:
+    """One-off: converts stored ICIO codes (taxonomies, link rules) to EXIOBASE sector names."""
+    from arp.research.indirect_exposure import migrate
+
+    try:
+        if file is not None:
+            plan = migrate.plan_file(file, str(file))
+        else:
+            from arp.cli._shared import _portfolio_store, _taxonomy_store
+
+            plan = migrate.plan_all(_taxonomy_store().taxonomies_dir, _portfolio_store())
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    for line, write in plan:
+        typer.echo(line)
+        if not dry_run:
+            write()
+    typer.echo(f"{len(plan)} changed")
