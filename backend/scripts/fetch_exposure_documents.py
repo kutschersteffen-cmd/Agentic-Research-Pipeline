@@ -31,7 +31,7 @@ def main() -> int:
                 continue
             name = Path(urlparse(doc["url"]).path).name or "document.pdf"
             dest = args.out / case["case_id"] / _DOC_TYPE.get(doc.get("kind", ""), "other") / name
-            if dest.exists():
+            if dest.exists() or any(dest.parent.glob(f"{dest.name}.*")):
                 continue
             try:
                 r = client.get(doc["url"])
@@ -40,6 +40,9 @@ def main() -> int:
                 print(f"{case['case_id']}: {exc}", file=sys.stderr)
                 failed += 1
                 continue
+            if not dest.suffix:  # URL without an extension: take it from the response type, or the parser rejects it
+                kind = r.headers.get("content-type", "").split(";")[0].strip()
+                dest = dest.with_suffix({"application/pdf": ".pdf", "text/html": ".html"}.get(kind, ".html"))
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(r.content)
             print(f"{case['case_id']}: {dest}")
