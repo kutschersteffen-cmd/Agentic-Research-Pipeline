@@ -192,3 +192,14 @@ def test_memo_keyed_by_text_not_only_chunk_id(monkeypatch):
     a = funnel.passage_vectors(funnel.chunks_for([_doc(0, "First text.")]), None)
     b = funnel.passage_vectors(funnel.chunks_for([_doc(0, "Second text.")]), None)
     assert not np.allclose(next(iter(a.values())), next(iter(b.values())))
+
+
+def test_long_chunk_split_into_three_sentence_passages(monkeypatch):  # NLI saturates on long chunks
+    text = "One a. Two b. Three c. Four d. Five e. Six f. Seven g."
+    rows = {"One a. Two b. Three c.": (0.9, 3.0, {POS: 0.9}), "Four d. Five e. Six f.": (0.8, 2.0, {POS: 0.9}),
+            "Seven g.": (0.7, 1.0, {POS: 0.9})}
+    stub(monkeypatch, rows)
+    r = funnel.score_pair([_doc(0, text)], ACT, TH)
+    assert r.passages_scored == 3
+    assert r.best_passage == "One a. Two b. Three c."
+    assert r.best_doc_id == "d0"

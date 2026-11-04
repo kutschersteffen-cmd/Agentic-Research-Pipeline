@@ -4,6 +4,7 @@ only runs for pairs whose documents actually state the activity (spec 2026-11-01
 from __future__ import annotations
 
 import hashlib
+import re
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -62,9 +63,22 @@ def funnel_query(theme: ThemeDefinition | None, activity: ActivityDefinition) ->
     )
 
 
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+_PASSAGE_SENTENCES = 3  # NLI entailment saturates on whole chunks; 3-sentence passages keep statements apart
+
+
 def chunks_for(documents: list[SourceDocument]) -> list[DocumentChunk]:
-    """Every chunk of every document, no keyword filter."""
-    return [c for doc in documents for c in chunk_document(doc)]
+    """The funnel's passages: every chunk of every document (no keyword filter), split into 3-sentence windows."""
+    out: list[DocumentChunk] = []
+    for chunk in (c for doc in documents for c in chunk_document(doc)):
+        sentences = [x for x in _SENTENCE_END.split(chunk.text) if x.strip()]
+        if len(sentences) <= _PASSAGE_SENTENCES:
+            out.append(chunk)
+            continue
+        for n, i in enumerate(range(0, len(sentences), _PASSAGE_SENTENCES)):
+            text = " ".join(sentences[i:i + _PASSAGE_SENTENCES])
+            out.append(chunk.model_copy(update={"chunk_id": f"{chunk.chunk_id}#s{n}", "text": text}))
+    return out
 
 
 # Without Postgres, vectors are kept in-process so each document embeds once per company, not once per activity.
