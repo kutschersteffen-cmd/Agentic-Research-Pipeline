@@ -92,3 +92,8 @@ def test_load_segments_and_shares(tmp_path):
     assert out["segments"] == [{"label": "Electrolysers", "metric": "revenue", "value": 40.0, "unit": "USD",
                                 "period": "2024", "share": 0.4}]
     assert out["facts"] == [] and out["codes"] == {}
+
+
+def test_blank_nace_code_maps_to_no_sector():
+    stock = InferStock(company_id="x", name="Nel ASA", codes={"nace": "  ", "nace_rev2.1": ""})
+    assert stored_data(None, stock, None, {})["exiobase"] == []

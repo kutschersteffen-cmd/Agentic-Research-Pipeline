@@ -70,7 +70,7 @@ def stored_data(
         facts = _latest_per_field(session, company_id)
     exiobase: set[str] = set()
     for key, code in stock.codes.items():
-        if key.lower().startswith("nace"):
+        if key.lower().startswith("nace") and code.strip():  # a blank code would match every sector
             exiobase |= nace_sectors(code, "2.1" if "2.1" in key else "2")
     return {"codes": codes, "exiobase": sorted(exiobase), "facts": facts,
             "segments": _segment_rows(segments.get(stock.company_id, []))}
