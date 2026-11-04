@@ -43,12 +43,15 @@ def _taxonomy(version=1, status=TaxonomyStatus.RATIFIED, keywords=None) -> Taxon
 # --- build_taxonomy_schema ---------------------------------------------------
 
 def test_schema_has_four_fields_per_activity_in_order():
+    # Changed with the stage-evidence spec: the 4 percentage fields now lead each activity's 16 fields.
     schema = build_taxonomy_schema(_taxonomy())
     assert (schema.schema_id, schema.name, schema.description) == ("sch_tax_a_v1", "Grid v1", "Generated from taxonomy tax_a v1.")
-    assert [f.field_id for f in schema.fields] == [
+    pct = [f for f in schema.fields if f.field_id.endswith("_pct")]
+    assert [f.field_id for f in pct] == [
         f"tax_a_{a}_{m}_pct" for a in ("act_1", "act_2") for m in ("revenue", "capex", "opex", "rd")
     ]
-    assert {(f.data_type.value, f.unit, f.required, f.version) for f in schema.fields} == {("percentage", "%", False, 1)}
+    assert [f.field_id for f in schema.fields[:4]] == [f.field_id for f in pct[:4]]
+    assert {(f.data_type.value, f.unit, f.required, f.version) for f in pct} == {("percentage", "%", False, 1)}
     assert [f.name for f in schema.fields[:4]] == [
         "HV cables: revenue share", "HV cables: CapEx share", "HV cables: OpEx share", "HV cables: R&D intensity",
     ]
@@ -122,7 +125,7 @@ def test_ratify_registers_the_schema_and_never_fails_because_of_it(api, monkeypa
     res = client.post(f"/api/taxonomies/{tid}/ratify", json={"version": 2})
     assert res.status_code == 200 and res.json()["status"] == "ratified"
     schema = client.get(f"/api/taxonomies/{tid}/versions/2/schema").json()
-    assert len(schema["fields"]) == 4 and {f["version"] for f in schema["fields"]} == {2} and schema["release_flag"] is False
+    assert len(schema["fields"]) == 16 and {f["version"] for f in schema["fields"]} == {2} and schema["release_flag"] is False  # 4 pct + 12 stage-evidence fields
 
     monkeypatch.setattr(SchemaRegistry, "save", lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("no db")))
     assert client.post(f"/api/taxonomies/{tid}/ratify", json={"version": 1}).status_code == 200
