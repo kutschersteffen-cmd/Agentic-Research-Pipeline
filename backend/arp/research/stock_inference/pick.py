@@ -14,6 +14,7 @@ from arp.research.revenue_exposure.mapping import suggest_catalogue_mapping
 from arp.research.stock_inference.profile import _ref, description_chunks
 from arp.research.stock_inference.run import InferFailed, WrongStage, _save, load_run, read_methodology
 from arp.research.stock_inference.schemas import InferRun, InferStock, Theme
+from arp.research.stock_inference.selection import load_stocks
 from arp.research.stock_inference.stored import load_segments
 from arp.schemas.common import DocumentChunk
 from arp.schemas.taxonomy import DerivationMethod
@@ -24,13 +25,23 @@ async def _not_yet(*_args, **_kwargs):  # the step defaults until Tasks 3-6 impl
     raise NotImplementedError("This pick step is not implemented yet.")
 
 
-async def supporting_chunks(run: InferRun, theme: Theme, registry: DocumentSourceRegistry) -> dict[str, list[DocumentChunk]]:
-    """Description chunks of every described stock (supporting the theme or not), keyed by company_id."""
+async def supporting_chunks(
+    run: InferRun, theme: Theme, registry: DocumentSourceRegistry, *, stocks: dict[str, InferStock] | None = None,
+    limit: int = 4,
+) -> dict[str, list[DocumentChunk]]:
+    """Description chunks of every described stock (supporting the theme or not), keyed by company_id.
+
+    `stocks` (the run's stocks file) supplies ticker/lei/cik, which profiles do not keep and EDGAR needs."""
     described = [p for p in run.profiles if p.description]
-    # shortcut: profiles keep no ticker/lei/cik, so sources keyed only by those miss; store them if that bites
-    docs = await asyncio.gather(*(registry.fetch_all(_ref(InferStock(company_id=p.company_id, name=p.name,
-                                                                     isin=p.isin, sedol=p.sedol)))
-                                  for p in described))
+    gate = asyncio.Semaphore(limit)
+
+    async def fetch(p):
+        stock = (stocks or {}).get(p.company_id) or InferStock(company_id=p.company_id, name=p.name, isin=p.isin,
+                                                               sedol=p.sedol)
+        async with gate:
+            return await registry.fetch_all(_ref(stock))
+
+    docs = await asyncio.gather(*(fetch(p) for p in described))
     return {p.company_id: description_chunks(d) for p, d in zip(described, docs, strict=True)}
 
 
@@ -56,7 +67,10 @@ async def pick(
         params = run_store.load_manifest(run_id).params
         sources, segments_path = params.get("methodology") or [], params.get("segments")
         segments = load_segments(Path(segments_path)) if segments_path else {}
-        chunks = await supporting_chunks(run, theme, registry)
+        stocks_path = Path(params["stocks"]) if params.get("stocks") else None
+        stocks = load_stocks(stocks_path)[0] if stocks_path and stocks_path.exists() else []
+        chunks = await supporting_chunks(run, theme, registry, stocks={s.company_id: s for s in stocks},
+                                         limit=settings.max_concurrent_downloads)
         supporting = {c: ch for c, ch in chunks.items() if c in theme.supporting}
         other = {c: ch for c, ch in chunks.items() if c not in theme.supporting}
 

@@ -135,3 +135,52 @@ async def test_step_failure_marks_run_failed(ctx):
     manifest = store.load_manifest(run_id)
     assert manifest.status == JobStatus.FAILED and manifest.error == "RuntimeError: model down"
     assert tax.list_all() == []
+
+
+@pytest.mark.asyncio
+async def test_pick_fetches_with_the_stocks_file_identifiers(ctx, tmp_path):  # review fix: EDGAR needs ticker/cik
+    from arp.ingestion.base import DocumentSource
+
+    run_id, store, tax, kw = ctx
+
+    class _EdgarLike(DocumentSource):
+        name = "edgar_like"
+        refs = []
+
+        async def fetch(self, company, doc_types=None):
+            self.refs.append(company)
+            return [_doc(f"D{company.company_id}", company.company_id)] if company.ticker or company.cik else []
+
+    stocks = tmp_path / "fund.csv"
+    stocks.write_text("company_id,name,ticker\ns1,Stock s1,AAA\n")  # s2 is missing from the file: profile fallback
+    manifest = store.load_manifest(run_id)
+    manifest.params["stocks"] = str(stocks)
+    store.save_manifest(manifest)
+    _save(_run(run_id), store)
+    source = _EdgarLike()
+    calls = []
+    await pick_mod.pick(run_id, 1, **{**kw, "registry": DocumentSourceRegistry([source])}, **fake_steps(calls))
+    assert ("keywords", ["s1"], ["s2"]) in calls
+    assert {r.company_id: r.ticker for r in source.refs} == {"s1": "AAA", "s2": None}
+    chunks = await pick_mod.supporting_chunks(_run(run_id), None, DocumentSourceRegistry([source]))
+    assert not chunks["s1"] and not chunks["s2"]  # without the stocks file neither ref carries a ticker
+
+
+@pytest.mark.asyncio
+async def test_supporting_chunk_fetches_are_bounded():  # review fix: like _benchmark_chunks (F10)
+    import asyncio
+
+    class _Registry:
+        live = peak = 0
+
+        async def fetch_all(self, ref):
+            self.live += 1
+            self.peak = max(self.peak, self.live)
+            await asyncio.sleep(0.01)
+            self.live -= 1
+            return []
+
+    run = _run("r1").model_copy(update={"profiles": [_profile(f"s{i}") for i in range(6)]})
+    reg = _Registry()
+    await pick_mod.supporting_chunks(run, None, reg, limit=2)
+    assert reg.peak == 2
