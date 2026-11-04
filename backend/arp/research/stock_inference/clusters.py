@@ -41,17 +41,18 @@ def build_clusters(
     if not by_label:
         return []
 
-    ids = sorted(by_label)
+    # Renumber by smallest member so ids don't depend on HDBSCAN's label order.
+    ids = sorted(by_label, key=lambda i: sorted({s for s, _ in by_label[i]}))
     docs = [" ".join(t for _, t in by_label[i]) for i in ids]
     bench_doc = " ".join(c.text for c in benchmark_chunks)
     terms = _top_terms(docs + [bench_doc] if bench_doc else docs, top_n=10)[: len(ids)]
 
     total = sum(weights.get(s) or 0.0 for s in chunks_by_stock)
     out = []
-    for i, t in zip(ids, terms, strict=True):
+    for new_id, (i, t) in enumerate(zip(ids, terms, strict=True)):
         members = sorted({s for s, _ in by_label[i]})
         share = None
         if total and any(weights.get(s) is not None for s in members):
             share = sum(weights.get(s) or 0.0 for s in members) / total
-        out.append(Cluster(cluster_id=i, terms=t, members=members, weight_share=share))
+        out.append(Cluster(cluster_id=new_id, terms=t, members=members, weight_share=share))
     return out

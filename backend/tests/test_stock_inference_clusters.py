@@ -37,8 +37,8 @@ def test_ac25_two_clusters():
     chunks, embed = _fixture()
     out = build_clusters(chunks, {"s1": 1.0, "s2": 1.0, "s3": 2.0}, [], embed=embed)
     assert [c.cluster_id for c in out] == sorted(c.cluster_id for c in out)
-    # HDBSCAN label numbering is arbitrary, so compare membership order-free.
-    assert sorted(c.members for c in out) == [["s1", "s2"], ["s3"]]
+    assert [c.cluster_id for c in out] == [0, 1]
+    assert [c.members for c in out] == [["s1", "s2"], ["s3"]]
     assert all(len(c.terms) == 10 for c in out)
     assert [c.weight_share for c in out] == [0.5, 0.5]
 
@@ -66,5 +66,5 @@ def test_unweighted_share_none_and_benchmark_not_member():
     chunks, embed = _fixture()
     with_b = build_clusters(chunks, {}, bench, embed=embed)
     assert all(c.weight_share is None for c in plain)
-    assert sorted(c.members for c in with_b) == [["s1", "s2"], ["s3"]]
+    assert [c.members for c in with_b] == [["s1", "s2"], ["s3"]]
     assert [c.terms for c in plain] != [c.terms for c in with_b]
