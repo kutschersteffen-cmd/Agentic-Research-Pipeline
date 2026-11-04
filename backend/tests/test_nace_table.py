@@ -4,10 +4,12 @@ from pathlib import Path
 from arp.research.indirect_exposure.nace import (
     _SECTORS,
     isic_to_nace2,
+    nace2_to_isic4,
     nace_known,
     nace_sectors,
     nace_title,
     normalise_nace,
+    sector_nace2_codes,
 )
 
 _ICIO = _SECTORS.parent.parent / "migrate" / "exiobase_ixi_to_icio2025.csv"
@@ -78,7 +80,5 @@ def test_known_and_title():
 
 
 def test_sector_nace2_codes_and_isic4():
-    from arp.research.indirect_exposure.nace import nace2_to_isic4, sector_nace2_codes
-
     assert sector_nace2_codes("Copper production") == ["24.44"]
     assert nace2_to_isic4("24.44") == ["2420"]

@@ -50,7 +50,9 @@ def convert_theme(theme: dict) -> bool:
 
 
 def convert_document(doc: dict) -> bool:
-    return convert_theme(doc.get("theme", doc))
+    if "theme" in doc:
+        return convert_theme(doc["theme"])
+    return convert_theme(doc)
 
 
 def convert_parts(kind: str, parts: list[dict]) -> list[dict] | None:

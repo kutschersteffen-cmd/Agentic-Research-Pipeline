@@ -5,6 +5,7 @@ import pytest
 from arp.research.indirect_exposure.factory import sectors
 from arp.research.indirect_exposure.migrate import (
     UnknownIcioCode,
+    convert_document,
     convert_parts,
     convert_theme,
     icio_sectors,
@@ -56,3 +57,22 @@ def test_convert_parts():
     ]
     assert convert_parts("nodes", [{"region": "DE", "sector": "Copper production", "share": 1}]) is None
     assert convert_parts("split", [{"sectors": ["x"], "share": 1}]) is None
+
+
+def test_convert_document_taxonomy_and_bare_theme():
+    act = {"activity_id": "a1", "core_isic_codes": ["B07"]}
+    tax = {"theme": {"activities": [dict(act)]}}
+    assert convert_document(tax) is True
+    assert tax["theme"]["activities"][0]["core_sectors"] == icio_sectors("B07")
+    bare = {"activities": [dict(act)]}
+    assert convert_document(bare) is True
+    assert "core_isic_codes" not in bare["activities"][0]
+
+
+def test_convert_parts_llm_like_split():
+    assert convert_parts("llm", [{"icio_code": "B07", "share": 1}]) == [{"sectors": icio_sectors("B07"), "share": 1}]
+
+
+def test_convert_theme_unknown_code():
+    with pytest.raises(UnknownIcioCode):
+        convert_theme({"activities": [{"core_isic_codes": ["ZZZ"]}]})
