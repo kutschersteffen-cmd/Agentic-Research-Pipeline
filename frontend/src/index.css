@@ -1733,11 +1733,6 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .hub-chip-id { color: var(--muted); white-space: nowrap; }
 .hub-chip:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .hub-chip-wait { border-color: var(--hi); }
-.hub-now-all { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text); }
-.hub-engagement { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-3); margin: var(--s-3) 0 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--muted); }
-.hub-engagement a { color: var(--text); }
-/* Standalone links: padding lifts the hit area past 24px (WCAG 2.5.8). */
-.hub-now-all, .hub-engagement a { display: inline-block; padding-block: var(--s-1_5); }
 
 /* Below 1400px the purpose line repeats the sidebar; drop it so the cards stop owning the fold. */
 /* Five across, the bottom lines wrap unevenly; reserve two lines each so every card's dots sit on one row. */
@@ -1751,41 +1746,15 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
   .hub-card:last-child:nth-child(odd) { grid-column: auto; }
   .hub-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
   .hub-stats dd { font-size: 2rem; }
-  .hub-now-all { margin-left: 0; }
   /* The chip's three parts wrap as words on a phone, not as three ragged columns. */
   .hub-chip { display: flex; flex-wrap: wrap; column-gap: var(--s-1_5); padding: var(--s-2) var(--s-3); }
 }
 
-.hub-legend { display: flex; flex-wrap: wrap; gap: var(--s-1_5) var(--s-4); font-size: var(--text-xs); margin: 0 0 var(--s-3); }
+.hub-legend { display: flex; flex-wrap: wrap; gap: var(--s-1_5) var(--s-4); font-size: var(--text-xs); margin: var(--s-3) 0 0; }
 .hub-legend > span { display: inline-flex; align-items: center; gap: var(--s-1_5); }
 
-/* Start page: what waits on a person, one row per place it waits, before the workspace boxes. */
-.needs-you { margin: 0 0 var(--s-6); }
-.needs-you h2 { margin: 0 0 var(--s-2); font-size: var(--text-lg); }
-.needs-you-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--panel-border); border-radius: var(--r-md); background: var(--panel); }
-.needs-you-list li { display: flex; flex-wrap: wrap; align-items: center; }
-.needs-you-list li > a { flex: 1 1 0; min-width: 0; }
-.needs-you-list li > button { margin: 0 var(--s-3); }
-.needs-you-list li > p { flex-basis: 100%; margin: 0; padding: 0 var(--s-3) var(--s-2); }
-.needs-you-list li + li { border-top: 1px solid var(--panel-border); }
-.needs-you-list a { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) auto auto; align-items: baseline; gap: var(--s-3); padding: var(--s-2) var(--s-3); color: inherit; text-decoration: none; }
-.needs-you-list a:hover { background: var(--well); }
-.needs-you-list a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.needs-you-count { font-family: var(--font-mono); font-weight: 600; text-align: right; color: var(--text); }
-.needs-you-meta { color: var(--muted); font-size: var(--text-sm); white-space: nowrap; }
-.needs-you-failed .needs-you-count { color: var(--low); }
-.needs-you-go { font-family: var(--font-mono); font-size: var(--text-sm); white-space: nowrap; }
-/* A failed row's action is Resume; a second link-like label beside it competes. */
-.needs-you-failed .needs-you-go { visibility: hidden; }
-.needs-you-list a:hover .needs-you-go { text-decoration: underline; text-underline-offset: 0.2em; }
 .hub-counts { margin-top: var(--s-2); max-width: 60ch; font-size: var(--text-sm); color: var(--muted); }
 .hub-counts summary { cursor: pointer; color: var(--text); width: fit-content; }
-/* Below 1100px the source line moves under the decision instead of squeezing it. */
-@media (max-width: 1100px) {
-  .needs-you-list a { grid-template-columns: 2.5rem minmax(0, 1fr); }
-  .needs-you-meta { grid-column: 2; white-space: normal; }
-  .needs-you-go { display: none; }
-}
 .hub-run { margin: 0 0 var(--s-3); }
 /* On a phone the note goes under the button instead of wrapping around it. */
 @media (max-width: 640px) { .hub-run > .muted { display: block; margin-top: var(--s-2); } }
