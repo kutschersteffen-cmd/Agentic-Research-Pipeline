@@ -1,6 +1,6 @@
 # Reverse-engineering a stock set: index rules and taxonomy (layers 1 and 2)
 
-Spec slug: `taxonomy-from-stocks`. Status: draft for owner approval. Date: 2026-11-04.
+Spec slug: `taxonomy-from-stocks`. Status: approved by the owner 2026-11-04. Date: 2026-11-04.
 Flow chart: https://claude.ai/artifact/Tkfn4D19rhRXHfApew9NwV. Findings that led here:
 `docs/golden_drafts/taxonomy_methods_etf_empirical_review.md`.
 
