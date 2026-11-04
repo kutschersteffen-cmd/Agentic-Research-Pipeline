@@ -1,6 +1,6 @@
 # Start page: workspace cards as navigation
 
-Status: approved by owner 2026-11-03. Follows four `/impeccable critique` runs of the start page (27, 26, 27, 26 out of 40).
+Status: approved by owner 2026-11-03. Amended 2026-11-04 at the owner's request: the Needs you list, the Engagement line and the "All runs →" link leave the start page; the dot legend moves below the cards. Follows four `/impeccable critique` runs of the start page (27, 26, 27, 26 out of 40).
 
 ## Why
 
@@ -60,11 +60,13 @@ Unless stated, a run's `review_count` is 0 and `flow` is `{ stages: [] }`. A sta
 | AC-21 | down | `cardView` runs for Argus | `label` is exactly `"Argus. Extract and score: status unknown; XBRL facts: status unknown"`. | unit |
 | AC-15 | the app started by `backend/scripts/e2e_stack.sh up` | the start page `#/home` loads at 1440×900 | Inside `.hub-cards`, no element's text contains "waiting on you", "failed", "running", "Nothing waiting", "Status unknown" or "Listed under Needs you". | evaluator |
 | AC-16 | the same app | the start page loads | Each `.hub-card-foot` element's text is exactly "Open →". | evaluator |
-| AC-17 | the same app | the start page loads | Let N be the sum of the integers in every `.needs-you-count` element (0 if none). The second `<span>` of the `h1` in `.hub-hero` reads "N decisions wait on you." for N ≥ 2, "1 decision waits on you." for N = 1, "Nothing waits on you." for N = 0 (unchanged). | evaluator |
+| ~~AC-17~~ | | | ~~Headline equals the sum of `.needs-you-count`.~~ Retired 2026-11-04: the Needs you list was removed; AC-23 replaces it. | |
 | AC-18 | the same app | the start page loads | The `.hub-stats` row still shows the four labels "waiting on you", "running", "failed this week", "done today" (unchanged). | evaluator |
-| AC-19 | the same app | the start page loads | A `.hub-now` element is present and its first text is "Now", and a `.hub-engagement` element is present (unchanged). | evaluator |
+| ~~AC-19~~ | | | ~~`.hub-now` and `.hub-engagement` present.~~ Retired 2026-11-04: the Engagement line was removed; AC-24 replaces it. | |
 | AC-22 | the same app | the start page loads | Every `.hub-card` that contains a `.hub-dot-wait` dot has the class `hub-card-await`; every `.hub-card` without one does not. | evaluator |
 | AC-20 | this PR's DESIGN.md | it is read | The Process Card section does not contain "a status in the signal colour when someone is needed". | unit |
+| AC-23 | the same app | the start page loads | The page has no element with text "Needs you" outside the sidebar, and no `.needs-you` element. | evaluator |
+| AC-24 | the same app | the start page loads | A `.hub-now` element is present and its first text is "Now"; no `.hub-engagement` element and no link with text "All runs →" or "Open Engagement →" is on the page. | evaluator |
+| AC-25 | the same app | the start page loads | The `.hub-legend` element comes after `.hub-cards` in document order. | evaluator |
 
-Must not change: the headline count (AC-17), the stats row (AC-18), the Now row and Engagement line (AC-19). Needs you is
-untouched by this change; its existing tests cover it.
+Must not change: the stats row (AC-18) and the Now row (AC-24).
