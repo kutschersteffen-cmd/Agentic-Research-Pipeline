@@ -209,7 +209,7 @@ class EdgarDocumentSource(DocumentSource):
 
         index_document_if_enabled(
             self._indexing_config, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=full_text,
-            fiscal_period=fiscal_period,
+            fiscal_period=fiscal_period, content_key=content_key, parser_version=_edgar_parser_version(),
         )
 
         if raw_bytes is not None:

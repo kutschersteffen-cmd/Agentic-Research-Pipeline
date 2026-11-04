@@ -93,3 +93,22 @@ def test_registry_builds_trees_with_tree_context(standins, tmp_path):
     assert _calls(standins) == [] and doc_tree.tree_for(doc, get_settings()) is None
     asyncio.run(DocumentSourceRegistry([_One()], _on()).fetch_all(company))
     assert doc_tree.tree_for(doc, get_settings()) is not None
+
+
+def test_input_hash_changes_only_with_tree_context_on():
+    from arp.extraction.pipeline import input_settings
+
+    off = input_settings(Settings(anthropic_api_key="x"))
+    assert "tree_context_enabled" not in off
+    assert input_settings(Settings(anthropic_api_key="x", tree_context_enabled=True)) != off
+    assert input_settings(Settings(anthropic_api_key="x", tree_context_enabled=True, context_headers_enabled=False)) == \
+        input_settings(Settings(anthropic_api_key="x", context_headers_enabled=False))
+
+
+def test_unreadable_tree_falls_back_to_headers_only(standins, monkeypatch):
+    from arp.retrieval import index_text as module
+
+    doc = _tree_doc()
+    chunk = chunk_document(doc)[0]
+    monkeypatch.setattr(module, "tree_for", lambda *a: (_ for _ in ()).throw(RuntimeError("database is locked")))
+    assert index_text(chunk, doc, _on()) == _headers_only(chunk, doc)

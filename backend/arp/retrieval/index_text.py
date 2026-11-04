@@ -3,10 +3,14 @@
 
 from __future__ import annotations
 
+import logging
+
 from arp.config import Settings
 from arp.ingestion.doc_tree import DocTree, node_for, tree_for
 from arp.ingestion.outline import heading_path
 from arp.schemas.common import DocumentChunk, SourceDocument
+
+logger = logging.getLogger(__name__)
 
 
 def index_text(chunk: DocumentChunk, doc: SourceDocument, settings: Settings) -> str:
@@ -20,7 +24,12 @@ def index_texts(chunks: list[DocumentChunk], doc: SourceDocument, settings: Sett
     """`index_text` for each chunk of one document, reading its stored tree once."""
     if not settings.context_headers_enabled:
         return [c.text for c in chunks]
-    tree = tree_for(doc, settings) if settings.tree_context_enabled and chunks else None
+    tree = None
+    if settings.tree_context_enabled and chunks:
+        try:
+            tree = tree_for(doc, settings)
+        except Exception:  # noqa: BLE001 - the tree only adds ranking words; never fail the field over it
+            logger.warning("Document tree unreadable for %s; indexing without tree context", doc.doc_id, exc_info=True)
     return [_index_text(c, doc, tree) for c in chunks]
 
 

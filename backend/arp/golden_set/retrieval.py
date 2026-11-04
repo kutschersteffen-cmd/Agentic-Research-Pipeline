@@ -221,6 +221,7 @@ def _parse(path: Path, company_id: str, store: DocumentContentStore) -> SourceDo
         doc_id=derive_doc_id(company_id, doc_type.value, parsed.content_key), company_id=company_id,
         doc_type=doc_type, title=path.name, local_path=str(path), full_text=parsed.full_text,
         page_breaks=parsed.page_breaks, table_spans=parsed.table_spans, language=language, decimal=decimal_for(language),
+        content_key=parsed.content_key, parser_version=parser_version(),  # the key the app stores its tree under
     )
 
 
