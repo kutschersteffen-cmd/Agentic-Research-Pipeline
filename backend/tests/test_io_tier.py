@@ -49,7 +49,7 @@ def _round(v):
 
 
 def test_reference_files():
-    rows = list(csv.DictReader((REFERENCE_DIR / "exiobase_ixi_to_icio2025.csv").open()))
+    rows = list(csv.DictReader((REFERENCE_DIR.parent / "migrate" / "exiobase_ixi_to_icio2025.csv").open()))
     assert len(rows) == 163
     assert [rows[k - 1]["icio_code"] for k in (87, 88, 89, 100, 108, 133, 55, 163)] == ["C26", "C27", "C26", "D", "D", "J62_63", "C17_18", "O"]
     assert len(list(csv.DictReader((REFERENCE_DIR / "ghg_gwp100.csv").open()))) == 23

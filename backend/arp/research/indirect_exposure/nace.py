@@ -7,9 +7,12 @@ import re
 from functools import cache
 from pathlib import Path
 
+from arp.research.value_chain.model import sector_name
+
 _REF = Path(__file__).resolve().parent.parent
 _SECTORS = _REF / "indirect_exposure" / "reference" / "exiobase_nace.csv"
 _ISIC_NACE = _REF / "standards_mapping" / "reference" / "un_isic4_nace2.csv"
+_NACE_ISIC = _REF / "standards_mapping" / "reference" / "un_nace2_isic4.csv"
 _NACE_REVS = _REF / "standards_mapping" / "reference" / "eurostat_nace2_nace21.csv"
 
 
@@ -55,6 +58,10 @@ def isic_to_nace2(isic4: str) -> list[str]:
     return sorted({r["NACE2code"] for r in _rows(_ISIC_NACE) if r["ISIC4code"] == isic4})
 
 
+def nace2_to_isic4(code: str) -> list[str]:
+    return sorted({r["ISIC4code"] for r in _rows(_NACE_ISIC) if r["NACE2code"] == code})
+
+
 @cache
 def _sector_rows() -> list[dict[str, str]]:
     return _rows(_SECTORS)
@@ -73,3 +80,7 @@ def nace_sectors(code: str, rev: str) -> set[str]:
 
 def division_sectors(division: str) -> set[str]:
     return nace_sectors(division, "2")
+
+
+def sector_nace2_codes(sector: str) -> list[str]:
+    return sorted({r["nace2_code"] for r in _sector_rows() if sector_name(r["exiobase_sector"]) == sector and r["nace2_code"]})

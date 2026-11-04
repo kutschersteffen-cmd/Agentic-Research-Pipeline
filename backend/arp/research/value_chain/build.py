@@ -186,7 +186,7 @@ def build_full(zip_path: Path, out: Path, label: str | None = None) -> list[str]
         raise ValueError(f"{out} is the current directory or a parent of it")
     if out.exists() and not (out.is_dir() and (not any(out.iterdir()) or (out / "manifest.json").is_file())):
         raise ValueError(f"{out} is not empty and is not a build-full output")
-    crosswalk = {r["exiobase_sector"]: r["icio_code"] for r in _read_reference("exiobase_ixi_to_icio2025.csv")}
+    crosswalk = {r["exiobase_sector"]: r["icio_code"] for r in _read_reference("../migrate/exiobase_ixi_to_icio2025.csv")}
     gwp = {r["stressor"]: float(r["factor"]) for r in _read_reference("ghg_gwp100.csv")}
     with zipfile.ZipFile(zip_path) as zf:
         try:

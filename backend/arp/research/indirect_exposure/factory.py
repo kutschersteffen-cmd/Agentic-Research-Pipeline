@@ -43,7 +43,7 @@ def code_list() -> CodeList:
     icio = _read_reference("icio2025_industries.csv")
     codes = [r["code"] for r in icio] + [c for c, *_ in SPLIT_INDUSTRIES]
     covers: dict[str, set[str]] = {c: set() for c in codes}
-    for r in _read_reference("exiobase_ixi_to_icio2025.csv"):
+    for r in _read_reference("../migrate/exiobase_ixi_to_icio2025.csv"):
         covers[r["icio_code"]].add(r["exiobase_sector"])
         if r["split_code"] != r["icio_code"]:
             covers[r["split_code"]].add(r["exiobase_sector"])
@@ -55,6 +55,12 @@ def code_list() -> CodeList:
         nace_classes={c: nace.split(";") for c, _, _, nace in SPLIT_INDUSTRIES},
         prompt_codes=[r["code"] for r in icio],
     )
+
+
+@functools.cache
+def sectors() -> list[str]:
+    """The EXIOBASE sector names (suffix-free), in exiobase_nace.csv order."""
+    return list(dict.fromkeys(sector_name(r["exiobase_sector"]) for r in _read_reference("exiobase_nace.csv")))
 
 
 _load_lock = threading.Lock()  # lru_cache lets concurrent misses each load L
