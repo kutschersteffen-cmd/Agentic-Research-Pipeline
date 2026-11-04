@@ -324,3 +324,35 @@ def test_cli_compares_every_combination(pg, tmp_path, local, monkeypatch):  # AC
     assert bad.exit_code == 2 and "--embed-model must be one of minilm, e5-large, bge-m3" in bad.stderr
     bad = _cli("--cases", str(cases), "--rerank-model", "foo")
     assert bad.exit_code == 2 and "--rerank-model must be one of off, cross-encoder, colbert" in bad.stderr
+
+
+def test_batches_that_came_back_stay_stored(cloud, monkeypatch):  # review: spec section 4
+    calls, _ = cloud
+    real = client.embed
+
+    def second_batch_fails(texts, model_header=None, dim=None):
+        return None if len(calls) == 1 else real(texts, model_header, dim)
+
+    monkeypatch.setattr(client, "EMBED_BATCH", 2)
+    monkeypatch.setattr(client, "embed", second_batch_fails)
+    store = _DictStore()
+    assert _rank("e5-large", store)[1]["embed_model"] == "embed"
+    assert sum(model == "intfloat/multilingual-e5-large" for _, model in store.rows) == 2
+
+
+def test_409_for_one_model_keeps_the_cross_encoder(monkeypatch, tmp_path):  # review: per-model cooldown
+    from tests.test_compute_client import Recorder, _settings
+
+    rec = Recorder()
+    rec.route(("POST", "/embed"), 409, json={"detail": "model not served"})
+    rec.route(("POST", "/rerank"), 200, json={"scores": [0.1, 0.2]})
+    monkeypatch.setattr(client, "_http", httpx.Client(transport=httpx.MockTransport(rec)))
+    monkeypatch.setattr(client, "_cooldown_until", {})
+    monkeypatch.setattr(client, "_id_token", lambda audience: "tok")
+    monkeypatch.setattr(client, "_sleep", lambda s: None)
+    settings = _settings(tmp_path)
+    monkeypatch.setattr(client, "get_settings", lambda: settings)
+    assert client.embed(["a"], E5, 1024) is None
+    assert client.embed(["a"], E5, 1024) is None
+    assert len(rec.calls(("POST", "/embed"))) == 1  # that model cools down
+    assert client.rerank_scores("q", ["a", "b"]) == [0.1, 0.2]

@@ -142,11 +142,12 @@ def _model_vector_ranking(
         with _EMBED_LOCK:
             cached = content_store.lookup_embeddings(list(keys.values()), e.hf_id)
             missing = [c for c in candidates if keys[c.chunk_id] not in cached]
-            if missing:
-                vectors = remote([passage_prefix + texts[c.chunk_id] for c in missing])
+            for start in range(0, len(missing), compute_client.EMBED_BATCH):  # each batch stored as it arrives
+                batch = missing[start : start + compute_client.EMBED_BATCH]
+                vectors = remote([passage_prefix + texts[c.chunk_id] for c in batch])
                 if vectors is None:
                     return None
-                new_vectors = {keys[c.chunk_id]: vectors[i] for i, c in enumerate(missing)}
+                new_vectors = {keys[c.chunk_id]: vectors[i] for i, c in enumerate(batch)}
                 content_store.store_embeddings(new_vectors, e.hf_id)
                 cached.update(new_vectors)
     query_vec = remote([query_prefix + query_text])

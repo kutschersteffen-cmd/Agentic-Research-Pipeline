@@ -128,10 +128,11 @@ def _reason(response: httpx.Response) -> str:
 
 
 def _post(
-    capability: str, url: str, payload: dict, timeout: float, headers: dict[str, str] | None = None
+    capability: str, url: str, payload: dict, timeout: float, headers: dict[str, str] | None = None,
+    keep: tuple[int, ...] = (404, 422),
 ) -> httpx.Response | None:
     """POST with an ID token for the service. A connect error or 429/502/503/504 is retried once.
-    Returns a 2xx, 404 or 422 response; anything else sets the cooldown and returns None."""
+    Returns a 2xx response or one whose status is in `keep`; anything else sets the cooldown and returns None."""
     reason = ""
     for attempt in range(2):
         if attempt:
@@ -149,7 +150,7 @@ def _post(
         if response.status_code in _TRANSIENT:
             reason = _reason(response)
             continue
-        if response.is_success or response.status_code in (404, 422):
+        if response.is_success or response.status_code in keep:
             return response
         _fail(capability, _reason(response))
         return None
@@ -222,10 +223,13 @@ def _models_call(path: str, payload: dict, model: str, read):
     if url is None:
         return None
     with _models_slots:
-        if _cooling("models"):
+        if _cooling("models") or _cooling(f"models:{model}"):
             return None
-        response = _post("models", f"{url}{path}", payload, MODELS_TIMEOUT_S, {"X-ARP-Model": model})
+        response = _post("models", f"{url}{path}", payload, MODELS_TIMEOUT_S, {"X-ARP-Model": model}, keep=(409,))
     if response is None:
+        return None
+    if response.status_code == 409:  # the service does not serve this model: only it cools down, not the others
+        _fail(f"models:{model}", _reason(response))
         return None
     try:
         if not response.is_success:  # 404/422 are passed through for parse only
