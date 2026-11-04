@@ -183,7 +183,7 @@ def test_golden_set_gate_output(monkeypatch, pg):  # AC-34; pg: the CLI callback
 
     monkeypatch.setattr(cli, "build_llm_client", lambda *a, **k: None)
     monkeypatch.setattr(cli, "build_verifier_llm_client", lambda *a, **k: None)
-    monkeypatch.setattr(cli, "load_golden_set_cases", lambda f: [])
+    monkeypatch.setattr(cli, "load_golden_set_cases", lambda f, **kw: [])
     monkeypatch.setattr(cli, "run_golden_set", fake_run)
     monkeypatch.setattr(cli, "gate_run", lambda *a, **k: __import__("contextlib").nullcontext())
     result = CliRunner().invoke(cli_app, ["golden-set", "run", "--gate", "on"])
