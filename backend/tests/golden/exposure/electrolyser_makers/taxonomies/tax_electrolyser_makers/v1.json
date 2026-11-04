@@ -1,0 +1,43 @@
+{
+  "taxonomy_id": "tax_electrolyser_makers",
+  "name": "Electrolyser makers",
+  "version": 1,
+  "theme": {
+    "theme_id": "theme_electrolyser_makers",
+    "name": "Electrolyser makers",
+    "description": "Golden-set taxonomy for tests/golden/exposure/electrolyser_makers.",
+    "activities": [
+      {
+        "activity_id": "act_electrolyser_making",
+        "name": "Electrolyser manufacturing",
+        "in_scope_description": "Manufactures and sells electrolysers or electrolyser stacks for producing hydrogen from water",
+        "out_of_scope_description": "Buys, operates, finances or supplies components for electrolysers made by others; makes fuel cells",
+        "seed_keywords": [
+          "electrolyser",
+          "electrolyzer",
+          "electrolysis",
+          "stack"
+        ],
+        "core_isic_codes": [],
+        "source_citation": null,
+        "standards_mapping": null,
+        "tier": "core",
+        "lifecycle_stage": null,
+        "criticality_flag": false,
+        "contrast_statements": [
+          "The company buys or operates electrolysers made by another company.",
+          "The company supplies components, materials or catalysts for electrolysers that other companies build."
+        ],
+        "human_approved": false
+      }
+    ],
+    "created_at": "2026-11-03T00:00:00Z"
+  },
+  "derivation_method": "manual",
+  "source_notes": "Hand-written for the A2 theme-funnel golden runs.",
+  "status": "draft",
+  "ratified_by": null,
+  "ratified_at": null,
+  "based_on_version": null,
+  "created_at": "2026-11-03T19:25:56.428277+00:00"
+}

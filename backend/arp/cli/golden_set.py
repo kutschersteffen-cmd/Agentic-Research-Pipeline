@@ -65,6 +65,22 @@ def exposure_split(set_dir: Path = typer.Option(..., "--set", help="Set director
     typer.echo("OK")
 
 
+@exposure_app.command("universe")
+def exposure_universe(
+    set_dir: Path = typer.Option(..., "--set", help="Set directory holding cases.json."),
+    split: str = typer.Option("all", "--split", help="tune, holdout or all."),
+    out: Path = typer.Option(..., "--out", help="Where to write the universe JSON (company_id = case_id)."),
+) -> None:
+    """The set's companies as a universe, for `arp universe narrow --cases`."""
+    from arp.golden_set.exposure import load_set
+
+    s = load_set(set_dir)
+    rows = [{"company_id": c.case_id, "name": c.company, "isin": c.isin, "nace_code": c.nace_code}
+            for c in s.cases if split == "all" or c.split == split]
+    out.write_text(json.dumps(rows, indent=2))
+    typer.echo(f"Wrote {len(rows)} companies to {out}")
+
+
 @exposure_app.command("stats")
 def exposure_stats(set_dir: Path = typer.Option(..., "--set", help="Set directory holding cases.json.")) -> None:
     """Prints tune/holdout counts per label."""
@@ -330,6 +346,10 @@ def golden_set_retrieval(
     min_recall: float = typer.Option(None, "--min-recall", min=0.0, max=1.0, help="Exit 1 if recall@evidence_max_chunks is below this."),
     hybrid: bool = typer.Option(None, "--hybrid/--no-hybrid", help="Override hybrid_retrieval_enabled."),
     rerank: bool = typer.Option(None, "--rerank/--no-rerank", help="Override rerank_enabled."),
+    tree_context: bool = typer.Option(
+        None, "--tree-context/--no-tree-context",
+        help="Override tree_context_enabled. On, each document's tree is built first (model calls unless stored).",
+    ),
     rerank_candidates: int = typer.Option(None, "--rerank-candidates", min=1, help="Override rerank_candidates."),
     embed_models: str = typer.Option(
         None, "--embed-model", help="Comma-separated embedders to compare: minilm, e5-large, bge-m3."
@@ -340,14 +360,16 @@ def golden_set_retrieval(
     out: Path = typer.Option(None, "--out", help="Also write the JSON report here (a list of reports when comparing)."),
 ) -> None:
     """Replays each reviewed field's evidence selection and reports how often it contains the span a
-    reviewer approved (recall@5 and @evidence_max_chunks), plus seconds per field. No LLM calls.
+    reviewer approved (recall@5 and @evidence_max_chunks), plus seconds per field. No LLM calls, except
+    building document trees with --tree-context.
     With --cases, the gold spans come from a committed cases file instead of a reviewed run.
     --embed-model / --rerank-model run every combination and print one line each."""
     if (run_id is None) == (cases_file is None):
         typer.echo("Pass exactly one of --cases or --run-id.", err=True)
         raise typer.Exit(2)
     settings = get_settings()
-    overrides = {"hybrid_retrieval_enabled": hybrid, "rerank_enabled": rerank, "rerank_candidates": rerank_candidates}
+    overrides = {"hybrid_retrieval_enabled": hybrid, "rerank_enabled": rerank, "rerank_candidates": rerank_candidates,
+                 "tree_context_enabled": tree_context}
     settings = settings.model_copy(update={k: v for k, v in overrides.items() if v is not None})
     compare = embed_models is not None or rerank_models is not None
     embeds = _choices(embed_models, "--embed-model", ("minilm", "e5-large", "bge-m3")) or [settings.embed_model]
@@ -383,6 +405,8 @@ def golden_set_retrieval(
     if out:
         out.write_text(json.dumps(reports if compare else reports[0], indent=2))
     report = reports[0]  # every combination ranks the same gold spans
+    if "tree_nodes" in report:
+        typer.echo(f"Tree context: {report['tree_nodes_without_summary']} of {report['tree_nodes']} nodes have no summary.", err=True)
     if report["stale_spans"]:
         typer.echo(f"Left out {report['stale_spans']} span(s) whose text no longer matches the current parse.", err=True)
     if not report["gold_spans"]:

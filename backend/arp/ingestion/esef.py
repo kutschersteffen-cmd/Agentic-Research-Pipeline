@@ -526,7 +526,8 @@ class EsefDocumentSource(DocumentSource):
         cfg = self._indexing_config
         doc_type = DocType.ANNUAL_REPORT_10K
         index_document_if_enabled(
-            cfg, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=text, fiscal_period=fiscal_period
+            cfg, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=text, fiscal_period=fiscal_period,
+            content_key=content_key, parser_version=esef_parser_version(),
         )
         storage_uri = upload_or_fail(blob_store_for(cfg), content_key, raw)
         self._content_store.set_storage_uri(doc_id, storage_uri)

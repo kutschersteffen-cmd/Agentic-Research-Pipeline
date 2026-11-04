@@ -169,6 +169,12 @@ class Settings(BaseSettings):
         description="Build and store each fetched document's section tree with model-written summaries and key "
         "terms (arp/ingestion/doc_tree.py). Never used as evidence.",
     )
+    tree_context_enabled: bool = Field(
+        default=False,
+        description="With context_headers_enabled: BM25 and embeddings also index each chunk with its document-tree "
+        "node's summary and key terms, read from the stored tree (never built at retrieval). Evidence, grounding and "
+        "citations still use the chunk text (arp/retrieval/index_text.py).",
+    )
     tree_summary_model: str = Field(default="claude-haiku-4-5-20251001", description="Model for the document tree's summaries (the Haiku model priced in arp/orchestration/cost_tracker.py).")
     tree_leaf_chars: int = Field(default=6000, description="Characters of a leaf's text sent for its summary.")
     rerank_enabled: bool = Field(
@@ -192,6 +198,11 @@ class Settings(BaseSettings):
     # Cloud Run GPU services (arp/compute/), set up by scripts/gcp/setup_compute.sh. Empty = compute locally.
     compute_parse_url: str | None = Field(default=None, description="arp-parse service URL: PDF parsing on a GPU.")
     compute_models_url: str | None = Field(default=None, description="arp-models service URL: rerank and embeddings.")
+    models_universe_funnel_enabled: bool = Field(
+        default=False,
+        description="Theme runs: score each company x activity pair with embeddings -> cross-encoder -> NLI "
+        "(arp/research/funnel.py) after evidence is gathered, and skip the LLM debate for pairs it screens out.",
+    )
     compute_bucket: str | None = Field(default=None, description="Cloud Storage bucket PDFs are uploaded to for parsing.")
     # str, not Path: an empty env value must stay empty (Path("") is ".").
     compute_credentials_file: str | None = Field(

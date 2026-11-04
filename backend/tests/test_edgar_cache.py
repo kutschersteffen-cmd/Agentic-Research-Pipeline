@@ -340,3 +340,36 @@ async def test_edgar_document_reads_us_number_convention(tmp_path, monkeypatch):
     [f] = build_extracted_fields(field, draft, VerifierOutput(agrees=True, confidence=0.9, notes=""),
                                  {doc.doc_id: doc}, fuzzy_threshold=0.9, confidence_review_threshold=0.6)
     assert ReasonCode.NUMBER_LOCALE_AMBIGUOUS not in f.review_reasons
+
+
+async def test_text_cached_under_an_older_parser_version_is_parsed_again(tmp_path, monkeypatch):  # spec 2026-11-04 AC-6
+    ixbrl = (
+        '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:ix="http://www.xbrl.org/2013/inlineXBRL"><body>'
+        "<p>(In millions)</p><table><tr><td>Research and development</td><td>"
+        '<ix:nonFraction name="us-gaap:ResearchAndDevelopmentExpense" contextRef="c-1">1,894</ix:nonFraction>'
+        "</td></tr></table></body></html>"
+    )
+
+    class _Client(_FailingClient):
+        async def get(self, url, *args, **kwargs):
+            if url.endswith(_PRIMARY_DOC):
+                return httpx.Response(200, text=ixbrl)
+            raise httpx.ConnectError("simulated network failure")
+
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
+    source = EdgarDocumentSource(
+        user_agent="test-agent test@example.com", cache_dir=tmp_path / "cache", content_store=store,
+        request_delay_seconds=0,
+    )
+    _write_submissions_cache(tmp_path / "cache", "0000320193", _SUBMISSIONS)
+    content_key = hashlib.sha256(f"edgar:{_ACCESSION}/{_PRIMARY_DOC}".encode()).hexdigest()
+    old_version = edgar_module._edgar_parser_version().replace("logic=3", "logic=2")
+    assert old_version != edgar_module._edgar_parser_version()
+    store.store(content_key, key_kind="edgar_accession", parser_version=old_version,
+                source_suffix=".htm", byte_size=100, text="STALE", page_breaks=[])
+    monkeypatch.setattr(edgar_module.httpx, "AsyncClient", _Client)
+
+    [doc] = await source.fetch(CompanyRef(company_id="apple", name="Apple Inc.", cik="320193"))
+
+    assert "1,894" in doc.full_text
+    assert "STALE" not in doc.full_text

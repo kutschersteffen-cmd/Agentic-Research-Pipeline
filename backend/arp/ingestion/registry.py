@@ -14,7 +14,7 @@ class DocumentSourceRegistry:
     """Fans a fetch out across multiple DocumentSources and de-dupes by content hash."""
 
     def __init__(self, sources: list[DocumentSource], settings: Settings | None = None) -> None:
-        """`settings` with `doc_tree_enabled`: every fetched document's tree is built (or read) once fetched."""
+        """`settings` with `doc_tree_enabled` or `tree_context_enabled`: every fetched document's tree is built (or read) once fetched."""
         self.sources = sources
         self.settings = settings
 
@@ -41,7 +41,7 @@ class DocumentSourceRegistry:
                 if doc.sha256:
                     seen_hashes.add(doc.sha256)
                 results.append(doc)
-        if self.settings is not None and self.settings.doc_tree_enabled:
+        if self.settings is not None and (self.settings.doc_tree_enabled or self.settings.tree_context_enabled):
             await self._build_trees(results)
         return results
 
