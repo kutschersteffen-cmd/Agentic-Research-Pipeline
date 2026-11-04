@@ -6568,17 +6568,6 @@
       "title": "Description",
       "type": "string"
      },
-     "holdings_path": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Holdings Path"
-     },
      "mine_news": {
       "default": true,
       "title": "Mine News",
@@ -6587,11 +6576,6 @@
      "name": {
       "title": "Name",
       "type": "string"
-     },
-     "sample_size": {
-      "default": 25,
-      "title": "Sample Size",
-      "type": "integer"
      },
      "source_notes": {
       "default": "",
@@ -42371,7 +42355,7 @@
   },
   "/api/universe/raw-upload": {
    "post": {
-    "description": "Saves an arbitrary file (a fund/index holdings export, in whatever\nformat the provider gives it) and returns its server-side path,\nwithout attempting to parse it as anything -- the path can then be\npassed as `holdings_path` to a taxonomy creation request\n(derivation_method=etf_index_holdings) or to POST /api/etf-overlap.",
+    "description": "Saves an arbitrary file (a fund/index holdings export, in whatever\nformat the provider gives it) and returns its server-side path,\nwithout attempting to parse it as anything -- the path can then be\npassed to POST /api/etf-overlap.",
     "operationId": "raw_upload_api_universe_raw_upload_post",
     "requestBody": {
      "content": {
