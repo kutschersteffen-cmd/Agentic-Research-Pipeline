@@ -214,6 +214,15 @@ def test_no_stocks_fails_before_any_run(env, pg, tmp_path):  # F12
     assert _runs(pg, tmp_path) == before
 
 
+def test_start_stores_absolute_input_paths(env, pg, tmp_path, monkeypatch):  # so `pick` works from another dir
+    store = RunStore(pg, tmp_path / "runs")
+    path = env.setup(2, [_reply(("T1", ["s1"]))])
+    (tmp_path / "seg.csv").write_text("data_point_id,company_id,metric,label,description,value,unit,period\n")
+    monkeypatch.chdir(tmp_path)
+    params = store.load_manifest(_run_id(_invoke("start", "--stocks", path.name, "--segments", "seg.csv"))).params
+    assert (params["stocks"], params["segments"]) == (str(path.resolve()), str((tmp_path / "seg.csv").resolve()))
+
+
 def test_manifest_is_finished(env, pg, tmp_path):  # F13
     from arp.schemas.common import JobStatus
 

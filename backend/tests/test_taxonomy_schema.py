@@ -62,6 +62,12 @@ def test_schema_appends_theme_kpis_after_activity_fields():  # AC-41
     assert build_taxonomy_schema(t).fields == _expected(t) + t.theme.kpis
 
 
+def test_schema_kpis_carry_the_taxonomy_version():  # a later ratified version must not clash with released fields
+    t = _taxonomy(version=3)
+    t.theme.kpis = [_kpi("k1")]
+    assert [f.version for f in build_taxonomy_schema(t).fields] == [3] * 9
+
+
 def test_old_theme_without_new_keys_loads():
     t = ThemeDefinition.model_validate({"name": "G", "description": "", "activities": [
         {"name": "a", "in_scope_description": "i", "out_of_scope_description": "o"}]})

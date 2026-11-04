@@ -44,7 +44,7 @@ NO_ACTIVITY = "No activity could be grounded in the supporting stocks."
 
 
 async def supporting_chunks(
-    run: InferRun, theme: Theme, registry: DocumentSourceRegistry, *, stocks: dict[str, InferStock] | None = None,
+    run: InferRun, registry: DocumentSourceRegistry, *, stocks: dict[str, InferStock] | None = None,
     limit: int = 4,
 ) -> dict[str, list[DocumentChunk]]:
     """Description chunks of every described stock (supporting the theme or not), keyed by company_id.
@@ -153,7 +153,7 @@ async def merge(stock_acts: list[ActivityDefinition], method_acts: list[Activity
 
 def stable_activity_id(theme_name: str, name: str) -> str:
     """The same theme and activity names give the same id on every run (AC-27)."""
-    return "act_" + hashlib.sha1(f"{theme_name}|{name}".encode()).hexdigest()[:12]
+    return "act_" + hashlib.sha1(json.dumps([theme_name, name]).encode()).hexdigest()[:12]
 
 
 def _stable_ids(theme_name: str, activities: list[ActivityDefinition], origins: list[ActivityOrigin]
@@ -216,8 +216,7 @@ async def keywords(activities: list[ActivityDefinition], chunks_supporting: dict
     out = []
     for a in activities:
         k = by_id.get(a.activity_id) or ActivityKeywords(activity_id=a.activity_id)
-        # earlier seeds survive only where the activity's own citation quotes show them
-        seeds = _occurring(a.seed_keywords, [c.quote for c in a.citations]) + _occurring(k.primary, support)
+        seeds = _occurring(a.seed_keywords + k.primary, support)  # earlier seeds first, same grounding rule
         out.append(a.model_copy(update={"seed_keywords": list(dict.fromkeys(seeds)),
                                         "contextual_keywords": _occurring(k.contextual, support),
                                         "exclusion_keywords": _occurring(k.exclusion, others)}))
@@ -307,7 +306,7 @@ async def tiers(theme_definition: ThemeDefinition, mapping: list[Mapping], segme
     """Company tier from the share of its revenue in segment labels the mapper links to its mapped activity."""
     if not segments:
         return mapping
-    revenue = {cid: [r for r in _segment_rows(_latest_period(rows)) if r["metric"] == "revenue"]
+    revenue = {cid: _segment_rows(_latest_period([r for r in rows if r.metric == "revenue"]))
                for cid, rows in segments.items()}
     labels = sorted({r["label"] for rows in revenue.values() for r in rows})
     links, _ = await mapper(theme_definition, {"revenue": labels}, llm) if labels else ([], None)
@@ -359,7 +358,7 @@ async def pick(
         segments = load_segments(Path(segments_path)) if segments_path else {}
         stocks_path = Path(params["stocks"]) if params.get("stocks") else None
         stocks = load_stocks(stocks_path)[0] if stocks_path and stocks_path.exists() else []
-        chunks = await supporting_chunks(run, theme, registry, stocks={s.company_id: s for s in stocks},
+        chunks = await supporting_chunks(run, registry, stocks={s.company_id: s for s in stocks},
                                          limit=settings.max_concurrent_downloads)
         supporting = {c: ch for c, ch in chunks.items() if c in theme.supporting}
         other = {c: ch for c, ch in chunks.items() if c not in theme.supporting}
@@ -401,7 +400,7 @@ async def pick(
             notes += f" Methodology not read, skipped in top-down: {', '.join(unread)}."
         cover = coverage(run, mapping, unmapped)
         notes += f" {coverage_note(cover)}"
-        taxonomy = taxonomy_store.create(run.name, definition, DerivationMethod.STOCK_INFERENCE, notes)
+        taxonomy = taxonomy_store.create(theme.name, definition, DerivationMethod.STOCK_INFERENCE, notes)
         return _save(run.model_copy(update={"stage": "drafted", "taxonomy_id": taxonomy.taxonomy_id,
                                             "activities": sorted(origins, key=lambda a: a.activity_id), "coverage": cover,
                                             "mapping": sorted(mapping, key=lambda m: m.company_id)}), run_store)

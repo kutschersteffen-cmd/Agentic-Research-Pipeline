@@ -80,7 +80,7 @@ def ctx(pg, tmp_path):
 async def test_supporting_chunks_cover_every_described_stock(ctx):
     run_id, _store, _tax, kw = ctx
     run = _run(run_id)
-    chunks = await pick_mod.supporting_chunks(run, run.themes[0], kw["registry"])
+    chunks = await pick_mod.supporting_chunks(run, kw["registry"])
     assert sorted(chunks) == ["s1", "s2"]  # s3 has no description
     assert all(chunks[c] and all(ch.doc_id == f"D{c}" for ch in chunks[c]) for c in chunks)
 
@@ -95,7 +95,7 @@ async def test_pick_saves_a_draft_and_splits_chunks_by_support(ctx):
     assert [a.name for a in run.activities] == ["Hydrogen"]
     saved = tax.get(run.taxonomy_id)
     assert saved.derivation_method == DerivationMethod.STOCK_INFERENCE
-    assert saved.name == "fund" and saved.theme.name == "Hydrogen"
+    assert saved.name == "Hydrogen" and saved.theme.name == "Hydrogen"
     assert [a.name for a in saved.theme.activities] == ["Hydrogen"]
     assert ("keywords", ["s1"], ["s2"]) in calls
     assert ("top_down", []) not in calls  # no methodology: top-down is skipped
@@ -164,7 +164,7 @@ async def test_pick_fetches_with_the_stocks_file_identifiers(ctx, tmp_path):  # 
     await pick_mod.pick(run_id, 1, **{**kw, "registry": DocumentSourceRegistry([source])}, **fake_steps(calls))
     assert ("keywords", ["s1"], ["s2"]) in calls
     assert {r.company_id: r.ticker for r in source.refs} == {"s1": "AAA", "s2": None}
-    chunks = await pick_mod.supporting_chunks(_run(run_id), None, DocumentSourceRegistry([source]))
+    chunks = await pick_mod.supporting_chunks(_run(run_id), DocumentSourceRegistry([source]))
     assert not chunks["s1"] and not chunks["s2"]  # without the stocks file neither ref carries a ticker
 
 
@@ -184,7 +184,7 @@ async def test_supporting_chunk_fetches_are_bounded():  # review fix: like _benc
 
     run = _run("r1").model_copy(update={"profiles": [_profile(f"s{i}") for i in range(6)]})
     reg = _Registry()
-    await pick_mod.supporting_chunks(run, None, reg, limit=2)
+    await pick_mod.supporting_chunks(run, reg, limit=2)
     assert reg.peak == 2
 
 
@@ -240,8 +240,8 @@ async def test_matched_pair_becomes_one_activity_from_both(ctx):  # AC-35
     acts = tax.get(run.taxonomy_id).theme.activities
     assert [(a.name, [c.quote for c in a.citations]) for a in acts] == [
         ("PEM stacks", ["Q1", "Q2"]), ("Hydrogen storage", ["Q3"])]
-    assert [(o.activity_id, o.name, o.origin) for o in run.activities] == [
-        (acts[0].activity_id, "PEM stacks", "both"), (acts[1].activity_id, "Hydrogen storage", "methodology")]
+    assert [(o.activity_id, o.name, o.origin) for o in run.activities] == sorted([
+        (acts[0].activity_id, "PEM stacks", "both"), (acts[1].activity_id, "Hydrogen storage", "methodology")])
 
 
 @pytest.mark.asyncio
@@ -389,21 +389,31 @@ def _cited(quote, seeds):
 
 
 @pytest.mark.asyncio
-async def test_keywords_omitted_activity_keeps_quote_grounded_seeds():
+async def test_keywords_omitted_activity_keeps_seeds_grounded_in_supporting_chunks():
     act = _cited("We make PEM stacks.", ["PEM stacks", "warp drive"])
 
     async def other(*, system, prompt, output_model):
         return output_model(activities=[]), None
-    [a] = await pick_mod.keywords([act], {}, {}, [], SimpleNamespace(complete_structured=other))
+    [a] = await pick_mod.keywords([act], {"s1": [_chunk("s1", "We make PEM stacks.")]}, {}, [],
+                                  SimpleNamespace(complete_structured=other))
     assert a.seed_keywords == ["PEM stacks"]
 
 
 @pytest.mark.asyncio
-async def test_keywords_methodology_seed_found_in_its_citation_is_kept_before_new_primaries():
+async def test_keywords_seed_found_in_a_supporting_chunk_is_kept_before_new_primaries():
     act = _cited("Electrolyser output.", ["electrolyser"])
     llm = _kw_llm(primary=["PEM stack", "electrolyser"])
-    [a] = await pick_mod.keywords([act], {"s1": [_chunk("s1", "Our PEM stack plant")]}, {}, [], llm)
+    [a] = await pick_mod.keywords([act], {"s1": [_chunk("s1", "Our PEM stack plant and electrolyser line")]}, {}, [],
+                                  llm)
     assert a.seed_keywords == ["electrolyser", "PEM stack"]
+
+
+@pytest.mark.asyncio
+async def test_keywords_methodology_only_seed_absent_from_supporting_chunks_is_dropped():  # spec grounding rule
+    act = _cited("Electrolyser output.", ["electrolyser", "PEM stack"])
+    llm = _kw_llm()
+    [a] = await pick_mod.keywords([act], {"s1": [_chunk("s1", "Our PEM stack plant")]}, {}, [], llm)
+    assert a.seed_keywords == ["PEM stack"]
 
 
 @pytest.mark.asyncio
@@ -523,6 +533,22 @@ async def test_tiers_use_only_the_latest_period():  # review fold-in: years are 
 
 
 @pytest.mark.asyncio
+async def test_tiers_latest_period_is_taken_over_revenue_rows_only():  # a later capex year must not hide revenue
+    from arp.schemas.revenue_exposure import ActivityCatalogueMapping
+    from arp.schemas.thematic import ThemeDefinition
+
+    segments = {"p1": [_seg("p1", "Stacks", pct=0.6, period="FY2024"),
+                       _seg("p1", "Stacks", pct=0.1, metric="capex", period="FY2025")]}
+
+    async def mapper(theme, labels_by_metric, llm):
+        return [ActivityCatalogueMapping(activity_id="a1", metric="revenue", matched_labels=["Stacks"])], None
+
+    definition = ThemeDefinition(name="H", description="", activities=[_ACT])
+    [m] = await pick_mod.tiers(definition, [_m("p1")], segments, None, mapper)
+    assert m.tier == "core"
+
+
+@pytest.mark.asyncio
 async def test_tiers_without_segments_are_unknown_and_call_nothing():  # AC-39a
     async def mapper(*a):
         raise AssertionError("called")
@@ -607,6 +633,10 @@ async def test_pick_sorts_activities_by_activity_id(ctx):  # spec: `activities` 
     run = await pick_mod.pick(run_id, 1, **kw, **{**fake_steps(), "synthesize": synthesize})
     ids = [a.activity_id for a in run.activities]
     assert ids == sorted(ids) and {a.name for a in run.activities} == {"a", "b"}
+
+
+def test_stable_id_has_no_separator_ambiguity():
+    assert pick_mod.stable_activity_id("a|b", "c") != pick_mod.stable_activity_id("a", "b|c")
 
 
 def test_stable_id_depends_only_on_theme_and_activity_name():
