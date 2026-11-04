@@ -99,3 +99,15 @@ async def test_fuzzy_threshold_reaches_grounding(fake_llm, monkeypatch):
                                                                      methodology_quote="x")])]})
     await propose_themes(_profiles(), [], None, [METHODOLOGY], llm, fuzzy_threshold=0.5)
     assert seen == [0.5]
+
+
+async def test_invented_cluster_ids_dropped(fake_llm):  # F8
+    themes, _ = await _propose(fake_llm, [_theme("H2", ["p1"], cluster_ids=[0, 7])])
+    assert themes[0].cluster_ids == [0]
+    llm = fake_llm({"ThemeProposals": [ThemeProposals(themes=[_theme("H2", ["p1"], cluster_ids=[0])])]})
+    themes, _ = await propose_themes(_profiles(), [], None, [], llm)
+    assert themes[0].cluster_ids == []
+
+
+def test_proposed_theme_has_no_share_fields():  # F16
+    assert not {"count_share", "weight_share"} & set(ProposedTheme.model_json_schema()["properties"])

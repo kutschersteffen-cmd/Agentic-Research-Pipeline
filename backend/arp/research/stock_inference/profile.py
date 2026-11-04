@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 
 from arp.config import Settings
 from arp.db.session import require_dsn, transaction
@@ -32,7 +33,9 @@ DESCRIPTION_SCHEMA = DataPointSchema(
 
 
 def _ref(stock: InferStock) -> CompanyRef:
-    return CompanyRef(company_id=stock.company_id, name=stock.name, ticker=stock.ticker, isin=stock.isin,
+    # sources reject ids failing safe_id ("NEL NO"); the run JSON keeps the original id
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", stock.company_id).strip("._-")[:128]
+    return CompanyRef(company_id=safe, name=stock.name, ticker=stock.ticker, isin=stock.isin,
                       lei=stock.lei, cik=stock.cik)
 
 

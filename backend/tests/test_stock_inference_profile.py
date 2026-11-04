@@ -171,3 +171,22 @@ async def test_large_document_gives_eight_chunks_and_no_text_in_profile(pg, tmp_
     dumped = by_id["s1"].model_dump_json()
     assert "We make PEM stacks." in dumped
     assert secret not in dumped and "hydrogen electrolysers" not in dumped
+
+
+def test_ref_gives_sources_a_safe_id():  # F1
+    from arp.storage.safe_path import safe_id
+
+    ref = profile_mod._ref(InferStock(company_id="NEL NO", name="Nel ASA"))
+    assert safe_id(ref.company_id) == "NEL_NO"
+    assert profile_mod._ref(InferStock(company_id="_X Y_", name="x")).company_id == "X_Y"
+
+
+@pytest.mark.asyncio
+async def test_id_with_space_gets_its_documents(pg, tmp_path):  # F1
+    source = _FixedDocSource({"NEL_NO": [_doc("D1", "NEL_NO")]})
+    profiles, _ = await profile_all(
+        [InferStock(company_id="NEL NO", name="Nel ASA")], registry=DocumentSourceRegistry([source]), llm=None,
+        verifier_llm=None, settings=Settings(anthropic_api_key="unused", runs_dir=tmp_path / "runs"),
+        discover=_Discover(source), extract=_extract({}), session_factory=lambda: transaction(pg), segments={},
+    )
+    assert profiles[0].company_id == "NEL NO" and profiles[0].description == "Makes PEM stacks."

@@ -228,12 +228,14 @@ async def test_research_callers_write_no_trace(tmp_path, fake_llm):  # AC-24
                                 llm=llm, settings=settings)
     assert llm.calls  # the extraction really ran
     theme = SourceDocument(company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG",
-                           full_text="Acme Corp builds green capex projects: wind farms and solar parks.")
-    llm2 = fake_llm({"ExtractionDraft": [ExtractionDraft(values=[], confidence=0.9)], "VerifierOutput": [AGREE]})
-    await profile_stock(InferStock(company_id=COMPANY.company_id, name=COMPANY.name), documents=[theme],
+                           full_text="Acme Corp products and services: green capex projects, wind farms and solar parks.")
+    llm2 = fake_llm({"ExtractionDraft": [_draft("Builds wind farms and solar parks.", "wind farms and solar parks", theme)],
+                     "VerifierOutput": [AGREE]})
+    profile, _ = await profile_stock(InferStock(company_id=COMPANY.company_id, name=COMPANY.name), documents=[theme],
                         registry=DocumentSourceRegistry([_FixedDocSource([theme])]), llm=llm2, verifier_llm=llm2,
                         settings=settings, field_limit=asyncio.Semaphore(1))
     assert _trace_files(tmp_path) == []
+    assert profile.description and profile.error is None  # the extraction really ran (profile_stock swallows errors)
 
 
 async def test_golden_set_writes_no_trace(tmp_path, fake_llm, monkeypatch):  # AC-23

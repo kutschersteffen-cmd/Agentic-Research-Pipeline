@@ -23,8 +23,6 @@ class ProposedTheme(BaseModel):
     cluster_ids: list[int] = Field(default_factory=list)
     stated_in_methodology: bool = False
     methodology_quote: str | None = Field(default=None, description="Verbatim sentence from the methodology.")
-    count_share: float | None = Field(default=None, description="Ignored; computed in code.")
-    weight_share: float | None = Field(default=None, description="Ignored; computed in code.")
 
 
 class ThemeProposals(BaseModel):
@@ -69,6 +67,7 @@ async def propose_themes(
         output_model=ThemeProposals,
     )
     kept: list[Theme] = []
+    known_clusters = {c.cluster_id for c in clusters}
     for t in reply.themes:
         ids = sorted({s.company_id for s in t.supporting} & described.keys())
         if not ids:
@@ -78,7 +77,7 @@ async def propose_themes(
                         if weighted and total_weight else None)
         kept.append(Theme(
             rank=0, name=t.name, description=t.description, supporting=ids, count_share=round(len(ids) / len(described), 4),
-            weight_share=weight_share, cluster_ids=sorted(set(t.cluster_ids)), stated_in_methodology=stated,
+            weight_share=weight_share, cluster_ids=sorted(set(t.cluster_ids) & known_clusters), stated_in_methodology=stated,
             methodology_quote=t.methodology_quote if stated else None,
         ))
     kept.sort(key=lambda t: (-(t.weight_share if t.weight_share is not None else t.count_share), t.name))
