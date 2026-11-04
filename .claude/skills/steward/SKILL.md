@@ -25,6 +25,10 @@ see those tests: a failure reads `<slug> AC-n: fail`; fix the behaviour the row 
 When the PR builds one slice of a spec, add a `Rows: AC-1, AC-4` line under it naming the rows that
 slice delivers, so hidden tests for later slices don't run yet. The last slice drops the line.
 
+The Golden set (real model) job only runs on PRs labelled `golden-set`, because every run spends API
+tokens. If the PR touches the model path (see CLAUDE.md, Checks), add the label once every other
+check is green, not before.
+
 ## 2. Stop after three failed fix rounds
 
 A round is one pushed fix for a failing check. After the third pushed fix on which the **same check**

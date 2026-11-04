@@ -164,7 +164,8 @@ The owner answers by tapping buttons, not by typing. Every question to the owner
 - Golden set (real model): PRs touching `arp/extraction`, `arp/llm`, `arp/golden_set`, `arp/grounding.py` or model
   settings in `arp/config.py` run `arp golden-set run` in CI and fail if any case fails. PRs touching
   `arp/transition_barrier/{extraction,golden,fetching,rule_book}.py`, `arp/transition_barrier/data` or
-  `tests/golden/transition_barrier` also run `arp transition-barrier golden`. Needs the
+  `tests/golden/transition_barrier` also run `arp transition-barrier golden`. The job runs only once the PR has the
+  `golden-set` label (add it when everything else is green); `arp/golden_set/retrieval.py` alone doesn't trigger it. Needs the
   `ARP_ANTHROPIC_API_KEY` repo secret; without it the check warns and passes.
 - Dependencies install on demand: run `bash .claude/hooks/ensure-deps.sh backend` (or `frontend`,
   `postgres`) before running tests by hand. It takes about 1 s when already installed. `/install-deps`

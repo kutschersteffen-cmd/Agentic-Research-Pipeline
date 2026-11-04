@@ -7,13 +7,17 @@ name: Golden set
 # or its data also run the transition-barrier golden set; PRs touching backend/arp/rfp/ also run the RFP golden
 # checks (question detection, drafting). It calls the real model, so it needs the
 # ARP_ANTHROPIC_API_KEY repository secret; without it the job warns and passes.
+# Each run costs real API tokens, so it only runs on PRs carrying the `golden-set` label: add the
+# label once the PR is otherwise green; later pushes rerun it, and a newer push cancels the older run.
 on:
   pull_request:
     branches: [main]
+    types: [labeled, synchronize, reopened]
     paths:
       - "backend/arp/extraction/**"
       - "backend/arp/llm/**"
       - "backend/arp/golden_set/**"
+      - "!backend/arp/golden_set/retrieval.py"  # CI's retrieval-recall job covers it, with no model calls
       - "backend/arp/grounding.py"
       - "backend/arp/config.py"
       - "backend/arp/transition_barrier/extraction.py"
@@ -27,9 +31,17 @@ on:
       - "backend/tests/golden/authority_taxonomy/**"
   workflow_dispatch:
 
+concurrency:
+  group: golden-set-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   golden-set:
     name: Golden set (real model)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (contains(github.event.pull_request.labels.*.name, 'golden-set') &&
+       (github.event.action != 'labeled' || github.event.label.name == 'golden-set'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -66,7 +78,7 @@ jobs:
           if [ -n "$rfp" ]; then echo "rfp=true" >>"$GITHUB_OUTPUT"; else echo "rfp=false" >>"$GITHUB_OUTPUT"; fi
           gate=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction/evidence_gate.py)
           if [ -n "$gate" ]; then echo "gate=true" >>"$GITHUB_OUTPUT"; else echo "gate=false" >>"$GITHUB_OUTPUT"; fi
-          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py arp/transition_barrier/extraction.py arp/transition_barrier/golden.py arp/transition_barrier/fetching.py arp/transition_barrier/rule_book.py arp/transition_barrier/data tests/golden/transition_barrier arp/rfp arp/research/authority_taxonomy tests/golden/authority_taxonomy)
+          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set ':!arp/golden_set/retrieval.py' arp/grounding.py arp/transition_barrier/extraction.py arp/transition_barrier/golden.py arp/transition_barrier/fetching.py arp/transition_barrier/rule_book.py arp/transition_barrier/data tests/golden/transition_barrier arp/rfp arp/research/authority_taxonomy tests/golden/authority_taxonomy)
           model=$(git diff -U0 "origin/$BASE...HEAD" -- arp/config.py | grep -E '^[+-] .*(llm_|_api_key|grounding_|confidence_review)' || true)
           if [ -n "$other$model" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; else echo "run=false" >>"$GITHUB_OUTPUT"; echo "Only unrelated config.py lines changed; golden set not needed."; fi
 
