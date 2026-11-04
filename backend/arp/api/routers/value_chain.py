@@ -316,6 +316,7 @@ def _links(vc: ValueChain, subject: str, res: vc_links.Resolution, rule) -> Valu
     return ValueChainLinks(
         edition=vc.manifest["edition"], caveat=vc.caveat, subject=subject, source=res.source, region=res.region,
         nodes=vc_links.weighted_nodes(vc, res.weights), unresolved=res.unresolved, rule=rule,
+        code=res.code, code_scheme=res.code_scheme,
     )
 
 

@@ -243,9 +243,9 @@ Caveats:
 ### Projects
 
 A project is a folder under `ARP_PROJECTS_DIR` (default `projects/`, git-ignored) holding replayable data sources
-(uploaded DWS constituent `.xlsx` files plus the assumed notional) and the dashboards stored for it. The data
+(uploaded constituent `.xlsx` files plus the assumed notional) and the dashboards stored for it. The data
 files are user data and are never committed. Opening a project re-imports its files into Postgres (tagged
-`project:<id>`, portfolio ids `<project>-dws-<fund isin>`) and provisions its dashboards, both idempotently.
+`project:<id>`, portfolio ids `<project>-portfolio-<fund isin>`) and provisions its dashboards, both idempotently.
 
 UI (Risk Monitoring, Dashboards): pick a project in the selector or choose New project, upload the files and
 notional, and the project opens automatically. A generated dashboard is saved to the project with Save to project.
@@ -278,7 +278,7 @@ Upgrade: re-run `arp bi bootstrap` so the views gain `project_id`. Project dashb
 native-filter scoping fix keep global filter options until rebuilt: delete the dashboard in Superset and open the
 project again.
 
-Limits: the only data kind is the DWS constituent `.xlsx`; uploads are `.xlsx` up to 50 MB; there is no project
+Limits: the only data kind is the constituent `.xlsx`; uploads are `.xlsx` up to 50 MB; there is no project
 delete, versioning or authentication; opening needs the Postgres portfolio backend. `ARP_BI_READER_PASSWORD`
 (not a placeholder) is needed only to re-import stored hand-built bundles.
 
@@ -312,10 +312,10 @@ arp runs list                     # also: arp runs show <run_id>, arp runs cance
 # Index construction (see docs/EQUITY_INDEX_CONSTRUCTION_PLAN.md)
 arp index presets                                        # the named methodology shapes
 arp index preview --preset eu_pab --review-date 2026-03-31 --show trace
-ARP_CLI_TOKEN=<your token> arp index calibration-save --name "DWS Electrification PAB" \
+ARP_CLI_TOKEN=<your token> arp index calibration-save --name "Electrification PAB" \
     --effective-from 2026-01-01 --preset eu_pab --approved-by "IC-2026-01-14"   # --approved-by is kept as a note
 ARP_CLI_TOKEN=<a second approver's token> arp index approve <cal_id>         # four-eyes: not the author
-ARP_CLI_TOKEN=<your token> arp index run --index-id dws_pab --review-date 2026-03-31 --calibration-id <cal_id>
+ARP_CLI_TOKEN=<your token> arp index run --index-id pab --review-date 2026-03-31 --calibration-id <cal_id>
 # Optional convex / integer paths (pip install -e ".[optimize]")
 arp index preview --preset eu_pab --review-date 2026-03-31 --solver-method min_tracking_error
 arp index preview --preset eu_pab --review-date 2026-03-31 --max-constituents 20

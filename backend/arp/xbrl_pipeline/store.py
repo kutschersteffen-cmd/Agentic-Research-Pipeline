@@ -9,9 +9,11 @@ from arp.schemas.common import now_iso
 from arp.storage.atomic_io import atomic_write_bytes, atomic_write_text
 from arp.storage.jsonl_io import read_jsonl
 from arp.storage.safe_path import safe_id
-from arp.xbrl_pipeline.models import CatalogEntry, FactRow, Market, ReportMeta, RequiredRow
+from arp.xbrl_pipeline.models import CatalogEntry, FactRow, Market, ReportMeta, RequiredRow, SegmentRow
 
-_FILES = {"facts": "facts.jsonl", "required": "required.jsonl", "catalog": "catalog.jsonl"}
+_FILES = {"facts": "facts.jsonl", "required": "required.jsonl", "catalog": "catalog.jsonl",
+          "segments": "segments.jsonl"}
+_NOTE = "segment_note.txt"
 
 
 class XbrlStore:
@@ -65,6 +67,11 @@ class XbrlStore:
             meta["filing"] = filing
         atomic_write_text(self.company_dir(cik10) / "meta.json", json.dumps(meta, indent=2))
 
+    def update_meta(self, cik10: str, **fields) -> None:
+        """Add fields to the existing meta.json (set_meta rewrites it whole)."""
+        meta = {**(self.meta(cik10) or {}), **fields}
+        atomic_write_text(self.company_dir(cik10) / "meta.json", json.dumps(meta, indent=2))
+
     def add_company_id(self, cik10: str, company_id: str) -> None:
         """Meta-only write: another company_id maps to an already stored CIK."""
         meta = self.meta(cik10) or {}
@@ -92,6 +99,11 @@ class XbrlStore:
         path = d / meta.filename
         atomic_write_bytes(path, content)
         atomic_write_text(d / "report.json", meta.model_dump_json(indent=2))
+        return path
+
+    def save_labels(self, cik10: str, accession: str, content: bytes) -> Path:
+        path = self.company_dir(cik10) / f"labels-{safe_id(accession, label='accession')}.xml"
+        atomic_write_bytes(path, content)
         return path
 
     def report_meta(self, cik10: str) -> ReportMeta | None:
@@ -122,12 +134,32 @@ class XbrlStore:
     def read_required(self, cik10: str) -> list[RequiredRow]:
         return [RequiredRow.model_validate(r) for r in read_jsonl(self.company_dir(cik10) / _FILES["required"])]
 
+    def write_segments(self, cik10: str, rows: Iterable[SegmentRow]) -> int:
+        return self._write(cik10, _FILES["segments"], rows)
+
+    def read_segments(self, cik10: str) -> list[SegmentRow]:
+        return [SegmentRow.model_validate(r) for r in read_jsonl(self.company_dir(cik10) / _FILES["segments"])]
+
+    def write_segment_note(self, cik10: str, text: str | None) -> None:
+        path = self.company_dir(cik10) / _NOTE
+        if text is None:
+            path.unlink(missing_ok=True)
+        else:
+            atomic_write_text(path, text)
+
+    def read_segment_note(self, cik10: str) -> str | None:
+        path = self.company_dir(cik10) / _NOTE
+        return path.read_text(encoding="utf-8") if path.exists() else None
+
     def file_path(self, cik10: str, kind: str) -> Path | None:
         if kind == "original":
             return self._original_path(cik10)
         if kind == "report":
             meta = self.report_meta(cik10)
             path = self.company_dir(cik10) / meta.filename if meta else None
+        elif kind == "labels":
+            meta = self.report_meta(cik10)
+            path = self.company_dir(cik10) / f"labels-{meta.accession}.xml" if meta else None
         elif kind in _FILES:
             path = self.company_dir(cik10) / _FILES[kind]
         else:

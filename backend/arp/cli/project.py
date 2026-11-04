@@ -60,7 +60,7 @@ def project_create(
 @project_app.command("add-data")
 def project_add_data(
     id: str = typer.Argument(..., help="Project id."),
-    files: list[Path] = typer.Argument(..., help="DWS Constituent_<ISIN>.xlsx files."),
+    files: list[Path] = typer.Argument(..., help="Constituent_<ISIN>.xlsx files."),
     notional_eur: float = typer.Option(..., "--notional-eur", help="Assumed fund size in EUR; the files carry weights only."),
 ) -> None:
     """Copies each file into the project's data folder and prints the updated summary as JSON."""

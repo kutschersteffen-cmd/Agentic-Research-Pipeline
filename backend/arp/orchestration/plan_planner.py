@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from arp.llm.base import LLMClient
 from arp.orchestration.plan_api import BUILTINS, STEPS
 from arp.orchestration.plan_check import MAX_LINES
-from arp.orchestration.plan_store import PlanStore
+from arp.orchestration.plan_store import PlanNotReplannable, PlanStore
 
 
 class PlanScript(BaseModel):
@@ -52,13 +52,14 @@ universe_build starts every plan; pass its run_id on (e.g. universe_run_id=u.run
 Return only the script."""
 
 
-def planner_context(taxonomies, frameworks) -> str:
-    """What the planner may name: ratified taxonomies (for universe_build) and decision frameworks."""
+def planner_context(taxonomies, frameworks, calibrations=()) -> str:
+    """What the planner may name: ratified taxonomies (universe_build), decision frameworks, index calibrations."""
     tax = [f"- {t.taxonomy_id}: {t.theme.name}" for t in taxonomies if t.status == "ratified"]
     fw = [f"- {f.framework_id}: {f.name}" for f in frameworks if f.ratified]
     return ("Ratified taxonomies (universe_build taxonomy_id):\n" + ("\n".join(tax) or "- none") +
             "\n\nRatified decision frameworks (decision_score framework_id):\n" + ("\n".join(fw) or "- none") +
-            "\n\nindex_construct is not available yet; do not use it.")
+            "\n\nIndex calibrations (index_construct calibration_id; it also needs a candidates JSON file the brief "
+            "names):\n" + ("\n".join(f"- {c.calibration_id}: {c.name}" for c in calibrations) or "- none"))
 
 
 async def draft_plan(brief: str, llm: LLMClient, store: PlanStore, context: str = "") -> str:
@@ -71,6 +72,43 @@ async def draft_plan(brief: str, llm: LLMClient, store: PlanStore, context: str 
         out, _usage = await llm.complete_structured(system=system, prompt=prompt, output_model=PlanScript)
         try:  # checks the script, then dry-runs it off the event loop
             return await asyncio.to_thread(store.create, brief, out.script)
+        except ValueError as exc:
+            errors = str(exc).splitlines()
+        prompt = (f"{base}\n\nYour previous script:\n{out.script}\n\n"
+                  "It was rejected:\n" + "\n".join(errors) + "\nFix every error.")
+    raise PlanRejected("\n".join(errors))
+
+
+def replan_prompt(plan: dict, calls: list[dict], context: str = "") -> str:
+    """What the planner sees when it re-plans a failed plan: the brief, the failed script and its error, and the
+    finished steps the new script reads as `previous`."""
+    done = [c for c in calls if c["status"] == "done"]
+    kept = "\n".join(
+        f"- previous[{i}]: step {c['seq']} {c['kind']} {c['params']} run_id={c['run_id']} "
+        f"companies={len((c['result'] or {}).get('companies') or [])}" for i, c in enumerate(done)) or "- none"
+    return (f"Research brief:\n{plan['brief']}" + (f"\n\n{context}" if context else "") +
+            f"\n\nThis plan script failed:\n{plan['script']}\n\nError:\n{plan['error'] or ''}\n\n"
+            "Finished steps (they are kept and never run again):\n" + kept +
+            "\n\nWrite a script for the remaining work only: do not repeat the finished steps. Read their results "
+            "from the read-only list `previous` (e.g. previous[0].run_id, previous[0].companies); never assign to it.")
+
+
+async def replan_plan(plan_id: str, llm: LLMClient, store: PlanStore, context: str = "",
+                      user: str | None = None) -> None:
+    """Have the planner rewrite a failed plan's remaining work; the plan becomes a draft at the next version.
+    Raises PlanNotReplannable unless the plan is failed (before any model call), PlanRejected after two rejected
+    scripts (the plan is left unchanged)."""
+    plan = store.get(plan_id)
+    if plan["status"] != "failed":
+        raise PlanNotReplannable("only a failed plan can be re-planned")
+    system = SYSTEM.replace("{stubs}", step_stubs())
+    base = replan_prompt(plan, store.calls(plan_id), context)
+    prompt = base
+    errors: list[str] = []
+    for _ in range(2):
+        out, _usage = await llm.complete_structured(system=system, prompt=prompt, output_model=PlanScript)
+        try:  # checks the script, then dry-runs it with the finished steps' results, off the event loop
+            return await asyncio.to_thread(store.replan, plan_id, out.script, user)
         except ValueError as exc:
             errors = str(exc).splitlines()
         prompt = (f"{base}\n\nYour previous script:\n{out.script}\n\n"

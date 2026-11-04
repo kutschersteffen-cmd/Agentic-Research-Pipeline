@@ -46,7 +46,7 @@ def test_idempotent_open(env, tmp_path):
     second = open_project(store, pf, client, "alpha")
     assert [d.status for d in second.dashboards] == ["unchanged", "unchanged"]
     assert all(d.id is not None and d.published is False for d in second.dashboards)
-    assert [p.portfolio_id for p in pf.list_portfolios()] == ["alpha-dws-ie00testfund"]
+    assert [p.portfolio_id for p in pf.list_portfolios()] == ["alpha-portfolio-ie00testfund"]
 
 
 def test_two_projects_separate(env, tmp_path):
@@ -55,7 +55,7 @@ def test_two_projects_separate(env, tmp_path):
     _project(store, tmp_path, "beta", ("One",))
     open_project(store, pf, client, "alpha")
     open_project(store, pf, client, "beta")
-    assert {p.portfolio_id for p in pf.list_portfolios()} == {"alpha-dws-ie00testfund", "beta-dws-ie00testfund"}
+    assert {p.portfolio_id for p in pf.list_portfolios()} == {"alpha-portfolio-ie00testfund", "beta-portfolio-ie00testfund"}
     assert len(client.dashboards) == 2
 
 
@@ -95,7 +95,7 @@ def test_junk_xlsx(env):
     store.create("alpha", "A")
     store.add_data_file("alpha", "Constituent_X.xlsx", b"junk", {"notional_eur": 1.0})
     msg = _data_error(env, None)
-    assert msg.startswith("dws-constituents: ")
+    assert msg.startswith("constituents: ")
 
 
 def test_unexpected_import_exception_is_not_echoed(env, tmp_path, monkeypatch):
@@ -107,7 +107,7 @@ def test_unexpected_import_exception_is_not_echoed(env, tmp_path, monkeypatch):
 
     monkeypatch.setattr(svc, "import_constituent_files", boom)
     msg = _data_error(env, None)
-    assert msg == "dws-constituents: import failed (RuntimeError)" and "secret" not in msg
+    assert msg == "constituents: import failed (RuntimeError)" and "secret" not in msg
 
 
 def test_missing_data_file(env, tmp_path):

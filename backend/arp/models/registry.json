@@ -1,0 +1,56 @@
+[
+  {
+    "key": "embed",
+    "capability": "embed",
+    "hf_id": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "revision": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42"
+  },
+  {
+    "key": "rerank",
+    "capability": "rerank",
+    "hf_id": "BAAI/bge-reranker-v2-m3-int8",
+    "revision": "main"
+  },
+  {
+    "key": "nli",
+    "capability": "classify",
+    "hf_id": "MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7",
+    "revision": "b5113eb38ab63efdd7f280f8c144ea8b13f978ce"
+  },
+  {
+    "key": "gliner",
+    "capability": "spans",
+    "hf_id": "urchade/gliner_multi-v2.1",
+    "revision": "443d26d654e0324125a96bebd8e796c14ff2efe6"
+  },
+  {
+    "key": "climate_detector",
+    "capability": "tag",
+    "hf_id": "climatebert/distilroberta-base-climate-detector",
+    "revision": "2c3bc660d45a59e31b35f5d3e365ee4f59fdf76c"
+  },
+  {
+    "key": "climate_commitment",
+    "capability": "tag",
+    "hf_id": "climatebert/distilroberta-base-climate-commitment",
+    "revision": "17337c3292df16a8fe93b1505dfe4122d50a4c91"
+  },
+  {
+    "key": "climate_specificity",
+    "capability": "tag",
+    "hf_id": "climatebert/distilroberta-base-climate-specificity",
+    "revision": "4ada96ed4bf5c3a7a711282e41f1ab9b29f0ddea"
+  },
+  {
+    "key": "finbert_fls",
+    "capability": "tag",
+    "hf_id": "yiyanghkust/finbert-fls",
+    "revision": "443586dc31c765c0aaf1c4daaed8cf3643c92fa5"
+  },
+  {
+    "key": "esg_topics",
+    "capability": "tag",
+    "hf_id": "yiyanghkust/finbert-esg-9-categories",
+    "revision": "af56509508a62691ad52c7a2d67798a6680502e7"
+  }
+]

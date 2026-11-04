@@ -54,8 +54,10 @@ async def resolve_company_isic(
     as an exact string, in exactly one industry's isic_divisions or
     nace_classes resolves to that industry, also without an LLM call.
     """
+    from arp.research.value_chain.links import company_nace  # links imports this module
+
     code = lookup_isic(company.isic_code, model)
-    if code is not None:
+    if code is not None or company_nace(company) is not None:  # the NACE route needs no LLM
         return code, LLMUsage()
 
     prompt = (

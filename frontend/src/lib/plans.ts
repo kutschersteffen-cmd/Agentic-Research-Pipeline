@@ -3,6 +3,7 @@ export type PlanStatus = "draft" | "approved" | "running" | "awaiting_review" | 
 export type CallStatus = "pending" | "running" | "awaiting_review" | "done" | "failed" | "cancelled";
 
 export interface DryRunStep { seq: number; kind: string; params: Record<string, unknown>; depends_on: number | null }
+export interface PreviousScript { version: number; script: string; error: string | null; replanned_at: string; replanned_by: string | null }
 export interface PlanCall { seq: number; kind: string; params: Record<string, unknown>; status: CallStatus; run_id: string | null; result_ref: string | null }
 export interface Plan {
   id: string;
@@ -13,10 +14,15 @@ export interface Plan {
   approved_by: string | null;
   approved_at: string | null;
   error: string | null;
+  version: number;
+  previous_scripts: PreviousScript[];
   calls?: PlanCall[];
 }
 
 export const ACTIVE: ReadonlySet<PlanStatus> = new Set(["running", "awaiting_review"]);
+
+/** Re-planning is offered only on a failed plan, and only when the owner asks. */
+export const canReplan = (plan: Plan): boolean => plan.status === "failed";
 
 /** One row per planned step: the stored call once the run reached it, else `pending`. */
 export function stepRows(plan: Plan): { step: DryRunStep; status: CallStatus; call: PlanCall | null }[] {
@@ -25,11 +31,12 @@ export function stepRows(plan: Plan): { step: DryRunStep; status: CallStatus; ca
     const call = bySeq.get(step.seq) ?? null;
     return { step, status: call?.status ?? ("pending" as CallStatus), call };
   });
-  // A data-dependent loop can make more calls than the dry run showed: list those too.
+  // Calls the dry run doesn't show (a data-dependent loop, or steps kept at re-planning): list those too.
+  const planned = new Set(plan.dry_run.map((s) => s.seq));
   for (const call of plan.calls ?? []) {
-    if (call.seq > plan.dry_run.length) rows.push({ step: { seq: call.seq, kind: call.kind, params: call.params, depends_on: null }, status: call.status, call });
+    if (!planned.has(call.seq)) rows.push({ step: { seq: call.seq, kind: call.kind, params: call.params, depends_on: null }, status: call.status, call });
   }
-  return rows;
+  return rows.sort((a, b) => a.step.seq - b.step.seq);
 }
 
 /** Where a finished step's result is shown: its run in Run History, or the screen that owns a run-less result. */
@@ -37,5 +44,6 @@ export function resultHref(call: PlanCall): string | null {
   if (call.run_id) return `#/history/${encodeURIComponent(call.run_id)}`;
   if (call.result_ref?.startsWith("report:")) return "#/reporting";
   if (call.result_ref?.startsWith("decision:")) return "#/decision";
+  if (call.result_ref?.startsWith("index:")) return "#/index";
   return null;
 }

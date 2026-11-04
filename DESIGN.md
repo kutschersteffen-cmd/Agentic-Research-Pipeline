@@ -59,7 +59,7 @@ typography:
     fontWeight: 500
     lineHeight: 1.3
 rounded:
-  sm: "2px"
+  sm: "0"
   md: "0"
   lg: "0"
   pill: "999px"
@@ -196,7 +196,7 @@ The system is flat. Depth comes from tonal layering (ground → panel → well) 
 
 ## Shapes
 
-Square, like the start page, on every screen: cards, framed tables, inputs and buttons have square corners; small badges keep a 2px hint; status and count badges stay full pills. Page titles use the start page's display voice (tight tracking, one step below its hero), table headers and section labels are small uppercase mono, and stat tiles show a big tabular number over a mono label. Borders are always 1px hairlines; a 1.5px dashed edge marks a switched-off or pending pipeline step.
+Square, like the start page, on every screen: cards, framed tables, inputs, buttons and small badges have square corners; status and count badges stay full pills; state dots are circles. Three shapes, no in-between radius. Page titles use the start page's display voice (tight tracking, one step below its hero), table headers and section labels are small uppercase mono, and stat tiles show a big tabular number over a mono label. Borders are always 1px hairlines; a 1.5px dashed edge marks a switched-off or pending pipeline step.
 
 ## Components
 
@@ -231,7 +231,7 @@ Square, like the start page, on every screen: cards, framed tables, inputs and b
 - **Mobile / tablet:** below 1024px the sidebar becomes a drawer behind a top bar showing the current screen's name.
 
 ### Process Card (signature component)
-The start page's five cards (StewardIQ, Argus, Transition Intelligence Platform, R&D Lab, Data Hub): an icon from one 48-grid family, the name, a one-line purpose, the workspace's processes as dots on a line (ink = done, ring = running, signal = waiting on you, red diamond = failed, hollow = idle), one mono line naming the process that matters now, and a status in the signal colour when someone is needed.
+The start page's five cards (StewardIQ, Argus, Transition Intelligence Platform, R&D Lab, Data Hub): an icon from one 48-grid family, the name, a one-line purpose, the workspace's processes as dots on a line (ink = done, ring = running, signal = waiting on you, red diamond = failed, hollow = idle), one mono line naming the process that matters now, and "Open →". The card is a way in: it carries no counts, because waiting work is counted once, in the start page headline. The start page has no Needs you list: each waiting item lives in the Review Queue or its workspace.
 
 ## Do's and Don'ts
 

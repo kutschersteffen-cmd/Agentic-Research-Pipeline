@@ -33,10 +33,7 @@ export const STAGE_TABS = [
  * the backend's long title stays as a tooltip. */
 export const stageName = (stage: StewardshipStage) => STAGE_TABS.find((t) => t.id === stage.id)?.label ?? stage.title;
 
-/** Decisions a stage still waits on: every item except policy differences
- * already decided. */
-export const openCount = (stage: StewardshipStage | undefined) =>
-  stage ? stage.decisions.filter((d) => d.kind !== "policy_difference" || d.decision === null).length : 0;
+export { openCount } from "../../lib/workspaceCard";
 
 /** The signed-in user's name, or "" when signed out. The server records who decided. */
 export const useActor = (): string => useMe()?.name ?? "";

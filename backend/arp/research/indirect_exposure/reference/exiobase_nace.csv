@@ -1,0 +1,452 @@
+exiobase_sector,nace2_code,nace21_code
+Cultivation of paddy rice,01.1,01.1
+Cultivation of paddy rice,01.12,01.12
+Cultivation of wheat,01.11,01.11
+Cultivation of cereal grains nec,01.11,01.11
+"Cultivation of vegetables, fruit, nuts",01.13,01.13
+Cultivation of oil seeds,01.21,01.21
+Cultivation of oil seeds,01.22,01.22
+Cultivation of oil seeds,01.23,01.23
+Cultivation of oil seeds,01.24,01.24
+"Cultivation of sugar cane, sugar beet",01.25,01.25
+"Cultivation of sugar cane, sugar beet",01.26,01.26
+Cultivation of plant-based fibers,01.11,01.11
+Cultivation of crops nec,01.14,01.14
+Cultivation of crops nec,01.13,01.13
+Cultivation of crops nec,01.16,01.16
+Cultivation of crops nec,01.15,01.15
+Cultivation of crops nec,01.19,01.13
+Cultivation of crops nec,01.19,01.19
+Cultivation of crops nec,01.2,01.1
+Cultivation of crops nec,01.2,01.2
+Cultivation of crops nec,01.27,01.27
+Cultivation of crops nec,01.28,01.13
+Cultivation of crops nec,01.28,01.28
+Cultivation of crops nec,01.29,01.29
+Cultivation of crops nec,01.6,01.4
+Cultivation of crops nec,01.6,01.6
+Cultivation of crops nec,01.61,01.61
+Cultivation of crops nec,01.63,01.63
+Cultivation of crops nec,01.64,01.63
+Cattle farming,01.4,01.4
+Cattle farming,01.41,01.41
+Cattle farming,01.42,01.41
+Cattle farming,01.42,01.42
+Pigs farming,01.46,01.46
+Poultry farming,01.47,01.47
+Meat animals nec,01.4,01.4
+Meat animals nec,01.43,01.43
+Meat animals nec,01.44,01.44
+Meat animals nec,01.45,01.45
+Meat animals nec,01.49,01.47
+Meat animals nec,01.49,01.48
+Meat animals nec,01.7,01.7
+Meat animals nec,01.70,01.70
+Animal products nec,01.62,01.47
+Animal products nec,01.62,01.62
+Animal products nec,10.1,10.1
+Animal products nec,10.11,10.11
+Animal products nec,10.12,10.12
+Animal products nec,10.13,10.13
+Raw milk,01.41,01.41
+"Wool, silk-worm cocoons",01.45,01.45
+"Wool, silk-worm cocoons",01.49,01.47
+"Wool, silk-worm cocoons",01.49,01.48
+"Manure treatment (conventional), storage and land application",01.62,01.47
+"Manure treatment (conventional), storage and land application",01.62,01.62
+"Manure treatment (biogas), storage and land application",01.62,01.47
+"Manure treatment (biogas), storage and land application",01.62,01.62
+"Forestry, logging and related service activities (02)",02,02
+"Fishing, operating of fish hatcheries and fish farms; service activities incidental to fishing (05)",03,03
+Mining of coal and lignite; extraction of peat (10),05,05
+Mining of coal and lignite; extraction of peat (10),08.92,08.92
+"Extraction of crude petroleum and services related to crude oil extraction, excluding surveying",06.10,06.10
+"Extraction of crude petroleum and services related to crude oil extraction, excluding surveying",09.10,09.10
+"Extraction of natural gas and services related to natural gas extraction, excluding surveying",06.20,06.20
+"Extraction of natural gas and services related to natural gas extraction, excluding surveying",09.10,09.10
+"Extraction, liquefaction, and regasification of other petroleum and gaseous materials",52.21,52.21
+"Extraction, liquefaction, and regasification of other petroleum and gaseous materials",52.22,52.22
+"Extraction, liquefaction, and regasification of other petroleum and gaseous materials",09.10,09.10
+Mining of uranium and thorium ores (12),07.21,07.21
+Mining of iron ores,07.10,07.10
+Mining of copper ores and concentrates,07.2,07.2
+Mining of nickel ores and concentrates,07.2,07.2
+Mining of aluminium ores and concentrates,07.2,07.2
+Mining of precious metal ores and concentrates,07.2,07.2
+"Mining of lead, zinc and tin ores and concentrates",07.2,07.2
+Mining of other non-ferrous metal ores and concentrates,07.29,07.29
+Quarrying of stone,08.11,08.11
+Quarrying of sand and clay,08.12,08.12
+"Mining of chemical and fertilizer minerals, production of salt, other mining and quarrying n.e.c.",08.91,08.91
+"Mining of chemical and fertilizer minerals, production of salt, other mining and quarrying n.e.c.",08.93,08.93
+"Mining of chemical and fertilizer minerals, production of salt, other mining and quarrying n.e.c.",08.99,08.99
+Processing of meat cattle,10.11,10.11
+Processing of meat cattle,10.13,10.13
+Processing of meat pigs,10.11,10.11
+Processing of meat pigs,10.13,10.13
+Processing of meat poultry,10.12,10.12
+Processing of meat poultry,10.13,10.13
+Production of meat products nec,10.11,10.11
+Production of meat products nec,10.13,10.13
+Processing vegetable oils and fats,10.4,10.4
+Processing of dairy products,10.5,10.5
+Processed rice,10.61,10.61
+Sugar refining,10.81,10.81
+Processing of Food products nec,10.3,10.3
+Processing of Food products nec,10.62,10.62
+Processing of Food products nec,10.7,10.7
+Processing of Food products nec,10.82,10.82
+Processing of Food products nec,10.83,10.83
+Processing of Food products nec,10.84,10.84
+Processing of Food products nec,10.85,10.85
+Processing of Food products nec,10.86,10.61
+Processing of Food products nec,10.86,10.62
+Processing of Food products nec,10.86,10.71
+Processing of Food products nec,10.86,10.72
+Processing of Food products nec,10.86,10.73
+Processing of Food products nec,10.86,10.86
+Processing of Food products nec,10.89,10.89
+Processing of Food products nec,10.9,10.9
+Manufacture of beverages,11,11
+Manufacture of fish products,10.2,10.2
+Manufacture of tobacco products (16),12,12
+Manufacture of textiles (17),13,13
+Manufacture of wearing apparel; dressing and dyeing of fur (18),14,14
+"Tanning and dressing of leather; manufacture of luggage, handbags, saddlery, harness and footwear (19)",15,15
+"Manufacture of wood and of products of wood and cork, except furniture; manufacture of articles of straw and plaiting materials (20)",16,16
+Re-processing of secondary wood material into new wood material,16,16
+Pulp,17.11,17.11
+Re-processing of secondary paper into new pulp,17.11,17.11
+Paper,17.12,17.12
+Paper,17.2,17.2
+"Publishing, printing and reproduction of recorded media (22)",18,18
+Manufacture of coke oven products,19.1,19.1
+Petroleum Refinery,19.2,19.2
+Processing of nuclear fuel,20.13,20.13
+Processing of nuclear fuel,21.2,21.2
+Processing of nuclear fuel,24.46,24.46
+Processing of nuclear fuel,38.12,38.12
+Processing of nuclear fuel,38.22,38.22
+Processing of nuclear fuel,38.22,38.31
+Processing of nuclear fuel,38.22,38.32
+Processing of nuclear fuel,38.22,38.23
+Processing of nuclear fuel,38.22,38.33
+"Plastics, basic",20.16,20.16
+Re-processing of secondary plastic into new plastic,20.16,20.16
+N-fertiliser,20.15,20.15
+P- and other fertiliser,20.15,20.15
+Chemicals nec,20,20
+Manufacture of rubber and plastic products (25),22,22
+Manufacture of glass and glass products,23.1,23.1
+Re-processing of secondary glass into new glass,23.1,23.1
+Manufacture of ceramic goods,23.2,23.2
+Manufacture of ceramic goods,23.31,23.31
+Manufacture of ceramic goods,23.4,23.4
+"Manufacture of bricks, tiles and construction products, in baked clay",23.32,23.32
+"Manufacture of cement, lime and plaster",23.5,23.5
+Re-processing of ash into clinker,23.5,23.5
+Manufacture of other non-metallic mineral products n.e.c.,23.6,23.6
+Manufacture of other non-metallic mineral products n.e.c.,23.7,23.7
+Manufacture of other non-metallic mineral products n.e.c.,23.9,23.9
+Manufacture of basic iron and steel and of ferro-alloys and first products thereof,24.1,24.1
+Manufacture of basic iron and steel and of ferro-alloys and first products thereof,24.2,24.2
+Manufacture of basic iron and steel and of ferro-alloys and first products thereof,24.3,24.3
+Re-processing of secondary steel into new steel,24.1,24.1
+Re-processing of secondary steel into new steel,24.2,24.2
+Re-processing of secondary steel into new steel,24.3,24.3
+Precious metals production,24.41,24.41
+Re-processing of secondary preciuos metals into new preciuos metals,24.41,24.41
+Aluminium production,24.42,24.42
+Re-processing of secondary aluminium into new aluminium,24.42,24.42
+"Lead, zinc and tin production",24.43,24.43
+"Re-processing of secondary lead into new lead, zinc and tin",24.43,24.43
+Copper production,24.44,24.44
+Re-processing of secondary copper into new copper,24.44,24.44
+Other non-ferrous metal production,24.45,24.45
+Re-processing of secondary other non-ferrous metals into new other non-ferrous metals,24.45,24.45
+Casting of metals,24.5,24.5
+"Manufacture of fabricated metal products, except machinery and equipment (28)",25,25
+Manufacture of machinery and equipment n.e.c. (29),28.1,28.1
+Manufacture of machinery and equipment n.e.c. (29),28.11,28.11
+Manufacture of machinery and equipment n.e.c. (29),28.12,28.12
+Manufacture of machinery and equipment n.e.c. (29),28.13,28.13
+Manufacture of machinery and equipment n.e.c. (29),28.14,28.14
+Manufacture of machinery and equipment n.e.c. (29),28.15,28.15
+Manufacture of machinery and equipment n.e.c. (29),28.2,28.2
+Manufacture of machinery and equipment n.e.c. (29),28.2,28.9
+Manufacture of machinery and equipment n.e.c. (29),28.21,28.21
+Manufacture of machinery and equipment n.e.c. (29),28.21,28.25
+Manufacture of machinery and equipment n.e.c. (29),28.22,28.22
+Manufacture of machinery and equipment n.e.c. (29),28.24,28.24
+Manufacture of machinery and equipment n.e.c. (29),28.25,28.25
+Manufacture of machinery and equipment n.e.c. (29),28.29,28.29
+Manufacture of machinery and equipment n.e.c. (29),28.29,28.93
+Manufacture of machinery and equipment n.e.c. (29),28.3,28.3
+Manufacture of machinery and equipment n.e.c. (29),28.30,28.30
+Manufacture of machinery and equipment n.e.c. (29),28.4,28.4
+Manufacture of machinery and equipment n.e.c. (29),28.41,28.41
+Manufacture of machinery and equipment n.e.c. (29),28.49,28.41
+Manufacture of machinery and equipment n.e.c. (29),28.49,28.42
+Manufacture of machinery and equipment n.e.c. (29),28.9,28.3
+Manufacture of machinery and equipment n.e.c. (29),28.9,28.9
+Manufacture of machinery and equipment n.e.c. (29),28.91,28.91
+Manufacture of machinery and equipment n.e.c. (29),28.92,28.30
+Manufacture of machinery and equipment n.e.c. (29),28.92,28.92
+Manufacture of machinery and equipment n.e.c. (29),28.93,28.93
+Manufacture of machinery and equipment n.e.c. (29),28.94,28.94
+Manufacture of machinery and equipment n.e.c. (29),28.95,28.95
+Manufacture of machinery and equipment n.e.c. (29),28.96,28.96
+Manufacture of machinery and equipment n.e.c. (29),28.96,28.97
+Manufacture of machinery and equipment n.e.c. (29),28.99,28.97
+Manufacture of machinery and equipment n.e.c. (29),28.99,28.99
+Manufacture of office machinery and computers (30),28.23,28.23
+Manufacture of office machinery and computers (30),26.2,26.2
+Manufacture of office machinery and computers (30),26.2,26.4
+Manufacture of electrical machinery and apparatus n.e.c. (31),27,27
+"Manufacture of radio, television and communication equipment and apparatus (32)",26.1,26.1
+"Manufacture of radio, television and communication equipment and apparatus (32)",26.11,26.11
+"Manufacture of radio, television and communication equipment and apparatus (32)",26.12,26.12
+"Manufacture of radio, television and communication equipment and apparatus (32)",26.3,26.3
+"Manufacture of radio, television and communication equipment and apparatus (32)",26.3,26.5
+"Manufacture of radio, television and communication equipment and apparatus (32)",26.30,26.30
+"Manufacture of radio, television and communication equipment and apparatus (32)",26.30,26.51
+"Manufacture of radio, television and communication equipment and apparatus (32)",26.4,26.4
+"Manufacture of radio, television and communication equipment and apparatus (32)",26.40,26.40
+"Manufacture of medical, precision and optical instruments, watches and clocks (33)",26.5,26.5
+"Manufacture of medical, precision and optical instruments, watches and clocks (33)",26.51,26.51
+"Manufacture of medical, precision and optical instruments, watches and clocks (33)",26.52,26.52
+"Manufacture of medical, precision and optical instruments, watches and clocks (33)",26.6,26.6
+"Manufacture of medical, precision and optical instruments, watches and clocks (33)",26.60,26.60
+"Manufacture of medical, precision and optical instruments, watches and clocks (33)",26.7,26.7
+"Manufacture of medical, precision and optical instruments, watches and clocks (33)",26.70,26.70
+"Manufacture of medical, precision and optical instruments, watches and clocks (33)",26.8,26.7
+"Manufacture of medical, precision and optical instruments, watches and clocks (33)",26.80,26.70
+"Manufacture of medical, precision and optical instruments, watches and clocks (33)",32.5,32.5
+"Manufacture of motor vehicles, trailers and semi-trailers (34)",29,29
+Manufacture of other transport equipment (35),30,30
+Manufacture of furniture; manufacturing n.e.c. (36),31,31
+Manufacture of furniture; manufacturing n.e.c. (36),32.1,32.1
+Manufacture of furniture; manufacturing n.e.c. (36),32.2,32.2
+Manufacture of furniture; manufacturing n.e.c. (36),32.3,32.3
+Manufacture of furniture; manufacturing n.e.c. (36),32.3,32.9
+Manufacture of furniture; manufacturing n.e.c. (36),32.4,32.4
+Manufacture of furniture; manufacturing n.e.c. (36),32.9,32.5
+Manufacture of furniture; manufacturing n.e.c. (36),32.9,32.9
+Recycling of waste and scrap,38.32,38.21
+Recycling of bottles by direct reuse,38.32,38.21
+Production of electricity by coal,35.11,35.11
+Production of electricity by gas,35.11,35.11
+Production of electricity by nuclear,35.11,35.11
+Production of electricity by hydro,35.11,35.12
+Production of electricity by wind,35.11,35.12
+Production of electricity by petroleum and other oil derivatives,35.11,35.11
+Production of electricity by biomass and waste,35.11,35.12
+Production of electricity by solar photovoltaic,35.11,35.12
+Production of electricity by solar thermal,35.11,35.12
+"Production of electricity by tide, wave, ocean",35.11,35.12
+Production of electricity by Geothermal,35.11,35.12
+Production of electricity nec,35.11,35.11
+Transmission of electricity,35.12,35.13
+Distribution and trade of electricity,35.13,35.14
+Distribution and trade of electricity,35.14,35.15
+Distribution and trade of electricity,35.14,35.40
+Manufacture of gas; distribution of gaseous fuels through mains,35.2,35.4
+Manufacture of gas; distribution of gaseous fuels through mains,35.2,35.2
+Steam and hot water supply,35.3,35.3
+"Collection, purification and distribution of water (41)",36,36
+Construction (45),41,41
+Re-processing of secondary construction material into aggregates,38.32,38.21
+"Sale, maintenance, repair of motor vehicles, motor vehicles parts, motorcycles, motor cycles parts and accessoiries",45,46
+"Sale, maintenance, repair of motor vehicles, motor vehicles parts, motorcycles, motor cycles parts and accessoiries",45,47
+"Sale, maintenance, repair of motor vehicles, motor vehicles parts, motorcycles, motor cycles parts and accessoiries",45,95
+Retail sale of automotive fuel,47.3,47.9
+Retail sale of automotive fuel,47.3,47.3
+"Wholesale trade and commission trade, except of motor vehicles and motorcycles (51)",46,46
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.1,47.9
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.1,47.1
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.2,47.9
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.2,47.2
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.4,47.9
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.4,47.4
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.5,47.9
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.5,47.5
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.5,47.6
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.6,47.9
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.6,47.6
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.7,47.9
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.7,47.5
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.7,47.6
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.7,47.7
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.8,47.1
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.8,47.2
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.8,47.4
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.8,47.5
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.8,47.6
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.8,47.7
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.9,47.9
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.9,47.1
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.9,47.2
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.9,47.4
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.9,47.5
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.9,47.6
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",47.9,47.7
+Hotels and restaurants (55),55,55
+Hotels and restaurants (55),56,56
+Transport via railways,49.1,49.1
+Transport via railways,49.10,49.11
+Transport via railways,49.10,49.12
+Transport via railways,49.2,49.2
+Transport via railways,49.20,49.20
+Other land transport,49.3,49.1
+Other land transport,49.3,49.3
+Transport via pipelines,49.5,49.5
+Sea and coastal water transport,50.1,50.1
+Inland water transport,50.3,50.3
+Inland water transport,50.4,50.4
+Air transport (62),51,51
+Supporting and auxiliary transport activities; activities of travel agencies (63),52,52
+Supporting and auxiliary transport activities; activities of travel agencies (63),79,79
+Post and telecommunications (64),53,53
+"Financial intermediation, except insurance and pension funding (65)",64,64
+"Insurance and pension funding, except compulsory social security (66)",65,65
+Activities auxiliary to financial intermediation (67),66,66
+Real estate activities (70),68,68
+Renting of machinery and equipment without operator and of personal and household goods (71),77,77
+Computer and related activities (72),62,62
+Computer and related activities (72),63.1,63.9
+Computer and related activities (72),63.1,63.1
+Research and development (73),72,72
+Other business activities (74),69,69
+Other business activities (74),70,70
+Other business activities (74),71,71
+Other business activities (74),73,73
+Other business activities (74),74,74
+Other business activities (74),75,75
+Other business activities (74),78,78
+Other business activities (74),81,81
+Other business activities (74),82,82
+Other business activities (74),80,80
+Other business activities (74),87,87
+Public administration and defence; compulsory social security (75),84,84
+Education (80),85,85
+Health and social work (85),86,86
+Health and social work (85),87,87
+Health and social work (85),88,88
+Incineration of waste: Food,38.21,38.22
+Incineration of waste: Food,38.21,38.31
+Incineration of waste: Food,38.21,38.32
+Incineration of waste: Food,38.21,38.23
+Incineration of waste: Food,38.21,38.33
+Incineration of waste: Food,38.21,38.21
+Incineration of waste: Paper,38.21,38.22
+Incineration of waste: Paper,38.21,38.31
+Incineration of waste: Paper,38.21,38.32
+Incineration of waste: Paper,38.21,38.23
+Incineration of waste: Paper,38.21,38.33
+Incineration of waste: Paper,38.21,38.21
+Incineration of waste: Plastic,38.21,38.22
+Incineration of waste: Plastic,38.21,38.31
+Incineration of waste: Plastic,38.21,38.32
+Incineration of waste: Plastic,38.21,38.23
+Incineration of waste: Plastic,38.21,38.33
+Incineration of waste: Plastic,38.21,38.21
+Incineration of waste: Metals and Inert materials,38.21,38.22
+Incineration of waste: Metals and Inert materials,38.21,38.31
+Incineration of waste: Metals and Inert materials,38.21,38.32
+Incineration of waste: Metals and Inert materials,38.21,38.23
+Incineration of waste: Metals and Inert materials,38.21,38.33
+Incineration of waste: Metals and Inert materials,38.21,38.21
+Incineration of waste: Textiles,38.21,38.22
+Incineration of waste: Textiles,38.21,38.31
+Incineration of waste: Textiles,38.21,38.32
+Incineration of waste: Textiles,38.21,38.23
+Incineration of waste: Textiles,38.21,38.33
+Incineration of waste: Textiles,38.21,38.21
+Incineration of waste: Wood,38.21,38.22
+Incineration of waste: Wood,38.21,38.31
+Incineration of waste: Wood,38.21,38.32
+Incineration of waste: Wood,38.21,38.23
+Incineration of waste: Wood,38.21,38.33
+Incineration of waste: Wood,38.21,38.21
+Incineration of waste: Oil/Hazardous waste,38.22,38.22
+Incineration of waste: Oil/Hazardous waste,38.22,38.31
+Incineration of waste: Oil/Hazardous waste,38.22,38.32
+Incineration of waste: Oil/Hazardous waste,38.22,38.23
+Incineration of waste: Oil/Hazardous waste,38.22,38.33
+"Biogasification of food waste, incl. land application",38.21,38.22
+"Biogasification of food waste, incl. land application",38.21,38.31
+"Biogasification of food waste, incl. land application",38.21,38.32
+"Biogasification of food waste, incl. land application",38.21,38.23
+"Biogasification of food waste, incl. land application",38.21,38.33
+"Biogasification of food waste, incl. land application",38.21,38.21
+"Biogasification of paper, incl. land application",38.21,38.22
+"Biogasification of paper, incl. land application",38.21,38.31
+"Biogasification of paper, incl. land application",38.21,38.32
+"Biogasification of paper, incl. land application",38.21,38.23
+"Biogasification of paper, incl. land application",38.21,38.33
+"Biogasification of paper, incl. land application",38.21,38.21
+"Biogasification of sewage slugde, incl. land application",38.21,38.22
+"Biogasification of sewage slugde, incl. land application",38.21,38.31
+"Biogasification of sewage slugde, incl. land application",38.21,38.32
+"Biogasification of sewage slugde, incl. land application",38.21,38.23
+"Biogasification of sewage slugde, incl. land application",38.21,38.33
+"Biogasification of sewage slugde, incl. land application",38.21,38.21
+"Composting of food waste, incl. land application",38.21,38.22
+"Composting of food waste, incl. land application",38.21,38.31
+"Composting of food waste, incl. land application",38.21,38.32
+"Composting of food waste, incl. land application",38.21,38.23
+"Composting of food waste, incl. land application",38.21,38.33
+"Composting of food waste, incl. land application",38.21,38.21
+"Composting of paper and wood, incl. land application",38.21,38.22
+"Composting of paper and wood, incl. land application",38.21,38.31
+"Composting of paper and wood, incl. land application",38.21,38.32
+"Composting of paper and wood, incl. land application",38.21,38.23
+"Composting of paper and wood, incl. land application",38.21,38.33
+"Composting of paper and wood, incl. land application",38.21,38.21
+"Waste water treatment, food",36,36
+"Waste water treatment, other",36,36
+Landfill of waste: Food,38.21,38.22
+Landfill of waste: Food,38.21,38.31
+Landfill of waste: Food,38.21,38.32
+Landfill of waste: Food,38.21,38.23
+Landfill of waste: Food,38.21,38.33
+Landfill of waste: Food,38.21,38.21
+Landfill of waste: Paper,38.21,38.22
+Landfill of waste: Paper,38.21,38.31
+Landfill of waste: Paper,38.21,38.32
+Landfill of waste: Paper,38.21,38.23
+Landfill of waste: Paper,38.21,38.33
+Landfill of waste: Paper,38.21,38.21
+Landfill of waste: Plastic,38.21,38.22
+Landfill of waste: Plastic,38.21,38.31
+Landfill of waste: Plastic,38.21,38.32
+Landfill of waste: Plastic,38.21,38.23
+Landfill of waste: Plastic,38.21,38.33
+Landfill of waste: Plastic,38.21,38.21
+Landfill of waste: Inert/metal/hazardous,38.22,38.22
+Landfill of waste: Inert/metal/hazardous,38.22,38.31
+Landfill of waste: Inert/metal/hazardous,38.22,38.32
+Landfill of waste: Inert/metal/hazardous,38.22,38.23
+Landfill of waste: Inert/metal/hazardous,38.22,38.33
+Landfill of waste: Textiles,38.21,38.22
+Landfill of waste: Textiles,38.21,38.31
+Landfill of waste: Textiles,38.21,38.32
+Landfill of waste: Textiles,38.21,38.23
+Landfill of waste: Textiles,38.21,38.33
+Landfill of waste: Textiles,38.21,38.21
+Landfill of waste: Wood,38.21,38.22
+Landfill of waste: Wood,38.21,38.31
+Landfill of waste: Wood,38.21,38.32
+Landfill of waste: Wood,38.21,38.23
+Landfill of waste: Wood,38.21,38.33
+Landfill of waste: Wood,38.21,38.21
+Activities of membership organisation n.e.c. (91),94,94
+"Recreational, cultural and sporting activities (92)",90,90
+"Recreational, cultural and sporting activities (92)",91,91
+"Recreational, cultural and sporting activities (92)",92,92
+"Recreational, cultural and sporting activities (92)",93,93
+Other service activities (93),95,95
+Other service activities (93),96,96
+Other service activities (93),98,98
+Private households with employed persons (95),97,97
+Extra-territorial organizations and bodies,99,99

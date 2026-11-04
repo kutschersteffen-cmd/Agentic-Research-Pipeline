@@ -44,9 +44,10 @@ _CMP = {ast.Eq: lambda a, b: a == b, ast.NotEq: lambda a, b: a != b, ast.Lt: lam
 
 
 class _Interp:
-    def __init__(self, steps: dict[str, Callable[..., Any]]):
+    def __init__(self, steps: dict[str, Callable[..., Any]], previous: list[dict] | None, first_seq: int):
         self.steps = steps
-        self.env: dict[str, Any] = {}
+        self.env: dict[str, Any] = {} if previous is None else {"previous": previous}
+        self.first_seq = first_seq
         self.calls: list[dict] = []
         self.ops = 0
         self.deps: list[int] = []  # seqs of unknowns the current branch/loop depends on
@@ -190,7 +191,7 @@ class _Interp:
             return getattr(builtins, name)(*args, **kwargs)
         if len(self.calls) >= MAX_STEPS:
             raise StepLimitExceeded(f"step limit {MAX_STEPS} exceeded")
-        seq = len(self.calls) + 1
+        seq = self.first_seq + len(self.calls)
         found = [v.seq for v in _flatten(kwargs.values()) if isinstance(v, Unknown)]
         depends_on = (self.deps[-1] if self.deps else None) or (found[0] if found else None)
         model = STEPS[name]
@@ -221,12 +222,14 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
-def run_script(source: str, steps: dict[str, Callable[..., Any]]) -> list[dict]:
-    """Check, then run `source` against `steps`; returns the recorded calls in order."""
+def run_script(source: str, steps: dict[str, Callable[..., Any]], previous: list[dict] | None = None,
+               first_seq: int = 1) -> list[dict]:
+    """Check, then run `source` against `steps`; returns the recorded calls in order. A re-planned script also
+    sees `previous` (the finished steps' results) and numbers its calls from `first_seq`."""
     errors = check_script(source)
     if errors:
         raise PlanScriptError("\n".join(errors))
-    interp = _Interp(steps)
+    interp = _Interp(steps, previous, first_seq)
     interp.run(ast.parse(source).body)
     return interp.calls
 
@@ -237,6 +240,6 @@ def _placeholder(kind: str) -> Callable[..., Any]:
     return step
 
 
-def dry_run(source: str) -> list[dict]:
+def dry_run(source: str, previous: list[dict] | None = None, first_seq: int = 1) -> list[dict]:
     """The calls a script will make, without reading the database or starting any run."""
-    return run_script(source, {kind: _placeholder(kind) for kind in STEPS})
+    return run_script(source, {kind: _placeholder(kind) for kind in STEPS}, previous, first_seq)

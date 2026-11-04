@@ -32,7 +32,7 @@ class ForeignProjectDashboard(ProjectError):
 
 
 class DataSource(BaseModel):
-    kind: Literal["dws-constituents"]
+    kind: Literal["constituents"]
     files: list[str] = Field(default_factory=list)
     params: dict[str, Any] = Field(default_factory=dict)
 
@@ -131,9 +131,9 @@ class ProjectStore:
             p = self.get(id)
             target = self.file_path(id, "data", name)
             atomic_write_bytes(target, content)
-            src = next((s for s in p.data if s.kind == "dws-constituents"), None)
+            src = next((s for s in p.data if s.kind == "constituents"), None)
             if src is None:
-                src = DataSource(kind="dws-constituents")
+                src = DataSource(kind="constituents")
                 p.data.append(src)
             if name not in src.files:
                 src.files.append(name)

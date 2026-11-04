@@ -157,6 +157,7 @@ def reindex_opensearch(batch_size: int = typer.Option(200, help="Rows read from 
                     doc_type=DocType(doc_ref.doc_type),
                     title=doc_ref.title,
                     full_text=parsed.full_text,
+                    table_spans=parsed.table_spans,
                 )
                 indexed += 1
             except Exception as exc:  # noqa: BLE001 - isolate one bad document from the whole backfill

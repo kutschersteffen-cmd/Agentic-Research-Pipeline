@@ -57,6 +57,9 @@ class CompanyRef(BaseModel):
     isic_code: str | None = Field(
         default=None, description="ISIC Rev.4 industry code, if known (enables indirect/structural exposure scoring)."
     )
+    nace_code: str | None = Field(default=None, description="NACE code (division or class), validated on universe load.")
+    nace_rev: Literal["2", "2.1"] = "2"
+    gics_code: str | None = Field(default=None, description="GICS code of 2, 4, 6 or 8 digits; stored, not mapped.")
     regimes: list[str] = Field(default_factory=list, description="Reporting regimes the company is subject to, e.g. CSRD, SEC.")
     fiscal_year_end: str | None = Field(
         default=None, pattern=r"^\d{2}-\d{2}$", description="Fiscal year end as MM-DD, e.g. 04-30."
@@ -145,6 +148,7 @@ class DocumentChunk(BaseModel):
     section: str | None = None
     speaker: str | None = None
     unit_note: str | None = None  # a table passage's unit caption, e.g. "in EUR millions"
+    table_id: str | None = None  # set on whole-table passages
     text: str
     char_start: int
     char_end: int

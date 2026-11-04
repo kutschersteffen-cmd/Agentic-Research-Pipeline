@@ -1,0 +1,11 @@
+{"id": "storage_universe_only", "brief": "Build the EU-listed grid-storage universe.", "expected_kinds": ["universe_build"]}
+{"id": "storage_capex_rank", "brief": "EU grid storage: extract green capex for significant and pure-play names, then score them with the green capex quality framework.", "expected_kinds": ["universe_build", "extraction", "decision_score"]}
+{"id": "storage_full_report", "brief": "EU grid-storage universe, green capex for the significant names, scored, written up as a report.", "expected_kinds": ["universe_build", "extraction", "decision_score", "report_render"]}
+{"id": "hydrogen_documents_first", "brief": "Green hydrogen, US-listed: find each included company's latest disclosures, then extract green capex.", "expected_kinds": ["universe_build", "document_discovery", "extraction"]}
+{"id": "heat_pumps_xbrl", "brief": "Heat pumps, EU-listed: pull XBRL facts for the companies the theme run includes.", "expected_kinds": ["universe_build", "xbrl_facts"]}
+{"id": "hydrogen_financials", "brief": "For US green-hydrogen pure plays, extract segments, capex and R&D.", "expected_kinds": ["universe_build", "financials_extraction"]}
+{"id": "storage_transition_plans", "brief": "Assess the transition plans of EU grid-storage companies with significant exposure.", "expected_kinds": ["universe_build", "extraction"]}
+{"id": "heat_pumps_xbrl_then_financials", "brief": "Heat pumps EU: XBRL facts first, then the financials extraction for the same companies, then a report over both.", "expected_kinds": ["universe_build", "xbrl_facts", "financials_extraction", "report_render"]}
+{"id": "hydrogen_discovery_report", "brief": "Discover documents for US green-hydrogen names and produce a report on what was found.", "expected_kinds": ["universe_build", "document_discovery", "report_render"]}
+{"id": "storage_score_only_included", "brief": "Only for companies the grid-storage theme run includes (EU): extract green capex and score with the capex quality framework.", "expected_kinds": ["universe_build", "extraction", "decision_score"]}
+{"id": "storage_index", "brief": "EU grid storage: score green capex with the capex quality framework, then build the cal_eu_pab index on 2026-10-31 from data/index/candidates_eu.json.", "expected_kinds": ["universe_build", "extraction", "decision_score", "index_construct"]}

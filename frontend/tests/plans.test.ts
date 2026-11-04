@@ -1,12 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { resultHref, stepRows, type Plan, type PlanCall } from "../src/lib/plans.ts";
+import { canReplan, resultHref, stepRows, type Plan, type PlanCall } from "../src/lib/plans.ts";
 
 const call = (seq: number, over: Partial<PlanCall> = {}): PlanCall =>
   ({ seq, kind: "extraction", params: {}, status: "done", run_id: null, result_ref: null, ...over });
 
 const plan = (calls: PlanCall[]): Plan => ({
-  id: "plan_1", brief: "b", script: "s", status: "running", approved_by: "a", approved_at: null, error: null,
+  id: "plan_1", brief: "b", script: "s", status: "running", approved_by: "a", approved_at: null, error: null, version: 1, previous_scripts: [],
   dry_run: [1, 2, 3].map((seq) => ({ seq, kind: "extraction", params: {}, depends_on: null })), calls,
 });
 
@@ -23,5 +23,19 @@ test("a step links to its run, or to the screen of a run-less result", () => {
   assert.equal(resultHref(call(1, { run_id: "run_a b" })), "#/history/run_a%20b");
   assert.equal(resultHref(call(1, { result_ref: "report:rep_1" })), "#/reporting");
   assert.equal(resultHref(call(1, { result_ref: "decision:run_x" })), "#/decision");
+  assert.equal(resultHref(call(1, { result_ref: "index:plan_index@2026-10-31" })), "#/index");
   assert.equal(resultHref(call(1)), null);
+});
+
+test("only a failed plan offers Re-plan", () => {  // AC-18
+  assert.equal(canReplan({ ...plan([]), status: "failed" }), true);
+  for (const status of ["draft", "approved", "running", "awaiting_review", "done", "cancelled"] as const) {
+    assert.equal(canReplan({ ...plan([]), status }), false);
+  }
+});
+
+test("a re-planned plan lists its kept calls once, in seq order", () => {
+  const replanned = { ...plan([call(1), call(2), call(3)]), version: 2,
+    dry_run: [2, 3].map((seq) => ({ seq, kind: "extraction", params: {}, depends_on: null })) };
+  assert.deepEqual(stepRows(replanned).map((r) => r.step.seq), [1, 2, 3]);
 });

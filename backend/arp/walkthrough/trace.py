@@ -79,12 +79,16 @@ def field_entry(
     vision: dict | None = None,
     retrieval: dict | None = None,
     near_misses: list[dict] = (),
+    not_found_reason: str | None = None,
     seconds: dict[str, float] | None = None,
+    gate: dict | None = None,
+    gate_dropped: list[dict] = (),
 ) -> dict:
     return {
         "field_id": field_id,
         "grouped": grouped,
         "skipped": skipped,
+        "not_found_reason": not_found_reason,
         "passages": list(passages),
         "extractor": extractor,
         "verifier": verifier,
@@ -93,6 +97,8 @@ def field_entry(
         "retrieval": retrieval,
         "near_misses": list(near_misses),
         "seconds": {node: round(s, 2) for node, s in (seconds or {}).items()},
+        "gate": gate,
+        "gate_dropped": list(gate_dropped),
     }
 
 

@@ -22,6 +22,7 @@ from arp.storage.safe_path import safe_id
 from arp.xbrl_pipeline.flatten import build_catalog, flatten_company_facts
 from arp.xbrl_pipeline.models import CompanyStatus, Market, ReportMeta  # noqa: F401 -- Market stays importable from here
 from arp.xbrl_pipeline.required import resolve_required
+from arp.xbrl_pipeline.segments import write_segments_sec
 from arp.xbrl_pipeline.store import XbrlStore
 
 if TYPE_CHECKING:
@@ -54,7 +55,7 @@ class _SecSource:
         return await self._facts.fetch_company_facts_raw(cik)
 
     async def fetch_latest_annual_original(self, cik: str) -> AnnualOriginal | None:
-        return await self._edgar.fetch_latest_annual_original(cik)
+        return await self._edgar.fetch_latest_annual_original(cik, labels=True)
 
 
 def build_source(settings: Settings, *, refresh: bool = False) -> SecSource:
@@ -100,6 +101,8 @@ async def _fetch_report(cik10: str, cik: str, *, source: SecSource, store: XbrlS
             filename=f"annual-{annual.accession}.htm", sha256=hashlib.sha256(annual.content).hexdigest(), size=len(annual.content),
             inline_xbrl=_INLINE_MARKER in annual.content,
         ))
+        if annual.labels:
+            store.save_labels(cik10, annual.accession, annual.labels)
         return "stored"
     except Exception as exc:  # noqa: BLE001 -- a report problem never changes the company's status
         logger.warning("annual report for %s not stored: %s", cik10, exc, exc_info=True)
@@ -140,6 +143,11 @@ async def fetch_company(
                        company_name=company.name, fact_count=count)
         result = "ok"
     report = await _fetch_report(cik10, cik, source=source, store=store, sleep=sleep)
+    if result == "ok" or report == "stored":
+        try:
+            write_segments_sec(cik10, store, company.company_id)
+        except Exception as exc:  # noqa: BLE001 -- a segment problem never changes the company's status
+            logger.warning("segments for %s not written: %s", cik10, exc, exc_info=True)
     return _status(company.company_id, result, cik10, sha, count, report)
 
 

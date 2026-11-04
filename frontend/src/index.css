@@ -64,7 +64,7 @@
   /* The start page's square, ruled instrument-panel look runs through every
      page: cards, tables, inputs and buttons are square; only small badges
      keep a hint of rounding, and status/count pills stay full pills. */
-  --r-sm: 2px;
+  --r-sm: 0;
   --r-md: 0;
   --r-lg: 0;
   --r-pill: 999px;
@@ -404,7 +404,7 @@ a.nav-tab { text-decoration: none; }
 /* A label wraps its control, which is what associates the two. */
 .field-label > :is(input, select, textarea) { display: block; margin-top: var(--s-1); }
 
-input[type="text"], input:not([type]), input[type="number"], input[type="date"], textarea, select {
+input[type="text"], input[type="password"], input:not([type]), input[type="number"], input[type="date"], textarea, select {
   width: 100%;
   background: var(--panel);
   border: 1px solid var(--field-border);
@@ -414,10 +414,10 @@ input[type="text"], input:not([type]), input[type="number"], input[type="date"],
   font-size: var(--text-base);
   font-family: inherit;
 }
-input[type="text"]:focus, input:not([type]):focus, input[type="number"]:focus, input[type="date"]:focus, textarea:focus, select:focus {
-  outline: none;
+input[type="text"]:focus, input[type="password"]:focus, input:not([type]):focus, input[type="number"]:focus, input[type="date"]:focus, textarea:focus, select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-tint);
 }
 
 /* Previously only inputs had a focus style, so every button, nav tab and
@@ -500,7 +500,8 @@ button.secondary:hover:not(:disabled) { background: var(--accent-tint); border-c
    same name; an empty one is flagged because nothing can be decided yet. */
 .reviewer-field { display: grid; gap: var(--s-1); font-size: var(--text-sm); color: var(--muted); }
 .reviewer-field input { font-size: var(--text-base); }
-.reviewer-field input[aria-invalid] { border-color: var(--mid); background: color-mix(in srgb, var(--mid) 6%, var(--panel)); }
+/* Neutral, not amber: from across a room amber reads as the signal colour. Dashed marks "still needed". */
+.reviewer-field input[aria-invalid] { border-style: dashed; }
 .reviewer-field-compact { display: inline-flex; align-items: center; gap: var(--s-2); margin-left: auto; }
 .reviewer-field-compact input { width: 12rem; }
 .reviewer-hint { font-size: var(--text-xs); color: var(--muted); line-height: 1.4; }
@@ -1688,7 +1689,7 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 
 .hub-cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s-4); }
 .hub-card {
-  display: flex; flex-direction: column; gap: 18px; min-height: 22rem; padding: 28px var(--s-6) 22px;
+  display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-6) var(--s-6) var(--s-4);
   border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none;
   transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
@@ -1702,14 +1703,11 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .hub-card-await .hub-ico .hi-fill { fill: var(--hi); stroke: var(--hi); }
 .hub-card-text { display: flex; flex-direction: column; gap: var(--s-2); }
 .hub-card-name { font-size: 1.5rem; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; }
-.hub-card-purpose { color: var(--muted); line-height: 1.45; }
+/* Three lines at most: the longest purpose set every card's height and pushed Now below the fold. */
+.hub-card-purpose { color: var(--muted); line-height: 1.45; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .hub-card-now { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--muted); min-height: 1.4em; }
 .hub-card-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--s-2); font-family: var(--font-mono); font-size: var(--text-sm); }
-.hub-card-state { white-space: nowrap; }
-.hub-card-state.await { color: var(--hi-ink); }
-.hub-card-state.failed { color: var(--low); }
-.hub-card-go { white-space: nowrap; }
-.hub-card:hover .hub-card-go { text-decoration: underline; text-underline-offset: 0.2em; }
+.hub-card:hover .hub-card-foot { text-decoration: underline; text-underline-offset: 0.2em; }
 
 /* A process's steps as dots on a line: ink for done, a ring for running,
    the highlight for waiting on a person, a red diamond for failed. */
@@ -1724,53 +1722,39 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .hub-dots li.hub-dot-failed::after, .hub-dot.hub-dot-failed { background: var(--low); border-radius: var(--r-sm); transform: rotate(45deg); width: 11px; height: 11px; }
 .hub-dots li.hub-dot-idle::after, .hub-dot.hub-dot-idle { border: 2px solid var(--panel-border); }
 .hub-dots li.hub-dot-idle::before, .hub-dots li.hub-dot-failed::before { background: var(--panel-border); }
+/* Unknown (no runs loaded): a dashed ring, so it never reads as "no activity". */
+.hub-dots li.hub-dot-unknown::after { border: 2px dashed var(--muted); }
+.hub-dots li.hub-dot-unknown::before { background: var(--panel-border); }
 
 .hub-now { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); margin-top: var(--s-8); }
 .hub-now-label { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-right: var(--s-2); }
 .hub-chip { text-transform: none; display: inline-flex; align-items: center; gap: var(--s-2); min-height: 40px; padding: 0 var(--s-3); border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none; font-family: var(--font-mono); font-size: var(--text-sm); }
 .hub-chip:hover { border-color: var(--text); }
-.hub-chip-id { color: var(--muted); }
+.hub-chip-id { color: var(--muted); white-space: nowrap; }
 .hub-chip:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .hub-chip-wait { border-color: var(--hi); }
-.hub-now-all { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text); }
-.hub-engagement { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-3); margin: var(--s-3) 0 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--muted); }
-.hub-engagement a { color: var(--text); }
 
-@media (max-width: 1400px) { .hub-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 1100px) { .hub-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Below 1400px the purpose line repeats the sidebar; drop it so the cards stop owning the fold. */
+/* Five across, the bottom lines wrap unevenly; reserve two lines each so every card's dots sit on one row. */
+@media (min-width: 1401px) { .hub-card-now { display: block; min-height: 2lh; } }
+/* Five cards never leave an empty cell: 3 + 2 on a six-column grid, then 2 + 2 + 1 with the last one full width. */
+@media (max-width: 1400px) { .hub-cards { grid-template-columns: repeat(6, minmax(0, 1fr)); } .hub-card { grid-column: span 2; } .hub-card:nth-child(n+4) { grid-column: span 3; } .hub-card-purpose { display: none; } .hub-card { min-height: 0; } }
+@media (max-width: 1100px) { .hub-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .hub-card, .hub-card:nth-child(n+4) { grid-column: auto; } .hub-card:last-child:nth-child(odd) { grid-column: 1 / -1; } }
 @media (max-width: 640px) {
   .hub-cards { grid-template-columns: 1fr; }
   .hub-card { min-height: 0; }
+  .hub-card:last-child:nth-child(odd) { grid-column: auto; }
   .hub-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
   .hub-stats dd { font-size: 2rem; }
-  .hub-now-all { margin-left: 0; }
-  /* On a phone what waits on you comes before the five workspace cards. */
-  .hub-start { display: flex; flex-direction: column; }
-  .hub-start .hub-now { order: -1; margin-top: 0; }
-  .hub-start .hub-hero { order: -2; }
+  /* The chip's three parts wrap as words on a phone, not as three ragged columns. */
+  .hub-chip { display: flex; flex-wrap: wrap; column-gap: var(--s-1_5); padding: var(--s-2) var(--s-3); }
 }
 
-.hub-legend { display: flex; flex-wrap: wrap; gap: var(--s-1_5) var(--s-4); font-size: var(--text-xs); margin-top: var(--s-3); }
+.hub-legend { display: flex; flex-wrap: wrap; gap: var(--s-1_5) var(--s-4); font-size: var(--text-xs); margin: var(--s-3) 0 0; }
 .hub-legend > span { display: inline-flex; align-items: center; gap: var(--s-1_5); }
 
-/* Start page: what waits on a person, one row per place it waits, before the workspace boxes. */
-.needs-you { margin: 0 0 var(--s-6); }
-.needs-you h2 { margin: 0 0 var(--s-2); font-size: var(--text-lg); }
-.needs-you-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--panel-border); border-radius: var(--r-md); background: var(--panel); }
-.needs-you-list li { display: flex; flex-wrap: wrap; align-items: center; }
-.needs-you-list li > a { flex: 1 1 0; min-width: 0; }
-.needs-you-list li > button { margin: 0 var(--s-3); }
-.needs-you-list li > p { flex-basis: 100%; margin: 0; padding: 0 var(--s-3) var(--s-2); }
-.needs-you-list li + li { border-top: 1px solid var(--panel-border); }
-.needs-you-list a { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr) auto; align-items: baseline; gap: var(--s-3); padding: var(--s-2) var(--s-3); color: inherit; text-decoration: none; }
-.needs-you-list a:hover { background: var(--well); }
-.needs-you-list a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.needs-you-count { font-family: var(--font-mono); font-weight: 600; text-align: right; color: var(--text); }
-.needs-you-meta { color: var(--muted); font-size: var(--text-sm); white-space: nowrap; }
-@media (max-width: 640px) {
-  .needs-you-list a { grid-template-columns: 2.5rem minmax(0, 1fr); }
-  .needs-you-meta { grid-column: 2; white-space: normal; }
-}
+.hub-counts { margin-top: var(--s-2); max-width: 60ch; font-size: var(--text-sm); color: var(--muted); }
+.hub-counts summary { cursor: pointer; color: var(--text); width: fit-content; }
 .hub-run { margin: 0 0 var(--s-3); }
 /* On a phone the note goes under the button instead of wrapping around it. */
 @media (max-width: 640px) { .hub-run > .muted { display: block; margin-top: var(--s-2); } }

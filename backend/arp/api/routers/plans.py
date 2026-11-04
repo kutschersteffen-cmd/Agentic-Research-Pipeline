@@ -11,8 +11,8 @@ from arp.api.auth import Principal, current_user
 from arp.config import Settings, get_settings
 from arp.db.session import require_dsn
 from arp.orchestration.plan_executor import PlanNotRunnable, cancel_plan, claim_plan, run_plan
-from arp.orchestration.plan_planner import PlanRejected, draft_plan
-from arp.orchestration.plan_store import PlanNotFound, PlanStore
+from arp.orchestration.plan_planner import PlanRejected, draft_plan, replan_plan
+from arp.orchestration.plan_store import PlanNotFound, PlanNotReplannable, PlanStore
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/plans", tags=["plans"])
@@ -47,16 +47,21 @@ def _get(store: PlanStore, plan_id: str) -> dict:
         raise HTTPException(404, f"Unknown plan: {plan_id}") from exc
 
 
-@router.post("")
-async def create_plan(req: DraftRequest, store: PlanStore = Depends(plan_store)) -> dict:
-    from arp.api.deps import get_decision_store, get_llm_client
+def _context() -> str:
+    from arp.api.deps import get_decision_store, get_index_store
     from arp.orchestration.plan_planner import planner_context
     from arp.storage.taxonomy_store import TaxonomyStore
 
-    context = planner_context(TaxonomyStore(get_settings().taxonomies_dir).list_all(),
-                              get_decision_store().list_frameworks())
+    return planner_context(TaxonomyStore(get_settings().taxonomies_dir).list_all(),
+                           get_decision_store().list_frameworks(), get_index_store().list_calibrations())
+
+
+@router.post("")
+async def create_plan(req: DraftRequest, store: PlanStore = Depends(plan_store)) -> dict:
+    from arp.api.deps import get_llm_client
+
     try:
-        plan_id = await draft_plan(req.brief, get_llm_client(), store, context)
+        plan_id = await draft_plan(req.brief, get_llm_client(), store, await asyncio.to_thread(_context))
     except PlanRejected as exc:
         raise HTTPException(422, str(exc)) from exc
     return _get(store, plan_id)
@@ -89,6 +94,24 @@ def approve_plan(plan_id: str, store: PlanStore = Depends(plan_store),
     if _get(store, plan_id)["status"] != "draft":
         raise HTTPException(409, "only a draft plan can be approved")
     store.approve(plan_id, principal.user_id)
+    return _get(store, plan_id)
+
+
+@router.post("/{plan_id}/replan")
+async def replan(plan_id: str, store: PlanStore = Depends(plan_store),
+                 principal: Principal = Depends(current_user)) -> dict:
+    """The planner writes a script for the failed plan's remaining work; it comes back as a draft to approve."""
+    from arp.api.deps import get_llm_client
+
+    if _get(store, plan_id)["status"] != "failed":
+        raise HTTPException(409, "only a failed plan can be re-planned")
+    try:
+        await replan_plan(plan_id, get_llm_client(), store, await asyncio.to_thread(_context),
+                          principal.user_id)
+    except PlanNotReplannable as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except PlanRejected as exc:
+        raise HTTPException(422, str(exc).splitlines()) from exc
     return _get(store, plan_id)
 
 

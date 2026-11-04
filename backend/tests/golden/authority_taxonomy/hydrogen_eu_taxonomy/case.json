@@ -1,0 +1,12 @@
+{
+  "source_url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32021R2139",
+  "source_note": "excerpt written from memory, verify against EUR-Lex",
+  "theme_name": "hydrogen",
+  "scope": "manufacture of equipment for the production and use of hydrogen",
+  "expected_activities": [
+    "Manufacture of electrolysers",
+    "Manufacture of fuel cells",
+    "Manufacture of hydrogen storage and compression equipment"
+  ],
+  "min_recall": 0.67
+}

@@ -355,8 +355,9 @@ function App() {
                   <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
                   <span className="nav-tab-label">{t.label}</span>
                   {count > 0 && (
-                    <span className="nav-count" aria-label={`${count} ${count === 1 ? "decision" : "decisions"} waiting on you`}>
-                      {count}
+                    <span className="nav-count" title={`${count} ${count === 1 ? "review item" : "review items"} waiting on you`} aria-label={`${count} ${count === 1 ? "review item" : "review items"} waiting on you`}>
+                      {/* "items", so 7 here never reads as the start page's total of decisions. */}
+                      {count} {count === 1 ? "item" : "items"}
                     </span>
                   )}
                 </a>

@@ -56,6 +56,7 @@ class GoldenSetReport(BaseModel):
     run_at: str = ""
     extractor_model: str | None = None
     verifier_model: str | None = None
+    extractor_input_tokens: int = 0  # summed over the cases' extractor calls (evidence-gate spec: --gate on vs off)
 
     @property
     def all_passed(self) -> bool:

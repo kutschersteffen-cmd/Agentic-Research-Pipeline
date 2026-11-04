@@ -52,9 +52,11 @@ def _matches(kind: str, got, label) -> bool:
 
 
 async def score(
-    cases: list[Case], documents_dir: Path, *, llm, verifier_llm, settings: Settings, today: date
+    cases: list[Case], documents_dir: Path, *, llm, verifier_llm, settings: Settings, today: date,
+    misses: list[str] | None = None,
 ) -> tuple[float, float]:
-    """(precision, coverage): counted values that match their label and page / counted cases, and counted / all."""
+    """(precision, coverage): counted values that match their label and page / counted cases, and counted / all.
+    `misses`, when given, gets one line per case that was not counted or counted wrong."""
     book = load_rule_book(data_dir())[0]
     sectors = {c.code: c.sector for c in load_criteria()}
     files = list(dict.fromkeys(c.document for c in cases))
@@ -76,9 +78,15 @@ async def score(
                 fact, f"{sectors[case.code]}, {case.region}, {case.code}", docs[case.document], book.conversions,
                 llm=llm, verifier_llm=verifier_llm, settings=settings,
             )
+        row = f"{case.code} {case.region} {case.fact} ({case.document}): label {case.value!r} p.{case.page}"
         if got is None or not got.counted:
+            if misses is not None:
+                misses.append(f"not counted: {row}")
             return False, False
-        return True, _matches(fact.type, got.value, case.value) and got.page == case.page
+        correct = _matches(fact.type, got.value, case.value) and got.page == case.page
+        if not correct and misses is not None:
+            misses.append(f"wrong: {row}, got {got.value!r} p.{got.page}")
+        return True, correct
 
     results = await asyncio.gather(*(one(c) for c in cases))
     counted = [correct for is_counted, correct in results if is_counted]

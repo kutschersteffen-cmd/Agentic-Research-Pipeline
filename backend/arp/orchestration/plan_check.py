@@ -46,6 +46,8 @@ def check_script(source: str) -> list[str]:
         name = node.id if isinstance(node, ast.Name) else node.attr if isinstance(node, ast.Attribute) else None
         if name and name.startswith("_"):
             errors.append(f"{where}name {name} not allowed")
+        if isinstance(node, ast.Name) and node.id == "previous" and isinstance(node.ctx, ast.Store):
+            errors.append(f"{where}name previous cannot be assigned")  # a re-planned plan's finished steps
         if isinstance(node, ast.Call):
             errors.extend(_check_call(node, where))
     return errors

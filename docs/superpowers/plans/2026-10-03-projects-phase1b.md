@@ -24,7 +24,7 @@
 
 ## Review Focus
 
-- Two projects importing the same fund ISIN: portfolio ids must not collide (`<project>-dws-<isin>`), numbers must not mix.
+- Two projects importing the same fund ISIN: portfolio ids must not collide (`<project>-portfolio-<isin>`), numbers must not mix.
 - Project id with uppercase, `..`, `/`, or 64+ chars: rejected with 422, nothing written to disk.
 - Upload named `../x.xlsx`, `evil.xlsm`, or over 50 MB: rejected, no partial file left.
 - Open when Superset is down mid-way: data import stays done, response names the failing step, a retry succeeds.
@@ -59,9 +59,9 @@
 **Interfaces:**
 - Produces:
   - `class Project(BaseModel)`: `id, name, description="", created_at, data: list[DataSource], dashboards: list[StoredDashboard]`
-  - `DataSource`: `kind: Literal["dws-constituents"], files: list[str], params: dict`
+  - `DataSource`: `kind: Literal["constituents"], files: list[str], params: dict`
   - `StoredDashboard`: `slug: str, title: str, source: Literal["template","superset-export"], file: str`
-  - `class ProjectStore(root: Path)` with `create(id, name, description="") -> Project`, `get(id) -> Project` (raises `ProjectNotFound`), `list() -> list[Project]`, `add_data_file(id, filename: str, content: bytes, params: dict) -> Project` (enforces ext/size, appends to the `dws-constituents` source, merges params), `file_path(id, kind_dir: Literal["data","dashboards"], name) -> Path`, `save_dashboard(id, slug, title, source, payload: bytes) -> Project`, `lock(id)` context manager.
+  - `class ProjectStore(root: Path)` with `create(id, name, description="") -> Project`, `get(id) -> Project` (raises `ProjectNotFound`), `list() -> list[Project]`, `add_data_file(id, filename: str, content: bytes, params: dict) -> Project` (enforces ext/size, appends to the `constituents` source, merges params), `file_path(id, kind_dir: Literal["data","dashboards"], name) -> Path`, `save_dashboard(id, slug, title, source, payload: bytes) -> Project`, `lock(id)` context manager.
   - `ProjectError(ValueError)`, `ProjectNotFound(ProjectError)`; constants `MAX_UPLOAD_BYTES = 50 * 1024 * 1024`, `ID_RE`.
 
 - [ ] **Step 1: Write failing tests**: create/get/list round trip; duplicate id raises `ProjectError`; ids `Foo`, `a/b`, `..`, `-x`, 64-char id rejected; `add_data_file` rejects `../x.xlsx`, `a.xlsm`, `MAX_UPLOAD_BYTES + 1`, leaves no file behind; second `add_data_file` appends to the same source; `save_dashboard` with an existing slug replaces its entry.
@@ -93,7 +93,7 @@
 
 **Interfaces:**
 - Consumes: `Portfolio.tags`.
-- Produces: `import_constituent_files(store, paths, notional_eur, project_id: str | None = None) -> dict`; with a project id, portfolio ids are `<project_id>-dws-<fund isin lower>` and tags gain `project:<project_id>`; without, unchanged (`dws_<isin>`).
+- Produces: `import_constituent_files(store, paths, notional_eur, project_id: str | None = None) -> dict`; with a project id, portfolio ids are `<project_id>-portfolio-<fund isin lower>` and tags gain `project:<project_id>`; without, unchanged (`portfolio_<isin>`).
 
 - [ ] **Step 1: Write failing tests**: two projects importing the same file yield two portfolios with disjoint ids and each tagged `project:<id>`; no project keeps the old id and has no `project:` tag; re-import of the same project overwrites (one portfolio, one snapshot).
 - [ ] **Step 2: Run** → fail.
@@ -134,7 +134,7 @@
 
 - [ ] **Step 1: Write failing tests** with fakes: open twice → second call has every dashboard `unchanged` and one portfolio per fund; two projects stay separate; Superset failing on dashboard 2 raises `OpenError(step="dashboard:<slug2>")` and a retry completes; empty project returns empty lists; `published` always False.
 - [ ] **Step 2: Run** → fail.
-- [ ] **Step 3: Implement** (`dws-constituents` kind → `import_constituent_files(portfolio_store, paths, params["notional_eur"], project_id=id)`; `template` dashboards → `DashboardTemplate.model_validate_json` of the stored file → `provision_project_dashboard`).
+- [ ] **Step 3: Implement** (`constituents` kind → `import_constituent_files(portfolio_store, paths, params["notional_eur"], project_id=id)`; `template` dashboards → `DashboardTemplate.model_validate_json` of the stored file → `provision_project_dashboard`).
 - [ ] **Step 4: Run** → pass.
 - [ ] **Step 5: Commit** `feat(projects): idempotent open`.
 

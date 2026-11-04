@@ -135,7 +135,8 @@ def build_registry(settings: Settings, content_store: DocumentContentStore) -> D
             ),
             *([EsefDocumentSource(settings.esef_index_url, settings.cache_dir, content_store=content_store,
                                   indexing_config=indexing_config)] if settings.esef_enabled else []),
-        ]
+        ],
+        settings=settings,
     )
 
 

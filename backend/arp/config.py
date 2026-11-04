@@ -143,6 +143,34 @@ class Settings(BaseSettings):
         "English-only default couldn't meaningfully rank. Set false to fall back to pure BM25 (the old default), "
         "e.g. to reproduce prior runs exactly.",
     )
+    section_chunking_enabled: bool = Field(
+        default=False,
+        description="Split a document at its markdown headings before the sentence-aware split, so no chunk "
+        "crosses a heading (arp/ingestion/parsing.py). Off until the retrieval recall gate shows it helps.",
+    )
+    section_min_chars: int = Field(
+        default=800, description="With section_chunking_enabled: a shorter section is joined with the ones that follow it."
+    )
+    small_to_big_enabled: bool = Field(
+        default=False,
+        description="Extraction fields rank small pieces (small_chunk_chars) and hand the extractor each winning piece's "
+        "parent: its 800-3,500-character section, else today's chunk (arp/ingestion/parsing.py). BM25 backend only. Off "
+        "until the retrieval recall gate shows it helps.",
+    )
+    small_chunk_chars: int = Field(default=800, description="With small_to_big_enabled: the most characters in a ranked piece.")
+    context_headers_enabled: bool = Field(
+        default=True,
+        description="BM25 and embeddings index each chunk with a header line (title, fiscal period, heading path; "
+        "plus a table line for table passages). Evidence, grounding and citations still use the chunk text "
+        "(arp/retrieval/index_text.py).",
+    )
+    doc_tree_enabled: bool = Field(
+        default=False,
+        description="Build and store each fetched document's section tree with model-written summaries and key "
+        "terms (arp/ingestion/doc_tree.py). Never used as evidence.",
+    )
+    tree_summary_model: str = Field(default="claude-haiku-4-5-20251001", description="Model for the document tree's summaries (the Haiku model priced in arp/orchestration/cost_tracker.py).")
+    tree_leaf_chars: int = Field(default=6000, description="Characters of a leaf's text sent for its summary.")
     rerank_enabled: bool = Field(
         default=False,
         description="Reorders the top rerank_candidates retrieved chunks per extraction field with a local "
@@ -160,6 +188,15 @@ class Settings(BaseSettings):
         default=None, description="Absolute path to the arp-client service-account JSON key."
     )
     evidence_max_chunks: int = Field(default=12, description="Chunks of evidence handed to the extractor per field.")
+    evidence_gate_enabled: bool = Field(
+        default=False,
+        description="Evidence gate (arp/extraction/evidence_gate.py): a cheap model drops retrieved passages that cannot "
+        "help answer a field before extraction. Turn on only after `arp golden-set run --gate on` passes.",
+    )
+    evidence_gate_model: str = Field(default="claude-haiku-5-5", description="Model the evidence gate asks.")
+    evidence_gate_min_keep: int = Field(default=3, ge=0, description="Top-ranked passages the gate always keeps.")
+    evidence_gate_breaker: int = Field(default=3, ge=1, description="Gate failures in a row that switch it off for the run.")
+    evidence_gate_timeout_s: float = Field(default=20.0, gt=0, description="Seconds before a gate call counts as failed.")
     extraction_group_size: int = Field(
         default=0, ge=0,
         description="Opt-in: extract this many non-high-risk fields per model call, over their merged evidence (at most "

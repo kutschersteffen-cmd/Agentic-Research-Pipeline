@@ -151,18 +151,35 @@ def _date(el, tag: str) -> str | None:
     return v.strip()[:10] if v and v.strip() else None
 
 
-def _contexts(root) -> dict[str, tuple[str | None, str]]:
+def _contexts(root, dimensional: bool = False) -> dict:
+    """id -> (start, end) of the contexts without segment/scenario; with `dimensional`, id ->
+    (start, end, dims) of the contexts with them instead (dims: axis -> member, explicit only;
+    a typed member or a member with no dimension adds a key no axis matches)."""
     out = {}
     for ctx in root.iter(_XBRLI + "context"):
-        # ponytail: dimensional (segment/scenario) facts are left out, not totals; carry dimensions if a field needs them
-        if ctx.find(f".//{_XBRLI}segment") is not None or ctx.find(f".//{_XBRLI}scenario") is not None:
+        boxes = [b for tag in ("segment", "scenario") for b in ctx.iter(_XBRLI + tag)]
+        if bool(boxes) != dimensional:
             continue
         period = ctx.find(_XBRLI + "period")
         if period is None:
             continue
         end = _date(period, "endDate") or _date(period, "instant")
-        if end:
+        if not end:
+            continue
+        if not dimensional:
             out[ctx.get("id")] = (_date(period, "startDate"), end)
+            continue
+        dims: dict[str, str] = {}
+        for box in boxes:
+            for m in box:
+                if not isinstance(m.tag, str):
+                    continue
+                local, axis = etree.QName(m).localname, m.get("dimension")
+                if local == "explicitMember" and axis:
+                    dims[axis] = (m.text or "").strip()
+                else:
+                    dims[f"invalid:{local}:{axis}:{len(dims)}"] = ""
+        out[ctx.get("id")] = (_date(period, "startDate"), end, dims)
     return out
 
 
@@ -175,6 +192,15 @@ def _units(root) -> dict[str, str]:
         num, den = u.find(f".//{_XBRLI}unitNumerator"), u.find(f".//{_XBRLI}unitDenominator")
         out[u.get("id")] = f"{measures(num)}/{measures(den)}" if num is not None and den is not None else measures(u)
     return out
+
+
+def _value(el) -> float | None:
+    """An ix:nonFraction's number with `scale`, `sign` and `format` applied; None if nil or unreadable."""
+    num = _number("".join(el.itertext()), el.get("format"))
+    if num is None or el.get(_XSI_NIL) == "true":
+        return None
+    value = num.scaleb(int(el.get("scale") or 0))
+    return float(-value if el.get("sign") == "-" else value)
 
 
 def parse_ixbrl(xhtml: bytes) -> tuple[str, list[EsefFact]]:
@@ -190,17 +216,56 @@ def parse_ixbrl(xhtml: bytes) -> tuple[str, list[EsefFact]]:
         a += len(printed) - len(printed.lstrip())
         b -= len(printed) - len(printed.rstrip())
         period = contexts.get(el.get("contextRef"))
-        num = _number("".join(el.itertext()), el.get("format"))
-        if period is None or num is None or a >= b or el.get(_XSI_NIL) == "true":
+        value = _value(el)
+        if period is None or value is None or a >= b:
             continue
-        value = num.scaleb(int(el.get("scale") or 0))
         facts.append(EsefFact(
-            concept=el.get("name"), value=float(-value if el.get("sign") == "-" else value), unit=units.get(el.get("unitRef")),
+            concept=el.get("name"), value=value, unit=units.get(el.get("unitRef")),
             period_start=period[0], period_end=period[1], decimals=el.get("decimals"), char_start=a, char_end=b,
             printed=text[a:b], scale=int(el.get("scale") or 0),
             decimal="comma" if _format_name(el.get("format")) in _COMMA_DECIMAL else "point",
         ))
     return text, facts
+
+
+@dataclass(frozen=True)
+class DimFact:
+    concept: str
+    value: float
+    unit: str | None
+    period_start: str | None
+    period_end: str
+    dims: dict[str, str]  # axis QName -> member QName
+
+
+def text_of(el) -> str:
+    """An element's visible text as parse_ixbrl renders it, stripped."""
+    return _visible_text(el)[0].strip()
+
+
+def parse_ixbrl_dimensional(xhtml: bytes) -> tuple[list[EsefFact], list[DimFact], dict[str, str]]:
+    """parse_ixbrl's facts, the numeric facts whose context has dimensions (hidden ones too), and
+    each ix:nonNumeric name's visible text (first fact per name, ix:continuation chain joined)."""
+    facts = parse_ixbrl(xhtml)[1]
+    root = etree.fromstring(xhtml, parser=etree.XMLParser(resolve_entities=False, no_network=True))
+    contexts, units = _contexts(root, dimensional=True), _units(root)
+    dim_facts = []
+    for el in root.iter(f"{{{_IX}}}nonFraction"):
+        ctx, value = contexts.get(el.get("contextRef")), _value(el)
+        if ctx is not None and value is not None:
+            dim_facts.append(DimFact(el.get("name"), value, units.get(el.get("unitRef")), ctx[0], ctx[1], ctx[2]))
+    conts = {c.get("id"): c for c in root.iter(f"{{{_IX}}}continuation")}
+    texts: dict[str, str] = {}
+    for el in root.iter(f"{{{_IX}}}nonNumeric"):
+        if el.get("name") in texts:
+            continue
+        parts, seen, nxt = [text_of(el)], set(), el.get("continuedAt")
+        while nxt in conts and nxt not in seen:  # seen: a looping chain ends
+            seen.add(nxt)
+            parts.append(text_of(conts[nxt]))
+            nxt = conts[nxt].get("continuedAt")
+        texts[el.get("name")] = "\n".join(p for p in parts if p)
+    return facts, dim_facts, texts
 
 
 def parse_package(data: bytes) -> tuple[str, list[EsefFact]]:
@@ -426,7 +491,8 @@ class EsefDocumentSource(DocumentSource):
                             byte_size=len(text.encode("utf-8")), text=text, page_breaks=[])
             if self._indexing_config is not None:
                 try:
-                    self._index_and_archive(kwargs["doc_id"], company.company_id, title, content_key, text, raw, url, path)
+                    self._index_and_archive(kwargs["doc_id"], company.company_id, title, content_key, text, raw, url, path,
+                                            kwargs["fiscal_period"])
                 except CaptureStoreError as exc:  # not collected: no verified copy of the original bytes
                     logger.warning("ESEF filing %s not collected: %s", url, exc)
                     return []
@@ -450,7 +516,8 @@ class EsefDocumentSource(DocumentSource):
         return await download_capped(client, url, self._max_bytes)
 
     def _index_and_archive(
-        self, doc_id: str, company_id: str, title: str, content_key: str, text: str, raw: bytes, url: str, path: Path
+        self, doc_id: str, company_id: str, title: str, content_key: str, text: str, raw: bytes, url: str, path: Path,
+        fiscal_period: str | None = None,
     ) -> None:
         """Mirrors EdgarDocumentSource._index_and_archive; the blob key is the content_key (sha256 of the bytes)."""
         from arp.retrieval.search_indexer import index_document_if_enabled
@@ -458,6 +525,8 @@ class EsefDocumentSource(DocumentSource):
 
         cfg = self._indexing_config
         doc_type = DocType.ANNUAL_REPORT_10K
-        index_document_if_enabled(cfg, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=text)
+        index_document_if_enabled(
+            cfg, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=text, fiscal_period=fiscal_period
+        )
         storage_uri = upload_or_fail(blob_store_for(cfg), content_key, raw)
         self._content_store.set_storage_uri(doc_id, storage_uri)

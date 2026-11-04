@@ -58,6 +58,7 @@ class AnnualOriginal(BaseModel):
     source_url: str
     primary_document: str
     content: bytes
+    labels: bytes | None = None  # the filing's _lab.xml label linkbase, None when missing or failed
 
 
 class EdgarDocumentSource(DocumentSource):
@@ -165,7 +166,9 @@ class EdgarDocumentSource(DocumentSource):
                             if raw_bytes is None and not self._has_stored_blob(content_key):
                                 # Parse-cache hit, but an earlier store attempt failed: fetch and archive again.
                                 _, raw_bytes = await self._get_and_extract_text(client, url)
-                            self._index_and_archive(kwargs["doc_id"], company.company_id, doc_type, title, content_key, text, raw_bytes, url)
+                            self._index_and_archive(
+                                kwargs["doc_id"], company.company_id, doc_type, title, content_key, text, raw_bytes, url, filing_date
+                            )
                         except (CaptureStoreError, httpx.HTTPError) as exc:
                             # Not collected: no verified copy of the original bytes.
                             logger.warning("EDGAR filing %s not collected: %s", url, exc)
@@ -193,6 +196,7 @@ class EdgarDocumentSource(DocumentSource):
         full_text: str,
         raw_bytes: bytes | None,
         source_url: str,
+        fiscal_period: str | None = None,
     ) -> None:
         """Best-effort OpenSearch indexing + object-store archival, mirrors
         LocalFileDocumentSource._index_and_archive. raw_bytes is None on a
@@ -204,7 +208,8 @@ class EdgarDocumentSource(DocumentSource):
         from arp.retrieval.search_indexer import index_document_if_enabled
 
         index_document_if_enabled(
-            self._indexing_config, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=full_text
+            self._indexing_config, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=full_text,
+            fiscal_period=fiscal_period,
         )
 
         if raw_bytes is not None:
@@ -216,16 +221,16 @@ class EdgarDocumentSource(DocumentSource):
                 self._content_store.set_storage_uri(doc_id, storage_uri)
 
     async def fetch_latest_annual_original(
-        self, cik: str, *, client: httpx.AsyncClient | None = None
+        self, cik: str, *, client: httpx.AsyncClient | None = None, labels: bool = False
     ) -> AnnualOriginal | None:
-        """The first 10-K in the recent filings, as the original bytes; None if there is none."""
+        """The first 10-K, 20-F or 40-F (no amendments) in the recent filings, as the original bytes; None if there is none."""
         if client is None:
             async with httpx.AsyncClient(headers=self._headers, timeout=30.0) as own:
-                return await self.fetch_latest_annual_original(cik, client=own)
+                return await self.fetch_latest_annual_original(cik, client=own, labels=labels)
         cik10 = cik.zfill(10)
         recent = ((await self._get_submissions(client, cik10)) or {}).get("filings", {}).get("recent", {})
         forms = recent.get("form", [])
-        idx = next((i for i, f in enumerate(forms) if f == "10-K"), None)
+        idx = next((i for i, f in enumerate(forms) if f in ANNUAL_FORMS), None)
         if idx is None:
             return None
         accession = recent["accessionNumber"][idx]
@@ -235,9 +240,29 @@ class EdgarDocumentSource(DocumentSource):
         resp = await client.get(url, headers=self._headers)
         resp.raise_for_status()
         return AnnualOriginal(
-            accession=accession, form="10-K", filing_date=recent.get("filingDate", [None] * len(forms))[idx],
+            accession=accession, form=forms[idx], filing_date=recent.get("filingDate", [None] * len(forms))[idx],
             source_url=url, primary_document=primary, content=resp.content,
+            labels=await self._fetch_labels(client, url.rpartition("/")[0]) if labels else None,
         )
+
+    async def _fetch_labels(self, client: httpx.AsyncClient, folder: str) -> bytes | None:
+        """The first _lab.xml listed in the filing folder's index.json; None (logged) on any failure."""
+        try:
+            await asyncio.sleep(self._delay)
+            resp = await client.get(f"{folder}/index.json", headers=self._headers)
+            resp.raise_for_status()
+            items = resp.json()["directory"]["item"]
+            name = next((i["name"] for i in items if i["name"].endswith("_lab.xml")), None)
+            if name is None:
+                logger.info("no label file in %s", folder)
+                return None
+            await asyncio.sleep(self._delay)
+            resp = await client.get(f"{folder}/{name}", headers=self._headers)
+            resp.raise_for_status()
+            return resp.content
+        except Exception as exc:  # noqa: BLE001 -- a label problem never fails the annual report
+            logger.warning("label file in %s not fetched: %s", folder, exc)
+            return None
 
     async def _get_submissions(self, client: httpx.AsyncClient, cik10: str) -> dict | None:
         """Filings change over time, so this is TTL-bounded (unlike the

@@ -22,7 +22,7 @@ automatically, then shows them.
 5. UI: project selector, new project with file upload, save-to-project, open.
 
 Out of scope: arbitrary-table data kinds (only kinds that have an importer:
-DWS constituent xlsx now), project delete/versioning/sharing, per-project
+constituent xlsx now), project delete/versioning/sharing, per-project
 access control (the API has no auth today), whole-project zip export (cheap
 follow-up).
 
@@ -57,14 +57,14 @@ per-project lock (`KeyedLock`). Ids are `^[a-z0-9][a-z0-9-]{0,62}$`.
 The `bi.holdings` and `bi.holdings_history` views gain a trailing column
 `project_id`, derived from the portfolio tag `project:<id>` (NULL for portfolios
 outside any project, e.g. the demo seed). The importer namespaces portfolio ids
-(`<project>-dws-<fund isin>`) and tags them `project:<id>`. Every chart of a
+(`<project>-portfolio-<fund isin>`) and tags them `project:<id>`. Every chart of a
 project dashboard gets the SIMPLE filter `project_id == <id>` at compile time;
 the standard `arp-risk-exposure` dashboard stays unfiltered (all data).
 
 ### Open (`POST /api/projects/{id}/open`)
 
 Under the project lock: (1) for each data source, run its importer with the
-stored files and params (kind `dws-constituents` ->
+stored files and params (kind `constituents` ->
 `constituent_import.import_constituents(..., project_id=<id>)`); (2) for each
 stored dashboard, provision it (`template`: compile with the project filter and
 `provision()` from Phase 1, slug `arp-<project>-<name>`; `superset-export`:
@@ -94,7 +94,7 @@ not auto-imported.
 ### Data upload
 
 `POST /api/projects/{id}/data` (multipart): validates extension and size, stores
-the file, appends it to the matching data source (`dws-constituents` for DWS
+the file, appends it to the matching data source (`constituents` for constituent
 xlsx; `notional_eur` param required, default shown in the UI). Parse errors are
 reported at open time with row context, not at upload.
 

@@ -9,15 +9,17 @@ from arp.llm.base import LLMClient
 from arp.schemas.common import SourceDocument, new_id, now_iso
 
 _BUNDLED_CASES_PATH = Path(__file__).parent / "data" / "extraction_cases.json"
+# Real public-filing excerpts of 50,000+ characters with a distractor each (long-document golden cases spec).
+_LONG_CASES_PATH = Path(__file__).parent / "data" / "long_cases.json"
 
 
-def load_cases(path: Path | None = None) -> list[GoldenSetCase]:
+def load_cases(path: Path | None = None, long: bool = False) -> list[GoldenSetCase]:
     """Loads the bundled golden set by default, or a user-supplied file of
     the same shape (a JSON array of GoldenSetCase objects) -- e.g. a
     deployment's own accumulated set of previously-reviewed extractions,
     which is exactly what a "golden set" is meant to grow into over time.
     """
-    raw = json.loads((path or _BUNDLED_CASES_PATH).read_text())
+    raw = json.loads((path or (_LONG_CASES_PATH if long else _BUNDLED_CASES_PATH)).read_text())
     return [GoldenSetCase.model_validate(c) for c in raw]
 
 
@@ -48,6 +50,7 @@ async def run_golden_set(
     4000-company scale.
     """
     results: list[GoldenSetCaseResult] = []
+    extractor_tokens = 0
     extractor_model: str | None = None
     verifier_model: str | None = None
 
@@ -59,6 +62,7 @@ async def run_golden_set(
             title=case.case_id,
             full_text=case.document_text,
         )
+        sink: dict = {}
         extracted_fields, needs_review, _usages = await extract_one_field(
             case.company_name,
             case.field,
@@ -68,7 +72,9 @@ async def run_golden_set(
             verifier_llm=verifier_llm,
             fuzzy_threshold=fuzzy_threshold,
             confidence_review_threshold=confidence_review_threshold,
+            trace_sink=sink,
         )
+        extractor_tokens += ((sink.get(case.field.field_id) or {}).get("extractor") or {}).get("input_tokens", 0)
         extracted = extracted_fields[0]  # latest period
         if extracted.provenance:
             extractor_model = extractor_model or extracted.provenance.extractor_model
@@ -98,6 +104,7 @@ async def run_golden_set(
     passed_count = sum(1 for r in results if r.passed)
     return GoldenSetReport(
         total=len(results),
+        extractor_input_tokens=extractor_tokens,
         passed=passed_count,
         failed_case_ids=[r.case_id for r in results if not r.passed],
         results=results,

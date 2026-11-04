@@ -11,6 +11,7 @@ from arp.api.auth import Principal
 from arp.bi.eval import load_bi_cases, run_bi_set
 from arp.cli._shared import _run_store
 from arp.config import get_settings
+from arp.extraction.evidence_gate import gate_run
 from arp.extraction.pipeline import load_run_schema
 from arp.golden_set.export import export_cases
 from arp.golden_set.precision import load_record_cases, run_precision
@@ -27,6 +28,107 @@ from arp.schemas.review import ReviewDecision
 
 golden_set_app = typer.Typer(help="Golden-set regression testing for the extraction pipeline -- run before every prompt/model change reaches a real batch.")
 
+exposure_app = typer.Typer(help="Exposure golden sets (activity / risk labels) under tests/golden/exposure/<set_id>/.")
+golden_set_app.add_typer(exposure_app, name="exposure")
+
+
+@exposure_app.command("validate")
+def exposure_validate(set_dir: Path = typer.Option(..., "--set", help="Set directory holding cases.json.")) -> None:
+    """Checks cases.json against the exposure-set schema; prints each problem and exits 1 if any."""
+    from arp.golden_set.exposure import validate_set
+
+    problems = validate_set(set_dir)
+    for problem in problems:
+        typer.echo(problem)
+    if problems:
+        raise typer.Exit(1)
+    typer.echo("OK")
+
+
+@exposure_app.command("split")
+def exposure_split(set_dir: Path = typer.Option(..., "--set", help="Set directory holding cases.json.")) -> None:
+    """Assigns tune/holdout to cases without a split (alternating per label by case_id); keeps existing ones."""
+    from arp.golden_set.exposure import assign_splits, load_set, validate_set
+    from arp.storage.atomic_io import atomic_write_text
+
+    problems = validate_set(set_dir)
+    for problem in problems:
+        typer.echo(problem)
+    if problems:
+        raise typer.Exit(1)
+    assigned = {c.case_id: c.split for c in assign_splits(load_set(set_dir)).cases}
+    path = set_dir / "cases.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for case in data["cases"]:
+        case.setdefault("split", assigned[case["case_id"]])  # raw edit keeps unknown keys and order
+    atomic_write_text(path, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+    typer.echo("OK")
+
+
+@exposure_app.command("stats")
+def exposure_stats(set_dir: Path = typer.Option(..., "--set", help="Set directory holding cases.json.")) -> None:
+    """Prints tune/holdout counts per label."""
+    from arp.golden_set.exposure import load_set, stats_lines, validate_set
+
+    problems = validate_set(set_dir)
+    for problem in problems:
+        typer.echo(problem)
+    if problems:
+        raise typer.Exit(1)
+    for line in stats_lines(load_set(set_dir)):
+        typer.echo(line)
+
+
+@golden_set_app.command("authority-taxonomy")
+def golden_set_authority_taxonomy(
+    case: str = typer.Option(..., "--case", help="Case folder name under tests/golden/authority_taxonomy/."),
+    cases_dir: Path = typer.Option(
+        Path(__file__).resolve().parents[2] / "tests" / "golden" / "authority_taxonomy", "--cases-dir", hidden=True
+    ),
+) -> None:
+    """Extracts and consolidates the case's stored source text with the real model (nothing saved) and prints
+    every activity name, FOUND/MISSED per expected activity (via match_activities), then
+    grounded_rate (activities with a citation / activities) and recall.
+    Exits 1 unless grounded_rate is 1.0 and recall reaches the case's min_recall."""
+    from arp.research.authority_taxonomy.consolidate import consolidate
+    from arp.research.authority_taxonomy.extract import extract_source
+    from arp.research.authority_taxonomy.matching import match_activities
+    from arp.schemas.thematic import ActivityDefinition
+
+    folder = cases_dir / case
+    spec = json.loads((folder / "case.json").read_text(encoding="utf-8"))
+    if spec.get("source_note"):
+        typer.echo(f"WARNING: {spec['source_note']}")
+    text = (folder / "source.txt").read_text(encoding="utf-8")
+    settings = get_settings()
+    llm = build_llm_client(settings)
+
+    async def run():
+        ext = await extract_source(
+            spec["source_url"], text, theme_name=spec["theme_name"], scope=spec["scope"], value_chain=False, llm=llm
+        )
+        theme, _notes = await consolidate(
+            [ext], theme_name=spec["theme_name"], scope=spec["scope"], value_chain=False,
+            settings=settings, llm=llm, value_chain_model=None,
+        )
+        wanted = [ActivityDefinition(name=n, in_scope_description="", out_of_scope_description="") for n in expected]
+        return theme, await match_activities(wanted, theme.activities, scope=spec["scope"], llm=llm)
+
+    expected = spec["expected_activities"]
+    theme, matches = asyncio.run(run())
+    acts = theme.activities
+    grounded_rate = sum(bool(a.citations) for a in acts) / len(acts) if acts else 0.0
+    for a in acts:
+        typer.echo(a.name)
+    found = {m.left: m for m in matches}
+    for i, name in enumerate(expected):
+        m = found.get(i)
+        typer.echo(f"FOUND {name} = {acts[m.right].name} ({m.method}: {m.reason})" if m else f"MISSED {name}")
+    recall = len(found) / len(expected)
+    typer.echo(f"grounded_rate={grounded_rate:.2f} recall={recall:.2f}")
+    if grounded_rate != 1.0 or round(recall, 2) < spec["min_recall"]:  # 2/3 must pass 0.67
+        raise typer.Exit(1)
+
 
 @golden_set_app.command("run")
 def golden_set_run(
@@ -35,6 +137,10 @@ def golden_set_run(
     ),
     fail_on_regression: bool = typer.Option(
         True, help="Exit with a non-zero status if any case fails -- for wiring into CI before a prompt/model change ships."
+    ),
+    long: bool = typer.Option(False, "--long", help="Run the long-document cases (real filing excerpts with distractors)."),
+    gate: str = typer.Option(
+        None, "--gate", help="on|off: run with the evidence gate forced on or off, and print the extractor input tokens.",
     ),
 ) -> None:
     """Runs the golden set (manually verified extractions) through the real
@@ -46,17 +152,29 @@ def golden_set_run(
     settings = get_settings()
     llm = build_llm_client(settings)
     verifier_llm = build_verifier_llm_client(settings)
-    cases = load_golden_set_cases(cases_file)
+    cases = load_golden_set_cases(cases_file, long=long)
     typer.echo(f"Running {len(cases)} golden-set case(s) against {settings.llm_model} / verifier {settings.llm_verifier_model}...")
-    report = asyncio.run(
-        run_golden_set(
-            cases,
-            llm=llm,
-            verifier_llm=verifier_llm,
-            fuzzy_threshold=settings.grounding_fuzzy_threshold,
-            confidence_review_threshold=settings.confidence_review_threshold,
-        )
-    )
+    if gate not in (None, "on", "off"):
+        raise typer.BadParameter("--gate takes on or off")
+
+    async def run():
+        with gate_run(settings, "golden-set", enabled=gate == "on" if gate else None):
+            return await run_golden_set(
+                cases,
+                llm=llm,
+                verifier_llm=verifier_llm,
+                fuzzy_threshold=settings.grounding_fuzzy_threshold,
+                confidence_review_threshold=settings.confidence_review_threshold,
+            )
+
+    report = asyncio.run(run())
+    if gate:  # the evidence-gate comparison reads these lines: one per case, the token total last
+        for result in report.results:
+            typer.echo(f"{result.case_id}: {'pass' if result.passed else 'fail'}")
+        typer.echo(f"extractor input tokens: {report.extractor_input_tokens}")
+        if fail_on_regression and not report.all_passed:
+            raise typer.Exit(1)
+        return
     for result in report.results:
         status = "PASS" if result.passed else "FAIL"
         typer.echo(f"[{status}] {result.case_id}: {result.description}")

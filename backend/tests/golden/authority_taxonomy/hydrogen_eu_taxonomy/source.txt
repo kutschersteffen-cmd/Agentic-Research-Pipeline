@@ -1,0 +1,25 @@
+UNVERIFIED EXCERPT WRITTEN FROM MEMORY — verify against EUR-Lex before relying on this case.
+ANNEX I
+Technical screening criteria for economic activities that make a substantial contribution to climate change mitigation
+
+3. MANUFACTURING
+
+3.2. Manufacture of equipment for the production and use of hydrogen
+
+Description of the activity
+Manufacture of electrolysers for the production of hydrogen. Manufacture of fuel cells and of other equipment that converts hydrogen into electricity or heat. Manufacture of equipment for the storage and compression of hydrogen, including hydrogen storage tanks and hydrogen compressors.
+The economic activity in this category could be associated with several NACE codes, in particular C25.29, C27.11, C27.90, C28.13 and C28.25 in accordance with the statistical classification of economic activities established by Regulation (EC) No 1893/2006.
+The activity is eligible only where the equipment is designed and manufactured for the production, storage or use of hydrogen.
+
+Technical screening criteria
+
+Substantial contribution to climate change mitigation
+The economic activity manufactures electrolysers, fuel cells, or hydrogen storage and compression equipment that contribute to the decarbonisation of the energy system and of hard-to-abate sectors.
+The manufacture of equipment for the production and use of hydrogen is eligible where the hydrogen is produced or used in line with the criteria set out for the production of hydrogen in Section 3.10 of this Annex.
+
+Do no significant harm ('DNSH')
+Climate change adaptation: the activity complies with the criteria set out in Appendix A to this Annex.
+Sustainable use and protection of water and marine resources: not applicable.
+Transition to a circular economy: the manufacturer assesses the availability of, and where feasible uses, secondary raw materials, and designs equipment for dismantling, recycling and reuse.
+Pollution prevention and control: the activity complies with the criteria set out in Appendix C to this Annex.
+Protection and restoration of biodiversity and ecosystems: not applicable.

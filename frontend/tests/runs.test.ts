@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { RESUMABLE_RUN_TYPES, ballotRows, canResumeRun, compareSince, decisionRunType, hasFailureDetails, needsAttentionRuns, resumableFailedRuns, resumeSummary } from "../src/lib/runs.ts";
+import { RESUMABLE_RUN_TYPES, ago as agoText, ballotRows, canResumeRun, compareSince, decisionRunType, hasFailureDetails, needsAttentionRuns, resumableFailedRuns, resumeSummary } from "../src/lib/runs.ts";
 import type { RunManifest } from "../src/types.ts";
 
 const RESUMABLE = ["theme", "extraction", "financials", "tnfd", "identity", "discovery", "xbrl_fetch"];
@@ -114,7 +114,15 @@ test("decisionRunType keeps the run type of an old transition_plan run", () => {
 
 test("ballotRows: one row per proxy voting run with ballots to decide", () => {
   const pv = { ...run("proxy_voting", "completed", ago(MIN)), run_id: "pv-1", review_count: 2 } as RunManifest;
-  assert.deepEqual(ballotRows([pv]), [{ runId: "pv-1", count: 2, what: "Proxy voting run pv-1: 2 ballots to decide", href: "#/voting/pv-1" }]);
-  assert.equal(ballotRows([{ ...pv, review_count: 1 }])[0].what, "Proxy voting run pv-1: 1 ballot to decide");
+  assert.deepEqual(ballotRows([pv]), [{ runId: "pv-1", count: 2, what: "Decide 2 ballots", href: "#/voting/pv-1" }]);
+  assert.equal(ballotRows([{ ...pv, review_count: 1 }])[0].what, "Decide 1 ballot");
   assert.deepEqual(ballotRows([{ ...pv, review_count: 0 }, { ...run("extraction", "completed", ago(MIN)), review_count: 3 } as RunManifest]), []);
+});
+
+test("ago: minutes, then hours, then days", () => {
+  const before = (ms: number) => new Date(Date.now() - ms).toISOString();
+  assert.equal(agoText(before(0)), "1 min ago");
+  assert.equal(agoText(before(5 * 60_000)), "5 min ago");
+  assert.equal(agoText(before(3 * 3600_000)), "3 h ago");
+  assert.equal(agoText(before(3 * 86400_000)), "3 days ago");
 });

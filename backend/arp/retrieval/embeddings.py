@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from arp.compute import client as compute_client
+from arp import models
+from arp.models import local
 
 # 384-dim, ONNX, ~220MB -- multilingual (not the earlier bge-small-en-v1.5,
 # English-only) so DE-language disclosures rank meaningfully once hybrid
@@ -16,16 +17,8 @@ from arp.compute import client as compute_client
 EMBED_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 EMBED_DIM = 384
 
-_model = None
-
-
 def _get_model():
-    global _model
-    if _model is None:
-        from fastembed import TextEmbedding
-
-        _model = TextEmbedding(model_name=EMBED_MODEL_NAME)
-    return _model
+    return local.text_embedding(EMBED_MODEL_NAME)
 
 
 def embed_texts(texts: list[str]) -> np.ndarray:
@@ -41,8 +34,4 @@ def embed_texts(texts: list[str]) -> np.ndarray:
     """
     if not texts:
         return np.zeros((0, EMBED_DIM), dtype=np.float32)
-    remote = compute_client.embed(texts)
-    if remote is not None:
-        return remote
-    model = _get_model()
-    return np.asarray(list(model.embed(texts)), dtype=np.float32)
+    return models.embed(texts, load=lambda: _get_model())[0]  # lambda: tests patch _get_model

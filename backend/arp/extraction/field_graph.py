@@ -10,16 +10,18 @@ from pydantic import ValidationError
 from arp.config import Settings
 from arp.extraction.adjudicator import AdjudicatorOutput, adjudicate, disagreement
 from arp.extraction.aggregator import build_extracted_fields, no_evidence_field
+from arp.extraction.evidence_gate import GateResult, current_gate
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue, extract_field
 from arp.extraction.graph_shape import build_extract_verify_graph
 from arp.extraction.verifier_agent import DisagreementType, VerifierOutput, blind_verify, verify_extraction
 from arp.extraction.vision_check import check_on_page
-from arp.ingestion.parsing import chunk_document
+from arp.ingestion.parsing import chunk_document, piece_parents, small_pieces
 from arp.ingestion.xbrl import FactSource, XbrlFact
 from arp.llm.base import LLMClient, LLMUsage
 from arp.normalise.value import typed_value
 from arp.orchestration.step_tally import run_graph
 from arp.planning.doc_routing import route_documents, section_filter
+from arp.retrieval.index_text import index_text
 from arp.retrieval.keywords_de import with_german
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import DocumentChunk, ProvenanceInfo, SourceDocument
@@ -59,6 +61,7 @@ class FieldState(TypedDict):
     extract_failed: bool  # the answer never fit the field type: stored as not found, routed to review
     seen: dict | None  # walkthrough trace only: model answers the state does not keep (blind draft, page reading)
     explain: dict | None  # walkthrough trace only: how the evidence was ranked (select_relevant_chunks' explain)
+    gate: GateResult | None  # what the evidence gate kept, when a run has one open (evidence_gate.gate_run)
 
 
 def _tagged_field(state: FieldState, fact: XbrlFact, period_end: str) -> ExtractedField:
@@ -131,9 +134,22 @@ def field_evidence(
     """The ranked evidence one field's extraction sees. Blocking (BM25/embedding/rerank are
     CPU-bound); `golden-set retrieval` replays it, so the eval measures exactly this path."""
     keywords = with_german(field.seed_keywords)
+    # small-to-big: rank small pieces (and table passages), return their parents; in-memory BM25 only
+    small_to_big = bool(settings is not None and settings.small_to_big_enabled and settings.retrieval_backend == "bm25" and keywords)
     all_chunks: list[DocumentChunk] = []
+    ranked_units: list[DocumentChunk] = []
+    parents: dict[str, DocumentChunk] = {}
+    index_texts: dict[str, str] = {}
     for doc in route_documents(field, documents):
-        all_chunks.extend(chunk_document(doc, keywords=keywords))
+        doc_chunks = chunk_document(doc, keywords=keywords)
+        all_chunks.extend(doc_chunks)
+        pieces: list[DocumentChunk] = []
+        if small_to_big:
+            pieces = small_pieces(doc, settings)
+            parents.update(piece_parents(doc, pieces, doc_chunks, settings))
+            ranked_units.extend(pieces + [c for c in doc_chunks if c.table_id is not None])
+        if settings is not None and settings.context_headers_enabled:
+            index_texts.update((c.chunk_id, index_text(c, doc, settings)) for c in doc_chunks + pieces)
     all_chunks = section_filter(field, all_chunks)
 
     content_store = None
@@ -154,21 +170,32 @@ def field_evidence(
             "max_chunks": settings.evidence_max_chunks,
             "rerank_candidates": settings.rerank_candidates if settings.rerank_enabled else None,
         }
-    picked = select_relevant_chunks(
-        all_chunks,
-        keywords,
-        doc_type_filter=None if field.document_routing else field.source_doc_types or None,
-        hybrid_retrieval_enabled=settings is not None and settings.hybrid_retrieval_enabled,
-        content_store=content_store,
-        retrieval_backend=settings.retrieval_backend if settings is not None else "bm25",
-        opensearch_client=opensearch_client,
-        fallback_to_all=field.high_risk,
-        on_unranked_fallback=on_unranked_fallback,
-        explain=explain,
-        **limits,
-    )
+
+    def select(candidates: list[DocumentChunk], unit_parents: dict[str, DocumentChunk] | None) -> list[DocumentChunk]:
+        return select_relevant_chunks(
+            candidates,
+            keywords,
+            doc_type_filter=None if field.document_routing else field.source_doc_types or None,
+            hybrid_retrieval_enabled=settings is not None and settings.hybrid_retrieval_enabled,
+            content_store=content_store,
+            retrieval_backend=settings.retrieval_backend if settings is not None else "bm25",
+            opensearch_client=opensearch_client,
+            fallback_to_all=field.high_risk and unit_parents is None,
+            on_unranked_fallback=on_unranked_fallback,
+            index_texts=index_texts or None,
+            explain=explain,
+            parents=unit_parents,
+            **limits,
+        )
+
+    picked = select(section_filter(field, ranked_units), parents) if small_to_big else []
+    if small_to_big and (picked or not field.high_risk):
+        if explain is not None:
+            explain["small_to_big"] = True
+    else:  # off, or a high-risk field with no hit: today's chunks, as with the setting off
+        picked = select(all_chunks, None)
     if explain is not None:  # the walkthrough shows the near-misses' text, so keep their positions
-        by_id = {c.chunk_id: c for c in all_chunks}
+        by_id = {c.chunk_id: c for c in [*all_chunks, *parents.values()]}
         explain["near_miss_chunks"] = [by_id[cid] for cid in explain.get("near_misses", []) if cid in by_id]
     return picked
 
@@ -187,14 +214,20 @@ def merge_evidence(rankings: list[list[DocumentChunk]], cap: int, source_out: di
 
 
 async def _gather_evidence(state: FieldState) -> dict:
+    gate = current_gate()
     if state.get("grouped"):
-        return {"evidence": state["grouped"][1], "evidence_unranked": False}
+        evidence = state["grouped"][1]
+        return {"evidence": evidence, "evidence_unranked": False, "gate": gate.skip(evidence, "grouped") if gate else None}
     unranked: list[bool] = []
     explain = None if state.get("seen") is None else {}  # recorded only for the walkthrough trace
     evidence = await asyncio.to_thread(  # keep the CPU-bound ranking off the event loop
         field_evidence, state["field"], state["documents"], state["settings"], lambda: unranked.append(True), explain
     )
-    return {"evidence": evidence, "evidence_unranked": bool(unranked), "explain": explain}
+    if gate is None:
+        return {"evidence": evidence, "evidence_unranked": bool(unranked), "explain": explain}
+    gated = await gate.apply(state["field"], evidence, unranked=bool(unranked))
+    return {"evidence": gated.kept, "evidence_unranked": bool(unranked), "explain": explain, "gate": gated,
+            "usages": state["usages"] + ([gated.usage] if gated.usage else [])}
 
 
 def _route_after_evidence(state: FieldState) -> str:
@@ -327,10 +360,15 @@ _COMPILED_GRAPH = build_extract_verify_graph(
 )
 
 
+def _with_gate(retrieval: dict | None, gated: GateResult | None) -> dict | None:
+    return {**(retrieval or {}), "gate": gated.info} if gated else retrieval
+
+
 def _trace_entry(state: FieldState, grouped: bool) -> dict:
     extracted, seen = state["extracted"], state["seen"]
     explain = state.get("explain")
     scores = (explain or {}).get("scores", {})
+    gated = state.get("gate")
     if extracted and extracted[0].method == "tagged":
         skipped = "tagged"
     elif not state["evidence"]:
@@ -348,13 +386,16 @@ def _trace_entry(state: FieldState, grouped: bool) -> dict:
         grouped=grouped,
         skipped=skipped,
         passages=[trace.passage(c, scores.get(c.chunk_id, {}) if explain else None) for c in state["evidence"]],
-        retrieval=trace.retrieval(explain),
+        retrieval=_with_gate(trace.retrieval(explain), gated),
+        gate=trace.call(gated.usage, gated.answer) if gated else None,
+        gate_dropped=[trace.passage(c, scores.get(c.chunk_id, {})) for c in gated.dropped] if gated else (),
         seconds=(seen or {}).get("seconds"),
         near_misses=[trace.passage(c, scores.get(c.chunk_id, {})) for c in (explain or {}).get("near_miss_chunks", [])],
         extractor=trace.call(state["extractor_usage"], state["draft"]),
         verifier=verifier,
         adjudicator=trace.call(state["adjudicator_usage"], state["adjudicator"]),
         vision=trace.call(seen.get("vision_usage"), seen.get("reading")),
+        not_found_reason=next((f.not_found_reason for f in extracted), None),
     )
 
 
@@ -435,8 +476,14 @@ async def extract_one_field(
         "extract_failed": False,
         "seen": None if trace_sink is None else {},
         "explain": grouped_explain if trace_sink is not None and grouped is not None else None,
+        "gate": None,
     }
     final_state = await run_graph(_COMPILED_GRAPH, initial)
+    rows = final_state["extracted"]
+    if any(f.value_state == ValueState.NOT_FOUND for f in rows):  # every not-found period row, not only all-missing
+        reason = "passages_silent" if final_state["evidence"] else "no_passage"
+        final_state["extracted"] = [f.model_copy(update={"not_found_reason": reason})
+                                    if f.value_state == ValueState.NOT_FOUND else f for f in rows]
     if trace_sink is not None:
         try:
             trace_sink[field.field_id] = _trace_entry(final_state, grouped is not None)

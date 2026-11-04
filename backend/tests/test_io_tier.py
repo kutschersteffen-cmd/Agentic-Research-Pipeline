@@ -171,7 +171,7 @@ class _Stub:
 
 @pytest.mark.parametrize(("code", "expected", "calls"), [
     ("27", "C27", 0), ("35", "D", 0), ("35.12", "D_TD", 0), ("D_GEN_REN", "D_GEN_REN", 0), ("35.11", None, 1), ("24", None, 1),
-    ("62", "J62_63", 0), ("2610", None, 1), ("C27", "C27", 0),
+    ("62", "J62_63", 0), ("2610", None, 0), ("C27", "C27", 0),
 ])
 def test_company_lookup(built, code, expected, calls):
     built()

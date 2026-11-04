@@ -1,4 +1,4 @@
-"""Importer for DWS "Constituent_<ISIN>.xlsx" ETF holdings files.
+"""Importer for "Constituent_<ISIN>.xlsx" ETF holdings files.
 
 The files carry WEIGHTS ONLY: a fraction of fund NAV per line, with no
 quantity, price or FX rate. Everything monetary here is therefore an
@@ -150,16 +150,16 @@ def import_constituent_file(
     if missing:
         raise ValueError(f"{path.name}: header row 4 lacks column(s) {sorted(missing)}")
 
-    tags = ["source:dws-constituents", f"sizing:assumed-notional-eur-{notional_eur:.15g}", f"fund_isin:{fund_isin}"]
+    tags = ["source:constituents", f"sizing:assumed-notional-eur-{notional_eur:.15g}", f"fund_isin:{fund_isin}"]
     if project_id is None:
-        portfolio_id = f"dws_{fund_isin.lower()}"
+        portfolio_id = f"portfolio_{fund_isin.lower()}"
     else:
-        portfolio_id = f"{project_id}-dws-{fund_isin.lower()}"
+        portfolio_id = f"{project_id}-portfolio-{fund_isin.lower()}"
         tags.append(f"project:{project_id}")
     store.save_portfolio(
         Portfolio(
             portfolio_id=portfolio_id,
-            name=f"DWS ETF {fund_isin}",
+            name=f"Portfolio {fund_isin}",
             tags=tags,
         )
     )

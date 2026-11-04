@@ -134,3 +134,25 @@ class VerifyRow(BaseModel):
     unit: str | None  # the XBRL unit for found XBRL values
     run_unit: str | None = None
     detail: str
+
+
+class SegmentRow(BaseModel):
+    company_id: str
+    market: Market
+    fiscal_year: int
+    metric: str
+    concept: str
+    axis: str
+    member: str
+    segment: str
+    value: float
+    unit: str | None
+    period_start: str | None
+    period_end: str
+    accession: str | None
+    sum_matches_total: bool
+    reconciling: float | None = None  # segment rows: corporate/elimination amount in the sum check
+    axis_kind: Literal["segment", "product", "geography"] = "segment"
+    level: Literal["standard", "company"] | None = None
+    form: str | None = None  # SEC rows only: 10-K, 20-F or 40-F
+    segment_source: Literal["label", "derived"] = "derived"  # label: the filer's own label linkbase wording
