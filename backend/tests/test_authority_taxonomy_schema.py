@@ -23,6 +23,7 @@ from arp.storage.taxonomy_store import TaxonomyStore
 FIXTURES = Path(__file__).parent / "fixtures" / "authority_taxonomy"
 NEW_ACTIVITY_FIELDS = {
     "value_chain_role": "core", "criteria": [], "citations": [], "out_of_scope_citations": [], "sector_codes": [],
+    "contrast_statements": [],  # theme funnel (spec theme-funnel)
 }
 NEW_THEME_FIELDS = {"scope": "", "technologies": [], "definitions": [], "thresholds": [], "checklist_report": {}}
 
