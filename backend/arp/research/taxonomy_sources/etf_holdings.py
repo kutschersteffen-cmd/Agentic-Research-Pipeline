@@ -29,44 +29,61 @@ def _first_present(row: dict, columns: tuple[str, ...]) -> str | None:
     return None
 
 
-def _parse_weight(raw: str | None) -> float | None:
-    """Normalizes a weight cell to a 0-1 fraction.
+_ID_COLUMNS = ("isin", "sedol", "lei", "cik")
+_CASH_WORDS = ("CASH", "CURRENCY", "POUND", "EURO", "DOLLAR", "YEN", "FRANC", "PAYABLE", "RECEIVABLE", "FUTURE", "SWAP")
 
-    Handles three real-world formats: an explicit percent sign in the
-    cell ("12.5%"), a bare number under a percent-labeled header with no
-    sign in the cell itself (by far the most common export format --
-    "Weight (%)" column, "12.5" value), and an already-fractional value
-    ("0.125"). A bare value > 1 is assumed to be a percent needing /100,
-    since no single holding is ever >100% of a fund.
-    """
+
+def _parse_weight(raw: str | None) -> float | None:
     if not raw:
         return None
-    has_percent_sign = "%" in raw
-    cleaned = raw.strip().rstrip("%")
     try:
-        value = float(cleaned)
+        return float(raw.strip().rstrip("%").replace(",", ""))
     except ValueError:
         return None
-    return value / 100 if (has_percent_sign or value > 1) else value
 
 
 def _parse_holdings_rows(path: Path) -> list[dict]:
     """Shared CSV parsing for any fund/index holdings export -- every
     other function in this module is a projection of these normalized
     rows, so there's exactly one place that has to know about column-name
-    variants across fund providers.
+    variants across fund providers. Provider files may have preamble lines
+    before the header, cash/currency lines and a trailing disclaimer.
     """
+    with path.open(newline="", encoding="utf-8-sig") as f:
+        all_rows = list(csv.reader(f))
+    header_idx = next(
+        (i for i, r in enumerate(all_rows) if {c.strip().lower() for c in r} & set(_NAME_COLUMNS + _TICKER_COLUMNS)), None
+    )
+    if header_idx is None:
+        return []
+    header = all_rows[header_idx]
     rows: list[dict] = []
-    with path.open(newline="") as f:
-        for raw_row in csv.DictReader(f):
-            name = _first_present(raw_row, _NAME_COLUMNS)
-            ticker = _first_present(raw_row, _TICKER_COLUMNS)
-            sector = _first_present(raw_row, _SECTOR_COLUMNS)
-            description = _first_present(raw_row, _DESCRIPTION_COLUMNS)
-            weight = _parse_weight(_first_present(raw_row, _WEIGHT_COLUMNS))
-            if not (name or ticker):
-                continue
-            rows.append({"ticker": ticker, "name": name, "sector": sector, "description": description, "weight": weight})
+    raw_weights: list[str | None] = []
+    for cells in all_rows[header_idx + 1 :]:
+        if len(cells) < len(header):
+            continue
+        raw_row = dict(zip(header, cells, strict=False))
+        name = _first_present(raw_row, _NAME_COLUMNS)
+        ticker = _first_present(raw_row, _TICKER_COLUMNS)
+        if not (name or ticker):
+            continue
+        if not ticker and any(w in (name or "").upper() for w in _CASH_WORDS):
+            continue
+        rows.append(
+            {
+                "ticker": ticker,
+                "name": name,
+                "sector": _first_present(raw_row, _SECTOR_COLUMNS),
+                "description": _first_present(raw_row, _DESCRIPTION_COLUMNS),
+                **{c: _first_present(raw_row, (c,)) for c in _ID_COLUMNS},
+            }
+        )
+        raw_weights.append(_first_present(raw_row, _WEIGHT_COLUMNS))
+    values = [_parse_weight(w) for w in raw_weights]
+    weight_header_has_pct = any("%" in h for h in header if h.strip().lower() in _WEIGHT_COLUMNS)
+    is_percent = weight_header_has_pct or any("%" in w for w in raw_weights if w) or any(v is not None and v > 1 for v in values)
+    for row, v in zip(rows, values, strict=True):
+        row["weight"] = v / 100 if (is_percent and v is not None) else v
     return rows
 
 
@@ -116,7 +133,9 @@ def load_holdings_with_weights(path: Path) -> list[HoldingRow]:
         ticker = row["ticker"] or row["name"]
         if not ticker:
             continue
-        holdings.append(HoldingRow(ticker=ticker, name=row["name"], weight=row["weight"], sector=row["sector"]))
+        holdings.append(HoldingRow(
+                ticker=ticker, name=row["name"], weight=row["weight"], sector=row["sector"], **{c: row[c] for c in _ID_COLUMNS}
+            ))
     return holdings
 
 

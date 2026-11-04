@@ -43,6 +43,10 @@ class HoldingRow(BaseModel):
     name: str | None = None
     weight: float | None = Field(default=None, description="Portfolio weight as a fraction (0-1) or percent, as reported by the source file.")
     sector: str | None = None
+    isin: str | None = None
+    sedol: str | None = None
+    lei: str | None = None
+    cik: str | None = None
 
 
 class HoldingsOverlapResult(BaseModel):
