@@ -187,6 +187,8 @@ def get_theme_results(
     for m in matches:  # rows stored before OpEx: the model default
         if (rev := m.get("revenue_exposure")) is not None and "opex" not in rev:
             rev["opex"] = MetricExposure().model_dump(mode="json")
+        if (ie := m.get("indirect_exposure")) is not None and "icio_edition" in ie:  # stored before the rename
+            ie["io_edition"] = ie.pop("icio_edition")
     return {"total": len(matches), "results": matches[offset : offset + limit]}
 
 

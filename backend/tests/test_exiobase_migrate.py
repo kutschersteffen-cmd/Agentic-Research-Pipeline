@@ -76,3 +76,9 @@ def test_convert_parts_llm_like_split():
 def test_convert_theme_unknown_code():
     with pytest.raises(UnknownIcioCode):
         convert_theme({"activities": [{"core_isic_codes": ["ZZZ"]}]})
+
+
+def test_convert_document_bare_run_theme():
+    theme = {"activities": [{"activity_id": "a1", "name": "n", "core_isic_codes": ["B07"]}]}
+    assert convert_document(theme) is True
+    assert theme["activities"][0]["core_sectors"] == icio_sectors("B07")

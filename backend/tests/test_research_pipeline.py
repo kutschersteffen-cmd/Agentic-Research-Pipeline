@@ -528,7 +528,7 @@ async def test_resume_run_stored_with_legacy_sample_flag_uses_sample(tmp_path, f
     llm = fake_llm({})
     await resume_run(run_id, llm=llm, verifier_llm=llm, registry=registry, settings=settings, run_store=store)
     row = store.read_results(run_id)[0]
-    assert row["company_matches"][0]["indirect_exposure"]["icio_edition"] == "sample"
+    assert row["company_matches"][0]["indirect_exposure"]["io_edition"] == "sample"
 
 
 async def test_resume_theme_run_unknown_universe_path_raises(tmp_path, fake_llm, pg):

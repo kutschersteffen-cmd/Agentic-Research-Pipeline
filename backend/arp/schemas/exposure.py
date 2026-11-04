@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 from arp.schemas.common import now_iso
 
@@ -28,7 +28,7 @@ class IndirectExposureResult(BaseModel):
     isic_code: str
     isic_label: str | None = None
     code_scheme: Literal["exiobase", "nace2", "nace21", "isic4", "icio"] = Field(
-        default="icio",
+        default="exiobase",
         description="Scheme of isic_code: an EXIOBASE sector name, the company's NACE Rev. 2 / Rev. 2.1 or ISIC Rev. 4 "
         "code, or (past results) an ICIO code.",
     )
@@ -45,7 +45,10 @@ class IndirectExposureResult(BaseModel):
         "(see arp.research.indirect_exposure.criticality) -- a coarse division-level heuristic, independent of "
         "the upstream/downstream Leontief exposure math.",
     )
-    icio_edition: str = Field(description="Label identifying which input-output dataset produced this result.")
+    io_edition: str = Field(
+        validation_alias=AliasChoices("io_edition", "icio_edition"),  # runs stored before the rename
+        description="Label identifying which input-output dataset produced this result.",
+    )
     end_market: dict[str, float] | None = Field(
         default=None,
         description="Share of the industry's final-demand-driven output by end market (households, government, "

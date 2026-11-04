@@ -116,7 +116,7 @@ def test_exposure_in_company_region(built):
     built()
     r = _exposure(C27, {"B07"}, "CN")
     assert _round(r.upstream_exposure) == 0.1549 and _round(r.downstream_exposure) == 0.015
-    assert (r.isic_code, r.isic_label, r.code_scheme, r.core_sector, r.icio_edition, r.company_id) == (
+    assert (r.isic_code, r.isic_label, r.code_scheme, r.core_sector, r.io_edition, r.company_id) == (
         C27, C27, "exiobase", False, "e", "x")
     assert _round(r.end_market) == {"households": 0.4116, "government": 0.0023, "investment": 0.5855, "inventories": 0.0006}
     assert list(r.end_market) == ["households", "government", "investment", "inventories"]

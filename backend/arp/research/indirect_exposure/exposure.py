@@ -118,7 +118,7 @@ def compute_indirect_exposure(
         downstream_exposure=_clamp(_share(row[core].sum(), row.sum())),
         core_sector=core_sector,
         critical_input=critical_input,
-        icio_edition=io_edition,
+        io_edition=io_edition,
         end_market=end_market,
         theme_demand_share=theme_demand_share,
         ghg_direct_t_per_meur=float(weights @ ghg[nodes]),
