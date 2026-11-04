@@ -1,0 +1,5 @@
+Bill of materials for hydrogen electrolyser stacks
+
+Electrolyser stacks depend on upstream supply of platinum group metal catalysts and titanium bipolar plates.
+
+Power electronics and rectifiers are enabling equipment for every hydrogen electrolysis plant.

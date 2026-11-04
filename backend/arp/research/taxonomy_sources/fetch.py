@@ -20,19 +20,21 @@ _MAX_ORIGINAL_BYTES = 25 * 1024 * 1024  # don't cache/serve anything absurdly la
 _EXT_BY_CONTENT_TYPE = {"application/pdf": ".pdf", "text/html": ".html"}
 
 
-async def fetch_source_text(url: str, user_agent: str, timeout: float = 20.0) -> str | None:
+async def fetch_source_text(url: str, user_agent: str, timeout: float = 20.0, max_chars: int = _MAX_CHARS) -> str | None:
     """Best-effort fetch + text extraction for a user-selected authority
     source URL. Returns None on any failure rather than raising, so one
     unreachable source doesn't abort a multi-source derivation.
     """
-    return await fetch_source_text_or_empty(url, user_agent, timeout) or None
+    return await fetch_source_text_or_empty(url, user_agent, timeout, max_chars) or None
 
 
-async def fetch_source_text_or_empty(url: str, user_agent: str, timeout: float = 20.0) -> str | None:
+async def fetch_source_text_or_empty(
+    url: str, user_agent: str, timeout: float = 20.0, max_chars: int = _MAX_CHARS
+) -> str | None:
     """`fetch_source_text`, but "" for a page that was fetched and had no extractable text."""
     if (folder := standins.active_dir()) is not None:
         text = await standins.fetch_text(folder, url)
-        return None if text is None else text[:_MAX_CHARS]
+        return None if text is None else text[:max_chars]
     try:
         assert_safe_fetch_target(url)
     except UnsafeURLError as exc:
@@ -53,10 +55,10 @@ async def fetch_source_text_or_empty(url: str, user_agent: str, timeout: float =
     content_type = resp.headers.get("content-type", "").split(";")[0].strip().lower()
     text: str | None
     if content_type == "application/pdf" or url.lower().endswith(".pdf"):
-        text = _extract_pdf_text(resp.content)
+        text = extract_pdf_text(resp.content)
     else:
         text = extract_html_text(resp.text)
-    return (text or "")[:_MAX_CHARS]
+    return (text or "")[:max_chars]
 
 
 def _cache_paths(cache_dir: Path, url: str) -> tuple[Path, Path]:
@@ -111,7 +113,7 @@ async def fetch_source_original(url: str, user_agent: str, cache_dir: Path, time
     return resp.content, content_type
 
 
-def _extract_pdf_text(content: bytes) -> str | None:
+def extract_pdf_text(content: bytes) -> str | None:
     from pypdf import PdfReader
 
     try:
