@@ -98,7 +98,8 @@ def _registry(documents_dir: Path, settings: Settings) -> DocumentSourceRegistry
 
 
 async def run_retrieval_eval(
-    run_store: RunStore, run_id: str, decisions: list[ReviewDecision], *, documents_dir: Path, settings: Settings
+    run_store: RunStore, run_id: str, decisions: list[ReviewDecision], *, documents_dir: Path, settings: Settings,
+    count_fallback: bool = False,
 ) -> dict:
     schema = load_run_schema(run_store, run_id)
     if schema is None:
@@ -138,18 +139,18 @@ async def run_retrieval_eval(
                 if rank is None:
                     misses.append({"company_id": company_id, "field_id": field_id, "doc_id": g.doc_id,
                                    "char_start": g.char_start, "char_end": g.char_end})
-    return _report(run_id, settings, ranks, stale, seconds, misses, fallback)
+    return _report(run_id, settings, ranks, stale, seconds, misses, fallback if count_fallback else None)
 
 
 def _report(run_id: str | None, settings: Settings, ranks: list[int | None], stale: int, seconds: list[float],
-            misses: list[dict], fallback: int) -> dict:
+            misses: list[dict], fallback: int | None) -> dict:
+    """`fallback` (fields whose requested embedder or reranker did not run) is reported only when given."""
     k = settings.evidence_max_chunks
-    return {
+    report = {
         "run_id": run_id,
         "settings": {"hybrid_retrieval_enabled": settings.hybrid_retrieval_enabled, "rerank_enabled": settings.rerank_enabled,
                      "rerank_candidates": settings.rerank_candidates, "evidence_max_chunks": k,
-                     "retrieval_backend": settings.retrieval_backend, "embed_model": settings.embed_model,
-                     "rerank_model": settings.rerank_model if settings.rerank_enabled else None},
+                     "retrieval_backend": settings.retrieval_backend},
         "gold_spans": len(ranks),
         "stale_spans": stale,
         "fields_ranked": len(seconds),
@@ -157,9 +158,9 @@ def _report(run_id: str | None, settings: Settings, ranks: list[int | None], sta
         f"recall_at_{k}": recall_at(ranks, k),
         "median_seconds_per_field": statistics.median(seconds) if seconds else None,
         "max_seconds_per_field": max(seconds) if seconds else None,
-        "fallback_fields": fallback,
         "misses": misses,
     }
+    return report if fallback is None else report | {"fallback_fields": fallback}
 
 
 def _sha256(path: Path) -> str:
@@ -214,7 +215,9 @@ def _contains(chunk_text: str, span_text: str) -> bool:
     return _normalize(span_text) in _normalize(chunk_text)
 
 
-async def run_cases_retrieval_eval(cases_file: Path, *, documents_dir: Path, settings: Settings) -> dict:
+async def run_cases_retrieval_eval(
+    cases_file: Path, *, documents_dir: Path, settings: Settings, count_fallback: bool = False
+) -> dict:
     """Cases mode: gold spans are text in a committed cases file, so CI can run it without a reviewed run (Postgres
     is still needed: the content store opens its document registry there, and hybrid retrieval keeps embeddings there).
     A span is hit at the first evidence chunk of its document that contains it after grounding's
@@ -255,4 +258,4 @@ async def run_cases_retrieval_eval(cases_file: Path, *, documents_dir: Path, set
                 if rank is None:
                     misses.append({"case_id": c["case_id"], "company_id": company_id, "field_id": field.field_id,
                                    "document": c["document"], "span_text": span})
-    return _report(None, settings, ranks, stale, seconds, misses, fallback)
+    return _report(None, settings, ranks, stale, seconds, misses, fallback if count_fallback else None)

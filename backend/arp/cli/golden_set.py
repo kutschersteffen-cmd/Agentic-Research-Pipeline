@@ -362,6 +362,7 @@ def golden_set_retrieval(
             if cases_file is not None:
                 reports.append(asyncio.run(run_cases_retrieval_eval(
                     cases_file, documents_dir=documents_dir or cases_file.parent / "documents", settings=combo,
+                    count_fallback=compare,
                 )))
             else:
                 run_store = _run_store()
@@ -369,11 +370,15 @@ def golden_set_retrieval(
                     run_retrieval_eval(
                         run_store, run_id, _decisions(run_store, run_id),
                         documents_dir=documents_dir or settings.documents_dir, settings=combo,
+                        count_fallback=compare,
                     )
                 ))
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
+    for (embed_model, rerank_model), report in zip(combos, reports, strict=True):
+        if compare:  # without the new options the report is main's
+            report["settings"] |= {"embed_model": embed_model, "rerank_model": None if rerank_model == "off" else rerank_model}
     if out:
         out.write_text(json.dumps(reports if compare else reports[0], indent=2))
     report = reports[0]  # every combination ranks the same gold spans
