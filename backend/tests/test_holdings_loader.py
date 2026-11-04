@@ -24,8 +24,7 @@ def test_ac2_weights_scaled_per_column():
     assert [r.weight for r in load_holdings_with_weights(FIX)] == pytest.approx([0.162, 0.079, 0.0512, 0.0065, 0.0039], abs=1e-9)
 
 
-def test_ac3_universe_from_holdings(tmp_path, monkeypatch):
-    monkeypatch.setenv("ARP_POSTGRES_DSN", "postgresql://unused/unused")  # CLI startup requires it; this command never connects
+def test_ac3_universe_from_holdings(tmp_path, pg):  # the CLI root pings Postgres at startup
     out = tmp_path / "u.json"
     result = CliRunner().invoke(app, ["universe", "from-holdings", str(FIX), "--out", str(out)])
     assert result.exit_code == 0, result.output
