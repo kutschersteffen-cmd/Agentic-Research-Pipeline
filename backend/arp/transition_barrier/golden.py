@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
@@ -27,6 +27,7 @@ class Case:
     value: object
     unit: str | None
     page: int | None
+    also: dict[str, str] = field(default_factory=dict)  # other pages that support the answer: page -> quote
 
 
 def load_cases(path: Path) -> list[Case]:
@@ -83,7 +84,7 @@ async def score(
             if misses is not None:
                 misses.append(f"not counted: {row}")
             return False, False
-        correct = _matches(fact.type, got.value, case.value) and got.page == case.page
+        correct = _matches(fact.type, got.value, case.value) and (got.page == case.page or str(got.page) in case.also)
         if not correct and misses is not None:
             misses.append(f"wrong: {row}, got {got.value!r} p.{got.page}")
         return True, correct
