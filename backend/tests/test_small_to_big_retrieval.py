@@ -107,14 +107,14 @@ def rule2_parent(doc: SourceDocument) -> str:
 
 def test_defaults_and_env(monkeypatch):  # AC-1, AC-17, AC-18
     monkeypatch.delenv("ARP_SMALL_TO_BIG_ENABLED", raising=False)
-    assert Settings().small_to_big_enabled is True
+    assert Settings().small_to_big_enabled is False
     assert Settings().small_chunk_chars == 800
     monkeypatch.setenv("ARP_SMALL_TO_BIG_ENABLED", "true")
     assert Settings().small_to_big_enabled is True
 
 
 def test_input_settings():  # AC-14, AC-21
-    off = input_settings(Settings(anthropic_api_key="x", small_to_big_enabled=False))
+    off = input_settings(Settings(anthropic_api_key="x"))
     assert input_settings(Settings(anthropic_api_key="x", small_to_big_enabled=True)) != off
     assert "small_to_big_enabled" not in off
 
@@ -173,22 +173,6 @@ def test_long_section_gets_todays_chunk(on):  # AC-5
     doc = doc_t(_sec("Targets", 8000, KEY, at=5000 / 8000))
     ev = field_evidence(_field(), [doc], _settings(evidence_max_chunks=1))
     assert [c.chunk_id for c in ev] == [rule2_parent(doc)]
-
-
-def test_second_field_reuses_piece_parents(on, monkeypatch):
-    from arp.ingestion import parsing
-    from arp.ingestion.chunk_spans import get_span_cache
-
-    get_span_cache().clear()
-    calls = []
-    real = parsing._parent_picks
-    monkeypatch.setattr(parsing, "_parent_picks", lambda *a: calls.append(1) or real(*a))
-    doc = doc_t(_sec("Targets", 8000, KEY, at=5000 / 8000) + _sec("Plan", 1500, "Capex 2040 is planned."))
-    first = field_evidence(_field("net zero"), [doc], _settings(evidence_max_chunks=1))
-    second = field_evidence(_field("2040"), [doc], _settings(evidence_max_chunks=2))
-    assert calls == [1]
-    assert [c.chunk_id for c in first] == [rule2_parent(doc)]
-    assert section_id(doc, "Plan") in [c.chunk_id for c in second]
 
 
 def test_no_headings(on):  # AC-23

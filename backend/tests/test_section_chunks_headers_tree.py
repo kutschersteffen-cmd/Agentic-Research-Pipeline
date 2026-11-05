@@ -162,9 +162,8 @@ def test_headers_rank_by_heading_but_evidence_keeps_chunk_text():
         field_id="f", name="Scope 3", description="d", data_type=FieldDataType.NUMBER,
         extraction_instructions="x", seed_keywords=["Scope 3"],
     )
-    base = {"hybrid_retrieval_enabled": False, "rerank_enabled": False, "small_to_big_enabled": False}
-    off = field_evidence(field, [doc], Settings(**base))
-    on = field_evidence(field, [doc], Settings(**base, context_headers_enabled=True))
+    off = field_evidence(field, [doc], Settings(hybrid_retrieval_enabled=False, rerank_enabled=False))
+    on = field_evidence(field, [doc], Settings(hybrid_retrieval_enabled=False, rerank_enabled=False, context_headers_enabled=True))
     assert heading_path(doc, on[0].char_start) == ["Scope 3"]  # ranked by the header, whatever its text says
     assert all(c.text == doc.full_text[c.char_start : c.char_end] for c in on)
     assert {c.chunk_id for c in off} <= {c.chunk_id for c in chunk_document(doc)}

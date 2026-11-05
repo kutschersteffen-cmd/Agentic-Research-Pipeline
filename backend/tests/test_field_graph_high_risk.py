@@ -39,10 +39,8 @@ async def test_gather_evidence_passes_rerank_settings(monkeypatch):
         seed_keywords=["shoes"], high_risk=True,
     )
     base = {"field": field, "documents": [_DOC]}
-    on = Settings(
-        hybrid_retrieval_enabled=False, rerank_enabled=True, rerank_candidates=33, evidence_max_chunks=7, small_to_big_enabled=False,
-    )
-    off = Settings(hybrid_retrieval_enabled=False, rerank_enabled=False, small_to_big_enabled=False)
+    on = Settings(hybrid_retrieval_enabled=False, rerank_enabled=True, rerank_candidates=33, evidence_max_chunks=7)
+    off = Settings(hybrid_retrieval_enabled=False, rerank_enabled=False)
     await field_graph._gather_evidence({**base, "settings": on})
     await field_graph._gather_evidence({**base, "settings": off})
     await field_graph._gather_evidence({**base, "settings": None})
