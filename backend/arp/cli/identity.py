@@ -20,6 +20,7 @@ def identity_resolve(
     names_file: Path = typer.Option(
         ..., "--names-file", help="CSV/JSON of company names (same shape arp.universe.load_company_universe reads; website/cik not required)."
     ),
+    previous_run: str = typer.Option(None, "--previous-run", help="Reuse this identity run's results where no re-check is needed."),
 ) -> None:
     """Resolves each company's real-world identity (website/CIK) via the
     propose -> resolve -> challenge -> adjudicate graph -- a separate,
@@ -31,10 +32,15 @@ def identity_resolve(
     """
     settings = get_settings()
     companies = load_company_universe(names_file)
-    llm = build_llm_client(settings)
     run_store = _run_store()
+    if previous_run and run_store.load_manifest(previous_run) is None:
+        typer.echo(f"Run not found: {previous_run}", err=True)
+        raise typer.Exit(1)
+    llm = build_llm_client(settings)
     typer.echo(f"Resolving identity for {len(companies)} companies...")
-    run_id = asyncio.run(run_identity_resolution(companies, llm=llm, settings=settings, run_store=run_store))
+    run_id = asyncio.run(run_identity_resolution(
+        companies, llm=llm, settings=settings, run_store=run_store, previous_run_id=previous_run
+    ))
     manifest = run_store.load_manifest(run_id)
     typer.echo(f"Run complete: {run_id} ({manifest.review_count}/{len(companies)} flagged for review)")
 
@@ -71,8 +77,9 @@ def identity_review(
     item_key: str = typer.Argument(..., help="The company_id, as shown by `arp identity review-queue`."),
     decision: str = typer.Option(..., help="approve | correct | reject | escalate"),
     reason: str = typer.Option(None, help="Decision reason (approve: confirmed, the default; else e.g. wrong_entity)."),
-    website: str = typer.Option(None, help="Corrected website. With --decision correct, at least one of --website/--cik is required."),
+    website: str = typer.Option(None, help="Corrected website. With --decision correct, at least one of --website/--cik/--lei is required."),
     cik: str = typer.Option(None, help="Corrected CIK."),
+    lei: str = typer.Option(None, help="Corrected LEI."),
     comment: str = typer.Option(None, help="Required with --decision correct: the source of the correction."),
 ) -> None:
     from pydantic import ValidationError
@@ -88,8 +95,8 @@ def identity_review(
     if decision != "approve" and not reason:
         typer.echo("--reason is required with --decision " + decision, err=True)
         raise typer.Exit(1)
-    if decision == "correct" and not (website or cik):
-        typer.echo("--website and/or --cik is required with --decision correct", err=True)
+    if decision == "correct" and not (website or cik or lei):
+        typer.echo("at least one of --website, --cik or --lei is required with --decision correct", err=True)
         raise typer.Exit(1)
     if decision == "correct" and not (comment or "").strip():
         typer.echo("--comment naming the correction's source is required with --decision correct", err=True)
@@ -103,7 +110,8 @@ def identity_review(
     try:
         req = ItemDecisionRequest(
             decision=decision, reason_code=reason or "confirmed",
-            corrected_value={"resolved_website": website, "resolved_cik": cik} if decision == "correct" else None,
+            corrected_value={k: v for k, v in (("resolved_website", website), ("resolved_cik", cik), ("resolved_lei", lei)) if v}
+            if decision == "correct" else None,
             comment=comment, context_etag=bundle["etag"],
         )
         out = decide(run_store, run_id, item_key, req, principal, settings=settings, content_store=content_store)

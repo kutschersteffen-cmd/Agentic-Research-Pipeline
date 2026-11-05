@@ -97,3 +97,9 @@ def test_postgres_round_trip(pg, tmp_path):
     store.save_company(CompanyRef(company_id="x", name="X", nace_code="07.29", nace_rev="2.1", gics_code="55101010"))
     got = store.get_company("x")
     assert (got.nace_code, got.nace_rev, got.gics_code) == ("07.29", "2.1", "55101010")
+
+
+def test_duplicate_company_id_upload_is_422(env):
+    client, _ = env
+    r = upload(client, [co("A"), co("A")])
+    assert (r.status_code, r.json()["detail"]) == (422, "duplicate company_id 'A'")
