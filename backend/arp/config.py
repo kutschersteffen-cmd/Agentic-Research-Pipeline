@@ -152,10 +152,9 @@ class Settings(BaseSettings):
         default=800, description="With section_chunking_enabled: a shorter section is joined with the ones that follow it."
     )
     small_to_big_enabled: bool = Field(
-        default=False,
+        default=True,
         description="Extraction fields rank small pieces (small_chunk_chars) and hand the extractor each winning piece's "
-        "parent: its 800-3,500-character section, else today's chunk (arp/ingestion/parsing.py). BM25 backend only. Off "
-        "until the retrieval recall gate shows it helps.",
+        "parent: its 800-3,500-character section, else today's chunk (arp/ingestion/parsing.py). BM25 backend only.",
     )
     small_chunk_chars: int = Field(default=800, description="With small_to_big_enabled: the most characters in a ranked piece.")
     context_headers_enabled: bool = Field(

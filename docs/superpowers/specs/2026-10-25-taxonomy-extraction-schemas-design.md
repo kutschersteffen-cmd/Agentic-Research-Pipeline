@@ -232,10 +232,12 @@ with that catalogue. "Released v1" means AC-6b plus AC-10.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
-| AC-1 | `tax_a` v1 | `build_taxonomy_schema` | `schema_id` `sch_tax_a_v1`; `name` `Grid v1`; `description` `Generated from taxonomy tax_a v1.`; 8 fields with ids `tax_a_act_1_revenue_pct`, `tax_a_act_1_capex_pct`, `tax_a_act_1_opex_pct`, `tax_a_act_1_rd_pct`, then the same four for `act_2`, in that order; every field `percentage`, `%`, `required` false, `version` 1 | holdout |
+| ~~AC-1~~ | ~~retired 2026-11-04 by spec `stage-evidence-schema`: each activity now has 16 fields; see AC-1n~~ | | | |
+| AC-1n | `tax_a` v1 | `build_taxonomy_schema` | `schema_id` `sch_tax_a_v1`; `name` `Grid v1`; `description` `Generated from taxonomy tax_a v1.`; 32 fields; fields 0–3 have ids `tax_a_act_1_revenue_pct`, `tax_a_act_1_capex_pct`, `tax_a_act_1_opex_pct`, `tax_a_act_1_rd_pct` and fields 16–19 the same four for `act_2`; those 8 fields are `percentage`, `%`, `required` false, `version` 1 | holdout |
 | AC-2 | `tax_a` v1 | build twice | the two results are equal after `model_dump(exclude={"created_at"})` | holdout |
 | AC-3 | `tax_a` v2 (draft) | `build_taxonomy_schema` | raises `ValueError` `Taxonomy tax_a v2 is a draft; ratify it first.` | holdout |
-| AC-4 | `tax_a` v2 draft | `POST /api/taxonomies/tax_a/ratify {"version": 2}` as `ana`, then `GET /api/taxonomies/tax_a/versions/2/schema` | GET 200: `schema_id` `sch_tax_a_v2`, 4 fields each `version` 2, `release_flag` false | holdout |
+| ~~AC-4~~ | ~~retired 2026-11-04 by spec `stage-evidence-schema`: 16 fields per activity; see AC-4n~~ | | | |
+| AC-4n | `tax_a` v2 draft | `POST /api/taxonomies/tax_a/ratify {"version": 2}` as `ana`, then `GET /api/taxonomies/tax_a/versions/2/schema` | GET 200: `schema_id` `sch_tax_a_v2`, 16 fields each `version` 2, `release_flag` false | holdout |
 | AC-5 | AC-4 | ratify v2 again, then GET the schema | ratify 200; GET returns the same registry `version` as in AC-4 | holdout |
 | AC-6a | fixture (no schema registered) | `GET /api/taxonomies/tax_a/versions/1/schema` | 404, `detail` `No schema for tax_a v1` | holdout |
 | AC-6b | fixture | `POST /api/taxonomies/tax_a/versions/1/schema` as `ana` | 200; `schema_id` `sch_tax_a_v1`; `release_flag` false | holdout |

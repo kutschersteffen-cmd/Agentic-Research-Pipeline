@@ -16,6 +16,7 @@ from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import effective_decisions
 from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import IdentityResolutionResult, IdentityVerdict
+from arp.schemas.issuer import lei_is_valid, normalise_lei
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
 
@@ -111,32 +112,48 @@ async def run_identity_resolution(
     run_store: RunStore,
     edgar: EdgarDocumentSource | None = None,
     search_client: WebSearchClient | None = None,
+    previous_run_id: str | None = None,
 ) -> str:
     """Convenience wrapper (create + execute in one call) for synchronous
-    callers such as the CLI."""
+    callers such as the CLI. `previous_run_id` reuses that run's results for
+    companies that need no re-check (match_rules.needs_recheck)."""
     run_id = create_identity_run(companies, run_store)
     return await execute_identity_run(
-        run_id, companies, llm=llm, settings=settings, run_store=run_store, edgar=edgar, search_client=search_client
+        run_id, companies, llm=llm, settings=settings, run_store=run_store, edgar=edgar, search_client=search_client,
+        previous_run_id=previous_run_id,
     )
+
+
+def _exported_lei(*candidates: str | None) -> str | None:
+    """The first candidate that is a valid LEI after normalising, else None."""
+    for c in candidates:
+        lei = normalise_lei(c or "")
+        if lei and lei_is_valid(lei):
+            return lei
+    return None
 
 
 def enriched_universe(run_store: RunStore, run_id: str) -> list[CompanyRef]:
     """Merges the run's results with any recorded review decisions
     (arp.orchestration.review_queue) into a normal company universe
-    (website/cik filled in) -- directly usable as input to the *existing*,
+    (website/cik/lei filled in) -- directly usable as input to the *existing*,
     unmodified discovery pipeline (same shape arp.universe.load_company_universe
-    reads). An approved/edited review decision's edited_value overrides the
-    agent's own resolved fields and always includes the company; a
-    rejected decision excludes it; a still-flagged company with no
-    decision yet is excluded rather than emitted with an unverified or
-    missing website/cik.
+    reads). Each entry starts from the run's input company, so every input field
+    (ticker, country, sector codes, entity_id, ...) is kept; only website, cik,
+    lei and isin are overwritten, and a None never overwrites an input value.
+    An approved/corrected review decision's edited_value overrides the agent's
+    own resolved fields and always includes the company; a rejected decision
+    excludes it; a still-flagged company with no decision yet is excluded
+    rather than emitted with an unverified or missing website/cik/lei.
     """
     rows = run_store.read_results(run_id)
     decisions = effective_decisions(run_store, run_id)
+    inputs = {c.company_id: c for c in (run_store.load_companies(run_id) or [])}
     companies: list[CompanyRef] = []
     for row in rows:
         result = IdentityResolutionResult.model_validate(row)
         website, cik = result.resolved_website, result.resolved_cik
+        corrected_lei = None
         included = result.verdict == IdentityVerdict.RESOLVED and not result.flagged_for_review
 
         decision = decisions.get(result.company_id)
@@ -151,14 +168,21 @@ def enriched_universe(run_store: RunStore, run_id: str) -> list[CompanyRef]:
                 cik = override
             elif override:
                 website = override
-            website = edited.get("resolved_website", website)
-            cik = edited.get("resolved_cik", cik)
+            website = edited.get("resolved_website") or website
+            cik = edited.get("resolved_cik") or cik
+            corrected_lei = edited.get("resolved_lei")
             included = decision["decision"] in ("approve", "edit", "correct")
 
-        if not included or (not website and not cik):
+        base = inputs.get(result.company_id)
+        lei = _exported_lei(
+            corrected_lei, result.identifiers.get("lei"), result.derived_lei, result.resolved_lei, base.lei if base else None
+        )
+        if not included or not (website or cik or lei):
             continue
-        companies.append(CompanyRef(
-            company_id=result.company_id, name=result.input_name, website=website, cik=cik,
-            lei=result.identifiers.get("lei") or result.derived_lei or result.resolved_lei, isin=result.identifiers.get("isin"),
-        ))
+        update = {"website": website, "cik": cik, "lei": lei, "isin": result.identifiers.get("isin")}
+        if base is None:
+            companies.append(CompanyRef(company_id=result.company_id, name=result.input_name, **update))
+        else:
+            # A None keeps the input value, except lei: an invalid input LEI is never exported.
+            companies.append(base.model_copy(update={k: v for k, v in update.items() if v is not None or k == "lei"}))
     return companies

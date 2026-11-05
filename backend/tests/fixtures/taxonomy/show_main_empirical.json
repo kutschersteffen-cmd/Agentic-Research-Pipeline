@@ -23,6 +23,7 @@
         "tier": "core",
         "lifecycle_stage": null,
         "criticality_flag": false,
+        "contrast_statements": [],
         "human_approved": false,
         "value_chain_role": "core",
         "criteria": [],

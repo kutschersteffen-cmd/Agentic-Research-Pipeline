@@ -1,6 +1,6 @@
 # Stage evidence in the taxonomy schema
 
-Spec slug: `stage-evidence-schema`. Status: draft, for owner approval.
+Spec slug: `stage-evidence-schema`. Status: approved by the owner, 2026-11-04.
 
 ## Why
 
@@ -151,10 +151,15 @@ ratified taxonomy `tax_fx` v1 with activities `act_a` ("Electrolyser manufacturi
 | AC-10 | A taxonomy version whose schema was registered on `main` (the fixture taxonomy, 8 fields: 4 per activity) | `GET /taxonomies/{id}/versions/{v}/schema` after this change | Returns the same 8 fields | unit |
 | AC-10b | As AC-10 | `POST /taxonomies/{id}/versions/{v}/schema` | The response has 32 fields, and its `version` equals the previously registered version + 1 | unit |
 | AC-11 | The AC-1 schema | `field_id_for(schema, "act_a", "rd")` | Returns `tax_fx_act_a_rd_pct` | unit |
-| AC-12a | Golden case (a) in `tests/golden/stage_evidence/`: a report stating a pilot plant and a commercial product line for activity `act_a` of the fixture taxonomy; schema = the fixture taxonomy's generated schema `sch_tax_fx_v1` | `arp golden-set precision --schema sch_tax_fx_v1 --cases tests/golden/stage_evidence/cases.json --documents-dir tests/golden/stage_evidence/documents --min-precision 0.9` with the real model | Exits 0; the case expects `stage_innovation=true` and `stage_commercial=true`, each with a grounded quote | golden |
+| AC-12a | Golden case (a) in `tests/golden/stage_evidence/`: a report stating a pilot plant and a commercial product line for activity `act_a` of the fixture taxonomy; schema = the fixture taxonomy's generated schema `sch_tax_fx_v1` | `arp golden-set precision --schema-file tests/golden/stage_evidence/schema.json --cases tests/golden/stage_evidence/cases.json --documents-dir tests/golden/stage_evidence/documents --min-precision 0.9` with the real model | Exits 0; the case expects `stage_innovation=true` and `stage_commercial=true`, each with a grounded quote | golden |
 | AC-12b | Golden case (b): a report with only company-wide totals and no stage evidence for `act_a` | same command | Exits 0; the case expects `revenue_amount`, `capex_amount`, `rd_amount`, `backlog`, `stage_ideation`, `stage_innovation`, `stage_commercial` all `not_found` (an expected `not_found` counts as correct only when the extractor returns `not_found`) | golden |
 | AC-13 | The existing tests `tests/test_research_pipeline.py` and `tests/test_taxonomy_schema.py::test_schema_text_and_keywords`, `::test_schema_is_deterministic_and_refuses_drafts` | CI on this branch | They pass unmodified. Only `test_schema_has_four_fields_per_activity_in_order` may change (it asserts the old field count) and is listed in the PR | unit |
 | AC-14 | As AC-1 | build | No new field has a default value, and `ActivityDefinition` gains no stage attribute (the stage exists only as extracted fields) | unit |
+
+Limit of AC-12 (found in review, 2026-11-04): `golden-set precision` scores only auto-accepted values. A value routed
+to review (for example a stage field where the model returned both true and false rows) is reported in coverage
+but does not fail the gate. AC-12 therefore guards against wrong auto-accepted values, not against missed ones; the
+command's coverage line shows the rest. It runs in the golden-set CI job.
 
 Must not change: the four `_pct` fields (AC-3), `field_id_for` (AC-11), draft refusal (AC-9), registered schemas
 (AC-10), the funnel and theme-run output (covered by AC-13).
