@@ -282,6 +282,23 @@ def test_failed_query_stores_only_chunk_rows_in_postgres(pg, cloud, tmp_path):  
     assert {m for _, m, _ in rows} == {"intfloat/multilingual-e5-large", embeddings.EMBED_MODEL_NAME}  # no query rows
 
 
+def test_query_embedded_once_per_store_across_companies(monkeypatch):  # review: one embed per field query
+    from arp.retrieval import select_evidence
+
+    queries: list[str] = []
+    monkeypatch.setattr(embeddings, "embed_texts", lambda t: (len(t) == 1 and t[0] == "capex" and queries.append(t[0]))
+                        or np.ones((len(t), 384), dtype=np.float32))
+    monkeypatch.setattr(select_evidence, "_MAX_QUERY_VECTORS", 2)
+    store = _DictStore()
+    for company in ("c1", "c2", "c3"):
+        chunks = [c.model_copy(update={"company_id": company, "doc_id": f"d-{company}"}) for c in CHUNKS]
+        select_relevant_chunks(chunks, ["capex"], max_chunks=3, hybrid_retrieval_enabled=True, content_store=store)
+    assert queries == ["capex"]
+    for q in ("a", "b", "capex"):  # a full memo is dropped, so it never holds more than the cap
+        select_relevant_chunks(CHUNKS, [q], max_chunks=3, hybrid_retrieval_enabled=True, content_store=store)
+    assert queries == ["capex", "capex"] and len(select_evidence._QUERY_VECTORS[store]) <= 2
+
+
 def test_ci_cache_key_hashes_the_embed_model_file():  # AC-17
     ci = yaml.safe_load(Path("../.github/workflows/ci.yml").read_text())
     steps = ci["jobs"]["retrieval-recall"]["steps"]

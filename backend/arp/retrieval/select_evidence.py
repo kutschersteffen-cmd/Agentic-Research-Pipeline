@@ -18,7 +18,8 @@ from arp.storage.document_store import DocumentContentStore
 _RRF_K = 60
 # Concurrent fields (worker threads) share a document's chunks: one embeds the missing ones, the rest reuse them.
 _EMBED_LOCK = threading.Lock()
-_QUERY_VECTORS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()  # store -> {(query text, candidate chunk_ids): MiniLM vector}
+_QUERY_VECTORS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()  # store -> {query text: MiniLM vector}
+_MAX_QUERY_VECTORS = 1024
 _FALLBACK_WARNING = "arp-models unavailable; embedding with MiniLM"
 
 logger = logging.getLogger(__name__)
@@ -95,11 +96,13 @@ def _vector_ranking(
                 content_store.store_embeddings(new_vectors, EMBED_MODEL_NAME)
                 cached.update(new_vectors)
 
-    # a field's query is the same on every selection: cached per store in memory, so chunk_embeddings holds only chunks
-    queries, query_key = _QUERY_VECTORS.setdefault(content_store, {}), (query_text, tuple(c.chunk_id for c in candidates))
-    query_vec = queries.get(query_key)
+    # a field's query is the same on every selection and company: cached per store in memory, so chunk_embeddings holds only chunks
+    queries = _QUERY_VECTORS.setdefault(content_store, {})
+    query_vec = queries.get(query_text)
     if query_vec is None:
-        query_vec = queries[query_key] = embed_texts([query_text])[0]
+        if len(queries) >= _MAX_QUERY_VECTORS:  # shortcut: drops the whole memo when full, an LRU if hit rates ever matter
+            queries.clear()
+        query_vec = queries[query_text] = embed_texts([query_text])[0]
     return _cosine_ranking(candidates, keys, cached, query_vec)
 
 
