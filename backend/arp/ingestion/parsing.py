@@ -254,20 +254,40 @@ def piece_parents(
     lowest start that holds it, else the one overlapping it most. Table passages in `chunks` map to themselves."""
     parents = {c.chunk_id: c for c in chunks if c.table_id is not None}
     plain = [c for c in chunks if c.table_id is None]
+    cache = get_span_cache()
+    # per field only keyword_hits differ, so cache which parent each piece gets, not the chunks
+    key = ("piece_parents", *cache.make_key(doc.full_text, doc.doc_type, settings.small_chunk_chars, 0,
+                                            settings.section_min_chars, doc.table_spans),
+           tuple((p.char_start, p.char_end) for p in pieces), tuple((c.char_start, c.char_end) for c in plain))
+    picks = cache.get_or_compute(key, lambda: _parent_picks(doc, pieces, plain, settings))
+    made: dict[tuple, DocumentChunk] = {}
+    for p, pick in zip(pieces, picks, strict=True):
+        if isinstance(pick, int):
+            parents[p.chunk_id] = plain[pick]
+        else:
+            parents[p.chunk_id] = made.get(pick) or made.setdefault(pick, _chunk(doc, *pick))
+    return parents
+
+
+def _parent_picks(
+    doc: SourceDocument, pieces: list[DocumentChunk], plain: list[DocumentChunk], settings: Settings
+) -> tuple:
+    """Per piece: its section as (start, end, title), or the index of its plain chunk in `plain`."""
     sections = _sections(doc) if outline(doc) else []  # a document without headings has no section parents
     starts = [sec[0] for sec in sections]
-    made: dict[tuple, DocumentChunk] = {}
+    picks: list = []
     for p in pieces:
         i = bisect.bisect_right(starts, p.char_start) - 1
         sec = sections[i] if i >= 0 else None
         if sec is not None and settings.section_min_chars <= sec[1] - sec[0] <= DEFAULT_CHUNK_CHARS:
-            parents[p.chunk_id] = made.get(sec) or made.setdefault(sec, _chunk(doc, *sec))
+            picks.append(sec)
             continue
 
-        def rank(c: DocumentChunk, p: DocumentChunk = p) -> tuple:
+        def rank(j: int, p: DocumentChunk = p) -> tuple:
+            c = plain[j]
             if c.char_start <= p.char_start and p.char_end <= c.char_end:
                 return (0, c.char_start)
             return (1, -(min(c.char_end, p.char_end) - max(c.char_start, p.char_start)), c.char_start)
 
-        parents[p.chunk_id] = min(plain, key=rank)
-    return parents
+        picks.append(min(range(len(plain)), key=rank))
+    return tuple(picks)
