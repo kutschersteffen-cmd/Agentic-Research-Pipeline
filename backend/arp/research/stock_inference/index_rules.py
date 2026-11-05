@@ -20,7 +20,7 @@ _GICS_SECTORS = ["Energy", "Materials", "Industrials", "Consumer Discretionary",
                  "Financials", "Information Technology", "Communication Services", "Utilities", "Real Estate"]
 _CURRENCY = {"$": "USD", "us$": "USD", "€": "EUR", "£": "GBP"}
 _SCALE = {"thousand": 1e3, "million": 1e6, "mn": 1e6, "m": 1e6, "billion": 1e9, "bn": 1e9, "b": 1e9}
-_MONEY = re.compile(r"(USD|EUR|GBP|CHF|JPY|US\$|\$|€|£)\s*(\d[\d,]*(?:\.\d+)?)(?:\s*(thousand|million|mn|m|billion|bn|b)\b)?", re.I)
+_MONEY = re.compile(r"(USD|EUR|GBP|CHF|JPY|US\$|\$|€|£)\s*(\d[\d,]*(?:\.\d+)?)(?:\s*(thousands?|millions?|mn|m|billions?|bn|b)\b)?", re.I)
 _PCT = re.compile(r"(\d+(?:\.\d+)?)\s*(?:%|per\s?cent\b)", re.I)
 _FREQUENCY = [(r"semi[\s-]?annual|half[\s-]?year|twice a year|bi[\s-]?annual", "semi_annual"),
               (r"quarter", "quarterly"), (r"\bmonthly\b|every month", "monthly"),
@@ -32,7 +32,7 @@ def _money(q: str) -> tuple[float, str] | None:
     if not m:
         return None
     cur = m.group(1)
-    return float(m.group(2).replace(",", "")) * _SCALE.get((m.group(3) or "").lower(), 1), _CURRENCY.get(cur.lower(), cur.upper())
+    return float(m.group(2).replace(",", "")) * _SCALE.get((m.group(3) or "").lower().rstrip("s"), 1), _CURRENCY.get(cur.lower(), cur.upper())
 
 
 def _pct(q: str) -> float | None:
@@ -53,26 +53,30 @@ def _match(q: str):
         return "float_mcap", money[0], money[1]
     if money and _has(r"daily\s+trad(?:ed|ing)\s+value|\badtv\b|daily\s+turnover", q):
         return "adv_3m", money[0], money[1]
-    if pct is not None and _has(r"\b(?:revenue|revenues|sales|exposure|turnover)\b", q):
-        return "relevance", pct, None
-    if pct and pct <= 1 and _has(r"\bexceed|\bcap(?:ped|s)?\b|\bmaximum\b|\bmore than\b|\blimited to\b", q):
+    if pct and pct <= 1 and _has(r"\bexceed|\bcap(?:ped|s)?\b|\bmaximum\b|\blimited to\b", q) and _has(
+            r"\bindex\b|\bweight|constituent|\bstocks?\b|issuer|compan|securit", q):
         return "single_name_cap", pct, None
+    if pct is not None and _has(r"\b(?:revenue|revenues|sales|exposure|turnover)\b", q) and _has(
+            r"at least|\bminimum\b|more than|\bover\b|\bmajority\b", q):
+        return "relevance", pct, None
     if _has(r"exclu", q):
-        found = sorted((m.start(), s) for s in _GICS_SECTORS if (m := re.search(rf"\b{s}\b", q, re.I)))
+        found = sorted((m.start(), s) for s in _GICS_SECTORS if (m := re.search(rf"\b{s}\b", q)))
         if found:
             return "sector", [s for _, s in found], None
-    n = re.search(r"\b(\d+)\s+(?:largest\s+|biggest\s+|top\s+)?(?:[a-z-]+\s+)?(?:companies|constituents|stocks|securities|issuers)\b", q, re.I)
-    if n and int(n.group(1)) > 0 and not _has(r"at least|minimum|maximum|up to|no more than|fewer than|more than", q):
-        return "top_n", int(n.group(1)), None
+    n = re.search(r"(?<![\d,.])(\d{1,3}(?:,\d{3})+|\d+)\s+(?:largest\s+|biggest\s+|top\s+)?(?:[a-z-]+\s+)?"
+                  r"(?:companies|constituents|stocks|securities|issuers)\b", q, re.I)
+    count = int(n.group(1).replace(",", "")) if n else 0
+    if count > 0 and _has(r"compris|consist|select|contain|top|largest|biggest", q) and not _has(r"at least|minimum|maximum|up to|no more than|fewer than|more than", q):
+        return "top_n", count, None
     if _has(r"equal(?:ly)?[\s-]+weight", q):
         return "scheme", "equal", None
     if _has(r"market[\s-]+capitali[sz]ation[\s-]+weight|weighted\s+(?:by|according to|in proportion to)\s+(?:their\s+)?"
             r"(?:free[\s-]+float(?:[\s-]+adjusted)?\s+)?market\s+capitali[sz]ation", q):
         return "scheme", "free_float_mcap", None
     if _has(r"review|rebalanc|reconstitut", q):
-        for pattern, freq in _FREQUENCY:
-            if _has(pattern, q):
-                return "frequency", freq, None
+        hits = sorted((m.start(), freq) for pattern, freq in _FREQUENCY if (m := re.search(pattern, q, re.I)))
+        if hits:  # the first frequency stated: "reviewed annually, with quarterly capping" is annual
+            return "frequency", hits[0][1], None
     return None
 
 
@@ -136,6 +140,6 @@ async def stated_index_rules(docs: list[SourceDocument], theme_name: str, llm) -
             except Exception:
                 log.warning("Index-rules item %s failed for %s", item.key, src, exc_info=True)
         # document order: position of the quote in the text; a quote seen twice is one rule
-        unique = {r.quote: r for r in reversed(found)}
+        unique = {r.quote: r for r in reversed(found)}  # reversed: the first item to find a quote keeps it
         rules += sorted(unique.values(), key=lambda r: text.find(r.quote))
     return map_rules(rules), stated

@@ -117,3 +117,27 @@ def test_impossible_numbers_stay_unmapped():
                      _rule("The index comprises 0 constituents.", "selection")])
     assert [r.mapped_to for r in out.rules] == [None, None]
     assert _default(out.construction_spec)
+
+
+def test_review_findings_forms():
+    cases = [
+        ("No single stock exposure may exceed 8% of the index.", "constraints.single_name_cap"),
+        ("Revenue from coal may not exceed 5% of total revenue.", None),
+        ("A single-stock cap of 10% applies.", "constraints.single_name_cap"),
+        ("Companies involved in energy storage without revenue disclosure are excluded.", None),
+        ("From 2025 companies must publish a transition plan.", None),
+    ]
+    for text, want in cases:
+        assert map_rules([_rule(text)]).rules[0].mapped_to == want, text
+
+
+def test_mixed_frequency_takes_the_first_stated():
+    out = map_rules([_rule("The index is reviewed annually in June, with quarterly capping.")])
+    assert out.construction_spec.calendar.review_frequency == "annual"
+
+
+def test_thousands_separator_and_plural_scale():
+    out = map_rules([_rule("The index comprises 1,000 securities.", "selection"),
+                     _rule("A minimum average daily traded value of USD 500 thousands.")])
+    assert out.construction_spec.selection.n == 1000
+    assert out.construction_spec.screens[0].min_value == 500_000
