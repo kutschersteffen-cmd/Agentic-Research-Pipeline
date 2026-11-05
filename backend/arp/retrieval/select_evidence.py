@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import threading
+import weakref
 from collections.abc import Callable
 
 import numpy as np
@@ -17,6 +18,7 @@ from arp.storage.document_store import DocumentContentStore
 _RRF_K = 60
 # Concurrent fields (worker threads) share a document's chunks: one embeds the missing ones, the rest reuse them.
 _EMBED_LOCK = threading.Lock()
+_QUERY_VECTORS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()  # store -> {(query text, candidate chunk_ids): MiniLM vector}
 _FALLBACK_WARNING = "arp-models unavailable; embedding with MiniLM"
 
 logger = logging.getLogger(__name__)
@@ -93,12 +95,11 @@ def _vector_ranking(
                 content_store.store_embeddings(new_vectors, EMBED_MODEL_NAME)
                 cached.update(new_vectors)
 
-    # a field's query is the same on every selection: cached beside the chunks, under its own model tag
-    query_key, query_model = f"query#{hashlib.sha256(query_text.encode('utf-8')).hexdigest()[:16]}", f"{EMBED_MODEL_NAME}#query"
-    query_vec = content_store.lookup_embeddings([query_key], query_model).get(query_key)
+    # a field's query is the same on every selection: cached per store in memory, so chunk_embeddings holds only chunks
+    queries, query_key = _QUERY_VECTORS.setdefault(content_store, {}), (query_text, tuple(c.chunk_id for c in candidates))
+    query_vec = queries.get(query_key)
     if query_vec is None:
-        query_vec = embed_texts([query_text])[0]
-        content_store.store_embeddings({query_key: query_vec}, query_model)
+        query_vec = queries[query_key] = embed_texts([query_text])[0]
     return _cosine_ranking(candidates, keys, cached, query_vec)
 
 

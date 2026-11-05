@@ -267,6 +267,21 @@ def test_postgres_column_takes_any_dimension(pg):  # AC-8
     assert store.lookup_embeddings(["c1"], "intfloat/multilingual-e5-large")["c1"].shape == (1024,)
 
 
+def test_failed_query_stores_only_chunk_rows_in_postgres(pg, cloud, tmp_path):  # AC-7b
+    from sqlalchemy import create_engine, text
+
+    from arp.storage.document_store import DocumentContentStore
+
+    _, answer = cloud
+    answer["query"] = None
+    _rank("e5-large", DocumentContentStore(tmp_path / "store", dsn=pg))
+    with create_engine(pg).connect() as conn:
+        rows = conn.execute(text("SELECT chunk_id, embed_model, vector_dims(embedding) FROM chunk_embeddings")).all()
+    e5 = [(c, d) for c, m, d in rows if m == "intfloat/multilingual-e5-large"]
+    assert sorted(c for c, _ in e5) == sorted(c.chunk_id for c in CHUNKS) and {d for _, d in e5} == {1024}
+    assert {m for _, m, _ in rows} == {"intfloat/multilingual-e5-large", embeddings.EMBED_MODEL_NAME}  # no query rows
+
+
 def test_ci_cache_key_hashes_the_embed_model_file():  # AC-17
     ci = yaml.safe_load(Path("../.github/workflows/ci.yml").read_text())
     steps = ci["jobs"]["retrieval-recall"]["steps"]
