@@ -45,7 +45,7 @@ def test_saved_taxonomy_shows_as_on_main(m, tmp_path, monkeypatch):  # AC-50
     monkeypatch.setattr(cli, "_taxonomy_store", lambda: store)
     res = CliRunner().invoke(cli.taxonomy_app, ["show", tid])
     assert res.exit_code == 0
-    new = {"kpis", "contextual_keywords", "exclusion_keywords", "contextual_window_words", "contrast_statements"}  # last one: fixtures predate it
+    new = {"kpis", "contextual_keywords", "exclusion_keywords", "contextual_window_words"}
 
     def strip(x):
         if isinstance(x, dict):
