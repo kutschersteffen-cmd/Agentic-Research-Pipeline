@@ -275,7 +275,7 @@ def test_ci_cache_key_hashes_the_embed_model_file():  # AC-17
     install = next(s for s in steps if s.get("name") == "Install backend package")["run"]
     assert ">.retrieval-embed-model.txt" in install
     run = next(s for s in steps if s.get("name") == "Run the retrieval gold set")["run"]
-    assert "--min-recall 0.627" in run
+    assert "--min-recall 0.701" in run
 
 
 def test_header_matches_ci_file_contents():
