@@ -212,12 +212,23 @@ class LangChainAnthropicClient(LLMClient):
         last_error: ValidationError | None = None
 
         for attempt in range(1, max_validation_retries + 2):
+            sent = messages
+            if self._prompt_cache_enabled and attempt > 1:
+                # A retry resends the whole (often evidence-heavy) prompt. A
+                # moving breakpoint on the newest block-list turn lets the next
+                # retry read it from cache; copied so only that turn carries it
+                # (max 4 breakpoints per request). Plain-string turns stay strings.
+                i = next((i for i in range(len(messages) - 1, -1, -1) if isinstance(messages[i]["content"], list) and messages[i]["content"]), None)
+                if i is not None:
+                    blocks = messages[i]["content"]
+                    marked = {**messages[i], "content": [*blocks[:-1], {**blocks[-1], "cache_control": _CACHE_CONTROL}]}
+                    sent = [*messages[:i], marked, *messages[i + 1 :]]
             response = await self._send(
                 {
                     "model": self.model,
                     "max_tokens": max_tokens,
                     "system": system_content,
-                    "messages": messages,
+                    "messages": sent,
                     "tools": [tool],
                     "tool_choice": {"type": "auto"},
                 }
