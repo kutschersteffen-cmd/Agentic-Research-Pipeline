@@ -4,7 +4,6 @@ import hashlib
 import logging
 import threading
 from collections.abc import Callable
-from functools import lru_cache
 
 import numpy as np
 
@@ -69,13 +68,6 @@ def _embedding_key(chunk: DocumentChunk, text: str) -> str:
     return f"{chunk.chunk_id}#{hashlib.sha256(text.encode('utf-8')).hexdigest()[:16]}"
 
 
-@lru_cache(maxsize=256)
-def _query_vector(embed: Callable[[list[str]], np.ndarray], query_text: str) -> np.ndarray:
-    """A field's query is the same on every selection, so embed it once per process; keyed by the embed
-    function too, so a stand-in never gets the real model's vector."""
-    return embed([query_text])[0]
-
-
 def _vector_ranking(
     candidates: list[DocumentChunk], query_text: str, content_store: DocumentContentStore,
     texts: dict[str, str] | None = None,
@@ -101,7 +93,13 @@ def _vector_ranking(
                 content_store.store_embeddings(new_vectors, EMBED_MODEL_NAME)
                 cached.update(new_vectors)
 
-    return _cosine_ranking(candidates, keys, cached, _query_vector(embed_texts, query_text))
+    # a field's query is the same on every selection: cached beside the chunks, under its own model tag
+    query_key, query_model = f"query#{hashlib.sha256(query_text.encode('utf-8')).hexdigest()[:16]}", f"{EMBED_MODEL_NAME}#query"
+    query_vec = content_store.lookup_embeddings([query_key], query_model).get(query_key)
+    if query_vec is None:
+        query_vec = embed_texts([query_text])[0]
+        content_store.store_embeddings({query_key: query_vec}, query_model)
+    return _cosine_ranking(candidates, keys, cached, query_vec)
 
 
 def _cosine_ranking(

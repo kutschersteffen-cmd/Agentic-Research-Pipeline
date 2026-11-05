@@ -122,17 +122,23 @@ def test_switching_tree_context_embeds_each_text_once(standins, monkeypatch):
     from arp.schemas.datapoints import FieldDefinition
 
     class _Store:
-        rows: dict = {}  # one store across the selections, like the Postgres cache
+        def __init__(self):
+            self.rows = {}
 
         def lookup_embeddings(self, ids, model):
-            return {i: self.rows[i] for i in ids if i in self.rows}
+            return {i: self.rows[(i, model)] for i in ids if (i, model) in self.rows}
 
         def store_embeddings(self, vectors, model):
-            self.rows.update(vectors)
+            self.rows.update({(i, model): v for i, v in vectors.items()})
 
-    monkeypatch.setattr(content_store_factory, "build_hybrid_content_store", lambda s: _Store())
+    store = _Store()  # one store across the selections, like the Postgres cache
+    monkeypatch.setattr(content_store_factory, "build_hybrid_content_store", lambda s: store)
     embedded: list[str] = []
-    monkeypatch.setattr(embeddings, "embed_texts", lambda t: embedded.extend(t) or np.ones((len(t), 3), dtype=np.float32))
+
+    def fresh_fake():  # a new stand-in per selection must still find the cached vectors
+        monkeypatch.setattr(embeddings, "embed_texts", lambda t: embedded.extend(t) or np.ones((len(t), 3), dtype=np.float32))
+
+    fresh_fake()
     doc = _tree_doc()
     _answer(standins, list(TITLES))
     doc_tree.build_doc_tree(doc, get_settings())
@@ -141,8 +147,10 @@ def test_switching_tree_context_embeds_each_text_once(standins, monkeypatch):
     field_graph.field_evidence(field, [doc], off)
     embedded.clear()
     for _ in range(2):
+        fresh_fake()
         field_graph.field_evidence(field, [doc], _on(hybrid_retrieval_enabled=True, small_to_big_enabled=False))
     assert sorted(embedded) == sorted(index_text(c, doc, _on()) for c in chunk_document(doc, keywords=["text"]))
     embedded.clear()
+    fresh_fake()
     field_graph.field_evidence(field, [doc], off)
     assert embedded == []  # headers-only vectors and the query's are reused
