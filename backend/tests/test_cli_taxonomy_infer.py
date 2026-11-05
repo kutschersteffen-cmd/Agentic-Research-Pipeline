@@ -247,3 +247,57 @@ async def test_benchmark_fetches_are_bounded(tmp_path):  # F10
     reg = _Registry()
     assert await run_mod._benchmark_chunks(path, reg, 3) == []
     assert reg.peak == 3
+
+
+MCAP = "Companies must have a minimum free-float market capitalisation of USD 500 million."
+
+
+def _methodology(tmp_path, *sentences):
+    path = tmp_path / "methodology.txt"
+    path.write_text("Index methodology.\n\n" + "\n\n".join(sentences) + "\n")
+    return path
+
+
+def _rules(env, *quotes, calls=5):
+    """Every index-rules call answers with these rules; duplicates collapse to one rule per quote."""
+    from arp.research.authority_taxonomy.extract import IndexRuleItem, IndexRulesDraft
+    env.llm._script["IndexRulesDraft"] = [IndexRulesDraft(rules=[IndexRuleItem(text=q, quote=q) for q in quotes])] * calls
+
+
+def test_ac42_methodology_rule_reaches_run_json(env, tmp_path):
+    from arp.schemas.index import ConstructionSpec
+    path = env.setup(2, [_reply(("T1", ["s1", "s2"]))])
+    _rules(env, MCAP)
+    res = _invoke("start", "--stocks", str(path), "--methodology", str(_methodology(tmp_path, MCAP)))
+    assert res.exit_code == 0, res.output
+    rules = _show(_run_id(res))["index_rules"]
+    spec = ConstructionSpec.model_validate(rules["construction_spec"])
+    assert (spec.screens[0].field, spec.screens[0].min_value, spec.index_currency) == ("float_mcap", 500_000_000, "USD")
+    assert spec.base_weighting.floor == ConstructionSpec().base_weighting.floor  # not rounded to 0
+    assert rules["currency"] == "USD"
+    assert rules["rules"] == [{"text": MCAP, "quote": MCAP, "source": str(tmp_path / "methodology.txt"),
+                               "mapped_to": "screens[0].min_value"}]
+
+
+def test_ac46_ungrounded_rule_absent(env, tmp_path):
+    path = env.setup(2, [_reply(("T1", ["s1", "s2"]))])
+    _rules(env, "Companies must have a minimum market capitalisation of USD 9 billion.")
+    res = _invoke("start", "--stocks", str(path), "--methodology", str(_methodology(tmp_path, MCAP)))
+    assert res.exit_code == 0, res.output
+    assert _show(_run_id(res))["index_rules"]["rules"] == []
+
+
+def test_no_methodology_leaves_index_rules_null(env):
+    path = env.setup(2, [_reply(("T1", ["s1", "s2"]))])
+    assert _show(_run_id(_invoke("start", "--stocks", str(path))))["index_rules"] is None
+
+
+def test_failing_rule_call_does_not_end_run(env, tmp_path):  # Review Focus 5
+    cap = "No constituent may exceed 8 % of the index."
+    path = env.setup(2, [_reply(("T1", ["s1", "s2"]))])
+    _rules(env, MCAP, cap, calls=1)  # the first call answers, every later one finds no reply and raises
+    res = _invoke("start", "--stocks", str(path), "--methodology", str(_methodology(tmp_path, MCAP, cap)))
+    assert res.exit_code == 0, res.output
+    run = _show(_run_id(res))
+    assert run["stage"] == "themes_ready"
+    assert [r["quote"] for r in run["index_rules"]["rules"]] == [MCAP, cap]

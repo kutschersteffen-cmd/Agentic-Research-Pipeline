@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from arp.schemas.common import Citation
+from arp.schemas.index import ConstructionSpec
 
 
 class InferStock(BaseModel):
@@ -62,6 +63,19 @@ class Theme(BaseModel):
     methodology_quote: str | None = None
 
 
+class IndexRule(BaseModel):
+    text: str
+    quote: str
+    source: str
+    mapped_to: str | None = None  # JSON path into construction_spec, e.g. "screens[0].min_value"
+
+
+class IndexRules(BaseModel):
+    currency: str | None = None
+    construction_spec: ConstructionSpec = Field(default_factory=ConstructionSpec)
+    rules: list[IndexRule] = Field(default_factory=list)
+
+
 class InferRun(BaseModel):
     run_id: str
     stage: Literal["started", "profiled", "themes_ready", "drafted", "failed"]
@@ -73,7 +87,7 @@ class InferRun(BaseModel):
     clusters: list[Cluster] = Field(default_factory=list)
     themes: list[Theme] = Field(default_factory=list)
     outliers: list[str] = Field(default_factory=list)
-    index_rules: dict | None = None  # typed in PR 2
+    index_rules: IndexRules | None = None
     taxonomy_id: str | None = None
     activities: list[dict] = Field(default_factory=list)
     mapping: list[dict] = Field(default_factory=list)
