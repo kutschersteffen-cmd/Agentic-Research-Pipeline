@@ -128,7 +128,7 @@ def _install(tmp_path, monkeypatch, store):
     (tdir / "t1" / "latest.json").write_text('{"version": 2}')
     (tdir / "t1" / "notes.txt").write_text("core_isic_codes stray")
     monkeypatch.setattr("arp.cli._shared._taxonomy_store", lambda: TaxonomyStore(tdir))
-    monkeypatch.setattr("arp.cli._shared._portfolio_store", lambda: store)
+    monkeypatch.setattr("arp.cli._shared._link_rule_stores", lambda: [store])
     store.save_link_rule("company:c1", LinkRule(**C1))
     store.save_link_rule("company:c2", LinkRule(**C2))
     return tdir
@@ -290,3 +290,41 @@ def test_file_mode_non_object_json(m, tmp_path):
     res = _run("--file", str(f))
     assert (res.exit_code, res.stdout) == (0, "0 changed\n")
     assert f.read_text() == "[1, 2]"
+
+
+def _env_file_store(tmp_path, monkeypatch):
+    """Config through env only (no patched internals): a taxonomy and link rule c1 in ARP_PORTFOLIOS_DIR's file store."""
+    from arp.config import get_settings
+
+    tdir = tmp_path / "taxonomies"
+    (tdir / "t1").mkdir(parents=True)
+    _write(tdir / "t1" / "v1.json", _doc(1))
+    store = PortfolioStore(tmp_path / "pf")
+    store.save_link_rule("company:c1", LinkRule(**C1))
+    monkeypatch.setenv("ARP_TAXONOMIES_DIR", str(tdir))
+    monkeypatch.setenv("ARP_PORTFOLIOS_DIR", str(tmp_path / "pf"))
+    get_settings.cache_clear()
+    return store
+
+
+def _assert_env_run(store):
+    result = _run()
+    assert result.exit_code == 0, result.output
+    assert result.stdout.splitlines() == ["taxonomy t1 v1", "link company:c1", "2 changed"]
+    assert store.get_link_rule("company:c1").parts == [{"sectors": S("B07"), "share": 0.4}, {"sectors": S("D_GEN_REN"), "share": 0.6}]
+
+
+def test_env_file_store_without_postgres(tmp_path, monkeypatch):
+    monkeypatch.delenv("ARP_POSTGRES_DSN", raising=False)
+    store = _env_file_store(tmp_path, monkeypatch)
+    try:
+        _assert_env_run(store)
+    finally:
+        from arp.config import get_settings
+
+        get_settings.cache_clear()
+
+
+@pytest.mark.skipif(not DSN, reason="ARP_TEST_POSTGRES_DSN not set")
+def test_env_file_store_with_postgres_configured(pg, tmp_path, monkeypatch):  # spec: "Postgres or file"
+    _assert_env_run(_env_file_store(tmp_path, monkeypatch))

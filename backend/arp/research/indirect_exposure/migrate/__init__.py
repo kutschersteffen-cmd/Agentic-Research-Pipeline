@@ -103,7 +103,7 @@ def plan_file(path: Path, shown: str) -> Plan:
     return _plan_doc(path, f"file {shown}", f"file {shown}")
 
 
-def plan_all(taxonomies_dir: Path, store) -> Plan:
+def plan_all(taxonomies_dir: Path, stores: list) -> Plan:
     plan: Plan = []
     versions = sorted(
         (int(p.stem[1:]), p) for p in taxonomies_dir.glob("*/v*.json") if p.stem[1:].isdigit()
@@ -111,9 +111,10 @@ def plan_all(taxonomies_dir: Path, store) -> Plan:
     for n, p in sorted(versions, key=lambda t: (t[1].parent.name, t[0])):
         where = f"taxonomy {p.parent.name} v{n}"
         plan += _plan_doc(p, where, where)
-    for subject, rule in sorted(store.list_link_rules().items()):
-        where = f"link {subject}"
-        parts = _convert_where(lambda r=rule: convert_parts(r.kind, r.parts), where)
-        if parts is not None:
-            plan.append((where, lambda s=subject, r=rule.model_copy(update={"parts": parts}): store.save_link_rule(s, r)))
+    for store in stores:
+        for subject, rule in sorted(store.list_link_rules().items()):
+            where = f"link {subject}"
+            parts = _convert_where(lambda r=rule: convert_parts(r.kind, r.parts), where)
+            if parts is not None:
+                plan.append((where, lambda st=store, s=subject, r=rule.model_copy(update={"parts": parts}): st.save_link_rule(s, r)))
     return plan

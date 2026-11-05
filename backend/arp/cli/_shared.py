@@ -17,7 +17,7 @@ from arp.retrieval.content_store_factory import content_store_for
 from arp.schemas.taxonomy import TaxonomyRef
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
-from arp.storage.portfolio_store import portfolio_directories
+from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
 from arp.storage.portfolio_store_factory import build_portfolio_store
 from arp.storage.reporting_store import ReportingStore
 from arp.storage.run_store import RunStore
@@ -138,6 +138,13 @@ def _topic_store() -> TopicStateStore:
 
 def _portfolio_store():
     return build_portfolio_store(get_settings())
+
+
+def _link_rule_stores() -> list:
+    """Every place link rules can be stored: the file store in ARP_PORTFOLIOS_DIR, plus Postgres when configured."""
+    settings = get_settings()
+    files = PortfolioStore(settings.portfolios_dir)
+    return [files, build_portfolio_store(settings)] if settings.postgres_dsn else [files]
 
 
 

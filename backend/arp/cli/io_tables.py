@@ -171,9 +171,9 @@ def io_migrate_exiobase(
         if file is not None:
             plan = migrate.plan_file(file, str(file))
         else:
-            from arp.cli._shared import _portfolio_store, _taxonomy_store
+            from arp.cli._shared import _link_rule_stores, _taxonomy_store
 
-            plan = migrate.plan_all(_taxonomy_store().taxonomies_dir, _portfolio_store())
+            plan = migrate.plan_all(_taxonomy_store().taxonomies_dir, _link_rule_stores())
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
