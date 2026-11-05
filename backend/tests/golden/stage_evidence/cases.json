@@ -1,0 +1,58 @@
+[
+ {
+  "case_id": "pilot_and_commercial",
+  "company": {
+   "company_id": "pilotco",
+   "name": "PilotCo AG"
+  },
+  "expected": [
+   {
+    "field_id": "tax_fx_act_a_stage_innovation",
+    "value": true,
+    "value_state": "found"
+   },
+   {
+    "field_id": "tax_fx_act_a_stage_commercial",
+    "value": true,
+    "value_state": "found"
+   }
+  ]
+ },
+ {
+  "case_id": "totals_only",
+  "company": {
+   "company_id": "totalsco",
+   "name": "TotalsCo plc"
+  },
+  "expected": [
+   {
+    "field_id": "tax_fx_act_a_revenue_amount",
+    "value_state": "not_found"
+   },
+   {
+    "field_id": "tax_fx_act_a_capex_amount",
+    "value_state": "not_found"
+   },
+   {
+    "field_id": "tax_fx_act_a_rd_amount",
+    "value_state": "not_found"
+   },
+   {
+    "field_id": "tax_fx_act_a_backlog",
+    "value_state": "not_found"
+   },
+   {
+    "field_id": "tax_fx_act_a_stage_ideation",
+    "value_state": "not_found"
+   },
+   {
+    "field_id": "tax_fx_act_a_stage_innovation",
+    "value_state": "not_found"
+   },
+   {
+    "field_id": "tax_fx_act_a_stage_commercial",
+    "value_state": "not_found"
+   }
+  ]
+ }
+]

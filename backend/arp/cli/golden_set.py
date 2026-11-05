@@ -24,6 +24,7 @@ from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.presets.registry import PRESETS
 from arp.review.items import list_open_items
 from arp.review.quality import seed_known_answers
+from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.review import ReviewDecision
 
 golden_set_app = typer.Typer(help="Golden-set regression testing for the extraction pipeline -- run before every prompt/model change reaches a real batch.")
@@ -274,21 +275,29 @@ def golden_set_seed_known_answers(
 
 @golden_set_app.command("precision")
 def golden_set_precision(
-    schema_id: str = typer.Option(..., "--schema", help="Preset id of the schema to extract."),
+    schema_id: str = typer.Option(None, "--schema", help="Preset id of the schema to extract."),
+    schema_file: Path = typer.Option(None, "--schema-file", help="A DataPointSchema JSON file instead of a preset (e.g. a generated taxonomy schema)."),
     cases_file: Path = typer.Option(..., "--cases", help="JSON array of RecordGoldenCase objects (hand-checked answers per company)."),
     documents_dir: Path = typer.Option(..., "--documents-dir", help="Directory holding <company_id>/ document folders."),
     min_precision: float = typer.Option(0.97, help="Exit non-zero if the precision of auto-accepted values falls below this."),
 ) -> None:
     """Extracts whole records for hand-checked companies and reports how many auto-accepted
     values are right -- routed as if every field were released and audited."""
-    if schema_id not in PRESETS:
+    if (schema_id is None) == (schema_file is None):
+        typer.echo("Pass exactly one of --schema or --schema-file.", err=True)
+        raise typer.Exit(1)
+    if schema_file is not None:
+        schema = DataPointSchema.model_validate_json(schema_file.read_text(encoding="utf-8"))
+    elif schema_id in PRESETS:
+        schema = PRESETS[schema_id]()
+    else:
         typer.echo(f"Unknown preset: {schema_id}. Known: {', '.join(PRESETS)}", err=True)
         raise typer.Exit(1)
     settings = get_settings()
     report = asyncio.run(
         run_precision(
             load_record_cases(cases_file),
-            schema=PRESETS[schema_id](),
+            schema=schema,
             documents_dir=documents_dir,
             llm=build_llm_client(settings),
             verifier_llm=build_verifier_llm_client(settings),
