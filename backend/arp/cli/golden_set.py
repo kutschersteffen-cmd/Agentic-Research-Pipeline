@@ -360,12 +360,19 @@ def golden_set_retrieval(
         help="Override tree_context_enabled. On, each document's tree is built first (model calls unless stored).",
     ),
     rerank_candidates: int = typer.Option(None, "--rerank-candidates", min=1, help="Override rerank_candidates."),
-    out: Path = typer.Option(None, "--out", help="Also write the JSON report here."),
+    embed_models: str = typer.Option(
+        None, "--embed-model", help="Comma-separated embedders to compare: minilm, e5-large, bge-m3."
+    ),
+    rerank_models: str = typer.Option(
+        None, "--rerank-model", help="Comma-separated rerankers to compare: off, cross-encoder, colbert."
+    ),
+    out: Path = typer.Option(None, "--out", help="Also write the JSON report here (a list of reports when comparing)."),
 ) -> None:
     """Replays each reviewed field's evidence selection and reports how often it contains the span a
     reviewer approved (recall@5 and @evidence_max_chunks), plus seconds per field. No LLM calls, except
     building document trees with --tree-context.
-    With --cases, the gold spans come from a committed cases file instead of a reviewed run."""
+    With --cases, the gold spans come from a committed cases file instead of a reviewed run.
+    --embed-model / --rerank-model run every combination and print one line each."""
     if (run_id is None) == (cases_file is None):
         typer.echo("Pass exactly one of --cases or --run-id.", err=True)
         raise typer.Exit(2)
@@ -373,24 +380,40 @@ def golden_set_retrieval(
     overrides = {"hybrid_retrieval_enabled": hybrid, "rerank_enabled": rerank, "rerank_candidates": rerank_candidates,
                  "tree_context_enabled": tree_context}
     settings = settings.model_copy(update={k: v for k, v in overrides.items() if v is not None})
+    compare = embed_models is not None or rerank_models is not None
+    embeds = _choices(embed_models, "--embed-model", ("minilm", "e5-large", "bge-m3")) or [settings.embed_model]
+    reranks = _choices(rerank_models, "--rerank-model", ("off", "cross-encoder", "colbert")) or [
+        settings.rerank_model if settings.rerank_enabled else "off"
+    ]
+    combos = [(e, r) for e in embeds for r in reranks]
+    reports: list[dict] = []
     try:
-        if cases_file is not None:
-            report = asyncio.run(run_cases_retrieval_eval(
-                cases_file, documents_dir=documents_dir or cases_file.parent / "documents", settings=settings,
-            ))
-        else:
-            run_store = _run_store()
-            report = asyncio.run(
-                run_retrieval_eval(
-                    run_store, run_id, _decisions(run_store, run_id),
-                    documents_dir=documents_dir or settings.documents_dir, settings=settings,
-                )
-            )
+        for embed_model, rerank_model in combos:
+            combo = settings.model_copy(update={"embed_model": embed_model, "rerank_enabled": rerank_model != "off"}
+                                        | ({"rerank_model": rerank_model} if rerank_model != "off" else {}))
+            if cases_file is not None:
+                reports.append(asyncio.run(run_cases_retrieval_eval(
+                    cases_file, documents_dir=documents_dir or cases_file.parent / "documents", settings=combo,
+                    count_fallback=compare,
+                )))
+            else:
+                run_store = _run_store()
+                reports.append(asyncio.run(
+                    run_retrieval_eval(
+                        run_store, run_id, _decisions(run_store, run_id),
+                        documents_dir=documents_dir or settings.documents_dir, settings=combo,
+                        count_fallback=compare,
+                    )
+                ))
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
+    for (embed_model, rerank_model), report in zip(combos, reports, strict=True):
+        if compare:  # without the new options the report is main's
+            report["settings"] |= {"embed_model": embed_model, "rerank_model": None if rerank_model == "off" else rerank_model}
     if out:
-        out.write_text(json.dumps(report, indent=2))
+        out.write_text(json.dumps(reports if compare else reports[0], indent=2))
+    report = reports[0]  # every combination ranks the same gold spans
     if "tree_nodes" in report:
         typer.echo(f"Tree context: {report['tree_nodes_without_summary']} of {report['tree_nodes']} nodes have no summary.", err=True)
     if report["stale_spans"]:
@@ -400,11 +423,27 @@ def golden_set_retrieval(
                    "No approved, grounded citations that match the current parse: review some items first.", err=True)
         raise typer.Exit(1)
     k = settings.evidence_max_chunks
-    typer.echo(
-        f"{report['gold_spans']} gold span(s) over {report['fields_ranked']} field(s): recall@5 {report['recall_at_5']:.1%}, "
-        f"recall@{k} {report[f'recall_at_{k}']:.1%}; {report['median_seconds_per_field']:.2f}s median, "
-        f"{report['max_seconds_per_field']:.2f}s max per field."
-    )
-    if min_recall is not None and report[f"recall_at_{k}"] < min_recall:
-        typer.echo(f"recall@{k} {report[f'recall_at_{k}']:.1%} is below the minimum {min_recall:.1%}.", err=True)
+    below: list[str] = []
+    for (embed_model, rerank_model), report in zip(combos, reports, strict=True):
+        prefix = f"embed={embed_model} rerank={rerank_model}: " if compare else ""
+        suffix = f"; fallback {report['fallback_fields']} field(s)." if compare else "."
+        typer.echo(
+            f"{prefix}{report['gold_spans']} gold span(s) over {report['fields_ranked']} field(s): recall@5 {report['recall_at_5']:.1%}, "
+            f"recall@{k} {report[f'recall_at_{k}']:.1%}; {report['median_seconds_per_field']:.2f}s median, "
+            f"{report['max_seconds_per_field']:.2f}s max per field{suffix}"
+        )
+        if min_recall is not None and report[f"recall_at_{k}"] < min_recall:
+            below.append(f"{prefix}recall@{k} {report[f'recall_at_{k}']:.1%} is below the minimum {min_recall:.1%}.")
+    for line in below:
+        typer.echo(line, err=True)
+    if below:
         raise typer.Exit(1)
+
+
+def _choices(value: str | None, option: str, allowed: tuple[str, ...]) -> list[str]:
+    """`value`'s comma-separated items; exit 2 on one not in `allowed`. Empty when the option was not given."""
+    items = [v.strip() for v in value.split(",")] if value is not None else []
+    if any(v not in allowed for v in items):
+        typer.echo(f"{option} must be one of {', '.join(allowed)}", err=True)
+        raise typer.Exit(2)
+    return items

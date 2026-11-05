@@ -46,7 +46,7 @@ def load_company_universe(path: str | Path) -> list[CompanyRef]:
     if path.suffix.lower() == ".json":
         rows = json.loads(path.read_text())
     elif path.suffix.lower() == ".csv":
-        with path.open(newline="") as f:
+        with path.open(newline="", encoding="utf-8-sig") as f:
             rows = list(csv.DictReader(f))
     else:
         raise ValueError(f"Unsupported universe file type: {path.suffix}")

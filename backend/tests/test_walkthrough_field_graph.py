@@ -206,7 +206,7 @@ async def test_entry_records_retrieval(fake_llm):  # AC-14, AC-15
     sink = {}
     await _run(_agreeing_llm(fake_llm), _field(), sink=sink)
     e = sink["scope1"]
-    assert set(e["retrieval"]) == {"method", "reranked", "candidates"}
+    assert set(e["retrieval"]) == {"method", "reranked", "candidates", "embed_model", "rerank_model"}
     assert all(isinstance(p["scores"], dict) for p in e["passages"])
 
 

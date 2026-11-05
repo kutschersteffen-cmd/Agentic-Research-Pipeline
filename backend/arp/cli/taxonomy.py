@@ -7,6 +7,7 @@ from pathlib import Path
 import typer
 
 from arp.cli._shared import _registry, _resolve_taxonomy_ref_or_exit, _run_store, _taxonomy_store
+from arp.cli.taxonomy_infer import infer_app
 from arp.config import get_settings
 from arp.discovery.site_finder import build_web_search_client
 from arp.llm.factory import build_llm_client
@@ -14,11 +15,10 @@ from arp.research.activity_generator import build_theme, build_theme_industry_an
 from arp.research.authority_taxonomy import run as authority_run
 from arp.research.indirect_exposure.factory import NO_MODEL, resolve_indirect_exposure_model
 from arp.research.standards_mapping.mapper import format_standards_csv, map_theme_to_standards
+from arp.research.stock_inference import RETIRED, retired_message
 from arp.research.taxonomy_sources.authority import build_theme_from_authority_sources
 from arp.research.taxonomy_sources.compare import compare_taxonomies, merge_taxonomies
 from arp.research.taxonomy_sources.discovery import discover_authority_sources, discover_thematic_funds
-from arp.research.taxonomy_sources.empirical import build_theme_empirical
-from arp.research.taxonomy_sources.etf_holdings import build_theme_from_holdings
 from arp.research.taxonomy_sources.news_mining import build_theme_from_news_and_transcripts
 from arp.schemas.taxonomy import DerivationMethod
 from arp.schemas.thematic import ThemeDefinition
@@ -27,6 +27,7 @@ from arp.universe import load_company_universe
 taxonomy_app = typer.Typer(help="The reusable, versioned taxonomy library.")
 author_app = typer.Typer(help="Author a taxonomy from authority sources, stage by stage.")
 taxonomy_app.add_typer(author_app, name="author")
+taxonomy_app.add_typer(infer_app, name="infer")
 
 
 def _author(fn):
@@ -108,8 +109,7 @@ def taxonomy_discover_sources(
     """Web-searches for candidate authority sources (official taxonomies,
     standards bodies) and existing thematic ETFs/indices for this theme --
     the research step, so you can review and pick real sources before
-    running a derivation with --method authority_source or
-    --method etf_index_holdings."""
+    running a derivation with --method authority_source."""
     settings = get_settings()
     search_client = build_web_search_client(settings.discovery_user_agent)
 
@@ -133,10 +133,6 @@ def taxonomy_discover_sources(
     typer.echo("\nThematic funds/indices:")
     for f in funds:
         typer.echo(f"  {f.url}\n    {f.name}")
-    typer.echo(
-        "\nFor --method etf_index_holdings, download a holdings export (CSV) from the fund provider's site for "
-        "one of the funds above, then pass it via --holdings."
-    )
 
 
 
@@ -152,17 +148,16 @@ def taxonomy_create(
         [], "--authority-url", help="[authority_source] One or more source URLs (repeatable). See `taxonomy discover-sources`."
     ),
     universe: Path = typer.Option(
-        None, help="[empirical, news_transcript_mining] A sample company universe CSV/JSON."
-    ),
-    sample_size: int = typer.Option(25, help="[empirical] How many companies from --universe to sample."),
-    holdings: Path = typer.Option(
-        None, help="[etf_index_holdings] A fund/index holdings CSV export. See `taxonomy discover-sources`."
+        None, help="[news_transcript_mining] A sample company universe CSV/JSON."
     ),
 ) -> None:
     """Drafts and saves a new taxonomy (v1) -- a reusable, versioned
     artifact, unlike `theme decompose`'s throwaway JSON file. Pick a
     derivation --method; each has its own required inputs (see the option
     help above)."""
+    if method in RETIRED:
+        typer.echo(retired_message(method), err=True)
+        raise typer.Exit(1)
     settings = get_settings()
     llm = build_llm_client(settings)
 
@@ -190,15 +185,6 @@ def taxonomy_create(
             build_theme_from_authority_sources(name, description, authority_url, llm, settings.discovery_user_agent)
         )
 
-    elif method == DerivationMethod.EMPIRICAL:
-        if universe is None:
-            typer.echo("Provide --universe (a sample company list) for --method empirical.", err=True)
-            raise typer.Exit(1)
-        companies = load_company_universe(universe)
-        theme, notes, _usage = asyncio.run(
-            build_theme_empirical(name, description, companies, _registry(), llm, settings, sample_size)
-        )
-
     elif method == DerivationMethod.NEWS_TRANSCRIPT_MINING:
         companies = load_company_universe(universe) if universe else None
         search_client = build_web_search_client(settings.discovery_user_agent)
@@ -208,12 +194,6 @@ def taxonomy_create(
                 registry=_registry() if companies else None,
             )
         )
-
-    elif method == DerivationMethod.ETF_INDEX_HOLDINGS:
-        if holdings is None:
-            typer.echo("Provide --holdings (a fund/index holdings CSV; see `arp taxonomy discover-sources`).", err=True)
-            raise typer.Exit(1)
-        theme, notes, _usage = asyncio.run(build_theme_from_holdings(name, description, holdings, llm))
 
     else:
         typer.echo("--method manual has nothing to draft; use `arp taxonomy new-version` to save a hand-written theme.", err=True)

@@ -6917,8 +6917,7 @@ export interface paths {
          * @description Saves an arbitrary file (a fund/index holdings export, in whatever
          *     format the provider gives it) and returns its server-side path,
          *     without attempting to parse it as anything -- the path can then be
-         *     passed as `holdings_path` to a taxonomy creation request
-         *     (derivation_method=etf_index_holdings) or to POST /api/etf-overlap.
+         *     passed to POST /api/etf-overlap.
          */
         post: operations["raw_upload_api_universe_raw_upload_post"];
         delete?: never;
@@ -10462,8 +10461,6 @@ export interface components {
              * @default
              */
             description: string;
-            /** Holdings Path */
-            holdings_path?: string | null;
             /**
              * Mine News
              * @default true
@@ -10471,11 +10468,6 @@ export interface components {
             mine_news: boolean;
             /** Name */
             name: string;
-            /**
-             * Sample Size
-             * @default 25
-             */
-            sample_size: number;
             /**
              * Source Notes
              * @default
