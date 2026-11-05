@@ -7,7 +7,7 @@ line items, written purely to exercise `catalogue.py`/`mapping.py`/
 or intended to resemble, any real company or vendor dataset.
 
 No real "vast structured revenue/capex catalogue" is bundled or fetched by
-this system, for the same reason no real ICIO/NACE/NAICS/SIC/GICS data is:
+this system, for the same reason no real OECD input-output/NACE/NAICS/SIC/GICS data is:
 this kind of data is licensed (FactSet RBICS Revenue, Bloomberg product-
 line revenue, a company's own internal segment-revenue database, ...) and
 this environment has no network access to fetch it besides. Point the

@@ -106,7 +106,7 @@ import type {
   TransitionPlanIndicatorDef,
 } from "../types";
 import type { XbrlRunMarket } from "../types";
-import type { VcExposure, VcFootprint, VcIcioCode, VcLinkRuleIn, VcLinks, VcMaterialFootprint, VcMaterialTree, VcNode, VcPortfolio, VcPriceShock, VcQuantityShock, VcRecipe, VcRecipeIn, VcRecipeList, VcRoutes, VcSearch, VcStatus, VcTree } from "../types";
+import type { VcExposure, VcFootprint, VcSector, VcLinkRuleIn, VcLinks, VcMaterialFootprint, VcMaterialTree, VcNode, VcPortfolio, VcPriceShock, VcQuantityShock, VcRecipe, VcRecipeIn, VcRecipeList, VcRoutes, VcSearch, VcStatus, VcTree } from "../types";
 import type { RunFailure } from "../types";
 import type {
   Dossier,
@@ -1209,7 +1209,7 @@ export const api = {
     request<VcPriceShock>(
       `/api/value-chain/shock/price${buildQuery({ carbon_eur_per_t: String(opts.carbon), region: opts.region, top: "6", focus: opts.focus, portfolio: opts.portfolio })}`,
     ),
-  valueChainCodes: () => request<VcIcioCode[]>("/api/value-chain/codes"),
+  valueChainCodes: () => request<VcSector[]>("/api/value-chain/codes"),
   valueChainPortfolio: (id: string, opts: { asOf?: string; indicator: "ghg" | "energy" | "jobs"; taxonomy?: string; activity?: string }) =>
     request<VcPortfolio>(
       `/api/value-chain/portfolio/${encodeURIComponent(id)}${buildQuery({ as_of: opts.asOf, indicator: opts.indicator, top: "6", taxonomy: opts.taxonomy, activity: opts.activity })}`,

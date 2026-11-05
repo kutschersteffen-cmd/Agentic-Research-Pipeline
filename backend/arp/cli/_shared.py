@@ -17,7 +17,7 @@ from arp.retrieval.content_store_factory import content_store_for
 from arp.schemas.taxonomy import TaxonomyRef
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
-from arp.storage.portfolio_store import portfolio_directories
+from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
 from arp.storage.portfolio_store_factory import build_portfolio_store
 from arp.storage.reporting_store import ReportingStore
 from arp.storage.run_store import RunStore
@@ -119,7 +119,11 @@ def _parse_taxonomy_ref(ref: str) -> TaxonomyRef:
 def _resolve_taxonomy_ref_or_exit(ref_str: str):
     store = _taxonomy_store()
     ref = _parse_taxonomy_ref(ref_str)
-    taxonomy = store.get(ref.taxonomy_id, ref.version)
+    try:
+        taxonomy = store.get(ref.taxonomy_id, ref.version)
+    except ValueError as exc:  # e.g. an unmigrated core_isic_codes version
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
     if taxonomy is None:
         typer.echo(f"Taxonomy not found: {ref_str}", err=True)
         raise typer.Exit(1)
@@ -134,6 +138,13 @@ def _topic_store() -> TopicStateStore:
 
 def _portfolio_store():
     return build_portfolio_store(get_settings())
+
+
+def _link_rule_stores() -> list:
+    """Every place link rules can be stored: the file store in ARP_PORTFOLIOS_DIR, plus Postgres when configured."""
+    settings = get_settings()
+    files = PortfolioStore(settings.portfolios_dir)
+    return [files, build_portfolio_store(settings)] if settings.postgres_dsn else [files]
 
 
 

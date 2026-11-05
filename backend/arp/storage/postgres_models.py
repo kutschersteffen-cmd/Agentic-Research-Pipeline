@@ -62,7 +62,7 @@ class CompanyModel(Base):
 
 
 class LinkRuleModel(Base):
-    """Value-chain link rules (arp/research/value_chain/links.py), one per subject; parts hold ICIO codes or
+    """Value-chain link rules (arp/research/value_chain/links.py), one per subject; parts hold EXIOBASE sector names or
     region + sector names, never node ids."""
 
     __tablename__ = "value_chain_link_rules"

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activityLine, cents, EU27, exposureHash, footprintTotal, homeShare, inRegion, lensLine, linkText, naceLinkLine, nodeLine, meur, nodeHash, nodeQuery, pct1, percent, pickerHits, portfolioHash, pricePct, recipesHash, routeText, searchable, shockHash, signed, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
+import { activityLine, cents, EU27, exposureHash, footprintTotal, homeShare, inRegion, lensLine, linkText, naceLinkLine, nodeLine, meur, nodeHash, nodeQuery, pct1, percent, pickerHits, portfolioHash, pricePct, recipesHash, routeText, searchable, shockHash, signed, tile, tonnes, unresolvedText, partToRow, rowToPart } from "../src/lib/valueChain.ts";
 
 test("flows in cents", () => {
   assert.equal(cents(0.0738), "7.4¢"); assert.equal(cents(0.0079798, 2), "0.80¢");
@@ -30,7 +30,7 @@ test("tonnes extracted: one decimal below 1,000 t, whole with separators from 1,
 });
 test("portfolio view: one-decimal percents, unresolved parts, the activity line, hashes", () => {
   assert.equal(pct1(0.55), "55.0%"); assert.equal(pct1(0.9), "90.0%"); assert.equal(pct1(0.10714), "10.7%"); assert.equal(pct1(0.00285), "0.3%");
-  assert.equal(unresolvedText({ icio_code: "A01", share: 0.4 }), "Not in this edition: A01 40.0%");
+  assert.equal(unresolvedText({ sectors: ["A", "B"], share: 0.4 }), "Not in this edition: A, B 40.0%");
   assert.equal(unresolvedText({ region: "WA", sector: "Mining of copper ores and concentrates", share: 1 }), "Not in this edition: WA · Mining of copper ores and concentrates 100.0%");
   assert.equal(activityLine({ name: "Copper and nickel mining", direct_weight: 0.35, upstream_share: 0.5193 }), "Copper and nickel mining: 35.0% of NAV directly · 51.9% of upstream");
   assert.equal(portfolioHash(), "#/valueChain/portfolio"); assert.equal(portfolioHash("P 1"), "#/valueChain/portfolio/P%201");
@@ -86,4 +86,10 @@ test("nace link line names the code and scheme", () => {
 test("link panel node line and nace21 scheme", () => {
   assert.equal(nodeLine({ region_label: "CN", sector: "Mining of copper ores and concentrates", weight: 0.7143 }), "CN · Mining of copper ores and concentrates 71.4%");
   assert.equal(naceLinkLine({ source: "nace", code: "07.29", code_scheme: "nace21" }), "Linked by NACE 07.29");
+});
+test("AC-51: a stored rule loaded into editor rows and saved unchanged is sent back as it was", () => {
+  const split = { kind: "split" as const, parts: [{ sectors: ["Cultivation of wheat", "Cultivation of paddy rice"], share: 0.35 }, { sectors: ["Manufacture of machinery"], share: 0.65 }] };
+  assert.deepEqual(split.parts.map((p) => rowToPart("split", partToRow(p))), split.parts);
+  const nodes = [{ region: "CN", sector: "Mining", share: 0.07 }, { region: "DE", sector: "Steel", share: 0.93 }];
+  assert.deepEqual(nodes.map((p) => rowToPart("nodes", partToRow(p))), nodes);
 });

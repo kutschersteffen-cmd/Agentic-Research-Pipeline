@@ -4,18 +4,19 @@ import functools
 import math
 import weakref
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 
 from arp.llm.base import LLMClient
 from arp.portfolio.climate.schemas import FIELD_EVIC, FIELD_REVENUE
 from arp.portfolio.datapoint_mapping import resolve_field_values_for_universe
-from arp.research.indirect_exposure.company_mapper import lookup_isic, resolve_company_isic
-from arp.research.indirect_exposure.factory import code_list
+from arp.research.indirect_exposure.company_mapper import resolve_company_sector
+from arp.research.indirect_exposure.factory import sectors
 from arp.research.indirect_exposure.io_import import country_regions
 from arp.research.indirect_exposure.leontief import LeontiefModel
-from arp.research.indirect_exposure.nace import isic_to_nace2, nace_sectors
-from arp.research.value_chain.model import UNITS, ValueChain, sector_name
+from arp.research.indirect_exposure.nace import code_set_sectors, isic_to_nace2, nace_sectors
+from arp.research.value_chain.model import UNITS, ValueChain
 from arp.schemas.common import CompanyRef, now_iso
 from arp.schemas.thematic import ActivityDefinition
 from arp.schemas.value_chain import LinkRule
@@ -32,7 +33,7 @@ class LinkError(ValueError):
 
 @dataclass(frozen=True)
 class Resolution:
-    source: str  # nodes | split | nace | code | llm | none
+    source: str  # nodes | split | nace | llm | none
     region: str | None
     weights: dict[int, float]  # ValueChain node index -> weight, summing to 1 (or empty)
     unresolved: list[dict]
@@ -62,11 +63,10 @@ def _per_build(fn):
 
 
 @_per_build
-def _code_nodes(vc: ValueChain) -> dict[str, np.ndarray]:
-    """Live node indices per ICIO code: the nodes whose sector the code covers."""
-    covers = {c: {sector_name(s) for s in sectors} for c, sectors in code_list().covers.items()}
-    sectors = np.array([n.sector for n in vc._nodes])
-    return {c: np.flatnonzero(vc._live & np.isin(sectors, list(names))) for c, names in covers.items()}
+def _sector_nodes(vc: ValueChain) -> dict[str, np.ndarray]:
+    """Live node indices per sector name."""
+    node_sectors = np.array([n.sector for n in vc._nodes])
+    return {s: np.flatnonzero(vc._live & (node_sectors == s)) for s in sectors()}
 
 
 @_per_build
@@ -90,8 +90,9 @@ def _by_output(vc: ValueChain, idx: np.ndarray) -> dict[int, float]:
     return dict(zip(idx.tolist(), (x / x.sum()).tolist(), strict=True))
 
 
-def _code_set(vc: ValueChain, code: str, region: str | None) -> dict[int, float]:
-    idx = _code_nodes(vc)[code]
+def _sector_set(vc: ValueChain, names: list[str], region: str | None) -> dict[int, float]:
+    empty = np.array([], dtype=np.intp)
+    idx = np.unique(np.concatenate([_sector_nodes(vc).get(s, empty) for s in names] or [empty]))  # unique: a name may repeat
     if region is not None:
         idx = idx[[vc._nodes[i].region == region for i in idx]]
     return _by_output(vc, idx)
@@ -104,8 +105,10 @@ def _resolve_parts(vc: ValueChain, rule: LinkRule, region: str | None) -> tuple[
         if rule.kind == "nodes":
             k = _node_at(vc).get((part["region"], part["sector"]))
             found = {} if k is None else {k: 1.0}
+        elif "sectors" not in part:  # stored before the EXIOBASE switch, not migrated
+            raise LinkError("link rule has old-format parts; run arp io migrate-exiobase")
         else:
-            found = _code_set(vc, part["icio_code"], region)
+            found = _sector_set(vc, part["sectors"], region)
         if not found:
             unresolved.append(part)
         for k, w in found.items():
@@ -117,34 +120,39 @@ def _resolve_parts(vc: ValueChain, rule: LinkRule, region: str | None) -> tuple[
 
 
 def company_nace(company: CompanyRef) -> tuple[str, str, str] | None:
-    """(scheme, code, rev) the `nace` source links by: the NACE code, else a 4-digit ISIC Rev. 4 class the UN table maps."""
+    """(scheme, code, rev) the `nace` source links by: the NACE code, else a 4-digit ISIC Rev. 4 class the UN
+    table maps, else a 2-digit ISIC Rev. 4 division (read as the NACE Rev. 2 division) that maps to a sector."""
     if company.nace_code:
         return ("nace21" if company.nace_rev == "2.1" else "nace2"), company.nace_code, company.nace_rev
     isic = company.isic_code or ""
-    if len(isic) == 4 and isic.isdigit() and isic_to_nace2(isic):
+    if isic.isdigit() and (len(isic) == 2 and nace_sectors(isic, "2") or len(isic) == 4 and isic_to_nace2(isic)):
         return "isic4", isic, "2"
     return None
 
 
+def company_nace_sectors(company: CompanyRef) -> set[str]:
+    """The sector names of the company's NACE set; empty when company_nace gives none."""
+    found = company_nace(company)
+    if found is None:
+        return set()
+    return code_set_sectors(*found)
+
+
 def nace_weights(vc: ValueChain, company: CompanyRef, region: str | None) -> dict[int, float]:
     """The company's NACE set's live nodes with output, in `region` (every region when None), weighted by output."""
-    scheme, code, rev = company_nace(company)
-    codes = isic_to_nace2(code) if scheme == "isic4" else [code]
-    names = {sector_name(s) for c in codes for s in nace_sectors(c, rev)}
+    names = company_nace_sectors(company)
     keep = vc._live & (vc._x > 0) & np.isin([n.sector for n in vc._nodes], list(names))
     if region is not None:
         keep &= np.array([n.region == region for n in vc._nodes])
     return _by_output(vc, np.flatnonzero(keep))
 
 
-def company_source(company: CompanyRef, rule: LinkRule | None) -> str:
+def company_source(company: CompanyRef, rule: LinkRule | None) -> Literal["nodes", "split", "nace", "llm", "none"]:
     """Which resolution step applies; needs no build, so classify_unlinked can use it."""
     if rule is not None and rule.kind in ("nodes", "split"):
         return rule.kind
     if company_nace(company) is not None:
         return "nace"
-    if lookup_isic(company.isic_code, code_list()) is not None:
-        return "code"
     return "llm" if rule is not None else "none"
 
 
@@ -155,21 +163,16 @@ def resolve_company(vc: ValueChain, company: CompanyRef, rule: LinkRule | None) 
         return Resolution(source, region, *_resolve_parts(vc, rule, region))
     if source == "none":
         return Resolution(source, region, {}, [])
-    if source == "nace":
-        scheme, code, rev = company_nace(company)
-        weights = nace_weights(vc, company, region)
-        missing = {"isic_code": code} if scheme == "isic4" else {"nace_code": code, "nace_rev": rev}
-        return Resolution(source, region, weights, [] if weights else [missing], code, scheme)
-    code = lookup_isic(company.isic_code, code_list())
-    weights = _code_set(vc, code, region)  # a code with no node here is reported like an llm rule's part
-    return Resolution(source, region, weights, [] if weights else [{"icio_code": code, "share": 1.0}])
+    scheme, code, rev = company_nace(company)
+    weights = nace_weights(vc, company, region)
+    missing = {"isic_code": code} if scheme == "isic4" else {"nace_code": code, "nace_rev": rev}
+    return Resolution(source, region, weights, [] if weights else [missing], code, scheme)
 
 
 def resolve_activity(vc: ValueChain, activity: ActivityDefinition, rule: LinkRule | None) -> Resolution:
     if rule is not None:
         return Resolution("nodes", None, *_resolve_parts(vc, rule, None))
-    idx = np.unique(np.concatenate([_code_nodes(vc)[c] for c in activity.core_isic_codes if c in _code_nodes(vc)] or [[]]))
-    weights = _by_output(vc, idx.astype(np.intp))
+    weights = _sector_set(vc, activity.core_sectors, None)
     return Resolution("code" if weights else "none", None, weights, [])
 
 
@@ -184,22 +187,39 @@ def validate_rule(vc: ValueChain, kind: str, parts: list, *, company: bool) -> l
         raise LinkError("split is for companies only")
     if not 1 <= len(parts) <= 20:
         raise LinkError("1 to 20 parts")
-    keys = ("icio_code",) if kind == "split" else ("region", "sector")
+    keys = ("sectors",) if kind == "split" else ("region", "sector")
     clean = []
     for p in parts:
         share = p.get("share")
-        if not all(isinstance(p.get(k), str) for k in keys) or isinstance(share, bool) or not isinstance(share, int | float):
+        if kind == "split":
+            names = p.get("sectors")
+            shaped = isinstance(names, list) and all(isinstance(s, str) for s in names)
+        else:
+            shaped = all(isinstance(p.get(k), str) for k in keys)
+        if not shaped or isinstance(share, bool) or not isinstance(share, int | float):
             raise LinkError(f"each part needs {', '.join(keys)} and a numeric share")
         clean.append({**{k: p[k] for k in keys}, "share": float(share)})
-    if len({tuple(p[k] for k in keys) for p in clean}) < len(clean):
+    if kind == "split":
+        known, seen = set(sectors()), set()
+        for p in clean:
+            if not p["sectors"]:
+                raise LinkError("sectors must not be empty")
+        for p in clean:
+            for s in p["sectors"]:
+                if s not in known:
+                    raise LinkError(f"unknown sector '{s}'")
+        for p in clean:
+            for s in p["sectors"]:
+                if s in seen:
+                    raise LinkError(f"duplicate sector '{s}'")
+                seen.add(s)
+    elif len({tuple(p[k] for k in keys) for p in clean}) < len(clean):
         raise LinkError("duplicate part")
     if any(not (p["share"] > 0 and math.isfinite(p["share"])) for p in clean):
         raise LinkError("share must be > 0")
     if abs(sum(p["share"] for p in clean) - 1) > 1e-6:
         raise LinkError("shares must sum to 1")
     for p in clean:
-        if kind == "split" and p["icio_code"] not in code_list().codes:
-            raise LinkError(f"unknown code '{p['icio_code']}'")
         if kind == "nodes" and (p["region"], p["sector"]) not in _node_at(vc):
             raise LinkError(f"unknown node '{p['region']} · {p['sector']}'")
     return clean
@@ -321,12 +341,12 @@ def overlay(
     }
 
 
-# --- Scope 6: the one place the LLM picks a code ------------------------------
+# --- Scope 6: the one place the LLM picks a sector ----------------------------
 
 
 async def classify_unlinked(store, portfolio_id: str, as_of: str, model: LeontiefModel, llm: LLMClient) -> tuple[int, int]:
-    """Runs spec 1's resolve_company_isic on every company held on `as_of` whose link resolves to `none`
-    and stores each code it gets as an `llm` rule. Returns (classified, left unlinked)."""
+    """Runs resolve_company_sector on every company held on `as_of` whose link resolves to `none`
+    and stores each sector it gets as an `llm` rule. Returns (classified, left unlinked)."""
     securities, companies = portfolio_directories(store)
     held = dict.fromkeys(
         s.company_id for h in store.load_holdings_as_of(as_of, [portfolio_id])
@@ -337,10 +357,10 @@ async def classify_unlinked(store, portfolio_id: str, as_of: str, model: Leontie
         company = companies[company_id]
         if company_source(company, store.get_link_rule(company_subject(company_id))) != "none":
             continue
-        code, _ = await resolve_company_isic(company, model, llm)
-        if code is None:
+        sector, _ = await resolve_company_sector(company, model, llm)
+        if sector is None:
             unlinked += 1
             continue
-        store.save_link_rule(company_subject(company_id), new_rule("llm", [{"icio_code": code, "share": 1.0}], "llm"))
+        store.save_link_rule(company_subject(company_id), new_rule("llm", [{"sectors": [sector], "share": 1.0}], "llm"))
         classified += 1
     return classified, unlinked

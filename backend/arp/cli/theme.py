@@ -99,23 +99,23 @@ def theme_decompose(name: str, description: str = "", out: Path = typer.Option(.
 @theme_app.command("classify-sectors")
 def theme_classify_sectors(
     theme_file: Path = typer.Option(..., "--theme"),
-    out: Path = typer.Option(..., help="Where to write the ThemeDefinition JSON with core_isic_codes populated."),
+    out: Path = typer.Option(..., help="Where to write the ThemeDefinition JSON with core_sectors populated."),
     use_sample_io: bool = typer.Option(
         False, "--use-sample-io", help="Use the bundled illustrative sample input-output model instead of ARP_VALUE_CHAIN_DIR."
     ),
 ) -> None:
-    """Populates each activity's core_isic_codes -- one classification call
-    per activity against the input-output model's fixed industry list, run
+    """Populates each activity's core_sectors -- one classification call
+    per activity against the input-output model's fixed EXIOBASE sector list, run
     once per theme (not per company) before enabling the indirect-exposure
     tier in `theme run --use-sample-io` or with ARP_VALUE_CHAIN_DIR set.
     Also applies the bundled
     criticality overlay (arp.research.indirect_exposure.criticality),
-    flagging any activity whose freshly-classified core_isic_codes touch a
+    flagging any activity whose freshly-classified core_sectors touch a
     USGS/IEA-listed critical mineral's industry.
     """
     settings = get_settings()
-    theme = ThemeDefinition.model_validate_json(theme_file.read_text())
     try:
+        theme = ThemeDefinition.model_validate_json(theme_file.read_text())
         model = resolve_indirect_exposure_model(settings, use_sample=use_sample_io)
     except ValueError as exc:
         typer.echo(str(exc), err=True)
@@ -127,7 +127,7 @@ def theme_classify_sectors(
     updated_theme, _usage = asyncio.run(classify_theme_core_sectors(theme, model, llm))
     updated_theme = apply_criticality_overlay(updated_theme)
     out.write_text(updated_theme.model_dump_json(indent=2))
-    classified = sum(1 for a in updated_theme.activities if a.core_isic_codes)
+    classified = sum(1 for a in updated_theme.activities if a.core_sectors)
     critical = sum(1 for a in updated_theme.activities if a.criticality_flag)
     typer.echo(
         f"Classified core sectors for {classified}/{len(updated_theme.activities)} activities "
@@ -151,7 +151,11 @@ def theme_classify_lifecycle(
     """
     settings = get_settings()
     llm = build_llm_client(settings)
-    theme = ThemeDefinition.model_validate_json(theme_file.read_text())
+    try:
+        theme = ThemeDefinition.model_validate_json(theme_file.read_text())
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
     updated_theme, _usage = asyncio.run(classify_theme_lifecycle_stages(theme, llm))
     out.write_text(updated_theme.model_dump_json(indent=2))
     classified = sum(1 for a in updated_theme.activities if a.lifecycle_stage is not None)

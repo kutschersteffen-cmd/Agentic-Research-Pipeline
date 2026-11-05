@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
 import { apiMessage } from "../../lib/projects";
-import { activityLine, cents, naceLinkLine, nodeLine, pct1, pickerHits, portfolioHash, searchable, unresolvedText } from "../../lib/valueChain";
-import type { PortfolioSummary, Taxonomy, VcIcioCode, VcLinkRuleIn, VcLinks, VcNodeRef, VcPortfolio } from "../../types";
+import { type LinkRow, activityLine, cents, naceLinkLine, nodeLine, pct1, partToRow, pickerHits, portfolioHash, rowToPart, searchable, unresolvedText } from "../../lib/valueChain";
+import type { LinkPart as Part } from "../../lib/valueChain";
+import type { PortfolioSummary, Taxonomy, VcSector, VcLinkRuleIn, VcLinks, VcNodeRef, VcPortfolio } from "../../types";
 import { Bars } from "./NodeView";
 import { useVcQuery } from "./useVcQuery";
 
@@ -13,11 +14,10 @@ const INDICATORS: [Indicator, string][] = [
   ["jobs", "Jobs"],
 ];
 type Mode = "default" | "split" | "nodes";
-type Row = { key: number; code: string; region: string; sector: string; pct: string };
-type Part = { icio_code?: string; region?: string; sector?: string; share: number };
+type Row = LinkRow & { key: number };
 
 let nextKey = 0;
-const blankRow = (): Row => ({ key: nextKey++, code: "", region: "", sector: "", pct: "100" });
+const blankRow = (): Row => ({ key: nextKey++, sectors: [], region: "", sector: "", pct: "100" });
 
 // The generated type widens the API's [name, value] pairs to (string | number)[].
 const bars = (pairs: VcPortfolio["direct_by_region"], format: (v: number) => string) =>
@@ -80,7 +80,7 @@ export function NodeSearch({ row, onPick }: { row: Pick<Row, "region" | "sector"
 
 /** The panel behind `Edit link`: the current source, any parts the build lacks, and a split or node rule to save. */
 function LinkEditor({ subject, title, isCompany, codes, onChanged, onClose }: {
-  subject: string; title: string; isCompany: boolean; codes: VcIcioCode[]; onChanged: () => void; onClose: () => void;
+  subject: string; title: string; isCompany: boolean; codes: VcSector[]; onChanged: () => void; onClose: () => void;
 }) {
   const [version, setVersion] = useState(0);
   const current = useVcQuery<VcLinks>(() => api.valueChainLinks(subject), [subject, version]);
@@ -99,7 +99,7 @@ function LinkEditor({ subject, title, isCompany, codes, onChanged, onClose }: {
     const kind: Mode = rule?.kind === "split" || rule?.kind === "nodes" ? rule.kind : "default";
     setMode(kind);
     if (kind !== "default" && rule) {
-      setRows((rule.parts as Part[]).map((p) => ({ ...blankRow(), code: p.icio_code ?? "", region: p.region ?? "", sector: p.sector ?? "", pct: String(Number((p.share * 100).toFixed(6))) })));
+      setRows((rule.parts as Part[]).map((p) => ({ ...blankRow(), ...partToRow(p) })));
     }
   }, [links, mode]);
 
@@ -121,9 +121,7 @@ function LinkEditor({ subject, title, isCompany, codes, onChanged, onClose }: {
   };
   const save = () => {
     const kind = mode === "split" ? "split" : "nodes";
-    const parts = rows.map((r) =>
-      kind === "split" ? { icio_code: r.code, share: Number(r.pct) / 100 } : { region: r.region, sector: r.sector, share: Number(r.pct) / 100 },
-    );
+    const parts = rows.map((r) => rowToPart(kind, r));
     return run(() => api.saveValueChainLinks(subject, { kind, parts } as VcLinkRuleIn));
   };
   const reset = () =>
@@ -175,7 +173,7 @@ function LinkEditor({ subject, title, isCompany, codes, onChanged, onClose }: {
         ))}
       </div>
       {mode === "default" ? (
-        <p className="help-text">{isCompany ? "Uses the company's own industry code and country." : "Uses the activity's core industry codes, in every region."}</p>
+        <p className="help-text">{isCompany ? "Uses the company's own industry code and country." : "Uses the activity's core EXIOBASE sectors, in every region."}</p>
       ) : (
         mode && (
           <>
@@ -184,15 +182,15 @@ function LinkEditor({ subject, title, isCompany, codes, onChanged, onClose }: {
                 <li key={r.key}>
                   {mode === "split" ? (
                     <label className="field-label">
-                      ICIO code
-                      <select value={r.code} onChange={(e) => setRow(r.key, { code: e.target.value })}>
-                        <option value="">Pick a code</option>
+                      Sectors
+                      <select multiple size={8} aria-describedby={`vc-sectors-help-${r.key}`} value={r.sectors} onChange={(e) => setRow(r.key, { sectors: Array.from(e.target.selectedOptions, (o) => o.value) })}>
                         {codes.map((c) => (
-                          <option key={c.code} value={c.code}>
-                            {c.code} · {c.label}
+                          <option key={c.name} value={c.name}>
+                            {c.name}
                           </option>
                         ))}
                       </select>
+                      <span className="help-text" id={`vc-sectors-help-${r.key}`}>Ctrl/Cmd-click to pick several</span>
                     </label>
                   ) : (
                     <NodeSearch row={r} onPick={(n) => setRow(r.key, { region: n.region, sector: n.sector })} />
@@ -246,7 +244,7 @@ export function PortfolioView({ id }: { id?: string }) {
   const [editing, setEditing] = useState<{ subject: string; title: string; isCompany: boolean } | null>(null);
   const portfolios = useVcQuery<PortfolioSummary[]>(() => api.listPortfolios(), []);
   const taxonomies = useVcQuery(() => api.listTaxonomies().then((r) => r.taxonomies as Taxonomy[]), []);
-  const codes = useVcQuery<VcIcioCode[]>(() => api.valueChainCodes(), []);
+  const codes = useVcQuery<VcSector[]>(() => api.valueChainCodes(), []);
   const lens = taxonomyId && activityId ? { taxonomy: taxonomyId, activity: activityId } : {};
   const overlay = useVcQuery<VcPortfolio>(
     () => (id ? api.valueChainPortfolio(id, { asOf, indicator, ...lens }) : null),

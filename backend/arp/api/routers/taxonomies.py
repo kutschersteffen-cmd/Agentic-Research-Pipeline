@@ -152,7 +152,7 @@ async def create_taxonomy(
 
     elif method == DerivationMethod.INDUSTRY_ANCHORED:
         theme, _usage = await build_theme_industry_anchored(req.name, req.description, model.industry_reference_list(), llm)
-        notes = f"Anchored against {model.edition_label} ({len(model.industry_reference_list())} industries)."
+        notes = f"Anchored against {model.edition_label} ({len(model.industry_reference_list())} EXIOBASE sectors)."
 
     elif method == DerivationMethod.AUTHORITY_SOURCE:
         try:
@@ -331,7 +331,7 @@ async def map_standards(
     settings: Settings = Depends(settings_dep),
     store: TaxonomyStore = Depends(get_taxonomy_store),
 ) -> Taxonomy:
-    """Cross-references every activity's core_isic_codes into NACE, NAICS,
+    """Cross-references every activity's core_sectors into NACE, NAICS,
     SIC (deterministic crosswalk) and GICS (closed-list LLM classification)
     and saves the result as a new taxonomy version. See
     docs/METHODOLOGY.md for why GICS alone needs an LLM call.

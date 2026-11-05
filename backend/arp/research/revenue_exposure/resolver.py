@@ -21,21 +21,16 @@ from arp.schemas.revenue_exposure import (
 from arp.schemas.thematic import ActivityDefinition, ExposureEstimate
 
 
-def is_sector_relevant(company_isic: str | None, activity_core_isic_codes: list[str]) -> bool:
-    """Whether an activity is plausible for a company given their resolved
-    ISIC codes -- gates path 2 (extraction) as a cost control, not a hard
-    filter: absent information (no company ISIC, or the activity has no
-    core_isic_codes at all) defaults to relevant=True rather than silently
-    skipping an activity we simply can't judge.
-
-    Matches by digit-prefix containment in either direction (a coarser
-    company classification vs. a finer activity code, or vice versa) --
-    the same relationship `standards_mapping/crosswalk.py::CrosswalkTable`
-    relies on, since ISIC's hierarchical codes only guarantee that.
+def is_sector_relevant(company_sectors: set[str], core_sectors: list[str]) -> bool:
+    """Whether an activity is plausible for a company: their EXIOBASE
+    sectors overlap -- gates path 2 (extraction) as a cost control, not a
+    hard filter: absent information (no company sectors, or the activity
+    has no core_sectors at all) defaults to relevant=True rather than
+    silently skipping an activity we simply can't judge.
     """
-    if not company_isic or not activity_core_isic_codes:
+    if not company_sectors or not core_sectors:
         return True
-    return any(company_isic.startswith(code) or code.startswith(company_isic) for code in activity_core_isic_codes)
+    return not company_sectors.isdisjoint(core_sectors)
 
 
 def band_exposure(revenue_pct: float, settings: Settings) -> ExposureEstimate:
@@ -144,17 +139,17 @@ class RevenueResolverContext:
     schema: DataPointSchema
     """The run's released taxonomy schema: path 2 extracts only its fields."""
     isic_model: LeontiefModel | None = None
-    """Used to resolve a company's ISIC code for the sector-relevance gate
+    """Used to resolve a company's sector for the sector-relevance gate
     on path 2, independent of whether the indirect-exposure tier itself is
-    enabled -- if the caller already resolved a company's ISIC code via
-    `indirect_model` for that tier, pass it into `resolve_company_activity_exposure`
+    enabled -- if the caller already resolved a company's sectors via
+    `indirect_model` for that tier, pass them into `resolve_company_activity_exposure`
     directly instead and this field can stay None."""
 
 
 async def resolve_company_activity_exposure(
     company: CompanyRef,
     activity: ActivityDefinition,
-    company_isic: str | None,
+    company_sectors: set[str],
     *,
     documents: list[SourceDocument],
     ctx: RevenueResolverContext,
@@ -170,7 +165,7 @@ async def resolve_company_activity_exposure(
     this function only ever resolves via paths 1/2 or reports unresolved.
     """
     company_rows = ctx.catalogue_by_company.get(company.company_id, [])
-    relevant = is_sector_relevant(company_isic, activity.core_isic_codes)
+    relevant = is_sector_relevant(company_sectors, activity.core_sectors)
     usage = LLMUsage()
 
     metrics: dict[str, MetricExposure] = {

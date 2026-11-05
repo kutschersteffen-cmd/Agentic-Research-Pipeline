@@ -7,55 +7,55 @@ from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 
 _SYSTEM_PROMPT = """\
-You classify a thematic investment activity against a fixed list of ISIC \
-Rev.4 industries from an input-output model, identifying which industries \
-are its "core" value-chain sectors -- the industries whose output IS the \
-activity, as opposed to industries merely economically linked to it.
+You classify a thematic investment activity against a fixed list of \
+EXIOBASE sectors from an input-output model, identifying which sectors \
+are its "core" value-chain sectors -- the sectors whose output IS the \
+activity, as opposed to sectors merely economically linked to it.
 
-Select only industries that are directly, primarily engaged in the \
-activity as described. Do not select an industry just because it is a \
+Select only sectors that are directly, primarily engaged in the \
+activity as described. Do not select a sector just because it is a \
 plausible supplier or customer of the activity -- that indirect linkage is \
 computed separately, downstream of your classification, via the input- \
-output model itself. If no listed industry is a good direct match, return \
-an empty list rather than picking the closest-sounding one."""
+output model itself. Answer with sector names exactly as listed. If no \
+listed sector is a good direct match, return an empty list rather than \
+picking the closest-sounding one."""
 
 
 class _CoreSectorSelection(BaseModel):
-    isic_codes: list[str] = Field(default_factory=list)
+    sectors: list[str] = Field(default_factory=list)
     rationale: str
 
 
 async def classify_core_sectors(
     activity: ActivityDefinition, model: LeontiefModel, llm: LLMClient
 ) -> tuple[list[str], LLMUsage]:
-    """Resolves an activity's core ISIC codes.
+    """Resolves an activity's core EXIOBASE sectors.
 
-    If the activity already has `core_isic_codes` set (hand-supplied, the
+    If the activity already has `core_sectors` set (hand-supplied, the
     precise path), those are used directly with zero LLM cost. Otherwise a
     single classification call is made against the model's fixed, closed
     industry list -- one call per activity, not per company, since this is
     theme-level metadata that doesn't change across the company universe.
     """
-    if activity.core_isic_codes:
+    if activity.core_sectors:
         known = set(model.codes)
-        return [c for c in activity.core_isic_codes if c in known], LLMUsage()
+        return [c for c in activity.core_sectors if c in known], LLMUsage()
 
     prompt = (
         f"Activity: {activity.name}\n"
         f"In scope: {activity.in_scope_description}\n"
         f"Out of scope: {activity.out_of_scope_description}\n\n"
-        f"Available ISIC Rev.4 industries:\n{model.industry_prompt_list()}"
+        f"Available EXIOBASE sectors:\n{model.industry_prompt_list()}"
     )
     draft, usage = await llm.complete_structured(system=_SYSTEM_PROMPT, prompt=prompt, output_model=_CoreSectorSelection)
     known = set(model.codes)
-    valid_codes = [c for c in draft.isic_codes if c in known]
-    return valid_codes, usage
+    return list(dict.fromkeys(c for c in draft.sectors if c in known)), usage
 
 
 async def classify_theme_core_sectors(
     theme: ThemeDefinition, model: LeontiefModel, llm: LLMClient
 ) -> tuple[ThemeDefinition, LLMUsage]:
-    """Populates core_isic_codes on every activity in the theme that doesn't
+    """Populates core_sectors on every activity in the theme that doesn't
     already have them. Intended to be run once per theme (e.g. via `arp
     theme classify-sectors`) before a run that enables the indirect-
     exposure tier, not repeated per company.
@@ -68,5 +68,5 @@ async def classify_theme_core_sectors(
             input_tokens=total_usage.input_tokens + usage.input_tokens,
             output_tokens=total_usage.output_tokens + usage.output_tokens,
         )
-        new_activities.append(activity.model_copy(update={"core_isic_codes": codes}))
+        new_activities.append(activity.model_copy(update={"core_sectors": codes}))
     return theme.model_copy(update={"activities": new_activities}), total_usage

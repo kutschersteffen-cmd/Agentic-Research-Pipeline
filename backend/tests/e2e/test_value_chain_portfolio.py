@@ -82,7 +82,7 @@ def test_ac38_ac39_coverage_footprint_holdings(page):
     assert page.get_by_text("2.2 t CO₂e per M EUR invested").is_visible()
     rows = page.get_by_role("region", name="Holdings").get_by_role("row")
     assert [r.inner_text().split("\t")[:3] for r in rows.all()[1:]] == [
-        ["Sec cm", "40.0%", "code"], ["Sec sx", "30.0%", "split"], ["Sec nx", "20.0%", "nodes"], ["Cash", "10.0%", "none"]]
+        ["Sec cm", "40.0%", "nace"], ["Sec sx", "30.0%", "split"], ["Sec nx", "20.0%", "nodes"], ["Cash", "10.0%", "none"]]
     SCREENSHOT.parent.mkdir(exist_ok=True)
     page.screenshot(path=str(SCREENSHOT), full_page=True)
     page.emulate_media(color_scheme="dark")
@@ -101,11 +101,11 @@ def test_ac40_ac41_ac42_edit_split_then_reset(page):
     assert (shares.count(), shares.nth(0).input_value()) == (1, "100")
     editor.get_by_role("button", name="Revenue split").click()
     editor.get_by_role("button", name="Reset to default").click()
-    holding_row(page, "Sec sx").get_by_role("cell", name="code", exact=True).wait_for()
+    holding_row(page, "Sec sx").get_by_role("cell", name="nace", exact=True).wait_for()
     editor.get_by_role("button", name="Revenue split").click()
-    field(editor, "ICIO code").nth(0).select_option("C27")
+    field(editor, "Sectors").nth(0).select_option(MACHINERY)
     editor.get_by_role("button", name="Add row").click()
-    field(editor, "ICIO code").nth(1).select_option("B07")
+    field(editor, "Sectors").nth(1).select_option("Mining of copper ores and concentrates")
     shares.nth(0).fill("60")
     shares.nth(1).fill("30")
     editor.get_by_role("button", name="Save").click()
@@ -117,7 +117,7 @@ def test_ac40_ac41_ac42_edit_split_then_reset(page):
     assert [p["share"] for p in puts[-1]["parts"]] == [0.6, 0.4]
 
     editor.get_by_role("button", name="Reset to default").click()
-    holding_row(page, "Sec sx").get_by_role("cell", name="code", exact=True).wait_for()
+    holding_row(page, "Sec sx").get_by_role("cell", name="nace", exact=True).wait_for()
     assert any(m == "DELETE" and path.endswith("/links/company/sx") for m, path, _ in page.sent)
 
 

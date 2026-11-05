@@ -411,12 +411,12 @@
       "title": "Contrast Statements",
       "type": "array"
      },
-     "core_isic_codes": {
-      "description": "ISIC Rev.4 industry codes that make up this activity's core value-chain sectors, used for input-output-based indirect exposure scoring. Empty means the indirect-exposure tier is skipped for this activity. Populate via `arp theme classify-sectors` or supply by hand.",
+     "core_sectors": {
+      "description": "EXIOBASE sector names that make up this activity's core value-chain sectors, used for input-output-based indirect exposure scoring. Empty means the indirect-exposure tier is skipped for this activity. Populate via `arp theme classify-sectors` or supply by hand.",
       "items": {
        "type": "string"
       },
-      "title": "Core Isic Codes",
+      "title": "Core Sectors",
       "type": "array"
      },
      "criteria": {
@@ -583,7 +583,7 @@
     "type": "object"
    },
    "ActivityStandardsMapping": {
-    "description": "An activity's cross-reference into external industry classification\nstandards, derived from its core_isic_codes.",
+    "description": "An activity's cross-reference into external industry classification\nstandards, derived from its core_sectors.",
     "properties": {
      "gics": {
       "items": {
@@ -613,12 +613,12 @@
       "title": "Sic Codes",
       "type": "array"
      },
-     "unmapped_isic_codes": {
-      "description": "core_isic_codes with no entry in any loaded crosswalk table -- shown for transparency rather than silently dropped.",
+     "unmapped_sectors": {
+      "description": "core_sectors with no entry in any loaded crosswalk table -- shown for transparency rather than silently dropped.",
       "items": {
        "type": "string"
       },
-      "title": "Unmapped Isic Codes",
+      "title": "Unmapped Sectors",
       "type": "array"
      }
     },
@@ -10752,24 +10752,6 @@
     "title": "IcSummary",
     "type": "object"
    },
-   "IcioCode": {
-    "properties": {
-     "code": {
-      "title": "Code",
-      "type": "string"
-     },
-     "label": {
-      "title": "Label",
-      "type": "string"
-     }
-    },
-    "required": [
-     "code",
-     "label"
-    ],
-    "title": "IcioCode",
-    "type": "object"
-   },
    "IdentifierOut": {
     "properties": {
      "scheme": {
@@ -11857,7 +11839,7 @@
     "type": "string"
    },
    "LinkRule": {
-    "description": "An analyst's (or Scope 6's LLM) link of a company or taxonomy activity to value-chain nodes, stored as\nICIO codes or region + sector names, never node ids. docs/superpowers/specs/2026-10-27-value-chain-links-overlays-design.md",
+    "description": "An analyst's (or Scope 6's LLM) link of a company or taxonomy activity to value-chain nodes, stored as\nEXIOBASE sector names or region + sector names, never node ids. docs/superpowers/specs/2026-10-27-value-chain-links-overlays-design.md",
     "properties": {
      "kind": {
       "enum": [
@@ -11869,7 +11851,7 @@
       "type": "string"
      },
      "parts": {
-      "description": "split/llm: [{icio_code, share}]; nodes: [{region, sector, share}].",
+      "description": "split/llm: [{sectors, share}]; nodes: [{region, sector, share}].",
       "items": {
        "additionalProperties": true,
        "type": "object"
@@ -11906,7 +11888,7 @@
       "type": "string"
      },
      "parts": {
-      "description": "split: [{icio_code, share}]; nodes: [{region, sector, share}]; shares sum to 1.",
+      "description": "split: [{sectors, share}]; nodes: [{region, sector, share}]; shares sum to 1.",
       "items": {
        "additionalProperties": true,
        "type": "object"
@@ -13619,7 +13601,6 @@
        "nodes",
        "split",
        "nace",
-       "code",
        "llm",
        "none"
       ],
@@ -18463,6 +18444,19 @@
     "title": "SectionLayoutHint",
     "type": "string"
    },
+   "Sector": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "Sector",
+    "type": "object"
+   },
    "SectorBenchmarksOut": {
     "properties": {
      "capex": {
@@ -19351,7 +19345,7 @@
     "type": "object"
    },
    "StandardCodeMatch": {
-    "description": "One code from an external classification standard, derived via a\ndeterministic crosswalk from an activity's core_isic_codes -- never\nLLM-guessed, since these are large fixed code lists a model can't be\ntrusted to recall exactly.",
+    "description": "One code from an external classification standard, derived via a\ndeterministic crosswalk from an activity's core_sectors -- never\nLLM-guessed, since these are large fixed code lists a model can't be\ntrusted to recall exactly.",
     "properties": {
      "code": {
       "title": "Code",
@@ -21923,6 +21917,7 @@
       ]
      },
      "source": {
+      "description": "code: an activity linked through its core_sectors.",
       "enum": [
        "nodes",
        "split",
@@ -40221,7 +40216,7 @@
   },
   "/api/taxonomies/{taxonomy_id}/map-standards": {
    "post": {
-    "description": "Cross-references every activity's core_isic_codes into NACE, NAICS,\nSIC (deterministic crosswalk) and GICS (closed-list LLM classification)\nand saves the result as a new taxonomy version. See\ndocs/METHODOLOGY.md for why GICS alone needs an LLM call.",
+    "description": "Cross-references every activity's core_sectors into NACE, NAICS,\nSIC (deterministic crosswalk) and GICS (closed-list LLM classification)\nand saves the result as a new taxonomy version. See\ndocs/METHODOLOGY.md for why GICS alone needs an LLM call.",
     "operationId": "map_standards_api_taxonomies__taxonomy_id__map_standards_post",
     "parameters": [
      {
@@ -42685,17 +42680,17 @@
   },
   "/api/value-chain/codes": {
    "get": {
-    "description": "The ICIO codes a revenue split may name: the 50 industries, then the five electricity split codes.",
-    "operationId": "icio_codes_api_value_chain_codes_get",
+    "description": "The EXIOBASE sectors a revenue split may name, in exiobase_nace.csv order.",
+    "operationId": "sector_list_api_value_chain_codes_get",
     "responses": {
      "200": {
       "content": {
        "application/json": {
         "schema": {
          "items": {
-          "$ref": "#/components/schemas/IcioCode"
+          "$ref": "#/components/schemas/Sector"
          },
-         "title": "Response Icio Codes Api Value Chain Codes Get",
+         "title": "Response Sector List Api Value Chain Codes Get",
          "type": "array"
         }
        }
@@ -42703,7 +42698,7 @@
       "description": "Successful Response"
      }
     },
-    "summary": "Icio Codes",
+    "summary": "Sector List",
     "tags": [
      "value-chain"
     ]

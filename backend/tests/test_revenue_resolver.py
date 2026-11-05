@@ -12,10 +12,14 @@ from arp.research.revenue_exposure.resolver import (
     resolve_from_catalogue,
 )
 from arp.research.taxonomy_schema import field_id_for
+from arp.research.value_chain.links import company_nace_sectors
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping, CatalogueDataPoint
 from arp.schemas.thematic import ActivityDefinition, ExposureEstimate
 from tests.taxonomy_schema_helpers import released_schema
+
+MOTOR_VEHICLES = "Manufacture of motor vehicles, trailers and semi-trailers"
+RETAIL = "Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods"
 
 
 class _FixedDocSource(DocumentSource):
@@ -35,28 +39,36 @@ def _settings(tmp_path) -> Settings:
     )
 
 
-def _activity(core_isic_codes=None) -> ActivityDefinition:
+def _activity(core_sectors=None) -> ActivityDefinition:
     return ActivityDefinition(
         name="EV manufacturing", in_scope_description="Battery electric vehicle assembly.", out_of_scope_description="",
-        seed_keywords=["electric vehicle", "battery electric"], core_isic_codes=core_isic_codes or [],
+        seed_keywords=["electric vehicle", "battery electric"], core_sectors=core_sectors or [],
     )
 
 
 # --- is_sector_relevant / band_exposure -------------------------------------
 
-def test_is_sector_relevant_exact_and_prefix_match():
-    assert is_sector_relevant("29", ["29"]) is True
-    assert is_sector_relevant("2910", ["29"]) is True
-    assert is_sector_relevant("29", ["2910"]) is True
+def test_is_sector_relevant_overlap():
+    assert is_sector_relevant({MOTOR_VEHICLES}, [MOTOR_VEHICLES]) is True
+    assert is_sector_relevant({MOTOR_VEHICLES, RETAIL}, [MOTOR_VEHICLES]) is True
+    assert is_sector_relevant({MOTOR_VEHICLES}, [MOTOR_VEHICLES, RETAIL]) is True
 
 
 def test_is_sector_relevant_no_match():
-    assert is_sector_relevant("30", ["29"]) is False
+    assert is_sector_relevant({RETAIL}, [MOTOR_VEHICLES]) is False
 
 
 def test_is_sector_relevant_defaults_true_when_undetermined():
-    assert is_sector_relevant(None, ["29"]) is True
-    assert is_sector_relevant("30", []) is True
+    assert is_sector_relevant(set(), [MOTOR_VEHICLES]) is True
+    assert is_sector_relevant({RETAIL}, []) is True
+
+
+def test_is_sector_relevant_from_nace():  # AC-28 to AC-31
+    copper = company_nace_sectors(CompanyRef(company_id="c", name="C", nace_code="24.44", nace_rev="2"))
+    assert is_sector_relevant(copper, ["Copper production"]) is True
+    assert is_sector_relevant(copper, ["Cultivation of wheat"]) is False
+    assert is_sector_relevant(company_nace_sectors(CompanyRef(company_id="c", name="C")), ["Copper production"]) is True
+    assert is_sector_relevant(copper, []) is True
 
 
 def test_band_exposure_thresholds(tmp_path):
@@ -151,7 +163,7 @@ async def test_catalogue_hit_short_circuits_extraction(tmp_path, fake_llm):
     ctx = RevenueResolverContext(catalogue_by_company={"c1": catalogue_rows}, mappings=mappings, registry=registry, settings=_settings(tmp_path), schema=released_schema(activity))
 
     llm = fake_llm({})  # no extraction/LLM calls expected for revenue (catalogue hit); capex has no mapping either
-    result, _usage = await resolve_company_activity_exposure(company, activity, company_isic=None, documents=[], ctx=ctx, llm=llm)
+    result, _usage = await resolve_company_activity_exposure(company, activity, company_sectors=set(), documents=[], ctx=ctx, llm=llm)
     assert result.revenue.source == "catalogue"
     assert result.revenue.value_pct == 0.4
     assert llm.calls == []
@@ -159,12 +171,12 @@ async def test_catalogue_hit_short_circuits_extraction(tmp_path, fake_llm):
 
 async def test_irrelevant_sector_skips_extraction(tmp_path, fake_llm):
     company = CompanyRef(company_id="c1", name="Acme Retail")
-    activity = _activity(core_isic_codes=["29"])  # motor vehicles
+    activity = _activity(core_sectors=[MOTOR_VEHICLES])
     registry = DocumentSourceRegistry([_FixedDocSource([])])
     ctx = RevenueResolverContext(catalogue_by_company={}, mappings=[], registry=registry, settings=_settings(tmp_path), schema=released_schema(activity))
 
-    llm = fake_llm({})  # company_isic="45" (retail) doesn't overlap "29" -- extraction must be skipped
-    result, _usage = await resolve_company_activity_exposure(company, activity, company_isic="45", documents=[], ctx=ctx, llm=llm)
+    llm = fake_llm({})  # a retail company doesn't overlap motor vehicles -- extraction must be skipped
+    result, _usage = await resolve_company_activity_exposure(company, activity, company_sectors={RETAIL}, documents=[], ctx=ctx, llm=llm)
     assert result.sector_relevant is False
     assert result.revenue.source == "unresolved"
     assert llm.calls == []

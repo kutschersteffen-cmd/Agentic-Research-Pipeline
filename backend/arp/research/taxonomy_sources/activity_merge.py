@@ -61,7 +61,7 @@ async def merge_activity_sets(
     non_empty_groups = [g for g in activity_groups if g]
     if len(non_empty_groups) <= 1:
         # Nothing to consolidate -- return the one group (or empty) as-is,
-        # with source_citation/core_isic_codes preserved since there was no
+        # with source_citation/core_sectors preserved since there was no
         # LLM rewrite to potentially drop them.
         return (non_empty_groups[0] if non_empty_groups else []), "Only one non-empty source; nothing to merge.", LLMUsage()
 

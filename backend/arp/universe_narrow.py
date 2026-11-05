@@ -4,6 +4,7 @@ ISIC/NACE code are kept."""
 
 from __future__ import annotations
 
+from arp.research.indirect_exposure.nace import sector_nace2_codes
 from arp.schemas.common import CompanyRef
 from arp.schemas.thematic import ThemeDefinition
 
@@ -15,7 +16,7 @@ def _division(code: str | None) -> str | None:
 
 def taxonomy_divisions(theme: ThemeDefinition) -> set[str]:
     codes = [
-        *(c for a in theme.activities for c in a.core_isic_codes),
+        *(c for a in theme.activities for s in a.core_sectors for c in sector_nace2_codes(s)),
         *(s.code for a in theme.activities for s in a.sector_codes if s.system in ("ISIC", "NACE")),
     ]
     return {d for d in map(_division, codes) if d}

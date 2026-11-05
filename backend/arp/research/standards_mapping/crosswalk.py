@@ -10,8 +10,8 @@ class CrosswalkTable:
     """A deterministic ISIC Rev.4 -> target-standard code lookup, loaded
     from a correspondence CSV (isic_code,target_code,target_label).
 
-    Lookups aren't required to match digit-for-digit: a taxonomy's
-    core_isic_codes may be coarser or finer than the table's granularity
+    Lookups aren't required to match digit-for-digit: the ISIC codes an
+    activity's core_sectors map to may be coarser or finer than the table's granularity
     (a 2-digit division vs. a 4-digit class), so a code matches any table
     entry where one is a prefix of the other, in addition to an exact
     match. No fuzzy/semantic matching -- only digit-prefix containment,
