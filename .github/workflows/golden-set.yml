@@ -25,6 +25,8 @@ on:
       - "backend/arp/rfp/**"
       - "backend/arp/research/authority_taxonomy/**"
       - "backend/tests/golden/authority_taxonomy/**"
+      - "backend/arp/research/taxonomy_schema.py"
+      - "backend/tests/golden/stage_evidence/**"
   workflow_dispatch:
 
 jobs:
@@ -50,6 +52,7 @@ jobs:
           --health-retries 5
     env:
       ARP_POSTGRES_DSN: postgresql+psycopg://arp:arp@localhost:5432/arp_test
+      ARP_GEMINI_API_KEY: ${{ secrets.ARP_GEMINI_API_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -66,7 +69,7 @@ jobs:
           if [ -n "$rfp" ]; then echo "rfp=true" >>"$GITHUB_OUTPUT"; else echo "rfp=false" >>"$GITHUB_OUTPUT"; fi
           gate=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction/evidence_gate.py)
           if [ -n "$gate" ]; then echo "gate=true" >>"$GITHUB_OUTPUT"; else echo "gate=false" >>"$GITHUB_OUTPUT"; fi
-          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py arp/transition_barrier/extraction.py arp/transition_barrier/golden.py arp/transition_barrier/fetching.py arp/transition_barrier/rule_book.py arp/transition_barrier/data tests/golden/transition_barrier arp/rfp arp/research/authority_taxonomy tests/golden/authority_taxonomy)
+          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py arp/transition_barrier/extraction.py arp/transition_barrier/golden.py arp/transition_barrier/fetching.py arp/transition_barrier/rule_book.py arp/transition_barrier/data tests/golden/transition_barrier arp/rfp arp/research/authority_taxonomy tests/golden/authority_taxonomy arp/research/taxonomy_schema.py tests/golden/stage_evidence)
           model=$(git diff -U0 "origin/$BASE...HEAD" -- arp/config.py | grep -E '^[+-] .*(llm_|_api_key|grounding_|confidence_review)' || true)
           if [ -n "$other$model" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; else echo "run=false" >>"$GITHUB_OUTPUT"; echo "Only unrelated config.py lines changed; golden set not needed."; fi
 
@@ -76,7 +79,13 @@ jobs:
         env:
           KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
         run: |
-          if [ -n "$KEY" ]; then echo "present=true" >>"$GITHUB_OUTPUT"; else
+          # With an ARP_GEMINI_API_KEY secret, every golden step runs on Gemini instead of Anthropic.
+          if [ -n "$ARP_GEMINI_API_KEY" ]; then
+            { echo "ARP_LLM_MODEL=gemini-3.8-flash"; echo "ARP_LLM_VERIFIER_MODEL=gemini-3.8-flash"
+              echo "ARP_EVIDENCE_GATE_MODEL=gemini-3.8-flash"; echo "ARP_TREE_SUMMARY_MODEL=gemini-3.8-flash"; } >>"$GITHUB_ENV"
+            echo "::notice title=Golden set on Gemini::ARP_GEMINI_API_KEY is set, so the golden set runs on gemini-3.8-flash."
+            echo "present=true" >>"$GITHUB_OUTPUT"
+          elif [ -n "$KEY" ]; then echo "present=true" >>"$GITHUB_OUTPUT"; else
             echo "present=false" >>"$GITHUB_OUTPUT"
             echo "::warning title=Golden set not run::Add the ARP_ANTHROPIC_API_KEY repository secret so AI changes are checked against the golden set."
           fi
@@ -158,3 +167,11 @@ jobs:
         run: |
           set -o pipefail
           arp golden-set authority-taxonomy --case hydrogen_eu_taxonomy | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Run the stage-evidence golden cases
+        if: ${{ !cancelled() && steps.key.outputs.present == 'true' }}
+        env:
+          ARP_ANTHROPIC_API_KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
+        run: |
+          set -o pipefail
+          arp golden-set precision --schema-file tests/golden/stage_evidence/schema.json --cases tests/golden/stage_evidence/cases.json --documents-dir tests/golden/stage_evidence/documents --min-precision 0.9 | tee -a "$GITHUB_STEP_SUMMARY"
