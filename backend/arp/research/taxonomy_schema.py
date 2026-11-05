@@ -67,6 +67,67 @@ def _field(taxonomy_id: str, version: int, activity: ActivityDefinition, metric:
     )
 
 
+_EVIDENCE_PREFIX = (
+    "Extract only what the company explicitly states about this specific activity, with a verbatim quote. "
+    "Never estimate, infer or compute a value."
+)
+_AMOUNT = "The stated amount for this activity, with currency and fiscal year in raw_value_text; company-wide totals do not count."
+# key -> (name suffix, data type, guidance, keywords); the stage is extracted per company, never preset.
+_EVIDENCE: dict[str, tuple[str, FieldDataType, str, list[str]]] = {
+    "revenue_amount": ("revenue amount", FieldDataType.CURRENCY_AMOUNT, _AMOUNT, ["revenue", "sales", "turnover"]),
+    "capex_amount": ("CapEx / investment amount", FieldDataType.CURRENCY_AMOUNT, _AMOUNT,
+                     ["capital expenditure", "capex", "investment", "invested"]),
+    "rd_amount": ("R&D spend amount", FieldDataType.CURRENCY_AMOUNT, _AMOUNT,
+                  ["research and development", "R&D", "R&D expenses"]),
+    "rd_programme": ("named R&D programme", FieldDataType.STRING,
+                     "The name and one-line purpose of an R&D programme, project or research focus tied to this activity.",
+                     ["research programme", "research project", "development programme"]),
+    "milestone": ("most advanced development milestone", FieldDataType.ENUM,
+                  "The most advanced stage the company states it has reached: lab (research, prototype, proof of concept), "
+                  "pilot (pilot plant or line), demonstration (demonstrator, field test at scale), first_commercial (first "
+                  "commercial unit, first customer delivery, FID), series_production (serial manufacturing, ongoing sales).",
+                  ["prototype", "pilot", "demonstrator", "first commercial", "series production"]),
+    "capacity": ("installed or planned capacity", FieldDataType.NUMBER,
+                 "Installed or planned capacity for this activity, with its unit and whether installed or planned, in raw_value_text.",
+                 ["capacity", "MW", "GW", "production line", "plant"]),
+    "backlog": ("orders / backlog", FieldDataType.CURRENCY_AMOUNT, _AMOUNT, ["order backlog", "order intake", "orders"]),
+    "partnerships": ("partnerships, grants, offtake agreements", FieldDataType.STRING,
+                     "Each stated partnership, grant or offtake agreement for this activity, separated by '; '.",
+                     ["partnership", "joint venture", "grant", "offtake", "agreement"]),
+    "news_momentum": ("recent momentum events", FieldDataType.STRING,
+                      "Each stated recent event for this activity (launch, partnership, investment, expansion, order), with its "
+                      "date, separated by '; '. From the documents given, not from web search.",
+                      ["launched", "announced", "signed", "expanded", "commissioned"]),
+    "stage_ideation": ("ideation-stage evidence", FieldDataType.BOOLEAN,
+                       "True only if a quote shows research, prototype, lab-scale or proof-of-concept work on this activity.",
+                       ["research programme", "prototype", "lab-scale", "proof of concept"]),
+    "stage_innovation": ("innovation-stage evidence", FieldDataType.BOOLEAN,
+                         "True only if a quote shows a pilot, demonstrator, first commercial unit, pre-series production or a first order.",
+                         ["pilot plant", "demonstrator", "first commercial", "pre-series", "order", "FID"]),
+    "stage_commercial": ("commercial-stage evidence", FieldDataType.BOOLEAN,
+                         "True only if a quote shows ongoing sales, segment revenue, series production or a market position.",
+                         ["segment revenue", "series production", "capacity", "backlog", "market share"]),
+}
+EVIDENCE_KEYS: tuple[str, ...] = tuple(_EVIDENCE)
+_MILESTONES = ["lab", "pilot", "demonstration", "first_commercial", "series_production"]
+
+
+def _evidence_field(taxonomy_id: str, version: int, activity: ActivityDefinition, key: str) -> FieldDefinition:
+    suffix, data_type, guidance, keywords = _EVIDENCE[key]
+    return FieldDefinition(
+        field_id=f"{taxonomy_id}_{activity.activity_id}_{key}",
+        name=f"{activity.name}: {suffix}",
+        description=f"{suffix} for: {activity.name} ({activity.in_scope_description})",
+        data_type=data_type,
+        unit=None,
+        extraction_instructions=f"{_EVIDENCE_PREFIX} {guidance}",
+        allowed_values=_MILESTONES if key == "milestone" else None,
+        required=False,
+        seed_keywords=[*activity.seed_keywords, *keywords],
+        version=version,
+    )
+
+
 def activity_fields(activity: ActivityDefinition, taxonomy_id: str, version: int) -> list[FieldDefinition]:
     """The schema fields generated for one activity. The theme funnel reads their names and keywords too, so a
     field added here reaches it with no funnel change."""
@@ -74,14 +135,18 @@ def activity_fields(activity: ActivityDefinition, taxonomy_id: str, version: int
 
 
 def build_taxonomy_schema(taxonomy: Taxonomy) -> DataPointSchema:
-    """Four percentage fields per activity, in activity order. Pure: same version, same schema."""
+    """Per activity, in activity order: four percentage fields, then the stage evidence fields. Pure: same version, same schema."""
     if taxonomy.status != TaxonomyStatus.RATIFIED:
         raise ValueError(f"Taxonomy {taxonomy.taxonomy_id} v{taxonomy.version} is a draft; ratify it first.")
     return DataPointSchema(
         schema_id=schema_id_for(taxonomy.taxonomy_id, taxonomy.version),
         name=f"{taxonomy.name} v{taxonomy.version}",
         description=f"Generated from taxonomy {taxonomy.taxonomy_id} v{taxonomy.version}.",
-        fields=[f for a in taxonomy.theme.activities for f in activity_fields(a, taxonomy.taxonomy_id, taxonomy.version)],
+        fields=[
+            f for a in taxonomy.theme.activities
+            for f in [*activity_fields(a, taxonomy.taxonomy_id, taxonomy.version),
+                      *(_evidence_field(taxonomy.taxonomy_id, taxonomy.version, a, k) for k in EVIDENCE_KEYS)]
+        ],
     )
 
 
