@@ -86,7 +86,7 @@ def _cooling(capability: str) -> bool:
 
 def _fail(capability: str, reason: str) -> None:
     _cooldown_until[capability] = _now() + COOLDOWN_S
-    last_error[capability] = reason
+    last_error[capability.split(":")[0]] = reason  # `arp compute check` reads it per service
     logger.warning("Cloud %s unavailable (%s); falling back for %d s.", capability, reason, COOLDOWN_S)
 
 
@@ -225,10 +225,11 @@ def _models_call(path: str, payload: dict, model: str, read):
     with _models_slots:
         if _cooling("models") or _cooling(f"models:{model}"):
             return None
-        response = _post("models", f"{url}{path}", payload, MODELS_TIMEOUT_S, {"X-ARP-Model": model}, keep=(409,))
+        # a failure cools down only this model, so the MiniLM fallback still reaches arp-models
+        response = _post(f"models:{model}", f"{url}{path}", payload, MODELS_TIMEOUT_S, {"X-ARP-Model": model}, keep=(409,))
     if response is None:
         return None
-    if response.status_code == 409:  # the service does not serve this model: only it cools down, not the others
+    if response.status_code == 409:  # the service does not serve this model
         _fail(f"models:{model}", _reason(response))
         return None
     try:
@@ -236,7 +237,7 @@ def _models_call(path: str, payload: dict, model: str, read):
             raise ValueError(_reason(response))
         return read(response.json())
     except Exception as exc:  # noqa: BLE001 - a reply this backend can't use is a failure, never a raise
-        _fail("models", f"{type(exc).__name__}: {exc}")
+        _fail(f"models:{model}", f"{type(exc).__name__}: {exc}")
         return None
 
 

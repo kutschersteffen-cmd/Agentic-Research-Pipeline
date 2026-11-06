@@ -372,6 +372,31 @@ def test_batches_that_came_back_stay_stored(cloud, monkeypatch):  # review: spec
     assert sum(model == "intfloat/multilingual-e5-large" for _, model in store.rows) == 2
 
 
+def test_failed_e5_query_falls_back_to_minilm_on_arp_models(monkeypatch, tmp_path):  # AC-7, AC-15c: spec section 4
+    from tests.test_compute_client import Recorder, _settings
+
+    def answer(request):
+        body, model = json.loads(request.content), request.headers["X-ARP-Model"]
+        if model == E5 and body["texts"][0].startswith("query: "):
+            return httpx.Response(200, json={"vectors": None})  # no usable vector for the query
+        dim = 1024 if model == E5 else 384
+        return httpx.Response(200, json={"vectors": [[1.0] * dim for _ in body["texts"]]})
+
+    rec = Recorder()
+    rec.route(("POST", "/embed"), answer)
+    monkeypatch.setattr(client, "_http", httpx.Client(transport=httpx.MockTransport(rec)))
+    monkeypatch.setattr(client, "_cooldown_until", {})
+    monkeypatch.setattr(client, "_warned", set())
+    monkeypatch.setattr(client, "_id_token", lambda audience: "tok")
+    settings = _settings(tmp_path)
+    monkeypatch.setattr(client, "get_settings", lambda: settings)
+    monkeypatch.setattr(embeddings, "_get_model", lambda: pytest.fail("loaded the local MiniLM"))
+    store = _DictStore()
+    assert _rank("e5-large", store)[1]["embed_model"] == "embed"
+    assert sum(model == "intfloat/multilingual-e5-large" for _, model in store.rows) == 3
+    assert any(r.headers["X-ARP-Model"] != E5 for r in rec.calls(("POST", "/embed")))  # MiniLM came from arp-models
+
+
 def test_409_for_one_model_keeps_the_cross_encoder(monkeypatch, tmp_path):  # review: per-model cooldown
     from tests.test_compute_client import Recorder, _settings
 
