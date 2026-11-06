@@ -12,7 +12,7 @@ class ChecklistItem:
 
 AUTHORITY_CHECKLIST: list[ChecklistItem] = [
     ChecklistItem("theme_description", "A qualitative description of what the theme covers.", ["theme", "covers", "objective", "purpose", "description"]),
-    ChecklistItem("activities", "The concrete business activities that make up the theme.", ["activity", "activities", "manufacture", "production", "installation", "operation", "services"]),
+    ChecklistItem("activities", "The concrete business activities that make up the theme: when a heading covers several products or equipment types, one entry per product or equipment type its description names, kept in the source's own grouping, instead of one entry for the heading.", ["activity", "activities", "manufacture", "production", "installation", "operation", "services"]),
     ChecklistItem("boundaries", "Explicit include / exclude rules.", ["include", "includes", "exclude", "excludes", "excluded", "scope", "does not", "not covered"]),
     ChecklistItem("technologies", "The technologies the theme rests on.", ["technology", "technologies", "equipment", "process", "system"]),
     ChecklistItem("definitions", "Defined terms.", ["means", "defined", "definition", "refers", "term"]),
