@@ -2264,3 +2264,7 @@ a.vc-box:hover { border-color: var(--text); }
 .passage-row .chip { background: none; } /* a hint, not a status: outline only */
 .plan-script { overflow-x: auto; max-width: 100%; }
 .table-wrap td.plan-inputs { white-space: normal; overflow-wrap: anywhere; min-width: 12rem; }
+/* Company page: the Transition section runs long, so its parts need real heads and a way past them. */
+.company-jump { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); margin: 0 0 var(--s-2); padding: var(--s-2) 0; border-top: 1px solid var(--panel-border); font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.08em; }
+.company-page h2 { scroll-margin-top: var(--s-4); padding-top: var(--s-4); border-top: 2px solid var(--text, currentColor); }
+.company-page h3 { font-size: 1.0625rem; letter-spacing: -0.01em; margin: var(--s-8) 0 var(--s-2); padding-top: var(--s-3); border-top: 1px solid var(--panel-border); }

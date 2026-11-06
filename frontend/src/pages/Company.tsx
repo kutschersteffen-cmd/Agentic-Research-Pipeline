@@ -212,6 +212,17 @@ function CompanyView({ companyRef }: { companyRef: string }) {
         </>
       )}
 
+      {company && (
+        <nav className="company-jump" aria-label="On this page">
+          {/* Buttons, not #anchors: the hash is the router's. */}
+          {["transition-heading", "facts-heading"].map((id) => (
+            <button key={id} type="button" className="link-button" onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })}>
+              {id === "facts-heading" ? `Facts${rows ? ` (${rows.length}${rows.length === LIMIT ? "+" : ""})` : ""}` : "Transition"}
+            </button>
+          ))}
+        </nav>
+      )}
+
       {company && <TransitionSection data={transition} error={transitionError} onOpenFact={openFact} />}
 
       <div className={selected != null ? "split-review" : undefined}>
