@@ -96,6 +96,21 @@ claude plugin install superpowers@superpowers-marketplace
 - **superpowers** — development workflow skills: brainstorming, writing plans, TDD,
   systematic debugging, worktrees. Its `SessionStart` hook loads `using-superpowers`.
 
+And taste-skill, the same way:
+
+```
+claude plugin marketplace add Leonxlnx/taste-skill
+claude plugin install taste-skill@taste-skill
+```
+
+- **taste-skill** — art direction, reference images and a real-browser check for company
+  websites and landing pages. `/taste-skill:taste-skill`. Skill only.
+
+`unslop` ([heydamir/unslop](https://github.com/heydamir/unslop), CC-BY-4.0, upstream `a6f121e`) has no
+marketplace, so it is copied into `.claude/skills/unslop/` (minus its `agents/openai.yaml`). `/unslop` turns
+AI-looking UI (purple gradients, glows, emoji labels, uneven spacing) into a designed interface. Its
+`scripts/*.mjs` screenshot pages and need Playwright.
+
 ## Which plugin does what
 
 superpowers and ponytail pull in opposite directions (process vs. minimalism), so each owns a

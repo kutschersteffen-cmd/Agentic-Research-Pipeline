@@ -41,6 +41,12 @@
         "source": "github",
         "repo": "obra/superpowers-marketplace"
       }
+    },
+    "taste-skill": {
+      "source": {
+        "source": "github",
+        "repo": "Leonxlnx/taste-skill"
+      }
     }
   },
   "enabledPlugins": {
@@ -50,7 +56,8 @@
     "i-have-adhd@i-have-adhd": true,
     "andrej-karpathy-skills@karpathy-skills": true,
     "humanizer@humanizer": true,
-    "superpowers@superpowers-marketplace": true
+    "superpowers@superpowers-marketplace": true,
+    "taste-skill@taste-skill": true
   },
   "hooks": {
     "SessionStart": [
