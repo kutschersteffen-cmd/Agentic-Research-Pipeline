@@ -127,8 +127,8 @@ async def start(
     segments = load_segments(segments_path) if segments_path else {}
     methodology_docs = await read_methodology(list(methodology), settings.discovery_user_agent)
     name = name or stocks_path.stem
-    params = {"stocks": str(stocks_path), "methodology": list(methodology), "name": name,
-              "segments": str(segments_path) if segments_path else None,
+    params = {"stocks": str(stocks_path.resolve()), "methodology": list(methodology), "name": name,
+              "segments": str(Path(segments_path).resolve()) if segments_path else None,
               "benchmark": str(benchmark_path) if benchmark_path else None}
     jobs = JobManager(run_store)
     manifest = jobs.create_run("stock_inference", params, len(selected), model=settings.llm_model,

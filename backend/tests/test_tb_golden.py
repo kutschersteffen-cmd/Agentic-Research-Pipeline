@@ -88,6 +88,12 @@ def test_wrong_page_is_incorrect(run_golden):
     assert out.stdout.strip() == "precision 0, coverage 1" and out.exit_code == 1
 
 
+def test_page_listed_in_also_is_correct(run_golden):  # the answer is on several pages; any listed one counts
+    cases = [{**case("price", "D1.pdf", 72, 5, "USD/tCO2"), "also": {"12": QUOTES["D1"][12]}}]
+    out = run_golden(cases, ANSWERS, "--min-precision", "0.5", "--min-coverage", "0.5")
+    assert out.stdout.strip() == "precision 1, coverage 1" and out.exit_code == 0
+
+
 def test_not_found_lowers_coverage_only(run_golden):
     answers = {k: v for k, v in ANSWERS.items() if k[0] != "levy"}
     out = run_golden(CASES, answers, "--min-precision", "0.95", "--min-coverage", "0.9")
@@ -137,5 +143,8 @@ def test_golden_set_shape():  # G for AC-123: the drafted labels hold before the
         # the text facts.pdf_pages (and so the scorer) gets for that page, without parsing the whole file
         text = PdfReader(path).pages[case.page - 1].extract_text() or ""
         assert _squash(quote) in _squash(text), case
+        for other, other_quote in case.also.items():  # each extra page holds its own quote
+            other_text = PdfReader(path).pages[int(other) - 1].extract_text() or ""
+            assert int(other) != case.page and _squash(other_quote) in _squash(other_text), (case, other)
         if facts[case.fact].type == "number":  # the label is a figure in the quote, converted at most once
             assert any(round(n * r, 2) == case.value for n in candidates(quote) for r in rates), case

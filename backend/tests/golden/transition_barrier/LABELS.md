@@ -69,6 +69,20 @@ These rows needed a judgement call, or rely on a conversion or on picking one pa
   legislative, administrative or judicial nature from copyright. Remove the document and its four
   rows if you do not accept that basis.
 
+## Owner decisions, 2026-11-05 (from the first real-model run, precision 0.62)
+
+- **Other pages count.** A case's `also` (in `cases.json`) maps further pages that support the
+  same answer to a quote on each page. A cited page counts when it is the label page or one of
+  those. `test_golden_set_shape` checks every `also` quote is on its page. Rows with `also`, from
+  pages the model cited in that run: 1 (p. 29, Annex I shares), 14 (p. 9, Article 1), 16 (p. 27,
+  LDAR repair deadlines), 25 (p. 38, chapter 10), 33 (p. 2, "do not impose binding requirements
+  directly on existing sources"), 34 (p. 16, the voluntary 3 billion gallon goal), 35 and 36
+  (p. 2, steel and cement in the national ETS), 38 (p. 1, the plan's title).
+- **8, 9, 24 (CBAM levy) stay true.** The model said false. CBAM charges 2026 imports, so the
+  levy is in force; the miss is the model not knowing the current year.
+- **28 (fossil LCOE) stays 37.05.** The rule book (v3) now says "capacity-weighted regional
+  average where the source gives one"; the model's 39.94 is Table 1b, the unweighted figure.
+
 ## What a perfect model could score
 
 A stand-in model ran through the real `golden.score`. It answers every row with its own label, quoting

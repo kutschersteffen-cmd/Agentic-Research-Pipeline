@@ -76,6 +76,26 @@ class IndexRules(BaseModel):
     rules: list[IndexRule] = Field(default_factory=list)
 
 
+class ActivityOrigin(BaseModel):
+    activity_id: str
+    name: str
+    origin: Literal["stocks", "methodology", "both"]
+
+
+class Mapping(BaseModel):
+    company_id: str
+    activity_id: str | None = None
+    reason: str
+    quote: str
+    tier: Literal["core", "enabler", "adopter", "unknown"]
+
+
+class Coverage(BaseModel):
+    profiled_weight_share: float | None = None
+    fund_weight_share: float | None = None
+    unmapped: list[str] = Field(default_factory=list)
+
+
 class InferRun(BaseModel):
     run_id: str
     stage: Literal["started", "profiled", "themes_ready", "drafted", "failed"]
@@ -89,6 +109,6 @@ class InferRun(BaseModel):
     outliers: list[str] = Field(default_factory=list)
     index_rules: IndexRules | None = None
     taxonomy_id: str | None = None
-    activities: list[dict] = Field(default_factory=list)
-    mapping: list[dict] = Field(default_factory=list)
-    coverage: dict | None = None
+    activities: list[ActivityOrigin] = Field(default_factory=list)
+    mapping: list[Mapping] = Field(default_factory=list)
+    coverage: Coverage | None = None
