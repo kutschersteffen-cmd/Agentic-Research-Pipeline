@@ -146,7 +146,7 @@ def build_taxonomy_schema(taxonomy: Taxonomy) -> DataPointSchema:
             f for a in taxonomy.theme.activities
             for f in [*activity_fields(a, taxonomy.taxonomy_id, taxonomy.version),
                       *(_evidence_field(taxonomy.taxonomy_id, taxonomy.version, a, k) for k in EVIDENCE_KEYS)]
-        ],
+        ] + [k.model_copy(update={"version": taxonomy.version}) for k in taxonomy.theme.kpis],
     )
 
 

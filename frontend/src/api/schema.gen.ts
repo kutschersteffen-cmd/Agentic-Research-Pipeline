@@ -7870,6 +7870,16 @@ export interface components {
             /** Citations */
             citations?: components["schemas"]["SourceCitation"][];
             /**
+             * Contextual Keywords
+             * @default []
+             */
+            contextual_keywords: string[];
+            /**
+             * Contextual Window Words
+             * @default 50
+             */
+            contextual_window_words: number;
+            /**
              * Contrast Statements
              * @description Extra negative statements for the theme funnel's NLI step (next to out_of_scope_description), e.g. 'The company buys or operates electrolysers made by another company'.
              */
@@ -7887,6 +7897,11 @@ export interface components {
              * @default false
              */
             criticality_flag: boolean;
+            /**
+             * Exclusion Keywords
+             * @default []
+             */
+            exclusion_keywords: string[];
             /**
              * Human Approved
              * @description Per-activity curation sign-off, distinct from the taxonomy-level Taxonomy.status/ratified_by -- lets a reviewer approve individual activities within an otherwise-draft taxonomy. Requires a source_citation and a substantive in_scope_description; see the validator below.
@@ -10978,7 +10993,7 @@ export interface components {
          * DerivationMethod
          * @enum {string}
          */
-        DerivationMethod: "llm_draft" | "industry_anchored" | "authority_source" | "etf_index_holdings" | "news_transcript_mining" | "empirical" | "emerging_signal_discovery" | "merged" | "manual";
+        DerivationMethod: "llm_draft" | "industry_anchored" | "authority_source" | "etf_index_holdings" | "news_transcript_mining" | "empirical" | "emerging_signal_discovery" | "merged" | "stock_inference" | "manual";
         /**
          * DerivedRule
          * @description A boolean computed from other boolean fields by three-valued logic; never extracted.
@@ -16387,6 +16402,11 @@ export interface components {
             definitions?: components["schemas"]["Definition"][];
             /** Description */
             description: string;
+            /**
+             * Kpis
+             * @default []
+             */
+            kpis: components["schemas"]["FieldDefinition"][];
             /** Name */
             name: string;
             /**

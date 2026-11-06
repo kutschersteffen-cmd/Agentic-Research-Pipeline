@@ -403,6 +403,19 @@
       "title": "Citations",
       "type": "array"
      },
+     "contextual_keywords": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Contextual Keywords",
+      "type": "array"
+     },
+     "contextual_window_words": {
+      "default": 50,
+      "title": "Contextual Window Words",
+      "type": "integer"
+     },
      "contrast_statements": {
       "description": "Extra negative statements for the theme funnel's NLI step (next to out_of_scope_description), e.g. 'The company buys or operates electrolysers made by another company'.",
       "items": {
@@ -431,6 +444,14 @@
       "description": "Set when this activity represents a scarce or geopolitically concentrated input whose importance a pure input-output linkage-strength ranking would understate (e.g. a USGS/IEA-flagged critical mineral). Populated by the criticality overlay, not by hand.",
       "title": "Criticality Flag",
       "type": "boolean"
+     },
+     "exclusion_keywords": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Exclusion Keywords",
+      "type": "array"
      },
      "human_approved": {
       "default": false,
@@ -7609,6 +7630,7 @@
      "empirical",
      "emerging_signal_discovery",
      "merged",
+     "stock_inference",
      "manual"
     ],
     "title": "DerivationMethod",
@@ -20761,6 +20783,14 @@
      "description": {
       "title": "Description",
       "type": "string"
+     },
+     "kpis": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/FieldDefinition"
+      },
+      "title": "Kpis",
+      "type": "array"
      },
      "name": {
       "title": "Name",

@@ -24,8 +24,9 @@ FIXTURES = Path(__file__).parent / "fixtures" / "authority_taxonomy"
 NEW_ACTIVITY_FIELDS = {
     "value_chain_role": "core", "criteria": [], "citations": [], "out_of_scope_citations": [], "sector_codes": [],
     "contrast_statements": [],  # theme funnel (spec theme-funnel)
+    "contextual_keywords": [], "exclusion_keywords": [], "contextual_window_words": 50,  # taxonomy-from-stocks
 }
-NEW_THEME_FIELDS = {"scope": "", "technologies": [], "definitions": [], "thresholds": [], "checklist_report": {}}
+NEW_THEME_FIELDS = {"scope": "", "technologies": [], "definitions": [], "thresholds": [], "checklist_report": {}, "kpis": []}
 
 
 def test_old_taxonomy_json_loads():

@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, model_validator
 from arp.schemas.arbitration import ArbitrationResult
 from arp.schemas.authority_taxonomy import ActivityCriterion, Definition, SectorCode, SourceCitation, Technology, Threshold
 from arp.schemas.common import Citation, new_id, now_iso
+from arp.schemas.datapoints import FieldDefinition
 from arp.schemas.exposure import IndirectExposureResult
 from arp.schemas.rd_exposure import RDExposureResult
 from arp.schemas.revenue_exposure import RevenueExposureResult
@@ -65,6 +66,9 @@ class ActivityDefinition(BaseModel):
     seed_keywords: list[str] = Field(
         default_factory=list, description="Seed keywords/bigrams for evidence-chunk retrieval (Sautner et al. style)."
     )
+    contextual_keywords: list[str] = []
+    exclusion_keywords: list[str] = []
+    contextual_window_words: int = 50
     core_isic_codes: list[str] = Field(
         default_factory=list,
         description=(
@@ -140,6 +144,7 @@ class ThemeDefinition(BaseModel):
     name: str
     description: str
     activities: list[ActivityDefinition] = Field(default_factory=list)
+    kpis: list[FieldDefinition] = []
     scope: str = ""
     technologies: list[Technology] = Field(default_factory=list)
     definitions: list[Definition] = Field(default_factory=list)
