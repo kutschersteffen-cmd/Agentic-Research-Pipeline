@@ -1,6 +1,6 @@
 # Transition barrier rule book
 
-Rule book version 2.
+Rule book version 3.
 
 # Power & Utilities
 
@@ -16,7 +16,7 @@ New solar PV and onshore wind (pwr.renewables) win new capacity on their own onl
 **Facts**
 
 - Renewable LCOE: Unsubsidised levelised cost of electricity of new utility-scale solar PV or onshore wind in the region, whichever is lower, for projects commissioned in the latest year reported (regional weighted average or central estimate), before tax credits, feed-in premiums or other support.
-- New-build fossil LCOE: Levelised cost of electricity of a new-build gas combined-cycle or coal plant in the region, whichever is lower, for the same year and preferably from the same source as the renewable figure; includes a carbon price only where that source's estimate does.
+- New-build fossil LCOE: Levelised cost of electricity of a new-build gas combined-cycle or coal plant in the region, whichever is lower, as the capacity-weighted regional average where the source gives one, for the same year and preferably from the same source as the renewable figure; includes a carbon price only where that source's estimate does.
 - Subsidised renewable LCOE: The renewable LCOE above after the production or investment support available to new projects in the same year (for example US production tax credits or contract-for-difference support).
 - Renewable-to-fossil LCOE ratio: Unsubsidised renewable LCOE divided by new-build fossil LCOE: 1 is parity, 1.3 means renewables cost 30% more.
 

@@ -1,6 +1,6 @@
 """Retrieval recall against reviewer-approved citations (run mode) or a committed cases file (cases mode):
 does the evidence a field's extraction sees contain the gold span? No LLM calls, so retrieval settings can
-be compared cheaply."""
+be compared cheaply -- except with tree_context_enabled, which builds each document's tree first (free once stored)."""
 
 from __future__ import annotations
 
@@ -18,12 +18,15 @@ from arp.extraction.field_graph import field_evidence
 from arp.extraction.pipeline import load_run_schema
 from arp.golden_set.export import final_decisions
 from arp.grounding import _normalize, _normalize_with_offsets
+from arp.ingestion.doc_tree import _walk, build_doc_tree
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.local_files import LocalFileDocumentSource, parse_file_to_text_with_pages, parser_version
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.normalise.locale import decimal_for, detect_language
 from arp.presets.registry import PRESETS
 from arp.retrieval.content_store_factory import content_store_for
+from arp.retrieval.embeddings import EMBED_KEYS
+from arp.retrieval.rerank import RERANK_KEYS
 from arp.schemas.common import CompanyRef, DocType, DocumentChunk, SourceDocument
 from arp.schemas.review import DecisionKind, ReviewDecision, field_item_key, period_key
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
@@ -76,6 +79,15 @@ def recall_at(ranks: list[int | None], k: int) -> float | None:
     return sum(r is not None and r < k for r in ranks) / len(ranks) if ranks else None
 
 
+def _fell_back(explain: dict, evidence: list[DocumentChunk], settings: Settings) -> bool:
+    """The requested embedder, or the requested reranker, did not rank this field (local MiniLM or a local
+    cross-encoder is the requested model, so not a fallback)."""
+    embedder = explain.get("embed_model")
+    if embedder is not None and embedder != EMBED_KEYS[settings.embed_model]:
+        return True
+    return bool(settings.rerank_enabled and evidence and explain.get("rerank_model") != RERANK_KEYS[settings.rerank_model])
+
+
 def _registry(documents_dir: Path, settings: Settings) -> DocumentSourceRegistry:
     """The same local source `golden-set precision` reads, so doc_ids match the run's citations."""
     return DocumentSourceRegistry([LocalFileDocumentSource(
@@ -86,8 +98,31 @@ def _registry(documents_dir: Path, settings: Settings) -> DocumentSourceRegistry
     )])
 
 
+class _TreeCount:
+    """With tree_context_enabled: builds (or reads) each document's tree once and counts its non-root nodes
+    and those without a summary; off, does nothing."""
+
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+        self.seen: set[str] = set()
+        self.nodes = self.unsummarised = 0
+
+    async def add(self, documents: list[SourceDocument]) -> None:
+        if not self.settings.tree_context_enabled:
+            return
+        for doc in documents:
+            if doc.doc_id in self.seen:
+                continue
+            self.seen.add(doc.doc_id)
+            tree = await asyncio.to_thread(build_doc_tree, doc, self.settings)
+            nodes = [n for n in _walk(tree.root) if n is not tree.root]
+            self.nodes += len(nodes)
+            self.unsummarised += sum(n.summary is None for n in nodes)
+
+
 async def run_retrieval_eval(
-    run_store: RunStore, run_id: str, decisions: list[ReviewDecision], *, documents_dir: Path, settings: Settings
+    run_store: RunStore, run_id: str, decisions: list[ReviewDecision], *, documents_dir: Path, settings: Settings,
+    count_fallback: bool = False,
 ) -> dict:
     schema = load_run_schema(run_store, run_id)
     if schema is None:
@@ -99,12 +134,14 @@ async def run_retrieval_eval(
     ranks: list[int | None] = []
     seconds: list[float] = []
     misses: list[dict] = []
-    stale = 0
+    stale = fallback = 0
+    trees = _TreeCount(settings)
     by_company: dict[str, list[GoldSpan]] = {}
     for g in gold:
         by_company.setdefault(g.company_id, []).append(g)
     for company_id, spans in by_company.items():
         documents = await registry.fetch_all(companies.get(company_id) or CompanyRef(company_id=company_id, name=company_id))
+        await trees.add(documents)
         texts = {d.doc_id: d.full_text for d in documents}
         by_field: dict[str, list[GoldSpan]] = {}
         for g in spans:
@@ -117,21 +154,24 @@ async def run_retrieval_eval(
             by_field.setdefault(g.field_id, []).append(g)
         for field_id, field_spans in by_field.items():
             started = time.perf_counter()
-            evidence = field_evidence(fields[field_id], documents, settings)
+            explain: dict = {}
+            evidence = field_evidence(fields[field_id], documents, settings, explain=explain)
             seconds.append(time.perf_counter() - started)
+            fallback += _fell_back(explain, evidence, settings)
             for g in field_spans:
                 rank = hit_rank(evidence, g)
                 ranks.append(rank)
                 if rank is None:
                     misses.append({"company_id": company_id, "field_id": field_id, "doc_id": g.doc_id,
                                    "char_start": g.char_start, "char_end": g.char_end})
-    return _report(run_id, settings, ranks, stale, seconds, misses)
+    return _report(run_id, settings, ranks, stale, seconds, misses, trees, fallback if count_fallback else None)
 
 
 def _report(run_id: str | None, settings: Settings, ranks: list[int | None], stale: int, seconds: list[float],
-            misses: list[dict]) -> dict:
+            misses: list[dict], trees: _TreeCount, fallback: int | None) -> dict:
+    """`fallback` (fields whose requested embedder or reranker did not run) is reported only when given."""
     k = settings.evidence_max_chunks
-    return {
+    report = {
         "run_id": run_id,
         "settings": {"hybrid_retrieval_enabled": settings.hybrid_retrieval_enabled, "rerank_enabled": settings.rerank_enabled,
                      "rerank_candidates": settings.rerank_candidates, "evidence_max_chunks": k,
@@ -145,6 +185,10 @@ def _report(run_id: str | None, settings: Settings, ranks: list[int | None], sta
         "max_seconds_per_field": max(seconds) if seconds else None,
         "misses": misses,
     }
+    if settings.tree_context_enabled:  # off: the report stays byte-identical to before tree context
+        report["settings"]["tree_context_enabled"] = True
+        report.update(tree_nodes=trees.nodes, tree_nodes_without_summary=trees.unsummarised)
+    return report if fallback is None else report | {"fallback_fields": fallback}
 
 
 def _sha256(path: Path) -> str:
@@ -192,6 +236,7 @@ def _parse(path: Path, company_id: str, store: DocumentContentStore) -> SourceDo
         doc_id=derive_doc_id(company_id, doc_type.value, parsed.content_key), company_id=company_id,
         doc_type=doc_type, title=path.name, local_path=str(path), full_text=parsed.full_text,
         page_breaks=parsed.page_breaks, table_spans=parsed.table_spans, language=language, decimal=decimal_for(language),
+        content_key=parsed.content_key, parser_version=parser_version(),  # the key the app stores its tree under
     )
 
 
@@ -199,7 +244,9 @@ def _contains(chunk_text: str, span_text: str) -> bool:
     return _normalize(span_text) in _normalize(chunk_text)
 
 
-async def run_cases_retrieval_eval(cases_file: Path, *, documents_dir: Path, settings: Settings) -> dict:
+async def run_cases_retrieval_eval(
+    cases_file: Path, *, documents_dir: Path, settings: Settings, count_fallback: bool = False
+) -> dict:
     """Cases mode: gold spans are text in a committed cases file, so CI can run it without a reviewed run (Postgres
     is still needed: the content store opens its document registry there, and hybrid retrieval keeps embeddings there).
     A span is hit at the first evidence chunk of its document that contains it after grounding's
@@ -210,7 +257,8 @@ async def run_cases_retrieval_eval(cases_file: Path, *, documents_dir: Path, set
     ranks: list[int | None] = []
     seconds: list[float] = []
     misses: list[dict] = []
-    stale = 0
+    stale = fallback = 0
+    trees = _TreeCount(settings)
     store = content_store_for(settings)
     by_company: dict[str, list[dict]] = {}
     for c in cases:
@@ -219,6 +267,7 @@ async def run_cases_retrieval_eval(cases_file: Path, *, documents_dir: Path, set
         names = dict.fromkeys(c["document"] for c in company_cases)
         parsed = [await asyncio.to_thread(_parse, documents_dir / company_id / name, company_id, store) for name in names]
         documents = [d for d in parsed if d is not None]
+        await trees.add(documents)
         by_title = {d.title: d for d in documents}
         for c in company_cases:
             field = schemas[c["schema_id"]][c["field_id"]]
@@ -230,12 +279,14 @@ async def run_cases_retrieval_eval(cases_file: Path, *, documents_dir: Path, set
             if not live:
                 continue
             started = time.perf_counter()
-            evidence = field_evidence(field, documents, settings)
+            explain: dict = {}
+            evidence = field_evidence(field, documents, settings, explain=explain)
             seconds.append(time.perf_counter() - started)
+            fallback += _fell_back(explain, evidence, settings)
             for span in live:
                 rank = next((i for i, e in enumerate(evidence) if e.doc_id == doc.doc_id and _contains(e.text, span)), None)
                 ranks.append(rank)
                 if rank is None:
                     misses.append({"case_id": c["case_id"], "company_id": company_id, "field_id": field.field_id,
                                    "document": c["document"], "span_text": span})
-    return _report(None, settings, ranks, stale, seconds, misses)
+    return _report(None, settings, ranks, stale, seconds, misses, trees, fallback if count_fallback else None)

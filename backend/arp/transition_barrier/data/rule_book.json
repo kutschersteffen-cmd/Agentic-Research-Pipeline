@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "fingerprint": "860cd95e14a3db5b843b986e35d80212afe8cdf57cf87505c0b7d4a5b0fda000",
+  "version": 3,
+  "fingerprint": "d5f887a3404865ed785952ce8b275c52d7f55af4c7f9f21d265f622599917651",
   "history": [
     {
       "version": 1,
@@ -13,6 +13,12 @@
       "fingerprint": "860cd95e14a3db5b843b986e35d80212afe8cdf57cf87505c0b7d4a5b0fda000",
       "approved_by": "kutschersteffen-cmd",
       "approved_at": "2026-10-18"
+    },
+    {
+      "version": 3,
+      "fingerprint": "d5f887a3404865ed785952ce8b275c52d7f55af4c7f9f21d265f622599917651",
+      "approved_by": "kutschersteffen-cmd",
+      "approved_at": "2026-11-05"
     }
   ],
   "actions": {
@@ -317,7 +323,7 @@
           "label": "New-build fossil LCOE",
           "type": "number",
           "unit": "USD/MWh",
-          "definition": "Levelised cost of electricity of a new-build gas combined-cycle or coal plant in the region, whichever is lower, for the same year and preferably from the same source as the renewable figure; includes a carbon price only where that source's estimate does.",
+          "definition": "Levelised cost of electricity of a new-build gas combined-cycle or coal plant in the region, whichever is lower, as the capacity-weighted regional average where the source gives one, for the same year and preferably from the same source as the renewable figure; includes a carbon price only where that source's estimate does.",
           "max_age_days": 730
         },
         {

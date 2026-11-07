@@ -735,6 +735,7 @@ export type DerivationMethod =
   | "empirical"
   | "emerging_signal_discovery"
   | "merged"
+  | "stock_inference"
   | "manual";
 
 export type TaxonomyStatus = "draft" | "ratified";

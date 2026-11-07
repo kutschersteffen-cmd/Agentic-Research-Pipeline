@@ -123,6 +123,7 @@ def input_settings(settings: Settings) -> dict:
         **({"vision_fallback_enabled": True} if settings.vision_fallback_enabled else {}),
         **({"section_chunking_enabled": True} if settings.section_chunking_enabled else {}),
         **({"context_headers_enabled": True} if settings.context_headers_enabled else {}),
+        **({"tree_context_enabled": True} if settings.context_headers_enabled and settings.tree_context_enabled else {}),
         **({"small_to_big_enabled": True} if settings.small_to_big_enabled else {}),
         **({"evidence_gate_model": settings.evidence_gate_model} if settings.evidence_gate_enabled else {}),
     }

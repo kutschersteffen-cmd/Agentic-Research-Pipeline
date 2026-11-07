@@ -40,7 +40,7 @@ ALLOWED = {
 CORRECTED_KEYS = {
     "value": {"value", "unit", "period_end"},
     "restatement_candidate": {"value", "unit", "period_end"},
-    "identity": {"value", "resolved_website", "resolved_cik"},
+    "identity": {"value", "resolved_website", "resolved_cik", "resolved_lei"},
     "sector_code": {"isic_code"},
     "security": {"value"},
 }
@@ -129,8 +129,12 @@ def _check_kind(kind: str, req: ItemDecisionRequest, principal: Principal) -> No
         raise DecisionError(422, f"corrected_value needs {_REQUIRED_KEY[kind]!r}")
     if kind in ("value", "restatement_candidate") and req.correction_citation is None:
         raise DecisionError(422, "a correction needs a citation")
-    if kind == "identity" and not (req.corrected_value.get("resolved_website") or req.corrected_value.get("resolved_cik")):
-        raise DecisionError(422, "an identity correction needs resolved_website or resolved_cik")
+    if kind == "identity" and not any(req.corrected_value.get(k) for k in ("resolved_website", "resolved_cik", "resolved_lei")):
+        raise DecisionError(422, "an identity correction needs resolved_website, resolved_cik or resolved_lei")
+    if kind == "identity" and req.corrected_value.get("resolved_lei") is not None and not lei_is_valid(
+        normalise_lei(str(req.corrected_value["resolved_lei"]))
+    ):
+        raise DecisionError(422, "an identity correction needs a valid LEI")
     if kind == "security" and not lei_is_valid(normalise_lei(str(req.corrected_value["value"] or ""))):
         raise DecisionError(422, "a security correction needs a valid LEI")
     if kind in ("identity", "sector_code", "security") and not (req.comment or "").strip():
@@ -231,6 +235,8 @@ def _decide_locked(
     corrected = req.corrected_value
     if kind == "security" and req.decision == "correct":
         corrected = {"value": normalise_lei(str(corrected["value"]))}  # a case-only difference is agreement
+    if kind == "identity" and req.decision == "correct" and corrected.get("resolved_lei") is not None:
+        corrected = {**corrected, "resolved_lei": normalise_lei(str(corrected["resolved_lei"]))}
     snapshot_id = write_snapshot(run_store, run_id, bundle)
     append_decision(run_store, run_id, ReviewDecision(
         item_key=item_key, decision=req.decision, reason_code=req.reason_code, reviewer=principal.name,

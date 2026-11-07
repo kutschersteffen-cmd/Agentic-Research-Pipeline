@@ -249,7 +249,7 @@ jobs:
 
   # Recall of the committed retrieval gold set (spec retrieval-gold-set-and-question-queries). Default settings
   # (hybrid on, rerank off), no model calls, no API key. The floor is main's recall@12 when this shipped minus
-  # 0.02 (main 0.647 with hybrid on and context headers on); raise it by hand when retrieval gets better.
+  # 0.02 (0.721 with hybrid, context headers and small-to-big on); raise it by hand when retrieval gets better.
   retrieval-recall:
     name: Retrieval recall
     needs: retrieval-scope
@@ -294,6 +294,9 @@ jobs:
           # pyproject only has ranges: key the cache on what resolved, since parses and embeddings depend on it
           pip show docling docling-core docling-ibm-models fastembed onnxruntime tokenizers \
             | grep -E '^(Name|Version):' >.retrieval-cache-deps.txt
+          # the only model this CPU job embeds with; the cache holds its vectors
+          python -c "from arp.models.registry import entry, model_header; print(model_header(entry('embed')))" \
+            >.retrieval-embed-model.txt
 
       - name: Private NLTK data (nltk >= 3.10.4 refuses shared dirs)
         run: . "$GITHUB_WORKSPACE/.github/scripts/private_nltk_data.sh"
@@ -309,7 +312,7 @@ jobs:
             backend/tests/golden/retrieval/documents
             backend/.document_store
             ~/.cache/huggingface
-          key: retrieval-recall-${{ hashFiles('backend/tests/golden/retrieval/documents.json', 'backend/pyproject.toml', 'backend/.retrieval-cache-deps.txt', 'backend/arp/ingestion/local_files.py', 'backend/arp/retrieval/embeddings.py') }}
+          key: retrieval-recall-${{ hashFiles('backend/tests/golden/retrieval/documents.json', 'backend/pyproject.toml', 'backend/.retrieval-cache-deps.txt', 'backend/arp/ingestion/local_files.py', 'backend/.retrieval-embed-model.txt') }}
 
       - name: Run the retrieval gold set
         run: |
@@ -320,7 +323,7 @@ jobs:
           if [ -f .document_store/chunk_embeddings.csv ]; then
             psql "$pg" -qc "\copy chunk_embeddings from '.document_store/chunk_embeddings.csv' csv"
           fi
-          arp golden-set retrieval --cases tests/golden/retrieval/cases.json --min-recall 0.627 \
+          arp golden-set retrieval --cases tests/golden/retrieval/cases.json --min-recall 0.701 \
             | tee -a "$GITHUB_STEP_SUMMARY"
           psql "$pg" -qc "\copy chunk_embeddings to '.document_store/chunk_embeddings.csv' csv"
 

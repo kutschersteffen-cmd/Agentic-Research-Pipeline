@@ -18,8 +18,9 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import NotResumable, check_resumable
 from arp.research.revenue_exposure.resolver import RevenueResolverContext, resolve_company_activity_exposure
-from arp.research.taxonomy_schema import build_taxonomy_schema
+from arp.research.taxonomy_schema import EVIDENCE_KEYS, _evidence_field, activity_fields, build_taxonomy_schema
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
+from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
 from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyStatus
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 from arp.storage.run_store import RunStore
@@ -42,13 +43,50 @@ def _taxonomy(version=1, status=TaxonomyStatus.RATIFIED, keywords=None) -> Taxon
 
 # --- build_taxonomy_schema ---------------------------------------------------
 
+def _kpi(fid):
+    return FieldDefinition(field_id=fid, name=fid, description="d", data_type=FieldDataType.NUMBER, extraction_instructions="x")
+
+
+def _expected(t):  # every per-activity field (percentages, then stage evidence from #333)
+    return [f for a in t.theme.activities for f in [*activity_fields(a, t.taxonomy_id, t.version),
+            *(_evidence_field(t.taxonomy_id, t.version, a, k) for k in EVIDENCE_KEYS)]]
+
+
+def test_schema_without_kpis_is_activity_fields_only():  # AC-40
+    t = _taxonomy()
+    assert build_taxonomy_schema(t).fields == _expected(t)
+
+
+def test_schema_appends_theme_kpis_after_activity_fields():  # AC-41
+    t = _taxonomy()
+    t.theme.kpis = [_kpi("k1"), _kpi("k2")]
+    assert build_taxonomy_schema(t).fields == _expected(t) + t.theme.kpis
+
+
+def test_schema_kpis_carry_the_taxonomy_version():  # a later ratified version must not clash with released fields
+    t = _taxonomy(version=3)
+    t.theme.kpis = [_kpi("k1")]
+    assert {f.version for f in build_taxonomy_schema(t).fields} == {3}
+
+
+def test_old_theme_without_new_keys_loads():
+    t = ThemeDefinition.model_validate({"name": "G", "description": "", "activities": [
+        {"name": "a", "in_scope_description": "i", "out_of_scope_description": "o"}]})
+    a = t.activities[0]
+    assert (t.kpis, a.contextual_keywords, a.exclusion_keywords, a.contextual_window_words) == ([], [], [], 50)
+    assert DerivationMethod("stock_inference") is DerivationMethod.STOCK_INFERENCE
+
+
 def test_schema_has_four_fields_per_activity_in_order():
+    # Changed with the stage-evidence spec: the 4 percentage fields now lead each activity's 16 fields.
     schema = build_taxonomy_schema(_taxonomy())
     assert (schema.schema_id, schema.name, schema.description) == ("sch_tax_a_v1", "Grid v1", "Generated from taxonomy tax_a v1.")
-    assert [f.field_id for f in schema.fields] == [
+    pct = [f for f in schema.fields if f.field_id.endswith("_pct")]
+    assert [f.field_id for f in pct] == [
         f"tax_a_{a}_{m}_pct" for a in ("act_1", "act_2") for m in ("revenue", "capex", "opex", "rd")
     ]
-    assert {(f.data_type.value, f.unit, f.required, f.version) for f in schema.fields} == {("percentage", "%", False, 1)}
+    assert [f.field_id for f in schema.fields[:4]] == [f.field_id for f in pct[:4]]
+    assert {(f.data_type.value, f.unit, f.required, f.version) for f in pct} == {("percentage", "%", False, 1)}
     assert [f.name for f in schema.fields[:4]] == [
         "HV cables: revenue share", "HV cables: CapEx share", "HV cables: OpEx share", "HV cables: R&D intensity",
     ]
@@ -122,7 +160,7 @@ def test_ratify_registers_the_schema_and_never_fails_because_of_it(api, monkeypa
     res = client.post(f"/api/taxonomies/{tid}/ratify", json={"version": 2})
     assert res.status_code == 200 and res.json()["status"] == "ratified"
     schema = client.get(f"/api/taxonomies/{tid}/versions/2/schema").json()
-    assert len(schema["fields"]) == 4 and {f["version"] for f in schema["fields"]} == {2} and schema["release_flag"] is False
+    assert len(schema["fields"]) == 16 and {f["version"] for f in schema["fields"]} == {2} and schema["release_flag"] is False  # 4 pct + 12 stage-evidence fields
 
     monkeypatch.setattr(SchemaRegistry, "save", lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("no db")))
     assert client.post(f"/api/taxonomies/{tid}/ratify", json={"version": 1}).status_code == 200
@@ -246,3 +284,19 @@ def test_industry_anchored_taxonomy_needs_an_input_output_model(api):
     res = client.post("/api/taxonomies", json={"name": "t", "derivation_method": "industry_anchored", "use_sample_io": False})
     assert (res.status_code, res.json()["detail"]) == (
         400, "No input-output data available: run arp io build-full and set ARP_VALUE_CHAIN_DIR, or set use_sample_io.")
+
+
+def test_registered_schema_unchanged_until_regenerated(api):
+    """Stage-evidence spec AC-10/AC-10b: a schema registered before the change keeps its fields; a new POST adds a version."""
+    client, tid, registry, _ = api
+    store_taxonomy = client.get(f"/api/taxonomies/{tid}").json()
+    assert store_taxonomy  # v1 exists and is ratified (fixture)
+    first = client.post(f"/api/taxonomies/{tid}/versions/1/schema").json()
+    old_shape = DataPointSchema.model_validate(first).model_copy(
+        update={"fields": [f for f in DataPointSchema.model_validate(first).fields if f.field_id.endswith("_pct")]}
+    )
+    old = registry.save(old_shape)
+    got = client.get(f"/api/taxonomies/{tid}/versions/1/schema").json()
+    assert got["version"] == old.version and len(got["fields"]) == 8
+    regenerated = client.post(f"/api/taxonomies/{tid}/versions/1/schema").json()
+    assert len(regenerated["fields"]) == 32 and regenerated["version"] == old.version + 1

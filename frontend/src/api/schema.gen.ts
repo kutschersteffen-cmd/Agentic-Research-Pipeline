@@ -6917,8 +6917,7 @@ export interface paths {
          * @description Saves an arbitrary file (a fund/index holdings export, in whatever
          *     format the provider gives it) and returns its server-side path,
          *     without attempting to parse it as anything -- the path can then be
-         *     passed as `holdings_path` to a taxonomy creation request
-         *     (derivation_method=etf_index_holdings) or to POST /api/etf-overlap.
+         *     passed to POST /api/etf-overlap.
          */
         post: operations["raw_upload_api_universe_raw_upload_post"];
         delete?: never;
@@ -7871,6 +7870,21 @@ export interface components {
             /** Citations */
             citations?: components["schemas"]["SourceCitation"][];
             /**
+             * Contextual Keywords
+             * @default []
+             */
+            contextual_keywords: string[];
+            /**
+             * Contextual Window Words
+             * @default 50
+             */
+            contextual_window_words: number;
+            /**
+             * Contrast Statements
+             * @description Extra negative statements for the theme funnel's NLI step (next to out_of_scope_description), e.g. 'The company buys or operates electrolysers made by another company'.
+             */
+            contrast_statements?: string[];
+            /**
              * Core Isic Codes
              * @description ISIC Rev.4 industry codes that make up this activity's core value-chain sectors, used for input-output-based indirect exposure scoring. Empty means the indirect-exposure tier is skipped for this activity. Populate via `arp theme classify-sectors` or supply by hand.
              */
@@ -7883,6 +7897,11 @@ export interface components {
              * @default false
              */
             criticality_flag: boolean;
+            /**
+             * Exclusion Keywords
+             * @default []
+             */
+            exclusion_keywords: string[];
             /**
              * Human Approved
              * @description Per-activity curation sign-off, distinct from the taxonomy-level Taxonomy.status/ratified_by -- lets a reviewer approve individual activities within an otherwise-draft taxonomy. Requires a source_citation and a substantive in_scope_description; see the validator below.
@@ -10457,8 +10476,6 @@ export interface components {
              * @default
              */
             description: string;
-            /** Holdings Path */
-            holdings_path?: string | null;
             /**
              * Mine News
              * @default true
@@ -10466,11 +10483,6 @@ export interface components {
             mine_news: boolean;
             /** Name */
             name: string;
-            /**
-             * Sample Size
-             * @default 25
-             */
-            sample_size: number;
             /**
              * Source Notes
              * @default
@@ -10981,7 +10993,7 @@ export interface components {
          * DerivationMethod
          * @enum {string}
          */
-        DerivationMethod: "llm_draft" | "industry_anchored" | "authority_source" | "etf_index_holdings" | "news_transcript_mining" | "empirical" | "emerging_signal_discovery" | "merged" | "manual";
+        DerivationMethod: "llm_draft" | "industry_anchored" | "authority_source" | "etf_index_holdings" | "news_transcript_mining" | "empirical" | "emerging_signal_discovery" | "merged" | "stock_inference" | "manual";
         /**
          * DerivedRule
          * @description A boolean computed from other boolean fields by three-valued logic; never extracted.
@@ -16390,6 +16402,11 @@ export interface components {
             definitions?: components["schemas"]["Definition"][];
             /** Description */
             description: string;
+            /**
+             * Kpis
+             * @default []
+             */
+            kpis: components["schemas"]["FieldDefinition"][];
             /** Name */
             name: string;
             /**

@@ -117,7 +117,7 @@
         {
           "kind": "10-k",
           "fiscal_year": 2025,
-          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=PLUG&type=10-K&dateb=&owner=include&count=10"
+          "url": "https://www.sec.gov/Archives/edgar/data/1093691/000110465926022286/plug-20251231x10k.htm"
         }
       ],
       "split": "tune"
@@ -249,7 +249,7 @@
         {
           "kind": "10-k",
           "fiscal_year": 2025,
-          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=BE&type=10-K&dateb=&owner=include&count=10"
+          "url": "https://www.sec.gov/Archives/edgar/data/1664703/000162828026006516/be-20251231.htm"
         }
       ],
       "split": "tune"
@@ -323,7 +323,7 @@
         {
           "kind": "20-f",
           "fiscal_year": 2025,
-          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=HTOO&type=20-F&dateb=&owner=include&count=10"
+          "url": "https://www.sec.gov/Archives/edgar/data/1819794/000149315226021722/form20-f.htm"
         }
       ],
       "split": "holdout"
@@ -568,7 +568,7 @@
         {
           "kind": "10-k",
           "fiscal_year": 2025,
-          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=CMI&type=10-K&dateb=&owner=include&count=10"
+          "url": "https://www.sec.gov/Archives/edgar/data/26172/000002617226000009/cmi-20251231.htm"
         }
       ],
       "split": "holdout"
@@ -642,7 +642,7 @@
         {
           "kind": "10-k",
           "fiscal_year": 2025,
-          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=LIN&type=10-K&dateb=&owner=include&count=10"
+          "url": "https://www.sec.gov/Archives/edgar/data/1707925/000162828026011430/lin-20251231.htm"
         }
       ],
       "split": "holdout"
@@ -680,7 +680,7 @@
         {
           "kind": "10-k",
           "fiscal_year": 2025,
-          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=APD&type=10-K&dateb=&owner=include&count=10"
+          "url": "https://www.sec.gov/Archives/edgar/data/2969/000000296925000055/apd-20250930.htm"
         }
       ],
       "split": "holdout"
@@ -718,7 +718,7 @@
         {
           "kind": "20-f",
           "fiscal_year": 2025,
-          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=SHEL&type=20-F&dateb=&owner=include&count=10"
+          "url": "https://www.sec.gov/Archives/edgar/data/1306965/000162828026017024/shel-20251231.htm"
         }
       ],
       "split": "holdout"
@@ -737,7 +737,7 @@
         {
           "kind": "40-f",
           "fiscal_year": 2025,
-          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=BLDP&type=40-F&dateb=&owner=include&count=10"
+          "url": "https://www.sec.gov/Archives/edgar/data/1453015/000162828026017045/bldp-20251231_d2.htm"
         }
       ],
       "split": "tune"
@@ -794,7 +794,7 @@
         {
           "kind": "10-k",
           "fiscal_year": 2025,
-          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=MLM&type=10-K&dateb=&owner=include&count=10"
+          "url": "https://www.sec.gov/Archives/edgar/data/916076/000119312526059193/mlm-20251231.htm"
         }
       ],
       "split": "tune"
@@ -832,7 +832,7 @@
         {
           "kind": "10-k",
           "fiscal_year": 2025,
-          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=FCEL&type=10-K&dateb=&owner=include&count=10"
+          "url": "https://www.sec.gov/Archives/edgar/data/886128/000110465925122302/fcel-20251031x10k.htm"
         }
       ],
       "split": "tune"
@@ -870,7 +870,7 @@
         {
           "kind": "10-k",
           "fiscal_year": 2025,
-          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=CC&type=10-K&dateb=&owner=include&count=10"
+          "url": "https://www.sec.gov/Archives/edgar/data/1627223/000119312526065201/cc-20251231.htm"
         }
       ],
       "split": "tune"

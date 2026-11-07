@@ -403,6 +403,27 @@
       "title": "Citations",
       "type": "array"
      },
+     "contextual_keywords": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Contextual Keywords",
+      "type": "array"
+     },
+     "contextual_window_words": {
+      "default": 50,
+      "title": "Contextual Window Words",
+      "type": "integer"
+     },
+     "contrast_statements": {
+      "description": "Extra negative statements for the theme funnel's NLI step (next to out_of_scope_description), e.g. 'The company buys or operates electrolysers made by another company'.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Contrast Statements",
+      "type": "array"
+     },
      "core_isic_codes": {
       "description": "ISIC Rev.4 industry codes that make up this activity's core value-chain sectors, used for input-output-based indirect exposure scoring. Empty means the indirect-exposure tier is skipped for this activity. Populate via `arp theme classify-sectors` or supply by hand.",
       "items": {
@@ -423,6 +444,14 @@
       "description": "Set when this activity represents a scarce or geopolitically concentrated input whose importance a pure input-output linkage-strength ranking would understate (e.g. a USGS/IEA-flagged critical mineral). Populated by the criticality overlay, not by hand.",
       "title": "Criticality Flag",
       "type": "boolean"
+     },
+     "exclusion_keywords": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Exclusion Keywords",
+      "type": "array"
      },
      "human_approved": {
       "default": false,
@@ -6560,17 +6589,6 @@
       "title": "Description",
       "type": "string"
      },
-     "holdings_path": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Holdings Path"
-     },
      "mine_news": {
       "default": true,
       "title": "Mine News",
@@ -6579,11 +6597,6 @@
      "name": {
       "title": "Name",
       "type": "string"
-     },
-     "sample_size": {
-      "default": 25,
-      "title": "Sample Size",
-      "type": "integer"
      },
      "source_notes": {
       "default": "",
@@ -7617,6 +7630,7 @@
      "empirical",
      "emerging_signal_discovery",
      "merged",
+     "stock_inference",
      "manual"
     ],
     "title": "DerivationMethod",
@@ -20769,6 +20783,14 @@
      "description": {
       "title": "Description",
       "type": "string"
+     },
+     "kpis": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/FieldDefinition"
+      },
+      "title": "Kpis",
+      "type": "array"
      },
      "name": {
       "title": "Name",
@@ -42363,7 +42385,7 @@
   },
   "/api/universe/raw-upload": {
    "post": {
-    "description": "Saves an arbitrary file (a fund/index holdings export, in whatever\nformat the provider gives it) and returns its server-side path,\nwithout attempting to parse it as anything -- the path can then be\npassed as `holdings_path` to a taxonomy creation request\n(derivation_method=etf_index_holdings) or to POST /api/etf-overlap.",
+    "description": "Saves an arbitrary file (a fund/index holdings export, in whatever\nformat the provider gives it) and returns its server-side path,\nwithout attempting to parse it as anything -- the path can then be\npassed to POST /api/etf-overlap.",
     "operationId": "raw_upload_api_universe_raw_upload_post",
     "requestBody": {
      "content": {
