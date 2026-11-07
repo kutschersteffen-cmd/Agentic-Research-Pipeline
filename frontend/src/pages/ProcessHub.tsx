@@ -255,6 +255,13 @@ function writeWalk(walk: Walk | null) {
  * state, what it hands on, and opens the screen that does it. */
 function ProcessFlow({ p, runs, flow }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
   const state = runs ? processState(p, runs, flow) : null;
+  const steps = (
+    <ol className="hub-flow">
+      {p.steps.map((s, i) => (
+        <StepCard key={`${s.tab}-${s.sub ?? ""}-${i}`} s={s} i={i} p={p} runs={runs} flow={flow} />
+      ))}
+    </ol>
+  );
   return (
     <section className="hub-process" aria-labelledby={`process-${p.id}`}>
       <div className="section-heading">
@@ -273,11 +280,15 @@ function ProcessFlow({ p, runs, flow }: { p: Process; runs: RunManifest[] | null
         <strong>Done when:</strong> {p.outcome}
       </p>
       {p.run && <RunProcess p={p} />}
-      <ol className="hub-flow">
-        {p.steps.map((s, i) => (
-          <StepCard key={`${s.tab}-${s.sub ?? ""}-${i}`} s={s} i={i} p={p} runs={runs} flow={flow} />
-        ))}
-      </ol>
+      {/* A process nobody has run is folded away so the ones with activity stand out; one click opens it. */}
+      {state === "idle" ? (
+        <details className="hub-process-fold">
+          <summary>Show {p.steps.length} steps</summary>
+          {steps}
+        </details>
+      ) : (
+        steps
+      )}
     </section>
   );
 }

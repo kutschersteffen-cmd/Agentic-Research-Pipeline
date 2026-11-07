@@ -1796,6 +1796,8 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .hub-step-handoff { margin-top: auto; padding-top: var(--s-1_5); border-top: 2px solid var(--panel-border); color: var(--muted); }
 .hub-step-handoff.manual { border-top-style: dashed; color: var(--mid); }
 .hub-process { margin-top: var(--s-4); }
+.hub-process-fold > summary { cursor: pointer; width: fit-content; min-height: 24px; margin-top: var(--s-2); color: var(--accent); font-size: var(--text-sm); }
+.hub-process-fold[open] > summary { margin-bottom: var(--s-1); }
 .hub-process .help-text { margin: 0; }
 .hub-screens { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: var(--s-4); }
 
