@@ -170,11 +170,11 @@ export function AuthorityDraftReview({ run, onRun }: { run: AuthorityRunState; o
       </section>
 
       <section><h3>Checklist report</h3>
-        <table>
+        <div style={{ overflowX: "auto" }}><table>
           <thead><tr><th>Source</th>{CHECKLIST_KEYS.map((k) => <th key={k}>{k}</th>)}</tr></thead>
           <tbody>{sources.map((s) => (
             <tr key={s}><td>{s}</td>{CHECKLIST_KEYS.map((k) => <td key={k}>{FOUND(draft.checklist_report?.[s]?.[k])}</td>)}</tr>))}</tbody>
-        </table>
+        </table></div>
       </section>
 
       <section><h3>Notes</h3><p className="muted">{run.notes || "None"}</p></section>

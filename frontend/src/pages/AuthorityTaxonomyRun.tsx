@@ -160,10 +160,10 @@ export function AuthorityTaxonomyRun({ runId }: { runId?: string }) {
     );
   }, [runId]);
 
-  if (!runId) return <div className="page"><StartFormView /></div>;
+  if (!runId) return <div className="page authority-run"><StartFormView /></div>;
   const view = missing ? "not_found" : run ? viewFor(run) : null;
   return (
-    <div className="page">
+    <div className="page authority-run">
       <p><a href="#/taxonomy">Taxonomy Library</a></p>
       {error && <p className="error-text" role="alert">{error}</p>}
       {view === null && !error && <p className="muted">Loading…</p>}
