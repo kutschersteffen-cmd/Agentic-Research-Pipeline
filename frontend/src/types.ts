@@ -133,6 +133,10 @@ export interface ActivityDefinition {
 
 export type StandardCodeMatch = Served<S["StandardCodeMatch"]>;
 
+export type AuthorityRunState = Served<S["RunState"]>;
+export type AuthorityDraft = Served<S["ThemeDefinition"]>;
+export type AuthorityRunRequest = S["AuthorityRunRequest"];
+
 export type GicsMatch = Served<S["GicsMatch"]>;
 
 export type ActivityStandardsMapping = Served<S["ActivityStandardsMapping"]>;
