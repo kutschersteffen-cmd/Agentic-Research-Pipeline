@@ -16,6 +16,9 @@ jobs:
   holdout:
     name: Holdout acceptance
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -52,12 +55,21 @@ jobs:
       - name: Point the app at the stand-in folder
         run: echo "ARP_STANDINS_DIR=$RUNNER_TEMP/standins" >>"$GITHUB_ENV"
 
-      - name: Check for the token
+      # Docs-only PRs (every file under docs/ or a *.md outside .claude/, the steward's risk:low set) skip
+      # the rest; the job still reports success, so a required check never stays pending.
+      - name: Check for the token and docs-only changes
         id: key
         env:
           KEY: ${{ secrets.HOLDOUT_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
-          if [ -n "$KEY" ]; then echo "present=true" >>"$GITHUB_OUTPUT"; else
+          files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate --jq '.[].filename') || files=""
+          code=$(printf '%s\n' "$files" | awk 'NF && !/^docs\// && !(/\.md$/ && !/^\.claude\//)' | wc -l)
+          if [ -n "$files" ] && [ "$code" -eq 0 ]; then
+            echo "present=false" >>"$GITHUB_OUTPUT"
+            echo "Holdout acceptance skipped: docs-only PR (every changed file is under docs/ or a *.md outside .claude/)."
+          elif [ -n "$KEY" ]; then echo "present=true" >>"$GITHUB_OUTPUT"; else
             echo "present=false" >>"$GITHUB_OUTPUT"
             echo "::warning title=Hidden tests not run::Add the HOLDOUT_TOKEN repository secret (read-only access to kutschersteffen-cmd/holdout)."
           fi
