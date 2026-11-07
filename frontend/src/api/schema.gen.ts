@@ -229,6 +229,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/authority-taxonomy/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload */
+        post: operations["upload_api_authority_taxonomy_uploads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bi/ask": {
         parameters: {
             query?: never;
@@ -8977,6 +8994,11 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_upload_api_authority_taxonomy_uploads_post */
+        Body_upload_api_authority_taxonomy_uploads_post: {
+            /** File */
+            file: string;
+        };
         /** Body_upload_api_holdings_upload_post */
         Body_upload_api_holdings_upload_post: {
             /** As Of */
@@ -15179,6 +15201,8 @@ export interface components {
             /** Candidates */
             candidates?: components["schemas"]["Candidate"][];
             draft?: components["schemas"]["ThemeDefinition"] | null;
+            /** Error */
+            error?: string | null;
             /**
              * Guidance
              * @default
@@ -15196,11 +15220,14 @@ export interface components {
              * @default
              */
             scope: string;
+            selection?: components["schemas"]["SourceSelection"] | null;
             /**
              * Stage
              * @enum {string}
              */
-            stage: "awaiting_sources" | "awaiting_review" | "accepted" | "cancelled";
+            stage: "discovering" | "awaiting_sources" | "extracting" | "awaiting_review" | "accepted" | "cancelled" | "failed";
+            /** Step Started At */
+            step_started_at?: string | null;
             /** Taxonomy Id */
             taxonomy_id?: string | null;
             /** Theme Key */
@@ -15718,6 +15745,19 @@ export interface components {
             field_id: string;
             /** Portfolio Source */
             portfolio_source?: string | null;
+        };
+        /** SourceSelection */
+        SourceSelection: {
+            /**
+             * Files
+             * @default []
+             */
+            files: string[];
+            /**
+             * Urls
+             * @default []
+             */
+            urls: string[];
         };
         /** SourcesRequest */
         SourcesRequest: {
@@ -16771,6 +16811,11 @@ export interface components {
             interaction_type?: components["schemas"]["InteractionType"] | null;
             /** Text */
             text?: string | null;
+        };
+        /** UploadResponse */
+        UploadResponse: {
+            /** Path */
+            path: string;
         };
         /** ValidateMeetingSummaryRequest */
         ValidateMeetingSummaryRequest: {
@@ -18244,6 +18289,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_api_authority_taxonomy_uploads_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_api_authority_taxonomy_uploads_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadResponse"];
                 };
             };
             /** @description Validation Error */
