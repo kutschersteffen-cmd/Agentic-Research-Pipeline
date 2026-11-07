@@ -47,6 +47,7 @@ export function ArgusStart() {
   const mine = filterRows(argusRows(runs ?? [], items, flows), { step: null, mineOf: onlyMine ? me : null });
   const shown = filterRows(mine, { step, mineOf: null });
   const wait = waiting(mine, items);
+  const empty = runs !== null && argusRows(runs, items, flows).length === 0 && wait.total === 0;
 
   return (
     <div className="page hub argus-start">
@@ -70,6 +71,19 @@ export function ArgusStart() {
       {startError && <p className="error-text" role="alert">The extraction could not be started: {startError}.</p>}
       {error && <p className="error-text" role="alert">Runs could not be loaded: {error}.</p>}
       {itemsError && <p className="error-text" role="alert">Review items could not be loaded: {itemsError}. Waiting counts are unknown.</p>}
+      {empty ? (
+        <div className="empty-state">
+          <p>No extractions yet.</p>
+          <p className="muted">
+            Start new extraction walks you through picking companies, gathering their documents, choosing the data points and
+            checking the results. Each run then shows up here with its step and anything waiting for you.
+          </p>
+          <p>
+            <a href="#/xbrl">Or browse XBRL Facts</a>
+          </p>
+        </div>
+      ) : (
+      <>
       <section className="argus-tiles" aria-label="Process">
         {tiles(mine, items).map((t) => (
           <a
@@ -152,6 +166,8 @@ export function ArgusStart() {
           <a href="#/review">Open the review list</a>
         </aside>
       </div>
+      </>
+      )}
     </div>
   );
 }

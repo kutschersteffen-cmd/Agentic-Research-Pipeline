@@ -95,6 +95,15 @@ export function RunHistory({ onOpenReview, focusRunId = null }: Props = {}) {
       {shownError && <p className="error-text" role="alert">{shownError}</p>}
       {summary && <p role="alert">{summary}</p>}
 
+      {loaded && runs.length === 0 ? (
+        <div className="empty-state">
+          <p>No runs{filter ? " of this type" : ""} yet.</p>
+          <p className="muted">
+            Every extraction, voting and research run lands here with its status, cost and anything awaiting a decision.{" "}
+            <a href="#/argus">Start an extraction in Argus</a>.
+          </p>
+        </div>
+      ) : (
       <section className="card">
         <div className="table-wrap">
           <table className="data-table">
@@ -111,9 +120,6 @@ export function RunHistory({ onOpenReview, focusRunId = null }: Props = {}) {
               </tr>
             </thead>
             <tbody>
-              {loaded && runs.length === 0 && (
-                <tr><td colSpan={8} className="muted">No runs{filter ? " of this type" : ""} yet.</td></tr>
-              )}
               {runs.map((r) => {
                 const runType = r.run_type;
                 return (
@@ -194,6 +200,7 @@ export function RunHistory({ onOpenReview, focusRunId = null }: Props = {}) {
           </table>
         </div>
       </section>
+      )}
     </div>
   );
 }

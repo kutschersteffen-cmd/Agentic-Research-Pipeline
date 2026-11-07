@@ -126,7 +126,13 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
         </div>
       )}
       {items !== null && shown.length === 0 && !error && (
-        <p className="muted">Nothing is waiting for review{filter ? " in this run" : ""}.</p>
+        <div className="empty-state">
+          <p>Nothing is waiting for review{filter ? " in this run" : ""}.</p>
+          <p className="muted">
+            Items land here when a run finishes with a low-confidence verdict or an ungrounded citation.{" "}
+            <a href="#/history">See recent runs</a>.
+          </p>
+        </div>
       )}
     </div>
   );

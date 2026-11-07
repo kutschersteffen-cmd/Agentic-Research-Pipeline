@@ -131,7 +131,11 @@ function RunResultsView() {
             ))}
           </select>
         </label>
-        {runs.length === 0 && <p className="muted">No {kind} runs recorded yet.</p>}
+        {runs.length === 0 && (
+          <p className="muted">
+            No {kind} runs recorded yet. Results appear here once a run finishes; <a href="#/argus">start one in Argus</a>.
+          </p>
+        )}
         {runId && (
           <div className="toolbar">
             <button onClick={() => loadResults()}>Refresh</button>

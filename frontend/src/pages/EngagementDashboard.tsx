@@ -122,18 +122,33 @@ export function EngagementDashboard() {
       <section className="card">
         <h2>Open a new issue</h2>
         <div className="inline-fields">
-          <input aria-label="Company ID" placeholder="Company ID (e.g. AAPL)" value={newCompanyId} onChange={(e) => setNewCompanyId(e.target.value)} />
-          <input aria-label="Company name" placeholder="Company name" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} />
-          <input aria-label="Sector" placeholder="Sector (optional)" value={newCompanySector} onChange={(e) => setNewCompanySector(e.target.value)} />
+          <label className="field-label">
+            Company ID
+            <input placeholder="e.g. AAPL" value={newCompanyId} onChange={(e) => setNewCompanyId(e.target.value)} />
+          </label>
+          <label className="field-label">
+            Company name
+            <input value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} />
+          </label>
+          <label className="field-label">
+            Sector (optional)
+            <input value={newCompanySector} onChange={(e) => setNewCompanySector(e.target.value)} />
+          </label>
         </div>
         <div className="inline-fields">
-          <input aria-label="Issue theme" placeholder="Issue theme (e.g. executive_compensation)" value={newIssueTheme} onChange={(e) => setNewIssueTheme(e.target.value)} />
-          <select aria-label="Severity" value={newIssueSeverity} onChange={(e) => setNewIssueSeverity(e.target.value as IssueSeverity)}>
-            <option value="low">low</option>
-            <option value="medium">medium</option>
-            <option value="high">high</option>
-          </select>
-          <button onClick={createRecordAndIssue} disabled={busy || !newCompanyId.trim() || !newCompanyName.trim()}>
+          <label className="field-label">
+            Issue theme
+            <input placeholder="e.g. executive_compensation" value={newIssueTheme} onChange={(e) => setNewIssueTheme(e.target.value)} />
+          </label>
+          <label className="field-label">
+            Severity
+            <select value={newIssueSeverity} onChange={(e) => setNewIssueSeverity(e.target.value as IssueSeverity)}>
+              <option value="low">low</option>
+              <option value="medium">medium</option>
+              <option value="high">high</option>
+            </select>
+          </label>
+          <button onClick={createRecordAndIssue} disabled={busy || !newCompanyId.trim() || !newCompanyName.trim()} title="Needs a company ID and name">
             Create
           </button>
         </div>

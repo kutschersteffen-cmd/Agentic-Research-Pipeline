@@ -249,7 +249,7 @@ td, .stat-value, .nav-count { font-variant-numeric: tabular-nums; }
   margin-top: 0;
 }
 .nav-tab-icon { display: flex; flex-shrink: 0; }
-.nav-tab-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-tab-label { overflow-wrap: anywhere; }
 .nav-tab:hover { background: var(--panel-border); }
 .nav-tab.active { background: var(--accent); color: var(--on-accent); font-weight: 600; }
 .nav-tab.active:hover { background: var(--accent); }
@@ -601,11 +601,8 @@ details.help-text[open] > summary { margin-bottom: var(--s-1); }
 .data-table th {
   text-align: left;
   color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 500;
+  font-size: var(--text-sm);
+  font-weight: 600;
   padding: var(--s-2);
   border-bottom: 1px solid var(--panel-border);
 }
@@ -1112,18 +1109,6 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 @media (max-width: 760px) {
   .sub-nav .nav-tab, .view-toggle button { min-height: 44px; }
 }
-/* In a hub the tabs are the page title: the active one names the screen, so
-   the page's own h1 stays for screen readers only instead of repeating it. */
-.hub-nav ~ .page > h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.hub-nav { gap: var(--s-1) var(--s-6); align-items: baseline; }
-.hub-nav .nav-tab, .hub-nav .nav-tab:hover, .hub-nav .nav-tab.active, .hub-nav .nav-tab.active:hover {
-  border: 0; box-shadow: none; background: none; padding: 0;
-  font-family: var(--font-display); font-size: clamp(1.75rem, 1.25rem + 1.4vw, 2.5rem); font-weight: 600; line-height: 1.05; letter-spacing: -0.03em;
-}
-.hub-nav .nav-tab { color: var(--muted); }
-.hub-nav .nav-tab:hover, .hub-nav .nav-tab.active { color: var(--text); }
-.hub-nav .nav-tab.active { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.15em; }
-@media (max-width: 640px) { .hub-nav .nav-tab, .hub-nav .nav-tab:hover, .hub-nav .nav-tab.active, .hub-nav .nav-tab.active:hover { font-size: var(--text-lg); } }
 
 .chart-svg { width: 100%; height: auto; overflow: visible; font-family: inherit; }
 .chart-axis-label { fill: var(--muted); font-size: var(--text-xs); }
@@ -2150,7 +2135,7 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-tile[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--text); }
 .argus-tile:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
 .argus-tile-await { border-color: var(--await-edge); background: var(--await); }
-.argus-tile-name { font-family: var(--font-mono); font-size: var(--text-sm); }
+.argus-tile-name { font-size: var(--text-sm); color: var(--muted); }
 .argus-tile-count { font-size: 2.5rem; font-weight: 500; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .argus-tile-needs { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--hi-ink); font-weight: 600; }
 .argus-body { display: grid; grid-template-columns: minmax(0, 1fr) 18rem; gap: var(--s-6); align-items: start; }
@@ -2159,7 +2144,12 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-waiting-total { font-size: 2.5rem; font-weight: 500; line-height: 1; margin: 0 0 var(--s-3); font-variant-numeric: tabular-nums; }
 .argus-waiting ul { padding-left: var(--s-4); }
 @media (max-width: 1100px) { .argus-body { grid-template-columns: 1fr; } }
-@media (max-width: 640px) { .argus-tiles { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .argus-tiles { grid-template-columns: 1fr; gap: var(--s-1); }
+  .argus-tile { flex-direction: row; flex-wrap: wrap; align-items: baseline; justify-content: space-between; padding: var(--s-2) var(--s-3); }
+  .argus-tile-count { font-size: var(--text-lg); }
+  .argus-tile-needs { flex-basis: 100%; }
+}
 
 /* Ask ARP: a right-hand panel over the page; full screen on phones. */
 .app-topbar-ask { margin-left: auto; min-height: 44px; padding: 0 var(--s-3); background: var(--panel); color: var(--text); border: 1px solid var(--panel-border); }
@@ -2264,3 +2254,14 @@ a.vc-box:hover { border-color: var(--text); }
 .passage-row .chip { background: none; } /* a hint, not a status: outline only */
 .plan-script { overflow-x: auto; max-width: 100%; }
 .table-wrap td.plan-inputs { white-space: normal; overflow-wrap: anywhere; min-width: 12rem; }
+
+/* An empty screen says what fills it and links to where that starts. */
+.empty-state { margin: var(--s-6) 0; padding: var(--s-6); border: 1px solid var(--panel-border); background: var(--panel); max-width: 40rem; }
+.empty-state > p { margin: 0 0 var(--s-2); }
+.empty-state > p:last-child { margin-bottom: 0; }
+/* Labelled fields in a row: the label stays visible once the field has a value. */
+.inline-fields > .field-label { flex: 1 1 12rem; margin: 0; }
+.inline-fields > .field-label > :is(input, select) { width: 100%; }
+.inline-fields:has(> .field-label) { align-items: end; }
+/* A dropdown's options are short: a full-width select on a wide screen hides how short. */
+.field-label > select { max-width: 32rem; }
