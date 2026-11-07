@@ -60,7 +60,7 @@ const TABS = [
   { id: "argus", label: "Argus" },
   { id: "argusUniverse", label: "Universe" },
   { id: "argusWalkthrough", label: "Walkthrough" },
-  { id: "transitionIntel", label: "Transition Intelligence Platform" },
+  { id: "transitionIntel", label: "Transition Intel" },
   { id: "rdLab", label: "R&D Lab" },
   { id: "dataHub", label: "Data Hub" },
   { id: "search", label: "Search" },

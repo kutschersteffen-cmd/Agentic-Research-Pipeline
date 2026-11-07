@@ -1693,7 +1693,6 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
   border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none;
   transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
-.hub-card-await { border-color: var(--text); }
 .hub-card:hover { border-color: var(--text); transform: translateY(-2px); }
 .hub-card:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .hub-card, .hub-card:hover { transition: none; transform: none; } }
@@ -1702,7 +1701,7 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .hub-card-await .hub-ico .hi { stroke: var(--hi); }
 .hub-card-await .hub-ico .hi-fill { fill: var(--hi); stroke: var(--hi); }
 .hub-card-text { display: flex; flex-direction: column; gap: var(--s-2); }
-.hub-card-name { font-size: 1.5rem; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; }
+.hub-card-name { min-height: 2lh; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; font-size: 1.5rem; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; }
 /* Three lines at most: the longest purpose set every card's height and pushed Now below the fold. */
 .hub-card-purpose { color: var(--muted); line-height: 1.45; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .hub-card-now { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--muted); min-height: 1.4em; }
@@ -1743,6 +1742,9 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 @media (max-width: 640px) {
   .hub-cards { grid-template-columns: 1fr; }
   .hub-card { min-height: 0; }
+  .hub-card { gap: var(--s-2); }
+  .hub-card .hub-ico { width: 28px; height: 28px; }
+  .hub-card-name { min-height: 0; font-size: 1.25rem; }
   .hub-card:last-child:nth-child(odd) { grid-column: auto; }
   .hub-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
   .hub-stats dd { font-size: 2rem; }
@@ -1761,12 +1763,21 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .hub-run ul { margin: var(--s-1) 0; }
 .hub-crumb { margin: 0 0 var(--s-1); font-size: var(--text-sm); color: var(--muted); }
 .hub-crumb a { color: var(--accent); }
-.hub-flow { list-style: none; display: flex; gap: 18px; margin: var(--s-4) 0 0; padding: 22px 18px; border: 1px solid var(--panel-border); border-radius: var(--r-md); background: radial-gradient(var(--panel-border) 1px, transparent 1px) 0 0 / 18px 18px, var(--panel); }
+.hub-flow { list-style: none; display: flex; gap: 18px; margin: var(--s-4) 0 0; padding: 0; }
 .hub-flow-item { flex: 1 1 0; min-width: 0; position: relative; display: flex; }
 /* The arrow into each step after the first, as on the extraction pipeline. */
 .hub-flow-item + .hub-flow-item::before { content: ""; position: absolute; left: -18px; top: 50%; width: 14px; height: 2px; background: var(--panel-border); }
 .hub-step { flex: 1; display: flex; flex-direction: column; gap: var(--s-1_5); padding: var(--s-2) var(--s-3); border: 1px solid var(--panel-border); border-radius: var(--r-md); background: var(--panel); color: inherit; text-decoration: none; font-size: var(--text-xs); }
 .hub-step:hover { border-color: var(--accent); }
+.hub-step-go { margin-left: auto; color: var(--muted); transition: transform 0.15s; }
+.hub-step:hover .hub-step-go { color: var(--accent); transform: translateX(2px); }
+.hub-step-planned { border-style: dashed; background: transparent; opacity: 0.7; }
+.hub-step-planned .chip { margin-left: auto; }
+.hub-process-meta { display: inline-flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.hub-process-state { display: inline-flex; align-items: center; gap: var(--s-1_5); font-size: var(--text-xs); color: var(--muted); }
+.hub-step-handoff-key { border-bottom: 2px dashed var(--panel-border); color: var(--mid); }
+.hub-screens .hub-chip { font-family: inherit; }
+@media (prefers-reduced-motion: reduce) { .hub-step-go { transition: none; } }
 .hub-step:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .hub-step-now { border-color: var(--text); }
 .hub-step-wait, .hub-step:has(.hub-step-banner), .hub-step-wait:hover, .hub-step:has(.hub-step-banner):hover { border-color: var(--await-edge); box-shadow: inset 0 0 0 1px var(--await-edge); }
@@ -2143,6 +2154,9 @@ a.vc-box:hover { border-color: var(--text); }
 .vc-activity { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); }
 
 /* Argus start page (pages/ArgusStart.tsx): five step tiles, runs beside what waits on you. */
+.argus-head h1 { margin: 0; }
+.argus-head + .help-text { margin-top: var(--s-1); }
+.argus-head-actions { display: inline-flex; align-items: center; gap: var(--s-4); }
 .argus-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-4); flex-wrap: wrap; }
 .argus-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s-3); margin: var(--s-6) 0 var(--s-8); }
 .argus-tile { display: flex; flex-direction: column; gap: var(--s-2); padding: 18px 20px; border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none; }
@@ -2151,15 +2165,22 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-tile:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
 .argus-tile-await { border-color: var(--await-edge); background: var(--await); }
 .argus-tile-name { font-family: var(--font-mono); font-size: var(--text-sm); }
+.argus-tile-num { display: inline-block; min-width: 22px; line-height: 22px; text-align: center; margin-right: var(--s-1); border-radius: var(--r-sm); background: var(--well); color: var(--muted); font-weight: 600; }
+.argus-tile-empty .argus-tile-count { font-size: 1.5rem; color: var(--muted); }
 .argus-tile-count { font-size: 2.5rem; font-weight: 500; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .argus-tile-needs { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--hi-ink); font-weight: 600; }
 .argus-body { display: grid; grid-template-columns: minmax(0, 1fr) 18rem; gap: var(--s-6); align-items: start; }
-.argus-mine { display: inline-flex; align-items: center; gap: var(--s-1_5); margin-bottom: var(--s-3); }
+.argus-mine { min-height: 24px; display: inline-flex; align-items: center; gap: var(--s-1_5); margin-bottom: var(--s-3); }
 .argus-waiting h2 { margin-top: 0; }
 .argus-waiting-total { font-size: 2.5rem; font-weight: 500; line-height: 1; margin: 0 0 var(--s-3); font-variant-numeric: tabular-nums; }
 .argus-waiting ul { padding-left: var(--s-4); }
 @media (max-width: 1100px) { .argus-body { grid-template-columns: 1fr; } }
-@media (max-width: 640px) { .argus-tiles { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .argus-tiles { grid-template-columns: 1fr; gap: var(--s-2); }
+  .argus-tile { flex-direction: row; justify-content: space-between; align-items: center; padding: var(--s-2) var(--s-3); }
+  .argus-tile-count, .argus-tile-empty .argus-tile-count { font-size: 1.25rem; }
+}
+.argus-start .data-table a, .argus-head-actions a { display: inline-block; min-height: 24px; line-height: 24px; }
 
 /* Ask ARP: a right-hand panel over the page; full screen on phones. */
 .app-topbar-ask { margin-left: auto; min-height: 44px; padding: 0 var(--s-3); background: var(--panel); color: var(--text); border: 1px solid var(--panel-border); }

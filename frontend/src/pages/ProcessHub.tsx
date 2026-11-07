@@ -6,7 +6,7 @@ import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { useMe } from "../lib/reviewer";
 import { useWaitingTotal } from "../lib/useWaitingTotal";
-import { DONE, STATE_LABEL, cardView, openCount, stepState, type StepState } from "../lib/workspaceCard";
+import { DONE, STATE_LABEL, cardView, openCount, processState, stepState, type StepState } from "../lib/workspaceCard";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
 
@@ -109,12 +109,12 @@ function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | 
     <a className={`hub-card${v.awaits ? " hub-card-await" : ""}`} href={`#/${w.id}`} aria-label={v.label}>
       {ICONS[w.id]}
       <span className="hub-card-text">
-        <span className="hub-card-name">{w.name}</span>
+        <span className="hub-card-name">{w.short ?? w.name}</span>
         <span className="hub-card-purpose" title={w.purpose}>{w.purpose}</span>
       </span>
       <ol className="hub-dots">
         {w.processes.map((p, i) => (
-          <li key={p.id} className={`hub-dot-${v.dots[i]}`} />
+          <li key={p.id} className={`hub-dot-${v.dots[i]}`} title={`${p.title}: ${v.dots[i] === "unknown" ? "status unknown" : STATE_LABEL[v.dots[i]]}`} />
         ))}
       </ol>
       <span className="hub-card-now">{v.now}</span>
@@ -181,10 +181,6 @@ export function StartPage() {
         )}
         </div>
         <dl className="hub-stats">
-          <div className={waiting ? "you" : undefined}>
-            <dt>waiting on you</dt>
-            <dd>{waiting ?? "—"}</dd>
-          </div>
           <div>
             <dt>running</dt>
             <dd>{n(active.length)}</dd>
@@ -258,11 +254,20 @@ function writeWalk(walk: Walk | null) {
 /** One process drawn as its steps in order: each card carries the step's live
  * state, what it hands on, and opens the screen that does it. */
 function ProcessFlow({ p, runs, flow }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+  const state = runs ? processState(p, runs, flow) : null;
   return (
     <section className="hub-process" aria-labelledby={`process-${p.id}`}>
       <div className="section-heading">
         <h2 id={`process-${p.id}`}>{p.title}</h2>
-        <span className="chip">{p.cadence}</span>
+        <span className="hub-process-meta">
+          {state && (
+            <span className="hub-process-state">
+              <span className={`hub-dot hub-dot-${state}`} aria-hidden />
+              {STATE_LABEL[state]}
+            </span>
+          )}
+          <span className="chip">{p.cadence}</span>
+        </span>
       </div>
       <p className="help-text">
         <strong>Done when:</strong> {p.outcome}
@@ -341,6 +346,20 @@ function StepCard({ s, i, p, runs, flow }: { s: Step; i: number; p: Process; run
   const waiting = mine && !s.reviewedElsewhere ? mine.reduce((n, r) => n + waitingCount(r), 0) : 0;
   const stage = s.stage ? flow?.stages.find((x) => x.id === s.stage) : undefined;
   const decisions = openCount(stage);
+  if (s.planned) {
+    return (
+      <li className="hub-flow-item">
+        <div className="hub-step hub-step-planned">
+          <span className="hub-step-head">
+            <span className="hub-step-num">{i + 1}</span>
+            <span className="hub-step-title">{s.label}</span>
+            <span className="chip">Planned</span>
+          </span>
+          <span className="hub-step-about">{s.does}</span>
+        </div>
+      </li>
+    );
+  }
   return (
     <li className="hub-flow-item">
       <a className={`hub-step hub-step-${state}`} href={stepHref(s)} onClick={() => writeWalk({ id: p.id, step: i })}>
@@ -350,6 +369,7 @@ function StepCard({ s, i, p, runs, flow }: { s: Step; i: number; p: Process; run
             {s.label}
             {s.optional && <span className="muted"> (optional)</span>}
           </span>
+          <span className="hub-step-go" aria-hidden>→</span>
         </span>
         {(waiting > 0 || decisions > 0) && (
           <span className="hub-step-banner">{waiting > 0 ? `${waiting} waiting on you` : `${decisions} decision${decisions === 1 ? "" : "s"} open`}</span>
@@ -378,7 +398,7 @@ function StepCard({ s, i, p, runs, flow }: { s: Step; i: number; p: Process; run
           </span>
         )}
         {s.handsOn && i < p.steps.length - 1 && (
-          <span className={s.carried ? "hub-step-handoff" : "hub-step-handoff manual"}>
+          <span className={s.carried ? "hub-step-handoff" : "hub-step-handoff manual"} title={s.carried ? undefined : "Not passed on automatically: type it into the next step."}>
             Hands on: {s.handsOn}
             {!s.carried && " · re-entered by hand"}
           </span>
@@ -402,7 +422,9 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
         <a href="#/home">Start</a> › {w.name}
       </p>
       <h1>{w.name}</h1>
-      <p className="help-text">{w.purpose} Open a step to work in its screen; a bar there shows the next step.</p>
+      <p className="help-text">
+        {w.purpose} Open a step to work in its screen; a bar there shows the next step. A dashed <span className="hub-step-handoff-key">re-entered by hand</span> line means that output is typed into the next step, not passed on.
+      </p>
       {error && <p className="error-text" role="alert">Runs could not be loaded: {error}. Step states are unknown until the backend responds.</p>}
       {usesFlow && flowError && <p className="error-text" role="alert">The stewardship flow could not be loaded: {flowError}. Stage numbers are unknown.</p>}
       {w.processes.map((p) => (
