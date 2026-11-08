@@ -6,7 +6,7 @@
 :root{color-scheme:dark;
 --b:#0d1015;--s1:#141921;--s2:#1b222d;--s3:#252e3b;
 --f:#e8ebf0;--m:#a3acbb;--line:#2c3644;
---o:#ff7a3d;--of:rgb(255 122 61 / .12);--ok:#4fd69c;--run:#6cb4ff;--bad:#ff6b7a;
+--o:#d4a650;--of:rgb(212 166 80 / .12);--ok:#4fd69c;--run:#6cb4ff;--bad:#ff6b7a;
 --sans:Geist,system-ui,sans-serif;--mono:"Geist Mono",ui-monospace,monospace}
 body{background:var(--b);color:var(--f);font-family:var(--sans);font-size:14px;line-height:1.5;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 56px}
 .wrap{max-width:1240px;margin:0 auto;display:grid;gap:20px}
@@ -86,7 +86,7 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 --o:#c6ff3d;--of:rgb(198 255 61 / .12);--ok:#26c281;--run:#9a9ba0;--bad:#ff4d4d;
 --sans:"Hanken Grotesk",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace;font-family:var(--sans)}
 .ndl{color-scheme:light;--b:#f4f6f9;--s1:#ffffff;--s2:#eaeef3;--s3:#dbe1e9;--f:#121722;--m:#4f5a6b;--line:#d8dee7;
---o:#d9480f;--of:rgb(229 84 26 / .10);--ok:#13804f;--run:#2563c9;--bad:#c8323f;color:var(--f)}
+--o:#85601a;--of:rgb(133 96 26 / .10);--ok:#13804f;--run:#2563c9;--bad:#c8323f;color:var(--f)}
 .ndl .log{background:#eef1f5}
 .curl{color-scheme:light;--b:#f3f3f0;--s1:#ffffff;--s2:#ebebe7;--s3:#dcdcd7;--f:#141414;--m:#5c5c57;--line:#dcdcd7;
 --o:#ea4c14;--of:#ffe6db;--ok:#1f7a45;--run:#5c5c57;--bad:#c0392b;color:var(--f)}
@@ -129,7 +129,7 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .waitlist{display:grid;gap:6px}.wl-head{display:flex;justify-content:space-between;align-items:center}
 .sm .row{grid-template-columns:8px 1fr 130px 80px}.sm .cards .wc{min-height:250px}
 .four{grid-template-columns:1fr 1fr}
-.noglow .dot.o,.noglow .row.sel,.noglow .wc.wait{box-shadow:none!important}
+.dot.o,.row.sel,.wc.wait,.pill{box-shadow:none!important}
 .prun{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--b);font-size:13px}
 .prun .mono{font-size:12px;color:var(--m)}
 .shots .frame{overflow:hidden}.shots .app{zoom:.5}
@@ -273,8 +273,8 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 <script>
 // Clone the Night Desk screen and restyle it with the current tokens, so both show identical content.
 const nd=document.getElementById('nd');nd.remove();
-const rows=[['Dark mode',['cur','Current: near-black greys, lime for "needs you", no colour for running'],['','Night Desk: blue-black, orange for "needs you", blue for running']],
- ['Light mode',['curl','Current: warm grey, ink controls, orange for "needs you"'],['ndl','Night Desk: cool blue-grey, white panels, orange, blue for running']]];
+const rows=[['Dark mode',['cur','Current: near-black greys, lime for "needs you", no colour for running'],['','Night Desk: blue-black, amber for "needs you", blue for running']],
+ ['Light mode',['curl','Current: warm grey, ink controls, orange for "needs you"'],['ndl','Night Desk: cool blue-grey, white panels, amber for "needs you", blue for running']]];
 const host=document.getElementById('pairs');
 for(const [title,...cols] of rows){
  const sec=document.createElement('section');sec.className='vs';sec.innerHTML=`<h2>Review queue · ${title}</h2>`;
@@ -285,24 +285,9 @@ for(const [title,...cols] of rows){
 for(const f of document.querySelectorAll('.nds-slot')){const c=document.getElementById('nds').content.firstElementChild.cloneNode(true);if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
 </script>
 
-<section class="vs" id="ocol"><h2>"Needs you" colour options</h2><p>The Night Desk start page in dark (top) and light (bottom) for each option. Each colour keeps one job: items waiting on a person. Blue stays running, green done, red failed.</p><div class="shots four" id="ocol-grid"></div></section>
-<script>
-const opts=[
- ['Current orange','#ff7a3d','#d9480f','vivid; glows'],
- ['Toned-down orange','#e0915f','#b5531f','less saturated, no glow'],
- ['Amber','#f0b429','#9a6400','warm, reads as "attention" not "alarm"'],
- ['Magenta','#e47bc4','#a8327f','far from red, green and blue']];
-const g=document.getElementById('ocol-grid');
-for(const [name,dk,lt,note] of opts)for(const [mode,c] of [['dark',dk],['light',lt]]){
- const f=document.createElement('figure');const fr=document.getElementById('nds').content.firstElementChild.cloneNode(true);
- if(mode==='light')fr.classList.add('ndl');
- fr.style.setProperty('--o',c);fr.style.setProperty('--of',c+'22');
- if(name!=='Current orange')fr.classList.add('noglow');
- const cap=document.createElement('figcaption');cap.textContent=name+' · '+mode+' · '+c+' · '+note;f.append(fr,cap);g.append(f);}
-</script>
 <div class="notes">
   <div><b>Keyboard first</b>A, R and E decide the selected item. J and K move between items. ⌘K jumps to any run.</div>
-  <div><b>One meaning for orange</b>The rail, the pill, the selected row and the confidence bar all use orange for the same thing: waiting on you. Running is blue, done is green, failed is red.</div>
+  <div><b>One meaning for amber</b>The rail, the pill and the selected row all use amber for the same thing: waiting on you. Running is blue, done is green, failed is red.</div>
   <div><b>Evidence beside the decision</b>The right pane shows both sources, the prior year and the exact sentence, so you never leave the queue to check a number.</div>
 </div>
 </div>
