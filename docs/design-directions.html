@@ -1,0 +1,692 @@
+<title>ARP Design Directions</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one dark operator console. Runs rail | review list | source + decision pane. Single-theme on purpose (dark-first direction). */
+:root{color-scheme:dark;--paper:#f5f2ea;--ink:#1b1a17;--inkm:#6b675d;--hl:#f6dfa3;
+--b:#0d1015;--s1:#141921;--s2:#1b222d;--s3:#252e3b;
+--f:#e8ebf0;--m:#a3acbb;--line:#2c3644;
+--o:#d4a650;--of:rgb(212 166 80 / .12);--ok:#4fd69c;--run:#6cb4ff;--bad:#ff6b7a;
+--sans:Geist,system-ui,sans-serif;--mono:"Geist Mono",ui-monospace,monospace}
+body{background:var(--b);color:var(--f);font-family:var(--sans);font-size:14px;line-height:1.5;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 56px}
+.wrap{max-width:1240px;margin:0 auto;display:grid;gap:20px}
+.intro h1{margin:0;font-size:1.6rem;font-weight:600}
+.intro p{margin:.3rem 0 0;color:var(--m);max-width:72ch}
+.frame{border:1px solid var(--line);border-radius:12px;overflow-x:auto;background:var(--b)}
+.app{min-width:1080px;display:grid;grid-template-columns:232px 1fr 380px;min-height:640px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.cap{font:500 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--m)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.dot.o{background:var(--o);box-shadow:0 0 8px var(--o)}.dot.r{background:var(--run)}.dot.k{background:var(--ok)}.dot.x{background:var(--bad)}
+kbd{font:500 11px var(--mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:1px 6px;color:var(--m);background:var(--s1)}
+button{font:500 13px var(--sans);border-radius:7px;padding:8px 14px;border:1px solid var(--line);background:var(--s2);color:var(--f);cursor:pointer;display:inline-flex;gap:8px;align-items:center}
+button:hover{background:var(--s3)}
+button:focus-visible,.row:focus-visible{outline:2px solid var(--run);outline-offset:2px}
+button.pri{background:var(--f);color:var(--b);border-color:var(--f)}
+button.pri kbd{background:transparent;color:var(--b);border-color:rgb(13 16 21 / .3)}
+
+/* rail */
+nav{background:var(--s1);border-right:1px solid var(--line);padding:18px 12px;display:grid;gap:4px;align-content:start}
+.brand{display:flex;justify-content:space-between;align-items:center;padding:0 8px 12px;font-weight:600}
+nav .cap{padding:12px 8px 6px}
+.run{display:grid;grid-template-columns:8px 1fr auto;gap:10px;align-items:center;padding:8px;border-radius:7px;font-size:13px}
+.run.on{background:var(--s2)}
+.run small{display:block;color:var(--m);font:400 12px var(--mono)}
+.run .n{font:500 12px var(--mono);color:var(--m)}
+.run.on .n{color:var(--o)}
+
+/* list */
+main{padding:20px 22px;display:grid;gap:16px;align-content:start;min-width:0}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.top h2{margin:0;font-size:1.25rem;font-weight:600}
+.top p{margin:2px 0 0;color:var(--m);font-size:13px}
+.pill{font:500 12px var(--mono);padding:6px 12px;border-radius:99px;border:1px solid var(--o);color:var(--o);background:var(--of);white-space:nowrap}
+.prog{display:grid;gap:8px}
+.bar{height:6px;background:var(--s2);border-radius:3px;overflow:hidden;display:flex}
+.bar i{height:100%}
+.legend{display:flex;gap:16px;font:400 13px var(--mono);color:var(--m);flex-wrap:wrap}
+.legend span{display:flex;gap:6px;align-items:center}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.stat{background:var(--s1);padding:12px 14px}
+.stat b{display:block;font:500 1.35rem var(--mono);margin-top:2px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.tab{padding:8px 12px;font-size:13px;color:var(--m);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.on{color:var(--f);border-color:var(--o)}
+.tab .mono{margin-left:6px;font-size:12px}
+.list{display:grid;gap:6px}
+.row{display:grid;grid-template-columns:8px 1fr 130px 92px;gap:14px;align-items:center;padding:12px 14px;border-radius:9px;background:var(--s1);border:1px solid var(--line)}
+.row.sel{border-color:var(--o);box-shadow:0 0 0 1px var(--of),0 0 28px -14px var(--o);background:linear-gradient(90deg,var(--of),var(--s1) 40%)}
+.row .why{font:400 13px var(--mono);color:var(--m)}
+.row .v{font:500 14px var(--mono);text-align:right}
+.conf{display:grid;gap:4px;justify-items:end;font:500 13px var(--mono)}
+.conf .t{width:80px;height:4px;background:var(--s3);border-radius:2px;overflow:hidden}
+.conf .t i{display:block;height:100%}
+.row.done{opacity:.7}
+
+/* detail */
+aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;display:grid;gap:16px;align-content:start}
+.field{display:grid;gap:4px}
+.big{font:500 1.9rem var(--mono)}
+.cmp{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:14px;padding:12px;border-radius:8px;background:var(--b);border:1px solid var(--line)}
+.cmp .mono{text-align:right}
+.cmp .diff{color:var(--f);font-weight:600}
+.src{padding:12px 14px;border-radius:8px;background:var(--b);border:1px solid var(--line);font-size:14px;line-height:1.6;color:var(--m)}
+.src mark{background:var(--of);color:var(--f);border-bottom:1px solid var(--o);padding:0 2px}
+.src .cap{display:block;margin-bottom:6px}
+.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.actions button{justify-content:center}
+.actions .wide{grid-column:1/-1;justify-content:center}
+.log{font:400 13px/1.8 var(--mono);color:var(--m);padding:12px 14px;background:#080a0e;border-radius:8px;border:1px solid var(--line)}
+.log span{color:var(--run)}
+.log em{font-style:normal;color:var(--o)}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.notes div{padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--s1);font-size:13px;color:var(--m)}
+.notes b{display:block;color:var(--f);font-weight:600;margin-bottom:4px}
+/* Current ARP dark tokens (frontend/src/index.css), applied to the same screen for comparison */
+.cur{--b:#0c0d0f;--s1:#131417;--s2:#18191c;--s3:#26272c;--f:#e8e8e3;--m:#9a9ba0;--line:#26272c;
+--o:#c6ff3d;--of:rgb(198 255 61 / .12);--ok:#26c281;--run:#9a9ba0;--bad:#ff4d4d;
+--sans:"Hanken Grotesk",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace;font-family:var(--sans)}
+.ndl{color-scheme:light;--paper:#ffffff;--hl:#f8e3a8;--b:#f4f6f9;--s1:#ffffff;--s2:#eaeef3;--s3:#dbe1e9;--f:#121722;--m:#4f5a6b;--line:#d8dee7;
+--o:#85601a;--of:rgb(133 96 26 / .10);--ok:#13804f;--run:#2563c9;--bad:#c8323f;color:var(--f)}
+.ndl .log{background:#eef1f5}
+.curl{color-scheme:light;--b:#f3f3f0;--s1:#ffffff;--s2:#ebebe7;--s3:#dcdcd7;--f:#141414;--m:#5c5c57;--line:#dcdcd7;
+--o:#ea4c14;--of:#ffe6db;--ok:#1f7a45;--run:#5c5c57;--bad:#c0392b;color:var(--f)}
+.curl .log{background:#ebebe7}.curl .dot.o,.curl .row.sel{box-shadow:none}
+#pairs{display:grid;gap:28px}
+.app.start{min-width:1440px;width:1440px;height:900px;grid-template-columns:248px 1fr 360px}
+.shots .app.start{zoom:.42}
+@media (max-width:700px){.shots .app.start{zoom:.25}}
+.hello{font-size:2.6rem!important;letter-spacing:-.03em;line-height:1.05}
+.hello span{display:block;color:var(--m)}
+.who{margin-top:auto;padding:12px 8px;font-size:12px;color:var(--m);display:grid;gap:2px;border-top:1px solid var(--line)}
+.start nav{align-content:stretch;grid-auto-rows:max-content}
+.start .row .v{font-size:13px}
+.app.start.same{grid-template-columns:248px 1fr}
+.same nav{gap:6px}.fl{display:grid;gap:4px;padding:0 8px}.fl .cap{padding:0}
+.inp{border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--b);color:var(--m);font-size:13px}
+.hint{margin:0;padding:0 8px;font-size:13px;color:var(--m)}
+.jump{margin:6px 8px;justify-content:space-between}
+.seg{margin:auto 8px 0;display:flex;border:1px solid var(--line);border-radius:7px;padding:3px;font-size:12px;color:var(--m)}
+.seg span{flex:1;text-align:center;padding:5px;border-radius:5px}.seg .on{background:var(--s3);color:var(--f)}
+.sm{padding:44px 36px;gap:28px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px}
+.counts{display:flex;gap:28px}.counts div{display:grid;gap:4px}.counts b{font:500 2rem var(--mono)}
+.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.wc{position:relative;background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:22px 20px;display:grid;gap:10px;align-content:start;min-height:360px;grid-template-rows:auto auto 1fr auto auto}
+.wc.wait{border-color:var(--o);box-shadow:0 0 0 1px var(--of),0 0 30px -14px var(--o)}
+.wc svg{width:36px;height:36px;fill:none;stroke:var(--f);stroke-width:1.5}
+.wc h3{margin:0;font-size:1.4rem;font-weight:600;line-height:1.15}
+.wc p{margin:0;color:var(--m);font-size:15px}
+.steps{display:flex;align-items:center;gap:0}.steps i{width:12px;height:12px;border-radius:50%;border:2px solid var(--s3);background:var(--s1)}
+.steps i+i{margin-left:28px;position:relative}.steps i+i::before{content:"";position:absolute;right:12px;top:3px;width:28px;height:2px;background:var(--s3)}
+.steps .k{background:var(--ok);border-color:var(--ok)}.steps .r{border-color:var(--run)}.steps .o{background:var(--o);border-color:var(--o)}.steps .x{background:var(--bad);border-color:var(--bad)}
+.open{font:500 13px var(--mono)}
+.pill.sm{position:absolute;top:14px;right:14px;padding:3px 9px;font-size:11px}
+.same .run{grid-template-columns:16px 1fr auto}
+.ni{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sd{display:flex;gap:6px;align-items:center}.sd .dot{width:7px;height:7px}
+.bm{display:flex;gap:10px;align-items:center;font-weight:700;font-size:15px}.mark{width:26px;height:26px;color:var(--f)}
+.go{display:block;width:max-content;margin-top:0;margin-bottom:-6px;font-size:1.05rem;font-weight:500;letter-spacing:0;color:var(--o);text-decoration:none;text-underline-offset:4px}.go:hover{text-decoration:underline}
+.waitlist{display:grid;gap:6px}.wl-head{display:flex;justify-content:space-between;align-items:center}
+.sm .row{grid-template-columns:8px 1fr 130px 80px}
+.four{grid-template-columns:1fr 1fr}
+.dot.o,.row.sel,.wc.wait,.pill{box-shadow:none!important}
+.sm .cards{gap:16px}
+.sm .wc{min-height:440px;padding:24px 22px 0;gap:12px;grid-template-rows:auto auto auto 1fr auto auto;background:linear-gradient(180deg,var(--s2),var(--s1) 55%);transition:transform .15s ease,border-color .15s ease}
+.sm .wc:hover{transform:translateY(-2px);border-color:var(--m)}
+.sm .wc svg{width:44px;height:44px;padding:9px;border-radius:10px;background:var(--b);border:1px solid var(--line);box-sizing:border-box;stroke-width:1.6}
+.sm .wc.wait svg{stroke:var(--o);border-color:var(--o)}
+.sm .wc h3{font-size:1.5rem;letter-spacing:-.01em;margin-top:6px}
+.sm .wc p{line-height:1.55}
+.sm .wc .steps{padding:14px 0 18px;align-self:end}
+.sm .wc .open{margin:0 -22px;padding:14px 22px;border-top:1px solid var(--line);display:flex;justify-content:space-between}
+.sm .wc .open::after{content:"";}
+@media (prefers-reduced-motion:reduce){.sm .wc{transition:none}}
+.rq .lede{margin:10px 0 0;color:var(--m);max-width:72ch;font-size:15px}
+.tb{display:flex;align-items:center;gap:10px}.tb .sp{flex:1}.tb .cap{font-size:12px}
+.pick{border:1px solid var(--line);border-radius:7px;padding:8px 12px;background:var(--s1);font-size:14px}
+.tb .inp{min-width:220px}
+.rcard{border:1px solid var(--line);border-radius:12px;background:var(--s1);overflow:hidden}
+.rhead{padding:18px 22px;border-bottom:1px solid var(--line);display:grid;gap:4px}
+.rhead h3{margin:0;font-size:1.2rem;font-weight:600}.rhead p{margin:0;color:var(--m);font-size:13px}
+.ri{padding:16px 22px;border-bottom:1px solid var(--line);display:grid;gap:6px}
+.ri.cur{background:linear-gradient(90deg,var(--of),transparent 60%);box-shadow:inset 3px 0 var(--o)}
+.ri .rsrc{margin:0;display:flex;gap:8px;align-items:center;font:500 12px var(--mono);color:var(--m);letter-spacing:.04em}
+.rt{font-size:15px}.mut{color:var(--m);font-size:13px}.ri p.mut{margin:0}
+.rf{display:flex;gap:10px;align-items:baseline;font-size:15px;flex-wrap:wrap}
+.val{margin-left:auto;font:500 16px var(--mono)}.cf{font:500 12px var(--mono);color:var(--m);border:1px solid var(--line);border-radius:99px;padding:2px 8px}
+.cit{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.chip{font-size:12px;border:1px solid var(--line);border-radius:6px;padding:3px 8px;background:var(--b)}
+.dec{display:flex;gap:8px;align-items:center;margin-top:6px}.dec button{min-width:120px;justify-content:center}
+.raw{margin-left:auto;font:500 12px var(--mono);color:var(--m)}
+.ri.done{opacity:.75}
+.sw main.sm{padding-top:32px;gap:24px;align-content:start;overflow:hidden}
+.crumb{margin:0 0 6px;font-size:13px;color:var(--m)}.crumb span{color:var(--f);text-decoration:underline;text-underline-offset:3px}
+.flow{display:grid;gap:12px}.fh{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.fh h3{margin:0;font-size:1.2rem;font-weight:600}.fh p{margin:4px 0 0;color:var(--m);font-size:14px}.fh b{color:var(--f);font-weight:600}
+.cad{font:500 12px var(--mono);color:var(--m);border:1px solid var(--line);border-radius:99px;padding:4px 10px;white-space:nowrap}
+.steps5,.steps4{display:grid;gap:10px;counter-reset:x}.steps5{grid-template-columns:repeat(5,1fr)}.steps4{grid-template-columns:repeat(4,1fr)}
+.st{position:relative;background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:14px 16px 0;display:grid;gap:8px;grid-template-rows:auto auto 1fr auto}
+.st+.st::before{content:"";position:absolute;left:-11px;top:26px;width:10px;height:2px;background:var(--line)}
+.st.w{border-color:var(--o)}
+.sth{display:flex;gap:10px;align-items:center}.sn{font:500 12px var(--mono);width:24px;height:24px;display:grid;place-items:center;border-radius:6px;background:var(--s2);color:var(--m)}
+.st.w .sn{background:var(--of);color:var(--o)}
+.stt{font:600 13px var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.sst{display:flex;gap:6px;align-items:center;font:500 12px var(--mono)}.sst.o{color:var(--o)}.sst.r{color:var(--run)}.sst.k{color:var(--m)}
+.st p{margin:0;font-size:13.5px;line-height:1.5;color:var(--m)}
+.hands{margin:0 -16px;padding:10px 16px;border-top:1px solid var(--line);font-size:13px}
+.ar main.sm{padding-top:36px;gap:24px;align-content:start}
+.ahead{display:flex;justify-content:space-between;align-items:center}
+.ahead .pri{padding:10px 16px;font-size:14px}
+.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.at{background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:grid;gap:6px}
+.at b{font:500 2.2rem var(--mono);line-height:1.1}.at .mut{font-size:13px}
+.at.o{border-color:var(--o)}.at.o .mut{color:var(--o)}.at.r .mut{color:var(--run)}
+.agrid{display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start}
+.atab{display:grid;gap:12px}.chk{display:flex;gap:8px;align-items:center;font-size:14px}.box{width:16px;height:16px;border:1.5px solid var(--m);border-radius:4px}
+.atab table{width:100%;border-collapse:collapse;background:var(--s1);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+.atab th{text-align:left;font:500 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--m);padding:12px 16px;border-bottom:1px solid var(--line);background:var(--s2)}
+.atab td{padding:12px 16px;border-bottom:1px solid var(--line)}.atab tr:last-child td{border-bottom:0}
+.xl{font:500 13px var(--mono);color:var(--f)}
+.atab table{color:inherit}
+.ndl .atab th{background:var(--s1);color:var(--f);border-bottom:1.5px solid var(--f)}.sst.x{color:var(--bad)}
+.wfy{background:var(--s1);border:1px solid var(--o);border-radius:10px;padding:20px;display:grid;gap:8px}
+.wfy b{font:500 2.6rem var(--mono);color:var(--o);line-height:1}.wfy p{margin:0}
+.steps7{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
+.hands.man{color:var(--m);border-top-style:dashed}
+.hands.man::before{content:"Manual · ";color:var(--f);font-weight:600}
+.app:not(.start){grid-template-columns:232px 1fr 460px}
+.dp{gap:14px}
+.pn{border:1px solid var(--line);border-radius:10px;background:var(--b);overflow:hidden}
+.pnh{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.pg{font:500 12px var(--mono);color:var(--m)}
+.pn .cmp,.pn .log{border:0;border-radius:0;background:transparent}
+.doc{border-color:var(--m)}
+.doc .pnh{background:var(--s2)}
+.docmeta{display:grid;gap:2px;padding:12px 18px 0;font-size:13px}.docmeta span{color:var(--m)}
+.page{margin:12px 14px 14px;padding:16px 18px 16px 10px;background:var(--paper);color:var(--ink);border-radius:4px;box-shadow:0 1px 0 var(--line),0 6px 18px -10px rgb(0 0 0 / .5);font-family:"Source Serif 4",Georgia,serif;font-size:16px;line-height:1.6;display:grid;gap:8px}
+.page p{margin:0;display:grid;grid-template-columns:28px 1fr}
+.page .ln{font:500 11px var(--mono);color:var(--inkm);padding-top:5px;text-align:right;padding-right:10px}
+.page .ctx{color:var(--inkm)}
+.page .hit{font-weight:500;color:var(--ink)}
+.page mark{background:var(--hl);color:inherit;padding:1px 2px;border-bottom:2px solid var(--o)}
+.pnf{display:flex;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--m)}
+.screens{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.screens .cap{margin-right:6px}
+.chipb{font:500 13px var(--mono);padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--s1)}
+.steps6{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.runp{display:flex;gap:12px;align-items:center}.runp .mut{font-size:14px}
+.pr main.sm{padding-top:36px;gap:20px;align-content:start;overflow:hidden}
+.fcard{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:20px 24px;display:grid;gap:14px}
+.fcard h3{margin:0;font-size:1.15rem;font-weight:600;display:flex;gap:10px;align-items:center}
+.ff{display:grid;gap:6px}.fl2{font-size:13px;color:var(--m)}
+.fi{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--b);font-size:14px}
+.fi.ph{color:var(--m)}.ta .fi{min-height:64px}
+.frow2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.frow3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.drop{border:1.5px dashed var(--line);border-radius:8px;padding:14px;font-size:13px;color:var(--m);text-align:center}.drop b{color:var(--f)}
+.cb{display:flex;gap:8px;align-items:center;font-size:14px}.box.on{display:grid;place-items:center;background:var(--f);color:var(--b);border-color:var(--f);font-size:11px}
+.arc main.sm{padding-top:36px;gap:24px;align-content:start}
+.glist{background:var(--s1);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.grow{display:grid;grid-template-columns:44px 200px 1fr auto;gap:16px;align-items:center;padding:16px 22px;border-bottom:1px solid var(--line)}
+.grow:last-child{border-bottom:0}.grow:hover{background:var(--s2)}
+.grow b{font-size:16px;font-weight:600}.grow .mut{font-size:14px}
+.gi{width:40px;height:40px;padding:6px;box-sizing:border-box;border-radius:9px;background:var(--b);border:1px solid var(--line);fill:none;stroke:var(--f);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.play{font:500 13px var(--mono);border:1px solid var(--line);border-radius:7px;padding:7px 12px;background:var(--s2)}
+.hlegend{position:absolute;left:18px;bottom:12px;display:flex;gap:14px;font:500 12px var(--mono);color:var(--m)}.hlegend span{display:flex;gap:6px;align-items:center}
+
+.app.start:not(.sw) main.sm{gap:20px;padding-top:32px}
+.app.start:not(.sw){height:auto;min-height:900px}
+.lp{position:relative;width:1440px;height:900px;background:var(--b);color:var(--f);overflow:hidden}
+.shots .lp{zoom:.42}@media (max-width:700px){.shots .lp{zoom:.25}}
+.lp canvas{position:absolute;inset:0;width:100%;height:100%}
+.lph{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:28px 48px}
+.lph .mark{width:30px;height:30px}.lph .full{font-weight:400;color:var(--m);font-size:14px;margin-left:4px}.lph .bm{font-size:18px}
+.lpn{display:flex;gap:28px;align-items:center;font-size:14px;color:var(--m)}
+.lpc{position:absolute;left:48px;top:150px;max-width:560px;display:grid;gap:18px}
+.lpc h1{margin:0;font-size:4.2rem;line-height:1.02;letter-spacing:-.035em;font-weight:600}
+.lpc p{margin:0;font-size:18px;line-height:1.55;color:var(--m);max-width:46ch}
+.lpa{display:flex;gap:22px;align-items:center;margin-top:6px}.lpa .pri{padding:12px 20px;font-size:15px}.lpa .go{margin:0}
+.lpf{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(3,1fr);gap:32px;padding:26px 48px;border-top:1px solid var(--line);background:linear-gradient(transparent,var(--b) 40%)}
+.lpf div{display:grid;gap:4px}.lpf b{font-size:15px}.lpf span{font-size:13.5px;color:var(--m)}
+.prun{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--b);font-size:13px}
+.prun .mono{font-size:12px;color:var(--m)}
+.shots .frame{overflow:hidden}.shots .app{zoom:.5}
+@media (max-width:700px){.shots .app{zoom:.32}}
+.shots{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.shots figure{margin:0;display:grid;gap:6px}
+.shots img{border:1px solid var(--line);border-radius:8px;width:100%}
+.shots figcaption{font:500 12px var(--mono);color:var(--m)}
+@media (max-width:700px){.shots{grid-template-columns:1fr}}
+.cur .dot.o{box-shadow:none}.cur .row.sel{box-shadow:none}
+.vs{display:grid;gap:8px}.vs h2{margin:0;font-size:1.1rem;font-weight:600}.vs p{margin:0;color:var(--m);font-size:13px}
+@media (prefers-reduced-motion:no-preference){.dot.r{animation:p 1.6s ease-in-out infinite}@keyframes p{50%{opacity:.35}}}
+</style>
+
+<div class="wrap">
+<div class="intro">
+  <h1>Night Desk</h1>
+  <p>Current ARP on the left, Night Desk on the right, in dark and light. Only the colours and fonts differ. Example data: financials extraction run fx-0412, Siemens Energy FY2025.</p>
+</div>
+
+<div id="pairs"></div>
+
+<div class="vs"><h2>Landing page · separate, before sign-in</h2><p>A standalone page in Night Desk: the dot animation fills the whole screen, with the product promise and one way in. Dark and light.</p>
+<div class="shots"><figure class="lp-slot" data-cls=""><figcaption>Landing · dark</figcaption></figure><figure class="lp-slot" data-cls="ndl"><figcaption>Landing · light</figcaption></figure></div></div>
+<template id="lpt"><div class="frame"><div class="lp">
+  <canvas class="flowviz" aria-label="A network of input dots; a fraction lights up, streams through an unseen funnel and forms the ARP logo"></canvas>
+  <header class="lph"><span class="bm"><svg class="mark" viewBox="0 0 62 62" aria-hidden="true"><path fill="currentColor" d="M14 2h10v10H14zM38 2h10v10H38zM2 14h10v10H2zM50 14h10v10H50zM2 26h10v10H2zM14 26h10v10H14zM26 26h10v10H26zM38 26h10v10H38zM50 26h10v10H50zM2 38h10v10H2zM50 38h10v10H50zM2 50h10v10H2zM50 50h10v10H50z"/><rect x="26" y="2" width="10" height="10" fill="var(--o)"/></svg>ARP<span class="full">Agentic Research Pipeline</span></span><span class="lpn"><span>How it works</span><span>Security</span><button>Sign in</button></span></header>
+  <div class="lpc">
+    <h1>Agents propose.<br>People ratify.</h1>
+    <p>Thematic universes, cited extraction, transition assessment and stewardship for up to 4,000 companies per run. Every number traces back to a verified source.</p>
+    <div class="lpa"><button class="pri">Open ARP →</button><a class="go" href="#">10 things wait on you →</a></div>
+  </div>
+  <footer class="lpf"><div><b>The LLM plans, code computes</b><span>Models draft the plan; deterministic code does the maths.</span></div><div><b>Every citation re-verified</b><span>Each quote is checked against the source document, not trusted from the model.</span></div><div><b>Nothing flagged ships</b><span>No flagged item reaches an export until a named person approves it.</span></div></footer>
+</div></div></template>
+
+<div class="vs"><h2>Start page · Dark mode</h2><p>Left: screenshot of ARP's real start page today (backend was offline, so counts are empty). Right: the same start page and structure in Night Desk styling, with example data.</p>
+<div class="shots">
+<figure><img src="shots/start-dark-current.png" alt="Start page, current dark theme"><figcaption>Current · dark</figcaption></figure>
+<figure class="nds-slot" data-cls=""><figcaption>Night Desk · dark</figcaption></figure>
+</div></div>
+<div class="vs"><h2>Start page · Light mode</h2>
+<div class="shots">
+<figure><img src="shots/start-light-current.png" alt="Start page, current light theme"><figcaption>Current · light</figcaption></figure>
+<figure class="nds-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure>
+</div></div>
+
+<div class="vs"><h2>Review queue page · Dark mode</h2><p>Left: ARP's real review-queue page today (backend offline, so it is empty). Right: the same page and structure in Night Desk styling, with example items.</p>
+<div class="shots"><figure><img src="shots/review-dark-current.png" alt="Review queue, current dark theme"><figcaption>Current · dark</figcaption></figure><figure class="ndr-slot" data-cls=""><figcaption>Night Desk · dark</figcaption></figure></div></div>
+<div class="vs"><h2>Review queue page · Light mode</h2>
+<div class="shots"><figure><img src="shots/review-light-current.png" alt="Review queue, current light theme"><figcaption>Current · light</figcaption></figure><figure class="ndr-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure></div></div>
+
+<div class="vs"><h2>StewardIQ page · Dark mode</h2><p>Left: ARP's real StewardIQ page today (backend offline, so step states are unknown). Right: the same page and structure in Night Desk styling, with example step states.</p>
+<div class="shots"><figure><img src="shots/steward-dark-current.png" alt="StewardIQ, current dark theme"><figcaption>Current · dark</figcaption></figure><figure class="ndw-slot" data-cls=""><figcaption>Night Desk · dark</figcaption></figure></div></div>
+<div class="vs"><h2>StewardIQ page · Light mode</h2>
+<div class="shots"><figure><img src="shots/steward-light-current.png" alt="StewardIQ, current light theme"><figcaption>Current · light</figcaption></figure><figure class="ndw-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure></div></div>
+
+<div class="vs"><h2>Argus page · Dark mode</h2><p>Left: ARP's real Argus page today (backend offline, so counts are 0). Right: the same page and structure in Night Desk styling, with example runs.</p>
+<div class="shots"><figure><img src="shots/argus-dark-current.png" alt="Argus, current dark theme"><figcaption>Current · dark</figcaption></figure><figure class="nda-slot" data-cls=""><figcaption>Night Desk · dark</figcaption></figure></div></div>
+<div class="vs"><h2>Argus page · Light mode</h2>
+<div class="shots"><figure><img src="shots/argus-light-current.png" alt="Argus, current light theme"><figcaption>Current · light</figcaption></figure><figure class="nda-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure></div></div>
+
+<div class="vs"><h2>R&amp;D Lab page · Dark mode</h2><p>Left: ARP's real R&amp;D Lab page today (backend offline, so step states are unknown). Right: the same page and structure in Night Desk styling, with example step states.</p>
+<div class="shots"><figure><img src="shots/rdlab-dark-current.png" alt="R&amp;D Lab, current dark theme"><figcaption>Current · dark</figcaption></figure><figure class="ndl7-slot" data-cls=""><figcaption>Night Desk · dark</figcaption></figure></div></div>
+<div class="vs"><h2>R&amp;D Lab page · Light mode</h2>
+<div class="shots"><figure><img src="shots/rdlab-light-current.png" alt="R&amp;D Lab, current light theme"><figcaption>Current · light</figcaption></figure><figure class="ndl7-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure></div></div>
+
+<template id="ndl7"><div class="frame"><div class="app start same sw rl">
+  <nav aria-label="Navigation"></nav>
+  <main class="sm">
+    <div><p class="crumb"><span>Start</span> › R&amp;D Lab</p><h2 class="hello">R&amp;D Lab</h2><p class="lede">Spot themes, test strategies and turn them into indices. Open a step to work in its screen; a bar there shows the next step.</p></div>
+    <section class="flow"><div class="fh"><div><h3>Launch a thematic product</h3><p><b>Done when:</b> A ratified theme, a reviewed universe and an effective-dated index calibration.</p></div><span class="cad">Per product idea</span></div><div class="steps7"><div class="st"><div class="sth"><span class="sn">1</span><span class="stt">Spot</span></div><span class="sst k"><i class="dot k"></i>3 promoted</span><p>Candidate themes from filings and news, gated on corporate action.</p><div class="hands">Hands on: Promoted theme</div></div><div class="st w"><div class="sth"><span class="sn">2</span><span class="stt">Define</span></div><span class="sst o"><i class="dot o"></i>1 to ratify</span><p>The theme's activities; ratify a version.</p><div class="hands">Hands on: Ratified taxonomy</div></div><div class="st"><div class="sth"><span class="sn">3</span><span class="stt">Match</span></div><span class="sst r"><i class="dot r"></i>Run 38%</span><p>Companies matched to activities with exposure estimates and cited rationale.</p><div class="hands">Hands on: Theme universe</div></div><div class="st w"><div class="sth"><span class="sn">4</span><span class="stt">Review</span></div><span class="sst o"><i class="dot o"></i>14 contested</span><p>Resolve contested classifications.</p><div class="hands">Hands on: Reviewed universe</div></div><div class="st"><div class="sth"><span class="sn">5</span><span class="stt">Score</span></div><p>Score and tier the universe in Decision Studio; ratify, then publish.</p><div class="hands">Hands on: Published scores</div></div><div class="st"><div class="sth"><span class="sn">6</span><span class="stt">Construct</span></div><p>Screen, select, weight and cap from the published scores; save an effective-dated calibration.</p><div class="hands man">Hands on: Index composition · re-entered by hand</div></div><div class="st"><div class="sth"><span class="sn">7</span><span class="stt">Report</span></div><p>Product committee deck.</p><div class="hands">Hands on: Deck</div></div></div></section>
+    <section class="flow"><div class="fh"><div><h3>Research a theme</h3><p><b>Done when:</b> One dossier per theme: spotted, defined by a ratified taxonomy, researched, its exposed companies found and reviewed, and a house position with standards.</p></div><span class="cad">Per theme</span></div><div class="steps5"><div class="st"><div class="sth"><span class="sn">1</span><span class="stt">Spot</span></div><span class="sst k"><i class="dot k"></i>5 dossiers</span><p>An emerging theme with its context: promote an Emerging Themes candidate, or start a dossier from a topic.</p><div class="hands">Hands on: Dossier</div></div><div class="st"><div class="sth"><span class="sn">2</span><span class="stt">Define</span></div><p>Attach the theme's taxonomy and ratify a version.</p><div class="hands">Hands on: Ratified taxonomy</div></div><div class="st"><div class="sth"><span class="sn">3</span><span class="stt">Research</span></div><p>Risks, opportunities and transmission channels from approved authoritative sources (coming later).</p><div class="hands">Hands on: Research</div></div><div class="st"><div class="sth"><span class="sn">4</span><span class="stt">Find companies</span></div><span class="sst r"><i class="dot r"></i>Run 12%</span><p>The exposed universe, measured against the latest ratified taxonomy version and reviewed.</p><div class="hands">Hands on: Exposed universe</div></div><div class="st"><div class="sth"><span class="sn">5</span><span class="stt">Position and standards</span></div><p>The house position and the stewardship standards derived from it (coming later).</p><div class="hands">Hands on: Position</div></div></div></section>
+    <section class="flow"><div class="fh"><div><h3>Research a strategy</h3><p><b>Done when:</b> A strategy tested out of sample, compared to alternatives, and built as an index if it holds.</p></div><span class="cad">Per paper or idea</span></div></section>
+  </main>
+</div></div></template>
+<div class="vs"><h2>Data Hub page · Dark mode</h2><p>Left: ARP's real Data Hub page today (backend offline, so step states are unknown). Right: the same page and structure in Night Desk styling, with example step states.</p>
+<div class="shots"><figure><img src="shots/datahub-dark-current.png" alt="Data Hub, current dark theme"><figcaption>Current · dark</figcaption></figure><figure class="ndh-slot" data-cls=""><figcaption>Night Desk · dark</figcaption></figure></div></div>
+<div class="vs"><h2>Data Hub page · Light mode</h2>
+<div class="shots"><figure><img src="shots/datahub-light-current.png" alt="Data Hub, current light theme"><figcaption>Current · light</figcaption></figure><figure class="ndh-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure></div></div>
+
+<template id="ndh"><div class="frame"><div class="app start same sw dh">
+  <nav aria-label="Navigation"></nav>
+  <main class="sm">
+    <div><p class="crumb"><span>Start</span> › Data Hub</p><h2 class="hello">Data Hub</h2><p class="lede">Input feeds, stored data and the security master. Open a step to work in its screen; a bar there shows the next step.</p></div>
+    <section class="flow"><div class="fh"><div><h3>Map securities to issuers</h3><p><b>Done when:</b> Every held security mapped to exactly one internal issuer by the security master, and nothing mapped any other way.</p></div><span class="cad">When the security master or a holding changes</span></div><div class="steps4"><div class="st"><div class="sth"><span class="sn">1</span><span class="stt">Load security master</span></div><span class="sst k"><i class="dot k"></i>Loaded 08:40</span><p>Upload the master: internal issuer id plus ISIN, CUSIP, SEDOL, FIGI, LEI, CIK or PermID. Replaces the golden source whole.</p><div class="hands">Hands on: Identifier map</div></div><div class="st"><div class="sth"><span class="sn">2</span><span class="stt">Map holdings</span></div><span class="sst k"><i class="dot k"></i>4,112 mapped</span><p>Each holding's ISIN (or LEI) matched exactly to its internal issuer as it loads.</p><div class="hands">Hands on: Mapped holdings</div></div><div class="st w"><div class="sth"><span class="sn">3</span><span class="stt">Unmatched</span></div><span class="sst o"><i class="dot o"></i>7 unmatched</span><p>Held securities the master does not know: fix the master, not the holding.</p><div class="hands man">Hands on: Corrections to the master · re-entered by hand</div></div><div class="st"><div class="sth"><span class="sn">4</span><span class="stt">Data library</span></div><span class="sst r"><i class="dot r"></i>Refreshing</span><p>The issuer view every workspace reads.</p><div class="hands">Hands on: Issuer view</div></div></div></section>
+    <div class="screens"><span class="cap">Screens</span><span class="chipb">Feeds</span><span class="chipb">Issues</span><span class="chipb">Smart Search</span><span class="chipb">Outputs</span><span class="chipb">Security Master</span><span class="chipb">Holdings Intake</span><span class="chipb">Data Library</span><span class="chipb">Search</span></div>
+  </main>
+</div></div></template>
+<div class="vs"><h2>Transition Intelligence Platform page · Dark mode</h2><p>Left: ARP's real Transition Intelligence Platform page today (backend offline, so step states are unknown). Right: the same page and structure in Night Desk styling, with example step states.</p>
+<div class="shots"><figure><img src="shots/tip-dark-current.png" alt="Transition Intelligence Platform, current dark theme"><figcaption>Current · dark</figcaption></figure><figure class="ndt-slot" data-cls=""><figcaption>Night Desk · dark</figcaption></figure></div></div>
+<div class="vs"><h2>Transition Intelligence Platform page · Light mode</h2>
+<div class="shots"><figure><img src="shots/tip-light-current.png" alt="Transition Intelligence Platform, current light theme"><figcaption>Current · light</figcaption></figure><figure class="ndt-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure></div></div>
+
+<template id="ndt"><div class="frame"><div class="app start same sw tp">
+  <nav aria-label="Navigation"></nav>
+  <main class="sm">
+    <div><p class="crumb"><span>Start</span> › Transition Intelligence Platform</p><h2 class="hello">Transition Intelligence Platform</h2><p class="lede">Monitor holdings and assess climate and transition risk. Open a step to work in its screen; a bar there shows the next step.</p></div>
+    <section class="flow"><div class="fh"><div><h3>Monthly monitoring</h3><p><b>Done when:</b> Every threshold breach and news controversy on a holding is an alert with an owner.</p></div><span class="cad">Monthly, after the holdings and ESG loads</span></div>
+      <div class="runp"><button>Run process</button><span class="mut">Runs last month: alerts from the loaded holdings, ESG data and news, then stewardship triggers.</span></div>
+      <div class="steps4"><div class="st"><div class="sth"><span class="sn">1</span><span class="stt">Holdings intake</span></div><span class="sst k"><i class="dot k"></i>Oct loaded</span><p>Load the month’s holdings and ESG data; the monthly run starts once both are in.</p><div class="hands">Hands on: Month's snapshot</div></div><div class="st w"><div class="sth"><span class="sn">2</span><span class="stt">Monitoring & alerts</span></div><span class="sst o"><i class="dot o"></i>6 alerts to own</span><p>Threshold breaches and news controversies on holdings.</p><div class="hands">Hands on: Open alerts</div></div><div class="st"><div class="sth"><span class="sn">3</span><span class="stt">Dashboards</span></div><span class="sst k"><i class="dot k"></i>Updated 09:12</span><p>WACI, financed emissions and coverage by portfolio.</p><div class="hands">Hands on: Alerts as company fields</div></div><div class="st"><div class="sth"><span class="sn">4</span><span class="stt">Steward · Monitoring</span></div><p>Open alerts raise stewardship triggers; open the engagement in StewardIQ.</p><div class="hands">Hands on: Triggers</div></div></div></section>
+    <section class="flow"><div class="fh"><div><h3>Climate transition review</h3><p><b>Done when:</b> A tiered list of issuers to engage, each with a walk-vs-talk verdict and sector context.</p></div><span class="cad">Annual, plus ad hoc before committees</span></div><div class="steps6"><div class="st"><div class="sth"><span class="sn">1</span><span class="stt">Risk monitoring</span></div><span class="sst k"><i class="dot k"></i>212 in scope</span><p>WACI, financed emissions and data coverage: where the carbon sits.</p><div class="hands">Hands on: Holdings in scope</div></div><div class="st"><div class="sth"><span class="sn">2</span><span class="stt">Transition barriers</span></div><p>Sector × jurisdiction barriers: what can a company in this sector realistically commit to?</p><div class="hands man">Hands on: Sector context · re-entered by hand</div></div><div class="st"><div class="sth"><span class="sn">3</span><span class="stt">Transition plan</span></div><span class="sst r"><i class="dot r"></i>Run 41%</span><p>64 indicators per issuer, walk vs. talk, each with a grounded citation (run by Argus), scored with a ratified template.</p><div class="hands">Hands on: Indicator scores and tiers</div></div><div class="st w"><div class="sth"><span class="sn">4</span><span class="stt">Decision Studio</span></div><span class="sst o"><i class="dot o"></i>1 to ratify</span><p>Tune the scoring template; ratify it, then publish the tiers.</p><div class="hands">Hands on: Published tiers</div></div><div class="st"><div class="sth"><span class="sn">5</span><span class="stt">Steward · Selection</span></div><p>Coverage rules read the published tiers: who gets engaged this cycle.</p><div class="hands man">Hands on: Engagement program · re-entered by hand</div></div><div class="st"><div class="sth"><span class="sn">6</span><span class="stt">Presentations & reports</span></div><p>Committee pack: the tiering with its evidence.</p><div class="hands">Hands on: Committee pack</div></div></div></section>
+    <div class="screens"><span class="cap">Screens</span><span class="chipb">Risk Monitoring</span><span class="chipb">Transition Barriers</span><span class="chipb">Transition Plan</span></div>
+  </main>
+</div></div></template>
+<div class="vs"><h2>Presentations &amp; Reports page · Dark mode</h2><p>Left: ARP's real Presentations &amp; Reports page today. Right: the same form and fields in Night Desk styling.</p>
+<div class="shots"><figure><img src="shots/reports-dark-current.png" alt="Presentations and Reports, current dark theme"><figcaption>Current · dark</figcaption></figure><figure class="ndp-slot" data-cls=""><figcaption>Night Desk · dark</figcaption></figure></div></div>
+<div class="vs"><h2>Presentations &amp; Reports page · Light mode</h2>
+<div class="shots"><figure><img src="shots/reports-light-current.png" alt="Presentations and Reports, current light theme"><figcaption>Current · light</figcaption></figure><figure class="ndp-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure></div></div>
+
+<template id="ndp"><div class="frame"><div class="app start same sw pr">
+  <nav aria-label="Navigation"></nav>
+  <main class="sm">
+    <div><h2 class="hello">Presentations &amp; Reports</h2><p class="lede">Draft a report plan from your notes and data, edit it, then render it to PowerPoint, Word or PDF.</p></div>
+    <section class="fcard"><h3><span class="sn">1</span>Content</h3>
+      <label class="ff "><span class="fl2">Title</span><span class="fi">Electrification Thematic Review</span></label>
+      <label class="ff ta"><span class="fl2">Qualitative notes / findings</span><span class="fi ph">Paste analysis, findings, talking points…</span></label>
+      <div class="frow2"><label class="ff"><span class="fl2">Quantitative datasets (CSV/XLSX)</span><span class="drop"><b>Choose file</b> or drop it here</span></label>
+      <label class="ff"><span class="fl2">Template (optional · ingest a .pptx to match its house style)</span><span class="drop"><b>Choose file</b> or drop it here</span></label></div>
+    </section>
+    <section class="fcard"><h3><span class="sn">2</span>Audience &amp; layout</h3>
+      <div class="frow3"><label class="ff "><span class="fl2">Audience level</span><span class="fi">general ▾</span></label><label class="ff "><span class="fl2">Tone</span><span class="fi">neutral_analytical ▾</span></label><label class="ff "><span class="fl2">Output format</span><span class="fi">pptx ▾</span></label></div>
+      <label class="ff "><span class="fl2">Audience description</span><span class="fi">Investment committee, 20 minutes, wants the recommendation up front</span></label>
+      <div class="frow3"><label class="ff "><span class="fl2">Focus areas (comma-separated)</span><span class="fi">risk, valuation, ESG</span></label><label class="ff "><span class="fl2">Target length (slides/sections)</span><span class="fi ph">planner's choice</span></label><label class="ff "><span class="fl2">Max bullets per slide</span><span class="fi">6</span></label></div>
+      <label class="cb"><span class="box on">✓</span>Include title slide</label>
+    </section>
+  </main>
+</div></div></template>
+<div class="vs"><h2>Arcade page · Dark mode</h2><p>Left: ARP's real Arcade page today. Right: the same list in Night Desk styling.</p>
+<div class="shots"><figure><img src="shots/arcade-dark-current.png" alt="Arcade, current dark theme"><figcaption>Current · dark</figcaption></figure><figure class="ndc-slot" data-cls=""><figcaption>Night Desk · dark</figcaption></figure></div></div>
+<div class="vs"><h2>Arcade page · Light mode</h2>
+<div class="shots"><figure><img src="shots/arcade-light-current.png" alt="Arcade, current light theme"><figcaption>Current · light</figcaption></figure><figure class="ndc-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure></div></div>
+
+<template id="ndc"><div class="frame"><div class="app start same sw arc">
+  <nav aria-label="Navigation"></nav>
+  <main class="sm">
+    <div><h2 class="hello">Arcade</h2><p class="lede">Short breaks between reviews. Scores stay on this device.</p></div>
+    <div class="glist"><div class="grow"><svg class="gi" viewBox="0 0 24 24"><path d="M12 3l3 7h-6zM9 10h6v6l-3 3-3-3z"/></svg><b>Meteor Dodge</b><span class="mut">Fly a pixel rocket, shoot the asteroids, and dodge the pieces.</span><span class="play">Play →</span></div><div class="grow"><svg class="gi" viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="10" r="3"/><path d="M5 19l5-2M19 19l-5-2"/></svg><b>Flipper</b><span class="mut">Pixel pinball: three balls, three bumpers, two flippers.</span><span class="play">Play →</span></div><div class="grow"><svg class="gi" viewBox="0 0 24 24"><path d="M4 15h16l-2-5H6zM7 18a1.5 1.5 0 1 0 0 .1M17 18a1.5 1.5 0 1 0 0 .1"/></svg><b>Kart Dash</b><span class="mut">Three laps against seven rivals on a sunset road.</span><span class="play">Play →</span></div><div class="grow"><svg class="gi" viewBox="0 0 24 24"><path d="M6 21V4M6 4h10l-3 3 3 3H6"/></svg><b>Hop &amp; Run</b><span class="mut">Run, jump and stomp your way to the flag.</span><span class="play">Play →</span></div></div>
+  </main>
+</div></div></template>
+<template id="nda"><div class="frame"><div class="app start same ar">
+  <nav aria-label="Navigation"></nav>
+  <main class="sm">
+    <div class="ahead"><h2 class="hello">Argus</h2><button class="pri">Start new extraction</button></div>
+    <div class="tiles"><div class="at"><span class="cap">1 Companies</span><b>1,204</b><span class="mut">in 6 runs</span></div><div class="at r"><span class="cap">2 Documents</span><b>3,871</b><span class="mut">42 fetching</span></div><div class="at o"><span class="cap">3 Schema</span><b>4</b><span class="mut">1 draft to approve</span></div><div class="at r"><span class="cap">4 Extract</span><b>64</b><span class="mut">fx-0412 at 64%</span></div><div class="at o"><span class="cap">5 Results</span><b>18</b><span class="mut">3 to review</span></div></div>
+    <div class="agrid">
+      <div class="atab"><label class="chk"><span class="box"></span>Only mine</label>
+        <table><thead><tr><th>Run</th><th>Companies</th><th>Step</th><th>Status</th></tr></thead><tbody><tr><td class="mono">fx-0412</td><td>Siemens Energy AG</td><td>4 · Extract</td><td><span class="sst o"><i class="dot o"></i>3 waiting on you</span></td></tr><tr><td class="mono">fx-0411</td><td>EU utilities (48)</td><td>4 · Extract</td><td><span class="sst r"><i class="dot r"></i>Running 64%</span></td></tr><tr><td class="mono">fx-0409</td><td>DAX 40</td><td>5 · Results</td><td><span class="sst k"><i class="dot k"></i>Done · 09:12</span></td></tr><tr><td class="mono">fx-0402</td><td>UK banks (12)</td><td>2 · Documents</td><td><span class="sst x"><i class="dot x"></i>Failed · fetch timeout</span></td></tr></tbody></table>
+        <span class="xl">XBRL Facts →</span></div>
+      <aside class="wfy"><span class="cap">Waiting for you</span><b>3</b><p class="mut">Revenue, Scope 1+2 emissions and order backlog in fx-0412.</p><span class="xl">Open the review list →</span></aside>
+    </div>
+  </main>
+</div></div></template>
+<template id="ndw"><div class="frame"><div class="app start same sw">
+  <nav aria-label="Navigation"></nav>
+  <main class="sm">
+    <div><p class="crumb"><span>Start</span> › StewardIQ</p><h2 class="hello">StewardIQ</h2><p class="lede">Engage companies, vote, and track what they commit to. Open a step to work in its screen; a bar there shows the next step.</p></div>
+    <section class="flow"><div class="fh"><div><h3>Engage and escalate</h3><p><b>Done when:</b> Every issue has an owner, a next step and a documented escalation path.</p></div><span class="cad">Continuous</span></div><div class="steps5"><div class="st w"><div class="sth"><span class="sn">1</span><span class="stt">Monitoring</span></div><span class="sst o"><i class="dot o"></i>4 new triggers</span><p>Triggers on holdings (incl. Risk Monitoring alerts and votes against management), checked against house policy.</p><div class="hands">Hands on: Triggers</div></div><div class="st"><div class="sth"><span class="sn">2</span><span class="stt">Selection</span></div><span class="sst k"><i class="dot k"></i>Cycle set</span><p>Coverage rules, reading published tiers, decide who is engaged this cycle.</p><div class="hands">Hands on: Engagement program</div></div><div class="st"><div class="sth"><span class="sn">3</span><span class="stt">Engagement</span></div><span class="sst r"><i class="dot r"></i>12 open issues</span><p>Issue record: contacts, severity, milestone and escalation stage.</p><div class="hands">Hands on: Issue record</div></div><div class="st w"><div class="sth"><span class="sn">4</span><span class="stt">Drafting</span></div><span class="sst o"><i class="dot o"></i>2 to approve</span><p>Dossier, outreach letter and talking points; a person approves before sending.</p><div class="hands">Hands on: Sent outreach</div></div><div class="st"><div class="sth"><span class="sn">5</span><span class="stt">Tracking</span></div><span class="sst k"><i class="dot k"></i>31 tracked</span><p>Commitments verified or missed; missed ones escalate and loop back to monitoring.</p><div class="hands">Hands on: Commitments</div></div></div></section>
+    <section class="flow"><div class="fh"><div><h3>Proxy season</h3><p><b>Done when:</b> Voting intentions published, votes cast checked against policy, outcomes fed into engagement.</p></div><span class="cad">Per meeting, peaks March–June</span></div><div class="steps4"><div class="st"><div class="sth"><span class="sn">1</span><span class="stt">Proxy voting</span></div><span class="sst r"><i class="dot r"></i>Run 64%</span><p>Start a run from meeting agendas; the policy drafts a vote per resolution, a person decides.</p><div class="hands">Hands on: Decided ballots</div></div><div class="st"><div class="sth"><span class="sn">2</span><span class="stt">Steward · Voting</span></div><span class="sst k"><i class="dot k"></i>18 decided</span><p>Decided ballots next to the house policy behind them.</p><div class="hands">Hands on: Votes against policy</div></div><div class="st w"><div class="sth"><span class="sn">3</span><span class="stt">Checkpoint</span></div><span class="sst o"><i class="dot o"></i>1 to review</span><p>Review every vote decided against the policy’s recommendation, with its reason.</p><div class="hands">Hands on: Votes against management</div></div><div class="st"><div class="sth"><span class="sn">4</span><span class="stt">Engagement</span></div><p>A vote against management raises a vote_outcome trigger; open the engagement from Monitoring.</p><div class="hands">Hands on: Triggers</div></div></div></section>
+    <section class="flow"><div class="fh"><div><h3>Client reporting</h3><p><b>Done when:</b> A client report showing house activity plus only where the client's policy differed.</p></div><span class="cad">Quarterly</span></div></section>
+  </main>
+</div></div></template>
+<template id="ndr"><div class="frame"><div class="app start same rq">
+  <nav aria-label="Navigation"></nav>
+  <main class="sm">
+    <div><h2 class="hello">Review Queue</h2><p class="lede">Low-confidence verdicts, ungrounded citations and uncertain calls wait here, lowest confidence first. Nothing flagged reaches an export until a named person approves it.</p></div>
+    <div class="tb"><label class="cap">Show</label><span class="pick">All runs (10 items) ▾</span><button>Refresh</button><span class="sp"></span><label class="cap">Access token</label><span class="inp">••••••••••••</span></div>
+    <section class="rcard">
+      <div class="rhead"><h3>3 awaiting a decision</h3><p>Press <kbd>J</kbd> / <kbd>K</kbd> to move between items, <kbd>A</kbd> / <kbd>C</kbd> / <kbd>R</kbd> to approve, correct or reject. A decision can be changed; every one is kept.</p></div>
+      <div class="ri cur">
+        <p class="rsrc"><span class="dot o"></span>Extraction · Field · <span class="mono">fx-0412</span></p>
+        <div class="rt"><b>Siemens Energy AG</b> <span class="mut">(ENR)</span></div>
+        <div class="rf">Revenue <span class="mut">· FY2025</span> <span class="val">€39,047m</span><span class="cf">conf 0.58</span></div>
+        <p class="mut">Flagged: sources disagree, low confidence</p>
+        <div class="cit"><span class="cap">Citations</span><span class="chip">Annual report p.34</span><span class="chip">Q4 press release</span></div>
+        <div class="dec"><button>Approve <kbd>A</kbd></button><button>Correct <kbd>C</kbd></button><button>Reject <kbd>R</kbd></button><span class="raw">Show raw ▸</span></div>
+      </div>
+      <div class="ri">
+        <p class="rsrc"><span class="dot o"></span>Extraction · Field · <span class="mono">fx-0412</span></p>
+        <div class="rt"><b>Siemens Energy AG</b> <span class="mut">(ENR)</span></div>
+        <div class="rf">Scope 1+2 emissions <span class="mut">· FY2025</span> <span class="val">402 kt CO₂e</span><span class="cf">conf 0.44</span></div>
+        <p class="mut">Flagged: ungrounded citation, boundary changed</p>
+      </div>
+      <div class="ri">
+        <p class="rsrc"><span class="dot o"></span>Voting · Proposal · <span class="mono">vote-0091</span></p>
+        <div class="rt"><b>Shell plc</b> <span class="mut">(SHEL)</span></div>
+        <div class="rf">AGM item 21, climate resolution <span class="mut">· closes Tue 17:00</span> <span class="val">Against</span><span class="cf">conf 0.61</span></div>
+        <p class="mut">Flagged: policy conflict</p>
+      </div>
+      <div class="ri done"><p class="rsrc"><span class="dot k"></span>Extraction · Field · <span class="mono">fx-0412</span></p><div class="rf">EBITA pre special items · Approved by you · 10:41 <span class="raw">Change</span></div></div>
+    </section>
+  </main>
+</div></div></template>
+<template id="nds"><div class="frame"><div class="app start same">
+  <nav aria-label="Navigation">
+    <div class="brand"><span class="bm"><svg class="mark" viewBox="0 0 62 62" aria-hidden="true"><path fill="currentColor" d="M14 2h10v10H14zM38 2h10v10H38zM2 14h10v10H2zM50 14h10v10H50zM2 26h10v10H2zM14 26h10v10H14zM26 26h10v10H26zM38 26h10v10H38zM50 26h10v10H50zM2 38h10v10H2zM50 38h10v10H50zM2 50h10v10H2zM50 50h10v10H50z"/><rect x="26" y="2" width="10" height="10" fill="var(--o)"/></svg>ARP</span></div>
+    <label class="fl"><span class="cap">Reviewing as</span><span class="inp">Your name</span></label>
+    <label class="fl"><span class="cap">Access token</span><span class="inp">••••••••••••</span></label>
+    <p class="hint">Decisions are recorded against the user this token belongs to.</p>
+    <button class="jump">Jump to… <kbd>⌘K</kbd></button>
+    <div class="run on"><svg class="ni" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9h-6v-6H9v6H3z"/></svg><div>Start</div><span class="n sd"><i class="dot k"></i></span></div>
+    <div class="cap">Needs you</div>
+    <div class="run"><svg class="ni" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1"/></svg><div>Review Queue</div><span class="n sd"><i class="dot o"></i>10</span></div>
+    <div class="cap">Workspaces</div>
+    <div class="run"><svg class="ni" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><div>StewardIQ</div><span class="n sd"><i class="dot o"></i>2</span></div>
+    <div class="run"><svg class="ni" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><div>Argus</div><span class="n sd"><i class="dot r"></i>64%</span></div>
+    <div class="run"><svg class="ni" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg><div>Transition Intelligence Platform</div><span class="n sd"><i class="dot k"></i></span></div>
+    <div class="run"><svg class="ni" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L4 20h16L14 9V3"/></svg><div>R&amp;D Lab</div><span class="n sd"><i class="dot x"></i>!</span></div>
+    <div class="run"><svg class="ni" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v14c0 1.7 3 3 7 3s7-1.3 7-3V5M5 12c0 1.7 3 3 7 3s7-1.3 7-3"/></svg><div>Data Hub</div><span class="n sd"><i class="dot k"></i></span></div>
+    <div class="cap">Output</div>
+    <div class="run"><svg class="ni" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1"/><path d="M12 16v4M8 20h8"/></svg><div>Presentations &amp; Reports</div><span class="n sd"></span></div>
+    <div class="run"><svg class="ni" viewBox="0 0 24 24"><path d="M12 3L5 21M12 3l7 18M8 14h8"/></svg><div>Arcade</div><span class="n sd"></span></div>
+    <div class="seg"><span class="on">System</span><span>Light</span><span>Dark</span></div>
+  </nav>
+  <main class="sm">
+    <div class="head">
+      <h2 class="hello">Good morning.</h2>
+      <div class="counts">
+        <div><b style="color:var(--o)">10</b><span class="cap">waiting on you</span></div>
+        <div><b style="color:var(--run)">3</b><span class="cap">running</span></div>
+        <div><b style="color:var(--bad)">1</b><span class="cap">failed this week</span></div>
+        <div><b style="color:var(--ok)">6</b><span class="cap">done today</span></div>
+      </div>
+    </div>
+    <a class="go" href="#">10 things wait on you →</a>
+    <div class="cards">
+      <div class="wc wait"><span class="pill sm">2 waiting</span><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><h3>StewardIQ</h3><p>Engage companies, vote, and track what they commit to.</p><div class="steps"><i class="k"></i><i class="o"></i><i></i></div><span class="open">Open →</span></div>
+      <div class="wc"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M9 11h6M9 15h4"/></svg><h3>Argus</h3><p>Extract cited data points from disclosures and score them.</p><div class="steps"><i class="k"></i><i class="r"></i></div><span class="open">Open →</span></div>
+      <div class="wc"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5 15l4-4 3 3 6-6"/></svg><h3>Transition Intelligence Platform</h3><p>Monitor holdings and assess climate and transition risk.</p><div class="steps"><i class="k"></i><i class="k"></i></div><span class="open">Open →</span></div>
+      <div class="wc"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="20" r="2"/></svg><h3>R&amp;D Lab</h3><p>Spot themes, test strategies and turn them into indices.</p><div class="steps"><i class="k"></i><i class="x"></i><i></i><i></i></div><span class="open">Open →</span></div>
+      <div class="wc"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v14c0 1.7 3 3 7 3s7-1.3 7-3V5M5 12c0 1.7 3 3 7 3s7-1.3 7-3"/></svg><h3>Data Hub</h3><p>Input feeds, stored data and the security master.</p><div class="steps"><i class="k"></i></div><span class="open">Open →</span></div>
+    </div>
+    <div class="legend"><span><i class="dot k"></i>has a finished run</span><span><i class="dot r"></i>running</span><span><i class="dot x"></i>last run failed</span><span><i class="dot o"></i>waiting on you</span><span><i class="dot"></i>no activity yet</span></div>
+  </main>
+</div></div></template>
+
+<div class="frame" id="nd"><div class="app">
+  <nav aria-label="Runs">
+    <div class="brand">ARP <kbd>⌘K</kbd></div>
+    <div class="cap">Needs you</div>
+    <div class="run on"><span class="dot o"></span><div>fx-0412<small>Siemens Energy</small></div><span class="n">3</span></div>
+    <div class="run"><span class="dot o"></span><div>id-0388<small>Identity merges</small></div><span class="n">7</span></div>
+    <div class="cap">Running</div>
+    <div class="run"><span class="dot r"></span><div>disc-0219<small>EU utilities</small></div><span class="n">64%</span></div>
+    <div class="run"><span class="dot r"></span><div>cal-v14<small>Calibration</small></div><span class="n">22%</span></div>
+    <div class="cap">Today</div>
+    <div class="run"><span class="dot k"></span><div>id-0387<small>1,204 companies</small></div><span class="n">done</span></div>
+    <div class="run"><span class="dot x"></span><div>th-0102<small>Q4 theme scan</small></div><span class="n">failed</span></div>
+  </nav>
+
+  <main>
+    <div class="top">
+      <div><h2>Siemens Energy · FY2025 financials</h2><p>Run fx-0412 · started 14:00 · annual report, sustainability report, Q4 press release</p></div>
+      <span class="pill">3 waiting on you</span>
+    </div>
+
+    <div class="prog">
+      <div class="bar" role="img" aria-label="64 line items: 38 grounded, 3 need review, 23 still extracting"><i style="width:59%;background:var(--ok)"></i><i style="width:5%;background:var(--o)"></i><i style="width:36%;background:var(--s3)"></i></div>
+      <div class="legend"><span><i class="dot k"></i>38 grounded</span><span><i class="dot o"></i>3 need review</span><span><i class="dot r"></i>23 extracting · about 1 min left</span></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="cap">Line items</span><b>41 / 64</b></div>
+      <div class="stat"><span class="cap">Median conf</span><b>0.91</b></div>
+      <div class="stat"><span class="cap">Sources</span><b>3 docs</b></div>
+      <div class="stat"><span class="cap">Elapsed</span><b>2m 10s</b></div>
+    </div>
+
+    <div class="tabs"><span class="tab on">Needs review<span class="mono">3</span></span><span class="tab">Grounded<span class="mono">38</span></span><span class="tab">All<span class="mono">64</span></span></div>
+
+    <div class="list">
+      <div class="row sel" tabindex="0"><span class="dot o"></span><div>Revenue<div class="why">AR p.34 and press release disagree</div></div><div class="conf">0.58<span class="t"><i style="width:58%;background:var(--m)"></i></span></div><div class="v">€39,047m</div></div>
+      <div class="row" tabindex="0"><span class="dot o"></span><div>Scope 1+2 emissions<div class="why">reporting boundary changed vs FY24</div></div><div class="conf">0.44<span class="t"><i style="width:44%;background:var(--m)"></i></span></div><div class="v">402 kt</div></div>
+      <div class="row" tabindex="0"><span class="dot o"></span><div>Order backlog<div class="why">press release only, not audited</div></div><div class="conf">0.61<span class="t"><i style="width:61%;background:var(--m)"></i></span></div><div class="v">€136.0bn</div></div>
+      <div class="row done"><span class="dot k"></span><div>EBITA pre special items<div class="why">AR p.36 · grounded</div></div><div class="conf">0.94<span class="t"><i style="width:94%;background:var(--ok)"></i></span></div><div class="v">€2,148m</div></div>
+    </div>
+  </main>
+
+  <aside aria-label="Selected item" class="dp">
+    <div class="field"><span class="cap">Revenue · item 1 of 3</span><span class="big">€39,047m</span></div>
+    <section class="pn doc" aria-label="Source excerpt">
+      <header class="pnh"><span class="cap">Source excerpt</span><span class="pg">p. 34</span></header>
+      <div class="docmeta"><b>Siemens Energy AG · Annual Report 2025</b><span>Combined management report · 2.1 Revenue and orders</span></div>
+      <div class="page">
+        <p class="ctx"><span class="ln">12</span><span>Siemens Energy closed fiscal year 2025 with strong order intake across all segments.</span></p>
+        <p class="hit"><span class="ln">13</span><span>In fiscal year 2025, Siemens Energy grew <mark>revenue to €39,047 million</mark>, a comparable increase of 16.4%, driven by Grid Technologies and Gas Services.</span></p>
+        <p class="ctx"><span class="ln">14</span><span>Order backlog reached a record €136 billion at the end of the fiscal year.</span></p>
+      </div>
+      <footer class="pnf"><span>Grounded: exact match on page 34</span><span class="xl">Open document →</span></footer>
+    </section>
+    <div class="actions">
+      <button>Reject <kbd>R</kbd></button>
+      <button>Edit <kbd>E</kbd></button>
+      <button>Accept <kbd>A</kbd></button>
+    </div>
+    <section class="pn" aria-label="Values compared">
+      <header class="pnh"><span class="cap">Values compared</span><span class="pg">2 sources disagree</span></header>
+      <div class="cmp">
+        <span>Annual report, p.34</span><span class="mono">€39,047m</span>
+        <span>Q4 press release</span><span class="mono">€39.0bn</span>
+        <span>Prior year</span><span class="mono">€34,465m</span>
+        <span>Change</span><span class="mono diff">+13.3%</span>
+      </div>
+    </section>
+    <section class="pn" aria-label="Run log">
+      <header class="pnh"><span class="cap">Run log · fx-0412</span><span class="pg">live</span></header>
+      <div class="log"><span>14:02:11</span> EBITA → AR p.36 ✓<br><span>14:02:13</span> FCF pre tax → AR p.41 ✓<br><span>14:02:15</span> <em>order backlog → press release only</em></div>
+    </section>
+  </aside>
+</div></div>
+
+<script>
+// Clone the Night Desk screen and restyle it with the current tokens, so both show identical content.
+const nd=document.getElementById('nd');nd.remove();
+const rows=[['Dark mode',['cur','Current: near-black greys, lime for "needs you", no colour for running'],['','Night Desk: blue-black, amber for "needs you", blue for running']],
+ ['Light mode',['curl','Current: warm grey, ink controls, orange for "needs you"'],['ndl','Night Desk: cool blue-grey, white panels, amber for "needs you", blue for running']]];
+const host=document.getElementById('pairs');
+for(const [title,...cols] of rows){
+ const sec=document.createElement('section');sec.className='vs';sec.innerHTML=`<h2>Review queue · ${title}</h2>`;
+ const grid=document.createElement('div');grid.className='shots';
+ for(const [cls,cap] of cols){const f=document.createElement('figure');const c=nd.cloneNode(true);c.id='';if(cls)c.classList.add(cls);
+  f.append(c);const fc=document.createElement('figcaption');fc.textContent=cap;f.append(fc);grid.append(f);}
+ sec.append(grid);host.append(sec);}
+for(const f of document.querySelectorAll('.nds-slot')){const c=document.getElementById('nds').content.firstElementChild.cloneNode(true);if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+for(const f of document.querySelectorAll('.lp-slot')){const c=document.getElementById('lpt').content.firstElementChild.cloneNode(true);if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+for(const f of document.querySelectorAll('.ndc-slot')){const c=document.getElementById('ndc').content.firstElementChild.cloneNode(true);
+ c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
+ c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.trim().startsWith('Arcade')));
+ if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+for(const f of document.querySelectorAll('.ndp-slot')){const c=document.getElementById('ndp').content.firstElementChild.cloneNode(true);
+ c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
+ c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.includes('Presentations')));
+ if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+for(const f of document.querySelectorAll('.ndt-slot')){const c=document.getElementById('ndt').content.firstElementChild.cloneNode(true);
+ c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
+ c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.includes('Transition Intelligence')));
+ if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+for(const f of document.querySelectorAll('.ndh-slot')){const c=document.getElementById('ndh').content.firstElementChild.cloneNode(true);
+ c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
+ c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.includes('Data Hub')));
+ if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+
+for(const f of document.querySelectorAll('.ndl7-slot')){const c=document.getElementById('ndl7').content.firstElementChild.cloneNode(true);
+ c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
+ c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.includes('R&D Lab')));
+ if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+for(const f of document.querySelectorAll('.nda-slot')){const c=document.getElementById('nda').content.firstElementChild.cloneNode(true);
+ c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
+ c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.trim().startsWith('Argus')));
+ if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+for(const f of document.querySelectorAll('.ndw-slot')){const c=document.getElementById('ndw').content.firstElementChild.cloneNode(true);
+ c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
+ c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.includes('StewardIQ')));
+ if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+for(const f of document.querySelectorAll('.ndr-slot')){const c=document.getElementById('ndr').content.firstElementChild.cloneNode(true);
+ c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
+ c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.includes('Review Queue')));
+ if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+</script>
+
+
+<script>
+// Start hero: a network of input dots; a fraction lights up, runs through the pipeline (extract, verify, review) and lands as the ARP logo.
+addEventListener('DOMContentLoaded',()=>{
+ const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ const MARK=[[1,0],[3,0],[0,1],[4,1],[0,2],[1,2],[2,2],[3,2],[4,2],[0,3],[4,3],[0,4],[4,4]],HI=[2,0];
+ const CYCLE=22000,clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)),ease=u=>u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2;
+ const lerp=(a,b,k)=>a+(b-a)*k;
+ document.querySelectorAll('.flowviz').forEach((cv,ci)=>{
+  const ctx=cv.getContext('2d');const dpr=Math.min(2,devicePixelRatio||1);let W=0,H=0,P=[],G={};
+  const css=n=>getComputedStyle(cv).getPropertyValue(n).trim();
+  const col={o:css('--o'),r:css('--run'),f:css('--f'),m:css('--m'),line:css('--line')};
+  let seed=11+ci;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  function build(){
+   W=cv.offsetWidth;H=cv.offsetHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+   // pipeline geometry (left/centre) and logo area (right)
+   G={mouth:W*0.20,p0:W*0.30,p1:W*0.50,flare:W*0.55,cy:H*0.5,wide:H*0.36,pipe:H*0.07};
+   const oc=document.createElement('canvas');oc.width=W;oc.height=H;const o=oc.getContext('2d');
+   let cell=Math.round(H*0.11),fs=Math.round(H*0.62);o.font=`700 ${fs}px Geist,system-ui,sans-serif`;
+   let tw=o.measureText('ARP').width;const fit=Math.min(1,(W*0.40)/(cell*6.2+tw));cell=Math.round(cell*fit);fs=Math.round(fs*fit);
+   o.font=`700 ${fs}px Geist,system-ui,sans-serif`;tw=o.measureText('ARP').width;
+   const mw=cell*5,gap=cell*1.2,total=mw+gap+tw,x0=W*0.585+(W*0.39-total)/2,y0=(H-cell*5)/2;
+   o.fillStyle='#000';MARK.concat([HI]).forEach(([c,r])=>o.fillRect(x0+c*cell,y0+r*cell,cell-2,cell-2));
+   o.textBaseline='middle';o.fillText('ARP',x0+mw+gap,H/2+fs*0.04);
+   const d=o.getImageData(0,0,W,H).data,step=Math.max(4,Math.round(Math.min(H/72,cell/4))),T=[];
+   for(let y=0;y<H;y+=step)for(let x=0;x<W;x+=step)if(d[(y*W+x)*4+3]>128)
+     T.push([x,y,x>=x0+HI[0]*cell&&x<x0+(HI[0]+1)*cell&&y>=y0&&y<y0+cell]);
+   const N=Math.min(3200,Math.max(T.length*3,Math.round(W*H/170)));P=[];
+   for(let i=0;i<N;i++)P.push({hx:rnd()*W,hy:rnd()*H,ph:rnd()*6.28,sp:.3+rnd()*.7,lit:false});
+   // the lit fraction: pick dots spread over the field, one per logo target
+   const idx=[...P.keys()].sort(()=>rnd()-.5).slice(0,T.length);
+   idx.forEach((pi,k)=>{const p=P[pi],t=T[k];Object.assign(p,{lit:true,tx:t[0],ty:t[1],hi:t[2],
+     lane:(rnd()-.5)*2,delay:rnd(),flag:rnd()<.08})});
+  }
+  build();
+  const home=(p,t,w=1)=>[p.hx+Math.sin(t/2600*p.sp+p.ph)*24*w,p.hy+Math.cos(t/3100*p.sp+p.ph*1.3)*16*w];
+  function litPos(p,t,c){
+   const h=home(p,t);if(c<.24)return[h[0],h[1],0,'pre'];
+   if(c>=.86){const k=ease(clamp((c-.86)/.14));return[lerp(p.tx,h[0],k),lerp(p.ty,h[1],k),1-k,'out']}
+   const u=clamp((c-.24-p.delay*.2)/.34);if(u<=0)return[h[0],h[1],0,'wait'];
+   const laneY=G.cy+p.lane*G.pipe*.8;
+   if(u<.3){const k=ease(u/.3);return[lerp(h[0],G.mouth,k),lerp(h[1],G.cy+p.lane*G.wide,k),0,'in']}
+   if(u<.4){const k=(u-.3)/.1;return[lerp(G.mouth,G.p0,k),lerp(G.cy+p.lane*G.wide,laneY,ease(k)),0,'in']}
+   if(u<.75){const k=(u-.4)/.35;return[lerp(G.p0,G.p1,k),laneY,0,'pipe',k]}
+   const k=ease((u-.75)/.25);return[lerp(G.p1,p.tx,k),lerp(laneY,p.ty,k),k,'land']}
+  function drawPipe(a,t){if(a<.01)return;ctx.save();ctx.globalAlpha=a;ctx.strokeStyle=col.m;ctx.lineWidth=1.2;
+   for(const sgn of [-1,1]){ctx.beginPath();ctx.moveTo(G.mouth,G.cy+sgn*G.wide);
+    ctx.bezierCurveTo(G.mouth+(G.p0-G.mouth)*.6,G.cy+sgn*G.wide,G.p0-(G.p0-G.mouth)*.3,G.cy+sgn*G.pipe,G.p0,G.cy+sgn*G.pipe);
+    ctx.lineTo(G.p1,G.cy+sgn*G.pipe);ctx.quadraticCurveTo(G.flare,G.cy+sgn*G.pipe,G.flare+8,G.cy+sgn*G.pipe*2.4);ctx.stroke()}
+   ctx.font='500 11px "Geist Mono",ui-monospace,monospace';ctx.textAlign='center';ctx.fillStyle=col.m;
+   ['EXTRACT','VERIFY','REVIEW'].forEach((n,i)=>{const x=lerp(G.p0,G.p1,(i+.5)/3);
+    ctx.globalAlpha=a*.9;ctx.fillText(n,x,G.cy-G.pipe-14);if(i){const bx=lerp(G.p0,G.p1,i/3);ctx.globalAlpha=a*.4;ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(bx,G.cy-G.pipe);ctx.lineTo(bx,G.cy+G.pipe);ctx.stroke();ctx.setLineDash([])}});
+   ctx.restore()}
+  function draw(t){
+   ctx.clearRect(0,0,W,H);const c=(t%CYCLE)/CYCLE;
+   const pipeA=c<.16?0:c<.24?(c-.16)/.08:c<.84?1:c<.92?1-(c-.84)/.08:0;
+   const netA=c<.2?1:c<.3?1-(c-.2)/.1:c<.88?0:(c-.88)/.12;
+   const pos=P.map(p=>p.lit?litPos(p,t,c):home(p,t));
+   // network links among the background field
+   if(netA>.02){ctx.strokeStyle=col.m;ctx.lineWidth=.5;const g=40,bins=new Map();
+    pos.forEach((q,i)=>{if(P[i].lit&&c>.24&&c<.86)return;const key=((q[0]/g)|0)*4096+((q[1]/g)|0);(bins.get(key)||bins.set(key,[]).get(key)).push(i)});
+    ctx.beginPath();for(const [key,arr] of bins)for(const nk of [key,key+4096,key+1,key+4097]){const o=bins.get(nk);if(!o)continue;
+     for(const a of arr)for(const b of o){if(nk===key&&b<=a)continue;const dx=pos[a][0]-pos[b][0],dy=pos[a][1]-pos[b][1];
+      if(dx*dx+dy*dy<g*g*.5){ctx.moveTo(pos[a][0],pos[a][1]);ctx.lineTo(pos[b][0],pos[b][1])}}}
+    ctx.globalAlpha=netA*.22;ctx.stroke();ctx.globalAlpha=1}
+   const dim=1-.6*pipeA;
+   P.forEach((p,i)=>{const q=pos[i];let fill=col.m,a=.45*dim,r=1.2;
+    if(p.lit){const glow=c<.16?0:c<.24?(c-.16)/.08:1;
+     if(q[3]==='land'||q[3]==='out'){fill=q[2]>.55?(p.hi?col.o:col.f):col.r;a=.6+.4*q[2];r=1.4+q[2]*.9}
+     else if(q[3]==='pipe'&&p.flag&&q[4]>.66){fill=col.o;a=1;r=2.2}
+     else if(glow>0){fill=col.r;a=.45+.5*glow;r=1.2+.8*glow}}
+    ctx.globalAlpha=a;ctx.fillStyle=fill;ctx.beginPath();ctx.arc(q[0],q[1],r,0,7);ctx.fill()});
+   ctx.globalAlpha=1}
+  if(reduce){draw(CYCLE*.8);return}
+  let vis=true;new IntersectionObserver(e=>vis=e[0].isIntersecting).observe(cv);
+  let t0=null;const loop=t=>{t0??=t;if(vis)draw(t-t0);requestAnimationFrame(loop)};requestAnimationFrame(loop);
+  addEventListener('resize',build);
+ });
+});
+</script>
+<div class="notes">
+  <div><b>Keyboard first</b>A, R and E decide the selected item. J and K move between items. ⌘K jumps to any run.</div>
+  <div><b>One meaning for amber</b>The rail, the pill and the selected row all use amber for the same thing: waiting on you. Running is blue, done is green, failed is red.</div>
+  <div><b>Evidence beside the decision</b>The right pane shows both sources, the prior year and the exact sentence, so you never leave the queue to check a number.</div>
+</div>
+</div>

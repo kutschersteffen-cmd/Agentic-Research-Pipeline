@@ -1,39 +1,38 @@
 :root {
-  /* Graphite (light): a warm grey, near-monochrome ground with ink text and
-     ink controls. The one colour, signal orange (--hi / --await-edge), is
-     reserved for things waiting on a person -- the "needs you" counts,
-     proposed-not-ratified output, the tiles that link to a decision. Once
-     someone decides, the orange goes. Nothing automated ever uses it. */
-  --bg: #f3f3f0;
+  /* Night Desk (light): a cool blue-grey ground with ink text and ink
+     controls. The one signal colour, amber (--hi / --await-edge), is reserved
+     for things waiting on a person -- the "needs you" counts, proposed-not-
+     ratified output, the tiles that link to a decision. Once someone decides,
+     the amber goes. Nothing automated ever uses it. */
+  --bg: #f4f6f9;
   --panel: #ffffff;
-  --panel-border: #dcdcd7;
+  --panel-border: #d8dee7;
   /* Form-field edge: >=3:1 on the field and page (WCAG 1.4.11); --panel-border stays light for cards and rules. */
-  --field-border: #85857f;
-  --well: #ebebe7;
-  --text: #141414;
-  --muted: #5c5c57;
-  --accent: #141414;
+  --field-border: #7b8696;
+  --well: #eaeef3;
+  --text: #121722;
+  --muted: #4f5a6b;
+  --accent: #121722;
   --accent-ink: #000000;
   --accent-tint: rgb(20 20 20 / 0.06);
-  --sidebar-bg: #eeeeea;
+  --sidebar-bg: #eaeef3;
   --on-accent: #ffffff; /* text on accent and status fills */
-  /* Awaiting a person: a pale orange fill, the signal orange as its edge
-     (3.4:1 on the page and 3.2:1 on its own fill, so a pending boundary still reads on a projector), and a
-     deeper orange for text (--hi-ink, 5:1 on white). */
-  --await: #ffe6db;
-  --await-edge: #ea4c14;
-  --hi: #ea4c14;
-  --hi-ink: #b8400f;
-  --on-hi: #141414; /* text on a --hi fill: 5.1:1 */
+  /* Awaiting a person: a pale amber fill with the signal amber as its edge
+     and its text (--hi-ink: 5.7:1 on white, 4.9:1 on its own fill). */
+  --await: #f6ecd6;
+  --await-edge: #85601a;
+  --hi: #85601a;
+  --hi-ink: #85601a;
+  --on-hi: #ffffff; /* text on a --hi fill: 5.7:1 */
   /* high/mid/low/neutral are status semantics (run status, escalation
      stage, badges) rendered as small text/borders, not chart marks.
      Deepened again when the ground moved to warm cream: at the previous
      values --mid scored 2.99:1 on --well, where .banner-warning renders,
      and --high 3.66:1. These clear 4.5:1 on --bg, --panel and --well
      alike, and still clear 4.5:1 under white as badge fills. */
-  --high: oklch(50% 0.150 149);
+  --high: #13804f;
   --mid: oklch(52% 0.125 70);
-  --low: oklch(54% 0.174 30);
+  --low: #c8323f;
   --neutral: oklch(50% 0.010 64);
 
   /* Type scale. Replaces fifteen ad-hoc sizes, nine of which sat between
@@ -61,12 +60,11 @@
 
   --topbar-h: 53px; /* mobile top bar: 44px target + padding + hairline */
 
-  /* The start page's square, ruled instrument-panel look runs through every
-     page: cards, tables, inputs and buttons are square; only small badges
-     keep a hint of rounding, and status/count pills stay full pills. */
-  --r-sm: 0;
-  --r-md: 0;
-  --r-lg: 0;
+  /* Night Desk radii. Rules that use these tokens round their corners; rules
+     that still set border-radius: 0 stay square until a later release. */
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
   --r-pill: 999px;
 
   /* Elevation is for things that genuinely float. Flat surfaces keep
@@ -91,37 +89,37 @@
   --cat-4: #6250d6;
 }
 
-/* Dark mode, "Night": a near-black ground and near-white ink, with one lime
-   signal. The rule carries over from light mode: lime is the only colour for
-   "waiting on a person" (orange's role); red stays for failures. Follows the system setting unless the
+/* Night Desk (dark): a blue-black ground with stepped panels and the same
+   amber signal as light mode, so "waiting on a person" looks the same in both
+   themes; red stays for failures. Follows the system setting unless the
    sidebar switch pins a mode (data-theme on <html>). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0c0d0f;
-    --panel: #131417;
-    --panel-border: #26272c;
-    --field-border: #707178;
-    --well: #18191c;
-    --text: #e8e8e3;
-    --muted: #9a9ba0;
-    --accent: #e8e8e3;
+    --bg: #0d1015;
+    --panel: #141921;
+    --panel-border: #2c3644;
+    --field-border: #6d7889;
+    --well: #1b222d;
+    --text: #e8ebf0;
+    --muted: #a3acbb;
+    --accent: #e8ebf0;
     --accent-ink: #ffffff;
     --accent-tint: rgb(232 232 227 / 0.08);
-    --sidebar-bg: #0f1012;
-    --on-accent: #0c0d0f;
-    --await: #33420c;
-    --await-edge: #c6ff3d;
-    --hi: #c6ff3d;
-    --hi-ink: #c6ff3d;
-    --on-hi: #0c0d0f;
-    --high: #26c281;
+    --sidebar-bg: #10141a;
+    --on-accent: #0d1015;
+    --await: rgb(212 166 80 / 0.14);
+    --await-edge: #d4a650;
+    --hi: #d4a650;
+    --hi-ink: #d4a650;
+    --on-hi: #0d1015;
+    --high: #4fd69c;
     --mid: #f2c94c;
-    --low: #ff4d4d;
+    --low: #ff6b7a;
     --neutral: #9a9ba0;
     --shadow-md: 0 2px 6px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
     --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
-    --font-display: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+    --font-display: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-mono: "Geist Mono", ui-monospace, monospace;
     --cat-1: #3987e5;
     --cat-2: #d55181;
     --cat-3: #c98500;
@@ -130,31 +128,31 @@
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0c0d0f;
-  --panel: #131417;
-  --panel-border: #26272c;
-  --field-border: #707178;
-  --well: #18191c;
-  --text: #e8e8e3;
-  --muted: #9a9ba0;
-  --accent: #e8e8e3;
+  --bg: #0d1015;
+  --panel: #141921;
+  --panel-border: #2c3644;
+  --field-border: #6d7889;
+  --well: #1b222d;
+  --text: #e8ebf0;
+  --muted: #a3acbb;
+  --accent: #e8ebf0;
   --accent-ink: #ffffff;
   --accent-tint: rgb(232 232 227 / 0.08);
-  --sidebar-bg: #0f1012;
-  --on-accent: #0c0d0f;
-  --await: #33420c;
-  --await-edge: #c6ff3d;
-  --hi: #c6ff3d;
-  --hi-ink: #c6ff3d;
-  --on-hi: #0c0d0f;
-  --high: #26c281;
+  --sidebar-bg: #10141a;
+  --on-accent: #0d1015;
+  --await: rgb(212 166 80 / 0.14);
+  --await-edge: #d4a650;
+  --hi: #d4a650;
+  --hi-ink: #d4a650;
+  --on-hi: #0d1015;
+  --high: #4fd69c;
   --mid: #f2c94c;
-  --low: #ff4d4d;
+  --low: #ff6b7a;
   --neutral: #9a9ba0;
   --shadow-md: 0 2px 6px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
   --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
-  --font-display: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-display: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
   --cat-1: #3987e5;
   --cat-2: #d55181;
   --cat-3: #c98500;
@@ -1891,14 +1889,14 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .cabinet { position: relative; width: min(100%, 480px, calc((100dvh - var(--cab-chrome, 14.5rem)) * 0.75)); min-width: 12rem; aspect-ratio: 3 / 4; user-select: none; -webkit-user-select: none; background: #05070a; border: 1px solid var(--panel-border); overflow: hidden; touch-action: none; }
 .cabinet canvas { display: block; width: 100%; height: 100%; }
 .cabinet-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgb(0 0 0 / 0.65) 100%); }
-.cabinet-hud { position: absolute; inset: 12px 14px auto; display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: var(--text-sm); color: #c6ff3d; z-index: 1; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+.cabinet-hud { position: absolute; inset: 12px 14px auto; display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: var(--text-sm); color: #5ce1e6; z-index: 1; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
 .cabinet-score { font-size: 1.5rem; font-weight: 600; }
 .cabinet-score-best { animation: cabinet-pulse 1s ease-in-out infinite alternate; }
 @keyframes cabinet-pulse { from { opacity: 1; } to { opacity: 0.45; } }
-.cabinet-card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-4); background: rgb(5 7 10 / 0.6); color: #c6ff3d; text-align: center; z-index: 2; }
+.cabinet-card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-4); background: rgb(5 7 10 / 0.6); color: #5ce1e6; text-align: center; z-index: 2; }
 .cabinet-card strong { font-family: var(--font-display); font-size: clamp(2rem, 8vw, 3rem); font-weight: 600; letter-spacing: -0.03em; }
 .cabinet-card span { font-family: var(--font-mono); }
-.cabinet-go { font-family: var(--font-mono); font-size: var(--text-sm); letter-spacing: 0.1em; color: #05070a; background: #c6ff3d; border: 0; padding: 10px 18px; cursor: pointer; }
+.cabinet-go { font-family: var(--font-mono); font-size: var(--text-sm); letter-spacing: 0.1em; color: #05070a; background: #5ce1e6; border: 0; padding: 10px 18px; cursor: pointer; }
 .cabinet-go:hover { background: #fff; }
 .cabinet-go:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .cabinet-score-best { animation: none; } }
@@ -1924,8 +1922,8 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 
 /* On-screen buttons for phones: only on touch or narrow screens, and the cabinet leaves room for them. */
 .touchpad { display: none; gap: var(--s-3); margin-top: var(--s-3); width: 100%; }
-.touchpad button { min-height: 4rem; font-family: var(--font-mono); font-size: 1rem; font-weight: 600; letter-spacing: 0.1em; color: #c6ff3d; background: #05070a; border: 2px solid #c6ff3d; border-radius: 0; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: pointer; }
-.touchpad button:active { background: #c6ff3d; color: #05070a; }
+.touchpad button { min-height: 4rem; font-family: var(--font-mono); font-size: 1rem; font-weight: 600; letter-spacing: 0.1em; color: #5ce1e6; background: #05070a; border: 2px solid #5ce1e6; border-radius: 0; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: pointer; }
+.touchpad button:active { background: #5ce1e6; color: #05070a; }
 .touchpad button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (pointer: coarse), (max-width: 640px) { .touchpad { display: grid; } .arcade-game:has(.touchpad) { --cab-chrome: 15.5rem; } }
 
