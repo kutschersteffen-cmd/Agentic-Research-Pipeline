@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import {
-  CHECKLIST_KEYS, THEME_KEYS, canBuild, initialSelection, prefill, sourcesBody, startBody, startPolling, viewFor,
+  CHECKLIST_KEYS, THEME_KEYS, canBuild, initialSelection, isWorking, prefill, sourcesBody, startBody, startPolling, viewFor,
   type Selection, type StartForm,
 } from "../lib/authorityTaxonomy";
 import type { AuthorityRunState } from "../types";
@@ -151,13 +151,16 @@ export function AuthorityTaxonomyRun({ runId }: { runId?: string }) {
   const [missing, setMissing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const poller = useRef<ReturnType<typeof startPolling> | null>(null);
+  const onRun = (r: AuthorityRunState) => { setRun(r); if (isWorking(r.stage)) poller.current?.resume(); };
 
   useEffect(() => {
     if (!runId) return;
-    return startPolling(
+    const p = (poller.current = startPolling(
       () => api.getAuthorityRun(runId), setRun, document,
       (e) => ((e as Error).message.startsWith("404") ? setMissing(true) : setError(message(e))),
-    );
+    ));
+    return p;
   }, [runId]);
 
   if (!runId) return <div className="page authority-run"><StartFormView /></div>;
@@ -177,8 +180,8 @@ export function AuthorityTaxonomyRun({ runId }: { runId?: string }) {
           }}>Cancel</button>
         </div>
       )}
-      {run && view === "sources" && <Sources key={`${run.run_id}-${run.error ?? ""}-${run.candidates.length}`} run={run} onRun={setRun} />}
-      {run && view === "review" && run.draft && <AuthorityDraftReview key={run.run_id} run={run} onRun={setRun} />}
+      {run && view === "sources" && <Sources key={`${run.run_id}-${run.error ?? ""}-${run.candidates.length}`} run={run} onRun={onRun} />}
+      {run && view === "review" && run.draft && <AuthorityDraftReview key={run.run_id} run={run} onRun={onRun} />}
       {run && view === "accepted" && (
         <p>Accepted as taxonomy {run.taxonomy_id}. <a href="#/taxonomy">Open the Taxonomy Library</a></p>
       )}

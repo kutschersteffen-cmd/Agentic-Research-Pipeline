@@ -77,6 +77,25 @@ test("polling: paused while hidden, one poll at once when visible again", async 
   } finally { mock.timers.reset(); }
 });
 
+test("polling: resume() after Build draft picks up awaiting_review", async () => {
+  mock.timers.enable({ apis: ["setTimeout"] });
+  try {
+    const stages = ["awaiting_sources", "extracting", "awaiting_review"];
+    let calls = 0;
+    const seen: string[] = [];
+    const stop = startPolling(async () => run({ stage: stages[Math.min(calls++, 2)] as never }), (r) => seen.push(r.stage), fakeDoc().doc);
+    await settle();
+    mock.timers.tick(3000);
+    await settle();
+    assert.equal(calls, 1); // stopped at awaiting_sources
+    stop.resume(); // user pressed Build draft; server is extracting
+    for (let s = 0; s < 3; s++) { await settle(); mock.timers.tick(3000); }
+    await settle();
+    assert.equal(seen.at(-1), "awaiting_review");
+    stop();
+  } finally { mock.timers.reset(); }
+});
+
 test("editText keeps the citations", () => {
   const item = { text: "old", citations: [{ quote: "q", source_url: "u", location: "l" }] };
   const out = editText(item, { text: "new" });
