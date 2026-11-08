@@ -121,6 +121,10 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .steps .k{background:var(--ok);border-color:var(--ok)}.steps .r{border-color:var(--run)}.steps .o{background:var(--o);border-color:var(--o)}.steps .x{background:var(--bad);border-color:var(--bad)}
 .open{font:500 13px var(--mono)}
 .pill.sm{position:absolute;top:14px;right:14px;padding:3px 9px;font-size:11px}
+.same .run{grid-template-columns:16px 1fr auto}
+.ni{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sd{display:flex;gap:6px;align-items:center}.sd .dot{width:7px;height:7px}
+.bm{display:flex;gap:10px;align-items:center;font-weight:700;font-size:15px}.mark{width:26px;height:26px;color:var(--f)}
 .prun{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--b);font-size:13px}
 .prun .mono{font-size:12px;color:var(--m)}
 .shots .frame{overflow:hidden}.shots .app{zoom:.5}
@@ -156,23 +160,23 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 
 <template id="nds"><div class="frame"><div class="app start same">
   <nav aria-label="Navigation">
-    <div class="brand">ARP <kbd>⌘K</kbd></div>
+    <div class="brand"><span class="bm"><svg class="mark" viewBox="0 0 62 62" aria-hidden="true"><path fill="currentColor" d="M14 2h10v10H14zM38 2h10v10H38zM2 14h10v10H2zM50 14h10v10H50zM2 26h10v10H2zM14 26h10v10H14zM26 26h10v10H26zM38 26h10v10H38zM50 26h10v10H50zM2 38h10v10H2zM50 38h10v10H50zM2 50h10v10H2zM50 50h10v10H50z"/><rect x="26" y="2" width="10" height="10" fill="var(--o)"/></svg>ARP</span></div>
     <label class="fl"><span class="cap">Reviewing as</span><span class="inp">Your name</span></label>
     <label class="fl"><span class="cap">Access token</span><span class="inp">••••••••••••</span></label>
     <p class="hint">Decisions are recorded against the user this token belongs to.</p>
     <button class="jump">Jump to… <kbd>⌘K</kbd></button>
-    <div class="run on"><span class="dot k"></span><div>Start</div><span class="n"></span></div>
+    <div class="run on"><svg class="ni" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9h-6v-6H9v6H3z"/></svg><div>Start</div><span class="n sd"><i class="dot k"></i></span></div>
     <div class="cap">Needs you</div>
-    <div class="run"><span class="dot o"></span><div>Review Queue</div><span class="n">10</span></div>
+    <div class="run"><svg class="ni" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1"/></svg><div>Review Queue</div><span class="n sd"><i class="dot o"></i>10</span></div>
     <div class="cap">Workspaces</div>
-    <div class="run"><span class="dot o"></span><div>StewardIQ</div><span class="n">2</span></div>
-    <div class="run"><span class="dot r"></span><div>Argus</div><span class="n">64%</span></div>
-    <div class="run"><span class="dot k"></span><div>Transition Intelligence Platform</div><span class="n"></span></div>
-    <div class="run"><span class="dot x"></span><div>R&amp;D Lab</div><span class="n">!</span></div>
-    <div class="run"><span class="dot k"></span><div>Data Hub</div><span class="n"></span></div>
+    <div class="run"><svg class="ni" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><div>StewardIQ</div><span class="n sd"><i class="dot o"></i>2</span></div>
+    <div class="run"><svg class="ni" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><div>Argus</div><span class="n sd"><i class="dot r"></i>64%</span></div>
+    <div class="run"><svg class="ni" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg><div>Transition Intelligence Platform</div><span class="n sd"><i class="dot k"></i></span></div>
+    <div class="run"><svg class="ni" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L4 20h16L14 9V3"/></svg><div>R&amp;D Lab</div><span class="n sd"><i class="dot x"></i>!</span></div>
+    <div class="run"><svg class="ni" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v14c0 1.7 3 3 7 3s7-1.3 7-3V5M5 12c0 1.7 3 3 7 3s7-1.3 7-3"/></svg><div>Data Hub</div><span class="n sd"><i class="dot k"></i></span></div>
     <div class="cap">Output</div>
-    <div class="run"><span class="dot"></span><div>Presentations &amp; Reports</div><span class="n"></span></div>
-    <div class="run"><span class="dot"></span><div>Arcade</div><span class="n"></span></div>
+    <div class="run"><svg class="ni" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1"/><path d="M12 16v4M8 20h8"/></svg><div>Presentations &amp; Reports</div><span class="n sd"></span></div>
+    <div class="run"><svg class="ni" viewBox="0 0 24 24"><path d="M12 3L5 21M12 3l7 18M8 14h8"/></svg><div>Arcade</div><span class="n sd"></span></div>
     <div class="seg"><span class="on">System</span><span>Light</span><span>Dark</span></div>
   </nav>
   <main class="sm">
