@@ -10,7 +10,7 @@ failed fix rounds, `factory:blocked` for spec questions, at most three agent PRs
 green, the `evaluator` skill checks the spec's `evaluator` rows in the running app.
 Hidden acceptance tests live in the private `holdout` repo, written by the `test-writer` skill in a
 session that never works on the implementation; the Holdout acceptance job runs them on PRs that say
-`Spec: <slug>` and prints only `AC-n pass|fail`. Never attach `holdout` to an implementing session.
+`Spec: <slug>` and prints only `AC-n pass|fail` (docs-only PRs skip it). Never attach `holdout` to an implementing session.
 If CI goes red on `main` after a merge, the Main guard workflow opens a `Revert <sha>` PR (or an issue);
 merge it, or close it when a fix is already on the way.
 To run a feature through all of this, start a cloud session and type `/factory <feature>`: the
