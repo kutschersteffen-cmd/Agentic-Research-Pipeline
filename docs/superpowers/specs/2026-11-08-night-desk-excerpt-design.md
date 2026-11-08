@@ -74,8 +74,8 @@ when `char_start`/`char_end` are set and valid; otherwise `quote` when `source.q
 - Otherwise, when `source.quote` is set: the same blockquote with the quote only, no `<mark>`.
 - When neither is available, no figure is rendered (as today, when there is no quote).
 
-**Look.** Paper card: background `--panel` in light, `#f5f2ea` (paper) with ink `#1b1a17` in dark
-(defined as tokens `--paper` and `--ink`, light `#ffffff` / `--text`), 16px Source Serif 4 at
+**Look.** Paper card: background `var(--paper)` and text `var(--ink)` (new tokens: light `#ffffff` /
+`var(--text)`, both dark blocks `#f5f2ea` / `#1b1a17`), 16px Source Serif 4 at
 line-height 1.6, context in `--muted`, `<mark>` background `--await` with a 2px `--await-edge`
 underline. The Google Fonts link in `frontend/index.html` adds `Source+Serif+4:opsz,wght@8..60,400;8..60,500`.
 `DESIGN.md` gets one line naming Source Serif 4 as the excerpt face.
@@ -99,7 +99,7 @@ Rows marked `unit` are owed as `holdout` once `HOLDOUT_TOKEN` is set; the PR lis
 | AC-6 | `"L1\nIn X here\nL3"`, span on `"X"` | `excerptParts` | `lead === "L1"` and `trail === "L3"` | unit |
 | AC-6b | `T`, span on `"Intro here. "` (ends exactly at a boundary) | `excerptParts` | `after === ""` and `trail === "In 2025 revenue grew to €39bn, up 16%."` | unit |
 | AC-7 | `start >= end`, `start < 0` or `end > text.length` | `excerptParts` | Returns `null` | unit |
-| AC-8 | Every span in AC-1..6b | `excerptParts` | `before + mark + after`, trimmed at the outer ends, is a contiguous slice of the input text | unit |
+| AC-8 | Every span in AC-1..6b | `excerptParts` | `before + mark + after`, trimmed at the outer ends, is a contiguous slice of the input text, and `lead` and `trail` are each a substring of it | unit |
 | AC-9 | A source with title `"AR 2025"`, page text `T`, `page: 34`, span as AC-1 | `excerptView` | `caption === "AR 2025 · p. 34"` and `parts.mark === "revenue grew to €39bn"` | unit |
 | AC-9b | A source with title `"AR 2025"`, no `text`, `quote: "Revenue was €39bn"` | `excerptView` | `{ caption: "AR 2025", quote: "Revenue was €39bn" }` | unit |
 | AC-9c | A source with `text` whose `char_end > page_text.length` and `quote: "Q"` | `excerptView` | Returns `quote: "Q"` and no `parts` | unit |
@@ -109,8 +109,9 @@ Rows marked `unit` are owed as `holdout` once `HOLDOUT_TOKEN` is set; the PR lis
 | AC-11 | `index.css` | `.source-excerpt-page` is read | Its `font-family` starts with `"Source Serif 4"` | unit |
 | AC-11b | `index.css` | `--paper` and `--ink` are read | Light `#ffffff` and `var(--text)`; both dark blocks `#f5f2ea` and `#1b1a17`; `.source-excerpt-page` uses `var(--paper)` and `var(--ink)` | unit |
 | AC-12 | `frontend/index.html` | The Google Fonts URL is read | It contains `Source+Serif+4` | unit |
-| AC-13 | The running app, Review Queue, any item with a citation | "view source" is clicked | A `figure.source-excerpt` is shown whose `figcaption` starts with the document title shown in the panel header; if the seed has no such item, the evaluator reports the row as not reachable | evaluator |
-| AC-14 | The running app, source panel open on a document with several pages | The page/text toggle, Prev and Next are used | The toggle switches between page and text view; Prev and Next change the shown page number by 1; the file frame is visible in page view | evaluator |
+| AC-13 | The running app, Review Queue, any item with a citation | "view source" is clicked | A `figure.source-excerpt` is shown whose `figcaption` starts with the document title shown in the panel header; a stack without such an item counts as a fail and is reported to the owner | evaluator |
+| AC-14 | The running app, source panel open on a document with several pages | The page/text toggle, Prev and Next are used | The toggle switches between page and text view; Prev and Next change the shown page number by 1; the file frame is visible in page view; a stack without such a document counts as a fail | evaluator |
+| AC-14b | The running app, source panel open on a citation with stored page text and a valid span | The excerpt renders | Exactly one `mark` element, whose text equals the cited span, and the sentences before and after (when present) each in a `span.source-excerpt-ctx`; a stack without such a citation counts as a fail | evaluator |
 | AC-15 | The branch vs `origin/main` | `git diff origin/main -- frontend/tests` is read | No test or assert is removed; the only changed existing test is `ac13_amber_usage_unchanged`, extended to allow the excerpt `mark` rule | unit |
 | AC-15b | The branch | `npm test` runs | Exits 0 | unit |
 
