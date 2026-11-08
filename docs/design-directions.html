@@ -222,6 +222,13 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .frow2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.frow3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .drop{border:1.5px dashed var(--line);border-radius:8px;padding:14px;font-size:13px;color:var(--m);text-align:center}.drop b{color:var(--f)}
 .cb{display:flex;gap:8px;align-items:center;font-size:14px}.box.on{display:grid;place-items:center;background:var(--f);color:var(--b);border-color:var(--f);font-size:11px}
+.arc main.sm{padding-top:36px;gap:24px;align-content:start}
+.glist{background:var(--s1);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.grow{display:grid;grid-template-columns:44px 200px 1fr auto;gap:16px;align-items:center;padding:16px 22px;border-bottom:1px solid var(--line)}
+.grow:last-child{border-bottom:0}.grow:hover{background:var(--s2)}
+.grow b{font-size:16px;font-weight:600}.grow .mut{font-size:14px}
+.gi{width:40px;height:40px;padding:6px;box-sizing:border-box;border-radius:9px;background:var(--b);border:1px solid var(--line);fill:none;stroke:var(--f);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.play{font:500 13px var(--mono);border:1px solid var(--line);border-radius:7px;padding:7px 12px;background:var(--s2)}
 .prun{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--b);font-size:13px}
 .prun .mono{font-size:12px;color:var(--m)}
 .shots .frame{overflow:hidden}.shots .app{zoom:.5}
@@ -334,6 +341,18 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
       <div class="frow3"><label class="ff "><span class="fl2">Focus areas (comma-separated)</span><span class="fi">risk, valuation, ESG</span></label><label class="ff "><span class="fl2">Target length (slides/sections)</span><span class="fi ph">planner's choice</span></label><label class="ff "><span class="fl2">Max bullets per slide</span><span class="fi">6</span></label></div>
       <label class="cb"><span class="box on">✓</span>Include title slide</label>
     </section>
+  </main>
+</div></div></template>
+<div class="vs"><h2>Arcade page · Dark mode</h2><p>Left: ARP's real Arcade page today. Right: the same list in Night Desk styling.</p>
+<div class="shots"><figure><img src="shots/arcade-dark-current.png" alt="Arcade, current dark theme"><figcaption>Current · dark</figcaption></figure><figure class="ndc-slot" data-cls=""><figcaption>Night Desk · dark</figcaption></figure></div></div>
+<div class="vs"><h2>Arcade page · Light mode</h2>
+<div class="shots"><figure><img src="shots/arcade-light-current.png" alt="Arcade, current light theme"><figcaption>Current · light</figcaption></figure><figure class="ndc-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure></div></div>
+
+<template id="ndc"><div class="frame"><div class="app start same sw arc">
+  <nav aria-label="Navigation"></nav>
+  <main class="sm">
+    <div><h2 class="hello">Arcade</h2><p class="lede">Short breaks between reviews. Scores stay on this device.</p></div>
+    <div class="glist"><div class="grow"><svg class="gi" viewBox="0 0 24 24"><path d="M12 3l3 7h-6zM9 10h6v6l-3 3-3-3z"/></svg><b>Meteor Dodge</b><span class="mut">Fly a pixel rocket, shoot the asteroids, and dodge the pieces.</span><span class="play">Play →</span></div><div class="grow"><svg class="gi" viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="10" r="3"/><path d="M5 19l5-2M19 19l-5-2"/></svg><b>Flipper</b><span class="mut">Pixel pinball: three balls, three bumpers, two flippers.</span><span class="play">Play →</span></div><div class="grow"><svg class="gi" viewBox="0 0 24 24"><path d="M4 15h16l-2-5H6zM7 18a1.5 1.5 0 1 0 0 .1M17 18a1.5 1.5 0 1 0 0 .1"/></svg><b>Kart Dash</b><span class="mut">Three laps against seven rivals on a sunset road.</span><span class="play">Play →</span></div><div class="grow"><svg class="gi" viewBox="0 0 24 24"><path d="M6 21V4M6 4h10l-3 3 3 3H6"/></svg><b>Hop &amp; Run</b><span class="mut">Run, jump and stomp your way to the flag.</span><span class="play">Play →</span></div></div>
   </main>
 </div></div></template>
 <template id="nda"><div class="frame"><div class="app start same ar">
@@ -513,6 +532,10 @@ for(const [title,...cols] of rows){
   f.append(c);const fc=document.createElement('figcaption');fc.textContent=cap;f.append(fc);grid.append(f);}
  sec.append(grid);host.append(sec);}
 for(const f of document.querySelectorAll('.nds-slot')){const c=document.getElementById('nds').content.firstElementChild.cloneNode(true);if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+for(const f of document.querySelectorAll('.ndc-slot')){const c=document.getElementById('ndc').content.firstElementChild.cloneNode(true);
+ c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
+ c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.trim().startsWith('Arcade')));
+ if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
 for(const f of document.querySelectorAll('.ndp-slot')){const c=document.getElementById('ndp').content.firstElementChild.cloneNode(true);
  c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
  c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.includes('Presentations')));
