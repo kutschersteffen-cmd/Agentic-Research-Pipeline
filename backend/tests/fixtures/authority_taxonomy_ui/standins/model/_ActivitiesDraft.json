@@ -1,0 +1,22 @@
+{
+  "output": {
+    "activities": [
+      {
+        "name": "Electrolyser manufacturing",
+        "in_scope_description": "Manufacture of electrolysers.",
+        "seed_keywords": [
+          "electrolyser"
+        ],
+        "quote": "manufacture of electrolysers for hydrogen production"
+      },
+      {
+        "name": "Hydrogen storage",
+        "in_scope_description": "Storage of hydrogen.",
+        "seed_keywords": [
+          "storage"
+        ],
+        "quote": "hydrogen storage"
+      }
+    ]
+  }
+}
