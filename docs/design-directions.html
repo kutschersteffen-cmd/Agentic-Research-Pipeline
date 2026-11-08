@@ -85,6 +85,14 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .cur{--b:#0c0d0f;--s1:#131417;--s2:#18191c;--s3:#26272c;--f:#e8e8e3;--m:#9a9ba0;--line:#26272c;
 --o:#c6ff3d;--of:rgb(198 255 61 / .12);--ok:#26c281;--run:#9a9ba0;--bad:#ff4d4d;
 --sans:"Hanken Grotesk",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace;font-family:var(--sans)}
+.ndl{color-scheme:light;--b:#f4f6f9;--s1:#ffffff;--s2:#eaeef3;--s3:#dbe1e9;--f:#121722;--m:#4f5a6b;--line:#d8dee7;
+--o:#d9480f;--of:rgb(229 84 26 / .10);--ok:#13804f;--run:#2563c9;--bad:#c8323f;color:var(--f)}
+.ndl .log{background:#eef1f5}
+.shots{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.shots figure{margin:0;display:grid;gap:6px}
+.shots img{border:1px solid var(--line);border-radius:8px;width:100%}
+.shots figcaption{font:500 12px var(--mono);color:var(--m)}
+@media (max-width:700px){.shots{grid-template-columns:1fr}}
 .cur .dot.o{box-shadow:none}.cur .row.sel{box-shadow:none}
 .vs{display:grid;gap:8px}.vs h2{margin:0;font-size:1.1rem;font-weight:600}.vs p{margin:0;color:var(--m);font-size:13px}
 @media (prefers-reduced-motion:no-preference){.dot.r{animation:p 1.6s ease-in-out infinite}@keyframes p{50%{opacity:.35}}}
@@ -99,6 +107,16 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 <div class="vs" id="cur-slot"><h2>Current dark mode</h2><p>Near-black neutral greys, lime for "needs you", Hanken Grotesk and JetBrains Mono, no colour for running.</p></div>
 
 <div class="vs"><h2>Night Desk</h2><p>Blue-black with stepped panels, orange for "needs you" (same as light mode), blue for running, Geist and Geist Mono.</p></div>
+
+<div class="vs" id="ndl-slot"><h2>Night Desk, light mode</h2><p>Cool blue-grey paper, white panels, the same orange for "needs you" and blue for running.</p></div>
+
+<div class="vs"><h2>Start page, real app</h2><p>Screenshots of ARP's start page with each set of colours injected. The backend was not running, so the counts are empty and the error banner shows in all four.</p>
+<div class="shots">
+<figure><img src="shots/start-light-current.png" alt="Start page, current light theme"><figcaption>Current · light</figcaption></figure>
+<figure><img src="shots/start-light-nightdesk.png" alt="Start page, Night Desk light theme"><figcaption>Night Desk · light</figcaption></figure>
+<figure><img src="shots/start-dark-current.png" alt="Start page, current dark theme"><figcaption>Current · dark</figcaption></figure>
+<figure><img src="shots/start-dark-nightdesk.png" alt="Start page, Night Desk dark theme"><figcaption>Night Desk · dark</figcaption></figure>
+</div></div>
 
 <div class="frame" id="nd"><div class="app">
   <nav aria-label="Runs">
@@ -165,6 +183,7 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 const nd=document.getElementById('nd'),c=nd.cloneNode(true);c.id='';c.classList.add('cur');
 c.querySelectorAll('button.pri').forEach(b=>b.firstChild.textContent=b.firstChild.textContent);
 document.getElementById('cur-slot').appendChild(c);
+const l=nd.cloneNode(true);l.id='';l.classList.add('ndl');document.getElementById('ndl-slot').appendChild(l);
 document.querySelector('#nd').previousElementSibling.appendChild(nd);
 </script>
 
