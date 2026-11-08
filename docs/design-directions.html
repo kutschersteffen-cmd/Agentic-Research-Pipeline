@@ -141,6 +141,23 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .sm .wc .open{margin:0 -22px;padding:14px 22px;border-top:1px solid var(--line);display:flex;justify-content:space-between}
 .sm .wc .open::after{content:"";}
 @media (prefers-reduced-motion:reduce){.sm .wc{transition:none}}
+.rq .lede{margin:10px 0 0;color:var(--m);max-width:72ch;font-size:15px}
+.tb{display:flex;align-items:center;gap:10px}.tb .sp{flex:1}.tb .cap{font-size:12px}
+.pick{border:1px solid var(--line);border-radius:7px;padding:8px 12px;background:var(--s1);font-size:14px}
+.tb .inp{min-width:220px}
+.rcard{border:1px solid var(--line);border-radius:12px;background:var(--s1);overflow:hidden}
+.rhead{padding:18px 22px;border-bottom:1px solid var(--line);display:grid;gap:4px}
+.rhead h3{margin:0;font-size:1.2rem;font-weight:600}.rhead p{margin:0;color:var(--m);font-size:13px}
+.ri{padding:16px 22px;border-bottom:1px solid var(--line);display:grid;gap:6px}
+.ri.cur{background:linear-gradient(90deg,var(--of),transparent 60%);box-shadow:inset 3px 0 var(--o)}
+.ri .rsrc{margin:0;display:flex;gap:8px;align-items:center;font:500 12px var(--mono);color:var(--m);letter-spacing:.04em}
+.rt{font-size:15px}.mut{color:var(--m);font-size:13px}.ri p.mut{margin:0}
+.rf{display:flex;gap:10px;align-items:baseline;font-size:15px;flex-wrap:wrap}
+.val{margin-left:auto;font:500 16px var(--mono)}.cf{font:500 12px var(--mono);color:var(--m);border:1px solid var(--line);border-radius:99px;padding:2px 8px}
+.cit{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.chip{font-size:12px;border:1px solid var(--line);border-radius:6px;padding:3px 8px;background:var(--b)}
+.dec{display:flex;gap:8px;align-items:center;margin-top:6px}.dec button{min-width:120px;justify-content:center}
+.raw{margin-left:auto;font:500 12px var(--mono);color:var(--m)}
+.ri.done{opacity:.75}
 .prun{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--b);font-size:13px}
 .prun .mono{font-size:12px;color:var(--m)}
 .shots .frame{overflow:hidden}.shots .app{zoom:.5}
@@ -174,6 +191,42 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 <figure class="nds-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure>
 </div></div>
 
+<div class="vs"><h2>Review queue page · Dark mode</h2><p>Left: ARP's real review-queue page today (backend offline, so it is empty). Right: the same page and structure in Night Desk styling, with example items.</p>
+<div class="shots"><figure><img src="shots/review-dark-current.png" alt="Review queue, current dark theme"><figcaption>Current · dark</figcaption></figure><figure class="ndr-slot" data-cls=""><figcaption>Night Desk · dark</figcaption></figure></div></div>
+<div class="vs"><h2>Review queue page · Light mode</h2>
+<div class="shots"><figure><img src="shots/review-light-current.png" alt="Review queue, current light theme"><figcaption>Current · light</figcaption></figure><figure class="ndr-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure></div></div>
+
+<template id="ndr"><div class="frame"><div class="app start same rq">
+  <nav aria-label="Navigation"></nav>
+  <main class="sm">
+    <div><h2 class="hello">Review Queue</h2><p class="lede">Low-confidence verdicts, ungrounded citations and uncertain calls wait here, lowest confidence first. Nothing flagged reaches an export until a named person approves it.</p></div>
+    <div class="tb"><label class="cap">Show</label><span class="pick">All runs (10 items) ▾</span><button>Refresh</button><span class="sp"></span><label class="cap">Access token</label><span class="inp">••••••••••••</span></div>
+    <section class="rcard">
+      <div class="rhead"><h3>3 awaiting a decision</h3><p>Press <kbd>J</kbd> / <kbd>K</kbd> to move between items, <kbd>A</kbd> / <kbd>C</kbd> / <kbd>R</kbd> to approve, correct or reject. A decision can be changed; every one is kept.</p></div>
+      <div class="ri cur">
+        <p class="rsrc"><span class="dot o"></span>Extraction · Field · <span class="mono">fx-0412</span></p>
+        <div class="rt"><b>Siemens Energy AG</b> <span class="mut">(ENR)</span></div>
+        <div class="rf">Revenue <span class="mut">· FY2025</span> <span class="val">€39,047m</span><span class="cf">conf 0.58</span></div>
+        <p class="mut">Flagged: sources disagree, low confidence</p>
+        <div class="cit"><span class="cap">Citations</span><span class="chip">Annual report p.34</span><span class="chip">Q4 press release</span></div>
+        <div class="dec"><button>Approve <kbd>A</kbd></button><button>Correct <kbd>C</kbd></button><button>Reject <kbd>R</kbd></button><span class="raw">Show raw ▸</span></div>
+      </div>
+      <div class="ri">
+        <p class="rsrc"><span class="dot o"></span>Extraction · Field · <span class="mono">fx-0412</span></p>
+        <div class="rt"><b>Siemens Energy AG</b> <span class="mut">(ENR)</span></div>
+        <div class="rf">Scope 1+2 emissions <span class="mut">· FY2025</span> <span class="val">402 kt CO₂e</span><span class="cf">conf 0.44</span></div>
+        <p class="mut">Flagged: ungrounded citation, boundary changed</p>
+      </div>
+      <div class="ri">
+        <p class="rsrc"><span class="dot o"></span>Voting · Proposal · <span class="mono">vote-0091</span></p>
+        <div class="rt"><b>Shell plc</b> <span class="mut">(SHEL)</span></div>
+        <div class="rf">AGM item 21, climate resolution <span class="mut">· closes Tue 17:00</span> <span class="val">Against</span><span class="cf">conf 0.61</span></div>
+        <p class="mut">Flagged: policy conflict</p>
+      </div>
+      <div class="ri done"><p class="rsrc"><span class="dot k"></span>Extraction · Field · <span class="mono">fx-0412</span></p><div class="rf">EBITA pre special items · Approved by you · 10:41 <span class="raw">Change</span></div></div>
+    </section>
+  </main>
+</div></div></template>
 <template id="nds"><div class="frame"><div class="app start same">
   <nav aria-label="Navigation">
     <div class="brand"><span class="bm"><svg class="mark" viewBox="0 0 62 62" aria-hidden="true"><path fill="currentColor" d="M14 2h10v10H14zM38 2h10v10H38zM2 14h10v10H2zM50 14h10v10H50zM2 26h10v10H2zM14 26h10v10H14zM26 26h10v10H26zM38 26h10v10H38zM50 26h10v10H50zM2 38h10v10H2zM50 38h10v10H50zM2 50h10v10H2zM50 50h10v10H50z"/><rect x="26" y="2" width="10" height="10" fill="var(--o)"/></svg>ARP</span></div>
@@ -283,6 +336,10 @@ for(const [title,...cols] of rows){
   f.append(c);const fc=document.createElement('figcaption');fc.textContent=cap;f.append(fc);grid.append(f);}
  sec.append(grid);host.append(sec);}
 for(const f of document.querySelectorAll('.nds-slot')){const c=document.getElementById('nds').content.firstElementChild.cloneNode(true);if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+for(const f of document.querySelectorAll('.ndr-slot')){const c=document.getElementById('ndr').content.firstElementChild.cloneNode(true);
+ c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
+ c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.includes('Review Queue')));
+ if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
 </script>
 
 <div class="notes">
