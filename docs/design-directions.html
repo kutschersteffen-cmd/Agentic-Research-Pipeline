@@ -88,6 +88,12 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .ndl{color-scheme:light;--b:#f4f6f9;--s1:#ffffff;--s2:#eaeef3;--s3:#dbe1e9;--f:#121722;--m:#4f5a6b;--line:#d8dee7;
 --o:#d9480f;--of:rgb(229 84 26 / .10);--ok:#13804f;--run:#2563c9;--bad:#c8323f;color:var(--f)}
 .ndl .log{background:#eef1f5}
+.curl{color-scheme:light;--b:#f3f3f0;--s1:#ffffff;--s2:#ebebe7;--s3:#dcdcd7;--f:#141414;--m:#5c5c57;--line:#dcdcd7;
+--o:#ea4c14;--of:#ffe6db;--ok:#1f7a45;--run:#5c5c57;--bad:#c0392b;color:var(--f)}
+.curl .log{background:#ebebe7}.curl .dot.o,.curl .row.sel{box-shadow:none}
+#pairs{display:grid;gap:28px}
+.shots .frame{overflow:hidden}.shots .app{zoom:.5}
+@media (max-width:700px){.shots .app{zoom:.32}}
 .shots{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .shots figure{margin:0;display:grid;gap:6px}
 .shots img{border:1px solid var(--line);border-radius:8px;width:100%}
@@ -104,11 +110,7 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
   <p>The same review screen twice. The top one uses ARP's current dark-mode colours and fonts; the bottom one uses Night Desk's. Only the colours and fonts differ. Example data: financials extraction run fx-0412, Siemens Energy FY2025.</p>
 </div>
 
-<div class="vs" id="cur-slot"><h2>Current dark mode</h2><p>Near-black neutral greys, lime for "needs you", Hanken Grotesk and JetBrains Mono, no colour for running.</p></div>
-
-<div class="vs"><h2>Night Desk</h2><p>Blue-black with stepped panels, orange for "needs you" (same as light mode), blue for running, Geist and Geist Mono.</p></div>
-
-<div class="vs" id="ndl-slot"><h2>Night Desk, light mode</h2><p>Cool blue-grey paper, white panels, the same orange for "needs you" and blue for running.</p></div>
+<div id="pairs"></div>
 
 <div class="vs"><h2>Start page, real app</h2><p>Screenshots of ARP's start page with each set of colours injected. The backend was not running, so the counts are empty and the error banner shows in all four.</p>
 <div class="shots">
@@ -180,11 +182,16 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 
 <script>
 // Clone the Night Desk screen and restyle it with the current tokens, so both show identical content.
-const nd=document.getElementById('nd'),c=nd.cloneNode(true);c.id='';c.classList.add('cur');
-c.querySelectorAll('button.pri').forEach(b=>b.firstChild.textContent=b.firstChild.textContent);
-document.getElementById('cur-slot').appendChild(c);
-const l=nd.cloneNode(true);l.id='';l.classList.add('ndl');document.getElementById('ndl-slot').appendChild(l);
-document.querySelector('#nd').previousElementSibling.appendChild(nd);
+const nd=document.getElementById('nd');nd.remove();
+const rows=[['Dark mode',['cur','Current: near-black greys, lime for "needs you", no colour for running'],['','Night Desk: blue-black, orange for "needs you", blue for running']],
+ ['Light mode',['curl','Current: warm grey, ink controls, orange for "needs you"'],['ndl','Night Desk: cool blue-grey, white panels, orange, blue for running']]];
+const host=document.getElementById('pairs');
+for(const [title,...cols] of rows){
+ const sec=document.createElement('section');sec.className='vs';sec.innerHTML=`<h2>Review queue · ${title}</h2>`;
+ const grid=document.createElement('div');grid.className='shots';
+ for(const [cls,cap] of cols){const f=document.createElement('figure');const c=nd.cloneNode(true);c.id='';if(cls)c.classList.add(cls);
+  f.append(c);const fc=document.createElement('figcaption');fc.textContent=cap;f.append(fc);grid.append(f);}
+ sec.append(grid);host.append(sec);}
 </script>
 
 <div class="notes">
