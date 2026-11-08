@@ -4,7 +4,7 @@ Start the stack with the fixture folders:
   ARP_STANDINS_DIR=backend/tests/fixtures/authority_taxonomy_ui/standins \
   ARP_VALUE_CHAIN_DIR=backend/tests/fixtures/authority_taxonomy_ui/io \
   bash backend/scripts/e2e_stack.sh up
-and run with ARP_E2E_URL=http://localhost:5173. Needs no model key (stand-ins refuse one).
+and run with ARP_E2E_URL=http://localhost:5173 and the same ARP_STANDINS_DIR exported (the test skips without it). Needs no model key (stand-ins refuse one).
 """
 
 import os
@@ -17,6 +17,8 @@ URL = os.environ.get("ARP_E2E_URL")
 pytestmark = [
     pytest.mark.e2e,
     pytest.mark.skipif(not URL, reason="ARP_E2E_URL not set -- start backend/scripts/e2e_stack.sh"),
+    # CI's E2E job starts the stack without stand-ins; run this in the same shell that started it with them.
+    pytest.mark.skipif(not os.environ.get("ARP_STANDINS_DIR"), reason="ARP_STANDINS_DIR not set -- stack has no stand-ins"),
 ]
 
 
