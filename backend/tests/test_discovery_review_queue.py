@@ -174,3 +174,49 @@ def test_cli_prints_no_line_when_nothing_queued(monkeypatch, tmp_path, pg, bodie
     res = _cli(monkeypatch, tmp_path, pg, bodies, [C4])
     assert res.exit_code == 0, res.output
     assert "queued for review" not in res.output
+
+
+async def test_resume_after_crash_between_result_and_progress_keeps_three(tmp_path, pg, bodies):
+    from arp.discovery.review import review_items
+    from arp.orchestration.jobs import restart_run
+    from arp.schemas.discovery import DiscoveryCompanyResult
+    from arp.storage.run_store import RunStore
+
+    settings = settings_for(tmp_path)
+    rs = RunStore(pg, settings.runs_dir)
+    run_id = create_discovery_run([C1, C2], None, "manual", rs)
+    result = DiscoveryCompanyResult(company_id="C1", name=C1.name)
+    rs.record_company_result(  # C1's result and item are stored; the process dies before its progress is
+        run_id, {**result.model_dump(mode="json"), "_key": "C1"}, observations=[],
+        review_items=review_items(C1, result, triggered_by="manual"), company=C1,
+    )
+    restart_run(rs, run_id)
+    await execute_discovery_run(run_id, [C1, C2], settings=settings, run_store=rs, search_client=NullSearch(),
+                                edgar_source=Edgar(), transport=_transport(bodies))
+    assert len(_keys(rs, run_id)) == 3
+    assert rs.load_manifest(run_id).review_count == 3
+
+
+async def test_transient_db_error_on_result_write_is_retried(tmp_path, pg, bodies, monkeypatch):
+    from sqlalchemy.exc import OperationalError
+
+    from arp.db import session
+    from arp.storage.run_store import RunStore
+
+    monkeypatch.setattr(session, "_RETRY_BACKOFF_S", 0)
+    settings = settings_for(tmp_path)
+    rs = RunStore(pg, settings.runs_dir)
+    real, calls = rs.record_company_result, []
+
+    def flaky(*a, **kw):
+        calls.append(1)
+        if len(calls) == 1:
+            raise OperationalError("insert", {}, Exception("connection lost"))
+        return real(*a, **kw)
+
+    rs.record_company_result = flaky
+    run_id = create_discovery_run([C1], None, "manual", rs)
+    await execute_discovery_run(run_id, [C1], settings=settings, run_store=rs, search_client=NullSearch(),
+                                edgar_source=Edgar(), transport=_transport(bodies))
+    assert [r["company_id"] for r in rs.read_results(run_id)] == ["C1"]
+    assert rs.load_manifest(run_id).review_count == 1

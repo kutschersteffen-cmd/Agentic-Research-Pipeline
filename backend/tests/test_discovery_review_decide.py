@@ -199,6 +199,18 @@ async def test_approve_after_reject_is_ignored_and_reject_after_approve_moves(en
     assert env.manifest()[URL_B]["review"] == "rejected" and not local2.exists()
 
 
+async def test_rejecting_a_stale_item_leaves_the_current_file(env, tmp_path, pg):
+    from tests.discovery_review_support import LONG_TEXT, make_pdf_bytes
+
+    b5 = make_pdf_bytes(tmp_path, "b5.pdf", [LONG_TEXT, "Unrelated Group Gamma"])  # a later run replaces report-a's bytes
+    await run_discovery_for(tmp_path, pg, [C2], site({"c2.example": {URL_A: b5}}), run_store=env.rs)
+    local = Path(env.payload()["local_path"])
+    assert sha(local.read_bytes()) == sha(b5)
+    assert env.decide(ALICE, REJECT).json()["state"] == "final"  # the old item is still open and decidable
+    assert local.exists()
+    assert env.manifest()[URL_A].get("review") is None
+
+
 async def test_company_id_with_dash_and_dot(tmp_path, pg, bodies):
     c = CompanyRef(company_id="C-2.x", name="Second Co", country="DE", website="https://c2.example/")
     rs, run_id, settings = await run_discovery_for(tmp_path, pg, [c], _transport(bodies))

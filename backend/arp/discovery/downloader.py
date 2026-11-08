@@ -117,6 +117,8 @@ async def download_documents(
                     if prior is None:
                         logger.info("Skipping %s: 304 to a request without conditional headers", candidate.url)
                         continue
+                    if prior.sha256 in rejected_shas:
+                        continue  # the bytes a reviewer dropped, held at another URL
                     if _still_stored(prior, store):
                         record = CaptureRecord(
                             trigger=trigger,

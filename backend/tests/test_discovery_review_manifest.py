@@ -131,3 +131,23 @@ async def test_rejected_sha_at_new_url_not_written(tmp_path):
     docs, settings = await _download(tmp_path, C2, [URL_COPY], {URL_COPY: body}, known=_known(URL_A, _sha(body), "rejected"))
     assert docs == []
     assert not list((settings.documents_dir / "C2").rglob("*.pdf"))
+
+
+async def test_304_for_rejected_bytes_at_a_new_url_is_not_kept(tmp_path):
+    from arp.storage.document_blob_store import upload_or_fail
+
+    body = _pdf_bytes(tmp_path, "b1.pdf", "Some other company")
+    settings = _settings(tmp_path)
+    store = blob_store_for(IndexingConfig.from_settings(settings))
+    upload_or_fail(store, _sha(body), body)
+    kept = tmp_path / "kept.pdf"
+    kept.write_bytes(body)
+    known = _known(URL_A, _sha(body), "rejected")
+    known[URL_COPY] = DiscoveredDocument(
+        company_id="C2", doc_type=DocType.ANNUAL_REPORT_10K, url=URL_COPY, sha256=_sha(body), local_path=str(kept), http_etag='"v1"',
+    )
+    docs = await download_documents(
+        C2, [_cand(URL_COPY)], settings.documents_dir, "test-agent", store=store,
+        transport=httpx.MockTransport(lambda r: httpx.Response(304)), known=known,
+    )
+    assert docs == []

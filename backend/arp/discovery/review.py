@@ -46,9 +46,11 @@ def apply_decision(settings: Settings, payload: dict, decision: str) -> None:
         return
     company_id, url = payload["company_id"], payload["url"]
     detector = ChangeDetector(settings.discovery_state_dir, settings.documents_dir / "_events.jsonl")
+    entry = detector.known_documents(company_id).get(url)
+    if entry is None or entry.sha256 != payload.get("sha256"):
+        return  # a stale item: a later run stored other bytes at this URL, which nobody reviewed
     if decision == "approve":
-        entry = detector.known_documents(company_id).get(url)
-        if entry is None or entry.review != "rejected":
+        if entry.review != "rejected":
             detector.set_review(company_id, url, "approved")
         return
     src = Path(payload["local_path"]) if payload.get("local_path") else None

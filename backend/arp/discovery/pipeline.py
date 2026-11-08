@@ -7,6 +7,7 @@ from datetime import date, timedelta
 import httpx
 
 from arp.config import Settings
+from arp.db.session import retrying
 from arp.discovery.change_detector import ChangeDetector
 from arp.discovery.crawler import CrawlConfig, HomepageUnreachableError, crawl_for_documents
 from arp.discovery.downloader import download_documents
@@ -209,8 +210,8 @@ async def execute_discovery_run(
         items = review_items(company, result, triggered_by=triggered_by)
 
         def _commit() -> None:
-            run_store.record_company_result(run_id, row, observations=[], review_items=items, company=company)
-            job_manager.record_progress(run_id, completed_delta=1, review_delta=len(items))
+            retrying(run_store.record_company_result, run_id, row, observations=[], review_items=items, company=company)
+            retrying(job_manager.record_progress, run_id, completed_delta=1, review_delta=len(items))
 
         await asyncio.to_thread(_commit)
 
@@ -218,6 +219,11 @@ async def execute_discovery_run(
         job_manager.record_progress(run_id, failed_delta=1)
 
     with hold_run(run_store, run_id):  # one worker per run; RunBusy if another holds it
+        # A crash between a result write and its progress write leaves the count short: the queue is the truth.
+        with run_store.lock(run_id):
+            current = run_store.load_manifest(run_id)
+            current.review_count = len({q["item_key"] for q in run_store.read_review_queue(run_id)})
+            run_store.save_manifest(current)
         await run_batch(
             companies,
             item_key=lambda c: c.company_id,
