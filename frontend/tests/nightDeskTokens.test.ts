@@ -208,3 +208,10 @@ test("r3_ac11b_paper_tokens", () => {
 });
 test("r3_ac12_font_loaded", () =>
   assert.match(readFileSync(new URL("../index.html", import.meta.url), "utf8"), /Source\+Serif\+4/));
+// The card is light paper in both themes, so its mark uses the light-theme amber everywhere.
+test("r3_paper_mark_visible_in_dark", () => {
+  const r = rule(".source-excerpt-page");
+  assert.match(r, /--await:\s*var\(--paper-mark\)/);
+  assert.match(r, /--await-edge:\s*var\(--paper-mark-edge\)/);
+  for (const b of [light, darkSwitch, darkMedia]) { assert.equal(b.get("--paper-mark"), "#f6ecd6"); assert.equal(b.get("--paper-mark-edge"), "#85601a"); }
+});

@@ -80,6 +80,14 @@ line-height 1.6, context in `--muted`, `<mark>` background `--await` with a 2px 
 underline. The Google Fonts link in `frontend/index.html` adds `Source+Serif+4:opsz,wght@8..60,400;8..60,500`.
 `DESIGN.md` gets one line naming Source Serif 4 as the excerpt face.
 
+## Changed during build
+
+- `mark` is the slice, trimmed; a page number adds the suffix only when it is 1 or more.
+- Context lines use a new token `--ink-muted` (light `var(--muted)`, dark `#5f5b52`): `--muted` on the
+  dark paper card was about 2:1.
+- The card sets `--await`/`--await-edge` to new tokens `--paper-mark` `#f6ecd6` / `--paper-mark-edge`
+  `#85601a` (same in both themes): the dark-theme amber was invisible on the light paper.
+
 ## Left to the builder
 
 - Spacing inside the card, within the mockup's look.
