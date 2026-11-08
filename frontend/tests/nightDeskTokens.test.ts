@@ -144,8 +144,8 @@ test("ac13_amber_usage_unchanged", (t) => {
   const re = "var\\(--(hi|hi-ink|await|await-edge)\\)";
   const main = onMain(t, `git grep -h -o -E "${re}" origin/main -- src | sort`);
   const head = onMain(t, `git grep -h -o -E "${re}" HEAD -- src | sort`);
-  // Release 2 allows exactly one new amber reference: the sidebar's .nav-dot-wait rule.
-  const plusNavDot = (m: string) => [...m.trim().split("\n"), "var(--hi)"].sort().join("\n") + "\n";
+  // Release 2 allows one new amber reference (.nav-dot-wait), release 3 two (.source-excerpt-page mark).
+  const plusNavDot = (m: string) => [...m.trim().split("\n"), "var(--hi)", "var(--await)", "var(--await-edge)"].sort().join("\n") + "\n";
   if (main !== null && head !== null) assert.equal(head, plusNavDot(main));
 });
 
@@ -190,3 +190,19 @@ test("r2_ac16b_status_colours", () => {
     assert.doesNotMatch(r, /var\(--(hi|hi-ink|await|await-edge)\)/, sel);
   }
 });
+
+// Night Desk release 3 (docs/superpowers/specs/2026-11-08-night-desk-excerpt-design.md).
+test("r3_ac10_mark_uses_await", () => {
+  const r = rule(".source-excerpt-page mark");
+  assert.ok(r.includes("var(--await)") && r.includes("var(--await-edge)"));
+});
+test("r3_ac11_serif", () => assert.match(rule(".source-excerpt-page"), /font-family:\s*"Source Serif 4"/));
+test("r3_ac11b_paper_tokens", () => {
+  assert.equal(light.get("--paper"), "#ffffff");
+  assert.equal(light.get("--ink"), "var(--text)");
+  for (const d of [darkSwitch, darkMedia]) { assert.equal(d.get("--paper"), "#f5f2ea"); assert.equal(d.get("--ink"), "#1b1a17"); }
+  const r = rule(".source-excerpt-page");
+  assert.ok(r.includes("var(--paper)") && r.includes("var(--ink)"));
+});
+test("r3_ac12_font_loaded", () =>
+  assert.match(readFileSync(new URL("../index.html", import.meta.url), "utf8"), /Source\+Serif\+4/));
