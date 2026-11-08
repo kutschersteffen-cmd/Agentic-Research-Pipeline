@@ -589,11 +589,12 @@ addEventListener('DOMContentLoaded',()=>{
    W=cv.offsetWidth;H=cv.offsetHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
    // sample the ARP mark + wordmark from an offscreen canvas
    const oc=document.createElement('canvas');oc.width=W;oc.height=H;const o=oc.getContext('2d');
-   const cell=Math.round(H*0.11),mw=cell*5,fs=Math.round(H*0.62);o.font=`700 ${fs}px Geist,system-ui,sans-serif`;
-   const tw=o.measureText('ARP').width,gap=cell*1.2,total=mw+gap+tw,x0=(W-total)/2,y0=(H-cell*5)/2;
+   let cell=Math.round(H*0.16),fs=Math.round(H*0.9);o.font=`700 ${fs}px Geist,system-ui,sans-serif`;
+   let tw=o.measureText('ARP').width;const fit=Math.min(1,W*0.88/(cell*6.2+tw));cell=Math.round(cell*fit);fs=Math.round(fs*fit);o.font=`700 ${fs}px Geist,system-ui,sans-serif`;tw=o.measureText('ARP').width;
+   const mw=cell*5,gap=cell*1.2,total=mw+gap+tw,x0=(W-total)/2,y0=(H-cell*5)/2;
    o.fillStyle='#000';MARK.concat([HI]).forEach(([c,r])=>o.fillRect(x0+c*cell,y0+r*cell,cell-2,cell-2));
    o.textBaseline='middle';o.fillText('ARP',x0+mw+gap,H/2+fs*0.04);
-   const d=o.getImageData(0,0,W,H).data,step=Math.max(4,Math.round(H/58));targets=[];
+   const d=o.getImageData(0,0,W,H).data,step=Math.max(4,Math.round(H/64));targets=[];
    for(let y=0;y<H;y+=step)for(let x=0;x<W;x+=step)if(d[(y*W+x)*4+3]>128){
      const hi=x>=x0+HI[0]*cell&&x<x0+(HI[0]+1)*cell&&y>=y0&&y<y0+cell;targets.push([x,y,hi])}
    for(let i=targets.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[targets[i],targets[j]]=[targets[j],targets[i]]}
