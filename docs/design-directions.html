@@ -229,11 +229,12 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .grow b{font-size:16px;font-weight:600}.grow .mut{font-size:14px}
 .gi{width:40px;height:40px;padding:6px;box-sizing:border-box;border-radius:9px;background:var(--b);border:1px solid var(--line);fill:none;stroke:var(--f);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .play{font:500 13px var(--mono);border:1px solid var(--line);border-radius:7px;padding:7px 12px;background:var(--s2)}
-.hero{position:relative;height:320px;border:1px solid var(--line);border-radius:12px;background:radial-gradient(120% 140% at 0% 50%,var(--s2),var(--s1) 60%);overflow:hidden}
+.hero{position:relative;height:420px;margin:0 -36px;overflow:hidden}
 .hero canvas{position:absolute;inset:0;width:100%;height:100%}
 .hlegend{position:absolute;left:18px;bottom:12px;display:flex;gap:14px;font:500 12px var(--mono);color:var(--m)}.hlegend span{display:flex;gap:6px;align-items:center}
-.sm .cards .wc{min-height:260px}
+.sm .cards .wc{min-height:220px}
 .app.start:not(.sw) main.sm{gap:20px;padding-top:32px}
+.app.start:not(.sw){height:auto;min-height:900px}
 .prun{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--b);font-size:13px}
 .prun .mono{font-size:12px;color:var(--m)}
 .shots .frame{overflow:hidden}.shots .app{zoom:.5}
@@ -589,7 +590,7 @@ addEventListener('DOMContentLoaded',()=>{
    W=cv.offsetWidth;H=cv.offsetHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
    // sample the ARP mark + wordmark from an offscreen canvas
    const oc=document.createElement('canvas');oc.width=W;oc.height=H;const o=oc.getContext('2d');
-   let cell=Math.round(H*0.16),fs=Math.round(H*0.9);o.font=`700 ${fs}px Geist,system-ui,sans-serif`;
+   let cell=Math.round(H*0.12),fs=Math.round(H*0.68);o.font=`700 ${fs}px Geist,system-ui,sans-serif`;
    let tw=o.measureText('ARP').width;const fit=Math.min(1,W*0.88/(cell*6.2+tw));cell=Math.round(cell*fit);fs=Math.round(fs*fit);o.font=`700 ${fs}px Geist,system-ui,sans-serif`;tw=o.measureText('ARP').width;
    const mw=cell*5,gap=cell*1.2,total=mw+gap+tw,x0=(W-total)/2,y0=(H-cell*5)/2;
    o.fillStyle='#000';MARK.concat([HI]).forEach(([c,r])=>o.fillRect(x0+c*cell,y0+r*cell,cell-2,cell-2));
