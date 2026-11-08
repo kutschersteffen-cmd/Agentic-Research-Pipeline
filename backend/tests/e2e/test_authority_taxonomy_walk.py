@@ -2,7 +2,7 @@
 
 Start the stack with the fixture folders:
   ARP_STANDINS_DIR=backend/tests/fixtures/authority_taxonomy_ui/standins \
-  ARP_VALUE_CHAIN_DIR=backend/tests/fixtures/authority_taxonomy_ui/io \
+  ARP_VALUE_CHAIN_DIR=$PWD/backend/tests/fixtures/authority_taxonomy_ui/io \
   bash backend/scripts/e2e_stack.sh up
 and run with ARP_E2E_URL=http://localhost:5173 and the same ARP_STANDINS_DIR exported (the test skips without it). Needs no model key (stand-ins refuse one).
 """
