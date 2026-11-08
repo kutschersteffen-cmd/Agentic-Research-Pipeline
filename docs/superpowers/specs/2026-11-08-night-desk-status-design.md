@@ -64,7 +64,7 @@ AC-13 test compares those references with `main`): the `wait` tone uses the exis
 
 **Rounded corners.** `.hub-card` gets `border-radius: var(--r-lg)`; `.dashboard-grid .stat-tile`
 (`index.css` ~925) and `.pipeline-pill` (~1513) change `border-radius: 0` to `var(--r-md)`.
-Arcade `.touchpad button`, `.grl-dn` and `.view-toggle` stay as they are.
+Arcade `.touchpad button`, `.grl-dn` and `.view-toggle button:last-child` stay as they are.
 
 **Sidebar dots.** A pure function `workspaceState(w, runs)` in `workspaceCard.ts` returns the
 highest-ranked `processState` of the workspace's processes, using the existing `RANK`
@@ -94,6 +94,8 @@ because `ProcessHub` loads the flow.
 
 ## Acceptance
 
+The e2e seed may hold no waiting, running or failed runs, so AC-17, AC-17b and AC-18 check format and consistency only; tone coverage is in AC-3..13 and AC-16b.
+
 Rows marked `unit` are owed as `holdout` once `HOLDOUT_TOKEN` is set; the PR lists them.
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
@@ -121,7 +123,8 @@ Rows marked `unit` are owed as `holdout` once `HOLDOUT_TOKEN` is set; the PR lis
 | AC-18 | The running app, runs loaded | The sidebar renders | Each of the 5 workspace items has either no `.nav-dot` element (state idle) or one whose `aria-label` is `<workspace name>: <STATE_LABEL value>` | evaluator |
 | AC-18b | The runs request still pending | The sidebar renders | No `.nav-dot` element exists | unit |
 | AC-19 | The running app, light and dark | The start page opens | The computed `border-radius` of each `.hub-card` is `12px` | evaluator |
+| AC-19b | Fixture runs | `WORKSPACES` and `cardView(w, runs, null, now)` are evaluated for each workspace | The 5 workspaces are, in order, StewardIQ, Argus, Transition Intelligence Platform, R&D Lab, Data Hub, and each card's `dots` equal `stepState` of its processes for those runs, exactly as on `origin/main` | unit |
 | AC-20 | The branch vs `origin/main` | `git diff origin/main -- frontend/tests` is read; `npm test` runs | No test or assert is removed except the one allow-list extension in `ac13_amber_usage_unchanged`; `npm test` exits 0 | unit |
 
-Must not change: state computation and existing tests (AC-20), square arcade and graph controls
+Must not change: start-page cards and dots (AC-19b), state computation and existing tests (AC-20), square arcade and graph controls
 (AC-15b), where amber is used apart from the sidebar dot (AC-16).
