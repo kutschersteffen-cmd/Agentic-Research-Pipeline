@@ -1,0 +1,9 @@
+node_id,region,sector,sector_no,output_meur,goods,ghg_t_per_meur,energy_tj_per_meur,jobs_per_meur,va_share
+DE.2,DE,Copper production,2,120.0,true,900.0,0.002,10.0,0.4
+DE.3,DE,Production of electricity by wind,3,60.0,true,10.0,0.002,10.0,0.4
+CN.2,CN,Copper production,2,300.0,true,900.0,0.002,10.0,0.4
+CN.3,CN,Production of electricity by wind,3,150.0,true,10.0,0.002,10.0,0.4
+US.2,US,Copper production,2,216.0,true,900.0,0.002,10.0,0.4
+US.3,US,Production of electricity by wind,3,108.0,true,10.0,0.002,10.0,0.4
+WA.2,WA,Copper production,2,72.0,true,900.0,0.002,10.0,0.4
+WA.3,WA,Production of electricity by wind,3,36.0,true,10.0,0.002,10.0,0.4

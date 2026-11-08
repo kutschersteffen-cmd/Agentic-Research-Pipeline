@@ -1,0 +1,15 @@
+[
+  {
+    "url": "https://example.org/eu-hydrogen",
+    "title": "EU Taxonomy hydrogen",
+    "source_type": "regulatory_taxonomy",
+    "summary": "Official EU classification of hydrogen activities.",
+    "covers": [
+      "activities",
+      "thresholds"
+    ],
+    "fetchable": true,
+    "checked_on": "2026-11-08",
+    "status": "approved"
+  }
+]

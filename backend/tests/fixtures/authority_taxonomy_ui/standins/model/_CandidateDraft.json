@@ -1,0 +1,11 @@
+{
+  "output": {
+    "summary": "Official EU classification of hydrogen activities.",
+    "reason": "Regulatory source.",
+    "source_type": "regulatory_taxonomy",
+    "covers": [
+      "activities",
+      "thresholds"
+    ]
+  }
+}
