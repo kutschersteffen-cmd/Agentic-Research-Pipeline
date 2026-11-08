@@ -439,7 +439,7 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
     <div class="head">
       <h2 class="hello">Good morning.<a class="go" href="#">10 things wait on you →</a></h2>
     </div>
-    <div class="hero"><canvas class="flowviz" aria-label="A network of input dots that flows into the ARP logo and dissolves again"></canvas></div>
+    <div class="hero"><canvas class="flowviz" aria-label="A network of input dots; a fraction lights up, runs through the extract, verify and review pipeline, and forms the ARP logo"></canvas></div>
     <div class="cards">
       <div class="wc wait"><span class="pill sm">2 waiting</span><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><h3>StewardIQ</h3><p>Engage companies, vote, and track what they commit to.</p><div class="steps"><i class="k"></i><i class="o"></i><i></i></div><span class="open">Open →</span></div>
       <div class="wc"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M9 11h6M9 15h4"/></svg><h3>Argus</h3><p>Extract cited data points from disclosures and score them.</p><div class="steps"><i class="k"></i><i class="r"></i></div><span class="open">Open →</span></div>
@@ -576,59 +576,79 @@ for(const f of document.querySelectorAll('.ndr-slot')){const c=document.getEleme
 
 
 <script>
-// Start hero: a wide network of input dots drifts, then flows into the ARP mark and wordmark, holds, and dissolves again.
+// Start hero: a network of input dots; a fraction lights up, runs through the pipeline (extract, verify, review) and lands as the ARP logo.
 addEventListener('DOMContentLoaded',()=>{
  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
  const MARK=[[1,0],[3,0],[0,1],[4,1],[0,2],[1,2],[2,2],[3,2],[4,2],[0,3],[4,3],[0,4],[4,4]],HI=[2,0];
+ const CYCLE=22000,clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)),ease=u=>u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2;
+ const lerp=(a,b,k)=>a+(b-a)*k;
  document.querySelectorAll('.flowviz').forEach((cv,ci)=>{
-  const ctx=cv.getContext('2d');const dpr=Math.min(2,devicePixelRatio||1);let W=0,H=0;
+  const ctx=cv.getContext('2d');const dpr=Math.min(2,devicePixelRatio||1);let W=0,H=0,P=[],G={};
   const css=n=>getComputedStyle(cv).getPropertyValue(n).trim();
   const col={o:css('--o'),r:css('--run'),f:css('--f'),m:css('--m'),line:css('--line')};
   let seed=11+ci;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
-  let P=[],targets=[];
   function build(){
    W=cv.offsetWidth;H=cv.offsetHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
-   // sample the ARP mark + wordmark from an offscreen canvas
+   // pipeline geometry (left/centre) and logo area (right)
+   G={mouth:W*0.20,p0:W*0.30,p1:W*0.50,flare:W*0.55,cy:H*0.5,wide:H*0.36,pipe:H*0.07};
    const oc=document.createElement('canvas');oc.width=W;oc.height=H;const o=oc.getContext('2d');
-   let cell=Math.round(H*0.12),fs=Math.round(H*0.68);o.font=`700 ${fs}px Geist,system-ui,sans-serif`;
-   let tw=o.measureText('ARP').width;const fit=Math.min(1,W*0.88/(cell*6.2+tw));cell=Math.round(cell*fit);fs=Math.round(fs*fit);o.font=`700 ${fs}px Geist,system-ui,sans-serif`;tw=o.measureText('ARP').width;
-   const mw=cell*5,gap=cell*1.2,total=mw+gap+tw,x0=(W-total)/2,y0=(H-cell*5)/2;
+   let cell=Math.round(H*0.11),fs=Math.round(H*0.62);o.font=`700 ${fs}px Geist,system-ui,sans-serif`;
+   let tw=o.measureText('ARP').width;const fit=Math.min(1,(W*0.40)/(cell*6.2+tw));cell=Math.round(cell*fit);fs=Math.round(fs*fit);
+   o.font=`700 ${fs}px Geist,system-ui,sans-serif`;tw=o.measureText('ARP').width;
+   const mw=cell*5,gap=cell*1.2,total=mw+gap+tw,x0=W*0.585+(W*0.39-total)/2,y0=(H-cell*5)/2;
    o.fillStyle='#000';MARK.concat([HI]).forEach(([c,r])=>o.fillRect(x0+c*cell,y0+r*cell,cell-2,cell-2));
    o.textBaseline='middle';o.fillText('ARP',x0+mw+gap,H/2+fs*0.04);
-   const d=o.getImageData(0,0,W,H).data,step=Math.max(4,Math.round(H/64));targets=[];
-   for(let y=0;y<H;y+=step)for(let x=0;x<W;x+=step)if(d[(y*W+x)*4+3]>128){
-     const hi=x>=x0+HI[0]*cell&&x<x0+(HI[0]+1)*cell&&y>=y0&&y<y0+cell;targets.push([x,y,hi])}
-   for(let i=targets.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[targets[i],targets[j]]=[targets[j],targets[i]]}
-   const N=Math.max(targets.length,Math.round(W*H/260));P=[];
-   for(let i=0;i<N;i++){const t=targets[i];P.push({hx:rnd()*W,hy:rnd()*H,ph:rnd()*6.28,sp:.3+rnd()*.7,
-     tx:t?t[0]:null,ty:t?t[1]:null,hi:t?t[2]:false,kind:rnd()<.06?'o':rnd()<.12?'r':'f',delay:rnd()*.35})}
+   const d=o.getImageData(0,0,W,H).data,step=Math.max(4,Math.round(H/72)),T=[];
+   for(let y=0;y<H;y+=step)for(let x=0;x<W;x+=step)if(d[(y*W+x)*4+3]>128)
+     T.push([x,y,x>=x0+HI[0]*cell&&x<x0+(HI[0]+1)*cell&&y>=y0&&y<y0+cell]);
+   const N=Math.min(2600,Math.max(T.length*3,Math.round(W*H/170)));P=[];
+   for(let i=0;i<N;i++)P.push({hx:rnd()*W,hy:rnd()*H,ph:rnd()*6.28,sp:.3+rnd()*.7,lit:false});
+   // the lit fraction: pick dots spread over the field, one per logo target
+   const idx=[...P.keys()].sort(()=>rnd()-.5).slice(0,T.length);
+   idx.forEach((pi,k)=>{const p=P[pi],t=T[k];Object.assign(p,{lit:true,tx:t[0],ty:t[1],hi:t[2],
+     lane:(rnd()-.5)*2,delay:rnd(),flag:rnd()<.08})});
   }
   build();
-  const ease=u=>u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2;
-  const CYCLE=16000;
-  function morph(t){const c=(t%CYCLE)/CYCLE; // 0-.25 network · .25-.5 flow in · .5-.75 hold · .75-1 dissolve
-   if(c<.25)return 0;if(c<.5)return (c-.25)/.25;if(c<.75)return 1;return 1-(c-.75)/.25}
+  const home=(p,t,w=1)=>[p.hx+Math.sin(t/2600*p.sp+p.ph)*24*w,p.hy+Math.cos(t/3100*p.sp+p.ph*1.3)*16*w];
+  function litPos(p,t,c){
+   const h=home(p,t);if(c<.24)return[h[0],h[1],0,'pre'];
+   if(c>=.86){const k=ease(clamp((c-.86)/.14));return[lerp(p.tx,h[0],k),lerp(p.ty,h[1],k),1-k,'out']}
+   const u=clamp((c-.24-p.delay*.2)/.34);if(u<=0)return[h[0],h[1],0,'wait'];
+   const laneY=G.cy+p.lane*G.pipe*.8;
+   if(u<.3){const k=ease(u/.3);return[lerp(h[0],G.mouth,k),lerp(h[1],G.cy+p.lane*G.wide,k),0,'in']}
+   if(u<.4){const k=(u-.3)/.1;return[lerp(G.mouth,G.p0,k),lerp(G.cy+p.lane*G.wide,laneY,ease(k)),0,'in']}
+   if(u<.75){const k=(u-.4)/.35;return[lerp(G.p0,G.p1,k),laneY,0,'pipe',k]}
+   const k=ease((u-.75)/.25);return[lerp(G.p1,p.tx,k),lerp(laneY,p.ty,k),k,'land']}
+  function drawPipe(a,t){if(a<.01)return;ctx.save();ctx.globalAlpha=a;ctx.strokeStyle=col.m;ctx.lineWidth=1.2;
+   for(const sgn of [-1,1]){ctx.beginPath();ctx.moveTo(G.mouth,G.cy+sgn*G.wide);
+    ctx.bezierCurveTo(G.mouth+(G.p0-G.mouth)*.6,G.cy+sgn*G.wide,G.p0-(G.p0-G.mouth)*.3,G.cy+sgn*G.pipe,G.p0,G.cy+sgn*G.pipe);
+    ctx.lineTo(G.p1,G.cy+sgn*G.pipe);ctx.quadraticCurveTo(G.flare,G.cy+sgn*G.pipe,G.flare+8,G.cy+sgn*G.pipe*2.4);ctx.stroke()}
+   ctx.font='500 11px "Geist Mono",ui-monospace,monospace';ctx.textAlign='center';ctx.fillStyle=col.m;
+   ['EXTRACT','VERIFY','REVIEW'].forEach((n,i)=>{const x=lerp(G.p0,G.p1,(i+.5)/3);
+    ctx.globalAlpha=a*.9;ctx.fillText(n,x,G.cy-G.pipe-14);if(i){const bx=lerp(G.p0,G.p1,i/3);ctx.globalAlpha=a*.4;ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(bx,G.cy-G.pipe);ctx.lineTo(bx,G.cy+G.pipe);ctx.stroke();ctx.setLineDash([])}});
+   ctx.restore()}
   function draw(t){
-   ctx.clearRect(0,0,W,H);const m=morph(t);
-   const pos=P.map(p=>{const k=p.tx==null?0:ease(Math.min(1,Math.max(0,(m-p.delay*(1-m))/(1-p.delay*.5))));
-     const wob=(1-k)*14+1.2;
-     const nx=p.hx+Math.sin(t/2600*p.sp+p.ph)*wob*2.4,ny=p.hy+Math.cos(t/3100*p.sp+p.ph*1.3)*wob*1.6;
-     return[p.tx==null?nx:nx+(p.tx-nx)*k,p.ty==null?ny:ny+(p.ty-ny)*k,k]});
-   // network links, fading out as the word forms
-   const la=(1-m)*.5;if(la>.02){ctx.strokeStyle=col.m;ctx.lineWidth=.6;const g=46,bins=new Map();
-    pos.forEach((q,i)=>{const key=((q[0]/g)|0)+','+((q[1]/g)|0);(bins.get(key)||bins.set(key,[]).get(key)).push(i)});
-    ctx.beginPath();for(const [key,arr] of bins){const [bx,by]=key.split(',').map(Number);
-     for(const nk of [key,`${bx+1},${by}`,`${bx},${by+1}`,`${bx+1},${by+1}`]){const o=bins.get(nk);if(!o)continue;
-      for(const a of arr)for(const b of o){if(b<=a&&nk===key)continue;const dx=pos[a][0]-pos[b][0],dy=pos[a][1]-pos[b][1];
-       if(dx*dx+dy*dy<g*g*.55){ctx.moveTo(pos[a][0],pos[a][1]);ctx.lineTo(pos[b][0],pos[b][1])}}}}
-    ctx.globalAlpha=la*.45;ctx.stroke();ctx.globalAlpha=1}
-   P.forEach((p,i)=>{const[x,y,k]=pos[i];
-    const c=p.hi&&k>.6?col.o:(k>.6?col.f:(p.kind==='o'?col.o:p.kind==='r'?col.r:col.m));
-    ctx.fillStyle=c;ctx.globalAlpha=p.tx==null?(.55-.35*m):(.55+.45*k);
-    ctx.beginPath();ctx.arc(x,y,p.tx==null?1.3:1.3+k*.9,0,7);ctx.fill()});
-   ctx.globalAlpha=1;
-  }
-  if(reduce){draw(CYCLE*.6);return}
+   ctx.clearRect(0,0,W,H);const c=(t%CYCLE)/CYCLE;
+   const pipeA=c<.16?0:c<.24?(c-.16)/.08:c<.84?1:c<.92?1-(c-.84)/.08:0;
+   const netA=c<.2?1:c<.3?1-(c-.2)/.1:c<.88?0:(c-.88)/.12;
+   const pos=P.map(p=>p.lit?litPos(p,t,c):home(p,t));
+   // network links among the background field
+   if(netA>.02){ctx.strokeStyle=col.m;ctx.lineWidth=.5;const g=40,bins=new Map();
+    pos.forEach((q,i)=>{if(P[i].lit&&c>.24&&c<.86)return;const key=((q[0]/g)|0)*4096+((q[1]/g)|0);(bins.get(key)||bins.set(key,[]).get(key)).push(i)});
+    ctx.beginPath();for(const [key,arr] of bins)for(const nk of [key,key+4096,key+1,key+4097]){const o=bins.get(nk);if(!o)continue;
+     for(const a of arr)for(const b of o){if(nk===key&&b<=a)continue;const dx=pos[a][0]-pos[b][0],dy=pos[a][1]-pos[b][1];
+      if(dx*dx+dy*dy<g*g*.5){ctx.moveTo(pos[a][0],pos[a][1]);ctx.lineTo(pos[b][0],pos[b][1])}}}
+    ctx.globalAlpha=netA*.22;ctx.stroke();ctx.globalAlpha=1}
+   drawPipe(pipeA,t);
+   const dim=1-.6*pipeA;
+   P.forEach((p,i)=>{const q=pos[i];let fill=col.m,a=.45*dim,r=1.2;
+    if(p.lit){const glow=c<.16?0:c<.24?(c-.16)/.08:1;
+     if(q[3]==='land'||q[3]==='out'){fill=q[2]>.55?(p.hi?col.o:col.f):col.r;a=.6+.4*q[2];r=1.4+q[2]*.9}
+     else if(q[3]==='pipe'&&p.flag&&q[4]>.66){fill=col.o;a=1;r=2.2}
+     else if(glow>0){fill=col.r;a=.45+.5*glow;r=1.2+.8*glow}}
+    ctx.globalAlpha=a;ctx.fillStyle=fill;ctx.beginPath();ctx.arc(q[0],q[1],r,0,7);ctx.fill()});
+   ctx.globalAlpha=1}
+  if(reduce){draw(CYCLE*.8);return}
   let vis=true;new IntersectionObserver(e=>vis=e[0].isIntersecting).observe(cv);
   let t0=null;const loop=t=>{t0??=t;if(vis)draw(t-t0);requestAnimationFrame(loop)};requestAnimationFrame(loop);
   addEventListener('resize',build);
