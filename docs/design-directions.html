@@ -128,6 +128,8 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .go{display:block;color:var(--o);text-decoration:none;text-underline-offset:6px}.go:hover{text-decoration:underline}
 .waitlist{display:grid;gap:6px}.wl-head{display:flex;justify-content:space-between;align-items:center}
 .sm .row{grid-template-columns:8px 1fr 130px 80px}.sm .cards .wc{min-height:250px}
+.four{grid-template-columns:1fr 1fr}
+.noglow .dot.o,.noglow .row.sel,.noglow .wc.wait{box-shadow:none!important}
 .prun{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--b);font-size:13px}
 .prun .mono{font-size:12px;color:var(--m)}
 .shots .frame{overflow:hidden}.shots .app{zoom:.5}
@@ -283,6 +285,21 @@ for(const [title,...cols] of rows){
 for(const f of document.querySelectorAll('.nds-slot')){const c=document.getElementById('nds').content.firstElementChild.cloneNode(true);if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
 </script>
 
+<section class="vs" id="ocol"><h2>"Needs you" colour options</h2><p>The Night Desk start page in dark (top) and light (bottom) for each option. Each colour keeps one job: items waiting on a person. Blue stays running, green done, red failed.</p><div class="shots four" id="ocol-grid"></div></section>
+<script>
+const opts=[
+ ['Current orange','#ff7a3d','#d9480f','vivid; glows'],
+ ['Toned-down orange','#e0915f','#b5531f','less saturated, no glow'],
+ ['Amber','#f0b429','#9a6400','warm, reads as "attention" not "alarm"'],
+ ['Magenta','#e47bc4','#a8327f','far from red, green and blue']];
+const g=document.getElementById('ocol-grid');
+for(const [name,dk,lt,note] of opts)for(const [mode,c] of [['dark',dk],['light',lt]]){
+ const f=document.createElement('figure');const fr=document.getElementById('nds').content.firstElementChild.cloneNode(true);
+ if(mode==='light')fr.classList.add('ndl');
+ fr.style.setProperty('--o',c);fr.style.setProperty('--of',c+'22');
+ if(name!=='Current orange')fr.classList.add('noglow');
+ const cap=document.createElement('figcaption');cap.textContent=name+' · '+mode+' · '+c+' · '+note;f.append(fr,cap);g.append(f);}
+</script>
 <div class="notes">
   <div><b>Keyboard first</b>A, R and E decide the selected item. J and K move between items. ⌘K jumps to any run.</div>
   <div><b>One meaning for orange</b>The rail, the pill, the selected row and the confidence bar all use orange for the same thing: waiting on you. Running is blue, done is green, failed is red.</div>
