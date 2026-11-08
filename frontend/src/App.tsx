@@ -6,7 +6,6 @@ import { ProcessBar, StartPage, WorkspaceOverview } from "./pages/ProcessHub";
 import { ArgusFlow } from "./pages/ArgusFlow";
 import { ArgusStart } from "./pages/ArgusStart";
 import { WORKSPACES, workspaceOfProcess, type WorkspaceId } from "./lib/processes";
-import { STATE_LABEL, workspaceState } from "./lib/workspaceCard";
 import { STAGE_TABS } from "./pages/steward/common";
 import { SUB_TABS as RISK_TABS } from "./lib/subTabs";
 import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
@@ -161,8 +160,6 @@ function App() {
   const active = route.tab;
   const [waiting, setWaiting] = useState<{ review: number } | null>(null);
   const [recentRuns, setRecentRuns] = useState<RunManifest[]>([]);
-  // Sidebar status dots wait for the first runs load, so they never show a guess.
-  const [runsLoaded, setRunsLoaded] = useState(false);
   // One universe in flight between screens, addressed to one of them.
   const [handoff, setHandoff] = useState<(UniverseHandoff & { to: TabId }) | null>(null);
   const pendingFor = (to: TabId) => (handoff?.to === to ? handoff : null);
@@ -203,7 +200,6 @@ function App() {
         const sum = (keep: (r: RunManifest) => boolean) => runs.filter(keep).reduce((n, r) => n + r.review_count, 0);
         setWaiting({ review: sum((r) => REVIEWABLE_RUN_TYPES.has(r.run_type)) });
         setRecentRuns([...runs].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 50));
-        setRunsLoaded(true);
       })
       .catch(() => setWaiting(null));
   }, [route, decidedAt]);
@@ -349,8 +345,6 @@ function App() {
               const t = TABS.find((tab) => tab.id === id)!;
               const current = currentNavIds(active).includes(id);
               const count = navCount(id, waiting);
-              const ws = WORKSPACES.find((w) => w.id === id);
-              const wsState = ws && runsLoaded ? workspaceState(ws, recentRuns) : "idle";
               return (
                 <a
                   key={t.id}
@@ -367,7 +361,6 @@ function App() {
                       {count} {count === 1 ? "item" : "items"}
                     </span>
                   )}
-                  {ws && wsState !== "idle" && <span className={`nav-dot nav-dot-${wsState}`} role="img" aria-label={`${ws.name}: ${STATE_LABEL[wsState]}`} />}
                 </a>
               );
             });
