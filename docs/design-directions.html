@@ -209,6 +209,8 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .page .hit{font-weight:500;color:var(--ink)}
 .page mark{background:var(--hl);color:inherit;padding:1px 2px;border-bottom:2px solid var(--o)}
 .pnf{display:flex;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--m)}
+.fcw{background:var(--b);padding:16px;border-radius:10px;border:1px solid var(--line);color:var(--f)}
+.fcw.geist .page{font-family:var(--sans);font-size:15px}
 .prun{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--b);font-size:13px}
 .prun .mono{font-size:12px;color:var(--m)}
 .shots .frame{overflow:hidden}.shots .app{zoom:.5}
@@ -448,6 +450,10 @@ for(const [title,...cols] of rows){
   f.append(c);const fc=document.createElement('figcaption');fc.textContent=cap;f.append(fc);grid.append(f);}
  sec.append(grid);host.append(sec);}
 for(const f of document.querySelectorAll('.nds-slot')){const c=document.getElementById('nds').content.firstElementChild.cloneNode(true);if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+addEventListener('DOMContentLoaded',()=>{const src=document.querySelector('#pairs .doc');const g=document.getElementById('fc-grid');
+for(const [mode,cls] of [['dark',''],['light','ndl']])for(const [font,fc] of [['Source Serif 4',''],['Geist','geist']]){
+ const f=document.createElement('figure');const w=document.createElement('div');w.className='fcw '+cls+' '+fc;w.append(src.cloneNode(true));
+ const cap=document.createElement('figcaption');cap.textContent=font+' · '+mode;f.append(w,cap);g.append(f);}});
 for(const f of document.querySelectorAll('.ndl7-slot')){const c=document.getElementById('ndl7').content.firstElementChild.cloneNode(true);
  c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
  c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.includes('R&D Lab')));
@@ -466,6 +472,7 @@ for(const f of document.querySelectorAll('.ndr-slot')){const c=document.getEleme
  if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
 </script>
 
+<section class="vs" id="fontcmp"><h2>Source excerpt · Serif vs Geist</h2><p>The same excerpt panel in Source Serif 4 (left) and Geist (right), dark and light. Everything else is identical.</p><div class="shots" id="fc-grid"></div></section>
 <div class="notes">
   <div><b>Keyboard first</b>A, R and E decide the selected item. J and K move between items. ⌘K jumps to any run.</div>
   <div><b>One meaning for amber</b>The rail, the pill and the selected row all use amber for the same thing: waiting on you. Running is blue, done is green, failed is red.</div>
