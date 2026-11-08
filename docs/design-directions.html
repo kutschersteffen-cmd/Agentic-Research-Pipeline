@@ -439,7 +439,7 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
     <div class="head">
       <h2 class="hello">Good morning.<a class="go" href="#">10 things wait on you →</a></h2>
     </div>
-    <div class="hero"><canvas class="flowviz" aria-label="A network of input dots; a fraction lights up, runs through the extract, verify and review pipeline, and forms the ARP logo"></canvas></div>
+    <div class="hero"><canvas class="flowviz" aria-label="A network of input dots; a fraction lights up, streams through an unseen funnel and forms the ARP logo"></canvas></div>
     <div class="cards">
       <div class="wc wait"><span class="pill sm">2 waiting</span><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><h3>StewardIQ</h3><p>Engage companies, vote, and track what they commit to.</p><div class="steps"><i class="k"></i><i class="o"></i><i></i></div><span class="open">Open →</span></div>
       <div class="wc"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M9 11h6M9 15h4"/></svg><h3>Argus</h3><p>Extract cited data points from disclosures and score them.</p><div class="steps"><i class="k"></i><i class="r"></i></div><span class="open">Open →</span></div>
@@ -639,7 +639,6 @@ addEventListener('DOMContentLoaded',()=>{
      for(const a of arr)for(const b of o){if(nk===key&&b<=a)continue;const dx=pos[a][0]-pos[b][0],dy=pos[a][1]-pos[b][1];
       if(dx*dx+dy*dy<g*g*.5){ctx.moveTo(pos[a][0],pos[a][1]);ctx.lineTo(pos[b][0],pos[b][1])}}}
     ctx.globalAlpha=netA*.22;ctx.stroke();ctx.globalAlpha=1}
-   drawPipe(pipeA,t);
    const dim=1-.6*pipeA;
    P.forEach((p,i)=>{const q=pos[i];let fill=col.m,a=.45*dim,r=1.2;
     if(p.lit){const glow=c<.16?0:c<.24?(c-.16)/.08:1;
