@@ -74,7 +74,7 @@ function ActivityBlock({ a, onChange, onRemove }: { a: Activity; onChange: (a: A
       <ul className="plain-list">
         {(a.sector_codes ?? []).map((s, i) => (
           <li key={i}>
-            {s.system} {s.code} <span className="badge">{s.origin}</span>{" "}
+            {s.system} {s.code} <span className="badge badge-neutral">{s.origin}</span>{" "}
             <button type="button" aria-label={`Remove ${s.system} ${s.code}`} onClick={() => onChange({ ...a, sector_codes: removeAt(a.sector_codes ?? [], i) })}>Remove</button>
           </li>
         ))}
