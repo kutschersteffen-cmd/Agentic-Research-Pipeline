@@ -90,7 +90,7 @@ def infer_comove_cmd(
         source = CsvPriceSource(prices) if prices else YFinancePriceSource()
         block = infer_comove.comove(run_id, symbols, source, end or infer_comove.default_end(date.today()), weeks,
                                     _run_store())
-    except (KeyError, infer_comove.ComoveRefused) as e:  # nothing was saved
+    except infer_comove.ComoveRefused as e:  # nothing was saved
         typer.echo(e.args[0], err=True)
         raise typer.Exit(1) from None
     except (ImportError, OSError, ValueError) as e:

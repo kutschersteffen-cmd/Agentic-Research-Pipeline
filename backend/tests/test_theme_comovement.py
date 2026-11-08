@@ -430,3 +430,37 @@ def test_weeks_must_be_positive(fx):
     run_id = fx.save(_run("r1"))
     assert _comove(run_id, fx.symbols, fx.prices, "--weeks", "0").exit_code != 0
     assert "comovement" not in _show(run_id)
+
+
+def test_window_has_all_weeks_for_a_midweek_end():
+    """Factory review finding 1: a non-Friday --end must still give `weeks` returns."""
+    from arp.replication.price_data import PricePanel
+
+    class _Fridays:
+        def get_weekly_returns(self, tickers, start, end):
+            d, ends = date(2020, 1, 3), []
+            while d.isoformat() <= end:
+                if d.isoformat() >= start:
+                    ends.append(d.isoformat())
+                d += timedelta(weeks=1)
+            return PricePanel(period_ends=ends, returns={t: [None] + [0.01] * (len(ends) - 1) for t in tickers},
+                              source="stub")
+
+    for end in ("2026-10-30", "2026-10-28"):
+        returns, _ = comove_mod._window(_Fridays(), ["ACWI"], end, 156)
+        assert np.isfinite(returns["ACWI"]).sum() == 156, end
+
+
+def test_run_moved_to_failed_during_fetch_gets_no_block(fx, monkeypatch):
+    """Factory review finding 3: the reloaded run's stage is checked again before saving."""
+    run_id = fx.save(_run("r1"))
+    real = comove_mod._window
+
+    def window_then_fail(*a, **k):
+        fx.save(_run(run_id, stage="failed"))
+        return real(*a, **k)
+
+    monkeypatch.setattr(comove_mod, "_window", window_then_fail)
+    res = _comove(run_id, fx.symbols, fx.prices)
+    assert res.exit_code == 1 and "'failed'" in res.stderr
+    assert "comovement" not in _show(run_id)

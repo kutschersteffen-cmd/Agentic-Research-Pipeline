@@ -17,6 +17,8 @@ ACWI = "ACWI"
 MIN_LOADING_WEEKS = 52
 NW_LAGS = 4
 DRAWS = 500
+_BASKET_NUMBERS = ("mean_resid_corr", "null_mean", "null_p95", "p_value", "complete_weeks", "eigenvalues",
+                   "mp_lambda_plus", "factors_above_noise")
 FLAG_T = 2.0
 _COLUMNS = ("company_id", "symbol", "home_index")
 
@@ -137,13 +139,15 @@ def _basket_tests(rows: np.ndarray) -> dict:
     draws = [d for _ in range(DRAWS) if (d := _mean_corr(_shuffle(rows, rng))) is not None]
     t, eig, mp, above = _eigen(rows)
     nulls = observed is None or not draws
-    return {
+    out = {
         "mean_resid_corr": observed,
         "null_mean": None if nulls else float(np.mean(draws)),
         "null_p95": None if nulls else float(np.percentile(draws, 95)),
         "p_value": None if nulls else (1 + sum(d >= observed for d in draws)) / (len(draws) + 1),
         "complete_weeks": t, "eigenvalues": eig, "mp_lambda_plus": mp, "factors_above_noise": above,
     }
+    assert tuple(out) == _BASKET_NUMBERS
+    return out
 
 
 def _read_symbols(path: str | Path, described: set[str]) -> dict[str, tuple[str, str]]:
@@ -170,7 +174,7 @@ def _read_symbols(path: str | Path, described: set[str]) -> dict[str, tuple[str,
 
 
 def _window(prices: PriceDataSource, tickers: list[str], end: str, weeks: int) -> tuple[dict[str, np.ndarray], str]:
-    start = (date.fromisoformat(end) - timedelta(weeks=weeks)).isoformat()
+    start = (date.fromisoformat(end) - timedelta(weeks=weeks + 1)).isoformat()  # one spare row for a mid-week end
     panel = prices.get_weekly_returns(tickers, start, end)
     keep = [i for i, d in enumerate(panel.period_ends) if d <= end][-weeks:]
     keep = [i for i in keep if i > 0]  # index 0 has no prior week to return from
@@ -179,11 +183,19 @@ def _window(prices: PriceDataSource, tickers: list[str], end: str, weeks: int) -
     return out, panel.source
 
 
-def comove(run_id: str, symbols_path: str | Path, prices: PriceDataSource, end: str, weeks: int, run_store) -> dict:
-    """Compute and store the run's `comovement` block; a refusal raises before anything is saved."""
-    run = load_run(run_id, run_store)
+def _load(run_id: str, run_store):
+    try:
+        run = load_run(run_id, run_store)
+    except KeyError as e:
+        raise ComoveRefused(e.args[0]) from None
     if run.stage not in ("themes_ready", "drafted"):
         raise ComoveRefused(f"Run {run_id} is at stage '{run.stage}'; 'comove' needs 'themes_ready' or 'drafted'.")
+    return run
+
+
+def comove(run_id: str, symbols_path: str | Path, prices: PriceDataSource, end: str, weeks: int, run_store) -> dict:
+    """Compute and store the run's `comovement` block; a refusal raises before anything is saved."""
+    run = _load(run_id, run_store)
     described = sorted(p.company_id for p in run.profiles if p.description)
     symbols = _read_symbols(symbols_path, set(described))
     tickers = sorted({ACWI} | {s for s, _ in symbols.values()} | {h for _, h in symbols.values()})
@@ -211,8 +223,7 @@ def comove(run_id: str, symbols_path: str | Path, prices: PriceDataSource, end: 
     for name, members in baskets_in:
         if len(members) < 3:
             baskets.append({"basket": name, "members": members, "skipped": "too_few_stocks",
-                            **dict.fromkeys(("mean_resid_corr", "null_mean", "null_p95", "p_value", "complete_weeks",
-                                             "eigenvalues", "mp_lambda_plus", "factors_above_noise"))})
+                            **dict.fromkeys(_BASKET_NUMBERS)})
             continue
         rows = np.array([resid[m] for m in members])
         baskets.append({"basket": name, "members": members, "skipped": None, **_basket_tests(rows)})
@@ -229,6 +240,6 @@ def comove(run_id: str, symbols_path: str | Path, prices: PriceDataSource, end: 
 
     block = {"end": end, "weeks": weeks, "source": source, "controls": [ACWI, "home_index"],
              "stocks": stocks, "baskets": baskets, "loadings": loadings}
-    fresh = load_run(run_id, run_store)  # reloaded: a `pick` that saved during a slow price fetch is kept
+    fresh = _load(run_id, run_store)  # reloaded and re-checked: a `pick` or failure during a slow fetch is kept
     _save(fresh.model_copy(update={"comovement": block}), run_store)
     return block
