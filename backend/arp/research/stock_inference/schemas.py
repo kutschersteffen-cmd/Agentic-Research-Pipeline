@@ -112,3 +112,4 @@ class InferRun(BaseModel):
     activities: list[ActivityOrigin] = Field(default_factory=list)
     mapping: list[Mapping] = Field(default_factory=list)
     coverage: Coverage | None = None
+    comovement: dict | None = None  # set by `infer comove`; absent from the run JSON until then
