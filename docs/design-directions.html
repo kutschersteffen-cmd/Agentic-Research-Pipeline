@@ -213,6 +213,15 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .chipb{font:500 13px var(--mono);padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--s1)}
 .steps6{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
 .runp{display:flex;gap:12px;align-items:center}.runp .mut{font-size:14px}
+.pr main.sm{padding-top:36px;gap:20px;align-content:start;overflow:hidden}
+.fcard{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:20px 24px;display:grid;gap:14px}
+.fcard h3{margin:0;font-size:1.15rem;font-weight:600;display:flex;gap:10px;align-items:center}
+.ff{display:grid;gap:6px}.fl2{font-size:13px;color:var(--m)}
+.fi{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--b);font-size:14px}
+.fi.ph{color:var(--m)}.ta .fi{min-height:64px}
+.frow2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.frow3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.drop{border:1.5px dashed var(--line);border-radius:8px;padding:14px;font-size:13px;color:var(--m);text-align:center}.drop b{color:var(--f)}
+.cb{display:flex;gap:8px;align-items:center;font-size:14px}.box.on{display:grid;place-items:center;background:var(--f);color:var(--b);border-color:var(--f);font-size:11px}
 .prun{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--b);font-size:13px}
 .prun .mono{font-size:12px;color:var(--m)}
 .shots .frame{overflow:hidden}.shots .app{zoom:.5}
@@ -302,6 +311,29 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
       <div class="steps4"><div class="st"><div class="sth"><span class="sn">1</span><span class="stt">Holdings intake</span></div><span class="sst k"><i class="dot k"></i>Oct loaded</span><p>Load the month’s holdings and ESG data; the monthly run starts once both are in.</p><div class="hands">Hands on: Month's snapshot</div></div><div class="st w"><div class="sth"><span class="sn">2</span><span class="stt">Monitoring & alerts</span></div><span class="sst o"><i class="dot o"></i>6 alerts to own</span><p>Threshold breaches and news controversies on holdings.</p><div class="hands">Hands on: Open alerts</div></div><div class="st"><div class="sth"><span class="sn">3</span><span class="stt">Dashboards</span></div><span class="sst k"><i class="dot k"></i>Updated 09:12</span><p>WACI, financed emissions and coverage by portfolio.</p><div class="hands">Hands on: Alerts as company fields</div></div><div class="st"><div class="sth"><span class="sn">4</span><span class="stt">Steward · Monitoring</span></div><p>Open alerts raise stewardship triggers; open the engagement in StewardIQ.</p><div class="hands">Hands on: Triggers</div></div></div></section>
     <section class="flow"><div class="fh"><div><h3>Climate transition review</h3><p><b>Done when:</b> A tiered list of issuers to engage, each with a walk-vs-talk verdict and sector context.</p></div><span class="cad">Annual, plus ad hoc before committees</span></div><div class="steps6"><div class="st"><div class="sth"><span class="sn">1</span><span class="stt">Risk monitoring</span></div><span class="sst k"><i class="dot k"></i>212 in scope</span><p>WACI, financed emissions and data coverage: where the carbon sits.</p><div class="hands">Hands on: Holdings in scope</div></div><div class="st"><div class="sth"><span class="sn">2</span><span class="stt">Transition barriers</span></div><p>Sector × jurisdiction barriers: what can a company in this sector realistically commit to?</p><div class="hands man">Hands on: Sector context · re-entered by hand</div></div><div class="st"><div class="sth"><span class="sn">3</span><span class="stt">Transition plan</span></div><span class="sst r"><i class="dot r"></i>Run 41%</span><p>64 indicators per issuer, walk vs. talk, each with a grounded citation (run by Argus), scored with a ratified template.</p><div class="hands">Hands on: Indicator scores and tiers</div></div><div class="st w"><div class="sth"><span class="sn">4</span><span class="stt">Decision Studio</span></div><span class="sst o"><i class="dot o"></i>1 to ratify</span><p>Tune the scoring template; ratify it, then publish the tiers.</p><div class="hands">Hands on: Published tiers</div></div><div class="st"><div class="sth"><span class="sn">5</span><span class="stt">Steward · Selection</span></div><p>Coverage rules read the published tiers: who gets engaged this cycle.</p><div class="hands man">Hands on: Engagement program · re-entered by hand</div></div><div class="st"><div class="sth"><span class="sn">6</span><span class="stt">Presentations & reports</span></div><p>Committee pack: the tiering with its evidence.</p><div class="hands">Hands on: Committee pack</div></div></div></section>
     <div class="screens"><span class="cap">Screens</span><span class="chipb">Risk Monitoring</span><span class="chipb">Transition Barriers</span><span class="chipb">Transition Plan</span></div>
+  </main>
+</div></div></template>
+<div class="vs"><h2>Presentations &amp; Reports page · Dark mode</h2><p>Left: ARP's real Presentations &amp; Reports page today. Right: the same form and fields in Night Desk styling.</p>
+<div class="shots"><figure><img src="shots/reports-dark-current.png" alt="Presentations and Reports, current dark theme"><figcaption>Current · dark</figcaption></figure><figure class="ndp-slot" data-cls=""><figcaption>Night Desk · dark</figcaption></figure></div></div>
+<div class="vs"><h2>Presentations &amp; Reports page · Light mode</h2>
+<div class="shots"><figure><img src="shots/reports-light-current.png" alt="Presentations and Reports, current light theme"><figcaption>Current · light</figcaption></figure><figure class="ndp-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure></div></div>
+
+<template id="ndp"><div class="frame"><div class="app start same sw pr">
+  <nav aria-label="Navigation"></nav>
+  <main class="sm">
+    <div><h2 class="hello">Presentations &amp; Reports</h2><p class="lede">Draft a report plan from your notes and data, edit it, then render it to PowerPoint, Word or PDF.</p></div>
+    <section class="fcard"><h3><span class="sn">1</span>Content</h3>
+      <label class="ff "><span class="fl2">Title</span><span class="fi">Electrification Thematic Review</span></label>
+      <label class="ff ta"><span class="fl2">Qualitative notes / findings</span><span class="fi ph">Paste analysis, findings, talking points…</span></label>
+      <div class="frow2"><label class="ff"><span class="fl2">Quantitative datasets (CSV/XLSX)</span><span class="drop"><b>Choose file</b> or drop it here</span></label>
+      <label class="ff"><span class="fl2">Template (optional · ingest a .pptx to match its house style)</span><span class="drop"><b>Choose file</b> or drop it here</span></label></div>
+    </section>
+    <section class="fcard"><h3><span class="sn">2</span>Audience &amp; layout</h3>
+      <div class="frow3"><label class="ff "><span class="fl2">Audience level</span><span class="fi">general ▾</span></label><label class="ff "><span class="fl2">Tone</span><span class="fi">neutral_analytical ▾</span></label><label class="ff "><span class="fl2">Output format</span><span class="fi">pptx ▾</span></label></div>
+      <label class="ff "><span class="fl2">Audience description</span><span class="fi">Investment committee, 20 minutes, wants the recommendation up front</span></label>
+      <div class="frow3"><label class="ff "><span class="fl2">Focus areas (comma-separated)</span><span class="fi">risk, valuation, ESG</span></label><label class="ff "><span class="fl2">Target length (slides/sections)</span><span class="fi ph">planner's choice</span></label><label class="ff "><span class="fl2">Max bullets per slide</span><span class="fi">6</span></label></div>
+      <label class="cb"><span class="box on">✓</span>Include title slide</label>
+    </section>
   </main>
 </div></div></template>
 <template id="nda"><div class="frame"><div class="app start same ar">
@@ -481,6 +513,10 @@ for(const [title,...cols] of rows){
   f.append(c);const fc=document.createElement('figcaption');fc.textContent=cap;f.append(fc);grid.append(f);}
  sec.append(grid);host.append(sec);}
 for(const f of document.querySelectorAll('.nds-slot')){const c=document.getElementById('nds').content.firstElementChild.cloneNode(true);if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+for(const f of document.querySelectorAll('.ndp-slot')){const c=document.getElementById('ndp').content.firstElementChild.cloneNode(true);
+ c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
+ c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.includes('Presentations')));
+ if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
 for(const f of document.querySelectorAll('.ndt-slot')){const c=document.getElementById('ndt').content.firstElementChild.cloneNode(true);
  c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
  c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.includes('Transition Intelligence')));
