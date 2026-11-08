@@ -1,0 +1,156 @@
+<title>ARP Design Directions</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&family=Caveat:wght@500&display=swap">
+<style>
+/* Layout: one column of three framed mock screens, each a self-contained world; page chrome follows viewer theme. */
+:root{--bg:#f3f3f0;--fg:#141414;--muted:#5c5c57;--rule:#dcdcd7;--hi:#ea4c14;
+--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161615;--fg:#ededea;--muted:#a3a39d;--rule:#33332f;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#161615;--fg:#ededea;--muted:#a3a39d;--rule:#33332f;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.5;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 64px}
+.wrap{max-width:1080px;margin:0 auto;display:grid;gap:56px}
+header h1{font-size:1.9rem;margin:0;text-wrap:balance;font-weight:600}
+header p{color:var(--muted);max-width:65ch;margin:.4rem 0 0}
+.dir{display:grid;gap:14px}
+.dir h2{margin:0;font-size:1.25rem;font-weight:600;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.dir h2 small{font-family:var(--mono);font-size:.75rem;color:var(--muted);font-weight:400;letter-spacing:.04em;text-transform:uppercase}
+.dir p{margin:0;color:var(--muted);max-width:70ch}
+.frame{border:1px solid var(--rule);border-radius:10px;overflow-x:auto}
+.screen{min-width:760px}
+.pending{color:var(--hi)}
+
+/* ---------- 1 Analyst's Ledger ---------- */
+.l{--p:#f7f5ef;--i:#16150f;--m:#6b685d;--r:#d9d5c8;--o:#c2410c;--t1:#1d4ed8;background:var(--p);color:var(--i);font-family:"IBM Plex Sans",sans-serif;display:grid;grid-template-columns:1fr 230px}
+.l main{padding:28px 32px;min-width:0}
+.l .eyebrow{font:500 .7rem/1 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--m)}
+.l h3{font:600 2rem/1.1 Newsreader,Georgia,serif;margin:.4rem 0 1.2rem}
+.l h3 em{font-style:normal;color:var(--o)}
+.l table{width:100%;border-collapse:collapse;font-size:.85rem}
+.l th{font:500 .66rem "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--m);text-align:left;padding:6px 8px;border-bottom:1.5px solid var(--i)}
+.l td{padding:10px 8px;border-bottom:1px solid var(--r);vertical-align:top}
+.l td.n{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;text-align:right}
+.l th.n{text-align:right}
+.l sup{font:500 .62rem "IBM Plex Mono",monospace;color:var(--t1)}
+.l .conf{display:inline-block;width:42px;height:6px;background:var(--r);vertical-align:middle;margin-right:6px}
+.l .conf i{display:block;height:100%;background:var(--i)}
+.l tr.wait td:first-child{box-shadow:inset 3px 0 var(--o)}
+.l .act{font:500 .7rem "IBM Plex Mono",monospace;color:var(--o);text-transform:uppercase;letter-spacing:.08em}
+.l aside{border-left:1px solid var(--r);padding:28px 20px;font-size:.78rem;color:var(--m);display:grid;gap:14px;align-content:start}
+.l aside b{font:500 .62rem "IBM Plex Mono",monospace;color:var(--t1);margin-right:4px}
+.l aside q{font-family:Newsreader,serif;font-size:.92rem;color:var(--i);quotes:none}
+
+/* ---------- 2 Night Desk ---------- */
+.d{--b:#0e1116;--s1:#151a22;--s2:#1c2330;--f:#e6e9ef;--m:#8b94a5;--o:#ff6a2b;--ok:#3ecf8e;--run:#5aa9ff;background:var(--b);color:var(--f);font-family:Geist,system-ui,sans-serif;display:grid;grid-template-columns:220px 1fr;font-size:.85rem}
+.d nav{background:var(--s1);padding:20px 14px;display:grid;gap:4px;align-content:start;border-right:1px solid var(--s2)}
+.d nav .lab{font:500 .66rem "Geist Mono",monospace;color:var(--m);letter-spacing:.1em;text-transform:uppercase;margin:10px 6px 4px}
+.d .run{display:grid;grid-template-columns:8px 1fr auto;gap:8px;align-items:center;padding:7px 8px;border-radius:6px}
+.d .run.on{background:var(--s2)}
+.d .dot{width:8px;height:8px;border-radius:50%}
+.d .mono{font-family:"Geist Mono",monospace;color:var(--m);font-size:.72rem}
+.d main{padding:22px 26px;display:grid;gap:16px;min-width:0}
+.d .top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.d h3{margin:0;font-weight:600;font-size:1.3rem}
+.d .pill{font:500 .72rem "Geist Mono",monospace;padding:4px 10px;border-radius:99px;border:1px solid var(--o);color:var(--o);box-shadow:0 0 14px -4px var(--o)}
+.d .bar{height:4px;background:var(--s2);border-radius:2px;overflow:hidden}
+.d .bar i{display:block;height:100%;width:64%;background:var(--run)}
+.d .card{background:var(--s1);border:1px solid var(--s2);border-radius:8px;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:6px 16px}
+.d .card.wait{border-color:color-mix(in oklab,var(--o) 55%,var(--s2));box-shadow:0 0 0 1px color-mix(in oklab,var(--o) 25%,transparent),0 0 24px -12px var(--o)}
+.d .card .v{font:500 1.05rem "Geist Mono",monospace}
+.d button{font:500 .78rem Geist,sans-serif;border-radius:6px;padding:6px 12px;border:1px solid var(--s2);background:var(--s2);color:var(--f)}
+.d button.pri{background:var(--f);color:var(--b);border-color:var(--f)}
+.d .log{background:#090c10;border-radius:8px;padding:12px 14px;font:400 .72rem/1.7 "Geist Mono",monospace;color:var(--m)}
+.d .log span{color:var(--run)}
+
+/* ---------- 3 Field Notebook ---------- */
+.n{--p:#fbf8f1;--i:#22261f;--m:#666a5f;--r:#e3ded0;--moss:#4f6b3a;--mossf:#e6ecdc;--o:#d9480f;--of:#fde8dc;background:var(--p);color:var(--i);font-family:"Instrument Sans",system-ui,sans-serif;padding:28px 36px;display:grid;gap:20px}
+.n .strip{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:.85rem;color:var(--m)}
+.n .ticks{display:flex;gap:4px}
+.n .ticks i{width:22px;height:8px;border-radius:4px;background:var(--r)}
+.n .ticks i.d{background:var(--moss)}
+.n .ticks i.w{background:var(--o)}
+.n h3{margin:0;font-weight:600;font-size:1.6rem;max-width:30ch;text-wrap:balance}
+.n .entry{display:grid;grid-template-columns:minmax(0,62ch) 1fr;gap:24px;padding-top:16px;border-top:1px solid var(--r)}
+.n .entry p{margin:0;font-size:.98rem;line-height:1.65}
+.n mark{background:var(--of);padding:0 3px;border-radius:3px;color:inherit}
+.n mark.ok{background:var(--mossf)}
+.n .note{border-left:2px solid var(--o);padding:4px 0 4px 14px;display:grid;gap:8px;align-content:start;font-size:.85rem}
+.n .note.ok{border-color:var(--moss);color:var(--m)}
+.n .hand{font:500 1.15rem Caveat,cursive;color:var(--o)}
+.n .note.ok .hand{color:var(--moss)}
+.n .btns{display:flex;gap:8px}
+.n button{font:600 .8rem "Instrument Sans",sans-serif;border-radius:99px;padding:6px 14px;border:1.5px solid var(--i);background:transparent;color:var(--i)}
+.n button.pri{background:var(--i);color:var(--p)}
+@media (prefers-reduced-motion:no-preference){.d .bar i{animation:g 3s ease-in-out infinite alternate}@keyframes g{from{width:58%}to{width:68%}}}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Three directions for ARP</h1>
+  <p>Each one shows the same screen: the review queue for a financials extraction run on Siemens Energy FY2025. All three keep the existing rule that orange appears only on items waiting for a person.</p>
+</header>
+
+<section class="dir">
+  <h2>1 · Analyst's Ledger <small>Recommended · about 1–2 days</small></h2>
+  <p>Printed-report feel. Serif headings, mono numbers, hairline-ruled tables with no card boxes. Sources sit in a footnote margin so every figure shows where it came from.</p>
+  <div class="frame"><div class="screen l">
+    <main>
+      <div class="eyebrow">Review queue · run fx-0412 · FY2025 annual report</div>
+      <h3>Siemens Energy AG: <em>3 figures</em> need your call</h3>
+      <table>
+        <thead><tr><th>Line item</th><th class="n">Extracted</th><th class="n">Prior yr</th><th>Confidence</th><th></th></tr></thead>
+        <tbody>
+          <tr class="wait"><td>Revenue<sup>1</sup></td><td class="n">€39,047m</td><td class="n">€34,465m</td><td><span class="conf"><i style="width:58%"></i></span>0.58</td><td class="act">Decide →</td></tr>
+          <tr class="wait"><td>Scope 1+2 emissions<sup>2</sup></td><td class="n">402 kt CO₂e</td><td class="n">471 kt</td><td><span class="conf"><i style="width:44%"></i></span>0.44</td><td class="act">Decide →</td></tr>
+          <tr class="wait"><td>Order backlog<sup>3</sup></td><td class="n">€136.0bn</td><td class="n">€123.0bn</td><td><span class="conf"><i style="width:61%"></i></span>0.61</td><td class="act">Decide →</td></tr>
+          <tr><td>EBITA pre special items</td><td class="n">€2,148m</td><td class="n">€1,397m</td><td><span class="conf"><i style="width:94%"></i></span>0.94</td><td></td></tr>
+          <tr><td>Free cash flow pre tax</td><td class="n">€4,686m</td><td class="n">€2,575m</td><td><span class="conf"><i style="width:91%"></i></span>0.91</td><td></td></tr>
+        </tbody>
+      </table>
+    </main>
+    <aside>
+      <div><b>1</b>Annual report p. 34, segment table<br><q>“Revenue … €39.0 billion”</q></div>
+      <div><b>2</b>Sustainability report p. 112. Boundary differs from prior year.</div>
+      <div><b>3</b>Press release, Q4 results. Not in audited statements.</div>
+    </aside>
+  </div></div>
+</section>
+
+<section class="dir">
+  <h2>2 · Night Desk <small>About 2–3 days</small></h2>
+  <p>Dark-first operator console for watching long runs. A runs rail on the left, live progress, status shown as dots. Pending items glow orange.</p>
+  <div class="frame"><div class="screen d">
+    <nav>
+      <div class="lab">Live runs</div>
+      <div class="run on"><span class="dot" style="background:var(--o)"></span>fx-0412 Siemens Energy<span class="mono">3</span></div>
+      <div class="run"><span class="dot" style="background:var(--run)"></span>discovery · EU utilities<span class="mono">64%</span></div>
+      <div class="run"><span class="dot" style="background:var(--run)"></span>calibration · v14<span class="mono">22%</span></div>
+      <div class="lab">Today</div>
+      <div class="run"><span class="dot" style="background:var(--ok)"></span>identity · 1,204 cos<span class="mono">done</span></div>
+      <div class="run"><span class="dot" style="background:var(--ok)"></span>themes · Q4 scan<span class="mono">done</span></div>
+    </nav>
+    <main>
+      <div class="top"><h3>fx-0412 · Siemens Energy FY2025</h3><span class="pill">3 waiting on you</span></div>
+      <div><div class="bar"><i></i></div><div class="mono" style="margin-top:6px">extracting · 41 of 64 line items · 2m 10s elapsed</div></div>
+      <div class="card wait"><div>Revenue</div><div class="v">€39,047m</div><div class="mono">conf 0.58 · AR p.34 vs press release disagree</div><div style="display:flex;gap:6px"><button>Reject</button><button class="pri">Accept</button></div></div>
+      <div class="card wait"><div>Scope 1+2 emissions</div><div class="v">402 kt</div><div class="mono">conf 0.44 · boundary changed</div><div style="display:flex;gap:6px"><button>Reject</button><button class="pri">Accept</button></div></div>
+      <div class="log"><span>14:02:11</span> grounding EBITA → AR p.36 ✓<br><span>14:02:13</span> FCF pre tax → AR p.41 ✓<br><span>14:02:15</span> order backlog → press release only, flagged</div>
+    </main>
+  </div></div>
+</section>
+
+<section class="dir">
+  <h2>3 · Field Notebook <small>About 3–4 days</small></h2>
+  <p>The source text is the page. The model's proposals sit in the margin as notes you accept or reject inline. Accepted items turn moss green, and a strip shows your progress for the day.</p>
+  <div class="frame"><div class="screen n">
+    <div class="strip"><div class="ticks"><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="w"></i><i class="w"></i><i></i></div>4 of 7 decisions done today</div>
+    <h3>Siemens Energy annual report, page 34</h3>
+    <div class="entry">
+      <p>In fiscal year 2025, Siemens Energy grew <mark>revenue to €39.0 billion</mark>, a comparable increase of 16.4%. Grid Technologies and Gas Services drove the growth. <mark class="ok">EBITA before special items reached €2.1 billion</mark>, up from €1.4 billion a year earlier.</p>
+      <div style="display:grid;gap:18px">
+        <div class="note"><span class="hand">Revenue = €39,047m?</span>The press release says €39.0bn and the segment table sums to €39,047m. Confidence 0.58.<div class="btns"><button class="pri">Accept</button><button>Reject</button></div></div>
+        <div class="note ok"><span class="hand">EBITA ✓ accepted</span>You confirmed €2,148m at 10:41.</div>
+      </div>
+    </div>
+  </div></div>
+</section>
+</div>
