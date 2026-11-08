@@ -229,10 +229,10 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .grow b{font-size:16px;font-weight:600}.grow .mut{font-size:14px}
 .gi{width:40px;height:40px;padding:6px;box-sizing:border-box;border-radius:9px;background:var(--b);border:1px solid var(--line);fill:none;stroke:var(--f);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .play{font:500 13px var(--mono);border:1px solid var(--line);border-radius:7px;padding:7px 12px;background:var(--s2)}
-.hero{position:relative;height:260px;border:1px solid var(--line);border-radius:12px;background:radial-gradient(120% 140% at 0% 50%,var(--s2),var(--s1) 60%);overflow:hidden}
+.hero{position:relative;height:320px;border:1px solid var(--line);border-radius:12px;background:radial-gradient(120% 140% at 0% 50%,var(--s2),var(--s1) 60%);overflow:hidden}
 .hero canvas{position:absolute;inset:0;width:100%;height:100%}
 .hlegend{position:absolute;left:18px;bottom:12px;display:flex;gap:14px;font:500 12px var(--mono);color:var(--m)}.hlegend span{display:flex;gap:6px;align-items:center}
-.sm .cards .wc{min-height:300px}
+.sm .cards .wc{min-height:260px}
 .app.start:not(.sw) main.sm{gap:20px;padding-top:32px}
 .prun{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--b);font-size:13px}
 .prun .mono{font-size:12px;color:var(--m)}
@@ -438,7 +438,7 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
     <div class="head">
       <h2 class="hello">Good morning.<a class="go" href="#">10 things wait on you →</a></h2>
     </div>
-    <div class="hero"><canvas class="flowviz" aria-label="Live pipeline: work flowing from sources into the five workspaces; amber marks items waiting on you"></canvas><div class="hlegend"><span><i class="dot r"></i>running</span><span><i class="dot o"></i>waiting on you</span><span><i class="dot k"></i>done</span></div></div>
+    <div class="hero"><canvas class="flowviz" aria-label="A network of input dots that flows into the ARP logo and dissolves again"></canvas></div>
     <div class="cards">
       <div class="wc wait"><span class="pill sm">2 waiting</span><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><h3>StewardIQ</h3><p>Engage companies, vote, and track what they commit to.</p><div class="steps"><i class="k"></i><i class="o"></i><i></i></div><span class="open">Open →</span></div>
       <div class="wc"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M9 11h6M9 15h4"/></svg><h3>Argus</h3><p>Extract cited data points from disclosures and score them.</p><div class="steps"><i class="k"></i><i class="r"></i></div><span class="open">Open →</span></div>
@@ -575,55 +575,61 @@ for(const f of document.querySelectorAll('.ndr-slot')){const c=document.getEleme
 
 
 <script>
-// Live pipeline flow: sources on the left feed the five workspaces; amber items stop and pulse at a workspace until a person acts.
+// Start hero: a wide network of input dots drifts, then flows into the ARP mark and wordmark, holds, and dissolves again.
 addEventListener('DOMContentLoaded',()=>{
  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
- const SRC=['Filings','News','Holdings','ESG data'];
- const WS=[['StewardIQ',2],['Argus',3],['Transition Intel.',1],['R&D Lab',3],['Data Hub',1]]; // sums to the 10 waiting in the header
+ const MARK=[[1,0],[3,0],[0,1],[4,1],[0,2],[1,2],[2,2],[3,2],[4,2],[0,3],[4,3],[0,4],[4,4]],HI=[2,0];
  document.querySelectorAll('.flowviz').forEach((cv,ci)=>{
-  const ctx=cv.getContext('2d');let W=0,H=0,dpr=Math.min(2,devicePixelRatio||1);
+  const ctx=cv.getContext('2d');const dpr=Math.min(2,devicePixelRatio||1);let W=0,H=0;
   const css=n=>getComputedStyle(cv).getPropertyValue(n).trim();
-  const col={o:css('--o'),r:css('--run'),k:css('--ok'),m:css('--m'),line:css('--line'),f:css('--f')};
-  function size(){W=cv.offsetWidth;H=cv.offsetHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
-  size();
-  const sx=()=>110, sy=i=>H*(0.22+i*0.19), wx=()=>W-150, wy=i=>H*(0.14+i*0.18);
-  let seed=7+ci;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
-  const parts=[];
-  function spawn(t){const s=Math.floor(rnd()*SRC.length),w=Math.floor(rnd()*WS.length);const r=rnd();
-   const kind=r<0.16&&WS[w][1]<6?'o':(r<0.55?'k':'r');parts.push({s,w,t0:t,dur:3200+rnd()*2600,kind,bend:(rnd()-.5)*60})}
-  for(let i=0;i<40;i++)spawn(-rnd()*5000);
-  const held=WS.map(w=>w[1]),flash=WS.map(()=>-1e9);
-  function pt(p,u){const x0=sx(),y0=sy(p.s),x3=wx(),y3=wy(p.w),x1=x0+(x3-x0)*.4,x2=x0+(x3-x0)*.6;
-   const y1=y0+p.bend,y2=y3-p.bend,v=1-u;
-   return[v*v*v*x0+3*v*v*u*x1+3*v*u*u*x2+u*u*u*x3,v*v*v*y0+3*v*v*u*y1+3*v*u*u*y2+u*u*u*y3]}
-  function draw(t){
-   ctx.clearRect(0,0,W,H);
-   // faint routes
-   ctx.strokeStyle=col.line;ctx.lineWidth=1;
-   for(let s=0;s<SRC.length;s++)for(let w=0;w<WS.length;w++){ctx.beginPath();const p={s,w,bend:0};for(let u=0;u<=1.001;u+=.05){const[x,y]=pt(p,u);u?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.globalAlpha=.35;ctx.stroke()}
-   ctx.globalAlpha=1;
-   // particles
-   for(let i=parts.length-1;i>=0;i--){const p=parts[i];const u=(t-p.t0)/p.dur;
-    if(u>=1){if(p.kind==='o')flash[p.w]=t;parts.splice(i,1);spawn(t);continue}
-    if(u<0)continue;const[x,y]=pt(p,u);ctx.fillStyle=col[p.kind];ctx.globalAlpha=Math.min(1,u*6,(1-u)*6);
-    ctx.beginPath();ctx.arc(x,y,p.kind==='o'?3.6:2.8,0,7);ctx.fill()}
-   ctx.globalAlpha=1;
-   // occasionally a person clears a waiting item
-   // sources
-   ctx.font='500 12px "Geist Mono",ui-monospace,monospace';ctx.textBaseline='middle';
-   SRC.forEach((n,i)=>{ctx.fillStyle=col.m;ctx.textAlign='right';ctx.fillText(n,sx()-14,sy(i));ctx.fillStyle=col.f;ctx.beginPath();ctx.arc(sx(),sy(i),3,0,7);ctx.fill()});
-   // workspaces
-   ctx.font='600 13px Geist,system-ui,sans-serif';
-   WS.forEach(([n],i)=>{const x=wx(),y=wy(i),h=held[i];
-    if(h>0){const pulse=reduce?0:Math.max((Math.sin(t/520+i)+1)/4,1-(t-flash[i])/700);ctx.strokeStyle=col.o;ctx.globalAlpha=.25+.35*pulse;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,9+pulse*5,0,7);ctx.stroke();ctx.globalAlpha=1}
-    ctx.fillStyle=h>0?col.o:col.f;ctx.beginPath();ctx.arc(x,y,5,0,7);ctx.fill();
-    ctx.fillStyle=col.f;ctx.textAlign='left';ctx.fillText(n,x+16,y);
-    if(h>0){ctx.font='500 12px "Geist Mono",ui-monospace,monospace';ctx.fillStyle=col.o;ctx.fillText(h+' waiting',x+16,y+16);ctx.font='600 13px Geist,system-ui,sans-serif'}});
+  const col={o:css('--o'),r:css('--run'),f:css('--f'),m:css('--m'),line:css('--line')};
+  let seed=11+ci;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  let P=[],targets=[];
+  function build(){
+   W=cv.offsetWidth;H=cv.offsetHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+   // sample the ARP mark + wordmark from an offscreen canvas
+   const oc=document.createElement('canvas');oc.width=W;oc.height=H;const o=oc.getContext('2d');
+   const cell=Math.round(H*0.11),mw=cell*5,fs=Math.round(H*0.62);o.font=`700 ${fs}px Geist,system-ui,sans-serif`;
+   const tw=o.measureText('ARP').width,gap=cell*1.2,total=mw+gap+tw,x0=(W-total)/2,y0=(H-cell*5)/2;
+   o.fillStyle='#000';MARK.concat([HI]).forEach(([c,r])=>o.fillRect(x0+c*cell,y0+r*cell,cell-2,cell-2));
+   o.textBaseline='middle';o.fillText('ARP',x0+mw+gap,H/2+fs*0.04);
+   const d=o.getImageData(0,0,W,H).data,step=Math.max(4,Math.round(H/58));targets=[];
+   for(let y=0;y<H;y+=step)for(let x=0;x<W;x+=step)if(d[(y*W+x)*4+3]>128){
+     const hi=x>=x0+HI[0]*cell&&x<x0+(HI[0]+1)*cell&&y>=y0&&y<y0+cell;targets.push([x,y,hi])}
+   for(let i=targets.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[targets[i],targets[j]]=[targets[j],targets[i]]}
+   const N=Math.max(targets.length,Math.round(W*H/260));P=[];
+   for(let i=0;i<N;i++){const t=targets[i];P.push({hx:rnd()*W,hy:rnd()*H,ph:rnd()*6.28,sp:.3+rnd()*.7,
+     tx:t?t[0]:null,ty:t?t[1]:null,hi:t?t[2]:false,kind:rnd()<.06?'o':rnd()<.12?'r':'f',delay:rnd()*.35})}
   }
-  if(reduce){draw(2500);return}
+  build();
+  const ease=u=>u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2;
+  const CYCLE=16000;
+  function morph(t){const c=(t%CYCLE)/CYCLE; // 0-.25 network · .25-.5 flow in · .5-.75 hold · .75-1 dissolve
+   if(c<.25)return 0;if(c<.5)return (c-.25)/.25;if(c<.75)return 1;return 1-(c-.75)/.25}
+  function draw(t){
+   ctx.clearRect(0,0,W,H);const m=morph(t);
+   const pos=P.map(p=>{const k=p.tx==null?0:ease(Math.min(1,Math.max(0,(m-p.delay*(1-m))/(1-p.delay*.5))));
+     const wob=(1-k)*14+1.2;
+     const nx=p.hx+Math.sin(t/2600*p.sp+p.ph)*wob*2.4,ny=p.hy+Math.cos(t/3100*p.sp+p.ph*1.3)*wob*1.6;
+     return[p.tx==null?nx:nx+(p.tx-nx)*k,p.ty==null?ny:ny+(p.ty-ny)*k,k]});
+   // network links, fading out as the word forms
+   const la=(1-m)*.5;if(la>.02){ctx.strokeStyle=col.m;ctx.lineWidth=.6;const g=46,bins=new Map();
+    pos.forEach((q,i)=>{const key=((q[0]/g)|0)+','+((q[1]/g)|0);(bins.get(key)||bins.set(key,[]).get(key)).push(i)});
+    ctx.beginPath();for(const [key,arr] of bins){const [bx,by]=key.split(',').map(Number);
+     for(const nk of [key,`${bx+1},${by}`,`${bx},${by+1}`,`${bx+1},${by+1}`]){const o=bins.get(nk);if(!o)continue;
+      for(const a of arr)for(const b of o){if(b<=a&&nk===key)continue;const dx=pos[a][0]-pos[b][0],dy=pos[a][1]-pos[b][1];
+       if(dx*dx+dy*dy<g*g*.55){ctx.moveTo(pos[a][0],pos[a][1]);ctx.lineTo(pos[b][0],pos[b][1])}}}}
+    ctx.globalAlpha=la*.45;ctx.stroke();ctx.globalAlpha=1}
+   P.forEach((p,i)=>{const[x,y,k]=pos[i];
+    const c=p.hi&&k>.6?col.o:(k>.6?col.f:(p.kind==='o'?col.o:p.kind==='r'?col.r:col.m));
+    ctx.fillStyle=c;ctx.globalAlpha=p.tx==null?(.55-.35*m):(.55+.45*k);
+    ctx.beginPath();ctx.arc(x,y,p.tx==null?1.3:1.3+k*.9,0,7);ctx.fill()});
+   ctx.globalAlpha=1;
+  }
+  if(reduce){draw(CYCLE*.6);return}
   let vis=true;new IntersectionObserver(e=>vis=e[0].isIntersecting).observe(cv);
-  const loop=t=>{if(vis)draw(t);requestAnimationFrame(loop)};requestAnimationFrame(loop);
-  addEventListener('resize',size);
+  let t0=null;const loop=t=>{t0??=t;if(vis)draw(t-t0);requestAnimationFrame(loop)};requestAnimationFrame(loop);
+  addEventListener('resize',build);
  });
 });
 </script>
