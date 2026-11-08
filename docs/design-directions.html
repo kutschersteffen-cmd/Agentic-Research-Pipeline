@@ -229,6 +229,11 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .grow b{font-size:16px;font-weight:600}.grow .mut{font-size:14px}
 .gi{width:40px;height:40px;padding:6px;box-sizing:border-box;border-radius:9px;background:var(--b);border:1px solid var(--line);fill:none;stroke:var(--f);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .play{font:500 13px var(--mono);border:1px solid var(--line);border-radius:7px;padding:7px 12px;background:var(--s2)}
+.hero{position:relative;height:260px;border:1px solid var(--line);border-radius:12px;background:radial-gradient(120% 140% at 0% 50%,var(--s2),var(--s1) 60%);overflow:hidden}
+.hero canvas{position:absolute;inset:0;width:100%;height:100%}
+.hlegend{position:absolute;left:18px;bottom:12px;display:flex;gap:14px;font:500 12px var(--mono);color:var(--m)}.hlegend span{display:flex;gap:6px;align-items:center}
+.sm .cards .wc{min-height:300px}
+.app.start:not(.sw) main.sm{gap:20px;padding-top:32px}
 .prun{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--b);font-size:13px}
 .prun .mono{font-size:12px;color:var(--m)}
 .shots .frame{overflow:hidden}.shots .app{zoom:.5}
@@ -433,6 +438,7 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
     <div class="head">
       <h2 class="hello">Good morning.<a class="go" href="#">10 things wait on you →</a></h2>
     </div>
+    <div class="hero"><canvas class="flowviz" aria-label="Live pipeline: work flowing from sources into the five workspaces; amber marks items waiting on you"></canvas><div class="hlegend"><span><i class="dot r"></i>running</span><span><i class="dot o"></i>waiting on you</span><span><i class="dot k"></i>done</span></div></div>
     <div class="cards">
       <div class="wc wait"><span class="pill sm">2 waiting</span><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><h3>StewardIQ</h3><p>Engage companies, vote, and track what they commit to.</p><div class="steps"><i class="k"></i><i class="o"></i><i></i></div><span class="open">Open →</span></div>
       <div class="wc"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M9 11h6M9 15h4"/></svg><h3>Argus</h3><p>Extract cited data points from disclosures and score them.</p><div class="steps"><i class="k"></i><i class="r"></i></div><span class="open">Open →</span></div>
@@ -567,6 +573,60 @@ for(const f of document.querySelectorAll('.ndr-slot')){const c=document.getEleme
  if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
 </script>
 
+
+<script>
+// Live pipeline flow: sources on the left feed the five workspaces; amber items stop and pulse at a workspace until a person acts.
+addEventListener('DOMContentLoaded',()=>{
+ const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ const SRC=['Filings','News','Holdings','ESG data'];
+ const WS=[['StewardIQ',2],['Argus',3],['Transition Intel.',1],['R&D Lab',3],['Data Hub',1]]; // sums to the 10 waiting in the header
+ document.querySelectorAll('.flowviz').forEach((cv,ci)=>{
+  const ctx=cv.getContext('2d');let W=0,H=0,dpr=Math.min(2,devicePixelRatio||1);
+  const css=n=>getComputedStyle(cv).getPropertyValue(n).trim();
+  const col={o:css('--o'),r:css('--run'),k:css('--ok'),m:css('--m'),line:css('--line'),f:css('--f')};
+  function size(){W=cv.offsetWidth;H=cv.offsetHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
+  size();
+  const sx=()=>110, sy=i=>H*(0.22+i*0.19), wx=()=>W-150, wy=i=>H*(0.14+i*0.18);
+  let seed=7+ci;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  const parts=[];
+  function spawn(t){const s=Math.floor(rnd()*SRC.length),w=Math.floor(rnd()*WS.length);const r=rnd();
+   const kind=r<0.16&&WS[w][1]<6?'o':(r<0.55?'k':'r');parts.push({s,w,t0:t,dur:3200+rnd()*2600,kind,bend:(rnd()-.5)*60})}
+  for(let i=0;i<40;i++)spawn(-rnd()*5000);
+  const held=WS.map(w=>w[1]),flash=WS.map(()=>-1e9);
+  function pt(p,u){const x0=sx(),y0=sy(p.s),x3=wx(),y3=wy(p.w),x1=x0+(x3-x0)*.4,x2=x0+(x3-x0)*.6;
+   const y1=y0+p.bend,y2=y3-p.bend,v=1-u;
+   return[v*v*v*x0+3*v*v*u*x1+3*v*u*u*x2+u*u*u*x3,v*v*v*y0+3*v*v*u*y1+3*v*u*u*y2+u*u*u*y3]}
+  function draw(t){
+   ctx.clearRect(0,0,W,H);
+   // faint routes
+   ctx.strokeStyle=col.line;ctx.lineWidth=1;
+   for(let s=0;s<SRC.length;s++)for(let w=0;w<WS.length;w++){ctx.beginPath();const p={s,w,bend:0};for(let u=0;u<=1.001;u+=.05){const[x,y]=pt(p,u);u?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.globalAlpha=.35;ctx.stroke()}
+   ctx.globalAlpha=1;
+   // particles
+   for(let i=parts.length-1;i>=0;i--){const p=parts[i];const u=(t-p.t0)/p.dur;
+    if(u>=1){if(p.kind==='o')flash[p.w]=t;parts.splice(i,1);spawn(t);continue}
+    if(u<0)continue;const[x,y]=pt(p,u);ctx.fillStyle=col[p.kind];ctx.globalAlpha=Math.min(1,u*6,(1-u)*6);
+    ctx.beginPath();ctx.arc(x,y,p.kind==='o'?3.6:2.8,0,7);ctx.fill()}
+   ctx.globalAlpha=1;
+   // occasionally a person clears a waiting item
+   // sources
+   ctx.font='500 12px "Geist Mono",ui-monospace,monospace';ctx.textBaseline='middle';
+   SRC.forEach((n,i)=>{ctx.fillStyle=col.m;ctx.textAlign='right';ctx.fillText(n,sx()-14,sy(i));ctx.fillStyle=col.f;ctx.beginPath();ctx.arc(sx(),sy(i),3,0,7);ctx.fill()});
+   // workspaces
+   ctx.font='600 13px Geist,system-ui,sans-serif';
+   WS.forEach(([n],i)=>{const x=wx(),y=wy(i),h=held[i];
+    if(h>0){const pulse=reduce?0:Math.max((Math.sin(t/520+i)+1)/4,1-(t-flash[i])/700);ctx.strokeStyle=col.o;ctx.globalAlpha=.25+.35*pulse;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,9+pulse*5,0,7);ctx.stroke();ctx.globalAlpha=1}
+    ctx.fillStyle=h>0?col.o:col.f;ctx.beginPath();ctx.arc(x,y,5,0,7);ctx.fill();
+    ctx.fillStyle=col.f;ctx.textAlign='left';ctx.fillText(n,x+16,y);
+    if(h>0){ctx.font='500 12px "Geist Mono",ui-monospace,monospace';ctx.fillStyle=col.o;ctx.fillText(h+' waiting',x+16,y+16);ctx.font='600 13px Geist,system-ui,sans-serif'}});
+  }
+  if(reduce){draw(2500);return}
+  let vis=true;new IntersectionObserver(e=>vis=e[0].isIntersecting).observe(cv);
+  const loop=t=>{if(vis)draw(t);requestAnimationFrame(loop)};requestAnimationFrame(loop);
+  addEventListener('resize',size);
+ });
+});
+</script>
 <div class="notes">
   <div><b>Keyboard first</b>A, R and E decide the selected item. J and K move between items. ⌘K jumps to any run.</div>
   <div><b>One meaning for amber</b>The rail, the pill and the selected row all use amber for the same thing: waiting on you. Running is blue, done is green, failed is red.</div>
