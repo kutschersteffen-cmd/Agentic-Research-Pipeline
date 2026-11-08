@@ -206,6 +206,8 @@ def test_review_layout(page):
     assert page.get_by_role("link", name=SRC).count() > 0
     block = page.get_by_label("Activity Electrolysis")
     block.get_by_text("exiobase").wait_for()
+    bg = block.get_by_text("exiobase").evaluate("e => getComputedStyle(e).backgroundColor")
+    assert bg != "rgba(0, 0, 0, 0)"  # white text needs a visible background
     assert block.get_by_role("button", name="Add sector code").count() == 0
     assert page.get_by_role("button", name="Add activity").count() == 0
 
