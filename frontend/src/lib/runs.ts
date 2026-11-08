@@ -4,7 +4,7 @@ import type { ExtractionRecord, ReviewableRunKind, RunManifest } from "../types"
 export const ACTIVE_STATUSES = new Set(["running", "pending"]);
 
 // Run types whose flagged items go to the Review Queue.
-export const REVIEWABLE_RUN_TYPES: ReadonlySet<string> = new Set<ReviewableRunKind>(["theme", "extraction", "financials", "identity", "transition_plan", "tnfd", "transition_barrier_derivation"]);
+export const REVIEWABLE_RUN_TYPES: ReadonlySet<string> = new Set<ReviewableRunKind>(["theme", "extraction", "financials", "identity", "transition_plan", "tnfd", "transition_barrier_derivation", "discovery"]);
 
 // Run types the backend can resume, and the statuses a resume applies to.
 export const RESUMABLE_RUN_TYPES: ReadonlySet<string> = new Set([

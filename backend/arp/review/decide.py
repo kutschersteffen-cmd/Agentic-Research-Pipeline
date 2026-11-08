@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from arp.api.auth import ROLE_RANK
 from arp.checks.numeric import NUMERIC_TYPES, candidates, parse_number
 from arp.config import Settings
+from arp.discovery.review import apply_decision
 from arp.extraction.history import PriorValue, RunHistory
 from arp.grounding import ground_citations
 from arp.orchestration.review_queue import FINAL_STATES, agrees, append_decision, same_value
@@ -36,6 +37,8 @@ ALLOWED = {
     "quarantined_document": {"approve", "reject", "escalate"},
     "other": {"approve", "reject", "escalate"},  # an extraction PreStepFailed report only
     "barrier_cell": {"approve", "reject", "escalate"},
+    "discovered_document": {"approve", "reject", "escalate"},
+    "no_documents": {"approve", "escalate"},
 }
 CORRECTED_KEYS = {
     "value": {"value", "unit", "period_end"},
@@ -244,7 +247,13 @@ def _decide_locked(
         correction_citation=citation, snapshot_id=snapshot_id, comment=req.comment, step=step,
         second_required=bool(reasons), second_reasons=reasons,
     ))
-    state = _state(run_store, run_id, item_key).state
+    after = _state(run_store, run_id, item_key)
+    state = after.state
+    if kind == "discovered_document" and state in FINAL_STATES:
+        try:  # the decision is already written, so a failed file move or manifest write never fails it
+            apply_decision(settings, item.payload, after.effective["decision"])
+        except Exception:  # noqa: BLE001
+            logger.exception("Discovery decision not applied for %s/%s", run_id, item_key)
     if step == "second" and state == "second_done" and s.first.get("decision") == "correct":
         try:  # E56: the gold set grows; the decision is already written, so this never fails it
             record_confirmed_correction(
