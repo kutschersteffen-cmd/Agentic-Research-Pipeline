@@ -206,3 +206,21 @@ async def test_guard_removing_all_activities_reports_not_in_source():
     )
     out = await _extract("eu_310.txt", llm)
     assert out.activities == [] and out.report["activities"] == "not_in_source"
+
+
+@pytest.mark.asyncio
+async def test_citation_location_is_page_of_grounded_quote():
+    page1 = "Intro page about the index family and nothing else."
+    text = page1 + "\n\n" + Q
+    llm = _llm(_ActivitiesDraft=_ActivitiesDraft(activities=[_act("Electrolyser manufacture", Q)]))
+    out = await extract_source(URL, text, theme_name="hydrogen", scope=SCOPE, value_chain=False, llm=llm,
+                               page_breaks=[0, len(page1) + 2])
+    assert out.activities[0].citations[0].location == "p. 2"
+
+
+@pytest.mark.asyncio
+async def test_citation_location_is_nearest_heading_without_pages():
+    text = "# Overview\n\nGeneral text.\n\n## Eligible activities\n\n" + Q + "\n\n## Exclusions\n\nOther."
+    llm = _llm(_ActivitiesDraft=_ActivitiesDraft(activities=[_act("Electrolyser manufacture", Q)]))
+    out = await extract_source(URL, text, theme_name="hydrogen", scope=SCOPE, value_chain=False, llm=llm)
+    assert out.activities[0].citations[0].location == "Eligible activities"

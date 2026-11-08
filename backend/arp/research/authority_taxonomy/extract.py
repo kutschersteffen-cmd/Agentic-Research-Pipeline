@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -120,6 +121,9 @@ class IndexRulesDraft(BaseModel):
     rules: list[IndexRuleItem] = Field(default_factory=list)
 
 
+_HEADING_RE = re.compile(r"^#{1,6}\s+(.+?)\s*$", re.MULTILINE)
+
+
 class StatedRule(BaseModel):
     """A stated index rule; `quote` is the document's own text the model's quote grounded to."""
 
@@ -159,25 +163,36 @@ class SourceExtraction(BaseModel):
 
 async def extract_source(
     url: str, text: str, *, theme_name: str, scope: str, value_chain: bool, llm: LLMClient,
-    checklist: list[ChecklistItem] = AUTHORITY_CHECKLIST,
+    checklist: list[ChecklistItem] = AUTHORITY_CHECKLIST, page_breaks: list[int] | None = None,
 ) -> SourceExtraction:
     """One schema-forced LLM call per checklist item over the chunks relevant to it (the whole
     document is chunked, so nothing past a fixed prefix is lost). Every element must quote the
     source; an element whose quote fails grounding is dropped."""
-    doc = SourceDocument(company_id=url, doc_type=DocType.OTHER, title=url, source_url=url, full_text=text)
+    doc = SourceDocument(company_id=url, doc_type=DocType.OTHER, title=url, source_url=url, full_text=text, page_breaks=page_breaks or [])
     chunks = chunk_document(doc)
     docs_by_id = {doc.doc_id: doc}
 
-    def span(quote: str) -> str | None:
-        """The document text the quote grounds to, None when it does not ground."""
+    def locate(quote: str) -> tuple[str, str] | None:
+        """(grounded span, location) for a quote, None when it does not ground. The location is the
+        page when the parse has pages, else the nearest section heading above the quote."""
         if not quote:
             return None
         c = Citation(doc_id=doc.doc_id, doc_type=DocType.OTHER, quote=quote, location=url)
-        grounded = ground_citations([c], docs_by_id, _FUZZY_THRESHOLD)[0]
-        return grounded.span_text if grounded.grounded else None
+        g = ground_citations([c], docs_by_id, _FUZZY_THRESHOLD)[0]
+        if not g.grounded:
+            return None
+        if g.page:
+            return g.span_text, f"p. {g.page}"
+        heads = list(_HEADING_RE.finditer(text, 0, g.char_start))
+        return g.span_text, heads[-1].group(1).strip() if heads else ""
+
+    def span(quote: str) -> str | None:
+        """The document text the quote grounds to, None when it does not ground."""
+        return hit[0] if (hit := locate(quote)) else None
 
     def ground(quote: str) -> list[SourceCitation]:
-        return [SourceCitation(quote=quote, source_url=url)] if span(quote) is not None else []
+        hit = locate(quote)
+        return [SourceCitation(quote=quote, source_url=url, location=hit[1])] if hit else []
 
     out = SourceExtraction(url=url)
     boundaries: list[_BoundaryItem] = []
