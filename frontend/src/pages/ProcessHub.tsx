@@ -6,7 +6,7 @@ import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { useMe } from "../lib/reviewer";
 import { useWaitingTotal } from "../lib/useWaitingTotal";
-import { DONE, STATE_LABEL, cardView, openCount, processState, stepState, type StepState } from "../lib/workspaceCard";
+import { DONE, STATE_LABEL, cardView, openCount, processState, stepState, stepStatusLine, type StepState } from "../lib/workspaceCard";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
 
@@ -357,6 +357,7 @@ function StepCard({ s, i, p, runs, flow }: { s: Step; i: number; p: Process; run
   const waiting = mine && !s.reviewedElsewhere ? mine.reduce((n, r) => n + waitingCount(r), 0) : 0;
   const stage = s.stage ? flow?.stages.find((x) => x.id === s.stage) : undefined;
   const decisions = openCount(stage);
+  const line = stepStatusLine(state, waiting, decisions, last?.updated_at ?? null);
   if (s.planned) {
     return (
       <li className="hub-flow-item">
@@ -382,9 +383,7 @@ function StepCard({ s, i, p, runs, flow }: { s: Step; i: number; p: Process; run
           </span>
           <span className="hub-step-go" aria-hidden>→</span>
         </span>
-        {(waiting > 0 || decisions > 0) && (
-          <span className="hub-step-banner">{waiting > 0 ? `${waiting} waiting on you` : `${decisions} decision${decisions === 1 ? "" : "s"} open`}</span>
-        )}
+        <span className={`hub-step-status hub-step-status-${line.tone}${line.tone === "wait" ? " hub-step-banner" : ""}`}>{line.text}</span>
         <span className="hub-step-about">{s.does}</span>
         {last && (
           <span className="hub-step-rows">

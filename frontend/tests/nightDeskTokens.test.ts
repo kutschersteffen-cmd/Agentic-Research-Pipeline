@@ -144,5 +144,49 @@ test("ac13_amber_usage_unchanged", (t) => {
   const re = "var\\(--(hi|hi-ink|await|await-edge)\\)";
   const main = onMain(t, `git grep -h -o -E "${re}" origin/main -- src | sort`);
   const head = onMain(t, `git grep -h -o -E "${re}" HEAD -- src | sort`);
-  if (main !== null && head !== null) assert.equal(head, main);
+  // Release 2 allows exactly one new amber reference: the sidebar's .nav-dot-wait rule.
+  const plusNavDot = (m: string) => [...m.trim().split("\n"), "var(--hi)"].sort().join("\n") + "\n";
+  if (main !== null && head !== null) assert.equal(head, plusNavDot(main));
+});
+
+// Night Desk release 2 (docs/superpowers/specs/2026-11-08-night-desk-status-design.md).
+// All top-level rules for a selector, joined (a selector may be split over several rules).
+const rule = (sel: string) => {
+  const bodies: string[] = [];
+  for (let i = css.indexOf(`\n${sel} {`); i >= 0; i = css.indexOf(`\n${sel} {`, i + 1)) bodies.push(blockAfter(css, i));
+  assert.ok(bodies.length, `${sel} rule missing`);
+  return bodies.join("\n");
+};
+test("r2_ac1_run_token", () => {
+  assert.equal(light.get("--run"), "#2563c9");
+  assert.equal(darkSwitch.get("--run"), "#6cb4ff");
+  assert.equal(darkMedia.get("--run"), "#6cb4ff");
+});
+test("r2_ac2_run_contrast", () => both.forEach((t) => pairs(t, [["--run", "--panel"]], 4.5)));
+test("r2_ac14_hub_card_radius", () => assert.match(rule(".hub-card"), /border-radius:\s*var\(--r-lg\)/));
+test("r2_ac15_tiles_rounded", () => {
+  for (const sel of [".dashboard-grid .stat-tile", ".pipeline-pill"]) {
+    const r = rule(sel);
+    assert.match(r, /border-radius:\s*var\(--r-md\)/, sel);
+    assert.doesNotMatch(r, /border-radius:\s*0\b/, sel);
+  }
+});
+test("r2_ac15b_square_controls_unchanged", (t) => {
+  const main = onMain(t, "git show origin/main:frontend/src/index.css");
+  if (main === null) return;
+  for (const sel of [".touchpad button", ".grl-dn", ".view-toggle button:last-child"]) {
+    const line = (src: string) => src.split("\n").find((l) => l.startsWith(`${sel} {`));
+    assert.equal(line(css), line(main), sel);
+  }
+});
+test("r2_ac16b_status_colours", () => {
+  const want: [string, string][] = [
+    [".hub-step-status-now", "--run"], [".hub-step-status-failed", "--low"], [".hub-step-status-done", "--muted"],
+    [".hub-step-status-idle", "--muted"], [".nav-dot-now", "--run"], [".nav-dot-failed", "--low"], [".nav-dot-done", "--muted"],
+  ];
+  for (const [sel, tok] of want) {
+    const r = rule(sel);
+    assert.ok(r.includes(`var(${tok})`), `${sel} uses ${tok}`);
+    assert.doesNotMatch(r, /var\(--(hi|hi-ink|await|await-edge)\)/, sel);
+  }
 });

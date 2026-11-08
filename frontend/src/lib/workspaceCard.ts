@@ -52,3 +52,24 @@ export function cardView(w: Workspace, runs: RunManifest[] | null, flow: Steward
   const label = `${w.name}. ${w.processes.map((p, i) => `${p.title}: ${STATE_LABEL[dots[i]]}`).join("; ")}`;
   return { dots, now: line, footer, label, awaits: firstWait >= 0 };
 }
+
+export type StatusTone = StepState;
+/** One line under a step's title: what waits on a person first, then the run state. */
+export function stepStatusLine(state: StepState, waiting: number, decisions: number, lastUpdated: string | null, locale?: string): { text: string; tone: StatusTone } {
+  if (waiting > 0) return { text: `${waiting} waiting on you`, tone: "wait" };
+  if (decisions > 0) return { text: `${decisions} decision${decisions === 1 ? "" : "s"} open`, tone: "wait" };
+  if (state === "now") return { text: "Running", tone: "now" };
+  if (state === "failed") return { text: "Last run failed", tone: "failed" };
+  if (state === "done" && lastUpdated) {
+    const d = new Date(lastUpdated).toLocaleDateString(locale, { day: "numeric", month: "short", timeZone: "UTC" });
+    return { text: `Done · ${d}`, tone: "done" };
+  }
+  return { text: "No runs yet", tone: "idle" };
+}
+
+/** A workspace's one state for the sidebar dot: the most urgent of its processes'. */
+export const workspaceState = (w: Workspace, runs: RunManifest[] | null): StepState => {
+  if (!runs) return "idle";
+  const states = w.processes.map((p) => processState(p, runs, null));
+  return RANK.find((r) => states.includes(r)) ?? "idle";
+};
