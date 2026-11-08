@@ -70,10 +70,11 @@ export function viewFor(run: AuthorityRunState | null): View {
 type Doc = Pick<Document, "visibilityState" | "addEventListener" | "removeEventListener">;
 
 /** Loads at once, then again 3 s after each answer while the run is working and the tab is visible;
- * becoming visible again polls once at once. Returns a stop function. */
+ * becoming visible again polls once at once. Returns a stop function; its `resume()` polls again after
+ * the user moves the run back to a working stage (Build draft). */
 export function startPolling(
   get: () => Promise<AuthorityRunState>, onState: (r: AuthorityRunState) => void, doc: Doc, onError: (e: unknown) => void = () => {},
-): () => void {
+): (() => void) & { resume: () => void } {
   let stopped = false;
   let working = true;
   let busy = false;
@@ -105,11 +106,12 @@ export function startPolling(
   };
   doc.addEventListener("visibilitychange", onVisible);
   void poll();
-  return () => {
+  const stop = () => {
     stopped = true;
     clearTimeout(timer);
     doc.removeEventListener("visibilitychange", onVisible);
   };
+  return Object.assign(stop, { resume: () => { working = true; void poll(); } });
 }
 
 export async function saveThenAccept(
