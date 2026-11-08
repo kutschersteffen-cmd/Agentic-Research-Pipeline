@@ -235,6 +235,18 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .sm .cards .wc{min-height:220px}
 .app.start:not(.sw) main.sm{gap:20px;padding-top:32px}
 .app.start:not(.sw){height:auto;min-height:900px}
+.lp{position:relative;width:1440px;height:900px;background:var(--b);color:var(--f);overflow:hidden}
+.shots .lp{zoom:.42}@media (max-width:700px){.shots .lp{zoom:.25}}
+.lp canvas{position:absolute;inset:0;width:100%;height:100%}
+.lph{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:28px 48px}
+.lph .mark{width:30px;height:30px}.lph .bm{font-size:18px}
+.lpn{display:flex;gap:28px;align-items:center;font-size:14px;color:var(--m)}
+.lpc{position:absolute;left:48px;top:150px;max-width:560px;display:grid;gap:18px}
+.lpc h1{margin:0;font-size:4.2rem;line-height:1.02;letter-spacing:-.035em;font-weight:600}
+.lpc p{margin:0;font-size:18px;line-height:1.55;color:var(--m);max-width:46ch}
+.lpa{display:flex;gap:22px;align-items:center;margin-top:6px}.lpa .pri{padding:12px 20px;font-size:15px}.lpa .go{margin:0}
+.lpf{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(3,1fr);gap:32px;padding:26px 48px;border-top:1px solid var(--line);background:linear-gradient(transparent,var(--b) 40%)}
+.lpf div{display:grid;gap:4px}.lpf b{font-size:15px}.lpf span{font-size:13.5px;color:var(--m)}
 .prun{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--b);font-size:13px}
 .prun .mono{font-size:12px;color:var(--m)}
 .shots .frame{overflow:hidden}.shots .app{zoom:.5}
@@ -256,6 +268,20 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 </div>
 
 <div id="pairs"></div>
+
+<div class="vs"><h2>Landing page · separate, before sign-in</h2><p>A standalone page in Night Desk: the dot animation fills the whole screen, with the product promise and one way in. Dark and light.</p>
+<div class="shots"><figure class="lp-slot" data-cls=""><figcaption>Landing · dark</figcaption></figure><figure class="lp-slot" data-cls="ndl"><figcaption>Landing · light</figcaption></figure></div></div>
+<template id="lpt"><div class="frame"><div class="lp">
+  <canvas class="flowviz" aria-label="A network of input dots; a fraction lights up, streams through an unseen funnel and forms the ARP logo"></canvas>
+  <header class="lph"><span class="bm"><svg class="mark" viewBox="0 0 62 62" aria-hidden="true"><path fill="currentColor" d="M14 2h10v10H14zM38 2h10v10H38zM2 14h10v10H2zM50 14h10v10H50zM2 26h10v10H2zM14 26h10v10H14zM26 26h10v10H26zM38 26h10v10H38zM50 26h10v10H50zM2 38h10v10H2zM50 38h10v10H50zM2 50h10v10H2zM50 50h10v10H50z"/><rect x="26" y="2" width="10" height="10" fill="var(--o)"/></svg>ARP</span><span class="lpn"><span>How it works</span><span>Security</span><button>Sign in</button></span></header>
+  <div class="lpc">
+    <span class="cap">Agentic Research Pipeline</span>
+    <h1>Agents propose.<br>People ratify.</h1>
+    <p>Thematic universes, cited extraction, transition assessment and stewardship for up to 4,000 companies per run. Every number traces back to a verified source.</p>
+    <div class="lpa"><button class="pri">Open ARP →</button><a class="go" href="#">10 things wait on you →</a></div>
+  </div>
+  <footer class="lpf"><div><b>The LLM plans, code computes</b><span>Models draft the plan; deterministic code does the maths.</span></div><div><b>Every citation re-verified</b><span>Each quote is checked against the source document, not trusted from the model.</span></div><div><b>Nothing flagged ships</b><span>No flagged item reaches an export until a named person approves it.</span></div></footer>
+</div></div></template>
 
 <div class="vs"><h2>Start page · Dark mode</h2><p>Left: screenshot of ARP's real start page today (backend was offline, so counts are empty). Right: the same start page and structure in Night Desk styling, with example data.</p>
 <div class="shots">
@@ -540,6 +566,7 @@ for(const [title,...cols] of rows){
   f.append(c);const fc=document.createElement('figcaption');fc.textContent=cap;f.append(fc);grid.append(f);}
  sec.append(grid);host.append(sec);}
 for(const f of document.querySelectorAll('.nds-slot')){const c=document.getElementById('nds').content.firstElementChild.cloneNode(true);if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+for(const f of document.querySelectorAll('.lp-slot')){const c=document.getElementById('lpt').content.firstElementChild.cloneNode(true);if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
 for(const f of document.querySelectorAll('.ndc-slot')){const c=document.getElementById('ndc').content.firstElementChild.cloneNode(true);
  c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
  c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.trim().startsWith('Arcade')));
@@ -599,10 +626,10 @@ addEventListener('DOMContentLoaded',()=>{
    const mw=cell*5,gap=cell*1.2,total=mw+gap+tw,x0=W*0.585+(W*0.39-total)/2,y0=(H-cell*5)/2;
    o.fillStyle='#000';MARK.concat([HI]).forEach(([c,r])=>o.fillRect(x0+c*cell,y0+r*cell,cell-2,cell-2));
    o.textBaseline='middle';o.fillText('ARP',x0+mw+gap,H/2+fs*0.04);
-   const d=o.getImageData(0,0,W,H).data,step=Math.max(4,Math.round(H/72)),T=[];
+   const d=o.getImageData(0,0,W,H).data,step=Math.max(4,Math.round(Math.min(H/72,cell/4))),T=[];
    for(let y=0;y<H;y+=step)for(let x=0;x<W;x+=step)if(d[(y*W+x)*4+3]>128)
      T.push([x,y,x>=x0+HI[0]*cell&&x<x0+(HI[0]+1)*cell&&y>=y0&&y<y0+cell]);
-   const N=Math.min(2600,Math.max(T.length*3,Math.round(W*H/170)));P=[];
+   const N=Math.min(3200,Math.max(T.length*3,Math.round(W*H/170)));P=[];
    for(let i=0;i<N;i++)P.push({hx:rnd()*W,hy:rnd()*H,ph:rnd()*6.28,sp:.3+rnd()*.7,lit:false});
    // the lit fraction: pick dots spread over the field, one per logo target
    const idx=[...P.keys()].sort(()=>rnd()-.5).slice(0,T.length);
