@@ -9,11 +9,12 @@ import typer
 from arp.cli._shared import _registry, _run_store, _taxonomy_store
 from arp.config import get_settings
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
+from arp.research.stock_inference import comove as infer_comove
 from arp.research.stock_inference import pick as infer_pick
 from arp.research.stock_inference import run as infer_run
 from arp.research.stock_inference.schemas import InferRun
 
-infer_app = typer.Typer(help="Infer a taxonomy from a set of stocks: start, pick, show.")
+infer_app = typer.Typer(help="Infer a taxonomy from a set of stocks: start, comove, pick, show.")
 
 
 def _themes_table(run: InferRun) -> None:
@@ -67,6 +68,44 @@ def infer_pick_cmd(run_id: str, theme: int = typer.Option(..., "--theme", help="
         raise typer.Exit(1) from None
     typer.echo(f"Run {run.run_id}")
     typer.echo(f"Drafted taxonomy {run.taxonomy_id}")
+
+
+def _fmt(v) -> str:
+    return "n/a" if v is None else f"{v:.4f}" if isinstance(v, float) else str(v)
+
+
+@infer_app.command("comove")
+def infer_comove_cmd(
+    run_id: str,
+    symbols: str = typer.Option(..., "--symbols", help="CSV with company_id, symbol, home_index (price-source symbols)."),
+    end: str = typer.Option(None, "--end", help="Last week-end date; default the last Friday before today."),
+    weeks: int = typer.Option(156, "--weeks", min=1, help="Weekly returns in the window."),
+    prices: Path = typer.Option(None, "--prices", help="Wide CSV of weekly prices; default Yahoo."),
+) -> None:
+    from datetime import date
+
+    from arp.replication.price_data import CsvPriceSource, YFinancePriceSource
+
+    try:
+        source = CsvPriceSource(prices) if prices else YFinancePriceSource()
+        block = infer_comove.comove(run_id, symbols, source, end or infer_comove.default_end(date.today()), weeks,
+                                    _run_store())
+    except infer_comove.ComoveRefused as e:  # nothing was saved
+        typer.echo(e.args[0], err=True)
+        raise typer.Exit(1) from None
+    except (ImportError, OSError, ValueError) as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(1) from None
+    typer.echo(f"Run {run_id}")
+    typer.echo("basket\tmembers\tmean_resid_corr\tnull_p95\tp_value\tfactors_above_noise")
+    for b in block["baskets"]:
+        cells = [b["skipped"]] * 4 if b["skipped"] else [
+            _fmt(b[k]) for k in ("mean_resid_corr", "null_p95", "p_value", "factors_above_noise")]
+        typer.echo("\t".join([b["basket"], str(len(b["members"])), *cells]))
+    typer.echo("flag\tbasket\tcompany_id\tnw_t")
+    for r in block["loadings"]:
+        if r["flag"]:
+            typer.echo(f"{r['flag']}\t{r['basket']}\t{r['company_id']}\t{_fmt(r['nw_t'])}")
 
 
 @infer_app.command("show")
