@@ -20,6 +20,8 @@ export type Step = {
   /** Its flagged items wait on a later step (the Review Queue), so its state shows only running/failed/done. */
   reviewedElsewhere?: boolean;
   optional?: boolean;
+  /** Not built yet: drawn dimmed and not linked. */
+  planned?: boolean;
 };
 /** `run`: the process has an engine that runs it end to end ("Run process"); the others are walked step by step. */
 export type Process = { id: string; title: string; cadence: string; outcome: string; steps: Step[]; run?: "extraction" | "monthly" };
@@ -27,6 +29,8 @@ export type WorkspaceId = "stewardiq" | "argus" | "transitionIntel" | "rdLab" | 
 export type Workspace = {
   id: WorkspaceId;
   name: string;
+  /** Fits the sidebar and a start-page card title; `name` stays the page title. */
+  short?: string;
   purpose: string;
   /** Runs this workspace produces: its card's waiting/failed/running counts. */
   runTypes: string[];
@@ -143,6 +147,7 @@ export const WORKSPACES: Workspace[] = [
   {
     id: "transitionIntel",
     name: "Transition Intelligence Platform",
+    short: "Transition Intel",
     purpose: "Monitor holdings and assess climate and transition risk.",
     runTypes: ["transition_barrier_refresh"],
     screens: [
@@ -220,9 +225,9 @@ export const WORKSPACES: Workspace[] = [
         steps: [
           { tab: "themes", label: "Spot", does: "An emerging theme with its context: promote an Emerging Themes candidate, or start a dossier from a topic." },
           { tab: "themes", label: "Define", does: "Attach the theme's taxonomy and ratify a version." },
-          { tab: "themes", label: "Research", does: "Risks, opportunities and transmission channels from approved authoritative sources (coming later)." },
+          { tab: "themes", label: "Research", does: "Risks, opportunities and transmission channels from approved authoritative sources.", planned: true },
           { tab: "themes", label: "Find companies", does: "The exposed universe, measured against the latest ratified taxonomy version and reviewed." },
-          { tab: "themes", label: "Position and standards", does: "The house position and the stewardship standards derived from it (coming later)." },
+          { tab: "themes", label: "Position and standards", does: "The house position and the stewardship standards derived from it.", planned: true },
         ],
       },
       {

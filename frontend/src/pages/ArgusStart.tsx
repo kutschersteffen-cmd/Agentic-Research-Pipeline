@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { flowHref } from "../lib/argusFlow";
 import { STEPS, argusRows, filterRows, tiles, waiting } from "../lib/argusStart";
 import { ACTIVE_STATUSES } from "../lib/runs";
+import { WORKSPACES } from "../lib/processes";
 import { listAllRuns, usePoll } from "../lib/poll";
 import type { ArgusDraft, ReviewItem, RunManifest } from "../types";
 
@@ -47,26 +48,33 @@ export function ArgusStart() {
   const mine = filterRows(argusRows(runs ?? [], items, flows), { step: null, mineOf: onlyMine ? me : null });
   const shown = filterRows(mine, { step, mineOf: null });
   const wait = waiting(mine, items);
+  const purpose = WORKSPACES.find((w) => w.id === "argus")!.purpose;
+
+  async function start() {
+    setStarting(true);
+    try {
+      window.location.hash = flowHref((await api.createArgusFlow()).flow_id, 1);
+    } catch (err) {
+      setStartError((err as Error).message);
+      setStarting(false);
+    }
+  }
 
   return (
     <div className="page hub argus-start">
+      <p className="hub-crumb">
+        <a href="#/home">Start</a> › Argus
+      </p>
       <div className="argus-head">
         <h1>Argus</h1>
-        <button
-          disabled={starting}
-          onClick={async () => {
-            setStarting(true);
-            try {
-              window.location.hash = flowHref((await api.createArgusFlow()).flow_id, 1);
-            } catch (err) {
-              setStartError((err as Error).message);
-              setStarting(false);
-            }
-          }}
-        >
-          Start new extraction
-        </button>
+        <span className="argus-head-actions">
+          <a href="#/xbrl">XBRL Facts</a>
+          <button disabled={starting} onClick={() => void start()}>
+            Start new extraction
+          </button>
+        </span>
       </div>
+      <p className="help-text">{purpose}</p>
       {startError && <p className="error-text" role="alert">The extraction could not be started: {startError}.</p>}
       {error && <p className="error-text" role="alert">Runs could not be loaded: {error}.</p>}
       {itemsError && <p className="error-text" role="alert">Review items could not be loaded: {itemsError}. Waiting counts are unknown.</p>}
@@ -75,7 +83,7 @@ export function ArgusStart() {
           <a
             key={t.step}
             href="#/argus"
-            className={t.needs ? "argus-tile argus-tile-await" : "argus-tile"}
+            className={`argus-tile${t.needs ? " argus-tile-await" : ""}${t.count === 0 ? " argus-tile-empty" : ""}`}
             aria-pressed={step === t.step}
             onClick={(e) => {
               e.preventDefault();
@@ -83,7 +91,7 @@ export function ArgusStart() {
             }}
           >
             <span className="argus-tile-name">
-              {t.step} {t.label}
+              <span className="argus-tile-num">{t.step}</span> {t.label}
             </span>
             <span className="argus-tile-count">{t.count}</span>
             {t.needs && <span className="argus-tile-needs">{t.needs}</span>}
@@ -97,7 +105,7 @@ export function ArgusStart() {
           </label>
           <div className="table-wrap">
             <table className="data-table stack-on-phone" aria-label="Runs">
-              <thead>
+              <thead hidden={shown.length === 0}>
                 <tr>
                   <th>Run</th>
                   <th>Companies</th>
@@ -110,7 +118,11 @@ export function ArgusStart() {
                 {runs !== null && shown.length === 0 && (
                   <tr>
                     <td colSpan={5} className="muted">
-                      No runs yet. Start a new extraction.
+                      No runs yet.{" "}
+                      <button className="link-button" disabled={starting} onClick={() => void start()}>
+                        Start one
+                      </button>
+                      : pick companies, find their documents, choose a schema, extract and review.
                     </td>
                   </tr>
                 )}
@@ -135,13 +147,10 @@ export function ArgusStart() {
               </tbody>
             </table>
           </div>
-          <p>
-            <a href="#/xbrl">XBRL Facts</a>
-          </p>
         </div>
         <aside className="card argus-waiting" aria-label="Waiting for you">
           <h2>Waiting for you</h2>
-          <p className={wait.total ? "argus-waiting-total await-text" : "argus-waiting-total"}>{wait.total}</p>
+          {wait.total ? <p className="argus-waiting-total await-text">{wait.total}</p> : <p className="muted">Nothing waits for you.</p>}
           <ul>
             {wait.groups.map((g) => (
               <li key={g.label}>
