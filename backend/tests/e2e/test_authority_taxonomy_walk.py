@@ -60,6 +60,7 @@ def test_hydrogen_walk(page):
     first = page.locator('li[aria-label^="Activity "]').first
     assert first.get_by_label("Value-chain role").input_value() == "core"
     assert first.locator(".badge", has_text="exiobase").count() == 1
+    assert first.locator(".muted", has_text="· Activities").count() >= 1  # citation location: the heading above the quote
     rows = page.locator("section", has=page.get_by_role("heading", name="Checklist report")).locator("tbody tr")
     assert rows.count() == 1
     cells = rows.first.locator("td").all_inner_texts()[1:]

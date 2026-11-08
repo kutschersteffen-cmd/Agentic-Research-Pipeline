@@ -1,5 +1,5 @@
 {
   "https://example.org/eu-hydrogen": {
-    "text": "EU Taxonomy for hydrogen. Hydrogen activities covered: manufacture of electrolysers for hydrogen production, and hydrogen storage. Eligibility threshold: a company is eligible if hydrogen revenue share is at least 20 percent."
+    "text": "# EU Taxonomy for hydrogen\n\n## Activities\n\nHydrogen activities covered: manufacture of electrolysers for hydrogen production, and hydrogen storage.\n\n## Thresholds\n\nEligibility threshold: a company is eligible if hydrogen revenue share is at least 20 percent.\n"
   }
 }
