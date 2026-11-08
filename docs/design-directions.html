@@ -15,7 +15,7 @@ body{background:var(--b);color:var(--f);font-family:var(--sans);font-size:14px;l
 .frame{border:1px solid var(--line);border-radius:12px;overflow-x:auto;background:var(--b)}
 .app{min-width:1080px;display:grid;grid-template-columns:232px 1fr 380px;min-height:640px}
 .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
-.cap{font:500 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--m)}
+.cap{font:500 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--m)}
 .dot{width:8px;height:8px;border-radius:50%;flex:none}
 .dot.o{background:var(--o);box-shadow:0 0 8px var(--o)}.dot.r{background:var(--run)}.dot.k{background:var(--ok)}.dot.x{background:var(--bad)}
 kbd{font:500 11px var(--mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:1px 6px;color:var(--m);background:var(--s1)}
@@ -31,7 +31,7 @@ nav{background:var(--s1);border-right:1px solid var(--line);padding:18px 12px;di
 nav .cap{padding:12px 8px 6px}
 .run{display:grid;grid-template-columns:8px 1fr auto;gap:10px;align-items:center;padding:8px;border-radius:7px;font-size:13px}
 .run.on{background:var(--s2)}
-.run small{display:block;color:var(--m);font:400 11px var(--mono)}
+.run small{display:block;color:var(--m);font:400 12px var(--mono)}
 .run .n{font:500 12px var(--mono);color:var(--m)}
 .run.on .n{color:var(--o)}
 
@@ -44,7 +44,7 @@ main{padding:20px 22px;display:grid;gap:16px;align-content:start;min-width:0}
 .prog{display:grid;gap:8px}
 .bar{height:6px;background:var(--s2);border-radius:3px;overflow:hidden;display:flex}
 .bar i{height:100%}
-.legend{display:flex;gap:16px;font:400 12px var(--mono);color:var(--m);flex-wrap:wrap}
+.legend{display:flex;gap:16px;font:400 13px var(--mono);color:var(--m);flex-wrap:wrap}
 .legend span{display:flex;gap:6px;align-items:center}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden}
 .stat{background:var(--s1);padding:12px 14px}
@@ -56,9 +56,9 @@ main{padding:20px 22px;display:grid;gap:16px;align-content:start;min-width:0}
 .list{display:grid;gap:6px}
 .row{display:grid;grid-template-columns:8px 1fr 130px 92px;gap:14px;align-items:center;padding:12px 14px;border-radius:9px;background:var(--s1);border:1px solid var(--line)}
 .row.sel{border-color:var(--o);box-shadow:0 0 0 1px var(--of),0 0 28px -14px var(--o);background:linear-gradient(90deg,var(--of),var(--s1) 40%)}
-.row .why{font:400 12px var(--mono);color:var(--m)}
+.row .why{font:400 13px var(--mono);color:var(--m)}
 .row .v{font:500 14px var(--mono);text-align:right}
-.conf{display:grid;gap:4px;justify-items:end;font:500 12px var(--mono)}
+.conf{display:grid;gap:4px;justify-items:end;font:500 13px var(--mono)}
 .conf .t{width:80px;height:4px;background:var(--s3);border-radius:2px;overflow:hidden}
 .conf .t i{display:block;height:100%}
 .row.done{opacity:.7}
@@ -67,15 +67,15 @@ main{padding:20px 22px;display:grid;gap:16px;align-content:start;min-width:0}
 aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;display:grid;gap:16px;align-content:start}
 .field{display:grid;gap:4px}
 .big{font:500 1.9rem var(--mono)}
-.cmp{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:13px;padding:12px;border-radius:8px;background:var(--b);border:1px solid var(--line)}
+.cmp{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:14px;padding:12px;border-radius:8px;background:var(--b);border:1px solid var(--line)}
 .cmp .mono{text-align:right}
-.cmp .diff{color:var(--o)}
-.src{padding:12px 14px;border-radius:8px;background:var(--b);border:1px solid var(--line);font-size:13px;line-height:1.6;color:var(--m)}
+.cmp .diff{color:var(--f);font-weight:600}
+.src{padding:12px 14px;border-radius:8px;background:var(--b);border:1px solid var(--line);font-size:14px;line-height:1.6;color:var(--m)}
 .src mark{background:var(--of);color:var(--f);border-bottom:1px solid var(--o);padding:0 2px}
 .src .cap{display:block;margin-bottom:6px}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.actions button{justify-content:center}
 .actions .wide{grid-column:1/-1;justify-content:center}
-.log{font:400 12px/1.8 var(--mono);color:var(--m);padding:12px 14px;background:#080a0e;border-radius:8px;border:1px solid var(--line)}
+.log{font:400 13px/1.8 var(--mono);color:var(--m);padding:12px 14px;background:#080a0e;border-radius:8px;border:1px solid var(--line)}
 .log span{color:var(--run)}
 .log em{font-style:normal;color:var(--o)}
 .notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
@@ -103,7 +103,7 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .app.start.same{grid-template-columns:248px 1fr}
 .same nav{gap:6px}.fl{display:grid;gap:4px;padding:0 8px}.fl .cap{padding:0}
 .inp{border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--b);color:var(--m);font-size:13px}
-.hint{margin:0;padding:0 8px;font-size:12px;color:var(--m)}
+.hint{margin:0;padding:0 8px;font-size:13px;color:var(--m)}
 .jump{margin:6px 8px;justify-content:space-between}
 .seg{margin:auto 8px 0;display:flex;border:1px solid var(--line);border-radius:7px;padding:3px;font-size:12px;color:var(--m)}
 .seg span{flex:1;text-align:center;padding:5px;border-radius:5px}.seg .on{background:var(--s3);color:var(--f)}
@@ -115,7 +115,7 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .wc.wait{border-color:var(--o);box-shadow:0 0 0 1px var(--of),0 0 30px -14px var(--o)}
 .wc svg{width:36px;height:36px;fill:none;stroke:var(--f);stroke-width:1.5}
 .wc h3{margin:0;font-size:1.4rem;font-weight:600;line-height:1.15}
-.wc p{margin:0;color:var(--m);font-size:14px}
+.wc p{margin:0;color:var(--m);font-size:15px}
 .steps{display:flex;align-items:center;gap:0}.steps i{width:12px;height:12px;border-radius:50%;border:2px solid var(--s3);background:var(--s1)}
 .steps i+i{margin-left:28px;position:relative}.steps i+i::before{content:"";position:absolute;right:12px;top:3px;width:28px;height:2px;background:var(--s3)}
 .steps .k{background:var(--ok);border-color:var(--ok)}.steps .r{border-color:var(--run)}.steps .o{background:var(--o);border-color:var(--o)}.steps .x{background:var(--bad);border-color:var(--bad)}
@@ -125,6 +125,9 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .ni{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .sd{display:flex;gap:6px;align-items:center}.sd .dot{width:7px;height:7px}
 .bm{display:flex;gap:10px;align-items:center;font-weight:700;font-size:15px}.mark{width:26px;height:26px;color:var(--f)}
+.go{display:block;color:var(--o);text-decoration:none;text-underline-offset:6px}.go:hover{text-decoration:underline}
+.waitlist{display:grid;gap:6px}.wl-head{display:flex;justify-content:space-between;align-items:center}
+.sm .row{grid-template-columns:8px 1fr 130px 80px}.sm .cards .wc{min-height:250px}
 .prun{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--b);font-size:13px}
 .prun .mono{font-size:12px;color:var(--m)}
 .shots .frame{overflow:hidden}.shots .app{zoom:.5}
@@ -181,13 +184,18 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
   </nav>
   <main class="sm">
     <div class="head">
-      <h2 class="hello">Good morning.<span>10 things wait on you.</span></h2>
+      <h2 class="hello">Good morning.<a class="go" href="#">10 things wait on you →</a></h2>
       <div class="counts">
         <div><b style="color:var(--o)">10</b><span class="cap">waiting on you</span></div>
         <div><b style="color:var(--run)">3</b><span class="cap">running</span></div>
         <div><b style="color:var(--bad)">1</b><span class="cap">failed this week</span></div>
         <div><b style="color:var(--ok)">6</b><span class="cap">done today</span></div>
       </div>
+    </div>
+    <div class="waitlist"><div class="wl-head"><span class="cap">Next up</span><span class="open">Open review queue →</span></div>
+      <div class="row"><span class="dot o"></span><div>Revenue · Siemens Energy<div class="why">Argus · sources disagree</div></div><div class="why">today</div><div class="v">Decide</div></div>
+      <div class="row"><span class="dot o"></span><div>AGM vote · Shell plc, item 21<div class="why">StewardIQ · closes Tue 17:00</div></div><div class="why">due in 2 days</div><div class="v">Vote</div></div>
+      <div class="row"><span class="dot o"></span><div>7 identity merges<div class="why">Data Hub · id-0388</div></div><div class="why">today</div><div class="v">Review</div></div>
     </div>
     <div class="cards">
       <div class="wc wait"><span class="pill sm">2 waiting</span><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><h3>StewardIQ</h3><p>Engage companies, vote, and track what they commit to.</p><div class="steps"><i class="k"></i><i class="o"></i><i></i></div><span class="open">Open →</span></div>
@@ -235,9 +243,9 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
     <div class="tabs"><span class="tab on">Needs review<span class="mono">3</span></span><span class="tab">Grounded<span class="mono">38</span></span><span class="tab">All<span class="mono">64</span></span></div>
 
     <div class="list">
-      <div class="row sel" tabindex="0"><span class="dot o"></span><div>Revenue<div class="why">AR p.34 and press release disagree</div></div><div class="conf">0.58<span class="t"><i style="width:58%;background:var(--o)"></i></span></div><div class="v">€39,047m</div></div>
-      <div class="row" tabindex="0"><span class="dot o"></span><div>Scope 1+2 emissions<div class="why">reporting boundary changed vs FY24</div></div><div class="conf">0.44<span class="t"><i style="width:44%;background:var(--o)"></i></span></div><div class="v">402 kt</div></div>
-      <div class="row" tabindex="0"><span class="dot o"></span><div>Order backlog<div class="why">press release only, not audited</div></div><div class="conf">0.61<span class="t"><i style="width:61%;background:var(--o)"></i></span></div><div class="v">€136.0bn</div></div>
+      <div class="row sel" tabindex="0"><span class="dot o"></span><div>Revenue<div class="why">AR p.34 and press release disagree</div></div><div class="conf">0.58<span class="t"><i style="width:58%;background:var(--m)"></i></span></div><div class="v">€39,047m</div></div>
+      <div class="row" tabindex="0"><span class="dot o"></span><div>Scope 1+2 emissions<div class="why">reporting boundary changed vs FY24</div></div><div class="conf">0.44<span class="t"><i style="width:44%;background:var(--m)"></i></span></div><div class="v">402 kt</div></div>
+      <div class="row" tabindex="0"><span class="dot o"></span><div>Order backlog<div class="why">press release only, not audited</div></div><div class="conf">0.61<span class="t"><i style="width:61%;background:var(--m)"></i></span></div><div class="v">€136.0bn</div></div>
       <div class="row done"><span class="dot k"></span><div>EBITA pre special items<div class="why">AR p.36 · grounded</div></div><div class="conf">0.94<span class="t"><i style="width:94%;background:var(--ok)"></i></span></div><div class="v">€2,148m</div></div>
     </div>
   </main>
@@ -254,7 +262,7 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
     <div class="actions">
       <button>Reject <kbd>R</kbd></button>
       <button>Edit <kbd>E</kbd></button>
-      <button class="pri wide">Accept €39,047m <kbd>A</kbd></button>
+      <button>Accept <kbd>A</kbd></button>
     </div>
     <div class="log" aria-label="Live log"><span>14:02:11</span> EBITA → AR p.36 ✓<br><span>14:02:13</span> FCF pre tax → AR p.41 ✓<br><span>14:02:15</span> <em>order backlog → press release only</em><br><span>14:02:16</span> net debt → AR p.52 …</div>
   </aside>
