@@ -224,3 +224,50 @@ async def test_citation_location_is_nearest_heading_without_pages():
     llm = _llm(_ActivitiesDraft=_ActivitiesDraft(activities=[_act("Electrolyser manufacture", Q)]))
     out = await extract_source(URL, text, theme_name="hydrogen", scope=SCOPE, value_chain=False, llm=llm)
     assert out.activities[0].citations[0].location == "Eligible activities"
+
+
+def _pdf_bytes(pages: list[str]) -> bytes:
+    import io
+
+    from pypdf import PdfWriter
+    from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
+
+    w = PdfWriter()
+    font = w._add_object(DictionaryObject({
+        NameObject("/Type"): NameObject("/Font"), NameObject("/Subtype"): NameObject("/Type1"),
+        NameObject("/BaseFont"): NameObject("/Helvetica"),
+    }))
+    for t in pages:
+        page = w.add_blank_page(width=612, height=792)
+        stream = DecodedStreamObject()
+        stream.set_data(f"BT /F1 10 Tf 50 700 Td ({t}) Tj ET".encode())
+        page[NameObject("/Contents")] = w._add_object(stream)
+        page[NameObject("/Resources")] = DictionaryObject({
+            NameObject("/Font"): DictionaryObject({NameObject("/F1"): font})})
+    buf = io.BytesIO()
+    w.write(buf)
+    return buf.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_real_pdf_parse_gives_page_location():
+    from arp.research.taxonomy_sources.fetch import extract_pdf_pages
+
+    q = "Manufacture of electrolysers used for the production of hydrogen through water electrolysis"
+    text, breaks = extract_pdf_pages(_pdf_bytes(["Introduction to the index family", q]))
+    llm = _llm(_ActivitiesDraft=_ActivitiesDraft(activities=[_act("Electrolyser manufacture", q)]))
+    out = await extract_source(URL, text, theme_name="hydrogen", scope=SCOPE, value_chain=False, llm=llm, page_breaks=breaks)
+    assert out.activities[0].citations[0].location == "p. 2"
+
+
+@pytest.mark.asyncio
+async def test_real_html_parse_gives_heading_location():
+    from arp.ingestion.html_text import extract_html_text
+
+    html = (
+        "<html><body><article><h1>Hydrogen report</h1><p>Intro text here that is long enough to matter.</p>"
+        f"<h2>Eligible activities</h2><p>{EU_ACT}</p><h2>Exclusions</h2><p>Other things.</p></article></body></html>"
+    )
+    llm = _llm(_ActivitiesDraft=_ActivitiesDraft(activities=[_act("Electrolyser manufacture", EU_ACT)]))
+    out = await extract_source(URL, extract_html_text(html), theme_name="hydrogen", scope=SCOPE, value_chain=False, llm=llm)
+    assert out.activities[0].citations[0].location == "Eligible activities"

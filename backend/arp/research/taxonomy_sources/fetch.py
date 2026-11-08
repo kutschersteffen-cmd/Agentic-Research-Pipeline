@@ -32,14 +32,21 @@ async def fetch_source_text_or_empty(
     url: str, user_agent: str, timeout: float = 20.0, max_chars: int = _MAX_CHARS
 ) -> str | None:
     """`fetch_source_text`, but "" for a page that was fetched and had no extractable text."""
+    return (await fetch_source_pages(url, user_agent, timeout, max_chars))[0]
+
+
+async def fetch_source_pages(
+    url: str, user_agent: str, timeout: float = 20.0, max_chars: int = _MAX_CHARS
+) -> tuple[str | None, list[int]]:
+    """`fetch_source_text_or_empty` plus the offsets where each PDF page starts ([] for anything else)."""
     if (folder := standins.active_dir()) is not None:
         text = await standins.fetch_text(folder, url)
-        return None if text is None else text[:max_chars]
+        return (None if text is None else text[:max_chars]), []
     try:
         assert_safe_fetch_target(url)
     except UnsafeURLError as exc:
         logger.info("Refusing to fetch authority source %s: %s", url, exc)
-        return None
+        return None, []
     headers = {"User-Agent": user_agent}
     try:
         async with httpx.AsyncClient(
@@ -48,17 +55,18 @@ async def fetch_source_text_or_empty(
             resp = await client.get(url)
     except (httpx.HTTPError, UnsafeURLError) as exc:
         logger.info("Failed to fetch authority source %s: %s", url, exc)
-        return None
+        return None, []
     if resp.status_code != 200:
-        return None
+        return None, []
 
     content_type = resp.headers.get("content-type", "").split(";")[0].strip().lower()
     text: str | None
+    breaks: list[int] = []
     if content_type == "application/pdf" or url.lower().endswith(".pdf"):
-        text = extract_pdf_text(resp.content)
+        text, breaks = extract_pdf_pages(resp.content)
     else:
         text = extract_html_text(resp.text)
-    return (text or "")[:max_chars]
+    return (text or "")[:max_chars], breaks
 
 
 def _cache_paths(cache_dir: Path, url: str) -> tuple[Path, Path]:
@@ -113,12 +121,21 @@ async def fetch_source_original(url: str, user_agent: str, cache_dir: Path, time
     return resp.content, content_type
 
 
-def extract_pdf_text(content: bytes) -> str | None:
+def extract_pdf_pages(content: bytes) -> tuple[str | None, list[int]]:
+    """The PDF's text with pages joined by a blank line, and the offset where each page starts."""
     from pypdf import PdfReader
 
     try:
         reader = PdfReader(io.BytesIO(content))
-        return "\n\n".join((page.extract_text() or "") for page in reader.pages)
+        pages = [(page.extract_text() or "") for page in reader.pages]
     except Exception as exc:  # noqa: BLE001 - malformed PDF shouldn't abort the derivation
         logger.info("Failed to parse PDF: %s", exc)
-        return None
+        return None, []
+    breaks = [0]
+    for t in pages[:-1]:
+        breaks.append(breaks[-1] + len(t) + 2)
+    return "\n\n".join(pages), breaks
+
+
+def extract_pdf_text(content: bytes) -> str | None:
+    return extract_pdf_pages(content)[0]

@@ -121,7 +121,9 @@ class IndexRulesDraft(BaseModel):
     rules: list[IndexRuleItem] = Field(default_factory=list)
 
 
-_HEADING_RE = re.compile(r"^#{1,6}\s+(.+?)\s*$", re.MULTILINE)
+# A Markdown heading, or a short unpunctuated line: extract_html_text and pypdf drop heading markup, so a
+# title-like line is all that is left of one. shortcut: also matches short list items, fine for a location hint.
+_HEADING_RE = re.compile(r"^(?:#{1,6}\s+(.+?)|([A-Z0-9][^\n.;:,!?]{2,79}?))\s*$", re.MULTILINE)
 
 
 class StatedRule(BaseModel):
@@ -181,10 +183,10 @@ async def extract_source(
         g = ground_citations([c], docs_by_id, _FUZZY_THRESHOLD)[0]
         if not g.grounded:
             return None
-        if g.page:
+        if g.page is not None:
             return g.span_text, f"p. {g.page}"
         heads = list(_HEADING_RE.finditer(text, 0, g.char_start))
-        return g.span_text, heads[-1].group(1).strip() if heads else ""
+        return g.span_text, (heads[-1].group(1) or heads[-1].group(2)).strip() if heads else ""
 
     def span(quote: str) -> str | None:
         """The document text the quote grounds to, None when it does not ground."""

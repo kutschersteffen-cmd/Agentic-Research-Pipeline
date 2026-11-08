@@ -24,7 +24,10 @@ def env(monkeypatch, tmp_path):
         return SourceExtraction(url=url, activities=[_act("Stacks", url)])
 
     monkeypatch.setattr(run, "discover_candidates", fake_discover)
-    monkeypatch.setattr(run, "fetch_source_text", fake_fetch)
+    async def fake_pages(*a, **kw):
+        return await fake_fetch(*a, **kw), []
+
+    monkeypatch.setattr(run, "fetch_source_pages", fake_pages)
     monkeypatch.setattr(run, "extract_source", fake_extract)
     store = LegacyRunStore(tmp_path / "runs")
     deps = dict(llm=_fake(10), settings=_settings(tmp_path), user_agent="t", value_chain_model=None)
