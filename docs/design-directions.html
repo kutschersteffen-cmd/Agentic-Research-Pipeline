@@ -173,6 +173,22 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .sst{display:flex;gap:6px;align-items:center;font:500 12px var(--mono)}.sst.o{color:var(--o)}.sst.r{color:var(--run)}.sst.k{color:var(--m)}
 .st p{margin:0;font-size:13.5px;line-height:1.5;color:var(--m)}
 .hands{margin:0 -16px;padding:10px 16px;border-top:1px solid var(--line);font-size:13px}
+.ar main.sm{padding-top:36px;gap:24px;align-content:start}
+.ahead{display:flex;justify-content:space-between;align-items:center}
+.ahead .pri{padding:10px 16px;font-size:14px}
+.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.at{background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:grid;gap:6px}
+.at b{font:500 2.2rem var(--mono);line-height:1.1}.at .mut{font-size:13px}
+.at.o{border-color:var(--o)}.at.o .mut{color:var(--o)}.at.r .mut{color:var(--run)}
+.agrid{display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start}
+.atab{display:grid;gap:12px}.chk{display:flex;gap:8px;align-items:center;font-size:14px}.box{width:16px;height:16px;border:1.5px solid var(--m);border-radius:4px}
+.atab table{width:100%;border-collapse:collapse;background:var(--s1);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+.atab th{text-align:left;font:500 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--m);padding:12px 16px;border-bottom:1px solid var(--line);background:var(--s2)}
+.atab td{padding:12px 16px;border-bottom:1px solid var(--line)}.atab tr:last-child td{border-bottom:0}
+.xl{font:500 13px var(--mono);color:var(--f)}
+.atab table{color:inherit}.sst.x{color:var(--bad)}
+.wfy{background:var(--s1);border:1px solid var(--o);border-radius:10px;padding:20px;display:grid;gap:8px}
+.wfy b{font:500 2.6rem var(--mono);color:var(--o);line-height:1}.wfy p{margin:0}
 .prun{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--b);font-size:13px}
 .prun .mono{font-size:12px;color:var(--m)}
 .shots .frame{overflow:hidden}.shots .app{zoom:.5}
@@ -216,6 +232,24 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 <div class="vs"><h2>StewardIQ page · Light mode</h2>
 <div class="shots"><figure><img src="shots/steward-light-current.png" alt="StewardIQ, current light theme"><figcaption>Current · light</figcaption></figure><figure class="ndw-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure></div></div>
 
+<div class="vs"><h2>Argus page · Dark mode</h2><p>Left: ARP's real Argus page today (backend offline, so counts are 0). Right: the same page and structure in Night Desk styling, with example runs.</p>
+<div class="shots"><figure><img src="shots/argus-dark-current.png" alt="Argus, current dark theme"><figcaption>Current · dark</figcaption></figure><figure class="nda-slot" data-cls=""><figcaption>Night Desk · dark</figcaption></figure></div></div>
+<div class="vs"><h2>Argus page · Light mode</h2>
+<div class="shots"><figure><img src="shots/argus-light-current.png" alt="Argus, current light theme"><figcaption>Current · light</figcaption></figure><figure class="nda-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure></div></div>
+
+<template id="nda"><div class="frame"><div class="app start same ar">
+  <nav aria-label="Navigation"></nav>
+  <main class="sm">
+    <div class="ahead"><h2 class="hello">Argus</h2><button class="pri">Start new extraction</button></div>
+    <div class="tiles"><div class="at"><span class="cap">1 Companies</span><b>1,204</b><span class="mut">in 6 runs</span></div><div class="at r"><span class="cap">2 Documents</span><b>3,871</b><span class="mut">42 fetching</span></div><div class="at o"><span class="cap">3 Schema</span><b>4</b><span class="mut">1 draft to approve</span></div><div class="at r"><span class="cap">4 Extract</span><b>64</b><span class="mut">fx-0412 at 64%</span></div><div class="at o"><span class="cap">5 Results</span><b>18</b><span class="mut">3 to review</span></div></div>
+    <div class="agrid">
+      <div class="atab"><label class="chk"><span class="box"></span>Only mine</label>
+        <table><thead><tr><th>Run</th><th>Companies</th><th>Step</th><th>Status</th></tr></thead><tbody><tr><td class="mono">fx-0412</td><td>Siemens Energy AG</td><td>4 · Extract</td><td><span class="sst o"><i class="dot o"></i>3 waiting on you</span></td></tr><tr><td class="mono">fx-0411</td><td>EU utilities (48)</td><td>4 · Extract</td><td><span class="sst r"><i class="dot r"></i>Running 64%</span></td></tr><tr><td class="mono">fx-0409</td><td>DAX 40</td><td>5 · Results</td><td><span class="sst k"><i class="dot k"></i>Done · 09:12</span></td></tr><tr><td class="mono">fx-0402</td><td>UK banks (12)</td><td>2 · Documents</td><td><span class="sst x"><i class="dot x"></i>Failed · fetch timeout</span></td></tr></tbody></table>
+        <span class="xl">XBRL Facts →</span></div>
+      <aside class="wfy"><span class="cap">Waiting for you</span><b>3</b><p class="mut">Revenue, Scope 1+2 emissions and order backlog in fx-0412.</p><span class="xl">Open the review list →</span></aside>
+    </div>
+  </main>
+</div></div></template>
 <template id="ndw"><div class="frame"><div class="app start same sw">
   <nav aria-label="Navigation"></nav>
   <main class="sm">
@@ -365,6 +399,10 @@ for(const [title,...cols] of rows){
   f.append(c);const fc=document.createElement('figcaption');fc.textContent=cap;f.append(fc);grid.append(f);}
  sec.append(grid);host.append(sec);}
 for(const f of document.querySelectorAll('.nds-slot')){const c=document.getElementById('nds').content.firstElementChild.cloneNode(true);if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+for(const f of document.querySelectorAll('.nda-slot')){const c=document.getElementById('nda').content.firstElementChild.cloneNode(true);
+ c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
+ c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.trim().startsWith('Argus')));
+ if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
 for(const f of document.querySelectorAll('.ndw-slot')){const c=document.getElementById('ndw').content.firstElementChild.cloneNode(true);
  c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
  c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.includes('StewardIQ')));
