@@ -19,7 +19,8 @@ function blockAfter(src: string, from: number): string {
 function vars(body: string): Map<string, string> {
   const m = new Map<string, string>();
   for (const [, k, v] of body.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
-    if (!m.has(k)) m.set(k, v.trim().toLowerCase());
+    assert.ok(!m.has(k), `${k} is declared twice in one block`);
+    m.set(k, v.trim().toLowerCase());
   }
   return m;
 }
@@ -122,4 +123,26 @@ test("ac14_untouched_tokens", (t) => {
   assert.deepEqual(keep(light), keep(before.light));
   assert.deepEqual(keep(darkSwitch), keep(before.darkSwitch));
   assert.deepEqual(keep(darkMedia), keep(before.darkMedia));
+});
+
+// Amber is the "waiting on a person" colour only: its literals live in the token blocks, nowhere else.
+test("amber_literals_only_in_token_blocks", () => {
+  const outside = css.replace(/:root\s*\{[\s\S]*?\n\}/, "").replace(/@media \(prefers-color-scheme: dark\)\s*\{[\s\S]*?\n\}/, "")
+    .replace(/:root\[data-theme="dark"\]\s*\{[\s\S]*?\n\}/, "");
+  assert.doesNotMatch(outside, /#d4a650|#85601a|212 166 80/i);
+});
+
+function onMain(t: { skip: (m: string) => void }, cmd: string): string | null {
+  try { return execSync(cmd, { encoding: "utf8", cwd: new URL("..", import.meta.url).pathname }); }
+  catch { t.skip("origin/main not fetched"); return null; }
+}
+test("ac12b_palette_untouched", (t) => {
+  const out = onMain(t, "git diff origin/main -- src/lib/palette.ts");
+  if (out !== null) assert.equal(out, "");
+});
+test("ac13_amber_usage_unchanged", (t) => {
+  const re = "var\\(--(hi|hi-ink|await|await-edge)\\)";
+  const main = onMain(t, `git grep -h -o -E "${re}" origin/main -- src | sort`);
+  const head = onMain(t, `git grep -h -o -E "${re}" HEAD -- src | sort`);
+  if (main !== null && head !== null) assert.equal(head, main);
 });

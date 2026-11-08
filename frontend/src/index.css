@@ -17,14 +17,13 @@
   --accent-tint: rgb(20 20 20 / 0.06);
   --sidebar-bg: #eaeef3;
   --on-accent: #ffffff; /* text on accent and status fills */
-  /* Awaiting a person: a pale orange fill, the signal orange as its edge
-     (3.4:1 on the page and 3.2:1 on its own fill, so a pending boundary still reads on a projector), and a
-     deeper orange for text (--hi-ink, 5:1 on white). */
+  /* Awaiting a person: a pale amber fill with the signal amber as its edge
+     and its text (--hi-ink: 5.7:1 on white, 4.9:1 on its own fill). */
   --await: #f6ecd6;
   --await-edge: #85601a;
   --hi: #85601a;
   --hi-ink: #85601a;
-  --on-hi: #ffffff; /* text on a --hi fill: 5.1:1 */
+  --on-hi: #ffffff; /* text on a --hi fill: 5.7:1 */
   /* high/mid/low/neutral are status semantics (run status, escalation
      stage, badges) rendered as small text/borders, not chart marks.
      Deepened again when the ground moved to warm cream: at the previous
@@ -61,9 +60,8 @@
 
   --topbar-h: 53px; /* mobile top bar: 44px target + padding + hairline */
 
-  /* The start page's square, ruled instrument-panel look runs through every
-     page: cards, tables, inputs and buttons are square; only small badges
-     keep a hint of rounding, and status/count pills stay full pills. */
+  /* Night Desk radii. Rules that use these tokens round their corners; rules
+     that still set border-radius: 0 stay square until a later release. */
   --r-sm: 6px;
   --r-md: 8px;
   --r-lg: 12px;
@@ -1878,14 +1876,14 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .cabinet { position: relative; width: min(100%, 480px, calc((100dvh - var(--cab-chrome, 14.5rem)) * 0.75)); min-width: 12rem; aspect-ratio: 3 / 4; user-select: none; -webkit-user-select: none; background: #05070a; border: 1px solid var(--panel-border); overflow: hidden; touch-action: none; }
 .cabinet canvas { display: block; width: 100%; height: 100%; }
 .cabinet-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgb(0 0 0 / 0.65) 100%); }
-.cabinet-hud { position: absolute; inset: 12px 14px auto; display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: var(--text-sm); color: #d4a650; z-index: 1; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+.cabinet-hud { position: absolute; inset: 12px 14px auto; display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: var(--text-sm); color: #5ce1e6; z-index: 1; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
 .cabinet-score { font-size: 1.5rem; font-weight: 600; }
 .cabinet-score-best { animation: cabinet-pulse 1s ease-in-out infinite alternate; }
 @keyframes cabinet-pulse { from { opacity: 1; } to { opacity: 0.45; } }
-.cabinet-card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-4); background: rgb(5 7 10 / 0.6); color: #d4a650; text-align: center; z-index: 2; }
+.cabinet-card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-4); background: rgb(5 7 10 / 0.6); color: #5ce1e6; text-align: center; z-index: 2; }
 .cabinet-card strong { font-family: var(--font-display); font-size: clamp(2rem, 8vw, 3rem); font-weight: 600; letter-spacing: -0.03em; }
 .cabinet-card span { font-family: var(--font-mono); }
-.cabinet-go { font-family: var(--font-mono); font-size: var(--text-sm); letter-spacing: 0.1em; color: #05070a; background: #d4a650; border: 0; padding: 10px 18px; cursor: pointer; }
+.cabinet-go { font-family: var(--font-mono); font-size: var(--text-sm); letter-spacing: 0.1em; color: #05070a; background: #5ce1e6; border: 0; padding: 10px 18px; cursor: pointer; }
 .cabinet-go:hover { background: #fff; }
 .cabinet-go:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .cabinet-score-best { animation: none; } }
@@ -1911,8 +1909,8 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 
 /* On-screen buttons for phones: only on touch or narrow screens, and the cabinet leaves room for them. */
 .touchpad { display: none; gap: var(--s-3); margin-top: var(--s-3); width: 100%; }
-.touchpad button { min-height: 4rem; font-family: var(--font-mono); font-size: 1rem; font-weight: 600; letter-spacing: 0.1em; color: #d4a650; background: #05070a; border: 2px solid #d4a650; border-radius: 0; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: pointer; }
-.touchpad button:active { background: #d4a650; color: #05070a; }
+.touchpad button { min-height: 4rem; font-family: var(--font-mono); font-size: 1rem; font-weight: 600; letter-spacing: 0.1em; color: #5ce1e6; background: #05070a; border: 2px solid #5ce1e6; border-radius: 0; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: pointer; }
+.touchpad button:active { background: #5ce1e6; color: #05070a; }
 .touchpad button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (pointer: coarse), (max-width: 640px) { .touchpad { display: grid; } .arcade-game:has(.touchpad) { --cab-chrome: 15.5rem; } }
 
