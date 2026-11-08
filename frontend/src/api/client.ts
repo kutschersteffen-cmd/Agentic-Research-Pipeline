@@ -106,6 +106,7 @@ import type {
   TransitionPlanIndicatorDef,
 } from "../types";
 import type { XbrlRunMarket } from "../types";
+import type { AuthorityDraft, AuthorityRunRequest, AuthorityRunState } from "../types";
 import type { VcExposure, VcFootprint, VcIcioCode, VcLinkRuleIn, VcLinks, VcMaterialFootprint, VcMaterialTree, VcNode, VcPortfolio, VcPriceShock, VcQuantityShock, VcRecipe, VcRecipeIn, VcRecipeList, VcRoutes, VcSearch, VcStatus, VcTree } from "../types";
 import type { RunFailure } from "../types";
 import type {
@@ -664,6 +665,25 @@ export const api = {
 
   universeWorkbench: (body: { companies?: unknown[]; universe_path?: string; availability?: boolean }) =>
     request<WorkbenchResponse>("/api/universe/workbench", { method: "POST", body: JSON.stringify(body) }),
+
+  // Authority taxonomy run
+  startAuthorityRun: (body: AuthorityRunRequest) =>
+    request<{ id: string; stage: string }>("/api/authority-taxonomy/runs", jsonBody("POST", body)),
+  getAuthorityRun: (id: string) => request<AuthorityRunState>(`/api/authority-taxonomy/runs/${encodeURIComponent(id)}`),
+  selectAuthoritySources: (id: string, body: { urls: string[]; files: string[] }) =>
+    request<AuthorityRunState>(`/api/authority-taxonomy/runs/${encodeURIComponent(id)}/sources`, jsonBody("POST", body)),
+  putAuthorityDraft: (id: string, draft: AuthorityDraft) =>
+    request<AuthorityRunState>(`/api/authority-taxonomy/runs/${encodeURIComponent(id)}/draft`, jsonBody("PUT", draft)),
+  acceptAuthorityRun: (id: string) =>
+    request<{ taxonomy_id: string }>(`/api/authority-taxonomy/runs/${encodeURIComponent(id)}/accept`, { method: "POST" }),
+  cancelAuthorityRun: async (id: string): Promise<void> => {
+    await authFetch(`${API_BASE}/api/authority-taxonomy/runs/${encodeURIComponent(id)}`, { method: "DELETE" });
+  },
+  uploadAuthorityDocument: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<{ path: string }>("/api/authority-taxonomy/uploads", { method: "POST", body: form });
+  },
 
   // Taxonomy library
   discoverTaxonomySources: (name: string) =>

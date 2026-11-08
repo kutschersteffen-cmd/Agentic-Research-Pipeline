@@ -3,11 +3,13 @@ awaiting_review and resumes on user calls. Nothing reaches the TaxonomyStore bef
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from arp.orchestration import jobs
 from arp.orchestration.job_manager import JobManager
 from arp.research.authority_taxonomy.consolidate import consolidate
 from arp.research.authority_taxonomy.discovery import Candidate, discover_candidates
@@ -16,14 +18,20 @@ from arp.research.taxonomy_sources.fetch import extract_pdf_text, fetch_source_t
 from arp.schemas.taxonomy import DerivationMethod
 from arp.schemas.thematic import ThemeDefinition
 
-Stage = Literal["awaiting_sources", "awaiting_review", "accepted", "cancelled"]
+Stage = Literal["discovering", "awaiting_sources", "extracting", "awaiting_review", "accepted", "cancelled", "failed"]
 _MAX_CHARS = 400_000
+INTERRUPTED = "interrupted by a server restart"
 
 
 class WrongStage(Exception):
     def __init__(self, stage: str) -> None:
         super().__init__(f"run is at stage {stage}")
         self.stage = stage
+
+
+class SourceSelection(BaseModel):
+    urls: list[str] = []
+    files: list[str] = []
 
 
 class RunState(BaseModel):
@@ -38,6 +46,9 @@ class RunState(BaseModel):
     draft: ThemeDefinition | None = None
     notes: str = ""
     taxonomy_id: str | None = None
+    error: str | None = None
+    selection: SourceSelection | None = None
+    step_started_at: str | None = None  # ISO UTC; when the running step began
 
 
 def load_state(run_id: str, run_store) -> RunState:
@@ -59,18 +70,50 @@ def _require(run_id: str, run_store, *stages: str) -> RunState:
     return state
 
 
+def _now() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+def create_run(theme_name: str, theme_key: str | None, scope: str, guidance: str, value_chain: bool, *, run_store) -> RunState:
+    params = {"theme_name": theme_name, "theme_key": theme_key, "scope": scope, "guidance": guidance, "value_chain": value_chain}
+    manifest = JobManager(run_store).create_run("authority_taxonomy", params, 0)
+    return _save(RunState(run_id=manifest.run_id, stage="discovering", step_started_at=_now(), **params), run_store)
+
+
+def _finish(run_id: str, run_store, **update) -> RunState:
+    """Saves a background step's outcome, unless the user cancelled meanwhile."""
+    current = load_state(run_id, run_store)
+    if current.stage == "cancelled":
+        return current
+    return _save(current.model_copy(update={"step_started_at": None, **update}), run_store)
+
+
+async def discover(
+    run_id: str, *, run_store, search_client, llm, user_agent: str, use_library: bool = True, library_root: Path | None = None,
+) -> RunState:
+    state = load_state(run_id, run_store)
+    try:
+        candidates = await discover_candidates(
+            state.theme_name, state.theme_key, state.guidance, search_client=search_client, llm=llm,
+            user_agent=user_agent, use_library=use_library, library_root=library_root,
+        )
+    except Exception as e:  # noqa: BLE001 - shown to the user as the run's error
+        return _finish(run_id, run_store, stage="failed", error=str(e))
+    return _finish(run_id, run_store, stage="awaiting_sources", candidates=candidates, error=None)
+
+
 async def start_run(
     theme_name: str, theme_key: str | None, scope: str, guidance: str, value_chain: bool, *,
     run_store, search_client, llm, user_agent: str, use_library: bool = True, library_root: Path | None = None,
 ) -> RunState:
-    params = {"theme_name": theme_name, "theme_key": theme_key, "scope": scope, "guidance": guidance, "value_chain": value_chain}
-    manifest = JobManager(run_store).create_run("authority_taxonomy", params, 0)
-    candidates = await discover_candidates(
-        theme_name, theme_key, guidance, search_client=search_client, llm=llm, user_agent=user_agent,
+    state = create_run(theme_name, theme_key, scope, guidance, value_chain, run_store=run_store)
+    state = await discover(
+        state.run_id, run_store=run_store, search_client=search_client, llm=llm, user_agent=user_agent,
         use_library=use_library, library_root=library_root,
     )
-    state = RunState(run_id=manifest.run_id, stage="awaiting_sources", candidates=candidates, **params)
-    return _save(state, run_store)
+    if state.error:
+        raise ValueError(state.error)
+    return state
 
 
 def _read_file(path: Path) -> str | None:
@@ -79,13 +122,16 @@ def _read_file(path: Path) -> str | None:
     return text[:_MAX_CHARS] if text else None
 
 
-async def select_sources(
-    run_id: str, urls: list[str], files: list[Path], *,
-    run_store, llm, settings, user_agent: str, value_chain_model=None,
-) -> RunState:
+def begin_extraction(run_id: str, urls: list[str], files: list[Path], *, run_store) -> RunState:
     state = _require(run_id, run_store, "awaiting_sources")
-    sources = [(u, await fetch_source_text(u, user_agent, max_chars=_MAX_CHARS)) for u in urls]
-    sources += [(str(f), _read_file(f)) for f in files]
+    selection = SourceSelection(urls=urls, files=[str(f) for f in files])
+    return _save(state.model_copy(update={"stage": "extracting", "selection": selection, "step_started_at": _now()}), run_store)
+
+
+async def _extract(state: RunState, *, llm, settings, user_agent: str, value_chain_model) -> tuple[ThemeDefinition, str]:
+    selection = state.selection or SourceSelection()
+    sources = [(u, await fetch_source_text(u, user_agent, max_chars=_MAX_CHARS)) for u in selection.urls]
+    sources += [(f, _read_file(Path(f))) for f in selection.files]
     extractions = [
         await extract_source(src, text, theme_name=state.theme_name, scope=state.scope, value_chain=state.value_chain, llm=llm)
         for src, text in sources if text
@@ -99,7 +145,41 @@ async def select_sources(
     draft.scope = state.scope
     if unread := [src for src, text in sources if not text]:
         notes = "\n".join(filter(None, [notes, f"Could not read: {', '.join(unread)}"]))
-    return _save(state.model_copy(update={"stage": "awaiting_review", "draft": draft, "notes": notes}), run_store)
+    return draft, notes
+
+
+async def extract(
+    run_id: str, *, run_store, llm, settings, user_agent: str, value_chain_model=None,
+) -> RunState:
+    state = load_state(run_id, run_store)
+    try:
+        draft, notes = await _extract(state, llm=llm, settings=settings, user_agent=user_agent, value_chain_model=value_chain_model)
+    except Exception as e:  # noqa: BLE001 - shown to the user; the selection is kept for a retry
+        return _finish(run_id, run_store, stage="awaiting_sources", error=str(e))
+    return _finish(run_id, run_store, stage="awaiting_review", draft=draft, notes=notes, error=None)
+
+
+async def select_sources(
+    run_id: str, urls: list[str], files: list[Path], *,
+    run_store, llm, settings, user_agent: str, value_chain_model=None,
+) -> RunState:
+    begin_extraction(run_id, urls, files, run_store=run_store)
+    state = await extract(
+        run_id, run_store=run_store, llm=llm, settings=settings, user_agent=user_agent, value_chain_model=value_chain_model,
+    )
+    if state.error:
+        raise ValueError(state.error)
+    return state
+
+
+def refresh(state: RunState, run_store) -> RunState:
+    """A step whose worker died (server restart) would poll forever; fail it the way an error would."""
+    if state.stage not in ("discovering", "extracting") or not state.step_started_at:
+        return state
+    if datetime.now(UTC) - datetime.fromisoformat(state.step_started_at) < jobs._LEASE_GRACE or jobs.run_alive(run_store, state.run_id):
+        return state
+    back = "failed" if state.stage == "discovering" else "awaiting_sources"
+    return _finish(state.run_id, run_store, stage=back, error=INTERRUPTED)
 
 
 def put_draft(run_id: str, draft: ThemeDefinition, run_store) -> RunState:
@@ -118,5 +198,5 @@ def accept(run_id: str, run_store, taxonomy_store) -> RunState:
 
 
 def cancel(run_id: str, run_store) -> RunState:
-    state = _require(run_id, run_store, "awaiting_sources", "awaiting_review")
-    return _save(state.model_copy(update={"stage": "cancelled"}), run_store)
+    state = _require(run_id, run_store, "discovering", "extracting", "awaiting_sources", "awaiting_review")
+    return _save(state.model_copy(update={"stage": "cancelled", "step_started_at": None}), run_store)

@@ -2287,3 +2287,14 @@ a.vc-box:hover { border-color: var(--text); }
 .passage-row .chip { background: none; } /* a hint, not a status: outline only */
 .plan-script { overflow-x: auto; max-width: 100%; }
 .table-wrap td.plan-inputs { white-space: normal; overflow-wrap: anywhere; min-width: 12rem; }
+
+/* Authority taxonomy run screens */
+.authority-run ul { list-style: none; padding: 0; margin: 0 0 var(--s-3); }
+.authority-run li.card { margin-bottom: var(--s-3); }
+.authority-run label { display: block; margin-bottom: var(--s-2); }
+.authority-run label.checkbox-label { display: inline-flex; gap: var(--s-2); align-items: center; }
+.authority-run blockquote { margin: 0 0 var(--s-1); }
+.authority-run .chip button { padding: 0 var(--s-1); }
+.authority-run table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.authority-run th, .authority-run td { text-align: left; padding: var(--s-1) var(--s-2); vertical-align: top; }
+.authority-run section { margin-bottom: var(--s-4); }

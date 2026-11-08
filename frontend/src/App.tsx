@@ -27,6 +27,7 @@ const EmergingThemesDetector = lazy(() => import("./pages/EmergingThemesDetector
 const ReviewQueue = lazy(() => import("./pages/ReviewQueue").then((x) => ({ default: x.ReviewQueue })));
 const RunHistory = lazy(() => import("./pages/RunHistory").then((x) => ({ default: x.RunHistory })));
 const DataLibrary = lazy(() => import("./pages/DataLibrary").then((x) => ({ default: x.DataLibrary })));
+const AuthorityTaxonomyRun = lazy(() => import("./pages/AuthorityTaxonomyRun").then((x) => ({ default: x.AuthorityTaxonomyRun })));
 const TaxonomyLibrary = lazy(() => import("./pages/TaxonomyLibrary").then((x) => ({ default: x.TaxonomyLibrary })));
 const BackgroundAgents = lazy(() => import("./pages/BackgroundAgents").then((x) => ({ default: x.BackgroundAgents })));
 const EngagementDashboard = lazy(() => import("./pages/EngagementDashboard").then((x) => ({ default: x.EngagementDashboard })));
@@ -400,7 +401,8 @@ function App() {
         {active === "outputs" && <Outputs />}
         {active === "arcade" && <Arcade selected={route.params[0] ?? null} />}
         {active === "theme" && <ThemeBuilder key={route.params[0]} initialRunId={route.params[0] ?? null} onSendToExtraction={(path, count) => sendUniverse("Thematic Universe")("extraction", path, count)} pendingTaxonomyId={pendingTaxonomyId} />}
-        {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
+        {active === "taxonomy" && route.params[0] === "authority" && <AuthorityTaxonomyRun key={route.params[1] ?? "new"} runId={route.params[1]} />}
+        {active === "taxonomy" && route.params[0] !== "authority" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
         {active === "emergingThemes" && <EmergingThemesDetector onNavigate={go} />}
         {active === "themes" && <ThemeDossiers params={route.params} onFindCompanies={sendToTheme} />}
         {active === "backgroundAgents" && <BackgroundAgents />}
