@@ -199,20 +199,21 @@ function PageView({ rawUrl, page, mark }: { rawUrl: string; page: number; mark?:
 function Excerpt({ source }: { source: ActiveSource }) {
   const ex = excerptView(source);
   if (!ex) return null;
+  const p = "parts" in ex ? ex.parts : undefined;
   return (
     <figure className="source-excerpt">
       <figcaption className="source-excerpt-meta">{ex.caption}</figcaption>
       <blockquote className="source-excerpt-page">
-        {"parts" in ex ? (
+        {p ? (
           <>
-            {ex.parts.lead && <span className="source-excerpt-ctx">{ex.parts.lead}</span>}
-            {ex.parts.before}
-            <mark>{ex.parts.mark}</mark>
-            {ex.parts.after}
-            {ex.parts.trail && <span className="source-excerpt-ctx">{ex.parts.trail}</span>}
+            {p.lead && <span className="source-excerpt-ctx">{p.lead}</span>}
+            {p.before}
+            <mark>{p.mark}</mark>
+            {p.after}
+            {p.trail && <span className="source-excerpt-ctx">{p.trail}</span>}
           </>
         ) : (
-          ex.quote
+          "quote" in ex && ex.quote
         )}
       </blockquote>
     </figure>

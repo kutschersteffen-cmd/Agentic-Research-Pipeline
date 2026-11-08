@@ -141,12 +141,14 @@ test("ac12b_palette_untouched", (t) => {
   if (out !== null) assert.equal(out, "");
 });
 test("ac13_amber_usage_unchanged", (t) => {
-  const re = "var\\(--(hi|hi-ink|await|await-edge)\\)";
-  const main = onMain(t, `git grep -h -o -E "${re}" origin/main -- src | sort`);
-  const head = onMain(t, `git grep -h -o -E "${re}" HEAD -- src | sort`);
-  // Release 2 allows one new amber reference (.nav-dot-wait), release 3 two (.source-excerpt-page mark).
-  const plusNavDot = (m: string) => [...m.trim().split("\n"), "var(--hi)", "var(--await)", "var(--await-edge)"].sort().join("\n") + "\n";
-  if (main !== null && head !== null) assert.equal(head, plusNavDot(main));
+  // Amber may only be added by the rules that release 2 and 3 approved; everything else must match main.
+  const allowed = /\.nav-dot-wait|\.source-excerpt-page mark/;
+  const cmd = (ref: string) => `git grep -h -E "var\\(--(hi|hi-ink|await|await-edge)\\)" ${ref} -- src`;
+  const main = onMain(t, cmd("origin/main"));
+  const head = onMain(t, cmd("HEAD"));
+  if (main === null || head === null) return;
+  const others = (out: string) => out.split("\n").filter((l) => l && !allowed.test(l)).sort().join("\n");
+  assert.equal(others(head), others(main));
 });
 
 // Night Desk release 2 (docs/superpowers/specs/2026-11-08-night-desk-status-design.md).
