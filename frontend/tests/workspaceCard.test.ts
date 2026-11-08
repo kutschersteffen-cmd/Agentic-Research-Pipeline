@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { cardView } from "../src/lib/workspaceCard.ts";
+import { cardView, stepStatusLine, workspaceState } from "../src/lib/workspaceCard.ts";
 import { WORKSPACES } from "../src/lib/processes.ts";
 import type { RunManifest, StewardshipFlow } from "../src/types.ts";
 
@@ -58,3 +58,21 @@ test("AC-20: DESIGN.md no longer promises a status line on the card", () => {
   const design = readFileSync(new URL("../../DESIGN.md", import.meta.url), "utf8");
   assert.ok(!design.includes("a status in the signal colour when someone is needed"));
 });
+
+// Night Desk release 2 (docs/superpowers/specs/2026-11-08-night-desk-status-design.md).
+const D = "2026-11-08T10:00:00Z";
+test("r2 AC-3: 3 waiting", () => assert.deepEqual(stepStatusLine("wait", 3, 0, null), { text: "3 waiting on you", tone: "wait" }));
+test("r2 AC-4: 1 waiting wins over idle", () => assert.deepEqual(stepStatusLine("idle", 1, 0, null), { text: "1 waiting on you", tone: "wait" }));
+test("r2: waiting wins over failed", () => assert.deepEqual(stepStatusLine("failed", 2, 0, null), { text: "2 waiting on you", tone: "wait" }));
+test("r2 AC-5: 2 decisions open", () => assert.deepEqual(stepStatusLine("done", 0, 2, null), { text: "2 decisions open", tone: "wait" }));
+test("r2 AC-6: 1 decision open", () => assert.deepEqual(stepStatusLine("done", 0, 1, null), { text: "1 decision open", tone: "wait" }));
+test("r2 AC-7: running", () => assert.deepEqual(stepStatusLine("now", 0, 0, null), { text: "Running", tone: "now" }));
+test("r2 AC-8: failed", () => assert.deepEqual(stepStatusLine("failed", 0, 0, D), { text: "Last run failed", tone: "failed" }));
+test("r2 AC-9: done with date", () => assert.deepEqual(stepStatusLine("done", 0, 0, D, "en-GB"), { text: "Done · 8 Nov", tone: "done" }));
+test("r2 AC-10: idle", () => assert.deepEqual(stepStatusLine("idle", 0, 0, null), { text: "No runs yet", tone: "idle" }));
+test("r2 AC-11: a waiting process makes the workspace wait", () => assert.equal(workspaceState(ws("Argus"), busy.runs), "wait"));
+test("r2 AC-12: failed outranks done and idle", () => assert.equal(workspaceState(ws("R&D Lab"), busy.runs), "failed"));
+test("r2: no runs for the workspace is idle", () => assert.equal(workspaceState(ws("Data Hub"), busy.runs), "idle"));
+test("r2 AC-13: runs not loaded is idle", () => assert.equal(workspaceState(ws("Argus"), null), "idle"));
+test("r2 AC-19b: workspace order unchanged", () =>
+  assert.deepEqual(WORKSPACES.map((w) => w.name), ["StewardIQ", "Argus", "Transition Intelligence Platform", "R&D Lab", "Data Hub"]));
