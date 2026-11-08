@@ -285,6 +285,14 @@ for(const [title,...cols] of rows){
 for(const f of document.querySelectorAll('.nds-slot')){const c=document.getElementById('nds').content.firstElementChild.cloneNode(true);if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
 </script>
 
+<section class="vs" id="limeblue"><h2>Variant · Lime and blue</h2><p>Lime for "needs you" (today's dark-mode colour), blue for running. Done turns neutral grey so it can't be mistaken for lime. Failed stays red.</p><div class="shots" id="lb-grid"></div></section>
+<script>
+for(const [mode,o,ok] of [['dark','#c6ff3d','#8b94a5'],['light','#5b7a00','#6b7380']]){
+ const f=document.createElement('figure');const fr=document.getElementById('nds').content.firstElementChild.cloneNode(true);
+ if(mode==='light')fr.classList.add('ndl');
+ fr.style.setProperty('--o',o);fr.style.setProperty('--of',o+'1f');fr.style.setProperty('--ok',ok);
+ const cap=document.createElement('figcaption');cap.textContent='Lime + blue · '+mode+' · needs you '+o;f.append(fr,cap);document.getElementById('lb-grid').append(f);}
+</script>
 <div class="notes">
   <div><b>Keyboard first</b>A, R and E decide the selected item. J and K move between items. ⌘K jumps to any run.</div>
   <div><b>One meaning for amber</b>The rail, the pill and the selected row all use amber for the same thing: waiting on you. Running is blue, done is green, failed is red.</div>
