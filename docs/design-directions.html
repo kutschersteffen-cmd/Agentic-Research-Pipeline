@@ -92,6 +92,16 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 --o:#ea4c14;--of:#ffe6db;--ok:#1f7a45;--run:#5c5c57;--bad:#c0392b;color:var(--f)}
 .curl .log{background:#ebebe7}.curl .dot.o,.curl .row.sel{box-shadow:none}
 #pairs{display:grid;gap:28px}
+.app.start{min-width:1440px;width:1440px;height:900px;grid-template-columns:248px 1fr 360px}
+.shots .app.start{zoom:.42}
+@media (max-width:700px){.shots .app.start{zoom:.25}}
+.hello{font-size:2.6rem!important;letter-spacing:-.03em;line-height:1.05}
+.hello span{display:block;color:var(--m)}
+.who{margin-top:auto;padding:12px 8px;font-size:12px;color:var(--m);display:grid;gap:2px;border-top:1px solid var(--line)}
+.start nav{align-content:stretch;grid-auto-rows:max-content}
+.start .row .v{font-size:13px}
+.prun{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--b);font-size:13px}
+.prun .mono{font-size:12px;color:var(--m)}
 .shots .frame{overflow:hidden}.shots .app{zoom:.5}
 @media (max-width:700px){.shots .app{zoom:.32}}
 .shots{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -112,13 +122,56 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 
 <div id="pairs"></div>
 
-<div class="vs"><h2>Start page, real app</h2><p>Screenshots of ARP's start page with each set of colours injected. The backend was not running, so the counts are empty and the error banner shows in all four.</p>
+<div class="vs"><h2>Start page · Dark mode</h2><p>Left: screenshot of ARP's real start page today (backend was offline, so counts are empty). Right: the start page redesigned as Night Desk, with example data.</p>
+<div class="shots">
+<figure><img src="shots/start-dark-current.png" alt="Start page, current dark theme"><figcaption>Current · dark</figcaption></figure>
+<figure class="nds-slot" data-cls=""><figcaption>Night Desk · dark</figcaption></figure>
+</div></div>
+<div class="vs"><h2>Start page · Light mode</h2>
 <div class="shots">
 <figure><img src="shots/start-light-current.png" alt="Start page, current light theme"><figcaption>Current · light</figcaption></figure>
-<figure><img src="shots/start-light-nightdesk.png" alt="Start page, Night Desk light theme"><figcaption>Night Desk · light</figcaption></figure>
-<figure><img src="shots/start-dark-current.png" alt="Start page, current dark theme"><figcaption>Current · dark</figcaption></figure>
-<figure><img src="shots/start-dark-nightdesk.png" alt="Start page, Night Desk dark theme"><figcaption>Night Desk · dark</figcaption></figure>
+<figure class="nds-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure>
 </div></div>
+
+<template id="nds"><div class="frame"><div class="app start">
+  <nav aria-label="Workspaces">
+    <div class="brand">ARP <kbd>⌘K</kbd></div>
+    <div class="run on"><span class="dot k"></span><div>Start</div><span class="n"></span></div>
+    <div class="run"><span class="dot o"></span><div>Review queue</div><span class="n">10</span></div>
+    <div class="cap">Workspaces</div>
+    <div class="run"><span class="dot o"></span><div>StewardIQ<small>2 votes to cast</small></div><span class="n">2</span></div>
+    <div class="run"><span class="dot r"></span><div>Argus<small>fx-0412 extracting</small></div><span class="n">64%</span></div>
+    <div class="run"><span class="dot k"></span><div>Transition Intelligence<small>updated 09:12</small></div><span class="n"></span></div>
+    <div class="run"><span class="dot x"></span><div>R&amp;D Lab<small>theme scan failed</small></div><span class="n">!</span></div>
+    <div class="run"><span class="dot k"></span><div>Data Hub<small>3 feeds fresh</small></div><span class="n"></span></div>
+    <div class="cap">Output</div>
+    <div class="run"><span class="dot"></span><div>Presentations &amp; reports</div><span class="n"></span></div>
+    <div class="who"><span class="cap">Reviewing as</span>Your name · token set</div>
+  </nav>
+  <main>
+    <div class="top"><div><h2 class="hello">Good morning. <span>10 things wait on you.</span></h2><p>Sunday 8 November · 3 runs active · last sync 14:02</p></div><span class="pill">10 waiting on you</span></div>
+    <div class="stats">
+      <div class="stat"><span class="cap">Waiting on you</span><b style="color:var(--o)">10</b></div>
+      <div class="stat"><span class="cap">Running</span><b style="color:var(--run)">3</b></div>
+      <div class="stat"><span class="cap">Failed this week</span><b style="color:var(--bad)">1</b></div>
+      <div class="stat"><span class="cap">Done today</span><b style="color:var(--ok)">6</b></div>
+    </div>
+    <div class="tabs"><span class="tab on">Waiting on you<span class="mono">10</span></span><span class="tab">Running<span class="mono">3</span></span><span class="tab">Failed<span class="mono">1</span></span></div>
+    <div class="list">
+      <div class="row sel"><span class="dot o"></span><div>Revenue · Siemens Energy<div class="why">Argus · sources disagree</div></div><div class="conf">0.58<span class="t"><i style="width:58%;background:var(--o)"></i></span></div><div class="v">Decide <kbd>↵</kbd></div></div>
+      <div class="row"><span class="dot o"></span><div>7 identity merges<div class="why">Data Hub · id-0388</div></div><div class="conf">0.66<span class="t"><i style="width:66%;background:var(--o)"></i></span></div><div class="v">Review</div></div>
+      <div class="row"><span class="dot o"></span><div>AGM vote · Shell plc, item 21<div class="why">StewardIQ · closes Tue 17:00</div></div><div class="conf">due 2d<span class="t"><i style="width:80%;background:var(--o)"></i></span></div><div class="v">Vote</div></div>
+    </div>
+  </main>
+  <aside aria-label="Live activity">
+    <span class="cap">Running now</span>
+    <div class="prun"><div><b>fx-0412</b> Siemens Energy financials</div><div class="bar"><i style="width:64%;background:var(--run)"></i></div><span class="mono">41 / 64 items · 1 min left</span></div>
+    <div class="prun"><div><b>disc-0219</b> EU utilities discovery</div><div class="bar"><i style="width:64%;background:var(--run)"></i></div><span class="mono">212 / 330 papers</span></div>
+    <div class="prun"><div><b>cal-v14</b> Calibration</div><div class="bar"><i style="width:22%;background:var(--run)"></i></div><span class="mono">22% · 14 min left</span></div>
+    <span class="cap">Activity</span>
+    <div class="log"><span>14:02</span> fx-0412 grounded EBITA ✓<br><span>13:48</span> id-0387 merged 1,204 companies ✓<br><span>12:10</span> <em>th-0102 theme scan failed</em><br><span>09:12</span> TIP portfolio refreshed ✓</div>
+  </aside>
+</div></div></template>
 
 <div class="frame" id="nd"><div class="app">
   <nav aria-label="Runs">
@@ -192,6 +245,7 @@ for(const [title,...cols] of rows){
  for(const [cls,cap] of cols){const f=document.createElement('figure');const c=nd.cloneNode(true);c.id='';if(cls)c.classList.add(cls);
   f.append(c);const fc=document.createElement('figcaption');fc.textContent=cap;f.append(fc);grid.append(f);}
  sec.append(grid);host.append(sec);}
+for(const f of document.querySelectorAll('.nds-slot')){const c=document.getElementById('nds').content.firstElementChild.cloneNode(true);if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
 </script>
 
 <div class="notes">
