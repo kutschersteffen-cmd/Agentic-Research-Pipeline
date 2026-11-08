@@ -14,7 +14,7 @@ from arp.orchestration.job_manager import JobManager
 from arp.research.authority_taxonomy.consolidate import consolidate
 from arp.research.authority_taxonomy.discovery import Candidate, discover_candidates
 from arp.research.authority_taxonomy.extract import extract_source
-from arp.research.taxonomy_sources.fetch import extract_pdf_text, fetch_source_text
+from arp.research.taxonomy_sources.fetch import extract_pdf_pages, fetch_source_pages
 from arp.schemas.taxonomy import DerivationMethod
 from arp.schemas.thematic import ThemeDefinition
 
@@ -116,10 +116,13 @@ async def start_run(
     return state
 
 
-def _read_file(path: Path) -> str | None:
+def _read_file(path: Path) -> tuple[str | None, list[int]]:
     # .pdf via fetch.py's pypdf extraction; anything else is read as UTF-8 text (.txt/.md)
-    text = extract_pdf_text(path.read_bytes()) if path.suffix.lower() == ".pdf" else path.read_text(errors="replace")
-    return text[:_MAX_CHARS] if text else None
+    if path.suffix.lower() == ".pdf":
+        text, breaks = extract_pdf_pages(path.read_bytes())
+    else:
+        text, breaks = path.read_text(errors="replace"), []
+    return (text[:_MAX_CHARS] if text else None), breaks
 
 
 def begin_extraction(run_id: str, urls: list[str], files: list[Path], *, run_store) -> RunState:
@@ -130,11 +133,12 @@ def begin_extraction(run_id: str, urls: list[str], files: list[Path], *, run_sto
 
 async def _extract(state: RunState, *, llm, settings, user_agent: str, value_chain_model) -> tuple[ThemeDefinition, str]:
     selection = state.selection or SourceSelection()
-    sources = [(u, await fetch_source_text(u, user_agent, max_chars=_MAX_CHARS)) for u in selection.urls]
-    sources += [(f, _read_file(Path(f))) for f in selection.files]
+    sources = [(u, *await fetch_source_pages(u, user_agent, max_chars=_MAX_CHARS)) for u in selection.urls]
+    sources += [(f, *_read_file(Path(f))) for f in selection.files]
     extractions = [
-        await extract_source(src, text, theme_name=state.theme_name, scope=state.scope, value_chain=state.value_chain, llm=llm)
-        for src, text in sources if text
+        await extract_source(src, text, theme_name=state.theme_name, scope=state.scope, value_chain=state.value_chain,
+                             llm=llm, page_breaks=breaks)
+        for src, text, breaks in sources if text
     ]
     if not extractions:
         raise ValueError("no selected source could be read")
@@ -143,7 +147,7 @@ async def _extract(state: RunState, *, llm, settings, user_agent: str, value_cha
         settings=settings, llm=llm, value_chain_model=value_chain_model,
     )
     draft.scope = state.scope
-    if unread := [src for src, text in sources if not text]:
+    if unread := [src for src, text, _ in sources if not text]:
         notes = "\n".join(filter(None, [notes, f"Could not read: {', '.join(unread)}"]))
     return draft, notes
 
