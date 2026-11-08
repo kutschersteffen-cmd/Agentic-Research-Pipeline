@@ -1,6 +1,6 @@
 <title>ARP Design Directions</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: one dark operator console. Runs rail | review list | source + decision pane. Single-theme on purpose (dark-first direction). */
 :root{color-scheme:dark;
@@ -81,16 +81,26 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
 .notes div{padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--s1);font-size:13px;color:var(--m)}
 .notes b{display:block;color:var(--f);font-weight:600;margin-bottom:4px}
+/* Current ARP dark tokens (frontend/src/index.css), applied to the same screen for comparison */
+.cur{--b:#0c0d0f;--s1:#131417;--s2:#18191c;--s3:#26272c;--f:#e8e8e3;--m:#9a9ba0;--line:#26272c;
+--o:#c6ff3d;--of:rgb(198 255 61 / .12);--ok:#26c281;--run:#9a9ba0;--bad:#ff4d4d;
+--sans:"Hanken Grotesk",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace;font-family:var(--sans)}
+.cur .dot.o{box-shadow:none}.cur .row.sel{box-shadow:none}
+.vs{display:grid;gap:8px}.vs h2{margin:0;font-size:1.1rem;font-weight:600}.vs p{margin:0;color:var(--m);font-size:13px}
 @media (prefers-reduced-motion:no-preference){.dot.r{animation:p 1.6s ease-in-out infinite}@keyframes p{50%{opacity:.35}}}
 </style>
 
 <div class="wrap">
 <div class="intro">
   <h1>Night Desk</h1>
-  <p>Dark operator console for watching long runs and clearing decisions fast. Orange appears only on items waiting for a person. Example data: financials extraction run fx-0412, Siemens Energy FY2025.</p>
+  <p>The same review screen twice. The top one uses ARP's current dark-mode colours and fonts; the bottom one uses Night Desk's. Only the colours and fonts differ. Example data: financials extraction run fx-0412, Siemens Energy FY2025.</p>
 </div>
 
-<div class="frame"><div class="app">
+<div class="vs" id="cur-slot"><h2>Current dark mode</h2><p>Near-black neutral greys, lime for "needs you", Hanken Grotesk and JetBrains Mono, no colour for running.</p></div>
+
+<div class="vs"><h2>Night Desk</h2><p>Blue-black with stepped panels, orange for "needs you" (same as light mode), blue for running, Geist and Geist Mono.</p></div>
+
+<div class="frame" id="nd"><div class="app">
   <nav aria-label="Runs">
     <div class="brand">ARP <kbd>⌘K</kbd></div>
     <div class="cap">Needs you</div>
@@ -149,6 +159,14 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
     <div class="log" aria-label="Live log"><span>14:02:11</span> EBITA → AR p.36 ✓<br><span>14:02:13</span> FCF pre tax → AR p.41 ✓<br><span>14:02:15</span> <em>order backlog → press release only</em><br><span>14:02:16</span> net debt → AR p.52 …</div>
   </aside>
 </div></div>
+
+<script>
+// Clone the Night Desk screen and restyle it with the current tokens, so both show identical content.
+const nd=document.getElementById('nd'),c=nd.cloneNode(true);c.id='';c.classList.add('cur');
+c.querySelectorAll('button.pri').forEach(b=>b.firstChild.textContent=b.firstChild.textContent);
+document.getElementById('cur-slot').appendChild(c);
+document.querySelector('#nd').previousElementSibling.appendChild(nd);
+</script>
 
 <div class="notes">
   <div><b>Keyboard first</b>A, R and E decide the selected item. J and K move between items. ⌘K jumps to any run.</div>
