@@ -158,6 +158,21 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 .dec{display:flex;gap:8px;align-items:center;margin-top:6px}.dec button{min-width:120px;justify-content:center}
 .raw{margin-left:auto;font:500 12px var(--mono);color:var(--m)}
 .ri.done{opacity:.75}
+.sw main.sm{padding-top:32px;gap:24px;align-content:start;overflow:hidden}
+.crumb{margin:0 0 6px;font-size:13px;color:var(--m)}.crumb span{color:var(--f);text-decoration:underline;text-underline-offset:3px}
+.flow{display:grid;gap:12px}.fh{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.fh h3{margin:0;font-size:1.2rem;font-weight:600}.fh p{margin:4px 0 0;color:var(--m);font-size:14px}.fh b{color:var(--f);font-weight:600}
+.cad{font:500 12px var(--mono);color:var(--m);border:1px solid var(--line);border-radius:99px;padding:4px 10px;white-space:nowrap}
+.steps5,.steps4{display:grid;gap:10px;counter-reset:x}.steps5{grid-template-columns:repeat(5,1fr)}.steps4{grid-template-columns:repeat(4,1fr)}
+.st{position:relative;background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:14px 16px 0;display:grid;gap:8px;grid-template-rows:auto auto 1fr auto}
+.st+.st::before{content:"";position:absolute;left:-11px;top:26px;width:10px;height:2px;background:var(--line)}
+.st.w{border-color:var(--o)}
+.sth{display:flex;gap:10px;align-items:center}.sn{font:500 12px var(--mono);width:24px;height:24px;display:grid;place-items:center;border-radius:6px;background:var(--s2);color:var(--m)}
+.st.w .sn{background:var(--of);color:var(--o)}
+.stt{font:600 13px var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.sst{display:flex;gap:6px;align-items:center;font:500 12px var(--mono)}.sst.o{color:var(--o)}.sst.r{color:var(--run)}.sst.k{color:var(--m)}
+.st p{margin:0;font-size:13.5px;line-height:1.5;color:var(--m)}
+.hands{margin:0 -16px;padding:10px 16px;border-top:1px solid var(--line);font-size:13px}
 .prun{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--b);font-size:13px}
 .prun .mono{font-size:12px;color:var(--m)}
 .shots .frame{overflow:hidden}.shots .app{zoom:.5}
@@ -196,6 +211,20 @@ aside{border-left:1px solid var(--line);background:var(--s1);padding:20px;displa
 <div class="vs"><h2>Review queue page · Light mode</h2>
 <div class="shots"><figure><img src="shots/review-light-current.png" alt="Review queue, current light theme"><figcaption>Current · light</figcaption></figure><figure class="ndr-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure></div></div>
 
+<div class="vs"><h2>StewardIQ page · Dark mode</h2><p>Left: ARP's real StewardIQ page today (backend offline, so step states are unknown). Right: the same page and structure in Night Desk styling, with example step states.</p>
+<div class="shots"><figure><img src="shots/steward-dark-current.png" alt="StewardIQ, current dark theme"><figcaption>Current · dark</figcaption></figure><figure class="ndw-slot" data-cls=""><figcaption>Night Desk · dark</figcaption></figure></div></div>
+<div class="vs"><h2>StewardIQ page · Light mode</h2>
+<div class="shots"><figure><img src="shots/steward-light-current.png" alt="StewardIQ, current light theme"><figcaption>Current · light</figcaption></figure><figure class="ndw-slot" data-cls="ndl"><figcaption>Night Desk · light</figcaption></figure></div></div>
+
+<template id="ndw"><div class="frame"><div class="app start same sw">
+  <nav aria-label="Navigation"></nav>
+  <main class="sm">
+    <div><p class="crumb"><span>Start</span> › StewardIQ</p><h2 class="hello">StewardIQ</h2><p class="lede">Engage companies, vote, and track what they commit to. Open a step to work in its screen; a bar there shows the next step.</p></div>
+    <section class="flow"><div class="fh"><div><h3>Engage and escalate</h3><p><b>Done when:</b> Every issue has an owner, a next step and a documented escalation path.</p></div><span class="cad">Continuous</span></div><div class="steps5"><div class="st w"><div class="sth"><span class="sn">1</span><span class="stt">Monitoring</span></div><span class="sst o"><i class="dot o"></i>4 new triggers</span><p>Triggers on holdings (incl. Risk Monitoring alerts and votes against management), checked against house policy.</p><div class="hands">Hands on: Triggers</div></div><div class="st"><div class="sth"><span class="sn">2</span><span class="stt">Selection</span></div><span class="sst k"><i class="dot k"></i>Cycle set</span><p>Coverage rules, reading published tiers, decide who is engaged this cycle.</p><div class="hands">Hands on: Engagement program</div></div><div class="st"><div class="sth"><span class="sn">3</span><span class="stt">Engagement</span></div><span class="sst r"><i class="dot r"></i>12 open issues</span><p>Issue record: contacts, severity, milestone and escalation stage.</p><div class="hands">Hands on: Issue record</div></div><div class="st w"><div class="sth"><span class="sn">4</span><span class="stt">Drafting</span></div><span class="sst o"><i class="dot o"></i>2 to approve</span><p>Dossier, outreach letter and talking points; a person approves before sending.</p><div class="hands">Hands on: Sent outreach</div></div><div class="st"><div class="sth"><span class="sn">5</span><span class="stt">Tracking</span></div><span class="sst k"><i class="dot k"></i>31 tracked</span><p>Commitments verified or missed; missed ones escalate and loop back to monitoring.</p><div class="hands">Hands on: Commitments</div></div></div></section>
+    <section class="flow"><div class="fh"><div><h3>Proxy season</h3><p><b>Done when:</b> Voting intentions published, votes cast checked against policy, outcomes fed into engagement.</p></div><span class="cad">Per meeting, peaks March–June</span></div><div class="steps4"><div class="st"><div class="sth"><span class="sn">1</span><span class="stt">Proxy voting</span></div><span class="sst r"><i class="dot r"></i>Run 64%</span><p>Start a run from meeting agendas; the policy drafts a vote per resolution, a person decides.</p><div class="hands">Hands on: Decided ballots</div></div><div class="st"><div class="sth"><span class="sn">2</span><span class="stt">Steward · Voting</span></div><span class="sst k"><i class="dot k"></i>18 decided</span><p>Decided ballots next to the house policy behind them.</p><div class="hands">Hands on: Votes against policy</div></div><div class="st w"><div class="sth"><span class="sn">3</span><span class="stt">Checkpoint</span></div><span class="sst o"><i class="dot o"></i>1 to review</span><p>Review every vote decided against the policy’s recommendation, with its reason.</p><div class="hands">Hands on: Votes against management</div></div><div class="st"><div class="sth"><span class="sn">4</span><span class="stt">Engagement</span></div><p>A vote against management raises a vote_outcome trigger; open the engagement from Monitoring.</p><div class="hands">Hands on: Triggers</div></div></div></section>
+    <section class="flow"><div class="fh"><div><h3>Client reporting</h3><p><b>Done when:</b> A client report showing house activity plus only where the client's policy differed.</p></div><span class="cad">Quarterly</span></div></section>
+  </main>
+</div></div></template>
 <template id="ndr"><div class="frame"><div class="app start same rq">
   <nav aria-label="Navigation"></nav>
   <main class="sm">
@@ -336,6 +365,10 @@ for(const [title,...cols] of rows){
   f.append(c);const fc=document.createElement('figcaption');fc.textContent=cap;f.append(fc);grid.append(f);}
  sec.append(grid);host.append(sec);}
 for(const f of document.querySelectorAll('.nds-slot')){const c=document.getElementById('nds').content.firstElementChild.cloneNode(true);if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
+for(const f of document.querySelectorAll('.ndw-slot')){const c=document.getElementById('ndw').content.firstElementChild.cloneNode(true);
+ c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
+ c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.includes('StewardIQ')));
+ if(f.dataset.cls)c.classList.add(f.dataset.cls);f.prepend(c);}
 for(const f of document.querySelectorAll('.ndr-slot')){const c=document.getElementById('ndr').content.firstElementChild.cloneNode(true);
  c.querySelector('nav').replaceWith(document.getElementById('nds').content.querySelector('nav').cloneNode(true));
  c.querySelectorAll('nav .run').forEach(r=>r.classList.toggle('on',r.textContent.includes('Review Queue')));
