@@ -35,7 +35,6 @@ const METHOD_LABELS: Record<DerivationMethod, string> = {
 const CREATABLE_METHODS: DerivationMethod[] = [
   "llm_draft",
   "industry_anchored",
-  "authority_source",
   "news_transcript_mining",
 ];
 
@@ -68,6 +67,9 @@ export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
     <div className="page">
       <h1>Taxonomy Library</h1>
       <p className="help-text">Versioned thematic taxonomies with provenance: draft one from a source, news or transcripts, then review, ratify, compare and merge.</p>
+      <div className="inline-block">
+        <button onClick={() => { window.location.hash = "#/taxonomy/authority"; }}>Build from authority sources</button>
+      </div>
       <nav className="sub-nav">
         {SUB_TABS.map((t) => (
           <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} aria-pressed={t.id === sub} onClick={() => setSub(t.id)}>
@@ -294,47 +296,21 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
   const [mineNews, setMineNews] = useState(true);
   const [universePath, setUniversePath] = useState<string | null>(null);
 
-  const [authorityCandidates, setAuthorityCandidates] = useState<SourceCandidate[]>([]);
-  const [selectedAuthority, setSelectedAuthority] = useState<Set<string>>(new Set());
-
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Taxonomy | null>(null);
   const [draftActivities, setDraftActivities] = useState<ActivityDefinition[]>([]);
 
-  async function discoverAuthoritySources() {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = (await api.discoverTaxonomySources(name)) as { authority_sources: SourceCandidate[] };
-      setAuthorityCandidates(res.authority_sources);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function toggleAuthority(candidateId: string) {
-    setSelectedAuthority((prev) => {
-      const next = new Set(prev);
-      if (next.has(candidateId)) next.delete(candidateId);
-      else next.add(candidateId);
-      return next;
-    });
-  }
-
   async function draftTaxonomy() {
     setBusy(true);
     setError(null);
     try {
-      const authorityUrls = authorityCandidates.filter((c) => selectedAuthority.has(c.candidate_id)).map((c) => c.url);
       const payload = {
         name,
         description,
         derivation_method: method,
         use_sample_io: useSampleIo,
-        authority_urls: authorityUrls,
+        authority_urls: [], // still sent, empty: the create request keeps its shape
         universe_path: universePath,
         mine_news: mineNews,
       };
@@ -396,15 +372,6 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
             <input type="checkbox" checked={useSampleIo} onChange={(e) => setUseSampleIo(e.target.checked)} />
             Anchor against the bundled sample input-output industry list
           </label>
-        )}
-
-        {method === "authority_source" && (
-          <div className="inline-block">
-            <button onClick={discoverAuthoritySources} disabled={busy || !name}>
-              Discover authority sources
-            </button>
-            <SourceDiscoveryPanel candidates={authorityCandidates} selected={selectedAuthority} onToggle={toggleAuthority} />
-          </div>
         )}
 
         {method === "news_transcript_mining" && (

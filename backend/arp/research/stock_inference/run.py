@@ -61,8 +61,10 @@ def _round(v):
 
 
 def dump(run: InferRun) -> dict:
-    """The run JSON: numbers rounded to 4 decimals; a profile's `error` is absent on success."""
+    """The run JSON: numbers rounded to 4 decimals; a profile's `error` and an unset `comovement` are absent."""
     data = _round(run.model_dump(mode="json"))
+    if data["comovement"] is None:
+        del data["comovement"]
     for p in data["profiles"]:
         if p["error"] is None:
             del p["error"]
