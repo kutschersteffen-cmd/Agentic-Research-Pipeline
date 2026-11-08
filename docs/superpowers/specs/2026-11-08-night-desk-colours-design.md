@@ -97,9 +97,9 @@ the builder does not pick a new value.
 |------|-------|------|--------------------------|------------|
 | AC-1 | No `data-theme` on `<html>`, OS light | `index.css` is loaded | Each of the 17 tokens in the table equals its Light value | unit |
 | AC-2 | `data-theme="dark"` on `<html>` | `index.css` is loaded | Each of the 17 tokens equals its Dark value | unit |
-| AC-3 | No `data-theme`, `prefers-color-scheme: dark` | `index.css` is loaded | Each of the 17 tokens equals its Dark value | unit |
+| AC-3 | No `data-theme`, `prefers-color-scheme: dark` | The test extracts the declarations inside the `@media (prefers-color-scheme: dark)` block of `index.css` | Each of the 17 tokens there equals its Dark value | unit |
 | AC-4a | `data-theme="dark"` | `index.css` is loaded | `--font-display` starts with `"Geist"`; `--font-mono` starts with `"Geist Mono"` | unit |
-| AC-4b | No `data-theme`, `prefers-color-scheme: dark` | `index.css` is loaded | `--font-display` starts with `"Geist"`; `--font-mono` starts with `"Geist Mono"` | unit |
+| AC-4b | No `data-theme`, `prefers-color-scheme: dark` | The test extracts the `@media (prefers-color-scheme: dark)` block of `index.css` | `--font-display` starts with `"Geist"`; `--font-mono` starts with `"Geist Mono"` | unit |
 | AC-5 | The branch | `grep -i "c6ff3d\|ea4c14" frontend/src/index.css` runs | It prints nothing | unit |
 | AC-6 | Light, then dark | Contrast is computed for `--text`, `--muted`, `--hi-ink` on `--bg`, `--panel`, `--well` | All 9 pairs are at least 4.5:1 in each theme | unit |
 | AC-6b | Light, then dark | Contrast is computed for `--on-accent` on `--accent`, `--on-hi` on `--hi`, `--hi-ink` on `--await` (dark `--await` composited over `--panel`) | Each pair is at least 4.5:1 in each theme | unit |
@@ -108,13 +108,14 @@ the builder does not pick a new value.
 | AC-8a | Light mode, the sidebar rendered by the existing `App` component test setup with a review count of 1 | The Review Queue count pill renders | Its computed `border-color` or `color` is `rgb(133, 96, 26)` | unit |
 | AC-8b | Light mode, the same render | All elements are scanned | No element's computed `color`, `background-color` or `border-color` is `rgb(234, 76, 20)` | unit |
 | AC-9 | Dark tokens | The CIE76 colour difference (ΔE*ab) between dark `--mid` and dark `--hi` is computed | It is at least 10 | unit |
-| AC-10 | Each sidebar page (Start, Review Queue, StewardIQ, Argus, Transition Intelligence Platform, R&D Lab, Data Hub, Presentations & Reports, Arcade) at 1440×900, light | Compared with `main` | The same headings, buttons, sidebar items and table columns are present in the same count and order; layout differs only by corner rounding | evaluator |
-| AC-10b | The same pages, dark | Compared with `main` | Same as AC-10; text may wrap differently only because the font changed | evaluator |
+| AC-10 | Each sidebar page (Start, Review Queue, StewardIQ, Argus, Transition Intelligence Platform, R&D Lab, Data Hub, Presentations & Reports, Arcade) at 1440×900, light | Compared with baseline screenshots and landmark lists captured from `origin/main` with the same stack, viewport and seed data before the PR build starts | The same headings, buttons, sidebar items and table columns are present in the same count and order; layout differs only by corner rounding | evaluator |
+| AC-10b | The same pages, dark | Compared with the same `origin/main` baseline, dark | Same as AC-10; text may wrap differently only because the font changed | evaluator |
 | AC-11a | The app running, sidebar switch | System, Light, Dark are clicked in turn | After each click, without reload, `--bg` equals that theme's table value (System follows the OS) | evaluator |
 | AC-11b | After each click in AC-11a | The page is reloaded | The switch shows the same choice and `--bg` has the same value as before the reload | evaluator |
-| AC-12 | Light, then dark | `--cat-1..4` are read; `git diff origin/main -- frontend/src/lib/palette.ts` runs | Light `#2a78d6 #c2407f #a87400 #6250d6`, dark `#3987e5 #d55181 #c98500 #9085e9`; the diff prints nothing | unit |
-| AC-13 | The branch vs `origin/main` | The set of CSS selectors in `frontend/src` that reference `--hi`, `--hi-ink`, `--await` or `--await-edge` is listed | It is identical to the set on `origin/main` (amber stays limited to "waiting on a person") | unit |
+| AC-12a | Light, then dark | `--cat-1..4` are read | Light `#2a78d6 #c2407f #a87400 #6250d6`, dark `#3987e5 #d55181 #c98500 #9085e9` | unit |
+| AC-12b | The branch | `git diff origin/main -- frontend/src/lib/palette.ts` runs | It prints nothing | unit |
+| AC-13 | The branch vs `origin/main` | The (file, selector-or-component) locations in `frontend/src` (`.css`, `.ts`, `.tsx`) whose text contains `var(--hi`, `var(--hi-ink`, `var(--await` or `var(--await-edge` are listed | The set is identical to the set on `origin/main` (amber stays limited to "waiting on a person") | unit |
 | AC-14 | Light, then dark | `--mid`, `--neutral`, `--accent-ink`, `--accent-tint`, `--text-xs..xl`, `--s-*`, `--shadow-md`, `--shadow-lg`, `--ease`, `--dur` are read | Each equals its value on `origin/main` in the same theme | unit |
 
 Must not change: layout and markup (AC-10, AC-10b), theme switching (AC-11a, AC-11b), chart colours
-(AC-12), where amber is used (AC-13), untouched tokens (AC-14).
+(AC-12a, AC-12b), where amber is used (AC-13), untouched tokens (AC-14).
