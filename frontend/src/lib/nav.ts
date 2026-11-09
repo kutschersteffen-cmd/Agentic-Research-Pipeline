@@ -43,3 +43,8 @@ export function currentNavIds(active: string): string[] {
 /** The waiting-count badge on a sidebar link. */
 export const navCount = (id: string, waiting: { review: number } | null): number =>
   id === "review" ? (waiting?.review ?? 0) : 0;
+
+/** Opening ARP with no page in the address (or #/welcome) lands on the landing page;
+ * every other hash routes as before, so direct links keep working. */
+export const entryTab = (hash: string): "welcome" | null =>
+  ["", "#", "#/", "#/welcome"].includes(hash) ? "welcome" : null;
