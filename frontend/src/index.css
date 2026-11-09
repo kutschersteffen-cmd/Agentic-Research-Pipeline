@@ -2354,3 +2354,4 @@ a.hub-waiting:hover { text-decoration: underline; text-underline-offset: 0.2em; 
 .hub-card-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--panel-border); border-radius: var(--r-md); background: var(--bg); }
 .hub-card-await .hub-card-icon { border-color: var(--await-edge); }
 .hub-card-foot { border-top: 1px solid var(--panel-border); padding-top: var(--s-2); }
+.hub-card-icon .hub-ico { width: 26px; height: 26px; }
