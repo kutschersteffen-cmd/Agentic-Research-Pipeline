@@ -162,3 +162,25 @@ def test_bad_file_is_400_and_unknown_flow_is_404(client, fid):
     assert client.post(f"/api/argus/flows/{fid}/companies/upload", files={"file": ("u.txt", "x")}).status_code == 400
     assert client.post(f"/api/argus/flows/{fid}/companies/upload", files={"file": ("u.json", "{")}).status_code == 400
     assert client.post("/api/argus/flows/nope/companies/upload", files={"file": ("u.csv", CSV)}).status_code == 404
+
+
+def test_a_name_only_company_gets_a_safe_key(client, fid):
+    from arp.storage.safe_path import safe_id
+    flow = client.post(f"/api/argus/flows/{fid}/companies", json={"company": {"name": "Siemens AG"}}).json()
+    c = flow["companies"][0]
+    assert (c["name"], c["company_id"]) == ("Siemens AG", "siemens-ag")
+    assert safe_id(c["company_id"])
+
+
+def test_an_unsafe_own_id_becomes_a_safe_key(client, fid, pg):
+    flow = upload(client, fid, "name,company_id\nAcme,Acme Corp/1\n")
+    assert flow["companies"][0]["company_id"] == "acme-corp-1"
+
+
+def test_a_stored_flow_with_an_unsafe_key_reads_back_safe(client, fid, settings):
+    path = settings.runs_dir / "_flows" / f"{fid}.json"
+    data = json.loads(path.read_text())
+    data["companies"] = [{"company_id": "Siemens AG", "name": "Siemens AG"}]
+    path.write_text(json.dumps(data))
+    c = client.get(f"/api/argus/flows/{fid}").json()["companies"][0]
+    assert (c["company_id"], c["name"]) == ("siemens-ag", "Siemens AG")

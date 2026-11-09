@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from arp.argus.flows import ArgusFlow
+from arp.argus.flows import ArgusFlow, safe_key
 from arp.db.companies import lookup, normalise_identifier, resolve
 from arp.db.models import CompanyIdentifier, IdScheme
 from arp.schemas.common import CompanyRef
@@ -65,7 +65,7 @@ def register(session: Session, row: dict) -> CompanyRef | None:
             own_id = None  # another company's id: never the key two rows could share
     # Earlier runs and documents are filed under the universe id (until they are filed by central id).
     key = (entity_id and _universe_id(session, entity_id)) or own_id or str(entity_id or name)
-    return CompanyRef(**{**fields, "name": name, "company_id": key, "entity_id": entity_id})
+    return CompanyRef(**{**fields, "name": name, "company_id": safe_key(key), "entity_id": entity_id})
 
 
 def _universe_id(session: Session, entity_id) -> str | None:

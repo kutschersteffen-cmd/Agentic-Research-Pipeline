@@ -5,6 +5,7 @@ One JSON file per flow under `runs_dir/_flows/`, so no worker, Run History or re
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
@@ -21,6 +22,14 @@ from arp.storage.locks import KeyedLock
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
 logger = logging.getLogger(__name__)
+
+
+def safe_key(value: str) -> str:
+    """A company key every documents endpoint accepts (`safe_id`); a name like `Siemens AG` becomes `siemens-ag`."""
+    try:
+        return safe_id(value)
+    except UnsafeIdentifierError:
+        return re.sub(r"[^a-z0-9._-]+", "-", value.lower()).strip("-._")[:128] or "company"
 
 
 class ArgusFlow(BaseModel):
@@ -53,7 +62,12 @@ class FlowStore:
 
     def get(self, flow_id: str) -> ArgusFlow | None:
         path = self._path(flow_id)
-        return ArgusFlow.model_validate_json(read_text_utf8(path)) if path and path.is_file() else None
+        if not (path and path.is_file()):
+            return None
+        flow = ArgusFlow.model_validate_json(read_text_utf8(path))
+        for c in flow.companies:  # flows saved before keys were made safe
+            c.company_id = safe_key(c.company_id)
+        return flow
 
     def save(self, flow: ArgusFlow) -> ArgusFlow:
         self.flows_dir.mkdir(parents=True, exist_ok=True)
