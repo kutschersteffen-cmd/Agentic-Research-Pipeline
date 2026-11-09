@@ -89,3 +89,14 @@ def add_companies(flow: ArgusFlow, companies: list[CompanyRef]) -> None:
         if key(c) not in seen:
             seen.add(key(c))
             flow.companies.append(c)
+
+
+def with_register_ids(session: Session, company: CompanyRef) -> CompanyRef:
+    """The company with the LEI and CIK the register holds for it filled in where the list gave none (discovery needs them)."""
+    if not company.entity_id:
+        return company
+    have = dict(session.execute(select(CompanyIdentifier.scheme, CompanyIdentifier.value).where(
+        CompanyIdentifier.company_id == company.entity_id, CompanyIdentifier.valid_to.is_(None),
+        CompanyIdentifier.scheme.in_((str(IdScheme.LEI), str(IdScheme.CIK)))).order_by(CompanyIdentifier.id.desc())).all())
+    return company.model_copy(update={"lei": company.lei or have.get(str(IdScheme.LEI)),
+                                      "cik": company.cik or have.get(str(IdScheme.CIK))})

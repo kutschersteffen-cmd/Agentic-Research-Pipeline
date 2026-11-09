@@ -33,3 +33,24 @@ async def test_web_off_uses_filings_only(tmp_path, monkeypatch):
 
     assert [d.url for d in result.documents_found] == ["https://sec.example/10k"]
     assert result.homepage_used is None
+
+
+async def test_expected_year_reaches_the_search(tmp_path, monkeypatch):
+    seen = []
+
+    async def _search(company, client, year, types, **kw):
+        seen.append(year)
+        return []
+
+    monkeypatch.setattr(pipeline_module, "search_candidates", _search)
+    settings = Settings(documents_dir=tmp_path / "documents", discovery_state_dir=tmp_path / "state")
+    company = CompanyRef(company_id="acme", name="Acme", website="https://acme.example")
+    monkeypatch.setattr(pipeline_module, "crawl_for_documents", lambda *a, **k: _empty())
+    detector = ChangeDetector(state_dir=settings.discovery_state_dir, global_events_path=settings.documents_dir / "_events.jsonl")
+    await _discover_for_company(company, settings=settings, search_client=_FailingSearch(), change_detector=detector,
+                                doc_types=None, expected_year=2023)
+    assert seen == [2023]
+
+
+async def _empty():
+    return []

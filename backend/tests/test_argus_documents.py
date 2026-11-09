@@ -101,14 +101,50 @@ def test_find_needs_a_find_source_and_starts_one_run(client, fid, monkeypatch):
     started = []
 
     async def fake(run_id, companies, **kw):
-        started.append((run_id, len(companies), kw["web"]))
+        started.append((run_id, len(companies), kw["web"], kw["expected_year"]))
 
     monkeypatch.setattr(router, "execute_discovery_run", fake)
     assert client.post(f"/api/argus/flows/{fid}/documents/find").status_code == 400
     client.patch(f"/api/argus/flows/{fid}", json={"source": "filings"})
     flow = client.post(f"/api/argus/flows/{fid}/documents/find").json()
-    assert started == [(flow["discovery_run_id"], 3, False)]
+    assert started == [(flow["discovery_run_id"], 3, False, 2025)]
     assert flow["discovery"]["run_id"] == flow["discovery_run_id"]
+    assert client.post(f"/api/argus/flows/{fid}/documents/find").status_code == 409  # still pending
+
+
+def test_find_fills_identifiers_from_the_company_register(client, monkeypatch):
+    from arp.api.routers import argus as router
+
+    got = []
+
+    async def fake(run_id, companies, **kw):
+        got.extend(companies)
+
+    monkeypatch.setattr(router, "execute_discovery_run", fake)
+    fid = client.post("/api/argus/flows").json()["flow_id"]
+    client.post(f"/api/argus/flows/{fid}/companies/upload", files={"file": ("u.csv", "name,lei,cik\nApple Inc,HWUPKR0MPOU8FGXBT394,0000320193\n")})
+    # a second flow names the same company by its LEI only: discovery still gets the CIK on file
+    fid = client.post("/api/argus/flows").json()["flow_id"]
+    client.post(f"/api/argus/flows/{fid}/companies/upload", files={"file": ("u.csv", "name,lei\nApple Inc,HWUPKR0MPOU8FGXBT394\n")})
+    client.patch(f"/api/argus/flows/{fid}", json={"source": "filings_web"})
+    assert client.post(f"/api/argus/flows/{fid}/documents/find").status_code == 200
+    assert [(c.lei, c.cik) for c in got] == [("HWUPKR0MPOU8FGXBT394", "320193")]  # the register's normalised CIK
+
+
+def test_find_restarts_once_the_run_has_gone_stale(client, fid, monkeypatch):
+    from datetime import timedelta
+
+    from arp.api.routers import argus as router
+
+    async def fake(run_id, companies, **kw):
+        return None
+
+    monkeypatch.setattr(router, "execute_discovery_run", fake)
+    client.patch(f"/api/argus/flows/{fid}", json={"source": "filings"})
+    first = client.post(f"/api/argus/flows/{fid}/documents/find").json()["discovery_run_id"]
+    monkeypatch.setattr(router, "DISCOVERY_STALE_AFTER", timedelta(0))  # no progress since: the run is stale
+    second = client.post(f"/api/argus/flows/{fid}/documents/find")
+    assert second.status_code == 200 and second.json()["discovery_run_id"] != first
 
 
 def test_upload_for_a_company_outside_the_flow_or_unknown_flow(client, fid, tmp_path):

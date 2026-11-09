@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -10,8 +11,8 @@ from pydantic import BaseModel, Field
 from arp.api.auth import Principal, current_user, require_role
 from arp.api.deps import get_document_content_store, get_identifier_map, get_run_store, settings_dep
 from arp.api.routers.universe_workbench import MAX_COMPANIES
-from arp.argus.companies import add_companies, parse_rows, register
-from arp.argus.documents import FlowFile, decide, flow_files, store_upload
+from arp.argus.companies import add_companies, parse_rows, register, with_register_ids
+from arp.argus.documents import FlowFile, decide, expected_year, flow_files, store_upload
 from arp.argus.flows import ArgusFlow, FlowStore, SkippedUpload, get_flow_store
 from arp.argus.rows import FlowRow, flow_rows
 from arp.config import Settings
@@ -26,6 +27,8 @@ from arp.storage.safe_path import UnsafeIdentifierError
 from arp.xbrl_pipeline.store import XbrlStore
 
 router = APIRouter(prefix="/api/argus", tags=["argus"])
+# A discovery run with no progress for this long is taken as dead (its worker was restarted), so it can be started again.
+DISCOVERY_STALE_AFTER = timedelta(minutes=30)
 
 
 class DiscoveryStatus(BaseModel):
@@ -151,11 +154,15 @@ async def find_documents(
         raise HTTPException(400, "Choose Official filings or Filings + company websites first.")
     if not flow.companies:
         raise HTTPException(400, "Add companies in step 1 first.")
-    web = flow.source == "filings_web"
-    run_id = create_discovery_run(flow.companies, None, "argus", run_store)
+    m = run_store.load_manifest(flow.discovery_run_id) if flow.discovery_run_id else None
+    if m and m.status in ("pending", "running") and datetime.now(UTC) - datetime.fromisoformat(m.updated_at) < DISCOVERY_STALE_AFTER:
+        raise HTTPException(409, "Documents are still being searched for.")
+    with transaction(require_dsn(settings)) as session:
+        companies = [with_register_ids(session, c) for c in flow.companies]
+    run_id = create_discovery_run(companies, None, "argus", run_store)
     JobManager(run_store).set_started_by(run_id, principal.user_id, principal.name)
-    companies = list(flow.companies)
-    asyncio.create_task(execute_discovery_run(run_id, companies, settings=settings, run_store=run_store, web=web))
+    asyncio.create_task(execute_discovery_run(run_id, companies, settings=settings, run_store=run_store,
+                                              web=flow.source == "filings_web", expected_year=expected_year(flow)))
     return view(store.update(flow_id, lambda f: setattr(f, "discovery_run_id", run_id)))
 
 
