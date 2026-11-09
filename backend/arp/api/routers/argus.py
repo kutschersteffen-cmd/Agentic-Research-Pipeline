@@ -94,7 +94,8 @@ class Viewer:
 
     def files(self, flow: ArgusFlow) -> list[FlowFile]:
         return flow_files(flow, documents_dir=self.settings.documents_dir, content_store=self.content_store,
-                          checks_dir=self.settings.runs_dir / "_flows" / "_checks")
+                          checks_dir=self.settings.runs_dir / "_flows" / "_checks",
+                          discovery_state_dir=self.settings.discovery_state_dir)
 
 
 @router.post("/flows")

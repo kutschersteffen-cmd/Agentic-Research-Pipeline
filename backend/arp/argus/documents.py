@@ -11,10 +11,12 @@ import re
 from datetime import date
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import BaseModel
 
 from arp.argus.flows import ArgusFlow
+from arp.discovery.change_detector import ChangeDetector
 from arp.discovery.doc_check import _contains_name, check_document
 from arp.ingestion.doc_identity import reporting_year
 from arp.schemas.common import CompanyRef
@@ -88,14 +90,23 @@ def _inspect(path: Path, company: CompanyRef, checks_dir: Path) -> tuple[str, in
 def _source(url: str | None) -> Literal["upload", "filings", "web"]:
     if not url:
         return "upload"
-    return "filings" if any(h in url for h in _FILING_HOSTS) else "web"
+    host = urlparse(url).hostname or ""
+    return "filings" if any(host == h or host.endswith("." + h) for h in _FILING_HOSTS) else "web"
 
 
-def flow_files(flow: ArgusFlow, *, documents_dir: Path, content_store: DocumentContentStore, checks_dir: Path) -> list[FlowFile]:
+def flow_files(
+    flow: ArgusFlow, *, documents_dir: Path, content_store: DocumentContentStore, checks_dir: Path, discovery_state_dir: Path,
+) -> list[FlowFile]:
     expected = expected_year(flow)
     companies = {c.company_id: c for c in flow.companies}
     registered = [d for d in content_store.list_all_documents() if d.company_id in companies]
     url_of = {Path(d.local_path).resolve(): d.source_url for d in registered if d.local_path}
+    # the crawler's downloads are not registered with their URL; discovery's manifest has it
+    detector = ChangeDetector(state_dir=discovery_state_dir, global_events_path=documents_dir / "_events.jsonl")
+    for cid in companies:
+        for url, d in detector.known_documents(cid).items():
+            if d.local_path:
+                url_of.setdefault(Path(d.local_path).resolve(), url)
     out: list[FlowFile] = []
     for cid, company in companies.items():
         try:

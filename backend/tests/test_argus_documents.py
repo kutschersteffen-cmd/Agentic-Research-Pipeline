@@ -16,7 +16,7 @@ LIST = "name,company_id\nApple Inc,aapl\nMicrosoft Corporation,msft\nSAP SE,sap\
 @pytest.fixture
 def settings(tmp_path, pg):
     return Settings(anthropic_api_key="unused", runs_dir=tmp_path / "runs", cache_dir=tmp_path / "cache",
-                    documents_dir=tmp_path / "docs", postgres_dsn=pg)
+                    documents_dir=tmp_path / "docs", discovery_state_dir=tmp_path / "state", postgres_dsn=pg)
 
 
 @pytest.fixture
@@ -122,3 +122,23 @@ def test_upload_for_a_company_outside_the_flow_or_unknown_flow(client, fid, tmp_
 def test_step_only_moves_forward(client, fid):
     assert client.patch(f"/api/argus/flows/{fid}", json={"step": 3}).json()["step"] == 3
     assert client.patch(f"/api/argus/flows/{fid}", json={"step": 2}).json()["step"] == 3
+
+
+def test_files_found_on_websites_or_filings_say_so(client, fid, tmp_path, settings):
+    import asyncio
+
+    from arp.discovery.change_detector import ChangeDetector
+    from arp.schemas.common import CompanyRef
+    from arp.schemas.discovery import DiscoveredDocument
+
+    folder = settings.documents_dir / "aapl" / "10-K"
+    folder.mkdir(parents=True)
+    urls = {"web.pdf": "https://investor.apple.com/ar.pdf", "sec.pdf": "https://www.sec.gov/x.pdf",
+            "fake.pdf": "https://notsec.gov.example.com/x.pdf"}
+    for name in urls:
+        (folder / name).write_bytes(pdf(tmp_path, name, "Apple Inc Annual Report 2025"))
+    detector = ChangeDetector(state_dir=settings.discovery_state_dir, global_events_path=tmp_path / "events.jsonl")
+    asyncio.run(detector.diff_and_record(CompanyRef(company_id="aapl", name="Apple Inc"), [
+        DiscoveredDocument(company_id="aapl", doc_type="10-K", url=u, local_path=str(folder / n), sha256=n) for n, u in urls.items()]))
+    files = by_name(client.get(f"/api/argus/flows/{fid}").json())
+    assert {n: files[n]["source"] for n in urls} == {"web.pdf": "web", "sec.pdf": "filings", "fake.pdf": "web"}
