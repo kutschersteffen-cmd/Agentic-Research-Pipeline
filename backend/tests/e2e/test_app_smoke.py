@@ -38,8 +38,9 @@ def test_opening_arp_lands_on_the_landing_page(page):
     assert page.get_by_role("heading", name="Agents propose. People ratify.").is_visible()
     assert page.locator(".app-sidebar").count() == 0
     page.get_by_role("link", name="Open ARP →").click()
-    page.wait_for_load_state("networkidle")
-    assert page.title() == "Start · ARP"
+    # The app sets the tab title in an effect after it mounts, so wait for it rather than for the network.
+    page.wait_for_function("document.title === 'Start · ARP'", timeout=10_000)
+    assert page.locator(".app-sidebar").count() == 1
     assert page.console_errors == []
 
 
