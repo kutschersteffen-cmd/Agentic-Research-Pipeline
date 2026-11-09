@@ -2346,3 +2346,12 @@ a.vc-box:hover { border-color: var(--text); }
 .source-excerpt-ctx:first-child { display: block; margin-bottom: var(--s-1); }
 .source-excerpt-ctx:last-child { display: block; margin-top: var(--s-1); }
 .source-excerpt-page mark { background: var(--await); color: inherit; padding: 0 2px; box-shadow: inset 0 -2px var(--await-edge); }
+
+/* Night Desk release 4: the start page's waiting link sits right above the cards. */
+.hub-waiting { display: block; width: max-content; max-width: 100%; margin: 0 0 var(--s-3); color: var(--hi-ink); font-size: var(--text-md); font-weight: 500; text-decoration: none; }
+a.hub-waiting:hover { text-decoration: underline; text-underline-offset: 0.2em; }
+.hub-waiting-quiet { color: var(--muted); }
+.hub-card-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--panel-border); border-radius: var(--r-md); background: var(--bg); }
+.hub-card-await .hub-card-icon { border-color: var(--await-edge); }
+.hub-card-foot { border-top: 1px solid var(--panel-border); padding-top: var(--s-2); }
+.hub-card-icon .hub-ico { width: 26px; height: 26px; }
