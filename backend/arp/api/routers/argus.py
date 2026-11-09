@@ -121,9 +121,21 @@ def patch_flow(flow_id: str, req: FlowPatch, store: FlowStore = Depends(get_flow
 
     def apply(f: ArgusFlow) -> None:
         for k, v in changes.items():
-            setattr(f, k, max(f.step, v) if k == "step" else v)  # step is the furthest reached
+            if k == "step":
+                if v is not None:
+                    f.step = max(f.step, v)  # step is the furthest reached
+            else:
+                setattr(f, k, v)
 
-    return view(store.update(flow_id, apply))
+    flow = store.update(flow_id, apply)
+    if flow and "reporting_year" in changes:  # a file kept for the old year may fail for the new one
+        failing = {x.key for x in view.files(flow) if not x.passes}
+
+        def unkeep(f: ArgusFlow) -> None:
+            f.decisions = {k: v for k, v in f.decisions.items() if not (v == "kept" and k in failing)}
+
+        flow = store.update(flow_id, unkeep)
+    return view(flow)
 
 
 @router.post("/flows/{flow_id}/documents/find", dependencies=[Depends(require_role("analyst"))])

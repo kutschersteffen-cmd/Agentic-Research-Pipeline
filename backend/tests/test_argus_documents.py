@@ -152,3 +152,19 @@ def test_the_check_reads_each_file_name(client, fid, tmp_path, settings):
         (folder / name).write_bytes(data)
     files = by_name(client.get(f"/api/argus/flows/{fid}").json())
     assert (files["report.pdf"]["year"], files["2023_report.pdf"]["year"]) == (2025, 2023)
+
+
+def test_step_null_is_ignored(client, fid):
+    r = client.patch(f"/api/argus/flows/{fid}", json={"step": None})
+    assert r.status_code == 200 and r.json()["step"] == 1
+
+
+def test_a_new_reporting_year_unkeeps_files_that_now_fail(client, fid, tmp_path):
+    up(client, fid, "aapl", "ar.pdf", pdf(tmp_path, "a.pdf", "Apple Inc Annual Report 2025"))
+    up(client, fid, "aapl", "old.pdf", pdf(tmp_path, "b.pdf", "Apple Inc Annual Report 2024"))
+    client.post(f"/api/argus/flows/{fid}/files", json={"keys": ["aapl/10-K/old.pdf"], "state": "removed"})
+    client.post(f"/api/argus/flows/{fid}/files", json={"all_that_pass": True})
+    flow = client.patch(f"/api/argus/flows/{fid}", json={"reporting_year": 2024}).json()
+    files = by_name(flow)
+    assert (files["ar.pdf"]["state"], files["ar.pdf"]["check"]) == (None, "Year 2025, expected 2024")
+    assert files["old.pdf"]["state"] == "removed"  # a removal stays
