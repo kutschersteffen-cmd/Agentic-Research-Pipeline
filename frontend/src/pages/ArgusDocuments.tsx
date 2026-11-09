@@ -23,10 +23,11 @@ const DOC_TYPES: [string, string][] = [
 const SOURCE_WORDS: Record<FlowFile["source"], string> = { upload: "Uploaded", filings: "Official filing", web: "Company website" };
 
 /** Step 2 of an Argus flow: find or take the companies' documents, check each, keep or remove it in this flow. */
-export function ArgusDocuments({ flow, busy, act, onContinue }: {
+export function ArgusDocuments({ flow, busy, act, refresh, onContinue }: {
   flow: Flow;
   busy: boolean;
   act: (fn: () => Promise<Flow | void>) => void;
+  refresh: () => void;
   onContinue: () => void;
 }) {
   const [docType, setDocType] = useState("10-K");
@@ -39,9 +40,9 @@ export function ArgusDocuments({ flow, busy, act, onContinue }: {
   // a discovery run writes its files as it goes: read the flow again until the run ends
   useEffect(() => {
     if (!running) return;
-    const t = setInterval(() => act(() => api.getArgusFlow(id)), 4000);
+    const t = setInterval(refresh, 4000);
     return () => clearInterval(t);
-  }, [running, id, act]);
+  }, [running, refresh]);
 
   // fixed to the viewport and rendered on <body>: the table's scroll box would clip a preview placed inside it
   const showPreview = (key: string, el: HTMLElement) => {

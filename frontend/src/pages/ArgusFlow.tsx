@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { InputPicker } from "../components/InputPicker";
 import { StepBar } from "../components/StepBar";
@@ -23,7 +23,10 @@ export function ArgusFlow({ flowId, step, onSendUniverse }: { flowId: string; st
     api.getArgusFlow(flowId).then(setFlow, (e: Error) => (/not found/i.test(e.message) ? setMissing(true) : setError(e.message)));
   }, [flowId]);
 
+  // bumped at the start and end of every change, so a background read that began before it is dropped
+  const changes = useRef(0);
   const act = useCallback(async (fn: () => Promise<Flow | void>) => {
+    changes.current++;
     setBusy(true);
     setError("");
     try {
@@ -32,9 +35,14 @@ export function ArgusFlow({ flowId, step, onSendUniverse }: { flowId: string; st
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      changes.current++;
       setBusy(false);
     }
   }, []);
+  const refresh = useCallback(() => {
+    const at = changes.current;
+    api.getArgusFlow(flowId).then((f) => at === changes.current && setFlow(f), () => {}); // a failed poll just waits for the next
+  }, [flowId]);
 
   if (missing)
     return (
@@ -60,6 +68,7 @@ export function ArgusFlow({ flowId, step, onSendUniverse }: { flowId: string; st
           flow={flow}
           busy={busy}
           act={act}
+          refresh={refresh}
           onContinue={() =>
             act(async () => {
               // shortcut: hands the kept files' companies to the old Extraction screen until slice 4 builds step 3
