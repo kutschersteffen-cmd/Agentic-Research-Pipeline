@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { cardView, stepStatusLine, workspaceState } from "../src/lib/workspaceCard.ts";
+import { cardView, stepStatusLine, waitingLink, waitingSentence, waitingStat, workspaceState } from "../src/lib/workspaceCard.ts";
 import { WORKSPACES } from "../src/lib/processes.ts";
 import type { RunManifest, StewardshipFlow } from "../src/types.ts";
 
@@ -76,3 +76,21 @@ test("r2: no runs for the workspace is idle", () => assert.equal(workspaceState(
 test("r2 AC-13: runs not loaded is idle", () => assert.equal(workspaceState(ws("Argus"), null), "idle"));
 test("r2 AC-19b: workspace order unchanged", () =>
   assert.deepEqual(WORKSPACES.map((w) => w.name), ["StewardIQ", "Argus", "Transition Intelligence Platform", "R&D Lab", "Data Hub"]));
+
+// Night Desk release 4 (docs/superpowers/specs/2026-11-09-night-desk-start-page-design.md).
+test("r4_ac1", () => assert.equal(waitingSentence(false, "x", null), "Runs could not be loaded."));
+test("r4_ac2", () => assert.equal(waitingSentence(false, null, null), "Loading runs…"));
+test("r4_ac3", () => assert.equal(waitingSentence(true, null, "error"), "What waits on you could not be loaded."));
+test("r4_ac4", () => assert.equal(waitingSentence(true, null, null), "Loading what waits on you…"));
+test("r4_ac5", () => assert.equal(waitingSentence(true, null, 1), "1 decision waits on you."));
+test("r4_ac6", () => assert.equal(waitingSentence(true, null, 7), "7 decisions wait on you."));
+test("r4_ac7", () => assert.equal(waitingSentence(true, null, 0), "Nothing waits on you."));
+test("r4_ac8", () => assert.deepEqual(waitingLink(true, null, 7), { text: "7 decisions wait on you →", href: "#/review" }));
+test("r4_ac8b", () => assert.deepEqual(waitingLink(true, null, 1), { text: "1 decision waits on you →", href: "#/review" }));
+test("r4_ac8c", () => {
+  for (const [k, e, n] of [[false, "x", null], [false, null, null], [true, null, "error"], [true, null, null], [true, null, 0]] as const)
+    assert.deepEqual(waitingLink(k, e, n), { text: waitingSentence(k, e, n), href: null });
+});
+test("r4_ac9", () => assert.deepEqual([7, 0, null, "error"].map((n) => waitingStat(n as number | "error" | null)), ["7", "0", "—", "—"]));
+test("r4_runs_error_wins", () => assert.deepEqual(waitingLink(false, "x", 3), { text: "Runs could not be loaded.", href: null }));
+test("r4_nan_is_no_link", () => assert.equal(waitingLink(true, null, NaN).href, null));
