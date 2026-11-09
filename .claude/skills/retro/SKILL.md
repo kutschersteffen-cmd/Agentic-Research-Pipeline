@@ -40,6 +40,9 @@ At most 3 changes, each the smallest edit that would have prevented it, in one o
 - Never loosen a guard: no lower coverage bar, no higher fix limit, no fewer checks, no skipped tests.
 - A fix that needs a workflow, hook or app-code change goes in the PR body as a proposal; don't edit
   those files.
+- Prefer a mechanism over prose: ask if a lint, hook or test would have caught the pattern, and propose
+  that (in the PR body, since hooks and workflows are `risk:high`) before adding a CLAUDE.md line. Keep
+  only changes that are durable, change a decision, and are not already covered.
 - One-off failures go in the log only.
 
 ## 4. Open the PR

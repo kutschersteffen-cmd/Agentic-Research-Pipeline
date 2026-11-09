@@ -20,6 +20,8 @@ check what the spec says, not what the implementation happens to do.
   `backend/scripts/e2e_stack.sh up`, then run `python run.py --check-new --spec <slug>` in the
   holdout repo: every `new` test must fail and every `keep` test must pass. The holdout repo's CI
   runs the same check and fails the PR otherwise.
+- **Two-edit test:** a test must fail when the behaviour breaks and survive a harmless rewrite of the
+  implementation. List any test that fails this in the PR description. Never delete or weaken one.
 - Open the PR in the holdout repo, not in the app repo, and tell the owner the spec slug. The
   implementing PR names the same slug in its description as `Spec: <slug>`.
 - Never paste test code, assertions or expected values into the app repo, its PRs or comments.
