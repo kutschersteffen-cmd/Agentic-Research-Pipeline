@@ -12,6 +12,12 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, edited]
 
+# One run per PR: a push cancels the run for the older commit. An edit (the Spec:/Rows: lines live in the
+# PR body) queues behind a running run instead of cancelling it.
+concurrency:
+  group: holdout-${{ github.event.pull_request.number }}
+  cancel-in-progress: ${{ github.event.action != 'edited' }}
+
 jobs:
   holdout:
     name: Holdout acceptance
@@ -19,6 +25,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      actions: read
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -55,20 +62,29 @@ jobs:
       - name: Point the app at the stand-in folder
         run: echo "ARP_STANDINS_DIR=$RUNNER_TEMP/standins" >>"$GITHUB_ENV"
 
-      # Docs-only PRs (every file under docs/ or a *.md outside .claude/, the steward's risk:low set) skip
-      # the rest; the job still reports success, so a required check never stays pending.
+      # Skipped, still reporting success so a required check never stays pending:
+      # - a title-only edit when this commit already has a successful run (a failed or cancelled one reruns);
+      # - PRs that change no app code: every file under docs/ or .claude/, or a *.md anywhere.
       - name: Check for the token and docs-only changes
         id: key
         env:
           KEY: ${{ secrets.HOLDOUT_TOKEN }}
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
+          GH_REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TITLE_ONLY_EDIT: ${{ github.event.action == 'edited' && github.event.changes.body == null }}
         run: |
+          if [ "$TITLE_ONLY_EDIT" = true ] && [ "$(gh run list --workflow holdout.yml --commit "$HEAD_SHA" --status success --json databaseId --jq length)" -gt 0 ]; then
+            echo "present=false" >>"$GITHUB_OUTPUT"
+            echo "Holdout acceptance skipped: the edit did not change the PR body and this commit already passed."
+            exit 0
+          fi
           files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate --jq '.[].filename') || files=""
-          code=$(printf '%s\n' "$files" | awk 'NF && !/^docs\// && !(/\.md$/ && !/^\.claude\//)' | wc -l)
+          code=$(printf '%s\n' "$files" | awk 'NF && !/^docs\// && !/^\.claude\// && !/\.md$/' | wc -l)
           if [ -n "$files" ] && [ "$code" -eq 0 ]; then
             echo "present=false" >>"$GITHUB_OUTPUT"
-            echo "Holdout acceptance skipped: docs-only PR (every changed file is under docs/ or a *.md outside .claude/)."
+            echo "Holdout acceptance skipped: no app code changed (every changed file is under docs/ or .claude/, or is a *.md)."
           elif [ -n "$KEY" ]; then echo "present=true" >>"$GITHUB_OUTPUT"; else
             echo "present=false" >>"$GITHUB_OUTPUT"
             echo "::warning title=Hidden tests not run::Add the HOLDOUT_TOKEN repository secret (read-only access to kutschersteffen-cmd/holdout)."
