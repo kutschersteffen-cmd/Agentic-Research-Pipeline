@@ -37,3 +37,13 @@ test("a draft lists as Draft at its step, newest first, opening the flow", () =>
     ["r1", "Extraction", 3, "Running", 4, "bob", "#/extraction/extract"],
   ]);
 });
+
+test("step 2 continue counts kept files and their companies", async () => {
+  const { continueFilesLabel, previousYear } = await import("../src/lib/argusFlow.ts");
+  const f = (company_id: string, state: "kept" | "removed" | null) => ({ company_id, state }) as never;
+  assert.deepEqual(continueFilesLabel([f("a", "kept"), f("a", "kept"), f("b", "kept"), f("c", "kept"), f("c", "kept"), f("c", "kept"), f("c", "kept"), f("d", "removed"), f("e", null)]),
+    { text: "Continue with 7 files for 3 companies", disabled: false });
+  assert.deepEqual(continueFilesLabel([f("a", "kept")]), { text: "Continue with 1 file for 1 company", disabled: false });
+  assert.deepEqual(continueFilesLabel([f("a", "removed")]), { text: "Continue with 0 files for 0 companies", disabled: true });
+  assert.equal(previousYear(new Date("2026-11-09")), 2025);
+});
