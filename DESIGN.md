@@ -58,6 +58,11 @@ typography:
     fontSize: "0.8125rem"
     fontWeight: 500
     lineHeight: 1.3
+  excerpt:
+    fontFamily: "Source Serif 4, Georgia, serif"
+    fontSize: "16px"
+    fontWeight: 400
+    lineHeight: 1.6
 rounded:
   sm: "0"
   md: "0"

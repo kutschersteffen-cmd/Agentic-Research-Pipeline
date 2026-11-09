@@ -141,12 +141,14 @@ test("ac12b_palette_untouched", (t) => {
   if (out !== null) assert.equal(out, "");
 });
 test("ac13_amber_usage_unchanged", (t) => {
-  const re = "var\\(--(hi|hi-ink|await|await-edge)\\)";
-  const main = onMain(t, `git grep -h -o -E "${re}" origin/main -- src | sort`);
-  const head = onMain(t, `git grep -h -o -E "${re}" HEAD -- src | sort`);
-  // Release 2 allows exactly one new amber reference: the sidebar's .nav-dot-wait rule.
-  const plusNavDot = (m: string) => [...m.trim().split("\n"), "var(--hi)"].sort().join("\n") + "\n";
-  if (main !== null && head !== null) assert.equal(head, plusNavDot(main));
+  // Amber may only be added by the rules that release 2 and 3 approved; everything else must match main.
+  const allowed = /\.nav-dot-wait|\.source-excerpt-page mark/;
+  const cmd = (ref: string) => `git grep -h -E "var\\(--(hi|hi-ink|await|await-edge)\\)" ${ref} -- src`;
+  const main = onMain(t, cmd("origin/main"));
+  const head = onMain(t, cmd("HEAD"));
+  if (main === null || head === null) return;
+  const others = (out: string) => out.split("\n").filter((l) => l && !allowed.test(l)).sort().join("\n");
+  assert.equal(others(head), others(main));
 });
 
 // Night Desk release 2 (docs/superpowers/specs/2026-11-08-night-desk-status-design.md).
@@ -189,4 +191,27 @@ test("r2_ac16b_status_colours", () => {
     assert.ok(r.includes(`var(${tok})`), `${sel} uses ${tok}`);
     assert.doesNotMatch(r, /var\(--(hi|hi-ink|await|await-edge)\)/, sel);
   }
+});
+
+// Night Desk release 3 (docs/superpowers/specs/2026-11-08-night-desk-excerpt-design.md).
+test("r3_ac10_mark_uses_await", () => {
+  const r = rule(".source-excerpt-page mark");
+  assert.ok(r.includes("var(--await)") && r.includes("var(--await-edge)"));
+});
+test("r3_ac11_serif", () => assert.match(rule(".source-excerpt-page"), /font-family:\s*"Source Serif 4"/));
+test("r3_ac11b_paper_tokens", () => {
+  assert.equal(light.get("--paper"), "#ffffff");
+  assert.equal(light.get("--ink"), "var(--text)");
+  for (const d of [darkSwitch, darkMedia]) { assert.equal(d.get("--paper"), "#f5f2ea"); assert.equal(d.get("--ink"), "#1b1a17"); }
+  const r = rule(".source-excerpt-page");
+  assert.ok(r.includes("var(--paper)") && r.includes("var(--ink)"));
+});
+test("r3_ac12_font_loaded", () =>
+  assert.match(readFileSync(new URL("../index.html", import.meta.url), "utf8"), /Source\+Serif\+4/));
+// The card is light paper in both themes, so its mark uses the light-theme amber everywhere.
+test("r3_paper_mark_visible_in_dark", () => {
+  const r = rule(".source-excerpt-page");
+  assert.match(r, /--await:\s*var\(--paper-mark\)/);
+  assert.match(r, /--await-edge:\s*var\(--paper-mark-edge\)/);
+  for (const b of [light, darkSwitch, darkMedia]) { assert.equal(b.get("--paper-mark"), "#f6ecd6"); assert.equal(b.get("--paper-mark-edge"), "#85601a"); }
 });
