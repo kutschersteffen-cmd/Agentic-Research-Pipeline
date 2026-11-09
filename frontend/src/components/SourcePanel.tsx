@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import { highlightParts } from "../lib/sourceText";
+import { excerptView, highlightParts } from "../lib/sourceText";
 import type { PageBox } from "../types";
 import { FileFrame, FileImg, FileLink } from "./FileLink";
 
@@ -56,7 +56,7 @@ export function SourcePanel({ source, onClose }: Props) {
           Close
         </button>
       </div>
-      {source.quote && <p className="source-panel-quote">"{source.quote}"</p>}
+      <Excerpt source={source} />
       {source.text ? (
         <TextView
           key={`${source.text.doc_id}:${source.text.page_start}:${source.text.char_start ?? ""}`}
@@ -192,5 +192,30 @@ function PageView({ rawUrl, page, mark }: { rawUrl: string; page: number; mark?:
         ))}
       </div>
     </div>
+  );
+}
+
+/** The cited text as a page excerpt: the sentences around it in grey, the cited span marked. */
+function Excerpt({ source }: { source: ActiveSource }) {
+  const ex = excerptView(source);
+  if (!ex) return null;
+  const p = "parts" in ex ? ex.parts : undefined;
+  return (
+    <figure className="source-excerpt">
+      <figcaption className="source-excerpt-meta">{ex.caption}</figcaption>
+      <blockquote className="source-excerpt-page">
+        {p ? (
+          <>
+            {p.lead && <span className="source-excerpt-ctx">{p.lead}</span>}
+            {p.before}
+            <mark>{p.mark}</mark>
+            {p.after}
+            {p.trail && <span className="source-excerpt-ctx">{p.trail}</span>}
+          </>
+        ) : (
+          "quote" in ex && ex.quote
+        )}
+      </blockquote>
+    </figure>
   );
 }

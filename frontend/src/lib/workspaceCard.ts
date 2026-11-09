@@ -73,3 +73,22 @@ export const workspaceState = (w: Workspace, runs: RunManifest[] | null): StepSt
   const states = w.processes.map((p) => processState(p, runs, null));
   return RANK.find((r) => states.includes(r)) ?? "idle";
 };
+
+type WaitingTotal = number | "error" | null;
+/** The start page's one line on what waits on a person, for every loading and error state. */
+export const waitingSentence = (known: boolean, error: string | null, needsTotal: WaitingTotal): string =>
+  !known ? (error ? "Runs could not be loaded." : "Loading runs…") : needsTotal === "error" ? "What waits on you could not be loaded." : needsTotal === null ? "Loading what waits on you…" : needsTotal > 0 ? needsTotal === 1 ? "1 decision waits on you." : `${needsTotal} decisions wait on you.` : "Nothing waits on you.";
+
+/** The same line as a link to the Review Queue when something waits; plain text otherwise. */
+export function waitingLink(known: boolean, error: string | null, needsTotal: WaitingTotal, target: WaitingHref = "#/review"): { text: string; href: WaitingHref | null } {
+  const text = waitingSentence(known, error, needsTotal);
+  return known && typeof needsTotal === "number" && needsTotal > 0 ? { text: `${text.replace(/\.$/, "")} →`, href: target } : { text, href: null };
+}
+
+type WaitingHref = "#/review" | "#/stewardiq";
+
+/** Where the waiting link goes: StewardIQ when only its decisions wait, else the Review Queue. */
+export const waitingTarget = (queue: number, stewardship: number): WaitingHref => (queue === 0 && stewardship > 0 ? "#/stewardiq" : "#/review");
+
+/** The waiting count for the start page's counts: the number, or a dash while unknown. */
+export const waitingStat = (needsTotal: WaitingTotal): string => (typeof needsTotal === "number" && Number.isFinite(needsTotal) ? String(needsTotal) : "—");

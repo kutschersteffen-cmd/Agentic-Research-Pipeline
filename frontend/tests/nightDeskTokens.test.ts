@@ -141,12 +141,15 @@ test("ac12b_palette_untouched", (t) => {
   if (out !== null) assert.equal(out, "");
 });
 test("ac13_amber_usage_unchanged", (t) => {
-  const re = "var\\(--(hi|hi-ink|await|await-edge)\\)";
-  const main = onMain(t, `git grep -h -o -E "${re}" origin/main -- src | sort`);
-  const head = onMain(t, `git grep -h -o -E "${re}" HEAD -- src | sort`);
-  // Release 2 allows exactly one new amber reference: the sidebar's .nav-dot-wait rule.
-  const plusNavDot = (m: string) => [...m.trim().split("\n"), "var(--hi)"].sort().join("\n") + "\n";
-  if (main !== null && head !== null) assert.equal(head, plusNavDot(main));
+  // Amber may only be added by the rules that release 2 and 3 approved; everything else must match main.
+  // The ARP logo's highlight square (sidebar and landing page) is the brand mark, not a status.
+  const allowed = /\.nav-dot-wait|\.source-excerpt-page mark|\.hub-waiting|\.hub-card-await \.hub-card-icon|<rect x="26" y="2" width="10" height="10" fill="var\(--hi\)" \/>/;
+  const cmd = (ref: string) => `git grep -h -E "var\\(--(hi|hi-ink|await|await-edge)\\)" ${ref} -- src`;
+  const main = onMain(t, cmd("origin/main"));
+  const head = onMain(t, cmd("HEAD"));
+  if (main === null || head === null) return;
+  const others = (out: string) => out.split("\n").filter((l) => l && !allowed.test(l)).sort().join("\n");
+  assert.equal(others(head), others(main));
 });
 
 // Night Desk release 2 (docs/superpowers/specs/2026-11-08-night-desk-status-design.md).
@@ -190,3 +193,36 @@ test("r2_ac16b_status_colours", () => {
     assert.doesNotMatch(r, /var\(--(hi|hi-ink|await|await-edge)\)/, sel);
   }
 });
+
+// Night Desk release 3 (docs/superpowers/specs/2026-11-08-night-desk-excerpt-design.md).
+test("r3_ac10_mark_uses_await", () => {
+  const r = rule(".source-excerpt-page mark");
+  assert.ok(r.includes("var(--await)") && r.includes("var(--await-edge)"));
+});
+test("r3_ac11_serif", () => assert.match(rule(".source-excerpt-page"), /font-family:\s*"Source Serif 4"/));
+test("r3_ac11b_paper_tokens", () => {
+  assert.equal(light.get("--paper"), "#ffffff");
+  assert.equal(light.get("--ink"), "var(--text)");
+  for (const d of [darkSwitch, darkMedia]) { assert.equal(d.get("--paper"), "#f5f2ea"); assert.equal(d.get("--ink"), "#1b1a17"); }
+  const r = rule(".source-excerpt-page");
+  assert.ok(r.includes("var(--paper)") && r.includes("var(--ink)"));
+});
+test("r3_ac12_font_loaded", () =>
+  assert.match(readFileSync(new URL("../index.html", import.meta.url), "utf8"), /Source\+Serif\+4/));
+// The card is light paper in both themes, so its mark uses the light-theme amber everywhere.
+test("r3_paper_mark_visible_in_dark", () => {
+  const r = rule(".source-excerpt-page");
+  assert.match(r, /--await:\s*var\(--paper-mark\)/);
+  assert.match(r, /--await-edge:\s*var\(--paper-mark-edge\)/);
+  for (const b of [light, darkSwitch, darkMedia]) { assert.equal(b.get("--paper-mark"), "#f6ecd6"); assert.equal(b.get("--paper-mark-edge"), "#85601a"); }
+});
+
+// Night Desk release 4 (docs/superpowers/specs/2026-11-09-night-desk-start-page-design.md).
+test("r4_ac10", () => { const r = rule(".hub-card-icon"); assert.match(r, /border-radius:\s*var\(--r-md\)/); assert.match(r, /border:\s*1px solid var\(--panel-border\)/); });
+test("r4_ac10b", () => assert.match(rule(".hub-card-await .hub-card-icon"), /border-color:\s*var\(--await-edge\)/));
+test("r4_ac10c", () => assert.match(rule(".hub-card-foot"), /border-top:\s*1px solid var\(--panel-border\)/));
+test("r4_ac11", () => { const r = rule(".hub-waiting"); assert.match(r, /color:\s*var\(--hi-ink\)/); assert.match(r, /font-weight:\s*500/); assert.match(r, /text-decoration:\s*none/); });
+test("r4_ac11b", () => assert.match(rule(".hub-waiting-quiet"), /color:\s*var\(--muted\)/));
+test("r4_ac11c", () => assert.match(css, /\.hub-stats \.you dd \{ color: var\(--hi\); \}/));
+// Phones are a real use: the waiting line must wrap, not overflow, at 320px.
+test("r4_waiting_link_wraps", () => assert.match(rule(".hub-waiting"), /max-width:\s*100%/));

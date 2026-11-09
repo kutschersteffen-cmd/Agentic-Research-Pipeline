@@ -34,6 +34,11 @@
   --mid: oklch(52% 0.125 70);
   --low: #c8323f;
   --run: #2563c9; /* running work */
+  --paper: #ffffff; /* source excerpt card */
+  --ink: var(--text);
+  --ink-muted: var(--muted); /* context lines on the paper card */
+  --paper-mark: #f6ecd6; /* the paper card's highlight: the same amber in both themes */
+  --paper-mark-edge: #85601a;
   --neutral: oklch(50% 0.010 64);
 
   /* Type scale. Replaces fifteen ad-hoc sizes, nine of which sat between
@@ -117,6 +122,11 @@
     --mid: #f2c94c;
     --low: #ff6b7a;
     --run: #6cb4ff; /* running work */
+    --paper: #f5f2ea; /* source excerpt card */
+    --ink: #1b1a17;
+    --ink-muted: #5f5b52; /* context lines on the paper card */
+    --paper-mark: #f6ecd6; /* the paper card's highlight: the same amber in both themes */
+    --paper-mark-edge: #85601a;
     --neutral: #9a9ba0;
     --shadow-md: 0 2px 6px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
     --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
@@ -151,6 +161,11 @@
   --mid: #f2c94c;
   --low: #ff6b7a;
   --run: #6cb4ff; /* running work */
+  --paper: #f5f2ea; /* source excerpt card */
+  --ink: #1b1a17;
+  --ink-muted: #5f5b52; /* context lines on the paper card */
+  --paper-mark: #f6ecd6; /* the paper card's highlight: the same amber in both themes */
+  --paper-mark-edge: #85601a;
   --neutral: #9a9ba0;
   --shadow-md: 0 2px 6px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
   --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
@@ -2315,3 +2330,51 @@ a.vc-box:hover { border-color: var(--text); }
 .nav-dot-now { background: var(--run); }
 .nav-dot-failed { background: var(--low); }
 .nav-dot-done { background: var(--muted); }
+
+/* Night Desk release 3: the cited source as a page excerpt. Amber marks only the cited span. */
+.source-excerpt { margin: var(--s-2) 0; display: grid; gap: var(--s-1_5); }
+.source-excerpt-meta { font-size: var(--text-xs); color: var(--muted); }
+.source-excerpt-page {
+  margin: 0; padding: var(--s-3) var(--s-4);
+  background: var(--paper); color: var(--ink);
+  border: 1px solid var(--panel-border); border-radius: var(--r-sm);
+  font-family: "Source Serif 4", Georgia, serif; font-size: 16px; line-height: 1.6;
+  /* Light paper in both themes, so the mark uses the light-theme amber everywhere. */
+  --await: var(--paper-mark); --await-edge: var(--paper-mark-edge);
+}
+.source-excerpt-ctx { color: var(--ink-muted); }
+.source-excerpt-ctx:first-child { display: block; margin-bottom: var(--s-1); }
+.source-excerpt-ctx:last-child { display: block; margin-top: var(--s-1); }
+.source-excerpt-page mark { background: var(--await); color: inherit; padding: 0 2px; box-shadow: inset 0 -2px var(--await-edge); }
+
+/* Night Desk release 4: the start page's waiting link sits right above the cards. */
+.hub-waiting { display: block; width: max-content; max-width: 100%; margin: 0 0 var(--s-3); color: var(--hi-ink); font-size: var(--text-md); font-weight: 500; text-decoration: none; }
+a.hub-waiting:hover { text-decoration: underline; text-underline-offset: 0.2em; }
+.hub-waiting-quiet { color: var(--muted); }
+.hub-card-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--panel-border); border-radius: var(--r-md); background: var(--bg); }
+.hub-card-await .hub-card-icon { border-color: var(--await-edge); }
+.hub-card-foot { border-top: 1px solid var(--panel-border); padding-top: var(--s-2); }
+.hub-card-icon .hub-ico { width: 26px; height: 26px; }
+
+/* Night Desk release 5: the landing page. Text sits on a gradient so it reads over the dots. */
+.landing { position: fixed; inset: 0; overflow: hidden; background: var(--bg); color: var(--text); display: grid; grid-template-rows: auto 1fr auto; }
+.landing-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.landing-bar, .landing-main, .landing-promises { position: relative; }
+.landing-bar { padding: var(--s-6) max(var(--s-8), env(safe-area-inset-right, 0px)) var(--s-6) max(var(--s-8), env(safe-area-inset-left, 0px)); }
+.landing-brand { display: inline-flex; align-items: center; gap: var(--s-3); font-weight: 700; font-size: var(--text-md); }
+.landing-mark { width: 28px; height: 28px; }
+.landing-full { font-weight: 400; color: var(--muted); font-size: var(--text-sm); }
+.landing-main { align-self: center; display: grid; gap: var(--s-4); max-width: 640px; padding: var(--s-8) var(--s-12) var(--s-8) max(var(--s-8), env(safe-area-inset-left, 0px)); background: linear-gradient(90deg, var(--bg) 75%, transparent); }
+.landing-main h1 { margin: 0; font-size: clamp(2.5rem, 2rem + 3vw, 4.2rem); line-height: 1.02; letter-spacing: -0.035em; font-weight: 600; }
+.landing-main p { margin: 0; font-size: var(--text-md); line-height: 1.55; color: var(--muted); max-width: 46ch; }
+.landing-open { justify-self: start; padding: 12px 20px; border-radius: var(--r-md); background: var(--accent); color: var(--on-accent); font-weight: 600; text-decoration: none; }
+.landing-open:focus-visible { outline: 2px solid var(--run); outline-offset: 3px; }
+.landing-promises { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-6); padding: var(--s-6) var(--s-8); border-top: 1px solid var(--panel-border); background: var(--bg); }
+.landing-promises div { display: grid; gap: var(--s-1); }
+.landing-promises span { color: var(--muted); font-size: var(--text-sm); }
+@media (max-width: 700px) {
+  .landing { position: absolute; min-height: 100dvh; bottom: auto; overflow-y: auto; }
+  .landing-canvas { position: fixed; }
+  .landing-main { padding: var(--s-6) var(--s-4); background: linear-gradient(180deg, transparent, var(--bg) 30%); }
+  .landing-promises { grid-template-columns: 1fr; padding: var(--s-4); }
+}
