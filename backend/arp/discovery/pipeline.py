@@ -40,6 +40,7 @@ async def _discover_for_company(
     transport: httpx.AsyncBaseTransport | None = None,
     today: date | None = None,
     sleep=asyncio.sleep,
+    web: bool = True,
 ) -> DiscoveryCompanyResult:
     today = today or date.today()
     filings = await _edgar_filings(company, edgar, doc_types) if edgar and company.cik else []
@@ -50,9 +51,9 @@ async def _discover_for_company(
         types = [t for t in types if t != DocType.ANNUAL_REPORT_10K]
     search_cands = await search_candidates(
         company, search_client, expected_year, types, delay=settings.discovery_request_delay_seconds, sleep=sleep
-    )
-    homepage, check = company.website, None
-    if not homepage:  # a supplied website is used unchecked; a derived one is checked first
+    ) if web else []
+    homepage, check = (company.website if web else None), None
+    if web and not homepage:  # a supplied website is used unchecked; a derived one is checked first
         homepage = await homepage_from_ids(
             settings.discovery_user_agent, lei=company.lei, isin=company.isin, cik=company.cik, transport=transport
         )
@@ -162,6 +163,7 @@ async def execute_discovery_run(
     transport: httpx.AsyncBaseTransport | None = None,
     today: date | None = None,
     sleep=None,
+    web: bool = True,
 ) -> str:
     """Runs the document discovery pipeline over a company universe against
     an already-created run (see create_discovery_run).
@@ -197,7 +199,7 @@ async def execute_discovery_run(
     async def _worker(company: CompanyRef) -> DiscoveryCompanyResult:
         return await _discover_for_company(
             company, settings=settings, search_client=search_client, change_detector=change_detector, doc_types=doc_types,
-            edgar=edgar_source, esef=esef_source, transport=transport, today=today, sleep=sleep or asyncio.sleep,
+            edgar=edgar_source, esef=esef_source, transport=transport, today=today, sleep=sleep or asyncio.sleep, web=web,
         )
 
     def _on_success(company: CompanyRef, result: DiscoveryCompanyResult) -> None:
