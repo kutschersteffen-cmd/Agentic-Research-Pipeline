@@ -2364,7 +2364,7 @@ a.hub-waiting:hover { text-decoration: underline; text-underline-offset: 0.2em; 
 .landing-brand { display: inline-flex; align-items: center; gap: var(--s-3); font-weight: 700; font-size: var(--text-md); }
 .landing-mark { width: 28px; height: 28px; }
 .landing-full { font-weight: 400; color: var(--muted); font-size: var(--text-sm); }
-.landing-main { align-self: center; display: grid; gap: var(--s-4); max-width: 640px; padding: var(--s-8) var(--s-12) var(--s-8) max(var(--s-8), env(safe-area-inset-left, 0px)); background: linear-gradient(90deg, var(--bg) 40%, transparent); }
+.landing-main { align-self: center; display: grid; gap: var(--s-4); max-width: 640px; padding: var(--s-8) var(--s-12) var(--s-8) max(var(--s-8), env(safe-area-inset-left, 0px)); background: linear-gradient(90deg, var(--bg) 75%, transparent); }
 .landing-main h1 { margin: 0; font-size: clamp(2.5rem, 2rem + 3vw, 4.2rem); line-height: 1.02; letter-spacing: -0.035em; font-weight: 600; }
 .landing-main p { margin: 0; font-size: var(--text-md); line-height: 1.55; color: var(--muted); max-width: 46ch; }
 .landing-open { justify-self: start; padding: 12px 20px; border-radius: var(--r-md); background: var(--accent); color: var(--on-accent); font-weight: 600; text-decoration: none; }
@@ -2373,6 +2373,8 @@ a.hub-waiting:hover { text-decoration: underline; text-underline-offset: 0.2em; 
 .landing-promises div { display: grid; gap: var(--s-1); }
 .landing-promises span { color: var(--muted); font-size: var(--text-sm); }
 @media (max-width: 700px) {
+  .landing { position: absolute; min-height: 100dvh; bottom: auto; overflow-y: auto; }
+  .landing-canvas { position: fixed; }
   .landing-main { padding: var(--s-6) var(--s-4); background: linear-gradient(180deg, transparent, var(--bg) 30%); }
   .landing-promises { grid-template-columns: 1fr; padding: var(--s-4); }
 }

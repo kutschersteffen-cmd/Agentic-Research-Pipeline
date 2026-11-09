@@ -29,6 +29,7 @@ export function LandingCanvas() {
     };
     const build = () => {
       W = cv.offsetWidth; H = cv.offsetHeight;
+      if (!W || !H) return;
       cv.width = W * dpr; cv.height = H * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       readColours();
@@ -103,14 +104,24 @@ export function LandingCanvas() {
       frame = requestAnimationFrame(loop);
     };
     const onVisibility = () => { if (!document.hidden) readColours(); };
+    // Rebuild at most once per frame while the window is being resized.
+    let resizeFrame = 0;
+    const onResize = () => {
+      if (resizeFrame) return;
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = 0;
+        build();
+      });
+    };
     document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("resize", build);
+    window.addEventListener("resize", onResize);
     frame = requestAnimationFrame(loop);
     return () => {
       cancelAnimationFrame(frame);
+      cancelAnimationFrame(resizeFrame);
       io.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("resize", build);
+      window.removeEventListener("resize", onResize);
     };
   }, []);
   return <canvas ref={ref} className="landing-canvas" aria-hidden="true" />;

@@ -23,3 +23,15 @@ test("r5_ac11", async () => {
   for (const s of ["IntersectionObserver", "visibilitychange", "prefers-reduced-motion", "cancelAnimationFrame", 'aria-hidden="true"', 'removeEventListener("resize"'])
     assert.ok(src.includes(s), s);
 });
+
+// Final-review fixes.
+const read = async (p: string) => (await import("node:fs")).readFileSync(new URL(p, import.meta.url), "utf8");
+test("phones_can_scroll_the_landing_page", async () => {
+  const css = await read("../src/index.css");
+  const m = css.slice(css.lastIndexOf("@media (max-width: 700px)"));
+  assert.match(m, /\.landing \{[^}]*overflow-y: auto/);
+});
+test("text_backdrop_solid_behind_intro", async () =>
+  assert.match(await read("../src/index.css"), /\.landing-main \{[^}]*linear-gradient\(90deg, var\(--bg\) 75%, transparent\)/));
+test("resize_rebuild_is_throttled", async () => assert.match(await read("../src/components/LandingCanvas.tsx"), /requestAnimationFrame\(\(\) => \{\s*resizeFrame = 0;/));
+test("zero_size_canvas_does_not_crash", async () => assert.ok((await read("../src/components/LandingCanvas.tsx")).includes("if (!W || !H) return;")));
