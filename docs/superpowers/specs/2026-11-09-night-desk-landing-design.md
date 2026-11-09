@@ -59,7 +59,9 @@ returns `"welcome"` for `""`, `"#"`, `"#/"` and `"#/welcome"`, else `null`. `App
 (`docs/design-directions.html`, the `flowviz` script): 22-second loop; network of up to 3,200 dots;
 a share equal to the logo's dot count lights up blue (`--run`), streams through an invisible funnel
 and forms the ARP mark (amber square `--hi`) and the word "ARP" in the right part of the screen;
-then dissolves. Colours come from the theme tokens. It stops drawing while off-screen
+then dissolves. Timeline within each 22 s loop (from page load): 0–4 s network, 4–6 s light up,
+6–14 s stream through the funnel and land, 14–18 s formed (logo fully drawn), 18–22 s dissolve.
+Colours come from the theme tokens. It stops drawing while off-screen
 (`IntersectionObserver`) and when the page is hidden, cancels its frame loop on unmount, and with
 `prefers-reduced-motion: reduce` draws one still frame of the formed logo. The canvas is
 `aria-hidden="true"`.
@@ -87,10 +89,10 @@ Rows marked `unit` are owed as `holdout` once `HOLDOUT_TOKEN` is set; the PR lis
 | AC-6 | The running app | `#/nonsense` is opened | The start page shows (as on `main`) | evaluator |
 | AC-7 | The landing page | Its text is read | The top bar, intro, button and three promises match the Copy section exactly | evaluator |
 | AC-8a | The landing page, 1440×900 | Two canvas captures are taken 1 s apart | They differ | evaluator |
-| AC-8b | The landing page, 1440×900, light and dark | A capture is taken at the formed moment (about 14 s after load) | An amber square and the dot-word "ARP" both sit in the right half of the canvas | evaluator |
-| AC-8c | The same | A capture is taken 22 s after the AC-8b capture minus 4 s (during the network phase) | No amber logo square is visible | evaluator |
+| AC-8b | The landing page, 1440×900, light and dark | A capture is taken 16 s after load | An amber square and the dot-word "ARP" both sit in the right half of the canvas | evaluator |
+| AC-8c | The same | A capture is taken 2 s after load (network phase) | No amber logo square is visible | evaluator |
 | AC-9 | `prefers-reduced-motion: reduce` | The landing page opens | The canvas shows the formed logo and does not change over 5 seconds | evaluator |
-| AC-10 | The landing page at the formed moment, both themes | Every backdrop pixel inside the headline and intro bounding boxes is compared with the text colour | Contrast is at least 4.5:1 for every pixel | evaluator |
+| AC-10 | The landing page 16 s after load, both themes | Every backdrop pixel inside the headline and intro bounding boxes is compared with the text colour | Contrast is at least 4.5:1 for every pixel | evaluator |
 | AC-11 | `LandingCanvas.tsx` | Its source is read | It uses `IntersectionObserver`, listens for `visibilitychange` (or reads `document.hidden`) before drawing, checks `prefers-reduced-motion`, calls `cancelAnimationFrame` in the effect cleanup, and the canvas has `aria-hidden="true"` | unit |
 | AC-11b | The landing page in the e2e Chromium at 1440×900 | A 5 s performance trace is recorded | No long task over 50 ms | evaluator |
 | AC-12 | The branch vs `origin/main` | `git diff origin/main -- frontend/tests` is read | No test or assert removed | unit |
