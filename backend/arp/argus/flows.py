@@ -4,6 +4,7 @@ One JSON file per flow under `runs_dir/_flows/`, so no worker, Run History or re
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 from collections.abc import Callable
@@ -26,11 +27,14 @@ logger = logging.getLogger(__name__)
 
 
 def safe_key(value: str) -> str:
-    """A company key every documents endpoint accepts (`safe_id`); a name like `Siemens AG` becomes `siemens-ag`."""
+    """A company key every documents endpoint accepts (`safe_id`): `Siemens AG` becomes `siemens-ag-<hash>`.
+    The hash of the whole value keeps names that slug alike (`ACME, Inc.`, `Acme Inc`) apart, and is stable."""
     try:
         return safe_id(value)
     except UnsafeIdentifierError:
-        return re.sub(r"[^a-z0-9._-]+", "-", value.lower()).strip("-._")[:128] or "company"
+        digest = hashlib.sha1(value.encode()).hexdigest()[:8]
+        slug = re.sub(r"[^a-z0-9._-]+", "-", value.lower()).strip("-._")[:100].rstrip("-._")
+        return f"{slug}-{digest}" if slug else f"company-{digest}"
 
 
 class SkippedUpload(BaseModel):
