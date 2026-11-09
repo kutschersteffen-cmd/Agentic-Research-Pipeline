@@ -2355,3 +2355,26 @@ a.hub-waiting:hover { text-decoration: underline; text-underline-offset: 0.2em; 
 .hub-card-await .hub-card-icon { border-color: var(--await-edge); }
 .hub-card-foot { border-top: 1px solid var(--panel-border); padding-top: var(--s-2); }
 .hub-card-icon .hub-ico { width: 26px; height: 26px; }
+
+/* Night Desk release 5: the landing page. Text sits on a gradient so it reads over the dots. */
+.landing { position: fixed; inset: 0; overflow: hidden; background: var(--bg); color: var(--text); display: grid; grid-template-rows: auto 1fr auto; }
+.landing-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.landing-bar, .landing-main, .landing-promises { position: relative; }
+.landing-bar { padding: var(--s-6) max(var(--s-8), env(safe-area-inset-right, 0px)) var(--s-6) max(var(--s-8), env(safe-area-inset-left, 0px)); }
+.landing-brand { display: inline-flex; align-items: center; gap: var(--s-3); font-weight: 700; font-size: var(--text-md); }
+.landing-mark { width: 28px; height: 28px; }
+.landing-full { font-weight: 400; color: var(--muted); font-size: var(--text-sm); }
+.landing-main { align-self: center; display: grid; gap: var(--s-4); max-width: 640px; padding: var(--s-8) var(--s-12) var(--s-8) max(var(--s-8), env(safe-area-inset-left, 0px)); background: linear-gradient(90deg, var(--bg) 75%, transparent); }
+.landing-main h1 { margin: 0; font-size: clamp(2.5rem, 2rem + 3vw, 4.2rem); line-height: 1.02; letter-spacing: -0.035em; font-weight: 600; }
+.landing-main p { margin: 0; font-size: var(--text-md); line-height: 1.55; color: var(--muted); max-width: 46ch; }
+.landing-open { justify-self: start; padding: 12px 20px; border-radius: var(--r-md); background: var(--accent); color: var(--on-accent); font-weight: 600; text-decoration: none; }
+.landing-open:focus-visible { outline: 2px solid var(--run); outline-offset: 3px; }
+.landing-promises { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-6); padding: var(--s-6) var(--s-8); border-top: 1px solid var(--panel-border); background: var(--bg); }
+.landing-promises div { display: grid; gap: var(--s-1); }
+.landing-promises span { color: var(--muted); font-size: var(--text-sm); }
+@media (max-width: 700px) {
+  .landing { position: absolute; min-height: 100dvh; bottom: auto; overflow-y: auto; }
+  .landing-canvas { position: fixed; }
+  .landing-main { padding: var(--s-6) var(--s-4); background: linear-gradient(180deg, transparent, var(--bg) 30%); }
+  .landing-promises { grid-template-columns: 1fr; padding: var(--s-4); }
+}
