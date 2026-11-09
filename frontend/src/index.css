@@ -2257,8 +2257,7 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-sources legend { font-weight: 600; margin-bottom: var(--s-2); }
 .argus-source { display: inline-flex; align-items: center; gap: var(--s-1_5); }
 .argus-uploads { display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-6); align-items: end; }
-.argus-file { position: relative; }
-.argus-file-preview { position: absolute; z-index: 5; top: 100%; left: 0; width: 220px; padding: var(--s-1); background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-sm); box-shadow: 0 6px 24px rgb(0 0 0 / 0.18); }
+.argus-file-preview { position: fixed; z-index: 50; width: 220px; pointer-events: none; padding: var(--s-1); background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-sm); box-shadow: 0 6px 24px rgb(0 0 0 / 0.18); }
 .argus-file-preview img { display: block; width: 100%; }
 .argus-keep { display: inline-flex; gap: var(--s-3); align-items: center; }
 .argus-state { font-weight: 600; }

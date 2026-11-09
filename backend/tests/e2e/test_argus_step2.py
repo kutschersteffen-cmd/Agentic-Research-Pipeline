@@ -2,6 +2,7 @@
 
 import os
 import re
+from uuid import uuid4
 
 import pytest
 
@@ -14,10 +15,10 @@ pytestmark = [
     pytest.mark.skipif(not URL, reason="ARP_E2E_URL not set -- start backend/scripts/e2e_stack.sh"),
 ]
 
-CSV = ("name,lei,isin,sector,country\n"
-       "Apple Inc,HWUPKR0MPOU8FGXBT394,US0378331005,Information Technology,US\n"
-       "Microsoft Corporation,INR2EJN1ERAN0W5ZP974,US5949181045,Information Technology,US\n"
-       "SAP SE,529900D6BF99LW9R2E68,,Information Technology,DE\n")
+# Name-only companies with a per-run tag: their folders are new, so files other tests left behind never show.
+TAG = uuid4().hex[:6]
+APPLE, MSFT, SAP = f"Applewood {TAG}", f"Microsail {TAG}", f"Sapling {TAG}"
+CSV = f"name\n{APPLE}\n{MSFT}\n{SAP}\n"
 
 
 @pytest.fixture
@@ -41,19 +42,20 @@ def test_step_2_checks_an_upload_and_keeps_it_across_a_reload(page, tmp_path):
     csv = tmp_path / "u.csv"
     csv.write_text(CSV)
     page.locator('input[type="file"]').set_input_files(str(csv))
-    page.get_by_role("table", name="Companies").get_by_text("SAP SE").wait_for()
+    page.get_by_role("table", name="Companies").get_by_text(SAP).wait_for()
     page.get_by_role("button", name="Continue with 3 companies").click()
     page.wait_for_url(re.compile(r"/2$"))
     page.locator("#argus-reporting-year").fill("2025")
     page.locator("#argus-reporting-year").blur()
-    page.get_by_label("I upload them").check()
-    good = make_pdf(tmp_path / "apple-2025.pdf", ["Apple Inc Annual Report 2025", FILLER], n_pages=2)
-    bad = make_pdf(tmp_path / "apple-other.pdf", ["Microsoft Corporation Annual Report 2025", FILLER], n_pages=2)
+    page.get_by_label("I upload them").click()  # saved on the flow first, then shown checked
+    page.get_by_label(APPLE, exact=True).wait_for()
+    good = make_pdf(tmp_path / "apple-2025.pdf", [f"{APPLE} Annual Report 2025", FILLER], n_pages=2)
+    bad = make_pdf(tmp_path / "apple-other.pdf", [f"{MSFT} Annual Report 2025", FILLER], n_pages=2)
     files = page.get_by_role("table", name="Files")
     for path in (good, bad):
-        page.get_by_label("Apple Inc", exact=True).set_input_files(str(path))
+        page.get_by_label(APPLE, exact=True).set_input_files(str(path))
         files.get_by_text(path.name).wait_for()
-    assert "✓ Apple Inc, 2025" in files.locator("tr", has_text="apple-2025.pdf").inner_text()
+    assert f"✓ {APPLE}, 2025" in files.locator("tr", has_text="apple-2025.pdf").inner_text()
     other = files.locator("tr", has_text="apple-other.pdf")
     assert "Company not found in document" in other.inner_text() and "argus-row-await" in other.get_attribute("class")
     page.get_by_role("button", name="Keep all that pass").click()

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { api } from "../api/client";
 import { FileImg } from "../components/FileLink";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
@@ -29,7 +30,7 @@ export function ArgusDocuments({ flow, busy, act, onContinue }: {
   onContinue: () => void;
 }) {
   const [docType, setDocType] = useState("10-K");
-  const [hover, setHover] = useState<string | null>(null);
+  const [hover, setHover] = useState<{ key: string; top: number; left: number } | null>(null);
   const [open, setOpen] = useState<ActiveSource | null>(null);
   const year = flow.reporting_year ?? previousYear(new Date());
   const running = flow.discovery && !["completed", "partially_completed", "failed", "cancelled"].includes(flow.discovery.status);
@@ -42,6 +43,11 @@ export function ArgusDocuments({ flow, busy, act, onContinue }: {
     return () => clearInterval(t);
   }, [running, id, act]);
 
+  // fixed to the viewport and rendered on <body>: the table's scroll box would clip a preview placed inside it
+  const showPreview = (key: string, el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    setHover({ key, top: Math.min(r.bottom + 6, window.innerHeight - 300), left: r.left });
+  };
   const go = continueFilesLabel(flow.files);
   const real = flow.files.filter((f) => !f.duplicate_of);
   const rawUrl = (f: FlowFile) => (f.key.startsWith("doc:") ? f.raw_url ?? "" : api.documentRawUrl(f.company_id, f.doc_type, f.filename));
@@ -159,20 +165,22 @@ export function ArgusDocuments({ flow, busy, act, onContinue }: {
                       <button
                         type="button"
                         className="link-button"
-                        onMouseEnter={() => setHover(f.key)}
+                        onMouseEnter={(e) => showPreview(f.key, e.currentTarget)}
                         onMouseLeave={() => setHover(null)}
-                        onFocus={() => setHover(f.key)}
+                        onFocus={(e) => showPreview(f.key, e.currentTarget)}
                         onBlur={() => setHover(null)}
                         onClick={() => setOpen({ title: `${f.company_name}: ${f.filename}`, src: rawUrl(f) })}
                       >
                         {f.filename}
                       </button>
                     )}
-                    {hover === f.key && f.page_url && (
-                      <span className="argus-file-preview">
-                        <FileImg url={api.documentPageUrl(rawUrl(f), 1)} alt={`First page of ${f.filename}`} />
-                      </span>
-                    )}
+                    {hover?.key === f.key && f.page_url &&
+                      createPortal(
+                        <span className="argus-file-preview" style={{ top: hover.top, left: hover.left }}>
+                          <FileImg url={api.documentPageUrl(rawUrl(f), 1)} alt={`First page of ${f.filename}`} />
+                        </span>,
+                        document.body,
+                      )}
                   </td>
                   <td data-label="Type">{f.doc_type}</td>
                   <td data-label="Year">{f.year ?? ""}</td>
