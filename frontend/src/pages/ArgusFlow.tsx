@@ -4,6 +4,7 @@ import { InputPicker } from "../components/InputPicker";
 import { StepBar } from "../components/StepBar";
 import { continueLabel, documentsText, extractedBeforeText, flowHref, identifierList } from "../lib/argusFlow";
 import { STEPS } from "../lib/argusStart";
+import { ArgusDocuments } from "./ArgusDocuments";
 import type { ArgusFlow as Flow } from "../types";
 
 type Target = "extraction";
@@ -54,7 +55,22 @@ export function ArgusFlow({ flowId, step, onSendUniverse }: { flowId: string; st
       <h1>New extraction</h1>
       <StepBar flowId={flow.flow_id} current={step} reached={flow.step} />
       {error && <p className="error-text" role="alert">{error}</p>}
-      {step !== 1 ? (
+      {step === 2 ? (
+        <ArgusDocuments
+          flow={flow}
+          busy={busy}
+          act={act}
+          onContinue={() =>
+            act(async () => {
+              // shortcut: hands the kept files' companies to the old Extraction screen until slice 4 builds step 3
+              const kept = new Set(flow.files.filter((f) => f.state === "kept").map((f) => f.company_id));
+              await api.patchArgusFlow(flow.flow_id, { step: 3 });
+              const saved = await api.universeFromCompanies(flow.companies.filter((c) => kept.has(c.company_id)), "argus");
+              onSendUniverse("extraction", saved.path, saved.company_count);
+            })
+          }
+        />
+      ) : step !== 1 ? (
         <p>
           {step} {STEPS[step - 1]} is not available here yet. <a href={flowHref(flow.flow_id, 1)}>Back to 1 Companies</a>
         </p>
@@ -171,9 +187,9 @@ export function ArgusFlow({ flowId, step, onSendUniverse }: { flowId: string; st
               disabled={busy || n === 0}
               onClick={() =>
                 act(async () => {
-                  // shortcut: hands the list to the old Extraction screen until slice 3 builds step 2
-                  const saved = await api.universeFromCompanies(flow.companies, "argus");
-                  onSendUniverse("extraction", saved.path, saved.company_count);
+                  const f = await api.patchArgusFlow(flow.flow_id, { step: 2 });
+                  window.location.hash = flowHref(flow.flow_id, 2);
+                  return f;
                 })
               }
             >
