@@ -5,7 +5,7 @@ import { ACTIVE_STATUSES, decisionRunType, REVIEWABLE_RUN_TYPES, runTypeLabel, w
 import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { useMe } from "../lib/reviewer";
-import { useWaitingTotal } from "../lib/useWaitingTotal";
+import { useWaiting } from "../lib/useWaitingTotal";
 import { DONE, STATE_LABEL, cardView, openCount, processState, stepState, stepStatusLine, waitingLink, waitingStat, type StepState } from "../lib/workspaceCard";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
@@ -148,7 +148,7 @@ export function StartPage() {
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const name = reviewer.trim();
   // The one waiting total (null while loading, "error" if it could not load).
-  const needsTotal = useWaitingTotal(runs, flow);
+  const { total: needsTotal, target } = useWaiting(runs, flow);
 
   const known = runs !== null;
   const all = runs ?? [];
@@ -159,7 +159,7 @@ export function StartPage() {
   // Failed runs count in the headline (they wait on a Resume); this row is only what is running.
   const chips = [...active].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 6);
   const n = (v: number) => (known ? v : "—");
-  const link = waitingLink(known, error, needsTotal);
+  const link = waitingLink(known, error, needsTotal, target);
 
   return (
     <div className="page hub hub-start">
