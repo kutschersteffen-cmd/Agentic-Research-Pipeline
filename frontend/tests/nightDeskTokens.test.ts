@@ -223,3 +223,5 @@ test("r4_ac10c", () => assert.match(rule(".hub-card-foot"), /border-top:\s*1px s
 test("r4_ac11", () => { const r = rule(".hub-waiting"); assert.match(r, /color:\s*var\(--hi-ink\)/); assert.match(r, /font-weight:\s*500/); assert.match(r, /text-decoration:\s*none/); });
 test("r4_ac11b", () => assert.match(rule(".hub-waiting-quiet"), /color:\s*var\(--muted\)/));
 test("r4_ac11c", () => assert.match(css, /\.hub-stats \.you dd \{ color: var\(--hi\); \}/));
+// Phones are a real use: the waiting line must wrap, not overflow, at 320px.
+test("r4_waiting_link_wraps", () => assert.match(rule(".hub-waiting"), /max-width:\s*100%/));
