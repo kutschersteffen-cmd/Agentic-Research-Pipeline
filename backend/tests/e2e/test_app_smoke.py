@@ -30,8 +30,21 @@ def page():
         browser.close()
 
 
-def test_start_page_signs_in_and_loads_without_errors(page):
+def test_opening_arp_lands_on_the_landing_page(page):
+    # Night Desk release 5: no page in the address shows the landing page, not the app.
     page.goto(URL)
+    page.wait_for_load_state("networkidle")
+
+    assert page.get_by_role("heading", name="Agents propose. People ratify.").is_visible()
+    assert page.locator(".app-sidebar").count() == 0
+    page.get_by_role("link", name="Open ARP →").click()
+    page.wait_for_load_state("networkidle")
+    assert page.title() == "Start · ARP"
+    assert page.console_errors == []
+
+
+def test_start_page_signs_in_and_loads_without_errors(page):
+    page.goto(URL + "/#/home")
     page.wait_for_load_state("networkidle")
 
     assert page.title() == "Start · ARP"
@@ -40,7 +53,7 @@ def test_start_page_signs_in_and_loads_without_errors(page):
 
 
 def test_navigating_to_the_review_queue_loads_it_from_the_api(page):
-    page.goto(URL)
+    page.goto(URL + "/#/home")
     page.wait_for_load_state("networkidle")
 
     with page.expect_response(lambda r: "/api/review" in r.url) as resp:
