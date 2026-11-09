@@ -18,7 +18,8 @@ import { NAV_ICONS } from "./components/NavIcons";
 import type { ReviewableRunKind, RunManifest, UniverseHandoff } from "./types";
 import { REVIEWABLE_RUN_TYPES, runTypeLabel } from "./lib/runs";
 import { listAllRuns } from "./lib/poll";
-import { HUBS, NAV_GROUPS, currentNavIds, navCount, redirectHash } from "./lib/nav";
+import { HUBS, NAV_GROUPS, currentNavIds, entryTab, navCount, redirectHash } from "./lib/nav";
+import { Landing } from "./pages/Landing";
 
 // Pages load on demand so the first screen does not ship every page and its editors.
 const ThemeBuilder = lazy(() => import("./pages/ThemeBuilder").then((x) => ({ default: x.ThemeBuilder })));
@@ -441,4 +442,15 @@ function App() {
   );
 }
 
-export default App;
+/** Opening ARP lands on the landing page; any other address opens the app as before. */
+function Root() {
+  const [landing, setLanding] = useState(() => entryTab(window.location.hash) === "welcome");
+  useEffect(() => {
+    const onHash = () => setLanding(entryTab(window.location.hash) === "welcome");
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  return landing ? <Landing /> : <App />;
+}
+
+export default Root;

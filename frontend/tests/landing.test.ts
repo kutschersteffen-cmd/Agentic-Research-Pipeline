@@ -16,3 +16,10 @@ test("phase_boundaries", () => {
   assert.deepEqual(p(20000), ["dissolve", 0.5]);
   assert.deepEqual(p(22000), ["network", 0]);
 });
+
+test("r5_ac11", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../src/components/LandingCanvas.tsx", import.meta.url), "utf8");
+  for (const s of ["IntersectionObserver", "visibilitychange", "prefers-reduced-motion", "cancelAnimationFrame", 'aria-hidden="true"', 'removeEventListener("resize"'])
+    assert.ok(src.includes(s), s);
+});
