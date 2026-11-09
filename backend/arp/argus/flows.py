@@ -8,6 +8,7 @@ import logging
 import re
 from collections.abc import Callable
 from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 
 from fastapi import Depends
@@ -32,6 +33,12 @@ def safe_key(value: str) -> str:
         return re.sub(r"[^a-z0-9._-]+", "-", value.lower()).strip("-._")[:128] or "company"
 
 
+class SkippedUpload(BaseModel):
+    company_id: str
+    filename: str
+    duplicate_of: str
+
+
 class ArgusFlow(BaseModel):
     flow_id: str
     created_at: str
@@ -41,6 +48,12 @@ class ArgusFlow(BaseModel):
     step: int = 1  # the furthest step reached, 1..5
     companies: list[CompanyRef] = []
     identity_run_id: str | None = None
+    # step 2
+    reporting_year: int | None = None  # None reads as the previous calendar year
+    source: Literal["upload", "import", "filings", "filings_web"] | None = None
+    discovery_run_id: str | None = None
+    decisions: dict[str, Literal["kept", "removed"]] = {}
+    skipped_uploads: list[SkippedUpload] = []
 
 
 class FlowStore:
