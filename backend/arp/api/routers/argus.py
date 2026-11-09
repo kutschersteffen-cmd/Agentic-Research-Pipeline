@@ -176,6 +176,8 @@ async def upload_flow_document(
         raise HTTPException(404, "Extraction not found")
     if company_id not in {c.company_id for c in flow.companies}:
         raise HTTPException(400, "That company is not in this extraction.")
+    if (file.filename or "").startswith("."):  # the file list skips dot files, so the upload would vanish
+        raise HTTPException(400, "File names cannot start with a dot.")
     data = await file.read(settings.max_upload_bytes + 1)
     if len(data) > settings.max_upload_bytes:
         raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
@@ -186,8 +188,9 @@ async def upload_flow_document(
 
     def apply(f: ArgusFlow) -> None:
         f.source = f.source or "upload"
-        if duplicate_of:
-            f.skipped_uploads.append(SkippedUpload(company_id=company_id, filename=file.filename or "", duplicate_of=duplicate_of))
+        skipped = SkippedUpload(company_id=company_id, filename=file.filename or "", duplicate_of=duplicate_of or "")
+        if duplicate_of and all((x.company_id, x.filename) != (company_id, skipped.filename) for x in f.skipped_uploads):  # one row per key
+            f.skipped_uploads.append(skipped)
 
     return view(store.update(flow_id, apply))
 

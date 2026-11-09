@@ -204,3 +204,14 @@ def test_a_new_reporting_year_unkeeps_files_that_now_fail(client, fid, tmp_path)
     files = by_name(flow)
     assert (files["ar.pdf"]["state"], files["ar.pdf"]["check"]) == (None, "Year 2025, expected 2024")
     assert files["old.pdf"]["state"] == "removed"  # a removal stays
+
+
+def test_dot_names_are_refused_and_repeated_duplicates_show_once(client, fid, tmp_path):
+    data = pdf(tmp_path, "a.pdf", "Apple Inc Annual Report 2025")
+    r = client.post(f"/api/argus/flows/{fid}/documents/upload", data={"company_id": "aapl", "doc_type": "10-K"},
+                    files={"file": (".hidden.pdf", data)})
+    assert (r.status_code, r.json()["detail"]) == (400, "File names cannot start with a dot.")
+    up(client, fid, "aapl", "ar.pdf", data)
+    up(client, fid, "aapl", "copy.pdf", data)
+    keys = [f["key"] for f in up(client, fid, "aapl", "copy.pdf", data)["files"]]
+    assert len(keys) == len(set(keys)) == 2
