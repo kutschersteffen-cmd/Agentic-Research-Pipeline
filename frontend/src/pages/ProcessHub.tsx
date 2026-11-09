@@ -6,7 +6,7 @@ import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { useMe } from "../lib/reviewer";
 import { useWaitingTotal } from "../lib/useWaitingTotal";
-import { DONE, STATE_LABEL, cardView, openCount, processState, stepState, stepStatusLine, type StepState } from "../lib/workspaceCard";
+import { DONE, STATE_LABEL, cardView, openCount, processState, stepState, stepStatusLine, waitingLink, waitingStat, type StepState } from "../lib/workspaceCard";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
 
@@ -107,7 +107,7 @@ function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | 
   const v = cardView(w, runs, flow, new Date());
   return (
     <a className={`hub-card${v.awaits ? " hub-card-await" : ""}`} href={`#/${w.id}`} aria-label={v.label}>
-      {ICONS[w.id]}
+      <span className="hub-card-icon">{ICONS[w.id]}</span>
       <span className="hub-card-text">
         <span className="hub-card-name">{w.short ?? w.name}</span>
         <span className="hub-card-purpose" title={w.purpose}>{w.purpose}</span>
@@ -159,6 +159,7 @@ export function StartPage() {
   // Failed runs count in the headline (they wait on a Resume); this row is only what is running.
   const chips = [...active].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 6);
   const n = (v: number) => (known ? v : "—");
+  const link = waitingLink(known, error, needsTotal);
 
   return (
     <div className="page hub hub-start">
@@ -169,18 +170,13 @@ export function StartPage() {
             {greeting}
             {name ? `, ${name}` : ""}.
           </span>
-          <span>
-            {!known ? (error ? "Runs could not be loaded." : "Loading runs…") : needsTotal === "error" ? "What waits on you could not be loaded." : waiting === null ? "Loading what waits on you…" : waiting > 0 ? waiting === 1 ? "1 decision waits on you." : `${waiting} decisions wait on you.` : "Nothing waits on you."}
-          </span>
         </h1>
-        {waiting !== null && (
-          <details className="hub-counts">
-            <summary>What counts?</summary>
-            Review items, ballots, open stewardship decisions, failed runs to resume and blocking data issues. The Review Queue and each workspace list them.
-          </details>
-        )}
         </div>
         <dl className="hub-stats">
+          <div className="you">
+            <dt>waiting on you</dt>
+            <dd>{waitingStat(waiting)}</dd>
+          </div>
           <div>
             <dt>running</dt>
             <dd>{n(active.length)}</dd>
@@ -203,11 +199,24 @@ export function StartPage() {
           </button>
         </p>
       )}
+      {link.href ? (
+        <a className="hub-waiting" href={link.href}>
+          {link.text}
+        </a>
+      ) : (
+        <p className="hub-waiting hub-waiting-quiet">{link.text}</p>
+      )}
       <div className="hub-cards">
         {WORKSPACES.map((w) => (
           <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} />
         ))}
       </div>
+      {waiting !== null && (
+        <details className="hub-counts">
+          <summary>What counts?</summary>
+          Review items, ballots, open stewardship decisions, failed runs to resume and blocking data issues. The Review Queue and each workspace list them.
+        </details>
+      )}
       <StateLegend waiting={!!waiting} />
       {known && (
       <nav className="hub-now" aria-label="Runs running">
