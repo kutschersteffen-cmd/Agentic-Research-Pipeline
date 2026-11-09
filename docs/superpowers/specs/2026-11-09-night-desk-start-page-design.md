@@ -59,7 +59,7 @@ is removed from the `<h1>`.
 **Waiting link.** Directly above `.hub-cards`: when the waiting total is a number greater than 0,
 `<a class="hub-waiting" href="#/review">{sentence without the final "."} →</a>`; otherwise
 `<p class="hub-waiting hub-waiting-quiet">{sentence}</p>` (loading, errors, nothing waiting). The
-"What counts?" `<details>` stays, after the link.
+"What counts?" `<details>` moves to directly after `.hub-cards` (before the legend).
 
 **Counts.** A first `<div class="you">` with `<dt>waiting on you</dt>` and `<dd>` = the waiting total,
 or `"—"` while not a number. Running, failed this week and done today follow unchanged. The existing
@@ -102,7 +102,7 @@ tests run without a DOM, so rendering is checked through the pure helpers and by
 | AC-11 | `index.css` | `.hub-waiting` is read | It sets `color: var(--hi-ink)`, `font-weight: 500` and `text-decoration: none` | unit |
 | AC-11b | `index.css` | `.hub-waiting-quiet` is read | It sets `color: var(--muted)` | unit |
 | AC-11c | `index.css` | `.hub-stats .you dd` is read | It sets `color: var(--hi)` (unchanged from `origin/main`) | unit |
-| AC-12 | The branch vs `origin/main` | Added lines in `frontend/src` matching `var\(--(hi|await)` are listed | Every added match is in the rule `.hub-waiting` or `.hub-card-await .hub-card-icon`; there are no others | unit |
+| AC-12 | The branch vs `origin/main` | Added lines in `frontend/src` containing `var(--hi` or `var(--await` are listed | Every added match is in the rule `.hub-waiting` or `.hub-card-await .hub-card-icon`; there are no others | unit |
 | AC-13a | The running app with at least one waiting item and a reviewer name (e2e seed; a stack without them counts as a fail) | The start page opens | The `h1` text is exactly `<greeting>, <name>.` with nothing else | evaluator |
 | AC-13b | The same | The start page opens | `.hub-stats` items are, in order, `waiting on you` = N, `running`, `failed this week`, `done today` | evaluator |
 | AC-13c | The same | The start page opens | The element directly before `.hub-cards` is `a.hub-waiting[href="#/review"]` and its text is exactly the AC-8 form for N | evaluator |
