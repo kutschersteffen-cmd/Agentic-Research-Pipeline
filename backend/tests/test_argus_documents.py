@@ -142,3 +142,13 @@ def test_files_found_on_websites_or_filings_say_so(client, fid, tmp_path, settin
         DiscoveredDocument(company_id="aapl", doc_type="10-K", url=u, local_path=str(folder / n), sha256=n) for n, u in urls.items()]))
     files = by_name(client.get(f"/api/argus/flows/{fid}").json())
     assert {n: files[n]["source"] for n in urls} == {"web.pdf": "web", "sec.pdf": "filings", "fake.pdf": "web"}
+
+
+def test_the_check_reads_each_file_name(client, fid, tmp_path, settings):
+    folder = settings.documents_dir / "aapl" / "10-K"
+    folder.mkdir(parents=True)
+    data = pdf(tmp_path, "a.pdf", "Apple Inc Annual Report 2025")
+    for name in ("report.pdf", "2023_report.pdf"):  # same content: the year comes from the name first
+        (folder / name).write_bytes(data)
+    files = by_name(client.get(f"/api/argus/flows/{fid}").json())
+    assert (files["report.pdf"]["year"], files["2023_report.pdf"]["year"]) == (2025, 2023)

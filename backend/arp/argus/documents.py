@@ -66,8 +66,10 @@ def _sha(path: Path) -> str:
 
 
 def _inspect(path: Path, company: CompanyRef, checks_dir: Path) -> tuple[str, int | None]:
-    """(company match, year) for one file, cached by content and company: checking a PDF reads it."""
-    cache = checks_dir / f"{_sha(path)}-{company.company_id}.json"
+    """(company match, year) for one file, cached by content, company and file name (the year is read from the name first)."""
+    # shortcut: hashes every file on every read of the flow; cache by size and mtime when folders hold many large files
+    name = hashlib.sha1(path.name.encode()).hexdigest()[:8]
+    cache = checks_dir / f"{_sha(path)}-{company.company_id}-{name}.json"
     if cache.is_file():
         match, year = json.loads(cache.read_text())
         return match, year
