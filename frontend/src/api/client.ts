@@ -645,6 +645,9 @@ export const api = {
 
   // Argus flows (#/argus/<flow_id>/<step>)
   createArgusFlow: () => request<ArgusFlow>("/api/argus/flows", { method: "POST" }),
+  deleteArgusFlow: async (flowId: string): Promise<void> => {
+    await authFetch(`${API_BASE}/api/argus/flows/${encodeURIComponent(flowId)}`, { method: "DELETE" }); // 204: no body to parse
+  },
   listArgusFlows: () => request<{ flows: ArgusDraft[] }>("/api/argus/flows"),
   getArgusFlow: (flowId: string) => request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}`),
   patchArgusFlow: (flowId: string, body: Partial<Pick<ArgusFlow, "identity_run_id" | "reporting_year" | "source" | "step" | "schema_choice" | "settings" | "repeat">>) =>

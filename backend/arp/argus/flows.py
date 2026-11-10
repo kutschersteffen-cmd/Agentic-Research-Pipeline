@@ -143,6 +143,19 @@ class FlowStore:
             fn(flow)
             return self.save(flow)
 
+    def delete_if_empty(self, flow_id: str) -> bool | None:
+        """Remove a draft nobody has used yet (no companies, still at step 1, no run): None if missing, False if in use."""
+        if self._path(flow_id) is None:
+            return None
+        with self._lock.acquire(flow_id):
+            flow = self.get(flow_id)
+            if flow is None:
+                return None
+            if flow.companies or flow.step > 1 or flow.run_id:
+                return False
+            self._path(flow_id).unlink(missing_ok=True)
+            return True
+
 
 def get_flow_store(settings: Settings = Depends(settings_dep)) -> FlowStore:
     return FlowStore(settings.runs_dir / "_flows")

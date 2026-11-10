@@ -15,12 +15,17 @@ const PRESETS: Record<string, string> = { transition_plan: "transition_plan_indi
 export async function openNewFlow({ preset, universePath }: { preset?: string | null; universePath?: string } = {}) {
   // A hand-over (universePath) keeps the sending page in history; a redirect replaces the dead route.
   const { flow_id } = await api.createArgusFlow();
-  const presetId = preset ? PRESETS[preset] : undefined;
-  if (presetId) {
-    const s = await api.installPreset(presetId);
-    await api.patchArgusFlow(flow_id, { schema_choice: { kind: "schema", schema_id: s.schema_id, version: s.version, profile: null } });
+  try {
+    const presetId = preset ? PRESETS[preset] : undefined;
+    if (presetId) {
+      const s = await api.installPreset(presetId);
+      await api.patchArgusFlow(flow_id, { schema_choice: { kind: "schema", schema_id: s.schema_id, version: s.version, profile: null } });
+    }
+    if (universePath) await api.addFlowCompanies(flow_id, { universe_path: universePath });
+  } catch (err) {
+    await api.deleteArgusFlow(flow_id).catch(() => {}); // leave no empty draft behind; the caller shows the first error
+    throw err;
   }
-  if (universePath) await api.addFlowCompanies(flow_id, { universe_path: universePath });
   if (universePath) window.location.hash = flowHref(flow_id, 1);
   else window.location.replace(flowHref(flow_id, 1));
 }

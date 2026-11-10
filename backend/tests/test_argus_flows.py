@@ -48,3 +48,20 @@ def test_unknown_or_unsafe_flow_is_404(client):
 def test_viewer_cannot_create_or_change(client):
     app.dependency_overrides[current_user] = lambda: Principal(user_id="v", name="V", role="viewer")
     assert client.post("/api/argus/flows").status_code == 403
+
+
+def test_only_an_empty_unstarted_draft_can_be_deleted(client, tmp_path):
+    # a hand-over that fails after creating the flow removes it again, so no empty draft is left on #/argus
+    empty = client.post("/api/argus/flows").json()["flow_id"]
+    assert client.delete(f"/api/argus/flows/{empty}").status_code == 204
+    assert client.get(f"/api/argus/flows/{empty}").status_code == 404
+    assert client.delete(f"/api/argus/flows/{empty}").status_code == 404
+    started = client.post("/api/argus/flows").json()["flow_id"]
+    client.patch(f"/api/argus/flows/{started}", json={"step": 2})
+    assert client.delete(f"/api/argus/flows/{started}").status_code == 409
+    assert client.get(f"/api/argus/flows/{started}").status_code == 200
+    app.dependency_overrides[current_user] = lambda: Principal(user_id="v", name="V", role="viewer")
+    try:
+        assert client.delete(f"/api/argus/flows/{started}").status_code == 403
+    finally:
+        app.dependency_overrides.pop(current_user, None)
