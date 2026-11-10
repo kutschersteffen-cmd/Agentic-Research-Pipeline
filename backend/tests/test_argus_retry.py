@@ -114,6 +114,7 @@ def test_retry_launches_a_job_that_reruns_one_company_on_the_current_kept_files(
     r = client.post(f"/api/argus/flows/{flow}/companies/aapl/retry")  # the real LocalJobLauncher: needs a running loop
     assert r.status_code == 200, r.text
     assert r.json()["status"] == "pending"  # step 4 keeps polling until the job has run
+    assert {c["company_id"]: c["status"] for c in r.json()["companies"]}["aapl"] == "Waiting"  # AC-38: leaves Failed at once
     _wait(lambda: resumed["calls"])
     assert resumed["calls"] == [["aapl"]]
     assert resumed["errors"] == []  # cleared once the job held the run (AC-38: the row leaves Failed)

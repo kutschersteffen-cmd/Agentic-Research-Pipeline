@@ -335,8 +335,9 @@ def flow_progress(
     for row in extraction.run_companies(run_store, m.run_id, run_store.read_results(m.run_id), error_rows):
         cid = row["company_id"]
         steps = step_counts(run_store, m.run_id, cid)[0]["counts"] if active else {}  # the tally only matters while it runs
-        label, percent = company_status(row["status"], status, steps)
-        error = errors.get(cid) if row["status"] in ("failed", "review") else None  # a review stop says why too
+        raw = "waiting" if active and row["status"] == "failed" and cid in m.params.get("retrying", []) else row["status"]
+        label, percent = company_status(raw, status, steps)
+        error = errors.get(cid) if raw in ("failed", "review") else None  # a review stop says why too
         companies.append(CompanyProgress(
             company_id=cid, name=row["name"], status=label, percent=percent, needs_you=open_items.get(cid, 0),
             reason=error.get("error") if error else None,
@@ -384,6 +385,7 @@ async def retry_company(
         if current.status in ("pending", "running"):
             raise HTTPException(409, "This company is already being retried.")
         previous, current.status = current.status, JobStatus.PENDING
+        current.params = {**current.params, "retrying": [company_id]}  # step 4 shows it Waiting, not Failed, from now on
         run_store.save_manifest(current)
 
     async def job() -> None:  # runs under the run's lease (LocalJobLauncher)

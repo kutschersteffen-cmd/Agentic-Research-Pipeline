@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import time
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -13,7 +14,7 @@ import pytest
 
 from arp.argus.flows import FlowStore
 from arp.config import Settings
-from arp.schemas.common import JobStatus, RunManifest
+from arp.schemas.common import CompanyRef, JobStatus, RunManifest
 from arp.storage.run_store import RunStore
 from tests.pdf_fixtures import FILLER, make_pdf
 
@@ -40,11 +41,12 @@ def _field(fid, name, value, route, *, state="found", page=None):
 def seeded(tmp_path):
     settings = Settings()
     store = RunStore(DSN, settings.runs_dir)
-    run_id = f"extraction_e2e{TAG}"
+    run_id = f"extraction_e2e{uuid4().hex[:8]}"  # one run per test: Retry changes it
     store.save_manifest(RunManifest(run_id=run_id, run_type="extraction", status=JobStatus.PARTIALLY_COMPLETED, company_count=3,
                                     completed_count=1, failed_count=1, estimated_cost_usd=0.42, created_at=(datetime.now(UTC) - timedelta(minutes=10)).isoformat(),
                                     params={"schema_name": "Green capex", "schema_version": "sch_g:v1"}))
     names = {A: "Applewood", B: "Microwood", C: "Sapwood"}
+    store.save_companies(run_id, [CompanyRef(company_id=k, name=v) for k, v in names.items()])  # resumable, as a real run is
     (store.run_dir(run_id) / "start_request.json").write_text(json.dumps(
         {"profile": "custom", "companies": [{"company_id": k, "name": v} for k, v in names.items()]}))
     issuer = f"k{TAG}"
@@ -61,7 +63,7 @@ def seeded(tmp_path):
     store.append_error(run_id, {"key": B, "error": "No text could be read from scan.pdf", "document_problem": True})
     docs = settings.documents_dir / A / "10-K"
     docs.mkdir(parents=True, exist_ok=True)
-    make_pdf(docs / "a.pdf", ["Applewood Annual Report 2025", "Green capex was 12", FILLER], n_pages=2)
+    make_pdf(docs / "a.pdf", ["Applewood Annual Report 2025\nGreen capex was 12", FILLER], n_pages=2)  # the quote on page 1
     flows = FlowStore(settings.runs_dir / "_flows")
     from arp.api.auth import Principal
 
@@ -115,7 +117,33 @@ def test_step_5_lists_values_with_what_needs_you_first(page, seeded):
     page.get_by_label("Only what needs me").check()
     assert rows.count() == 2  # AC-41
     page.get_by_label("Only what needs me").uncheck()
-    third.get_by_role("button", name="p. 1").click()  # AC-43
-    page.locator(".source-panel").first.wait_for()
+    third.get_by_role("button", name="p. 1").click()  # AC-43: the cited page, the quote boxed on it
+    page.locator(".source-panel .source-page-img").wait_for()
+    page.locator(".source-panel .source-page-box").first.wait_for()
     assert page.get_by_role("link", name="Download CSV").count() == 1
     assert page.console_errors == []
+
+
+def test_retry_takes_a_failed_company_out_of_failed_and_never_strands_it(page, seeded):
+    page.goto(f"{URL}/#/argus/{seeded}/4")
+    row = page.get_by_role("table", name="Companies in this run").locator("tbody tr").filter(has_text="Microwood")
+    with page.expect_response(lambda r: r.url.endswith(f"/companies/{B}/retry")) as info:
+        row.get_by_role("button", name="Retry").click()
+    assert info.value.status == 200, info.value.text()  # not "503: no running event loop"
+    statuses = {c["company_id"]: c["status"] for c in info.value.json()["companies"]}
+    assert statuses[B] == "Waiting"  # AC-38: it leaves Failed at once
+    api = page.request
+    end = time.monotonic() + 30
+    while _progress(api, seeded)["status"] in ("pending", "running"):
+        assert time.monotonic() < end, "the retry never finished"
+        time.sleep(0.5)
+    # this stack's resume has no model (CI has no key) or no schema for the seeded run: the company fails again, its error back
+    after = {c["company_id"]: c for c in _progress(api, seeded)["companies"]}[B]
+    assert after["status"] == "Failed" and after["reason"], after  # never stranded as Stopped
+    assert page.console_errors == []
+
+
+def _progress(api, fid):
+    r = api.get(f"{API}/api/argus/flows/{fid}/progress")
+    assert r.ok, r.text()
+    return r.json()

@@ -56,6 +56,7 @@ export function ArgusResults({ flow }: { flow: Flow }) {
       title: `${c.source_filename}${c.page ? ` — p. ${c.page}` : ""}`,
       src: `${api.documentRawUrl(c.company_id!, c.doc_type, c.source_filename!)}${c.page ? `#page=${c.page}` : ""}`,
       quote: c.quote,
+      page: c.page, // the cited page as an image, the quote boxed on it
     });
   };
 

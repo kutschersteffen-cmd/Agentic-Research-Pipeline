@@ -4,6 +4,8 @@ import { excerptView, highlightParts } from "../lib/sourceText";
 import type { PageBox } from "../types";
 import { FileFrame, FileImg, FileLink } from "./FileLink";
 
+const isPdfUrl = (src: string) => !!src && decodeURIComponent(src.split("#")[0]).toLowerCase().endsWith(".pdf/raw");
+
 /** A page of a document's stored text, with the cited span when there is one. */
 export interface SourceText {
   run_id: string;
@@ -24,6 +26,8 @@ export interface ActiveSource {
   quote?: string;
   /** Review workbench: show the stored text instead of the original file. */
   text?: SourceText;
+  /** A PDF's cited page: shown as the page image with `quote` boxed on it, not the plain file. */
+  page?: number | null;
   onSelectQuote?: (c: { doc_id: string; doc_type: string; quote: string }) => void;
 }
 
@@ -63,6 +67,15 @@ export function SourcePanel({ source, onClose }: Props) {
           source={source}
           initial={source.text}
         />
+      ) : source.page && source.quote && isPdfUrl(source.src) ? (
+        <>
+          <div className="toolbar">
+            <FileLink url={source.src} name={source.title} open className="link-button">
+              Open original
+            </FileLink>
+          </div>
+          <PageView rawUrl={source.src.split("#")[0]} page={source.page} mark={source.quote} />
+        </>
       ) : (
         <FileFrame className="source-panel-iframe" url={source.src} title={source.title} />
       )}
@@ -74,7 +87,7 @@ export function SourcePanel({ source, onClose }: Props) {
 function TextView({ source, initial }: { source: ActiveSource; initial: SourceText }) {
   const [text, setText] = useState(initial);
   const [error, setError] = useState("");
-  const isPdf = !!source.src && decodeURIComponent(source.src.split("#")[0]).toLowerCase().endsWith(".pdf/raw");
+  const isPdf = isPdfUrl(source.src);
   const [view, setView] = useState<"page" | "text">(isPdf ? "page" : "text");
   const markRef = useRef<HTMLElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
