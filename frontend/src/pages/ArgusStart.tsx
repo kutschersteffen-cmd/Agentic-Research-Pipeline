@@ -179,7 +179,7 @@ export function ArgusStart() {
                         {r.starterName ?? "—"} · {new Date(r.createdAt).toLocaleDateString()}
                       </div>
                     </td>
-                    <td>{r.companies} companies</td>
+                    <td>{r.companies} {r.companies === 1 ? "company" : "companies"}</td>
                     <td>
                       {r.step} {STEPS[r.step - 1]}
                     </td>
