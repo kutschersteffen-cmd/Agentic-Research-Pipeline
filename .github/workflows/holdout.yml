@@ -11,11 +11,15 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, edited]
+  # Nightly full run of regression/ on main: the PR runs may later select only the tests a change touches.
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
 
 # One run per PR: a push cancels the run for the older commit. An edit (the Spec:/Rows: lines live in the
 # PR body) queues behind a running run instead of cancelling it.
 concurrency:
-  group: holdout-${{ github.event.pull_request.number }}
+  group: holdout-${{ github.event.pull_request.number || 'nightly' }}
   cancel-in-progress: ${{ github.event.action != 'edited' }}
 
 jobs:
@@ -26,6 +30,7 @@ jobs:
       contents: read
       pull-requests: read
       actions: read
+      issues: write
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -73,8 +78,13 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           GH_REPO: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT: ${{ github.event_name }}
           TITLE_ONLY_EDIT: ${{ github.event.action == 'edited' && github.event.changes.body == null }}
         run: |
+          if [ "$EVENT" != pull_request ]; then
+            if [ -n "$KEY" ]; then echo "present=true" >>"$GITHUB_OUTPUT"; else echo "present=false" >>"$GITHUB_OUTPUT"; fi
+            exit 0
+          fi
           if [ "$TITLE_ONLY_EDIT" = true ] && [ "$(gh run list --workflow holdout.yml --commit "$HEAD_SHA" --status success --json databaseId --jq length)" -gt 0 ]; then
             echo "present=false" >>"$GITHUB_OUTPUT"
             echo "Holdout acceptance skipped: the edit did not change the PR body and this commit already passed."
@@ -135,3 +145,11 @@ jobs:
       - name: Remove the hidden tests
         if: always()
         run: rm -rf .holdout
+
+      - name: Open an issue when the nightly run fails
+        if: failure() && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "Nightly Holdout failed $(date -u +%F)" \
+            --body "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
