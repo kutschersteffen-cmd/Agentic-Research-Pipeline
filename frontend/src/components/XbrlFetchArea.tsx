@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { CompanyPicker } from "./CompanyPicker";
 import { when } from "../lib/runs";
-import { canRetryFetch, keyLabel, reportText, statusText } from "../lib/xbrlTags";
+import { canRetryFetch, keyLabel, reportText, statusText, usingText } from "../lib/xbrlTags";
 import type { RunManifest, WorkbenchResponse, XbrlCompanyStatus, XbrlRunMarket } from "../types";
 import { pollAfter } from "../lib/poll";
 
@@ -37,7 +37,7 @@ export function XbrlFetchArea({
   selectedRunId: string | null; // from the URL (#/xbrl/<run id>): refresh, Back and a pasted link reattach
   onSelectRun: (runId: string) => void;
 }) {
-  const [universe, setPicked] = useState<{ path: string; count: number } | null>(null);
+  const [universe, setPicked] = useState<{ path: string; count: number | null } | null>(null);
   const [pickError, setPickError] = useState<string | null>(null);
   // Each choice in the company picker becomes one saved universe the fetch reads.
   async function pick(make: () => Promise<{ path: string; company_count: number }>) {
@@ -210,7 +210,7 @@ export function XbrlFetchArea({
         onUniverse={(path, count) => setPicked({ path, count })}
         onAddOne={(c) => pick(() => api.universeFromCompanies([{ ...c, company_id: c.cik || c.lei || c.isin || c.ticker || c.name }], "single"))}
       />
-      {universe && <p className="status-text">Using {universe.count} {universe.count === 1 ? "company" : "companies"}.</p>}
+      {universe && <p className="status-text">{usingText(universe.count)}</p>}
       {pickError && <p className="error-text" role="alert">{pickError}</p>}
       <fieldset className="xbrl-choice">
         <legend className="field-label">Tags to fetch</legend>
@@ -237,7 +237,7 @@ export function XbrlFetchArea({
       {noTags && <p className="help-text">Choose at least one tag in the Tags section, or fetch all tags.</p>}
       {!universe && <p className="help-text">Upload or pick a company universe to start.</p>}
       <button onClick={start} disabled={busy || !universe || noTags || (running && !pollError)}>
-        Start fetch{universe ? ` for ${universe.count.toLocaleString()} companies` : ""}
+        Start fetch{universe?.count != null ? ` for ${universe.count.toLocaleString()} companies` : ""}
       </button>
       <div aria-live="polite">{error && <p className="error-text">{error}</p>}</div>
 

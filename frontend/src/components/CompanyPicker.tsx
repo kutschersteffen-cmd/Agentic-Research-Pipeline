@@ -15,7 +15,7 @@ export function CompanyPicker({
 }: {
   busy: boolean;
   onUpload: (file: File) => void;
-  onUniverse: (path: string, count: number) => void;
+  onUniverse: (path: string, count: number | null) => void;
   onAddOne: (company: OneCompany) => Promise<boolean>; // false: it failed, so keep what was typed
 }) {
   const [one, setOne] = useState(EMPTY);
@@ -42,7 +42,7 @@ export function CompanyPicker({
         value={saved}
         onChange={(o) => {
           setSaved(o?.id ?? "");
-          if (o) onUniverse(o.id, o.count ?? 0);
+          if (o) onUniverse(o.id, o.count ?? null);
         }}
       />
       <form
