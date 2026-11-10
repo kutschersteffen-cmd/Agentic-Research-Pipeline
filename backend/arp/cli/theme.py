@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import csv
+import functools
 import hashlib
 import json
 from pathlib import Path
@@ -90,7 +91,8 @@ def theme_trend_snapshot(
         if facts_dir:
             facts_for = theme_trend.facts_from_dir(facts_dir)
         else:
-            facts_for = lambda cik: asyncio.run(_xbrl_source().fetch_company_facts(cik))  # noqa: E731
+            source = functools.cache(_xbrl_source)  # built on the first CIK, once
+            facts_for = lambda cik: asyncio.run(source().fetch_company_facts(cik))  # noqa: E731
         done = theme_trend.snapshot(
             taxonomy_id, symbols, quarter, start, stop, taxonomy_store=_taxonomy_store(), run_store=_run_store(),
             portfolios_dir=get_settings().portfolios_dir, prices=CsvPriceSource(prices) if prices else YFinancePriceSource(),
