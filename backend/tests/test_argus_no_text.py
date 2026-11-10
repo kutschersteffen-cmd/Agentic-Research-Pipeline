@@ -158,4 +158,4 @@ def test_kept_documents_reuse_the_registry_fetch_instead_of_a_copy():
     assert "asyncio.gather" not in inspect.getsource(registry.KeptDocuments)  # one fan-out, the registry's
     from arp.ingestion.local_files import LocalFileDocumentSource
 
-    assert registry.LOCAL_SOURCE == LocalFileDocumentSource.name
+    assert LocalFileDocumentSource.name == registry.LOCAL_SOURCE
