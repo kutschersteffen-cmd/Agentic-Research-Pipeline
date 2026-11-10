@@ -70,7 +70,11 @@ def test_step_3_shows_the_fields_and_starts_a_trial(page, tmp_path):
     assert table.locator("tbody tr").count() == 4
     start = page.get_by_role("button", name=f"Try {SCHEMA} on 1 company")  # AC-29
     start.click()
-    page.wait_for_url(re.compile(r"#/argus$"))
+    # Starting scans earlier runs and launches the run, slower on a cold CI stack; an error the page shows fails fast.
+    page.wait_for_function("() => location.hash === '#/argus' || document.querySelector('[role=alert]')", timeout=45_000)
+    alert = page.locator("[role=alert]")
+    assert not alert.count(), f"Start failed on the page: {alert.first.inner_text()}"
+    assert page.evaluate("location.hash") == "#/argus"
     assert _ok(api.get(f"{API}/api/argus/flows/{fid}"))["run_id"]
     bar_step = _ok(api.get(f"{API}/api/argus/flows/{fid}"))["step"]
     assert bar_step == 4
