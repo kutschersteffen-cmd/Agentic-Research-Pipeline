@@ -37,3 +37,33 @@ test("a draft lists as Draft at its step, newest first, opening the flow", () =>
     ["r1", "Extraction", 3, "Running", 4, "bob", "#/extraction/extract"],
   ]);
 });
+
+test("step 2 continue counts kept files and their companies", async () => {
+  const { continueFilesLabel, previousYear } = await import("../src/lib/argusFlow.ts");
+  const f = (company_id: string, state: "kept" | "removed" | null) => ({ company_id, state }) as never;
+  assert.deepEqual(continueFilesLabel([f("a", "kept"), f("a", "kept"), f("b", "kept"), f("c", "kept"), f("c", "kept"), f("c", "kept"), f("c", "kept"), f("d", "removed"), f("e", null)]),
+    { text: "Continue with 7 files for 3 companies", disabled: false });
+  assert.deepEqual(continueFilesLabel([f("a", "kept")]), { text: "Continue with 1 file for 1 company", disabled: false });
+  assert.deepEqual(continueFilesLabel([f("a", "removed")]), { text: "Continue with 0 files for 0 companies", disabled: true });
+  assert.equal(previousYear(new Date("2026-11-09")), 2025);
+});
+
+test("step 3 start label, new documents line and repeat gate", async () => {
+  const { startLabel, newDocsLine, canStart } = await import("../src/lib/argusFlow.ts");
+  assert.equal(startLabel("Green capex", 2, true, 3), "Extract Green capex v2 for 3 companies");
+  assert.equal(startLabel("Green capex", 2, true, 1), "Extract Green capex v2 for 1 company");
+  assert.equal(startLabel("Green capex", 3, false, 3), "Try Green capex on 1 company");  // AC-29
+  assert.equal(startLabel("Financials", null, true, 2), "Extract Financials for 2 companies");
+  assert.deepEqual([newDocsLine(1), newDocsLine(3), newDocsLine(0)],
+    ["1 new document since the last run", "3 new documents since the last run", null]);
+  const same = { company_id: "a", kind: "same" } as never, added = { company_id: "b", kind: "added" } as never;
+  assert.equal(canStart([same, added], {}), false);  // AC-32
+  assert.equal(canStart([same, added], { a: "skip" }), true);
+  assert.equal(canStart([added], {}), true);
+});
+
+test("the picker lists only each schema's newest version", async () => {
+  const { newestVersions } = await import("../src/lib/argusFlow.ts");
+  const s = (schema_id: string, version: number, name = schema_id) => ({ schema_id, version, name, release_flag: false });
+  assert.deepEqual(newestVersions([s("a", 1), s("b", 1, "B"), s("a", 3), s("a", 2)]).map((x) => [x.schema_id, x.version]), [["a", 3], ["b", 1]]);
+});

@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { InputPicker } from "../components/InputPicker";
 import { StepBar } from "../components/StepBar";
 import { continueLabel, documentsText, extractedBeforeText, flowHref, identifierList } from "../lib/argusFlow";
 import { STEPS } from "../lib/argusStart";
+import { ArgusDocuments } from "./ArgusDocuments";
+import { ArgusSchema } from "./ArgusSchema";
 import type { ArgusFlow as Flow } from "../types";
 
-type Target = "extraction";
 const EMPTY = { name: "", ticker: "", isin: "", lei: "", cik: "" };
 
 /** #/argus/<flow_id>/<step>: one extraction being set up. The flow lives on the server, so a reload or a teammate's link shows the same step and data. */
-export function ArgusFlow({ flowId, step, onSendUniverse }: { flowId: string; step: number; onSendUniverse: (to: Target, path: string, count: number) => void }) {
+export function ArgusFlow({ flowId, step }: { flowId: string; step: number }) {
   const [flow, setFlow] = useState<Flow | null>(null);
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -22,7 +23,10 @@ export function ArgusFlow({ flowId, step, onSendUniverse }: { flowId: string; st
     api.getArgusFlow(flowId).then(setFlow, (e: Error) => (/not found/i.test(e.message) ? setMissing(true) : setError(e.message)));
   }, [flowId]);
 
+  // bumped at the start and end of every change, so a background read that began before it is dropped
+  const changes = useRef(0);
   const act = useCallback(async (fn: () => Promise<Flow | void>) => {
+    changes.current++;
     setBusy(true);
     setError("");
     try {
@@ -31,9 +35,14 @@ export function ArgusFlow({ flowId, step, onSendUniverse }: { flowId: string; st
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      changes.current++;
       setBusy(false);
     }
   }, []);
+  const refresh = useCallback(() => {
+    const at = changes.current;
+    api.getArgusFlow(flowId).then((f) => at === changes.current && setFlow(f), () => {}); // a failed poll just waits for the next
+  }, [flowId]);
 
   if (missing)
     return (
@@ -54,7 +63,23 @@ export function ArgusFlow({ flowId, step, onSendUniverse }: { flowId: string; st
       <h1>New extraction</h1>
       <StepBar flowId={flow.flow_id} current={step} reached={flow.step} />
       {error && <p className="error-text" role="alert">{error}</p>}
-      {step !== 1 ? (
+      {step === 2 ? (
+        <ArgusDocuments
+          flow={flow}
+          busy={busy}
+          act={act}
+          refresh={refresh}
+          onContinue={() =>
+            act(async () => {
+              const f = await api.patchArgusFlow(flow.flow_id, { step: 3 });
+              window.location.hash = flowHref(flow.flow_id, 3);
+              return f;
+            })
+          }
+        />
+      ) : step === 3 ? (
+        <ArgusSchema flow={flow} busy={busy} act={act} />
+      ) : step !== 1 ? (
         <p>
           {step} {STEPS[step - 1]} is not available here yet. <a href={flowHref(flow.flow_id, 1)}>Back to 1 Companies</a>
         </p>
@@ -171,9 +196,9 @@ export function ArgusFlow({ flowId, step, onSendUniverse }: { flowId: string; st
               disabled={busy || n === 0}
               onClick={() =>
                 act(async () => {
-                  // shortcut: hands the list to the old Extraction screen until slice 3 builds step 2
-                  const saved = await api.universeFromCompanies(flow.companies, "argus");
-                  onSendUniverse("extraction", saved.path, saved.company_count);
+                  const f = await api.patchArgusFlow(flow.flow_id, { step: 2 });
+                  window.location.hash = flowHref(flow.flow_id, 2);
+                  return f;
                 })
               }
             >

@@ -646,13 +646,24 @@ export const api = {
   createArgusFlow: () => request<ArgusFlow>("/api/argus/flows", { method: "POST" }),
   listArgusFlows: () => request<{ flows: ArgusDraft[] }>("/api/argus/flows"),
   getArgusFlow: (flowId: string) => request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}`),
-  patchArgusFlow: (flowId: string, body: { identity_run_id?: string }) =>
+  patchArgusFlow: (flowId: string, body: Partial<Pick<ArgusFlow, "identity_run_id" | "reporting_year" | "source" | "step" | "schema_choice" | "settings" | "repeat">>) =>
     request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}`, { method: "PATCH", body: JSON.stringify(body) }),
   uploadFlowCompanies: (flowId: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
     return request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies/upload`, { method: "POST", headers: {}, body: form });
   },
+  findFlowDocuments: (flowId: string) => request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/documents/find`, { method: "POST" }),
+  uploadFlowDocument: (flowId: string, companyId: string, docType: string, file: File) => {
+    const form = new FormData();
+    form.append("company_id", companyId);
+    form.append("doc_type", docType);
+    form.append("file", file);
+    return request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/documents/upload`, { method: "POST", headers: {}, body: form });
+  },
+  startArgusFlow: (flowId: string) => request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/start`, { method: "POST" }),
+  decideFlowFiles: (flowId: string, body: { keys?: string[]; state?: "kept" | "removed"; all_that_pass?: boolean; all?: boolean }) =>
+    request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/files`, { method: "POST", body: JSON.stringify(body) }),
   addFlowCompanies: (flowId: string, body: { universe_path?: string; company?: { name: string; ticker?: string; isin?: string; lei?: string; cik?: string } }) =>
     request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies`, { method: "POST", body: JSON.stringify(body) }),
 
@@ -740,6 +751,11 @@ export const api = {
     request<{ schema_id: string; version: number; name: string; release_flag: boolean; saved_at: string }[]>("/api/extraction/schemas"),
   getSchema: (schemaId: string, version: number) =>
     request<DataPointSchema>(`/api/extraction/schemas/${encodeURIComponent(schemaId)}?version=${version}`),
+  registerSchema: (schema: DataPointSchema) =>
+    request<DataPointSchema>("/api/extraction/schemas", { method: "POST", body: JSON.stringify(schema) }),
+  listPresets: () => request<{ preset_id: string; name: string; field_count: number }[]>("/api/extraction/presets"),
+  installPreset: (presetId: string) =>
+    request<{ schema_id: string; version: number }>(`/api/extraction/presets/${encodeURIComponent(presetId)}/install`, { method: "POST" }),
   releaseSchema: (schemaId: string, version: number) =>
     request<DataPointSchema>(`/api/extraction/schemas/${encodeURIComponent(schemaId)}/versions/${version}/release`, { method: "POST" }),
   compareTaxonomies: (body: unknown) => request("/api/taxonomies/compare", { method: "POST", body: JSON.stringify(body) }),
