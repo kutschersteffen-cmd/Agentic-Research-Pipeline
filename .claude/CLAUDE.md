@@ -153,7 +153,7 @@ The owner answers by tapping buttons, not by typing. Every question to the owner
   then `cd frontend && npm run gen:api`, fix the type errors `tsc -b` reports, and commit both generated files.
   A new `request<T>()` against an endpoint with a response model gets a line in `frontend/src/api/contract.ts`.
 - Browser flow (cloud session): `bash .claude/hooks/ensure-deps.sh postgres && bash backend/scripts/e2e_stack.sh up`,
-  then `cd backend && ARP_E2E_URL=http://localhost:5173 ARP_CHROMIUM_PATH=$(ls -d /opt/pw-browsers/chromium-*/chrome-linux/chrome | head -1) pytest -m e2e tests/e2e`;
+  then `cd backend && ARP_E2E_URL=http://localhost:5173 ARP_CHROMIUM_PATH=$(ls -d /opt/pw-browsers/chromium-*/chrome-linux*/chrome | head -1) pytest -m e2e tests/e2e`;
   `e2e_stack.sh down` when done. CI runs it as the "E2E (browser)" job.
 - Mutation check (do the tests catch bugs?): `cd backend && pip install mutmut==3.8.0 "pytest<9.2" && python scripts/mutation_check.py --base origin/main`
   (some tests need `ARP_TEST_POSTGRES_DSN`). CI runs it nightly and on `risk:high` PRs; surviving mutants are weak tests.
