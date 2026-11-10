@@ -29,8 +29,10 @@ export function continueFilesLabel(files: Pick<FlowFile, "company_id" | "state">
 
 export const previousYear = (today: Date) => today.getFullYear() - 1;
 
-/** Step 3's start button: a released schema (or fixed profile) runs on every company; a draft is tried on one. */
-export function startLabel(name: string, version: number | null, released: boolean, companies: number): string {
+/** Step 3's start button: a released schema (or fixed profile) runs on every company; a draft is tried on one.
+ * `name` is null while the chosen schema is still loading, when whether it is a draft is not known yet. */
+export function startLabel(name: string | null, version: number | null, released: boolean, companies: number): string {
+  if (name === null) return "Loading schema…";
   if (!released) return `Try ${name} on 1 company`;
   return `Extract ${name}${version ? ` v${version}` : ""} for ${companies} ${companies === 1 ? "company" : "companies"}`;
 }

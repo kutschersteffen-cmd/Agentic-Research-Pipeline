@@ -79,7 +79,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
   const nameOf = (cid: string) => flow.companies.find((c) => c.company_id === cid)?.name ?? cid;
   const released = choice?.kind === "profile" || !!schema?.release_flag;
   const label = choice
-    ? startLabel(choice.kind === "profile" ? profileName : schema?.name ?? "", choice.kind === "profile" ? null : choice.version ?? null, released, companies.length)
+    ? startLabel(choice.kind === "profile" ? profileName : schema?.name ?? null, choice.kind === "profile" ? null : choice.version ?? null, released, companies.length)
     : "Choose what to extract";
   const ready = !!choice && !editing && (choice.kind === "profile" || !!schema) && companies.length > 0 && canStart(flow.repeat_rows, flow.repeat);
   const runType = choice?.kind === "profile" ? choice.profile! : "extraction";

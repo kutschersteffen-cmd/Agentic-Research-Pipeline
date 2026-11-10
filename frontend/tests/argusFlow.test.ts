@@ -54,6 +54,7 @@ test("step 3 start label, new documents line and repeat gate", async () => {
   assert.equal(startLabel("Green capex", 2, true, 1), "Extract Green capex v2 for 1 company");
   assert.equal(startLabel("Green capex", 3, false, 3), "Try Green capex on 1 company");  // AC-29
   assert.equal(startLabel("Financials", null, true, 2), "Extract Financials for 2 companies");
+  assert.equal(startLabel(null, 1, false, 2), "Loading schema…");  // not "Try  on 1 company" before the schema arrives
   assert.deepEqual([newDocsLine(1), newDocsLine(3), newDocsLine(0)],
     ["1 new document since the last run", "3 new documents since the last run", null]);
   const same = { company_id: "a", kind: "same" } as never, added = { company_id: "b", kind: "added" } as never;
