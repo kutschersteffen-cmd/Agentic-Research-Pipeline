@@ -157,8 +157,10 @@ async def run_company_batch(
     job_manager = JobManager(run_store)
     # The run's stored companies when it has them: resolved (entity_id set), identity conflicts
     # left out (save_companies recorded them as run errors), the same set on a fresh run and a resume.
+    # Only the ones passed in, though: a resume of some companies (Argus Retry) must not run the rest.
     if run_store.has_companies(run_id):
-        companies = run_store.load_companies(run_id) or []
+        wanted = {c.company_id for c in companies}
+        companies = [c for c in run_store.load_companies(run_id) or [] if c.company_id in wanted]
 
     manifest = run_store.load_manifest(run_id)
     run_type = manifest.run_type if manifest else ""
