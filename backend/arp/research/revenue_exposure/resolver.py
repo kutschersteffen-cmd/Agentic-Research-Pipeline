@@ -92,12 +92,13 @@ def to_exposure(extracted: ExtractedField | None, schema_version: str) -> Metric
     except (TypeError, ValueError):
         return MetricExposure(source="unresolved", notes="Extracted value was not numeric.")
 
-    pct_fraction = pct / 100 if pct > 1 else pct
+    if not 0 <= pct <= 100:  # also rejects nan; the extractor contract is 0-100
+        return MetricExposure(source="unresolved", notes=f"Extracted value {extracted.value} is outside 0-100.")
     citation = (
         ExposureCitation(**extracted.citations[0].model_dump(), schema_version=schema_version) if extracted.citations else None
     )
     return MetricExposure(
-        value_pct=min(max(pct_fraction, 0.0), 1.0),
+        value_pct=pct / 100,
         source="extracted",
         confidence=extracted.confidence,
         citation=citation,
