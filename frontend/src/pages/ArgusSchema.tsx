@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { BatchToggle } from "../components/BatchToggle";
+import { ruleMarkers, RulesList } from "../components/RulesList";
 import { ScoringTemplatePicker } from "../components/RunScoring";
+import { SchemaFieldsEditor } from "../components/SchemaFieldsEditor";
+import { ruleInputs, sameRule } from "../lib/ruleSentence";
 import { canStart, flowHref, newDocsLine, newestVersions, startLabel } from "../lib/argusFlow";
-import type { ArgusFlow as Flow, DataPointSchema, FieldDefinition } from "../types";
+import type { ArgusFlow as Flow, DataPointSchema, FieldDefinition, RuleSuggestion } from "../types";
 
 type SavedSchema = { schema_id: string; version: number; name: string; release_flag: boolean };
 type Preset = { preset_id: string; name: string; field_count: number };
@@ -12,7 +15,6 @@ const PROFILES: ["financials" | "tnfd", string][] = [
   ["financials", "Financials"],
   ["tnfd", "TNFD"],
 ];
-const TYPES: FieldDefinition["data_type"][] = ["number", "currency_amount", "percentage", "string", "boolean", "enum", "date"];
 
 const asChoice = (c: Partial<Choice> & Pick<Choice, "kind">): Choice => ({ schema_id: null, version: null, profile: null, ...c });
 
@@ -27,6 +29,13 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
   const [presets, setPresets] = useState<Preset[]>([]);
   const [schema, setSchema] = useState<DataPointSchema | null>(null);
   const [editing, setEditing] = useState<DataPointSchema | null>(null); // unsaved fields: drafted, added or being edited
+  // Rule suggestions for the unsaved fields: waiting ones block saving; dropped ones are not suggested again.
+  const [waiting, setWaiting] = useState<RuleSuggestion[]>([]);
+  const [dropped, setDropped] = useState<RuleSuggestion[]>([]);
+  const [suggesting, setSuggesting] = useState(false);
+  const [ruleError, setRuleError] = useState("");
+  const latest = useRef(editing); // patches after an await apply to the fields as they are then
+  latest.current = editing;
   const [words, setWords] = useState("");
   const [role, setRole] = useState<string | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -52,19 +61,55 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
 
   const choose = (c: Partial<Choice> & Pick<Choice, "kind">) =>
     act(async () => {
-      setEditing(null);
+      edit(null);
       return api.patchArgusFlow(id, { schema_choice: asChoice(c), repeat: {} });
     });
   const saveEditing = () =>
     act(async () => {
       if (!editing) return;
       const s = await api.registerSchema({ ...editing, fields: editing.fields.filter((f) => f.name.trim()) });
-      setEditing(null);
+      edit(null);
       setSaved(newestVersions(await api.listSchemas()));
       return api.patchArgusFlow(id, { schema_choice: asChoice({ kind: "schema", schema_id: s.schema_id, version: s.version ?? 1 }), repeat: {} });
     });
-  const setField = (i: number, patch: Partial<FieldDefinition>) =>
-    editing && setEditing({ ...editing, fields: editing.fields.map((f, j) => (j === i ? { ...f, ...patch } : f)) });
+  const edit = (s: DataPointSchema | null) => {
+    setEditing(s);
+    setWaiting([]);
+    setDropped([]);
+    setRuleError("");
+  };
+  /** New suggestions replace the waiting ones, minus any matching an accepted rule or one dropped this session. */
+  async function suggest(s: DataPointSchema) {
+    setSuggesting(true);
+    setRuleError("");
+    try {
+      const res = await api.suggestRules(s);
+      const now = latest.current;
+      if (now?.schema_id !== s.schema_id) return; // a new draft replaced the fields these rules name
+      const known = [
+        ...now.fields.flatMap((f) => (f.rules ?? []).map((rule) => ({ fieldId: f.field_id, rule }))),
+        ...dropped.map((d) => ({ fieldId: d.field_id, rule: d.rule })),
+      ];
+      const helpers = res.helper_fields ?? [];
+      setWaiting(
+        (res.rules ?? [])
+          .filter((r) => !known.some((k) => sameRule(k, { fieldId: r.field_id, rule: r.rule })))
+          .map((r) => ({ ...r, helper_fields: helpers.filter((h) => h.field_id === r.field_id || ruleInputs(r.rule).includes(h.field_id)) })),
+      );
+    } catch (err) {
+      setRuleError(`Rule suggestions failed: ${(err as Error).message}`);
+    } finally {
+      setSuggesting(false);
+    }
+  }
+  /** A field marker's target: the field's first rule, else the first rule that reads it. */
+  function showRules(fieldId: string) {
+    const list = document.getElementById("argus-rules");
+    const fid = CSS.escape(fieldId);
+    const el = list?.querySelector<HTMLElement>(`[data-field="${fid}"]`) ?? list?.querySelector<HTMLElement>(`[data-reads~="${fid}"]`);
+    el?.scrollIntoView({ block: "center" });
+    el?.focus({ preventScroll: true });
+  }
 
   const evidenceValue = () => (evidence.trim() ? Number(evidence) : null);
   const shown = editing ?? schema;
@@ -116,7 +161,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
                   onClick={() =>
                     act(async () => {
                       const s = await api.installPreset(p.preset_id);
-                      setEditing(null);
+                      edit(null);
                       setSaved(newestVersions(await api.listSchemas()));
                       return api.patchArgusFlow(id, { schema_choice: asChoice({ kind: "schema", schema_id: s.schema_id, version: s.version }), repeat: {} });
                     })
@@ -144,10 +189,13 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
           <button
             type="button"
             className="secondary"
-            disabled={busy || !words.trim()}
+            disabled={busy || suggesting || !words.trim()}
             onClick={() =>
               act(async () => {
-                setEditing((await api.draftSchema(words)) as DataPointSchema);
+                const drafted = (await api.draftSchema(words)) as DataPointSchema;
+                edit(drafted);
+                latest.current = drafted;
+                void suggest(drafted);
               })
             }
           >
@@ -167,32 +215,44 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
                 {!editing && schema && <span className="muted"> v{schema.version} · {schema.release_flag ? "released" : "draft"}</span>}
                 {editing && <span className="muted"> · not saved</span>}
               </h2>
-              <div className="table-wrap">
-                <table className="data-table stack-on-phone" aria-label="Fields to extract">
-                  <thead>
-                    <tr>
-                      <th scope="col">Field</th>
-                      <th scope="col">Type</th>
-                      <th scope="col">Unit</th>
-                      <th scope="col">What it means</th>
-                      <th scope="col">Look in</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {shown.fields.map((f, i) =>
-                      editing ? (
-                        <tr key={i}>
-                          <td data-label="Field"><input aria-label="Field" value={f.name} onChange={(e) => setField(i, { name: e.target.value })} /></td>
-                          <td data-label="Type">
-                            <select aria-label="Type" value={f.data_type} onChange={(e) => setField(i, { data_type: e.target.value as FieldDefinition["data_type"] })}>
-                              {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                          </td>
-                          <td data-label="Unit"><input aria-label="Unit" value={f.unit ?? ""} onChange={(e) => setField(i, { unit: e.target.value || null })} /></td>
-                          <td data-label="What it means"><input aria-label="What it means" value={f.description} onChange={(e) => setField(i, { description: e.target.value })} /></td>
-                          <td data-label="Look in"><input aria-label="Look in" value={f.extraction_instructions} onChange={(e) => setField(i, { extraction_instructions: e.target.value })} /></td>
-                        </tr>
-                      ) : (
+              {editing ? (
+                <>
+                  <SchemaFieldsEditor
+                    fields={editing.fields}
+                    onChange={(fields) => setEditing({ ...editing, fields })}
+                    markers={ruleMarkers(editing, waiting)}
+                    onMarkerClick={showRules}
+                  />
+                  <div id="argus-rules">
+                    <RulesList
+                      schema={editing}
+                      waiting={waiting}
+                      busy={busy || suggesting}
+                      onSuggestAgain={() => suggest(editing)}
+                      onChange={(n) => {
+                        setEditing(n.schema);
+                        setWaiting(n.waiting);
+                        setDropped([...dropped, ...n.dropped]);
+                      }}
+                    />
+                  </div>
+                  {suggesting && <p className="muted" role="status">Suggesting rules…</p>}
+                  {ruleError && <p className="error-text" role="alert">{ruleError}</p>}
+                </>
+              ) : (
+                <div className="table-wrap">
+                  <table className="data-table stack-on-phone" aria-label="Fields to extract">
+                    <thead>
+                      <tr>
+                        <th scope="col">Field</th>
+                        <th scope="col">Type</th>
+                        <th scope="col">Unit</th>
+                        <th scope="col">What it means</th>
+                        <th scope="col">Look in</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {shown.fields.map((f) => (
                         <tr key={f.field_id}>
                           <td data-label="Field">{f.name}</td>
                           <td data-label="Type" className="mono">{f.data_type}</td>
@@ -200,26 +260,28 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
                           <td data-label="What it means">{f.description || "—"}</td>
                           <td data-label="Look in">{f.extraction_instructions || "—"}</td>
                         </tr>
-                      ),
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
               <div className="row-actions">
                 <button type="button" className="secondary" disabled={busy} onClick={() => setEditing({ ...(editing ?? shown), fields: [...(editing ?? shown).fields, blankField((editing ?? shown).fields.length + 1)] })}>
                   Add field
                 </button>
                 {editing ? (
                   <>
-                    <button type="button" disabled={busy || !editing.fields.some((f) => f.name.trim())} onClick={saveEditing}>
-                      {schema && editing.schema_id === schema.schema_id ? `Save as v${(schema.version ?? 0) + 1}` : "Save as a draft schema"}
+                    <button type="button" disabled={busy || suggesting || waiting.length > 0 || !editing.fields.some((f) => f.name.trim())} onClick={saveEditing}>
+                      {waiting.length
+                        ? `${waiting.length} rule ${waiting.length === 1 ? "suggestion" : "suggestions"} waiting`
+                        : schema && editing.schema_id === schema.schema_id ? `Save as v${(schema.version ?? 0) + 1}` : "Save as a draft schema"}
                     </button>
-                    <button type="button" className="link-button" onClick={() => setEditing(null)}>Cancel</button>
+                    <button type="button" className="link-button" onClick={() => edit(null)}>Cancel</button>
                   </>
                 ) : (
                   schema && (
                     <>
-                      <button type="button" className="secondary" disabled={busy} onClick={() => setEditing(schema)}>
+                      <button type="button" className="secondary" disabled={busy} onClick={() => edit(schema)}>
                         Edit as v{(schema.version ?? 0) + 1}
                       </button>
                       {!schema.release_flag && role === "approver" && (
