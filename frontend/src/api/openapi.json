@@ -25242,6 +25242,58 @@
     ]
    }
   },
+  "/api/argus/flows/{flow_id}/companies/{company_id}/retry": {
+   "post": {
+    "description": "Re-runs one failed company inside the flow's run, on the files kept for it now (a file replaced in step 2 is used).",
+    "operationId": "retry_company_api_argus_flows__flow_id__companies__company_id__retry_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FlowProgress"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Retry Company",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
   "/api/argus/flows/{flow_id}/documents/find": {
    "post": {
     "description": "One discovery run for the flow's companies: filings only, or filings plus the companies' websites.",

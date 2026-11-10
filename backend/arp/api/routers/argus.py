@@ -25,15 +25,16 @@ from arp.argus.companies import add_companies, parse_rows, register, with_regist
 from arp.argus.documents import FlowFile, decide, expected_year, flow_files, store_upload
 from arp.argus.flows import ArgusFlow, FlowSettings, FlowStore, SchemaChoice, SkippedUpload, get_flow_store
 from arp.argus.progress import CompanyProgress, FlowProgress, company_status, minutes_left
-from arp.argus.repeat import RepeatRow, repeat_rows
+from arp.argus.repeat import RepeatRow, kept_content, repeat_rows
 from arp.argus.rows import FlowRow, flow_rows
 from arp.argus.start import StartError, start_request
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
 from arp.db.session import require_dsn, transaction
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
-from arp.ingestion.registry import ONLY_DOCUMENTS, DocumentSourceRegistry, KeptDocuments
+from arp.ingestion.registry import ONLY_DOCUMENTS, DocumentSourceRegistry, KeptDocuments, read_only_documents
 from arp.orchestration.job_manager import JobManager
+from arp.orchestration.jobs import NotResumable, check_resumable, get_job_launcher, resume_run
 from arp.orchestration.step_tally import step_counts
 from arp.schemas.common import DocType
 from arp.storage.decision_store import DecisionStore
@@ -324,6 +325,35 @@ def flow_progress(flow_id: str, store: FlowStore = Depends(get_flow_store), run_
     left = minutes_left(datetime.fromisoformat(m.created_at), datetime.now(UTC), done=done, total=m.company_count)
     return FlowProgress(run_id=m.run_id, started_at=m.created_at, done=done, total=m.company_count, minutes_left=left,
                         cost_usd=m.estimated_cost_usd, status=status, companies=companies)
+
+
+@router.post("/flows/{flow_id}/companies/{company_id}/retry", dependencies=[Depends(require_role("analyst"))])
+def retry_company(
+    flow_id: str, company_id: str, store: FlowStore = Depends(get_flow_store), settings: Settings = Depends(settings_dep),
+    run_store: RunStore = Depends(get_run_store), registry: DocumentSourceRegistry = Depends(get_registry), view: Viewer = Depends(),
+) -> FlowProgress:
+    """Re-runs one failed company inside the flow's run, on the files kept for it now (a file replaced in step 2 is used)."""
+    flow = store.get(flow_id)
+    m = run_store.load_manifest(flow.run_id) if flow and flow.run_id else None
+    if m is None:
+        raise HTTPException(404, "This extraction has not started.")
+    if m.status in ("pending", "running"):
+        raise HTTPException(409, "Retry once the other companies have finished.")
+    statuses = {c["company_id"]: c["status"] for c in extraction.get_run_companies(m.run_id, run_store)["companies"]}
+    if statuses.get(company_id) != "failed":
+        raise HTTPException(400, "Only a failed company can be retried.")
+    try:
+        check_resumable(run_store, m.run_id)
+    except NotResumable as exc:
+        raise HTTPException(400, str(exc)) from exc
+    run_dir = run_store.run_dir(m.run_id)
+    only = read_only_documents(run_dir) or {}
+    only[company_id] = kept_content(view.files(flow)).get(company_id, set())
+    (run_dir / ONLY_DOCUMENTS).write_text(json.dumps({k: sorted(v) for k, v in only.items()}))
+    run_store.clear_errors(m.run_id, [company_id])
+    get_job_launcher().launch(m.run_id, lambda: resume_run(m.run_id, settings=settings, run_store=run_store, registry=registry,
+                                                            lease=False, company_ids=[company_id]), run_store=run_store)
+    return flow_progress(flow_id, store=store, run_store=run_store)
 
 
 def _add(flow_id: str, rows: list[dict], store: FlowStore, settings: Settings, view: Viewer) -> ArgusFlowView:
