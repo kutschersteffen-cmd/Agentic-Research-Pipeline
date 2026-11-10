@@ -4,7 +4,7 @@ import json
 import logging
 from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import httpx
 from pydantic import ValidationError
@@ -69,6 +69,15 @@ class ChangeDetector:
                 logger.warning("Skipping unparseable manifest entry %s for %s", url, company_id)
         return known
 
+    def set_review(self, company_id: str, url: str, review: Literal["approved", "rejected"]) -> bool:
+        """Marks the manifest entry; False when the URL is not in the manifest."""
+        manifest = self._load_manifest(company_id)
+        if url not in manifest:
+            return False
+        manifest[url]["review"] = review
+        self._save_manifest(company_id, manifest)
+        return True
+
     def _save_manifest(self, company_id: str, manifest: dict[str, dict]) -> None:
         self._manifest_path(company_id).write_text(json.dumps(manifest, indent=2))
 
@@ -90,7 +99,9 @@ class ChangeDetector:
                         DocumentEvent(event_type=DocumentEventType.NEW_DOCUMENT, company_id=company.company_id,
                                       company_name=company.name, document=doc)
                     )
-            elif prior.get("sha256") != doc.sha256:
+            elif prior.get("sha256") == doc.sha256:
+                doc.review = prior.get("review")
+            else:
                 events.append(
                     DocumentEvent(event_type=DocumentEventType.UPDATED_DOCUMENT, company_id=company.company_id,
                                   company_name=company.name, document=doc)

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fieldItemKey, flaggedReasons } from "../src/lib/reviewKeys.ts";
+import { ITEM_KIND_LABEL, fieldItemKey, flaggedReasons } from "../src/lib/reviewKeys.ts";
 
 test("fieldItemKey carries the period, or unspecified, or the old company key", () => {
   const r = { company_id: "company", issuer_key: "lei:X" };
@@ -67,4 +67,11 @@ test("security items: labelled, decidable four ways, no citation", async () => {
   assert.ok(decisionChoices("security").includes("correct"));
   assert.equal(decisionChoices("security").length, 4);
   assert.equal(needsCitation("security"), false);
+});
+
+test("discovery items: a found document is approved, rejected or escalated; an empty company only approved or escalated", () => {
+  assert.deepEqual(decisionChoices("discovered_document"), ["approve", "reject", "escalate"]);
+  assert.deepEqual(decisionChoices("no_documents"), ["approve", "escalate"]);
+  assert.equal(ITEM_KIND_LABEL.discovered_document, "Found document");
+  assert.equal(ITEM_KIND_LABEL.no_documents, "No documents");
 });

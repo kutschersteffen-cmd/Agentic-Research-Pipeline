@@ -25,6 +25,8 @@ export const ITEM_KIND_LABEL: Record<ReviewItemKind, string> = {
   barrier_cell: "Rating",
   quarantined_document: "Held document",
   restatement_candidate: "Restatement",
+  discovered_document: "Found document",
+  no_documents: "No documents",
   other: "Other",
 };
 
@@ -36,6 +38,8 @@ export const DECISION_REASONS = [
 export const decisionChoices = (kind: ReviewItemKind, runType?: string): ItemDecisionBody["decision"][] =>
   kind === "quarantined_document" || (kind === "other" && runType === "extraction") ? ["approve", "reject", "escalate"]
   : kind === "barrier_cell" ? ["approve", "reject"]
+  : kind === "discovered_document" ? ["approve", "reject", "escalate"]
+  : kind === "no_documents" ? ["approve", "escalate"]
   : kind === "other" ? []
   : ["approve", "correct", "reject", "escalate"];
 

@@ -31,6 +31,8 @@ class DiscoveredDocument(BaseModel):
     reporting_year: int | None = None
     # URL already in the manifest with the same sha256 (change_detector alias); no event is raised for it.
     alias_of: str | None = None
+    # A reviewer's verdict on a flagged PDF (arp/discovery/review.py); kept while the URL serves the same bytes.
+    review: Literal["approved", "rejected"] | None = None
 
 
 class CaptureRecord(BaseModel):

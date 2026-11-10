@@ -229,8 +229,8 @@ def restart_run(run_store: RunStore, run_id: str, failed_count: int = 0) -> None
     """Marks the run RUNNING again (error and cancel request cleared), with
     its counts rebuilt from the files: failed items are retried, so they no
     longer count; tokens and cost stay, that money was spent. review_count
-    stays too: review-stopped items are never re-run, and discovery records
-    review counts without review_queue rows."""
+    stays too: review-stopped items are never re-run, and a discovery company's
+    result and review items are stored together, so the count matches the queue."""
     with run_store.lock(run_id):
         current = run_store.load_manifest(run_id)
         current.completed_count = len(run_store.done_keys(run_id))

@@ -24,6 +24,7 @@ class ReasonCode(StrEnum):
     AUTO_CORRECTED = "auto_corrected"
     PERIOD_MISSING = "period_missing"
     EXTRACTION_FAILED = "extraction_failed"  # the model's answer never fit the field type
+    NO_DOCUMENTS = "no_documents"  # a discovery run found no document for the company
 
 
 class DecisionKind(StrEnum):
@@ -94,6 +95,8 @@ class ReviewItemKind(StrEnum):
     RESTATEMENT_CANDIDATE = "restatement_candidate"
     SECURITY = "security"
     BARRIER_CELL = "barrier_cell"
+    DISCOVERED_DOCUMENT = "discovered_document"
+    NO_DOCUMENTS = "no_documents"
     OTHER = "other"
 
 
