@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
@@ -9,18 +10,31 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal, current_user, require_role
-from arp.api.deps import get_document_content_store, get_identifier_map, get_run_store, settings_dep
+from arp.api.deps import (
+    get_decision_store,
+    get_document_content_store,
+    get_identifier_map,
+    get_registry,
+    get_run_store,
+    get_xbrl_source,
+    settings_dep,
+)
+from arp.api.routers import extraction
 from arp.api.routers.universe_workbench import MAX_COMPANIES
 from arp.argus.companies import add_companies, parse_rows, register, with_register_ids
 from arp.argus.documents import FlowFile, decide, expected_year, flow_files, store_upload
 from arp.argus.flows import ArgusFlow, FlowSettings, FlowStore, SchemaChoice, SkippedUpload, get_flow_store
 from arp.argus.repeat import RepeatRow, repeat_rows
 from arp.argus.rows import FlowRow, flow_rows
+from arp.argus.start import KeptDocuments, StartError, start_request
 from arp.config import Settings
+from arp.db.fields import SchemaRegistry
 from arp.db.session import require_dsn, transaction
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
+from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import DocType
+from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
@@ -100,14 +114,15 @@ class Viewer:
         if flow.discovery_run_id and (m := self.run_store.load_manifest(flow.discovery_run_id)):
             discovery = DiscoveryStatus(run_id=m.run_id, status=str(m.status.value if hasattr(m.status, "value") else m.status))
         files = self.files(flow)
-        repeats = []
-        if flow.schema_choice:
-            xbrl = XbrlStore(self.settings.xbrl_dir)
-            avail = availability(flow.companies, run_store=self.run_store, content_store=self.content_store, xbrl_store=xbrl,
-                                 documents_dir=self.settings.documents_dir)
-            last = {cid: a.extraction.last_run_id for cid, a in avail.items() if a.extraction.last_run_id}
-            repeats = repeat_rows(flow, files, last, run_store=self.run_store, principal=self.principal)
-        return ArgusFlowView(**flow.model_dump(), rows=rows, files=files, discovery=discovery, repeat_rows=repeats)
+        return ArgusFlowView(**flow.model_dump(), rows=rows, files=files, discovery=discovery, repeat_rows=self.repeats(flow, files))
+
+    def repeats(self, flow: ArgusFlow, files: list[FlowFile]) -> list[RepeatRow]:
+        if not flow.schema_choice:
+            return []
+        avail = availability(flow.companies, run_store=self.run_store, content_store=self.content_store,
+                             xbrl_store=XbrlStore(self.settings.xbrl_dir), documents_dir=self.settings.documents_dir)
+        last = {cid: a.extraction.last_run_id for cid, a in avail.items() if a.extraction.last_run_id}
+        return repeat_rows(flow, files, last, run_store=self.run_store, principal=self.principal)
 
     def files(self, flow: ArgusFlow) -> list[FlowFile]:
         return flow_files(flow, documents_dir=self.settings.documents_dir, content_store=self.content_store,
@@ -230,6 +245,44 @@ def decide_files(
     files = view.files(flow)
     return view(store.update(flow_id, lambda f: decide(f, files, keys=req.keys, state=req.state,
                                                         all_that_pass=req.all_that_pass, every=req.all)))
+
+
+@router.post("/flows/{flow_id}/start")
+async def start_flow(
+    flow_id: str, store: FlowStore = Depends(get_flow_store), settings: Settings = Depends(settings_dep),
+    run_store: RunStore = Depends(get_run_store), registry: DocumentSourceRegistry = Depends(get_registry),
+    decision_store: DecisionStore = Depends(get_decision_store), xbrl_source=Depends(get_xbrl_source),
+    principal: Principal = Depends(require_role("analyst")), view: Viewer = Depends(),
+) -> ArgusFlowView:
+    """Starts the flow's run through the same path as `/api/extraction/start`, reading only the kept files."""
+    flow = store.get(flow_id)
+    if flow is None:
+        raise HTTPException(404, "Extraction not found")
+    m = run_store.load_manifest(flow.run_id) if flow.run_id else None
+    if m and m.status in ("pending", "running"):
+        raise HTTPException(409, "This extraction is already running.")
+    files = view.files(flow)
+    schema = None
+    if flow.schema_choice and flow.schema_choice.kind == "schema":
+        try:
+            schema = SchemaRegistry(settings.postgres_dsn).get(flow.schema_choice.schema_id, flow.schema_choice.version)
+        except KeyError:
+            raise HTTPException(400, "That schema version does not exist.") from None
+    try:
+        body, only = start_request(flow, files, view.repeats(flow, files), schema)
+    except StartError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    started = await extraction.start_extraction(
+        extraction.StartRequest(**body), settings=settings, run_store=run_store, registry=KeptDocuments(registry, only),
+        decision_store=decision_store, xbrl_source=xbrl_source, principal=principal)
+    # shortcut: a restart from Run History reads start_request.json, which has no allow-list, so it reads every
+    # document of the company; pass this file through restarts when runs are restarted from Argus
+    (run_store.run_dir(started["run_id"]) / "only_documents.json").write_text(json.dumps({k: sorted(v) for k, v in only.items()}))
+
+    def apply(f: ArgusFlow) -> None:
+        f.run_id, f.step = started["run_id"], max(f.step, 4)
+
+    return view(store.update(flow_id, apply))
 
 
 def _add(flow_id: str, rows: list[dict], store: FlowStore, settings: Settings, view: Viewer) -> ArgusFlowView:

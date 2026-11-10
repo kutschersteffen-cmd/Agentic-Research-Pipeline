@@ -25273,6 +25273,49 @@
     ]
    }
   },
+  "/api/argus/flows/{flow_id}/start": {
+   "post": {
+    "description": "Starts the flow's run through the same path as `/api/extraction/start`, reading only the kept files.",
+    "operationId": "start_flow_api_argus_flows__flow_id__start_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Start Flow",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
   "/api/ask": {
    "post": {
     "operationId": "post_ask_api_ask_post",
