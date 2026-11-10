@@ -404,6 +404,11 @@ async def retry_company(
                 for r in errors:
                     run_store.append_error(run_id, r)
             raise
+        finally:
+            with run_store.lock(run_id):  # the run is no longer retrying this company, however the job ended
+                current = run_store.load_manifest(run_id)
+                current.params = {k: v for k, v in current.params.items() if k != "retrying"}
+                run_store.save_manifest(current)
 
     try:
         get_job_launcher().launch(run_id, job, run_store=run_store)

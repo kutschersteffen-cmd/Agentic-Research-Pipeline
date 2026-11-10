@@ -119,6 +119,7 @@ def test_retry_launches_a_job_that_reruns_one_company_on_the_current_kept_files(
     assert resumed["calls"] == [["aapl"]]
     assert resumed["errors"] == []  # cleared once the job held the run (AC-38: the row leaves Failed)
     assert resumed["only"]["msft"] == ["m"] and resumed["only"]["aapl"] != ["old"] and len(resumed["only"]["aapl"]) == 1
+    _wait(lambda: "retrying" not in run_store.load_manifest("extraction_r").params)  # cleared once the job ends
 
 
 def test_a_second_retry_before_the_job_runs_is_refused(client, flow, resumed, run_store):
@@ -134,6 +135,7 @@ def test_a_job_that_fails_before_running_puts_the_error_back(client, flow, resum
     assert client.post(f"/api/argus/flows/{flow}/companies/aapl/retry").status_code == 200
     _wait(lambda: run_store.load_manifest("extraction_r").status not in ("pending", "running"))
     assert [e["error"] for e in run_store.read_errors("extraction_r")] == ["No text could be read from old.pdf"]
+    _wait(lambda: "retrying" not in run_store.load_manifest("extraction_r").params)  # cleared on failure too
     rows = {c["company_id"]: c["status"] for c in client.get(f"/api/argus/flows/{flow}/progress").json()["companies"]}
     assert rows["aapl"] == "Failed"  # never stranded as Stopped; Retry works again
     resumed["fail"] = False
