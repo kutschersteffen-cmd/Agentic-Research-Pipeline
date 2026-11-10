@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import { InputPicker } from "../components/InputPicker";
+import { CompanyPicker } from "../components/CompanyPicker";
 import { StepBar } from "../components/StepBar";
 import { continueLabel, documentsText, extractedBeforeText, flowHref, identifierList } from "../lib/argusFlow";
 import { STEPS } from "../lib/argusStart";
@@ -10,7 +10,6 @@ import { ArgusResults } from "./ArgusResults";
 import { ArgusSchema } from "./ArgusSchema";
 import type { ArgusFlow as Flow } from "../types";
 
-const EMPTY = { name: "", ticker: "", isin: "", lei: "", cik: "" };
 
 /** #/argus/<flow_id>/<step>: one extraction being set up. The flow lives on the server, so a reload or a teammate's link shows the same step and data. */
 export function ArgusFlow({ flowId, step }: { flowId: string; step: number }) {
@@ -18,8 +17,6 @@ export function ArgusFlow({ flowId, step }: { flowId: string; step: number }) {
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [one, setOne] = useState(EMPTY);
-  const [saved, setSaved] = useState("");
 
   useEffect(() => {
     api.getArgusFlow(flowId).then(setFlow, (e: Error) => (/not found/i.test(e.message) ? setMissing(true) : setError(e.message)));
@@ -34,8 +31,10 @@ export function ArgusFlow({ flowId, step }: { flowId: string; step: number }) {
     try {
       const f = await fn();
       if (f) setFlow(f);
+      return true;
     } catch (e) {
       setError((e as Error).message);
+      return false;
     } finally {
       changes.current++;
       setBusy(false);
@@ -91,54 +90,12 @@ export function ArgusFlow({ flowId, step }: { flowId: string; step: number }) {
         )
       ) : (
         <>
-          <section className="card argus-add" aria-label="Add companies">
-            <label className="field-label">
-              Upload a list
-              <input
-                type="file"
-                accept=".csv,.json"
-                disabled={busy}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  if (file) act(() => api.uploadFlowCompanies(flow.flow_id, file));
-                }}
-              />
-            </label>
-            <p className="help-text">CSV or JSON with name and any of lei, isin, cik, ticker, sector, country, company_id.</p>
-            <InputPicker
-              kind="universe"
-              label="Or pick a saved universe"
-              value={saved}
-              onChange={(o) => {
-                setSaved(o?.id ?? "");
-                if (o) act(() => api.addFlowCompanies(flow.flow_id, { universe_path: o.id }));
-              }}
-            />
-            <form
-              className="argus-one"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const company = Object.fromEntries(Object.entries(one).filter(([, v]) => v.trim())) as typeof one;
-                act(async () => {
-                  const f = await api.addFlowCompanies(flow.flow_id, { company });
-                  setOne(EMPTY);
-                  return f;
-                });
-              }}
-            >
-              <fieldset>
-                <legend>Add one company</legend>
-                {(["name", "ticker", "isin", "lei", "cik"] as const).map((k) => (
-                  <label key={k} className="field-label">
-                    {k === "name" ? "Name" : k.toUpperCase().replace("TICKER", "Ticker")}
-                    <input id={`argus-one-${k}`} value={one[k]} required={k === "name"} onChange={(e) => setOne({ ...one, [k]: e.target.value })} />
-                  </label>
-                ))}
-                <button type="submit" disabled={busy}>Add</button>
-              </fieldset>
-            </form>
-          </section>
+          <CompanyPicker
+            busy={busy}
+            onUpload={(file) => act(() => api.uploadFlowCompanies(flow.flow_id, file))}
+            onUniverse={(path) => act(() => api.addFlowCompanies(flow.flow_id, { universe_path: path }))}
+            onAddOne={(company) => act(() => api.addFlowCompanies(flow.flow_id, { company }))}
+          />
           <div className="table-wrap">
             <table className="data-table stack-on-phone" aria-label="Companies">
               <thead>

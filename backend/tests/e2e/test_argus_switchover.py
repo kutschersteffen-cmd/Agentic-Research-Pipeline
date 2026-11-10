@@ -159,3 +159,42 @@ def test_a_failed_hand_over_shows_the_error_and_stays(page):
     assert alert.count() == 1
     assert page.evaluate("location.hash") == "#/portfolio-monitoring/holdings"
     assert send.is_enabled()  # the selection stays and can be sent again
+
+
+def test_xbrl_facts_uses_step_1s_company_picker(page):  # AC-67
+    labels = ["Upload a list", "Or pick a saved universe", "Add one company"]
+    page.goto(f"{URL}/#/argus/new")
+    page.wait_for_url(STEP_1)
+    page.get_by_role("region", name="Add companies").get_by_text("Add one company").wait_for()
+    step_1 = page.get_by_role("region", name="Add companies").inner_text()
+    for label in labels:
+        assert label in step_1
+    page.goto(f"{URL}/#/xbrl")
+    picker = page.get_by_role("region", name="Add companies")
+    picker.wait_for()
+    for label in labels:
+        assert label in picker.inner_text()
+    assert picker.inner_text() == step_1  # same controls, same labels
+
+
+# Needs SEC EDGAR over the network: run with ARP_E2E_LIVE=1 (CI's stack has no outside network for this).
+@pytest.mark.skipif(not os.environ.get("ARP_E2E_LIVE"), reason="ARP_E2E_LIVE not set -- needs SEC EDGAR")
+def test_xbrl_fetch_for_apple_completes_with_facts(page):  # AC-68
+    page.set_default_timeout(30_000)
+    page.goto(f"{URL}/#/xbrl")
+    picker = page.get_by_role("region", name="Add companies")
+    picker.get_by_label("Name").fill("Apple Inc.")
+    picker.get_by_label("CIK").fill("0000320193")
+    picker.get_by_role("button", name="Add").click()
+    page.get_by_text("Using 1 company").wait_for()
+    page.get_by_role("button", name=re.compile(r"^Start fetch")).click()
+    page.wait_for_url(re.compile(r"#/xbrl/[^/]+$"))
+    run_id = page.url.rsplit("/", 1)[1]
+    import time
+
+    deadline = time.time() + 300
+    while (m := _ok(page.request.get(f"{API}/api/xbrl/runs/{run_id}")))["status"] in ("pending", "running") and time.time() < deadline:
+        time.sleep(3)
+    assert m["status"] == "completed"
+    rows = _ok(page.request.get(f"{API}/api/xbrl/runs/{run_id}/results"))["results"]
+    assert sum(r["fact_count"] for r in rows) > 0
