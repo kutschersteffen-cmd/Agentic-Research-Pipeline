@@ -60,8 +60,8 @@ def _open_step_3(page, tmp_path):
     pick = page.get_by_role("region", name="What to extract")
     for heading in ("Saved schemas", "Templates", "Describe it in words"):
         pick.get_by_role("heading", name=heading).wait_for()
-    for name in ("Transition plan", "Financials", "TNFD"):
-        assert pick.get_by_role("button", name=re.compile(name, re.I)).count() >= 1  # AC-25
+    for name in ("Transition plan", "Financials", "TNFD"):  # AC-25; the template list loads after the headings
+        pick.get_by_role("button", name=re.compile(name, re.I)).first.wait_for()
     assert page.locator("details.argus-settings").get_attribute("open") is None
     pick.get_by_role("button", name=re.compile(re.escape(SCHEMA))).click()
     table = page.get_by_role("table", name="Fields to extract")
