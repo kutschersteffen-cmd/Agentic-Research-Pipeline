@@ -39,3 +39,10 @@ export const newDocsLine = (added: number) =>
 /** Every company the repeat warning lists needs Skip or Run again before the run can start. */
 export const canStart = (rows: Pick<RepeatRow, "company_id" | "kind">[], repeat: Record<string, string>) =>
   rows.every((r) => r.kind !== "same" || r.company_id in repeat);
+
+/** One entry per schema, its newest version: a run saves its schema, so an older version would be stored again as a new one. */
+export function newestVersions<T extends { schema_id: string; version: number; name: string }>(all: T[]): T[] {
+  const newest = new Map<string, T>();
+  for (const s of all) if ((newest.get(s.schema_id)?.version ?? 0) < s.version) newest.set(s.schema_id, s);
+  return [...newest.values()].sort((a, b) => a.name.localeCompare(b.name));
+}

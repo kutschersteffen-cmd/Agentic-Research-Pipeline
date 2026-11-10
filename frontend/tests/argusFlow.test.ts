@@ -61,3 +61,9 @@ test("step 3 start label, new documents line and repeat gate", async () => {
   assert.equal(canStart([same, added], { a: "skip" }), true);
   assert.equal(canStart([added], {}), true);
 });
+
+test("the picker lists only each schema's newest version", async () => {
+  const { newestVersions } = await import("../src/lib/argusFlow.ts");
+  const s = (schema_id: string, version: number, name = schema_id) => ({ schema_id, version, name, release_flag: false });
+  assert.deepEqual(newestVersions([s("a", 1), s("b", 1, "B"), s("a", 3), s("a", 2)]).map((x) => [x.schema_id, x.version]), [["a", 3], ["b", 1]]);
+});

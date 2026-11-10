@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { BatchToggle } from "../components/BatchToggle";
 import { ScoringTemplatePicker } from "../components/RunScoring";
-import { canStart, newDocsLine, startLabel } from "../lib/argusFlow";
+import { canStart, newDocsLine, newestVersions, startLabel } from "../lib/argusFlow";
 import type { ArgusFlow as Flow, DataPointSchema, FieldDefinition } from "../types";
 
 type SavedSchema = { schema_id: string; version: number; name: string; release_flag: boolean };
@@ -30,17 +30,24 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
   const [words, setWords] = useState("");
   const [role, setRole] = useState<string | null>(null);
   const [loadError, setLoadError] = useState("");
+  const [evidence, setEvidence] = useState(flow.settings.evidence_passages?.toString() ?? ""); // saved on blur and before Start
+  const starting = useRef(false);
   const id = flow.flow_id;
   const choice = flow.schema_choice ?? null;
 
   useEffect(() => {
-    api.listSchemas().then((s) => setSaved([...s].sort((a, b) => a.name.localeCompare(b.name) || b.version - a.version)), (e: Error) => setLoadError(e.message));
+    api.listSchemas().then((s) => setSaved(newestVersions(s)), (e: Error) => setLoadError(e.message));
     api.listPresets().then(setPresets, (e: Error) => setLoadError(e.message));
     api.getMe().then((m) => setRole(m.role), () => setRole(null));
   }, []);
   useEffect(() => {
-    if (choice?.kind !== "schema" || !choice.schema_id || !choice.version) return setSchema(null);
-    api.getSchema(choice.schema_id, choice.version).then(setSchema, (e: Error) => setLoadError(e.message));
+    setSchema(null);
+    if (choice?.kind !== "schema" || !choice.schema_id || !choice.version) return;
+    let live = true; // a slower answer for an earlier choice must not replace this one
+    api.getSchema(choice.schema_id, choice.version).then((s) => live && setSchema(s), (e: Error) => live && setLoadError(e.message));
+    return () => {
+      live = false;
+    };
   }, [choice?.kind, choice?.schema_id, choice?.version]);
 
   const choose = (c: Partial<Choice> & Pick<Choice, "kind">) =>
@@ -53,18 +60,21 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
       if (!editing) return;
       const s = await api.registerSchema({ ...editing, fields: editing.fields.filter((f) => f.name.trim()) });
       setEditing(null);
-      setSaved(await api.listSchemas());
+      setSaved(newestVersions(await api.listSchemas()));
       return api.patchArgusFlow(id, { schema_choice: asChoice({ kind: "schema", schema_id: s.schema_id, version: s.version ?? 1 }), repeat: {} });
     });
   const setField = (i: number, patch: Partial<FieldDefinition>) =>
     editing && setEditing({ ...editing, fields: editing.fields.map((f, j) => (j === i ? { ...f, ...patch } : f)) });
 
+  const evidenceValue = () => (evidence.trim() ? Number(evidence) : null);
   const shown = editing ?? schema;
   const profileName = choice?.kind === "profile" ? PROFILES.find(([p]) => p === choice.profile)?.[1] ?? "" : "";
   const keptBy = new Map<string, number>();
-  for (const f of flow.files) if (f.state === "kept") keptBy.set(f.company_id, (keptBy.get(f.company_id) ?? 0) + 1);
-  const companies = flow.companies.filter((c) => keptBy.has(c.company_id) && flow.repeat[c.company_id] !== "skip");
+  // as the run counts them: kept files with a content key (every stored file has one)
+  for (const f of flow.files) if (f.state === "kept" && f.content_key) keptBy.set(f.company_id, (keptBy.get(f.company_id) ?? 0) + 1);
   const same = flow.repeat_rows.filter((r) => r.kind === "same");
+  const skipped = (cid: string) => flow.repeat[cid] === "skip" && same.some((r) => r.company_id === cid); // a stale Skip counts for nothing
+  const companies = flow.companies.filter((c) => keptBy.has(c.company_id) && !skipped(c.company_id));
   const added = new Map(flow.repeat_rows.filter((r) => r.kind === "added").map((r) => [r.company_id, r.added]));
   const nameOf = (cid: string) => flow.companies.find((c) => c.company_id === cid)?.name ?? cid;
   const released = choice?.kind === "profile" || !!schema?.release_flag;
@@ -107,7 +117,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
                     act(async () => {
                       const s = await api.installPreset(p.preset_id);
                       setEditing(null);
-                      setSaved(await api.listSchemas());
+                      setSaved(newestVersions(await api.listSchemas()));
                       return api.patchArgusFlow(id, { schema_choice: asChoice({ kind: "schema", schema_id: s.schema_id, version: s.version }), repeat: {} });
                     })
                   }
@@ -215,7 +225,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
                       {!schema.release_flag && role === "approver" && (
                         <button type="button" className="secondary" disabled={busy} onClick={() => act(async () => {
                           setSchema(await api.releaseSchema(schema.schema_id, schema.version ?? 1));
-                          setSaved(await api.listSchemas());
+                          setSaved(newestVersions(await api.listSchemas()));
                         })}>
                           Release
                         </button>
@@ -247,11 +257,11 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
               type="number"
               min={1}
               max={50}
-              defaultValue={flow.settings.evidence_passages ?? ""}
-              key={flow.settings.evidence_passages ?? "default"}
+              value={evidence}
               placeholder="app default"
-              onBlur={(e) => {
-                const v = e.target.value ? Number(e.target.value) : null;
+              onChange={(e) => setEvidence(e.target.value)}
+              onBlur={() => {
+                const v = evidenceValue();
                 if (v !== (flow.settings.evidence_passages ?? null)) act(() => api.patchArgusFlow(id, { settings: { ...flow.settings, evidence_passages: v } }));
               }}
             />
@@ -300,7 +310,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
           {flow.companies.filter((c) => keptBy.has(c.company_id)).map((c) => (
             <li key={c.company_id}>
               {c.name} · {keptBy.get(c.company_id)} {keptBy.get(c.company_id) === 1 ? "file" : "files"}
-              {flow.repeat[c.company_id] === "skip" && <span className="muted"> · skipped</span>}
+              {skipped(c.company_id) && <span className="muted"> · skipped</span>}
               {newDocsLine(added.get(c.company_id) ?? 0) && <span className="muted"> · {newDocsLine(added.get(c.company_id) ?? 0)}</span>}
             </li>
           ))}
@@ -311,13 +321,21 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
         <button
           type="button"
           disabled={busy || !ready}
-          onClick={() =>
+          onClick={() => {
+            if (starting.current) return; // one run per click, even before `busy` re-renders the button
+            starting.current = true;
             act(async () => {
-              const f = await api.startArgusFlow(id);
-              window.location.hash = "#/argus";
-              return f;
-            })
-          }
+              try {
+                const v = evidenceValue(); // a value typed but not yet saved (no blur before the click)
+                if (v !== (flow.settings.evidence_passages ?? null)) await api.patchArgusFlow(id, { settings: { ...flow.settings, evidence_passages: v } });
+                const f = await api.startArgusFlow(id);
+                window.location.hash = "#/argus";
+                return f;
+              } finally {
+                starting.current = false;
+              }
+            });
+          }}
         >
           {label}
         </button>
