@@ -98,7 +98,7 @@ def theme_trend_snapshot(
     except theme_trend.TrendRefused as e:
         typer.echo(e.args[0], err=True)
         raise typer.Exit(1) from None
-    except (ImportError, OSError, ValueError, httpx.HTTPError) as e:
+    except (ImportError, OSError, ValueError, OverflowError, httpx.HTTPError) as e:
         typer.echo(str(e), err=True)
         raise typer.Exit(1) from None
     for q in done:
@@ -111,15 +111,19 @@ def theme_trend_show(taxonomy_id: str, as_json: bool = typer.Option(False, "--js
     from arp.research import theme_trend
 
     try:
-        path = theme_trend.trend_path(get_settings().portfolios_dir, taxonomy_id)
-        text = path.read_text(encoding="utf-8")
-    except (ValueError, OSError):
-        typer.echo(f"No trend stored for {taxonomy_id}.", err=True)
+        data = theme_trend.load_trend(theme_trend.trend_path(get_settings().portfolios_dir, taxonomy_id))
+    except theme_trend.TrendRefused as e:
+        typer.echo(e.args[0], err=True)
         raise typer.Exit(1) from None
+    except ValueError:  # an id that cannot name a file
+        data = None
+    if data is None:
+        typer.echo(f"No trend stored for {taxonomy_id}.", err=True)
+        raise typer.Exit(1)
     if as_json:
-        typer.echo(text.rstrip("\n"))
+        typer.echo(json.dumps(data, indent=2))
         return
-    for line in theme_trend.show_lines(json.loads(text)):
+    for line in theme_trend.show_lines(data):
         typer.echo(line)
 
 

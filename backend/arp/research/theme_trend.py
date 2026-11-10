@@ -85,21 +85,13 @@ def resolve_quarters(quarter: str | None, start: str | None, stop: str | None, t
 # --- inputs ---------------------------------------------------------------------------------------------------
 
 def find_run(run_store, taxonomy_id: str) -> InferRun | None:
-    """The newest stock-inference run whose `taxonomy_id` is the argument."""
-    best: tuple[float, InferRun] | None = None
+    """The first run, in sorted run-id order, whose `taxonomy_id` is the argument."""
     root = Path(run_store.runs_dir)
-    for d in root.iterdir() if root.exists() else ():
-        try:
-            data = run_store.read_snapshot(d.name, "infer")
-            if not data or data.get("taxonomy_id") != taxonomy_id:
-                continue
-            stamp = (run_store.run_dir(d.name) / "snapshots" / "infer.json").stat().st_mtime
-            run = InferRun.model_validate(data)
-        except (OSError, ValueError):
-            continue
-        if best is None or stamp > best[0]:
-            best = (stamp, run)
-    return best[1] if best else None
+    for d in sorted(root.iterdir()) if root.exists() else ():
+        data = run_store.read_snapshot(d.name, "infer")
+        if data and data.get("taxonomy_id") == taxonomy_id:
+            return InferRun.model_validate(data)
+    return None
 
 
 def members_of(run: InferRun) -> list[str]:
@@ -107,11 +99,11 @@ def members_of(run: InferRun) -> list[str]:
 
 
 def read_ciks(path: str | Path, members: set[str]) -> dict[str, str]:
-    """The optional `cik` column (digits only; anything else counts as no CIK) of the symbols file."""
+    """The optional `cik` column of the symbols file, trimmed, as typed."""
     with Path(path).open(newline="") as fh:
         rows = list(csv.DictReader(fh))
     return {r["company_id"].strip(): c for r in rows
-            if r.get("company_id", "").strip() in members and (c := (r.get("cik") or "").strip()).isdigit()}
+            if r.get("company_id", "").strip() in members and (c := (r.get("cik") or "").strip())}
 
 
 def facts_from_dir(facts_dir: Path) -> Callable[[str], dict | None]:
@@ -162,10 +154,10 @@ def _market(panel: PricePanel, symbols: dict[str, str], weeks: list[str]) -> dic
     out = {"weeks": len(weeks), "stocks": None, "basket_return": None, "acwi_return": None, "excess_return": None,
            "direction": None, "skipped": None}
     acwi = _quarter_return(panel, cm.ACWI, weeks)
-    if acwi is None:
-        return out | {"skipped": "short_control"}
     got = [r for s in symbols.values() if (r := _quarter_return(panel, s, weeks)) is not None]
     out["stocks"] = len(got)
+    if acwi is None:
+        return out | {"skipped": "short_control"}
     if len(got) < MIN_STOCKS:
         return out | {"skipped": "too_few_stocks"}
     basket = sum(got) / len(got)
@@ -181,10 +173,10 @@ def _comovement(source: PriceDataSource, symbols: dict[str, tuple[str, str]], en
     returns, _ = cm._window(source, tickers, end.isoformat(), WINDOW_WEEKS)
     need = math.ceil(2 * WINDOW_WEEKS / 3)
     count = {t: int(np.isfinite(r).sum()) for t, r in returns.items()}
-    if count[cm.ACWI] < need:
-        return out | {"skipped": "short_control"}
     priced = [c for c, (s, h) in sorted(symbols.items()) if count[s] >= need and count[h] >= need]
     out["stocks"] = len(priced)
+    if count[cm.ACWI] < need:
+        return out | {"skipped": "short_control"}
     if len(priced) < MIN_STOCKS:
         return out | {"skipped": "too_few_stocks"}
     rows = np.array([cm._residualise(returns[symbols[c][0]], returns[cm.ACWI], returns[symbols[c][1]]) for c in priced])
@@ -247,9 +239,22 @@ def build_snapshots(quarters: list[str], *, run: InferRun, taxonomy_version: int
     } for label, end, last, _prior, weeks in spans]
 
 
+def load_trend(path: Path) -> dict | None:
+    """The stored trend, `None` when there is no file; a file that is not this theme's trend is a refusal."""
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(read_text_utf8(path))
+        if not isinstance(data, dict) or data.get("taxonomy_id") != path.stem:
+            raise ValueError("taxonomy_id does not match the file name")
+        return data
+    except ValueError as e:
+        raise TrendRefused(f"Trend file for {path.stem} is unreadable: {e}.") from None
+
+
 def store_snapshots(path: Path, taxonomy_id: str, snapshots: list[dict]) -> None:
     """Replaces the stored entry of each quarter given and keeps the others, sorted by quarter; atomic."""
-    old = json.loads(read_text_utf8(path)) if path.exists() else {"taxonomy_id": taxonomy_id, "snapshots": []}
+    old = load_trend(path) or {"taxonomy_id": taxonomy_id, "snapshots": []}
     kept = {s["quarter"]: s for s in old["snapshots"]} | {s["quarter"]: s for s in snapshots}
     data = {"taxonomy_id": taxonomy_id, "snapshots": [kept[q] for q in sorted(kept)]}
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -294,7 +299,11 @@ def snapshot(taxonomy_id: str, symbols_path: str | Path, quarter: str | None, st
              facts_for: Callable[[str], dict | None], today: date) -> list[str]:
     """Computes every quarter, then stores them; any refusal or error raises first and writes nothing."""
     quarters = resolve_quarters(quarter, start, stop, today)
-    taxonomy = taxonomy_store.get(taxonomy_id)
+    try:  # `TaxonomyStore.get` creates the directory of an unknown id
+        known = (taxonomy_store.taxonomies_dir / safe_id(taxonomy_id, label="taxonomy_id")).is_dir()
+    except ValueError:
+        known = False
+    taxonomy = taxonomy_store.get(taxonomy_id) if known else None
     if taxonomy is None:
         raise TrendRefused(f"Taxonomy {taxonomy_id} not found.")
     run = find_run(run_store, taxonomy_id)
@@ -302,6 +311,7 @@ def snapshot(taxonomy_id: str, symbols_path: str | Path, quarter: str | None, st
         raise TrendRefused(f"Taxonomy {taxonomy_id} has no stock mapping; "
                            "trend needs a taxonomy made by 'arp taxonomy infer pick'.")
     members = members_of(run)
+    load_trend(trend_path(portfolios_dir, taxonomy_id))  # an unreadable file refuses before any price is fetched
     try:
         symbols = cm._read_symbols(symbols_path, set(members))
     except cm.ComoveRefused as e:

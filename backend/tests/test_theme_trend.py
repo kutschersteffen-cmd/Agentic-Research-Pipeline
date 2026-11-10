@@ -239,3 +239,46 @@ def test_same_inputs_same_file_and_no_model_key(fx, monkeypatch):
     monkeypatch.setenv("ARP_ANTHROPIC_API_KEY", "dummy")
     assert fx.run("--from", "2026Q2", "--to", "2026Q3").exit_code == 0
     assert fx.trend.read_bytes() == first
+
+
+def test_skipped_blocks_keep_their_counts(fx):
+    assert fx.run("--quarter", "2025Q1").exit_code == 0
+    s = fx.data()["snapshots"][0]
+    assert (s["market"]["weeks"], s["market"]["stocks"]) == (13, 0)
+    assert (s["comovement"]["window_weeks"], s["comovement"]["stocks"]) == (52, 0)
+
+
+def test_cik_is_kept_as_typed(fx, tmp_path):
+    p = tmp_path / "typed.csv"
+    p.write_text("company_id,symbol,home_index,cik\na1,A1,HOME1, 0000000001\na2,A2,HOME1,n/a\na3,A3,HOME1,3\na4,A4,HOME1,4\n")
+    assert fx.run("--quarter", "2026Q2", symbols=p).exit_code == 0
+    assert [m["cik"] for m in fx.data()["snapshots"][0]["members"]] == ["0000000001", "n/a", "3", "4", None]
+
+
+def test_unreadable_trend_file_is_refused_and_untouched(fx):
+    fx.trend.parent.mkdir(parents=True)
+    for bad in ("not json", json.dumps({"taxonomy_id": "other", "snapshots": []})):
+        fx.trend.write_text(bad)
+        res = fx.run("--quarter", "2026Q2")
+        assert res.exit_code == 1 and res.stderr.startswith("Trend file for tax_t is unreadable: ")
+        assert fx.trend.read_text() == bad
+        assert fx.show().exit_code == 1
+
+
+def test_unknown_taxonomy_creates_no_directory(fx, tmp_path):
+    assert fx.run("--quarter", "2026Q2", tax="tax_nope").exit_code == 1
+    assert not (tmp_path / "taxonomies" / "tax_nope").exists()
+
+
+def test_date_overflow_exits_nonzero_and_writes_nothing(fx):
+    res = fx.run("--from", "0001Q1", "--to", "2026Q2")
+    assert res.exit_code != 0 and not fx.trend.exists()
+
+
+def test_first_run_in_sorted_order_supplies_the_members(fx, pg, tmp_path):
+    store = RunStore(pg, tmp_path / "runs")
+    data = store.read_snapshot("r1", "infer")
+    store.save_snapshot("r0", "infer", {**data, "run_id": "r0", "mapping": data["mapping"][:3]})
+    assert fx.run("--quarter", "2026Q2").exit_code == 0
+    s = fx.data()["snapshots"][0]
+    assert s["run_id"] == "r0" and [m["company_id"] for m in s["members"]] == ["a1", "a2", "a3"]
