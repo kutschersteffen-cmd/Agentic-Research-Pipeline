@@ -191,6 +191,11 @@ class RunStore:
             company = self._universe_company(run_id, row.get("key") or row.get("company_id"))
             s.execute(insert(RunError).values(run_id=run_id, company_id=company, error=row))
 
+    def clear_errors(self, run_id: str, keys: list[str]) -> None:
+        """Drops the error rows of these items, so a retried item no longer reads as failed while it runs again."""
+        with self._tx(run_id) as s:
+            s.execute(delete(RunError).where(RunError.run_id == run_id, RunError.error["key"].astext.in_(keys)))
+
     def read_review_queue(self, run_id: str) -> list[dict]:
         with self._tx(run_id) as s:
             return list(s.scalars(select(ReviewItem.payload).where(ReviewItem.run_id == run_id).order_by(ReviewItem.id)))

@@ -40,7 +40,8 @@ function stepAndStatus(r: RunManifest, open: Set<string>): [ArgusStep, ArgusStat
 /** Argus runs and draft flows, newest first. A finished run needs you while any of its review items is still open. */
 export function argusRows(runs: RunManifest[], items: ReviewItem[], flows: ArgusDraft[] = []): ArgusRow[] {
   const open = new Set(items.map((i) => i.run_id));
-  const drafts: ArgusRow[] = flows.map((f) => ({
+  const flowOf = new Map(flows.filter((f) => f.run_id).map((f) => [f.run_id as string, f.flow_id]));
+  const drafts: ArgusRow[] = flows.filter((f) => !f.run_id).map((f) => ({
     runId: f.flow_id,
     label: "New extraction",
     companies: f.companies.length,
@@ -65,8 +66,8 @@ export function argusRows(runs: RunManifest[], items: ReviewItem[], flows: Argus
         startedBy: starter,
         starterName: typeof r.params?.started_by_name === "string" ? r.params.started_by_name : starter,
         createdAt: r.created_at,
-        // shortcut: the old screens until slice 5 builds steps 4 and 5
-        openHref: step === 5 ? "#/review" : "#/extraction/extract",
+        // a run started outside Argus flows has no flow page: the old screens
+        openHref: flowOf.has(r.run_id) ? flowHref(flowOf.get(r.run_id)!, step) : step === 5 ? "#/review" : "#/extraction/extract",
       };
     })
     .concat(drafts)

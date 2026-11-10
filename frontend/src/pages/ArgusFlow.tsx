@@ -5,6 +5,8 @@ import { StepBar } from "../components/StepBar";
 import { continueLabel, documentsText, extractedBeforeText, flowHref, identifierList } from "../lib/argusFlow";
 import { STEPS } from "../lib/argusStart";
 import { ArgusDocuments } from "./ArgusDocuments";
+import { ArgusExtract } from "./ArgusExtract";
+import { ArgusResults } from "./ArgusResults";
 import { ArgusSchema } from "./ArgusSchema";
 import type { ArgusFlow as Flow } from "../types";
 
@@ -79,10 +81,14 @@ export function ArgusFlow({ flowId, step }: { flowId: string; step: number }) {
         />
       ) : step === 3 ? (
         <ArgusSchema flow={flow} busy={busy} act={act} />
-      ) : step !== 1 ? (
-        <p>
-          {step} {STEPS[step - 1]} is not available here yet. <a href={flowHref(flow.flow_id, 1)}>Back to 1 Companies</a>
-        </p>
+      ) : step === 4 || step === 5 ? (
+        flow.run_id ? (
+          step === 4 ? <ArgusExtract flow={flow} /> : <ArgusResults flow={flow} />
+        ) : (
+          <p>
+            Nothing has started yet. <a href={flowHref(flow.flow_id, 3)}>Back to 3 {STEPS[2]}</a>
+          </p>
+        )
       ) : (
         <>
           <section className="card argus-add" aria-label="Add companies">

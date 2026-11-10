@@ -54,6 +54,7 @@ test("step 3 start label, new documents line and repeat gate", async () => {
   assert.equal(startLabel("Green capex", 2, true, 1), "Extract Green capex v2 for 1 company");
   assert.equal(startLabel("Green capex", 3, false, 3), "Try Green capex on 1 company");  // AC-29
   assert.equal(startLabel("Financials", null, true, 2), "Extract Financials for 2 companies");
+  assert.equal(startLabel(null, 1, false, 2), "Loading schema…");  // not "Try  on 1 company" before the schema arrives
   assert.deepEqual([newDocsLine(1), newDocsLine(3), newDocsLine(0)],
     ["1 new document since the last run", "3 new documents since the last run", null]);
   const same = { company_id: "a", kind: "same" } as never, added = { company_id: "b", kind: "added" } as never;
@@ -66,4 +67,44 @@ test("the picker lists only each schema's newest version", async () => {
   const { newestVersions } = await import("../src/lib/argusFlow.ts");
   const s = (schema_id: string, version: number, name = schema_id) => ({ schema_id, version, name, release_flag: false });
   assert.deepEqual(newestVersions([s("a", 1), s("b", 1, "B"), s("a", 3), s("a", 2)]).map((x) => [x.schema_id, x.version]), [["a", 3], ["b", 1]]);
+});
+
+import { onlyNeedsYou, progressHeader, resultRows } from "../src/lib/argusFlow.ts";
+import type { ExtractedField, ExtractionRecord, ReviewItem } from "../src/types.ts";
+
+test("progress header", () => {
+  const p = { started_at: "2026-11-10T14:02:00", done: 3, total: 10, minutes_left: 8, cost_usd: 1.2, status: "running" };
+  assert.equal(progressHeader(p), "Started 14:02 · 3 of 10 done · about 8 minutes left · $1.20 so far"); // AC-39
+  assert.equal(progressHeader({ ...p, done: 0, minutes_left: null }), "Started 14:02 · 0 of 10 done · estimating time left · $1.20 so far");
+  assert.equal(progressHeader({ ...p, minutes_left: 1 }), "Started 14:02 · 3 of 10 done · about 1 minute left · $1.20 so far");
+  assert.equal(progressHeader({ ...p, status: "cancelled" }), "Started 14:02 · 3 of 10 done · $1.20 so far"); // over: no time left to estimate
+});
+
+const field = (id: string, f: Partial<ExtractedField> = {}): ExtractedField =>
+  ({ field_id: id, field_name: id.toUpperCase(), value: 1, citations: [], confidence: 0.9, grounded: true, conflicting_sources: false,
+     value_state: "found", period_end: "2025-12-31", ...f });
+const record = (cid: string, fields: ExtractedField[]): ExtractionRecord =>
+  ({ company_id: cid, issuer_key: `k${cid}`, name: cid.toUpperCase(), schema_id: "s", run_id: "r", fields, overall_confidence: 0.9, needs_review: false } as ExtractionRecord);
+const item = (key: string): ReviewItem =>
+  ({ item_key: key, kind: "value", run_id: "r", run_type: "extraction", payload: {}, state: "pending", escalated: false, high_risk: false, decision: null });
+
+test("results: one row per value, what needs you first, and the filter", () => {
+  const results = [
+    record("a", [field("f1"), field("f2"), field("f3", { value: null, value_state: "not_found" })]),
+    record("b", [field("f1"), field("f2"), field("f3"), field("f4")]),
+  ];
+  const rows = resultRows(results, [item("ka:f3:2025-12-31"), item("kb:f2:2025-12-31")]);
+  assert.equal(rows.length, 7); // AC-40
+  assert.deepEqual(rows.slice(0, 2).map((r) => r.key), ["ka:f3:2025-12-31", "kb:f2:2025-12-31"]);
+  assert.ok(rows[0].notFound && !rows[1].notFound); // AC-42
+  assert.equal(onlyNeedsYou(rows).length, 2); // AC-41
+  assert.equal(rows[2].company, "A");
+});
+
+test("results: a company a pre-step stopped for review gets its own row", () => {
+  const stop = { ...item("d"), kind: "other" as const, payload: { company_id: "d", name: "Dco", failed_step_label: "Parse & index", error: "no document text could be parsed" } };
+  const rows = resultRows([record("a", [field("f1")])], [stop]);
+  assert.equal(rows.length, 2);
+  assert.deepEqual([rows[0].key, rows[0].company, rows[0].field, rows[0].value, rows[0].companyLevel], ["d", "Dco", "Parse & index", "no document text could be parsed", true]);
+  assert.equal(onlyNeedsYou(rows).length, 1);
 });

@@ -74,6 +74,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/argus/flows/{flow_id}/companies/{company_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Company
+         * @description Re-runs one failed company inside the flow's run, on the files kept for it now (a file replaced in step 2 is used).
+         *     Async: the launcher starts the job on this event loop. Nothing changes until the job holds the run.
+         */
+        post: operations["retry_company_api_argus_flows__flow_id__companies__company_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/argus/flows/{flow_id}/documents/find": {
         parameters: {
             query?: never;
@@ -125,6 +146,26 @@ export interface paths {
          * @description Keep or remove files in this flow only; the files themselves stay on the company.
          */
         post: operations["decide_files_api_argus_flows__flow_id__files_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/argus/flows/{flow_id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Flow Progress
+         * @description Step 4: the flow's run as a whole and per company.
+         */
+        get: operations["flow_progress_api_argus_flows__flow_id__progress_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -10030,6 +10071,29 @@ export interface components {
             /** Ticker */
             ticker?: string | null;
         };
+        /** CompanyProgress */
+        CompanyProgress: {
+            /** Company Id */
+            company_id: string;
+            /**
+             * Document Problem
+             * @default false
+             */
+            document_problem: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Needs You
+             * @default 0
+             */
+            needs_you: number;
+            /** Percent */
+            percent: number;
+            /** Reason */
+            reason?: string | null;
+            /** Status */
+            status: string;
+        };
         /**
          * CompanyRef
          * @description Minimal identity for a company, as supplied by the user's universe file.
@@ -12114,6 +12178,25 @@ export interface components {
             source?: ("upload" | "import" | "filings" | "filings_web") | null;
             /** Step */
             step?: number | null;
+        };
+        /** FlowProgress */
+        FlowProgress: {
+            /** Companies */
+            companies: components["schemas"]["CompanyProgress"][];
+            /** Cost Usd */
+            cost_usd: number;
+            /** Done */
+            done: number;
+            /** Minutes Left */
+            minutes_left: number | null;
+            /** Run Id */
+            run_id: string;
+            /** Started At */
+            started_at: string;
+            /** Status */
+            status: string;
+            /** Total */
+            total: number;
         };
         /** FlowRow */
         FlowRow: {
@@ -18261,6 +18344,38 @@ export interface operations {
             };
         };
     };
+    retry_company_api_argus_flows__flow_id__companies__company_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowProgress"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     find_documents_api_argus_flows__flow_id__documents_find_post: {
         parameters: {
             query?: never;
@@ -18349,6 +18464,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ArgusFlowView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    flow_progress_api_argus_flows__flow_id__progress_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowProgress"];
                 };
             };
             /** @description Validation Error */

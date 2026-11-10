@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
@@ -24,16 +25,27 @@ from arp.api.routers.universe_workbench import MAX_COMPANIES
 from arp.argus.companies import add_companies, parse_rows, register, with_register_ids
 from arp.argus.documents import FlowFile, decide, expected_year, flow_files, store_upload
 from arp.argus.flows import ArgusFlow, FlowSettings, FlowStore, SchemaChoice, SkippedUpload, get_flow_store
-from arp.argus.repeat import RepeatRow, repeat_rows
+from arp.argus.progress import CompanyProgress, FlowProgress, company_status, minutes_left
+from arp.argus.repeat import RepeatRow, kept_content, repeat_rows
 from arp.argus.rows import FlowRow, flow_rows
 from arp.argus.start import StartError, start_request
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
 from arp.db.session import require_dsn, transaction
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
-from arp.ingestion.registry import ONLY_DOCUMENTS, DocumentSourceRegistry, KeptDocuments
+from arp.ingestion.registry import (
+    KEPT_NAMES,
+    ONLY_DOCUMENTS,
+    DocumentSourceRegistry,
+    KeptDocuments,
+    read_kept_names,
+    read_only_documents,
+)
 from arp.orchestration.job_manager import JobManager
-from arp.schemas.common import DocType
+from arp.orchestration.jobs import NotResumable, RunBusy, check_resumable, get_job_launcher, resume_run, run_lease
+from arp.orchestration.step_tally import step_counts
+from arp.review.items import list_open_items
+from arp.schemas.common import DocType, JobStatus
 from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
@@ -114,7 +126,11 @@ class Viewer:
         if flow.discovery_run_id and (m := self.run_store.load_manifest(flow.discovery_run_id)):
             discovery = DiscoveryStatus(run_id=m.run_id, status=str(m.status.value if hasattr(m.status, "value") else m.status))
         files = self.files(flow)
-        return ArgusFlowView(**flow.model_dump(), rows=rows, files=files, discovery=discovery, repeat_rows=self.repeats(flow, files))
+        view = ArgusFlowView(**flow.model_dump(), rows=rows, files=files, discovery=discovery, repeat_rows=self.repeats(flow, files))
+        run = self.run_store.load_manifest(flow.run_id) if flow.run_id else None
+        if run and str(getattr(run.status, "value", run.status)) not in ("pending", "running"):
+            view.step = 5  # the run is over: its results are the flow's furthest step
+        return view
 
     def repeats(self, flow: ArgusFlow, files: list[FlowFile]) -> list[RepeatRow]:
         if not flow.schema_choice or flow.step < 3:  # not while step 2 polls a discovery run
@@ -286,17 +302,128 @@ async def start_flow(
     store.update(flow_id, claim)
     try:
         started = await extraction.start_extraction(
-            extraction.StartRequest(**body), settings=settings, run_store=run_store, registry=KeptDocuments(registry, only),
+            extraction.StartRequest(**body), settings=settings, run_store=run_store, registry=KeptDocuments(registry, only, kept_names(files)),
             decision_store=decision_store, xbrl_source=xbrl_source, principal=principal)
     except BaseException:
         store.update(flow_id, lambda f: setattr(f, "starting", False))
         raise
     (run_store.run_dir(started["run_id"]) / ONLY_DOCUMENTS).write_text(json.dumps({k: sorted(v) for k, v in only.items()}))
+    (run_store.run_dir(started["run_id"]) / KEPT_NAMES).write_text(json.dumps(kept_names(files)))
 
     def apply(f: ArgusFlow) -> None:
         f.run_id, f.step, f.starting = started["run_id"], max(f.step, 4), False
 
     return view(store.update(flow_id, apply))
+
+
+@router.get("/flows/{flow_id}/progress", dependencies=[Depends(current_user)])
+def flow_progress(
+    flow_id: str, store: FlowStore = Depends(get_flow_store), run_store: RunStore = Depends(get_run_store),
+    principal: Principal = Depends(current_user),
+) -> FlowProgress:
+    """Step 4: the flow's run as a whole and per company."""
+    flow = store.get(flow_id)
+    m = run_store.load_manifest(flow.run_id) if flow and flow.run_id else None
+    if m is None:
+        raise HTTPException(404, "This extraction has not started.")
+    status = str(getattr(m.status, "value", m.status))
+    active = status in ("pending", "running")
+    error_rows = run_store.read_errors(m.run_id)
+    errors = {r.get("key"): r for r in error_rows if r.get("key")}
+    open_items = Counter(str(i.payload.get("company_id")) for i in list_open_items(run_store, principal, run_id=m.run_id))
+    companies = []
+    for row in extraction.run_companies(run_store, m.run_id, run_store.read_results(m.run_id), error_rows):
+        cid = row["company_id"]
+        steps = step_counts(run_store, m.run_id, cid)[0]["counts"] if active else {}  # the tally only matters while it runs
+        raw = "waiting" if active and row["status"] == "failed" and cid in m.params.get("retrying", []) else row["status"]
+        label, percent = company_status(raw, status, steps)
+        error = errors.get(cid) if raw in ("failed", "review") else None  # a review stop says why too
+        companies.append(CompanyProgress(
+            company_id=cid, name=row["name"], status=label, percent=percent, needs_you=open_items.get(cid, 0),
+            reason=error.get("error") if error else None,
+            document_problem=bool(error and label == "Failed" and error.get("document_problem"))))
+    done = m.completed_count + m.failed_count
+    since = m.params.get("done_at_restart", 0)  # a Retry or resume: count from its start, not the run's
+    started = datetime.fromisoformat(m.params.get("restarted_at") or m.created_at)
+    left = minutes_left(started, datetime.now(UTC), done=done - since, total=m.company_count - since)
+    return FlowProgress(run_id=m.run_id, started_at=m.created_at, done=done, total=m.company_count, minutes_left=left,
+                        cost_usd=m.estimated_cost_usd, status=status, companies=companies)
+
+
+@router.post("/flows/{flow_id}/companies/{company_id}/retry", dependencies=[Depends(require_role("analyst"))])
+async def retry_company(
+    flow_id: str, company_id: str, store: FlowStore = Depends(get_flow_store), settings: Settings = Depends(settings_dep),
+    run_store: RunStore = Depends(get_run_store), registry: DocumentSourceRegistry = Depends(get_registry), view: Viewer = Depends(),
+) -> FlowProgress:
+    """Re-runs one failed company inside the flow's run, on the files kept for it now (a file replaced in step 2 is used).
+    Async: the launcher starts the job on this event loop. Nothing changes until the job holds the run."""
+    flow = store.get(flow_id)
+    m = run_store.load_manifest(flow.run_id) if flow and flow.run_id else None
+    if m is None:
+        raise HTTPException(404, "This extraction has not started.")
+    run_id = m.run_id
+    if m.status in ("pending", "running"):
+        raise HTTPException(409, "Retry once the other companies have finished.")
+    statuses = {c["company_id"]: c["status"] for c in extraction.get_run_companies(run_id, run_store)["companies"]}
+    if statuses.get(company_id) != "failed":
+        raise HTTPException(400, "Only a failed company can be retried.")
+    try:
+        check_resumable(run_store, run_id)
+    except NotResumable as exc:
+        raise HTTPException(400, str(exc)) from exc
+    try:
+        with run_lease(run_store, run_id):  # another worker on it (a resume from Run History): 409 now, not a lost job
+            pass
+    except RunBusy as exc:
+        raise HTTPException(409, str(exc)) from exc
+    files = view.files(flow)
+    kept = kept_content(files).get(company_id, set())
+    errors = [r for r in run_store.read_errors(run_id) if r.get("key") == company_id]
+
+    with run_store.lock(run_id):  # a second Retry before the job starts sees `pending` and gets a 409
+        current = run_store.load_manifest(run_id)
+        if current.status in ("pending", "running"):
+            raise HTTPException(409, "This company is already being retried.")
+        previous, current.status = current.status, JobStatus.PENDING
+        current.params = {**current.params, "retrying": [company_id]}  # step 4 shows it Waiting, not Failed, from now on
+        run_store.save_manifest(current)
+
+    async def job() -> None:  # runs under the run's lease (LocalJobLauncher)
+        run_dir = run_store.run_dir(run_id)
+        only = read_only_documents(run_dir) or {}
+        only[company_id] = kept
+        (run_dir / ONLY_DOCUMENTS).write_text(json.dumps({k: sorted(v) for k, v in only.items()}))
+        (run_dir / KEPT_NAMES).write_text(json.dumps({**read_kept_names(run_dir), **kept_names(files)}))
+        run_store.clear_errors(run_id, [company_id])
+        try:
+            await resume_run(run_id, settings=settings, run_store=run_store, registry=registry, lease=False, company_ids=[company_id])
+        except Exception:
+            # failed before the company ran again (model setup, a crash): put its error back, so it reads Failed, not Stopped
+            if company_id not in run_store.done_keys(run_id, include_errors=True) and not any(
+                    r.get("key") == company_id for r in run_store.read_errors(run_id)):
+                for r in errors:
+                    run_store.append_error(run_id, r)
+            raise
+        finally:
+            with run_store.lock(run_id):  # the run is no longer retrying this company, however the job ended
+                current = run_store.load_manifest(run_id)
+                current.params = {k: v for k, v in current.params.items() if k != "retrying"}
+                run_store.save_manifest(current)
+
+    try:
+        get_job_launcher().launch(run_id, job, run_store=run_store)
+    except Exception:
+        with run_store.lock(run_id):
+            current = run_store.load_manifest(run_id)
+            current.status = previous
+            run_store.save_manifest(current)
+        raise
+    return flow_progress(flow_id, store=store, run_store=run_store, principal=view.principal)
+
+
+def kept_names(files: list[FlowFile]) -> dict[str, str]:
+    """Content key -> file name of the kept files: the run's error names a file it could not read."""
+    return {f.content_key: f.filename for f in files if f.state == "kept" and f.content_key}
 
 
 def _add(flow_id: str, rows: list[dict], store: FlowStore, settings: Settings, view: Viewer) -> ArgusFlowView:

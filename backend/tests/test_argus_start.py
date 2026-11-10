@@ -124,6 +124,8 @@ def test_start_released_schema_on_kept_files(client, fid, calls, settings, run_s
     run_dir = run_store.run_dir("extraction_custom1")
     assert json.loads((run_dir / "step_settings.json").read_text())["evidence_max_chunks"] == 3  # AC-28
     assert json.loads((run_dir / "only_documents.json").read_text()) == {k: sorted(v) for k, v in keys.items()}
+    names = json.loads((run_dir / "kept_names.json").read_text())  # the run's "No text could be read from <file>"
+    assert sorted(names.values()) == ["aapl.pdf", "msft.pdf"] and kwargs["registry"].names == names
 
 
 def test_draft_schema_is_a_trial_on_one_company(client, fid, calls, settings):

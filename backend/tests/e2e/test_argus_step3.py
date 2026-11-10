@@ -61,6 +61,7 @@ def _open_step_3(page, tmp_path):
     for heading in ("Saved schemas", "Templates", "Describe it in words"):
         pick.get_by_role("heading", name=heading).wait_for()
     for name in ("Transition plan", "Financials", "TNFD"):
+        pick.get_by_role("button", name=re.compile(name, re.I)).first.wait_for()  # the template list loads after the headings
         assert pick.get_by_role("button", name=re.compile(name, re.I)).count() >= 1  # AC-25
     assert page.locator("details.argus-settings").get_attribute("open") is None
     pick.get_by_role("button", name=re.compile(re.escape(SCHEMA))).click()
@@ -87,10 +88,10 @@ def test_step_3_starts_a_trial(page, tmp_path):
     fid, start = _open_step_3(page, tmp_path)
     start.click()
     # Starting scans earlier runs and launches the run, slower on a cold stack; an error the page shows fails fast.
-    page.wait_for_function("() => location.hash === '#/argus' || document.querySelector('[role=alert]')", timeout=45_000)
+    page.wait_for_function(f"() => location.hash === '#/argus/{fid}/4' || document.querySelector('[role=alert]')", timeout=45_000)
     alert = page.locator("[role=alert]")
     assert not alert.count(), f"Start failed on the page: {alert.first.inner_text()}"
-    assert page.evaluate("location.hash") == "#/argus"
+    assert page.evaluate("location.hash") == f"#/argus/{fid}/4"  # step 4 follows the run
     assert _ok(api.get(f"{API}/api/argus/flows/{fid}"))["run_id"]
     assert _ok(api.get(f"{API}/api/argus/flows/{fid}"))["step"] == 4
     assert page.console_errors == []

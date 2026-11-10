@@ -41,6 +41,8 @@ export function ReviewControls({
   historyFn = null,
   item,
   onOpenSource,
+  labels,
+  choices,
 }: {
   runId: string;
   itemKey: string;
@@ -55,6 +57,9 @@ export function ReviewControls({
   /** Review workbench item: decide it through the item decision endpoint, with its context bundle. */
   item?: Pick<ReviewItem, "kind" | "state" | "escalated" | "decision"> & { run_type?: string };
   onOpenSource?: (s: ActiveSource) => void;
+  /** With `item`: the decision buttons' own words, and which of the kind's decisions to offer. */
+  labels?: Partial<Record<Decision, string>>;
+  choices?: Decision[];
 }) {
   const me = useMe();
   const signedIn = me?.name ?? "";
@@ -65,7 +70,8 @@ export function ReviewControls({
   const [history, setHistory] = useState<ReviewDecision[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  if (item) return <ItemDecision runId={runId} itemKey={itemKey} item={item} me={me} onDone={onDone} onOpenSource={onOpenSource} />;
+  if (item)
+    return <ItemDecision runId={runId} itemKey={itemKey} item={item} me={me} onDone={onDone} onOpenSource={onOpenSource} labels={labels} choices={choices} />;
 
   async function submit(decision: "approve" | "edit" | "reject") {
     if (!submitFn) return;
@@ -201,6 +207,8 @@ function ItemDecision({
   me,
   onDone,
   onOpenSource,
+  labels,
+  choices,
 }: {
   runId: string;
   itemKey: string;
@@ -208,6 +216,8 @@ function ItemDecision({
   me: Me | null;
   onDone: (recorded: ReviewDecision) => void;
   onOpenSource?: (s: ActiveSource) => void;
+  labels?: Partial<Record<Decision, string>>;
+  choices?: Decision[];
 }) {
   const [ctx, setCtx] = useState<ItemContext | null>(null);
   const [open, setOpen] = useState(false);
@@ -383,7 +393,7 @@ function ItemDecision({
           </button>
         )}
         {decisionChoices(kind, item.run_type)
-          .filter((d) => !(d === "escalate" && item.state === "disagreed"))
+          .filter((d) => !(d === "escalate" && item.state === "disagreed") && (!choices || choices.includes(d)))
           .map((d) => (
           <button
             key={d}
@@ -393,7 +403,7 @@ function ItemDecision({
             disabled={!!block || busy}
             aria-pressed={decision === d}
           >
-            {agree && d === "approve" ? "Accept original value" : DECISION_BUTTON[d]}
+            {agree && d === "approve" ? "Accept original value" : labels?.[d] ?? DECISION_BUTTON[d]}
           </button>
         ))}
         <button
