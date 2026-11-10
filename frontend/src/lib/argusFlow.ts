@@ -1,4 +1,6 @@
-import type { FlowFile, FlowRow, PriorRun, RepeatRow } from "../types";
+import type { Citation, ExtractionRecord, FlowFile, FlowProgress, FlowRow, PriorRun, RepeatRow, ReviewItem } from "../types";
+import { valueLabel } from "./fieldValue.ts";
+import { fieldItemKey } from "./reviewKeys.ts";
 
 // An Argus flow (#/argus/<flow_id>/<step>): step 1's text, as the spec writes it.
 
@@ -46,3 +48,42 @@ export function newestVersions<T extends { schema_id: string; version: number; n
   for (const s of all) if ((newest.get(s.schema_id)?.version ?? 0) < s.version) newest.set(s.schema_id, s);
   return [...newest.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
+
+const two = (n: number) => String(n).padStart(2, "0");
+
+/** Step 4's header line; until a company has finished there is nothing to estimate the time left from. */
+export function progressHeader(p: Pick<FlowProgress, "started_at" | "done" | "total" | "minutes_left" | "cost_usd">): string {
+  const at = new Date(p.started_at);
+  const left = p.minutes_left == null ? "estimating time left" : `about ${p.minutes_left} ${p.minutes_left === 1 ? "minute" : "minutes"} left`;
+  return `Started ${two(at.getHours())}:${two(at.getMinutes())} · ${p.done} of ${p.total} done · ${left} · $${p.cost_usd.toFixed(2)} so far`;
+}
+
+export interface ResultRow {
+  key: string;
+  companyId: string;
+  company: string;
+  field: string;
+  value: string;
+  citation: Citation | null;
+  notFound: boolean;
+  /** The open review item for this value; set means it needs a person. */
+  item: ReviewItem | null;
+}
+
+/** Step 5: one row per extracted value, the ones with an open review item first (in their order), then the rest. */
+export function resultRows(results: ExtractionRecord[], items: ReviewItem[]): ResultRow[] {
+  const open = new Map(items.map((i) => [i.item_key, i]));
+  const rows = results.flatMap((r) =>
+    r.fields.map((f): ResultRow => {
+      const key = fieldItemKey(r, f);
+      return {
+        key, companyId: r.company_id, company: r.name, field: r.field_names?.[f.field_id] ?? f.field_name, value: valueLabel(f),
+        citation: f.citations.find((c) => c.grounded) ?? f.citations[0] ?? null, notFound: f.value_state === "not_found",
+        item: open.get(key) ?? null,
+      };
+    }),
+  );
+  return [...rows.filter((r) => r.item), ...rows.filter((r) => !r.item)];
+}
+
+export const onlyNeedsYou = (rows: ResultRow[]) => rows.filter((r) => r.item);
