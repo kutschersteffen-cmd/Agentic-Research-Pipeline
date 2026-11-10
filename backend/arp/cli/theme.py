@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import csv
+import functools
 import hashlib
 import json
 from pathlib import Path
 
 import typer
 
-from arp.cli._shared import _registry, _run_store, _taxonomy_store
+from arp.cli._shared import _registry, _run_store, _taxonomy_store, _xbrl_source
 from arp.company_graph import NOT_CONFIGURED, CompanyGraphError, import_edges, open_graph, parse_edge_csv
 from arp.config import Settings, get_settings
 from arp.db.fields import SchemaRegistry
@@ -62,6 +63,70 @@ def theme_edges_import(csv_path: Path = typer.Option(..., "--csv", help="Edge CS
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"{len(rows)} rows, {new} new")
+
+
+trend_app = typer.Typer(help="Quarterly theme trend snapshots: market, co-movement and capex / R&D diffusion.")
+theme_app.add_typer(trend_app, name="trend")
+
+
+@trend_app.command("snapshot")
+def theme_trend_snapshot(
+    taxonomy_id: str,
+    symbols: Path = typer.Option(..., "--symbols", help="CSV with company_id, symbol, home_index and optional cik."),
+    quarter: str = typer.Option(None, "--quarter", help="One quarter, YYYYQn."),
+    start: str = typer.Option(None, "--from", help="First quarter of a range, YYYYQn."),
+    stop: str = typer.Option(None, "--to", help="Last quarter of a range, YYYYQn."),
+    prices: Path = typer.Option(None, "--prices", help="Wide CSV of weekly prices; default Yahoo."),
+    facts_dir: Path = typer.Option(None, "--facts-dir", help="Directory of SEC companyfacts CIK<10 digits>.json files; default SEC."),
+) -> None:
+    """Computes and stores the theme's snapshot for a quarter or a range of quarters; all or none."""
+    from datetime import date
+
+    import httpx
+
+    from arp.replication.price_data import CsvPriceSource, YFinancePriceSource
+    from arp.research import theme_trend
+
+    try:
+        if facts_dir:
+            facts_for = theme_trend.facts_from_dir(facts_dir)
+        else:
+            source = functools.cache(_xbrl_source)  # built on the first CIK, once
+            facts_for = lambda cik: asyncio.run(source().fetch_company_facts(cik))  # noqa: E731
+        done = theme_trend.snapshot(
+            taxonomy_id, symbols, quarter, start, stop, taxonomy_store=_taxonomy_store(), run_store=_run_store(),
+            portfolios_dir=get_settings().portfolios_dir, prices=CsvPriceSource(prices) if prices else YFinancePriceSource(),
+            facts_for=facts_for, today=date.today())
+    except theme_trend.TrendRefused as e:
+        typer.echo(e.args[0], err=True)
+        raise typer.Exit(1) from None
+    except (ImportError, OSError, ValueError, OverflowError, httpx.HTTPError) as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(1) from None
+    for q in done:
+        typer.echo(f"Saved {taxonomy_id} {q}")
+
+
+@trend_app.command("show")
+def theme_trend_show(taxonomy_id: str, as_json: bool = typer.Option(False, "--json")) -> None:
+    """The stored quarters side by side, with the change from the previous stored quarter."""
+    from arp.research import theme_trend
+
+    try:
+        data = theme_trend.load_trend(theme_trend.trend_path(get_settings().portfolios_dir, taxonomy_id))
+    except theme_trend.TrendRefused as e:
+        typer.echo(e.args[0], err=True)
+        raise typer.Exit(1) from None
+    except ValueError:  # an id that cannot name a file
+        data = None
+    if data is None:
+        typer.echo(f"No trend stored for {taxonomy_id}.", err=True)
+        raise typer.Exit(1)
+    if as_json:
+        typer.echo(json.dumps(data, indent=2))
+        return
+    for line in theme_trend.show_lines(data):
+        typer.echo(line)
 
 
 def _num(x: float | None) -> str:
