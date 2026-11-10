@@ -60,6 +60,12 @@ class DocumentSourceRegistry:
 ONLY_DOCUMENTS = "only_documents.json"  # in a run's folder: company id -> the content keys it may read (Argus step 2)
 
 
+class UnreadableDocument(Exception):
+    """A kept document with no text: the company fails, and the error row marks it as a document problem."""
+
+    document_problem = True
+
+
 class KeptDocuments:
     """A document registry that hands a listed company only its kept documents (by content key); every other
     company, and everything but `fetch_all`, is the wrapped registry's."""
@@ -70,7 +76,13 @@ class KeptDocuments:
     async def fetch_all(self, company: CompanyRef, doc_types: list[DocType] | None = None) -> list[SourceDocument]:
         docs = await self.inner.fetch_all(company, doc_types)
         keep = self.only.get(company.company_id)
-        return docs if keep is None else [d for d in docs if d.content_key in keep]
+        if keep is None:
+            return docs
+        kept = [d for d in docs if d.content_key in keep]
+        for d in kept:
+            if not d.full_text.strip():
+                raise UnreadableDocument(f"No text could be read from {Path(d.local_path).name if d.local_path else d.title}")
+        return kept
 
     def __getattr__(self, name):
         return getattr(self.inner, name)
