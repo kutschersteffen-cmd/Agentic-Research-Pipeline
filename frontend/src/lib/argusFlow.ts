@@ -119,3 +119,17 @@ export function bumpChangedFields<S extends { fields: FieldDefinition[] }>(origi
     }),
   };
 }
+
+/** Calls `fn` unless a previous call is still running (then resolves at once): a double click sends once. */
+export function singleFlight<A extends unknown[]>(fn: (...args: A) => Promise<void>): (...args: A) => Promise<void> {
+  let running = false;
+  return async (...args: A) => {
+    if (running) return;
+    running = true;
+    try {
+      await fn(...args);
+    } finally {
+      running = false;
+    }
+  };
+}

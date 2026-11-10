@@ -4,6 +4,7 @@ import { ReviewerField } from "./components/ReviewerField";
 import { SignedInAs } from "./components/SignedInAs";
 import { ProcessBar, StartPage, WorkspaceOverview } from "./pages/ProcessHub";
 import { ArgusFlow } from "./pages/ArgusFlow";
+import { singleFlight } from "./lib/argusFlow";
 import { ArgusNew, ArgusStart, openNewFlow } from "./pages/ArgusStart";
 import { WORKSPACES, workspaceOfProcess, type WorkspaceId } from "./lib/processes";
 import { STATE_LABEL, workspaceState } from "./lib/workspaceCard";
@@ -266,8 +267,9 @@ function App() {
   }
 
   // A hand-over opens step 1 of a new Argus flow with the companies listed; the Transition Plan one also picks that template.
-  const sendToArgus = (to: "argus" | "transitionPlan", path: string) =>
-    openNewFlow({ universePath: path, preset: to === "transitionPlan" ? "transition_plan" : null });
+  // One hand-over at a time: a double click on "Argus →" must not start two flows.
+  const sendToArgus = useRef(singleFlight((to: "argus" | "transitionPlan", path: string) =>
+    openNewFlow({ universePath: path, preset: to === "transitionPlan" ? "transition_plan" : null }))).current;
 
   function sendToTheme(taxonomyId: string) {
     setPendingTaxonomyId(taxonomyId);

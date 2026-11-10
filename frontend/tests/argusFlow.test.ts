@@ -124,3 +124,22 @@ test("saving edited fields bumps only the changed released fields", async () => 
   assert.deepEqual(out.map((x) => [x.field_id, x.version, x.status]), [["a", 2, "draft"], ["b", 1, "released"], ["c", 1, "draft"], ["n", undefined, undefined]]);
   assert.equal(bumpChangedFields(null, edited), edited);  // a drafted schema has nothing released to protect
 });
+
+test("a hand-over clicked twice while the first is in flight starts one flow", async () => {
+  const { singleFlight } = await import("../src/lib/argusFlow.ts");
+  let calls = 0;
+  let release!: () => void;
+  const send = singleFlight(async () => { calls++; await new Promise<void>((r) => (release = r)); });
+  const first = send();
+  await send();  // the double click: ignored, resolves at once
+  assert.equal(calls, 1);
+  release();
+  await first;
+  const again = send();  // after the first finished, a new send goes through
+  release();
+  await again;
+  assert.equal(calls, 2);
+  const failing = singleFlight(async () => { throw new Error("boom"); });
+  await assert.rejects(failing(), /boom/);
+  await assert.rejects(failing(), /boom/);  // a failure frees the guard
+});
