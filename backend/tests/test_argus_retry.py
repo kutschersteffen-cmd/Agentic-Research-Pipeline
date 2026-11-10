@@ -1,6 +1,8 @@
 """Argus step 4's Retry: one failed company re-runs inside the same run, on the flow's current kept files."""
 
+import asyncio
 import json
+import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,7 +14,7 @@ from arp.argus.flows import FlowStore
 from arp.config import Settings
 from arp.orchestration import jobs
 from arp.orchestration.job_manager import JobManager
-from arp.schemas.common import JobStatus, RunManifest
+from arp.schemas.common import CompanyRef, JobStatus, RunManifest
 from arp.storage.run_store import RunStore
 from tests.pdf_fixtures import FILLER, make_pdf
 from tests.test_resume_run import COMPANIES, _resume, _settings, _theme_run
@@ -55,23 +57,35 @@ def run_store(settings, pg):
 def client(settings, run_store):
     app.dependency_overrides[settings_dep] = lambda: settings
     app.dependency_overrides[get_run_store] = lambda: run_store
-    yield TestClient(app)
+    with TestClient(app) as c:  # keeps the app's loop alive for the job the real LocalJobLauncher starts
+        yield c
     app.dependency_overrides.pop(settings_dep, None)
     app.dependency_overrides.pop(get_run_store, None)
 
 
 @pytest.fixture
-def launched(monkeypatch):
-    calls: list = []
+def resumed(monkeypatch, run_store):
+    """resume_run, faked: it records what the launched job saw once it held the run; `fail` makes it raise."""
+    seen: dict = {"calls": [], "fail": False, "delay": 0.0}
 
-    class Launcher:
-        def launch(self, run_id, job, *, run_store=None):
-            calls.append(run_id)
-            job().close()  # the coroutine is not run here; only that it was launched
+    async def fake(run_id, *, company_ids, **_):
+        await asyncio.sleep(seen["delay"])
+        seen["calls"].append(company_ids)
+        seen["errors"] = run_store.read_errors(run_id)
+        seen["only"] = json.loads((run_store.run_dir(run_id) / "only_documents.json").read_text())
+        if seen["fail"]:
+            raise RuntimeError("model setup failed")
+        return run_id
 
-    monkeypatch.setattr(argus_router, "get_job_launcher", Launcher)
-    monkeypatch.setattr(argus_router, "check_resumable", lambda store, run_id: None)
-    return calls
+    monkeypatch.setattr(argus_router, "resume_run", fake)
+    return seen
+
+
+def _wait(cond, timeout=10.0):
+    end = time.monotonic() + timeout
+    while not cond():
+        assert time.monotonic() < end, "timed out"
+        time.sleep(0.05)
 
 
 @pytest.fixture
@@ -85,9 +99,10 @@ def flow(client, settings, run_store, tmp_path):
     client.post(f"/api/argus/flows/{fid}/files", json={"all_that_pass": True})
     run_store.save_manifest(RunManifest(run_id="extraction_r", run_type="extraction", company_count=2,
                                         status="partially_completed", failed_count=1, completed_count=1))
+    companies = [CompanyRef(company_id="aapl", name="Apple Inc"), CompanyRef(company_id="msft", name="Microsoft Corporation")]
+    run_store.save_companies("extraction_r", companies)
     run_dir = run_store.run_dir("extraction_r")
-    (run_dir / "start_request.json").write_text(json.dumps({"profile": "custom", "companies": [
-        {"company_id": "aapl", "name": "Apple Inc"}, {"company_id": "msft", "name": "Microsoft Corporation"}]}))
+    (run_dir / "start_request.json").write_text(json.dumps({"profile": "custom", "companies": [c.model_dump(mode="json") for c in companies]}))
     (run_dir / "only_documents.json").write_text(json.dumps({"aapl": ["old"], "msft": ["m"]}))
     run_store.append_result("extraction_r", {"_key": "msft", "company_id": "msft", "name": "Microsoft Corporation", "fields": []})
     run_store.append_error("extraction_r", {"key": "aapl", "error": "No text could be read from old.pdf", "document_problem": True})
@@ -95,24 +110,42 @@ def flow(client, settings, run_store, tmp_path):
     return fid
 
 
-def test_retry_runs_one_company_on_the_current_kept_files(client, flow, launched, run_store):
-    r = client.post(f"/api/argus/flows/{flow}/companies/aapl/retry")
+def test_retry_launches_a_job_that_reruns_one_company_on_the_current_kept_files(client, flow, resumed, run_store):
+    r = client.post(f"/api/argus/flows/{flow}/companies/aapl/retry")  # the real LocalJobLauncher: needs a running loop
     assert r.status_code == 200, r.text
-    assert launched == ["extraction_r"]
-    assert run_store.read_errors("extraction_r") == []  # AC-38: the row leaves Failed at once
-    only = json.loads((run_store.run_dir("extraction_r") / "only_documents.json").read_text())
-    assert only["msft"] == ["m"] and only["aapl"] != ["old"] and len(only["aapl"]) == 1  # the file kept now
+    assert r.json()["status"] == "pending"  # step 4 keeps polling until the job has run
+    _wait(lambda: resumed["calls"])
+    assert resumed["calls"] == [["aapl"]]
+    assert resumed["errors"] == []  # cleared once the job held the run (AC-38: the row leaves Failed)
+    assert resumed["only"]["msft"] == ["m"] and resumed["only"]["aapl"] != ["old"] and len(resumed["only"]["aapl"]) == 1
+
+
+def test_a_second_retry_before_the_job_runs_is_refused(client, flow, resumed, run_store):
+    resumed["delay"] = 1.0
+    assert client.post(f"/api/argus/flows/{flow}/companies/aapl/retry").status_code == 200
+    assert client.post(f"/api/argus/flows/{flow}/companies/aapl/retry").status_code == 409
+    _wait(lambda: resumed["calls"])
+    assert resumed["calls"] == [["aapl"]]
+
+
+def test_a_job_that_fails_before_running_puts_the_error_back(client, flow, resumed, run_store):
+    resumed["fail"] = True
+    assert client.post(f"/api/argus/flows/{flow}/companies/aapl/retry").status_code == 200
+    _wait(lambda: run_store.load_manifest("extraction_r").status not in ("pending", "running"))
+    assert [e["error"] for e in run_store.read_errors("extraction_r")] == ["No text could be read from old.pdf"]
     rows = {c["company_id"]: c["status"] for c in client.get(f"/api/argus/flows/{flow}/progress").json()["companies"]}
-    assert rows == {"aapl": "Stopped", "msft": "Done"}  # until the launched job marks the run running
+    assert rows["aapl"] == "Failed"  # never stranded as Stopped; Retry works again
+    resumed["fail"] = False
+    assert client.post(f"/api/argus/flows/{flow}/companies/aapl/retry").status_code == 200
 
 
-def test_retry_refuses_a_running_run_and_a_company_that_did_not_fail(client, flow, launched, run_store):
+def test_retry_refuses_a_running_run_and_a_company_that_did_not_fail(client, flow, resumed, run_store):
     assert client.post(f"/api/argus/flows/{flow}/companies/msft/retry").status_code == 400
     m = run_store.load_manifest("extraction_r")
     m.status = JobStatus.RUNNING
     run_store.save_manifest(m)
     assert client.post(f"/api/argus/flows/{flow}/companies/aapl/retry").status_code == 409
-    assert launched == []
+    assert resumed["calls"] == []
 
 
 async def test_resuming_one_company_runs_only_it_through_the_real_batch(tmp_path, pg, monkeypatch):

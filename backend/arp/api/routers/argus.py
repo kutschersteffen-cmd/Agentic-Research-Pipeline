@@ -34,9 +34,9 @@ from arp.db.session import require_dsn, transaction
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
 from arp.ingestion.registry import ONLY_DOCUMENTS, DocumentSourceRegistry, KeptDocuments, read_only_documents
 from arp.orchestration.job_manager import JobManager
-from arp.orchestration.jobs import NotResumable, check_resumable, get_job_launcher, resume_run
+from arp.orchestration.jobs import NotResumable, RunBusy, check_resumable, get_job_launcher, resume_run, run_lease
 from arp.orchestration.step_tally import step_counts
-from arp.schemas.common import DocType
+from arp.schemas.common import DocType, JobStatus
 from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
@@ -332,31 +332,65 @@ def flow_progress(flow_id: str, store: FlowStore = Depends(get_flow_store), run_
 
 
 @router.post("/flows/{flow_id}/companies/{company_id}/retry", dependencies=[Depends(require_role("analyst"))])
-def retry_company(
+async def retry_company(
     flow_id: str, company_id: str, store: FlowStore = Depends(get_flow_store), settings: Settings = Depends(settings_dep),
     run_store: RunStore = Depends(get_run_store), registry: DocumentSourceRegistry = Depends(get_registry), view: Viewer = Depends(),
 ) -> FlowProgress:
-    """Re-runs one failed company inside the flow's run, on the files kept for it now (a file replaced in step 2 is used)."""
+    """Re-runs one failed company inside the flow's run, on the files kept for it now (a file replaced in step 2 is used).
+    Async: the launcher starts the job on this event loop. Nothing changes until the job holds the run."""
     flow = store.get(flow_id)
     m = run_store.load_manifest(flow.run_id) if flow and flow.run_id else None
     if m is None:
         raise HTTPException(404, "This extraction has not started.")
+    run_id = m.run_id
     if m.status in ("pending", "running"):
         raise HTTPException(409, "Retry once the other companies have finished.")
-    statuses = {c["company_id"]: c["status"] for c in extraction.get_run_companies(m.run_id, run_store)["companies"]}
+    statuses = {c["company_id"]: c["status"] for c in extraction.get_run_companies(run_id, run_store)["companies"]}
     if statuses.get(company_id) != "failed":
         raise HTTPException(400, "Only a failed company can be retried.")
     try:
-        check_resumable(run_store, m.run_id)
+        check_resumable(run_store, run_id)
     except NotResumable as exc:
         raise HTTPException(400, str(exc)) from exc
-    run_dir = run_store.run_dir(m.run_id)
-    only = read_only_documents(run_dir) or {}
-    only[company_id] = kept_content(view.files(flow)).get(company_id, set())
-    (run_dir / ONLY_DOCUMENTS).write_text(json.dumps({k: sorted(v) for k, v in only.items()}))
-    run_store.clear_errors(m.run_id, [company_id])
-    get_job_launcher().launch(m.run_id, lambda: resume_run(m.run_id, settings=settings, run_store=run_store, registry=registry,
-                                                            lease=False, company_ids=[company_id]), run_store=run_store)
+    try:
+        with run_lease(run_store, run_id):  # another worker on it (a resume from Run History): 409 now, not a lost job
+            pass
+    except RunBusy as exc:
+        raise HTTPException(409, str(exc)) from exc
+    kept = kept_content(view.files(flow)).get(company_id, set())
+    errors = [r for r in run_store.read_errors(run_id) if r.get("key") == company_id]
+
+    with run_store.lock(run_id):  # a second Retry before the job starts sees `pending` and gets a 409
+        current = run_store.load_manifest(run_id)
+        if current.status in ("pending", "running"):
+            raise HTTPException(409, "This company is already being retried.")
+        previous, current.status = current.status, JobStatus.PENDING
+        run_store.save_manifest(current)
+
+    async def job() -> None:  # runs under the run's lease (LocalJobLauncher)
+        run_dir = run_store.run_dir(run_id)
+        only = read_only_documents(run_dir) or {}
+        only[company_id] = kept
+        (run_dir / ONLY_DOCUMENTS).write_text(json.dumps({k: sorted(v) for k, v in only.items()}))
+        run_store.clear_errors(run_id, [company_id])
+        try:
+            await resume_run(run_id, settings=settings, run_store=run_store, registry=registry, lease=False, company_ids=[company_id])
+        except Exception:
+            # failed before the company ran again (model setup, a crash): put its error back, so it reads Failed, not Stopped
+            if company_id not in run_store.done_keys(run_id, include_errors=True) and not any(
+                    r.get("key") == company_id for r in run_store.read_errors(run_id)):
+                for r in errors:
+                    run_store.append_error(run_id, r)
+            raise
+
+    try:
+        get_job_launcher().launch(run_id, job, run_store=run_store)
+    except Exception:
+        with run_store.lock(run_id):
+            current = run_store.load_manifest(run_id)
+            current.status = previous
+            run_store.save_manifest(current)
+        raise
     return flow_progress(flow_id, store=store, run_store=run_store)
 
 
