@@ -98,7 +98,6 @@ import type {
   PortfolioSummary,
   QAAnswer,
   SearchResponse,
-  TransitionPlanAssessmentRecord,
   ExtractionProfile,
   PipelineShape,
   RunCompany,
@@ -448,10 +447,6 @@ export const api = {
 
   // Transition Plan Assessment (64-indicator walk/talk RAG disclosure assessment)
   getTransitionPlanIndicators: () => request<TransitionPlanIndicatorDef[]>("/api/transition-plan/indicators"),
-  getTransitionPlanResults: (runId: string, offset = 0, limit = 500) =>
-    request<{ total: number; results: TransitionPlanAssessmentRecord[] }>(
-      `/api/transition-plan/runs/${runId}/results?offset=${offset}&limit=${limit}`,
-    ),
   getTnfdReviewHistory: (runId: string, itemKey: string) =>
     request(`/api/tnfd/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
   submitTnfdReview: (runId: string, body: unknown) =>

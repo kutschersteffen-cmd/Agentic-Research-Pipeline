@@ -92,13 +92,6 @@ export interface Readiness {
   ready: boolean;
 }
 
-/** A saved company universe handed from one screen to the next; `from` names the sender. */
-export interface UniverseHandoff {
-  path: string;
-  count: number;
-  from: string;
-}
-
 export interface RunManifest {
   run_id: string;
   run_type: string;
