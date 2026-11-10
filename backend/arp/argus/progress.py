@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from datetime import datetime
+from datetime import UTC, datetime
 
 from pydantic import BaseModel
 
@@ -56,4 +56,5 @@ def minutes_left(started: datetime, now: datetime, *, done: int, total: int) -> 
     """Elapsed time per finished company times the companies left; None until one has finished."""
     if not done:
         return None
-    return math.ceil((now - started).total_seconds() / 60 / done * (total - done))
+    started = started if started.tzinfo else started.replace(tzinfo=UTC)  # a stored time without a zone is UTC
+    return max(0, math.ceil((now - started).total_seconds() / 60 / done * (total - done)))  # never negative on a skewed clock

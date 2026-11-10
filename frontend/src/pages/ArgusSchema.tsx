@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { BatchToggle } from "../components/BatchToggle";
 import { ScoringTemplatePicker } from "../components/RunScoring";
-import { canStart, newDocsLine, newestVersions, startLabel } from "../lib/argusFlow";
+import { canStart, flowHref, newDocsLine, newestVersions, startLabel } from "../lib/argusFlow";
 import type { ArgusFlow as Flow, DataPointSchema, FieldDefinition } from "../types";
 
 type SavedSchema = { schema_id: string; version: number; name: string; release_flag: boolean };
@@ -329,7 +329,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
                 const v = evidenceValue(); // a value typed but not yet saved (no blur before the click)
                 if (v !== (flow.settings.evidence_passages ?? null)) await api.patchArgusFlow(id, { settings: { ...flow.settings, evidence_passages: v } });
                 const f = await api.startArgusFlow(id);
-                window.location.hash = "#/argus";
+                window.location.hash = flowHref(id, 4);
                 return f;
               } finally {
                 starting.current = false;

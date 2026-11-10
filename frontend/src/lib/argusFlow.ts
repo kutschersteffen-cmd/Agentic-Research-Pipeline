@@ -52,10 +52,11 @@ export function newestVersions<T extends { schema_id: string; version: number; n
 const two = (n: number) => String(n).padStart(2, "0");
 
 /** Step 4's header line; until a company has finished there is nothing to estimate the time left from. */
-export function progressHeader(p: Pick<FlowProgress, "started_at" | "done" | "total" | "minutes_left" | "cost_usd">): string {
+export function progressHeader(p: Pick<FlowProgress, "started_at" | "done" | "total" | "minutes_left" | "cost_usd" | "status">): string {
   const at = new Date(p.started_at);
-  const left = p.minutes_left == null ? "estimating time left" : `about ${p.minutes_left} ${p.minutes_left === 1 ? "minute" : "minutes"} left`;
-  return `Started ${two(at.getHours())}:${two(at.getMinutes())} · ${p.done} of ${p.total} done · ${left} · $${p.cost_usd.toFixed(2)} so far`;
+  const active = p.status === "pending" || p.status === "running";
+  const left = !active ? "" : p.minutes_left == null ? " · estimating time left" : ` · about ${p.minutes_left} ${p.minutes_left === 1 ? "minute" : "minutes"} left`;
+  return `Started ${two(at.getHours())}:${two(at.getMinutes())} · ${p.done} of ${p.total} done${left} · $${p.cost_usd.toFixed(2)} so far`;
 }
 
 export interface ResultRow {

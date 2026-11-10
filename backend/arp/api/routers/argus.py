@@ -117,7 +117,11 @@ class Viewer:
         if flow.discovery_run_id and (m := self.run_store.load_manifest(flow.discovery_run_id)):
             discovery = DiscoveryStatus(run_id=m.run_id, status=str(m.status.value if hasattr(m.status, "value") else m.status))
         files = self.files(flow)
-        return ArgusFlowView(**flow.model_dump(), rows=rows, files=files, discovery=discovery, repeat_rows=self.repeats(flow, files))
+        view = ArgusFlowView(**flow.model_dump(), rows=rows, files=files, discovery=discovery, repeat_rows=self.repeats(flow, files))
+        run = self.run_store.load_manifest(flow.run_id) if flow.run_id else None
+        if run and str(getattr(run.status, "value", run.status)) not in ("pending", "running"):
+            view.step = 5  # the run is over: its results are the flow's furthest step
+        return view
 
     def repeats(self, flow: ArgusFlow, files: list[FlowFile]) -> list[RepeatRow]:
         if not flow.schema_choice or flow.step < 3:  # not while step 2 polls a discovery run

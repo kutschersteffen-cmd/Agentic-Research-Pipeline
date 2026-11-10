@@ -12,7 +12,7 @@ from arp.argus.flows import FlowStore
 from arp.argus.progress import company_status, minutes_left
 from arp.config import Settings
 from arp.orchestration import step_tally
-from arp.schemas.common import RunManifest
+from arp.schemas.common import JobStatus, RunManifest
 from arp.storage.run_store import RunStore
 
 
@@ -39,6 +39,8 @@ def test_minutes_left():
     assert minutes_left(start, start + timedelta(minutes=5), done=3, total=10) == 12  # rounded up
     assert minutes_left(start, start + timedelta(minutes=5), done=0, total=10) is None  # nothing finished yet
     assert minutes_left(start, start + timedelta(minutes=5), done=10, total=10) == 0
+    assert minutes_left(start, start - timedelta(minutes=5), done=3, total=10) == 0  # a start time ahead of the clock
+    assert minutes_left(start.replace(tzinfo=None), start + timedelta(minutes=6), done=3, total=10) == 14  # stored without a zone
 
 
 @pytest.fixture
@@ -104,3 +106,13 @@ def test_progress_needs_a_run(client, settings):
     fid = client.post("/api/argus/flows").json()["flow_id"]
     assert client.get(f"/api/argus/flows/{fid}/progress").status_code == 404
     assert client.get("/api/argus/flows/nope/progress").status_code == 404
+
+
+def test_a_finished_run_moves_the_flow_to_results(client, settings, run_store):
+    _run(run_store, "running")
+    fid = _flow(client, settings)
+    assert client.get(f"/api/argus/flows/{fid}").json()["step"] == 4
+    m = run_store.load_manifest("extraction_p")
+    m.status = JobStatus.COMPLETED
+    run_store.save_manifest(m)
+    assert client.get(f"/api/argus/flows/{fid}").json()["step"] == 5

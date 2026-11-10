@@ -8,6 +8,7 @@ import type {
   AuthoritativeValue,
   ArgusDraft,
   ArgusFlow,
+  FlowProgress,
   AskHistoryTurn,
   AskResponse,
   WorkbenchResponse,
@@ -662,6 +663,9 @@ export const api = {
     return request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/documents/upload`, { method: "POST", headers: {}, body: form });
   },
   startArgusFlow: (flowId: string) => request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/start`, { method: "POST" }),
+  getFlowProgress: (flowId: string) => request<FlowProgress>(`/api/argus/flows/${encodeURIComponent(flowId)}/progress`),
+  retryFlowCompany: (flowId: string, companyId: string) =>
+    request<FlowProgress>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies/${encodeURIComponent(companyId)}/retry`, { method: "POST" }),
   decideFlowFiles: (flowId: string, body: { keys?: string[]; state?: "kept" | "removed"; all_that_pass?: boolean; all?: boolean }) =>
     request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/files`, { method: "POST", body: JSON.stringify(body) }),
   addFlowCompanies: (flowId: string, body: { universe_path?: string; company?: { name: string; ticker?: string; isin?: string; lei?: string; cik?: string } }) =>

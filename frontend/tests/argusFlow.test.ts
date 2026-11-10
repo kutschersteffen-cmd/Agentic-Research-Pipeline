@@ -72,10 +72,11 @@ import { onlyNeedsYou, progressHeader, resultRows } from "../src/lib/argusFlow.t
 import type { ExtractedField, ExtractionRecord, ReviewItem } from "../src/types.ts";
 
 test("progress header", () => {
-  const p = { started_at: "2026-11-10T14:02:00", done: 3, total: 10, minutes_left: 8, cost_usd: 1.2 };
+  const p = { started_at: "2026-11-10T14:02:00", done: 3, total: 10, minutes_left: 8, cost_usd: 1.2, status: "running" };
   assert.equal(progressHeader(p), "Started 14:02 · 3 of 10 done · about 8 minutes left · $1.20 so far"); // AC-39
   assert.equal(progressHeader({ ...p, done: 0, minutes_left: null }), "Started 14:02 · 0 of 10 done · estimating time left · $1.20 so far");
   assert.equal(progressHeader({ ...p, minutes_left: 1 }), "Started 14:02 · 3 of 10 done · about 1 minute left · $1.20 so far");
+  assert.equal(progressHeader({ ...p, status: "cancelled" }), "Started 14:02 · 3 of 10 done · $1.20 so far"); // over: no time left to estimate
 });
 
 const field = (id: string, f: Partial<ExtractedField> = {}): ExtractedField =>
