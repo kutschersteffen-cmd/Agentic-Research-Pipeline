@@ -5,7 +5,7 @@ import { ruleMarkers, RulesList } from "../components/RulesList";
 import { ScoringTemplatePicker } from "../components/RunScoring";
 import { SchemaFieldsEditor } from "../components/SchemaFieldsEditor";
 import { ruleInputs, sameRule } from "../lib/ruleSentence";
-import { canStart, flowHref, newDocsLine, newestVersions, startLabel } from "../lib/argusFlow";
+import { bumpChangedFields, canStart, flowHref, newDocsLine, newestVersions, startLabel } from "../lib/argusFlow";
 import type { ArgusFlow as Flow, DataPointSchema, FieldDefinition, RuleSuggestion } from "../types";
 
 type SavedSchema = { schema_id: string; version: number; name: string; release_flag: boolean };
@@ -67,7 +67,8 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
   const saveEditing = () =>
     act(async () => {
       if (!editing) return;
-      const s = await api.registerSchema({ ...editing, fields: editing.fields.filter((f) => f.name.trim()) });
+      const kept = { ...editing, fields: editing.fields.filter((f) => f.name.trim()) };
+      const s = await api.registerSchema(bumpChangedFields(schema?.schema_id === editing.schema_id ? schema : null, kept));
       edit(null);
       setSaved(newestVersions(await api.listSchemas()));
       return api.patchArgusFlow(id, { schema_choice: asChoice({ kind: "schema", schema_id: s.schema_id, version: s.version ?? 1 }), repeat: {} });

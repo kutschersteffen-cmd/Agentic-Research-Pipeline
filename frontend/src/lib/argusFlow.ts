@@ -1,4 +1,4 @@
-import type { Citation, ExtractionRecord, FlowFile, FlowProgress, FlowRow, PriorRun, RepeatRow, ReviewItem } from "../types";
+import type { Citation, ExtractionRecord, FieldDefinition, FlowFile, FlowProgress, FlowRow, PriorRun, RepeatRow, ReviewItem } from "../types";
 import { valueLabel } from "./fieldValue.ts";
 import { fieldItemKey } from "./reviewKeys.ts";
 
@@ -100,3 +100,22 @@ export function resultRows(results: ExtractionRecord[], items: ReviewItem[]): Re
 }
 
 export const onlyNeedsYou = (rows: ResultRow[]) => rows.filter((r) => r.item);
+
+const LIFECYCLE = new Set(["status", "version", "effective_from"]);
+const content = (f: object) =>
+  JSON.stringify(Object.keys(f).filter((k) => !LIFECYCLE.has(k)).sort().map((k) => [k, (f as Record<string, unknown>)[k]]));
+
+/** A released field version never changes (the registry refuses it), so an edited released field
+ * becomes its next version, a draft. Unchanged and never-released fields keep theirs. */
+export function bumpChangedFields<S extends { fields: FieldDefinition[] }>(original: S | null, edited: S): S {
+  if (!original) return edited;
+  const before = new Map(original.fields.map((f) => [f.field_id, f]));
+  return {
+    ...edited,
+    fields: edited.fields.map((f) => {
+      const was = before.get(f.field_id);
+      if (!was || was.status !== "released" || content(was) === content(f)) return f;
+      return { ...f, version: (was.version ?? 1) + 1, status: "draft" as const };
+    }),
+  };
+}

@@ -108,3 +108,19 @@ test("results: a company a pre-step stopped for review gets its own row", () => 
   assert.deepEqual([rows[0].key, rows[0].company, rows[0].field, rows[0].value, rows[0].companyLevel], ["d", "Dco", "Parse & index", "no document text could be parsed", true]);
   assert.equal(onlyNeedsYou(rows).length, 1);
 });
+
+test("saving edited fields bumps only the changed released fields", async () => {
+  const { bumpChangedFields } = await import("../src/lib/argusFlow.ts");
+  const f = (id: string, extra: object = {}) => ({ field_id: id, name: id, description: "d", data_type: "number", extraction_instructions: "", required: false,
+    source_doc_types: [], seed_keywords: [], status: "released", version: 1, ...extra }) as never;
+  const original = { schema_id: "s", fields: [f("a"), f("b"), f("c", { status: "draft" })] } as never;
+  const edited = { schema_id: "s", fields: [
+    f("a", { rules: [{ kind: "requires", field: "b", equals: true }] }),  // released, a rule added: next field version, a draft
+    f("b"),                                                                   // unchanged: keeps v1
+    f("c", { status: "draft", description: "new" }),                                         // a draft field changed in place: no bump needed
+    f("n", { status: undefined, version: undefined }),                        // new field: untouched
+  ] } as never;
+  const out = bumpChangedFields(original, edited).fields as { field_id: string; version?: number; status?: string }[];
+  assert.deepEqual(out.map((x) => [x.field_id, x.version, x.status]), [["a", 2, "draft"], ["b", 1, "released"], ["c", 1, "draft"], ["n", undefined, undefined]]);
+  assert.equal(bumpChangedFields(null, edited), edited);  // a drafted schema has nothing released to protect
+});

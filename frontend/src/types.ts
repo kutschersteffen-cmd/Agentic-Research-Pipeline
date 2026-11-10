@@ -262,6 +262,7 @@ export interface FieldDefinition {
   source_doc_types: DocType[];
   seed_keywords: string[];
   status?: "draft" | "released" | "retired";
+  version?: number;
   rules?: FieldRule[];
 }
 
