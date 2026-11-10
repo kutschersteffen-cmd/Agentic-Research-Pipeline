@@ -1305,6 +1305,18 @@
       ],
       "title": "Identity Run Id"
      },
+     "repeat": {
+      "additionalProperties": {
+       "enum": [
+        "skip",
+        "run"
+       ],
+       "type": "string"
+      },
+      "default": {},
+      "title": "Repeat",
+      "type": "object"
+     },
      "reporting_year": {
       "anyOf": [
        {
@@ -1315,6 +1327,34 @@
        }
       ],
       "title": "Reporting Year"
+     },
+     "run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Run Id"
+     },
+     "schema_choice": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SchemaChoice"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "settings": {
+      "$ref": "#/components/schemas/FlowSettings",
+      "default": {
+       "batch": false,
+       "mode": "normal"
+      }
      },
      "skipped_uploads": {
       "default": [],
@@ -1439,6 +1479,18 @@
       ],
       "title": "Identity Run Id"
      },
+     "repeat": {
+      "additionalProperties": {
+       "enum": [
+        "skip",
+        "run"
+       ],
+       "type": "string"
+      },
+      "default": {},
+      "title": "Repeat",
+      "type": "object"
+     },
      "reporting_year": {
       "anyOf": [
        {
@@ -1457,6 +1509,34 @@
       },
       "title": "Rows",
       "type": "array"
+     },
+     "run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Run Id"
+     },
+     "schema_choice": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SchemaChoice"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "settings": {
+      "$ref": "#/components/schemas/FlowSettings",
+      "default": {
+       "batch": false,
+       "mode": "normal"
+      }
      },
      "skipped_uploads": {
       "default": [],
@@ -10361,6 +10441,24 @@
       ],
       "title": "Identity Run Id"
      },
+     "repeat": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "enum": [
+          "skip",
+          "run"
+         ],
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Repeat"
+     },
      "reporting_year": {
       "anyOf": [
        {
@@ -10373,6 +10471,26 @@
        }
       ],
       "title": "Reporting Year"
+     },
+     "schema_choice": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SchemaChoice"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "settings": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/FlowSettings"
+       },
+       {
+        "type": "null"
+       }
+      ]
      },
      "source": {
       "anyOf": [
@@ -10519,6 +10637,62 @@
      "document_types"
     ],
     "title": "FlowRow",
+    "type": "object"
+   },
+   "FlowSettings": {
+    "properties": {
+     "batch": {
+      "default": false,
+      "title": "Batch",
+      "type": "boolean"
+     },
+     "decision_framework_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decision Framework Id"
+     },
+     "decision_framework_version": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decision Framework Version"
+     },
+     "evidence_passages": {
+      "anyOf": [
+       {
+        "maximum": 50.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence Passages"
+     },
+     "mode": {
+      "default": "normal",
+      "enum": [
+       "cheap",
+       "normal",
+       "max"
+      ],
+      "title": "Mode",
+      "type": "string"
+     }
+    },
+    "title": "FlowSettings",
     "type": "object"
    },
    "FromCompaniesRequest": {
@@ -18553,6 +18727,61 @@
      "reason"
     ],
     "title": "ScenarioOut",
+    "type": "object"
+   },
+   "SchemaChoice": {
+    "description": "What step 3 extracts: a saved schema version, or a fixed profile.",
+    "properties": {
+     "kind": {
+      "enum": [
+       "schema",
+       "profile"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "profile": {
+      "anyOf": [
+       {
+        "enum": [
+         "financials",
+         "tnfd"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Profile"
+     },
+     "schema_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Schema Id"
+     },
+     "version": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Version"
+     }
+    },
+    "required": [
+     "kind"
+    ],
+    "title": "SchemaChoice",
     "type": "object"
    },
    "ScoreRequest": {

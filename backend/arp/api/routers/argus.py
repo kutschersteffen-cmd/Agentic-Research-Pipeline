@@ -13,7 +13,7 @@ from arp.api.deps import get_document_content_store, get_identifier_map, get_run
 from arp.api.routers.universe_workbench import MAX_COMPANIES
 from arp.argus.companies import add_companies, parse_rows, register, with_register_ids
 from arp.argus.documents import FlowFile, decide, expected_year, flow_files, store_upload
-from arp.argus.flows import ArgusFlow, FlowStore, SkippedUpload, get_flow_store
+from arp.argus.flows import ArgusFlow, FlowSettings, FlowStore, SchemaChoice, SkippedUpload, get_flow_store
 from arp.argus.rows import FlowRow, flow_rows
 from arp.config import Settings
 from arp.db.session import require_dsn, transaction
@@ -51,6 +51,9 @@ class FlowPatch(BaseModel):
     reporting_year: int | None = Field(default=None, ge=1990, le=2100)
     source: Literal["upload", "import", "filings", "filings_web"] | None = None
     step: int | None = Field(default=None, ge=1, le=5)
+    schema_choice: SchemaChoice | None = None
+    settings: FlowSettings | None = None
+    repeat: dict[str, Literal["skip", "run"]] | None = None
 
 
 class FileDecision(BaseModel):
@@ -121,12 +124,20 @@ def get_flow(flow_id: str, store: FlowStore = Depends(get_flow_store), view: Vie
 @router.patch("/flows/{flow_id}", dependencies=[Depends(require_role("analyst"))])
 def patch_flow(flow_id: str, req: FlowPatch, store: FlowStore = Depends(get_flow_store), view: Viewer = Depends()) -> ArgusFlowView:
     changes = req.model_dump(exclude_unset=True)
+    if req.repeat:
+        flow = store.get(flow_id)
+        if flow and set(req.repeat) - {c.company_id for c in flow.companies}:
+            raise HTTPException(400, "That company is not in this extraction.")
 
     def apply(f: ArgusFlow) -> None:
         for k, v in changes.items():
             if k == "step":
                 if v is not None:
                     f.step = max(f.step, v)  # step is the furthest reached
+            elif k in ("schema_choice", "settings"):
+                setattr(f, k, getattr(req, k) if v is not None else (FlowSettings() if k == "settings" else None))
+            elif k == "repeat":
+                f.repeat = v or {}
             else:
                 setattr(f, k, v)
 
