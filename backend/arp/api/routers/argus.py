@@ -14,6 +14,7 @@ from arp.api.routers.universe_workbench import MAX_COMPANIES
 from arp.argus.companies import add_companies, parse_rows, register, with_register_ids
 from arp.argus.documents import FlowFile, decide, expected_year, flow_files, store_upload
 from arp.argus.flows import ArgusFlow, FlowSettings, FlowStore, SchemaChoice, SkippedUpload, get_flow_store
+from arp.argus.repeat import RepeatRow, repeat_rows
 from arp.argus.rows import FlowRow, flow_rows
 from arp.config import Settings
 from arp.db.session import require_dsn, transaction
@@ -24,6 +25,7 @@ from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
 from arp.storage.safe_path import UnsafeIdentifierError
+from arp.universe_workbench.availability import availability
 from arp.xbrl_pipeline.store import XbrlStore
 
 router = APIRouter(prefix="/api/argus", tags=["argus"])
@@ -40,6 +42,7 @@ class ArgusFlowView(ArgusFlow):
     rows: list[FlowRow] = []
     files: list[FlowFile] = []
     discovery: DiscoveryStatus | None = None
+    repeat_rows: list[RepeatRow] = []
 
 
 class FlowList(BaseModel):
@@ -96,7 +99,15 @@ class Viewer:
         discovery = None
         if flow.discovery_run_id and (m := self.run_store.load_manifest(flow.discovery_run_id)):
             discovery = DiscoveryStatus(run_id=m.run_id, status=str(m.status.value if hasattr(m.status, "value") else m.status))
-        return ArgusFlowView(**flow.model_dump(), rows=rows, files=self.files(flow), discovery=discovery)
+        files = self.files(flow)
+        repeats = []
+        if flow.schema_choice:
+            xbrl = XbrlStore(self.settings.xbrl_dir)
+            avail = availability(flow.companies, run_store=self.run_store, content_store=self.content_store, xbrl_store=xbrl,
+                                 documents_dir=self.settings.documents_dir)
+            last = {cid: a.extraction.last_run_id for cid, a in avail.items() if a.extraction.last_run_id}
+            repeats = repeat_rows(flow, files, last, run_store=self.run_store, principal=self.principal)
+        return ArgusFlowView(**flow.model_dump(), rows=rows, files=files, discovery=discovery, repeat_rows=repeats)
 
     def files(self, flow: ArgusFlow) -> list[FlowFile]:
         return flow_files(flow, documents_dir=self.settings.documents_dir, content_store=self.content_store,

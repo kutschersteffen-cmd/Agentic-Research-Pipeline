@@ -1491,6 +1491,14 @@
       "title": "Repeat",
       "type": "object"
      },
+     "repeat_rows": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/RepeatRow"
+      },
+      "title": "Repeat Rows",
+      "type": "array"
+     },
      "reporting_year": {
       "anyOf": [
        {
@@ -10313,6 +10321,17 @@
       "title": "Company Name",
       "type": "string"
      },
+     "content_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Content Key"
+     },
      "doc_type": {
       "title": "Doc Type",
       "type": "string"
@@ -16224,6 +16243,53 @@
      "reason"
     ],
     "title": "RemoveOverrideRequest",
+    "type": "object"
+   },
+   "RepeatRow": {
+    "properties": {
+     "added": {
+      "title": "Added",
+      "type": "integer"
+     },
+     "approved": {
+      "title": "Approved",
+      "type": "integer"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "date": {
+      "title": "Date",
+      "type": "string"
+     },
+     "kind": {
+      "enum": [
+       "same",
+       "added"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     },
+     "waiting": {
+      "title": "Waiting",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "company_id",
+     "kind",
+     "added",
+     "run_id",
+     "date",
+     "approved",
+     "waiting"
+    ],
+    "title": "RepeatRow",
     "type": "object"
    },
    "ReplicationComparisonReport": {

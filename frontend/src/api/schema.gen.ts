@@ -8442,6 +8442,11 @@ export interface components {
             repeat: {
                 [key: string]: "skip" | "run";
             };
+            /**
+             * Repeat Rows
+             * @default []
+             */
+            repeat_rows: components["schemas"]["RepeatRow"][];
             /** Reporting Year */
             reporting_year?: number | null;
             /**
@@ -12032,6 +12037,8 @@ export interface components {
             company_id: string;
             /** Company Name */
             company_name: string;
+            /** Content Key */
+            content_key?: string | null;
             /** Doc Type */
             doc_type: string;
             /** Duplicate Of */
@@ -14590,6 +14597,26 @@ export interface components {
             entity_key: string;
             /** Reason */
             reason: string;
+        };
+        /** RepeatRow */
+        RepeatRow: {
+            /** Added */
+            added: number;
+            /** Approved */
+            approved: number;
+            /** Company Id */
+            company_id: string;
+            /** Date */
+            date: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "same" | "added";
+            /** Run Id */
+            run_id: string;
+            /** Waiting */
+            waiting: number;
         };
         /**
          * ReplicationComparisonReport
