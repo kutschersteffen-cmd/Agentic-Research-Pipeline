@@ -105,3 +105,37 @@ def test_blank_and_image_only_pdfs_through_the_real_document_source(tmp_path, pg
         kept = KeptDocuments(source, {"aapl": {key}}, names={key: name})
         with pytest.raises(UnreadableDocument, match="^No text could be read from " + re.escape(name) + "$"):  # AC-37
             asyncio.run(kept.fetch_all(APPLE))
+
+
+class _Source:
+    def __init__(self, name, docs=None, error=None):
+        self.name, self.docs, self.error = name, docs or [], error
+
+    async def fetch(self, company, doc_types=None):
+        if self.error:
+            raise self.error
+        return list(self.docs)
+
+
+def _same_text(key, name):
+    d = _doc(key, "Apple annual report 2025", path=f"/docs/aapl/10-K/{name}")
+    d.sha256 = "same-text"  # the registry dedups on the text's hash; the kept list holds the files' byte hashes
+    return d
+
+
+@pytest.mark.parametrize("order", [("kept", "other"), ("other", "kept")])
+def test_a_kept_file_with_the_same_text_as_another_is_not_lost_to_the_dedup(order):
+    from arp.ingestion.registry import DocumentSourceRegistry
+
+    docs = {"kept": _same_text("k", "report.pdf"), "other": _same_text("o", "report-resaved.pdf")}
+    registry = KeptDocuments(DocumentSourceRegistry([_Source("local", [docs[x] for x in order])]), {"aapl": {"k"}})
+    assert [d.content_key for d in asyncio.run(registry.fetch_all(APPLE))] == ["k"]
+
+
+def test_a_source_that_failed_as_a_whole_is_not_a_file_without_text():
+    from arp.ingestion.registry import DocumentSourceRegistry, KeptFileMissing
+
+    inner = DocumentSourceRegistry([_Source("local", error=OSError("disk gone")), _Source("edgar", [_doc("b", "text")])])
+    with pytest.raises(KeptFileMissing, match=r"^Kept file not found: a\.pdf$") as err:
+        asyncio.run(KeptDocuments(inner, {"aapl": {"a", "b"}}, names={"a": "a.pdf"}).fetch_all(APPLE))
+    assert not getattr(err.value, "document_problem", False)  # nothing to replace: no Replace file

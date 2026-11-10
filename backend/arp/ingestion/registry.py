@@ -67,6 +67,10 @@ class UnreadableDocument(Exception):
     document_problem = True
 
 
+class KeptFileMissing(Exception):
+    """A kept file no source returned because a source failed as a whole: the company fails, not as a document problem."""
+
+
 class KeptDocuments:
     """A document registry that hands a listed company only its kept documents (by content key); every other
     company, and everything but `fetch_all`, is the wrapped registry's. `names`: content key -> file name, for the
@@ -76,19 +80,48 @@ class KeptDocuments:
         self.inner, self.only, self.names = inner, only, names or {}
 
     async def fetch_all(self, company: CompanyRef, doc_types: list[DocType] | None = None) -> list[SourceDocument]:
-        docs = await self.inner.fetch_all(company, doc_types)
         keep = self.only.get(company.company_id)
         if keep is None:
-            return docs
-        kept = [d for d in docs if d.content_key in keep]
+            return await self.inner.fetch_all(company, doc_types)
+        docs, failed = await self._fetch(company, doc_types)
+        # the kept files first, then the dedup among them: the registry dedups on the text's hash, the kept list holds
+        # the files' byte hashes, so its dedup could drop a kept file for another with the same text
+        kept, seen = [], set()
+        for d in docs:
+            if d.content_key in keep and not (d.sha256 and d.sha256 in seen):
+                seen.add(d.sha256)
+                kept.append(d)
         for d in kept:
             if not _IMAGE.sub("", d.full_text).strip():
                 raise UnreadableDocument(f"No text could be read from {Path(d.local_path).name if d.local_path else d.title}")
-        # a kept file that failed to parse is left out of the fetch (logged, not raised); a doc-type fetch leaves some out on purpose
-        missing = sorted(keep - {d.content_key for d in kept}) if doc_types is None else []
+        # a kept file that failed to parse, or had no text, is left out of the fetch (logged, not raised);
+        # a doc-type fetch leaves some out on purpose
+        missing = sorted(keep - {d.content_key for d in docs}) if doc_types is None else []
         if missing:
-            raise UnreadableDocument(f"No text could be read from {self.names.get(missing[0], 'a kept file')}")
+            name = self.names.get(missing[0], "a kept file")
+            if failed:  # a whole source failed: the file may be fine, so no Replace file
+                raise KeptFileMissing(f"Kept file not found: {name}")
+            raise UnreadableDocument(f"No text could be read from {name}")
+        settings = getattr(self.inner, "settings", None)
+        if kept and isinstance(settings, Settings) and isinstance(getattr(self.inner, "sources", None), list) and (
+                settings.doc_tree_enabled or settings.tree_context_enabled):
+            await self.inner._build_trees(kept)  # the registry's own fetch_all would have, had it been called
         return kept
+
+    async def _fetch(self, company: CompanyRef, doc_types: list[DocType] | None) -> tuple[list[SourceDocument], list[str]]:
+        """Every source's documents, undeduplicated, and the names of the sources that failed as a whole."""
+        sources = getattr(self.inner, "sources", None)
+        if not isinstance(sources, list):  # a registry without sources (tests): its own fetch
+            return await self.inner.fetch_all(company, doc_types), []
+        fetched = await asyncio.gather(*(s.fetch(company, doc_types) for s in sources), return_exceptions=True)
+        docs, failed = [], []
+        for source, got in zip(sources, fetched, strict=True):
+            if isinstance(got, BaseException):
+                logger.warning("Document source %s failed for %s: %s", source.name, company.company_id, got)
+                failed.append(source.name)
+            else:
+                docs.extend(got)
+        return docs, failed
 
     def __getattr__(self, name):
         return getattr(self.inner, name)
