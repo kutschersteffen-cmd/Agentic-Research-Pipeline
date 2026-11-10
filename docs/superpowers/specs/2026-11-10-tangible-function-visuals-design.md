@@ -63,7 +63,7 @@ My calls (listed so the owner can overrule them):
    model run. All three page images and the close-up come from that one document. *Amended 10 Nov during
    the build: Signify and the green capex schema are replaced by RWE and the transition-plan schema, because
    the repo holds no page, quote or stored values for the Signify run. Pending owner confirmation.*
-2. **Theme funnel and emerging themes outputs come from ARP's demo data**, because a live model run needs an
+2. **Theme funnel outputs come from the human-checked golden set** (electrolyser makers: Nel, Siemens Energy, Johnson Matthey; owner's choice, 10 Nov), shown as reference labels, not ARP output. **Emerging themes outputs come from ARP's demo data**, because a live model run needs an
    API key that is not in this session. The slide shows the text "demo data". For emerging themes, the IN
    snippets are the actual source items of the demo scan that produced the topic cards, so input and output
    are causally linked.
@@ -115,16 +115,16 @@ by the x position of an element's left edge. All slides counted are visible slid
 | AC-8 | The extraction close-up slide | It is opened | One page image of the RWE report shows one visible rectangle around the text lines that hold the quote, and the quoted words are highlighted inside it (amended: in justified text a quote starts mid-line, so one rectangle cannot isolate a sentence) | evaluator |
 | AC-9 | The same slide | The highlighted words are compared with the quote on the value card | They are character-identical | evaluator |
 | AC-10 | The same slide | The value card is inspected | It shows a filled check mark "grounded in code" only if ARP's grounding function confirms the quote on the cited page text, and a "verified by a second model" mark only if the run recorded that check; a mark whose step is not recorded is absent | evaluator |
-| AC-11 | The theme funnel slide | It is opened | Its IN column holds exactly 2 cards, a theme card and the ratified taxonomy card, and the taxonomy card is the instruction card | evaluator |
+| AC-11 | The theme funnel slide | It is opened | Its IN column holds the theme card and the documents; the taxonomy card is the instruction card in the MACHINE column and reads "draft" or "ratified" as its stored status says (amended: the golden-set taxonomy is a draft) | evaluator |
 | AC-12 | The same slide | The tier row is inspected | Three tier labels "Catalogue", "Extraction", "Debate" appear in that left-to-right order in one row, and no other tier label appears | evaluator |
-| AC-13 | The same slide | The exposure cards are inspected | There are exactly 3 cards, each with one chip whose text is one of "pure play", "significant", "minor", "none" | evaluator |
-| AC-14 | An exposure card | It is read | It shows a verbatim quote | evaluator |
-| AC-15 | An exposure card | Its caption is read | It reads "demo data" | evaluator |
+| AC-13 | The same slide | The exposure cards are inspected | There are exactly 3 cards, each with one chip whose text is one of "core", "peripheral", "not" (amended: the golden set's own label words) | evaluator |
+| AC-14 | An exposure card | It is read | It shows the golden set's one-line rationale for that company (amended: the golden set has rationales, not quotes) | evaluator |
+| AC-15 | An exposure card | Its caption is read | It reads "golden set label, checked 2026-11-02" (amended: owner chose golden sets for the funnel, so the cards are reference labels, not ARP output) | evaluator |
 | AC-16 | The emerging themes slide | It is opened | The IN column holds exactly 3 snippets, top to bottom, with a label above each reading exactly "EDGAR", "News", "Regulatory RSS" | evaluator |
 | AC-17 | The same slide | The OUT column is inspected | It holds exactly 3 topic cards | evaluator |
 | AC-18 | A topic card | Compared with the demo scan's stored topic | Its transition word is one of "birth", "growth", "split", "merge" and equals the stored value | evaluator |
 | AC-19 | A topic card | Its score is read | It is the stored novelty score of that topic, shown with two decimals between 0.00 and 1.00 | evaluator |
-| AC-20 | The theme funnel and emerging themes slides | They are opened | Each shows the exact text "demo data" | evaluator |
+| AC-20 | The emerging themes slide | It is opened | It shows the exact text "demo data"; the theme funnel slide instead shows "golden set" (amended) | evaluator |
 | AC-21 | The two extraction slides | They are opened | Neither contains the text "demo data" | evaluator |
 | AC-22 | Every figure and quote on the four slides | The speaker notes are read | Each is listed there with its source type (page, run id or slide id) and location, and that source holds the identical string | evaluator |
 | AC-23 | Each output card on the four slides | The status and check marks under it are read | A mark is filled only for a step recorded for that card in its run or re-run now with ARP code; a step without evidence shows no mark | evaluator |
