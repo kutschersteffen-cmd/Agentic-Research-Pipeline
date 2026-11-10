@@ -74,6 +74,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/argus/flows/{flow_id}/documents/find": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Find Documents
+         * @description One discovery run for the flow's companies: filings only, or filings plus the companies' websites.
+         */
+        post: operations["find_documents_api_argus_flows__flow_id__documents_find_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/argus/flows/{flow_id}/documents/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Flow Document */
+        post: operations["upload_flow_document_api_argus_flows__flow_id__documents_upload_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/argus/flows/{flow_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide Files
+         * @description Keep or remove files in this flow only; the files themselves stay on the company.
+         */
+        post: operations["decide_files_api_argus_flows__flow_id__files_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ask": {
         parameters: {
             query?: never;
@@ -8299,10 +8356,28 @@ export interface components {
             companies: components["schemas"]["CompanyRef"][];
             /** Created At */
             created_at: string;
+            /**
+             * Decisions
+             * @default {}
+             */
+            decisions: {
+                [key: string]: "kept" | "removed";
+            };
+            /** Discovery Run Id */
+            discovery_run_id?: string | null;
             /** Flow Id */
             flow_id: string;
             /** Identity Run Id */
             identity_run_id?: string | null;
+            /** Reporting Year */
+            reporting_year?: number | null;
+            /**
+             * Skipped Uploads
+             * @default []
+             */
+            skipped_uploads: components["schemas"]["SkippedUpload"][];
+            /** Source */
+            source?: ("upload" | "import" | "filings" | "filings_web") | null;
             /** Started By */
             started_by: string;
             /** Started By Name */
@@ -8324,15 +8399,39 @@ export interface components {
             companies: components["schemas"]["CompanyRef"][];
             /** Created At */
             created_at: string;
+            /**
+             * Decisions
+             * @default {}
+             */
+            decisions: {
+                [key: string]: "kept" | "removed";
+            };
+            discovery?: components["schemas"]["DiscoveryStatus"] | null;
+            /** Discovery Run Id */
+            discovery_run_id?: string | null;
+            /**
+             * Files
+             * @default []
+             */
+            files: components["schemas"]["FlowFile"][];
             /** Flow Id */
             flow_id: string;
             /** Identity Run Id */
             identity_run_id?: string | null;
+            /** Reporting Year */
+            reporting_year?: number | null;
             /**
              * Rows
              * @default []
              */
             rows: components["schemas"]["FlowRow"][];
+            /**
+             * Skipped Uploads
+             * @default []
+             */
+            skipped_uploads: components["schemas"]["SkippedUpload"][];
+            /** Source */
+            source?: ("upload" | "import" | "filings" | "filings_web") | null;
             /** Started By */
             started_by: string;
             /** Started By Name */
@@ -9071,6 +9170,14 @@ export interface components {
              * @default default
              */
             provider: string;
+        };
+        /** Body_upload_flow_document_api_argus_flows__flow_id__documents_upload_post */
+        Body_upload_flow_document_api_argus_flows__flow_id__documents_upload_post: {
+            /** Company Id */
+            company_id: string;
+            doc_type: components["schemas"]["DocType"];
+            /** File */
+            file: string;
         };
         /** Body_upload_price_dataset_api_replication_specs__spec_run_id__datasets_prices_post */
         Body_upload_price_dataset_api_replication_specs__spec_run_id__datasets_prices_post: {
@@ -11139,6 +11246,13 @@ export interface components {
             /** Universe Path */
             universe_path?: string | null;
         };
+        /** DiscoveryStatus */
+        DiscoveryStatus: {
+            /** Run Id */
+            run_id: string;
+            /** Status */
+            status: string;
+        };
         /**
          * DocType
          * @enum {string}
@@ -11800,6 +11914,26 @@ export interface components {
          * @enum {string}
          */
         FieldStatus: "draft" | "released" | "retired";
+        /** FileDecision */
+        FileDecision: {
+            /**
+             * All
+             * @default false
+             */
+            all: boolean;
+            /**
+             * All That Pass
+             * @default false
+             */
+            all_that_pass: boolean;
+            /**
+             * Keys
+             * @default []
+             */
+            keys: string[];
+            /** State */
+            state?: ("kept" | "removed") | null;
+        };
         /**
          * FlagExclusionScreen
          * @description Exclude companies whose boolean field equals `exclude_when` --
@@ -11856,6 +11990,38 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** FlowFile */
+        FlowFile: {
+            /** Check */
+            check: string;
+            /** Company Id */
+            company_id: string;
+            /** Company Name */
+            company_name: string;
+            /** Doc Type */
+            doc_type: string;
+            /** Duplicate Of */
+            duplicate_of?: string | null;
+            /** Filename */
+            filename: string;
+            /** Key */
+            key: string;
+            /** Page Url */
+            page_url?: string | null;
+            /** Passes */
+            passes: boolean;
+            /** Raw Url */
+            raw_url?: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "upload" | "filings" | "web";
+            /** State */
+            state?: ("kept" | "removed") | null;
+            /** Year */
+            year: number | null;
+        };
         /** FlowList */
         FlowList: {
             /** Flows */
@@ -11865,6 +12031,12 @@ export interface components {
         FlowPatch: {
             /** Identity Run Id */
             identity_run_id?: string | null;
+            /** Reporting Year */
+            reporting_year?: number | null;
+            /** Source */
+            source?: ("upload" | "import" | "filings" | "filings_web") | null;
+            /** Step */
+            step?: number | null;
         };
         /** FlowRow */
         FlowRow: {
@@ -15621,6 +15793,15 @@ export interface components {
          * @enum {string}
          */
         SignalType: "momentum" | "value" | "text_sentiment" | "composite";
+        /** SkippedUpload */
+        SkippedUpload: {
+            /** Company Id */
+            company_id: string;
+            /** Duplicate Of */
+            duplicate_of: string;
+            /** Filename */
+            filename: string;
+        };
         /** SmartSearchRequest */
         SmartSearchRequest: {
             /** Question */
@@ -17923,6 +18104,107 @@ export interface operations {
         requestBody: {
             content: {
                 "multipart/form-data": components["schemas"]["Body_upload_companies_api_argus_flows__flow_id__companies_upload_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArgusFlowView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    find_documents_api_argus_flows__flow_id__documents_find_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArgusFlowView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_flow_document_api_argus_flows__flow_id__documents_upload_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_flow_document_api_argus_flows__flow_id__documents_upload_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArgusFlowView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_files_api_argus_flows__flow_id__files_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileDecision"];
             };
         };
         responses: {

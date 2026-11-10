@@ -4,9 +4,12 @@ One JSON file per flow under `runs_dir/_flows/`, so no worker, Run History or re
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import re
 from collections.abc import Callable
 from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 
 from fastapi import Depends
@@ -23,6 +26,23 @@ from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 logger = logging.getLogger(__name__)
 
 
+def safe_key(value: str) -> str:
+    """A company key every documents endpoint accepts (`safe_id`): `Siemens AG` becomes `siemens-ag-<hash>`.
+    The hash of the whole value keeps names that slug alike (`ACME, Inc.`, `Acme Inc`) apart, and is stable."""
+    try:
+        return safe_id(value)
+    except UnsafeIdentifierError:
+        digest = hashlib.sha1(value.encode()).hexdigest()[:8]
+        slug = re.sub(r"[^a-z0-9._-]+", "-", value.lower()).strip("-._")[:100].rstrip("-._")
+        return f"{slug}-{digest}" if slug else f"company-{digest}"
+
+
+class SkippedUpload(BaseModel):
+    company_id: str
+    filename: str
+    duplicate_of: str
+
+
 class ArgusFlow(BaseModel):
     flow_id: str
     created_at: str
@@ -32,6 +52,12 @@ class ArgusFlow(BaseModel):
     step: int = 1  # the furthest step reached, 1..5
     companies: list[CompanyRef] = []
     identity_run_id: str | None = None
+    # step 2
+    reporting_year: int | None = None  # None reads as the previous calendar year
+    source: Literal["upload", "import", "filings", "filings_web"] | None = None
+    discovery_run_id: str | None = None
+    decisions: dict[str, Literal["kept", "removed"]] = {}
+    skipped_uploads: list[SkippedUpload] = []
 
 
 class FlowStore:
@@ -53,7 +79,12 @@ class FlowStore:
 
     def get(self, flow_id: str) -> ArgusFlow | None:
         path = self._path(flow_id)
-        return ArgusFlow.model_validate_json(read_text_utf8(path)) if path and path.is_file() else None
+        if not (path and path.is_file()):
+            return None
+        flow = ArgusFlow.model_validate_json(read_text_utf8(path))
+        for c in flow.companies:  # flows saved before keys were made safe
+            c.company_id = safe_key(c.company_id)
+        return flow
 
     def save(self, flow: ArgusFlow) -> ArgusFlow:
         self.flows_dir.mkdir(parents=True, exist_ok=True)
