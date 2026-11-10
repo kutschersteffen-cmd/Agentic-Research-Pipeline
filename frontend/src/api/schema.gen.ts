@@ -86,6 +86,7 @@ export interface paths {
         /**
          * Retry Company
          * @description Re-runs one failed company inside the flow's run, on the files kept for it now (a file replaced in step 2 is used).
+         *     Async: the launcher starts the job on this event loop. Nothing changes until the job holds the run.
          */
         post: operations["retry_company_api_argus_flows__flow_id__companies__company_id__retry_post"];
         delete?: never;

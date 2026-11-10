@@ -99,3 +99,11 @@ test("results: one row per value, what needs you first, and the filter", () => {
   assert.equal(onlyNeedsYou(rows).length, 2); // AC-41
   assert.equal(rows[2].company, "A");
 });
+
+test("results: a company a pre-step stopped for review gets its own row", () => {
+  const stop = { ...item("d"), kind: "other" as const, payload: { company_id: "d", name: "Dco", failed_step_label: "Parse & index", error: "no document text could be parsed" } };
+  const rows = resultRows([record("a", [field("f1")])], [stop]);
+  assert.equal(rows.length, 2);
+  assert.deepEqual([rows[0].key, rows[0].company, rows[0].field, rows[0].value, rows[0].companyLevel], ["d", "Dco", "Parse & index", "no document text could be parsed", true]);
+  assert.equal(onlyNeedsYou(rows).length, 1);
+});

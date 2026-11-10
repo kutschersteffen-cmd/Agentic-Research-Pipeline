@@ -9,6 +9,17 @@ import type { ArgusFlow as Flow, ExtractionRecord, ReviewDecision, ReviewItem } 
 const VALUE_LABELS = { approve: "Approve", correct: "Edit", reject: "Reject" } as const;
 // A not-found value is either right (approve: confirmed not disclosed) or wrong (correct: the value the source gives).
 const NOT_FOUND_LABELS = { approve: "Confirm not disclosed", correct: "Enter value" } as const;
+const PAGE = 500;
+
+/** Every result of the run: the endpoint returns at most a page at a time, and a flow may hold thousands of companies. */
+async function allResults(runId: string): Promise<ExtractionRecord[]> {
+  const out: ExtractionRecord[] = [];
+  for (;;) {
+    const page = (await api.getExtractionResults(runId, out.length, PAGE)) as { total: number; results: ExtractionRecord[] };
+    out.push(...page.results);
+    if (page.results.length === 0 || out.length >= page.total) return out;
+  }
+}
 
 /** Step 5: every value of the flow's run with its decision; what needs a person first, decided in place. */
 export function ArgusResults({ flow }: { flow: Flow }) {
@@ -21,13 +32,13 @@ export function ArgusResults({ flow }: { flow: Flow }) {
 
   const load = useCallback(async () => {
     try {
-      const [res, open, review] = await Promise.all([
-        api.getExtractionResults(runId) as Promise<{ results: ExtractionRecord[] }>,
+      const [results, open, review] = await Promise.all([
+        allResults(runId),
         api.listReviewItems(runId),
         api.getExtractionReviewDecisions(runId) as Promise<{ decisions: Record<string, ReviewDecision> }>,
       ]);
       // shortcut: Financials and TNFD records have no per-field rows here; their values are reviewed in the Review Queue until a later slice
-      setRows(resultRows(res.results.filter((r) => Array.isArray(r.fields)), open.items as ReviewItem[]));
+      setRows(resultRows(results.filter((r) => Array.isArray(r.fields)), open.items as ReviewItem[]));
       setDecisions(review.decisions);
     } catch (e) {
       setError((e as Error).message);
@@ -89,8 +100,8 @@ export function ArgusResults({ flow }: { flow: Flow }) {
                       item={r.item}
                       onDone={() => void load()}
                       onOpenSource={setSource}
-                      labels={r.notFound ? NOT_FOUND_LABELS : VALUE_LABELS}
-                      choices={r.notFound ? ["approve", "correct"] : ["approve", "correct", "reject"]}
+                      labels={r.companyLevel ? undefined : r.notFound ? NOT_FOUND_LABELS : VALUE_LABELS}
+                      choices={r.companyLevel ? undefined : r.notFound ? ["approve", "correct"] : ["approve", "correct", "reject"]}
                     />
                   ) : decisions[r.key] ? decisionLabel(decisions[r.key]) : "No review needed"}
                 </td>

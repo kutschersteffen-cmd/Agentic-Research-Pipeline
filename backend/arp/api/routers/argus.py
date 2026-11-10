@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
@@ -36,6 +37,7 @@ from arp.ingestion.registry import ONLY_DOCUMENTS, DocumentSourceRegistry, KeptD
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import NotResumable, RunBusy, check_resumable, get_job_launcher, resume_run, run_lease
 from arp.orchestration.step_tally import step_counts
+from arp.review.items import list_open_items
 from arp.schemas.common import DocType, JobStatus
 from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
@@ -307,26 +309,34 @@ async def start_flow(
 
 
 @router.get("/flows/{flow_id}/progress", dependencies=[Depends(current_user)])
-def flow_progress(flow_id: str, store: FlowStore = Depends(get_flow_store), run_store: RunStore = Depends(get_run_store)) -> FlowProgress:
+def flow_progress(
+    flow_id: str, store: FlowStore = Depends(get_flow_store), run_store: RunStore = Depends(get_run_store),
+    principal: Principal = Depends(current_user),
+) -> FlowProgress:
     """Step 4: the flow's run as a whole and per company."""
     flow = store.get(flow_id)
     m = run_store.load_manifest(flow.run_id) if flow and flow.run_id else None
     if m is None:
         raise HTTPException(404, "This extraction has not started.")
     status = str(getattr(m.status, "value", m.status))
-    errors = {r.get("key"): r for r in run_store.read_errors(m.run_id) if r.get("key")}
-    to_review = {r.get("company_id"): sum(f.get("route") == "review" for f in r.get("fields") or [])
-                 for r in run_store.read_results(m.run_id)}
+    active = status in ("pending", "running")
+    error_rows = run_store.read_errors(m.run_id)
+    errors = {r.get("key"): r for r in error_rows if r.get("key")}
+    open_items = Counter(str(i.payload.get("company_id")) for i in list_open_items(run_store, principal, run_id=m.run_id))
     companies = []
-    for row in extraction.get_run_companies(m.run_id, run_store)["companies"]:
+    for row in extraction.run_companies(run_store, m.run_id, run_store.read_results(m.run_id), error_rows):
         cid = row["company_id"]
-        label, percent = company_status(row["status"], status, step_counts(run_store, m.run_id, cid)[0]["counts"])
-        error = errors.get(cid) if label == "Failed" else None
+        steps = step_counts(run_store, m.run_id, cid)[0]["counts"] if active else {}  # the tally only matters while it runs
+        label, percent = company_status(row["status"], status, steps)
+        error = errors.get(cid) if row["status"] in ("failed", "review") else None  # a review stop says why too
         companies.append(CompanyProgress(
-            company_id=cid, name=row["name"], status=label, percent=percent, needs_you=to_review.get(cid, 0),
-            reason=error.get("error") if error else None, document_problem=bool(error and error.get("document_problem"))))
+            company_id=cid, name=row["name"], status=label, percent=percent, needs_you=open_items.get(cid, 0),
+            reason=error.get("error") if error else None,
+            document_problem=bool(error and label == "Failed" and error.get("document_problem"))))
     done = m.completed_count + m.failed_count
-    left = minutes_left(datetime.fromisoformat(m.created_at), datetime.now(UTC), done=done, total=m.company_count)
+    since = m.params.get("done_at_restart", 0)  # a Retry or resume: count from its start, not the run's
+    started = datetime.fromisoformat(m.params.get("restarted_at") or m.created_at)
+    left = minutes_left(started, datetime.now(UTC), done=done - since, total=m.company_count - since)
     return FlowProgress(run_id=m.run_id, started_at=m.created_at, done=done, total=m.company_count, minutes_left=left,
                         cost_usd=m.estimated_cost_usd, status=status, companies=companies)
 
@@ -391,7 +401,7 @@ async def retry_company(
             current.status = previous
             run_store.save_manifest(current)
         raise
-    return flow_progress(flow_id, store=store, run_store=run_store)
+    return flow_progress(flow_id, store=store, run_store=run_store, principal=view.principal)
 
 
 def _add(flow_id: str, rows: list[dict], store: FlowStore, settings: Settings, view: Viewer) -> ArgusFlowView:

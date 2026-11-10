@@ -15,7 +15,7 @@ from sqlalchemy.pool import NullPool
 
 from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
 from arp.orchestration.job_manager import JobManager
-from arp.schemas.common import JobStatus, RunManifest
+from arp.schemas.common import JobStatus, RunManifest, now_iso
 from arp.storage.postgres import _CONNECT_TIMEOUT_SECONDS
 from arp.storage.run_store import RunStore
 
@@ -235,6 +235,8 @@ def restart_run(run_store: RunStore, run_id: str, failed_count: int = 0) -> None
         current = run_store.load_manifest(run_id)
         current.completed_count = len(run_store.done_keys(run_id))
         current.failed_count = failed_count
+        # when this restart began and how much was done by then: time left counts from here (Argus step 4)
+        current.params = {**current.params, "restarted_at": now_iso(), "done_at_restart": current.completed_count + failed_count}
         current.cancel_requested = False
         current.status = JobStatus.RUNNING
         current.error = None

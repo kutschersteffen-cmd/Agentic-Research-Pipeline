@@ -79,8 +79,13 @@ def _flow(client, settings, run_id="extraction_p"):
 def test_progress_mixes_statuses(client, settings, run_store):
     _run(run_store, "running", completed_count=1, failed_count=1)
     run_store.append_result("extraction_p", {"_key": "a", "company_id": "a", "name": "A", "issuer_key": "a", "fields": [
-        {"field_id": "f1", "route": "review"}, {"field_id": "f2", "route": "auto_accept"}]})
+        {"field_id": "f1", "route": "review"}, {"field_id": "f2", "route": "review"}, {"field_id": "f3", "route": "auto_accept"}]})
+    run_store.append_review_item("extraction_p", {"item_key": "a:f1:unspecified", "company_id": "a", "field": {"field_id": "f1"}})
     run_store.append_error("extraction_p", {"key": "b", "error": "No text could be read from b.pdf", "document_problem": True})
+    # a pre-step stopped d for review: an error row with review=True and a company-level review item
+    report = {"failed_step": "parse_index", "error": "Parse & index failed for D: no document text could be parsed"}
+    run_store.append_error("extraction_p", {"key": "d", "error": report["error"], "review": True, "report": report})
+    run_store.append_review_item("extraction_p", {"item_key": "d", "company_id": "d", **report})
     step_tally._live["extraction_p"] = step_tally._Tally()
     step_tally._live["extraction_p"].add("c", "extract", 1.0)
     try:
@@ -89,10 +94,11 @@ def test_progress_mixes_statuses(client, settings, run_store):
         step_tally._live.pop("extraction_p", None)
     assert (p["started_at"], p["done"], p["total"], p["cost_usd"], p["status"]) == ("2026-11-10T14:02:00+00:00", 2, 4, 1.234, "running")
     rows = {r["company_id"]: r for r in p["companies"]}
-    assert (rows["a"]["status"], rows["a"]["needs_you"]) == ("Done", 1)
+    assert (rows["a"]["status"], rows["a"]["needs_you"]) == ("Done", 1)  # open items, not the stored review routes
+    assert (rows["d"]["status"], rows["d"]["needs_you"], rows["d"]["reason"]) == ("Done", 1, report["error"])
     assert (rows["b"]["status"], rows["b"]["reason"], rows["b"]["document_problem"]) == (
         "Failed", "No text could be read from b.pdf", True)
-    assert rows["c"]["status"] == "Extracting" and rows["d"]["status"] == "Waiting"
+    assert rows["c"]["status"] == "Extracting"
 
 
 def test_progress_after_stop_and_without_a_live_tally(client, settings, run_store):
@@ -116,3 +122,13 @@ def test_a_finished_run_moves_the_flow_to_results(client, settings, run_store):
     m.status = JobStatus.COMPLETED
     run_store.save_manifest(m)
     assert client.get(f"/api/argus/flows/{fid}").json()["step"] == 5
+
+
+def test_time_left_counts_from_the_latest_restart(client, settings, run_store):
+    restarted = (datetime.now(UTC) - timedelta(minutes=9.5)).isoformat()
+    _run(run_store, "running", created_at="2026-01-01T00:00:00+00:00", completed_count=3)
+    m = run_store.load_manifest("extraction_p")
+    m.params = {"restarted_at": restarted, "done_at_restart": 2}  # a Retry hours after the run finished
+    run_store.save_manifest(m)
+    p = client.get(f"/api/argus/flows/{_flow(client, settings)}/progress").json()
+    assert p["minutes_left"] == 10  # 1 company in 9.5 minutes since the restart, 1 to go -- not months of idle time

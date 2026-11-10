@@ -69,9 +69,12 @@ export interface ResultRow {
   notFound: boolean;
   /** The open review item for this value; set means it needs a person. */
   item: ReviewItem | null;
+  /** A whole company waits (a step before extraction stopped it), not one value. */
+  companyLevel?: boolean;
 }
 
-/** Step 5: one row per extracted value, the ones with an open review item first (in their order), then the rest. */
+/** Step 5: one row per extracted value, the ones with an open review item first (in their order), then the rest.
+ * An open item that is no value's (a company a pre-step stopped for review) gets a row of its own. */
 export function resultRows(results: ExtractionRecord[], items: ReviewItem[]): ResultRow[] {
   const open = new Map(items.map((i) => [i.item_key, i]));
   const rows = results.flatMap((r) =>
@@ -84,7 +87,14 @@ export function resultRows(results: ExtractionRecord[], items: ReviewItem[]): Re
       };
     }),
   );
-  return [...rows.filter((r) => r.item), ...rows.filter((r) => !r.item)];
+  const used = new Set(rows.map((r) => r.key));
+  const companies = items.filter((i) => !used.has(i.item_key)).map((i): ResultRow => {
+    const p = i.payload as { company_id?: string; name?: string; failed_step_label?: string; error?: string };
+    const cid = p.company_id ?? i.item_key;
+    return { key: i.item_key, companyId: cid, company: p.name ?? cid, field: p.failed_step_label ?? "Whole company",
+      value: p.error ?? "Stopped for review", citation: null, notFound: false, item: i, companyLevel: true };
+  });
+  return [...companies, ...rows.filter((r) => r.item), ...rows.filter((r) => !r.item)];
 }
 
 export const onlyNeedsYou = (rows: ResultRow[]) => rows.filter((r) => r.item);

@@ -324,21 +324,25 @@ def get_run_companies(run_id: str, run_store: RunStore = Depends(get_run_store))
     review (a step before extraction stopped it, with an error report in
     the review queue), or still waiting (queued or in flight)."""
     _manifest_or_404(run_store, run_id)
+    return {"companies": run_companies(run_store, run_id, run_store.read_results(run_id), run_store.read_errors(run_id))}
+
+
+def run_companies(run_store: RunStore, run_id: str, results: list[dict], errors: list[dict]) -> list[dict]:
+    """`get_run_companies`' rows from results and errors the caller already read."""
     saved = _saved(run_store, run_id, "start_request.json")
-    done = {r.get("company_id") for r in run_store.read_results(run_id)}
-    errors = run_store.read_errors(run_id)
+    done = {r.get("company_id") for r in results}
     review = {r.get("key") for r in errors if r.get("review")} - done
     failed = {r.get("key") for r in errors} - done - review
     if saved:
         companies = StartRequest.model_validate_json(saved).companies or []
         rows = [{"company_id": c.company_id, "name": c.name} for c in companies]
     else:  # a run started before /start saved its companies: only those with an outcome
-        rows = [{"company_id": r.get("company_id"), "name": r.get("name")} for r in run_store.read_results(run_id)]
+        rows = [{"company_id": r.get("company_id"), "name": r.get("name")} for r in results]
         rows += [{"company_id": k, "name": k} for k in failed | review]
     for row in rows:
         cid = row["company_id"]
         row["status"] = "done" if cid in done else "review" if cid in review else "failed" if cid in failed else "waiting"
-    return {"companies": rows}
+    return rows
 
 
 class RestartRequest(BaseModel):
