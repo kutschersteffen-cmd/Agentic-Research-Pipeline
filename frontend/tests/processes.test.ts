@@ -25,18 +25,18 @@ test("a step links to its screen and sub-screen", () => {
   assert.equal(stepHref({ tab: "review", label: "", does: "" }), "#/review");
 });
 
-test("Argus runs the universe step and the XBRL process", () => {
+test("Argus starts with the company step of a new flow and runs the XBRL process", () => {
   const argus = WORKSPACES.find((w) => w.id === "argus")!;
   assert.deepEqual(argus.processes.map((p) => p.id), ["extract", "xbrl"]);
   assert.equal(workspaceOfProcess("xbrl")?.id, "argus");
-  assert.equal(stepHref(argus.processes[0].steps[0]), "#/argusUniverse");
+  assert.equal(stepHref(argus.processes[0].steps[0]), "#/argus/new");
   assert.ok(argus.runTypes.includes("xbrl_fetch"));
   assert.equal(WORKSPACES.find((w) => w.runTypes.includes("xbrl_fetch"))?.id, "argus");
   const links = argus.screens.map(([href]) => href);
-  assert.ok(links.includes("#/argusUniverse") && links.includes("#/xbrl"));
+  assert.ok(links.includes("#/argus/new") && links.includes("#/xbrl"));
   const xbrl = argus.processes[1];
-  assert.deepEqual(xbrl.steps.map((s) => s.label), ["Universe", "Fetch", "Facts", "Verify"]);
-  assert.deepEqual(xbrl.steps.map((s) => s.tab), ["argusUniverse", "xbrl", "xbrl", "xbrl"]);
+  assert.deepEqual(xbrl.steps.map((s) => s.label), ["Companies", "Fetch", "Facts", "Verify"]);
+  assert.deepEqual(xbrl.steps.map((s) => s.tab), ["xbrl", "xbrl", "xbrl", "xbrl"]);
   assert.deepEqual(xbrl.steps[1].runTypes, ["xbrl_fetch"]);
 });
 

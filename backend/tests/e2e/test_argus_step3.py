@@ -93,5 +93,9 @@ def test_step_3_starts_a_trial(page, tmp_path):
     assert not alert.count(), f"Start failed on the page: {alert.first.inner_text()}"
     assert page.evaluate("location.hash") == f"#/argus/{fid}/4"  # step 4 follows the run
     assert _ok(api.get(f"{API}/api/argus/flows/{fid}"))["run_id"]
-    assert _ok(api.get(f"{API}/api/argus/flows/{fid}"))["step"] == 4
+    assert _ok(api.get(f"{API}/api/argus/flows/{fid}"))["step"] in (4, 5)  # 5 once the one-company trial has finished
     assert page.console_errors == []
+    run_id = _ok(api.get(f"{API}/api/argus/flows/{fid}"))["run_id"]
+    page.goto(f"{URL}/#/history/{run_id}")  # AC-70: a run started from step 3 is listed in Run History
+    page.get_by_role("row").filter(has_text=run_id).wait_for()
+    assert page.get_by_role("row").filter(has_text=run_id).count() == 1

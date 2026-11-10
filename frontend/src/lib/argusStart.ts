@@ -66,8 +66,10 @@ export function argusRows(runs: RunManifest[], items: ReviewItem[], flows: Argus
         startedBy: starter,
         starterName: typeof r.params?.started_by_name === "string" ? r.params.started_by_name : starter,
         createdAt: r.created_at,
-        // a run started outside Argus flows has no flow page: the old screens
-        openHref: flowOf.has(r.run_id) ? flowHref(flowOf.get(r.run_id)!, step) : step === 5 ? "#/review" : "#/extraction/extract",
+        // a run started outside Argus flows has no flow page: its review, else its Run History row
+        openHref: flowOf.has(r.run_id)
+          ? flowHref(flowOf.get(r.run_id)!, step)
+          : step === 5 ? `#/review/${r.run_type}/${encodeURIComponent(r.run_id)}` : `#/history/${encodeURIComponent(r.run_id)}`,
       };
     })
     .concat(drafts)

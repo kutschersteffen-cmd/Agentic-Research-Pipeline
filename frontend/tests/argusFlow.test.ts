@@ -34,7 +34,7 @@ test("a draft lists as Draft at its step, newest first, opening the flow", () =>
   const rows = argusRows([run], [], [flow({ flow_id: "f1", companies: [{ company_id: "a" }, { company_id: "b" }] as ArgusFlow["companies"] })]);
   assert.deepEqual(rows.map((r) => [r.runId, r.label, r.companies, r.status, r.step, r.starterName, r.openHref]), [
     ["f1", "New extraction", 2, "Draft", 1, "Alice", "#/argus/f1/1"],
-    ["r1", "Extraction", 3, "Running", 4, "bob", "#/extraction/extract"],
+    ["r1", "Extraction", 3, "Running", 4, "bob", "#/history/r1"],
   ]);
 });
 

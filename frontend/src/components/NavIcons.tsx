@@ -112,16 +112,6 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <path d="M3 12h4l2-7 4 14 2-7h6" />
     </svg>
   ),
-  extraction: (
-    <svg {...ICON_PROPS}>
-      <path d="M4 4 H20 L14 12 V19 L10 21 V12 Z" />
-    </svg>
-  ),
-  transitionPlan: (
-    <svg {...ICON_PROPS}>
-      <path d="M12 3 L20 6 V12 C20 17 16.5 20.5 12 22 C7.5 20.5 4 17 4 12 V6 Z" />
-    </svg>
-  ),
   // A hurdle: the barrier between where a sector is and where it needs to get to.
   transitionBarrier: (
     <svg {...ICON_PROPS}>
@@ -154,13 +144,6 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <rect x="10.25" y="10" width="3.5" height="7" rx="0.6" />
       <rect x="16" y="14.5" width="3.5" height="2.5" rx="0.6" />
       <path d="M4 8.5 L9 5.5 L13.5 7.5 L20 3.5" />
-    </svg>
-  ),
-  argusUniverse: (
-    <svg {...ICON_PROPS}>
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-      <line x1="9" y1="10" x2="9" y2="20" />
     </svg>
   ),
   // Numbered steps: how one value was found.
