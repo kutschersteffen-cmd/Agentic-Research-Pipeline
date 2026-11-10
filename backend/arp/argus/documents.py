@@ -44,6 +44,7 @@ class FlowFile(BaseModel):
     raw_url: str | None = None  # the file itself, for the side panel
     page_url: str | None = None  # page 1 as an image, PDFs only
     duplicate_of: str | None = None
+    content_key: str | None = None  # what a run records per document (sha256 of a file's bytes)
 
 
 def expected_year(flow: ArgusFlow, today: date | None = None) -> int:
@@ -65,11 +66,10 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _inspect(path: Path, company: CompanyRef, checks_dir: Path) -> tuple[str, int | None]:
+def _inspect(path: Path, sha: str, company: CompanyRef, checks_dir: Path) -> tuple[str, int | None]:
     """(company match, year) for one file, cached by content, company and file name (the year is read from the name first)."""
-    # shortcut: hashes every file on every read of the flow; cache by size and mtime when folders hold many large files
     name = hashlib.sha1(path.name.encode()).hexdigest()[:8]
-    cache = checks_dir / f"{_sha(path)}-{company.company_id}-{name}.json"
+    cache = checks_dir / f"{sha}-{company.company_id}-{name}.json"
     if cache.is_file():
         match, year = json.loads(cache.read_text())
         return match, year
@@ -121,13 +121,15 @@ def flow_files(
                 continue
             on_disk.add(path.resolve())
             doc_type, key = path.parent.name, f"{cid}/{path.parent.name}/{path.name}"
-            match, year = _inspect(path, company, checks_dir)
+            # shortcut: hashes every file on every read of the flow; cache by size and mtime when folders hold many large files
+            sha = _sha(path)
+            match, year = _inspect(path, sha, company, checks_dir)
             check, passes = check_text(match, year, company.name, expected)
             base = f"/api/documents/{cid}/{doc_type}/{path.name}"
             out.append(FlowFile(
                 key=key, company_id=cid, company_name=company.name, doc_type=doc_type, filename=path.name, year=year,
                 source=_source(url_of.get(path.resolve())), check=check, passes=passes, state=flow.decisions.get(key),
-                raw_url=f"{base}/raw", page_url=f"{base}/pages/1" if path.suffix.lower() == ".pdf" else None,
+                raw_url=f"{base}/raw", page_url=f"{base}/pages/1" if path.suffix.lower() == ".pdf" else None, content_key=sha,
             ))
         for d in registered:  # filings stored without a file in the folder (SEC)
             if d.company_id != cid or (d.local_path and Path(d.local_path).resolve() in on_disk):
@@ -139,7 +141,7 @@ def flow_files(
             key = f"doc:{d.doc_id}"
             out.append(FlowFile(key=key, company_id=cid, company_name=company.name, doc_type=d.doc_type,
                                 filename=d.title or d.doc_id, year=year, source=_source(d.source_url), check=check,
-                                passes=passes, state=flow.decisions.get(key), raw_url=d.source_url))
+                                passes=passes, state=flow.decisions.get(key), raw_url=d.source_url, content_key=d.content_key))
     for s in flow.skipped_uploads:
         out.append(FlowFile(key=f"skipped:{s.company_id}/{s.filename}", company_id=s.company_id,
                             company_name=companies[s.company_id].name if s.company_id in companies else s.company_id,

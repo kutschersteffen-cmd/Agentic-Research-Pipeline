@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
@@ -9,21 +10,36 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal, current_user, require_role
-from arp.api.deps import get_document_content_store, get_identifier_map, get_run_store, settings_dep
+from arp.api.deps import (
+    get_decision_store,
+    get_document_content_store,
+    get_identifier_map,
+    get_registry,
+    get_run_store,
+    get_xbrl_source,
+    settings_dep,
+)
+from arp.api.routers import extraction
 from arp.api.routers.universe_workbench import MAX_COMPANIES
 from arp.argus.companies import add_companies, parse_rows, register, with_register_ids
 from arp.argus.documents import FlowFile, decide, expected_year, flow_files, store_upload
-from arp.argus.flows import ArgusFlow, FlowStore, SkippedUpload, get_flow_store
+from arp.argus.flows import ArgusFlow, FlowSettings, FlowStore, SchemaChoice, SkippedUpload, get_flow_store
+from arp.argus.repeat import RepeatRow, repeat_rows
 from arp.argus.rows import FlowRow, flow_rows
+from arp.argus.start import StartError, start_request
 from arp.config import Settings
+from arp.db.fields import SchemaRegistry
 from arp.db.session import require_dsn, transaction
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
+from arp.ingestion.registry import ONLY_DOCUMENTS, DocumentSourceRegistry, KeptDocuments
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import DocType
+from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
 from arp.storage.safe_path import UnsafeIdentifierError
+from arp.universe_workbench.availability import availability
 from arp.xbrl_pipeline.store import XbrlStore
 
 router = APIRouter(prefix="/api/argus", tags=["argus"])
@@ -40,6 +56,7 @@ class ArgusFlowView(ArgusFlow):
     rows: list[FlowRow] = []
     files: list[FlowFile] = []
     discovery: DiscoveryStatus | None = None
+    repeat_rows: list[RepeatRow] = []
 
 
 class FlowList(BaseModel):
@@ -51,6 +68,9 @@ class FlowPatch(BaseModel):
     reporting_year: int | None = Field(default=None, ge=1990, le=2100)
     source: Literal["upload", "import", "filings", "filings_web"] | None = None
     step: int | None = Field(default=None, ge=1, le=5)
+    schema_choice: SchemaChoice | None = None
+    settings: FlowSettings | None = None
+    repeat: dict[str, Literal["skip", "run"]] | None = None
 
 
 class FileDecision(BaseModel):
@@ -93,7 +113,17 @@ class Viewer:
         discovery = None
         if flow.discovery_run_id and (m := self.run_store.load_manifest(flow.discovery_run_id)):
             discovery = DiscoveryStatus(run_id=m.run_id, status=str(m.status.value if hasattr(m.status, "value") else m.status))
-        return ArgusFlowView(**flow.model_dump(), rows=rows, files=self.files(flow), discovery=discovery)
+        files = self.files(flow)
+        return ArgusFlowView(**flow.model_dump(), rows=rows, files=files, discovery=discovery, repeat_rows=self.repeats(flow, files))
+
+    def repeats(self, flow: ArgusFlow, files: list[FlowFile]) -> list[RepeatRow]:
+        if not flow.schema_choice or flow.step < 3:  # not while step 2 polls a discovery run
+            return []
+        # shortcut: scans every run's results on each read of step 3; add a company -> latest run index if runs pile up
+        avail = availability(flow.companies, run_store=self.run_store, content_store=self.content_store,
+                             xbrl_store=XbrlStore(self.settings.xbrl_dir), documents_dir=self.settings.documents_dir)
+        last = {cid: a.extraction.last_run_id for cid, a in avail.items() if a.extraction.last_run_id}
+        return repeat_rows(flow, files, last, run_store=self.run_store, principal=self.principal)
 
     def files(self, flow: ArgusFlow) -> list[FlowFile]:
         return flow_files(flow, documents_dir=self.settings.documents_dir, content_store=self.content_store,
@@ -121,12 +151,20 @@ def get_flow(flow_id: str, store: FlowStore = Depends(get_flow_store), view: Vie
 @router.patch("/flows/{flow_id}", dependencies=[Depends(require_role("analyst"))])
 def patch_flow(flow_id: str, req: FlowPatch, store: FlowStore = Depends(get_flow_store), view: Viewer = Depends()) -> ArgusFlowView:
     changes = req.model_dump(exclude_unset=True)
+    if req.repeat:
+        flow = store.get(flow_id)
+        if flow and set(req.repeat) - {c.company_id for c in flow.companies}:
+            raise HTTPException(400, "That company is not in this extraction.")
 
     def apply(f: ArgusFlow) -> None:
         for k, v in changes.items():
             if k == "step":
                 if v is not None:
                     f.step = max(f.step, v)  # step is the furthest reached
+            elif k in ("schema_choice", "settings"):
+                setattr(f, k, getattr(req, k) if v is not None else (FlowSettings() if k == "settings" else None))
+            elif k == "repeat":
+                f.repeat = v or {}
             else:
                 setattr(f, k, v)
 
@@ -208,6 +246,57 @@ def decide_files(
     files = view.files(flow)
     return view(store.update(flow_id, lambda f: decide(f, files, keys=req.keys, state=req.state,
                                                         all_that_pass=req.all_that_pass, every=req.all)))
+
+
+@router.post("/flows/{flow_id}/start")
+async def start_flow(
+    flow_id: str, store: FlowStore = Depends(get_flow_store), settings: Settings = Depends(settings_dep),
+    run_store: RunStore = Depends(get_run_store), registry: DocumentSourceRegistry = Depends(get_registry),
+    decision_store: DecisionStore = Depends(get_decision_store), xbrl_source=Depends(get_xbrl_source),
+    principal: Principal = Depends(require_role("analyst")), view: Viewer = Depends(),
+) -> ArgusFlowView:
+    """Starts the flow's run through the same path as `/api/extraction/start`, reading only the kept files."""
+    flow = store.get(flow_id)
+    if flow is None:
+        raise HTTPException(404, "Extraction not found")
+    m = run_store.load_manifest(flow.run_id) if flow.run_id else None
+    if m and m.status in ("pending", "running"):
+        raise HTTPException(409, "This extraction is already running.")
+    files = view.files(flow)
+    schema = None
+    if flow.schema_choice and flow.schema_choice.kind == "schema":
+        registry_s = SchemaRegistry(settings.postgres_dsn)
+        try:
+            schema = registry_s.get(flow.schema_choice.schema_id, flow.schema_choice.version)
+            newest = registry_s.get(flow.schema_choice.schema_id).version
+        except KeyError:
+            raise HTTPException(400, "That schema version does not exist.") from None
+        if schema.version != newest:  # a run saves its schema: an older body would be stored as a new version
+            raise HTTPException(400, f"Pick the newest version of {schema.name}.")
+    try:
+        body, only = start_request(flow, files, view.repeats(flow, files), schema)
+    except StartError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    def claim(f: ArgusFlow) -> None:  # under the flow's lock: a second Start meanwhile gets a 409
+        if f.starting:
+            raise HTTPException(409, "This extraction is already starting.")
+        f.starting = True
+
+    store.update(flow_id, claim)
+    try:
+        started = await extraction.start_extraction(
+            extraction.StartRequest(**body), settings=settings, run_store=run_store, registry=KeptDocuments(registry, only),
+            decision_store=decision_store, xbrl_source=xbrl_source, principal=principal)
+    except BaseException:
+        store.update(flow_id, lambda f: setattr(f, "starting", False))
+        raise
+    (run_store.run_dir(started["run_id"]) / ONLY_DOCUMENTS).write_text(json.dumps({k: sorted(v) for k, v in only.items()}))
+
+    def apply(f: ArgusFlow) -> None:
+        f.run_id, f.step, f.starting = started["run_id"], max(f.step, 4), False
+
+    return view(store.update(flow_id, apply))
 
 
 def _add(flow_id: str, rows: list[dict], store: FlowStore, settings: Settings, view: Viewer) -> ArgusFlowView:

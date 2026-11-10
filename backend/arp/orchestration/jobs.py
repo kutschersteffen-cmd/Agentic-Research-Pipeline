@@ -272,11 +272,13 @@ async def resume_run(
         llm = llm or build_llm_client(run_settings)
         verifier_llm = verifier_llm or build_verifier_llm_client(run_settings)
 
+    from arp.ingestion.registry import for_run
+
     with hold_run(run_store, run_id) if lease else nullcontext():
         restart_run(run_store, run_id)
 
         common = {"settings": run_settings, "run_store": run_store}
-        llms = {"llm": llm, "verifier_llm": verifier_llm, "registry": registry}
+        llms = {"llm": llm, "verifier_llm": verifier_llm, "registry": for_run(registry, run_store.run_dir(run_id))}
         return await _RESUME[run_type](run_id, manifest, companies, **common, **llms)
 
 

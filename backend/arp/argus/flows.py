@@ -13,7 +13,7 @@ from typing import Literal
 from uuid import uuid4
 
 from fastapi import Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal
 from arp.api.deps import settings_dep
@@ -43,6 +43,29 @@ class SkippedUpload(BaseModel):
     duplicate_of: str
 
 
+class SchemaChoice(BaseModel):
+    """What step 3 extracts: a saved schema version, or a fixed profile."""
+
+    kind: Literal["schema", "profile"]
+    schema_id: str | None = None
+    version: int | None = None
+    profile: Literal["financials", "tnfd"] | None = None
+
+    def model_post_init(self, _context) -> None:
+        if self.kind == "profile":
+            self.schema_id = self.version = None
+        else:
+            self.profile = None
+
+
+class FlowSettings(BaseModel):
+    mode: Literal["cheap", "normal", "max"] = "normal"
+    evidence_passages: int | None = Field(default=None, ge=1, le=50)
+    batch: bool = False
+    decision_framework_id: str | None = None
+    decision_framework_version: int | None = None
+
+
 class ArgusFlow(BaseModel):
     flow_id: str
     created_at: str
@@ -58,6 +81,12 @@ class ArgusFlow(BaseModel):
     discovery_run_id: str | None = None
     decisions: dict[str, Literal["kept", "removed"]] = {}
     skipped_uploads: list[SkippedUpload] = []
+    # step 3
+    schema_choice: SchemaChoice | None = None
+    settings: FlowSettings = FlowSettings()
+    repeat: dict[str, Literal["skip", "run"]] = {}
+    run_id: str | None = None
+    starting: bool = False  # set while a Start is being dispatched
 
 
 class FlowStore:
