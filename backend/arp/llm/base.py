@@ -14,6 +14,7 @@ class LLMUsage(BaseModel):
     batch: bool = False  # served via the Message Batches API: billed at half price
     provider: str = ""
     attempts: int = 1
+    dropped_items: int = 0  # list elements removed to make the accepted answer validate (a bad citation, a bad item)
     model: str = Field(default="", description="Model id that produced this call, for cost accounting and provenance.")
     prompt_version: str = Field(
         default="",

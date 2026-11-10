@@ -22,7 +22,7 @@ from pydantic import ValidationError
 
 from arp.llm.base import LLMClient, LLMUsage, T
 from arp.llm.cache import DiskLLMCache
-from arp.llm.langchain_client import _MAX_NETWORK_RETRIES, _drop_invalid_list_items, _format_validation_errors, logger
+from arp.llm.langchain_client import _MAX_NETWORK_RETRIES, _drop_invalid_list_items, _format_validation_errors
 
 
 class GeminiClient(LLMClient):
@@ -84,6 +84,7 @@ class GeminiClient(LLMClient):
                 totals["output"] += (u.candidates_token_count or 0) + (u.thoughts_token_count or 0)  # thinking is billed as output
                 totals["cached"] += u.cached_content_token_count or 0
             text = response.text or ""
+            dropped = 0
             try:
                 raw = json.loads(text)
                 instance = output_model.model_validate(raw)
@@ -107,13 +108,10 @@ class GeminiClient(LLMClient):
                         ))]),
                     ]
                     continue
-                if dropped:
-                    logger.info("%s: dropped %d invalid list item(s) rather than requesting a full retry (%s)",
-                                output_model.__name__, dropped, exc)
 
             usage = LLMUsage(
                 input_tokens=totals["input"], output_tokens=totals["output"], cache_read_tokens=totals["cached"],
-                attempts=attempt, model=self.model, prompt_version=prompt_version, provider="google",
+                attempts=attempt, model=self.model, prompt_version=prompt_version, provider="google", dropped_items=dropped,
             )
             self.cache.set(cache_key, {"result": instance.model_dump(mode="json"), "usage": usage.model_dump(exclude={"cached"})})
             return instance, usage
