@@ -5,13 +5,13 @@ import { StepBar } from "../components/StepBar";
 import { continueLabel, documentsText, extractedBeforeText, flowHref, identifierList } from "../lib/argusFlow";
 import { STEPS } from "../lib/argusStart";
 import { ArgusDocuments } from "./ArgusDocuments";
+import { ArgusSchema } from "./ArgusSchema";
 import type { ArgusFlow as Flow } from "../types";
 
-type Target = "extraction";
 const EMPTY = { name: "", ticker: "", isin: "", lei: "", cik: "" };
 
 /** #/argus/<flow_id>/<step>: one extraction being set up. The flow lives on the server, so a reload or a teammate's link shows the same step and data. */
-export function ArgusFlow({ flowId, step, onSendUniverse }: { flowId: string; step: number; onSendUniverse: (to: Target, path: string, count: number) => void }) {
+export function ArgusFlow({ flowId, step }: { flowId: string; step: number }) {
   const [flow, setFlow] = useState<Flow | null>(null);
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -71,14 +71,14 @@ export function ArgusFlow({ flowId, step, onSendUniverse }: { flowId: string; st
           refresh={refresh}
           onContinue={() =>
             act(async () => {
-              // shortcut: hands the kept files' companies to the old Extraction screen until slice 4 builds step 3
-              const kept = new Set(flow.files.filter((f) => f.state === "kept").map((f) => f.company_id));
-              await api.patchArgusFlow(flow.flow_id, { step: 3 });
-              const saved = await api.universeFromCompanies(flow.companies.filter((c) => kept.has(c.company_id)), "argus");
-              onSendUniverse("extraction", saved.path, saved.company_count);
+              const f = await api.patchArgusFlow(flow.flow_id, { step: 3 });
+              window.location.hash = flowHref(flow.flow_id, 3);
+              return f;
             })
           }
         />
+      ) : step === 3 ? (
+        <ArgusSchema flow={flow} busy={busy} act={act} />
       ) : step !== 1 ? (
         <p>
           {step} {STEPS[step - 1]} is not available here yet. <a href={flowHref(flow.flow_id, 1)}>Back to 1 Companies</a>

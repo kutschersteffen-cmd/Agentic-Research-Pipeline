@@ -399,7 +399,7 @@ function App() {
         )}
         <Suspense fallback={<p className="muted" role="status">Loading…</p>}>
         {active === "home" && <StartPage />}
-        {active === "argus" && (route.params[0] ? <ArgusFlow key={route.params[0]} flowId={route.params[0]} step={Number(route.params[1] ?? 1) || 1} onSendUniverse={sendUniverse("Argus")} /> : <ArgusStart />)}
+        {active === "argus" && (route.params[0] ? <ArgusFlow key={route.params[0]} flowId={route.params[0]} step={Number(route.params[1] ?? 1) || 1} /> : <ArgusStart />)}
         {isWorkspace(active) && active !== "argus" && <WorkspaceOverview key={active} id={active} />}
         {active === "search" && <Search />}
         {active === "securityMaster" && <SecurityMaster />}

@@ -131,6 +131,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/argus/flows/{flow_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Flow
+         * @description Starts the flow's run through the same path as `/api/extraction/start`, reading only the kept files.
+         */
+        post: operations["start_flow_api_argus_flows__flow_id__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ask": {
         parameters: {
             query?: never;
@@ -8369,8 +8389,25 @@ export interface components {
             flow_id: string;
             /** Identity Run Id */
             identity_run_id?: string | null;
+            /**
+             * Repeat
+             * @default {}
+             */
+            repeat: {
+                [key: string]: "skip" | "run";
+            };
             /** Reporting Year */
             reporting_year?: number | null;
+            /** Run Id */
+            run_id?: string | null;
+            schema_choice?: components["schemas"]["SchemaChoice"] | null;
+            /**
+             * @default {
+             *       "batch": false,
+             *       "mode": "normal"
+             *     }
+             */
+            settings: components["schemas"]["FlowSettings"];
             /**
              * Skipped Uploads
              * @default []
@@ -8382,6 +8419,11 @@ export interface components {
             started_by: string;
             /** Started By Name */
             started_by_name: string;
+            /**
+             * Starting
+             * @default false
+             */
+            starting: boolean;
             /**
              * Step
              * @default 1
@@ -8418,6 +8460,18 @@ export interface components {
             flow_id: string;
             /** Identity Run Id */
             identity_run_id?: string | null;
+            /**
+             * Repeat
+             * @default {}
+             */
+            repeat: {
+                [key: string]: "skip" | "run";
+            };
+            /**
+             * Repeat Rows
+             * @default []
+             */
+            repeat_rows: components["schemas"]["RepeatRow"][];
             /** Reporting Year */
             reporting_year?: number | null;
             /**
@@ -8425,6 +8479,16 @@ export interface components {
              * @default []
              */
             rows: components["schemas"]["FlowRow"][];
+            /** Run Id */
+            run_id?: string | null;
+            schema_choice?: components["schemas"]["SchemaChoice"] | null;
+            /**
+             * @default {
+             *       "batch": false,
+             *       "mode": "normal"
+             *     }
+             */
+            settings: components["schemas"]["FlowSettings"];
             /**
              * Skipped Uploads
              * @default []
@@ -8436,6 +8500,11 @@ export interface components {
             started_by: string;
             /** Started By Name */
             started_by_name: string;
+            /**
+             * Starting
+             * @default false
+             */
+            starting: boolean;
             /**
              * Step
              * @default 1
@@ -11998,6 +12067,8 @@ export interface components {
             company_id: string;
             /** Company Name */
             company_name: string;
+            /** Content Key */
+            content_key?: string | null;
             /** Doc Type */
             doc_type: string;
             /** Duplicate Of */
@@ -12031,8 +12102,14 @@ export interface components {
         FlowPatch: {
             /** Identity Run Id */
             identity_run_id?: string | null;
+            /** Repeat */
+            repeat?: {
+                [key: string]: "skip" | "run";
+            } | null;
             /** Reporting Year */
             reporting_year?: number | null;
+            schema_choice?: components["schemas"]["SchemaChoice"] | null;
+            settings?: components["schemas"]["FlowSettings"] | null;
             /** Source */
             source?: ("upload" | "import" | "filings" | "filings_web") | null;
             /** Step */
@@ -12065,6 +12142,26 @@ export interface components {
             problem: string | null;
             /** Sector */
             sector: string | null;
+        };
+        /** FlowSettings */
+        FlowSettings: {
+            /**
+             * Batch
+             * @default false
+             */
+            batch: boolean;
+            /** Decision Framework Id */
+            decision_framework_id?: string | null;
+            /** Decision Framework Version */
+            decision_framework_version?: number | null;
+            /** Evidence Passages */
+            evidence_passages?: number | null;
+            /**
+             * Mode
+             * @default normal
+             * @enum {string}
+             */
+            mode: "cheap" | "normal" | "max";
         };
         /** FromCompaniesRequest */
         FromCompaniesRequest: {
@@ -14531,6 +14628,26 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** RepeatRow */
+        RepeatRow: {
+            /** Added */
+            added: number;
+            /** Approved */
+            approved: number;
+            /** Company Id */
+            company_id: string;
+            /** Date */
+            date: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "same" | "added";
+            /** Run Id */
+            run_id: string;
+            /** Waiting */
+            waiting: number;
+        };
         /**
          * ReplicationComparisonReport
          * @description The end product of one replication run: in-sample vs. the paper's
@@ -15498,6 +15615,23 @@ export interface components {
             scenario: string | null;
             /** Year */
             year: number | null;
+        };
+        /**
+         * SchemaChoice
+         * @description What step 3 extracts: a saved schema version, or a fixed profile.
+         */
+        SchemaChoice: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "schema" | "profile";
+            /** Profile */
+            profile?: ("financials" | "tnfd") | null;
+            /** Schema Id */
+            schema_id?: string | null;
+            /** Version */
+            version?: number | null;
         };
         /** ScoreRequest */
         ScoreRequest: {
@@ -18207,6 +18341,37 @@ export interface operations {
                 "application/json": components["schemas"]["FileDecision"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArgusFlowView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_flow_api_argus_flows__flow_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

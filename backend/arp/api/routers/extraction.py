@@ -26,7 +26,7 @@ from arp.decision.templates import attach_to_run, decision_kind_for_schema
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.schema_builder import RuleSuggestions, draft_schema, suggest_rules
 from arp.extraction.steps import MODES, ExtractionProfile, StepSettings, pipeline_shape, restart_overrides
-from arp.ingestion.registry import DocumentSourceRegistry
+from arp.ingestion.registry import ONLY_DOCUMENTS, DocumentSourceRegistry, for_run
 from arp.llm.factory import batch_settings
 from arp.orchestration.review_queue import effective_decisions, item_states, public_decision, record_cosign
 from arp.orchestration.step_tally import step_counts
@@ -396,9 +396,12 @@ async def restart_run(
         from arp.storage.document_store import DocumentContentStore
 
         registry = build_registry(run_settings, DocumentContentStore(run_settings.document_store_dir, enabled=False, dsn=require_dsn(run_settings)))
+    old_dir = run_store.run_dir(run_id)
     started = await _dispatch(
-        original.model_copy(update={"companies": companies}), run_settings, run_store, registry, decision_store, xbrl_source, principal
+        original.model_copy(update={"companies": companies}), run_settings, run_store, for_run(registry, old_dir), decision_store, xbrl_source, principal
     )
+    if (old_dir / ONLY_DOCUMENTS).is_file():  # an Argus run's kept files carry over to the restarted run
+        (run_store.run_dir(started["run_id"]) / ONLY_DOCUMENTS).write_bytes((old_dir / ONLY_DOCUMENTS).read_bytes())
     (run_store.run_dir(started["run_id"]) / "restarted_from.json").write_text(
         json.dumps({"run_id": run_id, "step": req.from_step, "company_count": len(companies)})
     )
