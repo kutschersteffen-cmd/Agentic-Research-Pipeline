@@ -1389,6 +1389,11 @@
       "title": "Started By Name",
       "type": "string"
      },
+     "starting": {
+      "default": false,
+      "title": "Starting",
+      "type": "boolean"
+     },
      "step": {
       "default": 1,
       "title": "Step",
@@ -1578,6 +1583,11 @@
      "started_by_name": {
       "title": "Started By Name",
       "type": "string"
+     },
+     "starting": {
+      "default": false,
+      "title": "Starting",
+      "type": "boolean"
      },
      "step": {
       "default": 1,

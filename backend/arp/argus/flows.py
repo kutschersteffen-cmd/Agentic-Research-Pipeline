@@ -86,6 +86,7 @@ class ArgusFlow(BaseModel):
     settings: FlowSettings = FlowSettings()
     repeat: dict[str, Literal["skip", "run"]] = {}
     run_id: str | None = None
+    starting: bool = False  # set while a Start is being dispatched
 
 
 class FlowStore:

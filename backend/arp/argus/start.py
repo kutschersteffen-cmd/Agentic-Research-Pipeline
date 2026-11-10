@@ -6,24 +6,7 @@ from arp.argus.documents import FlowFile, expected_year
 from arp.argus.flows import ArgusFlow
 from arp.argus.repeat import RepeatRow, kept_content
 from arp.extraction.steps import StepSettings
-from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.schemas.datapoints import DataPointSchema
-
-
-class KeptDocuments:
-    """A document registry that hands a listed company only its kept documents (by content key); every other
-    company, and everything but `fetch_all`, is the wrapped registry's."""
-
-    def __init__(self, inner, only: dict[str, set[str]]) -> None:
-        self.inner, self.only = inner, only
-
-    async def fetch_all(self, company: CompanyRef, doc_types: list[DocType] | None = None) -> list[SourceDocument]:
-        docs = await self.inner.fetch_all(company, doc_types)
-        keep = self.only.get(company.company_id)
-        return docs if keep is None else [d for d in docs if d.content_key in keep]
-
-    def __getattr__(self, name):
-        return getattr(self.inner, name)
 
 
 class StartError(ValueError):
@@ -40,7 +23,9 @@ def start_request(
     if any(r.kind == "same" and r.company_id not in flow.repeat for r in repeats):
         raise StartError("Choose Skip, keep earlier results or Run again for every company listed.")
     kept = kept_content(files)
-    companies = [c for c in flow.companies if c.company_id in kept and flow.repeat.get(c.company_id) != "skip"]
+    # a Skip counts only for a company the warning lists now; an earlier choice may be stale
+    skipped = {r.company_id for r in repeats if r.kind == "same" and flow.repeat.get(r.company_id) == "skip"}
+    companies = [c for c in flow.companies if c.company_id in kept and c.company_id not in skipped]
     if not companies:
         raise StartError("Keep at least one file in step 2.")
     s = flow.settings

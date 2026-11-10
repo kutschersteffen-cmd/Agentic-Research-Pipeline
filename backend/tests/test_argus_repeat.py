@@ -2,6 +2,8 @@
 schema version; count the files added since (spec, The repeat rule)."""
 
 import hashlib
+import json
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -25,6 +27,7 @@ def test_classify():
     assert classify("sch_x:v3", V2, {"a"}, {"a"}) == (None, 0)  # AC-35: another version
     assert classify(V2, None, set(), {"a"}) == (None, 0)  # no earlier run
     assert classify(V2, V2, {"a", "b"}, {"a"}) == (None, 0)  # a file removed
+    assert classify(V2, V2, set(), {"a"}) == (None, 0)  # an earlier run that recorded no documents
 
 
 @pytest.fixture
@@ -58,7 +61,7 @@ def _upload(client, fid, tmp_path, name, title):
 def test_repeat_rows_in_the_flow(client, run_store, tmp_path):
     fid = client.post("/api/argus/flows").json()["flow_id"]
     client.post(f"/api/argus/flows/{fid}/companies/upload", files={"file": ("u.csv", "name,company_id\nApple Inc,aapl\n")})
-    client.patch(f"/api/argus/flows/{fid}", json={"reporting_year": 2025})
+    client.patch(f"/api/argus/flows/{fid}", json={"reporting_year": 2025, "step": 3})
     key = _upload(client, fid, tmp_path, "a.pdf", "Apple Inc Annual Report 2025")
     client.post(f"/api/argus/flows/{fid}/files", json={"all_that_pass": True})
     run_store.save_manifest(RunManifest(run_id="extraction_r1", run_type="extraction", created_at="2026-10-01T00:00:00Z",
@@ -75,3 +78,45 @@ def test_repeat_rows_in_the_flow(client, run_store, tmp_path):
 
     flow = client.patch(f"/api/argus/flows/{fid}", json={"schema_choice": {"kind": "schema", "schema_id": "sch_x", "version": 3}}).json()
     assert flow["repeat_rows"] == []  # AC-35
+
+
+def _flow_with_apple_file(client, tmp_path):
+    fid = client.post("/api/argus/flows").json()["flow_id"]
+    client.post(f"/api/argus/flows/{fid}/companies/upload", files={"file": ("u.csv", "name,company_id\nApple Inc,aapl\n")})
+    client.patch(f"/api/argus/flows/{fid}", json={"reporting_year": 2025, "step": 3})
+    key = _upload(client, fid, tmp_path, "a.pdf", "Apple Inc Annual Report 2025")
+    client.post(f"/api/argus/flows/{fid}/files", json={"all_that_pass": True})
+    return fid, key
+
+
+def test_a_profile_run_started_from_argus_warns(client, run_store, tmp_path):
+    from arp.ingestion.registry import ONLY_DOCUMENTS
+
+    fid, key = _flow_with_apple_file(client, tmp_path)
+    run_store.save_manifest(RunManifest(run_id="tnfd_r1", run_type="tnfd", created_at="2026-10-02T00:00:00Z", company_count=1))
+    run_store.append_result("tnfd_r1", {"company_id": "aapl", "name": "Apple Inc", "issuer_key": "k", "fields": []})  # no documents
+    (run_store.run_dir("tnfd_r1") / ONLY_DOCUMENTS).write_text(json.dumps({"aapl": [key]}))
+    flow = client.patch(f"/api/argus/flows/{fid}", json={"schema_choice": {"kind": "profile", "profile": "tnfd"}}).json()
+    assert [(r["kind"], r["run_id"]) for r in flow["repeat_rows"]] == [("same", "tnfd_r1")]
+
+
+def test_a_run_with_no_document_record_is_not_listed(client, run_store, tmp_path):
+    fid, _ = _flow_with_apple_file(client, tmp_path)
+    run_store.save_manifest(RunManifest(run_id="tnfd_r2", run_type="tnfd", created_at="2026-10-02T00:00:00Z", company_count=1))
+    run_store.append_result("tnfd_r2", {"company_id": "aapl", "name": "Apple Inc", "issuer_key": "k", "fields": []})
+    flow = client.patch(f"/api/argus/flows/{fid}", json={"schema_choice": {"kind": "profile", "profile": "tnfd"}}).json()
+    assert flow["repeat_rows"] == []
+
+
+def test_repeat_rows_wait_for_step_3(client, run_store, tmp_path):
+    fid, key = _flow_with_apple_file(client, tmp_path)
+    run_store.save_manifest(RunManifest(run_id="extraction_r9", run_type="extraction", created_at="2026-10-01T00:00:00Z",
+                                        company_count=1, params={"schema_id": "sch_x", "schema_version": V2}))
+    run_store.append_result("extraction_r9", {"company_id": "aapl", "name": "Apple Inc", "issuer_key": "k", "fields": [],
+                                              "documents": [{"content_key": key}]})
+    client.patch(f"/api/argus/flows/{fid}", json={"schema_choice": {"kind": "schema", "schema_id": "sch_x", "version": 2}})
+    flow_path = Path(client.app.dependency_overrides[settings_dep]().runs_dir) / "_flows" / f"{fid}.json"
+    data = json.loads(flow_path.read_text())
+    data["step"] = 2
+    flow_path.write_text(json.dumps(data))
+    assert client.get(f"/api/argus/flows/{fid}").json()["repeat_rows"] == []

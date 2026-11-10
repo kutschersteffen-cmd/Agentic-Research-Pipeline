@@ -10,9 +10,9 @@ from fastapi.testclient import TestClient
 from arp.api.deps import get_run_store, settings_dep
 from arp.api.main import app
 from arp.api.routers import extraction, financials, tnfd
-from arp.argus.start import KeptDocuments
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
+from arp.ingestion.registry import KeptDocuments
 from arp.schemas.common import CompanyRef, DocType, RunManifest, SourceDocument
 from arp.schemas.datapoints import DataPointSchema
 from arp.storage.run_store import RunStore
@@ -91,7 +91,7 @@ def fid(client, tmp_path):
     fid = client.post("/api/argus/flows").json()["flow_id"]
     lst = "name,company_id\nApple Inc,aapl\nMicrosoft Corporation,msft\nSAP SE,sap\n"
     client.post(f"/api/argus/flows/{fid}/companies/upload", files={"file": ("u.csv", lst)})
-    client.patch(f"/api/argus/flows/{fid}", json={"reporting_year": 2025})
+    client.patch(f"/api/argus/flows/{fid}", json={"reporting_year": 2025, "step": 3})
     for cid, name in (("aapl", "Apple Inc"), ("msft", "Microsoft Corporation")):
         data = make_pdf(tmp_path / f"{cid}.pdf", [f"{name} Annual Report 2025", FILLER], n_pages=2).read_bytes()
         r = client.post(f"/api/argus/flows/{fid}/documents/upload", data={"company_id": cid, "doc_type": "10-K"},
@@ -161,3 +161,58 @@ def test_start_refuses_without_choice_and_while_running(client, fid, calls, sett
     run_store.save_manifest(RunManifest(run_id="extraction_custom1", run_type="extraction", company_count=2, status="running"))
     assert client.post(f"/api/argus/flows/{fid}/start").status_code == 409
     assert len(calls) == 1
+
+
+def test_an_older_schema_version_is_refused(client, fid, calls, settings):
+    v1 = _schema(settings, released=True)
+    reg = SchemaRegistry(settings.postgres_dsn)
+    reg.save(v1.model_copy(update={"fields": v1.fields[:3]}))  # v2
+    _choose(client, fid, v1)
+    r = client.post(f"/api/argus/flows/{fid}/start")
+    assert (r.status_code, r.json()["detail"]) == (400, "Pick the newest version of S.")
+    assert calls == []
+
+
+def test_a_skip_for_a_company_not_listed_is_ignored(client, fid, calls, settings):
+    _choose(client, fid, _schema(settings, released=True))
+    client.patch(f"/api/argus/flows/{fid}", json={"repeat": {"msft": "skip"}})  # stale: msft is not in the warning
+    assert client.post(f"/api/argus/flows/{fid}/start").status_code == 200
+    assert [c.company_id for c in calls[0][1].companies] == ["aapl", "msft"]
+
+
+def test_a_start_in_progress_is_a_409(client, fid, calls, settings):
+    from arp.argus.flows import FlowStore
+
+    _choose(client, fid, _schema(settings, released=True))
+    FlowStore(settings.runs_dir / "_flows").update(fid, lambda f: setattr(f, "starting", True))
+    assert client.post(f"/api/argus/flows/{fid}/start").status_code == 409
+    assert calls == []
+
+
+def test_a_failed_start_clears_the_marker(client, fid, monkeypatch, settings):
+    async def boom(req, **kwargs):
+        raise RuntimeError("down")
+
+    monkeypatch.setattr(extraction, "start_extraction_run", boom)
+    _choose(client, fid, _schema(settings, released=True))
+    assert client.post(f"/api/argus/flows/{fid}/start").status_code >= 400  # the app's RuntimeError handler answers
+    assert client.get(f"/api/argus/flows/{fid}").json()["starting"] is False
+
+
+def test_resume_reads_only_the_kept_documents(run_store, monkeypatch, tmp_path):
+    from arp.ingestion.registry import ONLY_DOCUMENTS
+    from arp.orchestration import jobs
+
+    run_store.save_manifest(RunManifest(run_id="extraction_r", run_type="extraction", company_count=1, status="failed"))
+    run_store.save_companies("extraction_r", [CompanyRef(company_id="aapl", name="Apple")])
+    (run_store.run_dir("extraction_r") / ONLY_DOCUMENTS).write_text(json.dumps({"aapl": ["a"]}))
+    seen = {}
+
+    async def fake(run_id, manifest, companies, *, registry, **kw):
+        seen["docs"] = await registry.fetch_all(companies[0])
+        return run_id
+
+    monkeypatch.setitem(jobs._RESUME, "extraction", fake)
+    inner = _Registry([_doc("a"), _doc("b")])
+    asyncio.run(jobs.resume_run("extraction_r", settings=Settings(), run_store=run_store, registry=inner, llm="x", verifier_llm="y", lease=False))
+    assert [d.content_key for d in seen["docs"]] == ["a"]

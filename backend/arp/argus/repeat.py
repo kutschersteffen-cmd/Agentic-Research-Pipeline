@@ -11,6 +11,7 @@ from arp.api.auth import Principal
 from arp.argus.documents import FlowFile
 from arp.argus.flows import ArgusFlow, SchemaChoice
 from arp.argus.rows import _prior_runs
+from arp.ingestion.registry import read_only_documents
 from arp.schemas.common import RunManifest
 from arp.storage.run_store import RunStore
 
@@ -38,7 +39,7 @@ def run_version(m: RunManifest) -> str:
 
 def classify(chosen: str | None, earlier_version: str | None, earlier: set[str], now: set[str]) -> tuple[str | None, int]:
     """`same` (same version, same file contents), `added` (same version, files only added since) or None."""
-    if chosen is None or earlier_version != chosen:
+    if chosen is None or earlier_version != chosen or not earlier:  # no record of what the earlier run read
         return None, 0
     if earlier == now:
         return "same", 0
@@ -69,8 +70,10 @@ def repeat_rows(flow: ArgusFlow, files: list[FlowFile], last_runs: dict[str, str
         m = run_store.load_manifest(run_id) if run_id else None
         if m is None or cid not in prior:
             continue
-        earlier = {d["content_key"] for row in run_store.read_results(run_id) if row.get("company_id") == cid
-                   for d in row.get("documents") or [] if d.get("content_key")}
+        recorded = read_only_documents(run_store.run_dir(run_id))  # runs started from Argus record their files
+        earlier = recorded.get(cid, set()) if recorded is not None else {
+            d["content_key"] for row in run_store.read_results(run_id) if row.get("company_id") == cid
+            for d in row.get("documents") or [] if d.get("content_key")}
         kind, added = classify(chosen, run_version(m), earlier, now)
         if kind:
             p = prior[cid]

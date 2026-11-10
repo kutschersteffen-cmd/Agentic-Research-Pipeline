@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+from pathlib import Path
 
 from arp.config import Settings
 from arp.ingestion.base import DocumentSource
@@ -53,3 +55,33 @@ class DocumentSourceRegistry:
                 await asyncio.to_thread(build_doc_tree, doc, self.settings)
             except Exception:  # noqa: BLE001 - the tree is optional; the fetch still succeeds
                 logger.warning("Document tree failed for %s", doc.doc_id, exc_info=True)
+
+
+ONLY_DOCUMENTS = "only_documents.json"  # in a run's folder: company id -> the content keys it may read (Argus step 2)
+
+
+class KeptDocuments:
+    """A document registry that hands a listed company only its kept documents (by content key); every other
+    company, and everything but `fetch_all`, is the wrapped registry's."""
+
+    def __init__(self, inner, only: dict[str, set[str]]) -> None:
+        self.inner, self.only = inner, only
+
+    async def fetch_all(self, company: CompanyRef, doc_types: list[DocType] | None = None) -> list[SourceDocument]:
+        docs = await self.inner.fetch_all(company, doc_types)
+        keep = self.only.get(company.company_id)
+        return docs if keep is None else [d for d in docs if d.content_key in keep]
+
+    def __getattr__(self, name):
+        return getattr(self.inner, name)
+
+
+def read_only_documents(run_dir: Path) -> dict[str, set[str]] | None:
+    path = run_dir / ONLY_DOCUMENTS
+    return {k: set(v) for k, v in json.loads(path.read_text()).items()} if path.is_file() else None
+
+
+def for_run(registry, run_dir: Path):
+    """The registry a run reads through: limited to its kept documents when it was started from Argus."""
+    only = read_only_documents(run_dir)
+    return registry if only is None else KeptDocuments(registry, only)

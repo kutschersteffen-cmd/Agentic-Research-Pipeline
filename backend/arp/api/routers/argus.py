@@ -26,12 +26,12 @@ from arp.argus.documents import FlowFile, decide, expected_year, flow_files, sto
 from arp.argus.flows import ArgusFlow, FlowSettings, FlowStore, SchemaChoice, SkippedUpload, get_flow_store
 from arp.argus.repeat import RepeatRow, repeat_rows
 from arp.argus.rows import FlowRow, flow_rows
-from arp.argus.start import KeptDocuments, StartError, start_request
+from arp.argus.start import StartError, start_request
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
 from arp.db.session import require_dsn, transaction
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
-from arp.ingestion.registry import DocumentSourceRegistry
+from arp.ingestion.registry import ONLY_DOCUMENTS, DocumentSourceRegistry, KeptDocuments
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import DocType
 from arp.storage.decision_store import DecisionStore
@@ -117,8 +117,9 @@ class Viewer:
         return ArgusFlowView(**flow.model_dump(), rows=rows, files=files, discovery=discovery, repeat_rows=self.repeats(flow, files))
 
     def repeats(self, flow: ArgusFlow, files: list[FlowFile]) -> list[RepeatRow]:
-        if not flow.schema_choice:
+        if not flow.schema_choice or flow.step < 3:  # not while step 2 polls a discovery run
             return []
+        # shortcut: scans every run's results on each read of step 3; add a company -> latest run index if runs pile up
         avail = availability(flow.companies, run_store=self.run_store, content_store=self.content_store,
                              xbrl_store=XbrlStore(self.settings.xbrl_dir), documents_dir=self.settings.documents_dir)
         last = {cid: a.extraction.last_run_id for cid, a in avail.items() if a.extraction.last_run_id}
@@ -264,23 +265,36 @@ async def start_flow(
     files = view.files(flow)
     schema = None
     if flow.schema_choice and flow.schema_choice.kind == "schema":
+        registry_s = SchemaRegistry(settings.postgres_dsn)
         try:
-            schema = SchemaRegistry(settings.postgres_dsn).get(flow.schema_choice.schema_id, flow.schema_choice.version)
+            schema = registry_s.get(flow.schema_choice.schema_id, flow.schema_choice.version)
+            newest = registry_s.get(flow.schema_choice.schema_id).version
         except KeyError:
             raise HTTPException(400, "That schema version does not exist.") from None
+        if schema.version != newest:  # a run saves its schema: an older body would be stored as a new version
+            raise HTTPException(400, f"Pick the newest version of {schema.name}.")
     try:
         body, only = start_request(flow, files, view.repeats(flow, files), schema)
     except StartError as exc:
         raise HTTPException(400, str(exc)) from exc
-    started = await extraction.start_extraction(
-        extraction.StartRequest(**body), settings=settings, run_store=run_store, registry=KeptDocuments(registry, only),
-        decision_store=decision_store, xbrl_source=xbrl_source, principal=principal)
-    # shortcut: a restart from Run History reads start_request.json, which has no allow-list, so it reads every
-    # document of the company; pass this file through restarts when runs are restarted from Argus
-    (run_store.run_dir(started["run_id"]) / "only_documents.json").write_text(json.dumps({k: sorted(v) for k, v in only.items()}))
+
+    def claim(f: ArgusFlow) -> None:  # under the flow's lock: a second Start meanwhile gets a 409
+        if f.starting:
+            raise HTTPException(409, "This extraction is already starting.")
+        f.starting = True
+
+    store.update(flow_id, claim)
+    try:
+        started = await extraction.start_extraction(
+            extraction.StartRequest(**body), settings=settings, run_store=run_store, registry=KeptDocuments(registry, only),
+            decision_store=decision_store, xbrl_source=xbrl_source, principal=principal)
+    except BaseException:
+        store.update(flow_id, lambda f: setattr(f, "starting", False))
+        raise
+    (run_store.run_dir(started["run_id"]) / ONLY_DOCUMENTS).write_text(json.dumps({k: sorted(v) for k, v in only.items()}))
 
     def apply(f: ArgusFlow) -> None:
-        f.run_id, f.step = started["run_id"], max(f.step, 4)
+        f.run_id, f.step, f.starting = started["run_id"], max(f.step, 4), False
 
     return view(store.update(flow_id, apply))
 

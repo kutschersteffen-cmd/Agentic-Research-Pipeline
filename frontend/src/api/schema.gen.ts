@@ -8420,6 +8420,11 @@ export interface components {
             /** Started By Name */
             started_by_name: string;
             /**
+             * Starting
+             * @default false
+             */
+            starting: boolean;
+            /**
              * Step
              * @default 1
              */
@@ -8495,6 +8500,11 @@ export interface components {
             started_by: string;
             /** Started By Name */
             started_by_name: string;
+            /**
+             * Starting
+             * @default false
+             */
+            starting: boolean;
             /**
              * Step
              * @default 1
