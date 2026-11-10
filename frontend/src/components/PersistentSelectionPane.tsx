@@ -8,13 +8,13 @@ import type { DemoSeedSummary } from "../types";
 /** The persistent portfolio/group + as-of-date selector (spec §9): not a
  * sub-tab itself, rendered once above the sub-nav, and read by every
  * sub-tab via `usePortfolioPane()` -- switching sub-tabs never resets it. */
-type Destination = "transitionPlan" | "extraction";
+type Destination = "argus" | "transitionPlan";
 const DESTINATIONS: { id: Destination; label: string }[] = [
-  { id: "transitionPlan", label: "Transition Plan" },
-  { id: "extraction", label: "Extraction" },
+  { id: "argus", label: "Argus" },
+  { id: "transitionPlan", label: "Argus, Transition plan" },
 ];
 
-export function PersistentSelectionPane({ onSendUniverse }: { onSendUniverse?: (to: Destination, path: string, count: number) => void }) {
+export function PersistentSelectionPane({ onSendUniverse }: { onSendUniverse?: (to: Destination, path: string, count: number) => Promise<void> | void }) {
   const {
     portfolios, refreshPortfolios, portfoliosError, selectedPortfolioIds, setSelectedPortfolioIds, groups, saveCurrentAsGroup, loadGroup, deleteGroup,
     effectiveAsOf, selectionLabel,
@@ -28,7 +28,7 @@ export function PersistentSelectionPane({ onSendUniverse }: { onSendUniverse?: (
     setSendError(null);
     try {
       const u = await api.holdingsUniverse({ portfolio_ids: selectedPortfolioIds, as_of: effectiveAsOf });
-      onSendUniverse?.(to, u.path, u.company_count);
+      await onSendUniverse?.(to, u.path, u.company_count);
     } catch (e) {
       setSendError((e as Error).message);
       setSending(false);

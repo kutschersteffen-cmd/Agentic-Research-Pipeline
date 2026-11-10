@@ -13,6 +13,7 @@ const PRESETS: Record<string, string> = { transition_plan: "transition_plan_indi
 /** Starts a new flow (optionally with a saved universe and a step 3 template) and opens its step 1,
  * replacing the current history entry so Back never lands on the creating route again. */
 export async function openNewFlow({ preset, universePath }: { preset?: string | null; universePath?: string } = {}) {
+  // A hand-over (universePath) keeps the sending page in history; a redirect replaces the dead route.
   const { flow_id } = await api.createArgusFlow();
   const presetId = preset ? PRESETS[preset] : undefined;
   if (presetId) {
@@ -20,7 +21,8 @@ export async function openNewFlow({ preset, universePath }: { preset?: string | 
     await api.patchArgusFlow(flow_id, { schema_choice: { kind: "schema", schema_id: s.schema_id, version: s.version, profile: null } });
   }
   if (universePath) await api.addFlowCompanies(flow_id, { universe_path: universePath });
-  window.location.replace(flowHref(flow_id, 1));
+  if (universePath) window.location.hash = flowHref(flow_id, 1);
+  else window.location.replace(flowHref(flow_id, 1));
 }
 
 /** #/argus/new[/<preset>]: where old links (Universe, Identify, Documents, Transition Plan) land. */

@@ -17,13 +17,13 @@ import { errorDetail } from "../lib/themeLayers";
 const EXPOSURE_RANK: Record<string, number> = { pure_play: 3, significant: 2, minor: 1, none: 0 };
 
 interface Props {
-  onSendToExtraction?: (path: string, count: number) => void;
+  onSendToArgus?: (path: string) => Promise<void>;
   pendingTaxonomyId?: string | null;
   /** A stored run to open, from `#/theme/<run id>`. */
   initialRunId?: string | null;
 }
 
-export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId, initialRunId }: Props = {}) {
+export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }: Props = {}) {
   const [name, setName] = useState("Electrification");
   const [description, setDescription] = useState(
     "The shift of energy generation, transport, industry, and buildings from fossil fuels to electricity."
@@ -480,8 +480,11 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId, initialRun
                   Save {new Set(filteredResults.map((m) => m.company_id)).size} companies as a universe
                 </button>
                 {sentUniverse && (
-                  <button onClick={() => onSendToExtraction?.(sentUniverse.path, sentUniverse.count)}>
-                    Go to Extraction Engine &rarr;
+                  <button
+                    disabled={sendBusy}
+                    onClick={() => onSendToArgus?.(sentUniverse.path).catch((err) => setSendStatus(`Failed: ${(err as Error).message}`))}
+                  >
+                    Argus &rarr;
                   </button>
                 )}
               </div>
