@@ -5314,6 +5314,55 @@
     "title": "CompanyInput",
     "type": "object"
    },
+   "CompanyProgress": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "document_problem": {
+      "default": false,
+      "title": "Document Problem",
+      "type": "boolean"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "needs_you": {
+      "default": 0,
+      "title": "Needs You",
+      "type": "integer"
+     },
+     "percent": {
+      "title": "Percent",
+      "type": "integer"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id",
+     "name",
+     "status",
+     "percent"
+    ],
+    "title": "CompanyProgress",
+    "type": "object"
+   },
    "CompanyRef": {
     "description": "Minimal identity for a company, as supplied by the user's universe file.",
     "properties": {
@@ -10553,6 +10602,64 @@
      }
     },
     "title": "FlowPatch",
+    "type": "object"
+   },
+   "FlowProgress": {
+    "properties": {
+     "companies": {
+      "items": {
+       "$ref": "#/components/schemas/CompanyProgress"
+      },
+      "title": "Companies",
+      "type": "array"
+     },
+     "cost_usd": {
+      "title": "Cost Usd",
+      "type": "number"
+     },
+     "done": {
+      "title": "Done",
+      "type": "integer"
+     },
+     "minutes_left": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Minutes Left"
+     },
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     },
+     "started_at": {
+      "title": "Started At",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "run_id",
+     "started_at",
+     "done",
+     "total",
+     "minutes_left",
+     "cost_usd",
+     "status",
+     "companies"
+    ],
+    "title": "FlowProgress",
     "type": "object"
    },
    "FlowRow": {
@@ -25278,6 +25385,49 @@
      }
     },
     "summary": "Decide Files",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/progress": {
+   "get": {
+    "description": "Step 4: the flow's run as a whole and per company.",
+    "operationId": "flow_progress_api_argus_flows__flow_id__progress_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FlowProgress"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Flow Progress",
     "tags": [
      "argus"
     ]

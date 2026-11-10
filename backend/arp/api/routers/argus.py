@@ -24,6 +24,7 @@ from arp.api.routers.universe_workbench import MAX_COMPANIES
 from arp.argus.companies import add_companies, parse_rows, register, with_register_ids
 from arp.argus.documents import FlowFile, decide, expected_year, flow_files, store_upload
 from arp.argus.flows import ArgusFlow, FlowSettings, FlowStore, SchemaChoice, SkippedUpload, get_flow_store
+from arp.argus.progress import CompanyProgress, FlowProgress, company_status, minutes_left
 from arp.argus.repeat import RepeatRow, repeat_rows
 from arp.argus.rows import FlowRow, flow_rows
 from arp.argus.start import StartError, start_request
@@ -33,6 +34,7 @@ from arp.db.session import require_dsn, transaction
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
 from arp.ingestion.registry import ONLY_DOCUMENTS, DocumentSourceRegistry, KeptDocuments
 from arp.orchestration.job_manager import JobManager
+from arp.orchestration.step_tally import step_counts
 from arp.schemas.common import DocType
 from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
@@ -297,6 +299,31 @@ async def start_flow(
         f.run_id, f.step, f.starting = started["run_id"], max(f.step, 4), False
 
     return view(store.update(flow_id, apply))
+
+
+@router.get("/flows/{flow_id}/progress", dependencies=[Depends(current_user)])
+def flow_progress(flow_id: str, store: FlowStore = Depends(get_flow_store), run_store: RunStore = Depends(get_run_store)) -> FlowProgress:
+    """Step 4: the flow's run as a whole and per company."""
+    flow = store.get(flow_id)
+    m = run_store.load_manifest(flow.run_id) if flow and flow.run_id else None
+    if m is None:
+        raise HTTPException(404, "This extraction has not started.")
+    status = str(getattr(m.status, "value", m.status))
+    errors = {r.get("key"): r for r in run_store.read_errors(m.run_id) if r.get("key")}
+    to_review = {r.get("company_id"): sum(f.get("route") == "review" for f in r.get("fields") or [])
+                 for r in run_store.read_results(m.run_id)}
+    companies = []
+    for row in extraction.get_run_companies(m.run_id, run_store)["companies"]:
+        cid = row["company_id"]
+        label, percent = company_status(row["status"], status, step_counts(run_store, m.run_id, cid)[0]["counts"])
+        error = errors.get(cid) if label == "Failed" else None
+        companies.append(CompanyProgress(
+            company_id=cid, name=row["name"], status=label, percent=percent, needs_you=to_review.get(cid, 0),
+            reason=error.get("error") if error else None, document_problem=bool(error and error.get("document_problem"))))
+    done = m.completed_count + m.failed_count
+    left = minutes_left(datetime.fromisoformat(m.created_at), datetime.now(UTC), done=done, total=m.company_count)
+    return FlowProgress(run_id=m.run_id, started_at=m.created_at, done=done, total=m.company_count, minutes_left=left,
+                        cost_usd=m.estimated_cost_usd, status=status, companies=companies)
 
 
 def _add(flow_id: str, rows: list[dict], store: FlowStore, settings: Settings, view: Viewer) -> ArgusFlowView:
