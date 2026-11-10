@@ -36,6 +36,11 @@ is still red, stop pushing:
 
 A different check failing, or the owner asking for another try, starts a new count.
 
+Before the third fix round, write one line: what the failing check assumes, and whether the state it
+checks is legitimate. If the premise is wrong, fix the premise, not the symptom. Repeat that line in the
+`Blocked: fix limit` comment. Classify the failure first (this PR's, red on `main` too, or gone on one
+re-run) and re-run at most once.
+
 ## 3. A wrong spec is a question, never a reinterpretation
 
 If the spec or its acceptance table contradicts itself, is impossible, or can be read two ways that
@@ -45,6 +50,10 @@ change the result:
 2. Comment starting with `Spec question:`, quote the row, and offer at most 3 concrete options, with
    the one you recommend first.
 3. Add `factory:blocked`. Carry on only with the parts the question doesn't touch.
+
+A bug report is a spec question first: check whether an acceptance row expected the behaviour before
+changing code. If a fix PR for it already exists, verify it (run its failing-before test) instead of
+writing a second one.
 
 ## 4. At most three agent PRs in flight
 
@@ -62,3 +71,7 @@ acceptance tests and the evaluator see the code as it would land.
 In a `Code review (factory)` comment, fix or answer every finding under `blocking`: those are the
 confirmed ones, and only confirmed blocking findings block. Findings marked `unverified, optional` may
 be ignored or answered; they never justify `factory:blocked`.
+
+## 7. Show the failure before the fix
+
+Every fix PR pastes the failing-before output (command and result) in its description.

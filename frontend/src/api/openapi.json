@@ -1267,6 +1267,29 @@
       "title": "Created At",
       "type": "string"
      },
+     "decisions": {
+      "additionalProperties": {
+       "enum": [
+        "kept",
+        "removed"
+       ],
+       "type": "string"
+      },
+      "default": {},
+      "title": "Decisions",
+      "type": "object"
+     },
+     "discovery_run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Discovery Run Id"
+     },
      "flow_id": {
       "title": "Flow Id",
       "type": "string"
@@ -1281,6 +1304,42 @@
        }
       ],
       "title": "Identity Run Id"
+     },
+     "reporting_year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reporting Year"
+     },
+     "skipped_uploads": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/SkippedUpload"
+      },
+      "title": "Skipped Uploads",
+      "type": "array"
+     },
+     "source": {
+      "anyOf": [
+       {
+        "enum": [
+         "upload",
+         "import",
+         "filings",
+         "filings_web"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source"
      },
      "started_by": {
       "title": "Started By",
@@ -1324,6 +1383,47 @@
       "title": "Created At",
       "type": "string"
      },
+     "decisions": {
+      "additionalProperties": {
+       "enum": [
+        "kept",
+        "removed"
+       ],
+       "type": "string"
+      },
+      "default": {},
+      "title": "Decisions",
+      "type": "object"
+     },
+     "discovery": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DiscoveryStatus"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "discovery_run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Discovery Run Id"
+     },
+     "files": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/FlowFile"
+      },
+      "title": "Files",
+      "type": "array"
+     },
      "flow_id": {
       "title": "Flow Id",
       "type": "string"
@@ -1339,6 +1439,17 @@
       ],
       "title": "Identity Run Id"
      },
+     "reporting_year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reporting Year"
+     },
      "rows": {
       "default": [],
       "items": {
@@ -1346,6 +1457,31 @@
       },
       "title": "Rows",
       "type": "array"
+     },
+     "skipped_uploads": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/SkippedUpload"
+      },
+      "title": "Skipped Uploads",
+      "type": "array"
+     },
+     "source": {
+      "anyOf": [
+       {
+        "enum": [
+         "upload",
+         "import",
+         "filings",
+         "filings_web"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source"
      },
      "started_by": {
       "title": "Started By",
@@ -3004,6 +3140,29 @@
      "month"
     ],
     "title": "Body_upload_esg_api_portfolio_esg_upload_post",
+    "type": "object"
+   },
+   "Body_upload_flow_document_api_argus_flows__flow_id__documents_upload_post": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "doc_type": {
+      "$ref": "#/components/schemas/DocType"
+     },
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file",
+     "company_id",
+     "doc_type"
+    ],
+    "title": "Body_upload_flow_document_api_argus_flows__flow_id__documents_upload_post",
     "type": "object"
    },
    "Body_upload_price_dataset_api_replication_specs__spec_run_id__datasets_prices_post": {
@@ -7970,6 +8129,24 @@
     "title": "DiscoveryScheduleConfig",
     "type": "object"
    },
+   "DiscoveryStatus": {
+    "properties": {
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "run_id",
+     "status"
+    ],
+    "title": "DiscoveryStatus",
+    "type": "object"
+   },
    "DocType": {
     "enum": [
      "10-K",
@@ -9907,6 +10084,45 @@
     "title": "FieldStatus",
     "type": "string"
    },
+   "FileDecision": {
+    "properties": {
+     "all": {
+      "default": false,
+      "title": "All",
+      "type": "boolean"
+     },
+     "all_that_pass": {
+      "default": false,
+      "title": "All That Pass",
+      "type": "boolean"
+     },
+     "keys": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Keys",
+      "type": "array"
+     },
+     "state": {
+      "anyOf": [
+       {
+        "enum": [
+         "kept",
+         "removed"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "State"
+     }
+    },
+    "title": "FileDecision",
+    "type": "object"
+   },
    "FlagExclusionScreen": {
     "description": "Exclude companies whose boolean field equals `exclude_when` --\nnorms-based screens, controversial weapons, controversy flags.",
     "properties": {
@@ -10003,6 +10219,119 @@
     "title": "FlagOut",
     "type": "object"
    },
+   "FlowFile": {
+    "properties": {
+     "check": {
+      "title": "Check",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "company_name": {
+      "title": "Company Name",
+      "type": "string"
+     },
+     "doc_type": {
+      "title": "Doc Type",
+      "type": "string"
+     },
+     "duplicate_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duplicate Of"
+     },
+     "filename": {
+      "title": "Filename",
+      "type": "string"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "page_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page Url"
+     },
+     "passes": {
+      "title": "Passes",
+      "type": "boolean"
+     },
+     "raw_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Raw Url"
+     },
+     "source": {
+      "enum": [
+       "upload",
+       "filings",
+       "web"
+      ],
+      "title": "Source",
+      "type": "string"
+     },
+     "state": {
+      "anyOf": [
+       {
+        "enum": [
+         "kept",
+         "removed"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "State"
+     },
+     "year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Year"
+     }
+    },
+    "required": [
+     "key",
+     "company_id",
+     "company_name",
+     "doc_type",
+     "filename",
+     "year",
+     "source",
+     "check",
+     "passes"
+    ],
+    "title": "FlowFile",
+    "type": "object"
+   },
    "FlowList": {
     "properties": {
      "flows": {
@@ -10031,6 +10360,49 @@
        }
       ],
       "title": "Identity Run Id"
+     },
+     "reporting_year": {
+      "anyOf": [
+       {
+        "maximum": 2100.0,
+        "minimum": 1990.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reporting Year"
+     },
+     "source": {
+      "anyOf": [
+       {
+        "enum": [
+         "upload",
+         "import",
+         "filings",
+         "filings_web"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source"
+     },
+     "step": {
+      "anyOf": [
+       {
+        "maximum": 5.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Step"
      }
     },
     "title": "FlowPatch",
@@ -18899,6 +19271,29 @@
     "title": "SignalType",
     "type": "string"
    },
+   "SkippedUpload": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "duplicate_of": {
+      "title": "Duplicate Of",
+      "type": "string"
+     },
+     "filename": {
+      "title": "Filename",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id",
+     "filename",
+     "duplicate_of"
+    ],
+    "title": "SkippedUpload",
+    "type": "object"
+   },
    "SmartSearchRequest": {
     "properties": {
      "question": {
@@ -24430,6 +24825,154 @@
      }
     },
     "summary": "Upload Companies",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/documents/find": {
+   "post": {
+    "description": "One discovery run for the flow's companies: filings only, or filings plus the companies' websites.",
+    "operationId": "find_documents_api_argus_flows__flow_id__documents_find_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Find Documents",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/documents/upload": {
+   "post": {
+    "operationId": "upload_flow_document_api_argus_flows__flow_id__documents_upload_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_upload_flow_document_api_argus_flows__flow_id__documents_upload_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Upload Flow Document",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/files": {
+   "post": {
+    "description": "Keep or remove files in this flow only; the files themselves stay on the company.",
+    "operationId": "decide_files_api_argus_flows__flow_id__files_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FileDecision"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Decide Files",
     "tags": [
      "argus"
     ]

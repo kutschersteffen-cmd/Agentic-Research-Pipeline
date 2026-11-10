@@ -40,19 +40,21 @@ async def _discover_for_company(
     transport: httpx.AsyncBaseTransport | None = None,
     today: date | None = None,
     sleep=asyncio.sleep,
+    web: bool = True,
+    expected_year: int | None = None,
 ) -> DiscoveryCompanyResult:
     today = today or date.today()
     filings = await _edgar_filings(company, edgar, doc_types) if edgar and company.cik else []
     esef_docs, esef_current = await _esef_documents(company, esef, doc_types, today) if esef else ([], False)
-    expected_year = today.year - 1
+    expected_year = expected_year or today.year - 1
     types = [t for t in (DocType.ANNUAL_REPORT_10K, DocType.SUSTAINABILITY_REPORT) if not doc_types or t in doc_types]
     if esef_current:
         types = [t for t in types if t != DocType.ANNUAL_REPORT_10K]
     search_cands = await search_candidates(
         company, search_client, expected_year, types, delay=settings.discovery_request_delay_seconds, sleep=sleep
-    )
-    homepage, check = company.website, None
-    if not homepage:  # a supplied website is used unchecked; a derived one is checked first
+    ) if web else []
+    homepage, check = (company.website if web else None), None
+    if web and not homepage:  # a supplied website is used unchecked; a derived one is checked first
         homepage = await homepage_from_ids(
             settings.discovery_user_agent, lei=company.lei, isin=company.isin, cik=company.cik, transport=transport
         )
@@ -162,6 +164,8 @@ async def execute_discovery_run(
     transport: httpx.AsyncBaseTransport | None = None,
     today: date | None = None,
     sleep=None,
+    web: bool = True,
+    expected_year: int | None = None,
 ) -> str:
     """Runs the document discovery pipeline over a company universe against
     an already-created run (see create_discovery_run).
@@ -197,7 +201,8 @@ async def execute_discovery_run(
     async def _worker(company: CompanyRef) -> DiscoveryCompanyResult:
         return await _discover_for_company(
             company, settings=settings, search_client=search_client, change_detector=change_detector, doc_types=doc_types,
-            edgar=edgar_source, esef=esef_source, transport=transport, today=today, sleep=sleep or asyncio.sleep,
+            edgar=edgar_source, esef=esef_source, transport=transport, today=today, sleep=sleep or asyncio.sleep, web=web,
+            expected_year=expected_year,
         )
 
     def _on_success(company: CompanyRef, result: DiscoveryCompanyResult) -> None:

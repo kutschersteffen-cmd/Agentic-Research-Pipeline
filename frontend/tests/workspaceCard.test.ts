@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { cardView, stepStatusLine, waitingLink, waitingSentence, waitingStat, workspaceState } from "../src/lib/workspaceCard.ts";
+import { cardView, stepStatusLine, waitingLink, waitingSentence, waitingStat, waitingTarget, workspaceState } from "../src/lib/workspaceCard.ts";
 import { WORKSPACES } from "../src/lib/processes.ts";
 import type { RunManifest, StewardshipFlow } from "../src/types.ts";
 
@@ -94,3 +94,11 @@ test("r4_ac8c", () => {
 test("r4_ac9", () => assert.deepEqual([7, 0, null, "error"].map((n) => waitingStat(n as number | "error" | null)), ["7", "0", "—", "—"]));
 test("r4_runs_error_wins", () => assert.deepEqual(waitingLink(false, "x", 3), { text: "Runs could not be loaded.", href: null }));
 test("r4_nan_is_no_link", () => assert.equal(waitingLink(true, null, NaN).href, null));
+test("r6_ac1", () => assert.equal(waitingTarget(0, 15), "#/stewardiq"));
+test("r6_ac2", () => assert.equal(waitingTarget(3, 15), "#/review"));
+test("r6_ac3", () => assert.equal(waitingTarget(0, 0), "#/review"));
+test("r6_ac4", () => assert.deepEqual(waitingLink(true, null, 15, "#/stewardiq"), { text: "15 decisions wait on you →", href: "#/stewardiq" }));
+test("r6_ac5", () => assert.deepEqual(waitingLink(true, null, 0, "#/stewardiq"), { text: "Nothing waits on you.", href: null }));
+test("r6_ac6", () => assert.deepEqual(waitingLink(false, "x", 15, "#/stewardiq"), { text: "Runs could not be loaded.", href: null }));
+test("r6_ac7", () => assert.deepEqual(waitingLink(true, null, "error", "#/stewardiq"), { text: "What waits on you could not be loaded.", href: null }));
+test("r6_ac8", () => assert.deepEqual(waitingLink(true, null, 7), { text: "7 decisions wait on you →", href: "#/review" }));

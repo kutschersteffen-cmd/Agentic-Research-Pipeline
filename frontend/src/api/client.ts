@@ -646,13 +646,23 @@ export const api = {
   createArgusFlow: () => request<ArgusFlow>("/api/argus/flows", { method: "POST" }),
   listArgusFlows: () => request<{ flows: ArgusDraft[] }>("/api/argus/flows"),
   getArgusFlow: (flowId: string) => request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}`),
-  patchArgusFlow: (flowId: string, body: { identity_run_id?: string }) =>
+  patchArgusFlow: (flowId: string, body: { identity_run_id?: string; reporting_year?: number; source?: "upload" | "import" | "filings" | "filings_web"; step?: number }) =>
     request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}`, { method: "PATCH", body: JSON.stringify(body) }),
   uploadFlowCompanies: (flowId: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
     return request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies/upload`, { method: "POST", headers: {}, body: form });
   },
+  findFlowDocuments: (flowId: string) => request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/documents/find`, { method: "POST" }),
+  uploadFlowDocument: (flowId: string, companyId: string, docType: string, file: File) => {
+    const form = new FormData();
+    form.append("company_id", companyId);
+    form.append("doc_type", docType);
+    form.append("file", file);
+    return request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/documents/upload`, { method: "POST", headers: {}, body: form });
+  },
+  decideFlowFiles: (flowId: string, body: { keys?: string[]; state?: "kept" | "removed"; all_that_pass?: boolean; all?: boolean }) =>
+    request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/files`, { method: "POST", body: JSON.stringify(body) }),
   addFlowCompanies: (flowId: string, body: { universe_path?: string; company?: { name: string; ticker?: string; isin?: string; lei?: string; cik?: string } }) =>
     request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies`, { method: "POST", body: JSON.stringify(body) }),
 
