@@ -33,7 +33,14 @@ from arp.config import Settings
 from arp.db.fields import SchemaRegistry
 from arp.db.session import require_dsn, transaction
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
-from arp.ingestion.registry import ONLY_DOCUMENTS, DocumentSourceRegistry, KeptDocuments, read_only_documents
+from arp.ingestion.registry import (
+    KEPT_NAMES,
+    ONLY_DOCUMENTS,
+    DocumentSourceRegistry,
+    KeptDocuments,
+    read_kept_names,
+    read_only_documents,
+)
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import NotResumable, RunBusy, check_resumable, get_job_launcher, resume_run, run_lease
 from arp.orchestration.step_tally import step_counts
@@ -295,12 +302,13 @@ async def start_flow(
     store.update(flow_id, claim)
     try:
         started = await extraction.start_extraction(
-            extraction.StartRequest(**body), settings=settings, run_store=run_store, registry=KeptDocuments(registry, only),
+            extraction.StartRequest(**body), settings=settings, run_store=run_store, registry=KeptDocuments(registry, only, kept_names(files)),
             decision_store=decision_store, xbrl_source=xbrl_source, principal=principal)
     except BaseException:
         store.update(flow_id, lambda f: setattr(f, "starting", False))
         raise
     (run_store.run_dir(started["run_id"]) / ONLY_DOCUMENTS).write_text(json.dumps({k: sorted(v) for k, v in only.items()}))
+    (run_store.run_dir(started["run_id"]) / KEPT_NAMES).write_text(json.dumps(kept_names(files)))
 
     def apply(f: ArgusFlow) -> None:
         f.run_id, f.step, f.starting = started["run_id"], max(f.step, 4), False
@@ -367,7 +375,8 @@ async def retry_company(
             pass
     except RunBusy as exc:
         raise HTTPException(409, str(exc)) from exc
-    kept = kept_content(view.files(flow)).get(company_id, set())
+    files = view.files(flow)
+    kept = kept_content(files).get(company_id, set())
     errors = [r for r in run_store.read_errors(run_id) if r.get("key") == company_id]
 
     with run_store.lock(run_id):  # a second Retry before the job starts sees `pending` and gets a 409
@@ -382,6 +391,7 @@ async def retry_company(
         only = read_only_documents(run_dir) or {}
         only[company_id] = kept
         (run_dir / ONLY_DOCUMENTS).write_text(json.dumps({k: sorted(v) for k, v in only.items()}))
+        (run_dir / KEPT_NAMES).write_text(json.dumps({**read_kept_names(run_dir), **kept_names(files)}))
         run_store.clear_errors(run_id, [company_id])
         try:
             await resume_run(run_id, settings=settings, run_store=run_store, registry=registry, lease=False, company_ids=[company_id])
@@ -402,6 +412,11 @@ async def retry_company(
             run_store.save_manifest(current)
         raise
     return flow_progress(flow_id, store=store, run_store=run_store, principal=view.principal)
+
+
+def kept_names(files: list[FlowFile]) -> dict[str, str]:
+    """Content key -> file name of the kept files: the run's error names a file it could not read."""
+    return {f.content_key: f.filename for f in files if f.state == "kept" and f.content_key}
 
 
 def _add(flow_id: str, rows: list[dict], store: FlowStore, settings: Settings, view: Viewer) -> ArgusFlowView:

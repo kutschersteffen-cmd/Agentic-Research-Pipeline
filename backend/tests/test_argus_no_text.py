@@ -1,6 +1,7 @@
 """Argus runs: a kept document with no text fails its company, marked as a document problem; other runs are unchanged."""
 
 import asyncio
+import re
 
 import pytest
 
@@ -59,3 +60,48 @@ def test_other_failures_are_not_document_problems():
     asyncio.run(run_batch([APPLE], item_key=lambda c: c.company_id, worker=worker, sinks=sinks, concurrency=1,
                           result_to_json=dict))
     assert "document_problem" not in rows[0]
+
+
+def test_image_placeholders_are_not_text():
+    """Docling writes '<!-- image -->' for a picture: an image-only page has no text the run could read."""
+    registry = KeptDocuments(_Registry([_doc("a", "<!-- image -->\n\n<!-- image -->")]), {"aapl": {"a"}})
+    with pytest.raises(UnreadableDocument, match=r"^No text could be read from a\.pdf$"):
+        asyncio.run(registry.fetch_all(APPLE))
+
+
+def test_a_kept_file_the_fetch_could_not_parse_fails_the_company():
+    """A file that failed to parse is left out of the fetch (logged, never raised): that is a kept file with no text too."""
+    registry = KeptDocuments(_Registry([_doc("b", "Apple annual report")]), {"aapl": {"a", "b"}}, names={"a": "scan.pdf"})
+    with pytest.raises(UnreadableDocument, match=r"^No text could be read from scan\.pdf$"):
+        asyncio.run(registry.fetch_all(APPLE))
+    narrowed = asyncio.run(registry.fetch_all(APPLE, [DocType.ANNUAL_REPORT_10K]))  # a doc-type fetch may leave kept files out
+    assert [d.content_key for d in narrowed] == ["b"]
+
+
+def test_blank_and_image_only_pdfs_through_the_real_document_source(tmp_path, pg):
+    """The live path: the real local source with the real content store, as the API builds it (arp.api.deps.build_registry)."""
+    from PIL import Image, ImageDraw
+    from pypdf import PdfWriter
+
+    from arp.config import Settings
+    from arp.ingestion.local_files import LocalFileDocumentSource
+    from arp.ingestion.registry import DocumentSourceRegistry
+    from arp.retrieval.content_store_factory import content_store_for
+
+    settings = Settings(anthropic_api_key="unused", postgres_dsn=pg, documents_dir=tmp_path / "docs",
+                        document_store_dir=tmp_path / "store", cache_dir=tmp_path / "cache")
+    folder = settings.documents_dir / "aapl" / "10-K"
+    folder.mkdir(parents=True)
+    w = PdfWriter()
+    w.add_blank_page(612, 792)
+    w.write(folder / "blank.pdf")
+    img = Image.new("RGB", (800, 1000), "white")
+    ImageDraw.Draw(img).rectangle((100, 100, 700, 300), fill="black")  # a picture, no words
+    img.save(folder / "scan.pdf", "PDF")
+    store = content_store_for(settings)
+    source = DocumentSourceRegistry([LocalFileDocumentSource(settings.documents_dir, content_store=store)])
+    for name in ("blank.pdf", "scan.pdf"):
+        key = store.content_key_for_file(folder / name)
+        kept = KeptDocuments(source, {"aapl": {key}}, names={key: name})
+        with pytest.raises(UnreadableDocument, match="^No text could be read from " + re.escape(name) + "$"):  # AC-37
+            asyncio.run(kept.fetch_all(APPLE))

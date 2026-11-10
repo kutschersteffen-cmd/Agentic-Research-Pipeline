@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from pathlib import Path
 
 from arp.config import Settings
@@ -68,10 +69,11 @@ class UnreadableDocument(Exception):
 
 class KeptDocuments:
     """A document registry that hands a listed company only its kept documents (by content key); every other
-    company, and everything but `fetch_all`, is the wrapped registry's."""
+    company, and everything but `fetch_all`, is the wrapped registry's. `names`: content key -> file name, for the
+    error that names a kept file the run could not read."""
 
-    def __init__(self, inner, only: dict[str, set[str]]) -> None:
-        self.inner, self.only = inner, only
+    def __init__(self, inner, only: dict[str, set[str]], names: dict[str, str] | None = None) -> None:
+        self.inner, self.only, self.names = inner, only, names or {}
 
     async def fetch_all(self, company: CompanyRef, doc_types: list[DocType] | None = None) -> list[SourceDocument]:
         docs = await self.inner.fetch_all(company, doc_types)
@@ -80,12 +82,20 @@ class KeptDocuments:
             return docs
         kept = [d for d in docs if d.content_key in keep]
         for d in kept:
-            if not d.full_text.strip():
+            if not _IMAGE.sub("", d.full_text).strip():
                 raise UnreadableDocument(f"No text could be read from {Path(d.local_path).name if d.local_path else d.title}")
+        # a kept file that failed to parse is left out of the fetch (logged, not raised); a doc-type fetch leaves some out on purpose
+        missing = sorted(keep - {d.content_key for d in kept}) if doc_types is None else []
+        if missing:
+            raise UnreadableDocument(f"No text could be read from {self.names.get(missing[0], 'a kept file')}")
         return kept
 
     def __getattr__(self, name):
         return getattr(self.inner, name)
+
+
+_IMAGE = re.compile(r"<!--\s*image\s*-->")  # Docling's markdown for a picture: no text the run could read
+KEPT_NAMES = "kept_names.json"  # in a run's folder: content key -> file name of the kept files
 
 
 def read_only_documents(run_dir: Path) -> dict[str, set[str]] | None:
@@ -93,7 +103,12 @@ def read_only_documents(run_dir: Path) -> dict[str, set[str]] | None:
     return {k: set(v) for k, v in json.loads(path.read_text()).items()} if path.is_file() else None
 
 
+def read_kept_names(run_dir: Path) -> dict[str, str]:
+    path = run_dir / KEPT_NAMES
+    return json.loads(path.read_text()) if path.is_file() else {}
+
+
 def for_run(registry, run_dir: Path):
     """The registry a run reads through: limited to its kept documents when it was started from Argus."""
     only = read_only_documents(run_dir)
-    return registry if only is None else KeptDocuments(registry, only)
+    return registry if only is None else KeptDocuments(registry, only, read_kept_names(run_dir))
