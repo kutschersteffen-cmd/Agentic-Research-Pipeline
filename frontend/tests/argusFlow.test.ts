@@ -151,3 +151,11 @@ test("results: a conflict row shows the accepted and the new value", () => {
   assert.deepEqual([rows[0].accepted, rows[0].value], ["12", "14"]); // AC-55: Accepted: 12 / New: 14
   assert.equal(onlyNeedsYou(rows).length, 1);
 });
+
+test("a conflict's accepted value reads like the new one, with its unit, and never as [object Object]", async () => {
+  const { acceptedLabel } = await import("../src/lib/argusFlow.ts");
+  assert.equal(acceptedLabel(12000000, "EUR"), "12000000 EUR");
+  assert.equal(acceptedLabel(12, null), "12");
+  assert.equal(acceptedLabel({ low: 1, high: 2 }, null), '{"low":1,"high":2}');
+  assert.equal(acceptedLabel(null, "EUR"), "—");
+});
