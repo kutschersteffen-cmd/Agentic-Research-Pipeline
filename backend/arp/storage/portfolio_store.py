@@ -449,4 +449,12 @@ def portfolio_directories(store: PortfolioStore) -> tuple[dict[str, SecurityRef]
     """
     securities = {s.security_id: s for s in store.list_securities()}
     companies = {c.company_id: c for c in store.list_companies()}
+    # A security loaded through holdings intake has no company of its own: its issuer, as the security master
+    # resolved it, is its resolution. Without this an uploaded portfolio is one "(unresolved)" row everywhere.
+    # shortcut: one lookup per security that has no company; a bulk read if uploaded securities reach the thousands.
+    for sid, sec in securities.items():
+        if sec.company_id is None:
+            res = store.get_resolution(sid)
+            if res is not None and res.company_id and not res.needs_review:
+                securities[sid] = sec.model_copy(update={"company_id": res.company_id})
     return securities, companies
