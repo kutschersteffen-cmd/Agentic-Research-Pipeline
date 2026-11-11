@@ -463,6 +463,16 @@ project cannot reach shows as `FAIL` instead of being replaced quietly. It also
 downloads `ARP_PREFLIGHT_FETCH_URL` to prove the machine can fetch company
 documents. Logs: `${TMPDIR:-/tmp}/arp-jupyter/api.log`.
 
+**Run modes.** On the Extraction screen, use **Normal** mode: it asks for
+Claude models, which the two fallback settings above turn into your Gemini
+model. **Cheap** and **Max** name `gemini-3.8-flash` and `gemini-4-argon`
+directly (`backend/arp/extraction/steps.py`); `check` does not test those, so
+use them only if your Vertex project offers both.
+
+**Sign-in behind the proxy.** The browser sends the Jupyter host as `Origin`
+on every save or start. `ARP_ALLOWED_ORIGINS=["*"]` accepts it; to be
+stricter, list the exact origin instead, e.g. `["https://<your-jupyter-host>"]`.
+
 To update: `git pull`, then `scripts/launch_jupyter.sh down` and `up`.
 
 ## Troubleshooting

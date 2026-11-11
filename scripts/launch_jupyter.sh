@@ -23,7 +23,9 @@ setting() {  # setting NAME: its value from the environment, else from backend/.
   printf '%s' "$value"
 }
 
-running() { [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null; }
+running() {  # the pid file's process is alive and is this server (a reused pid is not)
+  [ -f "$pidfile" ] && tr '\0' ' ' <"/proc/$(cat "$pidfile")/cmdline" 2>/dev/null | grep -q "arp.api.main"
+}
 
 port_busy() { (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; }
 
@@ -38,6 +40,7 @@ stop() {
 
 case "${1:-}" in
   up)
+    command -v curl >/dev/null || { echo "curl is not installed" >&2; exit 1; }
     required="ARP_POSTGRES_DSN ARP_LLM_MODEL ARP_LLM_VERIFIER_MODEL"
     [ "$(setting ARP_GEMINI_USE_VERTEX)" = "true" ] && required="$required ARP_GCP_PROJECT"
     missing=0
@@ -56,15 +59,19 @@ case "${1:-}" in
     cd "$root/backend"
     python3 -m arp db init-postgres >/dev/null
     cd "$root/frontend"
-    if [ ! -f dist/index.html ] || [ -n "$(find src index.html -newer dist/index.html -print -quit)" ]; then
-      [ -d node_modules ] || npm ci >"$state/npm.log" 2>&1
+    # Rebuild when there is no build, it is not the relative one-port build, or its inputs are newer.
+    if [ ! -f dist/index.html ] || ! grep -q '"\./assets/' dist/index.html ||
+       [ -n "$(find src public index.html vite.config.ts package-lock.json -newer dist/index.html -print -quit)" ]; then
+      if [ ! -d node_modules ] || [ package-lock.json -nt node_modules/.package-lock.json ]; then
+        npm ci >"$state/npm.log" 2>&1 || { echo "npm ci failed, see $state/npm.log" >&2; exit 1; }
+      fi
       VITE_API_BASE=. npm run build >"$state/build.log" 2>&1 || { echo "frontend build failed, see $state/build.log" >&2; exit 1; }
     fi
     cd "$root/backend"
     ARP_FRONTEND_DIST="$root/frontend/dist" nohup python3 -m uvicorn arp.api.main:app --host 0.0.0.0 --port "$port" >"$log" 2>&1 &
     echo $! >"$pidfile"
     for _ in $(seq 1 120); do
-      if curl -sf "http://127.0.0.1:$port/api/health" >/dev/null; then
+      if curl -sf --noproxy '*' "http://127.0.0.1:$port/api/health" >/dev/null; then
         if [ -n "${JUPYTERHUB_SERVICE_PREFIX:-}" ]; then
           echo "${JUPYTERHUB_SERVICE_PREFIX%/}/proxy/$port/"
         else

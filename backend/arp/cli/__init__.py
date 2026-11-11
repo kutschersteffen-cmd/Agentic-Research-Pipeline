@@ -86,9 +86,7 @@ def preflight_cmd(base_url: str = typer.Option("http://127.0.0.1:8000", help="Wh
     from arp import preflight
     from arp.config import get_settings
 
-    lines = asyncio.run(preflight.run_preflight(get_settings(), base_url=base_url))
-    for line in lines:
-        typer.echo(line)
+    lines = asyncio.run(preflight.run_preflight(get_settings(), base_url=base_url, on_line=typer.echo))
     if any(line.startswith("FAIL") for line in lines):
         raise typer.Exit(1)
 

@@ -38,6 +38,8 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setattr(preflight, "require_postgres", lambda s: None)
     monkeypatch.setattr(preflight, "require_cutover", lambda s: None)
     monkeypatch.setattr(preflight, "_auth", lambda url: {})
+    monkeypatch.setattr(preflight, "models_configured", lambda: True)
+    monkeypatch.setattr(preflight, "parse_configured", lambda: True)
 
     def factory(settings, *, model, cache_refresh):
         w.built.append((model, settings.anthropic_api_key, settings.gemini_available))
@@ -124,7 +126,9 @@ def test_cli_exit_codes(world, monkeypatch):
 
     from arp.cli import app
 
-    async def fake(settings, **kw):
+    async def fake(settings, on_line, **kw):
+        for line in fake.lines:
+            on_line(line)
         return fake.lines
 
     monkeypatch.setattr(preflight, "run_preflight", fake)
@@ -134,3 +138,53 @@ def test_cli_exit_codes(world, monkeypatch):
     assert (ok.exit_code, ok.stdout.splitlines()) == (0, ALL_OK)
     fake.lines = ["FAIL postgres: down", *ALL_OK[1:]]
     assert CliRunner().invoke(app, ["preflight"]).exit_code == 1
+
+
+async def test_compute_url_without_its_other_settings_fails_with_the_reason(world, monkeypatch):
+    # the app would quietly parse on the local CPU; the check has to say so
+    monkeypatch.setattr(preflight, "parse_configured", lambda: False)
+    monkeypatch.setitem(preflight.last_error, "parse", "ARP_COMPUTE_BUCKET not set")
+    lines = await world.run()
+    assert lines[4] == "FAIL compute parse: ARP_COMPUTE_BUCKET not set"
+
+
+async def test_a_check_that_hangs_times_out(world, monkeypatch):
+    import asyncio
+
+    class Hangs(FakeLLM):
+        async def complete_structured(self, **kw):
+            await asyncio.sleep(3600)
+
+    monkeypatch.setattr(preflight, "CHECK_TIMEOUT_S", 0.05)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(200))) as http:
+        lines = await preflight.run_preflight(world.settings, llm_factory=lambda s, **kw: Hangs(kw["model"]), http=http)
+    assert lines[1] == f"FAIL model {MODEL}: no answer within 0.05 s"
+    assert len(lines) == 7
+
+
+async def test_lines_are_reported_as_they_finish(world):
+    seen = []
+    async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(200))) as http:
+        lines = await preflight.run_preflight(world.settings, llm_factory=lambda s, **kw: FakeLLM(kw["model"]), http=http, on_line=seen.append)
+    assert seen == lines
+
+
+def test_preflight_runs_with_the_database_down(monkeypatch, tmp_path):
+    # the CLI's own Postgres gate must not stop it: an unreachable database is line 1, not a refusal to run
+    from typer.testing import CliRunner
+
+    from arp.cli import app
+    from arp.config import get_settings
+
+    async def fake(settings, **kw):
+        return ["FAIL postgres: down"]
+
+    monkeypatch.setattr(preflight, "run_preflight", fake)
+    monkeypatch.setenv("ARP_POSTGRES_DSN", "postgresql+psycopg://arp:arp@127.0.0.1:1/none")
+    get_settings.cache_clear()
+    try:
+        result = CliRunner().invoke(app, ["preflight"])
+    finally:
+        get_settings.cache_clear()
+    assert result.exit_code == 1
+    assert "Postgres unreachable" not in result.output
