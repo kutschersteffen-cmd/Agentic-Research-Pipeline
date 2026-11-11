@@ -15,6 +15,10 @@ same mistake costs one week, not every week. You never merge, and you change rul
 - **Failed CI runs on PRs:** group by job name; note the jobs that failed on three or more PRs.
 - **Holdout and evaluator:** `<slug> AC-n: fail` lines in Holdout acceptance logs, and failing rows
   in posted acceptance matrices.
+- **Spec drift:** for each spec in `docs/superpowers/specs/` merged to `main` in the last 30 days,
+  in a fresh subagent given only that spec and the repo: list the files, endpoints, settings and
+  behaviours it describes that the current code no longer matches. Leave out rows of a later spec
+  that replaced it and parts the spec marks as later work.
 
 Never attach or read the `holdout` repo; the AC labels in the app repo's logs are all you need.
 
@@ -44,6 +48,8 @@ At most 3 changes, each the smallest edit that would have prevented it, in one o
   that (in the PR body, since hooks and workflows are `risk:high`) before adding a CLAUDE.md line. Keep
   only changes that are durable, change a decision, and are not already covered.
 - One-off failures go in the log only.
+- Spec drift: one log finding per drifted spec. In the PR body, say for each whether the code or the
+  spec looks wrong; never edit app code or a spec in the retro PR.
 
 ## 4. Open the PR
 
