@@ -167,6 +167,11 @@ async def _finalize_from_revenue(state: MatchState) -> dict:
 
 
 async def _gather_evidence(state: MatchState) -> dict:
+    # Chunking and ranking are CPU-bound and wait on the embedding lock: on the event loop they froze the whole API.
+    return {"evidence": await asyncio.to_thread(_select_evidence, state)}
+
+
+def _select_evidence(state: MatchState) -> list[DocumentChunk]:
     activity = state["activity"]
     settings = state["settings"]
     # With the funnel on, its wider keyword list (schema fields, stage words) chooses the evidence (spec amendment B).
@@ -189,7 +194,7 @@ async def _gather_evidence(state: MatchState) -> dict:
 
         opensearch_client = get_client(settings.opensearch_url)
 
-    evidence = select_relevant_chunks(
+    return select_relevant_chunks(
         all_chunks,
         keywords,
         max_chunks=_MAX_EVIDENCE_CHUNKS_PER_CALL,
@@ -198,7 +203,6 @@ async def _gather_evidence(state: MatchState) -> dict:
         retrieval_backend=settings.retrieval_backend,
         opensearch_client=opensearch_client,
     )
-    return {"evidence": evidence}
 
 
 def _route_after_evidence(state: MatchState) -> str:
@@ -242,7 +246,12 @@ async def _finalize_no_evidence(state: MatchState) -> dict:
         indirect
         and max(indirect.upstream_exposure, indirect.downstream_exposure) >= settings.indirect_exposure_review_threshold
     )
-    rationale = "No evidence of this activity was found in the available documents."
+    # No document at all (a filer the sources don't cover, a blocked search) is "not assessed", not a confident "no".
+    undocumented = not state["documents"]
+    rationale = (
+        "No documents were found for this company, so this activity could not be assessed." if undocumented
+        else "No evidence of this activity was found in the available documents."
+    )
     if structural_flag:
         rationale += (
             " However, input-output propagation shows structural exposure to this activity's core "
@@ -261,9 +270,9 @@ async def _finalize_no_evidence(state: MatchState) -> dict:
         name=company.name,
         activity_id=activity.activity_id,
         activity_name=activity.name,
-        verdict=MatchVerdict.EXCLUDE,
+        verdict=MatchVerdict.UNCERTAIN if undocumented else MatchVerdict.EXCLUDE,
         exposure_estimate=ExposureEstimate.NONE,
-        confidence=0.5 if structural_flag else 1.0,
+        confidence=0.0 if undocumented else 0.5 if structural_flag else 1.0,
         advocate=_no_evidence_opinion(),
         opposing=_no_evidence_opinion(),
         adjudicator_rationale=rationale,
@@ -272,7 +281,7 @@ async def _finalize_no_evidence(state: MatchState) -> dict:
         revenue_exposure=revenue_exposure,
         rd_exposure=state["rd_exposure"],
         arbitration=arbitration,
-        flagged_for_review=structural_flag or arbitration.methods_disagree or arbitration.mid_band,
+        flagged_for_review=undocumented or structural_flag or arbitration.methods_disagree or arbitration.mid_band,
     )
     return {"match": match}
 
