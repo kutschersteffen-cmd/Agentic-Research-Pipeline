@@ -192,9 +192,31 @@ _503 = [
     ("arp.snapshots.build", "SnapshotFrozen"), ("arp.publish.facts", "ConcurrentPublish"),
 ]
 
+# Not in the spec's table; the owner chose to keep today's status.
+_EXTRA = [
+    ("arp.storage.opensearch_client", "OpenSearchExtraNotInstalled", 503),
+    ("arp.storage.taxonomy_store", "TaxonomyVersionConflict", 503),
+    ("arp.storage.postgres", "PostgresExtraNotInstalled", 503),
+    ("arp.storage.document_blob_store", "CaptureStoreError", 503),
+    ("arp.storage.object_store_client", "ObjectStoreExtraNotInstalled", 503),
+    ("arp.xbrl_pipeline.verify", "CircularRunError", 400),
+    ("arp.xbrl_pipeline.verify", "UnsupportedRunError", 400),
+    ("arp.argus.start", "StartError", 400),
+    ("arp.rfp.fill", "FillRefused", 400),
+    ("arp.db.importer", "ImportFailed", 503),
+    ("arp.db.fields", "FieldIdCollision", 400),
+    ("arp.db.fields", "UnreleasedFieldError", 400),
+    ("arp.db.fields", "FieldVersionError", 400),
+    ("arp.index.optimize", "RiskModelCoverageError", 400),
+    ("arp.index.fields", "DataQualityBlock", 503),
+    ("arp.index.risk", "RiskModelError", 400),
+    ("arp.authoritative.store", "StalePublish", 400),
+    ("arp.company_graph", "CompanyGraphError", 503),
+]
+
 
 @pytest.mark.parametrize(
-    "mod,name,status", [(m, n, 400) for m, n in _400] + [(m, n, 503) for m, n in _503]
+    "mod,name,status", [(m, n, 400) for m, n in _400] + [(m, n, 503) for m, n in _503] + _EXTRA
 )
 def test_ac55_status_quo_per_class(client, mod, name, status):
     cls = getattr(importlib.import_module(mod), name)

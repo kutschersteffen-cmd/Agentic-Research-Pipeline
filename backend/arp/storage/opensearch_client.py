@@ -26,7 +26,7 @@ class OpenSearchNotConfigured(NotConfigured):
         )
 
 
-class OpenSearchExtraNotInstalled(RuntimeError):
+class OpenSearchExtraNotInstalled(NotConfigured):
     def __init__(self, exc: Exception) -> None:
         super().__init__(
             "opensearch_url is set but opensearch-py isn't installed. Install the optional extra: "
