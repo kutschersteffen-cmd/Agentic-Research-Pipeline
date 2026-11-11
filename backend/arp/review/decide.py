@@ -229,7 +229,7 @@ def _decide_locked(
     reasons: list[str] = []
     if step == "first" and kind != "other":  # a failure report keeps the legacy single decision
         prior = None
-        if kind in ("value", "restatement_candidate", "conflict"):  # a conflict shares its value item's key
+        if kind in ("value", "restatement_candidate"):
             key = item.payload["item_key"] if kind == "restatement_candidate" else item_key
             prior = RunHistory.load(run_store, exclude_run_id=run_id).last_decided(key)
         reasons = second_review_reasons(
@@ -238,6 +238,11 @@ def _decide_locked(
             corrected_value=req.corrected_value, prior=prior, sample_rate=settings.second_review_sample_rate,
             changes_final=s.state in FINAL_STATES and not agrees(s.effective, req.model_dump()),
         )
+        # Accepting a new value over one a person approved or edited needs a second approver (owner, 2026-11-11);
+        # keeping the accepted value, or replacing an auto-accepted one, changes no human decision.
+        accepted_by = (item.payload.get("accepted") or {}).get("status") if kind == "conflict" else None
+        if req.decision == "approve" and accepted_by in ("approved", "edited") and "published_change" not in reasons:
+            reasons.insert(0, "published_change")
         if barrier and req.decision == "approve" and item.payload["kind"] == "changed" and "published_change" not in reasons:
             reasons.insert(0, "published_change")  # a rating change; an unchanged result only follows the sampling
     reasons += [r for r in extra_reasons if r not in reasons]

@@ -213,11 +213,33 @@ def test_bare_body_decides_a_conflict(api, run_store, pg, decision, current):  #
     _run(run_store, pg, 14.0, run_id="r2")
     r = api.post(f"/api/review/runs/r2/items/{KEY}/decision", json={"decision": decision})
     assert r.status_code == 200, r.text
-    if r.json()["second_reasons"]:  # replacing a person's decision: a second approver confirms (review finding 1)
+    if decision == "approve":  # replacing a person's approved value: a second approver confirms (owner, 2026-11-11)
+        assert r.json()["second_reasons"] == ["published_change"]
         app.dependency_overrides[current_user] = lambda: DAVE
         r = api.post(f"/api/review/runs/r2/items/{KEY}/decision", json={"decision": decision})
         assert r.status_code == 200, r.text
+    else:  # keeping the accepted value changes nothing a person decided: final in one step (AC-50)
+        assert r.json()["second_reasons"] == []
+    assert r.json()["state"] in ("final", "second_done")
     assert [f for f in _facts(pg) if f[2]][0][0] == current
+
+
+def test_accepting_new_over_an_auto_accepted_value_is_final_in_one_step(api, run_store, pg):  # owner, 2026-11-11
+    _accept(run_store, pg, m.FactStatus.AUTO_ACCEPTED)
+    _run(run_store, pg, 14.0, run_id="r2")
+    r = api.post(f"/api/review/runs/r2/items/{KEY}/decision", json={"decision": "approve"})
+    assert r.status_code == 200, r.text
+    assert r.json()["second_reasons"] == []
+    assert [f for f in _facts(pg) if f[2]] == [(14.0, m.FactStatus.APPROVED, True)]
+
+
+def test_keep_then_same_value_through_the_api_raises_nothing(api, run_store, pg):  # AC-51 via the API
+    _accept(run_store, pg, m.FactStatus.APPROVED)
+    _run(run_store, pg, 14.0, run_id="r2")
+    r = api.post(f"/api/review/runs/r2/items/{KEY}/decision", json={"decision": "reject"})
+    assert r.status_code == 200, r.text
+    _run(run_store, pg, 14.0, run_id="r3")
+    assert api.get("/api/review/items", params={"run_id": "r3"}).json()["items"] == []
 
 
 def test_bare_body_on_a_value_item_is_still_422(api, run_store, pg):
