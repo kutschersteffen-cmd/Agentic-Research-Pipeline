@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { api } from "../api/client";
 import { FileImg } from "../components/FileLink";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
-import { continueFilesLabel, previousYear } from "../lib/argusFlow";
+import { continueFilesLabel, previousYear, searchStatusText } from "../lib/argusFlow";
 import type { ArgusFlow as Flow, FlowFile } from "../types";
 
 type Source = "upload" | "import" | "filings" | "filings_web";
@@ -97,7 +97,7 @@ export function ArgusDocuments({ flow, busy, act, refresh, onContinue }: {
               </button>
               {flow.discovery && (
                 <span role="status" className="muted">
-                  {running ? "Searching…" : `Search ${flow.discovery.status.replace("_", " ")}.`} <a href="#/history">Run history</a>
+                  {searchStatusText(flow.discovery.status, flow.files.length)} <a href="#/history">Run history</a>
                 </span>
               )}
             </div>

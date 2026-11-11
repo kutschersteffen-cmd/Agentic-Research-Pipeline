@@ -18,6 +18,16 @@ export const documentsText = (count: number, types: string[]) => (count ? `${cou
 export const continueLabel = (n: number) => `Continue with ${n} ${n === 1 ? "company" : "companies"}`;
 
 /** The company's own identifiers first, then the security master's that it doesn't already show. */
+const SEARCH_ENDED = ["completed", "partially_completed", "failed", "cancelled"];
+
+/** Step 2's line under "Find documents". A search that ended with nothing found says so and what to try. */
+export function searchStatusText(status: string, files: number): string {
+  if (!SEARCH_ENDED.includes(status)) return "Searching…";
+  if (status === "completed" && files === 0)
+    return "The search found no documents. Add an ISIN, LEI or CIK in step 1, try the other source, or upload the report.";
+  return `Search ${status.replace("_", " ")}.`;
+}
+
 export function identifierList(r: FlowRow): string[] {
   const own = Object.entries(r.identifiers).flatMap(([s, vs]) => vs.map((v) => `${s} ${v}`));
   const master = Object.entries(r.master_identifiers).flatMap(([s, vs]) => vs.map((v) => `${s} ${v}`));

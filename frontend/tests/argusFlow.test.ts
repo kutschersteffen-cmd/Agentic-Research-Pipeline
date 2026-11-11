@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { continueLabel, documentsText, extractedBeforeText, flowHref, identifierList } from "../src/lib/argusFlow.ts";
+import { continueLabel, documentsText, extractedBeforeText, flowHref, identifierList, searchStatusText } from "../src/lib/argusFlow.ts";
 import { argusRows } from "../src/lib/argusStart.ts";
 import type { ArgusFlow, FlowRow, RunManifest } from "../src/types.ts";
 
@@ -158,4 +158,13 @@ test("a conflict's accepted value reads like the new one, with its unit, and nev
   assert.equal(acceptedLabel(12, null), "12");
   assert.equal(acceptedLabel({ low: 1, high: 2 }, null), '{"low":1,"high":2}');
   assert.equal(acceptedLabel(null, "EUR"), "—");
+});
+
+test("a finished search that found nothing says so and what to do next", () => {
+  // seen live: "Search completed." above an empty list, with Continue disabled and no reason
+  assert.equal(searchStatusText("completed", 0), "The search found no documents. Add an ISIN, LEI or CIK in step 1, try the other source, or upload the report.");
+  assert.equal(searchStatusText("completed", 3), "Search completed.");
+  assert.equal(searchStatusText("partially_completed", 2), "Search partially completed.");
+  assert.equal(searchStatusText("failed", 0), "Search failed.");
+  assert.equal(searchStatusText("running", 0), "Searching…");
 });
