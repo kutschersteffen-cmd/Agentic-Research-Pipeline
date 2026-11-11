@@ -1,4 +1,5 @@
 """Spec llm-gemini-fallback: Gemini serves when Anthropic has no key, or after a credit/auth error. Fake clients only."""
+import asyncio
 import logging
 from types import SimpleNamespace
 
@@ -313,9 +314,12 @@ async def test_ac33_standins_bypass_everything(tmp_path, fakes):
     from arp.standins import StandInLLMClient
 
     standins = tmp_path / "standins"
-    standins.mkdir()
+    (standins / "model").mkdir(parents=True)
+    (standins / "model" / "Answer.json").write_text('{"output": {"value": 7}}')
     client = build_llm_client(Settings(standins_dir=standins, cache_dir=tmp_path, anthropic_api_key=None, gemini_api_key=None))
     assert isinstance(client, StandInLLMClient)
+    out, usage = await call(client)
+    assert out.value == 7 and usage.provider == "stand-in"  # answered from the stand-in folder
     assert (fakes.ant, fakes.gem) == (0, 0)
 
 
@@ -331,3 +335,23 @@ def test_ac36_37_usage_field():
     d = LLMUsage(model="m").model_dump()
     d.pop("fallback_from")
     assert LLMUsage.model_validate(d).fallback_from == ""
+
+
+async def test_concurrent_credit_errors_switch_once(tmp_path, fakes, caplog, monkeypatch):
+    caplog.set_level(logging.DEBUG)
+    built = []
+    real_init = GeminiClient.__init__
+
+    def counting_init(self, *a, **kw):
+        built.append(1)
+        real_init(self, *a, **kw)
+
+    async def slow_fail(self, params):
+        await asyncio.sleep(0.01)
+        raise credit_error()
+
+    monkeypatch.setattr(GeminiClient, "__init__", counting_init)
+    monkeypatch.setattr(LangChainAnthropicClient, "_send", slow_fail)
+    client = build_llm_client(settings(tmp_path))
+    await asyncio.gather(*(call(client) for _ in range(3)))
+    assert (len(warnings(caplog)), len(built), fakes.gem) == (1, 1, 3)

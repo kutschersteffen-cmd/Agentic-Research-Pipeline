@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Callable
 
@@ -24,6 +25,7 @@ class FallbackLLMClient:
     def __init__(self, primary: LLMClient, make_gemini: Callable[[], LLMClient], warning: str) -> None:
         self._primary, self._make_gemini, self._warning = primary, make_gemini, warning
         self._gemini: LLMClient | None = None
+        self._switch = asyncio.Lock()  # concurrent failing calls switch once: one warning, one Gemini client
 
     async def complete_structured(self, **kwargs) -> tuple[T, LLMUsage]:
         if self._gemini is None:
@@ -32,6 +34,8 @@ class FallbackLLMClient:
             except Exception as exc:
                 if not is_credit_or_auth_error(exc):
                     raise
-                log.warning(self._warning)
-                self._gemini = self._make_gemini()
+                async with self._switch:
+                    if self._gemini is None:
+                        log.warning(self._warning)
+                        self._gemini = self._make_gemini()
         return await self._gemini.complete_structured(**kwargs)
