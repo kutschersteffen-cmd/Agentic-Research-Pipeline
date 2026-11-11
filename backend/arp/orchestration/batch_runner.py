@@ -178,7 +178,7 @@ async def run_company_batch(
                             fiscal_year_end=company.fiscal_year_end)
             if company.entity_id is not None else []
         )
-        retrying(
+        conflicts = retrying(
             run_store.record_company_result,
             run_id, row, observations=observations, review_items=items, company=company, errors=errors,
         )
@@ -186,7 +186,7 @@ async def run_company_batch(
             job_manager.record_progress,
             run_id,
             completed_delta=1,
-            review_delta=len(items),
+            review_delta=len(items) + (conflicts or 0),  # conflict items on accepted facts (data rule 1)
             usage=getattr(result, "usage", None),
             cost_delta_usd=cost_usd(result) if cost_usd else 0.0,
         )

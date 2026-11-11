@@ -62,6 +62,14 @@ set follow in their own PRs.
   item, not a conflict plus a review item.
 - After **keep** on a conflict, the same new value for that fact does not raise the conflict again; a
   different value does.
+- Owner rulings, 2026-11-11 (slice 7):
+  - **Accept new** over a fact a person approved or edited needs a second approver, the same
+    `published_change` second review a value correction gets. AC-52's outcome holds once that review is
+    final; over an auto-accepted fact one approve is final.
+  - A new value routed to **hold** raises no conflict; it stays held, since an approver must release it
+    anyway. Only values routed to auto-accept or review create a conflict item.
+  - The rule covers values from runs. Data loaded without a run (XBRL facts, ESG loads) still
+    supersedes; a follow-up checks whether any load writes the same fields as extraction.
 - "The same documents" means the set of file contents the earlier run used for that company equals the
   set chosen now. Runs stored before this change have no such record and never trigger the warning.
 - **Expected year** for the document check is a `Reporting year` field in step 2, defaulting to the

@@ -143,3 +143,19 @@ test("a hand-over clicked twice while the first is in flight starts one flow", a
   await assert.rejects(failing(), /boom/);
   await assert.rejects(failing(), /boom/);  // a failure frees the guard
 });
+
+test("results: a conflict row shows the accepted and the new value", () => {
+  const conflict = { ...item("ka:f1:2025-12-31"), kind: "conflict" as const, payload: { kind: "conflict", accepted: { value: 12, fact_id: 7 } } };
+  const rows = resultRows([record("a", [field("f1", { value: 14 })])], [conflict]);
+  assert.equal(rows.length, 1);
+  assert.deepEqual([rows[0].accepted, rows[0].value], ["12", "14"]); // AC-55: Accepted: 12 / New: 14
+  assert.equal(onlyNeedsYou(rows).length, 1);
+});
+
+test("a conflict's accepted value reads like the new one, with its unit, and never as [object Object]", async () => {
+  const { acceptedLabel } = await import("../src/lib/argusFlow.ts");
+  assert.equal(acceptedLabel(12000000, "EUR"), "12000000 EUR");
+  assert.equal(acceptedLabel(12, null), "12");
+  assert.equal(acceptedLabel({ low: 1, high: 2 }, null), '{"low":1,"high":2}');
+  assert.equal(acceptedLabel(null, "EUR"), "—");
+});

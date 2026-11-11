@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { cardView, stepStatusLine, waitingLink, waitingSentence, waitingStat, waitingTarget, workspaceState } from "../src/lib/workspaceCard.ts";
 import { WORKSPACES } from "../src/lib/processes.ts";
 import type { RunManifest, StewardshipFlow } from "../src/types.ts";
@@ -55,7 +55,9 @@ test("AC-21: down Argus label", () =>
   assert.equal(view("Argus", down).label, "Argus. Extract and score: status unknown; XBRL facts: status unknown"));
 
 test("AC-20: DESIGN.md no longer promises a status line on the card", () => {
-  const design = readFileSync(new URL("../../DESIGN.md", import.meta.url), "utf8");
+  // Walk up to the repo root: Stryker runs this file from a sandbox copy one or two folders deeper.
+  const up = ["../../", "../../../", "../../../../"].map((p) => new URL(`${p}DESIGN.md`, import.meta.url));
+  const design = readFileSync(up.find((u) => existsSync(u)) ?? up[0], "utf8");
   assert.ok(!design.includes("a status in the signal colour when someone is needed"));
 });
 

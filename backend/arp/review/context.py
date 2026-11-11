@@ -42,7 +42,7 @@ CHECK_WORDS: dict[str, str] = {
 }
 
 PAGE_CHARS = 10_000
-_FIELD_KINDS = (ReviewItemKind.VALUE, ReviewItemKind.RESTATEMENT_CANDIDATE)
+_FIELD_KINDS = (ReviewItemKind.VALUE, ReviewItemKind.RESTATEMENT_CANDIDATE, ReviewItemKind.CONFLICT)
 _DOC_KEYS = ("doc_id", "doc_type", "title", "company_id", "source_filename")
 
 

@@ -27,6 +27,7 @@ export const ITEM_KIND_LABEL: Record<ReviewItemKind, string> = {
   restatement_candidate: "Restatement",
   discovered_document: "Found document",
   no_documents: "No documents",
+  conflict: "Conflict",
   other: "Other",
 };
 
@@ -40,6 +41,7 @@ export const decisionChoices = (kind: ReviewItemKind, runType?: string): ItemDec
   : kind === "barrier_cell" ? ["approve", "reject"]
   : kind === "discovered_document" ? ["approve", "reject", "escalate"]
   : kind === "no_documents" ? ["approve", "escalate"]
+  : kind === "conflict" ? ["reject", "approve", "escalate"] // keep accepted, accept new
   : kind === "other" ? []
   : ["approve", "correct", "reject", "escalate"];
 

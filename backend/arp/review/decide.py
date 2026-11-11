@@ -20,7 +20,7 @@ from arp.review.items import get_item
 from arp.review.quality import record_confirmed_correction
 from arp.schemas.common import Citation, SourceDocument
 from arp.schemas.issuer import lei_is_valid, normalise_lei
-from arp.schemas.review import BulkAcceptRequest, BulkItem, ItemDecisionRequest, ReviewDecision
+from arp.schemas.review import BulkAcceptRequest, BulkItem, DecisionReason, ItemDecisionRequest, ReviewDecision
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
 from arp.transition_barrier import RUN_TYPE as BARRIER_RUN_TYPE
@@ -39,6 +39,7 @@ ALLOWED = {
     "barrier_cell": {"approve", "reject", "escalate"},
     "discovered_document": {"approve", "reject", "escalate"},
     "no_documents": {"approve", "escalate"},
+    "conflict": {"approve", "reject", "escalate"},  # approve: accept new; reject: keep accepted
 }
 CORRECTED_KEYS = {
     "value": {"value", "unit", "period_end"},
@@ -202,12 +203,17 @@ def _decide_locked(
     if kind == "other" and item.run_type != "extraction":
         raise DecisionError(400, "decide this item through its run's review endpoint")
     _check_kind(kind, req, principal)
+    if kind == "conflict" and req.reason_code is None:  # the bare body (owner decision 2026-11-11)
+        default = DecisionReason.CONFIRMED if req.decision == "approve" else DecisionReason.WRONG_VALUE
+        req = req.model_copy(update={"reason_code": default})
+    if req.reason_code is None or (req.context_etag is None and kind != "conflict"):
+        raise DecisionError(422, "reason_code and context_etag are required")
     s = _state(run_store, run_id, item_key)
     if barrier and (why := _barrier_refused(run_store, item.payload, s.state, req.decision)):
         raise DecisionError(409, why)
     step = _step(s, req, principal, rating_change=barrier and item.payload["kind"] == "changed")
     bundle = build_context(run_store, run_id, item_key, principal, settings=settings, content_store=content_store)
-    if bundle["etag"] != req.context_etag:
+    if req.context_etag is not None and bundle["etag"] != req.context_etag:
         raise DecisionError(409, "this item changed since you loaded it; reload")
     field = bundle["field_definition"] or {}
     current = (bundle["value"] or {}).get("value")
@@ -232,6 +238,11 @@ def _decide_locked(
             corrected_value=req.corrected_value, prior=prior, sample_rate=settings.second_review_sample_rate,
             changes_final=s.state in FINAL_STATES and not agrees(s.effective, req.model_dump()),
         )
+        # Accepting a new value over one a person approved or edited needs a second approver (owner, 2026-11-11);
+        # keeping the accepted value, or replacing an auto-accepted one, changes no human decision.
+        accepted_by = (item.payload.get("accepted") or {}).get("status") if kind == "conflict" else None
+        if req.decision == "approve" and accepted_by in ("approved", "edited") and "published_change" not in reasons:
+            reasons.insert(0, "published_change")
         if barrier and req.decision == "approve" and item.payload["kind"] == "changed" and "published_change" not in reasons:
             reasons.insert(0, "published_change")  # a rating change; an unchanged result only follows the sampling
     reasons += [r for r in extra_reasons if r not in reasons]

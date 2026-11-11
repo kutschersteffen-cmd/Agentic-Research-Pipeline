@@ -12793,7 +12793,7 @@ export interface components {
             /** Comment */
             comment?: string | null;
             /** Context Etag */
-            context_etag: string;
+            context_etag?: string | null;
             /** Corrected Value */
             corrected_value?: {
                 [key: string]: unknown;
@@ -12804,7 +12804,7 @@ export interface components {
              * @enum {string}
              */
             decision: "approve" | "correct" | "reject" | "escalate";
-            reason_code: components["schemas"]["DecisionReason"];
+            reason_code?: components["schemas"]["DecisionReason"] | null;
         };
         /**
          * JobStatus
