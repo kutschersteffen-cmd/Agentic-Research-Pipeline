@@ -235,3 +235,14 @@ def test_unknown_grant_name_fails_at_load(tmp_path):
     rows = [{"token": "ts", "user_id": "svc", "name": "S", "role": "viewer", "roles": ["snapshot_raeder"]}]
     with pytest.raises(RuntimeError, match="roles"):
         load_users(_write(tmp_path, rows))
+
+
+def test_dev_sign_in_accepts_any_origin_when_allowed_origins_is_a_wildcard(users_file, tmp_path):
+    # Behind a reverse proxy (Jupyter Server Proxy) the browser's Origin is the proxy's host. Browsers send
+    # Origin on every POST, so ARP_ALLOWED_ORIGINS=["*"] has to mean any origin here, as it does for CORS.
+    def post(allowed_origins):
+        settings = Settings(auth_mode="dev", users_file=users_file, runs_dir=tmp_path / "runs", allowed_origins=allowed_origins)
+        return TestClient(make_app(settings), client=("127.0.0.1", 5000)).post("/approve", headers={"Origin": "https://hub.example"})
+
+    assert post(["*"]).status_code == 200
+    assert post(["http://localhost:5173"]).status_code == 401  # unchanged: a foreign origin gets no dev sign-in

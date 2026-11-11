@@ -16,6 +16,22 @@ class Settings(BaseSettings):
     # LLM
     anthropic_api_key: str | None = Field(default=None)
     gemini_api_key: str | None = Field(default=None, description="Google Gemini API key, needed only when a run uses a gemini-* model.")
+    frontend_dist: Path | None = Field(
+        default=None,
+        description="Directory of the built frontend (frontend/dist). When set, the API serves it at / so the app "
+        "runs on one port, e.g. behind Jupyter Server Proxy. Build it with VITE_API_BASE=. for a path prefix.",
+    )
+    preflight_fetch_url: str = Field(
+        default="https://www.sec.gov/robots.txt",
+        description="URL `arp preflight` downloads to prove outbound document fetches work from this machine.",
+    )
+    gemini_use_vertex: bool = Field(
+        default=False,
+        description="Call Gemini through Vertex AI with Google application default credentials instead of "
+        "ARP_GEMINI_API_KEY (which is then ignored). Needs ARP_GCP_PROJECT.",
+    )
+    gcp_project: str | None = Field(default=None, description="Google Cloud project for Vertex AI calls.")
+    gcp_location: str = Field(default="global", description="Vertex AI location.")
     standins_dir: Path | None = Field(
         default=None,
         description="Test stand-ins: web search, source fetches and model calls answered from fixture files in this "
@@ -618,6 +634,25 @@ class Settings(BaseSettings):
                 )
         return self
 
+    @field_validator("frontend_dist", mode="before")
+    @classmethod
+    def _frontend_dist_is_a_build(cls, value: object) -> object:
+        if value in (None, ""):
+            return None
+        if not (Path(str(value)) / "index.html").is_file():
+            raise ValueError(f"ARP_FRONTEND_DIST {value} is not a directory with an index.html.")
+        return value
+
+    @property
+    def gemini_available(self) -> bool:
+        return self.gemini_use_vertex or bool(self.gemini_api_key)
+
+    @model_validator(mode="after")
+    def _vertex_needs_project(self) -> "Settings":
+        if self.gemini_use_vertex and not self.gcp_project:
+            raise ValueError("ARP_GEMINI_USE_VERTEX is true but ARP_GCP_PROJECT is not set.")
+        return self
+
     @model_validator(mode="after")
     def _standins_only_without_model_key(self) -> "Settings":
         if self.standins_dir is None:
@@ -626,6 +661,8 @@ class Settings(BaseSettings):
             raise ValueError(
                 "ARP_STANDINS_DIR is set together with a model API key; stand-ins are for tests only. Unset one of them."
             )
+        if self.gemini_use_vertex:
+            raise ValueError("ARP_STANDINS_DIR is set together with ARP_GEMINI_USE_VERTEX; stand-ins are for tests only. Unset one of them.")
         if not self.standins_dir.is_dir():
             raise ValueError(f"ARP_STANDINS_DIR {self.standins_dir} is not a directory.")
         return self
