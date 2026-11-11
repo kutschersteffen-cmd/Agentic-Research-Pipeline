@@ -2,6 +2,17 @@
 
 Newest first. Written by the `retro` skill (`.claude/skills/retro/SKILL.md`).
 
+## 2026-11-11
+PRs merged 109 · fix rounds total not counted · blocked 3 · reverts 3 · spec questions 5
+- Covers 2026-10-31 to 2026-11-11: the scheduled retro on 2026-11-02 and 2026-11-09 ran without GitHub API access (403, no `add_repo`) and logged nothing. Run by hand.
+- Main went red three times right after a green PR merged: Backend tests after [#336](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/336) ([revert #342](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/342)) and [#332](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/332) ([revert #345](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/345)), Frontend build after [#370](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/370) ([revert #374](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/374), still open). Main guard also reverted twice in the 2026-10-31 entry.
+- Holdout rows that depend on `small_to_big_enabled` failed on many runs: `tree-context-for-chunks` AC-12/AC-12b (14 runs), `embeddings-and-reranker-upgrade` AC-7b/AC-15c (11 runs, [#353](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/353) blocked). Spec questions on [#332](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/332) and [#350](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/350) asked which setting the rows assume.
+- Hidden tests of older specs kept testing behaviour a newer spec retires: ICIO format on [#343](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/343) (blocked), main-snapshot rows on [#332](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/332). Same pattern as `value-chain-links-overlays-design` in the 2026-10-31 entry (still 5 runs this period).
+- Container image scan (Trivy) failed on 7 branches and on `main`: the image build stops at `playwright install --with-deps chromium` with `libatomic.so.1: cannot open shared object file`.
+- Golden set (real model) failed on 14 branches, e.g. case `revenue_share_percentage`; cause not established from the logs read.
+- Mutation check red on 8 branches (5 backend, 3 frontend); PR guards red on 5, including [#391](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/391) and [#339](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/339) which got `tests-weakened-ok`.
+- Coverage: failed runs read from the first 500 runs since 2026-10-31; issue comments only from the first 100 (spec questions may be undercounted); fix rounds not counted.
+
 ## 2026-10-31
 PRs merged 58 · fix rounds total 49 · blocked 1 · reverts 2 · spec questions 3
 - Main went red after [#264](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/264) merged: gitleaks' generic-api-key rule flagged a test timestamp. Main guard opened [#266](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/266) and [#267](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/267), both closed as false alarms; [#268](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/268) fixed it. The same rule flagged `snapshot_id="auth_1"` on [#277](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/277) ([run](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/actions/runs/41077930184)), fixed on the PR in 41d1857. 2 PRs this week.
