@@ -45,7 +45,7 @@ from arp.db.models import (
 
 logger = logging.getLogger(__name__)
 
-FactAction = Literal["insert", "supersede", "noop", "keep"]
+FactAction = Literal["insert", "supersede", "noop", "keep", "conflict"]
 
 
 @dataclass(kw_only=True)
@@ -110,14 +110,19 @@ RULE_NOT_APPLICABLE = "not_applicable_by_rule"  # observation method of a row th
 
 def decide(
     current: CompanyFact | None, value, status: FactStatus, value_state: ValueState, *, by_rule: bool = False,
+    ingest: bool = False,
 ) -> FactAction:
     """Spec §2.7: a miss, or a not-applicable set by the applicability rules (`by_rule`), never removes or adds a
     fact (a not-applicable read from a document is a value like any other); a pending value never displaces one,
-    a held value displaces only a pending or held one, an accepted different value or status supersedes it."""
+    a held value displaces only a pending or held one, an accepted different value or status supersedes it.
+    `ingest` (a run's new value, not a review decision): an accepted fact is never overwritten; the same value
+    changes nothing and a different one is a `conflict` for a person to decide (data rule 1)."""
     if value_state == ValueState.NOT_FOUND or (by_rule and value_state == ValueState.NOT_APPLICABLE):
         return "noop" if current is None else "keep"
     if current is None:
         return "insert"
+    if ingest and current.status in _ACCEPTED and status != FactStatus.HELD:
+        return "noop" if _same(current.value, value) else "conflict"
     if _same(current.value, value) and current.status == status:
         return "noop"
     if status == FactStatus.PENDING_REVIEW:
@@ -141,7 +146,7 @@ def _numeric(v) -> Decimal | None:
     return Decimal(repr(v))
 
 
-def _current(session: Session, obs: FieldObservation) -> CompanyFact | None:
+def _current(session: Session, obs: FieldObservation | ObservationIn) -> CompanyFact | None:
     return session.scalar(
         select(CompanyFact)
         .where(
@@ -156,8 +161,8 @@ def _current(session: Session, obs: FieldObservation) -> CompanyFact | None:
 def _write_fact(
     session: Session, obs: FieldObservation, *, value, status: FactStatus, value_state: ValueState,
     canonical_value, canonical_unit, decision_id: int | None = None, conflicting: bool = False,
-    at: datetime | None = None,
-) -> None:
+    at: datetime | None = None, ingest: bool = False,
+):
     """Applies `decide` to the key's current fact under a row lock. A concurrent first insert for
     the same key trips `uq_company_facts_current`; the savepoint is rolled back and the lookup
     retried once, which then sees the other writer's row. One clock_timestamp() closes the old
@@ -167,8 +172,9 @@ def _write_fact(
         try:
             with session.begin_nested():
                 current = _current(session, obs)
-                if decide(current, value, status, value_state, by_rule=obs.method == RULE_NOT_APPLICABLE) in ("noop", "keep"):
-                    return
+                action = decide(current, value, status, value_state, by_rule=obs.method == RULE_NOT_APPLICABLE, ingest=ingest)
+                if action in ("noop", "keep", "conflict"):  # a retry after a lost first-insert race lands here too
+                    return action, current
                 ts = _at(session, at, current)
                 if current is not None:  # closed first: the partial unique index allows one open row
                     current.valid_to = ts
@@ -183,7 +189,7 @@ def _write_fact(
                 if current is not None:
                     current.superseded_by = new.id
                     session.flush()
-            return
+            return action, current
         except IntegrityError as exc:
             if attempt == 2 or "uq_company_facts_current" not in str(exc.orig):
                 raise
@@ -240,21 +246,31 @@ def fits(session: Session, observations: list[ObservationIn]) -> list[bool]:
     return [_fits(types.get((o.field_id, o.field_version), ""), o.value) for o in observations]
 
 
-def apply_observation(session: Session, row: FieldObservation, o: ObservationIn, *, at: datetime | None = None) -> None:
+def apply_observation(
+    session: Session, row: FieldObservation, o: ObservationIn, *, at: datetime | None = None, ingest: bool = False,
+):
     """The current-fact update for one stored observation (`row`, recorded from `o`); trial ones make none.
-    `at` dates the change (default: now)."""
+    `at` dates the change (default: now). Returns `_write_fact`'s (action, current fact), or None for a trial."""
     if not o.trial:
-        _write_fact(
+        return _write_fact(
             session, row, value=row.value, status=_status(o), value_state=o.value_state,
             canonical_value=row.canonical_value, canonical_unit=o.canonical_unit, conflicting=o.conflicting_sources, at=at,
+            ingest=ingest,
         )
+    return None
 
 
-def record(session: Session, observations: list[ObservationIn], *, apply_facts: bool = True) -> list[int | None]:
+def record(
+    session: Session, observations: list[ObservationIn], *, apply_facts: bool = True, conflicts: list | None = None,
+    settled: list | None = None,
+) -> list[int | None]:
     """Inserts the observations and their citations, then (unless `apply_facts` is False) updates the
     current facts of every non-trial observation. A value that does not fit its field's data type is
     left out (None in the result) and a citation to an unregistered document dropped; each is reported
-    to the observation run's run_errors. Returns the observation ids, aligned with `observations`."""
+    to the observation run's run_errors. Returns the observation ids, aligned with `observations`.
+    A run's value against an accepted fact (data rule 1): the same value stores nothing (None in the result);
+    a different one is stored, leaves the fact and is appended to `conflicts` as (observation, row, fact);
+    the same one is appended to `settled`, so its review item is not queued either."""
     from arp.db.runs import _jsonb_safe  # runs imports this module
 
     if not observations:
@@ -269,6 +285,17 @@ def record(session: Session, observations: list[ObservationIn], *, apply_facts: 
             _run_error(session, o, _jsonb_safe({"kind": "invalid_value", "field_id": o.field_id, "raw": o.value}))
             ids.append(None)
             continue
+        action, current = None, None
+        ingest = apply_facts and not o.trial and o.run_id is not None  # a run's value; loads keep superseding
+        if ingest:
+            current = _current(session, o)
+            action = decide(current, _jsonb_safe(o.value), _status(o), o.value_state,
+                            by_rule=o.method == RULE_NOT_APPLICABLE, ingest=True)
+            if action == "noop" and current is not None and current.status in _ACCEPTED:
+                ids.append(None)  # the accepted value again: nothing to store
+                if settled is not None:
+                    settled.append(o)
+                continue
         row = FieldObservation(
             company_id=o.company_id, field_id=o.field_id, field_version=o.field_version, source_kind=o.source_kind,
             run_id=o.run_id, source_id=o.source_id, load_id=o.load_id, period_start=o.period_start,
@@ -286,10 +313,29 @@ def record(session: Session, observations: list[ObservationIn], *, apply_facts: 
                 _run_error(session, o, {"kind": "unregistered_citation", "doc_id": c.doc_id})
                 continue
             session.add(ValueCitation(observation_id=row.id, **{**_jsonb_safe(vars(c)), "role": c.role}))
-        if apply_facts:
-            apply_observation(session, row, o)
+        if action != "conflict" and apply_facts:
+            # another run may have committed this fact since the look above: its accepted value then wins too
+            action, current = apply_observation(session, row, o, ingest=ingest) or (None, None)
+            if ingest and action == "noop" and current is not None and current.status in _ACCEPTED and settled is not None:
+                settled.append(o)
+        if action == "conflict" and conflicts is not None:
+            conflicts.append((o, row, current))
     session.flush()
     return ids
+
+
+def rejected_before(session: Session, fact: CompanyFact, value) -> bool:
+    """Whether a conflict on `fact` raised by the same `value` was already decided `reject` (keep accepted)."""
+    for item in session.scalars(select(ReviewItem).where(
+        ReviewItem.payload["kind"].astext == "conflict",
+        ReviewItem.payload["accepted"]["fact_id"].astext == str(fact.id),
+        ReviewItem.state.in_((ItemState.SECOND_DONE, ItemState.FINAL)),
+    )):
+        last = session.scalar(select(ReviewDecision.decision).where(ReviewDecision.review_item_id == item.id)
+                              .order_by(ReviewDecision.id.desc()).limit(1))
+        if last == DecisionKind.REJECT and _same(item.payload.get("new_value"), value):
+            return True
+    return False
 
 
 _DECIDED = {DecisionKind.APPROVE: FactStatus.APPROVED, DecisionKind.EDIT: FactStatus.EDITED,

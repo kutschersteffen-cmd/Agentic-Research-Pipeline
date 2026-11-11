@@ -30,6 +30,16 @@ class Settings(BaseSettings):
         "Adjudicator debate's differing prompts don't fix, because the underlying weights are identical. "
         "Set equal to llm_model to opt back into the old single-model behavior.",
     )
+    gemini_fallback_model: str = Field(
+        default="gemini-3.8-flash",
+        description="Gemini model that replaces a Claude model built by build_llm_client when there is no Anthropic key "
+        "or Anthropic rejects a call for credit or auth. Needs ARP_GEMINI_API_KEY.",
+    )
+    gemini_fallback_verifier_model: str = Field(
+        default="gemini-3.8-flash",
+        description="Gemini model that replaces llm_verifier_model in the same cases. Equal to gemini_fallback_model "
+        "means the verifier is not independent of the extractor; that is logged.",
+    )
     llm_cache_enabled: bool = Field(default=True)
     # The optional steps before extraction (arp/extraction/pre_steps.py),
     # switched on per run from the Extraction screen's node editor.

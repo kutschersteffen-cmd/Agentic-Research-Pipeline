@@ -36,10 +36,11 @@ All state comes from GitHub, so a fresh session can always pick up:
 
 | Stage | Done when |
 |---|---|
+| 0. Intake | the intake session answered `GO` (on the board card); `NEEDS-INFO` waits on the owner, `REJECT` closes the card |
 | 1. Spec | `docs/superpowers/specs/<date>-<slug>.md` is on `main` (the owner merged the spec PR) |
 | 2. Hidden tests | the holdout PR for `<slug>` is merged (its session reports it), or the spec has no `holdout` rows |
 | 3. Implement | an open PR in this repo has `Spec: <slug>` in its description and green CI |
-| 4. Review + evaluator | that PR has a `Code review (factory)` comment, and an `Acceptance matrix (evaluator)` comment unless the spec has no `evaluator` rows |
+| 4. Review + evaluator | that PR has a `Code review (factory)` comment, a `Security review (factory)` comment if it touches a `risk:high` path (steward table), a `UI review (factory)` comment if it touches `frontend/src/**`, and an `Acceptance matrix (evaluator)` comment unless the spec has no `evaluator` rows |
 | 5. Merge gate | the owner merged the PR; with a `Rows:` line that is one slice, and the feature goes back to stage 3 |
 | 6. Regression | the holdout PR moving `specs/<slug>/` into `regression/` is merged |
 
@@ -60,7 +61,17 @@ title `factory: <slug> - <stage>`, and the prompt below with this session's id f
 with no id returns it). Each prompt ends with: *"When you open your PR, or are blocked, send one line to
 session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocked: reason>`."*
 
-1. **Spec:** *"Brainstorm and write a spec for: <feature>. Follow `.claude/CLAUDE.md` (superpowers
+0. **Intake** (model `sonnet`): *"Triage this feature request for the factory: <feature>. Read the wiki
+   or graph, the code it would touch and the Factory Board. Answer with exactly one of: `GO` with one
+   paragraph of scope (what is in, what is out), a proposed risk (`low|normal|high`, steward table) and
+   a size (`S` = 1 PR, `M` = 2-3 PRs, `L` = more; an `L` must be split into features, so answer
+   `NEEDS-INFO` asking how); `NEEDS-INFO` with at most 3 questions, asked to the owner with
+   AskUserQuestion; or `REJECT` with the reason (already built, duplicate of an open card, out of
+   scope). Write no code and no spec."*
+   Put the answer on the board card. `GO` starts stage 1. `NEEDS-INFO`: card shows `waiting: intake
+   questions`; once the owner answered, the intake session sends `GO` or `REJECT`. `REJECT`: close the
+   card with the reason and start nothing.
+1. **Spec:** *"Brainstorm and write a spec for: <feature>. Intake scope: <GO paragraph>. Follow `.claude/CLAUDE.md` (superpowers
    brainstorming, an `## Acceptance` table per `docs/superpowers/ACCEPTANCE_TEMPLATE.md`, spec-critic).
    Ask the owner your questions in this session. Open a `risk:low` PR with only the spec file."*
    Tell the owner to open that session to answer its questions, then approve and merge the spec PR.
@@ -68,7 +79,7 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
    with add_repo, then follow the test-writer skill for spec `<slug>`."* This is the only session that
    may attach `holdout`. Tell the owner to merge the holdout PR once its check is green.
 3. **Implement:** *"Implement spec `<slug>` (`docs/superpowers/specs/<file>`). Follow the steward
-   skill; put `Spec: <slug>` in the PR description. Never attach the holdout repo."*
+   skill; the risk label is at least `risk:<intake risk>`; put `Spec: <slug>` in the PR description. Never attach the holdout repo."*
 4. **Review and evaluator**, two sessions started together once that PR's CI is green:
    - **Review:** *"Review PR #<n> against spec `<slug>`. You did not write it. Run `/code-review` on the
      PR, then `/ponytail:ponytail-review`. Give every blocking finding a `Proof:` line: a failing test
@@ -82,10 +93,21 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
      Don't push or approve."*
      The implementing session fixes or answers each confirmed blocking finding (steward rules); a push that
      changes code re-runs this review once CI is green again, at most three rounds per PR.
+   - **Security review**, only if the PR touches a `risk:high` path (steward table): the review prompt
+     with `/security-review` in place of `/code-review` and `/ponytail:ponytail-review`, same `Proof:`
+     and verifier rules, comment headed `Security review (factory)`.
+   - **UI review**, only if the PR touches `frontend/src/**`: *"UI review of PR #<n>. You did not write
+     it. Start the app (`.claude/CLAUDE.md`, Browser flow), screenshot each changed page with
+     Playwright, run `/impeccable:impeccable audit`. Post one comment headed `UI review (factory)`:
+     accessibility failures and broken layout under `blocking`, the rest `optional`. Don't push or
+     approve."*
    - **Evaluator** (skip if no `evaluator` rows): *"Run the evaluator skill on PR #<n>."*
      A later push that changes `backend/arp/` or `frontend/src/` re-runs it once CI is green again:
      the matrix names the head it ran on, and a matrix for an older head is stale.
-5. **Merge gate:** nothing to start. Tell the owner the PR is ready: link, risk label, open review
+   **Model by risk label** (`create_session` `model`): code and UI review `sonnet` on `risk:low`, `opus`
+   otherwise; security review always `opus`; no label counts as `risk:high`. Other stages keep the default.
+5. **Merge gate:** nothing to start. If a review comment the PR's paths require is missing, tell the
+   owner `waiting: <review name>` and offer no merge button. Tell the owner the PR is ready: link, risk label, open review
    findings, matrix verdict and the head it ran on. If the PR has a `Rows:` line, also list the spec's
    `holdout` rows that no merged PR for `<slug>` has named yet. For `risk:low` or `risk:normal` with
    no open findings, offer the merge button (`.claude/CLAUDE.md`, button mode).

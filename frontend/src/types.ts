@@ -541,7 +541,7 @@ export interface ReviewDecision {
   decided_at: string;
 }
 
-export type ReviewItemKind = "value" | "sector_code" | "identity" | "quarantined_document" | "restatement_candidate" | "security" | "barrier_cell" | "discovered_document" | "no_documents" | "other";
+export type ReviewItemKind = "value" | "sector_code" | "identity" | "quarantined_document" | "restatement_candidate" | "security" | "barrier_cell" | "discovered_document" | "no_documents" | "conflict" | "other";
 export type ItemState = "pending" | "first_done" | "second_done" | "disagreed" | "final";
 
 export interface ReviewItem {

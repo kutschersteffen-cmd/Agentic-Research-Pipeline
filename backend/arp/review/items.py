@@ -21,6 +21,8 @@ def cosign_rule(run_type: str) -> set[str]:
 
 
 def _queue_kind(run_type: str, row: dict) -> ReviewItemKind:
+    if row.get("kind") == "conflict" and "accepted" in row:  # a fact conflict; barrier rows use kind "conflict" too
+        return ReviewItemKind.CONFLICT
     if run_type == "extraction":
         return ReviewItemKind.VALUE if "field" in row or "fields" in row else ReviewItemKind.OTHER  # else a PreStepFailed report
     if run_type == "identity":

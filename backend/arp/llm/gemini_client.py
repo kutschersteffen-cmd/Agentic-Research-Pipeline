@@ -28,10 +28,12 @@ from arp.llm.langchain_client import _MAX_NETWORK_RETRIES, _drop_invalid_list_it
 class GeminiClient(LLMClient):
     def __init__(
         self, api_key: str, model: str, cache_dir: Path, cache_enabled: bool = True, cache_refresh: bool = False,
+        fallback_from: str = "",
     ) -> None:
         retry = types.HttpRetryOptions(attempts=_MAX_NETWORK_RETRIES + 1)
         self._client = genai.Client(api_key=api_key, http_options=types.HttpOptions(retry_options=retry))
         self.model = model
+        self.fallback_from = fallback_from
         self.cache = DiskLLMCache(cache_dir, enabled=cache_enabled, refresh=cache_refresh)
 
     async def _send(self, contents: list[types.Content], config: types.GenerateContentConfig) -> types.GenerateContentResponse:
@@ -58,7 +60,7 @@ class GeminiClient(LLMClient):
         cached = self.cache.get(cache_key)
         if cached is not None:
             try:
-                usage = LLMUsage(**{**cached["usage"], "cached": True, "provider": "google"})
+                usage = LLMUsage(**{**cached["usage"], "cached": True, "provider": "google", "fallback_from": self.fallback_from})
                 return output_model.model_validate(cached["result"]), usage
             except ValidationError:
                 pass  # stale or corrupt entry: call the model
@@ -112,8 +114,9 @@ class GeminiClient(LLMClient):
             usage = LLMUsage(
                 input_tokens=totals["input"], output_tokens=totals["output"], cache_read_tokens=totals["cached"],
                 attempts=attempt, model=self.model, prompt_version=prompt_version, provider="google", dropped_items=dropped,
+                fallback_from=self.fallback_from,
             )
-            self.cache.set(cache_key, {"result": instance.model_dump(mode="json"), "usage": usage.model_dump(exclude={"cached"})})
+            self.cache.set(cache_key, {"result": instance.model_dump(mode="json"), "usage": usage.model_dump(exclude={"cached", "fallback_from"})})
             return instance, usage
 
         assert last_error is not None

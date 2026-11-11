@@ -139,7 +139,8 @@ The owner answers by tapping buttons, not by typing. Every question to the owner
   may be hidden while the buttons are open.
 - A spec or plan is still shown as an artifact first; the buttons collect the verdict.
 - Merge button: once a `risk:low` or `risk:normal` PR is green on its current head, mergeable and has
-  no review thread waiting on the agent, the agent driving it asks `Merge PR #<n>?` with title, risk
+  no review thread waiting on the agent, and is not behind `main` (else merge `origin/main` into it and
+  wait for green CI on the new head), the agent driving it asks `Merge PR #<n>?` with title, risk
   label and short head SHA. `Approve` merges it then and there (`merge_pull_request`, `merge_method:
   merge`, `expectedHeadSha` set to the SHA in the question; if the head moved, ask again).
   `Not approved` leaves it for the owner. `risk:high` PRs are never offered: the owner merges them on

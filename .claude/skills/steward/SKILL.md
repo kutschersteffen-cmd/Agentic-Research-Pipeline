@@ -17,7 +17,8 @@ Pick the highest tier any changed file falls in, add the label, and say why in o
 | `risk:normal` | Anything not low or high | Reads the PR's acceptance matrix, then merges |
 | `risk:high` | Auth, permissions, secrets; database schema or data migrations; money, portfolio weights or index maths; deleting stored data; `.github/workflows/**`, `.claude/hooks/**`, `.claude/settings.json` | Reads the acceptance matrix and the diff |
 
-When unsure between two tiers, take the higher one. Never lower a label the owner set.
+When unsure between two tiers, take the higher one. Never lower a label the owner set, nor below the
+risk the factory's intake gave (your prompt names it).
 
 When the PR implements a spec, put `Spec: <slug>` on its own line in the description (the spec file
 name without date and `.md`), so the Holdout acceptance job runs that spec's hidden tests. You never

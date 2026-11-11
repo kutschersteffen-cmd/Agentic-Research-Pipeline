@@ -69,7 +69,8 @@ async def test_a_repeated_call_comes_from_the_disk_cache_at_no_cost(tmp_path):
 def test_gemini_models_route_to_the_gemini_client(tmp_path):
     s = Settings(anthropic_api_key="a", gemini_api_key="g", cache_dir=tmp_path)
     assert isinstance(build_llm_client(s, model="gemini-4-argon"), GeminiClient)
-    assert isinstance(build_llm_client(s, model="claude-sonnet-5-5"), LangChainAnthropicClient)
+    anthropic_only = Settings(anthropic_api_key="a", gemini_api_key=None, cache_dir=tmp_path)
+    assert isinstance(build_llm_client(anthropic_only, model="claude-sonnet-5-5"), LangChainAnthropicClient)
     batch = s.model_copy(update={"llm_batch": True})
     assert isinstance(build_llm_client(batch, model="gemini-3.8-flash"), GeminiClient)  # no Gemini batch client: plain calls
     no_anthropic = Settings(anthropic_api_key=None, gemini_api_key="g", cache_dir=tmp_path)

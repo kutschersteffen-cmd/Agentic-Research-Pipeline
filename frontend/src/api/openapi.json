@@ -11988,9 +11988,16 @@
       "title": "Comment"
      },
      "context_etag": {
-      "minLength": 1,
-      "title": "Context Etag",
-      "type": "string"
+      "anyOf": [
+       {
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Context Etag"
      },
      "corrected_value": {
       "anyOf": [
@@ -12025,13 +12032,18 @@
       "type": "string"
      },
      "reason_code": {
-      "$ref": "#/components/schemas/DecisionReason"
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DecisionReason"
+       },
+       {
+        "type": "null"
+       }
+      ]
      }
     },
     "required": [
-     "decision",
-     "reason_code",
-     "context_etag"
+     "decision"
     ],
     "title": "ItemDecisionRequest",
     "type": "object"

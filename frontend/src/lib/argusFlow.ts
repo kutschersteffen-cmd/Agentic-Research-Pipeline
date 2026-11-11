@@ -1,5 +1,9 @@
 import type { Citation, ExtractionRecord, FieldDefinition, FlowFile, FlowProgress, FlowRow, PriorRun, RepeatRow, ReviewItem } from "../types";
 import { valueLabel } from "./fieldValue.ts";
+
+/** The accepted side of a conflict, written like the new value (with its unit); an object value as JSON, never "[object Object]". */
+export const acceptedLabel = (v: unknown, unit?: string | null): string =>
+  v == null ? "—" : valueLabel({ value: typeof v === "object" ? JSON.stringify(v) : (v as string | number | boolean), value_state: "found", unit: unit ?? null });
 import { fieldItemKey } from "./reviewKeys.ts";
 
 // An Argus flow (#/argus/<flow_id>/<step>): step 1's text, as the spec writes it.
@@ -73,6 +77,8 @@ export interface ResultRow {
   item: ReviewItem | null;
   /** A whole company waits (a step before extraction stopped it), not one value. */
   companyLevel?: boolean;
+  /** A conflict: the accepted value the new one (`value`) would replace. */
+  accepted?: string;
 }
 
 /** Step 5: one row per extracted value, the ones with an open review item first (in their order), then the rest.
@@ -82,10 +88,12 @@ export function resultRows(results: ExtractionRecord[], items: ReviewItem[]): Re
   const rows = results.flatMap((r) =>
     r.fields.map((f): ResultRow => {
       const key = fieldItemKey(r, f);
+      const item = open.get(key) ?? null;
+      const accepted = item?.kind === "conflict" ? (item.payload as { accepted?: { value?: unknown } }).accepted : undefined;
       return {
         key, companyId: r.company_id, company: r.name, field: r.field_names?.[f.field_id] ?? f.field_name, value: valueLabel(f),
         citation: f.citations.find((c) => c.grounded) ?? f.citations[0] ?? null, notFound: f.value_state === "not_found",
-        item: open.get(key) ?? null,
+        item, ...(accepted ? { accepted: acceptedLabel(accepted.value, f.unit) } : {}),
       };
     }),
   );
