@@ -16,6 +16,13 @@ class Settings(BaseSettings):
     # LLM
     anthropic_api_key: str | None = Field(default=None)
     gemini_api_key: str | None = Field(default=None, description="Google Gemini API key, needed only when a run uses a gemini-* model.")
+    gemini_use_vertex: bool = Field(
+        default=False,
+        description="Call Gemini through Vertex AI with Google application default credentials instead of "
+        "ARP_GEMINI_API_KEY (which is then ignored). Needs ARP_GCP_PROJECT.",
+    )
+    gcp_project: str | None = Field(default=None, description="Google Cloud project for Vertex AI calls.")
+    gcp_location: str = Field(default="global", description="Vertex AI location.")
     standins_dir: Path | None = Field(
         default=None,
         description="Test stand-ins: web search, source fetches and model calls answered from fixture files in this "
@@ -618,13 +625,24 @@ class Settings(BaseSettings):
                 )
         return self
 
+    @property
+    def gemini_available(self) -> bool:
+        return self.gemini_use_vertex or bool(self.gemini_api_key)
+
+    @model_validator(mode="after")
+    def _vertex_needs_project(self) -> "Settings":
+        if self.gemini_use_vertex and not self.gcp_project:
+            raise ValueError("ARP_GEMINI_USE_VERTEX is true but ARP_GCP_PROJECT is not set.")
+        return self
+
     @model_validator(mode="after")
     def _standins_only_without_model_key(self) -> "Settings":
         if self.standins_dir is None:
             return self
-        if self.anthropic_api_key or self.gemini_api_key:
+        if self.anthropic_api_key or self.gemini_available:
             raise ValueError(
-                "ARP_STANDINS_DIR is set together with a model API key; stand-ins are for tests only. Unset one of them."
+                "ARP_STANDINS_DIR is set together with a model API key or Vertex AI; stand-ins are for tests only. "
+                "Unset one of them."
             )
         if not self.standins_dir.is_dir():
             raise ValueError(f"ARP_STANDINS_DIR {self.standins_dir} is not a directory.")

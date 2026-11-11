@@ -27,11 +27,13 @@ from arp.llm.langchain_client import _MAX_NETWORK_RETRIES, _drop_invalid_list_it
 
 class GeminiClient(LLMClient):
     def __init__(
-        self, api_key: str, model: str, cache_dir: Path, cache_enabled: bool = True, cache_refresh: bool = False,
-        fallback_from: str = "",
+        self, api_key: str | None, model: str, cache_dir: Path, cache_enabled: bool = True, cache_refresh: bool = False,
+        fallback_from: str = "", *, vertex_project: str | None = None, vertex_location: str = "global",
     ) -> None:
         retry = types.HttpRetryOptions(attempts=_MAX_NETWORK_RETRIES + 1)
-        self._client = genai.Client(api_key=api_key, http_options=types.HttpOptions(retry_options=retry))
+        # Vertex AI signs in with Google application default credentials; an API key is not sent.
+        auth = dict(vertexai=True, project=vertex_project, location=vertex_location) if vertex_project else dict(api_key=api_key)
+        self._client = genai.Client(**auth, http_options=types.HttpOptions(retry_options=retry))
         self.model = model
         self.fallback_from = fallback_from
         self.cache = DiskLLMCache(cache_dir, enabled=cache_enabled, refresh=cache_refresh)
