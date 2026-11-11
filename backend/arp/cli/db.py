@@ -53,10 +53,12 @@ def db_check_postgres() -> None:
     Exits non-zero when the database is not current, so it can gate a
     deploy."""
     settings = get_settings()
+    from sqlalchemy import make_url
+
     from arp.storage.postgres_schema import schema_report
 
     report = schema_report(settings.postgres_dsn)
-    typer.echo(f"Postgres schema at {settings.postgres_dsn}:")
+    typer.echo(f"Postgres schema at {make_url(settings.postgres_dsn).render_as_string(hide_password=True)}:")
     typer.echo(f"  pgvector extension: {'present' if report['vector_extension'] else 'MISSING'}")
     typer.echo(f"  applied schema steps: {', '.join(report['applied_steps']) or 'none'}")
     for label, key in (
@@ -197,18 +199,38 @@ def reindex_object_store() -> None:
         object_store_live_upload_enabled=True,
     )
 
+    from arp.net_safety import assert_safe_fetch_target, ssrf_guard_sync_request_hook
+
+    def user_agent_for(request: httpx.Request) -> None:  # per hop: a redirect can leave sec.gov
+        host = (request.url.host or "").lower()
+        sec = host == "sec.gov" or host.endswith(".sec.gov")
+        request.headers["User-Agent"] = settings.edgar_user_agent if sec else settings.discovery_user_agent
+
+    def guard(request: httpx.Request) -> None:
+        ssrf_guard_sync_request_hook(request)
+        user_agent_for(request)
+
+    documents_root = settings.documents_dir.resolve()
+
+    def readable_local(path: str | None) -> Path | None:
+        if not path:
+            return None
+        resolved = Path(path).resolve()
+        return resolved if resolved.is_file() and resolved.is_relative_to(documents_root) else None
+
+    client = httpx.Client(timeout=30.0, follow_redirects=True, event_hooks={"request": [guard]})
     uploaded = failed = skipped = 0
     for doc_ref in content_store.list_all_documents():
         if doc_ref.storage_uri:
             skipped += 1
             continue
         try:
-            if doc_ref.local_path and Path(doc_ref.local_path).exists():
-                data = Path(doc_ref.local_path).read_bytes()
+            local = readable_local(doc_ref.local_path)
+            if local:
+                data = local.read_bytes()
             elif doc_ref.source_url:
-                resp = httpx.get(
-                    doc_ref.source_url, headers={"User-Agent": settings.edgar_user_agent}, timeout=30.0, follow_redirects=True
-                )
+                assert_safe_fetch_target(doc_ref.source_url)  # httpx itself rejects non-http schemes first
+                resp = client.get(doc_ref.source_url)
                 resp.raise_for_status()
                 data = resp.content
             else:
