@@ -8,7 +8,7 @@ from tests.postgres_helpers import pg_dsn
 
 
 def _settings(tmp_path) -> Settings:
-    return Settings(anthropic_api_key="unused", runs_dir=tmp_path / "runs", cache_dir=tmp_path / "cache")
+    return Settings(anthropic_api_key="unused", gemini_api_key=None, runs_dir=tmp_path / "runs", cache_dir=tmp_path / "cache")
 
 
 def test_batch_settings_off_is_identity(tmp_path):

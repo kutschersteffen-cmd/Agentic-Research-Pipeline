@@ -159,10 +159,10 @@ def test_ddg_constructed_only_by_the_factory():  # AC-33
 
 def test_switch_off_keeps_the_real_clients(tmp_path):  # AC-18
     for model, cls in (("claude-sonnet-5-5", LangChainAnthropicClient), ("gemini-2.5-pro", GeminiClient)):
-        s = Settings(llm_model=model, anthropic_api_key="k", gemini_api_key="k", cache_dir=tmp_path)
+        s = Settings(llm_model=model, anthropic_api_key="k", gemini_api_key="k" if cls is GeminiClient else None, cache_dir=tmp_path)
         assert type(build_llm_client(s)) is cls
     with pytest.raises(RuntimeError, match="ARP_ANTHROPIC_API_KEY is not set"):
-        build_llm_client(Settings(anthropic_api_key=None, cache_dir=tmp_path))
+        build_llm_client(Settings(anthropic_api_key=None, gemini_api_key=None, cache_dir=tmp_path))
 
 
 async def test_switch_off_keeps_the_ssrf_guard(monkeypatch):  # AC-19
