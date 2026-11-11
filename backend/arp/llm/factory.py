@@ -28,13 +28,14 @@ def build_llm_client(
         return StandInLLMClient(settings.standins_dir)
     model = model or settings.llm_model
     refresh = settings.llm_cache_refresh if cache_refresh is None else cache_refresh
+    vertex = dict(vertex_project=settings.gcp_project, vertex_location=settings.gcp_location) if settings.gemini_use_vertex else {}
     if model.startswith("gemini-"):
-        if not settings.gemini_api_key:
+        if not settings.gemini_available:
             raise RuntimeError(f"ARP_GEMINI_API_KEY is not set, and the run uses the Gemini model {model}.")
         # shortcut: no Gemini batch client, so a batch run sends Gemini calls one by one; add one if volume needs it
         return GeminiClient(
             api_key=settings.gemini_api_key, model=model, cache_dir=settings.cache_dir,
-            cache_enabled=settings.llm_cache_enabled, cache_refresh=refresh,
+            cache_enabled=settings.llm_cache_enabled, cache_refresh=refresh, **vertex,
         )
     gemini_model = settings.gemini_fallback_verifier_model if verifier else settings.gemini_fallback_model
     independence = ""
@@ -45,10 +46,10 @@ def build_llm_client(
     def gemini() -> GeminiClient:
         return GeminiClient(
             api_key=settings.gemini_api_key, model=gemini_model, cache_dir=settings.cache_dir,
-            cache_enabled=settings.llm_cache_enabled, cache_refresh=refresh, fallback_from=model,
+            cache_enabled=settings.llm_cache_enabled, cache_refresh=refresh, fallback_from=model, **vertex,
         )
 
-    if not settings.anthropic_api_key and settings.gemini_api_key:
+    if not settings.anthropic_api_key and settings.gemini_available:
         log.warning(warning)
         return gemini()
     if not settings.anthropic_api_key:
@@ -69,7 +70,7 @@ def build_llm_client(
         primary: LLMClient = BatchingLLMClient(**kwargs, batch_log=settings.cache_dir / "llm_batches.jsonl")
     else:
         primary = LangChainAnthropicClient(**kwargs)
-    return FallbackLLMClient(primary, gemini, warning) if settings.gemini_api_key else primary
+    return FallbackLLMClient(primary, gemini, warning) if settings.gemini_available else primary
 
 
 def build_verifier_llm_client(settings: Settings) -> LLMClient:
