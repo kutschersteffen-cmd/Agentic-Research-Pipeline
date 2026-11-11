@@ -73,6 +73,8 @@ export interface ResultRow {
   item: ReviewItem | null;
   /** A whole company waits (a step before extraction stopped it), not one value. */
   companyLevel?: boolean;
+  /** A conflict: the accepted value the new one (`value`) would replace. */
+  accepted?: string;
 }
 
 /** Step 5: one row per extracted value, the ones with an open review item first (in their order), then the rest.
@@ -82,10 +84,12 @@ export function resultRows(results: ExtractionRecord[], items: ReviewItem[]): Re
   const rows = results.flatMap((r) =>
     r.fields.map((f): ResultRow => {
       const key = fieldItemKey(r, f);
+      const item = open.get(key) ?? null;
+      const accepted = item?.kind === "conflict" ? (item.payload as { accepted?: { value?: unknown } }).accepted : undefined;
       return {
         key, companyId: r.company_id, company: r.name, field: r.field_names?.[f.field_id] ?? f.field_name, value: valueLabel(f),
         citation: f.citations.find((c) => c.grounded) ?? f.citations[0] ?? null, notFound: f.value_state === "not_found",
-        item: open.get(key) ?? null,
+        item, ...(accepted ? { accepted: String(accepted.value ?? "—") } : {}),
       };
     }),
   );

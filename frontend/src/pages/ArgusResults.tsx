@@ -9,6 +9,7 @@ import type { ArgusFlow as Flow, ExtractionRecord, ReviewDecision, ReviewItem } 
 const VALUE_LABELS = { approve: "Approve", correct: "Edit", reject: "Reject" } as const;
 // A not-found value is either right (approve: confirmed not disclosed) or wrong (correct: the value the source gives).
 const NOT_FOUND_LABELS = { approve: "Confirm not disclosed", correct: "Enter value" } as const;
+const CONFLICT_LABELS = { reject: "Keep accepted", approve: "Accept new" } as const;
 const PAGE = 500;
 
 /** Every result of the run: the endpoint returns at most a page at a time, and a flow may hold thousands of companies. */
@@ -85,7 +86,9 @@ export function ArgusResults({ flow }: { flow: Flow }) {
               <tr key={r.key} className={r.item ? "argus-row-await" : undefined}>
                 <td data-label="Company">{r.company}</td>
                 <td data-label="Field">{r.field}</td>
-                <td data-label="Value">{r.value}</td>
+                <td data-label="Value">
+                  {r.accepted !== undefined ? <>Accepted: {r.accepted}<br />New: {r.value}</> : r.value}
+                </td>
                 <td data-label="Source">
                   {r.citation?.company_id && r.citation.source_filename ? (
                     <button type="button" className="link-button" onClick={() => open(r)}>
@@ -101,8 +104,9 @@ export function ArgusResults({ flow }: { flow: Flow }) {
                       item={r.item}
                       onDone={() => void load()}
                       onOpenSource={setSource}
-                      labels={r.companyLevel ? undefined : r.notFound ? NOT_FOUND_LABELS : VALUE_LABELS}
-                      choices={r.companyLevel ? undefined : r.notFound ? ["approve", "correct"] : ["approve", "correct", "reject"]}
+                      labels={r.companyLevel ? undefined : r.accepted !== undefined ? CONFLICT_LABELS : r.notFound ? NOT_FOUND_LABELS : VALUE_LABELS}
+                      choices={r.companyLevel ? undefined : r.accepted !== undefined ? ["reject", "approve"]
+                        : r.notFound ? ["approve", "correct"] : ["approve", "correct", "reject"]}
                     />
                   ) : decisions[r.key] ? decisionLabel(decisions[r.key]) : "No review needed"}
                 </td>
