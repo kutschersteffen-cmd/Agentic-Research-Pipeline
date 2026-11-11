@@ -23,6 +23,7 @@ from arp.schemas.common import CompanyRef, RunManifest
 FY24 = date(2024, 12, 31)
 KEY = "LEI:X:revenue:2024-12-31"
 CAROL = Principal(user_id="u_carol", name="Carol Approver", role="approver")
+DAVE = Principal(user_id="u_dave", name="Dave Approver", role="approver")
 
 
 def _row(value, *, route="auto_accept", run_id="r1"):
@@ -212,6 +213,10 @@ def test_bare_body_decides_a_conflict(api, run_store, pg, decision, current):  #
     _run(run_store, pg, 14.0, run_id="r2")
     r = api.post(f"/api/review/runs/r2/items/{KEY}/decision", json={"decision": decision})
     assert r.status_code == 200, r.text
+    if r.json()["second_reasons"]:  # replacing a person's decision: a second approver confirms (review finding 1)
+        app.dependency_overrides[current_user] = lambda: DAVE
+        r = api.post(f"/api/review/runs/r2/items/{KEY}/decision", json={"decision": decision})
+        assert r.status_code == 200, r.text
     assert [f for f in _facts(pg) if f[2]][0][0] == current
 
 
@@ -221,3 +226,46 @@ def test_bare_body_on_a_value_item_is_still_422(api, run_store, pg):
     assert r.status_code == 422
     with transaction(pg) as s:
         assert s.scalar(select(func.count()).select_from(m.ReviewDecision)) == 0
+
+
+def test_accepting_new_over_a_person_s_decision_needs_a_second_review(api, run_store, pg):  # review finding 1
+    _accept(run_store, pg, m.FactStatus.APPROVED)  # 12 approved by a person in r1
+    _run(run_store, pg, 14.0, run_id="r2")
+    r = api.post(f"/api/review/runs/r2/items/{KEY}/decision", json={"decision": "approve"})
+    assert r.status_code == 200, r.text
+    assert "published_change" in r.json()["second_reasons"]
+    assert [f for f in _facts(pg) if f[2]] == [(12.0, m.FactStatus.APPROVED, True)]  # not until a second reviewer agrees
+
+
+def test_identical_value_routed_to_review_queues_nothing(run_store, pg):  # review finding 2, AC-49
+    _accept(run_store, pg, m.FactStatus.APPROVED)
+    _run(run_store, pg, 12.0, run_id="r2", route="review")
+    assert _items(pg, "r2") == []
+    assert [f for f in _facts(pg) if f[2]] == [(12.0, m.FactStatus.APPROVED, True)]
+
+
+def test_kept_value_routed_to_review_is_not_queued_again(run_store, pg):  # review finding 3, AC-51
+    _accept(run_store, pg, m.FactStatus.APPROVED)
+    _run(run_store, pg, 14.0, run_id="r2")
+    record_review_decision(run_store, "r2", KEY, "reject", "bob", None)
+    _run(run_store, pg, 14.0, run_id="r3", route="review")
+    assert _items(pg, "r3") == []
+    assert [f for f in _facts(pg) if f[2]] == [(12.0, m.FactStatus.APPROVED, True)]
+
+
+def test_a_writer_that_loses_the_first_insert_race_raises_a_conflict(run_store, pg, monkeypatch):  # finding 4
+    """Run B read no current fact, then run A's accepted 12 committed first: B's retry must not overwrite it."""
+    import arp.db.observations as obs_db
+
+    _accept(run_store, pg, m.FactStatus.AUTO_ACCEPTED)  # run A's 12, committed
+    real, calls = obs_db._current, {"n": 0}
+
+    def racing(session, o):  # B's first two looks (in record, then in _write_fact) still see no fact
+        calls["n"] += 1
+        return None if calls["n"] <= 2 else real(session, o)
+
+    monkeypatch.setattr(obs_db, "_current", racing)
+    _run(run_store, pg, 14.0, run_id="r2")
+    monkeypatch.setattr(obs_db, "_current", real)
+    assert [f for f in _facts(pg) if f[2]] == [(12.0, m.FactStatus.AUTO_ACCEPTED, True)]
+    assert [p["kind"] for _, p, _ in _items(pg, "r2")] == ["conflict"]

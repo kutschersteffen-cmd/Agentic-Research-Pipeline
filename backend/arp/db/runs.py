@@ -240,7 +240,8 @@ class RunStore:
         then the review items, each linked to the observation its payload names (field, period and
         basis). A `_key` already stored writes nothing. A new value against an accepted fact queues one
         `conflict` item (data rule 1), on the value item's key when the value was routed to review.
-        Returns how many conflict items were queued on top of `review_items`."""
+        Returns how many items were queued beyond `review_items`: conflicts added, minus value items
+        dropped because their value is already accepted or was kept once before."""
         row = _jsonb_safe(row)
         entity = company.entity_id if company is not None else None
         with self._tx(run_id) as s:
@@ -249,7 +250,8 @@ class RunStore:
             for e in errors:
                 s.execute(insert(RunError).values(run_id=run_id, company_id=entity, error=_jsonb_safe(e)))
             conflicts: list = []
-            observations_db.record(s, observations, apply_facts=apply_facts, conflicts=conflicts)
+            settled: list = []
+            observations_db.record(s, observations, apply_facts=apply_facts, conflicts=conflicts, settled=settled)
             if entity is not None:
                 held = {d["doc_id"]: d.get("reason") for d in row.get("held_documents") or [] if d.get("doc_id")}
                 known = set(s.scalars(select(Document.doc_id).where(Document.doc_id.in_(held)))) if held else set()
@@ -259,10 +261,13 @@ class RunStore:
                     ).on_conflict_do_nothing())
             items: dict[str, tuple[dict, int | None]] = {key: (_jsonb_safe(p), None) for key, p in review_items}
             added = 0
+            for o in settled:  # the accepted value again: no review item either, even if it was routed to review
+                added -= items.pop(_conflict_target(row, o, company)[0], None) is not None
             for o, obs, fact in conflicts:
-                if observations_db.rejected_before(s, fact, obs.value):
-                    continue  # kept once already: the same value is not raised again (AC-51)
                 key, base = _conflict_target(row, o, company)
+                if observations_db.rejected_before(s, fact, obs.value):
+                    added -= items.pop(key, None) is not None  # kept once already: not raised again (AC-51)
+                    continue
                 payload = {**(items[key][0] if key in items else base), "kind": "conflict", "new_value": obs.value,
                            "accepted": {"value": fact.value, "fact_id": fact.id, "status": str(fact.status),
                                         "observation_id": fact.observation_id}}

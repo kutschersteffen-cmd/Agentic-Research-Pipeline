@@ -229,7 +229,7 @@ def _decide_locked(
     reasons: list[str] = []
     if step == "first" and kind != "other":  # a failure report keeps the legacy single decision
         prior = None
-        if kind in ("value", "restatement_candidate"):
+        if kind in ("value", "restatement_candidate", "conflict"):  # a conflict shares its value item's key
             key = item.payload["item_key"] if kind == "restatement_candidate" else item_key
             prior = RunHistory.load(run_store, exclude_run_id=run_id).last_decided(key)
         reasons = second_review_reasons(
