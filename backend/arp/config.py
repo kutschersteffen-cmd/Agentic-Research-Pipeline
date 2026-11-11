@@ -657,11 +657,12 @@ class Settings(BaseSettings):
     def _standins_only_without_model_key(self) -> "Settings":
         if self.standins_dir is None:
             return self
-        if self.anthropic_api_key or self.gemini_available:
+        if self.anthropic_api_key or self.gemini_api_key:
             raise ValueError(
-                "ARP_STANDINS_DIR is set together with a model API key or Vertex AI; stand-ins are for tests only. "
-                "Unset one of them."
+                "ARP_STANDINS_DIR is set together with a model API key; stand-ins are for tests only. Unset one of them."
             )
+        if self.gemini_use_vertex:
+            raise ValueError("ARP_STANDINS_DIR is set together with ARP_GEMINI_USE_VERTEX; stand-ins are for tests only. Unset one of them.")
         if not self.standins_dir.is_dir():
             raise ValueError(f"ARP_STANDINS_DIR {self.standins_dir} is not a directory.")
         return self
