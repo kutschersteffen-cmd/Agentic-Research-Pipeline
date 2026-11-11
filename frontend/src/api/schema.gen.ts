@@ -33,7 +33,11 @@ export interface paths {
         get: operations["get_flow_api_argus_flows__flow_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Flow
+         * @description Undo a hand-over that failed after creating its flow: only an unused draft can go.
+         */
+        delete: operations["delete_flow_api_argus_flows__flow_id__delete"];
         options?: never;
         head?: never;
         /** Patch Flow */
@@ -18227,6 +18231,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ArgusFlowView"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_flow_api_argus_flows__flow_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -25047,6 +25047,40 @@
    }
   },
   "/api/argus/flows/{flow_id}": {
+   "delete": {
+    "description": "Undo a hand-over that failed after creating its flow: only an unused draft can go.",
+    "operationId": "delete_flow_api_argus_flows__flow_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Flow",
+    "tags": [
+     "argus"
+    ]
+   },
    "get": {
     "operationId": "get_flow_api_argus_flows__flow_id__get",
     "parameters": [

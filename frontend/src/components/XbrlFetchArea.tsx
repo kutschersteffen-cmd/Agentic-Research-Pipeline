@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import { UniversePicker } from "./UniversePicker";
+import { CompanyPicker } from "./CompanyPicker";
 import { when } from "../lib/runs";
-import { canRetryFetch, keyLabel, reportText, statusText } from "../lib/xbrlTags";
-import type { RunManifest, UniverseHandoff, WorkbenchResponse, XbrlCompanyStatus, XbrlRunMarket } from "../types";
+import { canRetryFetch, keyLabel, reportText, statusText, usingText } from "../lib/xbrlTags";
+import type { RunManifest, WorkbenchResponse, XbrlCompanyStatus, XbrlRunMarket } from "../types";
 import { pollAfter } from "../lib/poll";
 
 type ResultRow = XbrlCompanyStatus & { _key: string };
@@ -31,16 +31,26 @@ export function XbrlFetchArea({
   onSettled,
   selectedRunId: runId,
   onSelectRun,
-  pendingUniverse,
 }: {
   tags: string[];
   onSettled?: () => void;
   selectedRunId: string | null; // from the URL (#/xbrl/<run id>): refresh, Back and a pasted link reattach
   onSelectRun: (runId: string) => void;
-  pendingUniverse?: UniverseHandoff | null;
 }) {
-  const [picked, setPicked] = useState<{ path: string; count: number } | null>(null);
-  const universe = picked ?? (pendingUniverse ? { path: pendingUniverse.path, count: pendingUniverse.count } : null); // a pick replaces the hand-over
+  const [universe, setPicked] = useState<{ path: string; count: number | null } | null>(null);
+  const [pickError, setPickError] = useState<string | null>(null);
+  // Each choice in the company picker becomes one saved universe the fetch reads.
+  async function pick(make: () => Promise<{ path: string; company_count: number }>) {
+    setPickError(null);
+    try {
+      const u = await make();
+      setPicked({ path: u.path, count: u.company_count });
+      return true;
+    } catch (err) {
+      setPickError(msg(err));
+      return false;
+    }
+  }
   const [market, setMarket] = useState<XbrlRunMarket>("auto");
   const [routes, setRoutes] = useState<WorkbenchResponse["counts"]["routes"] | null>(null);
   const [routesError, setRoutesError] = useState<string | null>(null);
@@ -194,12 +204,14 @@ export function XbrlFetchArea({
         </label>
       </fieldset>
       {market === "esef" && <p className="help-text">The universe file needs an lei column.</p>}
-      <UniversePicker onResolved={(path, count) => setPicked({ path, count })} />
-      {pendingUniverse && universe?.path === pendingUniverse.path && (
-        <p className="status-text">
-          Using {pendingUniverse.count} companies sent from {pendingUniverse.from}. Pick a different universe below to replace it.
-        </p>
-      )}
+      <CompanyPicker
+        busy={busy}
+        onUpload={(file) => pick(() => api.uploadUniverse(file))}
+        onUniverse={(path, count) => setPicked({ path, count })}
+        onAddOne={(c) => pick(() => api.universeFromCompanies([{ ...c, company_id: c.cik || c.lei || c.isin || c.ticker || c.name }], "single"))}
+      />
+      {universe && <p className="status-text">{usingText(universe.count)}</p>}
+      {pickError && <p className="error-text" role="alert">{pickError}</p>}
       <fieldset className="xbrl-choice">
         <legend className="field-label">Tags to fetch</legend>
         <label className="checkbox-label">
@@ -225,7 +237,7 @@ export function XbrlFetchArea({
       {noTags && <p className="help-text">Choose at least one tag in the Tags section, or fetch all tags.</p>}
       {!universe && <p className="help-text">Upload or pick a company universe to start.</p>}
       <button onClick={start} disabled={busy || !universe || noTags || (running && !pollError)}>
-        Start fetch{universe ? ` for ${universe.count.toLocaleString()} companies` : ""}
+        Start fetch{universe?.count != null ? ` for ${universe.count.toLocaleString()} companies` : ""}
       </button>
       <div aria-live="polite">{error && <p className="error-text">{error}</p>}</div>
 

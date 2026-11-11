@@ -98,7 +98,6 @@ import type {
   PortfolioSummary,
   QAAnswer,
   SearchResponse,
-  TransitionPlanAssessmentRecord,
   ExtractionProfile,
   PipelineShape,
   RunCompany,
@@ -448,10 +447,6 @@ export const api = {
 
   // Transition Plan Assessment (64-indicator walk/talk RAG disclosure assessment)
   getTransitionPlanIndicators: () => request<TransitionPlanIndicatorDef[]>("/api/transition-plan/indicators"),
-  getTransitionPlanResults: (runId: string, offset = 0, limit = 500) =>
-    request<{ total: number; results: TransitionPlanAssessmentRecord[] }>(
-      `/api/transition-plan/runs/${runId}/results?offset=${offset}&limit=${limit}`,
-    ),
   getTnfdReviewHistory: (runId: string, itemKey: string) =>
     request(`/api/tnfd/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
   submitTnfdReview: (runId: string, body: unknown) =>
@@ -645,6 +640,9 @@ export const api = {
 
   // Argus flows (#/argus/<flow_id>/<step>)
   createArgusFlow: () => request<ArgusFlow>("/api/argus/flows", { method: "POST" }),
+  deleteArgusFlow: async (flowId: string): Promise<void> => {
+    await authFetch(`${API_BASE}/api/argus/flows/${encodeURIComponent(flowId)}`, { method: "DELETE" }); // 204: no body to parse
+  },
   listArgusFlows: () => request<{ flows: ArgusDraft[] }>("/api/argus/flows"),
   getArgusFlow: (flowId: string) => request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}`),
   patchArgusFlow: (flowId: string, body: Partial<Pick<ArgusFlow, "identity_run_id" | "reporting_year" | "source" | "step" | "schema_choice" | "settings" | "repeat">>) =>

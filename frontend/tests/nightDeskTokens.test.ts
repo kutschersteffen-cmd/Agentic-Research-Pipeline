@@ -148,8 +148,10 @@ test("ac13_amber_usage_unchanged", (t) => {
   const main = onMain(t, cmd("origin/main"));
   const head = onMain(t, cmd("HEAD"));
   if (main === null || head === null) return;
-  const others = (out: string) => out.split("\n").filter((l) => l && !allowed.test(l)).sort().join("\n");
-  assert.equal(others(head), others(main));
+  const others = (out: string) => out.split("\n").filter((l) => l && !allowed.test(l));
+  // Removing amber (with the code that used it) is fine; adding a use main doesn't have is not.
+  const mainLines = new Set(others(main));
+  assert.deepEqual(others(head).filter((l) => !mainLines.has(l)), []);
 });
 
 // Night Desk release 2 (docs/superpowers/specs/2026-11-08-night-desk-status-design.md).

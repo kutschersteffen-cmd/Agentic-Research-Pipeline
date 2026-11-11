@@ -154,6 +154,16 @@ def create_flow(
     return view(store.create(principal))
 
 
+@router.delete("/flows/{flow_id}", status_code=204, dependencies=[Depends(require_role("analyst"))])
+def delete_flow(flow_id: str, store: FlowStore = Depends(get_flow_store)) -> None:
+    """Undo a hand-over that failed after creating its flow: only an unused draft can go."""
+    deleted = store.delete_if_empty(flow_id)
+    if deleted is None:
+        raise HTTPException(404, "Extraction not found")
+    if not deleted:
+        raise HTTPException(409, "Only an empty draft can be deleted.")
+
+
 @router.get("/flows", dependencies=[Depends(current_user)])
 def list_flows(store: FlowStore = Depends(get_flow_store)) -> FlowList:
     return FlowList(flows=store.list())

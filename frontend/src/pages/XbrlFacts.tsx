@@ -6,7 +6,7 @@ import { XbrlRequiredArea } from "../components/XbrlRequiredArea";
 import { XbrlVerifyArea } from "../components/XbrlVerifyArea";
 import { XbrlTagsArea } from "../components/XbrlTagsArea";
 import { keyLabel } from "../lib/xbrlTags";
-import type { UniverseHandoff, XbrlCompanyFiles } from "../types";
+import type { XbrlCompanyFiles } from "../types";
 
 const factsCaption = (c: XbrlCompanyFiles, cik: ReactNode) => (
   <>
@@ -21,11 +21,9 @@ const factsCaption = (c: XbrlCompanyFiles, cik: ReactNode) => (
 export function XbrlFacts({
   selectedRunId,
   onSelectRun,
-  pendingUniverse,
 }: {
   selectedRunId: string | null;
   onSelectRun: (runId: string) => void;
-  pendingUniverse?: UniverseHandoff | null;
 }) {
   const [tags, setTags] = useState<string[]>([]);
   const [filesKey, setFilesKey] = useState(0);
@@ -47,7 +45,7 @@ export function XbrlFacts({
         Download each company’s XBRL facts and annual report from the SEC (US) or the ESEF filing index (EU), keep
         every fact traceable to its filing, and choose which tags you need.
       </p>
-      <XbrlFetchArea tags={tags} onSettled={filesChanged} selectedRunId={selectedRunId} onSelectRun={onSelectRun} pendingUniverse={pendingUniverse} />
+      <XbrlFetchArea tags={tags} onSettled={filesChanged} selectedRunId={selectedRunId} onSelectRun={onSelectRun} />
       <XbrlFilesArea refreshKey={filesKey} chosen={cik} onChoose={choose} onCompany={setCompany} />
       <section className="card" aria-labelledby="xbrl-facts-title">
         <h2 id="xbrl-facts-title" tabIndex={-1}>

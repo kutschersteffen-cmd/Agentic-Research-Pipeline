@@ -4,7 +4,8 @@ import { ReviewerField } from "./components/ReviewerField";
 import { SignedInAs } from "./components/SignedInAs";
 import { ProcessBar, StartPage, WorkspaceOverview } from "./pages/ProcessHub";
 import { ArgusFlow } from "./pages/ArgusFlow";
-import { ArgusStart } from "./pages/ArgusStart";
+import { singleFlight } from "./lib/argusFlow";
+import { ArgusNew, ArgusStart, openNewFlow } from "./pages/ArgusStart";
 import { WORKSPACES, workspaceOfProcess, type WorkspaceId } from "./lib/processes";
 import { STATE_LABEL, workspaceState } from "./lib/workspaceCard";
 import { STAGE_TABS } from "./pages/steward/common";
@@ -15,7 +16,7 @@ import { clearTurns, loadTurns, saveTurns, type AskTurn } from "./lib/askHistory
 import { useMe } from "./lib/reviewer";
 import { ThemeSwitch } from "./components/ThemeSwitch";
 import { NAV_ICONS } from "./components/NavIcons";
-import type { ReviewableRunKind, RunManifest, UniverseHandoff } from "./types";
+import type { ReviewableRunKind, RunManifest } from "./types";
 import { REVIEWABLE_RUN_TYPES, runTypeLabel } from "./lib/runs";
 import { listAllRuns } from "./lib/poll";
 import { HUBS, NAV_GROUPS, currentNavIds, entryTab, navCount, redirectHash } from "./lib/nav";
@@ -23,7 +24,6 @@ import { Landing } from "./pages/Landing";
 
 // Pages load on demand so the first screen does not ship every page and its editors.
 const ThemeBuilder = lazy(() => import("./pages/ThemeBuilder").then((x) => ({ default: x.ThemeBuilder })));
-const Extraction = lazy(() => import("./pages/Extraction").then((x) => ({ default: x.Extraction })));
 const TransitionBarrierAssessment = lazy(() => import("./pages/TransitionBarrierAssessment").then((x) => ({ default: x.TransitionBarrierAssessment })));
 const EmergingThemesDetector = lazy(() => import("./pages/EmergingThemesDetector").then((x) => ({ default: x.EmergingThemesDetector })));
 const ReviewQueue = lazy(() => import("./pages/ReviewQueue").then((x) => ({ default: x.ReviewQueue })));
@@ -49,7 +49,6 @@ const Outputs = lazy(() => import("./pages/Outputs").then((x) => ({ default: x.O
 const Arcade = lazy(() => import("./pages/Arcade").then((x) => ({ default: x.Arcade })));
 const DecisionStudio = lazy(() => import("./pages/DecisionStudio").then((x) => ({ default: x.DecisionStudio })));
 const IndexBuilder = lazy(() => import("./pages/IndexBuilder").then((x) => ({ default: x.IndexBuilder })));
-const ArgusUniverse = lazy(() => import("./pages/ArgusUniverse").then((x) => ({ default: x.ArgusUniverse })));
 const ArgusWalkthrough = lazy(() => import("./pages/ArgusWalkthrough").then((x) => ({ default: x.ArgusWalkthrough })));
 const Company = lazy(() => import("./pages/Company").then((x) => ({ default: x.Company })));
 const XbrlFacts = lazy(() => import("./pages/XbrlFacts").then((x) => ({ default: x.XbrlFacts })));
@@ -61,7 +60,6 @@ const TABS = [
   { id: "home", label: "Start" },
   { id: "stewardiq", label: "StewardIQ" },
   { id: "argus", label: "Argus" },
-  { id: "argusUniverse", label: "Universe" },
   { id: "argusWalkthrough", label: "Walkthrough" },
   { id: "transitionIntel", label: "Transition Intel" },
   { id: "rdLab", label: "R&D Lab" },
@@ -77,8 +75,6 @@ const TABS = [
   { id: "emergingThemes", label: "Emerging Themes" },
   { id: "themes", label: "Theme dossiers" },
   { id: "backgroundAgents", label: "Background Agents" },
-  { id: "extraction", label: "Extraction" },
-  { id: "transitionPlan", label: "Transition Plan" },
   { id: "transitionBarrier", label: "Transition Barriers" },
   { id: "portfolio-monitoring", label: "Risk Monitoring" },
   { id: "review", label: "Review Queue" },
@@ -164,9 +160,6 @@ function App() {
   const [recentRuns, setRecentRuns] = useState<RunManifest[]>([]);
   // Sidebar status dots wait for the first runs load, so they never show a guess.
   const [runsLoaded, setRunsLoaded] = useState(false);
-  // One universe in flight between screens, addressed to one of them.
-  const [handoff, setHandoff] = useState<(UniverseHandoff & { to: TabId }) | null>(null);
-  const pendingFor = (to: TabId) => (handoff?.to === to ? handoff : null);
   const [pendingTaxonomyId, setPendingTaxonomyId] = useState<string | null>(null);
 
   // The hash last shown, so a navigation the open screen refuses can be put back.
@@ -273,10 +266,10 @@ function App() {
     setNavOpen(false);
   }
 
-  const sendUniverse = (from: string) => (to: "extraction" | "transitionPlan" | "xbrl", path: string, count: number) => {
-    setHandoff({ path, count, from, to });
-    navigate(to);
-  };
+  // A hand-over opens step 1 of a new Argus flow with the companies listed; the Transition Plan one also picks that template.
+  // One hand-over at a time: a double click on "Argus →" must not start two flows.
+  const sendToArgus = useRef(singleFlight((to: "argus" | "transitionPlan", path: string) =>
+    openNewFlow({ universePath: path, preset: to === "transitionPlan" ? "transition_plan" : null }))).current;
 
   function sendToTheme(taxonomyId: string) {
     setPendingTaxonomyId(taxonomyId);
@@ -399,7 +392,8 @@ function App() {
         )}
         <Suspense fallback={<p className="muted" role="status">Loading…</p>}>
         {active === "home" && <StartPage />}
-        {active === "argus" && (route.params[0] ? <ArgusFlow key={route.params[0]} flowId={route.params[0]} step={Number(route.params[1] ?? 1) || 1} /> : <ArgusStart />)}
+        {active === "argus" && route.params[0] === "new" && <ArgusNew preset={route.params[1] ?? null} />}
+        {active === "argus" && route.params[0] !== "new" && (route.params[0] ? <ArgusFlow key={route.params[0]} flowId={route.params[0]} step={Number(route.params[1] ?? 1) || 1} /> : <ArgusStart />)}
         {isWorkspace(active) && active !== "argus" && <WorkspaceOverview key={active} id={active} />}
         {active === "search" && <Search />}
         {active === "securityMaster" && <SecurityMaster />}
@@ -408,16 +402,14 @@ function App() {
         {active === "smartSearch" && <SmartSearch />}
         {active === "outputs" && <Outputs />}
         {active === "arcade" && <Arcade selected={route.params[0] ?? null} />}
-        {active === "theme" && <ThemeBuilder key={route.params[0]} initialRunId={route.params[0] ?? null} onSendToExtraction={(path, count) => sendUniverse("Thematic Universe")("extraction", path, count)} pendingTaxonomyId={pendingTaxonomyId} />}
+        {active === "theme" && <ThemeBuilder key={route.params[0]} initialRunId={route.params[0] ?? null} onSendToArgus={(path) => sendToArgus("argus", path)} pendingTaxonomyId={pendingTaxonomyId} />}
         {active === "taxonomy" && route.params[0] === "authority" && <AuthorityTaxonomyRun key={route.params[1] ?? "new"} runId={route.params[1]} />}
         {active === "taxonomy" && route.params[0] !== "authority" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
         {active === "emergingThemes" && <EmergingThemesDetector onNavigate={go} />}
         {active === "themes" && <ThemeDossiers params={route.params} onFindCompanies={sendToTheme} />}
         {active === "backgroundAgents" && <BackgroundAgents />}
-        {active === "extraction" && <Extraction key="extraction" initialTab={route.params[0]} initialAuto={route.params[1] === "auto"} pendingUniverse={pendingFor("extraction")} />}
-        {active === "transitionPlan" && <Extraction key="transitionPlan" initialProfile="transition_plan" pendingUniverse={pendingFor("transitionPlan")} />}
         {active === "transitionBarrier" && <TransitionBarrierAssessment params={route.params} />}
-        {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool key={route.params[0]} initialSub={route.params[0]} onSendUniverse={sendUniverse("Risk Monitoring")} />}
+        {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool key={route.params[0]} initialSub={route.params[0]} onSendUniverse={sendToArgus} />}
         {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} />}
         {active === "history" && <RunHistory onOpenReview={openReview} focusRunId={route.params[0] ?? null} />}
         {active === "plans" && <Plans selectedId={route.params[0] ?? null} onSelect={(id) => navigate("plans", id)} />}
@@ -430,10 +422,9 @@ function App() {
         {active === "valueChain" && <ValueChainExplorer key={route.params.join("/")} params={route.params} />}
         {active === "decision" && <DecisionStudio key={route.params.join("/")} initialSource={route.params[0]} initialRunId={route.params[1]} />}
         {active === "index" && <IndexBuilder />}
-        {active === "argusUniverse" && <ArgusUniverse onSendUniverse={sendUniverse("Argus Universe")} />}
         {active === "argusWalkthrough" && <ArgusWalkthrough key={route.params.join("/")} params={route.params} />}
         {active === "rfp" && <RfpAnswers projectId={route.params[0] ? Number(route.params[0]) : null} onOpen={(id) => (id === null ? navigate("rfp") : navigate("rfp", String(id)))} />}
-        {active === "xbrl" && <XbrlFacts pendingUniverse={pendingFor("xbrl")} selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("xbrl", id)} />}
+        {active === "xbrl" && <XbrlFacts selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("xbrl", id)} />}
         {active === "library" && <DataLibrary />}
         {active === "companies" && <Company companyRef={route.params[0]} />}
         </Suspense>

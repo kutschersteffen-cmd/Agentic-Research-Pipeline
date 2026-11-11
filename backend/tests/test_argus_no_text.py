@@ -135,7 +135,27 @@ def test_a_kept_file_with_the_same_text_as_another_is_not_lost_to_the_dedup(orde
 def test_a_source_that_failed_as_a_whole_is_not_a_file_without_text():
     from arp.ingestion.registry import DocumentSourceRegistry, KeptFileMissing
 
-    inner = DocumentSourceRegistry([_Source("local", error=OSError("disk gone")), _Source("edgar", [_doc("b", "text")])])
+    inner = DocumentSourceRegistry([_Source("local_files", error=OSError("disk gone")), _Source("edgar", [_doc("b", "text")])])
     with pytest.raises(KeptFileMissing, match=r"^Kept file not found: a\.pdf$") as err:
         asyncio.run(KeptDocuments(inner, {"aapl": {"a", "b"}}, names={"a": "a.pdf"}).fetch_all(APPLE))
     assert not getattr(err.value, "document_problem", False)  # nothing to replace: no Replace file
+
+
+def test_another_source_failing_does_not_hide_an_unreadable_kept_file():
+    """EDGAR down while the kept local file failed to parse: the file is the problem, so Replace file is offered."""
+    from arp.ingestion.registry import DocumentSourceRegistry
+
+    inner = DocumentSourceRegistry([_Source("local_files", []), _Source("edgar", error=OSError("EDGAR down"))])
+    with pytest.raises(UnreadableDocument, match=r"^No text could be read from a\.pdf$"):
+        asyncio.run(KeptDocuments(inner, {"aapl": {"a"}}, names={"a": "a.pdf"}).fetch_all(APPLE))
+
+
+def test_kept_documents_reuse_the_registry_fetch_instead_of_a_copy():
+    import inspect
+
+    from arp.ingestion import registry
+
+    assert "asyncio.gather" not in inspect.getsource(registry.KeptDocuments)  # one fan-out, the registry's
+    from arp.ingestion.local_files import LocalFileDocumentSource
+
+    assert LocalFileDocumentSource.name == registry.LOCAL_SOURCE

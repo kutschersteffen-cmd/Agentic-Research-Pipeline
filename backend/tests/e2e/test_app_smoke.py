@@ -71,7 +71,7 @@ def test_phone_drawer_takes_focus_on_a_screen_without_a_sidebar_link(page):
     # Most screens have no sidebar entry since the sidebar was cut to nine links;
     # opening the drawer must still move keyboard focus into it.
     page.set_viewport_size({"width": 390, "height": 844})
-    page.goto(URL + "/#/argusUniverse")
+    page.goto(URL + "/#/argusWalkthrough")  # no sidebar link
     page.wait_for_load_state("networkidle")
     page.get_by_role("button", name="Open navigation").click()
     page.wait_for_function("() => document.activeElement?.closest('#app-sidebar') !== null")

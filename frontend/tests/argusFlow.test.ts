@@ -34,7 +34,7 @@ test("a draft lists as Draft at its step, newest first, opening the flow", () =>
   const rows = argusRows([run], [], [flow({ flow_id: "f1", companies: [{ company_id: "a" }, { company_id: "b" }] as ArgusFlow["companies"] })]);
   assert.deepEqual(rows.map((r) => [r.runId, r.label, r.companies, r.status, r.step, r.starterName, r.openHref]), [
     ["f1", "New extraction", 2, "Draft", 1, "Alice", "#/argus/f1/1"],
-    ["r1", "Extraction", 3, "Running", 4, "bob", "#/extraction/extract"],
+    ["r1", "Extraction", 3, "Running", 4, "bob", "#/history/r1"],
   ]);
 });
 
@@ -107,4 +107,39 @@ test("results: a company a pre-step stopped for review gets its own row", () => 
   assert.equal(rows.length, 2);
   assert.deepEqual([rows[0].key, rows[0].company, rows[0].field, rows[0].value, rows[0].companyLevel], ["d", "Dco", "Parse & index", "no document text could be parsed", true]);
   assert.equal(onlyNeedsYou(rows).length, 1);
+});
+
+test("saving edited fields bumps only the changed released fields", async () => {
+  const { bumpChangedFields } = await import("../src/lib/argusFlow.ts");
+  const f = (id: string, extra: object = {}) => ({ field_id: id, name: id, description: "d", data_type: "number", extraction_instructions: "", required: false,
+    source_doc_types: [], seed_keywords: [], status: "released", version: 1, ...extra }) as never;
+  const original = { schema_id: "s", fields: [f("a"), f("b"), f("c", { status: "draft" })] } as never;
+  const edited = { schema_id: "s", fields: [
+    f("a", { rules: [{ kind: "requires", field: "b", equals: true }] }),  // released, a rule added: next field version, a draft
+    f("b"),                                                                   // unchanged: keeps v1
+    f("c", { status: "draft", description: "new" }),                                         // a draft field changed in place: no bump needed
+    f("n", { status: undefined, version: undefined }),                        // new field: untouched
+  ] } as never;
+  const out = bumpChangedFields(original, edited).fields as { field_id: string; version?: number; status?: string }[];
+  assert.deepEqual(out.map((x) => [x.field_id, x.version, x.status]), [["a", 2, "draft"], ["b", 1, "released"], ["c", 1, "draft"], ["n", undefined, undefined]]);
+  assert.equal(bumpChangedFields(null, edited), edited);  // a drafted schema has nothing released to protect
+});
+
+test("a hand-over clicked twice while the first is in flight starts one flow", async () => {
+  const { singleFlight } = await import("../src/lib/argusFlow.ts");
+  let calls = 0;
+  let release!: () => void;
+  const send = singleFlight(async () => { calls++; await new Promise<void>((r) => (release = r)); });
+  const first = send();
+  await send();  // the double click: ignored, resolves at once
+  assert.equal(calls, 1);
+  release();
+  await first;
+  const again = send();  // after the first finished, a new send goes through
+  release();
+  await again;
+  assert.equal(calls, 2);
+  const failing = singleFlight(async () => { throw new Error("boom"); });
+  await assert.rejects(failing(), /boom/);
+  await assert.rejects(failing(), /boom/);  // a failure frees the guard
 });
