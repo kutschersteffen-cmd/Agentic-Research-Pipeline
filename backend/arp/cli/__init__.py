@@ -67,6 +67,8 @@ def _require_postgres(ctx: typer.Context) -> None:
             where = f"{'.'.join(map(str, error['loc']))}: " if error["loc"] else ""
             typer.echo(where + error["msg"].removeprefix("Value error, "), err=True)
         raise typer.Exit(1) from exc
+    if ctx.invoked_subcommand == "preflight":  # reports an unreachable or unmigrated database as its own line
+        return
     try:
         require_postgres(settings)
         if ctx.invoked_subcommand != "db":
@@ -74,6 +76,19 @@ def _require_postgres(ctx: typer.Context) -> None:
     except RuntimeError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
+
+
+@app.command("preflight")
+def preflight_cmd(base_url: str = typer.Option("http://127.0.0.1:8000", help="Where the running app answers.")) -> None:
+    """Readiness checks: Postgres, both models, the compute services, the served frontend, an outbound fetch."""
+    import asyncio
+
+    from arp import preflight
+    from arp.config import get_settings
+
+    lines = asyncio.run(preflight.run_preflight(get_settings(), base_url=base_url, on_line=typer.echo))
+    if any(line.startswith("FAIL") for line in lines):
+        raise typer.Exit(1)
 
 
 app.add_typer(theme_app, name="theme")
