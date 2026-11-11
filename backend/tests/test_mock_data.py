@@ -45,3 +45,16 @@ async def test_seeding_for_today_ends_at_the_last_month_end(tmp_path):
 
     fixed = PortfolioStore(tmp_path / "fixed")
     assert (await generate_demo_dataset(fixed)).snapshot_dates == SNAPSHOT_DATES == ["2025-11-28", "2026-02-27", "2026-05-29", "2026-08-12"]
+
+
+def test_demo_green_revenue_share_is_in_percent():
+    """The field's unit is "%", but the demo values were fractions: a "Green revenue share < 20" rule compared 0.1573 with 20."""
+    from arp.portfolio.climate import mock_esg_source
+    from arp.portfolio.climate.schemas import FIELD_GREEN_REVENUE_PCT
+    from arp.portfolio.mock_data import _build_companies_and_securities
+
+    companies, _ = _build_companies_and_securities()
+    values = [o.value for c in companies for o in mock_esg_source.generate_internal_api_observations(c, "snapshot:2026-10-31", "2026-10-31")
+              if o.field_id == FIELD_GREEN_REVENUE_PCT]
+    assert values and all(0 <= v <= 95 for v in values)
+    assert max(values) > 1  # percent, not a fraction
