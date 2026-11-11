@@ -35,6 +35,7 @@ from arp.db.models import (
 from arp.db.observations import ObservationIn
 from arp.db.session import transaction
 from arp.schemas.common import CompanyRef, RunManifest, now_iso
+from arp.schemas.review import field_item_key, period_key
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.run_store import LegacyRunStore, done_keys_from_rows
 from arp.universe import resolve_universe
@@ -232,20 +233,23 @@ class RunStore:
         company: CompanyRef | None,
         errors: list[dict] = (),
         apply_facts: bool = True,
-    ) -> None:
+    ) -> int:
         """One company's result in one transaction (spec §3.1): the run_results row, `errors`
         (values left out of `observations`), the observations with their citations and fact
         updates (unless `apply_facts` is False: the importer replays facts afterwards), held documents,
         then the review items, each linked to the observation its payload names (field, period and
-        basis). A `_key` already stored writes nothing."""
+        basis). A `_key` already stored writes nothing. A new value against an accepted fact queues one
+        `conflict` item (data rule 1), on the value item's key when the value was routed to review.
+        Returns how many conflict items were queued on top of `review_items`."""
         row = _jsonb_safe(row)
         entity = company.entity_id if company is not None else None
         with self._tx(run_id) as s:
             if not self._insert_result(s, run_id, row, entity):
-                return
+                return 0
             for e in errors:
                 s.execute(insert(RunError).values(run_id=run_id, company_id=entity, error=_jsonb_safe(e)))
-            observations_db.record(s, observations, apply_facts=apply_facts)
+            conflicts: list = []
+            observations_db.record(s, observations, apply_facts=apply_facts, conflicts=conflicts)
             if entity is not None:
                 held = {d["doc_id"]: d.get("reason") for d in row.get("held_documents") or [] if d.get("doc_id")}
                 known = set(s.scalars(select(Document.doc_id).where(Document.doc_id.in_(held)))) if held else set()
@@ -253,12 +257,24 @@ class RunStore:
                     s.execute(insert(RunHeldDocument).values(
                         run_id=run_id, company_id=entity, doc_id=doc_id, reason=held[doc_id],
                     ).on_conflict_do_nothing())
-            for key, payload in review_items:
-                item = {"item_key": key, "queued_at": now_iso(), **_jsonb_safe(payload)}
+            items: dict[str, tuple[dict, int | None]] = {key: (_jsonb_safe(p), None) for key, p in review_items}
+            added = 0
+            for o, obs, fact in conflicts:
+                if observations_db.rejected_before(s, fact, obs.value):
+                    continue  # kept once already: the same value is not raised again (AC-51)
+                key, base = _conflict_target(row, o, company)
+                payload = {**(items[key][0] if key in items else base), "kind": "conflict", "new_value": obs.value,
+                           "accepted": {"value": fact.value, "fact_id": fact.id, "status": str(fact.status),
+                                        "observation_id": fact.observation_id}}
+                added += key not in items
+                items[key] = (payload, obs.id)
+            for key, (payload, obs_id) in items.items():
+                item = {"item_key": key, "queued_at": now_iso(), **payload}
                 if company is not None:
                     item.setdefault("company_id", company.company_id)
                 same = company is not None and item.get("company_id") == company.company_id
-                self._insert_review_item(s, run_id, item, None, entity if same else None)
+                self._insert_review_item(s, run_id, item, obs_id, entity if same else None)
+            return added
 
     def _item_id(self, run_id: str, row: dict):
         return (
@@ -433,3 +449,17 @@ class RunStore:
 
     read_jsonl = staticmethod(read_jsonl)
     append_jsonl = staticmethod(append_jsonl)
+
+
+def _conflict_target(row: dict, o: ObservationIn, company: CompanyRef | None) -> tuple[str, dict]:
+    """The review key and base payload of a conflict on `o`'s field: an extraction field's own item key
+    (so a value routed to review and its conflict are one item), else one keyed by company, field and period."""
+    period = o.period_end.isoformat() if o.period_end else None
+    base = {"company_id": row.get("company_id") or (company.company_id if company else None), "name": row.get("name"),
+            "field_id": o.field_id, "period_end": period, "basis": o.basis}
+    issuer = row.get("issuer_key")
+    for f in row.get("fields") or []:
+        if (isinstance(f, dict) and issuer and f.get("field_id") == o.field_id and f.get("period_end") == period
+                and (f.get("basis") or "") == o.basis):
+            return field_item_key(issuer, o.field_id, period_key(f)), {**base, "issuer_key": issuer, "field": f}
+    return f"conflict:{o.company_id}:{o.field_id}:{period or 'unspecified'}:{o.basis}", base
