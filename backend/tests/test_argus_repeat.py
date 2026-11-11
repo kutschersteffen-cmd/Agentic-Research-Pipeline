@@ -120,3 +120,20 @@ def test_repeat_rows_wait_for_step_3(client, run_store, tmp_path):
     data["step"] = 2
     flow_path.write_text(json.dumps(data))
     assert client.get(f"/api/argus/flows/{fid}").json()["repeat_rows"] == []
+
+
+def test_a_trial_run_is_not_an_earlier_extraction(client, run_store, tmp_path):
+    """A trial stores no facts. Listed as "extracted before", it made Start demand a choice, and "Skip, keep
+    earlier results" then left the company out of the real run with nothing kept."""
+    fid = client.post("/api/argus/flows").json()["flow_id"]
+    client.post(f"/api/argus/flows/{fid}/companies/upload", files={"file": ("u.csv", "name,company_id\nApple Inc,aapl\n")})
+    client.patch(f"/api/argus/flows/{fid}", json={"reporting_year": 2025, "step": 3})
+    key = _upload(client, fid, tmp_path, "a.pdf", "Apple Inc Annual Report 2025")
+    client.post(f"/api/argus/flows/{fid}/files", json={"all_that_pass": True})
+    run_store.save_manifest(RunManifest(run_id="extraction_trial", run_type="extraction", created_at="2026-10-01T00:00:00Z", company_count=1,
+                                        params={"schema_name": "S", "schema_id": "sch_x", "schema_version": V2, "trial": True}))
+    run_store.append_result("extraction_trial", {"company_id": "aapl", "name": "Apple Inc", "issuer_key": "k", "fields": [],
+                                                 "documents": [{"doc_id": "d", "content_key": key}]})
+
+    flow = client.patch(f"/api/argus/flows/{fid}", json={"schema_choice": {"kind": "schema", "schema_id": "sch_x", "version": 2}}).json()
+    assert flow["repeat_rows"] == []
