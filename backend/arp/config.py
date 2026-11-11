@@ -21,6 +21,10 @@ class Settings(BaseSettings):
         description="Directory of the built frontend (frontend/dist). When set, the API serves it at / so the app "
         "runs on one port, e.g. behind Jupyter Server Proxy. Build it with VITE_API_BASE=. for a path prefix.",
     )
+    preflight_fetch_url: str = Field(
+        default="https://www.sec.gov/robots.txt",
+        description="URL `arp preflight` downloads to prove outbound document fetches work from this machine.",
+    )
     gemini_use_vertex: bool = Field(
         default=False,
         description="Call Gemini through Vertex AI with Google application default credentials instead of "
