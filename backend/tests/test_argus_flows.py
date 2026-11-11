@@ -65,3 +65,17 @@ def test_only_an_empty_unstarted_draft_can_be_deleted(client, tmp_path):
         assert client.delete(f"/api/argus/flows/{started}").status_code == 403
     finally:
         app.dependency_overrides.pop(current_user, None)
+
+
+def test_the_flow_reports_how_its_identity_run_ended(client, pg, tmp_path):
+    """Step 1 kept saying "Identity run started." after the run had failed, with no way to try again."""
+    from arp.schemas.common import RunManifest
+    from arp.storage.run_store import RunStore
+
+    run_store = RunStore(pg, tmp_path / "runs")
+
+    fid = client.post("/api/argus/flows").json()["flow_id"]
+    assert client.get(f"/api/argus/flows/{fid}").json()["identity"] is None
+    run_store.save_manifest(RunManifest(run_id="identity_x", run_type="identity", status="partially_completed"))
+    flow = client.patch(f"/api/argus/flows/{fid}", json={"identity_run_id": "identity_x"}).json()
+    assert flow["identity"] == {"run_id": "identity_x", "status": "partially_completed"}

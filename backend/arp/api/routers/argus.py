@@ -68,6 +68,7 @@ class ArgusFlowView(ArgusFlow):
     rows: list[FlowRow] = []
     files: list[FlowFile] = []
     discovery: DiscoveryStatus | None = None
+    identity: DiscoveryStatus | None = None  # the flow's identity run, so step 1 can say how it ended
     repeat_rows: list[RepeatRow] = []
 
 
@@ -122,11 +123,13 @@ class Viewer:
             rows = flow_rows(flow, session=session, run_store=self.run_store, content_store=self.content_store,
                              xbrl_store=XbrlStore(self.settings.xbrl_dir), idmap=self.idmap, principal=self.principal,
                              documents_dir=self.settings.documents_dir)
-        discovery = None
-        if flow.discovery_run_id and (m := self.run_store.load_manifest(flow.discovery_run_id)):
-            discovery = DiscoveryStatus(run_id=m.run_id, status=str(m.status.value if hasattr(m.status, "value") else m.status))
+        def status_of(run_id: str | None) -> DiscoveryStatus | None:
+            m = self.run_store.load_manifest(run_id) if run_id else None
+            return DiscoveryStatus(run_id=m.run_id, status=str(getattr(m.status, "value", m.status))) if m else None
+
         files = self.files(flow)
-        view = ArgusFlowView(**flow.model_dump(), rows=rows, files=files, discovery=discovery, repeat_rows=self.repeats(flow, files))
+        view = ArgusFlowView(**flow.model_dump(), rows=rows, files=files, discovery=status_of(flow.discovery_run_id),
+                             identity=status_of(flow.identity_run_id), repeat_rows=self.repeats(flow, files))
         run = self.run_store.load_manifest(flow.run_id) if flow.run_id else None
         if run and str(getattr(run.status, "value", run.status)) not in ("pending", "running"):
             view.step = 5  # the run is over: its results are the flow's furthest step
@@ -388,7 +391,9 @@ async def retry_company(
         raise HTTPException(409, str(exc)) from exc
     files = view.files(flow)
     kept = kept_content(files).get(company_id, set())
-    if not kept:  # as Start refuses it: a run on zero documents would finish as Done with nothing found
+    # As Start refuses it: files are there but none is kept (a replacement was uploaded and not kept yet), so the
+    # run would read zero documents and finish as Done with nothing found.
+    if not kept and any(f.company_id == company_id for f in files):
         raise HTTPException(400, "Keep at least one file in step 2.")
     errors = [r for r in run_store.read_errors(run_id) if r.get("key") == company_id]
 

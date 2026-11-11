@@ -5,7 +5,7 @@ import { ruleMarkers, RulesList } from "../components/RulesList";
 import { ScoringTemplatePicker } from "../components/RunScoring";
 import { SchemaFieldsEditor } from "../components/SchemaFieldsEditor";
 import { ruleInputs, sameRule } from "../lib/ruleSentence";
-import { bumpChangedFields, canStart, flowHref, newDocsLine, newestVersions, startLabel } from "../lib/argusFlow";
+import { bumpChangedFields, canStart, draftHint, flowHref, newDocsLine, newestVersions, startLabel } from "../lib/argusFlow";
 import type { ArgusFlow as Flow, DataPointSchema, FieldDefinition, RuleSuggestion } from "../types";
 
 type SavedSchema = { schema_id: string; version: number; name: string; release_flag: boolean };
@@ -402,6 +402,9 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
         >
           {label}
         </button>
+        {choice?.kind === "schema" && schema && draftHint(released, companies.length, role === "approver") && (
+          <span className="muted" role="note">{draftHint(released, companies.length, role === "approver")}</span>
+        )}
       </div>
     </div>
   );

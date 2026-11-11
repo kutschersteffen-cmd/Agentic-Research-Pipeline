@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { CompanyPicker } from "../components/CompanyPicker";
 import { StepBar } from "../components/StepBar";
-import { continueLabel, documentsText, extractedBeforeText, flowHref, identifierList } from "../lib/argusFlow";
+import { continueLabel, documentsText, extractedBeforeText, flowHref, identifierList, identityStatus } from "../lib/argusFlow";
 import { STEPS } from "../lib/argusStart";
 import { ArgusDocuments } from "./ArgusDocuments";
 import { ArgusExtract } from "./ArgusExtract";
@@ -58,6 +58,7 @@ export function ArgusFlow({ flowId, step }: { flowId: string; step: number }) {
   if (!flow) return <div className="page">{error ? <p className="error-text" role="alert">{error}</p> : <p className="muted" role="status">Loading…</p>}</div>;
 
   const unmatched = flow.rows.filter((r) => r.problem);
+  const identity = identityStatus(flow.identity_run_id, flow.identity?.status ?? null, unmatched.length);
   const unmatchedCompanies = flow.companies.filter((c) => !c.entity_id);
   const n = flow.companies.length;
 
@@ -135,26 +136,25 @@ export function ArgusFlow({ flowId, step }: { flowId: string; step: number }) {
           </div>
           {n === 0 && <p className="muted">No companies yet. Upload a list, pick a saved universe or add one company.</p>}
           <div className="row-actions argus-flow-actions">
-            {flow.identity_run_id ? (
-              <span>
-                Identity run started. <a href="#/history">Open identity runs</a>
+            {identity && (
+              <span role="status">
+                {identity.text} <a href="#/history">Open identity runs</a>
               </span>
-            ) : (
-              unmatched.length > 0 && (
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() =>
-                    act(async () => {
-                      const run = await api.startIdentityRun({ companies: unmatchedCompanies });
-                      return api.patchArgusFlow(flow.flow_id, { identity_run_id: run.run_id });
-                    })
-                  }
-                >
-                  Resolve identities
-                </button>
-              )
+            )}
+            {unmatched.length > 0 && (!identity || identity.again) && (
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy}
+                onClick={() =>
+                  act(async () => {
+                    const run = await api.startIdentityRun({ companies: unmatchedCompanies });
+                    return api.patchArgusFlow(flow.flow_id, { identity_run_id: run.run_id });
+                  })
+                }
+              >
+                Resolve identities
+              </button>
             )}
             <button
               type="button"
