@@ -117,6 +117,14 @@ def save_universe(settings: Settings, companies: list[CompanyRef], name: str) ->
     dest_dir = settings.runs_dir / "_universes"
     dest_dir.mkdir(parents=True, exist_ok=True)
     safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in name) or "derived"
-    dest_path = dest_dir / f"{safe_name}_{int(time.time())}.json"
-    dest_path.write_text(json.dumps([c.model_dump(mode="json") for c in companies], indent=2))
+    text = json.dumps([c.model_dump(mode="json") for c in companies], indent=2)
+    # The same list under the same name (e.g. a repeated hand-over) reuses its file instead of adding a copy.
+    dest_path = next((p for p in sorted(dest_dir.glob(f"{safe_name}_*.json")) if p.read_text() == text), None)
+    if dest_path is None:
+        stamp, n = int(time.time()), 1
+        dest_path = dest_dir / f"{safe_name}_{stamp}.json"
+        while dest_path.exists():  # another list under this name in the same second must not overwrite it
+            n += 1
+            dest_path = dest_dir / f"{safe_name}_{stamp}-{n}.json"
+        dest_path.write_text(text)
     return {"path": str(dest_path), "company_count": len(companies), "sample": [c.model_dump() for c in companies[:5]]}
