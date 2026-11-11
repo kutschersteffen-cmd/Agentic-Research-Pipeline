@@ -50,6 +50,10 @@ export function ArgusResults({ flow }: { flow: Flow }) {
   useEffect(() => {
     void load();
   }, [load]);
+  // the viewer opens below the table: bring it into view, or the click looks like it did nothing
+  useEffect(() => {
+    if (source) document.querySelector(".argus-results .source-panel")?.scrollIntoView({ block: "nearest" });
+  }, [source]);
 
   if (!rows) return error ? <p className="error-text" role="alert">{error}</p> : <p className="muted" role="status">Loading…</p>;
   const shown = mineOnly ? onlyNeedsYou(rows) : rows;
@@ -135,7 +139,13 @@ export function ArgusResults({ flow }: { flow: Flow }) {
           </tbody>
         </table>
       </div>
-      {shown.length === 0 && <p className="muted">{mineOnly ? "Nothing waits on you in this run." : "This run has no values yet."}</p>}
+      {shown.length === 0 && (flow.schema_choice?.kind === "profile" ? (
+        <p className="muted">
+          This profile's values are not listed here. <a href={`#/review/${flow.schema_choice.profile}/${runId}`}>Open them in the Review Queue</a> or download the CSV.
+        </p>
+      ) : (
+        <p className="muted">{mineOnly ? "Nothing waits on you in this run." : "This run has no values yet."}</p>
+      ))}
       {source && <SourcePanel source={source} onClose={() => setSource(null)} />}
     </section>
   );

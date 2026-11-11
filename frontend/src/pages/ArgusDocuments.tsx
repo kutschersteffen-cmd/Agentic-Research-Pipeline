@@ -51,7 +51,7 @@ export function ArgusDocuments({ flow, busy, act, refresh, onContinue }: {
   };
   const go = continueFilesLabel(flow.files);
   const real = flow.files.filter((f) => !f.duplicate_of);
-  const rawUrl = (f: FlowFile) => (f.key.startsWith("doc:") ? f.raw_url ?? "" : api.documentRawUrl(f.company_id, f.doc_type, f.filename));
+  const rawUrl = (f: FlowFile) => api.documentRawUrl(f.company_id, f.doc_type, f.filename);
 
   return (
     <div className={open ? "argus-docs argus-docs-open" : "argus-docs"}>
@@ -92,7 +92,8 @@ export function ArgusDocuments({ flow, busy, act, refresh, onContinue }: {
           </fieldset>
           {(flow.source === "filings" || flow.source === "filings_web") && (
             <div className="row-actions">
-              <button type="button" disabled={busy || !!running} onClick={() => act(() => api.findFlowDocuments(id))}>
+              {/* not disabled while a search runs: a search whose worker died stays "running", and the server refuses a live one */}
+              <button type="button" disabled={busy} onClick={() => act(() => api.findFlowDocuments(id))}>
                 Find documents
               </button>
               {flow.discovery && (
@@ -162,6 +163,9 @@ export function ArgusDocuments({ flow, busy, act, refresh, onContinue }: {
                   <td data-label="File" className="argus-file">
                     {f.duplicate_of ? (
                       f.filename
+                    ) : f.key.startsWith("doc:") ? (
+                      // a filing with no local file: its source is another site, so it opens there, never through the app's signed-in fetch
+                      f.raw_url ? <a href={f.raw_url} target="_blank" rel="noreferrer">{f.filename}</a> : f.filename
                     ) : (
                       <button
                         type="button"
