@@ -128,3 +128,49 @@ def test_barrier_refresh_csv_needs_review_follows_the_finding_rule(tmp_path, pg)
     prefix = next(r.path for r in runs.router.routes if r.path.endswith("/export.csv")).removesuffix("/{run_id}/export.csv")
     rows = list(csv.DictReader(io.StringIO(TestClient(app).get(f"{prefix}/r1/export.csv").text)))
     assert [(r["outcome"], r["needs_review"]) for r in rows] == [("fetch_failed", "True"), ("unchanged", "False")]
+
+
+def test_csv_export_leaves_out_values_that_still_wait_for_review(tmp_path, pg, monkeypatch):
+    """The app promises "No flagged item reaches an export until a named person approves it"; the CSV wrote every
+    value. A value routed to review is exported only once it is approved (as corrected, when it was corrected)."""
+    import csv
+    import io
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from arp.api.deps import get_run_store
+    from arp.api.routers import runs
+    from arp.schemas.common import RunManifest
+    from arp.storage.run_store import RunStore
+
+    store = RunStore(pg, tmp_path)
+    store.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
+    f = {"confidence": 0.9, "grounded": True, "unit": "USD", "value_state": "reported", "canonical_unit": "USD", "period_end": "2024-12-31"}
+    fields = [
+        {**f, "field_id": "auto", "field_name": "auto", "value": 1.0, "canonical_value": 1.0, "route": "auto_accept"},
+        {**f, "field_id": "open", "field_name": "open", "value": 2.0, "canonical_value": 2.0, "route": "review"},
+        {**f, "field_id": "ok", "field_name": "ok", "value": 3.0, "canonical_value": 3.0, "route": "review"},
+        {**f, "field_id": "fixed", "field_name": "fixed", "value": 4.0, "canonical_value": 4.0, "route": "review"},
+        {**f, "field_id": "no", "field_name": "no", "value": 5.0, "canonical_value": 5.0, "route": "hold"},
+        {**f, "field_id": "old", "field_name": "old", "value": 6.0, "canonical_value": 6.0},  # written before routing
+    ]
+    replace_results(store, "r1", [{"company_id": "c", "issuer_key": "ISS", "ticker": "T", "name": "N", "needs_review": True, "fields": fields}])
+    monkeypatch.setattr(runs, "effective_decisions", lambda run_store, run_id: {
+        "ISS:ok:2024-12-31": {"decision": "approve"},
+        "ISS:fixed:2024-12-31": {"decision": "correct", "corrected_value": {"value": 44.0}},
+        "ISS:no:2024-12-31": {"decision": "reject"},
+    })
+    app = FastAPI()
+    app.include_router(runs.router)
+    app.dependency_overrides[get_run_store] = lambda: store
+    prefix = next(r.path for r in runs.router.routes if r.path.endswith("/export.csv")).removesuffix("/{run_id}/export.csv")
+    rows = list(csv.DictReader(io.StringIO(TestClient(app).get(f"{prefix}/r1/export.csv").text)))
+    assert [(r["field_name"], r["value"], r["canonical_value"], r["review_status"]) for r in rows] == [
+        ("auto", "1.0", "1.0", ""),
+        ("open", "", "", "awaiting review"),
+        ("ok", "3.0", "3.0", "approve"),
+        ("fixed", "44.0", "", "correct"),
+        ("no", "", "", "reject"),
+        ("old", "6.0", "6.0", ""),
+    ]
