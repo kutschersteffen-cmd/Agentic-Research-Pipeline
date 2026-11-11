@@ -23,8 +23,9 @@ If you're on macOS/Linux, or not behind a corporate proxy, the plain
 8. [Running the app](#running-the-app)
 9. [Verifying your setup](#verifying-your-setup)
 10. [LLM provider: Claude and Gemini](#llm-provider-claude-and-gemini)
-11. [Troubleshooting](#troubleshooting)
-12. [Keeping your setup up to date](#keeping-your-setup-up-to-date)
+11. [Bank Jupyter (Vertex)](#bank-jupyter-vertex)
+12. [Troubleshooting](#troubleshooting)
+13. [Keeping your setup up to date](#keeping-your-setup-up-to-date)
 
 ## What gets installed, and why
 
@@ -400,14 +401,69 @@ SDK) and every other model to `LangChainAnthropicClient`
   batch run sends its Gemini calls one by one.
 - **Network:** add `generativelanguage.googleapis.com` to whatever proxy or
   certificate setup you did for `api.anthropic.com` above.
-- **Vertex AI is not supported.** A plain Gemini API key is needed. If your
-  organization only allows Vertex AI (Google Application Default
-  Credentials, a service account JSON or `gcloud auth
-  application-default login`), `GeminiClient` would need a Vertex option.
-  That is a small change to how it builds `genai.Client`, but it is not done.
+- **Vertex AI:** set `ARP_GEMINI_USE_VERTEX=true` and `ARP_GCP_PROJECT` to call
+  Gemini with Google Application Default Credentials instead of an API key.
+  See [Bank Jupyter (Vertex)](#bank-jupyter-vertex).
 
 `pytest -q` in `backend/` needs no API key at all (every LLM call is mocked in
 the unit test suite).
+
+## Bank Jupyter (Vertex)
+
+ARP on one port inside a JupyterLab, reached through Jupyter Server Proxy, with
+Gemini on Vertex AI and Postgres as a separate service. No Docker, no Vite dev
+server, no API key.
+
+`backend/.env`:
+
+```ini
+ARP_GEMINI_USE_VERTEX=true
+ARP_GCP_PROJECT=<your-gcp-project>
+ARP_GCP_LOCATION=global
+ARP_LLM_MODEL=gemini-3.6-flash
+ARP_LLM_VERIFIER_MODEL=gemini-3.6-flash
+# What a run uses when it asks for a Claude model (the Extraction screen's Normal mode does).
+# The defaults name a model your Vertex project may not offer, so set both.
+ARP_GEMINI_FALLBACK_MODEL=gemini-3.6-flash
+ARP_GEMINI_FALLBACK_VERIFIER_MODEL=gemini-3.6-flash
+
+ARP_POSTGRES_DSN=postgresql+psycopg://<user>:<password>@<host>:5432/arp
+
+# Everyone who can open the proxy URL is signed in as the dev approver.
+ARP_AUTH_MODE=dev
+ARP_DEV_TRUSTED_NETWORKS=["0.0.0.0/0"]
+ARP_ALLOWED_ORIGINS=["*"]
+ARP_TRUSTED_HOSTS=["*"]
+
+# Optional GPU services for parsing, embeddings and rerank.
+# ARP_COMPUTE_MODELS_URL=https://...
+# ARP_COMPUTE_PARSE_URL=https://...
+```
+
+Packages come from your Artifactory: point pip and npm at it once
+(`pip config set global.index-url <artifactory-pypi-url>`,
+`npm config set registry <artifactory-npm-url>`), then
+`pip install -e backend` and `npm ci` in `frontend/`.
+
+Start, check, stop:
+
+```bash
+scripts/launch_jupyter.sh up      # migrates the database, builds the frontend if it is stale, prints the URL
+scripts/launch_jupyter.sh check   # 7 lines; each should start with "ok" (or "skip" for an unset GPU service)
+scripts/launch_jupyter.sh down
+```
+
+`up` prints the path to open, `/user/<id>/proxy/8000/`, after your Jupyter
+host name. The API serves the built frontend itself (`ARP_FRONTEND_DIST`), and
+the build is relative (`VITE_API_BASE=.`), so it works under that prefix.
+
+`check` makes one real call on `ARP_LLM_MODEL` and one on
+`ARP_LLM_VERIFIER_MODEL` with no other provider available, so a model your
+project cannot reach shows as `FAIL` instead of being replaced quietly. It also
+downloads `ARP_PREFLIGHT_FETCH_URL` to prove the machine can fetch company
+documents. Logs: `${TMPDIR:-/tmp}/arp-jupyter/api.log`.
+
+To update: `git pull`, then `scripts/launch_jupyter.sh down` and `up`.
 
 ## Troubleshooting
 
