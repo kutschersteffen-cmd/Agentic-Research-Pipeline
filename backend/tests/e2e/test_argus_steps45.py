@@ -147,3 +147,39 @@ def _progress(api, fid):
     r = api.get(f"{API}/api/argus/flows/{fid}/progress")
     assert r.ok, r.text()
     return r.json()
+
+
+@pytest.fixture
+def conflicted():
+    """A finished run whose new Green capex (14) conflicts with an accepted 12 (data rule 1), seeded as the commit queues it."""
+    settings = Settings()
+    store = RunStore(DSN, settings.runs_dir)
+    run_id = f"extraction_e2ec{uuid4().hex[:8]}"
+    store.save_manifest(RunManifest(run_id=run_id, run_type="extraction", status=JobStatus.COMPLETED, company_count=1,
+                                    completed_count=1, params={"schema_name": "Green capex", "schema_version": "sch_g:v1"}))
+    issuer = f"c{TAG}"
+    field = _field("capex", "Green capex", 14, "auto_accept")
+    store.append_result(run_id, {"_key": A, "company_id": A, "name": "Applewood", "issuer_key": issuer, "schema_id": "sch_g",
+                                 "run_id": run_id, "overall_confidence": 0.9, "needs_review": True, "fields": [field]})
+    store.append_review_item(run_id, {"item_key": f"{issuer}:capex:2025-12-31", "company_id": A, "issuer_key": issuer,
+                                      "field_id": "capex", "period_end": "2025-12-31", "field": field, "kind": "conflict",
+                                      "new_value": 14, "accepted": {"value": 12, "fact_id": 1, "status": "approved"}})
+    flows = FlowStore(settings.runs_dir / "_flows")
+    from arp.api.auth import Principal
+
+    flow = flows.create(Principal(user_id="dev", name="dev", role="approver"))
+    flows.update(flow.flow_id, lambda f: (setattr(f, "run_id", run_id), setattr(f, "step", 5)))
+    return flow.flow_id
+
+
+def test_step_5_shows_a_conflict_as_accepted_and_new(page, conflicted):  # AC-55
+    page.goto(f"{URL}/#/argus/{conflicted}/5")
+    table = page.get_by_role("table", name="Extracted values")
+    row = table.locator("tbody tr").first
+    row.wait_for()
+    value = row.locator("td[data-label='Value']").inner_text()
+    assert "Accepted: 12" in value and "New: 14" in value
+    for name in ("Keep accepted", "Accept new"):
+        assert row.get_by_role("button", name=name).count() == 1
+    assert row.get_by_role("button", name="Edit").count() == 0
+    assert page.console_errors == []
