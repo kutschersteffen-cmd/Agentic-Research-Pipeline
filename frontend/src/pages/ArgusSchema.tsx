@@ -206,8 +206,9 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
               })
             }
           >
-            {drafting ? "Drafting fields…" : "Draft fields"}
+            Draft fields
           </button>
+          {drafting && <span className="muted" role="status"> Drafting fields…</span>}
         </section>
 
         <section className="argus-schema-fields" aria-label="Fields">
