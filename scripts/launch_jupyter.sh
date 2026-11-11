@@ -107,8 +107,8 @@ case "${1:-}" in
     cat >"$file" <<JSON
 {
   "users": [
-    {"token": "$first", "user_id": "u_reviewer_1", "name": "First Reviewer", "role": "approver"},
-    {"token": "$second", "user_id": "u_reviewer_2", "name": "Second Reviewer", "role": "approver"}
+    {"token": "$first", "user_id": "u_reviewer_1", "name": "First Reviewer", "role": "approver", "roles": ["snapshot_reader", "holdings_reader"]},
+    {"token": "$second", "user_id": "u_reviewer_2", "name": "Second Reviewer", "role": "approver", "roles": ["snapshot_reader", "holdings_reader"]}
   ]
 }
 JSON
