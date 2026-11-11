@@ -5,6 +5,7 @@
 #   scripts/launch_jupyter.sh up      # init the database, build the frontend if stale, start, print the URL
 #   scripts/launch_jupyter.sh down
 #   scripts/launch_jupyter.sh check   # readiness: 7 lines, each should start with "ok" (arp preflight)
+#   scripts/launch_jupyter.sh users   # two named approvers for real sign-in (a second review needs a second person)
 #
 # Settings come from the environment or backend/.env.
 set -euo pipefail
@@ -94,8 +95,34 @@ case "${1:-}" in
     cd "$root/backend"
     exec python3 -m arp preflight --base-url "http://127.0.0.1:$port"
     ;;
+  users)
+    file=$root/config/users.json
+    if [ -e "$file" ]; then
+      echo "$file exists already; edit it by hand or remove it first" >&2
+      exit 1
+    fi
+    first=$(python3 -c "import secrets; print(secrets.token_hex(24))")
+    second=$(python3 -c "import secrets; print(secrets.token_hex(24))")
+    umask 077
+    cat >"$file" <<JSON
+{
+  "users": [
+    {"token": "$first", "user_id": "u_reviewer_1", "name": "First Reviewer", "role": "approver"},
+    {"token": "$second", "user_id": "u_reviewer_2", "name": "Second Reviewer", "role": "approver"}
+  ]
+}
+JSON
+    echo "Wrote $file (names and roles can be edited there)."
+    echo "Add to backend/.env, then run: $0 down && $0 up"
+    echo "  ARP_AUTH_MODE=local"
+    echo "  ARP_USERS_FILE=$file"
+    echo "Sign in by pasting a token into the box at the top left of the app:"
+    echo "  First Reviewer:  $first"
+    echo "  Second Reviewer: $second"
+    echo "Use a private browser window (or Sign out) to act as the second reviewer."
+    ;;
   *)
-    echo "Usage: $0 up|down|check" >&2
+    echo "Usage: $0 up|down|check|users" >&2
     exit 2
     ;;
 esac

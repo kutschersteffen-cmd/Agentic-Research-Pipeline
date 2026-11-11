@@ -473,6 +473,15 @@ use them only if your Vertex project offers both.
 on every save or start. `ARP_ALLOWED_ORIGINS=["*"]` accepts it; to be
 stricter, list the exact origin instead, e.g. `["https://<your-jupyter-host>"]`.
 
+**Two reviewers.** With `ARP_AUTH_MODE=dev` everyone is the same person, so a
+value that needs a second review can never be completed: the second reviewer
+must be someone else. `scripts/launch_jupyter.sh users` writes
+`config/users.json` with two approvers and prints their tokens and the two
+`.env` lines for real sign-in (`ARP_AUTH_MODE=local`, `ARP_USERS_FILE`).
+Paste a token into the box at the top left of the app; use a private browser
+window, or Sign out, to act as the second reviewer. Remove
+`ARP_DEV_TRUSTED_NETWORKS` when you switch.
+
 To update: `git pull`, then `scripts/launch_jupyter.sh down` and `up`.
 
 ## Troubleshooting
