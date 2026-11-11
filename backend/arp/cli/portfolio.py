@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import date
 from pathlib import Path
 
 import typer
@@ -34,7 +35,7 @@ def portfolio_seed_demo() -> None:
     Deterministic and safe to re-run.
     """
     store = _portfolio_store()
-    summary = asyncio.run(generate_demo_dataset(store))
+    summary = asyncio.run(generate_demo_dataset(store, today=date.today()))
     typer.echo(json.dumps(summary.__dict__, indent=2))
 
 
