@@ -174,7 +174,7 @@ class Settings(BaseSettings):
         "node's summary and key terms, read from the stored tree (never built at retrieval). Evidence, grounding and "
         "citations still use the chunk text (arp/retrieval/index_text.py).",
     )
-    tree_summary_model: str = Field(default="claude-haiku-4-5-20251001", description="Model for the document tree's summaries (the Haiku model priced in arp/orchestration/cost_tracker.py).")
+    tree_summary_model: str = Field(default="claude-haiku-5-5", description="Model for the document tree's summaries (the Haiku model priced in arp/orchestration/cost_tracker.py).")
     tree_leaf_chars: int = Field(default=6000, description="Characters of a leaf's text sent for its summary.")
     rerank_enabled: bool = Field(
         default=False,
