@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import copy
 import hashlib
 import logging
 from pathlib import Path
@@ -36,48 +37,68 @@ _CACHE_CONTROL = {"type": "ephemeral"}
 _MAX_NETWORK_RETRIES = 4
 
 
-def _droppable_list_indices(errors: list[dict]) -> dict[str, set[int]] | None:
-    """Returns {field_name: {bad_indices}} if every validation error points
-    into an item of a top-level list field -- safe to drop and re-validate
-    without asking the model again. Returns None if any error touches
-    something else (a missing/invalid required scalar field, a field that
-    isn't a list, ...), which must never be silently patched.
-    """
-    droppable: dict[str, set[int]] = {}
+def _drop_paths(errors: list[dict]) -> set[tuple] | None:
+    """The list elements to remove so the answer validates, as paths of names and indexes; None when any
+    error must be retried instead. An error inside a citation drops that citation; an error at a list item
+    (or its other sub-fields) drops the top-level item, except under a draft's `values` item, which is
+    retried: a wrongly typed value, period_text or citations list must not silently lose a period."""
+    paths: set[tuple] = set()
     for err in errors:
-        loc = err["loc"]
+        loc = tuple(err["loc"])
+        # the sub-field of each `values` item the error sits in: ("values", <int>, <field>)
+        sub = [loc[i + 2] for i, p in enumerate(loc[:-2]) if p == "values" and isinstance(loc[i + 1], int)]
+        if "value" in sub:
+            return None
+        cite = next((i for i, p in enumerate(loc) if isinstance(p, str) and p.endswith("citations")), None)
+        if cite is not None:
+            if len(loc) <= cite + 1 or not isinstance(loc[cite + 1], int):
+                return None  # citations is not a list
+            paths.add(loc[: cite + 2])
+            continue
         if len(loc) < 2 or not isinstance(loc[0], str) or not isinstance(loc[1], int):
             return None
-        if loc[0] == "values" and loc[2:3] == ("value",):  # a draft's wrongly typed answer is retried, never dropped into "not disclosed"
+        if sub:
             return None
-        droppable.setdefault(loc[0], set()).add(loc[1])
-    return droppable
+        paths.add(loc[:2])
+    # a dropped item already takes its citations with it
+    return {p for p in paths if not any(q != p and p[: len(q)] == q for q in paths)}
 
 
 def _drop_invalid_list_items(output_model: type[T], raw_args: dict, exc: ValidationError) -> tuple[T | None, int]:
-    """Best-effort recovery for a validation failure confined entirely to
-    item(s) inside list fields -- the observed real-world failure mode
-    (a malformed citation) -- so a single bad list entry doesn't force
-    rejecting the whole structured response and a full model retry.
-    Required/scalar fields (e.g. verdict, answer) are never patched this
-    way: if any error touches one, this returns (None, 0) and the caller
-    falls through to a normal retry with the model.
+    """Best-effort recovery for a validation failure confined to list elements -- the observed real-world
+    failure mode (a malformed citation) -- so one bad entry doesn't force rejecting the whole structured
+    response and a full model retry. Anything else (a bad scalar, a wrongly typed period) returns (None, 0)
+    and the caller retries with the model. Returns the model and the number of removed elements, and logs
+    their paths at warning level.
     """
-    droppable = _droppable_list_indices(exc.errors())
-    if not droppable:
+    paths = _drop_paths(exc.errors())
+    if not paths:
         return None, 0
-    corrected = dict(raw_args)
-    dropped_count = 0
-    for field, bad_indices in droppable.items():
-        items = raw_args.get(field)
-        if not isinstance(items, list):
+    corrected = copy.deepcopy(raw_args)
+    removals: dict[int, tuple[list, set[int]]] = {}
+    for path in paths:
+        parent = corrected
+        for step in path[:-1]:
+            try:
+                parent = parent[step]
+            except (KeyError, IndexError, TypeError):
+                return None, 0
+        if not isinstance(parent, list) or not isinstance(path[-1], int) or path[-1] >= len(parent):
             return None, 0
-        corrected[field] = [item for i, item in enumerate(items) if i not in bad_indices]
-        dropped_count += len(bad_indices)
+        removals.setdefault(id(parent), (parent, set()))[1].add(path[-1])
+    for items, bad in removals.values():
+        items[:] = [item for i, item in enumerate(items) if i not in bad]
     try:
-        return output_model.model_validate(corrected), dropped_count
+        instance = output_model.model_validate(corrected)
     except ValidationError:
         return None, 0
+    logger.warning(
+        "%s: dropped %d invalid list element(s) rather than requesting a full retry: %s",
+        output_model.__name__,
+        len(paths),
+        ", ".join(sorted(".".join(map(str, p)) for p in paths)),
+    )
+    return instance, len(paths)
 
 
 def _format_validation_errors(exc: ValidationError) -> str:
@@ -259,6 +280,7 @@ class LangChainAnthropicClient(LLMClient):
                 messages.append({"role": "user", "content": f"You must respond by calling the `{_TOOL_NAME}` tool. Try again."})
                 continue
 
+            dropped = 0
             try:
                 instance = output_model.model_validate(tool_call.input)
             except ValidationError as exc:
@@ -285,13 +307,6 @@ class LangChainAnthropicClient(LLMClient):
                         }
                     )
                     continue
-                if dropped:
-                    logger.info(
-                        "%s: dropped %d invalid list item(s) rather than requesting a full retry (%s)",
-                        output_model.__name__,
-                        dropped,
-                        exc,
-                    )
 
             usage = LLMUsage(
                 input_tokens=total_input_tokens,
@@ -302,6 +317,7 @@ class LangChainAnthropicClient(LLMClient):
                 model=self.model,
                 prompt_version=prompt_version,
                 provider="anthropic",
+                dropped_items=dropped,
             )
             self.cache.set(
                 cache_key,
