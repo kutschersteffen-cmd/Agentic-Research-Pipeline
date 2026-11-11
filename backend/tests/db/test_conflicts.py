@@ -291,3 +291,11 @@ def test_a_writer_that_loses_the_first_insert_race_raises_a_conflict(run_store, 
     monkeypatch.setattr(obs_db, "_current", real)
     assert [f for f in _facts(pg) if f[2]] == [(12.0, m.FactStatus.AUTO_ACCEPTED, True)]
     assert [p["kind"] for _, p, _ in _items(pg, "r2")] == ["conflict"]
+
+
+def test_deciding_over_an_edited_fact_from_a_legacy_correction(api, run_store, pg):  # issue #406
+    _accept(run_store, pg, m.FactStatus.EDITED)  # 12 recorded through the legacy record_review_decision `correct`
+    _run(run_store, pg, 14.0, run_id="r2")
+    r = api.post(f"/api/review/runs/r2/items/{KEY}/decision", json={"decision": "reject"})
+    assert r.status_code == 200, r.text
+    assert [f for f in _facts(pg) if f[2]] == [(12.0, m.FactStatus.EDITED, True)]
