@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from arp.config import Settings
+from arp.errors import NotConfigured
 from arp.llm.base import LLMClient
 from arp.llm.batching_client import BatchingLLMClient
 from arp.llm.fallback_client import FallbackLLMClient
@@ -30,7 +31,7 @@ def build_llm_client(
     refresh = settings.llm_cache_refresh if cache_refresh is None else cache_refresh
     if model.startswith("gemini-"):
         if not settings.gemini_api_key:
-            raise RuntimeError(f"ARP_GEMINI_API_KEY is not set, and the run uses the Gemini model {model}.")
+            raise NotConfigured(f"ARP_GEMINI_API_KEY is not set, and the run uses the Gemini model {model}.")
         # shortcut: no Gemini batch client, so a batch run sends Gemini calls one by one; add one if volume needs it
         return GeminiClient(
             api_key=settings.gemini_api_key, model=model, cache_dir=settings.cache_dir,
@@ -52,7 +53,7 @@ def build_llm_client(
         log.warning(warning)
         return gemini()
     if not settings.anthropic_api_key:
-        raise RuntimeError(
+        raise NotConfigured(
             "ARP_ANTHROPIC_API_KEY is not set. Provide an Anthropic API key via environment variable "
             "or a .env file before running any agent pipeline."
         )

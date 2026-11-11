@@ -6,10 +6,12 @@ from urllib.parse import urlparse
 
 import httpx
 
+from arp.errors import ClientInputError
+
 _ALLOWED_SCHEMES = {"http", "https"}
 
 
-class UnsafeURLError(ValueError):
+class UnsafeURLError(ClientInputError):
     """Raised when a URL is (or resolves to) a fetch target this app
     refuses to reach: a non-http(s) scheme, or a hostname resolving to a
     loopback/private/link-local/reserved address -- the 169.254.169.254

@@ -3,6 +3,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict
 
 from arp.api.auth import Principal
+from arp.errors import ClientInputError
 from arp.orchestration.review_queue import decision_history, latest_decisions, record_review_decision
 from arp.storage.run_store import RunStore
 from arp.transition_barrier import RUN_TYPE as BARRIER_RUN_TYPE
@@ -62,11 +63,11 @@ def submit_review(
     principal: Principal | None = None,
 ) -> dict:
     if decision not in VALID_DECISIONS:
-        raise ValueError(f"decision must be one of {sorted(VALID_DECISIONS)}")
+        raise ClientInputError(f"decision must be one of {sorted(VALID_DECISIONS)}")
     if item_key.startswith(WORKBENCH_KEY_PREFIXES):
-        raise ValueError("decide this item through the review workbench")
+        raise ClientInputError("decide this item through the review workbench")
     manifest = run_store.load_manifest(run_id)  # no manifest: today's behaviour
     if manifest is not None and manifest.run_type in WORKBENCH_RUN_TYPES:
-        raise ValueError(f"decide {manifest.run_type} items through the review workbench")
+        raise ClientInputError(f"decide {manifest.run_type} items through the review workbench")
     record_review_decision(run_store, run_id, item_key, decision, reviewer, edited_value, comment, principal=principal)
     return {"status": "recorded"}

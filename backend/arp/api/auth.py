@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from arp.api.deps import settings_dep
 from arp.config import Settings
+from arp.errors import NotConfigured
 
 ROLE_RANK: dict[str, int] = {"viewer": 0, "analyst": 1, "approver": 2}
 LOOPBACK_HOSTS = {"127.0.0.1", "::1"}
@@ -43,13 +44,13 @@ def load_users(path: Path) -> dict[str, Principal]:
             why = "; ".join(f"{'.'.join(map(str, e['loc']))}: {e['type']}" for e in exc.errors(include_input=False))
         else:
             why = type(exc).__name__
-        raise RuntimeError(f"Users file {path} is missing or invalid ({why}); see config/users.example.json.") from None
+        raise NotConfigured(f"Users file {path} is missing or invalid ({why}); see config/users.example.json.") from None
     tokens, ids = [u.token.strip() for u in users], [u.user_id for u in users]
     if not all(tokens) or len(set(tokens)) != len(tokens) or len(set(ids)) != len(ids):
         # No token text in the message: it ends up in logs.
-        raise RuntimeError(f"Users file {path} has a blank or duplicate token or a duplicate user_id.")
+        raise NotConfigured(f"Users file {path} has a blank or duplicate token or a duplicate user_id.")
     if any(i.strip().lower() == "model" for i in ids):  # four-eyes compares ids case- and space-insensitively
-        raise RuntimeError(f"Users file {path}: user id 'model' is reserved.")
+        raise NotConfigured(f"Users file {path}: user id 'model' is reserved.")
     return {u.token.strip(): Principal(**u.model_dump(exclude={"token"})) for u in users}
 
 

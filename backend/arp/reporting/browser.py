@@ -14,6 +14,7 @@ from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import async_playwright
 
 from arp.config import Settings
+from arp.errors import NotConfigured
 from arp.reporting.house_style import load_tokens
 from arp.schemas.reporting import Finding
 
@@ -26,7 +27,7 @@ _SLOTS_JS = """() => [...document.querySelectorAll('[data-slot]')].map(el => {
 })"""
 
 
-class BrowserUnavailable(RuntimeError):
+class BrowserUnavailable(NotConfigured):
     pass
 
 

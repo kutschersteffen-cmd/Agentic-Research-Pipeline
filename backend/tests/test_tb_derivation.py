@@ -16,6 +16,7 @@ from arp.api.deps import get_document_content_store, get_run_store, settings_dep
 from arp.api.main import app
 from arp.cli import transition_barrier as cli
 from arp.config import Settings, get_settings
+from arp.errors import NotConfigured
 from arp.llm import factory
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
@@ -321,7 +322,7 @@ def test_failed_derivation_marks_the_run_failed(client, env, monkeypatch):
     from arp.transition_barrier import derivation
 
     def boom(*a, **k):
-        raise RuntimeError("store down")
+        raise NotConfigured("store down")
 
     monkeypatch.setattr(derivation.store, "cell_values", boom)
     r = as_user(client, A_ANALYST).post(f"{API}/derive", json={"cells": [{"code": "STL-R1", "region": "European Union"}]})

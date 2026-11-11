@@ -12,6 +12,7 @@ from arp.api.main import app
 from arp.api.routers import extraction, financials, tnfd
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
+from arp.errors import NotConfigured
 from arp.ingestion.registry import KeptDocuments
 from arp.schemas.common import CompanyRef, DocType, RunManifest, SourceDocument
 from arp.schemas.datapoints import DataPointSchema
@@ -193,11 +194,11 @@ def test_a_start_in_progress_is_a_409(client, fid, calls, settings):
 
 def test_a_failed_start_clears_the_marker(client, fid, monkeypatch, settings):
     async def boom(req, **kwargs):
-        raise RuntimeError("down")
+        raise NotConfigured("down")
 
     monkeypatch.setattr(extraction, "start_extraction_run", boom)
     _choose(client, fid, _schema(settings, released=True))
-    assert client.post(f"/api/argus/flows/{fid}/start").status_code >= 400  # the app's RuntimeError handler answers
+    assert client.post(f"/api/argus/flows/{fid}/start").status_code >= 400  # the app answers 503 for NotConfigured
     assert client.get(f"/api/argus/flows/{fid}").json()["starting"] is False
 
 
