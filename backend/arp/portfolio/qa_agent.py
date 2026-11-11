@@ -21,8 +21,8 @@ Valid metrics: "market_value_sum" (a plain EUR exposure figure),
 "weighted_avg_datapoint" (requires data_point_field_id), "count".
 security_filter is a dict of dimension_name -> exact value to filter
 holdings to, e.g. {{"company_id": "bmw", "asset_class": "equity"}}.
-portfolio_filter is a list of portfolio_ids to restrict to; empty means
-all portfolios.
+portfolio_filter is a list of portfolio_ids from the supplied portfolio
+directory to restrict to; empty means all portfolios.
 
 If the question names a company, resolve it to a company_id using the
 supplied company directory and filter on that. If you cannot confidently
@@ -72,11 +72,25 @@ async def answer_question(
     the query itself, and `QAAnswer.spec`/`.result` always carry it so the
     answer is inspectable, not just asserted.
     """
-    prompt = f"Company directory (company_id: name):\n{_company_directory(companies)}\n\nQuestion: {question}"
+    portfolios = store.list_portfolios()
+    prompt = (
+        f"Company directory (company_id: name):\n{_company_directory(companies)}\n\n"
+        "Portfolio directory (portfolio_id: name):\n" + "\n".join(f"{p.portfolio_id}: {p.name}" for p in portfolios)
+        + f"\n\nQuestion: {question}"
+    )
     parsed, usage = await llm.complete_structured(system=_SYSTEM_PROMPT, prompt=prompt, output_model=_ParsedQuestion)
 
     if not parsed.resolvable:
         return QAAnswer(question=question, resolvable=False, clarification_needed=parsed.clarification_needed), usage
+
+    # The model may name a portfolio by its display name. An id that matches nothing would be answered as "EUR 0".
+    by_label = {label.strip().lower(): p.portfolio_id for p in portfolios for label in (p.portfolio_id, p.name)}
+    unknown = [name for name in parsed.portfolio_filter if name.strip().lower() not in by_label]
+    if unknown:
+        known = ", ".join(f"{p.name} ({p.portfolio_id})" for p in portfolios)
+        return QAAnswer(question=question, resolvable=False,
+                        clarification_needed=f"No portfolio is called '{unknown[0]}'. Known portfolios: {known}."), usage
+    parsed.portfolio_filter = [by_label[name.strip().lower()] for name in parsed.portfolio_filter]
 
     spec = AnalyticSpec(
         name=parsed.spec_name or question,
