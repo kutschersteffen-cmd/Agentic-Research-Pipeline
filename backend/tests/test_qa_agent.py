@@ -79,3 +79,20 @@ async def test_unknown_portfolio_asks_instead_of_answering_zero(tmp_path, fake_l
     assert answer.resolvable is False
     assert answer.result is None
     assert answer.clarification_needed == "No portfolio is called 'Growth Fund'. Known portfolios: P1 (p1)."
+
+
+async def test_a_data_point_named_by_its_label_is_resolved_to_its_field_id(tmp_path, fake_llm):
+    """Seen live: "What is the WACI of each portfolio?" was refused with "Please give the field ID for carbon
+    intensity". The model now gets the field list, and a field named by its label is mapped in code."""
+    from arp.schemas.portfolio import DataPointObservation
+
+    store, securities, companies = _setup(tmp_path)
+    store.append_observation(DataPointObservation(company_id="bmw", field_id="climate_carbon_intensity", field_name="Carbon intensity",
+                                                  value=120.0, source="internal_api", observed_at="2025-12-15"))
+    parsed = _ParsedQuestion(resolvable=True, metric="weighted_avg_datapoint", data_point_field_id="Carbon Intensity")
+
+    answer, _usage = await qa_agent.answer_question("WACI per portfolio?", fake_llm({"_ParsedQuestion": [parsed]}), store, securities, companies)
+
+    assert answer.spec.data_point_field_id == "climate_carbon_intensity"
+    assert answer.resolvable is True
+    assert "climate_carbon_intensity: Carbon intensity" in qa_agent._field_directory()
