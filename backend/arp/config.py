@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     # LLM
     anthropic_api_key: str | None = Field(default=None)
     gemini_api_key: str | None = Field(default=None, description="Google Gemini API key, needed only when a run uses a gemini-* model.")
+    frontend_dist: Path | None = Field(
+        default=None,
+        description="Directory of the built frontend (frontend/dist). When set, the API serves it at / so the app "
+        "runs on one port, e.g. behind Jupyter Server Proxy. Build it with VITE_API_BASE=. for a path prefix.",
+    )
     gemini_use_vertex: bool = Field(
         default=False,
         description="Call Gemini through Vertex AI with Google application default credentials instead of "
@@ -624,6 +629,15 @@ class Settings(BaseSettings):
                     f"Set {env_var}, or use {alternative}."
                 )
         return self
+
+    @field_validator("frontend_dist", mode="before")
+    @classmethod
+    def _frontend_dist_is_a_build(cls, value: object) -> object:
+        if value in (None, ""):
+            return None
+        if not (Path(str(value)) / "index.html").is_file():
+            raise ValueError(f"ARP_FRONTEND_DIST {value} is not a directory with an index.html.")
+        return value
 
     @property
     def gemini_available(self) -> bool:
