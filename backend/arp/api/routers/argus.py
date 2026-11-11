@@ -388,6 +388,8 @@ async def retry_company(
         raise HTTPException(409, str(exc)) from exc
     files = view.files(flow)
     kept = kept_content(files).get(company_id, set())
+    if not kept:  # as Start refuses it: a run on zero documents would finish as Done with nothing found
+        raise HTTPException(400, "Keep at least one file in step 2.")
     errors = [r for r in run_store.read_errors(run_id) if r.get("key") == company_id]
 
     with run_store.lock(run_id):  # a second Retry before the job starts sees `pending` and gets a 409
