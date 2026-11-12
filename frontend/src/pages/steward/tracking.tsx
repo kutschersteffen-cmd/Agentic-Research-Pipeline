@@ -34,6 +34,9 @@ export function TrackingStudio({ stage, onChanged }: StudioProps) {
   const [newC, setNewC] = useState({ target: "", text: "", date: "" });
   const [closing, setClosing] = useState({ target: "", status: "resolved" as "resolved" | "closed", outcome: "" });
   const [study, setStudy] = useState<CaseStudy | null>(null);
+  // "Verified" opens an evidence field first; the commitment stays open until it is confirmed.
+  const [verifying, setVerifying] = useState<string | null>(null);
+  const [evidence, setEvidence] = useState("");
 
   const load = () => api.getTracking().then(setData, (e) => setError((e as Error).message));
   useEffect(() => {
@@ -54,15 +57,41 @@ export function TrackingStudio({ stage, onChanged }: StudioProps) {
     }
   }
   const setStatus = (c: TrackedCommitment, status: "verified" | "missed") =>
-    run(c.commitment_id, () => api.setCommitmentStatus(c.commitment_id, { company_id: c.company_id, issue_id: c.issue_id, status }));
+    run(c.commitment_id, async () => {
+      const body = { company_id: c.company_id, issue_id: c.issue_id, status };
+      await api.setCommitmentStatus(c.commitment_id, status === "verified" ? { ...body, evidence: evidence.trim() } : body);
+      setVerifying(null);
+      setEvidence("");
+    });
   const due = stage.decisions.filter((d): d is CommitmentDueItem => d.kind === "commitment_due");
   const open = data?.engagements.filter(isOpen) ?? [];
   const closed = data?.engagements.filter((e) => !isOpen(e)) ?? [];
   const needName = actor ? undefined : "Sign in above first";
 
-  const commitmentButtons = (c: TrackedCommitment) => (
+  const commitmentButtons = (c: TrackedCommitment) =>
+    verifying === c.commitment_id ? (
+      <div className="row-actions">
+        <label className="field-label">
+          Evidence (required)
+          <input value={evidence} onChange={(e) => setEvidence(e.target.value)} placeholder="e.g. Annual report, p. 41" />
+        </label>
+        <button onClick={() => setStatus(c, "verified")} disabled={!actor || busy !== null || !evidence.trim()} title={needName}>
+          Confirm verification
+        </button>
+        <button className="link-button" onClick={() => setVerifying(null)}>
+          Cancel
+        </button>
+      </div>
+    ) : (
     <div className="row-actions">
-      <button onClick={() => setStatus(c, "verified")} disabled={!actor || busy !== null} title={needName}>
+      <button
+        onClick={() => {
+          setVerifying(c.commitment_id);
+          setEvidence("");
+        }}
+        disabled={!actor || busy !== null}
+        title={needName}
+      >
         Verified
       </button>
       <button className="secondary" onClick={() => setStatus(c, "missed")} disabled={!actor || busy !== null} title={needName}>
