@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import pytest
 from typer.testing import CliRunner
 
+import arp.storage.postgres_schema  # noqa: F401  imported before get_engine is faked below, so it keeps the real one
 from arp.bi.superset_client import SupersetError
 from arp.cli import app
 from arp.config import get_settings
