@@ -142,8 +142,10 @@ changed.
   is `main` either way.
 - Owner's rules: every fix has a test that failed before, with its output in the PR description; no existing
   test changes; two PRs.
-- Request or response models that change (`VerifyCommitmentRequest`, `CommitmentStatusRequest`, the schedule
-  configs if validated in the model) need `export_openapi.py` and `npm run gen:api`, both files committed.
+- Request or response models that change (`VerifyCommitmentRequest`, `CommitmentStatusRequest`) need
+  `export_openapi.py` and `npm run gen:api`, both files committed.
+- The schedule interval is checked in the two `PUT` handlers, not in the stored config model, so a schedule
+  file already holding 0 still loads (AC-172).
 - `Contact` is the stored model: validate the email in the endpoint, not in the model, or stored records with
   a bad address stop loading.
 - `email-validator` is not installed; no new dependency.
@@ -180,7 +182,8 @@ changed.
   exactly that.
 - **B3.** Calibration date: `published_at` (read as UTC when it has no offset); without it, `fetched_at`
   only when it is earlier than the moment this check started (a time the source supplied, not one stamped
-  while fetching). A document with neither is ignored. This keeps the two pinned tests green.
+  while fetching). A document with neither is ignored. Every check fetches anew and stores no document, so
+  a time stamped by one check never reaches the next. This keeps the two pinned tests green.
 - **B4.** A recommendation the model judged (no `policy_rule_id`) is never "routine", whatever its confidence.
   The low-confidence line is a fixed 0.6 in the page (the default of `confidence_review_threshold`, which the
   page cannot read). Redomiciliation is recognised by the proposal text, case-insensitive, containing
@@ -258,7 +261,8 @@ hold yet. A "list" is a CSV uploaded to `POST /api/argus/flows/{flow}/companies/
 `entity_id` of its row in the response. An "issue" is made with `POST /api/engagement/records` and
 `POST /api/engagement/records/{c}/issues`, each test with its own company id; a commitment with
 `POST /api/stewardship/tracking/commitments`; status `resolved` or `closed` through
-`POST /api/stewardship/tracking/close`. `RECORD` is `GET /api/engagement/records/{c}`. `verify` is
+`POST /api/stewardship/tracking/close` with `{"company_id", "issue_id", "status": "resolved"` or `"closed",
+"outcome": "x"}`. `RECORD` is `GET /api/engagement/records/{c}`. `verify` is
 `POST /api/engagement/records/{c}/issues/{i}/verify-commitment`; `track-verify` is
 `POST /api/stewardship/tracking/commitments/{id}` with `status: "verified"`; `outreach` is
 `POST /api/engagement/records/{c}/issues/{i}/log-outreach-sent`. "After today" and "yesterday" are UTC dates.
@@ -298,13 +302,13 @@ then id" means the cell holds the name, followed by the id in an element of its 
 | AC-23 | `transition_barrier_refresh_enabled` true | both requests of AC-21 and AC-22 | `refresh_enabled` is `true` in both | unit |
 | AC-24 | the e2e stack | open Transition Barriers | `NOTE_OFF` is visible next to "Derive all regions" before anything is clicked | evaluator |
 | AC-25 | the e2e stack | open the page of the cell `STL-R1`, `European Union` | `NOTE_OFF` is visible next to "Derive this cell" before anything is clicked | evaluator |
-| AC-26 | the e2e stack; the cell `STL-R1`, `European Union` with no facts entered | click "Derive this cell", then "Review the result" | the review page lists exactly 1 open item, for that cell, and does not show `Nothing is waiting for review in this run.` | evaluator |
+| AC-26 | the e2e stack; the cell `STL-R1`, `European Union` with no facts entered | click "Derive this cell", then "Review the result"; then do both again | each time the review page lists exactly 1 open item for that run, for that cell, and does not show `Nothing is waiting for review in this run.` (each derivation queues its own item) | evaluator |
 | AC-27 | matrix and cell responses stubbed with `refresh_enabled` true | open both pages | `NOTE_OFF` appears on neither | unit (browser) |
-| AC-28 | the e2e stack | `POST /api/transition-barrier/derive` with `{"cells": [{"code": "STL-R1", "region": "European Union"}]}` | 200 with a `run_id` (never refused; must not change) | holdout |
+| AC-28 | the e2e stack | `POST /api/transition-barrier/derive` with `{"cells": [{"code": "PWR-T1", "region": "European Union"}]}` | 200 with a `run_id` (never refused; must not change) | holdout |
 | AC-29 | one document with `published_at` `2026-01-10T00:00:00+00:00` and `fetched_at` left to its default; one match with `generated_at` `2026-02-01T00:00:00+00:00` | `check_company_staleness` | returns `[]` | unit |
 | AC-30 | one document with `published_at` `2026-03-01T00:00:00+00:00`; the same match | same | one flag; its `newest_document_at` is `2026-03-01T00:00:00+00:00` | unit |
 | AC-31 | a source that returns one document with no `published_at` and `fetched_at` stamped while fetching | same | returns `[]` | unit |
-| AC-32 | the source of AC-31 | run the check twice in a row | both return `[]` | unit |
+| AC-32 | the source of AC-31, which stamps `fetched_at` anew on each call | run the check twice in a row | both return `[]` | unit |
 | AC-33 | one document with no `published_at` and `fetched_at` `2026-02-01T00:00:00+00:00`; a match with `generated_at` `2026-01-01T00:00:00+00:00` | `check_company_staleness` | one flag; `newest_document_at` is `2026-02-01T00:00:00+00:00` (must not change) | unit |
 | AC-34 | one document with `published_at` `2026-02-10T16:31:00.000Z`; a match with `generated_at` `2026-02-10T17:00:00+00:00` | same | returns `[]` (instants are compared, not strings) | unit |
 | AC-35 | one document with `published_at` `2026-03-01T00:00:00` (no offset); a match with `generated_at` `2026-02-01T00:00:00+00:00` | same | one flag | unit |
@@ -354,7 +358,7 @@ level"; `high_risk_not_found` "a high-risk field was not found"; `check_failed` 
 conflict". Any other code is shown with underscores as spaces. Entries starting `check:` are left out of the
 line: the failed checks are already listed in words above it.
 
-### PR B: stewardship side (the last slice, no `Rows:` line)
+### PR B: stewardship side, AC-72 to AC-172 (the last slice, no `Rows:` line)
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
@@ -448,9 +452,10 @@ line: the failed checks are already listed in words above it.
 | AC-159 | the e2e stack | `PUT /api/taxonomy-researcher/schedule` with `enabled` true and `interval_hours` `0`, and again with `0.5` | 422 both times | holdout |
 | AC-160 | the e2e stack | `PUT /api/calibration/schedule` with `{"enabled": false, "interval_hours": 1}`, and again with `1.5` | 200 both times; `GET` then returns the `interval_hours` just sent (must not change) | holdout |
 | AC-161 | a schedule file stored earlier with `enabled` true and `interval_hours` 0 | start the scheduler and let one run finish | no second run starts within 3,600 seconds of the first | unit |
+| AC-172 | the same stored file | `GET /api/calibration/schedule` | 200 with `interval_hours` `0` (the stored file is not rewritten; the scheduler reads anything below 1 as 1 hour) | unit |
 | AC-162 | the e2e stack | on Background Agents enter interval `0` on the Calibration Agent and save | `Interval must be at least 1 hour.` is shown next to the field and `GET /api/calibration/schedule` is unchanged | evaluator |
 | AC-163 | the e2e stack | enter interval `24` and save | `Saved.` appears next to the save button | evaluator |
-| AC-164 | the e2e stack | on the Calibration Agent click `Scan now` and do not press "Refresh results" | within 10 seconds "Past runs" has 1 more row than before; within 60 seconds that row shows the run as completed, without a reload | evaluator |
+| AC-164 | the e2e stack | on the Calibration Agent click `Scan now` and do not press "Refresh results" | within 10 seconds "Past runs" has 1 more row than before; within 60 seconds that row shows a finished status (`completed`, `partially_completed` or `failed`), without a reload | evaluator |
 | AC-165 | the e2e stack | `POST /api/universe/upload` with a CSV `name` / `Acme` | 422; `detail` is exactly `Row 1: company_id is required.` | holdout |
 | AC-166 | the e2e stack | the same upload with a CSV `company_id,name` whose rows are `A,Acme`, `,Beta`, `,Gamma` | 422; `detail` is exactly `Row 2: company_id is required.` | holdout |
 | AC-167 | the e2e stack | the same upload with a JSON file `[{"company_id": "A", "name": 5}]` | 422; `detail` starts `Row 1: name is not valid` and contains none of `pydantic`, `input_value`, `validation error` | holdout |
