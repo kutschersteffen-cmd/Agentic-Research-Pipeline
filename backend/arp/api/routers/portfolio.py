@@ -27,7 +27,7 @@ from arp.schemas.portfolio import (
     PortfolioGroup,
 )
 from arp.schemas.portfolio_monitoring import Alert, AlertRule, AlertStatus, AlertTransition
-from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
+from arp.storage.portfolio_store import PortfolioStore, holdings_date_label, portfolio_directories
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 
@@ -144,8 +144,9 @@ def holdings_universe(
     )
     held = [companies[r.group_value] for r in result.rows if r.group_value in companies]
     unresolved = sum(1 for r in result.rows if r.group_value not in companies)
-    name = "holdings_" + ("_".join(req.portfolio_ids) if req.portfolio_ids else "all") + f"_{as_of}"
-    return {**save_universe(settings, held, name[:80]), "as_of": as_of, "unresolved": unresolved}
+    label, newest = holdings_date_label(holdings, between="_to_")
+    name = "holdings_" + ("_".join(req.portfolio_ids) if req.portfolio_ids else "all") + f"_{label}"
+    return {**save_universe(settings, held, name[:80]), "as_of": newest, "unresolved": unresolved}
 
 
 class AskRequest(BaseModel):

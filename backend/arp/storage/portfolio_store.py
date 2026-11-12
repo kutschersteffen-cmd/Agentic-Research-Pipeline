@@ -450,6 +450,14 @@ class PortfolioStore:
         pass  # ponytail: Superset needs Postgres
 
 
+def holdings_date_label(holdings: list[Holding], between: str = " to ") -> tuple[str, str]:
+    """(label, newest date) of the snapshot dates the holdings really carry: "2026-10-31", or "2026-10-30 to
+    2026-10-31" when portfolios were last loaded on different days. `load_holdings_as_of` takes each portfolio's
+    own latest snapshot, so the date asked for is not the date of every row."""
+    dates = sorted({h.as_of_date for h in holdings})
+    return (dates[0] if len(dates) == 1 else f"{dates[0]}{between}{dates[-1]}"), dates[-1]
+
+
 def portfolio_directories(store: PortfolioStore) -> tuple[dict[str, SecurityRef], dict[str, CompanyRef]]:
     """The (securities, companies) id -> reference lookups every caller
     that resolves holdings needs. One definition so a future filter,

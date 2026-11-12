@@ -7,7 +7,7 @@ from collections import Counter, defaultdict
 from arp.decision.dataset import Dataset, build_dataset
 from arp.presets.transition_plan import SCHEMA_ID as TRANSITION_PLAN_SCHEMA_ID
 from arp.schemas.common import RunManifest
-from arp.storage.portfolio_store import portfolio_directories
+from arp.storage.portfolio_store import holdings_date_label, portfolio_directories
 from arp.storage.run_store import RunStore
 
 # Column names deliberately follow the conventions the role/direction
@@ -437,12 +437,13 @@ def from_portfolio_snapshot(store, as_of: str | None = None, portfolio_ids: list
             row.append("" if value is None else f"{value:g}")
         rows.append(row)
 
+    label, newest = holdings_date_label(holdings)
     return build_dataset(
-        f"Portfolio holdings as of {resolved}",
+        f"Portfolio holdings as of {label}",
         _matrix(columns, rows),
         source="portfolio_snapshot",
         source_ref=",".join(portfolio_ids) if portfolio_ids else "all",
-        as_of=resolved,
+        as_of=newest,
     )
 
 
