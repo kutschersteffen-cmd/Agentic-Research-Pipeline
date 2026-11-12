@@ -166,8 +166,9 @@ changed.
 
 - **O1, transition-plan results.** Step 5 shows per company the line `Disclosed D of N · Walk W of Wn · Talk T
   of Tn` (computed from the values, no model call; B16) and the existing Scoring panel (score and tier when a
-  scoring template is attached, the template picker otherwise). No verdict label. This is the recommended
-  option put to the owner with the spec; AC-58 to AC-60.
+  scoring template is attached, the template picker otherwise). No verdict label. The owner chose
+  this on 12 Nov 2026 over a verdict label and over counts only; AC-58 to AC-60.
+- **O2.** The owner approved this spec, with the builder's calls below, on 12 Nov 2026.
 
 ## Builder's calls (not asked; the owner may overrule at approval)
 
