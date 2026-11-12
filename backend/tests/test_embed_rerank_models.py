@@ -267,6 +267,38 @@ def test_postgres_column_takes_any_dimension(pg):  # AC-8
     assert store.lookup_embeddings(["c1"], "intfloat/multilingual-e5-large")["c1"].shape == (1024,)
 
 
+def test_failed_query_stores_only_chunk_rows_in_postgres(pg, cloud, tmp_path):  # AC-7b
+    from sqlalchemy import create_engine, text
+
+    from arp.storage.document_store import DocumentContentStore
+
+    _, answer = cloud
+    answer["query"] = None
+    _rank("e5-large", DocumentContentStore(tmp_path / "store", dsn=pg))
+    with create_engine(pg).connect() as conn:
+        rows = conn.execute(text("SELECT chunk_id, embed_model, vector_dims(embedding) FROM chunk_embeddings")).all()
+    e5 = [(c, d) for c, m, d in rows if m == "intfloat/multilingual-e5-large"]
+    assert sorted(c for c, _ in e5) == sorted(c.chunk_id for c in CHUNKS) and {d for _, d in e5} == {1024}
+    assert {m for _, m, _ in rows} == {"intfloat/multilingual-e5-large", embeddings.EMBED_MODEL_NAME}  # no query rows
+
+
+def test_query_embedded_once_per_store_across_companies(monkeypatch):  # review: one embed per field query
+    from arp.retrieval import select_evidence
+
+    queries: list[str] = []
+    monkeypatch.setattr(embeddings, "embed_texts", lambda t: (len(t) == 1 and t[0] == "capex" and queries.append(t[0]))
+                        or np.ones((len(t), 384), dtype=np.float32))
+    monkeypatch.setattr(select_evidence, "_MAX_QUERY_VECTORS", 2)
+    store = _DictStore()
+    for company in ("c1", "c2", "c3"):
+        chunks = [c.model_copy(update={"company_id": company, "doc_id": f"d-{company}"}) for c in CHUNKS]
+        select_relevant_chunks(chunks, ["capex"], max_chunks=3, hybrid_retrieval_enabled=True, content_store=store)
+    assert queries == ["capex"]
+    for q in ("a", "b", "capex"):  # a full memo is dropped, so it never holds more than the cap
+        select_relevant_chunks(CHUNKS, [q], max_chunks=3, hybrid_retrieval_enabled=True, content_store=store)
+    assert queries == ["capex", "capex"] and len(select_evidence._QUERY_VECTORS[store]) <= 2
+
+
 def test_ci_cache_key_hashes_the_embed_model_file():  # AC-17
     ci = yaml.safe_load(Path("../.github/workflows/ci.yml").read_text())
     steps = ci["jobs"]["retrieval-recall"]["steps"]
@@ -338,6 +370,31 @@ def test_batches_that_came_back_stay_stored(cloud, monkeypatch):  # review: spec
     store = _DictStore()
     assert _rank("e5-large", store)[1]["embed_model"] == "embed"
     assert sum(model == "intfloat/multilingual-e5-large" for _, model in store.rows) == 2
+
+
+def test_failed_e5_query_falls_back_to_minilm_on_arp_models(monkeypatch, tmp_path):  # AC-7, AC-15c: spec section 4
+    from tests.test_compute_client import Recorder, _settings
+
+    def answer(request):
+        body, model = json.loads(request.content), request.headers["X-ARP-Model"]
+        if model == E5 and body["texts"][0].startswith("query: "):
+            return httpx.Response(200, json={"vectors": None})  # no usable vector for the query
+        dim = 1024 if model == E5 else 384
+        return httpx.Response(200, json={"vectors": [[1.0] * dim for _ in body["texts"]]})
+
+    rec = Recorder()
+    rec.route(("POST", "/embed"), answer)
+    monkeypatch.setattr(client, "_http", httpx.Client(transport=httpx.MockTransport(rec)))
+    monkeypatch.setattr(client, "_cooldown_until", {})
+    monkeypatch.setattr(client, "_warned", set())
+    monkeypatch.setattr(client, "_id_token", lambda audience: "tok")
+    settings = _settings(tmp_path)
+    monkeypatch.setattr(client, "get_settings", lambda: settings)
+    monkeypatch.setattr(embeddings, "_get_model", lambda: pytest.fail("loaded the local MiniLM"))
+    store = _DictStore()
+    assert _rank("e5-large", store)[1]["embed_model"] == "embed"
+    assert sum(model == "intfloat/multilingual-e5-large" for _, model in store.rows) == 3
+    assert any(r.headers["X-ARP-Model"] != E5 for r in rec.calls(("POST", "/embed")))  # MiniLM came from arp-models
 
 
 def test_409_for_one_model_keeps_the_cross_encoder(monkeypatch, tmp_path):  # review: per-model cooldown
