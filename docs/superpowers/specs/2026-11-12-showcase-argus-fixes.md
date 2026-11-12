@@ -21,9 +21,9 @@ Three implementing PRs, each on `main` (which has #413), each with `Spec: showca
 
 | PR | What | Rows (`Rows:` line) |
 |----|------|---------------------|
-| 1 | Backend: company keys, ticker, edit/remove/discard endpoints, identity result, step 2 rules, start flag, progress, units | AC-1 to AC-55 |
-| 2 | Start page and steps 1 to 3 in the browser | AC-56 to AC-106 |
-| 3 | Steps 4 and 5, Results, walkthrough, company link, XBRL | AC-107 to AC-133; last slice, no `Rows:` line |
+| 1 | Backend: company keys, ticker, edit/remove/discard endpoints, identity result, step 2 rules, start flag, progress, units | AC-1 to AC-55, AC-123 to AC-125, AC-134 to AC-146, AC-154 |
+| 2 | Start page and steps 1 to 3 in the browser | AC-56 to AC-106, AC-147 to AC-149 |
+| 3 | Steps 4 and 5, Results, walkthrough, company link, XBRL | AC-107 to AC-122, AC-126 to AC-133, AC-150 to AC-153; last slice, no `Rows:` line |
 
 PR 2 and PR 3 need PR 1's API. They can be built in parallel after PR 1 is merged.
 
@@ -138,14 +138,18 @@ still succeeds.
 
 **3. Edit and remove.** Until the flow has a run, each step 1 row has `Edit` (name, ticker, ISIN, LEI,
 CIK) and `Remove`. An edit registers the row again by the rules of adding and replaces it in place.
-Remove drops the row and its file choices in this flow; documents stay on the company. Once a run exists
-both answer 409 and the buttons are gone. An edit that would change the row's key while the flow lists
-files for it is refused.
+Remove drops the row and its file choices in this flow at once, with no dialog (adding the company again
+brings its files back); documents stay on the company. Once the flow has a run, or a Start is being
+dispatched (`starting`), both answer 409 and the buttons are gone. An edit never changes the key of a row
+that stays unmatched, so changing only the name keeps the key. The key changes only when the row becomes
+matched to a company already stored under another key; if the flow lists files for the row, that edit is
+refused. A row with files that is matched to a company new to the register keeps its key.
 
 **4. Identity result.** The browser still starts exactly one identity run per click. When the flow is read
 after that run has ended, each still-unmatched company the run resolved (not flagged for review) is
-registered with the identifiers found and becomes matched. It is applied once per run. A row that has
-files in this flow and whose match would change its key is left unmatched. While the run is `pending` or
+registered with the identifiers found and becomes matched. It is applied once per run. The key rule
+of item 3 applies: a row with files whose match would change its key is left unmatched; otherwise it keeps
+its key. While the run is `pending` or
 `running`, step 1 reads the flow again every 4 seconds.
 
 **5, 6. Lists and step 1.** A list the CSV reader rejects is a 400 with the existing wording; an oversized
@@ -162,7 +166,8 @@ tiles count and, when one is pressed, which step is shown. Long run names wrap. 
 
 **9 to 12. Step 2.** A file uploaded through the flow that passes its check is kept at once; one that fails
 stays undecided and reads `Not decided`. Files found by a search stay undecided as today. The Type cell
-uses the dropdown's labels. Uploading again a file removed in this flow keeps it. The check cache follows
+uses the dropdown's labels. Uploading again a file removed in this flow keeps it when its check passes and
+leaves it undecided when it fails. The check cache follows
 the company's name, LEI and ISIN, and a failed read is not cached. The import option reads
 `From the import folder (not available yet)`.
 
@@ -175,23 +180,27 @@ chosen schema that no longer exists is cleared with a message.
 **18 to 21. Flow shell.** A step in the URL that is not 1 to 5 goes to the flow's furthest step. A valid
 step the flow has not reached still opens (an existing test opens step 3 of a new flow). The step bar
 updates when the run ends. Argus banners drop the leading status number. A `starting` flag older than
-60 seconds no longer blocks Start, and a failed write after the launch clears it.
+60 seconds no longer blocks Start. The launched run is linked to the flow before the kept-file records are
+written, so a failed write leaves the flow pointing at its run with `starting` false.
 
 **22 to 26. Step 4.** A company dropped for conflicting identifiers reads `Failed` with the reason and has
-no Retry. `FlowProgress` gains `finished` (rows that read Done or Failed), `stopping`, and per company
+no Retry. `FlowProgress` gains `finished` (rows that read `Done` or `Failed`; a company stopped for review reads
+`Done`, so it counts), `stopping`, and per company
 `retryable`; `done` keeps its meaning. The header shows `finished`. Never-started rows stay `Stopped`
 during a Retry. Before any company has finished, time left is estimated from the stages reached:
-`elapsed / p * (total - p)` with `p` the sum of the companies' percent / 100, once `p >= 0.25`. Cost
+`elapsed / p * (total - p)` in minutes, rounded up, with `p` the sum of the companies' percent / 100, once
+`p >= 0.25`. Cost
 includes finished model calls of companies still in progress, counted once.
 
 **27 to 32. Step 5 and walkthrough.** Every value row has `How was this found?`. Values of a company set to
 `Skip, keep earlier results` are listed as rows from the kept run, marked as kept, and reviewed in place
 against that run; #413's note stays. A `Period` column follows `Field` and shows the period end date.
 "Metric tons" spellings convert to tCO2e; plain `tons` stays unknown (US short tons). Route reasons and the
-unit note are shown as sentences. A failed blind re-extraction shows its note.
+unit note are shown as sentences; a code with no sentence reads `Reason: <code with spaces>.` A failed blind re-extraction shows its note.
 
 **33, 34. Elsewhere.** A run result's company link opens the record of the row's central id when it has
-one. XBRL `Add one company` adds to the picked list; uploading or picking a saved universe still replaces.
+one. XBRL `Add one company` makes a new list of the picked companies plus the new one and picks it; the saved
+universe picked before is not changed. Uploading or picking a saved universe still replaces.
 
 ## Pinned interfaces
 
@@ -227,8 +236,11 @@ If a fix cannot be made without changing one of these, that is a spec question (
 
 ## Notes for the builder
 
+- AC-18, AC-31 and AC-32 are `unit` because the test stack has no model, so a hidden test cannot start a
+  run through the API.
 - Item 26, Progress column: reproduce it first on the showcase setup (one uvicorn process, a real run of
-  two companies). Write the failing test from what you find. If it does not reproduce, post a spec question
+  two companies). Write the failing test from what you find. If AC-112 and AC-151 already pass on `main`, or it
+  does not reproduce, post a spec question
   with what you saw; do not guess a cause.
 - Item 2: use `EdgarDocumentSource.resolve_cik`. Tests replace the SEC list with a stand-in; no test calls
   the SEC.
@@ -291,24 +303,24 @@ If a fix cannot be made without changing one of these, that is a spec question (
 | AC-34 | a draft with a PDF uploaded for Apple (ISIN `US0378331005`) is discarded | a new flow adds Apple by the same ISIN | the new flow's `files` lists that PDF | holdout |
 | AC-35 | reporting year 2025 | a PDF whose text names Apple and 2025 is uploaded for Apple through `…/documents/upload` | in the response that file's `state` is `kept` | holdout |
 | AC-36 | reporting year 2025 | a PDF whose text names only Microsoft is uploaded for Apple | that file's `state` is null | holdout |
-| AC-37 | a file kept, then removed in this flow | the same bytes are uploaded again for the same company | that file's `state` is `kept` | holdout |
+| AC-37 | a file whose check passes, kept, then removed in this flow | the same bytes are uploaded again for the same company | that file's `state` is `kept` | holdout |
 | AC-38 | the state after AC-37 | the flow is read | `skipped_uploads` has no entry for that file | holdout |
 | AC-39 | a kept file, not removed | the same bytes are uploaded again | the flow lists one row `Duplicate of <file name>, skipped`, as pipeline AC-24 | holdout |
 | AC-40 | company key K named `Appel` with a PDF that names `Apple`; its check was read once (`Company not found in document`) | the company's name under key K becomes `Apple` and the flow is read | the file's check starts with `✓` | unit |
 | AC-41 | a PDF whose first check fails to read the file (`no_text`) | the file becomes readable and the flow is read again | the check is the readable file's result, not the stored failure | unit |
-| AC-42 | a flow file with `starting` true and `updated_at` 2 minutes ago | Start is called | the answer is not `This extraction is already starting.` | unit |
+| AC-42 | a flow file with `starting` true and `updated_at` 2 minutes ago | Start is called | the answer is 200 and the flow's `run_id` is set | unit |
 | AC-43 | a flow file with `starting` true and `updated_at` 5 seconds ago | Start is called | 409 with detail `This extraction is already starting.` | unit |
-| AC-44 | writing the run's kept-file record fails after the run was launched | the flow is read | `starting` is false | unit |
+| AC-44 | writing the run's kept-file record fails after the run was launched | the flow is read | `starting` is false and `run_id` is the launched run's id | unit |
 | AC-45 | a finished run of `Apple`, `Microsoft` and `Mixed`, where Mixed was dropped for conflicting identifiers | `GET …/progress` | Mixed's `status` is `Failed` and its `reason` is `Identifiers match more than one company. Correct them in a new extraction.` | unit |
 | AC-46 | the run of AC-45 | `GET …/progress` | Mixed's `retryable` is false | unit |
 | AC-47 | the run of AC-45 | `GET …/progress` | `finished` is 3 and `total` is 3 | unit |
-| AC-48 | a running run with one Done company, one Failed, one stopped for review and one in progress | `GET …/progress` | `finished` is 3 | unit |
+| AC-48 | a running run with one company with a result (reads `Done`), one `Failed`, one stopped for review (reads `Done`) and one in progress | `GET …/progress` | `finished` is 3 | unit |
 | AC-49 | the run of AC-48 | `GET …/progress` | `done` is 2, as on `main` | unit |
 | AC-50 | a stopped run with 3 never-started companies and 1 failed; Retry was clicked on the failed one and the run is active | `GET …/progress` | the 3 never-started rows read `Stopped` | unit |
 | AC-51 | a running run on which Stop was requested | `GET …/progress` | `stopping` is true | unit |
 | AC-52 | a run started 4 minutes ago with 2 companies: one at `Extracting` (50), one `Waiting` (0), none finished | `GET …/progress` | `minutes_left` is 12 | unit |
 | AC-53 | as AC-52, but both companies are `Waiting` | `GET …/progress` | `minutes_left` is null | unit |
-| AC-54 | a run with a stand-in model that reports cost; one company's first model call has finished and the company has not | `GET …/progress` | `cost_usd` is greater than 0 | unit |
+| AC-54 | a run with a stand-in model that reports cost; one company's first model call has finished and the company has not | `GET …/progress` | `cost_usd` equals the stand-in's cost of that one call | unit |
 | AC-55 | the run of AC-54 after it finished | `GET …/progress` | `cost_usd` equals the sum of the calls' costs, each counted once | unit |
 | AC-56 | step 1 of a flow without a run, with companies | the page is shown | every row has an `Edit` and a `Remove` button | evaluator |
 | AC-57 | step 1 as in AC-56 | `Edit` is clicked on a row | fields `Name`, `Ticker`, `ISIN`, `LEI`, `CIK` appear filled with the row's values, with `Save` and `Cancel` | evaluator |
@@ -316,7 +328,7 @@ If a fix cannot be made without changing one of these, that is a spec question (
 | AC-59 | step 1 of a flow that has a run | the page is shown | no row has `Edit` or `Remove` | evaluator |
 | AC-60 | step 1 with a matched company | the row is shown | the id under the name reads `Central ID <id>` | evaluator |
 | AC-61 | two saved universes with the same name and company count, saved on the same day | the saved-universe picker is opened | the two entries differ: each ends with its saved time as `HH:MM` | evaluator |
-| AC-62 | step 1 open while the flow's identity run has status `running` | the run ends having resolved the unmatched company | within 10 seconds, without a reload, the row leaves the warning style | evaluator |
+| AC-62 | step 1 open while the flow's identity run has status `running` (a run record written into the runs folder by hand) | the record is changed to `completed` with the unmatched company resolved | within 10 seconds, without a reload, the row leaves the warning style | evaluator |
 | AC-63 | the state after AC-62 with no unmatched row left | step 1 is shown | the status line reads `Identities resolved.` | evaluator |
 | AC-64 | the app on `main` plus this change | the existing test `test_resolve_identities_starts_one_run_for_the_unmatched` runs unchanged | it passes | unit |
 | AC-65 | the start page with N rows in Runs | `Start new extraction` is clicked, then the browser's Back | Runs has N rows | evaluator |
@@ -355,8 +367,8 @@ If a fix cannot be made without changing one of these, that is a spec question (
 | AC-98 | step 3 with a typed description and drafted fields marked `not saved` | the page is reloaded | the same description and the same fields are shown, marked `not saved` | evaluator |
 | AC-99 | the state of AC-98, then `Save as a draft schema` | the page is reloaded | the saved schema is shown and no field is marked `not saved` | evaluator |
 | AC-100 | an unsaved draft in flow 1 | step 3 of flow 2 is opened in the same tab | no unsaved field is shown | evaluator |
-| AC-101 | step 3 Settings open, the server's answer to a settings save delayed by 3 seconds | `Batch` is ticked | until the answer arrives the `Batch` checkbox and the evidence field are disabled | evaluator |
-| AC-102 | a flow whose chosen schema was removed from the database | step 3 is opened | the page shows `The schema chosen earlier no longer exists. Choose another.` and the start button reads `Choose what to extract` | evaluator |
+| AC-101 | step 3 Settings open, the server's answer to a settings save delayed by 3 seconds (a delayed route in the browser driver) | `Batch` is ticked | until the answer arrives the `Batch` checkbox and the evidence field are disabled | evaluator |
+| AC-102 | a flow whose chosen schema's rows were deleted in the database by hand | step 3 is opened | the page shows `The schema chosen earlier no longer exists. Choose another.` and the start button reads `Choose what to extract` | evaluator |
 | AC-103 | the state after AC-102 | the flow is read from the API | `schema_choice` is null | evaluator |
 | AC-104 | a flow at step 2 | `#/argus/<id>/7`, `#/argus/<id>/2.5` and `#/argus/<id>/-1` are opened in turn | each time the address becomes `#/argus/<id>/2` and step 2 is shown | evaluator |
 | AC-105 | a new flow at step 1 | `#/argus/<id>/3` is opened | step 3 is shown, as on `main` | evaluator |
@@ -364,12 +376,12 @@ If a fix cannot be made without changing one of these, that is a spec question (
 | AC-107 | step 4 open on a running extraction | the run finishes, with no reload | `5 Results` in the step bar is a link | evaluator |
 | AC-108 | step 4 open on a running extraction | `Stop` is clicked | the button reads `Stopping…` and is disabled | evaluator |
 | AC-109 | the state of AC-108 | the page is shown | a line reads `Stopping: companies already running will finish.` | evaluator |
-| AC-110 | a flow with `Apple` (LEI), `Microsoft` (ISIN) and a third row with Apple's LEI and Microsoft's ISIN, a kept file each, run to the end | step 4 is shown | the third row reads `Failed` with `Identifiers match more than one company. Correct them in a new extraction.` and has no `Retry` button | evaluator |
+| AC-110 | a flow with `Apple` (LEI), `Microsoft` (ISIN) and a third row with Apple's LEI and Microsoft's ISIN, uploaded as one list (step 1 shows the third row with `Identifiers match more than one company`), a kept file each, run to the end | step 4 is shown | the third row reads `Failed` with `Identifiers match more than one company. Correct them in a new extraction.` and has no `Retry` button | evaluator |
 | AC-111 | the run of AC-110 | step 4 is shown | the header reads `3 of 3 done` | evaluator |
-| AC-112 | a real extraction of 2 companies in progress | step 4 is shown while a company reads `Reading documents`, `Extracting` or `Checking the answers` | that row's progress bar has a visible filled part, and a `Done` row's bar is full | evaluator |
+| AC-112 | a real extraction of 2 companies in progress | step 4 is shown while a company reads `Reading documents`, `Extracting` or `Checking the answers` | that row's bar is filled to a quarter, a half or three quarters of its width, in that order of statuses | evaluator |
 | AC-113 | a finished run with an auto-accepted value | step 5 is shown | that row has a link `How was this found?` that opens the walkthrough of that run, company and field | evaluator |
 | AC-114 | a review detail whose reasons are `unreleased_version`, `check_failed`, `first_audit_pending`, `below_auto_accept_min` | the reasons are turned into text | they read `The schema is a draft, so every value is reviewed.`, `A check on this value failed.`, `The first values of a new schema version are always reviewed.`, `Confidence is below the level for automatic acceptance.` | unit |
-| AC-115 | every value of `ReasonCode` and every reason literal in `extraction/routing.py` | each is turned into text | no text contains `_` | unit |
+| AC-115 | every value of `ReasonCode` and every reason literal in `extraction/routing.py` | each is turned into text | each text ends with a full stop, has no `_`, and is not the code with `_` replaced by spaces | unit |
 | AC-116 | the note `cannot convert 'short tons' to 'tCO2e' (unknown_unit)` | it is turned into text | it reads `The unit "short tons" could not be converted to tCO2e.` | unit |
 | AC-117 | step 5 with a value waiting for review | `Review` is clicked on its row | the detail shows sentences and none of the codes `unreleased_version`, `check_failed`, `first_audit_pending`, `below_auto_accept_min` | evaluator |
 | AC-118 | a flow where Microsoft is set to `Skip, keep earlier results` (earlier run of 2026-11-10 with 4 values) and the new run covers Apple | step 5 is shown | the table lists Apple's values and Microsoft's 4 values, and each Microsoft row's Company cell reads `Microsoft` and `kept from the extraction of 2026-11-10` | evaluator |
@@ -388,10 +400,32 @@ If a fix cannot be made without changing one of these, that is a spec question (
 | AC-131 | XBRL Facts with nothing picked | `Add one company` is submitted | the picker reports 1 company | evaluator |
 | AC-132 | the state after AC-129 | the same company is added again | the picker still reports 2 companies | evaluator |
 | AC-133 | the state after AC-129 | a list file with 3 companies is uploaded | the picker reports 3 companies, as on `main` | evaluator |
+| AC-134 | a flow file as `main` stores it, with an unmatched company whose `company_id` is `1` and a file under that key | the flow is read | the company's `company_id` is `1` and `files` lists the file | unit |
+| AC-135 | a flow without a run with unmatched `Acme` (name only) and one uploaded file for it | `PUT` for Acme with `{name: "Acme Corp"}` | 200; the row is named `Acme Corp`, has the same `company_id` as before, and `files` still lists the file | holdout |
+| AC-136 | the flow of AC-135 before the edit; ISIN `DE0007164600` is not in the register | `PUT` for Acme with `{name: "Acme", isin: "DE0007164600"}` | 200; Acme has an `entity_id`, the same `company_id` as before, and `files` still lists the file | holdout |
+| AC-137 | as AC-23, but Acme has an uploaded file in this flow and CIK `1234567` is not in the register | `GET …/flows/<id>` | Acme has an `entity_id`, the same `company_id` as before, and `files` still lists the file | unit |
+| AC-138 | a flow file with `starting` true, `updated_at` 5 seconds ago and no `run_id` | `PUT` or `DELETE` on one of its companies | 409 with detail `Companies cannot be changed once the extraction has started.` | unit |
+| AC-139 | the flow of AC-138 | `POST …/discard` | 409 with detail `An extraction that has started cannot be deleted.` | unit |
+| AC-140 | the matched row of AC-7 in a flow with source `Official filings` | `Find documents` is called | the discovery run's stored company list has Microsoft with `cik` `789019` (leading zeros allowed) | unit |
+| AC-141 | a finished run with a company that failed because its document has no text | `GET …/progress` | that company's `retryable` is true | unit |
+| AC-142 | a running run on which Stop was not requested | `GET …/progress` | `stopping` is false | unit |
+| AC-143 | a file whose check fails, kept by hand, then removed in this flow | the same bytes are uploaded again for the same company | that file's `state` is null | holdout |
+| AC-144 | a stand-in that maps `MSFT` to `789019` | `{name: "Microsoft", ticker: "MSFT", isin: "XX"}` is added | the row's `cik` is `789019` (leading zeros allowed) and its `isin` is null | unit |
+| AC-145 | a flow whose discovery run found a filing that passes its check | the flow is read | that file's `state` is null, as on `main` | unit |
+| AC-146 | a run started 5 minutes ago with 2 companies: one at `Checking the answers` (75), one `Waiting`, none finished | `GET …/progress` | `minutes_left` is 9 | unit |
+| AC-147 | the identity run statuses `pending`, `running`, `completed`, `failed` and an unreadable record (null) | the rule that decides whether step 1 reads the flow again every 4 seconds is evaluated for each | it is true for `pending` and `running` only | unit |
+| AC-148 | a flow whose identity run ended `completed` with 1 company still unmatched | step 1's status line is computed | it reads `The identity run ended (completed): 1 company still has no identifier. Add an ISIN, LEI or CIK for it, or try again.`, as on `main` | unit |
+| AC-149 | step 1 of a flow without a run, with 3 companies | `Remove` is clicked on a row | no dialog opens, the row is gone and the button reads `Continue with 2 companies` | evaluator |
+| AC-150 | the state of AC-118 | `How was this found?` is clicked on a Microsoft row | the walkthrough of the 2026-11-10 run opens for Microsoft and that field | evaluator |
+| AC-151 | the run of AC-112 | a row reads `Done` | its progress bar is filled to its full width | evaluator |
+| AC-152 | the state after AC-129, where the first list was a saved universe with 1 company | XBRL Facts is opened again and that saved universe is picked | the picker reports 1 company | evaluator |
+| AC-153 | the state after AC-129 | a saved universe with 5 companies is picked | the picker reports 5 companies, as on `main` | evaluator |
+| AC-154 | the state after AC-44, the launched run still running | Start is called again | 409 with detail `This extraction is already running.` | unit |
 
 Must not change (each also a row above): a name-only row's key (AC-5); a matched row's key (AC-6); the
 `No identifier` text (AC-12); one identity run per click (AC-64); plain `DELETE` of a flow (AC-33); the
 duplicate-upload row (AC-39); a fresh `starting` flag blocks Start (AC-43); `done` in progress (AC-49);
 `No runs yet.` (AC-74); an unreached step still opens (AC-105); the `Review` button's name (AC-117); the
 "not in this run" note (AC-120); plain `tons CO2e` stays unknown (AC-125); `companyHref` (AC-128); an
-uploaded XBRL list replaces the picked one (AC-133).
+uploaded XBRL list replaces the picked one (AC-133); a stored flow's keys (AC-134); a searched file stays
+undecided (AC-145); the identity status line (AC-148); picking a saved XBRL universe replaces (AC-153).
