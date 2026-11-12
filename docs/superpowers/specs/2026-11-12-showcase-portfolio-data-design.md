@@ -67,7 +67,7 @@ ISIN (IE00BGV5VN51).
   labels, SHA-256 `f7df310918dd8243af970b33e3dcd757f255b0b16edc19b226f74d08ad2eb5bd`) is on branch
   `ccr-ab3f2be4-wt1dcl` only; **PR 1 brings it to `main` unchanged**.
 - Rows whose `Type of Security` is `Aktien`, `Equities`, `Depository Receipts` or `Preferred Stock` carry
-  2,538 distinct ISINs (2,530 name + country keys). 14 of them have `Weighting` `N/A` in every file (12 in
+  2,538 distinct ISINs (2,530 companies as "Key" defines them). 14 of them have `Weighting` `N/A` in every file (12 in
   MSCI_EM, 2 in MSCI_World). Sectors: MSCI World, EM, Europe and S&P 500 use German GICS labels; DAX and
   EURO STOXX 50 use an older scheme that files BMW, Mercedes, VW, Continental, Ferrari and AB InBev under
   `Basiskonsumgüter` (Consumer Staples); the AI file uses English labels.
@@ -83,7 +83,8 @@ ISIN (IE00BGV5VN51).
 - `arp portfolio monthly-run` and `POST /api/portfolio/monthly-run` (`backend/arp/portfolio/monthly_run.py`)
   are blocked unless every portfolio has an `ok` holdings load record for the month and the ESG provider an
   `ok` ESG load; the API and the UI's "Run now" use provider `default`. A run resolves observations as of
-  max(month end, `at` of the latest ESG load), picking the latest `observed_at` on or before that date, and
+  max(month end, `at` of the latest ESG load), picking, among sources with an observation on or before that
+  date, the highest-ranked source, then its latest `observed_at`, and
   publishes `portfolio_climate_metrics`, `alerts`, `triggers` and `company_profile` into `bi_published`
   (Postgres only). The `bi.company_profile` view keeps numeric values only, so text values read as NULL.
 - Observation sources are `internal_api`, `extracted`, `catalogue`, `estimated_proxy`
@@ -161,11 +162,15 @@ ISIN (IE00BGV5VN51).
 **Rows.** One per distinct ISIN over rows whose `Type of Security` is `Aktien`, `Equities`,
 `Depository Receipts` or `Preferred Stock`, sorted by ISIN. Rows with weight `N/A` are kept.
 
-**Key.** A company is a key: `Name` (upper-cased, stripped) + `Country` of its line. Lines with the same key
-(share classes, dual listings) are one company: `EQT` in the US and `EQT` in Sweden are two keys. Draws come
-from SHA-256 of the key. Every ISIN of a key gets identical values in every column except `isin`,
-`company_id`, `files`. Name, country and sector are the key's, taken from its first line in the file order
-`MSCI_World`, `SP500`, `MSCI_Europe`, `MSCI_EM`, `AI_Big_Data`, `EURO_STOXX_50`, `DAX`.
+**Key.** A key is the `Name` (upper-cased, stripped) + the country translated to English with the import's
+table (PR 1 carries the same entries as "English labels" below, so `Vereinigte Staaten von Amerika` and
+`United States` are one country). A **company** is the set of keys linked by a shared ISIN: two keys that
+share any ISIN are one company (`SAP` and `SAP SE` share `DE0007164600`). Share classes and dual listings
+with the same key are one company; `EQT` in the US and `EQT` in Sweden are two. Draws come from SHA-256 of
+the company's first key. Every ISIN of a company gets identical values in every column except `isin`,
+`company_id`, `files`. Name, country and sector are the company's, taken from its first line in the file
+order `MSCI_World`, `SP500`, `MSCI_Europe`, `MSCI_EM`, `AI_Big_Data`, `EURO_STOXX_50`, `DAX`. Below,
+"key" in Size, Controversial revenue and Transition grade means the company.
 
 **Columns**, in this order. Decimals: tCO2e and EUR M values 2; `climate_carbon_intensity`, `ghg_intensity`,
 revenue shares, `green_revenue_pct` and `transition_score` 4; `climate_green_revenue_pct`, the E, S, G
@@ -376,8 +381,8 @@ PR 1 stays independent so `index-starting-universe` can start on the file.
 ## Acceptance
 
 `<N>` is the number of distinct ISINs over equity rows (`Aktien`, `Equities`, `Depository Receipts`,
-`Preferred Stock`) of the seven files, tests compute it (2,538 today); a key is name + country as defined in
-"Key". "The e2e stack" is `backend/scripts/e2e_stack.sh up` (seed-demo data only). "The loader ran" means
+`Preferred Stock`) of the seven files, tests compute it (2,538 today); a company is the set of keys linked by
+a shared ISIN, as "Key" defines it (2,530 today). "The e2e stack" is `backend/scripts/e2e_stack.sh up` (seed-demo data only). "The loader ran" means
 `arp showcase load` on the e2e stack with the committed dataset.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
@@ -401,12 +406,12 @@ PR 1 stays independent so `index-starting-universe` can start on the file.
 | AC-17 | `activity_overrides.csv` | it is read | every ISIN listed in "Controversial revenue" has a row with that activity (oil and gas: one `oil` and one `gas` row) | holdout |
 | AC-18 | The dataset | rows whose key has an override for an activity are read | the share equals the override's `share` | holdout |
 | AC-19 | The dataset | every revenue-share column is read | every value is between 0 and 1 | holdout |
-| AC-20 | The dataset | rows are grouped by key | rows of one key have equal values in every column except `isin`, `company_id`, `files` | holdout |
+| AC-20 | The dataset | rows are grouped by company | rows of one company have equal values in every column except `isin`, `company_id`, `files` | holdout |
 | AC-21 | The dataset | `esg_score` is recomputed | it equals the mean of `esg_e_score`, `esg_s_score`, `esg_g_score` within 0.01 | holdout |
 | AC-22 | The dataset | `transition_grade` and `transition_grade_label` are read | the pairs are exactly `A`/`Leader`, `B`/`Credible`, `C`/`Gaps`, `D`/`Emerging`, `E`/`Not credible`, `F`/`Disqualified` | holdout |
-| AC-23 | The dataset | per sector, the n distinct keys are counted by grade | A = floor(0.10 n), B = floor(0.30 n) − floor(0.10 n), C = floor(0.60 n) − floor(0.30 n), D = floor(0.85 n) − floor(0.60 n), E = floor(0.95 n) − floor(0.85 n), F = n − floor(0.95 n) | holdout |
-| AC-24 | The dataset | per sector, keys are sorted by `transition_score` descending, ties by smallest ISIN | grades never go back up along that order | holdout |
-| AC-25 | The dataset | `transition_score` is recomputed per key from the file's values by the rule in "Transition grade" | it equals the file's value within 0.0001 | holdout |
+| AC-23 | The dataset | per sector, the n companies are counted by grade | A = floor(0.10 n), B = floor(0.30 n) − floor(0.10 n), C = floor(0.60 n) − floor(0.30 n), D = floor(0.85 n) − floor(0.60 n), E = floor(0.95 n) − floor(0.85 n), F = n − floor(0.95 n) | holdout |
+| AC-24 | The dataset | per sector, companies are sorted by `transition_score` descending, ties by smallest ISIN | grades never go back up along that order | holdout |
+| AC-25 | The dataset | `transition_score` is recomputed per company from the file's values by the rule in "Transition grade" | it equals the file's value within 0.0001 | holdout |
 | AC-26 | The dataset | `lct_score` and `lct_category` are read | `lct_score` = 10 × `transition_score` within 0.01; `lct_category` follows the rule in "Transition grade" on every row | holdout |
 | AC-27 | The dataset | its header is compared with "Fields for Index Construction" | every column named there is present | holdout |
 | AC-28 | `main` after PR 1 | SHA-256 of `data/holdings/AI_Big_Data.xlsx` is taken | `f7df310918dd8243af970b33e3dcd757f255b0b16edc19b226f74d08ad2eb5bd` | holdout |
