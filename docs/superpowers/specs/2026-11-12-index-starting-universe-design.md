@@ -37,7 +37,7 @@ features that need real prices or returns refuse rather than invent them.
   revenue-share columns named as Index Construction's fields, flags as `true`/`false`, categories
   `lct_category`, `transition_grade` (`A` to `F`), `transition_grade_label`, and `sector` as the peer group.
   Its row AC-65 ("the field catalogue lists `transition_grade` as a category") is owned by this spec
-  (here AC-14). Its PR 2 extends the importer's label tables (`Preferred Stock` → equity, English labels).
+  (here AC-30). Its PR 2 extends the importer's label tables (`Preferred Stock` → equity, English labels).
 - The themes spec (`2026-11-12-showcase-themes-fixes.md`, PR 2) adds a fixed banner on every Index
   Construction tab: `Demo data: reviews on this page run on a built-in synthetic universe of 60 companies.
   The results describe nothing real.` (its AC-65).
@@ -113,7 +113,20 @@ translate helper from `constituent_import.py` (imported, not copied), so the lab
 
 **Portfolio holdings** (latest snapshot): a holding whose security has no `company_id` → *not linked to a
 company*; `weight_pct` missing → *without a weight*; then buckets 2 to 4 by the security's `asset_class`
-and `weight_pct`. Holdings of one company are summed into one candidate.
+and `weight_pct`. Holdings of one company are summed into one candidate: weight = summed `weight_pct` / 100.
+`name`, `sector` and `country` come from the stored company (`CompanyRef`); with no stored company, the
+first security's name and no sector or country.
+
+**Layout errors** reuse the importer's wording: `<file name>: sheet title '<title>' is not an ISO date
+(YYYY-MM-DD)` and `<file name>: header row 4 lacks column(s) [...]`. The universe list still lists such a
+file, with `as_of_date` null; loading it answers 422 with that message.
+
+**Look-ahead:** a run whose `review_date` is before the universe's as-of date is refused (400)
+`<label> holds holdings as of <date>, after the review date <review_date>: a review cannot use holdings that did not exist yet.`
+(My call, same rule as the Decision Studio join.)
+
+**Reading:** the loader reads the file, the store and the dataset on every request (no cache), so a changed
+file shows on the next request.
 
 **Candidate fields:** `company_id` = `isin_<ISIN>` for files, the linked company id for portfolios; `name`;
 `sector` and `country` translated to English (portfolios: from the stored company); `currency` `EUR`;
@@ -126,6 +139,7 @@ Weights are not renormalised.
 - `lct_category`, `transition_grade`, `transition_grade_label` → `categories`; the dataset's `sector` →
   category `peer_group`.
 - Every other numeric column → `metrics` under its column name.
+- An empty cell is not joined (the key is absent on that company).
 - `isin`, `company_id`, `name`, `country`, `files`, `data_status` are not joined.
 - A company with no row gets nothing (no defaults).
 
@@ -139,7 +153,6 @@ Weights are not renormalised.
    `Simulated ESG data: not available; loaded companies carry no ESG fields.`
 
 A universe with no candidates is refused: 422 `<label>: no equity lines with a positive weight.`
-A file that does not have the layout is refused: 422 `<file name>: ` followed by the reason.
 
 ### API (`backend/arp/api/routers/index.py`)
 
@@ -148,15 +161,17 @@ A file that does not have the layout is refused: 422 `<file name>: ` followed by
   then files sorted by stem (`kind` `file`, `as_of_date` the sheet date), then portfolios with a snapshot
   sorted by name (`kind` `portfolio`, `as_of_date` the latest snapshot date). Builder's call: whether the
   list reads sheet dates eagerly or lazily, as long as the field is filled.
-- `GET /api/index/universes/{universe_id}` → `{universe_id, label, kind, as_of_date, company_count, notes,
+- `GET /api/index/universes/{universe_id:path}` (a `path` parameter, so an id holding `/` reaches the
+  handler and gets the 404 below) → `{universe_id, label, kind, as_of_date, company_count, notes,
   fields}`; `fields` is `available_fields(candidates)` from `arp/index/fields.py` (called, not changed).
   For `demo`: `company_count` 60, `notes` `[]`, fields as the catalogue's. Unknown id → 404
   `Unknown starting universe: <id>`.
-- `RunRequest.universe: str | None = None`. A non-demo `universe` together with `candidates` → 400
-  `Send either universe or candidates, not both.` Unknown → 404 as above. The loader's notes are put in
+- `RunRequest.universe: str | None = None`. `universe` set to any value, `demo` included, together with a
+  non-empty `candidates` → 400 `Send either universe or candidates, not both.` `candidates: []` counts as
+  omitted (as today). Unknown → 404 as above. The loader's notes are put in
   front of the decision notes in `ReviewResult.input_notes`. Decision Studio joins work on a loaded
   universe as they do on the demo.
-- Risk model: when the universe is not the demo (a non-demo `universe` or any `candidates`), no
+- Risk model: when the universe is not the demo (a non-demo `universe` or non-empty `candidates`), no
   `returns_panel` is sent, and the spec needs a risk model (the existing condition), answer 422
   `Risk model: a loaded starting universe has no returns history, so tracking-error methods cannot run on it. Use the built-in demo universe, or send a returns_panel.`
   With a `returns_panel` the existing `build_risk_model` path runs unchanged.
@@ -207,60 +222,87 @@ rows): the join is a column mapping, and the dataset's own field names are fixed
 
 ## Left to the builder
 
-- Function names, the response model names, caching of a loaded file.
+- Function names, the response model names.
 - How the select and notes are laid out, within the existing card and help-text styles.
+
 
 ## Acceptance
 
-"DAX" means `data/holdings/DAX.xlsx` as committed. "No dataset" means `ARP_SIMULATED_ESG_PATH` points at a
-file that does not exist. "The fixture dataset" means `ARP_SIMULATED_ESG_PATH` points at a CSV with the
-header of `showcase-portfolio-data`'s dataset and one row for `company_id` `isin_DE0007164600` with
-`esg_score` 7.25, `coal_revenue_pct` 0, `norms_violation` `false`, `transition_grade` `B`,
-`transition_grade_label` `Credible`, `sector` `Information Technology`, other columns any valid value.
+"DAX" means `data/holdings/DAX.xlsx` as committed. `holdout` rows run on the default e2e stack and do not
+depend on whether `data/simulated/esg_simulated.csv` exists. Rows that need other settings or fixture
+files are `unit`, with settings overridden in the test client: "no dataset" means `simulated_esg_path`
+points at a file that does not exist; "the fixture dataset" means it points at a CSV with the full header of
+`showcase-portfolio-data`'s dataset and one row for `company_id` `isin_DE0007164600` with `esg_score` 7.25,
+`coal_revenue_pct` 0, `norms_violation` `false`, `lct_category` `neutral`, `transition_grade` `B`,
+`transition_grade_label` `Credible`, `sector` `Information Technology`, every other column non-empty.
 "The default spec" is `ConstructionSpec()` (no screens, select all, free-float market cap weighting,
-waterfall, no constraints, trajectory off).
+waterfall, no constraints, trajectory off). Every run row sends its own `index_id` `ac<n>_index` (n = the
+row number), `use_prior_state` false and `review_date` 2026-11-02 unless it says otherwise.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
-| AC-1 | `ARP_HOLDINGS_DIR` = a directory holding copies of `SP500.xlsx` and `DAX.xlsx` and a file `notes.txt`; a portfolio store with no portfolios | `GET /api/index/universes` | 200; exactly three entries: `{"universe_id": "demo", "label": "Built-in demo universe (60 synthetic companies)", "kind": "demo", "as_of_date": null}`, then `{"universe_id": "file:DAX", "label": "DAX.xlsx", "kind": "file", "as_of_date": "2026-11-02"}`, then the same for `SP500` | holdout |
-| AC-2 | Same, plus a stored portfolio with one snapshot dated 2026-10-31 | `GET /api/index/universes` | the list ends with an entry `universe_id` `portfolio:<its id>`, `kind` `portfolio`, `label` its name, `as_of_date` `2026-10-31` | holdout |
-| AC-3 | No dataset | `GET /api/index/universes/file:DAX` | 200; `company_count` 40; `notes` exactly: `Starting universe: DAX.xlsx, holdings as of 2026-11-02, 40 companies.`, `Dropped 3 lines: 2 cash, 1 other asset class, 0 zero or negative weight, 0 without a weight, 0 not linked to a company.`, `Size is a weight proxy: each company's free-float market cap is its weight × an assumed EUR 100,000,000, at price 1. It is not market data.`, `Simulated ESG data: not available; loaded companies carry no ESG fields.` | holdout |
-| AC-4 | No dataset | `GET /api/index/universes/file:DAX` | `fields` is exactly `{"metrics": ["float_mcap", "free_float_factor", "price", "shares_outstanding"], "flags": [], "categories": ["country", "sector"]}` | holdout |
-| AC-5 | — | `GET /api/index/universes/file:NOPE`, then `GET /api/index/universes/file:..%2Fconfig%2Fusers` | both 404 with detail starting `Unknown starting universe:` | holdout |
-| AC-6 | `ARP_HOLDINGS_DIR` = a directory with one file `X.xlsx` whose only lines are 1 cash line, 1 equity line with weight −0.01, 1 equity line with weight `N/A` | `GET /api/index/universes/file:X` | 422, detail `X.xlsx: no equity lines with a positive weight.` | holdout |
-| AC-7 | No dataset, the default spec | `POST /api/index/run` with `universe` `file:DAX`, `review_date` 2026-11-02, `persist` false | 200; 40 constituents; constituent `isin_DE0007164600` named `SAP` with weight 0.1176544801 (within 1e-9) and price 1.0 | holdout |
-| AC-8 | Same | the same run's `input_notes` are read | its first four entries equal the four notes of AC-3 | holdout |
-| AC-9 | A stored portfolio `p1` whose latest snapshot holds: company `c_a` through two securities (weight_pct 30 and 20), company `c_b` (weight_pct 45), a cash security (weight_pct 5), a security with no company (weight_pct 1) | `GET /api/index/universes/portfolio:p1` | `company_count` 2; notes line 2 is `Dropped 2 lines: 1 cash, 0 other asset class, 0 zero or negative weight, 0 without a weight, 1 not linked to a company.` | holdout |
-| AC-10 | Same | `POST /api/index/run` with `universe` `portfolio:p1`, the default spec | constituent weights: `c_a` 0.5263157895, `c_b` 0.4736842105 (within 1e-9) | holdout |
-| AC-11 | The fixture dataset | `GET /api/index/universes/file:DAX` | notes line 4 is `Simulated ESG data: matched 1 of 40 companies.` | holdout |
-| AC-12 | The fixture dataset, a spec with one metric threshold screen on `esg_score` min 5, `missing` `fail` | run on `file:DAX` | exactly 1 constituent, `isin_DE0007164600` | holdout |
-| AC-13 | No dataset, the same screen with `missing` `block` | run on `file:DAX` | 422, detail starts `Data quality block:` and names `esg_score` | holdout |
-| AC-14 | The fixture dataset | `GET /api/index/universes/file:DAX` | `fields.categories` is exactly `["country", "lct_category", "peer_group", "sector", "transition_grade", "transition_grade_label"]` | holdout |
-| AC-15 | The fixture dataset, a spec with a category screen on `transition_grade` allowing only `B`, `missing` `fail` | run on `file:DAX` | exactly 1 constituent, `isin_DE0007164600` | holdout |
-| AC-16 | The default spec | `POST /api/index/run` with `universe` `file:DAX` and a one-element `candidates` list | 400, detail `Send either universe or candidates, not both.` | holdout |
-| AC-17 | — | `POST /api/index/run` with `universe` `file:NOPE` | 404, detail `Unknown starting universe: file:NOPE` | holdout |
-| AC-18 | The default spec with solver method `min_tracking_error`, no `returns_panel` | run on `file:DAX` | 422, detail `Risk model: a loaded starting universe has no returns history, so tracking-error methods cannot run on it. Use the built-in demo universe, or send a returns_panel.` | holdout |
-| AC-19 | The default spec with `tracking_error_budget` 0.02, no `returns_panel` | run with 3 `candidates` sent directly | 422 with the detail of AC-18 | holdout |
-| AC-20 | A review on `file:DAX` saved under `dax_index` @ 2026-11-02 | `GET /api/index/dax_index/levels/2026-11-02` | 409, detail `No level series: this review ran on a loaded starting universe, which has no price history (its prices are a weight proxy).` | holdout |
-| AC-21 | Must not change: the default spec, and each preset `GET /api/index/presets/<name>` returns for the names in the catalogue's `presets` | run with no `universe` and no `candidates`, and again with `universe` `demo` | both responses equal `main` before this spec (excluding `created_at`), and equal each other | holdout |
-| AC-22 | Must not change: a demo review saved under `demo_index` @ 2026-03-31 | `GET /api/index/demo_index/levels/2026-03-31?days=5` | identical to `main` before this spec | holdout |
-| AC-23 | Must not change: a demo run with solver method `min_tracking_error` and no `returns_panel` | `POST /api/index/run` | the same status and body as on `main` before this spec (excluding `created_at`) | holdout |
-| AC-24 | Must not change | `GET /api/index/catalogue` | `fields` equals `main` before this spec | holdout |
-| AC-25 | Must not change: no `universe` sent | a run with `decision_snapshot_ids` | `input_notes` equal `main` before this spec (no starting-universe notes) | holdout |
-| AC-30 | The e2e stack, Index Construction → Compose | the page opens | a `Starting universe` card is above the Preset card, its select shows `Built-in demo universe (60 synthetic companies)`, and its options include `DAX.xlsx (holdings file, 2026-11-02)` | evaluator |
-| AC-31 | Same | `DAX.xlsx (holdings file, 2026-11-02)` is chosen | the four notes of the loaded universe show under the select, the first being `Starting universe: DAX.xlsx, holdings as of 2026-11-02, 40 companies.` | evaluator |
-| AC-32 | Same, DAX chosen | the Base weighting scheme is set to `metric` and its Field picker opened | it lists `float_mcap` and does not list `adv_3m` | evaluator |
-| AC-33 | Same, DAX chosen, the index id still `demo_index` | the index id field is read | `dax_index` | evaluator |
-| AC-34 | Same, DAX chosen, no preset, no rules added | Preview is run, the Result tab opened | the result lists 40 constituents, among them `SAP` at `11.77%` | evaluator |
-| AC-35 | Same, DAX chosen | the Compose and the Result tab are read | both show `Starting universe: DAX.xlsx (holdings as of 2026-11-02, 40 companies). Sizes are a weight proxy and ESG values, where present, are simulated. The results describe no real index.` and neither shows the `Demo data:` banner | evaluator |
-| AC-36 | Same, DAX chosen, then the demo universe chosen again | Compose is read | the `Demo data:` banner of the themes spec shows, the notes are gone, and the Base weighting Field picker (scheme `metric`) lists `adv_3m` again | evaluator |
-| AC-37 | Same, DAX chosen, the solver method set to Minimum tracking error | Preview is run | the page shows the 422 detail of AC-18 | evaluator |
-| AC-38 | Index Builder with the API mocked: universes list as AC-1, the DAX load answering 500 `boom` | DAX is chosen | an error containing `boom` shows under the select, the select shows the demo universe again, and the pickers keep the catalogue's fields | unit |
-| AC-39 | Index Builder with the API mocked, the user typed index id `my_index`, then chose DAX | the index id field is read | `my_index` | unit |
-| AC-40 | Index Builder with the API mocked, DAX chosen | Preview is run | the run request body has `"universe": "file:DAX"` and no `candidates` | unit |
-| AC-41 | Must not change: Index Builder with the API mocked, the demo universe | Preview is run | the run request body has no `universe` and no `candidates` key, as on `main` | unit |
+| AC-1 | The default stack | `GET /api/index/universes` | 200; the first entry is `{"universe_id": "demo", "label": "Built-in demo universe (60 synthetic companies)", "kind": "demo", "as_of_date": null}` | holdout |
+| AC-2 | Same | `GET /api/index/universes` | it holds `{"universe_id": "file:DAX", "label": "DAX.xlsx", "kind": "file", "as_of_date": "2026-11-02"}`, and the `file:` entries come right after `demo`, sorted by stem | holdout |
+| AC-3 | Same | `GET /api/index/universes/file:DAX` | 200; `company_count` 40; `notes[0]` `Starting universe: DAX.xlsx, holdings as of 2026-11-02, 40 companies.` | holdout |
+| AC-4 | Same | same | `notes[1]` `Dropped 3 lines: 2 cash, 1 other asset class, 0 zero or negative weight, 0 without a weight, 0 not linked to a company.` | holdout |
+| AC-5 | Same | same | `notes[2]` `Size is a weight proxy: each company's free-float market cap is its weight × an assumed EUR 100,000,000, at price 1. It is not market data.` | holdout |
+| AC-6 | No dataset | `GET /api/index/universes/file:DAX` | `notes[3]` `Simulated ESG data: not available; loaded companies carry no ESG fields.` | unit |
+| AC-7 | No dataset | same | `fields` is exactly `{"metrics": ["float_mcap", "free_float_factor", "price", "shares_outstanding"], "flags": [], "categories": ["country", "sector"]}` | unit |
+| AC-8 | The default stack | `GET /api/index/universes/file:NOPE` | 404, detail `Unknown starting universe: file:NOPE` | holdout |
+| AC-9 | Same | `GET /api/index/universes/file:..%2Fconfig%2Fusers` | 404, detail `Unknown starting universe: file:../config/users` | holdout |
+| AC-10 | Same | `POST /api/index/run`, default spec, `universe` `file:../../config/users` | 404, detail `Unknown starting universe: file:../../config/users` | holdout |
+| AC-11 | `holdings_dir` = a directory with one file `X.xlsx` (DAX layout) whose only lines are 1 cash line, 1 equity line with weight −0.01, 1 equity line with weight `N/A` | `GET /api/index/universes/file:X` | 422, detail `X.xlsx: no equity lines with a positive weight.` | unit |
+| AC-12 | `holdings_dir` = a directory with `X.xlsx` in DAX layout but sheet title `Sheet1` | `GET /api/index/universes` | it lists `file:X` with `as_of_date` null | unit |
+| AC-13 | Same | `GET /api/index/universes/file:X` | 422, detail `X.xlsx: sheet title 'Sheet1' is not an ISO date (YYYY-MM-DD)` | unit |
+| AC-14 | The default stack, default spec | `POST /api/index/run`, `universe` `file:DAX`, `persist` false | 200; 40 constituents; `isin_DE0007164600` named `SAP` with weight 0.1176544801 (within 1e-9) | holdout |
+| AC-15 | Same | same | that constituent's price is 1.0 | holdout |
+| AC-16 | Same | same | `input_notes[0:3]` equal `notes[0:3]` of `GET /api/index/universes/file:DAX` | holdout |
+| AC-17 | Same | run `file:DAX` with `persist` true, then `GET /api/index/ac17_index/reviews/2026-11-02` | `input_notes[0]` is `Starting universe: DAX.xlsx, holdings as of 2026-11-02, 40 companies.` | holdout |
+| AC-18 | Same | run `file:DAX` with `review_date` 2026-10-01 | 400, detail `DAX.xlsx holds holdings as of 2026-11-02, after the review date 2026-10-01: a review cannot use holdings that did not exist yet.` | holdout |
+| AC-19 | Same | run with `universe` `file:DAX` and a one-element `candidates` list | 400, detail `Send either universe or candidates, not both.` | holdout |
+| AC-20 | Same | run with `universe` `demo` and a one-element `candidates` list | 400, detail `Send either universe or candidates, not both.` | holdout |
+| AC-21 | Same | run with `universe` `file:NOPE` | 404, detail `Unknown starting universe: file:NOPE` | holdout |
+| AC-22 | Same, default spec with solver method `min_tracking_error`, no `returns_panel` | run `file:DAX` | 422, detail `Risk model: a loaded starting universe has no returns history, so tracking-error methods cannot run on it. Use the built-in demo universe, or send a returns_panel.` | holdout |
+| AC-23 | Same, default spec with `tracking_error_budget` 0.02, no `returns_panel` | run with 3 `candidates` sent directly, no `universe` | 422 with the detail of AC-22 | holdout |
+| AC-24 | Same, a review on `file:DAX` saved under `ac24_index` @ 2026-11-02 | `GET /api/index/ac24_index/levels/2026-11-02` | 409, detail `No level series: this review ran on a loaded starting universe, which has no price history (its prices are a weight proxy).` | holdout |
+| AC-25 | A stored portfolio `p1` whose latest snapshot holds company `c_a` (stored name `Alpha AG`) through two equity securities (weight_pct 30 and 20), company `c_b` (weight_pct 45), a cash security (weight_pct 5), an equity security with no company (weight_pct 1) | `GET /api/index/universes/portfolio:p1` | `company_count` 2; `notes[1]` `Dropped 2 lines: 1 cash, 0 other asset class, 0 zero or negative weight, 0 without a weight, 1 not linked to a company.` | unit |
+| AC-26 | Same | run `portfolio:p1`, default spec, `review_date` = the snapshot date | constituent weights `c_a` 0.5263157895, `c_b` 0.4736842105 (within 1e-9) | unit |
+| AC-27 | Same | same | the `c_a` constituent is named `Alpha AG` | unit |
+| AC-28 | Same, and a portfolio `p0` with no snapshot | `GET /api/index/universes` | exactly one `portfolio:` entry, `portfolio:p1`, with `label` the portfolio's name, `kind` `portfolio`, `as_of_date` the snapshot date, after every `file:` entry | unit |
+| AC-29 | The fixture dataset | `GET /api/index/universes/file:DAX` | `notes[3]` `Simulated ESG data: matched 1 of 40 companies.` | unit |
+| AC-30 | The fixture dataset | same | `fields.categories` is exactly `["country", "lct_category", "peer_group", "sector", "transition_grade", "transition_grade_label"]` | unit |
+| AC-31 | The fixture dataset, a spec with one metric threshold screen on `esg_score` min 5, `missing` `fail` | run `file:DAX` | exactly 1 constituent, `isin_DE0007164600` | unit |
+| AC-32 | The fixture dataset, a spec with one category screen on `transition_grade` allowing only `B`, `missing` `fail` | run `file:DAX` | exactly 1 constituent, `isin_DE0007164600` | unit |
+| AC-33 | No dataset, the AC-31 screen with `missing` `block` | run `file:DAX` | 422, detail starts `Data quality block:` and contains `esg_score` | unit |
+| AC-34 | A published decision whose results cover `isin_DE0007164600` only, published before 2026-11-02 | run `file:DAX` with its `decision_snapshot_ids` | `input_notes[4]` ends `matched 1 of 40 candidates.` | unit |
+| AC-35 | Must not change: the default stack | run the default spec and each preset from `GET /api/index/presets/<name>` (names from the catalogue's `presets`) with no `universe`, no `candidates` | each body equals `main` before this spec, excluding `created_at` | holdout |
+| AC-36 | Must not change: same | the same runs with `universe` `demo` | each body equals the AC-35 body, excluding `created_at` | holdout |
+| AC-37 | Must not change: a demo review saved under `ac37_index` @ 2026-03-31 | `GET /api/index/ac37_index/levels/2026-03-31?days=5` | identical to `main` before this spec | holdout |
+| AC-38 | Must not change: a demo run, solver method `min_tracking_error`, no `returns_panel` | `POST /api/index/run` | the same status and body as `main` before this spec, excluding `created_at` | holdout |
+| AC-39 | Must not change | `GET /api/index/catalogue` | `fields` equals `main` before this spec | holdout |
+| AC-40 | Must not change: `candidates: []`, solver method `min_tracking_error`, no `returns_panel` | `POST /api/index/run` | the same status and body as AC-38, excluding `created_at` and `index_id` | holdout |
+| AC-50 | The e2e stack, Index Construction → Compose | the page opens | a `Starting universe` card is directly above the Preset card | evaluator |
+| AC-51 | Same | the card's select is read | it shows `Built-in demo universe (60 synthetic companies)` | evaluator |
+| AC-52 | Same | the select's options are read | one reads `DAX.xlsx (holdings file, 2026-11-02)` | evaluator |
+| AC-53 | Same | DAX is chosen | four note lines show under the select, the first `Starting universe: DAX.xlsx, holdings as of 2026-11-02, 40 companies.` | evaluator |
+| AC-54 | Same, DAX chosen | the Base weighting scheme is set to `metric` and its Field picker opened | it lists `float_mcap` and not `adv_3m` | evaluator |
+| AC-55 | Same, DAX chosen, the index id still `demo_index` | the index id field is read | `dax_index` | evaluator |
+| AC-56 | Same, DAX chosen, no preset, no rules added | Preview is run and the Result tab opened | 40 constituents, among them `SAP` at `11.77%` | evaluator |
+| AC-57 | Same, DAX chosen | the Compose tab and the Result tab are read | both show `Starting universe: DAX.xlsx (holdings as of 2026-11-02, 40 companies). Sizes are a weight proxy and ESG values, where present, are simulated. The results describe no real index.` | evaluator |
+| AC-58 | Same, DAX chosen | the Compose tab and the Result tab are read | neither shows text starting `Demo data:` | evaluator |
+| AC-59 | Same, DAX chosen, then the demo universe chosen again | Compose is read | the themes spec's `Demo data:` banner shows | evaluator |
+| AC-60 | Same as AC-59 | the area under the select is read | no note line starting `Starting universe:` shows | evaluator |
+| AC-61 | Same as AC-59 | the Base weighting Field picker (scheme `metric`) is opened | it lists `adv_3m` | evaluator |
+| AC-62 | Same, DAX chosen, solver method set to Minimum tracking error | Preview is run | the page shows the detail of AC-22 | evaluator |
+| AC-63 | Index Builder, API mocked: universes as in AC-1/AC-2, the DAX load answering 500 `boom` | DAX is chosen | an error containing `boom` shows under the select | unit |
+| AC-64 | Same | same | the select shows the demo universe again | unit |
+| AC-65 | Same | same, then the Base weighting Field picker (scheme `metric`) is read | it lists the mocked catalogue's metrics | unit |
+| AC-66 | Index Builder, API mocked, the user typed index id `my_index`, then chose DAX | the index id field is read | `my_index` | unit |
+| AC-67 | Index Builder, API mocked, DAX chosen | Preview is run | the request body has `"universe": "file:DAX"` and no `candidates` key | unit |
+| AC-68 | Index Builder, API mocked, the universes list holds `{"universe_id": "portfolio:p1", "label": "My fund", "kind": "portfolio", "as_of_date": "2026-10-31"}` | the select's options are read | one reads `My fund (portfolio, 2026-10-31)` | unit |
+| AC-69 | Must not change: Index Builder, API mocked, the demo universe | Preview is run | the request body has no `universe` and no `candidates` key | unit |
 
-Rows owned by PR 1: AC-1 to AC-25. PR 2: AC-30 to AC-41.
+Rows owned by PR 1: AC-1 to AC-40. PR 2: AC-50 to AC-69.
 
-Must not change: demo runs, demo levels, demo tracking-error runs, the catalogue's fields, and run requests
-without a universe (AC-21 to AC-25, AC-41).
+Must not change: demo runs and presets, demo levels, demo tracking-error runs, the catalogue's fields,
+empty `candidates`, run requests from the page on the demo universe (AC-35 to AC-40, AC-69).
