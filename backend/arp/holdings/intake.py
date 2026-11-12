@@ -71,8 +71,7 @@ def ingest(
     if not iso_date(as_of):
         raise IntakeError(422, "as_of must be YYYY-MM-DD")
     if validated.errors:
-        exists = store.get_holder(kind, holder_id) or (kind == "portfolio" and store.get_portfolio(holder_id))
-        if exists or not known_holders_only:
+        if not known_holders_only or store.get_holder(kind, holder_id) or (kind == "portfolio" and store.get_portfolio(holder_id)):
             record_load(store, LoadRecord(kind="holdings", source_id=holder_id, month=as_of[:7], status="failed", content_hash="",
                                           detail=f"{len(validated.errors)} row errors"))
         raise IntakeError(422, "file rejected", validated.errors)

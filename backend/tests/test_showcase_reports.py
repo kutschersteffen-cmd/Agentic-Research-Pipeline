@@ -61,3 +61,15 @@ def test_viewer_may_not_discard(env):  # AC-97
     app.dependency_overrides[current_user] = lambda: Principal(user_id="u_v", name="Vera", role="viewer")
     assert client.delete(f"/api/reports/{rid}").status_code == 403
     assert store.load_manifest(rid) is not None
+
+
+def test_a_report_that_was_finished_once_cannot_be_discarded_after_a_failed_re_render(env):
+    """Code review on PR #419: a failed re-render sets a completed report to `failed` and keeps its output
+    (ReportingService.render_from_plan / _rerender); discarding it would delete the delivered file."""
+    client, store = env
+    manifest = ReportManifest(status="failed", output_filename="output.pptx", output_files=["output.pptx"], error="render broke")
+    store.save_manifest(manifest)
+    store.output_path(manifest.report_id, "output.pptx").write_bytes(b"delivered")
+    r = client.delete(f"/api/reports/{manifest.report_id}")
+    assert (r.status_code, r.json()["detail"]) == (409, "Only an unfinished report can be discarded (status: failed, with a finished output).")
+    assert store.output_path(manifest.report_id, "output.pptx").read_bytes() == b"delivered"

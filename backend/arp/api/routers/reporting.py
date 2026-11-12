@@ -121,6 +121,9 @@ def discard_report(report_id: str, store: ReportingStore = Depends(get_reporting
         raise HTTPException(404, "Report not found")
     if manifest.status not in _DISCARDABLE:
         raise HTTPException(409, f"Only an unfinished report can be discarded (status: {manifest.status.value}).")
+    if manifest.output_filename:
+        # a failed re-render sets a finished report to `failed` and keeps its output: that file was delivered
+        raise HTTPException(409, f"Only an unfinished report can be discarded (status: {manifest.status.value}, with a finished output).")
     shutil.rmtree(folder)
 
 

@@ -671,7 +671,8 @@ export function ReportBuilder() {
                           Open
                         </button>
                       )}
-                      {(r.status === "plan_ready" || r.status === "storyline_ready" || r.status === "failed") && (
+                      {/* a failed row that still has an output was finished once (its re-render failed): not a draft */}
+                      {(r.status === "plan_ready" || r.status === "storyline_ready" || (r.status === "failed" && !r.output_filename)) && (
                         <button className="link-button" onClick={(e) => { e.stopPropagation(); discardReport(r.report_id); }}>
                           Discard
                         </button>
