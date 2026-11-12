@@ -452,6 +452,15 @@ def test_a_finished_identity_run_matches_the_rows_it_resolved(client, fid, acme,
     assert (count(pg), count(pg, CompanyIdentifier)) == register
 
 
+def test_a_run_that_is_not_an_identity_run_is_ignored(client, fid, acme, run_store):
+    """A hand-made PATCH can name any run; its rows are not identity results and made every read a 500."""
+    run_store.save_manifest(RunManifest(run_id="extraction_x", run_type="extraction", status="completed"))
+    run_store.append_result("extraction_x", {"_key": acme, "company_id": acme, "name": "Acme", "fields": []})
+    client.patch(f"/api/argus/flows/{fid}", json={"identity_run_id": "extraction_x"})
+    r = client.get(f"/api/argus/flows/{fid}")
+    assert r.status_code == 200 and r.json()["companies"][0]["entity_id"] is None
+
+
 def test_a_result_flagged_for_review_is_not_applied(client, fid, acme, run_store):  # AC-24
     identity_run(client, fid, run_store, "completed", found(acme, "Acme", resolved_cik="1234567", flagged_for_review=True))
     assert client.get(f"/api/argus/flows/{fid}").json()["companies"][0]["entity_id"] is None

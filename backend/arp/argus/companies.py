@@ -4,7 +4,6 @@ LEI, ISIN and CIK match or create a company; the list's own `company_id` becomes
 
 from __future__ import annotations
 
-import asyncio
 import csv
 import io
 import json
@@ -67,8 +66,8 @@ async def ticker_ciks(rows: list[dict], edgar) -> dict[int, str]:
         cik = None
         if not unreadable:  # one failed read is enough: the next row would wait for the same timeout
             try:
-                cik = await asyncio.wait_for(edgar.resolve_cik(ticker), 10)
-            except Exception:  # noqa: BLE001 -- the SEC is unreachable, slow, or its list unreadable
+                cik = await edgar.resolve_cik(ticker)
+            except Exception:  # noqa: BLE001 -- the SEC is unreachable or its list unreadable
                 unreadable = True
         if cik:
             row["cik"] = cik

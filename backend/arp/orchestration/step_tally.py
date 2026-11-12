@@ -174,7 +174,7 @@ def record_call_cost(usd: float) -> None:
 def running_cost(run_id: str) -> float:
     """Cost of the finished model calls of companies still in progress; 0 unless the run executes in this process."""
     tally = _live.get(run_id)
-    return sum(tally.running_cost.values()) if tally else 0.0
+    return sum(dict(tally.running_cost).values()) if tally else 0.0  # a copy: the run's threads add and remove keys
 
 
 def settle_cost(run_id: str, company_id: str) -> float:

@@ -99,6 +99,19 @@ def test_a_duplicate_of_a_kept_file_is_still_skipped(client, flow, tmp_path):  #
     assert states(again)["ar.pdf"] == "kept"
 
 
+def test_uploading_a_file_that_is_already_on_file_keeps_it(client, flow, tmp_path):
+    """UI review of PR #425: a second extraction for the company read `Continue with 0 files` after the upload."""
+    fid, key = flow
+    data = pdf(tmp_path, "Apple Annual Report 2025")
+    up(client, fid, key, "ar.pdf", data)
+    other = client.post("/api/argus/flows").json()["flow_id"]
+    client.post(f"/api/argus/flows/{other}/companies", json={"company": {"name": "Apple"}})
+    client.patch(f"/api/argus/flows/{other}", json={"reporting_year": 2025})
+    again = up(client, other, key, "copy.pdf", data)
+    assert states(again)["ar.pdf"] == "kept"
+    assert [f["check"] for f in again["files"] if f["duplicate_of"]] == ["Duplicate of ar.pdf, skipped"]
+
+
 def test_a_file_a_search_found_stays_undecided(client, flow, tmp_path, settings):  # AC-145
     fid, key = flow
     folder = settings.documents_dir / key / "10-K"

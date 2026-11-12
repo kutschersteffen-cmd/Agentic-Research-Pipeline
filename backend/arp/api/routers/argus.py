@@ -204,14 +204,14 @@ def _with_identity_result(flow: ArgusFlow | None, store: FlowStore, view: Viewer
     if not run_id or flow.identity_applied == run_id or flow.run_id or is_starting(flow):
         return flow
     m = view.run_store.load_manifest(run_id)
-    if m is None or m.status in ("pending", "running"):
+    if m is None or m.run_type != "identity" or m.status in ("pending", "running"):
         return flow
     found = {c.company_id: c for c in enriched_universe(view.run_store, run_id)}
-    with_files = {f.company_id for f in view.files(flow) if f.duplicate_of is None} if found else set()
 
     def apply(f: ArgusFlow) -> None:
         if f.identity_applied == run_id or f.run_id or is_starting(f):
             return
+        with_files = {x.company_id for x in view.files(f) if x.duplicate_of is None} if found else set()
         with transaction(require_dsn(view.settings)) as session:
             for i, old in enumerate(f.companies):
                 hit = found.get(old.company_id)
@@ -313,7 +313,7 @@ async def upload_flow_document(
         raise HTTPException(400, str(exc)) from exc
     key = f"{company_id}/{path.parent.name}/{path.name}"
     company = next(c for c in flow.companies if c.company_id == company_id)
-    passes = passes_check(flow, company, path, view.checks_dir)
+    passes = await asyncio.to_thread(passes_check, flow, company, path, view.checks_dir)  # parses the PDF
 
     def apply(f: ArgusFlow) -> None:
         f.source = f.source or "upload"
@@ -323,6 +323,8 @@ async def upload_flow_document(
             else:
                 f.decisions.pop(key, None)  # not decided: the user sees why it fails
             return
+        if passes and key not in f.decisions:  # already on file from another extraction: the user just chose it
+            f.decisions[key] = "kept"
         skipped = SkippedUpload(company_id=company_id, filename=file.filename or "", duplicate_of=duplicate_of)
         if all((x.company_id, x.filename) != (company_id, skipped.filename) for x in f.skipped_uploads):  # one row per key
             f.skipped_uploads.append(skipped)
@@ -434,7 +436,9 @@ def flow_progress(
     done = m.completed_count + m.failed_count
     since = m.params.get("done_at_restart", 0)  # a Retry or resume: count from its start, not the run's
     started = datetime.fromisoformat(m.params.get("restarted_at") or m.created_at)
-    left = minutes_left(started, datetime.now(UTC), done=done - since, total=m.company_count - since,
+    # a Retry runs only the companies it names: the never-started ones read Stopped and are not left to do
+    total = len(retrying) if retrying else m.company_count - since
+    left = minutes_left(started, datetime.now(UTC), done=done - since, total=total,
                         # the stages of the companies in progress; a finished one is in `done` (or was before the restart)
                         reached=sum(c.percent for c in companies if c.percent < 100) / 100 if active else 0.0)
     return FlowProgress(run_id=m.run_id, started_at=m.created_at, done=done, total=m.company_count, minutes_left=left,

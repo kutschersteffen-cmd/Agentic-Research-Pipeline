@@ -296,3 +296,21 @@ async def test_a_failed_companys_finished_calls_stay_in_the_cost(client, setting
     run_id = JobManager(run_store).create_run("stand_in", {}, 1, companies=companies).run_id
     await run_company_batch(run_id, companies, run_store=run_store, worker=worker, result_to_json=dict, concurrency=1)
     assert run_store.load_manifest(run_id).estimated_cost_usd == pytest.approx(0.25)  # the header never counts down
+
+
+def test_time_left_during_a_retry_counts_only_the_retried_company(client, settings, run_store):
+    """Code review of PR #425: the three never-started rows read Stopped and will not run, yet they were counted as left."""
+    _run(run_store, "running", failed_count=1)
+    run_store.append_error("extraction_p", {"key": "b", "error": "boom"})
+    m = run_store.load_manifest("extraction_p")
+    m.params = {"retrying": ["b"], "done_at_restart": 1,
+                "restarted_at": (datetime.now(UTC) - timedelta(minutes=1.9)).isoformat()}
+    run_store.save_manifest(m)
+    step_tally._live["extraction_p"] = step_tally._Tally()
+    step_tally._live["extraction_p"].add("b", "extract", 1.0)
+    try:
+        p, rows = _progress(client, settings)
+    finally:
+        step_tally._live.pop("extraction_p", None)
+    assert [rows[c]["status"] for c in "abcd"] == ["Stopped", "Extracting", "Stopped", "Stopped"]
+    assert p["minutes_left"] == 2  # 1.9 min for half of the one company, half to go; not 14 for four
