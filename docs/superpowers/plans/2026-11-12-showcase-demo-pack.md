@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3, httpx, SQLAlchemy session from `arp.db.session.transaction`, pytest (Postgres tests use the `pg` fixture), `httpx.MockTransport` for the stubbed API.
 
-**Spec:** `docs/superpowers/specs/2026-11-12-showcase-demo-pack-design.md` (owner-approved 12 Nov 2026)
+**Spec:** `docs/superpowers/specs/2026-11-12-showcase-demo-pack-design.md` (revised 12 Nov 2026, commit ad88d18). Active rows: AC-1 to AC-6, AC-8 to AC-27, AC-38, AC-40; AC-7, AC-28 to AC-37 and AC-39 are retired.
 
 ## Decisions the spec leaves open (need the owner's yes)
 
@@ -65,14 +65,14 @@
 
 **Files:**
 - Create: `demo/showcase/documents.csv`, `demo/showcase/documents/.gitkeep`, `demo/showcase/etf_dax.csv`, `demo/showcase/etf_euro_stoxx_50.csv`, `demo/showcase/etf_ai_big_data.csv`, `demo/showcase/README.md`
-- Modify: `.gitignore` (`demo/showcase/documents/*.pdf`, `demo/showcase/benchmark_holdings.csv`)
+- Modify: `.gitignore` (`demo/showcase/documents/*.pdf`)
 - Test: `backend/tests/test_showcase_pack.py`
 
 **Interfaces:**
 - Produces: `documents.csv` rows: 10 `10-K` (reporting_year 2025, `<company_id>_annual_report_2025.pdf`), then 4 `DEF-14A` (2026, `<company_id>_proxy_statement_2026.pdf`) for NEE, DUK, NUE, DOW. `source` is "Company investor-relations site" or "SEC EDGAR".
-- The three ETF CSVs per Decision 6 (rows whose `Type of Security` is `Aktien` or `Equities`), converted once from the xlsx (throwaway script, not committed). README: what the pack is, the load command, and one `Source:` line per committed holdings csv with its public source and as-of date (the iShares MSCI World `benchmark_holdings.csv` is described as owner-downloaded, git-ignored).
+- The three ETF CSVs per Decision 6 (rows whose `Type of Security` is `Aktien` or `Equities`), converted once from the xlsx (throwaway script, not committed). README: what the pack is, the load command, and one `Source:` line per committed holdings csv with its public source and as-of date.
 
-- [ ] **Step 1: Failing tests**: `test_documents_csv` (AC-5, "only year" = `re.findall(r"20\d\d", file_name) == ["2025"]`), `test_etf_files_match_xlsx` (AC-6: 40 DAX, 52 EURO STOXX 50 and 100 AI & Big Data holdings, names, ISINs, weights equal to the xlsx `Aktien`/`Equities` rows), `test_etf_overlap_counts_isins` (AC-25 via `compute_holdings_overlap`: `len(core_tickers)` = ISINs in both, ≥ 5), `test_etf_line_one` (AC-26: `Source:` and `2026-11-02`, `2026-11-02`, `2026-11-12`), `test_readme_sources` (AC-27: one `Source:` line per holdings `*.csv` in `demo/showcase/`, naming it; no `invented weights`), `test_documents_dir_ignored` (AC-13), `test_benchmark_ignored` (AC-39).
+- [ ] **Step 1: Failing tests**: `test_documents_csv` (AC-5, "only year" = `re.findall(r"20\d\d", file_name) == ["2025"]`), `test_etf_files_match_xlsx` (AC-6: 40 DAX, 52 EURO STOXX 50 and 100 AI & Big Data holdings, names, ISINs, weights equal to the xlsx `Aktien`/`Equities` rows), `test_etf_overlap_counts_isins` (AC-25 via `compute_holdings_overlap`: `len(core_tickers)` = ISINs in both, ≥ 5), `test_etf_line_one` (AC-26: `Source:` and `2026-11-02`, `2026-11-02`, `2026-11-12`), `test_readme_sources` (AC-27: one `Source:` line per holdings `*.csv` in `demo/showcase/`, naming it; no `invented weights`), `test_documents_dir_ignored` (AC-13).
 - [ ] **Step 2: Run** → FAIL. **Step 3:** write the files. **Step 4:** Run → PASS. **Step 5: Commit** `feat(demo): showcase documents list and public ETF holdings`
 
 ### Task 3: Loader, local steps
@@ -86,9 +86,9 @@
 - `companies`: `transaction(require_dsn(settings))` + `resolve_company` per row → `ok companies: 10 registered`.
 - `universe`: `save_universe(settings, companies, "Showcase companies")` → `ok universe: Showcase companies (10 companies)`.
 - `portfolios`: `asyncio.run(generate_demo_dataset(store, today=date.today()))` with the store the CLI's `_portfolio_store()` builds, then `import_constituent_files` on the seven files per Decision 5 → `ok portfolios: 4 seeded, 7 imported`.
-- `documents`: copy present files to `settings.documents_dir/<company_id>/<doc_type>/<file_name>` → `ok documents: <k> of 14 present` plus `  missing: <file_name>` lines in csv order, then `  benchmark: <n> equity rows` (`parse_ishares_holdings`) or `  missing: benchmark_holdings.csv`.
+- `documents`: copy present files to `settings.documents_dir/<company_id>/<doc_type>/<file_name>` → `ok documents: <k> of 14 present` plus `  missing: <file_name>` lines in csv order.
 
-- [ ] **Step 1: Failing tests**: `test_companies_twice` (AC-8, `pg`), `test_portfolios_twice` (AC-9, `pg`, two runs, `len(store.list_portfolios()) == 11`), `test_ai_big_data_portfolio` (AC-40), `test_no_duplicate_names` (AC-20 as Decision 7 reads it), `test_benchmark_line` (AC-7, 3-row iShares file in a tmp pack, then absent), `test_documents_copy` (AC-19, 4 dummy proxy PDFs in a tmp pack copy, tmp `ARP_DOCUMENTS_DIR`), `test_failing_step_continues` (AC-12: monkeypatch `STEPS["universe"]` to raise; later lines still print; exit 1), `test_universe_saved_once` (Review Focus 2).
+- [ ] **Step 1: Failing tests**: `test_companies_twice` (AC-8, `pg`), `test_portfolios_twice` (AC-9, `pg`, two runs, `len(store.list_portfolios()) == 11`), `test_ai_big_data_portfolio` (AC-40), `test_no_duplicate_names` (AC-20 as Decision 7 reads it), `test_documents_copy` (AC-19, 4 dummy proxy PDFs in a tmp pack copy, tmp `ARP_DOCUMENTS_DIR`), `test_failing_step_continues` (AC-12: monkeypatch `STEPS["universe"]` to raise; later lines still print; exit 1), `test_universe_saved_once` (Review Focus 2).
 - [ ] **Step 2: Run** → FAIL (no module). **Step 3:** implement. **Step 4:** Run → PASS. **Step 5: Commit** `feat(demo): showcase loader, local steps`
 
 ### Task 4: Loader, run steps
