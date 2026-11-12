@@ -1,8 +1,10 @@
 import threading
 
+import pytest
 from sqlalchemy import func, select
 
 from arp.db.session import transaction
+from arp.errors import ClientInputError
 from arp.schemas.common import now_iso
 from arp.schemas.engagement import (
     ActivityType,
@@ -27,6 +29,7 @@ from arp.schemas.engagement import (
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.postgres_engagement_store import PostgresEngagementStore
 from arp.storage.postgres_models import StwActivityModel, StwEventModel
+from arp.storage.safe_path import UnsafeIdentifierError
 
 
 def _count(dsn, model):
@@ -150,7 +153,7 @@ def test_objective_round_trip(pg):
     assert [e["event_type"] for e in store.events("C1")][-3:] == ["objective_added", "objective_added", "objective_updated"]
 
 
-def test_concurrent_writes_serialise(pg):
+def test_concurrent_appends_all_land_with_one_event_each(pg):
     store = PostgresEngagementStore(pg)
     _, issue = store.open_issue("C1", "Acme Corp", theme="climate")
     before = _count(pg, StwEventModel)
@@ -192,3 +195,30 @@ def test_noop_write_adds_no_event(pg):
     store.set_issue_status("C1", issue.issue_id, IssueStatus.OPEN)
     store.get_or_create("C1", "Acme Corp")
     assert _count(pg, StwEventModel) == before
+
+
+def test_non_iso_timestamp_is_a_client_error(pg):
+    store = PostgresEngagementStore(pg)
+    _, issue = store.open_issue("C1", "Acme Corp", theme="climate")
+    with pytest.raises(ClientInputError, match="last_contacted_at"):
+        store.add_contact("C1", Contact(name="Ann", role="IR", last_contacted_at="last week"))
+    with pytest.raises(ClientInputError, match="date"):
+        store.add_correspondence("C1", issue.issue_id, CorrespondenceEntry(type="call", summary="x", date="yesterday"))
+
+
+def test_existing_id_is_a_client_error(pg):
+    store = PostgresEngagementStore(pg)
+    store.get_or_create("C1", "Acme Corp")
+    store.get_or_create("C2", "Beta Corp")
+    store.add_contact("C1", Contact(contact_id="cnt_1", name="Ann", role="IR"))
+    with pytest.raises(ClientInputError, match="cnt_1"):
+        store.add_contact("C2", Contact(contact_id="cnt_1", name="Bob", role="IR"))
+    assert store.get("C2").contacts == []
+
+
+def test_unsafe_company_id_is_rejected_like_the_file_store(pg, tmp_path):
+    for store in (EngagementStore(tmp_path), PostgresEngagementStore(pg)):
+        with pytest.raises(UnsafeIdentifierError):
+            store.get("../etc")
+        with pytest.raises(UnsafeIdentifierError):
+            store.get_or_create("../etc", "Evil")

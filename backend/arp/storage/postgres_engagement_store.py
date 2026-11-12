@@ -11,10 +11,11 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from pydantic import BaseModel
-from sqlalchemy import DateTime, func, select, text
+from sqlalchemy import DateTime, func, inspect, select, text
 from sqlalchemy.orm import Session
 
 from arp.db.session import transaction
+from arp.errors import ClientInputError
 from arp.schemas.common import new_id, now_iso
 from arp.schemas.engagement import (
     Commitment,
@@ -43,15 +44,20 @@ from arp.storage.postgres_models import (
     StwObjectiveModel,
     StwTransitionModel,
 )
+from arp.storage.safe_path import safe_id
 
 _LOCK = text("SELECT pg_advisory_xact_lock(hashtext(:id))")
 _CORRESPONDENCE_TYPES = {t.value for t in CorrespondenceType}
+_FIELD_NAMES = {"occurred_at": "date"}  # column -> pydantic field, where they differ for client input
 
 
-def _ts(value: str | None) -> datetime | None:
+def _ts(value: str | None, field: str = "timestamp") -> datetime | None:
     if value is None:
         return None
-    parsed = datetime.fromisoformat(value)
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        raise ClientInputError(f"{field} is not an ISO 8601 timestamp: {value!r}") from None
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
 
 
@@ -60,7 +66,7 @@ def _row(model, obj: BaseModel, **extra):
     values = {"source": "app", **obj.model_dump(mode="json"), **extra}
     return model(
         **{
-            c.key: _ts(values[c.key]) if isinstance(c.type, DateTime) else values[c.key]
+            c.key: _ts(values[c.key], _FIELD_NAMES.get(c.key, c.key)) if isinstance(c.type, DateTime) else values[c.key]
             for c in model.__table__.columns
             if c.key in values
         }
@@ -117,6 +123,7 @@ class PostgresEngagementStore:
     def lock(self, company_id: str) -> Iterator[None]:
         """One write transaction holding a per-company advisory lock until commit. Re-entrant on the
         same thread: a nested lock() joins the open transaction."""
+        safe_id(company_id, label="company_id")  # same 4xx as the file store for malformed ids
         with self._session() as session:
             session.execute(_LOCK, {"id": company_id})
             outer = getattr(self._local, "session", None) is None
@@ -130,6 +137,14 @@ class PostgresEngagementStore:
     @property
     def _tx(self) -> Session:
         return self._local.session
+
+    def _add(self, row) -> None:
+        """Insert `row`; an id the client chose that already exists (in any company) is a client error."""
+        mapper = inspect(type(row))
+        key = mapper.primary_key_from_instance(row)
+        if self._tx.get(type(row), key) is not None:
+            raise ClientInputError(f"{mapper.primary_key[0].key} already exists: {key[0]!r}")
+        self._tx.add(row)
 
     def _log_event(self, company_id: str, event_type: str, detail: dict) -> None:
         self._tx.add(StwEventModel(source="app", company_id=company_id, event_type=event_type, detail=detail, at=_ts(now_iso())))
@@ -194,6 +209,7 @@ class PostgresEngagementStore:
         )
 
     def get(self, company_id: str) -> EngagementRecord | None:
+        safe_id(company_id, label="company_id")
         with self._session() as session:
             return self._read(session, company_id)
 
@@ -203,16 +219,17 @@ class PostgresEngagementStore:
             if existing is not None:
                 return existing
             record = EngagementRecord(company_id=company_id, name=name, sector=sector)
-            self._tx.add(_row(StwCompanyModel, record))
+            self._add(_row(StwCompanyModel, record))
             self._log_event(company_id, "record_created", {})
             return self.get(company_id)
 
     def list_all(self) -> list[EngagementRecord]:
         with self._session() as session:
-            ids = session.scalars(select(StwCompanyModel.company_id).order_by(StwCompanyModel.company_id)).all()
+            ids = session.scalars(select(StwCompanyModel.company_id).order_by(StwCompanyModel.company_id.collate("C"))).all()
             return [self._read(session, company_id) for company_id in ids]
 
     def events(self, company_id: str) -> list[dict]:
+        safe_id(company_id, label="company_id")
         with self._session() as session:
             rows = session.scalars(
                 select(StwEventModel).where(StwEventModel.company_id == company_id).order_by(StwEventModel.event_id)
@@ -245,7 +262,7 @@ class PostgresEngagementStore:
     def add_contact(self, company_id: str, contact: Contact) -> EngagementRecord:
         with self.lock(company_id):
             self._get_or_raise(company_id)
-            self._tx.add(_row(StwContactModel, contact, company_id=company_id))
+            self._add(_row(StwContactModel, contact, company_id=company_id))
             return self._write(company_id, "contact_added", {"contact_id": contact.contact_id, "name": contact.name})
 
     def open_issue(
@@ -262,7 +279,7 @@ class PostgresEngagementStore:
         with self.lock(company_id):
             self.get_or_create(company_id, name, sector)
             issue = EngagementIssue(theme=theme, severity=severity, source=source, source_detail=source_detail, tags=[theme])
-            self._tx.add(
+            self._add(
                 _row(
                     StwEngagementModel,
                     issue,
@@ -292,7 +309,7 @@ class PostgresEngagementStore:
     def add_correspondence(self, company_id: str, issue_id: str, entry: CorrespondenceEntry) -> EngagementRecord:
         with self.lock(company_id):
             self._issue_in(company_id, issue_id)
-            self._tx.add(
+            self._add(
                 _row(
                     StwActivityModel,
                     entry,
@@ -309,7 +326,7 @@ class PostgresEngagementStore:
     def add_commitment(self, company_id: str, issue_id: str, commitment: Commitment) -> EngagementRecord:
         with self.lock(company_id):
             self._issue_in(company_id, issue_id)
-            self._tx.add(_row(StwCommitmentModel, commitment, engagement_id=issue_id))
+            self._add(_row(StwCommitmentModel, commitment, engagement_id=issue_id))
             return self._write(company_id, "commitment_added", {"issue_id": issue_id, "commitment_id": commitment.commitment_id})
 
     def update_commitment_status(
@@ -328,7 +345,7 @@ class PostgresEngagementStore:
             )
 
     def _add_transition(self, issue_id: str, kind: str, transition: BaseModel) -> None:
-        self._tx.add(_row(StwTransitionModel, transition, transition_id=new_id("trn"), engagement_id=issue_id, kind=kind))
+        self._add(_row(StwTransitionModel, transition, transition_id=new_id("trn"), engagement_id=issue_id, kind=kind))
 
     def set_milestone_stage(self, company_id: str, issue_id: str, stage: MilestoneStage, reason: str = "") -> EngagementRecord:
         with self.lock(company_id):
@@ -354,7 +371,7 @@ class PostgresEngagementStore:
     def add_objective(self, company_id: str, issue_id: str, objective: Objective) -> EngagementRecord:
         with self.lock(company_id):
             self._issue_in(company_id, issue_id)
-            self._tx.add(_row(StwObjectiveModel, objective, engagement_id=issue_id))
+            self._add(_row(StwObjectiveModel, objective, engagement_id=issue_id))
             return self._write(company_id, "objective_added", {"issue_id": issue_id, "objective_id": objective.objective_id})
 
     def update_objective(self, company_id: str, issue_id: str, objective_id: str, **fields) -> EngagementRecord:
