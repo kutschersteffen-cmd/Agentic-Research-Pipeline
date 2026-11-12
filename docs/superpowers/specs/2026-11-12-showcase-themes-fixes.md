@@ -24,7 +24,8 @@ else than its label. Every fix comes with a test that failed before it.
   theme-run evidence ranking, the no-documents verdict and the setup wording in `setupErrors.ts`.
   #413 and #410 conflict with each other in `backend/arp/llm/factory.py`; whoever merges second resolves it.
 - Risk stays `risk:normal` because the cvxpy wording is fixed in the frontend only. A change under
-  `backend/arp/index/` would make it `risk:high`; AC-100 forbids it in both PRs.
+  `backend/arp/index/` would make it `risk:high`, so neither PR changes a file there. The code review checks
+  the file list (a CI step for it would itself be a `risk:high` change); AC-100 pins the API side.
 
 ## Causes (verified in code: `main` f21bab0 with #413 and #410 merged in a scratch copy)
 
@@ -86,8 +87,8 @@ For most defects the cause leaves one sensible fix (a missing label, check or li
 
 **Defect 1, how a plan names a universe**
 
-1. **Saved universes by file name (chosen).** The planner's context lists the files in
-   `<runs_dir>/_universes` that the pickers already show; `universe_build` resolves a file name to that
+1. **Saved universes by file name (chosen).** The planner's context lists the `.json` and `.csv` files in
+   `<runs_dir>/_universes` (section 1 under "Decided"); `universe_build` resolves a file name to that
    folder; a draft naming anything else is refused. Small, and it matches what "Save N companies as a
    universe" already produces.
 2. A new plan step that builds a universe from company names. Rejected: two existing tests pin the step
@@ -125,7 +126,9 @@ error, an HTTP error status or a bot-challenge answer (HTTP 202 from DuckDuckGo)
   catalogue lists `.json` only; that is left alone.)
 - `planner_context` gets a fourth section, headed `Saved universes (universe_build source):`, one line
   `- <file name>` per saved universe. With none: `- none saved yet`. The planner prompt says `source` must
-  be one of these file names. The API's and the CLI's `_context()` both pass the list.
+  be one of these file names. The API's and the CLI's `_context()` both pass the list. A file name carries
+  the name the universe was saved under (`eu_listed_1794441173.json` for "eu listed"); that is what the
+  planner matches the brief's words against.
 - `universe_build`: when `<runs_dir>/_universes/<source>` is a file, that file is loaded. Otherwise
   `source` is used as a path, as today.
 - **Draft and re-plan through the API** (`POST /api/plans`, `POST /api/plans/{id}/replan`): a
@@ -161,7 +164,8 @@ error, an HTTP error status or a bot-challenge answer (HTTP 202 from DuckDuckGo)
   `search_unreachable: bool` (true when search was down, false for any other failure).
   `POST …/research/sources` is accepted on a `proposal_failed` round and turns it into `proposed`; every
   other rule of the source plan is unchanged. The page shows the "Add source" form on a failed round, and
-  S1 when `search_unreachable`, else S1b.
+  S1 when `search_unreachable`, else S1b. A search that worked and found nothing ends the round `proposed`
+  with no sources and without a model call, as today.
   S1: `The web search could not be reached, so no sources were proposed. Add a source by hand below, or propose again.`
   S1b: `The source proposal failed. Propose again, or add a source by hand below.`
 - **Build from authority sources.** With search down the run ends discovery in `awaiting_sources` (not
@@ -504,13 +508,13 @@ Must not change in PR 2:
 |------|-------|------|--------------------------|------------|
 | AC-98 | a run of type `theme` with `completed_count` 2 and `company_count` 5 (API mocked) | its progress card is shown | it reads `2/5 companies` | unit |
 | AC-99 | theme results filtered to 2 companies (API mocked) | the save button is read | `Save 2 companies as a universe` | unit |
-| AC-100 | the diff of each of the two PRs against its merge base with `main` | `git diff --name-only` is run by a check the builder adds to CI | it lists no file under `backend/arp/index/` | unit |
+| AC-100 | cvxpy is not installed; a calibration with `solver.method` `least_squares` | a review is run through the API | the response's `exceptions` still hold the text `solver.method='least_squares' but cvxpy is not installed; fell back to the deterministic waterfall (pip install -e ".[optimize]")` | unit |
 | AC-101 | Stack; a taxonomy created with `derivation_method: "manual"` and a theme | `POST /api/taxonomies/{id}/versions` with an edited theme | the new version's `derivation_method` is `manual` | holdout |
 | AC-102 | Stack, search empty; an authority run in `awaiting_sources` | `POST …/runs/{id}/sources` with `urls: ["https://a.invalid/x"]` (a host that does not resolve) | the status is 2xx, as on `main` | holdout |
 | AC-129 | a shelved dossier | `PATCH /api/dossiers/{id}` with `{"status": "shelved"}` and no reason | status 422, as on `main` | holdout |
 
 **Checked by.** `holdout` rows are API calls against the Stack. `evaluator` rows are checked in the running
-app (12 in PR 1, 5 in PR 2). AC-2 and AC-25 already hold on `main`; they are in the table because the flow
+app (12 in PR 1, 5 in PR 2). AC-2, AC-25 and AC-107 already hold on `main`; they are in the table because the flow
 they belong to is new, and their hidden tests are of kind `keep`. `unit` rows are the builder's own tests: they need stub plan steps, a mock
 transport, a fake model's token counts or a mocked API in the browser, none of which the Stack can be put
 into from outside; "API mocked" rows are browser tests in `backend/tests/e2e` or `node:test` on the helper
