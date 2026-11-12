@@ -39,10 +39,12 @@ def overview(store, idmap: IdentifierMapStore, today: date) -> list[dict]:
             "detail": h["last_error"] or (f"expected {h['expected_as_of']}" if h["stale"] else ""),
         })
     # ESG sources, and holdings sources with loads but no holder config (e.g. seeded data): judged by their last ok month.
+    # A holdings source that never loaded ok and has no holder is an orphan (an upload for a mistyped id): not shown.
     configured = {h.holder_id for h in store.list_holders()}
     events = [e for e in store.list_governance_events() if e.get("event_type") == "load_recorded" and e["status"] == "ok"]
+    loaded_ok = {(e["kind"], e["source_id"]) for e in events}
     for (kind, source), rec in loads.items():
-        if kind == "esg" or (kind == "holdings" and source not in configured):
+        if kind == "esg" or (kind == "holdings" and source not in configured and (kind, source) in loaded_ok):
             ok_month = max((e["month"] for e in events if (e["kind"], e["source_id"]) == (kind, source)), default=None)
             behind = ok_month is None or ok_month < expected_month
             rows.append({
