@@ -8,12 +8,12 @@ built on the recommended option of each. Changing one changes only the rows name
 1. **Demo portfolios on Holdings Intake: listed read-only.** The holder table also shows every portfolio
    that has no holder record; nothing is stored. Alternative: the demo seed stores a holder record per
    portfolio, which turns every demo ISIN into a Blocking "unmatched" issue on a fresh seed with no security
-   master. (Rows AC-105 to AC-109.)
+   master. (Rows AC-113 to AC-117.)
 2. **Concentration alerts: wording only.** The alert names the portfolios its rule covers and shows percent;
    no figure and no alert logic changes. Alternative: one alert per portfolio, which changes figures and
-   duplicate handling and needs its own PR after the showcase. (Rows AC-63, AC-64.)
+   duplicate handling and needs its own PR after the showcase. (Rows AC-71, AC-72.)
 3. **Monitoring rules: delete and disable.** A rule can be switched off, edited and deleted. Alternative:
-   disable and edit only, no delete. (Rows AC-39, AC-45 to AC-48, AC-55, AC-56.)
+   disable and edit only, no delete. (Rows AC-49, AC-50, AC-59 to AC-62, AC-68, AC-70.)
 
 ## Intent
 
@@ -34,7 +34,7 @@ that failed before it. No existing test is changed or weakened.
   snapshot date money figures are computed for (Ask the Portfolio), and adds weight-parsing options on
   upload. No schema migration, no auth change. The owner merges it on GitHub.
 - If the diff grows past what one review can hold, slice by screen with a `Rows:` line:
-  **slice 1, Risk Monitoring** (defects 1, 5, 9, 10, 11): `Rows: AC-1 to AC-75`; **slice 2, the rest**: no
+  **slice 1, Risk Monitoring** (defects 1, 5, 9, 10, 11): `Rows: AC-1 to AC-83`; **slice 2, the rest**: no
   `Rows:` line.
 - API changes need the OpenAPI files regenerated in the same PR (`backend/scripts/export_openapi.py`, then
   `npm run gen:api`); `frontend/src/types.ts` holds hand-written copies of `QAAnswer`, `HolderStatus` and
@@ -79,17 +79,19 @@ that failed before it. No existing test is changed or weakened.
 - Anything PR #413 fixed.
 - Superset, Neo4j or OpenSearch setup.
 - Dates named inside the question text ("in September"): only the pane's date fields set the date.
-- Names instead of ids in the rows of an Ask answer (`bmw`), and in company-scoped alert cells.
+- Names instead of ids in the rows of an Ask answer (`bmw`), in its `answer_text`
+  (`company_id=bmw, grouped by portfolio_id`), in the page's `Query:` line, in company-scoped alert cells and
+  in stored alert rationale texts.
 - Three finds from the triage, to be raised as follow-ups: uploaded issuers are dropped from the hand-over to
   Argus (`holdings_universe` keeps only registry companies); a repeat Decision Studio upload overwrites the
   earlier file in `_uploads/`; a report left in `planning` after a crash.
 
 ## Anti-goals
 
-- No stored alert event, governance event, holding or snapshot is edited or deleted by this change.
+- No stored alert event or governance event is edited or deleted by this change.
 - A completed report can never be discarded through the new route.
 - No money figure changes for a request that names no date and no scale.
-- No existing test is edited.
+- No line of an existing test is removed or changed; tests are only added.
 
 ## Approaches
 
@@ -114,7 +116,8 @@ that failed before it. No existing test is changed or weakened.
 | `as_of` | `YYYY-MM-DD` or null | Becomes `AnalyticSpec.as_of`. |
 | `date_range` | `[start, end]` or null | Becomes `AnalyticSpec.date_range` (trend). |
 
-Refused with 422 before any model call and without an audit row (as request validation is today):
+Refused with 422 by the route itself, before any model call and before the audit `try` block, so no audit
+row is written. `detail` is a plain string (`HTTPException(422, "<text>")`):
 
 | Case | `detail` contains |
 |------|-------------------|
@@ -133,6 +136,15 @@ Answered with 200 and `resolvable: false`, `result: null`, `trend: null`:
   `No holdings on or before <as_of>. The first snapshot is <first date>.`
 - no snapshot date inside `date_range`: `clarification_needed` =
   `No snapshots between <start> and <end>. Snapshots run from <first date> to <last date>.`
+- the scoped portfolios have no snapshot at all: `clarification_needed` = `No holdings snapshots for that selection.`
+
+"First" and "last" date are taken over the portfolios the answer is scoped to (the effective portfolio
+filter; all portfolios when it is empty), and the checks run after the parse, when that filter is known.
+
+An `as_of` that is not itself a snapshot date is answered as the engine does today: each scoped portfolio's
+newest snapshot on or before it, with `result.as_of` and `vintage.holdings_as_of` = the requested date. So
+that the answer says which data it used, `vintage` gains `snapshot_dates`: the sorted distinct `as_of_date`
+values of the holdings the answer was computed from (for a trend, the points' dates).
 
 `QAAnswer` gains three fields (existing fields keep their meaning):
 
@@ -142,11 +154,15 @@ Answered with 200 and `resolvable: false`, `result: null`, `trend: null`:
 | `scale` | `"units"` or `"millions"`, see section 11. |
 | `unit` | `"EUR"` for `market_value_sum`; the data point's unit from the climate schema for `weighted_avg_datapoint` (`""` for a field the schema does not know); `""` for `count`. |
 
-Trend answer: `vintage` = `{"snapshot_dates": [...]}` (the points' dates). `answer_text` for
-`market_value_sum`: first line `Trend from <start> to <end>, <n> snapshots (<scope>, <filter>, grouped by <group_by>):`
-with `<scope>` and `<filter>` built as in today's point-in-time text, then one line per point
-`  <as_of>: EUR <total_market_value_eur:,.0f>` (or the millions form of section 11). For the other metrics:
-the same first line, then one line per point starting with two spaces and the date.
+Trend answer: `vintage` = `{"snapshot_dates": [...]}` only. `answer_text`: first line
+`Trend from <start> to <end>, <n> snapshots (<scope>, <filter>, grouped by <group_by>):` with `<scope>` and
+`<filter>` built as in today's point-in-time text (`portfolios=['core_equity_europe']` or `all portfolios`;
+`k=v` pairs or `no filter`), then one line per point, by metric:
+
+- `market_value_sum`: `  <as_of>: EUR <total_market_value_eur:,.0f>` (or the millions form of section 11);
+- `count`: `  <as_of>: <sum of holding_count> holdings`;
+- `weighted_avg_datapoint`: `  <as_of>: ` + the rows as `<group_value> <weighted_avg_value:.4f>`
+  (`<group_value> no data` when null), joined by `; `.
 
 `qa_agent.answer_question` takes the three values as keyword arguments with defaults, so its other callers
 (`routers/ask.py:81`, `cli/portfolio.py:157`) are unchanged.
@@ -154,9 +170,12 @@ the same first line, then one line per point starting with two spaces and the da
 Frontend: the three date inputs in `DateSelector.tsx` are `type="date"`; the as-of input has `max` = today.
 With a trend whose end is before its start, the pane shows `The end date is before the start date.` under the
 boxes and the selection counts as "latest". `AskThePortfolio` sends the typed question plus
-`portfolio_ids`, `as_of`, `date_range` from the pane; the "Scoped to:" line stays. A trend answer is shown as a
-table: header `As of`, one column per group value (order of first appearance), and `Total` for
-`market_value_sum`; one row per point, ascending; a group absent on a date shows `—`.
+`portfolio_ids`, `as_of`, `date_range` from the pane; the "Scoped to:" line stays. Under a point-in-time
+answer's table the page shows `Snapshot used: <date>` (`Snapshots used: <a>, <b>` for several) from
+`vintage.snapshot_dates`. A trend answer is shown as a table: header `As of`, one column per group value
+(order of first appearance), and `Total` for `market_value_sum`; one row per point, ascending; a group
+absent on a date shows `—`; cells are formatted as in the point-in-time table (the cell formats are the
+builder's choice within that and are not tested beyond AC-31).
 
 ### 5. Monitoring rules
 
@@ -171,6 +190,8 @@ table: header `As of`, one column per group value (order of first appearance), a
   (`decided_by` = the caller's name, as `transition_alert` does) to every live alert carrying that `rule_id`;
   answers `{"cleared": <n>}`. It does not require the rule to exist (alerts of a deleted rule can be cleared).
   Any other `status` is 422. No event is rewritten or removed.
+- Both new routes, and the report route of section 2, need an analyst or higher, through the existing
+  `authorize` dependency that guards every non-GET route.
 - A cleared alert of a rule that is still enabled and still breaching is raised again by the next evaluation
   (existing behaviour); the user disables or corrects the rule first.
 - UI, rules table: a column `Alerts` (live count) and per rule the buttons `Disable` or `Enable`, `Edit`,
@@ -236,11 +257,14 @@ fraction (5 → 0.05); editing shows the percent again. Stored values and ration
 - While a plan or storyline drafts, a line with `role="status"` under the button reads
   `Drafting the content plan… <m:ss> elapsed. This can take a few minutes; keep this page open.`
   (`Drafting the storyline…` for a house deck), counting up every second; the button reads `Drafting…`.
-  `elapsedLabel(seconds)` in the frontend gives `m:ss` (`0:42`, `3:16`).
+  `elapsedLabel(seconds)` in the frontend gives `m:ss` (`0:42`, `3:16`); one frontend function builds the
+  whole line from the output format and the seconds.
 - `DELETE /api/reports/{report_id}`: 204 and the report's folder is removed, when its status is
   `plan_ready`, `storyline_ready` or `failed`. Any other status: 409
-  `Only an unfinished report can be discarded (status: <status>).` Unknown id: 404. The folder is resolved
-  through `ReportingStore.report_dir`.
+  `Only an unfinished report can be discarded (status: <status>).` Unknown id: 404. `report_dir()` creates
+  the folder it names, so the route checks `reports_dir / safe_id(report_id)` with `exists()` and never calls
+  `report_dir()` for an id that is not stored. (A later `GET /api/reports/{id}` for the same id may recreate
+  an empty folder, as it does today for any unknown id; such a folder has no manifest and is not listed.)
 - Previous reports: a `plan_ready` or `storyline_ready` row shows `Open` (what a click on the row does today)
   and `Discard`; a `failed` row shows `Discard`. `Discard` asks `window.confirm("Discard this draft?")`. If
   the discarded report is the one open under "Review & render", that section closes.
@@ -271,7 +295,7 @@ The known company ids are the registry companies plus every company id a securit
 - **Holders (decision 1):** `GET /api/holdings/holders` also returns one row per portfolio that has no
   holder config: `holder_id` = portfolio id, `kind` `"portfolio"`, `name` = portfolio name, `source` null,
   `as_of` = its latest snapshot date, `stale`, `age_days` and `expected_as_of` computed as for holders,
-  `last_pull_at` and `last_error` null. Configured holders come first. Nothing is stored;
+  `last_pull_at` and `last_error` null. Nothing is stored;
   `holder_status`, Feeds, Issues and Security Master are unchanged. The page shows `—` as Source.
 - **Refresh:** after a successful holdings upload the page calls the pane's `refreshPortfolios` and reloads
   the monthly-run table; after a successful ESG upload it reloads the monthly-run table.
@@ -282,8 +306,8 @@ The known company ids are the registry companies plus every company id a securit
 - **Decimal and weights:** the upload takes two optional form fields, `decimal` (`.` or `,`) and
   `weight_unit` (`percent` or `fraction`); each overrides the provider mapping's value when sent; any other
   value is 422. The form gets two selects: `Decimal separator` (`Point (1,234.56)`, `Comma (1.234,56)`) and
-  `Weights are` (`Percent (5 = 5%)`, `Fraction (0.05 = 5%)`), defaulting to Point and Percent. The existing
-  weight-sum check (100% ± 0.5) still rejects a wrong choice.
+  `Weights are` (`Percent (5 = 5%)`, `Fraction (0.05 = 5%)`), defaulting to Point and Percent. The form
+  always sends both fields. The existing weight-sum check (100% ± 0.5) still rejects a wrong choice.
 
 ### 6. Dates on holdings tables
 
@@ -310,7 +334,8 @@ The known company ids are the registry companies plus every company id a securit
   | `Holdings Intake` (Monthly monitoring) and `Map holdings` (Map securities to issuers) | at least one `holdings` or `index` feed row has `last_load.status` `ok` | none is ok and at least one is `failed` |
   | `Monitoring & Alerts` (Monthly monitoring) | `monthly-run/last` is not null | never |
 
-  The step line reads `Done · <day month>` of that load or run (`stepStatusLine`), `Last run failed`, or
+  The step line reads `Done · <day month>` (`stepStatusLine` on the `at` of the newest ok load among those
+  rows, or of the run), `Last run failed`, or
   `No runs yet`. Run-based steps are unchanged; `stepState` keeps its present result when no activity is
   passed, so `workspaceCard.test.ts` and `processes.test.ts` pass unchanged.
 - **c. Decision Studio uploads:** `DatasetSummary` gains `created_at`. The Data table gets a column `Added`
@@ -366,183 +391,223 @@ The known company ids are the registry companies plus every company id a securit
 ## Acceptance
 
 **Fixtures.** "Stack" is the app from `backend/scripts/e2e_stack.sh up` with `ARP_STANDINS_DIR` set and no
-model key; calls are made as a user who may write (analyst), the RFP rows as an approver. "Seeded" is an
-empty portfolio store after `POST /api/portfolio/demo/seed`: four portfolios (`core_equity_europe` "Core
-Equity Europe", `sustainable_leaders`, `multi_asset_balanced`, `corporate_bond_income`) with snapshot dates
-`S1 < S2 < S3 < S4` = `arp.portfolio.mock_data.snapshot_dates(date.today())`; `S4` is the last day of the
-previous month. "Parse P" means `model/_ParsedQuestion.json` = `{"output": P}` in the stand-in folder.
-`BMW` = `{"resolvable": true, "spec_name": "", "portfolio_filter": [], "security_filter": {"company_id": "bmw"}, "group_by": "portfolio_id", "metric": "market_value_sum"}`;
-`BMW_M` = `BMW` plus `"scale": "millions"`; `WACI` = `{"resolvable": true, "spec_name": "", "portfolio_filter": [], "security_filter": {}, "group_by": "portfolio_id", "metric": "weighted_avg_datapoint", "data_point_field_id": "climate_carbon_intensity"}`.
-`ask(B)` is `POST /api/portfolio/ask` with body `B`; `Q` is the string `How much BMW do we hold?`.
-"Engine total for date d" is `analytics.execute` on `AnalyticSpec(name=Q, security_filter={"company_id": "bmw"}, group_by="portfolio_id", metric="market_value_sum", as_of=d)`, its `total_market_value_eur`.
-`H` is the portfolio template (`GET /api/holdings/template`) with one data row: a valid ISIN `X`, weight
-100, market value 1000, currency EUR. "Upload H for h as of d" is `POST /api/holdings/upload` with
-`holder_id` h, `kind` portfolio, `as_of` d. `N` is the day after `S4`. "Rule C" is
-`POST /api/portfolio/monitoring/rules` with `{"name": "Any weight", "rule_type": "concentration_threshold", "comparator": "gt", "threshold_value": 0, "portfolio_ids": ["core_equity_europe"]}`;
-"C evaluated" adds `POST /api/portfolio/monitoring/evaluate-now`, after which `n ≥ 1` open alerts carry C's
-`rule_id`. "Rule A" is `{"name": "Carbon cap", "rule_type": "portfolio_aggregate_threshold", "field_id": "climate_carbon_intensity", "comparator": "gt", "threshold_value": 50, "portfolio_ids": ["core_equity_europe"]}`.
-A report "with status s" is a manifest saved through `ReportingStore` with that status. Browser rows run at
-1400×900; table headers are compared without regard to case (the stylesheet upper-cases them).
+model key. It seeds the demo data when it starts and all hidden tests share it, with nothing reset in
+between. So `holdout` rows never upload to `core_equity_europe` or `sustainable_leaders`, never upload as of a
+date after `S4`, and use their own ids: `<x>` stands for a suffix unique to the test (letters and digits, at
+most 8). `evaluator` rows run on a freshly started Stack. Calls are made as a user who may write (analyst);
+the RFP rows and `qa-audit` reads as an approver.
+
+Demo data: four portfolios, `core_equity_europe` ("Core Equity Europe", `CEE` below), `sustainable_leaders`
+("Sustainable Leaders Fund"), `multi_asset_balanced`, `corporate_bond_income`. `S4` is the last day of the
+month before the Stack started; `S3`, `S2`, `S1` are the last days of the months 3, 6 and 9 months before
+`S4`'s month. Each portfolio has exactly these four snapshot dates. `O` is the day before `S4`.
+
+Ask: "Parse P" means `model/_ParsedQuestion.json` = `{"output": P}` in the stand-in folder.
+`SEC` = `{"resolvable": true, "spec_name": "", "portfolio_filter": [], "security_filter": {}, "group_by": "sector", "metric": "market_value_sum"}`;
+`SEC_M` = `SEC` plus `"scale": "millions"`; `WACI` = `SEC` with `"group_by": "portfolio_id"`,
+`"metric": "weighted_avg_datapoint"`, `"data_point_field_id": "climate_carbon_intensity"`; `ONE(c)` = `SEC`
+with `"security_filter": {"company_id": c}`. `Q` is the string `How much do we hold?`. `askc(E)` is
+`POST /api/portfolio/ask` with `{"question": Q, "portfolio_ids": ["core_equity_europe"]}` plus the fields
+`E`. `TOP(d)` is the first `preview` row of `POST /api/decision/datasets/from-source` with
+`{"source": "portfolio_snapshot", "as_of": d, "portfolio_ids": ["core_equity_europe"]}`: its `Company_Id` and
+its `Portfolio_Market_Value_EUR`.
+
+Uploads: `H(X)` is the portfolio template (`GET /api/holdings/template`) with one data row: a valid ISIN
+`X` no other test uses, weight 100, market value 1000, currency EUR. "Upload F for h as of d" is
+`POST /api/holdings/upload` with file F, `holder_id` h, `kind` portfolio, `as_of` d. "Master (i, X)" is the
+security master template (`GET /api/security-master/template`) with one row, issuer `i` and ISIN `X`,
+uploaded to `POST /api/security-master/upload`. "ESG row for c" is the ESG template
+(`GET /api/portfolio/esg/template`) with one valid row for `company_id` c, uploaded to
+`POST /api/portfolio/esg/upload`.
+
+Rules: "Rule C" is `POST /api/portfolio/monitoring/rules` with
+`{"name": "Any weight <x>", "rule_type": "concentration_threshold", "comparator": "gt", "threshold_value": 0, "portfolio_ids": ["core_equity_europe"]}`.
+"C evaluated" adds `POST /api/portfolio/monitoring/evaluate-now`; `n` is then the number of alerts of
+`GET /api/portfolio/monitoring/alerts?status=open` that carry C's `rule_id` (one per company held in `CEE`,
+`n ≥ 3`). "Rule A" is
+`{"name": "Carbon cap", "rule_type": "portfolio_aggregate_threshold", "field_id": "climate_carbon_intensity", "comparator": "gt", "threshold_value": 50, "portfolio_ids": ["core_equity_europe"]}`.
+
+Reports: `model/ReportPlan.json` holds a valid plan. "A draft" is a report made with
+`POST /api/reports?render=false` (status `plan_ready`); "a finished report" is one made with
+`POST /api/reports` (status `completed`).
+
+`unit` rows that say "browser test" run a page in `backend/tests/e2e` with the named API calls answered by
+the test. Browser rows run at 1400×900; table headers are compared without regard to case (the stylesheet
+upper-cases them). "`detail` contains" always means `detail` is a string that contains the text.
 
 ### Slice 1: Risk Monitoring (defects 1, 11, 5, 10, 9)
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-1 | Stack, Seeded, Parse `BMW` | `ask({"question": Q, "as_of": S2})` | status 200, `result.as_of` == `S2` | holdout |
-| AC-2 | the AC-1 response | `vintage` is read | `vintage.holdings_as_of` == `S2` | holdout |
-| AC-3 | the AC-1 response | `result.total_market_value_eur` is read | equals the engine total for date `S2` | holdout |
-| AC-4 | Stack, Seeded, Parse `BMW` | `ask({"question": Q})` | `result.as_of` == `S4` and the total equals the engine total for `S4` (must not change) | holdout |
-| AC-5 | Stack, Seeded, Parse `BMW` | `ask({"question": Q, "as_of": "31/12/2099"})` | status 422, `detail` contains `as_of must be YYYY-MM-DD` | holdout |
-| AC-6 | Stack, Seeded, Parse `BMW` | `ask({"question": Q, "as_of": "2099-12-31"})` | status 422, `detail` contains `as_of is in the future` | holdout |
-| AC-7 | Stack, Seeded, Parse `BMW`; `d` = the day before `S1` | `ask({"question": Q, "as_of": d})` | status 200, `resolvable` false, `result` null | holdout |
-| AC-8 | the AC-7 response | `clarification_needed` is read | == `No holdings on or before <d>. The first snapshot is <S1>.` | holdout |
-| AC-9 | Stack, Seeded, Parse `BMW` | `ask({"question": Q, "date_range": [S2, S4]})` | status 200, `resolvable` true, `result` null, `[p.as_of for p in trend]` == `[S2, S3, S4]` | holdout |
-| AC-10 | the AC-9 response | each point's `result.total_market_value_eur` is read | equals the engine total for that point's date | holdout |
-| AC-11 | the AC-9 response | `answer_text` is split into lines | 4 lines; line 1 == `Trend from <S2> to <S4>, 3 snapshots (all portfolios, company_id=bmw, grouped by portfolio_id):` | holdout |
-| AC-12 | the AC-9 response | lines 2 to 4 of `answer_text` are read | line i+1 == two spaces + `<date i>: EUR ` + that point's total formatted `{:,.0f}` | holdout |
-| AC-13 | the AC-9 response | `vintage` is read | == `{"snapshot_dates": [S2, S3, S4]}` | holdout |
-| AC-14 | Stack, Seeded, Parse `BMW` | `ask({"question": Q, "date_range": [S4, S2]})` | status 422, `detail` contains `date_range start is after its end` | holdout |
-| AC-15 | Stack, Seeded, Parse `BMW` | `ask({"question": Q, "date_range": ["2026-13-01", S4]})` | status 422, `detail` contains `date_range must be two YYYY-MM-DD dates` | holdout |
-| AC-16 | Stack, Seeded, Parse `BMW` | `ask({"question": Q, "as_of": S2, "date_range": [S2, S4]})` | status 422, `detail` contains `send as_of or date_range, not both` | holdout |
-| AC-17 | Stack, Seeded, Parse `BMW` | `ask({"question": Q, "date_range": ["2001-01-01", "2001-12-31"]})` | status 200, `resolvable` false, `clarification_needed` == `No snapshots between 2001-01-01 and 2001-12-31. Snapshots run from <S1> to <S4>.` | holdout |
-| AC-18 | Stack, Seeded, Parse `BMW` | `ask({"question": Q, "portfolio_ids": ["core_equity_europe"]})` | `spec.portfolio_filter` == `["core_equity_europe"]` | holdout |
-| AC-19 | the AC-18 response | `result.rows` is read | every `group_value` is `core_equity_europe` | holdout |
-| AC-20 | Stack, Seeded, Parse `BMW` with `"portfolio_filter": ["sustainable_leaders"]` | `ask({"question": Q, "portfolio_ids": ["core_equity_europe"]})` | `spec.portfolio_filter` == `["sustainable_leaders"]` | holdout |
-| AC-21 | Stack, Seeded, Parse `BMW` | `ask({"question": Q, "portfolio_ids": ["nope"]})` | status 422, `detail` contains `unknown portfolio_id 'nope'` | holdout |
-| AC-22 | Stack, Seeded, Parse `BMW`; the number of rows of `GET /api/portfolio/qa-audit` (as an approver) is noted | the AC-5, AC-6, AC-14, AC-15, AC-16 and AC-21 requests are sent | the number of audit rows is unchanged | holdout |
-| AC-23 | Stack, Seeded, Parse `BMW` | after `ask({"question": Q, "as_of": S2})`, the newest audit row is read | its `question` == `Q` and its `vintage.holdings_as_of` == `S2` | holdout |
-| AC-24 | the repo at the PR head | `pytest tests/test_api_ask.py tests/test_qa_agent.py tests/test_qa_audit.py` with those files unchanged from `main` | exit code 0 | unit |
-| AC-25 | Stack, Seeded, Risk Monitoring open | the date mode is switched to "As of date" and then "Trend range" | the as-of input and both trend inputs have `type="date"` | evaluator |
-| AC-26 | Stack, Seeded, Parse `BMW`, Ask the Portfolio tab, As of date set to `S2` | `Q` is typed and Ask is clicked | the request body sent to `/api/portfolio/ask` has `question` == `Q` exactly and `as_of` == `S2` | evaluator |
-| AC-27 | the AC-26 answer on the page | the caption under the table is read | it ends `as of <S2>` | evaluator |
-| AC-28 | Stack, Seeded, Parse `BMW`, Trend range `S2` to `S4` | `Q` is asked | a table whose header starts `As of` and whose 3 body rows start with `S2`, `S3`, `S4` in that order | evaluator |
-| AC-29 | Stack, Seeded, Trend range with From `S4` and To `S2` | the pane is read | it shows `The end date is before the start date.` and the "Scoped to:" line ends `latest` | evaluator |
-| AC-30 | Stack, Seeded, Parse `BMW` | `ask({"question": "How many EUR million is our exposure to BMW?"})` | `result.spec_name` == that question exactly | holdout |
-| AC-31 | Stack, Seeded, Parse `BMW_M` | `ask({"question": Q})` | `scale` == `"millions"` and `unit` == `"EUR"` | holdout |
-| AC-32 | the AC-31 response, total `t` = `result.total_market_value_eur` | line 1 of `answer_text` is read | starts `Total: EUR ` + `t / 1e6` formatted `{:,.2f}` + ` million (` | holdout |
-| AC-33 | the AC-31 response | each further line of `answer_text` is read | == two spaces + `<group_value>: EUR ` + that row's `market_value_eur / 1e6` formatted `{:,.2f}` + ` million` | holdout |
-| AC-34 | Stack, Seeded | `ask({"question": Q})` once with Parse `BMW`, once with Parse `BMW_M` | `result.total_market_value_eur` is the same number in both | holdout |
-| AC-35 | Stack, Seeded, Parse `BMW` | `ask({"question": Q})` | `scale` == `"units"`, `unit` == `"EUR"`, line 1 of `answer_text` starts `Total: EUR ` + the total formatted `{:,.0f}` + ` (` (must not change) | holdout |
-| AC-36 | Stack, Seeded, Parse `WACI` | `ask({"question": "What is our WACI?"})` | `unit` == `tCO2e / EUR M revenue` and `scale` == `"units"` | holdout |
-| AC-37 | Stack, Seeded, Parse `BMW` with `"metric": "count"` | `ask({"question": Q})` | `unit` == `""` | holdout |
-| AC-38 | Stack, Seeded, Parse `BMW` | after `ask({"question": Q})`, the last `_ParsedQuestion` line of `calls.jsonl` is read | its `system` contains `millions` | holdout |
-| AC-39 | Stack, Seeded, C evaluated | `DELETE /api/portfolio/monitoring/rules/<C>` | status 409 and `detail` == `Rule has <n> live alerts: clear them first.` | holdout |
-| AC-40 | Stack, Seeded, Parse `BMW`, Ask the Portfolio tab, date mode Latest | `Q` is asked | the caption reads `<Q> — grouped by Portfolio, as of <S4>` and the page contains neither `Regarding` nor `override this scope` | evaluator |
-| AC-41 | the AC-40 answer | the table's header cells are read | the first is `Portfolio`; none contains `_` | evaluator |
-| AC-42 | Stack, Seeded, Parse `BMW_M`, Ask the Portfolio tab | `Q` is asked | a header cell reads `Market value (EUR million)` and the line under the table starts `Total: EUR ` and ends ` million`, with two decimals | evaluator |
-| AC-43 | Stack, Seeded, Parse `WACI`, Ask the Portfolio tab | `What is our WACI?` is asked | a header cell reads `Weighted avg (tCO2e / EUR M revenue)` | evaluator |
-| AC-44 | the frontend's `dimensionLabel` | called with each id of section 11 and with `my_dim` | the labels of section 11; `my_dim` → `My dim` | unit |
-| AC-45 | Stack, Seeded, C evaluated, then `clear-alerts` with `{"status": "false_positive", "reason": "wrong threshold"}` | `DELETE /api/portfolio/monitoring/rules/<C>` | status 204 | holdout |
-| AC-46 | after AC-45 | `GET /api/portfolio/monitoring/rules` | no rule has C's `rule_id` | holdout |
-| AC-47 | after AC-45 | `GET /api/portfolio/monitoring/alerts` | `n` alerts still carry C's `rule_id`, all with status `false_positive` | holdout |
-| AC-48 | Stack, Seeded | `DELETE /api/portfolio/monitoring/rules/rule_nope` | status 404, `detail` == `Unknown rule rule_nope` | holdout |
-| AC-49 | Stack, Seeded, C evaluated | `POST .../rules/<C>/clear-alerts` with `{"status": "false_positive", "reason": "wrong threshold"}` | status 200, body == `{"cleared": n}` | holdout |
-| AC-50 | after AC-49 | `GET /api/portfolio/monitoring/alerts?status=open` | no alert carries C's `rule_id` | holdout |
-| AC-51 | after AC-49, for one of C's alerts | `store.list_alert_events(<its scope_id>)` is read | its `alert_raised` event is unchanged, and exactly one `status_changed` event for it was appended, with `status` `false_positive`, `reason` `wrong threshold` and `decided_by` the caller's name | holdout |
-| AC-52 | after AC-49 | the same `clear-alerts` call again | body == `{"cleared": 0}` | holdout |
-| AC-53 | Stack, Seeded, C evaluated | `clear-alerts` with `{"status": "acknowledged"}` | status 422; C's alerts are still `open` | holdout |
-| AC-54 | Stack, Seeded, C evaluated, one of C's alerts moved to `acknowledged` and one to `escalated` | `clear-alerts` with `{"status": "resolved"}` | body == `{"cleared": n}` | holdout |
-| AC-55 | Stack, Seeded, C evaluated, Monitoring & Alerts tab | `Delete` on C's row is clicked and the dialog accepted | the page shows `Rule has <n> live alerts: clear them first.` and C's row is still listed | evaluator |
-| AC-56 | the AC-55 page; `Clear alerts` → `False positive` done | `Delete` is clicked and accepted, then the status filter `all` is chosen | C's row is gone and the `Rule` cell of each of its `n` alerts reads `Deleted rule` | evaluator |
-| AC-57 | Stack, Seeded, C evaluated, and a second rule C2 (C's body, name `Other`) evaluated | `clear-alerts` for C | the number of open alerts carrying C2's `rule_id` is unchanged | holdout |
-| AC-58 | Stack, Seeded, rule C stored | `POST /api/portfolio/monitoring/rules` with C's full body, the same `rule_id` and `created_at`, `"enabled": false` | `GET .../rules` has exactly one rule with that `rule_id`, `enabled` false (must not change) | holdout |
-| AC-59 | after AC-58, no alert stored | `POST /api/portfolio/monitoring/evaluate-now` | `threshold_alerts_raised` == 0 (must not change) | holdout |
-| AC-60 | the test client of `backend/tests/test_api_ask.py` signed in as a viewer; one rule and one `plan_ready` report stored | `DELETE` the rule, `clear-alerts` on it, `DELETE /api/reports/<id>` | each answers 403; the rule and the report are still stored | unit |
-| AC-61 | Stack, Seeded, C stored, Monitoring & Alerts tab | `Disable` on C's row is clicked, then the page is reloaded | C's `Enabled` cell reads `no` and its button reads `Enable` | evaluator |
-| AC-62 | Stack, Seeded, C stored (threshold 0) | `Edit` on C's row, `Threshold (%)` set to 10, `Save rule` clicked | the rules table still has one row for C, its condition reads `Weight of one company > 10%`, and `GET .../rules` shows `threshold_value` 0.1 with C's `rule_id` | evaluator |
-| AC-63 | Stack, Seeded, C evaluated | the alerts table is read | the `Scope` cell of each of C's alerts reads `<company id> · across Core Equity Europe` | evaluator |
-| AC-64 | the AC-63 table | `Observed` and `Threshold` of one of C's alerts are read | both end with `%`; `Threshold` reads `0%`; `Observed` equals the alert's `observed_value` × 100 with at most 2 decimals | evaluator |
-| AC-65 | Stack, Seeded, C evaluated, Monitoring & Alerts tab | `Clear alerts` → `False positive` on C's row | under the filter `open` none of C's alerts is listed; under `false positive` all `n` are | evaluator |
-| AC-66 | Stack, Seeded, rule A stored | the rules table is read | A's row reads Type `Portfolio aggregate (WACI-style)`, Condition `Carbon intensity > 50 tCO2e / EUR M revenue`, Scope `Core Equity Europe` | evaluator |
-| AC-67 | the AC-66 row | its text is searched | it contains none of `portfolio_aggregate_threshold`, `climate_carbon_intensity`, ` gt ` | evaluator |
-| AC-68 | Stack, Seeded, rule A with `"portfolio_ids": []` stored | the rules table is read | its Scope reads `All portfolios` | evaluator |
-| AC-69 | Stack, Seeded, rule A with `"threshold_value": 0` stored and evaluated (it raises an alert for `core_equity_europe`) | the alerts table is read | that alert's `Scope` reads `Core Equity Europe`, its `Rule` reads `Carbon cap`, its `Breach type` reads `No earlier breach to compare`, its `Threshold` reads `0` | evaluator |
-| AC-70 | the AC-69 page | the page text is searched | it contains neither `portfolio__` nor `Unknown` | evaluator |
-| AC-71 | the frontend's percent function of section 10 | called with 0.05, 0.0712, 0.125, 0.07, 1 | `5%`, `7.12%`, `12.5%`, `7%`, `100%` | unit |
-| AC-72 | the frontend's breach-type label of section 10 | called for `unknown` on a `news_controversy` alert; for `holdings_caused`, `data_caused`, `mixed` | `—`; `Holdings-caused`, `Data-caused`, `Mixed` (the last three must not change) | unit |
-| AC-73 | Stack, Seeded | `#/portfolio-monitoring` is opened | the `Monitoring & Alerts` tab has `aria-pressed="true"` and the selection pane is shown | evaluator |
-| AC-74 | Stack, Seeded | `#/portfolio-monitoring/dashboards`, `#/portfolio-monitoring/pivot` and `#/portfolio-monitoring/ask` are opened in turn | the pressed tab is `Dashboards (Superset)`, `Dashboards (Superset)`, `Ask the Portfolio` (must not change) | evaluator |
-| AC-75 | Stack with `ARP_SUPERSET_PASSWORD` unset (`GET /api/bi/dashboards` answers 503), Company Profiles tab | the "Profile dashboard" card is read | it shows `Dashboards are not set up on this server. Ask your administrator.`, has no element with `role="alert"`, and does not contain `could not be loaded` | evaluator |
+| AC-1 | Stack; `(c, v)` = `TOP(S2)`; Parse `ONE(c)` | `askc({"as_of": S2})` | status 200, `result.as_of` == `S2` and `vintage.holdings_as_of` == `S2` | holdout |
+| AC-2 | the AC-1 response | `result.total_market_value_eur` is read | within 0.01 of `v` | holdout |
+| AC-3 | Stack, Parse `SEC` | `askc({"as_of": S2})` | `vintage.snapshot_dates` == `[S2]` | holdout |
+| AC-4 | Stack, Parse `SEC`; `d` = the day after `S2` | `askc({"as_of": d})` | `result.as_of` == `d` and `vintage.snapshot_dates` == `[S2]` | holdout |
+| AC-5 | Stack, Parse `SEC` | `POST /api/portfolio/ask` with only `{"question": Q}` | status 200, `result.as_of` == `S4` and `vintage.holdings_as_of` == `S4` (must not change) | holdout |
+| AC-6 | Stack, Parse `SEC` | `askc({"as_of": "31/12/2099"})` | status 422, `detail` contains `as_of must be YYYY-MM-DD` | holdout |
+| AC-7 | Stack, Parse `SEC` | `askc({"as_of": "2099-12-31"})` | status 422, `detail` contains `as_of is in the future` | holdout |
+| AC-8 | Stack, Parse `SEC`; `d` = the day before `S1` | `askc({"as_of": d})` | status 200, `resolvable` false, `result` null, `trend` null | holdout |
+| AC-9 | the AC-8 response | `clarification_needed` is read | == `No holdings on or before <d>. The first snapshot is <S1>.` | holdout |
+| AC-10 | Stack, Parse `SEC` | `askc({"date_range": [S2, S4]})` | status 200, `resolvable` true, `result` null, and the `as_of` values of `trend` are `[S2, S3, S4]` | holdout |
+| AC-11 | the AC-10 response | each point's `result.total_market_value_eur` is compared with the total of `askc({"as_of": <that date>})` | equal for all three | holdout |
+| AC-12 | the AC-10 response | `answer_text` is split into lines | 4 lines; line 1 == `Trend from <S2> to <S4>, 3 snapshots (portfolios=['core_equity_europe'], no filter, grouped by sector):` | holdout |
+| AC-13 | the AC-10 response | lines 2 to 4 of `answer_text` are read | line i+1 == two spaces + `<date i>: EUR ` + that point's total formatted `{:,.0f}` | holdout |
+| AC-14 | the AC-10 response | `vintage` is read | == `{"snapshot_dates": [S2, S3, S4]}` | holdout |
+| AC-15 | Stack, Parse `SEC` | `askc({"date_range": [S4, S2]})` | status 422, `detail` contains `date_range start is after its end` | holdout |
+| AC-16 | Stack, Parse `SEC` | `askc({"date_range": ["2026-13-01", S4]})` | status 422, `detail` contains `date_range must be two YYYY-MM-DD dates` | holdout |
+| AC-17 | Stack, Parse `SEC` | `askc({"as_of": S2, "date_range": [S2, S4]})` | status 422, `detail` contains `send as_of or date_range, not both` | holdout |
+| AC-18 | Stack, Parse `SEC` | `askc({"date_range": ["2001-01-01", "2001-12-31"]})` | status 200, `resolvable` false, `clarification_needed` == `No snapshots between 2001-01-01 and 2001-12-31. Snapshots run from <S1> to <S4>.` | holdout |
+| AC-19 | Stack, Parse `SEC` | `askc({})` | `spec.portfolio_filter` == `["core_equity_europe"]` | holdout |
+| AC-20 | Stack, Parse `SEC` with `"group_by": "portfolio_id"` | `askc({})` | `result.rows` has exactly one row, with `group_value` `core_equity_europe` | holdout |
+| AC-21 | Stack, Parse `SEC` with `"portfolio_filter": ["sustainable_leaders"]` | `askc({})` | `spec.portfolio_filter` == `["sustainable_leaders"]` (must not change) | holdout |
+| AC-22 | Stack, Parse `SEC` | `POST /api/portfolio/ask` with `{"question": Q, "portfolio_ids": ["nope"]}` | status 422, `detail` contains `unknown portfolio_id 'nope'` | holdout |
+| AC-23 | Stack, Parse `SEC`; the newest row of `GET /api/portfolio/qa-audit?limit=1` is noted | the AC-6, AC-7, AC-15, AC-16, AC-17 and AC-22 requests are sent | the newest audit row is still the noted one | holdout |
+| AC-24 | Stack, Parse `SEC` | after `askc({"as_of": S2})`, the newest audit row is read | its `question` == `Q` and its `vintage.holdings_as_of` == `S2` | holdout |
+| AC-25 | the repo at the PR head | `pytest tests/test_api_ask.py tests/test_qa_agent.py tests/test_qa_audit.py` | exit code 0 | unit |
+| AC-26 | a store with one portfolio that has no snapshot; a parse scoped to it | `answer_question` is called | `resolvable` false, `clarification_needed` == `No holdings snapshots for that selection.` | unit |
+| AC-27 | a seeded store; a trend over three dates with metric `count`, and with `weighted_avg_datapoint` | `answer_text` is read | the per-date lines have the forms of section 1 (`  <date>: <n> holdings`; `  <date>: <group> <value:.4f>` joined by `; `) | unit |
+| AC-28 | Stack, Risk Monitoring open | the date mode is switched to "As of date" and then "Trend range" | the as-of input and both trend inputs have `type="date"` | evaluator |
+| AC-29 | Stack, Parse `SEC`, Ask the Portfolio tab, no portfolio ticked, As of date set to `S2` | `Q` is typed and Ask is clicked | the request body sent to `/api/portfolio/ask` has `question` == `Q` exactly, `as_of` == `S2` and `portfolio_ids` == `[]` | evaluator |
+| AC-30 | the AC-29 answer on the page | the text under the table is read | the caption ends `as of <S2>` and a line reads `Snapshot used: <S2>` | evaluator |
+| AC-31 | Stack, Parse `SEC`, Trend range `S2` to `S4` | `Q` is asked | a table whose header starts `As of` and whose 3 body rows start with `S2`, `S3`, `S4` in that order | evaluator |
+| AC-32 | Stack, Trend range with From `S4` and To `S2` | the pane is read | it shows `The end date is before the start date.` and the "Scoped to:" line ends `latest` | evaluator |
+| AC-33 | Stack, Parse `SEC`, `Core Equity Europe` ticked in the pane, date mode Latest | `Q` is asked | the request body has `portfolio_ids` == `["core_equity_europe"]` and neither `as_of` nor `date_range` set | evaluator |
+| AC-34 | Stack, Parse `SEC` | `POST /api/portfolio/ask` with `{"question": "How many EUR million is our exposure to BMW?"}` | `result.spec_name` == that question exactly (must not change) | holdout |
+| AC-35 | Stack, Parse `SEC_M` | `askc({})` | `scale` == `"millions"` and `unit` == `"EUR"` | holdout |
+| AC-36 | the AC-35 response, `t` = `result.total_market_value_eur` | line 1 of `answer_text` is read | starts `Total: EUR ` + `t / 1e6` formatted `{:,.2f}` + ` million (` | holdout |
+| AC-37 | the AC-35 response | each further line of `answer_text` is read | == two spaces + `<group_value>: EUR ` + that row's `market_value_eur / 1e6` formatted `{:,.2f}` + ` million` | holdout |
+| AC-38 | Stack | `askc({})` once with Parse `SEC`, once with Parse `SEC_M` | `result.total_market_value_eur` is the same number in both (must not change) | holdout |
+| AC-39 | Stack, Parse `SEC` | `askc({})` | line 1 of `answer_text` starts `Total: EUR ` + the total formatted `{:,.0f}` + ` (` (must not change) | holdout |
+| AC-40 | Stack, Parse `SEC` | `askc({})` | `scale` == `"units"` and `unit` == `"EUR"` | holdout |
+| AC-41 | Stack, Parse `WACI` | `askc({})` | `unit` == `tCO2e / EUR M revenue` and `scale` == `"units"` | holdout |
+| AC-42 | Stack, Parse `SEC` with `"metric": "count"` | `askc({})` | `unit` == `""` | holdout |
+| AC-43 | Stack, Parse `SEC` | after `askc({})`, the last `_ParsedQuestion` line of `calls.jsonl` is read | its `system` contains `millions` | holdout |
+| AC-44 | Stack, Parse `SEC`, Ask the Portfolio tab, date mode Latest | `Q` is asked | the caption reads `<Q> — grouped by Sector, as of <S4>` and the page contains neither `Regarding` nor `override this scope` | evaluator |
+| AC-45 | the AC-44 answer | the table's header cells are read | the first is `Sector`; none contains `_` | evaluator |
+| AC-46 | Stack, Parse `SEC_M`, Ask the Portfolio tab | `Q` is asked | a header cell reads `Market value (EUR million)`; the line under the table starts `Total: EUR `, has two decimals and ends ` million` | evaluator |
+| AC-47 | Stack, Parse `WACI`, Ask the Portfolio tab | `Q` is asked | a header cell reads `Weighted avg (tCO2e / EUR M revenue)` | evaluator |
+| AC-48 | the frontend's `dimensionLabel` | called with each id of section 11 and with `my_dim` | the labels of section 11; `my_dim` → `My dim` | unit |
+| AC-49 | Stack, C evaluated | `DELETE /api/portfolio/monitoring/rules/<C>` | status 409 and `detail` == `Rule has <n> live alerts: clear them first.` | holdout |
+| AC-50 | after AC-49 | `GET /api/portfolio/monitoring/rules` | C is still listed | holdout |
+| AC-51 | Stack, C evaluated | `POST /api/portfolio/monitoring/rules/<C>/clear-alerts` with `{"status": "false_positive", "reason": "wrong threshold"}` | status 200, body == `{"cleared": n}` | holdout |
+| AC-52 | after AC-51 | `GET /api/portfolio/monitoring/alerts?status=open` | no alert carries C's `rule_id` | holdout |
+| AC-53 | after AC-51; C's alerts as they were listed before the call | `GET /api/portfolio/monitoring/alerts?status=false_positive` | `n` alerts carry C's `rule_id`, each with the same `alert_id`, `triggered_at`, `observed_value` and `rationale` as before | holdout |
+| AC-54 | a store with a rule and two open alerts of it | `clear-alerts` is called, then `store.list_alert_events(<scope>)` is read for one alert | its `alert_raised` event is unchanged, and exactly one `status_changed` event was appended for it, with the sent `status` and `reason` and `decided_by` = the caller's name | unit |
+| AC-55 | after AC-51 | the same `clear-alerts` call again | body == `{"cleared": 0}` | holdout |
+| AC-56 | Stack, C evaluated | `clear-alerts` with `{"status": "acknowledged"}` | status 422, and `n` open alerts still carry C's `rule_id` | holdout |
+| AC-57 | Stack, C evaluated, one of C's alerts moved to `acknowledged` and one to `escalated` (the existing transition route) | `clear-alerts` with `{"status": "resolved"}` | body == `{"cleared": n}` | holdout |
+| AC-58 | Stack, C evaluated, and a second rule C2 (C's body, name `Other <x>`) evaluated | `clear-alerts` for C | the number of open alerts carrying C2's `rule_id` is unchanged | holdout |
+| AC-59 | Stack, C evaluated, then cleared as in AC-51 | `DELETE /api/portfolio/monitoring/rules/<C>` | status 204 | holdout |
+| AC-60 | after AC-59 | `GET /api/portfolio/monitoring/rules` | no rule has C's `rule_id` | holdout |
+| AC-61 | after AC-59 | `GET /api/portfolio/monitoring/alerts` | `n` alerts still carry C's `rule_id`, all with status `false_positive` | holdout |
+| AC-62 | Stack | `DELETE /api/portfolio/monitoring/rules/rule_nope<x>` | status 404, `detail` == `Unknown rule rule_nope<x>` | holdout |
+| AC-63 | Stack, rule C stored | `POST /api/portfolio/monitoring/rules` with C's full body, the same `rule_id` and `created_at`, `"enabled": false` | `GET .../rules` has exactly one rule with that `rule_id`, with `enabled` false (must not change) | holdout |
+| AC-64 | after AC-63, C never evaluated before | `POST /api/portfolio/monitoring/evaluate-now`, then `GET .../alerts` | no alert carries C's `rule_id` (must not change) | holdout |
+| AC-65 | the test client of `backend/tests/test_api_ask.py` signed in as a viewer; one rule stored | `DELETE` the rule, and `clear-alerts` on it | both answer 403 and the rule is still stored | unit |
+| AC-66 | Stack, C stored, Monitoring & Alerts tab | `Disable` on C's row is clicked, then the page is reloaded | C's `Enabled` cell reads `no` and its button reads `Enable` | evaluator |
+| AC-67 | Stack, C stored (threshold 0) | `Edit` on C's row, `Threshold (%)` set to 10, `Save rule` clicked | the rules table still has one row for C, its condition reads `Weight of one company > 10%`, and `GET .../rules` shows `threshold_value` 0.1 under C's `rule_id` | evaluator |
+| AC-68 | Stack, C evaluated, Monitoring & Alerts tab | `Delete` on C's row is clicked and the dialog accepted | the page shows `Rule has <n> live alerts: clear them first.` and C's row is still listed | evaluator |
+| AC-69 | Stack, C evaluated, Monitoring & Alerts tab | `Clear alerts` → `False positive` on C's row | under the filter `open` none of C's alerts is listed; under `false positive` all `n` are | evaluator |
+| AC-70 | the AC-69 page | `Delete` on C's row is clicked and accepted, then the filter `all` is chosen | C's row is gone and the `Rule` cell of each of its `n` alerts reads `Deleted rule` | evaluator |
+| AC-71 | Stack, C evaluated | the alerts table is read | the `Scope` cell of each of C's alerts reads `<company id> · across Core Equity Europe` | evaluator |
+| AC-72 | the AC-71 table | `Observed` and `Threshold` of one of C's alerts are read | `Threshold` reads `0%`; `Observed` ends with `%` and equals the alert's `observed_value` × 100 with at most 2 decimals | evaluator |
+| AC-73 | Stack, rule A stored | the rules table is read | A's row reads Type `Portfolio aggregate (WACI-style)`, Condition `Carbon intensity > 50 tCO2e / EUR M revenue`, Scope `Core Equity Europe` | evaluator |
+| AC-74 | the AC-73 row | its text is searched | it contains none of `portfolio_aggregate_threshold`, `climate_carbon_intensity`, ` gt ` | evaluator |
+| AC-75 | Stack, rule A with `"portfolio_ids": []` stored | the rules table is read | its Scope reads `All portfolios` | evaluator |
+| AC-76 | Stack, rule A with `"threshold_value": 0` stored and evaluated (it raises an alert for `CEE`) | that alert's row in the alerts table is read | `Scope` reads `Core Equity Europe`, `Rule` reads `Carbon cap`, `Breach type` reads `No earlier breach to compare`, `Threshold` reads `0` | evaluator |
+| AC-77 | the AC-76 table | its `Scope` and `Breach type` columns are searched | no cell contains `portfolio__` or `Unknown` | evaluator |
+| AC-78 | the frontend's percent function of section 10 | called with 0.05, 0.0712, 0.125, 0.07, 1, 0 | `5%`, `7.12%`, `12.5%`, `7%`, `100%`, `0%` | unit |
+| AC-79 | the frontend's breach-type label of section 10 | called for `unknown` on a `news_controversy` alert; for `holdings_caused`, `data_caused`, `mixed` | `—`; `Holdings-caused`, `Data-caused`, `Mixed` (the last three must not change) | unit |
+| AC-80 | Stack | `#/portfolio-monitoring` is opened | the `Monitoring & Alerts` tab has `aria-pressed="true"` and the selection pane is shown | evaluator |
+| AC-81 | Stack | `#/portfolio-monitoring/dashboards`, `#/portfolio-monitoring/pivot` and `#/portfolio-monitoring/ask` are opened in turn | the pressed tab is `Dashboards (Superset)`, `Dashboards (Superset)`, `Ask the Portfolio` (must not change) | evaluator |
+| AC-82 | Stack with `ARP_SUPERSET_PASSWORD` unset (`GET /api/bi/dashboards` answers 503), Company Profiles tab | the "Profile dashboard" card is read | it shows `Dashboards are not set up on this server. Ask your administrator.`, has no element with `role="alert"`, and does not contain `could not be loaded` | evaluator |
+| AC-83 | a browser test, `GET /api/bi/dashboards` answered with 500 `boom` | the "Profile dashboard" card is read | a `role="alert"` element reads `The profile dashboard could not be loaded: boom` (must not change) | unit |
 
 ### Slice 2: the rest (defects 2, 3, 4, 7, 8, 6, 12)
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-76 | Stack; `model/ReportPlan.json` holds a valid plan with `"delay_seconds": 5`; a report request filled in on Presentations & Reports | `Draft content plan` is clicked | within 2 s a `role="status"` line reads `Drafting the content plan… 0:0<s> elapsed. This can take a few minutes; keep this page open.` and the button reads `Drafting…` and is disabled | evaluator |
-| AC-77 | the AC-76 page | the line is read again 2 s later, and once the plan is shown | the elapsed time is larger; after the plan is shown the line is gone | evaluator |
-| AC-78 | the frontend's `elapsedLabel` | called with 0, 42, 196, 3600 | `0:00`, `0:42`, `3:16`, `60:00` | unit |
-| AC-79 | Stack; a report R with status `plan_ready` | `DELETE /api/reports/R` | status 204 | holdout |
-| AC-80 | after AC-79 | `GET /api/reports/R`, `GET /api/reports`, and the folder `ReportingStore.report_dir("R")` are checked | 404; R is not listed; the folder does not exist | holdout |
-| AC-81 | Stack; reports with status `storyline_ready` and `failed` | `DELETE` each | both 204 | holdout |
-| AC-82 | Stack; a report R with status `completed` | `DELETE /api/reports/R` | status 409, `detail` == `Only an unfinished report can be discarded (status: completed).` | holdout |
-| AC-83 | after AC-82 | `GET /api/reports` | R is still listed with status `completed` and its folder still holds `manifest.json` | holdout |
-| AC-84 | Stack; reports with status `planning` and `rendering` | `DELETE` each | both 409 with their status in the `detail`; both still listed | holdout |
-| AC-85 | Stack | `DELETE /api/reports/rpt_000000000000` (not stored) | status 404 and no folder of that name exists afterwards | holdout |
-| AC-86 | Stack; three reports saved with `created_at` `2026-11-01T10:00:00`, `2026-11-03T10:00:00`, `2026-11-02T10:00:00` and ids `rpt_c…`, `rpt_a…`, `rpt_b…` | `GET /api/reports` | their order is 3 Nov, 2 Nov, 1 Nov | holdout |
-| AC-87 | Stack; a `plan_ready` report on Presentations & Reports | its row in "Previous reports" is read, then `Open` is clicked | the row shows `Open` and `Discard`; after the click the "Review & render" section shows its plan | evaluator |
-| AC-88 | the AC-87 page with the report open | `Discard` is clicked and the dialog accepted | the row is gone, the "Review & render" section is gone, and `GET /api/reports` no longer lists it | evaluator |
-| AC-89 | Stack, an approver, `model/QuotedPairs.json` holds a valid answer with `"delay_seconds": 5` | one `.docx` is chosen under "Answer library" and `Import past responses` clicked | within 2 s a `role="status"` line reads `Importing 1 file… 0:0<s> elapsed. This can take a few minutes; keep this page open.` | evaluator |
-| AC-90 | the AC-89 import has finished with response `{"imported": i, "dropped": []}` | the page is read | a visible `role="status"` line (not inside `#announcer`) reads `Imported <i> entries, dropped 0`; it is still there 10 s later | evaluator |
-| AC-91 | the frontend's import-progress text of section 3 | called for 1 file at 5 s and 2 files at 65 s | `Importing 1 file… 0:05 elapsed. This can take a few minutes; keep this page open.` and `Importing 2 files… 1:05 elapsed. This can take a few minutes; keep this page open.` | unit |
-| AC-92 | Stack, Seeded; `H` without its `Currency` column | upload it for `typo_fund` as of `S4` | status 422 with `message` `file rejected` | holdout |
-| AC-93 | after AC-92 | `GET /api/feeds` | no row has `source_id` `typo_fund` | holdout |
-| AC-94 | after AC-92 | `GET /api/issues` | no issue has `subject` `typo_fund` | holdout |
-| AC-95 | after AC-92 | `store.list_governance_events()` is read | no `load_recorded` event has `source_id` `typo_fund` | holdout |
-| AC-96 | Stack, Seeded; a `load_recorded` event `{kind: "holdings", source_id: "ghost_fund", month: <S4's month>, status: "failed", content_hash: "", detail: "4 row errors"}` appended to the governance log | `GET /api/feeds` and `GET /api/issues` | neither has a row or issue for `ghost_fund` | holdout |
-| AC-97 | Stack, Seeded; `H` uploaded for `acme_fund` as of `S4` (ok), then `H` without `Currency` uploaded for `acme_fund` | `GET /api/feeds` and `GET /api/issues` | the `acme_fund` row has `last_load.status` `failed`; an issue titled `Portfolio holdings · acme_fund: last load failed` with severity `block` exists (must not change) | holdout |
-| AC-98 | Stack, Seeded; `H` without `Currency` uploaded for `core_equity_europe` (a portfolio with no holder config) | `GET /api/feeds` | the `core_equity_europe` row has `last_load.status` `failed` (must not change) | holdout |
-| AC-99 | Stack, Seeded | `GET /api/feeds` | one `holdings` row per demo portfolio, each with `stale` false (must not change) | holdout |
-| AC-100 | Stack; a security master (the template of `GET /api/security-master/template`, one row: issuer `iss_acme`, ISIN `X`) uploaded; `H` uploaded for `acme_fund` as of `S4` | `POST /api/portfolio/esg/upload`, month of `S4`, the ESG template (`GET /api/portfolio/esg/template`) with one valid row for `company_id` `iss_acme` | status 200, `status` `written`, `rows` 1 | holdout |
-| AC-101 | the AC-100 Given | the same upload with `company_id` `nope` | status 422 and an error with message `unknown company_id 'nope'` (must not change) | holdout |
-| AC-102 | Stack, Seeded | the ESG upload with one valid row for `company_id` `bmw` | status 200, `status` `written` (must not change) | holdout |
-| AC-103 | Stack, Seeded; `H` with decimal commas (market value `1000,50`, weight `100,0`, as a semicolon-separated CSV) | upload for `acme_fund` as of `S4` with form field `decimal` = `,` | status 200, `status` `written`, and the stored snapshot's one holding has `market_value` 1000.5 | holdout |
-| AC-104 | the AC-103 file | the same upload without the `decimal` field | status 422 (must not change) | holdout |
-| AC-105 | Stack, Seeded | `GET /api/holdings/holders` | 4 rows, one per demo portfolio, each with `holder_id` = the portfolio id, `kind` `portfolio`, `name` = the portfolio's name, `source` null, `as_of` == `S4`, `stale` false, `last_pull_at` null, `last_error` null | holdout |
-| AC-106 | after AC-105 | `store.list_holders()` is read | empty | holdout |
-| AC-107 | Stack, Seeded; `H` uploaded for `core_equity_europe` as of `N` | `GET /api/holdings/holders` | exactly one row has `holder_id` `core_equity_europe`; its `source` is `file`; it comes before the three rows whose `source` is null | holdout |
-| AC-108 | Stack, Seeded, no security master | `GET /api/security-master/unmatched` and `GET /api/issues` | no unmatched security; no issue with `source` `security_master` (must not change) | holdout |
-| AC-109 | Stack, Seeded, Holdings Intake tab | the holder table is read | 4 rows named after the demo portfolios, each with Source `—`, As of `S4` and no `Pull now` button | evaluator |
-| AC-110 | Stack, Seeded, Holdings Intake tab | `H` is uploaded for `acme_fund` as of `S4` through the form, without reloading | the selection pane lists `acme_fund` | evaluator |
-| AC-111 | the AC-110 page, monthly-run month = month of `S4` | the "Monthly run" table is read, without reloading | it has a row `Holdings acme_fund` | evaluator |
-| AC-112 | Stack, Seeded, Holdings Intake tab, monthly-run month `M` whose ESG row does not read `ok` | a valid ESG file for month `M` is uploaded through the form, without reloading | the ESG row of the "Monthly run" table reads `ok` | evaluator |
-| AC-113 | Stack, Seeded; `H` without its `Weight (%)` and `Currency` columns | upload for `acme_fund` as of `S4` | status 422; the errors with `row` null are exactly `{"row": null, "column": "Weight (%)", "message": "missing required column"}` and `{"row": null, "column": "Currency", "message": "missing required column"}` | holdout |
-| AC-114 | the AC-113 upload made through the Holdings Intake form | the error list is read | it has the lines `missing required column: Weight (%)` and `missing required column: Currency` | evaluator |
-| AC-115 | the frontend's `rowErrorText` | called with `{row: null, column: "Weight (%)", message: "missing required column"}`, `{row: null, column: "weight", message: "weights sum to 1%, not 100% ± 0.5"}`, `{row: null, column: null, message: "missing header"}` | `missing required column: Weight (%)`; `weights sum to 1%, not 100% ± 0.5`; `missing header` | unit |
-| AC-116 | Stack, Seeded; `H` with weight `1` | upload for `acme_fund` as of `S4` with form field `weight_unit` = `fraction` | status 200 and the stored holding has `weight_pct` 100 | holdout |
-| AC-117 | the AC-116 file | the same upload without `weight_unit` | status 422 with an error whose message starts `weights sum to 1%` (must not change) | holdout |
-| AC-118 | Stack, Seeded | upload `H` with `decimal` = `;`, and again with `weight_unit` = `bps` | both 422; no snapshot is stored for the holder | holdout |
-| AC-119 | Stack, Holdings Intake tab | the upload form is read | selects `Decimal separator` (options `Point (1,234.56)`, `Comma (1.234,56)`) and `Weights are` (options `Percent (5 = 5%)`, `Fraction (0.05 = 5%)`), with Point and Percent chosen | evaluator |
-| AC-120 | Stack, Seeded; `H` uploaded for `acme_fund` as of `N` | `POST /api/decision/datasets/from-source` with `{"source": "portfolio_snapshot", "portfolio_ids": ["core_equity_europe"]}` | `name` == `Portfolio holdings as of <S4>` and `as_of` == `S4` | holdout |
-| AC-121 | the AC-120 Given | the same call without `portfolio_ids` | `name` == `Portfolio holdings as of <S4> to <N>` and `as_of` == `N` | holdout |
-| AC-122 | Stack, Seeded | the same call without `portfolio_ids`; and with `"as_of": S2` | `name` == `Portfolio holdings as of <S4>`, `as_of` == `S4`; and `Portfolio holdings as of <S2>`, `as_of` == `S2` (must not change) | holdout |
-| AC-123 | Stack, Seeded; the AC-120 call made once before and once after `H` is uploaded for `acme_fund` as of `N` | `row_count` and `preview` of the two answers are compared | equal | holdout |
-| AC-124 | the AC-120 Given | `POST /api/portfolio/universe` with `{"portfolio_ids": ["core_equity_europe"]}` | `as_of` == `S4` and the saved file's name starts `holdings_core_equity_europe_<S4>_` | holdout |
-| AC-125 | the AC-120 Given | `POST /api/portfolio/universe` with `{}` | `as_of` == `N` and the saved file's name starts `holdings_all_<S4>_to_<N>_` | holdout |
-| AC-126 | Stack, Seeded, no security master, Security Master page | the page is read | it shows `No holdings have been loaded through Holdings Intake yet.` and does not contain `Every held security is matched.` | evaluator |
-| AC-127 | the AC-100 Given (master and matching holding loaded), Security Master page | the unmatched table is read | its empty row reads `Every held security is matched.` (must not change) | evaluator |
-| AC-128 | Stack, Seeded, no monthly run yet | `GET /api/portfolio/monthly-run/last` | status 200, body `null` | holdout |
-| AC-129 | Stack, Seeded; a month `M` for which `GET /api/portfolio/monthly-run/status` has no `blocked_reasons` (an ESG upload for `M` first, if needed) | `POST /api/portfolio/monthly-run` with `{"month": M}` answers `{"status": "ran", "alerts": a, "triggers": t}`, then `GET .../monthly-run/last` | `month` == `M`, `alerts` == `a`, `triggers` == `t`, `at` is an ISO date-time of the run | holdout |
-| AC-130 | Stack, Seeded; a month for which `monthly-run/status` has `blocked_reasons` | `POST /api/portfolio/monthly-run` for it, then `GET .../monthly-run/last` | the run answers `status` `blocked`; `last` is still `null` | holdout |
-| AC-131 | after AC-129, the Home hub's "Monthly monitoring" process | its steps are read | `Monitoring & Alerts` reads `Done · <day month of the run>` | evaluator |
-| AC-132 | Stack, Seeded, the Home hub | the steps `Holdings Intake` (Monthly monitoring) and `Map holdings` (Map securities to issuers) are read | both start `Done · ` | evaluator |
-| AC-133 | Stack, Seeded; the AC-100 security master uploaded | the step `Load security master` is read; then a master file that is rejected is uploaded and the hub reloaded | first `Done · <day month>`; then `Last run failed` | evaluator |
-| AC-134 | Stack, empty portfolio store, the Home hub | the four steps of AC-131 to AC-133 are read | each reads `No runs yet` (must not change) | evaluator |
-| AC-135 | the repo at the PR head | `npm test` in `frontend` with `tests/subTabs.test.ts`, `tests/holdings.test.ts`, `tests/workspaceCard.test.ts` and `tests/processes.test.ts` unchanged from `main` | exit code 0 | unit |
-| AC-136 | Stack; the same file `companies.csv` uploaded twice to `POST /api/decision/datasets`, 2 s apart | `GET /api/decision/datasets` | two entries named `companies.csv`, each with an ISO date-time `created_at`, and the two differ | holdout |
-| AC-137 | the AC-136 Given, Decision Studio's Data table | the table is read | it has a column `Added`, and the two `companies.csv` rows show different values in it | evaluator |
-| AC-138 | the AC-136 Given, the Movement dropdown | its options are read | the two uploads read `companies.csv · added <their Added text>` and differ | evaluator |
-| AC-139 | Stack, empty portfolio store, Risk Monitoring | `Seed demo dataset` is clicked and the portfolio list appears | the pane shows `Seeded <N> companies, 4 portfolios, <K> holding rows.` with the numbers of the seed response, still shown 10 s later, and not after a reload | evaluator |
-| AC-140 | the frontend's `findingText` | called with `{stage: "qa", rule: "invalid_edit", slot: "number_1", message: "edit changes nothing"}` | null (not listed) | unit |
-| AC-141 | the frontend's `findingText` | called with `{stage: "qa", rule: "applied", message: "Shortened the headline"}`; `{stage: "fit", rule: "slot_dropped", slot: "number_1", message: "Slot 'number_1' does not exist in a/b; its content was dropped."}`; `{stage: "lint", rule: "exclamation", slot: "headline", message: "Remove the exclamation mark."}`; `{stage: "new", rule: "x", message: "m"}` | `Visual check: adjusted. Shortened the headline`; `Layout: some content did not fit this slide and was left out.`; `Wording: Remove the exclamation mark.`; `Check: m` | unit |
-| AC-142 | a house deck result page built in a browser test from findings `[invalid_edit on slide 2, exclamation on slide 3]` (the `/findings` call answered by the test) | the Findings list is read | it lists slide 3 only, with `Wording: Remove the exclamation mark.`, and the page contains neither `qa/invalid_edit` nor `[headline]` | unit |
-| AC-143 | Stack | `#/valueChain/exposure`, `#/valueChain/shock`, `#/valueChain/tree` and `#/valueChain/footprint` are opened in turn | each shows the heading `Value Chain Explorer` and the search box; none shows a heading `exposure`, `shock`, `tree` or `footprint` | evaluator |
-| AC-144 | Stack | `#/valueChain/portfolio` is opened | the heading reads `Portfolio` (must not change) | evaluator |
-| AC-145 | the repo at the PR head | `cd backend && python scripts/export_openapi.py --check`, then `cd frontend && npm run gen:api && git diff --exit-code src/api` | both exit 0 | unit |
+| AC-84 | Stack; `model/ReportPlan.json` also has `"delay_seconds": 5`; a report request filled in on Presentations & Reports | `Draft content plan` is clicked | within 2 s a `role="status"` line reads `Drafting the content plan… 0:0<s> elapsed. This can take a few minutes; keep this page open.`, and the button reads `Drafting…` and is disabled | evaluator |
+| AC-85 | the AC-84 page | the line is read again 2 s later, and once the plan is shown | the elapsed time is larger; after the plan is shown the line is gone | evaluator |
+| AC-86 | the frontend's `elapsedLabel` | called with 0, 42, 196, 3600 | `0:00`, `0:42`, `3:16`, `60:00` | unit |
+| AC-87 | the frontend's drafting-line function of section 2 | called for a house deck at 5 s, and for another format at 65 s | `Drafting the storyline… 0:05 elapsed. This can take a few minutes; keep this page open.` and `Drafting the content plan… 1:05 elapsed. This can take a few minutes; keep this page open.` | unit |
+| AC-88 | Stack; a draft R | `DELETE /api/reports/R` | status 204 | holdout |
+| AC-89 | after AC-88 | `GET /api/reports`, then `GET /api/reports/R` | R is not listed; the second call answers 404 | holdout |
+| AC-90 | a `ReportingStore` on a temp folder with a `plan_ready` report R, behind the API test client | `DELETE /api/reports/R`, then `DELETE /api/reports/rpt_000000000000` | after the first, `reports_dir/R` does not exist; the second answers 404 and `reports_dir/rpt_000000000000` does not exist | unit |
+| AC-91 | Stack; a finished report R | `DELETE /api/reports/R` | status 409, `detail` == `Only an unfinished report can be discarded (status: completed).` | holdout |
+| AC-92 | Stack; a finished report R, after a `DELETE /api/reports/R` attempt | `GET /api/reports/R` and `GET /api/reports/R/download` | 200 with status `completed`; 200 (must not change) | holdout |
+| AC-93 | manifests saved through `ReportingStore` with status `storyline_ready`, `failed`, `planning`, `rendering`, `pending`, behind the API test client | `DELETE` each | 204 for `storyline_ready` and `failed`; 409 with the status in `detail` for the other three, which are still stored | unit |
+| AC-94 | Stack | `DELETE /api/reports/rpt_000000000000` | status 404 | holdout |
+| AC-95 | Stack; five drafts made one after another, at least 1 s apart | `GET /api/reports` | among these five, the order is the reverse of their creation | holdout |
+| AC-96 | manifests saved with `created_at` `2026-11-01T10:00:00`, `2026-11-03T10:00:00`, `2026-11-02T10:00:00` under ids `rpt_c00000000000`, `rpt_a00000000000`, `rpt_b00000000000` | `ReportingStore.list_reports()` | their order is 3 Nov, 2 Nov, 1 Nov | unit |
+| AC-97 | the test client of `backend/tests/test_api_ask.py` signed in as a viewer; a `plan_ready` report stored | `DELETE /api/reports/<id>` | 403 and the report is still stored | unit |
+| AC-98 | Stack; a draft, Presentations & Reports open | its row in "Previous reports" is read, then `Open` is clicked | the row shows `Open` and `Discard`; after the click the "Review & render" section shows its plan | evaluator |
+| AC-99 | the AC-98 page with the draft open | `Discard` is clicked and the dialog accepted | the row is gone, the "Review & render" section is gone, and `GET /api/reports` no longer lists the draft | evaluator |
+| AC-100 | a browser test, `GET /api/reports` answered with one `failed` and one `completed` report | the two rows are read | the `failed` row shows `Discard` and no `Open`; the `completed` row shows `Preview` and `Download` and no `Discard` | unit |
+| AC-101 | Stack, an approver, `model/QuotedPairs.json` holds a valid answer with `"delay_seconds": 5` | one `.docx` is chosen under "Answer library" and `Import past responses` clicked | within 2 s a `role="status"` line reads `Importing 1 file… 0:0<s> elapsed. This can take a few minutes; keep this page open.` | evaluator |
+| AC-102 | the AC-101 import has finished with response `{"imported": i, "dropped": []}` | the page is read | a visible `role="status"` line outside `#announcer` reads `Imported <i> entries, dropped 0`, and is still there 10 s later | evaluator |
+| AC-103 | the frontend's import-progress text of section 3 | called for 1 file at 5 s and 2 files at 65 s | `Importing 1 file… 0:05 elapsed. This can take a few minutes; keep this page open.` and `Importing 2 files… 1:05 elapsed. This can take a few minutes; keep this page open.` | unit |
+| AC-104 | Stack; `H(X)` without its `Currency` column uploaded for `typo_<x>` as of `S4` (it answers 422 `file rejected`, as today) | `GET /api/feeds` | no row has `source_id` `typo_<x>` | holdout |
+| AC-105 | the AC-104 Given | `GET /api/issues` | no issue has `subject` `typo_<x>` | holdout |
+| AC-106 | a file store with a `load_recorded` event `{kind: "holdings", source_id: "ghost_fund", month: "2026-10", status: "failed", content_hash: "", detail: "4 row errors"}` and no holder or portfolio of that id | `feeds.overview` and the issues list are built; and a rejected upload for an unknown holder is ingested | neither has an entry for `ghost_fund`; the rejected upload adds no `load_recorded` event | unit |
+| AC-107 | Stack; `H(X)` uploaded for `good_<x>` as of `O` (ok), then `H(X)` without `Currency` uploaded for `good_<x>` as of `O` | `GET /api/feeds` and `GET /api/issues` | the `good_<x>` feed row has `last_load.status` `failed`, and an issue titled `Portfolio holdings · good_<x>: last load failed` with severity `block` exists (must not change) | holdout |
+| AC-108 | Stack; `H(X)` without `Currency` uploaded for `corporate_bond_income` as of `S4` (a portfolio with no holder config) | `GET /api/feeds` | the `corporate_bond_income` row has `last_load.status` `failed` (must not change) | holdout |
+| AC-109 | Stack | `GET /api/feeds` | the rows with `source_id` `core_equity_europe` and `sustainable_leaders` have `feed` `holdings`, `stale` false and `channel` null (must not change) | holdout |
+| AC-110 | Stack; Master (`iss_<x>`, `X`) uploaded; `H(X)` uploaded for `esg_<x>` as of `O` | ESG row for `iss_<x>`, month of `S1` | status 200, `status` `written`, `rows` 1 | holdout |
+| AC-111 | the AC-110 Given | ESG row for `nope_<x>`, month of `S1` | status 422 and an error with message `unknown company_id 'nope_<x>'` (must not change) | holdout |
+| AC-112 | the repo at the PR head | `pytest tests/test_esg_intake.py tests/test_esg_api_source.py` | exit code 0 | unit |
+| AC-113 | Stack | `GET /api/holdings/holders` | every portfolio of `GET /api/portfolio/portfolios` appears exactly once, with `kind` `portfolio`; the `sustainable_leaders` row has `name` `Sustainable Leaders Fund`, `source` null, `as_of` == `S4`, `stale` false, `last_pull_at` null, `last_error` null | holdout |
+| AC-114 | a seeded file store behind the API test client | `GET /api/holdings/holders`, then `store.list_holders()` | the response has 4 rows; `list_holders()` is empty | unit |
+| AC-115 | Stack; `H(X)` uploaded for `multi_asset_balanced` as of `O` | `GET /api/holdings/holders` | exactly one row has `holder_id` `multi_asset_balanced`, and its `source` is `file` (must not change) | holdout |
+| AC-116 | a seeded file store with no security master, behind the API test client | `GET /api/holdings/holders`, then `GET /api/security-master/unmatched` and `GET /api/issues` | no unmatched security; no issue with `source` `security_master` (must not change) | unit |
+| AC-117 | Stack, Holdings Intake tab | the holder table is read | 4 rows named after the demo portfolios, each with Source `—`, As of `S4` and no `Pull now` button | evaluator |
+| AC-118 | Stack, Holdings Intake tab | `H(X)` is uploaded for `acme_fund` as of `S4` through the form, without reloading | the selection pane lists `acme_fund` | evaluator |
+| AC-119 | the AC-118 page, monthly-run month = month of `S4` | the "Monthly run" table is read, without reloading | it has a row `Holdings acme_fund` | evaluator |
+| AC-120 | Stack, Holdings Intake tab, monthly-run month set to `2020-01` (its ESG row reads `missing`) | an ESG row for `bmw`, month `2020-01`, is uploaded through the form, without reloading | the ESG row of the "Monthly run" table reads `ok` | evaluator |
+| AC-121 | Stack; `H(X)` without its `Weight (%)` and `Currency` columns | upload for `cols_<x>` as of `O` | status 422; the errors with `row` null are exactly `{"row": null, "column": "Weight (%)", "message": "missing required column"}` and `{"row": null, "column": "Currency", "message": "missing required column"}` | holdout |
+| AC-122 | the AC-121 file uploaded through the Holdings Intake form | the error list is read | it has the lines `missing required column: Weight (%)` and `missing required column: Currency` | evaluator |
+| AC-123 | the frontend's `rowErrorText` | called with `{row: null, column: "Weight (%)", message: "missing required column"}`, `{row: null, column: "weight", message: "weights sum to 1%, not 100% ± 0.5"}`, `{row: null, column: null, message: "missing header"}` | `missing required column: Weight (%)`; `weights sum to 1%, not 100% ± 0.5`; `missing header` | unit |
+| AC-124 | Stack; `H(X)` with decimal commas (market value `1000,50`, weight `100,0`), saved as a semicolon-separated CSV | upload for `comma_<x>` as of `O` with form field `decimal` = `,` | status 200, `status` `written` | holdout |
+| AC-125 | the AC-124 file | upload for `comma2_<x>` as of `O` without the `decimal` field | status 422 (must not change) | holdout |
+| AC-126 | a file store behind the API test client; the AC-124 upload | the stored snapshot is read | its one holding has `market_value` 1000.5 and `weight_pct` 100 | unit |
+| AC-127 | Stack; `H(X)` with weight `1` | upload for `frac_<x>` as of `O` with form field `weight_unit` = `fraction` | status 200, `status` `written` | holdout |
+| AC-128 | the AC-127 file | upload for `frac2_<x>` as of `O` without `weight_unit` | status 422 with an error whose message starts `weights sum to 1%` (must not change) | holdout |
+| AC-129 | a file store behind the API test client; the AC-127 upload | the stored snapshot is read | its one holding has `weight_pct` 100 | unit |
+| AC-130 | Stack | upload `H(X)` for `opts_<x>` as of `O` with `decimal` = `;`, and again with `weight_unit` = `bps` | both 422, and `GET /api/holdings/holders` has no row for `opts_<x>` | holdout |
+| AC-131 | Stack, Holdings Intake tab | the upload form is read | selects `Decimal separator` (options `Point (1,234.56)`, `Comma (1.234,56)`) and `Weights are` (options `Percent (5 = 5%)`, `Fraction (0.05 = 5%)`), with Point and Percent chosen | evaluator |
+| AC-132 | Stack; Master (`iss_<x>`, `X`) uploaded; `H(X)` uploaded for `F` = `old_<x>` as of `O` | `POST /api/decision/datasets/from-source` with `{"source": "portfolio_snapshot", "portfolio_ids": [F]}` | `name` == `Portfolio holdings as of <O>` and `as_of` == `O` | holdout |
+| AC-133 | the AC-132 Given | the same call with `"portfolio_ids": [F, "core_equity_europe"]` | `name` == `Portfolio holdings as of <O> to <S4>` and `as_of` == `S4` | holdout |
+| AC-134 | Stack | the same call with `"portfolio_ids": ["core_equity_europe"]`; and again with `"as_of": S2` added | `name` == `Portfolio holdings as of <S4>`, `as_of` == `S4`; and `Portfolio holdings as of <S2>`, `as_of` == `S2` (must not change) | holdout |
+| AC-135 | the AC-132 Given | `POST /api/portfolio/universe` with `{"portfolio_ids": [F, "core_equity_europe"]}` | `as_of` == `S4` and the file name (last part of the returned `path`) starts `holdings_<F>_core_equity_europe_<O>_to_<S4>_` | holdout |
+| AC-136 | Stack | `POST /api/portfolio/universe` with `{"portfolio_ids": ["core_equity_europe"]}` | `as_of` == `S4` and the file name starts `holdings_core_equity_europe_<S4>_` (must not change) | holdout |
+| AC-137 | Stack (no security master loaded), Security Master page | the page is read | it shows `No holdings have been loaded through Holdings Intake yet.` and does not contain `Every held security is matched.` | evaluator |
+| AC-138 | Stack; Master (`iss_a`, `X`) and `H(X)` for `acme_fund` as of `S4` uploaded; Security Master page | the unmatched table is read | its empty row reads `Every held security is matched.` (must not change) | evaluator |
+| AC-139 | a seeded file store behind the API test client, no monthly run yet | `GET /api/portfolio/monthly-run/last` | status 200, body `null` | unit |
+| AC-140 | Stack; `M` = the month of `S4` | `POST /api/portfolio/monthly-run` with `{"month": M, "portfolio_ids": ["sustainable_leaders"]}` answers `{"status": "ran", "alerts": a, "triggers": t}`; then `GET /api/portfolio/monthly-run/last` | `month` == `M`, `alerts` == `a`, `triggers` == `t`, and `at` is an ISO date-time not earlier than the start of the test | holdout |
+| AC-141 | Stack; the answer of `GET /api/portfolio/monthly-run/last` is noted | `POST /api/portfolio/monthly-run` with `{"month": "2001-01", "portfolio_ids": ["sustainable_leaders"]}` answers `status` `blocked`; then `GET .../monthly-run/last` | status 200 with the same body as noted | holdout |
+| AC-142 | Stack; the AC-140 run made; the Home hub's "Monthly monitoring" process | its steps are read | `Monitoring & Alerts` reads `Done · <day month of the run>` | evaluator |
+| AC-143 | Stack, the Home hub | the steps `Holdings Intake` (Monthly monitoring) and `Map holdings` (Map securities to issuers) are read | both start `Done · ` | evaluator |
+| AC-144 | Stack; Master (`iss_a`, `X`) uploaded | the step `Load security master` is read; then a master file that is rejected is uploaded and the hub reloaded | first `Done · <day month>`; then `Last run failed` | evaluator |
+| AC-145 | the frontend's `stepState` and `stepStatusLine` | called for the four steps of section 12b with no activity | state `idle` and the line `No runs yet` (must not change) | unit |
+| AC-146 | the repo at the PR head | `npm test` in `frontend` | exit code 0, including `tests/subTabs.test.ts`, `tests/holdings.test.ts`, `tests/workspaceCard.test.ts` and `tests/processes.test.ts` | unit |
+| AC-147 | Stack; the same file `companies_<x>.csv` uploaded twice to `POST /api/decision/datasets`, 2 s apart | `GET /api/decision/datasets` | two entries named `companies_<x>.csv`, each with an ISO date-time `created_at`, and the two differ | holdout |
+| AC-148 | Stack; `companies.csv` uploaded twice in Decision Studio, 2 s apart | the Data table is read | it has a column `Added`, and the two `companies.csv` rows show different values in it | evaluator |
+| AC-149 | the AC-148 Given, the Movement dropdown | its options are read | the two uploads read `companies.csv · added <their Added text>` and differ | evaluator |
+| AC-150 | a browser test: `GET /api/portfolio/portfolios` answered with `[]`, then, after `POST /api/portfolio/demo/seed` is answered with `{"company_count": 30, "portfolio_count": 4, "holding_rows": 480}`, with four portfolios | `Seed demo dataset` is clicked | the pane lists the portfolios and shows `Seeded 30 companies, 4 portfolios, 480 holding rows.` | unit |
+| AC-151 | the frontend's `findingText` | called with `{stage: "qa", rule: "invalid_edit", slot: "number_1", message: "edit changes nothing"}` | null (not listed) | unit |
+| AC-152 | the frontend's `findingText` | called with `{stage: "qa", rule: "applied", message: "Shortened the headline"}`; `{stage: "fit", rule: "slot_dropped", slot: "number_1", message: "Slot 'number_1' does not exist in a/b; its content was dropped."}`; `{stage: "lint", rule: "exclamation", slot: "headline", message: "Remove the exclamation mark."}`; `{stage: "new", rule: "x", message: "m"}` | `Visual check: adjusted. Shortened the headline`; `Layout: some content did not fit this slide and was left out.`; `Wording: Remove the exclamation mark.`; `Check: m` | unit |
+| AC-153 | a browser test: a house deck result whose `/findings` call is answered with an `invalid_edit` finding on slide 2 and an `exclamation` finding (slot `headline`) on slide 3 | the Findings list is read | it lists slide 3 only, with `Wording: Remove the exclamation mark.`, and the page contains neither `qa/invalid_edit` nor `[headline]` | unit |
+| AC-154 | Stack | `#/valueChain/exposure`, `#/valueChain/shock`, `#/valueChain/tree` and `#/valueChain/footprint` are opened in turn | each shows the heading `Value Chain Explorer` and the search box; none shows a heading `exposure`, `shock`, `tree` or `footprint` | evaluator |
+| AC-155 | Stack | `#/valueChain/portfolio` is opened | the heading reads `Portfolio` (must not change) | evaluator |
+| AC-156 | the repo at the PR head | `cd backend && python scripts/export_openapi.py --check`, then `cd frontend && npm run gen:api && git diff --exit-code src/api` | both exit 0 | unit |
+| AC-157 | the repo at the PR head | `git diff origin/main -- backend/tests frontend/tests` | no removed line (no line starting with a single `-`) | unit |
+| AC-158 | a file store with governance events and alert events, behind the API test client | a rejected upload, a monthly run, `clear-alerts`, a rule delete and a report discard are made | every governance and alert event line that existed before is still there, byte for byte and in the same order | unit |
 
-Must not change: a request with only `question` (AC-4, AC-24, AC-35); `spec_name` from the typed question
-(AC-30); replacing a rule by `rule_id` and skipping disabled rules (AC-58, AC-59); the known breach-type
-labels (AC-72); named and legacy sub-tabs (AC-74); completed and in-flight reports (AC-82 to AC-84); failed
-loads for holders and portfolios that exist, and the demo feed rows (AC-97 to AC-99); ESG id checks
-(AC-101, AC-102); the default decimal and weight unit (AC-104, AC-117); Security Master and Issues for the
-demo seed (AC-108, AC-127); holdings tables with one date (AC-122, AC-123); idle hub steps (AC-134); the
-tests named above (AC-135); the Portfolio value-chain heading (AC-144).
+Must not change: a request with only `question` (AC-5, AC-25, AC-34, AC-39); a portfolio named in the question
+(AC-21); plain-EUR figures (AC-38); replacing a rule by `rule_id` and skipping disabled rules (AC-63, AC-64);
+the known breach-type labels (AC-79); named and legacy sub-tabs (AC-81); other dashboard errors (AC-83);
+finished reports (AC-92); failed loads for holders and portfolios that exist, and the demo feed rows (AC-107
+to AC-109); ESG id checks (AC-111, AC-112); holder rows of configured holders (AC-115); Security Master and
+Issues for the demo seed (AC-116, AC-138); the default decimal and weight unit (AC-125, AC-128); holdings
+tables with one date (AC-134, AC-136); idle hub steps (AC-145); the existing frontend tests (AC-146); the
+Portfolio value-chain heading (AC-155); existing test lines and log lines (AC-157, AC-158).
