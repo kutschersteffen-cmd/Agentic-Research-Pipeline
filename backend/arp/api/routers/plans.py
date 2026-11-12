@@ -133,10 +133,30 @@ async def start_plan(plan_id: str, store: PlanStore = Depends(plan_store)) -> di
     except PlanNotRunnable as exc:
         raise HTTPException(409, str(exc)) from exc
     steps, reviewed = build_runtime(get_settings())
-    task = asyncio.create_task(asyncio.to_thread(run_plan, plan_id, store, steps, reviewed))
+    task = asyncio.create_task(_drive(plan_id, store, steps, reviewed))
     _running.add(task)
     task.add_done_callback(_done)
     return {"plan_id": plan_id, "status": "running"}
+
+
+REVIEW_POLL_SECONDS = 5.0
+
+
+async def _drive(plan_id: str, store: PlanStore, steps, reviewed) -> None:
+    """Run the plan in a worker thread. At a review gate the worker returns and this task polls `reviewed`
+    without holding a thread, then starts the worker again; it ends when the plan is no longer waiting."""
+    while await asyncio.to_thread(run_plan, plan_id, store, steps, reviewed, return_at_gate=True) == "awaiting_review":
+        while True:
+            await asyncio.sleep(REVIEW_POLL_SECONDS)
+            if (await asyncio.to_thread(store.get, plan_id))["status"] != "awaiting_review":
+                return  # cancelled
+            waiting = [c for c in await asyncio.to_thread(store.calls, plan_id) if c["status"] == "awaiting_review"]
+            if not waiting or await asyncio.to_thread(reviewed, waiting[0]):
+                break
+        try:
+            await asyncio.to_thread(claim_plan, store, plan_id)
+        except PlanNotRunnable:
+            return  # cancelled, or another worker took it over
 
 
 def _done(task: asyncio.Task) -> None:
