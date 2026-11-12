@@ -1,6 +1,7 @@
 """Postgres store for research plans and the step calls their runs make."""
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -22,14 +23,19 @@ class PlanNotReplannable(NotConfigured):
     pass
 
 
-def _checked_dry_run(script: str, previous: list[dict] | None = None, first_seq: int = 1) -> list[dict]:
+def _checked_dry_run(script: str, previous: list[dict] | None = None, first_seq: int = 1,
+                     check: Callable[[list[dict]], list[str]] | None = None) -> list[dict]:
     errors = check_script(script)
     if errors:
         raise ValueError("\n".join(errors))
     try:
-        return dry_run(script, previous, first_seq)
+        steps = dry_run(script, previous, first_seq)
     except Exception as exc:  # noqa: BLE001 - any dry-run failure is a script error the author must fix
         raise ValueError(str(exc)) from exc
+    errors = check(steps) if check else []
+    if errors:
+        raise ValueError("\n".join(errors))
+    return steps
 
 
 def _row(obj) -> dict[str, Any]:
@@ -58,10 +64,11 @@ class PlanStore:
         self.dsn = dsn  # run_lease takes its advisory lock on this
         self.engine = get_engine(dsn)
 
-    def create(self, brief: str, script: str, previous_scripts: list[dict] | None = None) -> str:
+    def create(self, brief: str, script: str, previous_scripts: list[dict] | None = None,
+               check: Callable[[list[dict]], list[str]] | None = None) -> str:
         """Raises ValueError with the checker's errors when the script is rejected. `previous_scripts` stores the
-        plan as already re-planned (the demo plan), at the version after them."""
-        steps = _checked_dry_run(script)
+        plan as already re-planned (the demo plan), at the version after them. `check` adds errors from the dry run."""
+        steps = _checked_dry_run(script, check=check)
         plan_id = new_id("plan")
         history = previous_scripts or []
         with Session(self.engine) as s, s.begin():
@@ -90,7 +97,8 @@ class PlanStore:
             s.execute(delete(ResearchPlanCall).where(ResearchPlanCall.plan_id == plan_id,
                                                      ResearchPlanCall.seq >= first_seq))
 
-    def replan(self, plan_id: str, script: str, user: str | None = None) -> None:
+    def replan(self, plan_id: str, script: str, user: str | None = None,
+               check: Callable[[list[dict]], list[str]] | None = None) -> None:
         """Replace a failed plan's script with one for the remaining work: keeps its done calls (the new script reads
         their results as `previous`), drops failed and cancelled ones, files the old script and error under
         `previous_scripts` and returns the plan to an unapproved draft. Raises ValueError when the script is
@@ -99,7 +107,7 @@ class PlanStore:
             raise PlanNotReplannable("only a failed plan can be re-planned")
         done = [c for c in self.calls(plan_id) if c["status"] == "done"]
         first_seq = max((c["seq"] for c in done), default=0) + 1  # a kept seq is never reused
-        steps = _checked_dry_run(script, [c["result"] for c in done], first_seq)
+        steps = _checked_dry_run(script, [c["result"] for c in done], first_seq, check)
         with Session(self.engine) as s, s.begin():
             plan = s.get(ResearchPlan, plan_id, with_for_update=True)
             if plan.status != "failed":  # changed while the planner ran

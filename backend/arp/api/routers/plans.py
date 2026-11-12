@@ -51,9 +51,18 @@ def _context() -> str:
     from arp.api.deps import get_decision_store, get_index_store
     from arp.orchestration.plan_planner import planner_context
     from arp.storage.taxonomy_store import TaxonomyStore
+    from arp.universe import saved_universes
 
     return planner_context(TaxonomyStore(get_settings().taxonomies_dir).list_all(),
-                           get_decision_store().list_frameworks(), get_index_store().list_calibrations())
+                           get_decision_store().list_frameworks(), get_index_store().list_calibrations(),
+                           saved_universes(get_settings().runs_dir))
+
+
+def _check_sources(steps: list[dict]) -> list[str]:
+    """A drafted or re-planned script may only name a saved universe or an existing universe file."""
+    from arp.universe import universe_source_errors
+
+    return universe_source_errors(get_settings().runs_dir, steps)
 
 
 @router.post("")
@@ -61,7 +70,8 @@ async def create_plan(req: DraftRequest, store: PlanStore = Depends(plan_store))
     from arp.api.deps import get_llm_client
 
     try:
-        plan_id = await draft_plan(req.brief, get_llm_client(), store, await asyncio.to_thread(_context))
+        plan_id = await draft_plan(req.brief, get_llm_client(), store, await asyncio.to_thread(_context),
+                                 check=_check_sources)
     except PlanRejected as exc:
         raise HTTPException(422, str(exc)) from exc
     return _get(store, plan_id)
@@ -107,7 +117,7 @@ async def replan(plan_id: str, store: PlanStore = Depends(plan_store),
         raise HTTPException(409, "only a failed plan can be re-planned")
     try:
         await replan_plan(plan_id, get_llm_client(), store, await asyncio.to_thread(_context),
-                          principal.user_id)
+                          principal.user_id, check=_check_sources)
     except PlanNotReplannable as exc:
         raise HTTPException(409, str(exc)) from exc
     except PlanRejected as exc:
