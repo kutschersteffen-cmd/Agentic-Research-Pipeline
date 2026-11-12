@@ -24,7 +24,7 @@ from arp.api.deps import (
 from arp.api.routers import extraction
 from arp.api.routers.universe_workbench import MAX_COMPANIES
 from arp.argus.companies import Refused, add_companies, parse_rows, register, reregister, ticker_ciks, with_register_ids
-from arp.argus.documents import FlowFile, decide, expected_year, flow_files, store_upload
+from arp.argus.documents import FlowFile, decide, expected_year, flow_files, passes_check, store_upload
 from arp.argus.flows import ArgusFlow, FlowSettings, FlowStore, SchemaChoice, SkippedUpload, get_flow_store, is_starting
 from arp.argus.progress import CompanyProgress, FlowProgress, company_status, minutes_left
 from arp.argus.repeat import RepeatRow, kept_content, repeat_rows
@@ -138,6 +138,10 @@ class Viewer:
             view.step = 5  # the run is over: its results are the flow's furthest step
         return view
 
+    @property
+    def checks_dir(self) -> Path:
+        return self.settings.runs_dir / "_flows" / "_checks"
+
     def repeats(self, flow: ArgusFlow, files: list[FlowFile]) -> list[RepeatRow]:
         if not flow.schema_choice or flow.step < 3:  # not while step 2 polls a discovery run
             return []
@@ -149,7 +153,7 @@ class Viewer:
 
     def files(self, flow: ArgusFlow) -> list[FlowFile]:
         return flow_files(flow, documents_dir=self.settings.documents_dir, content_store=self.content_store,
-                          checks_dir=self.settings.runs_dir / "_flows" / "_checks",
+                          checks_dir=self.checks_dir,
                           discovery_state_dir=self.settings.discovery_state_dir)
 
 
@@ -301,14 +305,23 @@ async def upload_flow_document(
     if len(data) > settings.max_upload_bytes:
         raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
     try:
-        _, duplicate_of = store_upload(settings.documents_dir, company_id, doc_type.value, file.filename or "", data)
+        path, duplicate_of = store_upload(settings.documents_dir, company_id, doc_type.value, file.filename or "", data)
     except UnsafeIdentifierError as exc:
         raise HTTPException(400, str(exc)) from exc
+    key = f"{company_id}/{path.parent.name}/{path.name}"
+    company = next(c for c in flow.companies if c.company_id == company_id)
+    passes = passes_check(flow, company, path, view.checks_dir)
 
     def apply(f: ArgusFlow) -> None:
         f.source = f.source or "upload"
-        skipped = SkippedUpload(company_id=company_id, filename=file.filename or "", duplicate_of=duplicate_of or "")
-        if duplicate_of and all((x.company_id, x.filename) != (company_id, skipped.filename) for x in f.skipped_uploads):  # one row per key
+        if not duplicate_of or f.decisions.get(key) == "removed":  # a new file, or one removed here and uploaded again
+            if passes:
+                f.decisions[key] = "kept"
+            else:
+                f.decisions.pop(key, None)  # not decided: the user sees why it fails
+            return
+        skipped = SkippedUpload(company_id=company_id, filename=file.filename or "", duplicate_of=duplicate_of)
+        if all((x.company_id, x.filename) != (company_id, skipped.filename) for x in f.skipped_uploads):  # one row per key
             f.skipped_uploads.append(skipped)
 
     return view(store.update(flow_id, apply))
