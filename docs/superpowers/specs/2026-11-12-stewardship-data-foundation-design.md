@@ -3,7 +3,7 @@
 Slug: `stewardship-data-foundation`. Risk: high (new system of record for engagements, a data migration,
 an API contract change).
 
-Status: **draft, waiting for the owner's approval.**
+Status: **approved by the owner on 12 Nov 2026** (buttons in the spec session).
 
 Owner decisions so far (12 Nov 2026, buttons in this session):
 
