@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { FileLink } from "../../components/FileLink";
 import { api } from "../../api/client";
 import type { BenchmarkInfo, ProgramMonitor, ProgramParams, ProgramRun, ProgramSimulation, ProgramVersion } from "../../types";
-import { ActorField, DataTable, Section, useActor, words } from "./common";
+import { ActorField, DataTable, SampleChip, Section, useActor, words } from "./common";
 
 // Traffic lights reuse the score badges: green = good, amber = mid, red = low.
 const LIGHT: Record<string, string> = { green: "badge-high", amber: "badge-mid", red: "badge-low", not_built: "badge-neutral" };
@@ -154,14 +154,20 @@ export function ProgramStudio({ streamId }: { streamId: string }) {
           Calibrate the four steps (tilt, engagement selection, vote sanction, escalation) against the house program. Every change
           reruns the whole pipeline. Voting policy: {sim.voting_policy}. Escalation rules: {sim.escalation_rules} (stage 7).
         </p>
-        {sim.score_note && <p className="warning-banner">{sim.score_note}</p>}
+        {sim.score_note && (
+          <p className="warning-banner">
+            <SampleChip /> {sim.score_note}
+          </p>
+        )}
         <p className="muted">
           {sim.constituents} companies. {sim.data_note}
         </p>
         <div className="metric-grid">
           {tiles.map(([label, value, hint]) => (
             <div key={label} className="metric-tile">
-              <span className="metric-tile-label">{label}</span>
+              <span className="metric-tile-label">
+                {label} {label === "Weighted CLTI" && <SampleChip />}
+              </span>
               <strong className="metric-tile-value">{value}</strong>
               {hint && <span className="muted">{hint}</span>}
             </div>
