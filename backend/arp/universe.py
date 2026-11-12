@@ -4,6 +4,8 @@ import csv
 import json
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from arp.errors import ClientInputError
 from arp.research.indirect_exposure.nace import nace_known, normalise_nace
 from arp.schemas.common import CompanyRef
@@ -54,14 +56,20 @@ def load_company_universe(path: str | Path) -> list[CompanyRef]:
 
     companies: list[CompanyRef] = []
     seen: set[str] = set()
-    for row in rows:
+    for n, row in enumerate(rows, start=1):  # rows counted from 1 at the first data row
         clean = {k: (v if v not in ("", None) else None) for k, v in row.items()}
         if clean.get("nace_rev") is None:
             clean.pop("nace_rev", None)  # blank -> default "2"
         for k in ("nace_code", "nace_rev", "gics_code"):  # JSON numbers (7.29) are validated as text
             if clean.get(k) is not None:
                 clean[k] = str(clean[k])
-        company = check_sector_codes(CompanyRef(**clean))
+        try:
+            ref = CompanyRef(**clean)
+        except ValidationError as exc:  # the first bad field of the first bad row, in words, not pydantic's text
+            field = str(exc.errors()[0]["loc"][0])
+            problem = "is required" if clean.get(field) is None else "is not valid"
+            raise UniverseRejected(f"Row {n}: {field} {problem}.") from None
+        company = check_sector_codes(ref)
         if company.company_id in seen:
             raise UniverseRejected(f"duplicate company_id '{company.company_id}'")
         seen.add(company.company_id)

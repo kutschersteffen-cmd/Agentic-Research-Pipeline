@@ -101,7 +101,8 @@ class IntervalScheduler:
             self._loop.call_soon_threadsafe(self._reschedule, config)
 
     def _interval(self, config: Any) -> float:
-        return 24 * 3600 if self._calendar(config) else config.interval_hours * 3600
+        # A stored interval below 1 hour (saved before the API checked it) is read as 1 hour, never back to back.
+        return 24 * 3600 if self._calendar(config) else max(config.interval_hours, 1) * 3600
 
     def _reschedule(self, config: Any) -> None:
         if self._task:
