@@ -4,7 +4,8 @@ description: Critique a spec's acceptance table before the owner is asked to app
 ---
 
 Run this in a **fresh subagent** that did not write the spec, so it reads the spec the way the
-implementer will. Give it only the spec file and `docs/superpowers/ACCEPTANCE_TEMPLATE.md`.
+implementer will. Give it only the spec file and `docs/superpowers/ACCEPTANCE_TEMPLATE.md`; it may open the repo
+files the spec names, for check 10.
 
 ## What it checks
 
@@ -28,6 +29,14 @@ Across the spec:
 6. Every goal and anti-goal is covered by at least one row.
 7. Behaviour the change must not break has a "must not change" row.
 8. No row tests something the Non-goals exclude.
+
+Without the conversation that produced the spec:
+
+9. **Fresh reader:** in two sentences, say what will be built and for whom. If you can't, or the
+   spec's own summary says something else, that is a finding on the summary.
+10. **Ready to build:** list every question a builder would have to ask before starting: a file,
+    endpoint, setting or table the spec names that doesn't exist or doesn't match the repo; a default,
+    unit or limit left open; an order of steps left open. Each question is a finding.
 
 ## Output
 
