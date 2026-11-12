@@ -88,13 +88,16 @@ class ArgusFlow(BaseModel):
     repeat: dict[str, Literal["skip", "run"]] = {}
     run_id: str | None = None
     starting: bool = False  # set while a Start is being dispatched
+    starting_at: str | None = None  # when that Start began
     problems: dict[str, str] = {}  # company key -> why its ticker gave no identifier (step 1 shows it)
     identity_applied: str | None = None  # the identity run whose result was read back into `companies`
 
 
 def is_starting(flow: ArgusFlow) -> bool:
-    """A Start is being dispatched. A flag older than a minute is left over from a Start that died: not starting."""
-    return flow.starting and datetime.now(UTC) - datetime.fromisoformat(flow.updated_at) < timedelta(seconds=60)
+    """A Start is being dispatched. A flag older than a minute is left over from a Start that died: not starting.
+    A flag stored without its time (before `starting_at` existed) is as old as the flow's last write."""
+    began = datetime.fromisoformat(flow.starting_at or flow.updated_at)
+    return flow.starting and datetime.now(UTC) - began < timedelta(seconds=60)
 
 
 class FlowStore:

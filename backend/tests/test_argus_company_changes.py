@@ -371,6 +371,12 @@ def test_a_save_does_not_make_an_old_start_flag_fresh(client, fid, settings):
     assert edit(client, fid, acme, name="Acme Corp").status_code == 200
 
 
+def test_writes_during_a_dead_start_do_not_keep_its_flag_alive(client, fid, settings):
+    acme = add(client, fid, name="Acme")["companies"][0]["company_id"]
+    rewrite(settings, fid, starting=True, starting_at=ago(120), updated_at=ago(1))  # the flow was written a second ago
+    assert edit(client, fid, acme, name="Acme Corp").status_code == 200
+
+
 def test_a_start_flag_older_than_a_minute_blocks_nothing(client, settings):  # AC-155
     flows = []
     for _ in range(3):

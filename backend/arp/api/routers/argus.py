@@ -48,7 +48,7 @@ from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import NotResumable, RunBusy, check_resumable, get_job_launcher, resume_run, run_lease
 from arp.orchestration.step_tally import running_cost, step_counts
 from arp.review.items import list_open_items
-from arp.schemas.common import CompanyRef, DocType, JobStatus
+from arp.schemas.common import CompanyRef, DocType, JobStatus, now_iso
 from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
@@ -378,7 +378,7 @@ async def start_flow(
     def claim(f: ArgusFlow) -> None:  # under the flow's lock: a second Start meanwhile gets a 409
         if is_starting(f):
             raise HTTPException(409, "This extraction is already starting.")
-        f.starting = True
+        f.starting, f.starting_at = True, now_iso()
 
     store.update(flow_id, claim)
     try:
