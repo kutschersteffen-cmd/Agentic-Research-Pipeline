@@ -2,36 +2,29 @@
 
 Slug: `showcase-portfolio-data`. Risk: high (portfolio import and weights, load records, a new observation source).
 
-## Decided by the owner (12 Nov, buttons in the dispatcher session; confirm at approval)
+Status: **approved by the owner on 12 Nov 2026** (buttons in the spec session), with the picks below.
+
+## Decided by the owner (12 Nov)
 
 1. **Controversial revenue: sector plus known names.** Companies whose business is the activity are named
    in an override list and get a high share from a plausible range; everyone else gets zero, or a small share
    where the sector makes it plausible.
 2. **Grade F (Disqualified) is the bottom 5 % of each sector** on the simulated transition score. No exclusion
-   rule behind it. Split per sector: A 10 %, B 20 %, C 30 %, D 25 %, E 10 %, F 5 % (my split of the proposed
-   A to E so the six sum to 100 %).
+   rule behind it. Split per sector: A 10 %, B 20 %, C 30 %, D 25 %, E 10 %, F 5 %.
 3. **History: six months, June to November 2026.** Earlier months reuse the same holdings with small seeded
    weight changes; emissions drift slightly downward over time.
 4. "Fix English labels in the app".
-
-## Open for the owner at approval
-
-1. **Where the A-F grade comes from.** Recommended: **(a) a column of the simulated dataset**, computed by
-   the rule in "Transition grade". Alternative: **(b) Decision Studio**, a six-tier framework run over the
-   simulated indicators. The existing preset in `backend/arp/decision/credibility.py` has five tiers
-   (A Credible, B Credible gaps, C Partial, D Not credible, E Opaque) and a five-question test that needs
-   indicator columns this dataset does not have; (b) means reworking that preset and revising this spec
-   before any build. Rows AC-22 to AC-26 and AC-52 hold for (a).
-2. **Where grades show** (any of three; rows retire with the places not picked):
-   - **Transition Intelligence, recommended** (AC-73 to AC-75): a native "Simulated ESG" card in Risk
-     Monitoring → Company Profiles (beside the existing `ProfileActionStrip`, so it works without Superset),
-     plus a per-portfolio grade breakdown in `bi_published` and grade text in the `bi.company_profile` view
-     for later dashboards (charts stay with PR #424).
-   - **Index Construction as a field, recommended** (no row here): the dataset carries `transition_grade`
-     with the type in "Fields for Index Construction"; `index-starting-universe` shows it as a category.
-   - **Company page, not recommended** (AC-70 to AC-72): `#/companies/<ref>` shows authoritative facts from
-     the company registry, a different id space; PR 3 would have to register about 2,540 companies there and
-     mix simulated values into a page of real facts.
+5. **The A-F grade is a column of the simulated dataset**, computed by the rule in "Transition grade". No
+   Decision Studio rework (the five-tier preset in `backend/arp/decision/credibility.py` stays as it is).
+6. **Grades show in all three places:**
+   - **Transition Intelligence** (AC-73 to AC-75): a native "Simulated ESG" card in Risk Monitoring → Company
+     Profiles (beside `ProfileActionStrip`, so it works without Superset), a per-portfolio grade breakdown in
+     `bi_published` and grade text in the `bi.company_profile` view for later dashboards (charts stay with
+     PR #424).
+   - **Index Construction as a field** (no row here): the dataset carries `transition_grade` with the type in
+     "Fields for Index Construction"; `index-starting-universe` shows it as a category.
+   - **Company page** (AC-70 to AC-72): PR 3 makes the imported companies open on `#/companies/<ref>` and
+     shows the grade and simulated values there, each marked `Simulated`, apart from the page's real facts.
 
 ## Intent
 
@@ -116,7 +109,7 @@ ISIN (IE00BGV5VN51).
 
 - Real ESG data, or any claim that a value is real.
 - Portfolios other than the seven files and the app's seeded demo portfolios.
-- A Decision Studio credibility rework, unless the owner picks open decision 1(b).
+- A Decision Studio credibility rework (owner decision 5).
 - Index Construction candidates built from the dataset (`index-starting-universe`, which depends on PR 1).
 - Superset dashboards and charts (PR #424); this spec fills only the rows they read.
 - Removing cash and fund lines from imported portfolios; the project import (`arp/projects/service.py`),
@@ -255,7 +248,7 @@ brewers, distillers, casino and betting groups and may add more):
   GB0007980591, IT0003132476, NO0010096985, US20825C1045, AU0000224040, SA14TG012N13, CNE1000003W8,
   CNE1000007Q1, INE002A01018, RU0007661625
 
-## Transition grade (PR 1, open decision 1(a), owner decision 2)
+## Transition grade (PR 1, owner decisions 2 and 5)
 
 Per peer group, over its n keys, with values as written in the file:
 
@@ -288,9 +281,9 @@ with `climate_carbon_intensity` above the median over the peer group's keys → 
 | Field | Stored as | Shown, with label |
 |---|---|---|
 | Every column | `data/simulated/esg_simulated.csv`, `data_status` = `simulated` | File; README line 1 `SIMULATED DATA. ...` |
-| Seven climate columns | Observations, source `simulated`, one set per month 2026-06 to 2026-11 | `bi_published` rows with `source` `simulated`; Ask the Portfolio answers and monitoring alerts built on them show `Simulated`; the TI card if picked |
-| The 25 `simulated_esg` fields (below) | Observations, source `simulated`, period 2026-11 | `bi_published` `company_profile` rows with `source` `simulated`; the TI card if picked |
-| Grade breakdown per portfolio | `bi_published` `portfolio_climate_metrics` keys, if TI picked | Superset later (PR #424) |
+| Seven climate columns | Observations, source `simulated`, one set per month 2026-06 to 2026-11 | `bi_published` rows with `source` `simulated`; Ask the Portfolio answers and monitoring alerts built on them show `Simulated`; the TI card and the company page |
+| The 25 `simulated_esg` fields (below) | Observations, source `simulated`, period 2026-11 | `bi_published` `company_profile` rows with `source` `simulated`; the TI card and the company page |
+| Grade breakdown per portfolio | `bi_published` `portfolio_climate_metrics` keys | Superset later (PR #424) |
 | Holdings history | Snapshots 2026-06-30 to 2026-10-31, tag `history:simulated`, load-record detail `simulated history from <file>` | Portfolio tags |
 
 The screen label is the word `Simulated`. Schema `simulated_esg` ("Simulated ESG") has exactly these 25 field
@@ -357,7 +350,7 @@ value, so a second run changes nothing.
 without `esg_provider` use `default` when that month has a `default` ESG load, else `simulated`; the CLI's
 `--esg-provider` does the same when left out. So "Run now" works on the simulated months.
 
-## Grades on screens (PR 3, per open decision 2)
+## Grades on screens (PR 3, owner decision 6)
 
 Wherever a simulated value or grade shows, the word `Simulated` shows next to it. The grade shows as
 `<letter> <label>`, e.g. `B Credible`, with its peer group.
@@ -368,7 +361,7 @@ Wherever a simulated value or grade shows, the word `Simulated` shows next to it
 |---|---|---|---|
 | 1 | `AI_Big_Data.xlsx` to `main`, `arp showcase simulate`, `data/simulated/` (dataset, overrides, README), grades | normal | nothing |
 | 2 | `import_holdings_file`, English labels, `simulated` source and schema, provider fallback, `arp showcase load`, monthly runs, `Simulated` on Ask the Portfolio and alerts | high | #419 merged |
-| 3 | Grades and labels where the owner picks | normal | PR 2 |
+| 3 | Grades and labels on the TI card, the company page and `bi.company_profile` | normal | PR 2 |
 
 My call against the intake plan: the loader moves from PR 1 to PR 2, because it needs the import fixes;
 PR 1 stays independent so `index-starting-universe` can start on the file.
@@ -447,11 +440,11 @@ a shared ISIN, as "Key" defines it (2,530 today). "The e2e stack" is `backend/sc
 | AC-59 | The loader ran and a threshold rule on carbon intensity raised an alert for an imported portfolio | a user opens Risk Monitoring, Monitoring | that alert shows the word `Simulated` | evaluator |
 | AC-60 | Must not change: an ESG file uploaded with provider `default` for 2026-10 | the run status for 2026-10 is read without a provider, and the file's observations are read | provider `default` is used; observations have source `internal_api` | holdout |
 | AC-61 | Must not change: a portfolio with no holdings load record for 2026-10 | `arp portfolio monthly-run --month 2026-10 --portfolio <it>` | status `blocked`, a reason naming the portfolio, exit 1 | holdout |
-| AC-70 | Open decision 2 includes the company page; the loader ran | a user opens the company with the largest weight in `DAX.xlsx` | the page shows `Transition grade`, the grade as `<letter> <label>`, its peer group and the word `Simulated` | evaluator |
+| AC-70 | The loader ran | a user opens the company with the largest weight in `DAX.xlsx` | the page shows `Transition grade`, the grade as `<letter> <label>`, its peer group and the word `Simulated` | evaluator |
 | AC-71 | Same | the user looks at any climate value or revenue share on that page | the word `Simulated` shows next to it | evaluator |
 | AC-72 | Same | a user searches for that company's name | it is found and opens the page of AC-70 | evaluator |
-| AC-73 | Open decision 2 includes Transition Intelligence; the loader ran | a user opens Risk Monitoring → Company Profiles and picks the company with the largest weight in `DAX.xlsx` | a card titled `Simulated ESG` shows the grade as `<letter> <label>`, the peer group, scope 1, carbon intensity and the eight revenue shares | evaluator |
+| AC-73 | The loader ran | a user opens Risk Monitoring → Company Profiles and picks the company with the largest weight in `DAX.xlsx` | a card titled `Simulated ESG` shows the grade as `<letter> <label>`, the peer group, scope 1, carbon intensity and the eight revenue shares | evaluator |
 | AC-74 | Same | `bi_published` `portfolio_climate_metrics` rows for 2026-11 of `portfolio_dax` are read | keys `grade_a_weight_pct` to `grade_f_weight_pct`, each a share of the weight of graded holdings, summing to 100 within 0.1 percentage points | holdout |
 | AC-75 | Same | the `bi.company_profile` view is queried for `transition_grade` in 2026-11 | a text column holds the grade letter for every dataset company | holdout |
 
-Rows by PR: PR 1 AC-1 to AC-28; PR 2 AC-30 to AC-61; PR 3 AC-70 to AC-75 for the places picked.
+Rows by PR: PR 1 AC-1 to AC-28; PR 2 AC-30 to AC-61; PR 3 AC-70 to AC-75.
