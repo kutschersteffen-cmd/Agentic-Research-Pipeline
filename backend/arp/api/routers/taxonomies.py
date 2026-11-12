@@ -147,10 +147,11 @@ async def create_taxonomy(
 
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
 
-    llm = get_llm_client()
+    # A theme drafted earlier (Thematic Universe's "Decompose") is stored as it is, without another model call.
+    llm = None if method == DerivationMethod.LLM_DRAFT and req.theme is not None else get_llm_client()
 
     if method == DerivationMethod.LLM_DRAFT:
-        theme, _usage = await build_theme(req.name, req.description, llm)
+        theme = req.theme or (await build_theme(req.name, req.description, llm))[0]
         notes = "Freeform LLM draft, no industry anchor."
 
     elif method == DerivationMethod.INDUSTRY_ANCHORED:

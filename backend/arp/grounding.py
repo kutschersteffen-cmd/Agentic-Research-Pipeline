@@ -296,12 +296,13 @@ def ground_citations(
         # draft schema, so the model can fill them itself.
         update: dict = {
             "grounded": match is not None, "page": None, "sheet": None, "company_id": None,
-            "source_filename": None, "content_key": None, "parser_version": None, "span_text": None,
+            "source_filename": None, "source_url": None, "content_key": None, "parser_version": None, "span_text": None,
             "char_start": None, "char_end": None, "match_method": None, "match_score": None, "table_ref": None,
         }
         if match and doc:
             update["company_id"] = doc.company_id
             update["source_filename"] = Path(doc.local_path).name if doc.local_path else None
+            update["source_url"] = None if doc.local_path else doc.source_url
             update["page"] = _page_for_offset(doc.page_breaks, match.char_start)
             update["sheet"] = _sheet_for_offset(doc.full_text, match.char_start)
             update["table_ref"] = _table_ref_for_offset(doc, match.char_start, match.char_end)
