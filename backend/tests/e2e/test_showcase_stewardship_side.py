@@ -264,7 +264,16 @@ def test_announcer_is_cleared_on_another_screen(page):  # AC-170, AC-171
 # --- Steward Workflow: chips and four-eyes (AC-141, AC-144) ---
 
 
-def test_client_program_marks_placeholder_scores(page):  # AC-141
+@pytest.fixture
+def sample_house_universe():
+    """The client program needs house weights; an empty portfolio universe left by another test has none."""
+    before = httpx.get(f"{API}/api/stewardship/universe").json()["source"]
+    httpx.put(f"{API}/api/stewardship/universe", json={"source": "sample"}).raise_for_status()
+    yield
+    httpx.put(f"{API}/api/stewardship/universe", json={"source": before}).raise_for_status()
+
+
+def test_client_program_marks_placeholder_scores(page, sample_house_universe):  # AC-141
     name = f"Client {uuid.uuid4().hex[:4]}"
     httpx.post(f"{API}/api/stewardship/streams", json={"name": name}).raise_for_status()
     note = "CLTI scores are placeholders, not an assessment of these companies. Do not share this as a view on them."
@@ -272,9 +281,11 @@ def test_client_program_marks_placeholder_scores(page):  # AC-141
     def program(route):  # the sample benchmark has no score note; portfolio holdings do
         if route.request.method != "GET":
             return route.fallback()
-        body = route.fetch().json()
-        body["simulation"]["score_note"] = note
-        route.fulfill(json=body)
+        response = route.fetch()
+        body = response.json()
+        if "simulation" in body:  # the house stream has no client program
+            body["simulation"]["score_note"] = note
+        route.fulfill(response=response, json=body)
 
     page.route(re.compile(r".*/api/stewardship/streams/[^/]+/program$"), program)
     page.goto(f"{URL}/#/stewardship/program")
