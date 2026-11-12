@@ -46,7 +46,7 @@ from arp.ingestion.registry import (
 )
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import NotResumable, RunBusy, check_resumable, get_job_launcher, resume_run, run_lease
-from arp.orchestration.step_tally import step_counts
+from arp.orchestration.step_tally import running_cost, step_counts
 from arp.review.items import list_open_items
 from arp.schemas.common import CompanyRef, DocType, JobStatus
 from arp.storage.decision_store import DecisionStore
@@ -60,6 +60,9 @@ from arp.xbrl_pipeline.store import XbrlStore
 router = APIRouter(prefix="/api/argus", tags=["argus"])
 # A discovery run with no progress for this long is taken as dead (its worker was restarted), so it can be started again.
 DISCOVERY_STALE_AFTER = timedelta(minutes=30)
+
+
+CONFLICT_IN_RUN = "Identifiers match more than one company. Correct them in a new extraction."
 
 
 class DiscoveryStatus(BaseModel):
@@ -373,7 +376,7 @@ async def start_flow(
         raise HTTPException(400, str(exc)) from exc
 
     def claim(f: ArgusFlow) -> None:  # under the flow's lock: a second Start meanwhile gets a 409
-        if f.starting:
+        if is_starting(f):
             raise HTTPException(409, "This extraction is already starting.")
         f.starting = True
 
@@ -385,13 +388,14 @@ async def start_flow(
     except BaseException:
         store.update(flow_id, lambda f: setattr(f, "starting", False))
         raise
-    (run_store.run_dir(started["run_id"]) / ONLY_DOCUMENTS).write_text(json.dumps({k: sorted(v) for k, v in only.items()}))
-    (run_store.run_dir(started["run_id"]) / KEPT_NAMES).write_text(json.dumps(kept_names(files)))
 
     def apply(f: ArgusFlow) -> None:
         f.run_id, f.step, f.starting = started["run_id"], max(f.step, 4), False
 
-    return view(store.update(flow_id, apply))
+    flow = store.update(flow_id, apply)  # first: if a write below fails, the flow still points at its run
+    (run_store.run_dir(started["run_id"]) / ONLY_DOCUMENTS).write_text(json.dumps({k: sorted(v) for k, v in only.items()}))
+    (run_store.run_dir(started["run_id"]) / KEPT_NAMES).write_text(json.dumps(kept_names(files)))
+    return view(flow)
 
 
 @router.get("/flows/{flow_id}/progress", dependencies=[Depends(current_user)])
@@ -408,24 +412,35 @@ def flow_progress(
     active = status in ("pending", "running")
     error_rows = run_store.read_errors(m.run_id)
     errors = {r.get("key"): r for r in error_rows if r.get("key")}
+    # a company the run left out because its identifiers name two companies: recorded without a `key`
+    conflicts = {r.get("company_id") for r in error_rows if r.get("kind") == "identity_conflict"}
+    retrying = m.params.get("retrying", [])
     open_items = Counter(str(i.payload.get("company_id")) for i in list_open_items(run_store, principal, run_id=m.run_id))
     companies = []
     for row in extraction.run_companies(run_store, m.run_id, run_store.read_results(m.run_id), error_rows):
         cid = row["company_id"]
+        if cid in conflicts and row["status"] == "waiting":
+            companies.append(CompanyProgress(company_id=cid, name=row["name"], status="Failed", percent=0, reason=CONFLICT_IN_RUN))
+            continue
         steps = step_counts(run_store, m.run_id, cid)[0]["counts"] if active else {}  # the tally only matters while it runs
-        raw = "waiting" if active and row["status"] == "failed" and cid in m.params.get("retrying", []) else row["status"]
-        label, percent = company_status(raw, status, steps)
+        raw = "waiting" if active and row["status"] == "failed" and cid in retrying else row["status"]
+        # a Retry runs one company: the ones that never started are not waiting for it
+        label, percent = company_status(raw, "stopped" if retrying and cid not in retrying else status, steps)
         error = errors.get(cid) if raw in ("failed", "review") else None  # a review stop says why too
         companies.append(CompanyProgress(
             company_id=cid, name=row["name"], status=label, percent=percent, needs_you=open_items.get(cid, 0),
-            reason=error.get("error") if error else None,
+            reason=error.get("error") if error else None, retryable=label == "Failed",
             document_problem=bool(error and label == "Failed" and error.get("document_problem"))))
     done = m.completed_count + m.failed_count
     since = m.params.get("done_at_restart", 0)  # a Retry or resume: count from its start, not the run's
     started = datetime.fromisoformat(m.params.get("restarted_at") or m.created_at)
-    left = minutes_left(started, datetime.now(UTC), done=done - since, total=m.company_count - since)
+    left = minutes_left(started, datetime.now(UTC), done=done - since, total=m.company_count - since,
+                        # the stages of the companies in progress; a finished one is in `done` (or was before the restart)
+                        reached=sum(c.percent for c in companies if c.percent < 100) / 100 if active else 0.0)
     return FlowProgress(run_id=m.run_id, started_at=m.created_at, done=done, total=m.company_count, minutes_left=left,
-                        cost_usd=m.estimated_cost_usd, status=status, companies=companies)
+                        finished=sum(c.status in ("Done", "Failed") for c in companies),
+                        cost_usd=m.estimated_cost_usd + running_cost(m.run_id), status=status,
+                        stopping=active and m.cancel_requested, companies=companies)
 
 
 @router.post("/flows/{flow_id}/companies/{company_id}/retry", dependencies=[Depends(require_role("analyst"))])

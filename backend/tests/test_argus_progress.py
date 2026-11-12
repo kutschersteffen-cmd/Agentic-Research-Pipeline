@@ -132,3 +132,167 @@ def test_time_left_counts_from_the_latest_restart(client, settings, run_store):
     run_store.save_manifest(m)
     p = client.get(f"/api/argus/flows/{_flow(client, settings)}/progress").json()
     assert p["minutes_left"] == 10  # 1 company in 9.5 minutes since the restart, 1 to go -- not months of idle time
+
+
+# --- showcase-argus-fixes items 22 to 26 ---
+
+def _companies(run_store, names, run_id="extraction_p"):
+    rows = [{"company_id": c, "name": c.upper()} for c in names]
+    (run_store.run_dir(run_id) / "start_request.json").write_text(json.dumps({"profile": "custom", "companies": rows}))
+
+
+def _result(run_store, cid):
+    run_store.append_result("extraction_p", {"_key": cid, "company_id": cid, "name": cid.upper(), "issuer_key": cid, "fields": []})
+
+
+def _progress(client, settings):
+    r = client.get(f"/api/argus/flows/{_flow(client, settings)}/progress")
+    assert r.status_code == 200, r.text
+    return r.json(), {c["company_id"]: c for c in r.json()["companies"]}
+
+
+def test_a_company_dropped_for_conflicting_identifiers_reads_failed(client, settings, run_store, pg):  # AC-45, AC-46, AC-47
+    from sqlalchemy import insert
+
+    from arp.db.models import RunError
+    from arp.db.session import transaction
+
+    run_store.save_manifest(RunManifest(run_id="extraction_p", run_type="extraction", status="completed", company_count=3,
+                                        completed_count=2))
+    _companies(run_store, ("apple", "microsoft", "mixed"))
+    _result(run_store, "apple")
+    _result(run_store, "microsoft")
+    with transaction(pg) as s:  # as RunStore.save_companies records a company it leaves out
+        s.execute(insert(RunError).values(run_id="extraction_p", error={
+            "kind": "identity_conflict", "company_id": "mixed", "conflict": ["u1", "u2"]}))
+    p, rows = _progress(client, settings)
+    assert (rows["mixed"]["status"], rows["mixed"]["reason"], rows["mixed"]["retryable"]) == (
+        "Failed", "Identifiers match more than one company. Correct them in a new extraction.", False)
+    assert (p["finished"], p["total"], p["done"]) == (3, 3, 2)
+
+
+def test_finished_counts_every_row_that_reads_done_or_failed(client, settings, run_store):  # AC-48, AC-49, AC-141, AC-142
+    _run(run_store, "running", completed_count=1, failed_count=1)
+    _result(run_store, "a")
+    run_store.append_error("extraction_p", {"key": "b", "error": "No text could be read from b.pdf", "document_problem": True})
+    report = {"failed_step": "parse_index", "error": "Parse & index failed for D: no document text could be parsed"}
+    run_store.append_error("extraction_p", {"key": "d", "error": report["error"], "review": True, "report": report})
+    p, rows = _progress(client, settings)
+    assert [rows[c]["status"] for c in "abcd"] == ["Done", "Failed", "Waiting", "Done"]
+    assert (p["finished"], p["done"], p["stopping"]) == (3, 2, False)
+    assert [rows[c]["retryable"] for c in "abcd"] == [False, True, False, False]
+
+
+def test_never_started_rows_stay_stopped_during_a_retry(client, settings, run_store):  # AC-50
+    _run(run_store, "running", failed_count=1)
+    run_store.append_error("extraction_p", {"key": "b", "error": "boom"})
+    m = run_store.load_manifest("extraction_p")
+    m.params = {"retrying": ["b"]}
+    run_store.save_manifest(m)
+    _, rows = _progress(client, settings)
+    assert [rows[c]["status"] for c in "abcd"] == ["Stopped", "Waiting", "Stopped", "Stopped"]
+
+
+def test_a_requested_stop_is_reported(client, settings, run_store):  # AC-51
+    _run(run_store, "running")
+    m = run_store.load_manifest("extraction_p")
+    m.cancel_requested = True
+    run_store.save_manifest(m)
+    assert _progress(client, settings)[0]["stopping"] is True
+
+
+def test_minutes_left_from_the_stages_reached():
+    start = datetime(2026, 11, 10, 14, 0, tzinfo=UTC)
+    assert minutes_left(start, start + timedelta(minutes=4), done=0, total=2, reached=0.5) == 12  # 4 / 0.5 * 1.5
+    assert minutes_left(start, start + timedelta(minutes=5), done=0, total=2, reached=0.75) == 9  # 5 / 0.75 * 1.25, rounded up
+    assert minutes_left(start, start + timedelta(minutes=4), done=0, total=2, reached=0.0) is None
+    assert minutes_left(start, start + timedelta(minutes=4), done=0, total=4, reached=0.2) is None  # too little to go by
+    assert minutes_left(start, start + timedelta(minutes=6), done=3, total=10, reached=3.5) == 14  # a finished company decides
+
+
+@pytest.mark.parametrize("ago, steps, expected", [
+    (3.9, {"c1": "extract"}, 12),  # AC-52: one company at Extracting, one Waiting
+    (4.9, {"c1": "verify"}, 9),  # AC-146: one at Checking the answers
+    (3.9, {}, None),  # AC-53: both Waiting
+])
+def test_time_left_before_any_company_has_finished(client, settings, run_store, ago, steps, expected):
+    started = (datetime.now(UTC) - timedelta(minutes=ago)).isoformat()
+    run_store.save_manifest(RunManifest(run_id="extraction_p", run_type="extraction", created_at=started, status="running",
+                                        company_count=2))
+    _companies(run_store, ("c1", "c2"))
+    step_tally._live["extraction_p"] = step_tally._Tally()
+    for cid, node in steps.items():
+        step_tally._live["extraction_p"].add(cid, node, 1.0)
+    try:
+        assert _progress(client, settings)[0]["minutes_left"] == expected
+    finally:
+        step_tally._live.pop("extraction_p", None)
+
+
+async def test_cost_includes_the_finished_calls_of_a_company_in_progress(client, settings, run_store):  # AC-54, AC-55
+    import asyncio
+    from typing import TypedDict
+
+    from langgraph.graph import END, START, StateGraph
+
+    from arp.llm.base import LLMUsage
+    from arp.orchestration.batch_runner import run_company_batch
+    from arp.orchestration.cost_tracker import estimate_cost_usd
+    from arp.orchestration.job_manager import JobManager
+    from arp.schemas.common import CompanyRef
+
+    calls = [LLMUsage(input_tokens=400_000, output_tokens=10_000, model="stand-in"),
+             LLMUsage(input_tokens=90_000, output_tokens=70_000, model="stand-in")]
+    cost = [estimate_cost_usd("stand-in", u) for u in calls]
+    first_call_done, release = asyncio.Event(), asyncio.Event()
+
+    class State(TypedDict):
+        usages: list
+
+    async def extract(state):
+        return {"usages": state["usages"] + [calls[0]]}
+
+    async def verify(state):
+        first_call_done.set()
+        await release.wait()
+        return {"usages": state["usages"] + [calls[1]]}
+
+    graph = StateGraph(State)
+    graph.add_node("extract", extract)
+    graph.add_node("verify", verify)
+    graph.add_edge(START, "extract")
+    graph.add_edge("extract", "verify")
+    graph.add_edge("verify", END)
+    compiled = graph.compile()
+
+    async def worker(company):
+        final = await step_tally.run_graph(compiled, {"usages": []})
+        return {"company_id": company.company_id, "cost": sum(estimate_cost_usd(u.model, u) for u in final["usages"])}
+
+    companies = [CompanyRef(company_id="c1", name="C1")]
+    run_id = JobManager(run_store).create_run("stand_in", {}, 1, companies=companies).run_id
+    _companies(run_store, ("c1",), run_id)
+    url = f"/api/argus/flows/{_flow(client, settings, run_id)}/progress"
+    batch = asyncio.create_task(run_company_batch(run_id, companies, run_store=run_store, worker=worker, result_to_json=dict,
+                                                  cost_usd=lambda r: r["cost"], concurrency=1))
+    await asyncio.wait_for(first_call_done.wait(), 10)
+    running = await asyncio.to_thread(client.get, url)
+    assert running.json()["cost_usd"] == pytest.approx(cost[0]) and running.json()["companies"][0]["status"] != "Done"
+    release.set()
+    await asyncio.wait_for(batch, 10)
+    assert client.get(url).json()["cost_usd"] == pytest.approx(cost[0] + cost[1])  # each call once
+
+
+async def test_a_failed_companys_finished_calls_stay_in_the_cost(client, settings, run_store):
+    from arp.orchestration.batch_runner import run_company_batch
+    from arp.orchestration.job_manager import JobManager
+    from arp.schemas.common import CompanyRef
+
+    async def worker(company):
+        step_tally.record_call_cost(0.25)
+        raise RuntimeError("model down")
+
+    companies = [CompanyRef(company_id="c1", name="C1")]
+    run_id = JobManager(run_store).create_run("stand_in", {}, 1, companies=companies).run_id
+    await run_company_batch(run_id, companies, run_store=run_store, worker=worker, result_to_json=dict, concurrency=1)
+    assert run_store.load_manifest(run_id).estimated_cost_usd == pytest.approx(0.25)  # the header never counts down

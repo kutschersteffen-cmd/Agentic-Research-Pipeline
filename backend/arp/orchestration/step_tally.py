@@ -36,6 +36,8 @@ class _Tally:
     # batch_id -> the wait of each Message Batch this run has open (a run can
     # have several: extraction's extractor and verifier clients batch apart).
     batch_waits: dict[str, dict] = field(default_factory=dict)
+    # company -> cost of its model calls that have finished, until the company's own result is counted
+    running_cost: dict[str, float] = field(default_factory=dict)
 
     def add(self, company_id: str | None, node: str, seconds: float) -> None:
         self.counts[node] += 1
@@ -122,12 +124,17 @@ async def run_graph(graph: Any, state: dict) -> dict:
     company_id = _company.get()
     final = state
     started = time.monotonic()
+    counted = 0  # usages of this item already added to the running cost
     async for mode, chunk in graph.astream(state, stream_mode=["updates", "values"]):
         if mode == "updates":
             now = time.monotonic()
-            for node in chunk:
+            for node, update in chunk.items():
                 if tally is not None:
                     tally.add(company_id, node, now - started)
+                    usages = update.get("usages") if isinstance(update, dict) else None
+                    if usages is not None:  # a node hands on the item's whole list: only its new calls count
+                        record_call_cost(_cost(usages[counted:], state))
+                        counted = len(usages)
                 if isinstance(seen, dict):
                     node_seconds = seen.setdefault("seconds", {})
                     node_seconds[node] = node_seconds.get(node, 0.0) + now - started
@@ -147,6 +154,33 @@ def record_step(node: str, seconds: float, details: dict[str, Any] | None = None
     tally.add(company_id, node, seconds)
     if company_id and details is not None:
         tally.details.setdefault(company_id, {})[node] = details
+
+
+def _cost(usages: list[LLMUsage], state: dict) -> float:
+    from arp.orchestration.cost_tracker import estimate_cost_usd
+
+    default = getattr(state.get("settings"), "llm_model", "") if isinstance(state, dict) else ""
+    return sum(estimate_cost_usd(u.model or default, u) for u in usages)
+
+
+def record_call_cost(usd: float) -> None:
+    """A model call of the current company finished. Its cost shows in `running_cost` until the company's result
+    is stored with the company's whole cost (`settle_cost`), so no call is counted twice."""
+    tally, company_id = _current.get(), _company.get()
+    if tally is not None and company_id and usd:
+        tally.running_cost[company_id] = tally.running_cost.get(company_id, 0.0) + usd
+
+
+def running_cost(run_id: str) -> float:
+    """Cost of the finished model calls of companies still in progress; 0 unless the run executes in this process."""
+    tally = _live.get(run_id)
+    return sum(tally.running_cost.values()) if tally else 0.0
+
+
+def settle_cost(run_id: str, company_id: str) -> float:
+    """Takes the company's running cost out of the tally: its outcome is about to be recorded."""
+    tally = _live.get(run_id)
+    return tally.running_cost.pop(company_id, 0.0) if tally else 0.0
 
 
 def record_cost(model: str, usage: LLMUsage) -> None:
