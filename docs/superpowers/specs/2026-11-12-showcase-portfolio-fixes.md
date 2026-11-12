@@ -34,7 +34,7 @@ that failed before it. No existing test is changed or weakened.
   snapshot date money figures are computed for (Ask the Portfolio), and adds weight-parsing options on
   upload. No schema migration, no auth change. The owner merges it on GitHub.
 - If the diff grows past what one review can hold, slice by screen with a `Rows:` line:
-  **slice 1, Risk Monitoring** (defects 1, 5, 9, 10, 11): `Rows: AC-1 to AC-83`; **slice 2, the rest**: no
+  **slice 1, Risk Monitoring** (defects 1, 5, 9, 10, 11): `Rows: AC-1 to AC-83, AC-159`; **slice 2, the rest**: no
   `Rows:` line.
 - API changes need the OpenAPI files regenerated in the same PR (`backend/scripts/export_openapi.py`, then
   `npm run gen:api`); `frontend/src/types.ts` holds hand-written copies of `QAAnswer`, `HolderStatus` and
@@ -142,19 +142,24 @@ Answered with 200 and `resolvable: false`, `result: null`, `trend: null`:
 filter; all portfolios when it is empty), and the checks run after the parse, when that filter is known.
 
 An `as_of` that is not itself a snapshot date is answered as the engine does today: each scoped portfolio's
-newest snapshot on or before it, with `result.as_of` and `vintage.holdings_as_of` = the requested date. So
-that the answer says which data it used, `vintage` gains `snapshot_dates`: the sorted distinct `as_of_date`
-values of the holdings the answer was computed from (for a trend, the points' dates).
+newest snapshot on or before it, with `result.as_of` and `vintage.holdings_as_of` = the requested date; a
+point-in-time `vintage` keeps exactly today's keys (existing tests compare the whole dict). So that the
+answer says which data it used, `QAAnswer` gains `snapshot_dates` (below).
 
-`QAAnswer` gains three fields (existing fields keep their meaning):
+Trend points are the snapshot dates, inside the range, of the portfolios the answer is scoped to (all
+portfolios when unscoped). `analytics.execute` takes its dates from all portfolios and stays as it is;
+`qa_agent` drops the points whose date is no snapshot date of a scoped portfolio.
+
+`QAAnswer` gains four fields (existing fields keep their meaning):
 
 | Field | Value |
 |-------|-------|
-| `trend` | null for a point-in-time answer. For a trend: the engine's `TrendPoint` list, ascending by `as_of`; `result` is then null. |
+| `trend` | null for a point-in-time answer. For a trend: the `TrendPoint` list, ascending by `as_of`; `result` is then null. |
+| `snapshot_dates` | default `[]`. Point-in-time: the sorted distinct `as_of_date` values of the holdings loaded for the scoped portfolios (before the security filter). Trend: the points' dates. |
 | `scale` | `"units"` or `"millions"`, see section 11. |
 | `unit` | `"EUR"` for `market_value_sum`; the data point's unit from the climate schema for `weighted_avg_datapoint` (`""` for a field the schema does not know); `""` for `count`. |
 
-Trend answer: `vintage` = `{"snapshot_dates": [...]}` only. `answer_text`: first line
+Trend answer: `vintage` = `{"date_range": [<start>, <end>]}` only. `answer_text`: first line
 `Trend from <start> to <end>, <n> snapshots (<scope>, <filter>, grouped by <group_by>):` with `<scope>` and
 `<filter>` built as in today's point-in-time text (`portfolios=['core_equity_europe']` or `all portfolios`;
 `k=v` pairs or `no filter`), then one line per point, by metric:
@@ -172,7 +177,7 @@ With a trend whose end is before its start, the pane shows `The end date is befo
 boxes and the selection counts as "latest". `AskThePortfolio` sends the typed question plus
 `portfolio_ids`, `as_of`, `date_range` from the pane; the "Scoped to:" line stays. Under a point-in-time
 answer's table the page shows `Snapshot used: <date>` (`Snapshots used: <a>, <b>` for several) from
-`vintage.snapshot_dates`. A trend answer is shown as a table: header `As of`, one column per group value
+`snapshot_dates`. A trend answer is shown as a table: header `As of`, one column per group value
 (order of first appearance), and `Total` for `market_value_sum`; one row per point, ascending; a group
 absent on a date shows `—`; cells are formatted as in the point-in-time table (the cell formats are the
 builder's choice within that and are not tested beyond AC-31).
@@ -394,7 +399,8 @@ The known company ids are the registry companies plus every company id a securit
 model key. It seeds the demo data when it starts and all hidden tests share it, with nothing reset in
 between. So `holdout` rows never upload to `core_equity_europe` or `sustainable_leaders`, never upload as of a
 date after `S4`, and use their own ids: `<x>` stands for a suffix unique to the test (letters and digits, at
-most 8). `evaluator` rows run on a freshly started Stack. Calls are made as a user who may write (analyst);
+most 8). `evaluator` rows run once each, in ID order, on a Stack with a new database and new data folders
+(a new cloud session), and each sets up its own Given (a new rule C per row). Calls are made as a user who may write (analyst);
 the RFP rows and `qa-audit` reads as an approver.
 
 Demo data: four portfolios, `core_equity_europe` ("Core Equity Europe", `CEE` below), `sustainable_leaders`
@@ -441,8 +447,8 @@ upper-cases them). "`detail` contains" always means `detail` is a string that co
 |------|-------|------|--------------------------|------------|
 | AC-1 | Stack; `(c, v)` = `TOP(S2)`; Parse `ONE(c)` | `askc({"as_of": S2})` | status 200, `result.as_of` == `S2` and `vintage.holdings_as_of` == `S2` | holdout |
 | AC-2 | the AC-1 response | `result.total_market_value_eur` is read | within 0.01 of `v` | holdout |
-| AC-3 | Stack, Parse `SEC` | `askc({"as_of": S2})` | `vintage.snapshot_dates` == `[S2]` | holdout |
-| AC-4 | Stack, Parse `SEC`; `d` = the day after `S2` | `askc({"as_of": d})` | `result.as_of` == `d` and `vintage.snapshot_dates` == `[S2]` | holdout |
+| AC-3 | Stack, Parse `SEC` | `askc({"as_of": S2})` | `snapshot_dates` == `[S2]` | holdout |
+| AC-4 | Stack, Parse `SEC`; `d` = the day after `S2` | `askc({"as_of": d})` | `result.as_of` == `d` and `snapshot_dates` == `[S2]` | holdout |
 | AC-5 | Stack, Parse `SEC` | `POST /api/portfolio/ask` with only `{"question": Q}` | status 200, `result.as_of` == `S4` and `vintage.holdings_as_of` == `S4` (must not change) | holdout |
 | AC-6 | Stack, Parse `SEC` | `askc({"as_of": "31/12/2099"})` | status 422, `detail` contains `as_of must be YYYY-MM-DD` | holdout |
 | AC-7 | Stack, Parse `SEC` | `askc({"as_of": "2099-12-31"})` | status 422, `detail` contains `as_of is in the future` | holdout |
@@ -452,7 +458,7 @@ upper-cases them). "`detail` contains" always means `detail` is a string that co
 | AC-11 | the AC-10 response | each point's `result.total_market_value_eur` is compared with the total of `askc({"as_of": <that date>})` | equal for all three | holdout |
 | AC-12 | the AC-10 response | `answer_text` is split into lines | 4 lines; line 1 == `Trend from <S2> to <S4>, 3 snapshots (portfolios=['core_equity_europe'], no filter, grouped by sector):` | holdout |
 | AC-13 | the AC-10 response | lines 2 to 4 of `answer_text` are read | line i+1 == two spaces + `<date i>: EUR ` + that point's total formatted `{:,.0f}` | holdout |
-| AC-14 | the AC-10 response | `vintage` is read | == `{"snapshot_dates": [S2, S3, S4]}` | holdout |
+| AC-14 | the AC-10 response | `snapshot_dates` and `vintage` are read | `snapshot_dates` == `[S2, S3, S4]` and `vintage` == `{"date_range": [S2, S4]}` | holdout |
 | AC-15 | Stack, Parse `SEC` | `askc({"date_range": [S4, S2]})` | status 422, `detail` contains `date_range start is after its end` | holdout |
 | AC-16 | Stack, Parse `SEC` | `askc({"date_range": ["2026-13-01", S4]})` | status 422, `detail` contains `date_range must be two YYYY-MM-DD dates` | holdout |
 | AC-17 | Stack, Parse `SEC` | `askc({"as_of": S2, "date_range": [S2, S4]})` | status 422, `detail` contains `send as_of or date_range, not both` | holdout |
@@ -488,7 +494,7 @@ upper-cases them). "`detail` contains" always means `detail` is a string that co
 | AC-47 | Stack, Parse `WACI`, Ask the Portfolio tab | `Q` is asked | a header cell reads `Weighted avg (tCO2e / EUR M revenue)` | evaluator |
 | AC-48 | the frontend's `dimensionLabel` | called with each id of section 11 and with `my_dim` | the labels of section 11; `my_dim` → `My dim` | unit |
 | AC-49 | Stack, C evaluated | `DELETE /api/portfolio/monitoring/rules/<C>` | status 409 and `detail` == `Rule has <n> live alerts: clear them first.` | holdout |
-| AC-50 | after AC-49 | `GET /api/portfolio/monitoring/rules` | C is still listed | holdout |
+| AC-50 | after AC-49 | `GET /api/portfolio/monitoring/rules` | C is still listed (must not change) | holdout |
 | AC-51 | Stack, C evaluated | `POST /api/portfolio/monitoring/rules/<C>/clear-alerts` with `{"status": "false_positive", "reason": "wrong threshold"}` | status 200, body == `{"cleared": n}` | holdout |
 | AC-52 | after AC-51 | `GET /api/portfolio/monitoring/alerts?status=open` | no alert carries C's `rule_id` | holdout |
 | AC-53 | after AC-51; C's alerts as they were listed before the call | `GET /api/portfolio/monitoring/alerts?status=false_positive` | `n` alerts carry C's `rule_id`, each with the same `alert_id`, `triggered_at`, `observed_value` and `rationale` as before | holdout |
@@ -496,7 +502,7 @@ upper-cases them). "`detail` contains" always means `detail` is a string that co
 | AC-55 | after AC-51 | the same `clear-alerts` call again | body == `{"cleared": 0}` | holdout |
 | AC-56 | Stack, C evaluated | `clear-alerts` with `{"status": "acknowledged"}` | status 422, and `n` open alerts still carry C's `rule_id` | holdout |
 | AC-57 | Stack, C evaluated, one of C's alerts moved to `acknowledged` and one to `escalated` (the existing transition route) | `clear-alerts` with `{"status": "resolved"}` | body == `{"cleared": n}` | holdout |
-| AC-58 | Stack, C evaluated, and a second rule C2 (C's body, name `Other <x>`) evaluated | `clear-alerts` for C | the number of open alerts carrying C2's `rule_id` is unchanged | holdout |
+| AC-58 | Stack, C evaluated, and a second rule C2 (C's body, name `Other <x>`) evaluated | `clear-alerts` for C | the call answers 200 and the number of open alerts carrying C2's `rule_id` is unchanged | holdout |
 | AC-59 | Stack, C evaluated, then cleared as in AC-51 | `DELETE /api/portfolio/monitoring/rules/<C>` | status 204 | holdout |
 | AC-60 | after AC-59 | `GET /api/portfolio/monitoring/rules` | no rule has C's `rule_id` | holdout |
 | AC-61 | after AC-59 | `GET /api/portfolio/monitoring/alerts` | `n` alerts still carry C's `rule_id`, all with status `false_positive` | holdout |
@@ -522,6 +528,7 @@ upper-cases them). "`detail` contains" always means `detail` is a string that co
 | AC-81 | Stack | `#/portfolio-monitoring/dashboards`, `#/portfolio-monitoring/pivot` and `#/portfolio-monitoring/ask` are opened in turn | the pressed tab is `Dashboards (Superset)`, `Dashboards (Superset)`, `Ask the Portfolio` (must not change) | evaluator |
 | AC-82 | Stack with `ARP_SUPERSET_PASSWORD` unset (`GET /api/bi/dashboards` answers 503), Company Profiles tab | the "Profile dashboard" card is read | it shows `Dashboards are not set up on this server. Ask your administrator.`, has no element with `role="alert"`, and does not contain `could not be loaded` | evaluator |
 | AC-83 | a browser test, `GET /api/bi/dashboards` answered with 500 `boom` | the "Profile dashboard" card is read | a `role="alert"` element reads `The profile dashboard could not be loaded: boom` (must not change) | unit |
+| AC-159 | a seeded store plus one more portfolio whose only snapshot date lies between the second and third seeded dates; a parse scoped to a seeded portfolio | `answer_question` with a `date_range` over all seeded dates | `trend` has exactly the four seeded dates; the extra portfolio's date adds no point | unit |
 
 ### Slice 2: the rest (defects 2, 3, 4, 7, 8, 6, 12)
 
@@ -604,7 +611,7 @@ upper-cases them). "`detail` contains" always means `detail` is a string that co
 | AC-158 | a file store with governance events and alert events, behind the API test client | a rejected upload, a monthly run, `clear-alerts`, a rule delete and a report discard are made | every governance and alert event line that existed before is still there, byte for byte and in the same order | unit |
 
 Must not change: a request with only `question` (AC-5, AC-25, AC-34, AC-39); a portfolio named in the question
-(AC-21); plain-EUR figures (AC-38); replacing a rule by `rule_id` and skipping disabled rules (AC-63, AC-64);
+(AC-21); plain-EUR figures (AC-38); a refused delete keeps the rule (AC-50); replacing a rule by `rule_id` and skipping disabled rules (AC-63, AC-64);
 the known breach-type labels (AC-79); named and legacy sub-tabs (AC-81); other dashboard errors (AC-83);
 finished reports (AC-92); failed loads for holders and portfolios that exist, and the demo feed rows (AC-107
 to AC-109); ESG id checks (AC-111, AC-112); holder rows of configured holders (AC-115); Security Master and
