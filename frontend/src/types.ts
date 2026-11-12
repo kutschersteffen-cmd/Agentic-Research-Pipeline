@@ -2517,7 +2517,8 @@ export interface HolderStatus {
   holder_id: string;
   kind: "index" | "portfolio";
   name: string;
-  source: "api" | "file";
+  /** null: a portfolio with no holder record (seeded or imported data), listed read-only. */
+  source: "api" | "file" | null;
   as_of: string | null;
   last_pull_at: string | null;
   last_error: string | null;

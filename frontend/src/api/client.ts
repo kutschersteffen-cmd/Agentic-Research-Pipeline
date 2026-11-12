@@ -314,10 +314,13 @@ export const api = {
 
   // Holdings intake
   listHolders: () => request<{ holders: HolderStatus[] }>("/api/holdings/holders"),
-  uploadHoldings: (f: { file: File; holder_id: string; kind: string; as_of: string; provider?: string; override_reason?: string }) => {
+  uploadHoldings: (f: {
+    file: File; holder_id: string; kind: string; as_of: string; provider?: string; override_reason?: string;
+    decimal?: "." | ","; weight_unit?: "percent" | "fraction";
+  }) => {
     const form = new FormData();
     form.append("file", f.file);
-    for (const k of ["holder_id", "kind", "as_of", "provider", "override_reason"] as const) if (f[k]) form.append(k, f[k]!);
+    for (const k of ["holder_id", "kind", "as_of", "provider", "override_reason", "decimal", "weight_unit"] as const) if (f[k]) form.append(k, f[k]!);
     return request<IntakeResult>("/api/holdings/upload", { method: "POST", body: form });
   },
   pullHolder: (kind: string, holderId: string) =>

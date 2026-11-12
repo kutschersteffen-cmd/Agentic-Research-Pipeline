@@ -3,8 +3,11 @@ import type { RowError } from "../types";
 export const ageLabel = (days: number | null): string =>
   days === null ? "No data" : days === 0 ? "today" : days === 1 ? "1 day" : `${days} days`;
 
-export const rowErrorText = (e: RowError): string =>
-  e.row === null ? e.message : `Row ${e.row}${e.column ? ` (${e.column})` : ""}: ${e.message}`;
+/** A file-level error (no row) shows its message alone; a missing column also names the header the file should have. */
+export const rowErrorText = (e: RowError): string => {
+  if (e.row === null) return e.message === "missing required column" && e.column ? `${e.message}: ${e.column}` : e.message;
+  return `Row ${e.row}${e.column ? ` (${e.column})` : ""}: ${e.message}`;
+};
 
 /** `errorFor` renders a failure as "NNN: <detail>"; an intake 422 carries {message, errors} as that detail. */
 export function parseIntakeError(err: Error): { message: string; errors: RowError[] } {

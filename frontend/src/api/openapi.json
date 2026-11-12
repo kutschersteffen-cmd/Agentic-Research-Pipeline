@@ -3072,6 +3072,22 @@
       "title": "As Of",
       "type": "string"
      },
+     "decimal": {
+      "anyOf": [
+       {
+        "enum": [
+         ".",
+         ","
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Overrides the provider mapping's decimal separator.",
+      "title": "Decimal"
+     },
      "file": {
       "contentMediaType": "application/octet-stream",
       "title": "File",
@@ -3104,6 +3120,22 @@
       "default": "default",
       "title": "Provider",
       "type": "string"
+     },
+     "weight_unit": {
+      "anyOf": [
+       {
+        "enum": [
+         "percent",
+         "fraction"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Overrides the provider mapping's weight unit.",
+      "title": "Weight Unit"
      }
     },
     "required": [
@@ -33110,6 +33142,7 @@
   },
   "/api/holdings/holders": {
    "get": {
+    "description": "Holder records, plus every portfolio that has none (seeded or imported data): listed read-only, nothing stored.",
     "operationId": "holders_api_holdings_holders_get",
     "responses": {
      "200": {

@@ -2920,7 +2920,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Holders */
+        /**
+         * Holders
+         * @description Holder records, plus every portfolio that has none (seeded or imported data): listed read-only, nothing stored.
+         */
         get: operations["holders_api_holdings_holders_get"];
         put?: never;
         post?: never;
@@ -9261,6 +9264,11 @@ export interface components {
         Body_upload_api_holdings_upload_post: {
             /** As Of */
             as_of: string;
+            /**
+             * Decimal
+             * @description Overrides the provider mapping's decimal separator.
+             */
+            decimal?: ("." | ",") | null;
             /** File */
             file: string;
             /** Holder Id */
@@ -9277,6 +9285,11 @@ export interface components {
              * @default default
              */
             provider: string;
+            /**
+             * Weight Unit
+             * @description Overrides the provider mapping's weight unit.
+             */
+            weight_unit?: ("percent" | "fraction") | null;
         };
         /** Body_upload_api_security_master_upload_post */
         Body_upload_api_security_master_upload_post: {

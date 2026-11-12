@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import date
 from typing import Literal
 
@@ -29,8 +29,13 @@ Kind = Literal["index", "portfolio"]
 MEDIA = {"csv": "text/csv", "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
 
 
-def _intake_error(e: IntakeError) -> HTTPException:
-    return HTTPException(e.status, {"message": e.message, "errors": [asdict(x) for x in e.errors]})
+def _intake_error(e: IntakeError, headers: dict[str, str] | None = None) -> HTTPException:
+    """`headers` (a provider mapping's columns) names a missing column as the file should have it ("Weight (%)")."""
+    errors = [
+        replace(x, column=headers.get(x.column, x.column)) if headers and x.row is None and x.message == "missing required column" else x
+        for x in e.errors
+    ]
+    return HTTPException(e.status, {"message": e.message, "errors": [asdict(x) for x in errors]})
 
 
 @router.post("/upload")
@@ -40,6 +45,8 @@ async def upload(
     kind: Kind = Form(...),
     as_of: str = Form(...),
     provider: str = Form("default"),
+    decimal: Literal[".", ","] | None = Form(None, description="Overrides the provider mapping's decimal separator."),
+    weight_unit: Literal["percent", "fraction"] | None = Form(None, description="Overrides the provider mapping's weight unit."),
     override_reason: str | None = Form(None),
     user: Principal = Depends(current_user),
     settings: Settings = Depends(settings_dep),
@@ -50,10 +57,14 @@ async def upload(
     if len(data) > settings.max_upload_bytes:
         raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
 
+    headers: dict[str, str] = {}
+
     def intake():
         mapping = load_mapping(provider)
+        headers.update(mapping.columns)
         raw = read_rows(data, file.filename or "", mapping)
-        validated = validate(raw, kind=kind, as_of=as_of, decimal=mapping.decimal, weight_unit=mapping.weight_unit)
+        validated = validate(raw, kind=kind, as_of=as_of, decimal=decimal or mapping.decimal,
+                             weight_unit=weight_unit or mapping.weight_unit)
         return ingest(
             store, validated, kind=kind, holder_id=holder_id, as_of=as_of, source="file", source_ref=file_ref(data),
             principal=user, override_reason=override_reason, idmap=idmap,
@@ -62,7 +73,7 @@ async def upload(
     try:
         result = await run_in_threadpool(intake)
     except IntakeError as e:
-        raise _intake_error(e) from None
+        raise _intake_error(e, headers) from None
     except FileExistsError:
         raise HTTPException(409, "another write took this revision first; retry") from None
     except ValueError as e:  # unreadable file, unknown provider, non-canonical as_of
@@ -78,7 +89,21 @@ def download_template(kind: Kind = "portfolio", fmt: Literal["csv", "xlsx"] = Qu
 
 @router.get("/holders")
 def holders(store=Depends(get_portfolio_store)) -> dict:
-    return {"holders": holder_status(store, date.today())}
+    """Holder records, plus every portfolio that has none (seeded or imported data): listed read-only, nothing stored."""
+    today = date.today()
+    rows = holder_status(store, today)
+    configured = {r["holder_id"] for r in rows if r["kind"] == "portfolio"}
+    expected = previous_month_end(today)
+    for p in store.list_portfolios():
+        if p.portfolio_id not in configured:
+            as_of = store.latest_snapshot_date(p.portfolio_id)
+            rows.append({
+                "holder_id": p.portfolio_id, "kind": "portfolio", "name": p.name, "source": None, "as_of": as_of,
+                "last_pull_at": None, "last_error": None, "expected_as_of": expected,
+                "stale": as_of is None or as_of < expected,
+                "age_days": (today - date.fromisoformat(as_of)).days if as_of else None,
+            })
+    return {"holders": rows}
 
 
 class HolderUpdate(BaseModel):
