@@ -3708,6 +3708,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/portfolio/monthly-run/last": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Last Monthly Run
+         * @description The newest monthly run that ran (a blocked one is not recorded), or null.
+         */
+        get: operations["get_last_monthly_run_api_portfolio_monthly_run_last_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/portfolio/monthly-run/status": {
         parameters: {
             query?: never;
@@ -10995,6 +11015,11 @@ export interface components {
             calculated_columns?: string[];
             /** Columns */
             columns: string[];
+            /**
+             * Created At
+             * @description When the dataset was added: tells two uploads of the same file apart.
+             */
+            created_at: string;
             /** Dataset Id */
             dataset_id: string;
             /**
@@ -25261,6 +25286,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_last_monthly_run_api_portfolio_monthly_run_last_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    } | null;
                 };
             };
         };

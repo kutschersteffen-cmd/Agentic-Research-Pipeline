@@ -21,6 +21,7 @@ import type {
 } from "../types";
 import { CHART_TYPES } from "../types";
 import { activatable } from "../lib/activatable";
+import { findingText } from "../lib/findings";
 import { draftingLine } from "../lib/progress";
 import { useElapsed } from "../lib/useElapsed";
 
@@ -47,9 +48,13 @@ function moved<T>(items: T[], index: number, delta: number): T[] | null {
   return next;
 }
 
-function groupBySlide(findings: Finding[]): [number, Finding[]][] {
-  const groups = new Map<number, Finding[]>();
-  for (const f of findings) groups.set(f.slide, [...(groups.get(f.slide) ?? []), f]);
+/** The lines to show per slide; a finding that is not listed (findingText) is left out, and so is a slide without any. */
+function groupBySlide(findings: Finding[]): [number, string[]][] {
+  const groups = new Map<number, string[]>();
+  for (const f of findings) {
+    const text = findingText(f);
+    if (text !== null) groups.set(f.slide, [...(groups.get(f.slide) ?? []), text]);
+  }
   return [...groups.entries()].sort((a, b) => a[0] - b[0]);
 }
 
@@ -319,6 +324,8 @@ export function ReportBuilder() {
     setPreviewPageCount(0);
     setEnlargedPage(null);
   }
+
+  const listedFindings = groupBySlide(findings);
 
   return (
     <div className={previewReportId ? "page split-review" : "page"} style={previewReportId ? { maxWidth: 1560 } : undefined}>
@@ -618,18 +625,15 @@ export function ReportBuilder() {
           </div>
           {manifest.error && <p className="error-text" role="alert">{manifest.error}</p>}
 
-          {findings.length > 0 && (
+          {listedFindings.length > 0 && (
             <>
               <h3>Findings</h3>
-              {groupBySlide(findings).map(([slide, items]) => (
+              {listedFindings.map(([slide, items]) => (
                 <div className="review-item" key={slide}>
                   <strong>{slide === 0 ? "Title slide" : `Slide ${slide}`}</strong>
                   <ul>
-                    {items.map((f, j) => (
-                      <li key={j}>
-                        <span className="mono">{f.stage}/{f.rule}</span>
-                        {f.slot && <span className="muted"> [{f.slot}]</span>} — {f.message}
-                      </li>
+                    {items.map((text, j) => (
+                      <li key={j}>{text}</li>
                     ))}
                   </ul>
                 </div>

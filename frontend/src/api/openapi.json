@@ -7365,6 +7365,11 @@
       "title": "Columns",
       "type": "array"
      },
+     "created_at": {
+      "description": "When the dataset was added: tells two uploads of the same file apart.",
+      "title": "Created At",
+      "type": "string"
+     },
      "dataset_id": {
       "title": "Dataset Id",
       "type": "string"
@@ -7442,6 +7447,7 @@
      "dataset_id",
      "name",
      "source",
+     "created_at",
      "row_count",
      "columns",
      "preview",
@@ -35222,6 +35228,37 @@
      }
     },
     "summary": "Post Monthly Run",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
+  "/api/portfolio/monthly-run/last": {
+   "get": {
+    "description": "The newest monthly run that ran (a blocked one is not recorded), or null.",
+    "operationId": "get_last_monthly_run_api_portfolio_monthly_run_last_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "anyOf": [
+          {
+           "additionalProperties": true,
+           "type": "object"
+          },
+          {
+           "type": "null"
+          }
+         ],
+         "title": "Response Get Last Monthly Run Api Portfolio Monthly Run Last Get"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Last Monthly Run",
     "tags": [
      "portfolio"
     ]

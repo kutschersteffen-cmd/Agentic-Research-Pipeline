@@ -311,6 +311,13 @@ def get_monthly_run_status(
         raise HTTPException(422, str(exc)) from exc
 
 
+@router.get("/monthly-run/last")
+def get_last_monthly_run(store: PortfolioStore = Depends(get_portfolio_store)) -> dict | None:
+    """The newest monthly run that ran (a blocked one is not recorded), or null."""
+    runs = [e for e in store.list_governance_events() if e.get("event_type") == "monthly_run_recorded"]
+    return {k: runs[-1][k] for k in ("month", "at", "alerts", "triggers")} if runs else None
+
+
 @router.post("/monthly-run", response_model=MonthlyRunResult)
 def post_monthly_run(
     body: MonthlyRunRequest, store: PortfolioStore = Depends(get_portfolio_store), settings: Settings = Depends(settings_dep)

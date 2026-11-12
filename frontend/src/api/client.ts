@@ -371,6 +371,8 @@ export const api = {
     request<{ month: string; holdings: Record<string, string>; esg: { provider: string; status: string }; blocked_reasons: string[] }>(
       `/api/portfolio/monthly-run/status${buildQuery({ month })}`,
     ),
+  /** The newest monthly run that ran, or null when none has. */
+  lastMonthlyRun: () => request<{ month: string; at: string; alerts: number; triggers: number } | null>("/api/portfolio/monthly-run/last"),
   runMonth: (month: string) =>
     request<{ status: "ran" | "blocked"; blocked_reasons: string[]; alerts: number; triggers: number }>("/api/portfolio/monthly-run", {
       method: "POST",

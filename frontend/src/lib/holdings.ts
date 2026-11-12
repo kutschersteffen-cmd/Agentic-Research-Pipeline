@@ -28,3 +28,8 @@ export function previousMonth(today: Date): string {
   const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
+
+/** The empty row of Security Master's unmatched table. Without a master nothing was matched at all: saying
+ * "every held security is matched" would read as a result. */
+export const unmatchedEmptyText = (masterIssuers: number): string =>
+  masterIssuers === 0 ? "No holdings have been loaded through Holdings Intake yet." : "Every held security is matched.";
