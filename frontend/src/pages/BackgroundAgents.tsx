@@ -298,8 +298,8 @@ function CalibrationPanel() {
   return (
     <div>
       <p className="help-text">
-        Flags a thematic-universe verdict as possibly stale when a document for that company was fetched after the
-        verdict was made. A flag doesn't mean the verdict is wrong, and the agent never re-classifies or edits a match.
+        Flags a thematic-universe verdict as possibly stale when a document for that company is dated after the
+        verdict was made (its publication date, or a fetch time its source reports). A flag doesn't mean the verdict is wrong, and the agent never re-classifies or edits a match.
       </p>
       {error && <p className="error-text" role="alert">{error}</p>}
 
@@ -364,8 +364,8 @@ function CalibrationPanel() {
                 {results.map((f, i) => (
                   <tr key={`${f.company_id}-${f.activity_id}-${i}`}>
                     <td>{f.source_run_id}</td>
-                    <td>{f.company_id}</td>
-                    <td>{f.activity_id}</td>
+                    <td>{f.company_name ? <>{f.company_name} <span className="mono muted">{f.company_id}</span></> : f.company_id}</td>
+                    <td>{f.activity_name ? <>{f.activity_name} <span className="mono muted">{f.activity_id}</span></> : f.activity_id}</td>
                     <td><VerdictBadge verdict={f.old_verdict} /></td>
                     <td><ConfidenceBadge value={f.old_confidence} /></td>
                     <td>{new Date(f.old_generated_at).toLocaleString()}</td>

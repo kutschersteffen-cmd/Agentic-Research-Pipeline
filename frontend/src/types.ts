@@ -719,6 +719,8 @@ export interface DriftFlag {
   source_run_id: string;
   company_id: string;
   activity_id: string;
+  company_name?: string | null;
+  activity_name?: string | null;
   old_verdict: string;
   old_confidence: number;
   old_generated_at: string;

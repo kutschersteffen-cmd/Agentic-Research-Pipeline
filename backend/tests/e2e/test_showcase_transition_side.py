@@ -78,3 +78,33 @@ def test_refresh_note_by_the_derive_buttons(page, enabled):  # AC-24, AC-25 (swi
     page.goto(f"{URL}/#/transitionBarrier/cell/STL-R1/European%20Union")
     page.get_by_role("button", name="Derive this cell").wait_for()
     assert page.get_by_text(NOTE_OFF).count() == (0 if enabled else 1)
+
+
+FLAG = {"source_run_id": "theme_1", "company_id": "ko", "activity_id": "act_dd5b90051fcd", "old_verdict": "include",
+        "old_confidence": 0.8, "old_generated_at": "2026-02-01T00:00:00+00:00",
+        "newest_document_at": "2026-03-01T00:00:00+00:00", "reason": "r"}
+
+
+def calibration_cells(page, flag):
+    page.route("**/api/calibration/runs", lambda r: r.fulfill(json={"run_id": "calibration_1"})
+               if r.request.method == "POST" else r.fallback())
+    page.route("**/api/calibration/runs/calibration_1/results*", lambda r: r.fulfill(json={"total": 1, "results": [flag]}))
+    page.goto(f"{URL}/#/backgroundAgents")
+    page.get_by_role("tab", name="Calibration Agent").click()
+    page.get_by_role("button", name="Check now").click()
+    page.get_by_role("button", name="Refresh results").click()
+    row = page.locator("tr", has=page.get_by_text("theme_1", exact=True))
+    row.wait_for()
+    return row.locator("td").nth(1), row.locator("td").nth(2)
+
+
+def test_calibration_flag_shows_names_then_ids(page):  # AC-38
+    company, activity = calibration_cells(page, {**FLAG, "company_name": "Coca-Cola Co", "activity_name": "Soft drinks"})
+    assert company.inner_text().split() == ["Coca-Cola", "Co", "ko"] and company.locator("span", has_text="ko").count() == 1
+    assert activity.inner_text().split() == ["Soft", "drinks", "act_dd5b90051fcd"]
+    assert activity.locator("span", has_text="act_dd5b90051fcd").count() == 1
+
+
+def test_older_calibration_flag_shows_ids(page):  # AC-39
+    company, activity = calibration_cells(page, FLAG)
+    assert (company.inner_text(), activity.inner_text()) == ("ko", "act_dd5b90051fcd")

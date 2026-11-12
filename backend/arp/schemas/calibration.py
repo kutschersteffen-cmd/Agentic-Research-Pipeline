@@ -24,6 +24,8 @@ class DriftFlag(BaseModel):
     source_run_id: str
     company_id: str
     activity_id: str
+    company_name: str | None = None  # None on results stored before names were kept
+    activity_name: str | None = None
     old_verdict: MatchVerdict
     old_confidence: float
     old_generated_at: str
