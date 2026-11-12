@@ -219,5 +219,5 @@ def test_criterion_detail_comes_into_view_with_focus(page):  # AC-62 (checked by
     heading.wait_for()
     page.wait_for_timeout(300)
     box = heading.bounding_box()
-    assert 0 <= box["y"] and box["y"] + box["height"] <= 800
+    assert box["y"] >= 0 and box["y"] + box["height"] <= 800
     assert heading.evaluate("h => document.activeElement === h")
