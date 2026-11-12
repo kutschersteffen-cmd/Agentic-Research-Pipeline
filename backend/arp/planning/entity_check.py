@@ -105,5 +105,5 @@ def confirm_entity(
         return done(MatchStatus.CONFIRMED, name)
     # A file in the company's own folder (uploaded or crawled for it): step 2 already checked its name.
     if doc.local_path and not doc.source_url and doc.company_id == company.company_id:
-        return done(MatchStatus.CONFIRMED, company.name)
+        return done(MatchStatus.CONFIRMED, name or company.name)
     return done(MatchStatus.AMBIGUOUS, name)

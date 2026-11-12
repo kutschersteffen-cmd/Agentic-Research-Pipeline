@@ -178,7 +178,7 @@ TP_FIELDS = [field("A_headline_1", True), field("W2", True), field("W3", False),
 def test_step_5_field_cell_holds_the_question_then_the_id(page):  # AC-57
     cell = step_5(page, TP, TP_FIELDS).locator("tbody tr", has_text="A_headline_1").locator("td").nth(1)
     assert cell.inner_text().split("A_headline_1")[0].strip() == "Has the company set a net-zero target?"
-    assert cell.locator("span", has_text="A_headline_1").count() == 1
+    assert cell.locator("span.mono", has_text="A_headline_1").count() == 1
 
 
 def test_step_5_walk_and_talk_line(page):  # AC-58

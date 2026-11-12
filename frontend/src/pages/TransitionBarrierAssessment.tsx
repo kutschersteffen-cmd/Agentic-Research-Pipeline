@@ -165,11 +165,11 @@ function CriterionDetail({ detail, refreshEnabled, onClose }: {
 
       <div className="section-heading">
         <h3>Ratings by region</h3>
-        <button type="button" className="secondary" onClick={() => void deriveAll()}>
+        <button type="button" className="secondary" onClick={() => void deriveAll()} aria-describedby={refreshEnabled ? undefined : "refresh-off-all"}>
           Derive all regions
         </button>
       </div>
-      {!refreshEnabled && <p className="muted">{REFRESH_OFF_NOTE}</p>}
+      {!refreshEnabled && <p className="muted" id="refresh-off-all">{REFRESH_OFF_NOTE}</p>}
       {derived && "runId" in derived && (
         <p role="status">
           Derivation <span className="mono">{derived.runId}</span> finished. <a href={`#/review/transition_barrier_derivation/${encodeURIComponent(derived.runId)}`}>Review the results</a>

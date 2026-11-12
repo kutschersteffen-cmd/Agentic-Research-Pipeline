@@ -68,6 +68,8 @@ def apply_name_rules(company: CompanyRef, signals: IdentitySignals) -> RuleOutco
 def needs_recheck(result: IdentityResolutionResult, company: CompanyRef, idmap: IdentifierMapStore | None) -> bool:
     if not result.match_rule:  # legacy row: never reuse, it predates the always-review rule
         return True
+    if result.signals.lookup_errors:  # an EDGAR or web-search lookup failed: look again
+        return True
     if identifiers_of(company) != result.identifiers:
         return True
     if not company.lei and result.derived_lei:  # re-derive nothing: judge it with the LEI GLEIF gave last time

@@ -105,3 +105,18 @@ async def test_batch_error_row_is_never_empty(tmp_path, pg, exc, error):  # AC-1
     await run_batch(["a"], item_key=lambda i: i, worker=worker, sinks=run_sinks(store, "r"), concurrency=1,
                     result_to_json=lambda r: {"value": r})
     assert [r["error"] for r in store.read_errors("r")] == [error]
+
+
+def test_a_result_with_a_failed_lookup_is_rechecked():  # review finding: --previous-run retries a failed lookup
+    from arp.discovery.match_rules import needs_recheck
+    from arp.schemas.discovery import IdentityResolutionResult
+
+    company = CompanyRef(company_id="x", name="Acme Corp")
+
+    def result(errors):
+        return IdentityResolutionResult(company_id="x", input_name="Acme Corp", verdict=IdentityVerdict.UNCERTAIN,
+                                        confidence=0.3, rationale="r", match_rule="ambiguous",
+                                        signals=IdentitySignals(lookup_errors=errors))
+
+    assert needs_recheck(result(["EDGAR: ConnectError: boom", "web search: ConnectTimeout"]), company, None) is True
+    assert needs_recheck(result([]), company, None) is False  # unchanged without a failed lookup

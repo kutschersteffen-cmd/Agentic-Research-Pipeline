@@ -134,7 +134,7 @@ export function ArgusResults({ flow }: { flow: Flow }) {
               <tr key={r.key} className={r.item ? "argus-row-await" : undefined}>
                 <td data-label="Company">{r.company}</td>
                 <td data-label="Field">
-                  {question.get(r.field) ? <>{question.get(r.field)} <span className="mono muted">{r.field}</span></> : r.field}
+                  {question.get(r.field) ? <span>{question.get(r.field)} <span className="mono muted">{r.field}</span></span> : r.field}
                 </td>
                 <td data-label="Value">
                   {r.accepted !== undefined ? <>Accepted: {r.accepted}<br />New: {r.value}</> : r.value}

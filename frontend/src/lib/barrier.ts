@@ -33,11 +33,11 @@ const OUTCOMES = new Set(["pass", "fail", "unknown", "mixed"]);
 /** Pass, fail, unknown and mixed read as words with different line styles, not colours (colour is for H/M/L). */
 export const outcomeClass = (outcome: string): string => `tb-outcome tb-outcome-${OUTCOMES.has(outcome) ? outcome : "unknown"}`;
 
-/** The route that opens one cell's detail. */
 /** Shown by the derive buttons while the server does not re-check sources (a derivation is never refused for it). */
 export const REFRESH_OFF_NOTE =
   "Re-checking sources is switched off on this server, so a derivation uses only facts entered by hand and documents already stored. Cells without facts come out as Not rated.";
 
+/** The route that opens one cell's detail. */
 export const cellHash = (code: string, region: string): string =>
   `#/transitionBarrier/cell/${encodeURIComponent(code)}/${encodeURIComponent(region)}`;
 
