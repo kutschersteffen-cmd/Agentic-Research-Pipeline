@@ -53,3 +53,28 @@ def test_company_traceback_is_shown(page):  # AC-19
 def test_no_traceback_anywhere_says_so(page):  # AC-20 (must not change)
     details = open_failure(page, [{"key": "acme", "error": "ReadTimeout", "traceback": None}])
     details.get_by_text("No traceback was recorded for this run.").wait_for()
+
+
+NOTE_OFF = ("Re-checking sources is switched off on this server, so a derivation uses only facts entered by hand and "
+            "documents already stored. Cells without facts come out as Not rated.")
+
+
+def with_refresh(enabled):
+    """Pass the real answer through with `refresh_enabled` set."""
+    def handler(route):
+        body = route.fetch().json()
+        route.fulfill(json={**body, "refresh_enabled": enabled})
+    return handler
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_refresh_note_by_the_derive_buttons(page, enabled):  # AC-24, AC-25 (switch off), AC-27 (on)
+    page.route("**/api/transition-barrier/matrix", with_refresh(enabled))
+    page.route("**/api/transition-barrier/cells/STL-R1/European%20Union", with_refresh(enabled))
+    page.goto(f"{URL}/#/transitionBarrier")
+    page.get_by_role("button", name="STL-R1", exact=True).click()
+    page.get_by_role("button", name="Derive all regions").wait_for()
+    assert page.get_by_text(NOTE_OFF).count() == (0 if enabled else 1)
+    page.goto(f"{URL}/#/transitionBarrier/cell/STL-R1/European%20Union")
+    page.get_by_role("button", name="Derive this cell").wait_for()
+    assert page.get_by_text(NOTE_OFF).count() == (0 if enabled else 1)

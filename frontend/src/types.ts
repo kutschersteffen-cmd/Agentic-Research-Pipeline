@@ -1497,6 +1497,7 @@ export interface BarrierRegistrySource {
 }
 
 export interface BarrierMatrix {
+  refresh_enabled: boolean;
   sectors: string[];
   regions: BarrierRegion[];
   pillars: BarrierPillar[];
@@ -1573,6 +1574,7 @@ export interface BarrierHistoryEntry {
 export interface BarrierCell extends BarrierScore {
   latest_result: BarrierResult | null;
   history: BarrierHistoryEntry[];
+  refresh_enabled: boolean;
 }
 
 export interface BarrierFactForm {

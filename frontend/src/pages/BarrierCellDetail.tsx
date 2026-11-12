@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { BarrierFactForm } from "../components/BarrierFactForm";
 import { FileLink } from "../components/FileLink";
-import { RATING_CLASS, RATING_LABEL, errorDetail, historyLine, outcomeClass, ratifiedLine, sourceHref, sourceText, valueText } from "../lib/barrier";
+import { RATING_CLASS, RATING_LABEL, REFRESH_OFF_NOTE, errorDetail, historyLine, outcomeClass, ratifiedLine, sourceHref, sourceText, valueText } from "../lib/barrier";
 import type { BarrierCell, BarrierCriterion, BarrierRating, BarrierValue } from "../types";
 
 const when = (iso: string) => iso.slice(0, 16).replace("T", " ");
@@ -137,6 +137,7 @@ export function BarrierCellDetail({ code, region }: { code: string; region: stri
           <h2>Latest derivation</h2>
           <button type="button" className="secondary" onClick={() => void derive()}>Derive this cell</button>
         </div>
+        {!cell.refresh_enabled && <p className="muted">{REFRESH_OFF_NOTE}</p>}
         {derived && (
           <p role="status">
             Derivation <span className="mono tb-wrap">{derived}</span> finished. <a href={`#/review/transition_barrier_derivation/${encodeURIComponent(derived)}`}>Review the result</a>
