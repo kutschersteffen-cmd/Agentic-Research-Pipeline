@@ -56,3 +56,34 @@ export function trendTable(trend: TrendPointLike[], metric: string, scale: strin
       ]),
   };
 }
+
+const DIMENSION_LABELS: Record<string, string> = {
+  portfolio_id: "Portfolio",
+  asset_class: "Asset class",
+  company_id: "Company",
+  company_name: "Company",
+  sector: "Sector",
+  country: "Country",
+  currency: "Currency",
+  gics_sector: "GICS sector",
+  gics_industry_group: "GICS industry group",
+  gics_industry: "GICS industry",
+  gics_sub_industry: "GICS sub-industry",
+};
+
+/** A grouping dimension as a person reads it; an id this list does not know gets spaces and a capital first letter. */
+export function dimensionLabel(id: string): string {
+  const spaced = id.replace(/_/g, " ");
+  return DIMENSION_LABELS[id] ?? spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+/** Column headers of the point-in-time table's value column. */
+export function valueHeader(metric: string, scale: string = "units", unit: string = ""): string {
+  if (metric === "weighted_avg_datapoint") return unit ? `Weighted avg (${unit})` : "Weighted avg";
+  return scale === "millions" ? "Market value (EUR million)" : "Market value (EUR)";
+}
+
+/** "EUR 1,234" or "EUR 1.23 million". */
+export function eurText(value: number, scale: string = "units"): string {
+  return `EUR ${formatEur(value, scale)}${scale === "millions" ? " million" : ""}`;
+}

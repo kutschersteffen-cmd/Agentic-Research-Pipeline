@@ -73,7 +73,7 @@ export function AskThePortfolio() {
       {answer && answer.resolvable && (
         <>
           <p className="answer-text">{answer.answer_text}</p>
-          {answer.result && <AggregationView result={answer.result} />}
+          {answer.result && <AggregationView result={answer.result} scale={answer.scale} unit={answer.unit} />}
           {snapshots && <p className="muted">{snapshots}</p>}
           {trend && (
             <div className="table-wrap">
