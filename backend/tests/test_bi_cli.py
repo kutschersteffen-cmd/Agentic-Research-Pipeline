@@ -137,3 +137,75 @@ def test_bootstrap_template_error_exits_nonzero(monkeypatch):
     result, _ = _bootstrap_offline(monkeypatch, provision)
     assert result.exit_code == 1
     assert "unknown groupby column 'fund'" in result.stderr and result.stdout == ""
+
+
+def _ask_offline(monkeypatch, command: str, outcome) -> tuple:
+    """Runs `arp bi <command> "..."` with a fake model and Superset; `outcome(text)` is what the
+    service returns (or raises). Returns (result, the service's calls)."""
+    monkeypatch.setenv("ARP_POSTGRES_DSN", "postgresql+psycopg://u:p@localhost:5432/arp")
+    monkeypatch.setenv("ARP_SUPERSET_PASSWORD", "x" * 20)
+    get_settings.cache_clear()
+    calls = []
+
+    async def service_fn(text, llm, client):
+        calls.append((text, llm, type(client).__name__))
+        return outcome(text)
+
+    monkeypatch.setattr("arp.llm.factory.build_llm_client", lambda settings: "fake-llm")
+    monkeypatch.setattr("arp.bi.service.ask_chart" if command == "ask" else "arp.bi.service.design_dashboard", service_fn)
+    try:
+        return CliRunner().invoke(app, ["bi", command, "Which sectors have the largest exposure?"]), calls
+    finally:
+        get_settings.cache_clear()
+
+
+def _chart_result():
+    from arp.bi.plan import ChartPlan, ChartSpec
+    from arp.bi.service import DesignResult
+
+    plan = ChartPlan(title="Sectors", charts=[ChartSpec(title="Exposure by sector", viz_type="treemap_v2", dataset="holdings",
+                                                        metrics=["Exposure (EUR)"], groupby=["sector"])])
+    return DesignResult(dashboard_id=8, slug="arp-scratch", url="http://superset/superset/dashboard/arp-scratch/", plan=plan)
+
+
+@pytest.mark.parametrize("command", ["ask", "design"])
+def test_ask_and_design_print_the_chart_url_and_plan(monkeypatch, command):
+    result, calls = _ask_offline(monkeypatch, command, lambda text: _chart_result())
+    assert result.exit_code == 0, result.output
+    assert calls == [("Which sectors have the largest exposure?", "fake-llm", "SupersetClient")]
+    out = json.loads(result.stdout)
+    assert out["url"] == "http://superset/superset/dashboard/arp-scratch/" and out["dashboard_id"] == 8
+    assert out["plan"]["charts"][0]["groupby"] == ["sector"]
+
+
+def test_ask_refusal_prints_the_reason_and_exits_3(monkeypatch):
+    from arp.bi.service import DesignResult
+
+    result, _ = _ask_offline(monkeypatch, "ask", lambda text: DesignResult(rejected=["No dataset has share prices."]))
+    assert result.exit_code == 3
+    assert "No dataset has share prices." in result.stderr and result.stdout == ""
+
+
+def test_ask_superset_error_prints_the_body_and_exits_1(monkeypatch):
+    from arp.bi.service import BIError
+
+    def fail(text):
+        try:
+            raise SupersetError(401, '{"message":"Not authorized"}')
+        except SupersetError as e:
+            raise BIError(f"Superset: {e}") from e
+
+    result, _ = _ask_offline(monkeypatch, "ask", fail)
+    assert result.exit_code == 1
+    assert "HTTP 401" in result.stderr and '{"message":"Not authorized"}' in result.stderr
+
+
+def test_ask_without_superset_password_exits_1(monkeypatch):
+    monkeypatch.setenv("ARP_POSTGRES_DSN", "postgresql+psycopg://u:p@localhost:5432/arp")
+    monkeypatch.setenv("ARP_SUPERSET_PASSWORD", "")
+    get_settings.cache_clear()
+    try:
+        result = CliRunner().invoke(app, ["bi", "ask", "anything"])
+    finally:
+        get_settings.cache_clear()
+    assert result.exit_code == 1 and "ARP_SUPERSET_PASSWORD" in result.stderr
