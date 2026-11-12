@@ -4,13 +4,11 @@ import { SIGN_IN_REQUIRED, useMe } from "../../lib/reviewer";
 import { errorDetail } from "../../lib/themeLayers";
 import { usePortfolioPane } from "../../context/usePortfolioPane";
 import { PortfolioFilterPicker } from "../../components/PortfolioFilterPicker";
+import {
+  RULE_TYPES, alertNumber, alertRuleName, alertScope, breachTypeLabel, fractionToPercent, percentToFraction, ruleCondition, ruleScope,
+  ruleTypeLabel,
+} from "../../lib/monitoringLabels";
 import type { Alert, AlertComparator, AlertRule, AlertRuleType, AlertStatus } from "../../types";
-
-const RULE_TYPES: { id: AlertRuleType; label: string }[] = [
-  { id: "field_threshold", label: "Company field threshold" },
-  { id: "concentration_threshold", label: "Single-name concentration" },
-  { id: "portfolio_aggregate_threshold", label: "Portfolio aggregate (WACI-style)" },
-];
 
 const COMPARATORS: { id: AlertComparator; label: string }[] = [
   { id: "gt", label: "> greater than" },
@@ -23,9 +21,8 @@ const STATUS_FILTERS: (AlertStatus | "all")[] = ["open", "acknowledged", "escala
 const TERMINAL_STATUSES: AlertStatus[] = ["resolved", "false_positive"];
 const LIVE_STATUSES: AlertStatus[] = ["open", "acknowledged", "escalated"];
 
-function BreachTypeBadge({ type }: { type: Alert["breach_type"] }) {
-  const label = { holdings_caused: "Holdings-caused", data_caused: "Data-caused", mixed: "Mixed", unknown: "Unknown" }[type];
-  return <span className={type === "unknown" ? "badge badge-neutral" : "badge badge-mid"}>{label}</span>;
+function BreachTypeBadge({ alert }: { alert: Alert }) {
+  return <span className={alert.breach_type === "unknown" ? "badge badge-neutral" : "badge badge-mid"}>{breachTypeLabel(alert.breach_type, alert.category)}</span>;
 }
 
 function StatusBadge({ status }: { status: AlertStatus }) {
@@ -85,6 +82,8 @@ export function MonitoringAlerts() {
     if (!fieldId && climateSchema?.fields.length) setFieldId(climateSchema.fields[0].field_id);
   }, [climateSchema, fieldId]);
 
+  const concentration = ruleType === "concentration_threshold";
+
   async function createRule() {
     if (!name.trim() || !thresholdValue) return;
     setCreating(true);
@@ -97,7 +96,7 @@ export function MonitoringAlerts() {
         rule_type: ruleType,
         field_id: ruleType === "concentration_threshold" ? null : fieldId,
         comparator,
-        threshold_value: Number(thresholdValue),
+        threshold_value: concentration ? percentToFraction(Number(thresholdValue)) : Number(thresholdValue),
         portfolio_ids: ruleType === "field_threshold" ? [] : scopePortfolioIds,
       });
       resetForm();
@@ -122,7 +121,7 @@ export function MonitoringAlerts() {
     setRuleType(rule.rule_type);
     if (rule.field_id) setFieldId(rule.field_id);
     setComparator(rule.comparator);
-    setThresholdValue(String(rule.threshold_value));
+    setThresholdValue(String(rule.rule_type === "concentration_threshold" ? fractionToPercent(rule.threshold_value) : rule.threshold_value));
     setScopePortfolioIds(rule.portfolio_ids);
   }
 
@@ -217,10 +216,10 @@ export function MonitoringAlerts() {
               </option>
             ))}
           </select>
-          <input aria-label="Threshold value"
+          <input aria-label={concentration ? "Threshold (%)" : "Threshold value"}
             type="number"
             step="any"
-            placeholder={ruleType === "concentration_threshold" ? "e.g. 0.1 (10%)" : "threshold value"}
+            placeholder={concentration ? "Threshold (%)" : "threshold value"}
             value={thresholdValue}
             onChange={(e) => setThresholdValue(e.target.value)}
           />
@@ -253,12 +252,9 @@ export function MonitoringAlerts() {
               {rules.map((r) => (
                 <tr key={r.rule_id}>
                   <td>{r.name}</td>
-                  <td>{r.rule_type}</td>
-                  <td>
-                    {r.field_id ? `${r.field_id} ` : ""}
-                    {r.comparator} {r.threshold_value}
-                  </td>
-                  <td>{r.portfolio_ids.length ? r.portfolio_ids.join(", ") : r.company_ids.length ? r.company_ids.join(", ") : "all"}</td>
+                  <td>{ruleTypeLabel(r.rule_type)}</td>
+                  <td>{ruleCondition(r, climateSchema?.fields ?? [])}</td>
+                  <td>{ruleScope(r, portfolios)}</td>
                   <td>{r.enabled ? "yes" : "no"}</td>
                   <td>{liveCount(r.rule_id)}</td>
                   <td className="toolbar">
@@ -319,6 +315,7 @@ export function MonitoringAlerts() {
           <table className="data-table">
             <thead>
               <tr>
+                <th>Rule</th>
                 <th>Scope</th>
                 <th>Category</th>
                 <th>Breach type</th>
@@ -332,13 +329,14 @@ export function MonitoringAlerts() {
             <tbody>
               {visibleAlerts.map((a) => (
                 <tr key={a.alert_id}>
-                  <td>{a.scope_id}</td>
+                  <td>{alertRuleName(a, rules)}</td>
+                  <td>{alertScope(a, rules, portfolios)}</td>
                   <td>{a.category.replace("_", " ")}</td>
                   <td>
-                    <BreachTypeBadge type={a.breach_type} />
+                    <BreachTypeBadge alert={a} />
                   </td>
-                  <td>{a.observed_value ?? "--"}</td>
-                  <td>{a.threshold_value ?? "--"}</td>
+                  <td>{alertNumber(a, a.observed_value)}</td>
+                  <td>{alertNumber(a, a.threshold_value)}</td>
                   <td>
                     <StatusBadge status={a.status} />
                   </td>
@@ -369,7 +367,7 @@ export function MonitoringAlerts() {
               ))}
               {visibleAlerts.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="muted">
+                  <td colSpan={9} className="muted">
                     No alerts.
                   </td>
                 </tr>
