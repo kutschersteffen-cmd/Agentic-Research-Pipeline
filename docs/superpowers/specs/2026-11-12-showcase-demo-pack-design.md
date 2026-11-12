@@ -95,7 +95,6 @@ the builder stops and asks the owner; no company is dropped silently.
 | `documents.csv` | `company_id,doc_type,reporting_year,file_name,title,source`. 14 document rows: one annual report per company (`doc_type` `10-K`, the app's "Annual report", `reporting_year` 2025, file name contains `2025`) and one proxy statement per US company (`DEF-14A`, `reporting_year` 2026, file name contains `2026`). `source` names where to get it (company investor-relations site or SEC EDGAR), no deep links. | Owner's download list, loader |
 | `documents/` | Empty in git (`.gitkeep`, PDFs git-ignored). The owner saves the 14 files here. | Loader, live upload |
 | `etf_dax.csv`, `etf_euro_stoxx_50.csv`, `etf_ai_big_data.csv` | The repo's `data/holdings/DAX.xlsx`, `EURO_STOXX_50.xlsx` and `AI_Big_Data.xlsx` converted to the ETF holdings CSV format the R&D Lab reads: only rows whose `Type of Security` is `Aktien` or `Equities` (cash, fund and future lines are left out), with names, ISINs and weights unchanged. Line 1 is `Source: <file name>, public ETF holdings as of <the xlsx sheet's date>`. | R&D Lab: build universe, overlap |
-| `benchmark_holdings.csv` | Not committed. A public iShares holdings CSV (iShares MSCI World ETF) that the owner downloads and saves under this name; `README.md` says where to get it. The StewardIQ benchmark only reads the iShares layout, which the repo's files do not have. | StewardIQ: client programme benchmark |
 | `RUN_SHEET.md` | The run of show below, with every click, a fallback per scene, and the day-before checklist. | Presenter |
 | `README.md` | What the pack is, the load command, and one `Source:` line per committed holdings file with its public source and as-of date. | Anyone |
 
@@ -115,7 +114,7 @@ is needed.
 | `companies` | Registers the 10 companies in the registry with their ISIC code (`resolve_company`). |
 | `universe` | Saves `companies.csv` as the saved universe "Showcase companies". |
 | `portfolios` | Seeds the demo portfolios (`generate_demo_dataset`, dates relative to today), then imports the seven public files in `data/holdings/` as portfolios through the app's own constituent import, bytes unchanged: the six index files under placeholder ids (owner's choice, 12 Nov), `AI_Big_Data.xlsx` under its real fund ISIN `IE00BGV5VN51`; EUR 100 million assumed per fund. |
-| `documents` | Copies every file of `documents.csv` that is present in `demo/showcase/documents/` to `<documents_dir>/<company_id>/<doc_type>/<file_name>` (setting `documents_dir`, default `data/documents`), so runs find it without the internet. Lists the missing ones. Also reads `benchmark_holdings.csv` with the app's benchmark parser when it is present. |
+| `documents` | Copies every file of `documents.csv` that is present in `demo/showcase/documents/` to `<documents_dir>/<company_id>/<doc_type>/<file_name>` (setting `documents_dir`, default `data/documents`), so runs find it without the internet. Lists the missing ones. |
 | `argus-capex` | Through the API: creates the extraction "Showcase: transition capex" for every company whose annual report is present, template `sch_transition_capex`, reporting year 2025, and starts it. |
 | `argus-plan` | Same for "Showcase: RWE transition plan": RWE only, its annual report (which holds the sustainability statement), template `transition_plan_indicators`. |
 | `voting` | Through the API: starts a proxy voting run for the US companies whose proxy statement is present. |
@@ -171,7 +170,7 @@ behaviour for a hidden test to pin.
 | AC-4 | `companies.csv` | it is parsed by the Argus list upload parser | 10 rows returned, none without a valid-shaped ISIN, LEI or CIK | unit |
 | AC-5 | `documents.csv` | it is read | 14 rows; every `company_id` is in `companies.csv`; 10 rows have `doc_type` `10-K`, `reporting_year` 2025 and a `file_name` whose only year is `2025`; 4 rows (NEE, DUK, NUE, DOW) have `doc_type` `DEF-14A`, `reporting_year` 2026 and a `file_name` whose only year is `2026`; every `file_name` ends in `.pdf` | unit |
 | AC-6 | `etf_dax.csv`, `etf_euro_stoxx_50.csv` and `etf_ai_big_data.csv` | the ETF holdings parser reads each | 40 holdings for DAX, 52 for EURO STOXX 50 and 100 for AI & Big Data (the xlsx rows whose `Type of Security` is `Aktien` or `Equities`), each with the name, ISIN and weight of its xlsx row | unit |
-| AC-7 | A 3-row file in the iShares layout saved as `benchmark_holdings.csv` in a temporary pack | the loader runs `--only documents` | after the document lines the output has `  benchmark: 3 equity rows`; with the file absent it has `  missing: benchmark_holdings.csv` there instead | unit |
+| ~~AC-7~~ | ~~`benchmark_holdings.csv` read by the loader~~ | | Retired 12 Nov before any build: the owner dropped the StewardIQ benchmark file, no scene uses that screen | |
 | AC-8 | An empty test database | the loader runs with `--only companies` twice | both runs print `ok companies: 10 registered`; the registry holds 10 companies, each with its `isic_code` | unit |
 | AC-9 | An empty test database | the loader runs with `--only portfolios` twice | both runs print a line starting `ok portfolios:`; the portfolio store lists 11 portfolios (4 seeded, 7 imported from `data/holdings/`), not 18 | unit |
 | AC-10 | `documents/` holds no PDF, the API is stubbed | the loader runs all steps | `documents` prints `ok documents: 0 of 14 present`, then 14 lines `  missing: <file_name>` in `documents.csv` order; `argus-capex`, `argus-plan` and `voting` each print `skip <step>: no document present`; exit code 0 | unit |
@@ -194,7 +193,7 @@ behaviour for a hidden test to pin.
 | AC-27 | `demo/showcase/` | every file is searched | `README.md` has one line starting `Source:` for each `*.csv` holdings file in `demo/showcase/`, naming that file, and does not contain the words `invented weights` | unit |
 | ~~AC-28 to AC-37~~ | ~~thematic ETF folders, loader steps `thematic` and `infer`~~ | | Retired 12 Nov before any build: the owner dropped the thematic-ETF taxonomy scene | |
 | AC-38 | `RUN_SHEET.md` | it is read | it has two lines starting `Invented:`, one naming the trigger-scan rows and one naming the seeded demo portfolios | unit |
-| AC-39 | `demo/showcase/` | `git check-ignore demo/showcase/benchmark_holdings.csv` | exit code 0 | unit |
+| ~~AC-39~~ | ~~`benchmark_holdings.csv` git-ignored~~ | | Retired 12 Nov with AC-7 | |
 | AC-40 | An empty test database | the loader runs `--only portfolios` | one portfolio has the fund ISIN `IE00BGV5VN51`, a name starting `AI & Big Data (public ETF holdings, 2026-11-12)` and a source tag naming `AI_Big_Data.xlsx` | unit |
 
 Must not change: product code stays untouched (AC-18).
