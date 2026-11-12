@@ -21,9 +21,9 @@ Three implementing PRs, each on `main` (which has #413), each with `Spec: showca
 
 | PR | What | Rows (`Rows:` line) |
 |----|------|---------------------|
-| 1 | Backend: company keys, ticker, edit/remove/discard endpoints, identity result, step 2 rules, start flag, progress, units | AC-1 to AC-55, AC-123 to AC-125, AC-134 to AC-146, AC-154 |
+| 1 | Backend: company keys, ticker, edit/remove/discard endpoints, identity result, step 2 rules, start flag, progress, units | AC-1 to AC-55, AC-123 to AC-125, AC-134 to AC-146, AC-154, AC-155 |
 | 2 | Start page and steps 1 to 3 in the browser | AC-56 to AC-106, AC-147 to AC-149 |
-| 3 | Steps 4 and 5, Results, walkthrough, company link, XBRL | AC-107 to AC-122, AC-126 to AC-133, AC-150 to AC-153; last slice, no `Rows:` line |
+| 3 | Steps 4 and 5, Results, walkthrough, company link, XBRL | AC-107 to AC-122, AC-126 to AC-133, AC-150 to AC-153, AC-156; last slice, no `Rows:` line |
 
 PR 2 and PR 3 need PR 1's API. They can be built in parallel after PR 1 is merged.
 
@@ -159,7 +159,8 @@ list is a 413. The central id keeps its place under the name (the pipeline spec 
 **7. Drafts.** The start page lists a draft only once it has a company, which also hides drafts made by a
 visit to `#/transitionPlan`. A listed draft shows its time and first two company names. `Delete` on a Draft
 row, after a confirmation, removes the flow through a new call, `POST /flows/{id}/discard`, allowed for any
-flow without a run. Plain `DELETE` keeps its rule (an existing test pins it).
+flow without a run that is not being started. A `starting` flag older than 60 seconds counts as not
+starting, here and for Edit and Remove, as it does for Start. Plain `DELETE` keeps its rule (an existing test pins it).
 
 **8. Start page.** An empty filtered list says so and offers `Show all`. The Process region says what the
 tiles count and, when one is pressed, which step is shown. Long run names wrap. `Walkthrough` is linked.
@@ -245,8 +246,9 @@ If a fix cannot be made without changing one of these, that is a spec question (
 - Item 2: use `EdgarDocumentSource.resolve_cik`. Tests replace the SEC list with a stand-in; no test calls
   the SEC.
 - Item 4: `enriched_universe()` already leaves out flagged and unresolved companies.
-- Item 3 and 4: "would change the key" means the registered row's `company_id` differs from the row's
-  current one. Roll the register transaction back when refusing.
+- Item 3 and 4: the key would change only when the matched company is already stored under a key other
+  than the row's. In every other case the row keeps its current `company_id`, whatever `register()`
+  proposes. Roll the register transaction back when refusing.
 - Item 31: the four sentences in AC-114 are fixed. Write the others from what each code means in
   `schemas/review.py` and `extraction/routing.py`.
 - Each PR description pastes the failing-before output per fix and lists every test added.
@@ -262,7 +264,9 @@ If a fix cannot be made without changing one of these, that is a spec question (
 
 ## Acceptance
 
-"Flow" is an Argus flow. API paths are under `/api/argus`. "pipeline AC-n" is a row of
+"Flow" is an Argus flow. API paths are under `/api/argus`. Holdout rows do not depend on each other or on
+test order: a test may replace a row's company name or identifier by another valid one of the same kind
+that its database does not hold yet. "pipeline AC-n" is a row of
 `2026-10-24-argus-simplified-pipeline-design.md`.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
@@ -279,7 +283,7 @@ If a fix cannot be made without changing one of these, that is a spec question (
 | AC-10 | a stand-in list that raises when read | `{name: "Microsoft", ticker: "MSFT"}` is added | the response is 200 and the row's `problem` is `The SEC ticker list could not be read: add an ISIN, LEI or CIK` | unit |
 | AC-11 | a stand-in that maps `MSFT` to `789019` | `{name: "Microsoft", ticker: "MSFT", isin: "US5949181045"}` is added | the row's `cik` is null | unit |
 | AC-12 | a row with a name and no ticker or identifier | it is added | its `problem` is `No identifier: add an ISIN, LEI or CIK` | holdout |
-| AC-13 | a flow without a run holding `Apple`, unmatched `Acme` and `Microsoft`, in that order | `PUT …/companies/<Acme's id>` with `{name: "Acme", isin: "DE0007164600"}` | 200; the second company is `Acme` with an `entity_id`, `isin` `DE0007164600` and `problem` null | holdout |
+| AC-13 | a flow without a run holding `Apple`, unmatched `Borealis` (name only, no files) and `Microsoft`, in that order | `PUT …/companies/<Borealis's id>` with `{name: "Borealis", isin: "DE000A1EWWW0"}` | 200; the second company is `Borealis` with an `entity_id`, `isin` `DE000A1EWWW0` and `problem` null | holdout |
 | AC-14 | a flow with `Apple` matched by ISIN `US0378331005` and unmatched `Acme` | `PUT` for Acme with `isin` `US0378331005` | 400 with detail `Apple is already in this extraction.` | holdout |
 | AC-15 | the state after AC-14 | the flow is read | it still has 2 companies and Acme has no `entity_id` | holdout |
 | AC-16 | a flow without a run with 3 companies, one of them with a kept file | `DELETE …/companies/<that id>` | 200; the flow has 2 companies and `decisions` has no entry for that file | holdout |
@@ -287,8 +291,8 @@ If a fix cannot be made without changing one of these, that is a spec question (
 | AC-18 | a flow whose `run_id` is set | `PUT` or `DELETE` on one of its companies | 409 with detail `Companies cannot be changed once the extraction has started.` | unit |
 | AC-19 | a flow without a run | `PUT` or `DELETE` with a company id not in the flow | 400 with detail `That company is not in this extraction.` | holdout |
 | AC-20 | a signed-in user with role `viewer` | `PUT`, `DELETE` on a company, or `POST …/discard` | 403 each | unit |
-| AC-21 | flow 1 added `{company_id: "ACME-X", name: "Acme", isin: "DE0007164600"}`; flow 2 has unmatched `Acme` (name only) with one uploaded file | `PUT` in flow 2 for Acme with `isin` `DE0007164600` | 409 with detail `Acme has files in this extraction. Remove the company and add it again with the identifier.` | holdout |
-| AC-22 | the state after AC-21 | flow 2 is read | Acme has no `entity_id` and `files` still lists its file | holdout |
+| AC-21 | flow 1 added `{company_id: "CEDAR-X", name: "Cedar", isin: "FR0000120271"}`; flow 2 has unmatched `Cedar` (name only) with one uploaded file | `PUT` in flow 2 for Cedar with `isin` `FR0000120271` | 409 with detail `Cedar has files in this extraction. Remove the company and add it again with the identifier.` | holdout |
+| AC-22 | the state after AC-21 | flow 2 is read | Cedar has no `entity_id` and `files` still lists its file | holdout |
 | AC-23 | a flow with unmatched `Acme`; the flow's identity run has status `completed` and resolved Acme to CIK `1234567`, not flagged | `GET …/flows/<id>` | Acme has an `entity_id`, `problem` null and `cik` `1234567` | unit |
 | AC-24 | as AC-23, but the run's result for Acme is flagged for review | `GET …/flows/<id>` | Acme has no `entity_id` | unit |
 | AC-25 | the flow of AC-23 | it is read a second time | the register holds the same number of companies and identifiers as after the first read | unit |
@@ -401,8 +405,8 @@ If a fix cannot be made without changing one of these, that is a spec question (
 | AC-132 | the state after AC-129 | the same company is added again | the picker still reports 2 companies | evaluator |
 | AC-133 | the state after AC-129 | a list file with 3 companies is uploaded | the picker reports 3 companies, as on `main` | evaluator |
 | AC-134 | a flow file as `main` stores it, with an unmatched company whose `company_id` is `1` and a file under that key | the flow is read | the company's `company_id` is `1` and `files` lists the file | unit |
-| AC-135 | a flow without a run with unmatched `Acme` (name only) and one uploaded file for it | `PUT` for Acme with `{name: "Acme Corp"}` | 200; the row is named `Acme Corp`, has the same `company_id` as before, and `files` still lists the file | holdout |
-| AC-136 | the flow of AC-135 before the edit; ISIN `DE0007164600` is not in the register | `PUT` for Acme with `{name: "Acme", isin: "DE0007164600"}` | 200; Acme has an `entity_id`, the same `company_id` as before, and `files` still lists the file | holdout |
+| AC-135 | a flow without a run with unmatched `Dune` (name only) and one uploaded file for it | `PUT` for Dune with `{name: "Dune Corp"}` | 200; the row is named `Dune Corp`, has the same `company_id` as before, and `files` still lists the file | holdout |
+| AC-136 | a flow without a run with unmatched `Elm` (name only) and one uploaded file for it; ISIN `NL0000009165` is not in the register | `PUT` for Elm with `{name: "Elm", isin: "NL0000009165"}` | 200; Elm has an `entity_id`, the same `company_id` as before, and `files` still lists the file | holdout |
 | AC-137 | as AC-23, but Acme has an uploaded file in this flow and CIK `1234567` is not in the register | `GET …/flows/<id>` | Acme has an `entity_id`, the same `company_id` as before, and `files` still lists the file | unit |
 | AC-138 | a flow file with `starting` true, `updated_at` 5 seconds ago and no `run_id` | `PUT` or `DELETE` on one of its companies | 409 with detail `Companies cannot be changed once the extraction has started.` | unit |
 | AC-139 | the flow of AC-138 | `POST …/discard` | 409 with detail `An extraction that has started cannot be deleted.` | unit |
@@ -421,6 +425,8 @@ If a fix cannot be made without changing one of these, that is a spec question (
 | AC-152 | the state after AC-129, where the first list was a saved universe with 1 company | XBRL Facts is opened again and that saved universe is picked | the picker reports 1 company | evaluator |
 | AC-153 | the state after AC-129 | a saved universe with 5 companies is picked | the picker reports 5 companies, as on `main` | evaluator |
 | AC-154 | the state after AC-44, the launched run still running | Start is called again | 409 with detail `This extraction is already running.` | unit |
+| AC-155 | three flow files with `starting` true, `updated_at` 2 minutes ago, no `run_id` and one company each | `PUT` on the first's company, `DELETE` on the second's, `POST …/discard` on the third | 200, 200 and 204 | unit |
+| AC-156 | a reason code `some_new_code` that has no sentence | it is turned into text | it reads `Reason: some new code.` | unit |
 
 Must not change (each also a row above): a name-only row's key (AC-5); a matched row's key (AC-6); the
 `No identifier` text (AC-12); one identity run per click (AC-64); plain `DELETE` of a flow (AC-33); the
