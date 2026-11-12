@@ -4635,6 +4635,18 @@
       "description": "On-disk filename, resolved by grounding.",
       "title": "Source Filename"
      },
+     "source_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The document's web address when it has no local file, resolved by grounding.",
+      "title": "Source Url"
+     },
      "span_text": {
       "anyOf": [
        {
@@ -8229,6 +8241,11 @@
       },
       "title": "Authority Sources",
       "type": "array"
+     },
+     "search_unreachable": {
+      "default": false,
+      "title": "Search Unreachable",
+      "type": "boolean"
      },
      "thematic_funds": {
       "items": {
@@ -17234,6 +17251,11 @@
      "round": {
       "title": "Round",
       "type": "integer"
+     },
+     "search_unreachable": {
+      "default": false,
+      "title": "Search Unreachable",
+      "type": "boolean"
      },
      "sources": {
       "default": [],

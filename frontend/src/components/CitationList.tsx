@@ -1,4 +1,5 @@
 import { api } from "../api/client";
+import { webSourceUrl } from "../lib/themeBuilder";
 import type { Citation } from "../types";
 import type { ActiveSource } from "./SourcePanel";
 
@@ -43,6 +44,14 @@ export function CitationList({ citations, onOpenSource }: Props) {
               >
                 view source{c.page ? ` (p. ${c.page})` : c.sheet ? ` (${c.sheet})` : ""}
               </button>
+            </>
+          )}
+          {c.grounded && webSourceUrl(c) && (
+            <>
+              {" "}
+              <a className="link-button" href={webSourceUrl(c)!} target="_blank" rel="noopener noreferrer">
+                view source
+              </a>
             </>
           )}
         </li>

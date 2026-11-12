@@ -130,3 +130,6 @@ export function notFoundLine(records: ExtractionRecord[]): string | null {
     .map(([n, label]) => `${n} ${label}`);
   return parts.length ? `Not found: ${parts.join(" · ")}` : null;
 }
+
+/** A poll answered 404: the run no longer exists, so polling stops. */
+export const runGone = (message: string) => message.startsWith("404:");

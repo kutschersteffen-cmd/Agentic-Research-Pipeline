@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { RunManifest } from "../types";
 import { pollAfter } from "../lib/poll";
-import { batchWaitText, canResumeRun } from "../lib/runs";
+import { batchWaitText, canResumeRun, runGone } from "../lib/runs";
 
 export function RunProgress({
   runId,
@@ -18,6 +18,8 @@ export function RunProgress({
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [gone, setGone] = useState(false);
+  const [cancelAsked, setCancelAsked] = useState(false);
   const timerRef = useRef<() => void>(() => {});
   const cancelledRef = useRef(false);
 
@@ -32,8 +34,9 @@ export function RunProgress({
       }
     } catch (err) {
       // Say so instead of "Loading…" forever; keep retrying in the background,
-      // slower, in case the backend comes back.
+      // slower, in case the backend comes back. A run that no longer exists is not coming back.
       if (cancelledRef.current) return;
+      if (runGone((err as Error).message)) return setGone(true);
       setLoadError((err as Error).message);
       timerRef.current = pollAfter(poll, pollMs * 4);
     }
@@ -54,6 +57,7 @@ export function RunProgress({
     setActionError(null);
     try {
       await api.cancelRun(runId);
+      setCancelAsked(true);
       await poll();
     } catch (err) {
       setActionError((err as Error).message);
@@ -76,6 +80,10 @@ export function RunProgress({
     }
   }
 
+  if (gone) {
+    return <p className="error-text" role="alert">This run no longer exists.</p>;
+  }
+
   if (!manifest) {
     return loadError ? (
       <p className="error-text" role="alert">
@@ -91,6 +99,7 @@ export function RunProgress({
 
   const pct = manifest.company_count > 0 ? Math.round((manifest.completed_count / manifest.company_count) * 100) : 0;
   const canCancel = manifest.status === "running" || manifest.status === "pending";
+  const cancelling = manifest.status === "running" && (manifest.cancel_requested || cancelAsked);
   const canResume = canResumeRun(runType, manifest.status);
 
   return (
@@ -126,7 +135,7 @@ export function RunProgress({
       {(canCancel || canResume) && (
         <div className="toolbar">
           {canCancel && (
-            <button onClick={cancelRun} disabled={actionBusy}>
+            <button onClick={cancelRun} disabled={actionBusy || cancelling}>
               Cancel run
             </button>
           )}
@@ -137,7 +146,9 @@ export function RunProgress({
           )}
         </div>
       )}
+      {cancelling && <p className="help-text" role="status">Cancelling… the run stops after the item in progress.</p>}
       {actionError && <p className="error-text" role="alert">{actionError}</p>}
+      {loadError && <p className="error-text" role="alert">Could not refresh: {loadError}</p>}
       {manifest.error && <p className="error-text" role="alert">{manifest.error}</p>}
     </div>
   );

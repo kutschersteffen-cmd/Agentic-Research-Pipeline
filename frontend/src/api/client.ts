@@ -706,7 +706,7 @@ export const api = {
 
   // Taxonomy library
   discoverTaxonomySources: (name: string) =>
-    request<{ authority_sources: unknown[]; thematic_funds: unknown[] }>("/api/taxonomies/discover-sources", {
+    request<{ authority_sources: unknown[]; thematic_funds: unknown[]; search_unreachable: boolean }>("/api/taxonomies/discover-sources", {
       method: "POST",
       body: JSON.stringify({ name }),
     }),

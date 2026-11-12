@@ -2,7 +2,17 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { dossierHref } from "../lib/dossiers";
 import { safeHref } from "../lib/xbrlTags";
-import { CATEGORY_LABEL, NOTE_SECTIONS, canPropose, canUpload, canWriteNote, planOpen, unreadLines } from "../lib/research";
+import {
+  CATEGORY_LABEL,
+  NOTE_SECTIONS,
+  canAddSource,
+  canPropose,
+  canUpload,
+  canWriteNote,
+  planOpen,
+  proposalFailedText,
+  unreadLines,
+} from "../lib/research";
 import type { ResearchNote, ResearchRound, ResearchSource, ResearchView, SourceCategory } from "../types";
 
 const EMPTY_SOURCE = { title: "", publisher: "", url: "", category: "" as SourceCategory | "", why: "", how: "" };
@@ -97,7 +107,7 @@ function LatestRound({ id, round, busy, act }: { id: string; round: ResearchRoun
       <section className="card" aria-label="Sources">
         <h2>Sources · round {round.round}</h2>
         {round.plan_status === "proposing" && <p className="muted" role="status">Proposing sources…</p>}
-        {round.plan_status === "proposal_failed" && <p className="error-text" role="alert">The source proposal failed. Propose again.</p>}
+        {round.plan_status === "proposal_failed" && <p className="error-text" role="alert">{proposalFailedText(round)}</p>}
         {round.plan_status === "approved" && <p className="muted">Approved by {round.plan_approved_by} on {round.plan_approved_at?.slice(0, 10)}.</p>}
         {round.plan_status !== "proposing" && (
           <SourceTable
@@ -106,7 +116,7 @@ function LatestRound({ id, round, busy, act }: { id: string; round: ResearchRoun
             onUpload={canUpload(round) ? (s, f) => act(() => api.uploadResearchFile(id, s.source_id, f)) : undefined}
           />
         )}
-        {open && <AddSource busy={busy} onAdd={(body) => act(() => api.addResearchSource(id, body))} />}
+        {canAddSource(round) && <AddSource busy={busy} onAdd={(body) => act(() => api.addResearchSource(id, body))} />}
         {open && (
           <button type="button" disabled={busy} onClick={() => act(() => api.approveSourcePlan(id))}>
             Approve sources
