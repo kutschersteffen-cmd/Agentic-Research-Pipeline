@@ -145,7 +145,13 @@ REVIEW_POLL_SECONDS = 5.0
 async def _drive(plan_id: str, store: PlanStore, steps, reviewed) -> None:
     """Run the plan in a worker thread. At a review gate the worker returns and this task polls `reviewed`
     without holding a thread, then starts the worker again; it ends when the plan is no longer waiting."""
-    while await asyncio.to_thread(run_plan, plan_id, store, steps, reviewed, return_at_gate=True) == "awaiting_review":
+    while True:
+        try:
+            status = await asyncio.to_thread(run_plan, plan_id, store, steps, reviewed, return_at_gate=True)
+        except PlanNotRunnable:
+            return  # cancelled meanwhile, or another worker took it over
+        if status != "awaiting_review":
+            return
         while True:
             await asyncio.sleep(REVIEW_POLL_SECONDS)
             if (await asyncio.to_thread(store.get, plan_id))["status"] != "awaiting_review":
@@ -156,7 +162,7 @@ async def _drive(plan_id: str, store: PlanStore, steps, reviewed) -> None:
         try:
             await asyncio.to_thread(claim_plan, store, plan_id)
         except PlanNotRunnable:
-            return  # cancelled, or another worker took it over
+            return
 
 
 def _done(task: asyncio.Task) -> None:
