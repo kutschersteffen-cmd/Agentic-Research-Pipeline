@@ -22,7 +22,10 @@ holdings). A script keeps the order; a person under time pressure does not.
    file can serve, and each such place is named in the run sheet.
 6. The R&D Lab derives two themes and their taxonomies from two thematic ETFs the owner supplies (owner,
    12 Nov): for each ETF its holdings export and its index methodology document, run through the app's
-   stock inference engine (`arp taxonomy infer`).
+   stock inference engine (`arp taxonomy infer`). The owner named them on 12 Nov: the iShares Global Clean
+   Energy Transition UCITS ETF (IE00B1XNHC34), folder `clean_energy`, and the ROBO Global Robotics &
+   Automation Index ETF, folder `robotics`. The pack works for any folder name; these two are the ones the
+   run sheet uses.
 2. Everything works with no internet from the Jupyter: every document is a file in the pack. Live document
    search is a bonus when the `fetch` line of `scripts/launch_jupyter.sh check` says `ok`.
 3. Runs that take minutes are finished the day before; one extraction is started live in minute 2 and
