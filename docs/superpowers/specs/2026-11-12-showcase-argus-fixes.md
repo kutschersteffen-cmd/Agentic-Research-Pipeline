@@ -21,7 +21,7 @@ Three implementing PRs, each on `main` (which has #413), each with `Spec: showca
 
 | PR | What | Rows (`Rows:` line) |
 |----|------|---------------------|
-| 1 | Backend: company keys, ticker, edit/remove/discard endpoints, identity result, step 2 rules, start flag, progress, units | AC-1 to AC-55, AC-123 to AC-125, AC-134 to AC-146, AC-154, AC-155 |
+| 1 | Backend: company keys, ticker, edit/remove/discard endpoints, identity result, step 2 rules, start flag, progress, units | AC-1 to AC-55, AC-123 to AC-125, AC-134 to AC-146, AC-154, AC-155, AC-157 |
 | 2 | Start page and steps 1 to 3 in the browser | AC-56 to AC-106, AC-147 to AC-149 |
 | 3 | Steps 4 and 5, Results, walkthrough, company link, XBRL | AC-107 to AC-122, AC-126 to AC-133, AC-150 to AC-153, AC-156; last slice, no `Rows:` line |
 
@@ -137,7 +137,8 @@ second company's CIK to it). A miss or an unreachable list leaves the row unmatc
 still succeeds.
 
 **3. Edit and remove.** Until the flow has a run, each step 1 row has `Edit` (name, ticker, ISIN, LEI,
-CIK) and `Remove`. An edit registers the row again by the rules of adding and replaces it in place.
+CIK) and `Remove`. An edit registers the row again by the rules of adding and replaces it in place; fields the form does not
+show (sector, country, website and any other list column) are kept.
 Remove drops the row and its file choices in this flow at once, with no dialog (adding the company again
 brings its files back); documents stay on the company. Once the flow has a run, or a Start is being
 dispatched (`starting`), both answer 409 and the buttons are gone. An edit never changes the key of a row
@@ -213,6 +214,24 @@ universe picked before is not changed. Uploading or picking a saved universe sti
   `retryable: bool`.
 - After a request or response model changes: export the OpenAPI file and regenerate the client types, as
   `.claude/CLAUDE.md` says.
+
+## Shared files with showcase-stewardship-fixes
+
+That spec (merged, PR #416) changes other functions in the same files. Whoever merges second merges `main`
+first. Its table says this feature decides "which identifiers are accepted" in
+`discovery/identity_agents.py`; this spec does that in `arp/argus/companies.py` instead (item 2) and does
+not change `identity_agents.py`.
+
+| File | This feature owns | showcase-stewardship-fixes owns |
+|---|---|---|
+| `backend/arp/discovery/identity_agents.py` | nothing | `gather_signals` failure handling, `lookup_errors`, the prompt line for a failed lookup |
+| `frontend/src/pages/ArgusDocuments.tsx` | `DOC_TYPES`, the Keep block and `Not decided`, the Type cell (all types), the import note | nothing; its status text is `searchStatusText` in `lib/argusFlow.ts` |
+| `frontend/src/pages/ArgusStart.tsx` | `start()`, hiding and deleting drafts, drafts made by `openNewFlow`, the filter texts, the Runs table | nothing |
+| `frontend/src/pages/ArgusResults.tsx` | `How was this found?`, kept companies' rows, the `Period` column | the question in the Field cell for the transition-plan template, the walk and talk line, the Scoring panel |
+| `frontend/src/pages/ArgusSchema.tsx` | saved-schema layout, field ids, Release confirmation, the unsaved draft, disabled settings, the missing-schema message | the estimate sentence by the start button, `64 indicators + 8 supporting figures` |
+| `backend/arp/argus/companies.py` | keys of unmatched rows, the ticker lookup, registering an edited row or an identity result | `isic_code` in `_FIELDS` and the fill on an existing company |
+| `backend/arp/argus/documents.py` | the check cache name, re-upload of a removed file | the year of an EDGAR filing |
+| `backend/arp/api/routers/argus.py` | the new company and discard endpoints, upload kept by default, list upload errors, the start flag, progress | nothing |
 
 ## Existing tests that pin behaviour (none may change)
 
@@ -427,6 +446,7 @@ that its database does not hold yet. "pipeline AC-n" is a row of
 | AC-154 | the state after AC-44, the launched run still running | Start is called again | 409 with detail `This extraction is already running.` | unit |
 | AC-155 | three flow files with `starting` true, `updated_at` 2 minutes ago, no `run_id` and one company each | `PUT` on the first's company, `DELETE` on the second's, `POST …/discard` on the third | 200, 200 and 204 | unit |
 | AC-156 | a reason code `some_new_code` that has no sentence | it is turned into text | it reads `Reason: some new code.` | unit |
+| AC-157 | a list row `name` `Fir`, `sector` `Software`, `country` `DE`, no identifier, uploaded to a flow | `PUT` for Fir with `{name: "Fir", isin: "SE0000108656"}` | 200; Fir has an `entity_id` and its `sector` is still `Software` and `country` still `DE` | holdout |
 
 Must not change (each also a row above): a name-only row's key (AC-5); a matched row's key (AC-6); the
 `No identifier` text (AC-12); one identity run per click (AC-64); plain `DELETE` of a flow (AC-33); the
