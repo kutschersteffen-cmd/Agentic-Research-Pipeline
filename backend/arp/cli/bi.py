@@ -7,7 +7,7 @@ import typer
 from arp.bi.views import PLACEHOLDER_SECRETS
 from arp.config import get_settings
 
-bi_app = typer.Typer(help="Apache Superset BI integration (arp/bi/): provision the `bi` views and Superset datasets.")
+bi_app = typer.Typer(help="Apache Superset BI integration (arp/bi/): provision the `bi` views and Superset datasets, and turn a question or brief into charts.")
 
 
 @bi_app.command("bootstrap")
@@ -100,3 +100,58 @@ def bi_bootstrap(
             typer.echo(f"Response body: {e.body}", err=True)  # operator-only; str(e) omits it
         raise typer.Exit(1) from e
     typer.echo(json.dumps({"database_id": database_id, "datasets": datasets, "reader_role": ROLE, "templates": statuses}))
+
+
+def _plan_in_superset(make, text: str) -> None:
+    """Runs service.ask_chart or service.design_dashboard the way the API does and prints the result."""
+    import asyncio
+
+    import httpx
+
+    from arp.bi.service import BIError
+    from arp.bi.superset_client import SupersetClient, SupersetError
+    from arp.llm.factory import build_llm_client
+
+    settings = get_settings()
+    if not settings.superset_password:
+        typer.echo("Not set: ARP_SUPERSET_PASSWORD -- see backend/.env.example.", err=True)
+        raise typer.Exit(1)
+    try:
+        llm = build_llm_client(settings)
+    except RuntimeError as e:  # no model configured
+        typer.echo(str(e), err=True)
+        raise typer.Exit(1) from e
+    client = SupersetClient(settings.superset_url, settings.superset_user, settings.superset_password)
+    try:
+        result = asyncio.run(make(text, llm, client))
+    except (BIError, SupersetError, httpx.HTTPError) as e:
+        typer.echo(f"Superset at {settings.superset_url}: {e}", err=True)
+        cause = e.__cause__ if isinstance(e, BIError) else e
+        if isinstance(cause, SupersetError) and cause.body:
+            typer.echo(f"Response body: {cause.body}", err=True)
+        raise typer.Exit(1) from e
+    if result.url is None:
+        typer.echo("\n".join(result.rejected), err=True)
+        raise typer.Exit(3)
+    typer.echo(json.dumps({"url": result.url, "dashboard_id": result.dashboard_id, "plan": result.plan.model_dump()}))
+
+
+@bi_app.command("ask")
+def bi_ask(question: str = typer.Argument(..., help='e.g. "Which sectors have the largest exposure?"')) -> None:
+    """One question becomes one chart on the shared Scratch dashboard (slug arp-scratch), like
+    POST /api/bi/ask. Needs Superset (ARP_SUPERSET_URL/USER/PASSWORD), `arp bi bootstrap` done, and a model.
+
+    Prints {"url", "dashboard_id", "plan"} as JSON. When the model cannot answer from the bi
+    datasets it prints why on stderr and exits 3; a Superset or setup error exits 1."""
+    from arp.bi.service import ask_chart
+
+    _plan_in_superset(ask_chart, question)
+
+
+@bi_app.command("design")
+def bi_design(brief: str = typer.Argument(..., help='e.g. "Carbon intensity by portfolio over time"')) -> None:
+    """A plain-language brief becomes an unpublished draft dashboard, like POST /api/bi/design.
+    Same output, exit codes and settings as `arp bi ask`."""
+    from arp.bi.service import design_dashboard
+
+    _plan_in_superset(design_dashboard, brief)

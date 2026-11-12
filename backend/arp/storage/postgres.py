@@ -3,11 +3,13 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
+from arp.errors import NotConfigured
+
 if TYPE_CHECKING:
     from sqlalchemy import Engine
 
 
-class PostgresExtraNotInstalled(RuntimeError):
+class PostgresExtraNotInstalled(NotConfigured):
     def __init__(self, exc: Exception) -> None:
         super().__init__(
             "sqlalchemy/psycopg/pgvector aren't installed; they are required dependencies: "

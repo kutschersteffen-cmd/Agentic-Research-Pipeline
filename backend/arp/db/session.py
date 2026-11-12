@@ -15,6 +15,7 @@ from sqlalchemy.exc import TimeoutError as PoolTimeout
 from sqlalchemy.orm import Session
 
 from arp.config import get_settings
+from arp.errors import NotConfigured
 from arp.storage.postgres import get_engine
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ _RETRY_BACKOFF_S = 0.5
 
 def require_dsn(settings) -> str:
     if not settings.postgres_dsn:
-        raise RuntimeError("ARP_POSTGRES_DSN is required: Postgres is the system of record.")
+        raise NotConfigured("ARP_POSTGRES_DSN is required: Postgres is the system of record.")
     return settings.postgres_dsn
 
 
@@ -41,7 +42,7 @@ def require_postgres(settings) -> str:
     except Exception as exc:  # noqa: BLE001 - any failure to connect stops startup
         reason = str(getattr(exc, "orig", None) or exc).splitlines()[0]
         masked = make_url(dsn).render_as_string(hide_password=True)
-        raise RuntimeError(f"Postgres unreachable at {masked}: {reason}") from exc
+        raise NotConfigured(f"Postgres unreachable at {masked}: {reason}") from exc
     return dsn
 
 

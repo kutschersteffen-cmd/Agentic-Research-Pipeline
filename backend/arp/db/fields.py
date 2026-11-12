@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from arp.db import models as m
 from arp.db.session import transaction
+from arp.errors import ClientInputError
 from arp.schemas.common import now_iso
 from arp.schemas.datapoints import DataPointSchema, FieldDefinition, FieldQuality, FieldStatus
 
@@ -19,15 +20,15 @@ _EXTRACTED_ID = re.compile(r"[a-z][a-z0-9_]*|theme:[^:\s]+|vote:[^:\s]+:[^:\s]+"
 _REGISTRY_LOCK = 7243001  # pg_advisory_xact_lock key serialising schema saves/releases
 
 
-class FieldIdCollision(ValueError):
+class FieldIdCollision(ClientInputError):
     """Two different provider codes normalise to the same field_id."""
 
 
-class UnreleasedFieldError(ValueError):
+class UnreleasedFieldError(ClientInputError):
     """A run was asked for on a schema that is not released."""
 
 
-class FieldVersionError(ValueError):
+class FieldVersionError(ClientInputError):
     """A released field's content changed without a higher field version."""
 
 

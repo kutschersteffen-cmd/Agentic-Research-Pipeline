@@ -3132,6 +3132,22 @@
       "title": "As Of",
       "type": "string"
      },
+     "decimal": {
+      "anyOf": [
+       {
+        "enum": [
+         ".",
+         ","
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Overrides the provider mapping's decimal separator.",
+      "title": "Decimal"
+     },
      "file": {
       "contentMediaType": "application/octet-stream",
       "title": "File",
@@ -3164,6 +3180,22 @@
       "default": "default",
       "title": "Provider",
       "type": "string"
+     },
+     "weight_unit": {
+      "anyOf": [
+       {
+        "enum": [
+         "percent",
+         "fraction"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Overrides the provider mapping's weight unit.",
+      "title": "Weight Unit"
      }
     },
     "required": [
@@ -4824,6 +4856,28 @@
     ],
     "title": "CitationRole",
     "type": "string"
+   },
+   "ClearAlertsRequest": {
+    "properties": {
+     "reason": {
+      "default": "",
+      "title": "Reason",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "resolved",
+       "false_positive"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "status"
+    ],
+    "title": "ClearAlertsRequest",
+    "type": "object"
    },
    "CloseRequest": {
     "properties": {
@@ -7376,6 +7430,11 @@
       "title": "Columns",
       "type": "array"
      },
+     "created_at": {
+      "description": "When the dataset was added: tells two uploads of the same file apart.",
+      "title": "Created At",
+      "type": "string"
+     },
      "dataset_id": {
       "title": "Dataset Id",
       "type": "string"
@@ -7453,6 +7512,7 @@
      "dataset_id",
      "name",
      "source",
+     "created_at",
      "row_count",
      "columns",
      "preview",
@@ -15710,6 +15770,22 @@
        }
       ]
      },
+     "scale": {
+      "default": "units",
+      "enum": [
+       "units",
+       "millions"
+      ],
+      "title": "Scale",
+      "type": "string"
+     },
+     "snapshot_dates": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Snapshot Dates",
+      "type": "array"
+     },
      "spec": {
       "anyOf": [
        {
@@ -15719,6 +15795,25 @@
         "type": "null"
        }
       ]
+     },
+     "trend": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/TrendPoint"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Trend"
+     },
+     "unit": {
+      "default": "",
+      "title": "Unit",
+      "type": "string"
      },
      "vintage": {
       "additionalProperties": true,
@@ -22559,6 +22654,23 @@
     "title": "TransitionPlanIndicator",
     "type": "object"
    },
+   "TrendPoint": {
+    "properties": {
+     "as_of": {
+      "title": "As Of",
+      "type": "string"
+     },
+     "result": {
+      "$ref": "#/components/schemas/AggregationResult"
+     }
+    },
+    "required": [
+     "as_of",
+     "result"
+    ],
+    "title": "TrendPoint",
+    "type": "object"
+   },
    "TriggerScanRequest": {
     "properties": {
      "companies": {
@@ -24651,6 +24763,41 @@
    },
    "arp__api__routers__portfolio__AskRequest": {
     "properties": {
+     "as_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "YYYY-MM-DD; each portfolio's newest snapshot on or before it.",
+      "title": "As Of"
+     },
+     "date_range": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "[start, end]: a trend, one point per snapshot date in it.",
+      "title": "Date Range"
+     },
+     "portfolio_ids": {
+      "description": "The screen's selection; a portfolio named in the question wins.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Portfolio Ids",
+      "type": "array"
+     },
      "question": {
       "title": "Question",
       "type": "string"
@@ -33224,6 +33371,7 @@
   },
   "/api/holdings/holders": {
    "get": {
+    "description": "Holder records, plus every portfolio that has none (seeded or imported data): listed read-only, nothing stored.",
     "operationId": "holders_api_holdings_holders_get",
     "responses": {
      "200": {
@@ -35176,6 +35324,97 @@
     ]
    }
   },
+  "/api/portfolio/monitoring/rules/{rule_id}": {
+   "delete": {
+    "description": "Removes the rule only. Its alerts stay in the log, so they have to be closed first.",
+    "operationId": "delete_monitoring_rule_api_portfolio_monitoring_rules__rule_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "rule_id",
+      "required": true,
+      "schema": {
+       "title": "Rule Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Monitoring Rule",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
+  "/api/portfolio/monitoring/rules/{rule_id}/clear-alerts": {
+   "post": {
+    "description": "Closes every live alert of one rule in one human decision. The rule need not exist any more.",
+    "operationId": "clear_monitoring_rule_alerts_api_portfolio_monitoring_rules__rule_id__clear_alerts_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "rule_id",
+      "required": true,
+      "schema": {
+       "title": "Rule Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ClearAlertsRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Clear Monitoring Rule Alerts Api Portfolio Monitoring Rules  Rule Id  Clear Alerts Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Clear Monitoring Rule Alerts",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
   "/api/portfolio/monthly-run": {
    "post": {
     "operationId": "post_monthly_run_api_portfolio_monthly_run_post",
@@ -35212,6 +35451,37 @@
      }
     },
     "summary": "Post Monthly Run",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
+  "/api/portfolio/monthly-run/last": {
+   "get": {
+    "description": "The newest monthly run that ran (a blocked one is not recorded), or null.",
+    "operationId": "get_last_monthly_run_api_portfolio_monthly_run_last_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "anyOf": [
+          {
+           "additionalProperties": true,
+           "type": "object"
+          },
+          {
+           "type": "null"
+          }
+         ],
+         "title": "Response Get Last Monthly Run Api Portfolio Monthly Run Last Get"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Last Monthly Run",
     "tags": [
      "portfolio"
     ]
@@ -36876,6 +37146,40 @@
    }
   },
   "/api/reports/{report_id}": {
+   "delete": {
+    "description": "Removes an unfinished report's folder. A finished one, or one still being worked on, is never removed.",
+    "operationId": "discard_report_api_reports__report_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Discard Report",
+    "tags": [
+     "reporting"
+    ]
+   },
    "get": {
     "operationId": "get_report_api_reports__report_id__get",
     "parameters": [

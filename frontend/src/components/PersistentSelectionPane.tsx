@@ -66,12 +66,6 @@ export function PersistentSelectionPane({ onSendUniverse }: { onSendUniverse?: (
             {seeding ? "Seeding..." : "Seed demo dataset"}
           </button>
           {seedError && <p className="error-text" role="alert">{seedError}</p>}
-          {seedSummary && (
-            <p className="status-text">
-              Seeded {seedSummary.company_count} companies, {seedSummary.portfolio_count} portfolios,{" "}
-              {seedSummary.holding_rows} holding rows.
-            </p>
-          )}
         </>
       ) : (
         <div className="pane-grid">
@@ -130,6 +124,13 @@ export function PersistentSelectionPane({ onSendUniverse }: { onSendUniverse?: (
             </div>
           )}
         </div>
+      )}
+      {/* outside the branches above: seeding makes portfolios appear, and the confirmation has to outlive that */}
+      {seedSummary && (
+        <p className="status-text" role="status">
+          Seeded {seedSummary.company_count} companies, {seedSummary.portfolio_count} portfolios,{" "}
+          {seedSummary.holding_rows} holding rows.
+        </p>
       )}
     </section>
   );

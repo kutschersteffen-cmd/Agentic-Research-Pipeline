@@ -11,11 +11,13 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
+from arp.errors import NotConfigured
+
 if TYPE_CHECKING:
     from opensearchpy import OpenSearch
 
 
-class OpenSearchNotConfigured(RuntimeError):
+class OpenSearchNotConfigured(NotConfigured):
     def __init__(self) -> None:
         super().__init__(
             "Settings.opensearch_url is not set -- the user-facing search feature and the 'opensearch' "
@@ -24,7 +26,7 @@ class OpenSearchNotConfigured(RuntimeError):
         )
 
 
-class OpenSearchExtraNotInstalled(RuntimeError):
+class OpenSearchExtraNotInstalled(NotConfigured):
     def __init__(self, exc: Exception) -> None:
         super().__init__(
             "opensearch_url is set but opensearch-py isn't installed. Install the optional extra: "

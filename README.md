@@ -194,7 +194,13 @@ arp db init-postgres                                             # schema + `bi`
 arp portfolio seed-demo                                          # demo holdings into Postgres
 arp bi bootstrap                                                 # views, bi_reader role, Superset database, datasets, metrics, descriptions, templates (idempotent)
 arp golden-set bi                                                # planner eval; needs an API key, not run in CI
+arp bi ask "Which sectors have the largest exposure?"           # one chart on the Scratch dashboard; prints its URL and plan
+arp bi design "Carbon intensity by portfolio over time"         # an unpublished draft dashboard, same output
 ```
+
+`arp bi ask` and `arp bi design` do what `/api/bi/ask` and `/api/bi/design` do, without the API: they need Superset
+reachable from where the CLI runs, the Superset settings above and a model. Exit 3 means the model could not answer
+from the `bi` datasets (the reason is on stderr); exit 1 is a Superset or setup error.
 
 `arp bi bootstrap` re-applies the `bi` views (including `holdings_history`), registers the six datasets and their
 metrics, and copies descriptions from `backend/arp/bi/catalog.py`. Each run overwrites the dataset description and the

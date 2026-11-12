@@ -13,6 +13,7 @@ from pptx.dml.color import RGBColor
 from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
 from pptx.util import Pt
 
+from arp.errors import ClientInputError
 from arp.reporting.design import STATUS_CRITICAL, STATUS_GOOD, DesignTheme, categorical_color
 from arp.schemas.reporting import ChartSpec, ChartType, QuantitativeDataset
 
@@ -34,7 +35,7 @@ _XL_CHART_TYPE = {
 _PIE_TYPES = {ChartType.PIE, ChartType.DOUGHNUT}
 
 
-class ChartDataError(ValueError):
+class ChartDataError(ClientInputError):
     """The ChartSpec references a column/dataset that doesn't actually
     exist, or references a chart shape the data doesn't support -- always a
     bug in the plan (LLM-authored or hand-edited), never a rendering

@@ -104,3 +104,7 @@ export async function pickerHits<T extends Hit>(q: string, search: (text: string
   }
   return search(q, 20);
 }
+
+const NODE_VIEWS = ["tree", "footprint", "exposure", "shock"];
+/** `#/valueChain/<view>` without a node id is the explorer's start, not a node called "exposure". */
+export const explorerParams = (params: string[]): string[] => (params.length === 1 && NODE_VIEWS.includes(params[0]) ? [] : params);
