@@ -177,7 +177,8 @@ nothing written:
  "rejected": [{"sheet": "objectives", "row": 3, "field": "objective_type", "reason": "not one of transparency, operational, strategic"}]}
 ```
 
-`created`, `updated` and `unchanged` count rows across all tables the batch touches. For Excel, `row` is the
+`created`, `updated` and `unchanged` count rows across all tables the batch touches, `stw_companies` included;
+`stw_events` rows are never counted. For Excel, `row` is the
 worksheet row number (header = row 1). For JSON, `sheet` is the batch key and `row` the 1-based index in it.
 
 **Endpoints and CLI.**
@@ -207,8 +208,12 @@ items are found or created from (`company_id` or `isin` or `cusip`, `meeting_dat
 **Rules.**
 
 - An engagement matches its company by `company_id`, else by `isin` through the registry. If neither matches it is
-  rejected with reason `unknown company`. An unknown company that matches by ISIN but has no `stw_companies` row
-  gets one, named from `company_name`.
+  rejected with reason `unknown company`. A company matched by `company_id` or ISIN that has no `stw_companies`
+  row gets one, named from `company_name`.
+- Vote intake derives `against_management`: true when `vote` is `against` or `withhold` and
+  `management_recommendation` is `for`, or `vote` is `for` and the recommendation is `against`; false when `vote`
+  equals the recommendation; null when the recommendation is empty or `vote` is `abstain`, `do_not_vote`, `other`
+  or a frequency value.
 - A vote row whose company matches nothing is stored with `company_id` null.
 - `source` is `api` for JSON and `excel` for uploads. The upsert key is (`source`, `external_id`). A row whose
   values equal the stored row counts as `unchanged` and writes nothing, events included.
@@ -218,7 +223,8 @@ items are found or created from (`company_id` or `isin` or `cusip`, `meeting_dat
 `arp stewardship migrate-files [--dry-run]` reads every `engagements/*/record.json` and `events.jsonl` and writes
 companies, engagements, activities, commitments, contacts, transitions and events with `source = 'file_migration'`
 and the file's ids as `external_id`. It prints one line, `created N, updated N, unchanged N` (counted over those
-seven tables). `--dry-run` prints `would create N` and writes nothing. It is idempotent. The file directory is
+seven tables). `--dry-run` prints `would create N` and writes nothing. It is idempotent. It writes no events of its own: the
+only `stw_events` rows it creates are the ones migrated from `events.jsonl`. The file directory is
 left in place. Migrated engagements have no objectives; they count as "not yet a VOICE engagement" until one is
 added.
 
@@ -267,8 +273,8 @@ World companies and puts them in the house portfolios, so `house_universe()` inc
 ## Monitoring
 
 `stewardship/process.vote_items()` returns the run votes (as today) plus ledger decisions, in the same row shape
-(`company_id`, `meeting_date`, `vote`, `against_management`, `overrode_policy = false`). `voting_feed.issuer_fields`
-stays unchanged. Rules:
+(`company_id`, `meeting_date` as an ISO `YYYY-MM-DD` string, `vote`, `against_management` with null mapped to
+`false`, `overrode_policy = false`). `voting_feed.issuer_fields` stays unchanged. Rules:
 
 - Only ledger decisions whose meeting falls within `vote_monitoring_window_days` (setting, default 365) before the
   newest `meeting_date` in the ledger count. With the demo data that is the 2025–26 proxy year, so 2024 votes alone
@@ -284,8 +290,8 @@ The house rule `vote_against_management` (`vote.against_management > 0`) is unch
 
 The issue panel on `#/engagement` (`frontend/src/components/EngagementIssuePanel.tsx`) lists the issue's
 objectives: description, type, status, result. Each row from `mock_voice_seed` or `npx_urth_demo` shows the label
-`Demo data`. `e2e_stack.sh up` runs `arp stewardship seed-demo --companies 20` once `arp showcase load` exists, so
-the evaluator has seeded data.
+`Demo data`. `e2e_stack.sh up` seeds no stewardship data; the evaluator runs
+`arp showcase load && arp stewardship seed-demo --companies 20` itself before checking AC-30.
 
 ## Left to the builder
 
@@ -296,8 +302,8 @@ the evaluator has seeded data.
 
 ## Acceptance
 
-All holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`, starting from empty `stw_*` and
-`vote_*` tables unless the row says otherwise.
+All holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Each holdout test truncates the `stw_*`
+and `vote_*` tables first, unless the row says otherwise.
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
@@ -308,14 +314,14 @@ All holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`, star
 | AC-5 | A file store with 3 companies, 5 issues, 7 correspondence entries, 2 commitments, 0 contacts, 4 transitions, 9 events | `arp stewardship migrate-files` runs | It prints `created 30, updated 0, unchanged 0` | holdout |
 | AC-6 | AC-5 done | `migrate-files` runs again | It prints `created 0, updated 0, unchanged 30` | holdout |
 | AC-7 | The file store from AC-5 | `arp stewardship migrate-files --dry-run` runs | It prints `would create 30`, and `stw_engagements` holds 0 rows | holdout |
-| AC-8 | A workbook with 2 engagements, 3 objectives, 5 activities for registered companies | It is uploaded to `POST /api/stewardship/intake/engagements.xlsx` | Status 200, body `{"created": 10, "updated": 0, "unchanged": 0, "rejected": []}` (10 = 2 + 3 + 5; the companies already exist) | holdout |
+| AC-8 | Two companies created through `POST /api/engagement/records`, and a workbook with 2 engagements (one per company), 3 objectives, 5 activities | It is uploaded to `POST /api/stewardship/intake/engagements.xlsx` | Status 200, body `{"created": 10, "updated": 0, "unchanged": 0, "rejected": []}` (10 = 2 + 3 + 5; the companies already exist) | holdout |
 | AC-9 | AC-8 done | The same workbook is uploaded again | Status 200, body `{"created": 0, "updated": 0, "unchanged": 10, "rejected": []}` | holdout |
 | AC-10 | AC-8 done | The same workbook is uploaded again | `stw_events` row count is the same as before the upload | holdout |
 | AC-11 | AC-8 done | The workbook is uploaded with one activity's `summary` changed | Status 200, body has `"updated": 1, "unchanged": 9` | holdout |
 | AC-12 | A workbook whose `objectives` sheet has `objective_type = ambitious` on worksheet row 3 | It is uploaded | Status 422; `rejected` holds exactly one entry with `sheet` `objectives`, `row` 3, `field` `objective_type` | holdout |
 | AC-13 | The workbook from AC-12 | It is uploaded | `stw_engagements`, `stw_objectives` and `stw_activities` hold 0 rows | holdout |
 | AC-14 | A JSON engagement batch with 1 engagement whose `company_id` and `isin` match nothing | It is posted to `POST /api/stewardship/intake/engagements` | Status 422; `rejected` holds one entry with `sheet` `engagements`, `row` 1, `reason` `unknown company` | holdout |
-| AC-15 | A valid JSON engagement batch with 1 engagement and 1 objective | It is posted | Status 200, body `{"created": 2, "updated": 0, "unchanged": 0, "rejected": []}` | holdout |
+| AC-15 | A company created through `POST /api/engagement/records`, and a valid JSON engagement batch with 1 engagement for it and 1 objective | It is posted | Status 200, body `{"created": 2, "updated": 0, "unchanged": 0, "rejected": []}` | holdout |
 | AC-16 | A JSON vote batch with one row: `vote` `against`, `management_recommendation` `for`, empty `rationale` | It is posted to `POST /api/stewardship/intake/votes` | Status 422; `rejected` holds one entry with `field` `rationale`, `reason` `rationale required when voting against management` | holdout |
 | AC-17 | A votes workbook with 3 valid rows at one new meeting, `item_number` 1, 2 and 3 | It is uploaded to `POST /api/stewardship/intake/votes.xlsx` | Status 200, body `{"created": 7, "updated": 0, "unchanged": 0, "rejected": []}` (1 meeting + 3 items + 3 decisions) | holdout |
 | AC-18 | The workbook from AC-8 saved to disk | `arp stewardship intake <file> --kind engagements` runs | It exits 0 and prints `created 10, updated 0, unchanged 0, rejected 0` | holdout |
@@ -327,7 +333,7 @@ All holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`, star
 | AC-24 | AC-23 done | Closed objectives are read | None has a null `result`, `closed_at`, `outcome` or `influence_level` | holdout |
 | AC-25 | AC-23 done | Objectives are read | 25–45 % have `follows_objective_id` set; each points to an objective in the same engagement with an earlier `started_at` | holdout |
 | AC-26 | AC-23 done | Objectives under engagements with `engager_role` `passive_support` are read | None has `influence_level` `4A`, `4B` or `5` | holdout |
-| AC-27 | `ARP_ENGAGEMENT_STORE=postgres`, a file `engagements/<id>/record.json` present | `POST /api/engagement/records/{id}/issues` | The file's bytes are unchanged | holdout |
+| AC-27 | `ARP_ENGAGEMENT_STORE=postgres`, a file `engagements/<id>/record.json` present, and the same company created through `POST /api/engagement/records` | `POST /api/engagement/records/{id}/issues` | Status 200, and the file's bytes are unchanged | holdout |
 | AC-28 | A database with rows in legacy `engagement_issues` and `engagement_commitments` | `arp db init-postgres` runs | Both tables exist with the same row counts | holdout |
 | AC-29 | AC-23 done | `seed-demo --seed 7` runs again | Row counts of every `stw_*` table are unchanged | holdout |
 | AC-30 | Seeded data on the e2e stack | A user opens `#/engagement` and a seeded company's issue | Each objective shows description, type, status and result, and the label `Demo data` | evaluator |
