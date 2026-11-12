@@ -60,8 +60,10 @@ def _precedence(store, holder: HolderConfig, kind: str, holder_id: str, as_of: s
 
 def ingest(
     store, validated: Validated, *, kind, holder_id: str, as_of: str, source, source_ref: str | None,
-    principal: Principal | None, override_reason: str | None, idmap,
+    principal: Principal | None, override_reason: str | None, idmap, known_holders_only: bool = False,
 ) -> IntakeResult:
+    """`known_holders_only` (the upload route sets it): a rejected file records a failed load only for a holder
+    that exists, so a mistyped holder id leaves no load behind."""
     try:
         safe_id(holder_id, label="holder_id")
     except UnsafeIdentifierError as e:
@@ -69,8 +71,10 @@ def ingest(
     if not iso_date(as_of):
         raise IntakeError(422, "as_of must be YYYY-MM-DD")
     if validated.errors:
-        record_load(store, LoadRecord(kind="holdings", source_id=holder_id, month=as_of[:7], status="failed", content_hash="",
-                                      detail=f"{len(validated.errors)} row errors"))
+        exists = store.get_holder(kind, holder_id) or (kind == "portfolio" and store.get_portfolio(holder_id))
+        if exists or not known_holders_only:
+            record_load(store, LoadRecord(kind="holdings", source_id=holder_id, month=as_of[:7], status="failed", content_hash="",
+                                          detail=f"{len(validated.errors)} row errors"))
         raise IntakeError(422, "file rejected", validated.errors)
     holder = store.get_holder(kind, holder_id) or HolderConfig(holder_id=holder_id, kind=kind, source=source)
     _precedence(store, holder, kind, holder_id, as_of, source, override_reason)

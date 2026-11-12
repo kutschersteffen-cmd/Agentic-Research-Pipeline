@@ -63,3 +63,33 @@ def test_failed_load_is_still_recorded_and_shown_for_a_holder_and_for_a_portfoli
     rows = {r["source_id"]: r for r in feeds.overview(store, idmap, TODAY)}
     assert rows["seeded"]["last_load"]["status"] == "failed"
 
+
+
+def test_upload_route_records_a_failed_load_only_for_a_holder_that_exists(env):  # AC-106, last clause
+    """Owner decision on PR #419: the route decides. A direct `ingest` call records as before (the test above)."""
+    from fastapi.testclient import TestClient
+
+    from arp.api.deps import get_identifier_map, get_portfolio_store
+    from arp.api.main import app
+
+    store, idmap, _rs = env
+    store.save_portfolio(Portfolio(portfolio_id="seeded", name="Seeded"))
+    store.save_holder(HolderConfig(holder_id="ix_known", kind="index", source="file"))
+    app.dependency_overrides.update({get_portfolio_store: lambda: store, get_identifier_map: lambda: idmap})
+    try:
+        client = TestClient(app)
+
+        def rejected(holder_id, kind):
+            r = client.post("/api/holdings/upload", files={"file": ("h.csv", b"ISIN\nUS0378331005\n", "text/csv")},
+                            data={"holder_id": holder_id, "kind": kind, "as_of": "2026-10-30"})
+            assert (r.status_code, r.json()["detail"]["message"]) == (422, "file rejected")
+
+        rejected("typo_fund", "portfolio")
+        rejected("seeded", "index")  # a portfolio id is no index holder
+        assert _loads(store) == []
+        rejected("seeded", "portfolio")
+        rejected("ix_known", "index")
+        assert _loads(store) == [("seeded", "failed"), ("ix_known", "failed")]
+    finally:
+        app.dependency_overrides.pop(get_portfolio_store, None)
+        app.dependency_overrides.pop(get_identifier_map, None)

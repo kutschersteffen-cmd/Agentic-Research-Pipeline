@@ -67,7 +67,7 @@ async def upload(
                              weight_unit=weight_unit or mapping.weight_unit)
         return ingest(
             store, validated, kind=kind, holder_id=holder_id, as_of=as_of, source="file", source_ref=file_ref(data),
-            principal=user, override_reason=override_reason, idmap=idmap,
+            principal=user, override_reason=override_reason, idmap=idmap, known_holders_only=True,
         )
 
     try:
