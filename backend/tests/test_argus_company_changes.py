@@ -117,6 +117,40 @@ def ago(seconds):
     return (datetime.now(UTC) - timedelta(seconds=seconds)).isoformat()
 
 
+# --- item 1: a list's row numbers are not keys ---
+
+def upload(client, fid, text):
+    r = client.post(f"/api/argus/flows/{fid}/companies/upload", files={"file": ("u.csv", text)})
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_two_lists_that_number_their_rows_do_not_share_a_key(client, fid, tmp_path):  # AC-1, AC-3
+    acme = upload(client, fid, "company_id,name\n1,Acme\n")["companies"][0]["company_id"]
+    other = client.post("/api/argus/flows").json()["flow_id"]
+    foo = upload(client, other, "company_id,name\n1,Foo Corp\n")["companies"][0]["company_id"]
+    assert acme != foo
+    upload_pdf(client, fid, acme, tmp_path, title="Acme Annual Report 2025")
+    assert client.get(f"/api/argus/flows/{other}").json()["files"] == []
+
+
+def test_one_list_that_repeats_a_row_number_keeps_both_rows(client, fid):  # AC-2
+    flow = upload(client, fid, "company_id,name\n1,Acme\n1,Foo Corp\n")
+    assert [c["name"] for c in flow["companies"]] == ["Acme", "Foo Corp"]
+
+
+def test_the_same_numbered_row_has_one_key_in_every_flow(client, fid):  # AC-4
+    first = upload(client, fid, "company_id,name\n7,Acme\n")["companies"][0]["company_id"]
+    other = client.post("/api/argus/flows").json()["flow_id"]
+    assert upload(client, other, "company_id,name\n7,Acme\n")["companies"][0]["company_id"] == first
+
+
+def test_a_list_id_with_a_letter_stays_the_key(client, fid):
+    """Documents and earlier runs are filed under ids like these; only a bare row number says nothing about the company."""
+    flow = upload(client, fid, "company_id,name\naapl,Apple Inc\nA1,Acme\n")
+    assert [c["company_id"] for c in flow["companies"]] == ["aapl", "A1"]
+
+
 # --- item 2: the ticker ---
 
 def test_a_ticker_is_matched_through_its_cik(client, fid, sec, pg):  # AC-7

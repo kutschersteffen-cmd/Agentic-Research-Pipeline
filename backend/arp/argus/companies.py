@@ -107,8 +107,12 @@ def register(session: Session, row: dict, *, keep: str | None = None) -> Company
         if owner not in (None, entity_id):
             own_id = None  # another company's id: never the key two rows could share
     # Earlier runs and documents are filed under the universe id (until they are filed by central id).
-    if keep is None:
-        key = _key(session, entity_id, own_id) if entity_id else own_id or name
+    if keep is None and entity_id:
+        key = _key(session, entity_id, own_id)
+    elif keep is None:
+        # A list id made of digits is a row number, and every list has a row 1: such a row is keyed by its name
+        # and that id together. An id with a letter (`aapl`) stays the key: documents and earlier runs are filed under it.
+        key = f"{name}-{own_id}" if own_id and own_id.isascii() and own_id.isdigit() else own_id or name
     elif entity_id and _universe_id(session, entity_id) not in (None, normalise_identifier(IdScheme.UNIVERSE, keep)):
         key = _key(session, entity_id, None)
     else:
