@@ -9,6 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from arp.discovery.site_finder import SearchReport
 from arp.orchestration import jobs
 from arp.orchestration.job_manager import JobManager
 from arp.research.authority_taxonomy.consolidate import consolidate
@@ -21,6 +22,7 @@ from arp.schemas.thematic import ThemeDefinition
 Stage = Literal["discovering", "awaiting_sources", "extracting", "awaiting_review", "accepted", "cancelled", "failed"]
 _MAX_CHARS = 400_000
 INTERRUPTED = "interrupted by a server restart"
+SEARCH_DOWN = "The web search could not be reached, so no new sources were found. Add a URL or upload a document below."
 
 
 class WrongStage(Exception):
@@ -92,14 +94,16 @@ async def discover(
     run_id: str, *, run_store, search_client, llm, user_agent: str, use_library: bool = True, library_root: Path | None = None,
 ) -> RunState:
     state = load_state(run_id, run_store)
+    report = SearchReport()
     try:
         candidates = await discover_candidates(
             state.theme_name, state.theme_key, state.guidance, search_client=search_client, llm=llm,
-            user_agent=user_agent, use_library=use_library, library_root=library_root,
+            user_agent=user_agent, use_library=use_library, library_root=library_root, report=report,
         )
     except Exception as e:  # noqa: BLE001 - shown to the user as the run's error
         return _finish(run_id, run_store, stage="failed", error=str(e))
-    return _finish(run_id, run_store, stage="awaiting_sources", candidates=candidates, error=None)
+    return _finish(run_id, run_store, stage="awaiting_sources", candidates=candidates,
+                   error=SEARCH_DOWN if report.unreachable else None)
 
 
 async def start_run(

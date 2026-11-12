@@ -11,7 +11,7 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_llm_client, get_registry, get_taxonomy_store, settings_dep
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
-from arp.discovery.site_finder import build_web_search_client
+from arp.discovery.site_finder import SearchReport, build_web_search_client
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.research.activity_generator import build_theme, build_theme_industry_anchored
 from arp.research.indirect_exposure.factory import NO_MODEL, resolve_indirect_exposure_model
@@ -43,6 +43,7 @@ class DiscoverSourcesRequest(BaseModel):
 class DiscoverSourcesResponse(BaseModel):
     authority_sources: list[SourceCandidate]
     thematic_funds: list[SourceCandidate]
+    search_unreachable: bool = False  # every fund query failed: the web search could not be reached
 
 
 @router.post("/discover-sources", response_model=DiscoverSourcesResponse)
@@ -59,7 +60,8 @@ async def discover_sources(req: DiscoverSourcesRequest, settings: Settings = Dep
     """
     search_client = build_web_search_client(settings.discovery_user_agent)
     authority = await discover_authority_sources(req.name, search_client)
-    funds = await discover_thematic_funds(req.name, search_client)
+    report = SearchReport()
+    funds = await discover_thematic_funds(req.name, search_client, report=report)
 
     try:
         llm = get_llm_client()
@@ -67,7 +69,8 @@ async def discover_sources(req: DiscoverSourcesRequest, settings: Settings = Dep
     except RuntimeError:
         logger.info("Skipping authority-source ranking: no LLM configured.")
 
-    return DiscoverSourcesResponse(authority_sources=authority, thematic_funds=funds)
+    return DiscoverSourcesResponse(authority_sources=authority, thematic_funds=funds,
+                                   search_unreachable=report.unreachable)
 
 
 @router.get("/sources/inspect")

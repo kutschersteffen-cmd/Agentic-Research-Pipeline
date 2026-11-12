@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from arp.discovery.site_finder import WebSearchClient
+from arp.discovery.site_finder import SearchReport, WebSearchClient
 from arp.llm.base import LLMClient, LLMUsage
 from arp.schemas.taxonomy_sources import SourceCandidate, SourceCandidateType
 
@@ -24,15 +24,19 @@ _FUND_QUERY_TEMPLATES = [
 
 
 async def _run_queries(
-    theme_name: str, templates: list[str], source_type: SourceCandidateType, search_client: WebSearchClient, per_query: int
+    theme_name: str, templates: list[str], source_type: SourceCandidateType, search_client: WebSearchClient, per_query: int,
+    report: SearchReport | None = None,
 ) -> list[SourceCandidate]:
+    report = report or SearchReport()
     candidates: list[SourceCandidate] = []
     seen_urls: set[str] = set()
     for template in templates:
         query = template.format(theme=theme_name)
+        report.queries += 1
         try:
             results = await search_client.search(query, max_results=per_query)
         except Exception:  # noqa: BLE001 - one bad query shouldn't blank the whole discovery step
+            report.failed += 1
             continue
         for r in results:
             if r.url in seen_urls:
@@ -55,7 +59,7 @@ async def discover_authority_sources(
 
 
 async def discover_thematic_funds(
-    theme_name: str, search_client: WebSearchClient, max_candidates: int = 10
+    theme_name: str, search_client: WebSearchClient, max_candidates: int = 10, report: SearchReport | None = None
 ) -> list[SourceCandidate]:
     """Searches for existing thematic ETFs/indices already built around
     this (or an adjacent) theme, for the user to select as a bottom-up
@@ -68,7 +72,8 @@ async def discover_thematic_funds(
     generic enough that no separate function is needed; see the Universe
     Builder, which reuses this exact call.
     """
-    candidates = await _run_queries(theme_name, _FUND_QUERY_TEMPLATES, SourceCandidateType.THEMATIC_FUND, search_client, per_query=4)
+    candidates = await _run_queries(theme_name, _FUND_QUERY_TEMPLATES, SourceCandidateType.THEMATIC_FUND, search_client,
+                                    per_query=4, report=report)
     return candidates[:max_candidates]
 
 
