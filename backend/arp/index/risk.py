@@ -38,11 +38,12 @@ from math import sqrt
 
 import numpy as np
 
+from arp.errors import ClientInputError
 from arp.index.fields import category_value, metric_value
 from arp.schemas.index import IndexCandidate, RiskModelSpec
 
 
-class RiskModelError(ValueError):
+class RiskModelError(ClientInputError):
     """Raised when a risk model cannot be built from what was supplied.
 
     Always a hard error rather than a silent fallback: a tracking-error

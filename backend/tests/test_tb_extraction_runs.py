@@ -13,6 +13,7 @@ from arp.api.auth import current_user
 from arp.api.deps import get_document_content_store, get_run_store, settings_dep
 from arp.api.main import app
 from arp.config import Settings, get_settings
+from arp.errors import NotConfigured
 from arp.extraction.extractor_agent import PeriodValue
 from arp.schemas.common import Citation, DocType
 from arp.storage.document_store import DocumentContentStore
@@ -265,7 +266,7 @@ def test_llm_build_failure_fails_the_run(client, monkeypatch):
     fetch_stub(monkeypatch)
 
     def boom(settings):
-        raise RuntimeError("no API key")
+        raise NotConfigured("no API key")
 
     monkeypatch.setattr(derivation, "_llms", boom)
     r = as_user(client, A_ANALYST).post("/api/transition-barrier/derive", json={"cells": [{"code": "STL-R1", "region": "European Union"}]})

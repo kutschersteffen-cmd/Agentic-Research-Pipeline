@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Literal
 
+from arp.errors import ClientInputError
 from arp.holdings.validate import RowError, Validated, iso_date
 from arp.portfolio.loads import LoadRecord, record_load
 from arp.schemas.common import now_iso
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
     from arp.api.auth import Principal
 
 
-class IntakeError(ValueError):
+class IntakeError(ClientInputError):
     def __init__(self, status: int, message: str, errors: list[RowError] | None = None) -> None:
         super().__init__(message)
         self.status, self.message, self.errors = status, message, errors or []

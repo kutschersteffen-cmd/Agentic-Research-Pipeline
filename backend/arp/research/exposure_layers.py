@@ -11,11 +11,12 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 
 from arp.config import Settings
+from arp.errors import ClientInputError
 from arp.schemas.common import CompanyRef
 from arp.schemas.issuer import issuer_key
 
 
-class LayerSettingsError(ValueError):
+class LayerSettingsError(ClientInputError):
     """A theme-layer setting is out of range; the message names the setting."""
 
 

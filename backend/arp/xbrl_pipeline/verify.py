@@ -4,6 +4,7 @@ import json
 
 from pydantic import ValidationError
 
+from arp.errors import ClientInputError
 from arp.normalise.units import convert
 from arp.schemas.datapoints import ExtractionRecord
 from arp.storage.atomic_io import atomic_write_text
@@ -12,11 +13,11 @@ from arp.xbrl_pipeline.models import RequiredRow, VerifyRow
 from arp.xbrl_pipeline.store import XbrlStore
 
 
-class CircularRunError(ValueError):
+class CircularRunError(ClientInputError):
     """The run may have copied XBRL values, so comparing against XBRL proves nothing."""
 
 
-class UnsupportedRunError(ValueError):
+class UnsupportedRunError(ClientInputError):
     """The run's results are not generic extraction records (financials, tnfd, ...)."""
 
 

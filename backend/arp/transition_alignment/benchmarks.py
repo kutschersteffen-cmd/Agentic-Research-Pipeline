@@ -17,6 +17,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, ValidationError
 
 from arp.config import get_settings
+from arp.errors import ClientInputError
 from arp.presets.transition_capex import BOOLEAN_FIELDS, FIELD_IDS
 from arp.presets.transition_delivery_kpis import FIELD_PREFIXES
 from arp.transition_barrier import dataset as barrier_dataset
@@ -45,7 +46,7 @@ MATRIX_SECTORS: tuple[str, ...] = (
 )
 
 
-class BenchmarksError(ValueError):
+class BenchmarksError(ClientInputError):
     """The benchmarks file can't be read or fails validation; the message is the first error line."""
 
 
