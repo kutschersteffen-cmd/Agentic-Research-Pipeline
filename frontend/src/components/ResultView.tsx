@@ -16,7 +16,7 @@ function formatterFor(result: AggregationResult, unit?: string) {
 /** Table/chart toggle for one point-in-time AggregationResult -- a bar
  * chart of the same rows the table already shows, nothing hidden behind
  * the chart view that the table doesn't also carry. */
-export function AggregationView({ result, unit }: { result: AggregationResult; unit?: string }) {
+export function AggregationView({ result, unit, scale }: { result: AggregationResult; unit?: string; scale?: string }) {
   const [view, setView] = useState<"table" | "chart">("table");
   const valueKey = result.metric === "weighted_avg_datapoint" ? "weighted_avg_value" : result.metric === "count" ? "holding_count" : "market_value_eur";
   const data = result.rows.map((r) => ({ label: r.group_value, value: (r[valueKey] as number | null | undefined) ?? 0 }));
@@ -31,7 +31,7 @@ export function AggregationView({ result, unit }: { result: AggregationResult; u
           Chart
         </button>
       </div>
-      {view === "table" ? <AggregationResultTable result={result} /> : <BarChart data={data} valueFormatter={formatterFor(result, unit)} />}
+      {view === "table" ? <AggregationResultTable result={result} scale={scale} unit={unit} /> : <BarChart data={data} valueFormatter={formatterFor(result, unit)} />}
     </div>
   );
 }

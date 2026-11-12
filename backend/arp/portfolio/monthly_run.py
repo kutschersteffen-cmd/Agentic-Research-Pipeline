@@ -68,4 +68,6 @@ def run_month(
     store.publish_rows("alerts", month, published.alert_rows(store))
     store.publish_rows("triggers", month, published.trigger_rows(trigger_store.list_triggers()))
     store.publish_rows("company_profile", month, published.profile_rows(store, month, obs_as_of))
+    # what the Home hub's "Monitoring & Alerts" step reads; a blocked run records nothing
+    store.append_governance_event("monthly_run_recorded", {"month": month, "alerts": len(raised), "triggers": len(stored)})
     return MonthlyRunResult(status="ran", alerts=len(raised), triggers=len(stored))

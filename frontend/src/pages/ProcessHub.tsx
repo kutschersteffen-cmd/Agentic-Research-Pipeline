@@ -6,7 +6,7 @@ import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { useMe } from "../lib/reviewer";
 import { useWaiting } from "../lib/useWaitingTotal";
-import { DONE, STATE_LABEL, cardView, openCount, processState, stepState, stepStatusLine, waitingLink, waitingStat, type StepState } from "../lib/workspaceCard";
+import { DONE, STATE_LABEL, cardView, openCount, processState, stepActivity, stepState, stepStatusLine, waitingLink, waitingStat, type Activity, type StepState } from "../lib/workspaceCard";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
 
@@ -87,6 +87,19 @@ function useHouseFlow() {
     api.getStewardshipFlow("house").then(setFlow, (err: Error) => setError(err.message));
   }, []);
   return { flow, error };
+}
+
+/** Loads and the monthly run leave no run behind: their steps read the feed overview and the last monthly run.
+ * Loaded once; null until both answer (or when one fails), which leaves those steps as they were: "No runs yet". */
+function useActivity(): Activity | null {
+  const [activity, setActivity] = useState<Activity | null>(null);
+  useEffect(() => {
+    Promise.all([api.listFeeds(), api.lastMonthlyRun()]).then(
+      ([f, lastRun]) => setActivity({ feeds: f.feeds, lastRun }),
+      () => undefined,
+    );
+  }, []);
+  return activity;
 }
 
 /** Where a run row goes: its review, its ballot, or its process. */
@@ -262,12 +275,12 @@ function writeWalk(walk: Walk | null) {
 
 /** One process drawn as its steps in order: each card carries the step's live
  * state, what it hands on, and opens the screen that does it. */
-function ProcessFlow({ p, runs, flow }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
-  const state = runs ? processState(p, runs, flow) : null;
+function ProcessFlow({ p, runs, flow, activity }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null; activity: Activity | null }) {
+  const state = runs ? processState(p, runs, flow, activity) : null;
   const steps = (
     <ol className="hub-flow">
       {p.steps.map((s, i) => (
-        <StepCard key={`${s.tab}-${s.sub ?? ""}-${i}`} s={s} i={i} p={p} runs={runs} flow={flow} />
+        <StepCard key={`${s.tab}-${s.sub ?? ""}-${i}`} s={s} i={i} p={p} runs={runs} flow={flow} activity={activity} />
       ))}
     </ol>
   );
@@ -359,14 +372,14 @@ function RunProcess({ p }: { p: Process }) {
   );
 }
 
-function StepCard({ s, i, p, runs, flow }: { s: Step; i: number; p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
-  const state = stepState(s, runs, flow);
+function StepCard({ s, i, p, runs, flow, activity }: { s: Step; i: number; p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null; activity: Activity | null }) {
+  const state = stepState(s, runs, flow, activity);
   const mine = s.runTypes && runs ? runs.filter((r) => s.runTypes!.includes(decisionRunType(r))).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)) : null;
   const last = mine?.[0];
   const waiting = mine && !s.reviewedElsewhere ? mine.reduce((n, r) => n + waitingCount(r), 0) : 0;
   const stage = s.stage ? flow?.stages.find((x) => x.id === s.stage) : undefined;
   const decisions = openCount(stage);
-  const line = stepStatusLine(state, waiting, decisions, last?.updated_at ?? null);
+  const line = stepStatusLine(state, waiting, decisions, last?.updated_at ?? stepActivity(s, activity)?.at ?? null);
   if (s.planned) {
     return (
       <li className="hub-flow-item">
@@ -434,6 +447,7 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
   const { runs, error } = useRuns();
   const { flow, error: flowError } = useHouseFlow();
   const usesFlow = w.processes.some((p) => p.steps.some((s) => s.stage));
+  const activity = useActivity();
 
   return (
     <div className="page hub">
@@ -447,7 +461,7 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
       {error && <p className="error-text" role="alert">Runs could not be loaded: {error}. Step states are unknown until the backend responds.</p>}
       {usesFlow && flowError && <p className="error-text" role="alert">The stewardship flow could not be loaded: {flowError}. Stage numbers are unknown.</p>}
       {w.processes.map((p) => (
-        <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} />
+        <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} activity={activity} />
       ))}
       <nav className="hub-screens" aria-label={`${w.name} screens`}>
         <span className="hub-now-label">Screens</span>

@@ -39,6 +39,9 @@ const RuleGraphEditor = lazy(() => import("../components/RuleGraphEditor"));
 // Publishing matches rows to issuers by one column. The engine finds these
 // names on its own; anything else (an ISIN, a ticker) has to be picked.
 const ID_COLUMN_NAMES = ["company_id", "issuer_id", "entity_id", "id"];
+/** When a table was added, to the second: two uploads of the same file differ only in this. */
+const addedText = (d: { created_at: string }): string => new Date(d.created_at).toLocaleString();
+
 /** A Movement row worth showing: the entity changed status, or it was scored
  * in the later table and its tier or score moved. Entities excluded or short
  * of data in both tables are left out: their scores are not used. */
@@ -854,6 +857,7 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
                         <th>Name</th>
                         <th>Source</th>
                         <th>As of</th>
+                        <th>Added</th>
                         <th>Rows</th>
                         <th>
                           <span className="visually-hidden">Selection</span>
@@ -873,6 +877,7 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
                             <td>{d.name}</td>
                             <td className="muted">{d.source}</td>
                             <td className="muted">{d.as_of ?? "—"}</td>
+                            <td className="muted">{addedText(d)}</td>
                             <td>{d.row_count}</td>
                             <td>{selected ? <strong>Selected</strong> : <span className="ds-row-action">Select</span>}</td>
                           </tr>
@@ -1236,7 +1241,7 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
                 .filter((d) => d.dataset_id !== dataset.dataset_id)
                 .map((d) => (
                   <option key={d.dataset_id} value={d.dataset_id}>
-                    {d.as_of ? `${d.as_of} — ${d.name}` : d.name}
+                    {d.as_of ? `${d.as_of} — ${d.name}` : `${d.name} · added ${addedText(d)}`}
                   </option>
                 ))}
             </select>

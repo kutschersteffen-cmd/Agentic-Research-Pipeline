@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../../api/client";
 import { usePortfolioPane } from "../../context/usePortfolioPane";
 import { AggregationView } from "../../components/ResultView";
+import { askBody, snapshotLine, trendTable } from "../../lib/askPortfolio";
 import type { QAAnswer } from "../../types";
 
 const EXAMPLE_QUESTIONS = [
@@ -12,13 +13,12 @@ const EXAMPLE_QUESTIONS = [
 
 /** The AI Q&A interface (spec §8 / §9 sub-tab 6), pre-scoped to the pane's
  * current selection so "what's our WACI" doesn't require naming the
- * portfolio in the question -- done without any backend change by
- * prepending the pane's selection as plain-language context onto the
- * question text, and always shown back to the user so it's never a silent
- * rewrite. The LLM still only drafts the query; the deterministic engine
+ * portfolio in the question: the selected portfolios and dates travel as
+ * request fields next to the typed question, and are shown back to the
+ * user. The LLM still only drafts the query; the deterministic engine
  * computes the number (see portfolio/qa_agent.py). */
 export function AskThePortfolio() {
-  const { selectionLabel } = usePortfolioPane();
+  const { selectionLabel, selectedPortfolioIds, effectiveAsOf, effectiveDateRange } = usePortfolioPane();
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<QAAnswer | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -29,14 +29,16 @@ export function AskThePortfolio() {
     setError(null);
     setAnswer(null);
     try {
-      const scoped = `Regarding ${selectionLabel} (override this scope if the question below says otherwise): ${q}`;
-      setAnswer(await api.askPortfolio(scoped));
+      setAnswer(await api.askPortfolio(askBody(q, selectedPortfolioIds, effectiveAsOf, effectiveDateRange)));
     } catch (e) {
       setError(String(e));
     } finally {
       setAsking(false);
     }
   }
+
+  const trend = answer?.resolvable && answer.trend && answer.spec ? trendTable(answer.trend, answer.spec.metric, answer.scale) : null;
+  const snapshots = answer?.result ? snapshotLine(answer.snapshot_dates ?? []) : null;
 
   return (
     <section className="card">
@@ -71,7 +73,22 @@ export function AskThePortfolio() {
       {answer && answer.resolvable && (
         <>
           <p className="answer-text">{answer.answer_text}</p>
-          {answer.result && <AggregationView result={answer.result} />}
+          {answer.result && <AggregationView result={answer.result} scale={answer.scale} unit={answer.unit} />}
+          {snapshots && <p className="muted">{snapshots}</p>}
+          {trend && (
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>{trend.headers.map((h) => <th key={h}>{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {trend.rows.map((row) => (
+                    <tr key={row[0]}>{row.map((cell, i) => <td key={trend.headers[i]}>{cell}</td>)}</tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           {answer.spec && (
             <p className="muted">
               Query: group_by={answer.spec.group_by}, metric={answer.spec.metric}, filter=

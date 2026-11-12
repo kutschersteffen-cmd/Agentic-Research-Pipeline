@@ -1,7 +1,8 @@
 import { when } from "../lib/runs";
 import { FileImg, FileLink } from "../components/FileLink";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
+import { ElapsedLine } from "../components/ElapsedLine";
 import { Modal } from "../components/Modal";
 import type {
   AudienceLevel,
@@ -21,6 +22,8 @@ import type {
 } from "../types";
 import { CHART_TYPES } from "../types";
 import { activatable } from "../lib/activatable";
+import { findingText } from "../lib/findings";
+import { draftingLine } from "../lib/progress";
 
 const AUDIENCE_LEVELS: AudienceLevel[] = ["executive", "technical", "general"];
 const TONES: Tone[] = ["formal", "conversational", "persuasive", "neutral_analytical"];
@@ -45,9 +48,13 @@ function moved<T>(items: T[], index: number, delta: number): T[] | null {
   return next;
 }
 
-function groupBySlide(findings: Finding[]): [number, Finding[]][] {
-  const groups = new Map<number, Finding[]>();
-  for (const f of findings) groups.set(f.slide, [...(groups.get(f.slide) ?? []), f]);
+/** The lines to show per slide; a finding that is not listed (findingText) is left out, and so is a slide without any. */
+function groupBySlide(findings: Finding[]): [number, string[]][] {
+  const groups = new Map<number, string[]>();
+  for (const f of findings) {
+    const text = findingText(f);
+    if (text !== null) groups.set(f.slide, [...(groups.get(f.slide) ?? []), text]);
+  }
   return [...groups.entries()].sort((a, b) => a[0] - b[0]);
 }
 
@@ -74,6 +81,8 @@ export function ReportBuilder() {
 
   // Generation state
   const [busy, setBusy] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  const reportsHeading = useRef<HTMLHeadingElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [manifest, setManifest] = useState<ReportManifest | null>(null);
   const [plan, setPlan] = useState<ReportPlan | null>(null);
@@ -131,6 +140,7 @@ export function ReportBuilder() {
       return;
     }
     setBusy(true);
+    setDrafting(true);
     setError(null);
     setPlan(null);
     setStoryline(null);
@@ -169,6 +179,25 @@ export function ReportBuilder() {
       setError((err as Error).message);
     } finally {
       setBusy(false);
+      setDrafting(false);
+    }
+  }
+
+  async function discardReport(reportId: string) {
+    if (!window.confirm("Discard this draft?")) return;
+    setError(null);
+    try {
+      await api.deleteReport(reportId);
+      reportsHeading.current?.focus(); // the row and its button are about to go: keep the keyboard in this section
+      if (manifest?.report_id === reportId) {
+        setManifest(null);
+        setPlan(null);
+        setStoryline(null);
+        setFindings([]);
+      }
+      refreshReports();
+    } catch (err) {
+      setError((err as Error).message);
     }
   }
 
@@ -296,6 +325,8 @@ export function ReportBuilder() {
     setPreviewPageCount(0);
     setEnlargedPage(null);
   }
+
+  const listedFindings = groupBySlide(findings);
 
   return (
     <div className={previewReportId ? "page split-review" : "page"} style={previewReportId ? { maxWidth: 1560 } : undefined}>
@@ -441,7 +472,10 @@ export function ReportBuilder() {
           <textarea rows={2} value={freeInstructions} onChange={(e) => setFreeInstructions(e.target.value)} placeholder="lead with the risk section, one chart per slide max..." />
         </label>
 
-        <button onClick={draftPlan} disabled={busy}>{outputFormat === "house_deck" ? "Draft storyline" : "Draft content plan"}</button>
+        <button onClick={draftPlan} disabled={busy}>
+          {drafting ? "Drafting…" : outputFormat === "house_deck" ? "Draft storyline" : "Draft content plan"}
+        </button>
+        {drafting && <ElapsedLine text={(seconds) => draftingLine(outputFormat, seconds)} />}
         {error && <p className="error-text" role="alert">{error}</p>}
       </section>
 
@@ -592,18 +626,15 @@ export function ReportBuilder() {
           </div>
           {manifest.error && <p className="error-text" role="alert">{manifest.error}</p>}
 
-          {findings.length > 0 && (
+          {listedFindings.length > 0 && (
             <>
               <h3>Findings</h3>
-              {groupBySlide(findings).map(([slide, items]) => (
+              {listedFindings.map(([slide, items]) => (
                 <div className="review-item" key={slide}>
                   <strong>{slide === 0 ? "Title slide" : `Slide ${slide}`}</strong>
                   <ul>
-                    {items.map((f, j) => (
-                      <li key={j}>
-                        <span className="mono">{f.stage}/{f.rule}</span>
-                        {f.slot && <span className="muted"> [{f.slot}]</span>} — {f.message}
-                      </li>
+                    {items.map((text, j) => (
+                      <li key={j}>{text}</li>
                     ))}
                   </ul>
                 </div>
@@ -614,7 +645,7 @@ export function ReportBuilder() {
       )}
 
       <section className="card">
-        <h2>Previous reports</h2>
+        <h2 ref={reportsHeading} tabIndex={-1}>Previous reports</h2>
         {reports.length === 0 && <p className="muted">No reports generated yet.</p>}
         {reports.length > 0 && (
           <div className="table-wrap">
@@ -636,6 +667,17 @@ export function ReportBuilder() {
                     <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
                     <td className="mono">{when(r.created_at)}</td>
                     <td>
+                      {(r.status === "plan_ready" || r.status === "storyline_ready") && (
+                        <button className="link-button" style={{ marginRight: 10 }} onClick={(e) => { e.stopPropagation(); openReport(r.report_id); }}>
+                          Open
+                        </button>
+                      )}
+                      {/* a failed row that still has an output was finished once (its re-render failed): not a draft */}
+                      {(r.status === "plan_ready" || r.status === "storyline_ready" || (r.status === "failed" && !r.output_filename)) && (
+                        <button className="link-button" onClick={(e) => { e.stopPropagation(); discardReport(r.report_id); }}>
+                          Discard
+                        </button>
+                      )}
                       {r.status === "completed" && (
                         <>
                           <button

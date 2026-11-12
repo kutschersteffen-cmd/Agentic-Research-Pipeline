@@ -314,10 +314,13 @@ export const api = {
 
   // Holdings intake
   listHolders: () => request<{ holders: HolderStatus[] }>("/api/holdings/holders"),
-  uploadHoldings: (f: { file: File; holder_id: string; kind: string; as_of: string; provider?: string; override_reason?: string }) => {
+  uploadHoldings: (f: {
+    file: File; holder_id: string; kind: string; as_of: string; provider?: string; override_reason?: string;
+    decimal?: "." | ","; weight_unit?: "percent" | "fraction";
+  }) => {
     const form = new FormData();
     form.append("file", f.file);
-    for (const k of ["holder_id", "kind", "as_of", "provider", "override_reason"] as const) if (f[k]) form.append(k, f[k]!);
+    for (const k of ["holder_id", "kind", "as_of", "provider", "override_reason", "decimal", "weight_unit"] as const) if (f[k]) form.append(k, f[k]!);
     return request<IntakeResult>("/api/holdings/upload", { method: "POST", body: form });
   },
   pullHolder: (kind: string, holderId: string) =>
@@ -368,6 +371,8 @@ export const api = {
     request<{ month: string; holdings: Record<string, string>; esg: { provider: string; status: string }; blocked_reasons: string[] }>(
       `/api/portfolio/monthly-run/status${buildQuery({ month })}`,
     ),
+  /** The newest monthly run that ran, or null when none has. */
+  lastMonthlyRun: () => request<{ month: string; at: string; alerts: number; triggers: number } | null>("/api/portfolio/monthly-run/last"),
   runMonth: (month: string) =>
     request<{ status: "ran" | "blocked"; blocked_reasons: string[]; alerts: number; triggers: number }>("/api/portfolio/monthly-run", {
       method: "POST",
@@ -977,10 +982,20 @@ export const api = {
       body: JSON.stringify(body),
     }),
   listPortfolioCompanies: () => request<CompanyRef[]>("/api/portfolio/companies"),
-  askPortfolio: (question: string) => request<QAAnswer>("/api/portfolio/ask", { method: "POST", body: JSON.stringify({ question }) }),
+  askPortfolio: (body: { question: string; portfolio_ids?: string[]; as_of?: string; date_range?: [string, string] }) =>
+    request<QAAnswer>("/api/portfolio/ask", { method: "POST", body: JSON.stringify(body) }),
   listMonitoringRules: () => request<AlertRule[]>("/api/portfolio/monitoring/rules"),
-  createMonitoringRule: (rule: Omit<AlertRule, "rule_id" | "created_at">) =>
+  /** Without `rule_id` a new rule; with the `rule_id` and `created_at` of a stored rule, that rule is replaced. */
+  createMonitoringRule: (rule: Omit<AlertRule, "rule_id" | "created_at"> & Partial<Pick<AlertRule, "rule_id" | "created_at">>) =>
     request<AlertRule>("/api/portfolio/monitoring/rules", { method: "POST", body: JSON.stringify(rule) }),
+  deleteMonitoringRule: async (ruleId: string) => {
+    await authFetch(`${API_BASE}/api/portfolio/monitoring/rules/${encodeURIComponent(ruleId)}`, { method: "DELETE" }); // 204: no body to parse
+  },
+  clearRuleAlerts: (ruleId: string, status: "resolved" | "false_positive") =>
+    request<{ cleared: number }>(`/api/portfolio/monitoring/rules/${encodeURIComponent(ruleId)}/clear-alerts`, {
+      method: "POST",
+      body: JSON.stringify({ status }),
+    }),
   listAlerts: (status?: AlertStatus) => request<Alert[]>(`/api/portfolio/monitoring/alerts${buildQuery({ status })}`),
   transitionAlert: (scopeId: string, alertId: string, body: { status: AlertStatus; reason?: string; owner?: string }) =>
     request<Alert>(`/api/portfolio/monitoring/alerts/${encodeURIComponent(scopeId)}/${encodeURIComponent(alertId)}/transition`, {
@@ -1038,6 +1053,10 @@ export const api = {
     request<ReportManifest>(`/api/reports${buildQuery({ render: String(render) })}`, { method: "POST", body: JSON.stringify(body) }),
   listReports: () => request<{ reports: ReportManifest[] }>("/api/reports"),
   getReport: (reportId: string) => request<ReportManifest>(`/api/reports/${encodeURIComponent(reportId)}`),
+  /** Discards an unfinished report (plan_ready, storyline_ready or failed); a finished one is refused with 409. */
+  deleteReport: async (reportId: string) => {
+    await authFetch(`${API_BASE}/api/reports/${encodeURIComponent(reportId)}`, { method: "DELETE" }); // 204: no body to parse
+  },
   getReportPlan: (reportId: string) => request<ReportPlan>(`/api/reports/${encodeURIComponent(reportId)}/plan`),
   updateReportPlan: (reportId: string, plan: ReportPlan) =>
     request<ReportPlan>(`/api/reports/${encodeURIComponent(reportId)}/plan`, { method: "PUT", body: JSON.stringify(plan) }),
