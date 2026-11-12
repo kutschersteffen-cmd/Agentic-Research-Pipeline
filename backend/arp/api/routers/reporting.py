@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from arp.reporting.service import ReportingService
 from arp.reporting.style_profile import ingest_template
 from arp.schemas.reporting import ReportManifest, ReportPlan, ReportRequest, ReportStatus, Storyline
 from arp.storage.reporting_store import ReportingStore
+from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
 router = APIRouter(prefix="/api/reports", tags=["reporting"])
 
@@ -101,6 +103,25 @@ def list_reports(store: ReportingStore = Depends(get_reporting_store)) -> dict:
 @router.get("/{report_id}")
 def get_report(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> dict:
     return _get_manifest_or_404(store, report_id).model_dump(mode="json")
+
+
+_DISCARDABLE = (ReportStatus.PLAN_READY, ReportStatus.STORYLINE_READY, ReportStatus.FAILED)
+
+
+@router.delete("/{report_id}", status_code=204)
+def discard_report(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> None:
+    """Removes an unfinished report's folder. A finished one, or one still being worked on, is never removed."""
+    try:
+        folder = store.reports_dir / safe_id(report_id, label="report_id")
+    except UnsafeIdentifierError:
+        raise HTTPException(404, "Report not found") from None
+    # exists() first: load_manifest goes through report_dir(), which would create the folder it is asked about
+    manifest = store.load_manifest(report_id) if folder.exists() else None
+    if manifest is None:
+        raise HTTPException(404, "Report not found")
+    if manifest.status not in _DISCARDABLE:
+        raise HTTPException(409, f"Only an unfinished report can be discarded (status: {manifest.status.value}).")
+    shutil.rmtree(folder)
 
 
 @router.get("/{report_id}/plan")

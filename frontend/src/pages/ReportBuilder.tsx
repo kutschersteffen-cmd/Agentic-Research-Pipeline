@@ -21,6 +21,8 @@ import type {
 } from "../types";
 import { CHART_TYPES } from "../types";
 import { activatable } from "../lib/activatable";
+import { draftingLine } from "../lib/progress";
+import { useElapsed } from "../lib/useElapsed";
 
 const AUDIENCE_LEVELS: AudienceLevel[] = ["executive", "technical", "general"];
 const TONES: Tone[] = ["formal", "conversational", "persuasive", "neutral_analytical"];
@@ -74,6 +76,8 @@ export function ReportBuilder() {
 
   // Generation state
   const [busy, setBusy] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  const draftingSeconds = useElapsed(drafting);
   const [error, setError] = useState<string | null>(null);
   const [manifest, setManifest] = useState<ReportManifest | null>(null);
   const [plan, setPlan] = useState<ReportPlan | null>(null);
@@ -131,6 +135,7 @@ export function ReportBuilder() {
       return;
     }
     setBusy(true);
+    setDrafting(true);
     setError(null);
     setPlan(null);
     setStoryline(null);
@@ -169,6 +174,24 @@ export function ReportBuilder() {
       setError((err as Error).message);
     } finally {
       setBusy(false);
+      setDrafting(false);
+    }
+  }
+
+  async function discardReport(reportId: string) {
+    if (!window.confirm("Discard this draft?")) return;
+    setError(null);
+    try {
+      await api.deleteReport(reportId);
+      if (manifest?.report_id === reportId) {
+        setManifest(null);
+        setPlan(null);
+        setStoryline(null);
+        setFindings([]);
+      }
+      refreshReports();
+    } catch (err) {
+      setError((err as Error).message);
     }
   }
 
@@ -441,7 +464,10 @@ export function ReportBuilder() {
           <textarea rows={2} value={freeInstructions} onChange={(e) => setFreeInstructions(e.target.value)} placeholder="lead with the risk section, one chart per slide max..." />
         </label>
 
-        <button onClick={draftPlan} disabled={busy}>{outputFormat === "house_deck" ? "Draft storyline" : "Draft content plan"}</button>
+        <button onClick={draftPlan} disabled={busy}>
+          {drafting ? "Drafting…" : outputFormat === "house_deck" ? "Draft storyline" : "Draft content plan"}
+        </button>
+        {drafting && <p className="muted" role="status">{draftingLine(outputFormat, draftingSeconds)}</p>}
         {error && <p className="error-text" role="alert">{error}</p>}
       </section>
 
@@ -636,6 +662,16 @@ export function ReportBuilder() {
                     <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
                     <td className="mono">{when(r.created_at)}</td>
                     <td>
+                      {(r.status === "plan_ready" || r.status === "storyline_ready") && (
+                        <button className="link-button" style={{ marginRight: 10 }} onClick={(e) => { e.stopPropagation(); openReport(r.report_id); }}>
+                          Open
+                        </button>
+                      )}
+                      {(r.status === "plan_ready" || r.status === "storyline_ready" || r.status === "failed") && (
+                        <button className="link-button" onClick={(e) => { e.stopPropagation(); discardReport(r.report_id); }}>
+                          Discard
+                        </button>
+                      )}
                       {r.status === "completed" && (
                         <>
                           <button

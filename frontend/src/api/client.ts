@@ -1048,6 +1048,10 @@ export const api = {
     request<ReportManifest>(`/api/reports${buildQuery({ render: String(render) })}`, { method: "POST", body: JSON.stringify(body) }),
   listReports: () => request<{ reports: ReportManifest[] }>("/api/reports"),
   getReport: (reportId: string) => request<ReportManifest>(`/api/reports/${encodeURIComponent(reportId)}`),
+  /** Discards an unfinished report (plan_ready, storyline_ready or failed); a finished one is refused with 409. */
+  deleteReport: async (reportId: string) => {
+    await authFetch(`${API_BASE}/api/reports/${encodeURIComponent(reportId)}`, { method: "DELETE" }); // 204: no body to parse
+  },
   getReportPlan: (reportId: string) => request<ReportPlan>(`/api/reports/${encodeURIComponent(reportId)}/plan`),
   updateReportPlan: (reportId: string, plan: ReportPlan) =>
     request<ReportPlan>(`/api/reports/${encodeURIComponent(reportId)}/plan`, { method: "PUT", body: JSON.stringify(plan) }),

@@ -4294,7 +4294,11 @@ export interface paths {
         get: operations["get_report_api_reports__report_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Discard Report
+         * @description Removes an unfinished report's folder. A finished one, or one still being worked on, is never removed.
+         */
+        delete: operations["discard_report_api_reports__report_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -26396,6 +26400,35 @@ export interface operations {
                         [key: string]: unknown;
                     };
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_report_api_reports__report_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
