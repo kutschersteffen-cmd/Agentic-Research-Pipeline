@@ -19,13 +19,12 @@ Tables earlier versions wrote and no model defines any more (`company_records`,
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     Boolean,
-    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -267,8 +266,8 @@ class BiPublishedModel(Base):
 
 
 # Stewardship engagements and the vote ledger. Every table has `source` + `external_id` (unique
-# together). Dates other than timestamps are free-form ISO strings in the old files, so only
-# `target_date` is a Date; everything else is timestamptz.
+# together). `target_date` stays Text: the API and old files hold free-form ISO strings;
+# every real timestamp is timestamptz.
 STEWARDSHIP_TABLES = (
     "stw_companies",
     "stw_engagements",
@@ -360,7 +359,7 @@ class StwObjectiveModel(Base):
     escalated: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     follows_objective_id: Mapped[str | None] = _fk("stw_objectives", "objective_id", nullable=True)
     started_at: Mapped[datetime | None] = _ts()
-    target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    target_date: Mapped[str | None] = _text()
     closed_at: Mapped[datetime | None] = _ts()
     outcome: Mapped[str | None] = _text()
     influence_level: Mapped[str | None] = _text()
@@ -401,9 +400,9 @@ class StwCommitmentModel(Base):
     objective_id: Mapped[str | None] = _fk("stw_objectives", "objective_id", nullable=True)
     text: Mapped[str] = mapped_column(Text)
     made_at: Mapped[datetime | None] = _ts()
-    target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    target_date: Mapped[str | None] = _text()
     recorded_by: Mapped[str | None] = _text()
-    status: Mapped[str] = mapped_column(Text, default="open")
+    status: Mapped[str] = mapped_column(Text, default="open", server_default="open")
     validated_by: Mapped[str | None] = _text()
     validated_at: Mapped[datetime | None] = _ts()
 
