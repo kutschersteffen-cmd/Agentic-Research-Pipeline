@@ -66,3 +66,11 @@ export const sourceHref = (v: { url: string | null; page: number | null }): stri
 /** Where a counted value came from: the model, a person's upload the system checked, or a person's word. */
 export const sourceText = (v: { machine_checked: boolean; entered_by: string | null }): string =>
   v.machine_checked ? (v.entered_by === null ? "extracted from the document" : "checked in the document") : `entered by ${v.entered_by ?? "an analyst"}`;
+
+/** The notice after a fact was added: only a quote the server found in the document is called found. */
+export function factSavedText(res: { page: number | null; machine_checked: boolean }): string {
+  const how = !res.machine_checked
+    ? "Fact saved as entered: the quote was not checked against the document."
+    : `Fact saved, quote found ${res.page ? `on page ${res.page}` : "in the document"}.`;
+  return `${how} Derive the cell to use it.`;
+}

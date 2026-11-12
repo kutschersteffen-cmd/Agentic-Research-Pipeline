@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from arp.llm.base import LLMClient, LLMUsage
 from arp.portfolio import analytics, datapoint_mapping
 from arp.portfolio.aggregation import DIMENSIONS
+from arp.portfolio.climate.schemas import build_climate_schema
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import AggregationResult, AnalyticSpec, SecurityRef
 from arp.storage.portfolio_store import PortfolioStore
@@ -18,11 +19,13 @@ engine computes the actual figure from real holdings data.
 
 Valid group_by dimensions: {", ".join(DIMENSIONS)}.
 Valid metrics: "market_value_sum" (a plain EUR exposure figure),
-"weighted_avg_datapoint" (requires data_point_field_id), "count".
+"weighted_avg_datapoint" (requires data_point_field_id, a field_id from
+the supplied data point directory; WACI, the weighted average carbon
+intensity, is this metric on the carbon intensity field), "count".
 security_filter is a dict of dimension_name -> exact value to filter
 holdings to, e.g. {{"company_id": "bmw", "asset_class": "equity"}}.
-portfolio_filter is a list of portfolio_ids to restrict to; empty means
-all portfolios.
+portfolio_filter is a list of portfolio_ids from the supplied portfolio
+directory to restrict to; empty means all portfolios.
 
 If the question names a company, resolve it to a company_id using the
 supplied company directory and filter on that. If you cannot confidently
@@ -53,6 +56,10 @@ class QAAnswer(BaseModel):
     vintage: dict = {}  # holdings_as_of (+ observation_dates when a data point was used)
 
 
+def _field_directory() -> str:
+    return "\n".join(f"{f.field_id}: {f.name} ({f.unit})" for f in build_climate_schema().fields)
+
+
 def _company_directory(companies: dict[str, CompanyRef]) -> str:
     return "\n".join(f"{c.company_id}: {c.name}" for c in sorted(companies.values(), key=lambda c: c.name))
 
@@ -72,11 +79,30 @@ async def answer_question(
     the query itself, and `QAAnswer.spec`/`.result` always carry it so the
     answer is inspectable, not just asserted.
     """
-    prompt = f"Company directory (company_id: name):\n{_company_directory(companies)}\n\nQuestion: {question}"
+    portfolios = store.list_portfolios()
+    prompt = (
+        f"Company directory (company_id: name):\n{_company_directory(companies)}\n\n"
+        "Portfolio directory (portfolio_id: name):\n" + "\n".join(f"{p.portfolio_id}: {p.name}" for p in portfolios)
+        + f"\n\nData point directory (field_id: name (unit)):\n{_field_directory()}"
+        + f"\n\nQuestion: {question}"
+    )
     parsed, usage = await llm.complete_structured(system=_SYSTEM_PROMPT, prompt=prompt, output_model=_ParsedQuestion)
 
     if not parsed.resolvable:
         return QAAnswer(question=question, resolvable=False, clarification_needed=parsed.clarification_needed), usage
+
+    # The model may name a portfolio by its display name. An id that matches nothing would be answered as "EUR 0".
+    by_label = {label.strip().lower(): p.portfolio_id for p in portfolios for label in (p.portfolio_id, p.name)}
+    unknown = [name for name in parsed.portfolio_filter if name.strip().lower() not in by_label]
+    if unknown:
+        known = ", ".join(f"{p.name} ({p.portfolio_id})" for p in portfolios)
+        return QAAnswer(question=question, resolvable=False,
+                        clarification_needed=f"No portfolio is called '{unknown[0]}'. Known portfolios: {known}."), usage
+    parsed.portfolio_filter = [by_label[name.strip().lower()] for name in parsed.portfolio_filter]
+    # A built-in data point named by its label gets its field id; any other id is taken as given (custom fields).
+    field_ids = {f.name.lower(): f.field_id for f in build_climate_schema().fields}
+    if parsed.data_point_field_id:
+        parsed.data_point_field_id = field_ids.get(parsed.data_point_field_id.strip().lower(), parsed.data_point_field_id)
 
     spec = AnalyticSpec(
         name=parsed.spec_name or question,

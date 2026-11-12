@@ -56,7 +56,7 @@ def generate_internal_api_observations(company: CompanyRef, period: str, observe
     scope3 = jitter((scope1_base + scope2_base) * scope3_mult, 0.20)
     intensity = jitter(intensity_base, 0.15)
     evic = jitter(evic_base, 0.10)
-    green_pct = round(min(max(green_base * rng.uniform(0.7, 1.4), 0.0), 0.95), 4)
+    green_pct = round(min(max(green_base * rng.uniform(0.7, 1.4), 0.0), 0.95) * 100, 2)  # in percent, as the field's unit says
 
     values: list[tuple[str, float, str]] = [
         (FIELD_SCOPE1, scope1, "tCO2e"),

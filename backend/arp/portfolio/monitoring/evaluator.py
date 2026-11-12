@@ -4,7 +4,7 @@ from arp.portfolio import aggregation, datapoint_mapping
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import SecurityRef
 from arp.schemas.portfolio_monitoring import Alert, AlertCategory, AlertRule, AlertStatus, AlertTransition, BreachType
-from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
 
 _COMPARATORS = {
     "gt": lambda value, limit: value > limit,
@@ -252,8 +252,7 @@ def evaluate_threshold_rules(store: PortfolioStore, *, as_of: str | None = None)
     with no data/holdings yet to evaluate against is silently skipped, not
     an error (see monitoring/scheduler.py's bare except around the caller
     for the same reasoning applied one level up)."""
-    companies = {c.company_id: c for c in store.list_companies()}
-    securities = {s.security_id: s for s in store.list_securities()}
+    securities, companies = portfolio_directories(store)
     resolved_as_of = _resolve_holdings_as_of(store, as_of)
 
     raised: list[Alert] = []

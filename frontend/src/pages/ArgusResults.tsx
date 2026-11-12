@@ -3,7 +3,7 @@ import { api } from "../api/client";
 import { FileLink } from "../components/FileLink";
 import { ReviewControls, decisionLabel } from "../components/ReviewControls";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
-import { onlyNeedsYou, resultRows, type ResultRow } from "../lib/argusFlow";
+import { notInRun, onlyNeedsYou, resultRows, type ResultRow } from "../lib/argusFlow";
 import type { ArgusFlow as Flow, ExtractionRecord, ReviewDecision, ReviewItem } from "../types";
 
 const VALUE_LABELS = { approve: "Approve", correct: "Edit", reject: "Reject" } as const;
@@ -26,6 +26,7 @@ async function allResults(runId: string): Promise<ExtractionRecord[]> {
 export function ArgusResults({ flow }: { flow: Flow }) {
   const runId = flow.run_id!;
   const [rows, setRows] = useState<ResultRow[] | null>(null);
+  const [inRun, setInRun] = useState<Set<string>>(new Set());
   const [decisions, setDecisions] = useState<Record<string, ReviewDecision>>({});
   const [mineOnly, setMineOnly] = useState(false);
   const [source, setSource] = useState<ActiveSource | null>(null);
@@ -40,6 +41,7 @@ export function ArgusResults({ flow }: { flow: Flow }) {
       ]);
       // shortcut: Financials and TNFD records have no per-field rows here; their values are reviewed in the Review Queue until a later slice
       setRows(resultRows(results.filter((r) => Array.isArray(r.fields)), open.items as ReviewItem[]));
+      setInRun(new Set(results.map((r) => r.company_id)));
       setDecisions(review.decisions);
     } catch (e) {
       setError((e as Error).message);
@@ -48,9 +50,14 @@ export function ArgusResults({ flow }: { flow: Flow }) {
   useEffect(() => {
     void load();
   }, [load]);
+  // the viewer opens below the table: bring it into view, or the click looks like it did nothing
+  useEffect(() => {
+    if (source) document.querySelector(".argus-results .source-panel")?.scrollIntoView({ block: "nearest" });
+  }, [source]);
 
   if (!rows) return error ? <p className="error-text" role="alert">{error}</p> : <p className="muted" role="status">Loading…</p>;
   const shown = mineOnly ? onlyNeedsYou(rows) : rows;
+  const missing = notInRun(flow.companies, inRun, flow.repeat, flow.repeat_rows);
   const open = (r: ResultRow) => {
     const c = r.citation!;
     setSource({
@@ -70,6 +77,23 @@ export function ArgusResults({ flow }: { flow: Flow }) {
         <FileLink className="button-link" url={api.exportRunCsvUrl(runId)} name={`${runId}.csv`}>Download CSV</FileLink>
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
+      {missing.length > 0 && (
+        <p className="muted" role="note">
+          This run covers {flow.companies.length - missing.length} of {flow.companies.length} companies. Not in it:{" "}
+          {missing.map((m, i) => (
+            <span key={m.name}>
+              {i > 0 && ", "}
+              {m.name}
+              {m.earlier && (
+                <>
+                  {" "}(kept from the extraction of {m.earlier.date}, <a href={`#/review/extraction/${m.earlier.run_id}`}>open</a>)
+                </>
+              )}
+            </span>
+          ))}
+          . To extract a missing company, go back to step 3; a draft schema runs on one company until it is released.
+        </p>
+      )}
       <div className="table-wrap">
         <table className="data-table stack-on-phone" aria-label="Extracted values">
           <thead>
@@ -115,7 +139,13 @@ export function ArgusResults({ flow }: { flow: Flow }) {
           </tbody>
         </table>
       </div>
-      {shown.length === 0 && <p className="muted">{mineOnly ? "Nothing waits on you in this run." : "This run has no values yet."}</p>}
+      {shown.length === 0 && (flow.schema_choice?.kind === "profile" ? (
+        <p className="muted">
+          This profile's values are not listed here. <a href={`#/review/${flow.schema_choice.profile}/${runId}`}>Open them in the Review Queue</a> or download the CSV.
+        </p>
+      ) : (
+        <p className="muted">{mineOnly ? "Nothing waits on you in this run." : "This run has no values yet."}</p>
+      ))}
       {source && <SourcePanel source={source} onClose={() => setSource(null)} />}
     </section>
   );

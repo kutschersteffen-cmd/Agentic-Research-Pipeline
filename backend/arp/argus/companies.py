@@ -7,6 +7,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import re
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -36,18 +37,25 @@ def parse_rows(filename: str, data: bytes) -> list[dict]:
     return [{k.strip().lower(): str(v).strip() for k, v in r.items() if k and v not in (None, "")} for r in rows if isinstance(r, dict)]
 
 
+# The shape of each identifier. A spreadsheet placeholder ("N/A", "-", "tbd") is not one: taken as an ISIN it
+# matched every other placeholder row to one company. Check digits are not tested, so a typo still registers.
+_SHAPE = {IdScheme.LEI: r"[A-Z0-9]{18}[0-9]{2}", IdScheme.ISIN: r"[A-Z]{2}[A-Z0-9]{9}[0-9]", IdScheme.CIK: r"[0-9]{1,10}"}
+
+
 def _standard_ids(row: dict) -> list[tuple[IdScheme, str]]:
-    return [(s, row[s.lower()]) for s in (IdScheme.LEI, IdScheme.ISIN, IdScheme.CIK) if row.get(s.lower())]
+    return [(s, row[s.lower()]) for s in _SHAPE
+            if row.get(s.lower()) and re.fullmatch(_SHAPE[s], "".join(row[s.lower()].split()).upper())]
 
 
 def register(session: Session, row: dict) -> CompanyRef | None:
     """The row as a company, with `entity_id` set when it matches; None for a row with nothing to name it by."""
-    fields = {k: row[k] for k in _FIELDS if row.get(k)}
+    ids = _standard_ids(row)
+    valid = {s.lower() for s, _ in ids}
+    fields = {k: row[k] for k in _FIELDS if row.get(k) and (k not in ("lei", "isin", "cik") or k in valid)}
     own_id = fields.get("company_id")
-    name = fields.get("name") or own_id or next((v for _, v in _standard_ids(row)), None)
+    name = fields.get("name") or own_id or next((v for _, v in ids), None)
     if not name:
         return None
-    ids = _standard_ids(row)
     entity_id = None
     if ids:  # only LEI/ISIN/CIK match: a list's own ids are per list, so they never pick a company
         attrs = {k: fields[k] for k in ("sector", "country") if k in fields}
@@ -64,8 +72,28 @@ def register(session: Session, row: dict) -> CompanyRef | None:
         if owner not in (None, entity_id):
             own_id = None  # another company's id: never the key two rows could share
     # Earlier runs and documents are filed under the universe id (until they are filed by central id).
-    key = (entity_id and _universe_id(session, entity_id)) or own_id or str(entity_id or name)
+    key = _key(session, entity_id, own_id) if entity_id else own_id or name
     return CompanyRef(**{**fields, "name": name, "company_id": safe_key(key), "entity_id": entity_id})
+
+
+def _key(session: Session, entity_id, own_id: str | None) -> str:
+    """A matched company's key: its universe id. A company without one gets its key recorded as its universe id,
+    so documents registered under the key land on this company (not on a new one named after the key) and
+    every later flow finds the same key."""
+    central = str(entity_id)
+    universe = _universe_id(session, entity_id)
+    for candidate in (own_id, central) if universe is None else ():
+        value = normalise_identifier(IdScheme.UNIVERSE, candidate) if candidate else ""
+        if not value or lookup(session, IdScheme.UNIVERSE, candidate) is not None:
+            continue
+        try:
+            with session.begin_nested():
+                session.add(CompanyIdentifier(company_id=entity_id, scheme=str(IdScheme.UNIVERSE), value=value))
+        except IntegrityError:  # another upload took it first
+            continue
+        universe = value
+        break
+    return central if universe in (None, normalise_identifier(IdScheme.UNIVERSE, central)) else universe
 
 
 def _universe_id(session: Session, entity_id) -> str | None:

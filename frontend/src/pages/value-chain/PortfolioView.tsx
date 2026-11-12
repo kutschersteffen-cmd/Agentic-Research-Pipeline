@@ -89,7 +89,9 @@ function LinkEditor({ subject, title, isCompany, codes, onChanged, onClose }: {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const panel = useRef<HTMLElement>(null);
-  useEffect(() => panel.current?.scrollIntoView?.({ block: "nearest" }), []);
+  useEffect(() => {
+    void panel.current?.scrollIntoView?.({ block: "nearest" }); // its promise must not become the effect's clean-up
+  }, []);
 
   // The first load sets the mode and rows from the stored rule.
   const links = current.data;

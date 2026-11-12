@@ -183,3 +183,27 @@ def test_step_5_shows_a_conflict_as_accepted_and_new(page, conflicted):  # AC-55
         assert row.get_by_role("button", name=name).count() == 1
     assert row.get_by_role("button", name="Edit").count() == 0
     assert page.console_errors == []
+
+
+def test_leaving_results_with_the_source_text_open_keeps_the_app_alive(page, seeded):
+    """Seen live 3 of 3 times: after "Show in source", leaving the page blanked the whole app. scrollIntoView()
+    returns a promise in current Chrome; returned from an effect, React calls it as the clean-up."""
+    text = "Applewood Annual Report 2025\nGreen capex was 12"
+    span = {"doc_id": "d1", "doc_type": "10-K", "title": "Annual report", "company_id": None, "source_filename": None, "page": 1,
+            "quote": "Green capex was 12", "char_start": 29, "char_end": 47, "page_start": 0, "page_text": text}
+
+    def with_evidence(route):  # the seeded run has no stored page text: give the item one cited span
+        response = route.fetch()
+        route.fulfill(response=response, json={**response.json(), "evidence": [span]})
+
+    page.route("**/api/review/runs/*/items/*/context", with_evidence)
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.goto(f"{URL}/#/argus/{seeded}/5")
+    table = page.get_by_role("table", name="Extracted values")
+    table.locator("tbody tr").first.get_by_role("button", name="Review").click()
+    page.get_by_role("button", name="Show in source").first.click()
+    page.locator(".source-panel .source-text mark").wait_for()  # the cited text, scrolled into view
+    page.evaluate("location.hash = '#/history'")
+    page.get_by_role("heading", name="Run History").wait_for()
+    assert errors == []
