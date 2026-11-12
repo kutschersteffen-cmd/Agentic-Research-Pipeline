@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { api, downloadFile } from "../api/client";
+import { ElapsedLine } from "../components/ElapsedLine";
 import { announce } from "../lib/announce";
 import { importingLine, importResultLine } from "../lib/progress";
 import { useMe } from "../lib/reviewer";
-import { useElapsed } from "../lib/useElapsed";
 import type { RfpLibraryEntry, RfpProject, RfpProjectSummary, RfpQuestion } from "../types";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -35,7 +35,6 @@ function Overview({ onOpen }: { onOpen: (id: number) => void }) {
   /** The number of files of a running library import; its result line stays until the next import starts. */
   const [importing, setImporting] = useState<number | null>(null);
   const [importResult, setImportResult] = useState<string | null>(null);
-  const importSeconds = useElapsed(importing !== null);
   const load = () => {
     api.listRfpProjects().then(setProjects, (e: Error) => setError(e.message));
     api.listRfpLibrary().then(setLibrary, (e: Error) => setError(e.message));
@@ -126,7 +125,7 @@ function Overview({ onOpen }: { onOpen: (id: number) => void }) {
             <button disabled={busy}>Import past responses</button>
           </form>
         )}
-        {importing !== null && <p className="muted" role="status">{importingLine(importing, importSeconds)}</p>}
+        {importing !== null && <ElapsedLine text={(seconds) => importingLine(importing, seconds)} />}
         {importResult && <p className="muted" role="status">{importResult}</p>}
         <div className="table-wrap">
           <table className="data-table">

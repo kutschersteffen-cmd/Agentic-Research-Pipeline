@@ -63,6 +63,9 @@ export function MonitoringAlerts() {
   /** The stored rule the form is editing; null while it adds a new one. */
   const [editing, setEditing] = useState<AlertRule | null>(null);
   const [clearingRuleId, setClearingRuleId] = useState<string | null>(null);
+  /** The rule whose `Clear alerts` button takes focus back once its two choices are gone. */
+  const [clearedRuleId, setClearedRuleId] = useState<string | null>(null);
+  const rulesHeading = useRef<HTMLHeadingElement>(null);
   const [ruleError, setRuleError] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -139,13 +142,16 @@ export function MonitoringAlerts() {
     if (!window.confirm(`Delete rule '${rule.name}'?`)) return;
     ruleAction(async () => {
       await api.deleteMonitoringRule(rule.rule_id);
+      rulesHeading.current?.focus(); // the row and its buttons are about to go: keep the keyboard in this section
       if (editing?.rule_id === rule.rule_id) resetForm();
     });
   }
 
-  function clearAlerts(rule: AlertRule, status: "resolved" | "false_positive") {
+  /** Closes the row's two choices and hands focus back to its `Clear alerts` button; with a status, clears first. */
+  function clearAlerts(rule: AlertRule, status?: "resolved" | "false_positive") {
     setClearingRuleId(null);
-    ruleAction(() => api.clearRuleAlerts(rule.rule_id, status));
+    setClearedRuleId(rule.rule_id);
+    if (status) ruleAction(() => api.clearRuleAlerts(rule.rule_id, status));
   }
 
   const liveCount = (ruleId: string) => alerts.filter((a) => a.rule_id === ruleId && LIVE_STATUSES.includes(a.status)).length;
@@ -234,7 +240,7 @@ export function MonitoringAlerts() {
       </section>
 
       <section className="card">
-        <h2>Rules ({rules.length})</h2>
+        <h2 ref={rulesHeading} tabIndex={-1}>Rules ({rules.length})</h2>
         <div className="table-wrap">
           <table className="data-table">
             <thead>
@@ -273,9 +279,12 @@ export function MonitoringAlerts() {
                         <button className="link-button" onClick={() => clearAlerts(r, "false_positive")}>
                           False positive
                         </button>
+                        <button className="link-button" onClick={() => clearAlerts(r)}>
+                          Cancel
+                        </button>
                       </>
                     ) : (
-                      <button className="link-button" onClick={() => setClearingRuleId(r.rule_id)}>
+                      <button className="link-button" autoFocus={clearedRuleId === r.rule_id} onClick={() => setClearingRuleId(r.rule_id)}>
                         Clear alerts
                       </button>
                     )}

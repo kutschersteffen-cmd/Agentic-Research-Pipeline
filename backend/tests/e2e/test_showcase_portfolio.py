@@ -189,3 +189,91 @@ def test_value_chain_view_name_without_a_node_is_the_explorer_start(page):  # 12
         page.goto(f"{URL}/#/valueChain/{view}")
         page.get_by_role("heading", name="Value Chain Explorer", level=1).wait_for()
         assert page.get_by_role("heading", name=view, exact=True).count() == 0
+
+
+# --- UI review on PR #419: live regions and keyboard focus ---
+
+def focused(page):
+    """What has keyboard focus: its tag and text."""
+    return page.evaluate("() => [document.activeElement.tagName, document.activeElement.innerText]")
+
+
+def test_elapsed_counter_is_not_read_out_every_second(page, tmp_path):
+    """A live region re-reads its whole text on each change, so the ticking counter is hidden from screen readers."""
+    state = {"import": None}
+    page.route("**/api/rfp/library/import", lambda route: state.update({"import": route}))
+    page.goto(f"{URL}/#/rfp")
+    past = tmp_path / "past.docx"
+    past.write_bytes(b"not read: the import is answered by the test")
+    page.get_by_label("Past RFP responses").set_input_files(str(past))
+    page.get_by_role("button", name="Import past responses").click()
+    line = page.get_by_role("status").filter(has_text="Importing 1 file…")
+    line.wait_for()
+    assert line.inner_text().startswith("Importing 1 file… 0:0")  # the visible sentence is unchanged
+    assert line.locator("span[aria-hidden=true]").inner_text().strip().endswith("elapsed.")
+    state["import"].fulfill(json={"imported": 0, "dropped": []})
+
+    page.route("**/api/reports?render=false", lambda route: None)  # never answered: drafting keeps running
+    page.goto(f"{URL}/#/reporting")
+    page.get_by_label("Title", exact=True).fill("My draft")
+    page.get_by_label("Qualitative notes / findings").fill("Some notes")
+    page.get_by_role("button", name="Draft content plan").click()
+    line = page.get_by_role("status").filter(has_text="Drafting the content plan…")
+    line.wait_for()
+    assert line.locator("span[aria-hidden=true]").inner_text().strip().endswith("elapsed.")
+
+
+def test_focus_stays_in_the_rules_table_after_clearing_alerts_and_deleting_a_rule(page):
+    state = {"rules": [{
+        "rule_id": "rule_1", "name": "Any weight", "rule_type": "concentration_threshold", "field_id": None,
+        "company_ids": [], "portfolio_ids": [], "comparator": "gt", "threshold_value": 0.05, "severity": "medium",
+        "enabled": True, "created_at": "2026-11-11T10:00:00+00:00"}]}
+
+    def rule(route):
+        if route.request.method == "DELETE":
+            state["rules"] = []
+            route.fulfill(status=204)
+        else:
+            route.fulfill(json={"cleared": 0})
+
+    page.route("**/api/portfolio/monitoring/rules", lambda route: route.fulfill(json=state["rules"]))
+    page.route("**/api/portfolio/monitoring/alerts", lambda route: route.fulfill(json=[]))
+    page.route("**/api/portfolio/monitoring/rules/rule_1", rule)
+    page.route("**/api/portfolio/monitoring/rules/rule_1/clear-alerts", rule)
+    page.on("dialog", lambda dialog: dialog.accept())
+    page.goto(f"{URL}/#/portfolio-monitoring/monitoring")
+    row = page.get_by_role("row").filter(has_text="Any weight")
+
+    row.get_by_role("button", name="Clear alerts").focus()
+    page.keyboard.press("Enter")
+    assert focused(page) == ["BUTTON", "Resolve"]
+    page.get_by_role("button", name="Cancel").focus()  # a way back that changes nothing
+    page.keyboard.press("Enter")
+    row.get_by_role("button", name="Clear alerts").wait_for()
+    assert focused(page) == ["BUTTON", "Clear alerts"]
+    page.keyboard.press("Enter")
+    page.keyboard.press("Enter")  # Resolve
+    row.get_by_role("button", name="Clear alerts").wait_for()
+    assert focused(page) == ["BUTTON", "Clear alerts"]
+
+    row.get_by_role("button", name="Delete").focus()
+    page.keyboard.press("Enter")
+    page.get_by_text("No rules configured yet.").wait_for()
+    assert focused(page) == ["H2", "Rules (0)"]
+
+
+def test_focus_goes_to_the_reports_heading_after_discarding_a_draft(page):
+    state = {"reports": [manifest("rpt_draft0000000", "plan_ready", "My draft")]}
+
+    def one(route):
+        state["reports"] = []
+        route.fulfill(status=204)
+
+    page.route("**/api/reports", lambda route: route.fulfill(json={"reports": state["reports"]}))
+    page.route("**/api/reports/rpt_draft0000000", one)
+    page.on("dialog", lambda dialog: dialog.accept())
+    page.goto(f"{URL}/#/reporting")
+    page.get_by_role("row").filter(has_text="My draft").get_by_role("button", name="Discard").focus()
+    page.keyboard.press("Enter")
+    page.get_by_text("No reports generated yet.").wait_for()
+    assert focused(page) == ["H2", "Previous reports"]

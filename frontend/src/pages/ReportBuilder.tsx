@@ -1,7 +1,8 @@
 import { when } from "../lib/runs";
 import { FileImg, FileLink } from "../components/FileLink";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
+import { ElapsedLine } from "../components/ElapsedLine";
 import { Modal } from "../components/Modal";
 import type {
   AudienceLevel,
@@ -23,7 +24,6 @@ import { CHART_TYPES } from "../types";
 import { activatable } from "../lib/activatable";
 import { findingText } from "../lib/findings";
 import { draftingLine } from "../lib/progress";
-import { useElapsed } from "../lib/useElapsed";
 
 const AUDIENCE_LEVELS: AudienceLevel[] = ["executive", "technical", "general"];
 const TONES: Tone[] = ["formal", "conversational", "persuasive", "neutral_analytical"];
@@ -82,7 +82,7 @@ export function ReportBuilder() {
   // Generation state
   const [busy, setBusy] = useState(false);
   const [drafting, setDrafting] = useState(false);
-  const draftingSeconds = useElapsed(drafting);
+  const reportsHeading = useRef<HTMLHeadingElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [manifest, setManifest] = useState<ReportManifest | null>(null);
   const [plan, setPlan] = useState<ReportPlan | null>(null);
@@ -188,6 +188,7 @@ export function ReportBuilder() {
     setError(null);
     try {
       await api.deleteReport(reportId);
+      reportsHeading.current?.focus(); // the row and its button are about to go: keep the keyboard in this section
       if (manifest?.report_id === reportId) {
         setManifest(null);
         setPlan(null);
@@ -474,7 +475,7 @@ export function ReportBuilder() {
         <button onClick={draftPlan} disabled={busy}>
           {drafting ? "Drafting…" : outputFormat === "house_deck" ? "Draft storyline" : "Draft content plan"}
         </button>
-        {drafting && <p className="muted" role="status">{draftingLine(outputFormat, draftingSeconds)}</p>}
+        {drafting && <ElapsedLine text={(seconds) => draftingLine(outputFormat, seconds)} />}
         {error && <p className="error-text" role="alert">{error}</p>}
       </section>
 
@@ -644,7 +645,7 @@ export function ReportBuilder() {
       )}
 
       <section className="card">
-        <h2>Previous reports</h2>
+        <h2 ref={reportsHeading} tabIndex={-1}>Previous reports</h2>
         {reports.length === 0 && <p className="muted">No reports generated yet.</p>}
         {reports.length > 0 && (
           <div className="table-wrap">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-/** Whole seconds since `active` last became true, counting up every second while it stays true. */
+/** Whole seconds since `active` last became true, counting up every second while it stays true. Used by
+ * `ElapsedLine`, so only that line re-renders each second, not the page around it. */
 export function useElapsed(active: boolean): number {
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
