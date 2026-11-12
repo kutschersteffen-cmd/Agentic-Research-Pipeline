@@ -14369,7 +14369,22 @@ export interface components {
             /** Resolvable */
             resolvable: boolean;
             result?: components["schemas"]["AggregationResult"] | null;
+            /**
+             * Scale
+             * @default units
+             * @enum {string}
+             */
+            scale: "units" | "millions";
+            /** Snapshot Dates */
+            snapshot_dates?: string[];
             spec?: components["schemas"]["AnalyticSpec"] | null;
+            /** Trend */
+            trend?: components["schemas"]["TrendPoint"][] | null;
+            /**
+             * Unit
+             * @default
+             */
+            unit: string;
             /**
              * Vintage
              * @default {}
@@ -17169,6 +17184,12 @@ export interface components {
             question: string;
             walk_or_talk: components["schemas"]["WalkOrTalk"];
         };
+        /** TrendPoint */
+        TrendPoint: {
+            /** As Of */
+            as_of: string;
+            result: components["schemas"]["AggregationResult"];
+        };
         /** TriggerScanRequest */
         TriggerScanRequest: {
             /** Companies */
@@ -17977,6 +17998,21 @@ export interface components {
         };
         /** AskRequest */
         arp__api__routers__portfolio__AskRequest: {
+            /**
+             * As Of
+             * @description YYYY-MM-DD; each portfolio's newest snapshot on or before it.
+             */
+            as_of?: string | null;
+            /**
+             * Date Range
+             * @description [start, end]: a trend, one point per snapshot date in it.
+             */
+            date_range?: string[] | null;
+            /**
+             * Portfolio Ids
+             * @description The screen's selection; a portfolio named in the question wins.
+             */
+            portfolio_ids?: string[];
             /** Question */
             question: string;
         };

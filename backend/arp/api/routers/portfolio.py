@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
@@ -14,6 +14,7 @@ from arp.api.routers.universe import save_universe
 from arp.config import Settings
 from arp.holdings.file_source import file_ref
 from arp.holdings.intake import IntakeError
+from arp.holdings.validate import iso_date
 from arp.llm.base import LLMClient
 from arp.portfolio import aggregation, qa_agent, qa_audit
 from arp.portfolio.climate import esg_intake
@@ -149,6 +150,28 @@ def holdings_universe(
 
 class AskRequest(BaseModel):
     question: str
+    portfolio_ids: list[str] = Field(default_factory=list, description="The screen's selection; a portfolio named in the question wins.")
+    as_of: str | None = Field(default=None, description="YYYY-MM-DD; each portfolio's newest snapshot on or before it.")
+    date_range: list[str] | None = Field(default=None, description="[start, end]: a trend, one point per snapshot date in it.")
+
+
+def _check_ask_request(req: AskRequest, store: PortfolioStore) -> None:
+    """Refuses what no answer could honour, before a model call or an audit row."""
+    if req.as_of is not None and req.date_range is not None:
+        raise HTTPException(422, "send as_of or date_range, not both")
+    if req.as_of is not None:
+        if not iso_date(req.as_of):
+            raise HTTPException(422, "as_of must be YYYY-MM-DD")
+        if date.fromisoformat(req.as_of) > datetime.now(UTC).date():  # same rule as a holdings upload
+            raise HTTPException(422, "as_of is in the future")
+    if req.date_range is not None:
+        if len(req.date_range) != 2 or not all(iso_date(d) for d in req.date_range):
+            raise HTTPException(422, "date_range must be two YYYY-MM-DD dates")
+        if req.date_range[0] > req.date_range[1]:
+            raise HTTPException(422, "date_range start is after its end")
+    for pid in req.portfolio_ids:
+        if store.get_portfolio(pid) is None:
+            raise HTTPException(422, f"unknown portfolio_id '{pid}'")
 
 
 @router.post("/ask", response_model=qa_agent.QAAnswer)
@@ -163,10 +186,13 @@ async def ask(
     query (see qa_agent.py); the returned `result`/`spec` always show the
     real, deterministically computed figures behind `answer_text`. Every
     call -- answered, unresolvable or failed -- leaves an audit row."""
+    _check_ask_request(req, store)
     answer, error = None, None
     try:
         securities, companies = portfolio_directories(store)
-        answer, _usage = await qa_agent.answer_question(req.question, llm, store, securities, companies)
+        answer, _usage = await qa_agent.answer_question(
+            req.question, llm, store, securities, companies, portfolio_ids=req.portfolio_ids, as_of=req.as_of,
+            date_range=tuple(req.date_range) if req.date_range else None)
         return answer
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"

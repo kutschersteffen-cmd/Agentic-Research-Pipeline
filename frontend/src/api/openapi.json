@@ -15635,6 +15635,22 @@
        }
       ]
      },
+     "scale": {
+      "default": "units",
+      "enum": [
+       "units",
+       "millions"
+      ],
+      "title": "Scale",
+      "type": "string"
+     },
+     "snapshot_dates": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Snapshot Dates",
+      "type": "array"
+     },
      "spec": {
       "anyOf": [
        {
@@ -15644,6 +15660,25 @@
         "type": "null"
        }
       ]
+     },
+     "trend": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/TrendPoint"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Trend"
+     },
+     "unit": {
+      "default": "",
+      "title": "Unit",
+      "type": "string"
      },
      "vintage": {
       "additionalProperties": true,
@@ -22484,6 +22519,23 @@
     "title": "TransitionPlanIndicator",
     "type": "object"
    },
+   "TrendPoint": {
+    "properties": {
+     "as_of": {
+      "title": "As Of",
+      "type": "string"
+     },
+     "result": {
+      "$ref": "#/components/schemas/AggregationResult"
+     }
+    },
+    "required": [
+     "as_of",
+     "result"
+    ],
+    "title": "TrendPoint",
+    "type": "object"
+   },
    "TriggerScanRequest": {
     "properties": {
      "companies": {
@@ -24576,6 +24628,41 @@
    },
    "arp__api__routers__portfolio__AskRequest": {
     "properties": {
+     "as_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "YYYY-MM-DD; each portfolio's newest snapshot on or before it.",
+      "title": "As Of"
+     },
+     "date_range": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "[start, end]: a trend, one point per snapshot date in it.",
+      "title": "Date Range"
+     },
+     "portfolio_ids": {
+      "description": "The screen's selection; a portfolio named in the question wins.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Portfolio Ids",
+      "type": "array"
+     },
      "question": {
       "title": "Question",
       "type": "string"

@@ -977,7 +977,8 @@ export const api = {
       body: JSON.stringify(body),
     }),
   listPortfolioCompanies: () => request<CompanyRef[]>("/api/portfolio/companies"),
-  askPortfolio: (question: string) => request<QAAnswer>("/api/portfolio/ask", { method: "POST", body: JSON.stringify({ question }) }),
+  askPortfolio: (body: { question: string; portfolio_ids?: string[]; as_of?: string; date_range?: [string, string] }) =>
+    request<QAAnswer>("/api/portfolio/ask", { method: "POST", body: JSON.stringify(body) }),
   listMonitoringRules: () => request<AlertRule[]>("/api/portfolio/monitoring/rules"),
   createMonitoringRule: (rule: Omit<AlertRule, "rule_id" | "created_at">) =>
     request<AlertRule>("/api/portfolio/monitoring/rules", { method: "POST", body: JSON.stringify(rule) }),

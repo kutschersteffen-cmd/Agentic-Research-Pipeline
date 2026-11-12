@@ -1092,6 +1092,11 @@ export interface QAAnswer {
   spec?: (AnalyticRequest & { analytic_id: string; created_at: string }) | null;
   result?: AggregationResult | null;
   answer_text: string;
+  /** Set instead of `result` when the request named a date range. */
+  trend?: { as_of: string; result: AggregationResult }[] | null;
+  snapshot_dates?: string[];
+  scale?: "units" | "millions";
+  unit?: string;
 }
 
 export type AlertRuleType = "field_threshold" | "concentration_threshold" | "portfolio_aggregate_threshold";
