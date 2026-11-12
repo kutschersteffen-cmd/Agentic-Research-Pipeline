@@ -3,11 +3,13 @@
 import os
 import re
 
+import httpx
 import pytest
 
 from arp.config import Settings
 
 URL = os.environ.get("ARP_E2E_URL")
+API = os.environ.get("ARP_E2E_API_URL", "http://127.0.0.1:8000")  # the stack's API (e2e_stack.sh)
 pytestmark = [
     pytest.mark.e2e,
     pytest.mark.skipif(not URL, reason="ARP_E2E_URL not set -- start backend/scripts/e2e_stack.sh"),
@@ -108,3 +110,102 @@ def test_calibration_flag_shows_names_then_ids(page):  # AC-38
 def test_older_calibration_flag_shows_ids(page):  # AC-39
     company, activity = calibration_cells(page, FLAG)
     assert (company.inner_text(), activity.inner_text()) == ("ko", "act_dd5b90051fcd")
+
+
+TP = "transition_plan_indicators"
+
+
+def stub_flow(page, step, **changes):
+    """A real (empty) flow from the stack, answered with `changes` applied."""
+    flow = httpx.post(f"{API}/api/argus/flows").json()
+    fid = flow["flow_id"]
+    page.route(f"**/api/argus/flows/{fid}", lambda r: r.fulfill(json={**r.fetch().json(), "step": step, **changes})
+               if r.request.method == "GET" else r.fallback())
+    return fid
+
+
+def test_step_3_states_time_and_cost_before_a_first_run(page):  # AC-56
+    company = {"company_id": "acme", "entity_id": None, "name": "Acme", "ticker": None, "website": None, "cik": None,
+               "lei": None, "isin": None, "country": None, "sector": None}
+    fid = stub_flow(page, 3, companies=[company], schema_choice={"kind": "schema", "schema_id": TP, "version": 1, "profile": None},
+                    files=[{"key": "acme/x/a.pdf", "company_id": "acme", "company_name": "Acme", "doc_type": "x", "filename": "a.pdf",
+                            "year": 2025, "source": "upload", "check": "ok", "passes": True, "state": "kept", "content_key": "k"}])
+    page.route(re.compile(r".*/api/runs\?run_type=extraction$"), lambda r: r.fulfill(json={"runs": []}))
+    page.goto(f"{URL}/#/argus/{fid}/3")
+    note = page.get_by_text("No earlier run of this template yet, so time and cost are not known. Try it on 1 company first: the run shows both.")
+    note.wait_for()
+    assert note.locator("xpath=..").get_by_role("button").count() >= 1  # in the row of the start button
+
+
+def field(name, value, state="found"):
+    return {"field_id": name, "field_name": name, "value": value, "citations": [], "confidence": 0.9, "grounded": True,
+            "conflicting_sources": False, "value_state": state, "period_end": "2025-12-31"}
+
+
+INDICATORS = [{"number": i, "identifier": ident, "category": "target", "walk_or_talk": kind, "question": f"Q {ident}?",
+               "guideline": "", "options": ["Yes", "No"]}
+              for i, (ident, kind) in enumerate([("A_headline_1", "walk"), ("W2", "walk"), ("W3", "walk"), ("T1", "talk"), ("T2", "talk")], 1)]
+
+
+def step_5(page, schema_id, fields, decision=None):
+    run_id = "extraction_tp1"
+    fid = stub_flow(page, 5, run_id=run_id, schema_choice={"kind": "schema", "schema_id": schema_id, "version": 1, "profile": None})
+    page.route(f"**/api/extraction/runs/{run_id}/results*", lambda r: r.fulfill(json={"total": 1, "results": [
+        {"company_id": "acme", "name": "Acme", "schema_id": schema_id, "run_id": run_id, "fields": fields,
+         "overall_confidence": 0.9, "needs_review": False, "generated_at": "2026-11-11T09:00:00+00:00"}]}))
+    page.route("**/api/review/items?run_id=*", lambda r: r.fulfill(json={"items": []}))
+    page.route(f"**/api/extraction/runs/{run_id}/review-decisions", lambda r: r.fulfill(json={"decisions": {}}))
+    page.route(f"**/api/extraction/schemas/{schema_id}?version=1", lambda r: r.fulfill(json={
+        "schema_id": schema_id, "version": 1, "name": "T", "description": "", "release_flag": True,
+        "fields": [{"field_id": f["field_id"], "name": f["field_name"], "description": "Has the company set a net-zero target?"
+                    if f["field_name"] == "A_headline_1" else "Revenue in USD.", "data_type": "boolean", "unit": None,
+                    "extraction_instructions": "", "required": False, "source_doc_types": [], "seed_keywords": []} for f in fields]}))
+    page.route("**/api/transition-plan/indicators", lambda r: r.fulfill(json=INDICATORS))
+    page.route(f"**/api/runs/{run_id}", lambda r: r.fulfill(json={**RUN, "run_id": run_id, "run_type": "extraction", "status": "completed"}))
+    page.route(f"**/api/decision/runs/{run_id}/decision", decision or (lambda r: r.fulfill(
+        status=404, json={"detail": "No scoring template is attached to this run."})))
+    page.route("**/api/decision/templates/match", lambda r: r.fulfill(json=[]))
+    page.goto(f"{URL}/#/argus/{fid}/5")
+    table = page.get_by_role("table", name="Extracted values")
+    table.locator("tbody tr").first.wait_for()
+    return table
+
+
+TP_FIELDS = [field("A_headline_1", True), field("W2", True), field("W3", False), field("T1", True),
+             field("T2", None, "not_found"), field("capex_total", 5)]
+
+
+def test_step_5_field_cell_holds_the_question_then_the_id(page):  # AC-57
+    cell = step_5(page, TP, TP_FIELDS).locator("tbody tr", has_text="A_headline_1").locator("td").nth(1)
+    assert cell.inner_text().split("A_headline_1")[0].strip() == "Has the company set a net-zero target?"
+    assert cell.locator("span", has_text="A_headline_1").count() == 1
+
+
+def test_step_5_walk_and_talk_line(page):  # AC-58
+    step_5(page, TP, TP_FIELDS)
+    page.get_by_text("Disclosed 3 of 5 · Walk 2 of 3 · Talk 1 of 2").wait_for()
+
+
+def test_step_5_scoring_shows_score_and_tier(page):  # AC-59
+    decision = {"framework": {"name": "TP scoring", "version": 1}, "run_status": "completed", "scored_at": None,
+                "missing_columns": [], "level_scale": None,
+                "result": {"tier_summary": [], "excluded_count": 0, "insufficient_count": 0, "entities": [
+                    {"entity_key": "acme", "name": "Acme", "rank": 1, "score": 62.5, "tier_name": "Tier 2", "tier_action": "",
+                     "status": "scored", "notes": []}]}}
+    step_5(page, TP, TP_FIELDS, decision=lambda r: r.fulfill(json=decision))
+    section = page.locator("section.card", has=page.get_by_role("heading", name="Scoring"))
+    row = section.locator("tr", has_text="Acme")
+    row.wait_for()
+    assert "62.5" in row.inner_text() and "Tier 2" in row.inner_text()
+
+
+def test_step_5_scoring_without_template_offers_the_picker(page):  # AC-60
+    step_5(page, TP, TP_FIELDS)
+    section = page.locator("section.card", has=page.get_by_role("heading", name="Scoring"))
+    section.get_by_role("button", name="Score this run").wait_for()
+    assert "No scoring template is attached" not in section.inner_text()
+
+
+def test_step_5_other_template_field_cell_unchanged(page):  # AC-61 (must not change)
+    cell = step_5(page, "sch_other", [field("revenue", 5)]).locator("tbody tr").first.locator("td").nth(1)
+    assert cell.inner_text() == "revenue"
