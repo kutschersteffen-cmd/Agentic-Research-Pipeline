@@ -22,7 +22,7 @@ const SEARCH_ENDED = ["completed", "partially_completed", "failed", "cancelled"]
 
 /** Step 2's line under "Find documents". A search that ended with nothing found says so and what to try. */
 export function searchStatusText(status: string, files: number): string {
-  if (!SEARCH_ENDED.includes(status)) return "Searching…";
+  if (!SEARCH_ENDED.includes(status)) return files > 0 ? `${files} found so far, still checking other sources…` : "Searching…";
   if (status === "completed" && files === 0)
     return "The search found no documents. Add an ISIN, LEI or CIK in step 1, try the other source, or upload the report.";
   return `Search ${status.replace("_", " ")}.`;
