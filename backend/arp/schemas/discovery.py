@@ -145,6 +145,7 @@ class IdentitySignals(BaseModel):
     edgar_matches: list[EdgarNameMatch] = Field(default_factory=list)
     search_results: list[WebSearchHit] = Field(default_factory=list)
     gleif_matches: list[GleifMatch] = Field(default_factory=list)
+    lookup_errors: list[str] = Field(default_factory=list, description="Lookups that failed, e.g. 'web search: ConnectTimeout'.")
 
 
 class IdentityAdjudication(BaseModel):

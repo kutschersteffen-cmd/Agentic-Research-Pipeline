@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
-import { RATING_CLASS, RATING_LABEL, cellHash, errorDetail } from "../lib/barrier";
+import { RATING_CLASS, RATING_LABEL, REFRESH_OFF_NOTE, cellHash, errorDetail } from "../lib/barrier";
 import { BarrierCellDetail } from "./BarrierCellDetail";
 import type {
   BarrierCriterionDetail,
@@ -32,9 +32,17 @@ function RatingCell({ cell, onClick }: { cell: BarrierMatrixCell | undefined; on
   );
 }
 
-function CriterionDetail({ detail, onClose }: { detail: BarrierCriterionDetail; onClose: () => void }) {
+function CriterionDetail({ detail, refreshEnabled, onClose }: {
+  detail: BarrierCriterionDetail; refreshEnabled: boolean; onClose: () => void;
+}) {
   const { criterion, scores, sources } = detail;
   const [derived, setDerived] = useState<{ runId: string } | { error: string } | null>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  // it opens below the 35-row table: bring it into view, or the click looks like it did nothing
+  useEffect(() => {
+    heading.current?.scrollIntoView({ block: "center" });
+    heading.current?.focus({ preventScroll: true });
+  }, [criterion.code]);
   async function deriveAll() {
     setDerived(null);
     try {
@@ -46,7 +54,7 @@ function CriterionDetail({ detail, onClose }: { detail: BarrierCriterionDetail; 
   return (
     <div className="card">
       <div className="section-heading">
-        <h2>
+        <h2 ref={heading} tabIndex={-1}>
           {criterion.code} — {criterion.criterion}
         </h2>
         <button type="button" onClick={onClose}>
@@ -157,10 +165,11 @@ function CriterionDetail({ detail, onClose }: { detail: BarrierCriterionDetail; 
 
       <div className="section-heading">
         <h3>Ratings by region</h3>
-        <button type="button" className="secondary" onClick={() => void deriveAll()}>
+        <button type="button" className="secondary" onClick={() => void deriveAll()} aria-describedby={refreshEnabled ? undefined : "refresh-off-all"}>
           Derive all regions
         </button>
       </div>
+      {!refreshEnabled && <p className="muted" id="refresh-off-all">{REFRESH_OFF_NOTE}</p>}
       {derived && "runId" in derived && (
         <p role="status">
           Derivation <span className="mono">{derived.runId}</span> finished. <a href={`#/review/transition_barrier_derivation/${encodeURIComponent(derived.runId)}`}>Review the results</a>
@@ -391,7 +400,7 @@ function BarrierMatrixPage() {
         </table>
       </div>
 
-      {detail && <CriterionDetail detail={detail} onClose={() => setDetail(null)} />}
+      {detail && <CriterionDetail detail={detail} refreshEnabled={matrix.refresh_enabled} onClose={() => setDetail(null)} />}
 
       <div className="card">
         <div className="section-heading">

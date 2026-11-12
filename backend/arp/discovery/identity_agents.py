@@ -46,9 +46,15 @@ signals -- never invent one, even a plausible-looking one; leave any of them \
 null if no signal supports it. Set them only when verdict is 'resolved'."""
 
 
+def _failed(signals: IdentitySignals, label: str) -> str | None:
+    return next((e.removeprefix(f"{label}: ") for e in signals.lookup_errors if e.startswith(f"{label}: ")), None)
+
+
 def _format_signals(signals: IdentitySignals) -> str:
     lines: list[str] = []
-    if signals.edgar_matches:
+    if (edgar_error := _failed(signals, "EDGAR")) is not None:
+        lines.append(f"SEC EDGAR matches: not available ({edgar_error})")
+    elif signals.edgar_matches:
         lines.append("SEC EDGAR matches:")
         lines.extend(f"  - ticker={m.ticker} cik={m.cik} title={m.title!r}" for m in signals.edgar_matches)
     else:
@@ -61,6 +67,8 @@ def _format_signals(signals: IdentitySignals) -> str:
     if signals.search_results:
         lines.append("Web search results:")
         lines.extend(f"  - title={r.title!r} url={r.url} snippet={r.snippet!r}" for r in signals.search_results)
+    elif (search_error := _failed(signals, "web search")) is not None:
+        lines.append(f"Web search results: not available ({search_error})")
     else:
         lines.append("Web search results: none found")
     return "\n".join(lines)
@@ -82,20 +90,33 @@ async def gather_signals(
     matches) is preserved as-is so the LLM (or identity_graph.py's clean-
     match short-circuit) can act on it, not resolved silently.
     """
-    edgar_matches = await edgar.search_by_name(company_name)
+    lookup_errors: list[str] = []  # an EDGAR or web-search failure (blocked in some setups) is recorded, never fatal
+    try:
+        edgar_matches = await edgar.search_by_name(company_name)
+    except Exception as exc:  # noqa: BLE001
+        edgar_matches = []
+        lookup_errors.append(f"EDGAR: {_reason(exc)}")
 
     search_results: list[WebSearchHit] = []
     seen_urls: set[str] = set()
     queries = [f"{company_name} investor relations", f"{company_name} official website"]
-    for query in queries:
-        for r in await search_client.search(query, max_results=max_search_results):
-            if r.url in seen_urls:
-                continue
-            seen_urls.add(r.url)
-            search_results.append(WebSearchHit(title=r.title, url=r.url, snippet=r.snippet))
+    try:
+        for query in queries:
+            for r in await search_client.search(query, max_results=max_search_results):
+                if r.url in seen_urls:
+                    continue
+                seen_urls.add(r.url)
+                search_results.append(WebSearchHit(title=r.title, url=r.url, snippet=r.snippet))
+    except Exception as exc:  # noqa: BLE001
+        lookup_errors.append(f"web search: {_reason(exc)}")
 
     gleif_matches = await name_matches(gleif_client, company_name) if gleif_client else []
-    return IdentitySignals(edgar_matches=edgar_matches, search_results=search_results, gleif_matches=gleif_matches)
+    return IdentitySignals(edgar_matches=edgar_matches, search_results=search_results, gleif_matches=gleif_matches,
+                           lookup_errors=lookup_errors)
+
+
+def _reason(exc: Exception) -> str:
+    return f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
 
 
 async def adjudicate_identity(

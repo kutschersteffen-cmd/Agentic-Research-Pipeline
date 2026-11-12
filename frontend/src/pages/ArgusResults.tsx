@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { FileLink } from "../components/FileLink";
 import { ReviewControls, decisionLabel } from "../components/ReviewControls";
+import { RunScoringPanel } from "../components/RunScoring";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
-import { notInRun, onlyNeedsYou, resultRows, type ResultRow } from "../lib/argusFlow";
-import type { ArgusFlow as Flow, ExtractionRecord, ReviewDecision, ReviewItem } from "../types";
+import { TRANSITION_PLAN_TEMPLATE, notInRun, onlyNeedsYou, resultRows, walkTalkLine, type ResultRow } from "../lib/argusFlow";
+import type { ArgusFlow as Flow, DataPointSchema, ExtractionRecord, ReviewDecision, ReviewItem, TransitionPlanIndicatorDef } from "../types";
 
 const VALUE_LABELS = { approve: "Approve", correct: "Edit", reject: "Reject" } as const;
 // A not-found value is either right (approve: confirmed not disclosed) or wrong (correct: the value the source gives).
@@ -31,6 +32,17 @@ export function ArgusResults({ flow }: { flow: Flow }) {
   const [mineOnly, setMineOnly] = useState(false);
   const [source, setSource] = useState<ActiveSource | null>(null);
   const [error, setError] = useState("");
+  const [records, setRecords] = useState<ExtractionRecord[]>([]);
+  const [schema, setSchema] = useState<DataPointSchema | null>(null);
+  const [indicators, setIndicators] = useState<TransitionPlanIndicatorDef[] | null>(null);
+  const choice = flow.schema_choice;
+  const transitionPlan = choice?.kind === "schema" && choice.schema_id === TRANSITION_PLAN_TEMPLATE;
+
+  useEffect(() => {
+    if (choice?.kind !== "schema" || !choice.schema_id || !choice.version) return;
+    api.getSchema(choice.schema_id, choice.version).then(setSchema, () => setSchema(null));
+    if (transitionPlan) api.getTransitionPlanIndicators().then(setIndicators, () => setIndicators(null));
+  }, [choice?.kind, choice?.schema_id, choice?.version, transitionPlan]);
 
   const load = useCallback(async () => {
     try {
@@ -42,6 +54,7 @@ export function ArgusResults({ flow }: { flow: Flow }) {
       // shortcut: Financials and TNFD records have no per-field rows here; their values are reviewed in the Review Queue until a later slice
       setRows(resultRows(results.filter((r) => Array.isArray(r.fields)), open.items as ReviewItem[]));
       setInRun(new Set(results.map((r) => r.company_id)));
+      setRecords(results.filter((r) => Array.isArray(r.fields)));
       setDecisions(review.decisions);
     } catch (e) {
       setError((e as Error).message);
@@ -57,6 +70,8 @@ export function ArgusResults({ flow }: { flow: Flow }) {
 
   if (!rows) return error ? <p className="error-text" role="alert">{error}</p> : <p className="muted" role="status">Loading…</p>;
   const shown = mineOnly ? onlyNeedsYou(rows) : rows;
+  // the transition-plan template's field names are indicator ids: its question says what was asked
+  const question = new Map(transitionPlan ? (schema?.fields ?? []).map((f) => [f.name, f.description]) : []);
   const missing = notInRun(flow.companies, inRun, flow.repeat, flow.repeat_rows);
   const open = (r: ResultRow) => {
     const c = r.citation!;
@@ -94,6 +109,15 @@ export function ArgusResults({ flow }: { flow: Flow }) {
           . To extract a missing company, go back to step 3; a draft schema runs on one company until it is released.
         </p>
       )}
+      {transitionPlan && indicators && records.length > 0 && (
+        <ul className="argus-walk-talk" aria-label="Indicators by company">
+          {records.map((r) => (
+            <li key={r.company_id}>
+              {r.name}: {walkTalkLine(r, indicators)}
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="table-wrap">
         <table className="data-table stack-on-phone" aria-label="Extracted values">
           <thead>
@@ -109,7 +133,9 @@ export function ArgusResults({ flow }: { flow: Flow }) {
             {shown.map((r) => (
               <tr key={r.key} className={r.item ? "argus-row-await" : undefined}>
                 <td data-label="Company">{r.company}</td>
-                <td data-label="Field">{r.field}</td>
+                <td data-label="Field">
+                  {question.get(r.field) ? <span>{question.get(r.field)} <span className="mono muted">{r.field}</span></span> : r.field}
+                </td>
                 <td data-label="Value">
                   {r.accepted !== undefined ? <>Accepted: {r.accepted}<br />New: {r.value}</> : r.value}
                 </td>
@@ -147,6 +173,7 @@ export function ArgusResults({ flow }: { flow: Flow }) {
         <p className="muted">{mineOnly ? "Nothing waits on you in this run." : "This run has no values yet."}</p>
       ))}
       {source && <SourcePanel source={source} onClose={() => setSource(null)} />}
+      {choice?.kind === "schema" && <RunScoringPanel runId={runId} runType="extraction" fieldNames={schema?.fields.map((f) => f.name)} />}
     </section>
   );
 }

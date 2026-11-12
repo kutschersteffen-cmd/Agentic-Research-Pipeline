@@ -5,8 +5,8 @@ import { ruleMarkers, RulesList } from "../components/RulesList";
 import { ScoringTemplatePicker } from "../components/RunScoring";
 import { SchemaFieldsEditor } from "../components/SchemaFieldsEditor";
 import { ruleInputs, sameRule } from "../lib/ruleSentence";
-import { bumpChangedFields, canStart, draftHint, flowHref, newDocsLine, newestVersions, startLabel } from "../lib/argusFlow";
-import type { ArgusFlow as Flow, DataPointSchema, FieldDefinition, RuleSuggestion } from "../types";
+import { bumpChangedFields, canStart, draftHint, flowHref, lastRunText, newDocsLine, newestVersions, presetCountText, startLabel } from "../lib/argusFlow";
+import type { ArgusFlow as Flow, DataPointSchema, FieldDefinition, RuleSuggestion, RunManifest } from "../types";
 
 type SavedSchema = { schema_id: string; version: number; name: string; release_flag: boolean };
 type Preset = { preset_id: string; name: string; field_count: number };
@@ -42,6 +42,8 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
   const [loadError, setLoadError] = useState("");
   const [evidence, setEvidence] = useState(flow.settings.evidence_passages?.toString() ?? ""); // saved on blur and before Start
   const starting = useRef(false);
+  const [indicatorCount, setIndicatorCount] = useState<number | null>(null);
+  const [pastRuns, setPastRuns] = useState<RunManifest[] | null>(null);
   const id = flow.flow_id;
   const choice = flow.schema_choice ?? null;
 
@@ -49,7 +51,18 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
     api.listSchemas().then((s) => setSaved(newestVersions(s)), (e: Error) => setLoadError(e.message));
     api.listPresets().then(setPresets, (e: Error) => setLoadError(e.message));
     api.getMe().then((m) => setRole(m.role), () => setRole(null));
+    api.getTransitionPlanIndicators().then((i) => setIndicatorCount(i.length), () => setIndicatorCount(null));
   }, []);
+  const runType = choice?.kind === "profile" ? choice.profile! : "extraction";
+  useEffect(() => {
+    setPastRuns(null);
+    if (!choice) return;
+    let live = true;
+    api.listRuns(runType).then((r) => live && setPastRuns((r as { runs: RunManifest[] }).runs), () => live && setPastRuns(null));
+    return () => {
+      live = false;
+    };
+  }, [runType, choice?.schema_id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     setSchema(null);
     if (choice?.kind !== "schema" || !choice.schema_id || !choice.version) return;
@@ -129,7 +142,6 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
     ? startLabel(choice.kind === "profile" ? profileName : schema?.name ?? null, choice.kind === "profile" ? null : choice.version ?? null, released, companies.length)
     : editing ? "Save the schema to continue" : "Choose what to extract";
   const ready = !!choice && !editing && (choice.kind === "profile" || !!schema) && companies.length > 0 && canStart(flow.repeat_rows, flow.repeat);
-  const runType = choice?.kind === "profile" ? choice.profile! : "extraction";
   const isChosen = (s: SavedSchema) => choice?.kind === "schema" && choice.schema_id === s.schema_id && choice.version === s.version;
 
   return (
@@ -171,7 +183,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
                 >
                   {p.name}
                 </button>{" "}
-                <span className="muted">{p.field_count} fields</span>
+                <span className="muted">{presetCountText(p, indicatorCount)}</span>
               </li>
             ))}
             {PROFILES.map(([p, name]) => (
@@ -409,6 +421,11 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
         >
           {label}
         </button>
+        {choice && pastRuns && (
+          <span className="muted" role="note">
+            {lastRunText(pastRuns.filter((r) => choice.kind === "profile" || r.params.schema_id === choice.schema_id))}
+          </span>
+        )}
         {choice?.kind === "schema" && schema && draftHint(released, companies.length, role === "approver") && (
           <span className="muted" role="note">{draftHint(released, companies.length, role === "approver")}</span>
         )}

@@ -719,6 +719,8 @@ export interface DriftFlag {
   source_run_id: string;
   company_id: string;
   activity_id: string;
+  company_name?: string | null;
+  activity_name?: string | null;
   old_verdict: string;
   old_confidence: number;
   old_generated_at: string;
@@ -1497,6 +1499,7 @@ export interface BarrierRegistrySource {
 }
 
 export interface BarrierMatrix {
+  refresh_enabled: boolean;
   sectors: string[];
   regions: BarrierRegion[];
   pillars: BarrierPillar[];
@@ -1573,6 +1576,7 @@ export interface BarrierHistoryEntry {
 export interface BarrierCell extends BarrierScore {
   latest_result: BarrierResult | null;
   history: BarrierHistoryEntry[];
+  refresh_enabled: boolean;
 }
 
 export interface BarrierFactForm {
