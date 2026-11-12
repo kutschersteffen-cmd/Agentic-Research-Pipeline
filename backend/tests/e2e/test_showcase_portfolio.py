@@ -121,3 +121,23 @@ def test_drafting_shows_a_running_status_line_and_a_draft_can_be_opened_and_disc
     row.get_by_role("button", name="Discard").click()
     page.get_by_text("No reports generated yet.").wait_for()
     assert state["deleted"] and page.get_by_role("heading", name="3. Review & render").count() == 0
+
+
+# --- defect 3: RFP library import ---
+
+def test_rfp_import_shows_progress_and_then_its_result(page, tmp_path):
+    state = {"import": None}
+    page.route("**/api/rfp/library/import", lambda route: state.update({"import": route}))
+    page.goto(f"{URL}/#/rfp")
+    past = tmp_path / "past.docx"
+    past.write_bytes(b"not read: the import is answered by the test")
+    page.get_by_label("Past RFP responses").set_input_files(str(past))
+    page.get_by_role("button", name="Import past responses").click()
+    page.get_by_role("status").filter(has_text="Importing 1 file… 0:0").wait_for()
+    page.get_by_text("Importing 1 file… 0:02 elapsed. This can take a few minutes; keep this page open.").wait_for()
+    state["import"].fulfill(json={"imported": 4, "dropped": []})
+    result = page.locator("section.card [role=status]").filter(has_text="Imported 4 entries, dropped 0")
+    result.wait_for()
+    assert page.get_by_text("Importing 1 file").count() == 0
+    page.wait_for_timeout(3000)
+    assert result.is_visible()  # it stays, unlike the announcer's text
