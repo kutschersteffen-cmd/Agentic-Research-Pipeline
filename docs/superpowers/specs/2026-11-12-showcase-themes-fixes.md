@@ -358,7 +358,7 @@ answers S" means `model/PlanScript.json` = `{"output": {"script": S}}`, so both 
 model, `system`, `prompt`); "the planner call" is its last line with `name` `PlanScript`.
 `unit` rows that need stub plan steps use the harness of `backend/tests/test_plan_api_pg.py` (stub steps
 through `plans.build_runtime`, a `reviewed` function the test controls). Browser rows run at 1400×900.
-M1, S1 to S4b are the texts under "Decided".
+M1 and S1 to S4c are the texts under "Decided".
 
 ### PR 1
 
