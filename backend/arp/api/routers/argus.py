@@ -557,14 +557,14 @@ def edit_company(
     settings: Settings = Depends(settings_dep), edgar: EdgarDocumentSource = Depends(get_edgar_source), view: Viewer = Depends(),
 ) -> ArgusFlowView:
     """Registers the row again with the form's values and replaces it in place."""
-    flow = _unstarted(store.get(flow_id), company_id)
+    _unstarted(store.get(flow_id), company_id)
     changes = req.model_dump()
     ticker_problem = asyncio.run(ticker_ciks([changes], edgar)).get(0)
-    has_files = any(f.company_id == company_id and f.duplicate_of is None for f in view.files(flow))
 
     def apply(f: ArgusFlow) -> None:
         _unstarted(f, company_id)
         index = next(i for i, c in enumerate(f.companies) if c.company_id == company_id)
+        has_files = any(x.company_id == company_id and x.duplicate_of is None for x in view.files(f))
         try:
             with transaction(require_dsn(settings)) as session:
                 new = reregister(session, f, f.companies[index], changes, has_files=has_files)

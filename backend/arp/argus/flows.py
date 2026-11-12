@@ -148,6 +148,7 @@ class FlowStore:
             flow = self.get(flow_id)
             if flow is None:
                 return None
+            flow.starting = is_starting(flow)  # before the save moves `updated_at`: a dead Start's flag must not look fresh
             fn(flow)
             return self.save(flow)
 

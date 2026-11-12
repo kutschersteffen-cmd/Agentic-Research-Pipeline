@@ -239,6 +239,9 @@ def test_a_company_not_in_the_flow_is_a_400(client, fid):  # AC-19
     for r in (edit(client, fid, "nope", name="X"), client.delete(f"/api/argus/flows/{fid}/companies/nope")):
         assert (r.status_code, r.json()["detail"]) == (400, "That company is not in this extraction.")
     assert edit(client, "nope", "x", name="X").status_code == 404
+    acme = client.get(f"/api/argus/flows/{fid}").json()["companies"][0]["company_id"]
+    r = edit(client, fid, acme, name="")
+    assert (r.status_code, r.json()["detail"]) == (400, "A company needs a name.")
     assert client.post("/api/argus/flows/nope/discard").status_code == 404
 
 
@@ -359,6 +362,13 @@ def test_a_flow_being_started_cannot_be_changed_or_discarded(client, fid, settin
         assert (r.status_code, r.json()["detail"]) == (409, STARTED)
     r = client.post(f"/api/argus/flows/{fid}/discard")
     assert (r.status_code, r.json()["detail"]) == (409, "An extraction that has started cannot be deleted.")
+
+
+def test_a_save_does_not_make_an_old_start_flag_fresh(client, fid, settings):
+    acme = add(client, fid, name="Acme")["companies"][0]["company_id"]
+    rewrite(settings, fid, starting=True, updated_at=ago(600))  # a Start that died ten minutes ago
+    assert client.patch(f"/api/argus/flows/{fid}", json={"reporting_year": 2025}).json()["starting"] is False
+    assert edit(client, fid, acme, name="Acme Corp").status_code == 200
 
 
 def test_a_start_flag_older_than_a_minute_blocks_nothing(client, settings):  # AC-155
