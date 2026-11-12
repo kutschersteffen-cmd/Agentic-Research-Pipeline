@@ -32,12 +32,12 @@ features that need real prices or returns refuse rather than invent them.
   `ASSET_CLASS`, `COUNTRY` and `SECTOR` tables, but only imports files named `Constituent_<ISIN>.xlsx` into
   the portfolio store. `DAX.xlsx`: 40 equity lines (largest SAP, ISIN DE0007164600, 0.1176506915), 2 cash
   lines, 1 mutual fund line.
-- `showcase-portfolio-data` (draft spec, branch `claude/showcase-portfolio-data-spec`) PR 1 commits
-  `data/simulated/esg_simulated.csv`: one row per ISIN, `company_id` = `isin_<ISIN>`, numeric ESG and
-  revenue-share columns named as Index Construction's fields, flags as `true`/`false`, categories
-  `lct_category`, `transition_grade` (`A` to `F`), `transition_grade_label`, and `sector` as the peer group.
-  Its row AC-65 ("the field catalogue lists `transition_grade` as a category") is owned by this spec
-  (here AC-30). Its PR 2 extends the importer's label tables (`Preferred Stock` → equity, English labels).
+- `showcase-portfolio-data` (approved spec on `main`, `2026-11-12-showcase-portfolio-data-design.md`) PR 1
+  commits `data/simulated/esg_simulated.csv`: one row per ISIN, `company_id` = `isin_<ISIN>`, flags as
+  `true`/`false`, `sector` = the GICS peer group, `country` in English. Its section "Fields for Index
+  Construction" fixes which columns this spec reads and as what (see "Simulated ESG join"); it shows
+  `transition_grade` as a category here (AC-30). Its PR 2 extends the importer's label tables
+  (`Preferred Stock` → equity, English labels).
 - The themes spec (`2026-11-12-showcase-themes-fixes.md`, PR 2) adds a fixed banner on every Index
   Construction tab: `Demo data: reviews on this page run on a built-in synthetic universe of 60 companies.
   The results describe nothing real.` (its AC-65).
@@ -135,12 +135,18 @@ Weights are not renormalised.
 
 **Simulated ESG join**, when `simulated_esg_path` exists, by `company_id`:
 
-- `true`/`false` columns → `flags`.
-- `lct_category`, `transition_grade`, `transition_grade_label` → `categories`; the dataset's `sector` →
-  category `peer_group`.
-- Every other numeric column → `metrics` under its column name.
-- An empty cell is not joined (the key is absent on that company).
-- `isin`, `company_id`, `name`, `country`, `files`, `data_status` are not joined.
+exactly the columns of `showcase-portfolio-data`'s "Fields for Index Construction" table:
+
+- `metrics` (float), under the column name: `esg_score`, `esg_trend`, `ghg_intensity`, `lct_score`,
+  `coal_revenue_pct`, `oil_revenue_pct`, `gas_revenue_pct`, `high_intensity_power_revenue_pct`,
+  `tobacco_revenue_pct`, `green_revenue_pct`, `weapons_revenue_pct`, `alcohol_revenue_pct`,
+  `gambling_revenue_pct`, `esg_e_score`, `esg_s_score`, `esg_g_score`, `controversy_level`, `transition_score`.
+- `flags` (`true`/`false`): `norms_violation`, `controversial_weapons`, `severe_controversy`.
+- `categories`: `lct_category`, `transition_grade`.
+- The dataset's `sector` and `country` replace the candidate's own `sector` and `country` (so every file
+  uses the same GICS peer groups; DAX's older scheme files BMW under Consumer Staples).
+- No other column is joined (the `climate_*` columns, `transition_grade_label`, identity columns).
+- An empty cell is not joined (the key is absent, or the file's value is kept for `sector`/`country`).
 - A company with no row gets nothing (no defaults).
 
 **Notes** (exact text, in this order; `<n>` = candidates, numbers without separators except the notional):
@@ -270,7 +276,7 @@ row number), `use_prior_state` false and `review_date` 2026-11-02 unless it says
 | AC-27 | Same | same | the `c_a` constituent is named `Alpha AG` | unit |
 | AC-28 | Same, and a portfolio `p0` with no snapshot | `GET /api/index/universes` | exactly one `portfolio:` entry, `portfolio:p1`, with `label` the portfolio's name, `kind` `portfolio`, `as_of_date` the snapshot date, after every `file:` entry | unit |
 | AC-29 | The fixture dataset | `GET /api/index/universes/file:DAX` | `notes[3]` `Simulated ESG data: matched 1 of 40 companies.` | unit |
-| AC-30 | The fixture dataset | same | `fields.categories` is exactly `["country", "lct_category", "peer_group", "sector", "transition_grade", "transition_grade_label"]` | unit |
+| AC-30 | The fixture dataset | same | `fields.categories` is exactly `["country", "lct_category", "sector", "transition_grade"]` | unit |
 | AC-31 | The fixture dataset, a spec with one metric threshold screen on `esg_score` min 5, `missing` `fail` | run `file:DAX` | exactly 1 constituent, `isin_DE0007164600` | unit |
 | AC-32 | The fixture dataset, a spec with one category screen on `transition_grade` allowing only `B`, `missing` `fail` | run `file:DAX` | exactly 1 constituent, `isin_DE0007164600` | unit |
 | AC-33 | No dataset, the AC-31 screen with `missing` `block` | run `file:DAX` | 422, detail starts `Data quality block:` and contains `esg_score` | unit |
@@ -281,6 +287,8 @@ row number), `use_prior_state` false and `review_date` 2026-11-02 unless it says
 | AC-38 | Must not change: a demo run, solver method `min_tracking_error`, no `returns_panel` | `POST /api/index/run` | the same status and body as `main` before this spec, excluding `created_at` | holdout |
 | AC-39 | Must not change | `GET /api/index/catalogue` | `fields` equals `main` before this spec | holdout |
 | AC-40 | Must not change: `candidates: []`, solver method `min_tracking_error`, no `returns_panel` | `POST /api/index/run` | the same status and body as AC-38, excluding `created_at`, `index_id` and `state.index_id` | holdout |
+| AC-41 | The fixture dataset, default spec | run `file:DAX` | constituent `isin_DE0007164600` has `sector` `Information Technology` (the file says `Technologie`) | unit |
+| AC-42 | No dataset, default spec | run `file:DAX` | constituent `isin_DE0007164600` has `sector` `Technology` and `country` `Germany` | unit |
 | AC-50 | The e2e stack, Index Construction → Compose | the page opens | a `Starting universe` card is directly above the Preset card | evaluator |
 | AC-51 | Same | the card's select is read | it shows `Built-in demo universe (60 synthetic companies)` | evaluator |
 | AC-52 | Same | the select's options are read | one reads `DAX.xlsx (holdings file, 2026-11-02)` | evaluator |
@@ -302,7 +310,7 @@ row number), `use_prior_state` false and `review_date` 2026-11-02 unless it says
 | AC-68 | Index Builder, API mocked, the universes list holds `{"universe_id": "portfolio:p1", "label": "My fund", "kind": "portfolio", "as_of_date": "2026-10-31"}` | the select's options are read | one reads `My fund (portfolio, 2026-10-31)` | unit |
 | AC-69 | Must not change: Index Builder, API mocked, the demo universe | Preview is run | the request body has no `universe` and no `candidates` key | unit |
 
-Rows owned by PR 1: AC-1 to AC-40. PR 2: AC-50 to AC-69.
+Rows owned by PR 1: AC-1 to AC-42. PR 2: AC-50 to AC-69.
 
 Must not change: demo runs and presets, demo levels, demo tracking-error runs, the catalogue's fields,
 empty `candidates`, run requests from the page on the demo universe (AC-35 to AC-40, AC-69).
