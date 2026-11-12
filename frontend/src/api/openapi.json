@@ -4765,6 +4765,28 @@
     "title": "CitationRole",
     "type": "string"
    },
+   "ClearAlertsRequest": {
+    "properties": {
+     "reason": {
+      "default": "",
+      "title": "Reason",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "resolved",
+       "false_positive"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "status"
+    ],
+    "title": "ClearAlertsRequest",
+    "type": "object"
+   },
    "CloseRequest": {
     "properties": {
      "company_id": {
@@ -35035,6 +35057,97 @@
      }
     },
     "summary": "Create Monitoring Rule",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
+  "/api/portfolio/monitoring/rules/{rule_id}": {
+   "delete": {
+    "description": "Removes the rule only. Its alerts stay in the log, so they have to be closed first.",
+    "operationId": "delete_monitoring_rule_api_portfolio_monitoring_rules__rule_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "rule_id",
+      "required": true,
+      "schema": {
+       "title": "Rule Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Monitoring Rule",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
+  "/api/portfolio/monitoring/rules/{rule_id}/clear-alerts": {
+   "post": {
+    "description": "Closes every live alert of one rule in one human decision. The rule need not exist any more.",
+    "operationId": "clear_monitoring_rule_alerts_api_portfolio_monitoring_rules__rule_id__clear_alerts_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "rule_id",
+      "required": true,
+      "schema": {
+       "title": "Rule Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ClearAlertsRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Clear Monitoring Rule Alerts Api Portfolio Monitoring Rules  Rule Id  Clear Alerts Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Clear Monitoring Rule Alerts",
     "tags": [
      "portfolio"
     ]

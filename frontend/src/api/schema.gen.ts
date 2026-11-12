@@ -3648,6 +3648,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/portfolio/monitoring/rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Monitoring Rule
+         * @description Removes the rule only. Its alerts stay in the log, so they have to be closed first.
+         */
+        delete: operations["delete_monitoring_rule_api_portfolio_monitoring_rules__rule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/monitoring/rules/{rule_id}/clear-alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clear Monitoring Rule Alerts
+         * @description Closes every live alert of one rule in one human decision. The rule need not exist any more.
+         */
+        post: operations["clear_monitoring_rule_alerts_api_portfolio_monitoring_rules__rule_id__clear_alerts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/portfolio/monthly-run": {
         parameters: {
             query?: never;
@@ -9890,6 +9930,19 @@ export interface components {
          * @enum {string}
          */
         CitationRole: "primary" | "corroborating" | "alternative";
+        /** ClearAlertsRequest */
+        ClearAlertsRequest: {
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "resolved" | "false_positive";
+        };
         /** CloseRequest */
         CloseRequest: {
             /** Company Id */
@@ -25083,6 +25136,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AlertRule"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_monitoring_rule_api_portfolio_monitoring_rules__rule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_monitoring_rule_alerts_api_portfolio_monitoring_rules__rule_id__clear_alerts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClearAlertsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

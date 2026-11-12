@@ -980,8 +980,17 @@ export const api = {
   askPortfolio: (body: { question: string; portfolio_ids?: string[]; as_of?: string; date_range?: [string, string] }) =>
     request<QAAnswer>("/api/portfolio/ask", { method: "POST", body: JSON.stringify(body) }),
   listMonitoringRules: () => request<AlertRule[]>("/api/portfolio/monitoring/rules"),
-  createMonitoringRule: (rule: Omit<AlertRule, "rule_id" | "created_at">) =>
+  /** Without `rule_id` a new rule; with the `rule_id` and `created_at` of a stored rule, that rule is replaced. */
+  createMonitoringRule: (rule: Omit<AlertRule, "rule_id" | "created_at"> & Partial<Pick<AlertRule, "rule_id" | "created_at">>) =>
     request<AlertRule>("/api/portfolio/monitoring/rules", { method: "POST", body: JSON.stringify(rule) }),
+  deleteMonitoringRule: async (ruleId: string) => {
+    await authFetch(`${API_BASE}/api/portfolio/monitoring/rules/${encodeURIComponent(ruleId)}`, { method: "DELETE" }); // 204: no body to parse
+  },
+  clearRuleAlerts: (ruleId: string, status: "resolved" | "false_positive") =>
+    request<{ cleared: number }>(`/api/portfolio/monitoring/rules/${encodeURIComponent(ruleId)}/clear-alerts`, {
+      method: "POST",
+      body: JSON.stringify({ status }),
+    }),
   listAlerts: (status?: AlertStatus) => request<Alert[]>(`/api/portfolio/monitoring/alerts${buildQuery({ status })}`),
   transitionAlert: (scopeId: string, alertId: string, body: { status: AlertStatus; reason?: string; owner?: string }) =>
     request<Alert>(`/api/portfolio/monitoring/alerts/${encodeURIComponent(scopeId)}/${encodeURIComponent(alertId)}/transition`, {

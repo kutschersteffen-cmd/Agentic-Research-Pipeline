@@ -384,6 +384,15 @@ class PortfolioStore:
     def save_rule(self, rule: AlertRule) -> None:
         self._put_json_entry(self.rules_path(), rule.rule_id, json.loads(rule.model_dump_json()))
 
+    def delete_rule(self, rule_id: str) -> bool:
+        """Removes the rule's entry; its alerts stay in the event logs. False when no such rule is stored."""
+        with self._lock(self.rules_path()):
+            data = self._read_json(self.rules_path())
+            if data.pop(rule_id, None) is None:
+                return False
+            self._write_json(self.rules_path(), data)
+            return True
+
     def get_rule(self, rule_id: str) -> AlertRule | None:
         row = self._read_json(self.rules_path()).get(rule_id)
         return AlertRule.model_validate(row) if row else None

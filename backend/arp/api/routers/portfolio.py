@@ -223,6 +223,34 @@ def create_monitoring_rule(rule: AlertRule, store: PortfolioStore = Depends(get_
     return rule
 
 
+@router.delete("/monitoring/rules/{rule_id}", status_code=204)
+def delete_monitoring_rule(rule_id: str, store: PortfolioStore = Depends(get_portfolio_store)) -> None:
+    """Removes the rule only. Its alerts stay in the log, so they have to be closed first."""
+    if store.get_rule(rule_id) is None:
+        raise HTTPException(404, f"Unknown rule {rule_id}")
+    live = len(monitoring_evaluator.live_alerts_of_rule(store, rule_id))
+    if live:
+        raise HTTPException(409, f"Rule has {live} live alerts: clear them first.")
+    store.delete_rule(rule_id)
+
+
+class ClearAlertsRequest(BaseModel):
+    status: Literal["resolved", "false_positive"]
+    reason: str = ""
+
+
+@router.post("/monitoring/rules/{rule_id}/clear-alerts")
+def clear_monitoring_rule_alerts(
+    rule_id: str,
+    req: ClearAlertsRequest,
+    store: PortfolioStore = Depends(get_portfolio_store),
+    principal: Principal = Depends(current_user),
+) -> dict:
+    """Closes every live alert of one rule in one human decision. The rule need not exist any more."""
+    transition = AlertTransition(status=AlertStatus(req.status), decided_by=principal.name, reason=req.reason)
+    return {"cleared": monitoring_evaluator.clear_rule_alerts(store, rule_id, transition)}
+
+
 @router.get("/monitoring/alerts", response_model=list[Alert])
 def list_monitoring_alerts(status: AlertStatus | None = None, store: PortfolioStore = Depends(get_portfolio_store)) -> list[Alert]:
     return monitoring_evaluator.list_alerts(store, status=status)
