@@ -47,7 +47,7 @@ def world():
 @pytest.fixture
 def client(store, world, monkeypatch):
     monkeypatch.setattr(plans, "build_runtime", lambda settings: (world.steps(), lambda c: world.reviewed))
-    monkeypatch.setattr(plans, "REVIEW_POLL_SECONDS", 0.05)
+    monkeypatch.setattr(plans, "REVIEW_POLL_SECONDS", 0.05, raising=False)  # absent before the fix
     app = FastAPI()
     app.include_router(plans.router)
     app.dependency_overrides[plans.plan_store] = lambda: store
