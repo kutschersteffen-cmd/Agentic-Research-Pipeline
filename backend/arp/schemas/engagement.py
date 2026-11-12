@@ -111,6 +111,123 @@ class InteractionType(StrEnum):
     OTHER = "other"
 
 
+class FirTheme(StrEnum):
+    CLIMATE_MITIGATION = "climate_mitigation"
+    CLIMATE_ADAPTATION = "climate_adaptation"
+    NATURAL_CAPITAL = "natural_capital"
+    RESOURCES_CIRCULAR = "resources_circular"
+    POLLUTION = "pollution"
+    HUMAN_CAPITAL = "human_capital"
+    HUMAN_RIGHTS = "human_rights"
+    CONSUMER_PROTECTION = "consumer_protection"
+    DIGITAL_RESPONSIBILITY = "digital_responsibility"
+    COMMUNITIES = "communities"
+    GOVERNANCE_BOARD_PAY = "governance_board_pay"
+    BUSINESS_ETHICS = "business_ethics"
+    TAX_ACCOUNTING = "tax_accounting"
+    SHAREHOLDER_RIGHTS = "shareholder_rights"
+    OTHER = "other"
+
+
+FIR_THEME_LABELS: dict[FirTheme, str] = {
+    FirTheme.CLIMATE_MITIGATION: "Climate Mitigation & Paris Alignment",
+    FirTheme.CLIMATE_ADAPTATION: "Climate Adaptation & Resilience",
+    FirTheme.NATURAL_CAPITAL: "Natural Capital, Land Use & Biodiversity Preservation",
+    FirTheme.RESOURCES_CIRCULAR: "Resources Management: Waste & Circular Economy",
+    FirTheme.POLLUTION: "Pollution: Air, water & land",
+    FirTheme.HUMAN_CAPITAL: "Human Capital Management",
+    FirTheme.HUMAN_RIGHTS: "Human Rights and Fundamental Rights",
+    FirTheme.CONSUMER_PROTECTION: "Consumer Protection, Product Responsibility & Access",
+    FirTheme.DIGITAL_RESPONSIBILITY: "Digital Responsibility, Social Impact of Technology and AI",
+    FirTheme.COMMUNITIES: "Communities & stakeholder relations",
+    FirTheme.GOVERNANCE_BOARD_PAY: "Governance Structure, Board Effectiveness & Executive Remuneration",
+    FirTheme.BUSINESS_ETHICS: "Business Ethics, Corporate Conduct, Anti-corruption, Audit",
+    FirTheme.TAX_ACCOUNTING: "Tax & Accounting Practices",
+    FirTheme.SHAREHOLDER_RIGHTS: "Shareholder rights",
+    FirTheme.OTHER: "Other",
+}
+
+
+class EsgPillar(StrEnum):
+    E = "E"
+    S = "S"
+    G = "G"
+
+
+class EngagerRole(StrEnum):
+    BILATERAL = "bilateral"
+    LEAD = "lead"
+    ACTIVE_SUPPORT = "active_support"
+    PASSIVE_SUPPORT = "passive_support"
+
+
+class ObjectiveType(StrEnum):
+    TRANSPARENCY = "transparency"
+    OPERATIONAL = "operational"
+    STRATEGIC = "strategic"
+
+
+class Receptiveness(StrEnum):
+    VERY_GOOD = "very_good"
+    GOOD = "good"
+    NEUTRAL = "neutral"
+    INSUFFICIENT = "insufficient"
+    REFUSAL = "refusal"
+
+
+class ObjectiveStatus(StrEnum):
+    INITIATED = "initiated"
+    IN_PROGRESS = "in_progress"
+    CLOSED = "closed"
+    ABANDONED = "abandoned"
+
+
+class ObjectiveResult(StrEnum):
+    DETERIORATION = "deterioration"
+    NOT_ACHIEVED = "not_achieved"
+    PARTIALLY_ACHIEVED = "partially_achieved"
+    ACHIEVED = "achieved"
+    ABANDONED = "abandoned"
+
+
+class InfluenceLevel(StrEnum):
+    NONE = "1"
+    NOT_DEMONSTRABLE = "2"
+    PROBABLE = "3"
+    LIKELY_CLUES = "4A"
+    LIKELY_LOOP = "4B"
+    RECOGNISED = "5"
+
+
+class ActivityType(StrEnum):
+    EMAIL = "email"
+    LETTER = "letter"
+    CALL = "call"
+    MEETING = "meeting"
+    AGM_INTERVENTION = "agm_intervention"
+    RESOLUTION_FILED = "resolution_filed"
+    OTHER = "other"
+
+
+class Objective(BaseModel):
+    objective_id: str = Field(default_factory=lambda: new_id("obj"))
+    description: str
+    objective_type: ObjectiveType
+    status: ObjectiveStatus = ObjectiveStatus.INITIATED
+    result: ObjectiveResult | None = None
+    receptiveness: Receptiveness | None = None
+    escalated: bool = False
+    follows_objective_id: str | None = None
+    started_at: str | None = None
+    target_date: str | None = None
+    closed_at: str | None = None
+    outcome: str | None = None
+    influence_level: InfluenceLevel | None = None
+    influence_evidence: str | None = None
+    evidence_url: str | None = None
+    source: str = "app"
+
+
 class CorrespondenceEntry(BaseModel):
     entry_id: str = Field(default_factory=lambda: new_id("corr"))
     date: str = Field(default_factory=now_iso)
@@ -119,6 +236,9 @@ class CorrespondenceEntry(BaseModel):
     doc_ref: str | None = Field(default=None, description="Path/URL to the letter, transcript, or notes document, if any.")
     logged_by: str | None = None
     interaction_type: InteractionType | None = None  # None on entries logged before E6
+    objective_id: str | None = None
+    activity_type: ActivityType | None = None
+    is_initiation: bool = False
 
 
 class Commitment(BaseModel):
@@ -164,6 +284,12 @@ class EngagementIssue(BaseModel):
     correspondence: list[CorrespondenceEntry] = Field(default_factory=list)
     commitments: list[Commitment] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
+    fir_theme: FirTheme | None = None
+    esg_pillars: list[EsgPillar] = Field(default_factory=list)
+    rationale: str = ""
+    engager_role: EngagerRole = EngagerRole.BILATERAL
+    objectives: list[Objective] = Field(default_factory=list)
+    data_source: str = "app"  # `source` is taken by TriggerSource
 
 
 class EngagementRecord(BaseModel):
