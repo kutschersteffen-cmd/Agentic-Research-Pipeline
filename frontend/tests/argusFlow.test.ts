@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { continueLabel, documentsText, extractedBeforeText, flowHref, identifierList } from "../src/lib/argusFlow.ts";
+import { continueLabel, documentsText, draftHint, extractedBeforeText, flowHref, identifierList, identityStatus, notInRun, searchStatusText } from "../src/lib/argusFlow.ts";
 import { argusRows } from "../src/lib/argusStart.ts";
 import type { ArgusFlow, FlowRow, RunManifest } from "../src/types.ts";
 
@@ -158,4 +158,44 @@ test("a conflict's accepted value reads like the new one, with its unit, and nev
   assert.equal(acceptedLabel(12, null), "12");
   assert.equal(acceptedLabel({ low: 1, high: 2 }, null), '{"low":1,"high":2}');
   assert.equal(acceptedLabel(null, "EUR"), "—");
+});
+
+test("a finished search that found nothing says so and what to do next", () => {
+  // seen live: "Search completed." above an empty list, with Continue disabled and no reason
+  assert.equal(searchStatusText("completed", 0), "The search found no documents. Add an ISIN, LEI or CIK in step 1, try the other source, or upload the report.");
+  assert.equal(searchStatusText("completed", 3), "Search completed.");
+  assert.equal(searchStatusText("partially_completed", 2), "Search partially completed.");
+  assert.equal(searchStatusText("failed", 0), "Search failed.");
+  assert.equal(searchStatusText("running", 0), "Searching…");
+});
+
+test("a draft says it runs on one company and what turns it into the full run", () => {
+  // seen live: nothing told the user that Release is the step between the one-company trial and the full run
+  assert.equal(draftHint(false, 2, true), "A draft runs on one company only. Release it to extract all 2 companies.");
+  assert.equal(draftHint(false, 3, false), "A draft runs on one company only. An approver releases it to extract all 3 companies.");
+  assert.equal(draftHint(false, 1, true), null);
+  assert.equal(draftHint(true, 5, true), null);
+});
+
+test("companies of the flow that are not in its run are listed, with the earlier run a Skip kept", () => {
+  // seen live: after "Skip, keep earlier results" the company's values were simply gone from Results
+  const companies = [{ company_id: "msft", name: "Microsoft" }, { company_id: "aapl", name: "Apple" }, { company_id: "sap", name: "SAP" }];
+  const repeatRows = [{ company_id: "msft", kind: "same", added: 0, run_id: "extraction_r1", date: "2026-10-01", approved: 1, waiting: 3 }];
+  assert.deepEqual(notInRun(companies, new Set(["aapl"]), { msft: "skip" }, repeatRows as never), [
+    { name: "Microsoft", earlier: { run_id: "extraction_r1", date: "2026-10-01" } },
+    { name: "SAP", earlier: null },
+  ]);
+  assert.deepEqual(notInRun(companies, new Set(["aapl", "msft", "sap"]), {}, []), []);
+});
+
+test("step 1 says how the identity run ended and offers it again while companies are unmatched", () => {
+  // seen live: "Identity run started." stayed forever after the run had failed, and the button was gone
+  assert.equal(identityStatus(null, null, 2), null);
+  assert.deepEqual(identityStatus("r", null, 2), { text: "Identity run started.", again: false });
+  assert.deepEqual(identityStatus("r", "running", 2), { text: "Identity run started.", again: false });
+  assert.deepEqual(identityStatus("r", "partially_completed", 2), {
+    text: "The identity run ended (partially completed): 2 companies still have no identifier. Add an ISIN, LEI or CIK for them, or try again.", again: true });
+  assert.deepEqual(identityStatus("r", "failed", 1), {
+    text: "The identity run ended (failed): 1 company still has no identifier. Add an ISIN, LEI or CIK for it, or try again.", again: true });
+  assert.deepEqual(identityStatus("r", "completed", 0), { text: "Identities resolved.", again: false });
 });

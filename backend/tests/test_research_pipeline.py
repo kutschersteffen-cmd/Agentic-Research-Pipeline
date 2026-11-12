@@ -539,3 +539,40 @@ def test_model_chosen_isic_queues_sector_code_item():
     assert rows["isic:C1"]["kind"] == "sector_code" and rows["isic:C1"]["isic_code"] == "C10"
     supplied = theme_review_items(c, CompanyMatchesResult([], LLMUsage(), 0.0, isic_code="C10", isic_from_model=False))
     assert "isic:C1" not in dict(supplied)
+
+
+async def test_match_company_without_any_document_is_not_a_confident_exclude(tmp_path, fake_llm):
+    """No document could be fetched (a non-US filer, a blocked search): that is "not assessed", not a
+    100%-confident "no exposure". Seen live for Nel, ITM Power and thyssenkrupp nucera on hydrogen electrolysers."""
+    theme, _activity = _theme()
+    company = CompanyRef(company_id="c1", name="Nel ASA")
+    llm = fake_llm({})
+
+    result = await _match_company(company, theme, registry=DocumentSourceRegistry([_FixedDocSource([])]), llm=llm, settings=_settings(tmp_path))
+    match = result.matches[0]
+    assert match.adjudicator_rationale == "No documents were found for this company, so this activity could not be assessed."
+    assert match.verdict == MatchVerdict.UNCERTAIN
+    assert match.confidence == 0.0
+    assert match.flagged_for_review is True
+    assert llm.calls == []
+
+
+async def test_evidence_selection_runs_off_the_event_loop(tmp_path, fake_llm, monkeypatch):
+    """Ranking evidence is CPU-bound and waits on the embedding lock. On the event loop it froze the whole
+    API (/api/health included) for minutes while a theme run overlapped another run."""
+    import threading
+
+    from arp.research import match_graph
+
+    ran_on: list[int] = []
+
+    def record(chunks, keywords, **kw):
+        ran_on.append(threading.get_ident())
+        return []
+
+    monkeypatch.setattr(match_graph, "select_relevant_chunks", record)
+    doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
+    theme, _activity = _theme()
+    await _match_company(CompanyRef(company_id="c1", name="Shoe Co"), theme, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
+                         llm=fake_llm({}), settings=_settings(tmp_path))
+    assert ran_on and threading.get_ident() not in ran_on

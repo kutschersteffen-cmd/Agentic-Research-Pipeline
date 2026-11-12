@@ -55,3 +55,44 @@ async def test_weighted_avg_vintage_holds_observation_dates(tmp_path, fake_llm):
     answer, _usage = await qa_agent.answer_question("avg f1?", fake_llm({"_ParsedQuestion": [parsed]}), store, securities, companies)
 
     assert answer.vintage == {"holdings_as_of": "2026-01-01", "observation_dates": ["2025-12-15"]}
+
+
+async def test_portfolio_named_by_its_display_name_is_resolved_to_its_id(tmp_path, fake_llm):
+    """Seen live: the screen scopes a question by display name ("Sustainable Leaders Fund"); the filter matched
+    no portfolio_id and the answer was a confident "EUR 0"."""
+    store, securities, companies = _setup(tmp_path)
+    store.save_portfolio(Portfolio(portfolio_id="p1", name="Core Equity Europe"))
+    llm = fake_llm({"_ParsedQuestion": [_ParsedQuestion(resolvable=True, portfolio_filter=["core equity europe"], group_by="company_id")]})
+
+    answer, _usage = await qa_agent.answer_question("What is our largest holding?", llm, store, securities, companies)
+
+    assert answer.spec.portfolio_filter == ["p1"]
+    assert answer.result.total_market_value_eur == 1_000_000
+
+
+async def test_unknown_portfolio_asks_instead_of_answering_zero(tmp_path, fake_llm):
+    store, securities, companies = _setup(tmp_path)
+    llm = fake_llm({"_ParsedQuestion": [_ParsedQuestion(resolvable=True, portfolio_filter=["Growth Fund"])]})
+
+    answer, _usage = await qa_agent.answer_question("How much do we hold in Growth Fund?", llm, store, securities, companies)
+
+    assert answer.resolvable is False
+    assert answer.result is None
+    assert answer.clarification_needed == "No portfolio is called 'Growth Fund'. Known portfolios: P1 (p1)."
+
+
+async def test_a_data_point_named_by_its_label_is_resolved_to_its_field_id(tmp_path, fake_llm):
+    """Seen live: "What is the WACI of each portfolio?" was refused with "Please give the field ID for carbon
+    intensity". The model now gets the field list, and a field named by its label is mapped in code."""
+    from arp.schemas.portfolio import DataPointObservation
+
+    store, securities, companies = _setup(tmp_path)
+    store.append_observation(DataPointObservation(company_id="bmw", field_id="climate_carbon_intensity", field_name="Carbon intensity",
+                                                  value=120.0, source="internal_api", observed_at="2025-12-15"))
+    parsed = _ParsedQuestion(resolvable=True, metric="weighted_avg_datapoint", data_point_field_id="Carbon Intensity")
+
+    answer, _usage = await qa_agent.answer_question("WACI per portfolio?", fake_llm({"_ParsedQuestion": [parsed]}), store, securities, companies)
+
+    assert answer.spec.data_point_field_id == "climate_carbon_intensity"
+    assert answer.resolvable is True
+    assert "climate_carbon_intensity: Carbon intensity" in qa_agent._field_directory()

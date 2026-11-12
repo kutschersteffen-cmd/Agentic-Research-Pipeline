@@ -18,6 +18,16 @@ export const documentsText = (count: number, types: string[]) => (count ? `${cou
 export const continueLabel = (n: number) => `Continue with ${n} ${n === 1 ? "company" : "companies"}`;
 
 /** The company's own identifiers first, then the security master's that it doesn't already show. */
+const SEARCH_ENDED = ["completed", "partially_completed", "failed", "cancelled"];
+
+/** Step 2's line under "Find documents". A search that ended with nothing found says so and what to try. */
+export function searchStatusText(status: string, files: number): string {
+  if (!SEARCH_ENDED.includes(status)) return "Searching…";
+  if (status === "completed" && files === 0)
+    return "The search found no documents. Add an ISIN, LEI or CIK in step 1, try the other source, or upload the report.";
+  return `Search ${status.replace("_", " ")}.`;
+}
+
 export function identifierList(r: FlowRow): string[] {
   const own = Object.entries(r.identifiers).flatMap(([s, vs]) => vs.map((v) => `${s} ${v}`));
   const master = Object.entries(r.master_identifiers).flatMap(([s, vs]) => vs.map((v) => `${s} ${v}`));
@@ -39,6 +49,36 @@ export function startLabel(name: string | null, version: number | null, released
   if (name === null) return "Loading schema…";
   if (!released) return `Try ${name} on 1 company`;
   return `Extract ${name}${version ? ` v${version}` : ""} for ${companies} ${companies === 1 ? "company" : "companies"}`;
+}
+
+/** Under step 3's start button for a draft: a trial covers one company, and Release is what makes it the full run. */
+export function draftHint(released: boolean, companies: number, canRelease: boolean): string | null {
+  if (released || companies < 2) return null;
+  return `A draft runs on one company only. ${canRelease ? "Release it" : "An approver releases it"} to extract all ${companies} companies.`;
+}
+
+/** Step 5: the flow's companies this run has no values for; `earlier` is the run a "Skip, keep earlier results" kept. */
+export function notInRun(
+  companies: { company_id: string; name: string }[], inRun: Set<string>, repeat: Record<string, string>,
+  repeatRows: Pick<RepeatRow, "company_id" | "run_id" | "date">[],
+): { name: string; earlier: { run_id: string; date: string } | null }[] {
+  return companies.filter((c) => !inRun.has(c.company_id)).map((c) => {
+    const kept = repeat[c.company_id] === "skip" ? repeatRows.find((r) => r.company_id === c.company_id) : undefined;
+    return { name: c.name, earlier: kept ? { run_id: kept.run_id, date: kept.date } : null };
+  });
+}
+
+/** Step 1's line about the flow's identity run; null when none was started. `status` is null while the run's
+ * record cannot be read. `again` says whether "Resolve identities" is offered again (the run ended, companies remain). */
+export function identityStatus(runId: string | null | undefined, status: string | null, unmatched: number): { text: string; again: boolean } | null {
+  if (!runId) return null;
+  if (status === null || !SEARCH_ENDED.includes(status)) return { text: "Identity run started.", again: false };
+  if (unmatched === 0) return { text: "Identities resolved.", again: false };
+  const one = unmatched === 1;
+  return {
+    text: `The identity run ended (${status.replace("_", " ")}): ${unmatched} ${one ? "company still has" : "companies still have"} no identifier. Add an ISIN, LEI or CIK for ${one ? "it" : "them"}, or try again.`,
+    again: true,
+  };
 }
 
 export const newDocsLine = (added: number) =>

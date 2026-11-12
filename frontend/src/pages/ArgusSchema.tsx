@@ -5,7 +5,7 @@ import { ruleMarkers, RulesList } from "../components/RulesList";
 import { ScoringTemplatePicker } from "../components/RunScoring";
 import { SchemaFieldsEditor } from "../components/SchemaFieldsEditor";
 import { ruleInputs, sameRule } from "../lib/ruleSentence";
-import { bumpChangedFields, canStart, flowHref, newDocsLine, newestVersions, startLabel } from "../lib/argusFlow";
+import { bumpChangedFields, canStart, draftHint, flowHref, newDocsLine, newestVersions, startLabel } from "../lib/argusFlow";
 import type { ArgusFlow as Flow, DataPointSchema, FieldDefinition, RuleSuggestion } from "../types";
 
 type SavedSchema = { schema_id: string; version: number; name: string; release_flag: boolean };
@@ -33,6 +33,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
   const [waiting, setWaiting] = useState<RuleSuggestion[]>([]);
   const [dropped, setDropped] = useState<RuleSuggestion[]>([]);
   const [suggesting, setSuggesting] = useState(false);
+  const [drafting, setDrafting] = useState(false);
   const [ruleError, setRuleError] = useState("");
   const latest = useRef(editing); // patches after an await apply to the fields as they are then
   latest.current = editing;
@@ -126,7 +127,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
   const released = choice?.kind === "profile" || !!schema?.release_flag;
   const label = choice
     ? startLabel(choice.kind === "profile" ? profileName : schema?.name ?? null, choice.kind === "profile" ? null : choice.version ?? null, released, companies.length)
-    : "Choose what to extract";
+    : editing ? "Save the schema to continue" : "Choose what to extract";
   const ready = !!choice && !editing && (choice.kind === "profile" || !!schema) && companies.length > 0 && canStart(flow.repeat_rows, flow.repeat);
   const runType = choice?.kind === "profile" ? choice.profile! : "extraction";
   const isChosen = (s: SavedSchema) => choice?.kind === "schema" && choice.schema_id === s.schema_id && choice.version === s.version;
@@ -193,15 +194,21 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
             disabled={busy || suggesting || !words.trim()}
             onClick={() =>
               act(async () => {
-                const drafted = (await api.draftSchema(words)) as DataPointSchema;
-                edit(drafted);
-                latest.current = drafted;
-                void suggest(drafted);
+                setDrafting(true);
+                try {
+                  const drafted = (await api.draftSchema(words)) as DataPointSchema;
+                  edit(drafted);
+                  latest.current = drafted;
+                  void suggest(drafted);
+                } finally {
+                  setDrafting(false);
+                }
               })
             }
           >
             Draft fields
           </button>
+          {drafting && <span className="muted" role="status"> Drafting fields…</span>}
         </section>
 
         <section className="argus-schema-fields" aria-label="Fields">
@@ -402,6 +409,9 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
         >
           {label}
         </button>
+        {choice?.kind === "schema" && schema && draftHint(released, companies.length, role === "approver") && (
+          <span className="muted" role="note">{draftHint(released, companies.length, role === "approver")}</span>
+        )}
       </div>
     </div>
   );

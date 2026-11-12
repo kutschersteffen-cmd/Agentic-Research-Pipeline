@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import date
 from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
@@ -39,7 +40,7 @@ async def seed_demo_dataset(
     repeatedly: seeding is deterministic and snapshot-overwriting per
     date, so re-seeding always reproduces the same dataset.
     """
-    summary = await generate_demo_dataset(store)
+    summary = await generate_demo_dataset(store, today=date.today())
     return summary.__dict__
 
 

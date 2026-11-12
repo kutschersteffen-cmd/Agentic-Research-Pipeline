@@ -181,3 +181,12 @@ async def test_resuming_one_company_runs_only_it_through_the_real_batch(tmp_path
     assert calls == ["c1"]
     m = store.load_manifest(run_id)
     assert (m.completed_count, m.failed_count) == (0, 3)  # c2 and c3 still failed, c1 failed again: not 5
+
+
+def test_retry_without_a_kept_file_is_refused(client, flow, resumed, run_store):
+    """Start refuses a company with no kept file; Retry ran it on zero documents and it finished as Done."""
+    client.post(f"/api/argus/flows/{flow}/files", json={"all": True, "state": "removed"})
+    r = client.post(f"/api/argus/flows/{flow}/companies/aapl/retry")
+    assert (r.status_code, r.json()["detail"]) == (400, "Keep at least one file in step 2.")
+    assert run_store.load_manifest("extraction_r").status == "partially_completed"
+    assert resumed["calls"] == []

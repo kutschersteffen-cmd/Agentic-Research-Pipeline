@@ -8503,6 +8503,7 @@ export interface components {
             files: components["schemas"]["FlowFile"][];
             /** Flow Id */
             flow_id: string;
+            identity?: components["schemas"]["DiscoveryStatus"] | null;
             /** Identity Run Id */
             identity_run_id?: string | null;
             /**
