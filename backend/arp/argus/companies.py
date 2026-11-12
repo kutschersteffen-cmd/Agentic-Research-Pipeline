@@ -9,18 +9,18 @@ import io
 import json
 import re
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from arp.argus.flows import ArgusFlow, safe_key
 from arp.db.companies import lookup, normalise_identifier, resolve
-from arp.db.models import CompanyIdentifier, IdScheme
+from arp.db.models import Company, CompanyIdentifier, IdScheme
 from arp.schemas.common import CompanyRef
 
 NO_IDENTIFIER = "No identifier: add an ISIN, LEI or CIK"
 CONFLICT = "Identifiers match more than one company"
-_FIELDS = ("company_id", "name", "ticker", "website", "cik", "lei", "isin", "country", "sector")
+_FIELDS = ("company_id", "name", "ticker", "website", "cik", "lei", "isin", "country", "sector", "isic_code")
 
 
 def parse_rows(filename: str, data: bytes) -> list[dict]:
@@ -58,8 +58,11 @@ def register(session: Session, row: dict) -> CompanyRef | None:
         return None
     entity_id = None
     if ids:  # only LEI/ISIN/CIK match: a list's own ids are per list, so they never pick a company
-        attrs = {k: fields[k] for k in ("sector", "country") if k in fields}
+        attrs = {k: fields[k] for k in ("sector", "country", "isic_code") if k in fields}
         entity_id = resolve(session, ids, name=name, allow_create=True, attrs=attrs).company_id  # None on a conflict
+        if entity_id and fields.get("isic_code"):  # an existing company gets the code only if it has none
+            session.execute(update(Company).where(Company.id == entity_id, Company.isic_code.is_(None))
+                            .values(isic_code=fields["isic_code"]))
     if entity_id and own_id and normalise_identifier(IdScheme.USER, own_id):
         owner = lookup(session, IdScheme.USER, own_id)
         if owner is None:
