@@ -272,8 +272,12 @@ def test_read_holdings_keeps_equity_lines_only_with_english_countries(holdings):
 
 
 def test_the_command_regenerates_the_committed_dataset_byte_for_byte(tmp_path, monkeypatch):
+    from arp.cli import app
+
     monkeypatch.chdir(tmp_path)  # relative default paths resolve against the repo root, not the working directory
-    result = CliRunner().invoke(showcase_app, ["simulate", "--out", str(tmp_path / "out.csv")])
+    monkeypatch.delenv("ARP_POSTGRES_DSN", raising=False)  # files in, a CSV out: the command needs no database
+    monkeypatch.setattr("sys.argv", ["arp", "showcase", "simulate"])
+    result = CliRunner().invoke(app, ["showcase", "simulate", "--out", str(tmp_path / "out.csv")])
     assert result.exit_code == 0, result.output
     assert "2538" in result.output
     assert (tmp_path / "out.csv").read_bytes() == (SIMULATED / "esg_simulated.csv").read_bytes()
