@@ -22,7 +22,10 @@ holdings). A script keeps the order; a person under time pressure does not.
    file can serve, and each such place is named in the run sheet.
 6. The R&D Lab derives two themes and their taxonomies from two thematic ETFs the owner supplies (owner,
    12 Nov): for each ETF its holdings export and its index methodology document, run through the app's
-   stock inference engine (`arp taxonomy infer`).
+   stock inference engine (`arp taxonomy infer`). The owner named them on 12 Nov: the iShares Global Clean
+   Energy Transition UCITS ETF (IE00B1XNHC34), folder `clean_energy`, and the ROBO Global Robotics &
+   Automation Index ETF, folder `robotics`. The pack works for any folder name; these two are the ones the
+   run sheet uses.
 2. Everything works with no internet from the Jupyter: every document is a file in the pack. Live document
    search is a bonus when the `fetch` line of `scripts/launch_jupyter.sh check` says `ok`.
 3. Runs that take minutes are finished the day before; one extraction is started live in minute 2 and
@@ -33,8 +36,8 @@ holdings). A script keeps the order; a person under time pressure does not.
 
 - No change to product code under `backend/arp/` or `frontend/src/`. If the pack exposes a defect, it goes
   to the factory as its own item.
-- No client data and no positions of the bank. Holdings come from public ETF holdings files; engagement
-  notes and trigger-scan rows are invented and say so.
+- No client data and no positions of the bank. Holdings come from public ETF holdings files. Two things
+  stay invented and say so: the trigger-scan rows and the app's seeded demo portfolios.
 - No Data Hub, Decision Studio, Reports or RFP scenes.
 - No automatic reset of the database (see "Left to the builder").
 
@@ -62,6 +65,11 @@ holdings). A script keeps the order; a person under time pressure does not.
   Each profiled stock needs a document under `<documents_dir>/<stock folder>/`, where the folder is the
   holding's company id (its ticker, or its name when the file has no ticker). Without one it tries a web
   search and, offline, drops the stock.
+- Where `infer` runs: in the bank Jupyter, the day before. The owner installs the extra there (from
+  `backend/`, through the bank's package mirror) and either sets `ARP_COMPUTE_MODELS_URL` (the bank's GPU
+  compute, the `compute models` line of `scripts/launch_jupyter.sh check`) or has the embedding model
+  cached. The loader does not test for the model; if the engine fails for any reason the folder's line is
+  `FAIL` with the engine's message. If `infer` cannot run there, scene R1 and R2 use the fallback taxonomy.
 - Nothing here has run in the bank Jupyter. The pack is verified in the cloud sandbox with the stand-in
   model; the first real proof is the owner's rehearsal.
 
@@ -105,12 +113,12 @@ the builder stops and asks the owner; no company is dropped silently.
 | `identifiers_source.json` | The saved GLEIF and SEC lookups behind `companies.csv`. | Proof for the identifiers |
 | `documents.csv` | `company_id,doc_type,reporting_year,file_name,title,source`. 14 document rows: one annual report per company (`doc_type` `10-K`, the app's "Annual report", `reporting_year` 2025, file name contains `2025`) and one proxy statement per US company (`DEF-14A`, `reporting_year` 2026, file name contains `2026`). `source` names where to get it (company investor-relations site or SEC EDGAR), no deep links. | Owner's download list, loader |
 | `documents/` | Empty in git (`.gitkeep`, PDFs git-ignored). The owner saves the 14 files here. | Loader, live upload |
-| `etf_dax.csv`, `etf_euro_stoxx_50.csv` | The repo's `data/holdings/DAX.xlsx` and `EURO_STOXX_50.xlsx` converted to the ETF holdings CSV format the R&D Lab reads. Names, ISINs and weights are unchanged. Line 1 is `Source: <file name>, public ETF holdings as of 2026-11-02`. | R&D Lab: build universe, overlap |
+| `etf_dax.csv`, `etf_euro_stoxx_50.csv` | The repo's `data/holdings/DAX.xlsx` and `EURO_STOXX_50.xlsx` converted to the ETF holdings CSV format the R&D Lab reads: only rows whose `Type of Security` is `Aktien` (cash, fund and future lines are left out), with names, ISINs and weights unchanged. Line 1 is `Source: <file name>, public ETF holdings as of 2026-11-02`. | R&D Lab: build universe, overlap |
 | `benchmark_holdings.csv` | Not committed. A public iShares holdings CSV (iShares MSCI World ETF) that the owner downloads and saves under this name; `README.md` says where to get it. The StewardIQ benchmark only reads the iShares layout, which the repo's files do not have. | StewardIQ: client programme benchmark |
 | `thematic/README.md` | Says what the owner puts into each thematic ETF folder (below). | Owner |
 | `thematic/<slug>/` | One folder per thematic ETF, named by the owner (for example `clean_energy`). Not committed (git-ignored). Holds `holdings.xlsx` (the same constituent export layout as `data/holdings/`) or `holdings.csv` (an issuer CSV the ETF holdings parser reads); one or more `methodology*` files (`.pdf`, `.txt`, `.md`, `.html`, `.docx`); `reports/<stock folder>.pdf`, one report per profiled stock. The loader writes `holdings.csv` (when only the xlsx is there) and `stocks_needed.csv` into it. | Loader, R&D Lab |
 | `RUN_SHEET.md` | The run of show below, with every click, a fallback per scene, and the day-before checklist. | Presenter |
-| `README.md` | Ten lines: what the pack is, the load command, that all weights and funds are invented. | Anyone |
+| `README.md` | What the pack is, the load command, and one `Source:` line per committed holdings file with its public source and as-of date. | Anyone |
 
 ## Loader
 
@@ -136,10 +144,11 @@ is needed.
 | `voting` | Through the API: starts a proxy voting run for the US companies whose proxy statement is present. |
 
 `thematic` and `infer` print `skip <step>: no thematic ETF folder` when `thematic/` has no subfolder.
-`infer` prints `FAIL infer: clustering extra not installed, run pip install -e "backend[emerging_themes]"`
+`infer` prints `FAIL infer: clustering extra not installed, run pip install -e ".[emerging_themes]"`
 when umap, hdbscan or sklearn cannot be imported; per folder it prints `skip infer: <slug>: no methodology
-file` or `skip infer: <slug>: already exists` (a stock inference run of that name exists; `--again` starts
-another).
+file` or `skip infer: <slug>: already exists` (a stock inference run named `<slug>` at stage `themes_ready`
+exists; a failed run does not count; `--again` starts another). If the engine raises for one folder the
+line is `FAIL infer: <slug>: <the engine's message>` and the next folder still runs.
 
 The three API run steps print `skip` instead of starting anything, checked in this order: `no document
 present`, then `API not reachable at <url>`, then `already exists`. `--again` starts a second copy even
@@ -198,7 +207,7 @@ behaviour for a hidden test to pin.
 | AC-3 | `companies.csv` | `isic_code` is compared with the Transition section's sector prefixes | all 10 codes start with one of `351`, `201`, `241`, `2394` | unit |
 | AC-4 | `companies.csv` | it is parsed by the Argus list upload parser | 10 rows returned, none without a valid-shaped ISIN, LEI or CIK | unit |
 | AC-5 | `documents.csv` | it is read | 14 rows; every `company_id` is in `companies.csv`; 10 rows have `doc_type` `10-K`, `reporting_year` 2025 and a `file_name` whose only year is `2025`; 4 rows (NEE, DUK, NUE, DOW) have `doc_type` `DEF-14A`, `reporting_year` 2026 and a `file_name` whose only year is `2026`; every `file_name` ends in `.pdf` | unit |
-| AC-6 | `etf_dax.csv` and `etf_euro_stoxx_50.csv` | the ETF holdings parser reads each | the holdings count equals the number of constituent rows in the matching `data/holdings/*.xlsx`, and every name, ISIN and weight equals the xlsx row's | unit |
+| AC-6 | `etf_dax.csv` and `etf_euro_stoxx_50.csv` | the ETF holdings parser reads each | 40 holdings for DAX and 52 for EURO STOXX 50 (the xlsx rows whose `Type of Security` is `Aktien`), each with the name, ISIN and weight of its xlsx row | unit |
 | AC-7 | A 3-row file in the iShares layout saved as `benchmark_holdings.csv` in a temporary pack | the loader runs `--only documents` | after the document lines the output has `  benchmark: 3 equity rows`; with the file absent it has `  missing: benchmark_holdings.csv` there instead | unit |
 | AC-8 | An empty test database | the loader runs with `--only companies` twice | both runs print `ok companies: 10 registered`; the registry holds 10 companies, each with its `isic_code` | unit |
 | AC-9 | An empty test database | the loader runs with `--only portfolios` twice | both runs print a line starting `ok portfolios:`; the portfolio store lists 10 portfolios (4 seeded, 6 imported from `data/holdings/`), not 16 | unit |
@@ -216,18 +225,21 @@ behaviour for a hidden test to pin.
 | AC-21 | `identifiers_source.json` and `companies.csv` | each LEI and CIK in `companies.csv` is looked up in the JSON | an entry exists, and its legal name equals the company's `name` once case, punctuation and the legal form (AG, Aktiengesellschaft, SE, SA, S.A., Inc, Incorporated, Corp, Corporation) are ignored | unit |
 | AC-22 | One annual report present, the stubbed API reports an extraction named "Showcase: transition capex" | the loader runs `--only argus-capex` | prints `skip argus-capex: already exists` and makes 0 create calls | unit |
 | AC-23 | Same as AC-22 | the loader runs `--only argus-capex --again` | makes 1 create call and prints a line starting `ok argus-capex:` | unit |
-| AC-24 | `RUN_SHEET.md` | its day-before checklist is read | it contains the load command, the line `pip install -e "backend[emerging_themes]"`, a line naming `ARP_COMPUTE_MODELS_URL`, the command `arp taxonomy infer pick`, the words accept and release, a thematic run on "Showcase companies", the fallback theme "Energy transition", and a line telling the presenter to wait until `infer`, `argus-capex`, `argus-plan` and `voting` show as finished, naming the screen for each | unit |
+| AC-24 | `RUN_SHEET.md` | its day-before checklist is read | it contains the load command, the line `pip install -e ".[emerging_themes]"`, a line naming `ARP_COMPUTE_MODELS_URL`, the command `arp taxonomy infer pick`, the words accept and release, a thematic run on "Showcase companies", the fallback theme "Energy transition", and a line telling the presenter to wait until `infer`, `argus-capex`, `argus-plan` and `voting` show as finished, naming the screen for each | unit |
 | AC-25 | `etf_dax.csv` and `etf_euro_stoxx_50.csv` | the app's overlap function compares them | the shared-holdings count equals the number of ISINs present in both files, and is at least 5 | unit |
 | AC-26 | `etf_dax.csv`, `etf_euro_stoxx_50.csv` | line 1 of each is read | it starts with `Source:` and contains `2026-11-02` | unit |
-| AC-27 | `demo/showcase/` | every file is searched | no fund or index holdings file with invented weights exists; `README.md` names the public source of each holdings file | unit |
+| AC-27 | `demo/showcase/` | every file is searched | `README.md` has one line starting `Source:` for each `*.csv` holdings file in `demo/showcase/`, naming that file, and does not contain the words `invented weights` | unit |
 | AC-28 | A temporary pack with `thematic/t1/holdings.xlsx`, a copy of `data/holdings/DAX.xlsx` | the loader runs `--only thematic` | `thematic/t1/holdings.csv` exists; it has one row per xlsx row whose `Type of Security` is `Aktien`, with that row's name, ISIN and weight, and no other row | unit |
-| AC-29 | Same | the loader runs `--only thematic` | `thematic/t1/stocks_needed.csv` has the header `stock_folder,name,isin,weight_pct,report_present` and exactly the stocks the app's own selection returns for `holdings.csv`, in that order | unit |
+| AC-29 | Same | the loader runs `--only thematic` | `thematic/t1/stocks_needed.csv` has the header `stock_folder,name,isin,weight_pct,report_present` (`weight_pct` is the weight times 100 with 2 decimals, `report_present` is `yes` or `no`) and exactly the stocks the app's own selection returns for `holdings.csv`, in that order | unit |
 | AC-30 | Same, plus a report saved as `thematic/t1/reports/<stock folder of the largest holding>.pdf`, a temporary `documents_dir` | the loader runs `--only thematic` | the file exists at `<documents_dir>/<stock folder>/10-K/<stock folder>.pdf`; the output has the line `ok thematic: t1: <n> stocks selected, 1 report present` and `<n>` minus 1 lines `  missing: reports/<stock folder>.pdf`, where `<n>` is the row count of `stocks_needed.csv` | unit |
 | AC-31 | A pack whose `thematic/` has no subfolder | the loader runs `--only thematic` and `--only infer` | prints `skip thematic: no thematic ETF folder` and `skip infer: no thematic ETF folder`; exit code 0 | unit |
-| AC-32 | A thematic folder with a methodology file; importing `hdbscan` fails | the loader runs `--only infer` | prints `FAIL infer: clustering extra not installed, run pip install -e "backend[emerging_themes]"`; exit code 1; no inference run is started | unit |
+| AC-32 | A thematic folder with a methodology file; `importlib.util.find_spec("hdbscan")` returns None (the engine's own check) | the loader runs `--only infer` | prints `FAIL infer: clustering extra not installed, run pip install -e ".[emerging_themes]"`; exit code 1; no inference run is started | unit |
 | AC-33 | A thematic folder `t1` with no methodology file | the loader runs `--only infer` | prints `skip infer: t1: no methodology file`; exit code 0 | unit |
 | AC-34 | A thematic folder `t1` with `holdings.csv`, `methodology.pdf` and `methodology_2.txt`; the engine's start function replaced by a stub that returns a run with 3 themes | the loader runs `--only infer` | the stub is called once with the path of `t1/holdings.csv`, both methodology paths and the name `t1`; the output has a line starting `ok infer: t1: run ` and ending `3 themes` | unit |
 | AC-35 | Same as AC-34, and a stock inference run named `t1` already exists | the loader runs `--only infer`, then `--only infer --again` | the first prints `skip infer: t1: already exists` and calls the stub 0 times; the second calls it once | unit |
 | AC-36 | `demo/showcase/thematic/` | `git check-ignore demo/showcase/thematic/t1/holdings.xlsx` | exit code 0, and `thematic/README.md` is tracked | unit |
+| AC-37 | Thematic folders `t1` and `t2`, each with holdings and a methodology file; the engine's start function replaced by a stub that raises `InferFailed` with the message `msg` for `t1` and returns 2 themes for `t2` | the loader runs `--only infer` | prints `FAIL infer: t1: msg`, then a line starting `ok infer: t2: run ` and ending `2 themes`; exit code 1 | unit |
+| AC-38 | `RUN_SHEET.md` | it is read | it has two lines starting `Invented:`, one naming the trigger-scan rows and one naming the seeded demo portfolios | unit |
+| AC-39 | `demo/showcase/` | `git check-ignore demo/showcase/benchmark_holdings.csv` | exit code 0 | unit |
 
 Must not change: product code stays untouched (AC-18).
