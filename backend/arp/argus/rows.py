@@ -117,7 +117,7 @@ def flow_rows(
             identifiers={**ids_db.get(c.entity_id, {}), **own},  # the values as the list gave them win
             master_identifiers=map_company(c, index).identifiers,
             sector=(db and db.sector) or c.sector, country=(db and db.country) or c.country,
-            problem=problem_of(c), extracted_before=prior.get(c.company_id),
+            problem=problem_of(c, flow.problems.get(c.company_id)), extracted_before=prior.get(c.company_id),
             documents=docs.registered, document_types=document_words(docs.doc_types),
         ))
     return out

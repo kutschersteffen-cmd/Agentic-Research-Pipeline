@@ -14,6 +14,7 @@ from arp.api.auth import Principal, current_user, require_role
 from arp.api.deps import (
     get_decision_store,
     get_document_content_store,
+    get_edgar_source,
     get_identifier_map,
     get_registry,
     get_run_store,
@@ -22,9 +23,9 @@ from arp.api.deps import (
 )
 from arp.api.routers import extraction
 from arp.api.routers.universe_workbench import MAX_COMPANIES
-from arp.argus.companies import add_companies, parse_rows, register, with_register_ids
+from arp.argus.companies import Refused, add_companies, parse_rows, register, reregister, ticker_ciks, with_register_ids
 from arp.argus.documents import FlowFile, decide, expected_year, flow_files, store_upload
-from arp.argus.flows import ArgusFlow, FlowSettings, FlowStore, SchemaChoice, SkippedUpload, get_flow_store
+from arp.argus.flows import ArgusFlow, FlowSettings, FlowStore, SchemaChoice, SkippedUpload, get_flow_store, is_starting
 from arp.argus.progress import CompanyProgress, FlowProgress, company_status, minutes_left
 from arp.argus.repeat import RepeatRow, kept_content, repeat_rows
 from arp.argus.rows import FlowRow, flow_rows
@@ -32,7 +33,9 @@ from arp.argus.start import StartError, start_request
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
 from arp.db.session import require_dsn, transaction
+from arp.discovery.identity_pipeline import enriched_universe
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
+from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.registry import (
     KEPT_NAMES,
     ONLY_DOCUMENTS,
@@ -45,7 +48,7 @@ from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import NotResumable, RunBusy, check_resumable, get_job_launcher, resume_run, run_lease
 from arp.orchestration.step_tally import step_counts
 from arp.review.items import list_open_items
-from arp.schemas.common import DocType, JobStatus
+from arp.schemas.common import CompanyRef, DocType, JobStatus
 from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
@@ -160,11 +163,21 @@ def create_flow(
 @router.delete("/flows/{flow_id}", status_code=204, dependencies=[Depends(require_role("analyst"))])
 def delete_flow(flow_id: str, store: FlowStore = Depends(get_flow_store)) -> None:
     """Undo a hand-over that failed after creating its flow: only an unused draft can go."""
-    deleted = store.delete_if_empty(flow_id)
+    deleted = store.delete(flow_id, only_empty=True)
     if deleted is None:
         raise HTTPException(404, "Extraction not found")
     if not deleted:
         raise HTTPException(409, "Only an empty draft can be deleted.")
+
+
+@router.post("/flows/{flow_id}/discard", status_code=204, dependencies=[Depends(require_role("analyst"))])
+def discard_flow(flow_id: str, store: FlowStore = Depends(get_flow_store)) -> None:
+    """Delete a draft with whatever it holds. Its documents stay on the companies."""
+    deleted = store.delete(flow_id, only_empty=False)
+    if deleted is None:
+        raise HTTPException(404, "Extraction not found")
+    if not deleted:
+        raise HTTPException(409, "An extraction that has started cannot be deleted.")
 
 
 @router.get("/flows", dependencies=[Depends(current_user)])
@@ -174,7 +187,46 @@ def list_flows(store: FlowStore = Depends(get_flow_store)) -> FlowList:
 
 @router.get("/flows/{flow_id}", dependencies=[Depends(current_user)])
 def get_flow(flow_id: str, store: FlowStore = Depends(get_flow_store), view: Viewer = Depends()) -> ArgusFlowView:
-    return view(store.get(flow_id))
+    return view(_with_identity_result(store.get(flow_id), store, view))
+
+
+def _with_identity_result(flow: ArgusFlow | None, store: FlowStore, view: Viewer) -> ArgusFlow | None:
+    """Once the flow's identity run has ended, each unmatched company it resolved (and did not flag for review) is
+    registered with the identifiers found. Once per run, and never after the extraction has started."""
+    run_id = flow.identity_run_id if flow else None
+    if not run_id or flow.identity_applied == run_id or flow.run_id or is_starting(flow):
+        return flow
+    m = view.run_store.load_manifest(run_id)
+    if m is None or m.status in ("pending", "running"):
+        return flow
+    found = {c.company_id: c for c in enriched_universe(view.run_store, run_id)}
+    with_files = {f.company_id for f in view.files(flow) if f.duplicate_of is None} if found else set()
+
+    def apply(f: ArgusFlow) -> None:
+        if f.identity_applied == run_id or f.run_id or is_starting(f):
+            return
+        with transaction(require_dsn(view.settings)) as session:
+            for i, old in enumerate(f.companies):
+                hit = found.get(old.company_id)
+                if old.entity_id or hit is None:
+                    continue
+                ids = {k: v for k in ("website", "cik", "lei", "isin") if (v := getattr(hit, k))}
+                try:
+                    with session.begin_nested():  # a refused row leaves nothing behind in the register
+                        _replace(f, i, reregister(session, f, old, ids, has_files=old.company_id in with_files))
+                except Refused:
+                    pass  # the row stays unmatched: the user removes it and adds it again
+        f.identity_applied = run_id
+
+    return store.update(flow.flow_id, apply)
+
+
+def _replace(flow: ArgusFlow, index: int, new: CompanyRef) -> None:
+    old = flow.companies[index].company_id
+    flow.companies[index] = new
+    flow.problems.pop(old, None)
+    if new.company_id != old:  # only for a row without files, so no file choice is keyed by the old id
+        flow.repeat.pop(old, None)
 
 
 @router.patch("/flows/{flow_id}", dependencies=[Depends(require_role("analyst"))])
@@ -443,32 +495,97 @@ def kept_names(files: list[FlowFile]) -> dict[str, str]:
     return {f.content_key: f.filename for f in files if f.state == "kept" and f.content_key}
 
 
-def _add(flow_id: str, rows: list[dict], store: FlowStore, settings: Settings, view: Viewer) -> ArgusFlowView:
+def _add(flow_id: str, rows: list[dict], ticker_problems: dict[int, str], store: FlowStore, settings: Settings,
+         view: Viewer) -> ArgusFlowView:
     if store.get(flow_id) is None:
         raise HTTPException(404, "Extraction not found")
     if len(rows) > MAX_COMPANIES:
         raise HTTPException(400, f"At most {MAX_COMPANIES} companies per list.")
     with transaction(require_dsn(settings)) as session:
-        companies = [c for c in (register(session, r) for r in rows) if c is not None]
-    return view(store.update(flow_id, lambda f: add_companies(f, companies)))
+        registered = [(register(session, r), ticker_problems.get(i)) for i, r in enumerate(rows)]
+    companies = [c for c, _ in registered if c is not None]
+
+    def apply(f: ArgusFlow) -> None:
+        add_companies(f, companies)
+        f.problems.update({c.company_id: why for c, why in registered if c is not None and why and not c.entity_id})
+
+    return view(store.update(flow_id, apply))
+
+
+def _unstarted(flow: ArgusFlow | None, company_id: str) -> ArgusFlow:
+    """The flow, if its company list may still change and holds this company."""
+    if flow is None:
+        raise HTTPException(404, "Extraction not found")
+    if flow.run_id or is_starting(flow):
+        raise HTTPException(409, "Companies cannot be changed once the extraction has started.")
+    if company_id not in {c.company_id for c in flow.companies}:
+        raise HTTPException(400, "That company is not in this extraction.")
+    return flow
+
+
+@router.put("/flows/{flow_id}/companies/{company_id}", dependencies=[Depends(require_role("analyst"))])
+def edit_company(
+    flow_id: str, company_id: str, req: CompanyInput, store: FlowStore = Depends(get_flow_store),
+    settings: Settings = Depends(settings_dep), edgar: EdgarDocumentSource = Depends(get_edgar_source), view: Viewer = Depends(),
+) -> ArgusFlowView:
+    """Registers the row again with the form's values and replaces it in place."""
+    flow = _unstarted(store.get(flow_id), company_id)
+    changes = req.model_dump()
+    ticker_problem = asyncio.run(ticker_ciks([changes], edgar)).get(0)
+    has_files = any(f.company_id == company_id and f.duplicate_of is None for f in view.files(flow))
+
+    def apply(f: ArgusFlow) -> None:
+        _unstarted(f, company_id)
+        index = next(i for i, c in enumerate(f.companies) if c.company_id == company_id)
+        try:
+            with transaction(require_dsn(settings)) as session:
+                new = reregister(session, f, f.companies[index], changes, has_files=has_files)
+        except Refused as exc:
+            raise HTTPException(exc.status, exc.detail) from exc
+        _replace(f, index, new)
+        if ticker_problem and not new.entity_id:
+            f.problems[new.company_id] = ticker_problem
+
+    return view(store.update(flow_id, apply))
+
+
+@router.delete("/flows/{flow_id}/companies/{company_id}", dependencies=[Depends(require_role("analyst"))])
+def remove_company(
+    flow_id: str, company_id: str, store: FlowStore = Depends(get_flow_store), view: Viewer = Depends(),
+) -> ArgusFlowView:
+    """Drops the row and its file choices in this flow. The documents stay on the company."""
+    gone = {f.key for f in view.files(_unstarted(store.get(flow_id), company_id)) if f.company_id == company_id}
+
+    def apply(f: ArgusFlow) -> None:
+        _unstarted(f, company_id)
+        f.companies = [c for c in f.companies if c.company_id != company_id]
+        f.decisions = {k: v for k, v in f.decisions.items() if k not in gone}
+        f.skipped_uploads = [s for s in f.skipped_uploads if s.company_id != company_id]
+        f.repeat.pop(company_id, None)
+        f.problems.pop(company_id, None)
+
+    return view(store.update(flow_id, apply))
 
 
 @router.post("/flows/{flow_id}/companies/upload", dependencies=[Depends(require_role("analyst"))])
 async def upload_companies(
     flow_id: str, file: UploadFile, store: FlowStore = Depends(get_flow_store), settings: Settings = Depends(settings_dep),
-    view: Viewer = Depends(),
+    edgar: EdgarDocumentSource = Depends(get_edgar_source), view: Viewer = Depends(),
 ) -> ArgusFlowView:
+    data = await file.read(settings.max_upload_bytes + 1)
+    if len(data) > settings.max_upload_bytes:
+        raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
     try:
-        rows = parse_rows(file.filename or "", await file.read())
+        rows = parse_rows(file.filename or "", data)
     except (ValueError, UnicodeDecodeError) as exc:  # JSONDecodeError is a ValueError
         raise HTTPException(400, f"Could not read the list: {exc}") from exc
-    return _add(flow_id, rows, store, settings, view)
+    return _add(flow_id, rows, await ticker_ciks(rows, edgar), store, settings, view)
 
 
 @router.post("/flows/{flow_id}/companies", dependencies=[Depends(require_role("analyst"))])
 def add_flow_companies(
     flow_id: str, req: AddCompanies, store: FlowStore = Depends(get_flow_store), settings: Settings = Depends(settings_dep),
-    view: Viewer = Depends(),
+    edgar: EdgarDocumentSource = Depends(get_edgar_source), view: Viewer = Depends(),
 ) -> ArgusFlowView:
     rows: list[dict] = []
     if req.company:
@@ -486,4 +603,4 @@ def add_flow_companies(
             raise HTTPException(400, f"Could not read the universe file: {exc}") from exc
     if not rows:
         raise HTTPException(400, "Provide a company or a saved universe.")
-    return _add(flow_id, rows, store, settings, view)
+    return _add(flow_id, rows, asyncio.run(ticker_ciks(rows, edgar)), store, settings, view)

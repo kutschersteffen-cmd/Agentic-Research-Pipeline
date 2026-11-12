@@ -8,6 +8,7 @@ import hashlib
 import logging
 import re
 from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
@@ -87,6 +88,13 @@ class ArgusFlow(BaseModel):
     repeat: dict[str, Literal["skip", "run"]] = {}
     run_id: str | None = None
     starting: bool = False  # set while a Start is being dispatched
+    problems: dict[str, str] = {}  # company key -> why its ticker gave no identifier (step 1 shows it)
+    identity_applied: str | None = None  # the identity run whose result was read back into `companies`
+
+
+def is_starting(flow: ArgusFlow) -> bool:
+    """A Start is being dispatched. A flag older than a minute is left over from a Start that died: not starting."""
+    return flow.starting and datetime.now(UTC) - datetime.fromisoformat(flow.updated_at) < timedelta(seconds=60)
 
 
 class FlowStore:
@@ -143,15 +151,17 @@ class FlowStore:
             fn(flow)
             return self.save(flow)
 
-    def delete_if_empty(self, flow_id: str) -> bool | None:
-        """Remove a draft nobody has used yet (no companies, still at step 1, no run): None if missing, False if in use."""
+    def delete(self, flow_id: str, *, only_empty: bool) -> bool | None:
+        """Remove a draft: None if missing, False if it may not go. `only_empty`: only one nobody has used yet (no
+        companies, still at step 1). Otherwise any flow without a run that is not being started."""
         if self._path(flow_id) is None:
             return None
         with self._lock.acquire(flow_id):
             flow = self.get(flow_id)
             if flow is None:
                 return None
-            if flow.companies or flow.step > 1 or flow.run_id:
+            in_use = flow.companies or flow.step > 1 if only_empty else is_starting(flow)
+            if flow.run_id or in_use:
                 return False
             self._path(flow_id).unlink(missing_ok=True)
             return True
