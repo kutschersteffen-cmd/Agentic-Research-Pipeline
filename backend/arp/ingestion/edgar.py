@@ -135,7 +135,9 @@ class EdgarDocumentSource(DocumentSource):
                     continue
 
                 doc_type = _FORM_TO_DOCTYPE[form]
-                title = f"{company.name} {forms[idx]} ({filing_date})"
+                report_date = (recent.get("reportDate") or [None] * len(forms))[idx]
+                # The period of report names the year (Argus step 2 reads it from the title); else the filing date.
+                title = f"{company.name} {forms[idx]} (period {report_date})" if report_date else f"{company.name} {forms[idx]} ({filing_date})"
                 kwargs: dict = dict(
                     company_id=company.company_id,
                     doc_type=doc_type,

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from arp.errors import ClientInputError
 from arp.llm.base import LLMClient
 from arp.portfolio.climate.schemas import FIELD_EVIC, FIELD_REVENUE
 from arp.portfolio.datapoint_mapping import resolve_field_values_for_universe
@@ -26,7 +27,7 @@ from arp.storage.portfolio_store import portfolio_directories
 # current build on every request; every number here is arithmetic, the LLM only runs in classify_unlinked.
 
 
-class LinkError(ValueError):
+class LinkError(ClientInputError):
     """A rule the API answers with 422; the message is the response's `detail`."""
 
 

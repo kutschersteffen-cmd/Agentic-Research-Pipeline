@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from arp.errors import NotConfigured
 from arp.schemas.index import IndexCandidate, MissingPolicy
 
 EPS = 1e-12
@@ -15,7 +16,7 @@ DERIVED_METRICS: dict[str, str] = {
 }
 
 
-class DataQualityBlock(RuntimeError):
+class DataQualityBlock(NotConfigured):
     """Raised when a rule meets a missing value under the `block` policy.
 
     This is the plan's "fail loud on data quality" principle: a run stops

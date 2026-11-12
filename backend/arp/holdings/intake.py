@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Literal
 
+from arp.errors import ClientInputError
 from arp.holdings.validate import RowError, Validated, iso_date
 from arp.portfolio.loads import LoadRecord, record_load
 from arp.schemas.common import now_iso
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
     from arp.api.auth import Principal
 
 
-class IntakeError(ValueError):
+class IntakeError(ClientInputError):
     def __init__(self, status: int, message: str, errors: list[RowError] | None = None) -> None:
         super().__init__(message)
         self.status, self.message, self.errors = status, message, errors or []
@@ -60,8 +61,10 @@ def _precedence(store, holder: HolderConfig, kind: str, holder_id: str, as_of: s
 
 def ingest(
     store, validated: Validated, *, kind, holder_id: str, as_of: str, source, source_ref: str | None,
-    principal: Principal | None, override_reason: str | None, idmap,
+    principal: Principal | None, override_reason: str | None, idmap, known_holders_only: bool = False,
 ) -> IntakeResult:
+    """`known_holders_only` (the upload route sets it): a rejected file records a failed load only for a holder
+    that exists, so a mistyped holder id leaves no load behind."""
     try:
         safe_id(holder_id, label="holder_id")
     except UnsafeIdentifierError as e:
@@ -69,8 +72,9 @@ def ingest(
     if not iso_date(as_of):
         raise IntakeError(422, "as_of must be YYYY-MM-DD")
     if validated.errors:
-        record_load(store, LoadRecord(kind="holdings", source_id=holder_id, month=as_of[:7], status="failed", content_hash="",
-                                      detail=f"{len(validated.errors)} row errors"))
+        if not known_holders_only or store.get_holder(kind, holder_id) or (kind == "portfolio" and store.get_portfolio(holder_id)):
+            record_load(store, LoadRecord(kind="holdings", source_id=holder_id, month=as_of[:7], status="failed", content_hash="",
+                                          detail=f"{len(validated.errors)} row errors"))
         raise IntakeError(422, "file rejected", validated.errors)
     holder = store.get_holder(kind, holder_id) or HolderConfig(holder_id=holder_id, kind=kind, source=source)
     _precedence(store, holder, kind, holder_id, as_of, source, override_reason)

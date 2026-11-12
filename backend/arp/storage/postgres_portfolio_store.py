@@ -98,6 +98,9 @@ class PostgresPortfolioStore:
     def save_rule(self, rule: AlertRule) -> None:
         self._files.save_rule(rule)
 
+    def delete_rule(self, rule_id: str) -> bool:
+        return self._files.delete_rule(rule_id)
+
     def get_rule(self, rule_id: str) -> AlertRule | None:
         return self._files.get_rule(rule_id)
 

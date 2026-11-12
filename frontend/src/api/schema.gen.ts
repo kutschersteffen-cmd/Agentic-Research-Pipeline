@@ -2920,7 +2920,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Holders */
+        /**
+         * Holders
+         * @description Holder records, plus every portfolio that has none (seeded or imported data): listed read-only, nothing stored.
+         */
         get: operations["holders_api_holdings_holders_get"];
         put?: never;
         post?: never;
@@ -3648,6 +3651,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/portfolio/monitoring/rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Monitoring Rule
+         * @description Removes the rule only. Its alerts stay in the log, so they have to be closed first.
+         */
+        delete: operations["delete_monitoring_rule_api_portfolio_monitoring_rules__rule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/monitoring/rules/{rule_id}/clear-alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clear Monitoring Rule Alerts
+         * @description Closes every live alert of one rule in one human decision. The rule need not exist any more.
+         */
+        post: operations["clear_monitoring_rule_alerts_api_portfolio_monitoring_rules__rule_id__clear_alerts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/portfolio/monthly-run": {
         parameters: {
             query?: never;
@@ -3659,6 +3702,26 @@ export interface paths {
         put?: never;
         /** Post Monthly Run */
         post: operations["post_monthly_run_api_portfolio_monthly_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/monthly-run/last": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Last Monthly Run
+         * @description The newest monthly run that ran (a blocked one is not recorded), or null.
+         */
+        get: operations["get_last_monthly_run_api_portfolio_monthly_run_last_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4254,7 +4317,11 @@ export interface paths {
         get: operations["get_report_api_reports__report_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Discard Report
+         * @description Removes an unfinished report's folder. A finished one, or one still being worked on, is never removed.
+         */
+        delete: operations["discard_report_api_reports__report_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -9217,6 +9284,11 @@ export interface components {
         Body_upload_api_holdings_upload_post: {
             /** As Of */
             as_of: string;
+            /**
+             * Decimal
+             * @description Overrides the provider mapping's decimal separator.
+             */
+            decimal?: ("." | ",") | null;
             /** File */
             file: string;
             /** Holder Id */
@@ -9233,6 +9305,11 @@ export interface components {
              * @default default
              */
             provider: string;
+            /**
+             * Weight Unit
+             * @description Overrides the provider mapping's weight unit.
+             */
+            weight_unit?: ("percent" | "fraction") | null;
         };
         /** Body_upload_api_security_master_upload_post */
         Body_upload_api_security_master_upload_post: {
@@ -9890,6 +9967,19 @@ export interface components {
          * @enum {string}
          */
         CitationRole: "primary" | "corroborating" | "alternative";
+        /** ClearAlertsRequest */
+        ClearAlertsRequest: {
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "resolved" | "false_positive";
+        };
         /** CloseRequest */
         CloseRequest: {
             /** Company Id */
@@ -10925,6 +11015,11 @@ export interface components {
             calculated_columns?: string[];
             /** Columns */
             columns: string[];
+            /**
+             * Created At
+             * @description When the dataset was added: tells two uploads of the same file apart.
+             */
+            created_at: string;
             /** Dataset Id */
             dataset_id: string;
             /**
@@ -14369,7 +14464,22 @@ export interface components {
             /** Resolvable */
             resolvable: boolean;
             result?: components["schemas"]["AggregationResult"] | null;
+            /**
+             * Scale
+             * @default units
+             * @enum {string}
+             */
+            scale: "units" | "millions";
+            /** Snapshot Dates */
+            snapshot_dates?: string[];
             spec?: components["schemas"]["AnalyticSpec"] | null;
+            /** Trend */
+            trend?: components["schemas"]["TrendPoint"][] | null;
+            /**
+             * Unit
+             * @default
+             */
+            unit: string;
             /**
              * Vintage
              * @default {}
@@ -17169,6 +17279,12 @@ export interface components {
             question: string;
             walk_or_talk: components["schemas"]["WalkOrTalk"];
         };
+        /** TrendPoint */
+        TrendPoint: {
+            /** As Of */
+            as_of: string;
+            result: components["schemas"]["AggregationResult"];
+        };
         /** TriggerScanRequest */
         TriggerScanRequest: {
             /** Companies */
@@ -17977,6 +18093,21 @@ export interface components {
         };
         /** AskRequest */
         arp__api__routers__portfolio__AskRequest: {
+            /**
+             * As Of
+             * @description YYYY-MM-DD; each portfolio's newest snapshot on or before it.
+             */
+            as_of?: string | null;
+            /**
+             * Date Range
+             * @description [start, end]: a trend, one point per snapshot date in it.
+             */
+            date_range?: string[] | null;
+            /**
+             * Portfolio Ids
+             * @description The screen's selection; a portfolio named in the question wins.
+             */
+            portfolio_ids?: string[];
             /** Question */
             question: string;
         };
@@ -25060,6 +25191,72 @@ export interface operations {
             };
         };
     };
+    delete_monitoring_rule_api_portfolio_monitoring_rules__rule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_monitoring_rule_alerts_api_portfolio_monitoring_rules__rule_id__clear_alerts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClearAlertsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     post_monthly_run_api_portfolio_monthly_run_post: {
         parameters: {
             query?: never;
@@ -25089,6 +25286,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_last_monthly_run_api_portfolio_monthly_run_last_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    } | null;
                 };
             };
         };
@@ -26241,6 +26460,35 @@ export interface operations {
                         [key: string]: unknown;
                     };
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_report_api_reports__report_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

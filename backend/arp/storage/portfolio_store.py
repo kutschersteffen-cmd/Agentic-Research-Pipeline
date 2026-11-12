@@ -384,6 +384,15 @@ class PortfolioStore:
     def save_rule(self, rule: AlertRule) -> None:
         self._put_json_entry(self.rules_path(), rule.rule_id, json.loads(rule.model_dump_json()))
 
+    def delete_rule(self, rule_id: str) -> bool:
+        """Removes the rule's entry; its alerts stay in the event logs. False when no such rule is stored."""
+        with self._lock(self.rules_path()):
+            data = self._read_json(self.rules_path())
+            if data.pop(rule_id, None) is None:
+                return False
+            self._write_json(self.rules_path(), data)
+            return True
+
     def get_rule(self, rule_id: str) -> AlertRule | None:
         row = self._read_json(self.rules_path()).get(rule_id)
         return AlertRule.model_validate(row) if row else None
@@ -439,6 +448,14 @@ class PortfolioStore:
 
     def publish_rows(self, dataset: str, month: str, rows: list[dict]) -> None:
         pass  # ponytail: Superset needs Postgres
+
+
+def holdings_date_label(holdings: list[Holding], between: str = " to ") -> tuple[str, str]:
+    """(label, newest date) of the snapshot dates the holdings really carry: "2026-10-31", or "2026-10-30 to
+    2026-10-31" when portfolios were last loaded on different days. `load_holdings_as_of` takes each portfolio's
+    own latest snapshot, so the date asked for is not the date of every row."""
+    dates = sorted({h.as_of_date for h in holdings})
+    return (dates[0] if len(dates) == 1 else f"{dates[0]}{between}{dates[-1]}"), dates[-1]
 
 
 def portfolio_directories(store: PortfolioStore) -> tuple[dict[str, SecurityRef], dict[str, CompanyRef]]:

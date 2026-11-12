@@ -87,6 +87,19 @@ def transition_alert(store: PortfolioStore, scope_id: str, alert_id: str, transi
     return alerts[alert_id].model_copy(update={"status": transition.status, "owner": transition.owner or alerts[alert_id].owner})
 
 
+def live_alerts_of_rule(store: PortfolioStore, rule_id: str) -> list[Alert]:
+    return [a for a in list_alerts(store) if a.rule_id == rule_id and a.status in _OPEN_STATUSES]
+
+
+def clear_rule_alerts(store: PortfolioStore, rule_id: str, transition: AlertTransition) -> int:
+    """Closes every live alert of one rule with the same human decision: one `status_changed` event appended
+    per alert, nothing rewritten. Works for a rule that is no longer stored."""
+    live = live_alerts_of_rule(store, rule_id)
+    for alert in live:
+        store.append_alert_event(alert.scope_id, "status_changed", {"alert_id": alert.alert_id, "transition": transition.model_dump(mode="json")})
+    return len(live)
+
+
 def _resolve_holdings_as_of(store: PortfolioStore, as_of: str | None) -> str | None:
     """This never raises --
     a scheduled evaluation pass with no holdings ingested yet should skip

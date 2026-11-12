@@ -7,6 +7,7 @@ import logging
 from dataclasses import dataclass
 
 from arp.api.auth import Principal
+from arp.errors import ClientInputError
 from arp.publish.candidates import Skip, run_candidates
 from arp.publish.facts import (
     Fact,
@@ -36,7 +37,7 @@ class PublishResult:
     skipped: list[Skip]
 
 
-class WithdrawalError(ValueError):
+class WithdrawalError(ClientInputError):
     pass
 
 

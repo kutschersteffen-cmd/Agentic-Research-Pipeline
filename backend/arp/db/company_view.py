@@ -4,7 +4,7 @@ per-company run-result queries that replaced `api/company_results.py`."""
 from __future__ import annotations
 
 from datetime import date, datetime
-from pathlib import PurePath
+from pathlib import Path, PurePath
 from typing import Any
 from uuid import UUID
 
@@ -166,9 +166,13 @@ def resolve_ref(session: Session, ref: str) -> UUID | None:
     return merged or (cid if session.get(m.Company, cid) is not None else None)
 
 
+_UUID = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+
+
 def search(session: Session, q: str, limit: int = 20) -> list[CompanySearchHit]:
     q = q.strip()
-    query = select(m.Company).order_by(m.Company.name).limit(limit)
+    # a record named only by a UUID (a key, not a name) is not one a person picks; it stays readable by id
+    query = select(m.Company).where(~m.Company.name.op("~*")(_UUID)).order_by(m.Company.name).limit(limit)
     if q:
         alias = select(m.CompanyIdentifier.company_id).where(
             m.CompanyIdentifier.valid_to.is_(None), m.CompanyIdentifier.value.ilike(f"%{normalise_identifier('', q)}%")
@@ -209,8 +213,24 @@ def _holders(store, company_id: UUID, identifiers: list[IdentifierOut], today: d
     return out
 
 
-def summary(session: Session, company_id: UUID, *, today: date, store=None) -> CompanySummary:
-    """`store` is the portfolio store; without one `holders_available` is false."""
+def _documents(session: Session, company_id: UUID, identifiers: list[IdentifierOut], documents_dir: Path | None) -> int:
+    """Registered documents, plus files uploaded to the company's folders that no run has registered yet."""
+    registered = session.execute(
+        select(m.Document.local_path, m.Document.universe_id).where(m.Document.company_id == company_id)).all()
+    if documents_dir is None or not documents_dir.is_dir():
+        return len(registered)
+    keys = {str(company_id).upper()} | {i.value.upper() for i in identifiers if i.scheme == "UNIVERSE"}
+    keys |= {u.upper() for _, u in registered if u}
+    known = {Path(p).resolve() for p, _ in registered if p}
+    # shortcut: lists every company folder's name on each read; index uploads by company if documents_dir grows large
+    unregistered = [f for d in documents_dir.iterdir() if d.is_dir() and d.name.upper() in keys
+                    for f in d.glob("*/*") if f.is_file() and not f.name.startswith(".") and f.resolve() not in known]
+    return len(registered) + len(unregistered)
+
+
+def summary(session: Session, company_id: UUID, *, today: date, store=None, documents_dir: Path | None = None) -> CompanySummary:
+    """`store` is the portfolio store; without one `holders_available` is false. `documents_dir` adds uploads not yet
+    registered to `documents`."""
     c = session.get(m.Company, company_id)
     if c is None:
         raise LookupError(company_id)
@@ -232,7 +252,7 @@ def summary(session: Session, company_id: UUID, *, today: date, store=None) -> C
                 m.ReviewItem.company_id == company_id,
                 m.ReviewItem.state.not_in([m.ItemState.FINAL, m.ItemState.SECOND_DONE]))
         ),
-        documents=session.scalar(select(func.count()).select_from(m.Document).where(m.Document.company_id == company_id)),
+        documents=_documents(session, company_id, identifiers, documents_dir),
         runs=session.scalar(select(func.count()).select_from(m.RunCompany).where(m.RunCompany.company_id == company_id)),
         holders=holders, holders_available=store is not None,
     )

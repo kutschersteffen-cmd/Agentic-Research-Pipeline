@@ -106,7 +106,7 @@ async def run_batch(
                 result = await worker(item)
             except Exception as exc:  # noqa: BLE001 - isolate failures per item
                 logger.exception("Batch item %s failed", key)
-                row = {"key": key, "error": str(exc)}
+                row = {"key": key, "error": str(exc) or type(exc).__name__}  # httpx timeouts have an empty message
                 if getattr(exc, "document_problem", False):  # a file the user can replace (Argus step 4)
                     row["document_problem"] = True
                 if isinstance(exc, ReviewRequired):

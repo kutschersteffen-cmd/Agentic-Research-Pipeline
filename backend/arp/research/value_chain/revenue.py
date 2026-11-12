@@ -10,6 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
+from arp.errors import ClientInputError
 from arp.research.value_chain.model import ValueChain
 from arp.schemas.value_chain import Recipe, RecipeIn
 
@@ -34,7 +35,7 @@ class UnknownRecipe(KeyError):
         return self.args[0]
 
 
-class RecipeError(ValueError):
+class RecipeError(ClientInputError):
     """A recipe that fails a save check on the current build; `unresolved` when a name has no live node."""
 
     def __init__(self, detail: str, unresolved: bool = False) -> None:

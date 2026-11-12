@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
+from datetime import UTC, datetime
 
 from arp.config import Settings
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -9,7 +10,7 @@ from arp.orchestration.interval_scheduler import IntervalScheduler
 from arp.orchestration.job_manager import JobManager
 from arp.research.pipeline import load_theme_run_matches
 from arp.schemas.calibration import CalibrationScheduleConfig, DriftFlag
-from arp.schemas.common import CompanyRef, JobStatus
+from arp.schemas.common import CompanyRef, JobStatus, SourceDocument
 from arp.schemas.thematic import CompanyMatch
 from arp.storage.run_store import RunStore
 
@@ -22,31 +23,47 @@ async def check_company_staleness(
     company: CompanyRef, matches: list[CompanyMatch], registry: DocumentSourceRegistry, source_run_id: str
 ) -> list[DriftFlag]:
     """Pure timestamp comparison, no LLM call: if any of this company's
-    currently-fetchable documents were fetched after a given match's
+    currently-fetchable documents is dated after a given match's
     generated_at, that verdict may be stale -- flagged for a human to
     decide whether re-running classification is warranted. Not a claim
     that the verdict IS wrong, just that newer evidence exists.
 
-    Uses SourceDocument.fetched_at (ingestion time) since that's the only
-    timestamp this system actually records on a document -- not
-    necessarily the filing's true publication date, so this flags "we
-    fetched something new," not "something new was published." Stated
-    here plainly rather than implied.
+    A document's date is its `published_at`; without one, its `fetched_at` only when that is earlier than this
+    check (a time the source supplied, not one stamped while fetching). A document with neither is ignored.
     """
+    started = datetime.now(UTC)
     documents = await registry.fetch_all(company)
-    if not documents:
+    dates = [d for doc in documents if (d := _document_date(doc, started)) is not None]
+    if not dates:
         return []
-    newest_document_at = max(d.fetched_at for d in documents)
+    newest = max(dates)
     return [
         DriftFlag(
             source_run_id=source_run_id, company_id=m.company_id, activity_id=m.activity_id,
+            company_name=m.name, activity_name=m.activity_name,
             old_verdict=m.verdict, old_confidence=m.confidence, old_generated_at=m.generated_at,
-            newest_document_at=newest_document_at,
-            reason="A disclosure was fetched after this verdict was generated -- re-running classification is recommended.",
+            newest_document_at=newest.isoformat(),
+            reason="A disclosure dated after this verdict was generated exists -- re-running classification is recommended.",
         )
         for m in matches
-        if newest_document_at > m.generated_at
+        if (generated := _instant(m.generated_at)) is not None and newest > generated
     ]
+
+
+def _instant(value: str | None) -> datetime | None:
+    """An ISO time as a UTC instant; no offset reads as UTC."""
+    try:
+        t = datetime.fromisoformat(value) if value else None
+    except ValueError:
+        return None
+    return t and (t.replace(tzinfo=UTC) if t.tzinfo is None else t.astimezone(UTC))
+
+
+def _document_date(doc: SourceDocument, started: datetime) -> datetime | None:
+    if (published := _instant(doc.published_at)) is not None:
+        return published
+    fetched = _instant(doc.fetched_at)
+    return fetched if fetched is not None and fetched < started else None
 
 
 def _group_by_company(matches: list[CompanyMatch]) -> dict[str, list[CompanyMatch]]:
