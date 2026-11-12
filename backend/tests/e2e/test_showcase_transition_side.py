@@ -209,3 +209,15 @@ def test_step_5_scoring_without_template_offers_the_picker(page):  # AC-60
 def test_step_5_other_template_field_cell_unchanged(page):  # AC-61 (must not change)
     cell = step_5(page, "sch_other", [field("revenue", 5)]).locator("tbody tr").first.locator("td").nth(1)
     assert cell.inner_text() == "revenue"
+
+
+def test_criterion_detail_comes_into_view_with_focus(page):  # AC-62 (checked by the evaluator too)
+    page.set_viewport_size({"width": 1280, "height": 800})
+    page.goto(f"{URL}/#/transitionBarrier")
+    page.get_by_role("button", name="STL-R1", exact=True).click()
+    heading = page.get_by_role("heading", name=re.compile(r"^STL-R1 — "))
+    heading.wait_for()
+    page.wait_for_timeout(300)
+    box = heading.bounding_box()
+    assert 0 <= box["y"] and box["y"] + box["height"] <= 800
+    assert heading.evaluate("h => document.activeElement === h")

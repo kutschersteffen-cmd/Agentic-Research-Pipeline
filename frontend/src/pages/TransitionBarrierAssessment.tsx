@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { RATING_CLASS, RATING_LABEL, REFRESH_OFF_NOTE, cellHash, errorDetail } from "../lib/barrier";
@@ -37,6 +37,12 @@ function CriterionDetail({ detail, refreshEnabled, onClose }: {
 }) {
   const { criterion, scores, sources } = detail;
   const [derived, setDerived] = useState<{ runId: string } | { error: string } | null>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  // it opens below the 35-row table: bring it into view, or the click looks like it did nothing
+  useEffect(() => {
+    heading.current?.scrollIntoView({ block: "center" });
+    heading.current?.focus({ preventScroll: true });
+  }, [criterion.code]);
   async function deriveAll() {
     setDerived(null);
     try {
@@ -48,7 +54,7 @@ function CriterionDetail({ detail, refreshEnabled, onClose }: {
   return (
     <div className="card">
       <div className="section-heading">
-        <h2>
+        <h2 ref={heading} tabIndex={-1}>
           {criterion.code} — {criterion.criterion}
         </h2>
         <button type="button" onClick={onClose}>
