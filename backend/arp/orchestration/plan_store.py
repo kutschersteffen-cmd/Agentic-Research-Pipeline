@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
+from arp.errors import NotConfigured
 from arp.orchestration.plan_check import check_script
 from arp.orchestration.plan_interp import dry_run
 from arp.orchestration.plan_models import ResearchPlan, ResearchPlanCall
@@ -17,7 +18,7 @@ class PlanNotFound(LookupError):
     pass
 
 
-class PlanNotReplannable(RuntimeError):
+class PlanNotReplannable(NotConfigured):
     pass
 
 

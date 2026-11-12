@@ -5,6 +5,7 @@ import asyncio
 
 from pydantic import BaseModel, Field
 
+from arp.errors import ClientInputError
 from arp.llm.base import LLMClient
 from arp.orchestration.plan_api import BUILTINS, STEPS
 from arp.orchestration.plan_check import MAX_LINES
@@ -15,7 +16,7 @@ class PlanScript(BaseModel):
     script: str = Field(description="The plan script: restricted Python, step calls with keyword arguments only.")
 
 
-class PlanRejected(ValueError):
+class PlanRejected(ClientInputError):
     """Both attempts failed the checker; the message is the second attempt's errors."""
 
 

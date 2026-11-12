@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from arp.config import Settings
+from arp.errors import NotConfigured
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import queue_for_review
 from arp.schemas.transition_barrier import BarrierRefreshFinding
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 RUN_TYPE = "transition_barrier_refresh"
 
 
-class RefreshDisabledError(RuntimeError):
+class RefreshDisabledError(NotConfigured):
     """Raised when a refresh is requested while the feature is switched off."""
 
 

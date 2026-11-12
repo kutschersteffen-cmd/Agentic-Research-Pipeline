@@ -11,7 +11,31 @@ export type StepState = "done" | "now" | "wait" | "failed" | "idle";
 export const DONE = new Set(["completed", "partially_completed"]);
 export const STATE_LABEL: Record<StepState, string> = { done: "has a finished run", now: "running", wait: "waiting on a person", failed: "last run failed", idle: "no activity yet" };
 
-export function stepState(step: Step, runs: RunManifest[] | null, flow: StewardshipFlow | null): StepState {
+/** What the hub reads besides runs: the feed overview (`GET /api/feeds`) and the last monthly run that ran. */
+export type Activity = {
+  feeds: { feed: string; last_load: { status: string; at: string } | null }[];
+  lastRun: { at: string } | null;
+};
+
+/** The state of a step whose work leaves no run: a load (security master, holdings) or the monthly run. Null for
+ * every other step, and for these when no activity was passed. `at` is when it was last done. */
+export function stepActivity(step: Step, activity?: Activity | null): { state: StepState; at: string | null } | null {
+  if (!activity) return null;
+  const fromLoads = (feeds: string[]) => {
+    const loads = activity.feeds.filter((f) => feeds.includes(f.feed) && f.last_load).map((f) => f.last_load!);
+    const ok = loads.filter((l) => l.status === "ok").map((l) => l.at).sort();
+    if (ok.length) return { state: "done" as const, at: ok[ok.length - 1] };
+    return { state: loads.some((l) => l.status === "failed") ? ("failed" as const) : ("idle" as const), at: null };
+  };
+  if (step.tab === "securityMaster" && step.label === "Load security master") return fromLoads(["security_master"]);
+  if (step.tab === "portfolio-monitoring" && step.sub === "holdings") return fromLoads(["holdings", "index"]);
+  if (step.tab === "portfolio-monitoring" && step.sub === "monitoring") {
+    return activity.lastRun ? { state: "done", at: activity.lastRun.at } : { state: "idle", at: null };
+  }
+  return null;
+}
+
+export function stepState(step: Step, runs: RunManifest[] | null, flow: StewardshipFlow | null, activity?: Activity | null): StepState {
   if (step.runTypes && runs) {
     const mine = runs.filter((r) => step.runTypes!.includes(decisionRunType(r)));
     // Waiting on a person outranks running: that is what the signal colour is for.
@@ -22,13 +46,13 @@ export function stepState(step: Step, runs: RunManifest[] | null, flow: Stewards
     if (mine.some((r) => DONE.has(r.status))) return "done";
   }
   if (step.stage && openCount(flow?.stages.find((s) => s.id === step.stage)) > 0) return "wait";
-  return "idle";
+  return stepActivity(step, activity)?.state ?? "idle";
 }
 
 const RANK: StepState[] = ["wait", "now", "failed", "done", "idle"];
 /** A process's one state: the most urgent of its steps'. */
-export const processState = (p: Process, runs: RunManifest[] | null, flow: StewardshipFlow | null): StepState => {
-  const states = p.steps.map((s) => stepState(s, runs, flow));
+export const processState = (p: Process, runs: RunManifest[] | null, flow: StewardshipFlow | null, activity?: Activity | null): StepState => {
+  const states = p.steps.map((s) => stepState(s, runs, flow, activity));
   return RANK.find((r) => states.includes(r)) ?? "idle";
 };
 

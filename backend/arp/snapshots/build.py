@@ -17,6 +17,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from arp import holdings
+from arp.errors import ClientInputError, NotConfigured
 from arp.publish.facts import Fact, FactEvent, fact_key, ts_now
 from arp.publish.reader import as_of_bound
 from arp.snapshots import schema
@@ -32,11 +33,11 @@ FORMATS = ("csv", "jsonl")
 _MONTH_LOCKS = KeyedLock(lock_path=lambda month_dir: Path(month_dir) / ".lock")
 
 
-class SnapshotFrozen(RuntimeError):
+class SnapshotFrozen(NotConfigured):
     """The revision already has a manifest."""
 
 
-class SnapshotSettling(ValueError):
+class SnapshotSettling(ClientInputError):
     """r1 is asked for within the settle window after the month-end bound."""
 
 

@@ -221,9 +221,9 @@ export const WORKSPACES: Workspace[] = [
         steps: [
           { tab: "themes", label: "Spot", does: "An emerging theme with its context: promote an Emerging Themes candidate, or start a dossier from a topic." },
           { tab: "themes", label: "Define", does: "Attach the theme's taxonomy and ratify a version." },
-          { tab: "themes", label: "Research", does: "Risks, opportunities and transmission channels from approved authoritative sources.", planned: true },
+          { tab: "themes", label: "Research", does: "Risks, opportunities and transmission channels from approved authoritative sources." },
           { tab: "themes", label: "Find companies", does: "The exposed universe, measured against the latest ratified taxonomy version and reviewed." },
-          { tab: "themes", label: "Position and standards", does: "The house position and the stewardship standards derived from it.", planned: true },
+          { tab: "themes", label: "Position and standards", does: "The house position and the stewardship standards derived from it." },
         ],
       },
       {

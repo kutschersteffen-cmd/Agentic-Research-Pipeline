@@ -13,11 +13,13 @@ from urllib.parse import urlparse
 
 import httpx
 
+from arp.errors import ClientInputError
+
 _ALLOWED_SCHEMES = {"http", "https"}
 _CGNAT = ipaddress.ip_network("100.64.0.0/10")  # carrier-grade NAT; not "private" to the ipaddress module
 
 
-class UnsafeURLError(ValueError):
+class UnsafeURLError(ClientInputError):
     """Raised when a URL is (or resolves to) a fetch target this app
     refuses to reach: a non-http(s) scheme, or a hostname resolving to a
     loopback/private/link-local/reserved address -- the 169.254.169.254

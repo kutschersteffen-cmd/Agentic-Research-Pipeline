@@ -12,16 +12,17 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from arp.errors import ClientInputError, NotConfigured
 from arp.snapshots.build import FORMATS
 from arp.snapshots.schema import CURRENT_MAJOR, DATASETS, DatasetEntry, SnapshotManifest
 from arp.storage.atomic_io import atomic_write_bytes
 
 
-class SnapshotHashMismatch(RuntimeError):
+class SnapshotHashMismatch(NotConfigured):
     """A pulled file's sha256 differs from the manifest's."""
 
 
-class SnapshotInvalid(ValueError):
+class SnapshotInvalid(ClientInputError):
     """The upstream served a manifest or dataset that does not parse as the contract says."""
 
 

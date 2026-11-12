@@ -10,6 +10,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from arp.errors import NotConfigured
 from arp.orchestration.jobs import RunBusy, run_lease
 from arp.orchestration.plan_interp import run_script
 from arp.orchestration.plan_store import PlanStore, kept_calls
@@ -20,7 +21,7 @@ StepFn = Callable[..., dict[str, Any]]
 ReviewedFn = Callable[[dict[str, Any]], bool]
 
 
-class PlanNotRunnable(RuntimeError):
+class PlanNotRunnable(NotConfigured):
     pass
 
 

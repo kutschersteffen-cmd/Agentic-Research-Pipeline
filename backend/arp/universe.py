@@ -4,11 +4,12 @@ import csv
 import json
 from pathlib import Path
 
+from arp.errors import ClientInputError
 from arp.research.indirect_exposure.nace import nace_known, normalise_nace
 from arp.schemas.common import CompanyRef
 
 
-class UniverseRejected(ValueError):
+class UniverseRejected(ClientInputError):
     """A universe file holds a sector code that is not valid; `str(e)` is the user-facing message."""
 
 

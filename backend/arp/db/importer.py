@@ -53,6 +53,7 @@ from arp.db.observations import _DECIDED, _SKIP, RULE_NOT_APPLICABLE, _edited, _
 from arp.db.runs import RunStore, _decision_kind, _iso, _jsonb_safe, _ts
 from arp.db.session import engine
 from arp.db.to_observations import review_target, to_observations, unqueued_item
+from arp.errors import NotConfigured
 from arp.schemas.common import CompanyRef, RunManifest
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.issuer import IdentifierMap
@@ -72,7 +73,7 @@ _DERIVED_ERRORS = ("identity_conflict", "invalid_value", "unregistered_citation"
 _IDENTITY_COLUMNS = ("family_id", "version", "supersedes", "published_at", "identity_confidence", "identity_review")
 
 
-class ImportFailed(RuntimeError):
+class ImportFailed(NotConfigured):
     """An import unit failed; the message names the source file or row."""
 
 

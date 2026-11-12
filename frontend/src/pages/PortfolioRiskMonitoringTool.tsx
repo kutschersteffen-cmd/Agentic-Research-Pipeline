@@ -6,7 +6,7 @@ import { CompanyProfiles } from "./portfolio-monitoring/CompanyProfiles";
 import { AskThePortfolio } from "./portfolio-monitoring/AskThePortfolio";
 import { SupersetBI } from "./portfolio-monitoring/SupersetBI";
 import { HoldingsIntake } from "./portfolio-monitoring/HoldingsIntake";
-import { resolveSubTab, SUB_TABS } from "../lib/subTabs";
+import { openingSubTab, SUB_TABS } from "../lib/subTabs";
 
 /** One top-level tool (spec §9): a persistent portfolio/date selection
  * pane that isn't itself a sub-tab, plus one MECE sub-tab per capability
@@ -26,7 +26,7 @@ export function PortfolioRiskMonitoringTool({ initialSub, onSendUniverse }: { in
 type SubId = (typeof SUB_TABS)[number]["id"];
 
 function Inner({ initialSub, onSendUniverse }: { initialSub?: string; onSendUniverse?: SendUniverse }) {
-  const [sub, setSub] = useState<SubId>(() => resolveSubTab(initialSub, SUB_TABS));
+  const [sub, setSub] = useState<SubId>(() => openingSubTab(initialSub));
 
   return (
     <div className="page">

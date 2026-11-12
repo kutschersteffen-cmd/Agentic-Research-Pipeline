@@ -19,6 +19,7 @@ from arp.cli import app as cli
 from arp.cli import rfp as rfp_cli
 from arp.db import models as m
 from arp.db.session import transaction
+from arp.errors import NotConfigured
 from arp.llm.base import LLMUsage
 from arp.rfp import store
 from arp.rfp.detect import DetectedQuestions, ReportedQuestion
@@ -359,7 +360,7 @@ def test_export(env, tmp_path):  # AC-38, AC-51
 
 def test_missing_api_key_leaves_no_project(env, monkeypatch):
     def no_key():
-        raise RuntimeError("ARP_ANTHROPIC_API_KEY is not set.")
+        raise NotConfigured("ARP_ANTHROPIC_API_KEY is not set.")
 
     monkeypatch.setattr(run_scheduling, "get_llm_client", no_key)
     r = env.as_("alice").post("/api/rfp/projects", data={"investor": "Pension Fund"}, files={"file": ("rfp_in.xlsx", fx.rfp_in_xlsx())})

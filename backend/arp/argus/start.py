@@ -5,11 +5,12 @@ from __future__ import annotations
 from arp.argus.documents import FlowFile, expected_year
 from arp.argus.flows import ArgusFlow
 from arp.argus.repeat import RepeatRow, kept_content
+from arp.errors import ClientInputError
 from arp.extraction.steps import StepSettings
 from arp.schemas.datapoints import DataPointSchema
 
 
-class StartError(ValueError):
+class StartError(ClientInputError):
     pass
 
 

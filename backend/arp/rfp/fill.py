@@ -10,6 +10,7 @@ import re
 import zipfile
 from xml.etree import ElementTree
 
+from arp.errors import ClientInputError
 from arp.rfp.locations import docx_cell, paragraph_index, split_cell
 from arp.rfp.text import is_placeholder
 
@@ -20,7 +21,7 @@ _NS = {
 }
 
 
-class FillRefused(ValueError):
+class FillRefused(ClientInputError):
     """The file cannot be filled as asked; the message is one line naming the sheet or location."""
 
 
