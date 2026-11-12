@@ -1,3 +1,4 @@
+import { plainDetail } from "../lib/setupErrors";
 import { clearToken, getToken } from "../lib/auth";
 import type { Plan } from "../lib/plans";
 import { filenameFromDisposition, inlineSafe } from "../lib/files";
@@ -173,7 +174,7 @@ async function errorFor(res: Response): Promise<Error> {
   } catch {
     /* ignore parse failure */
   }
-  return new Error(`${res.status}: ${detail}`);
+  return new Error(`${res.status}: ${plainDetail(detail)}`);
 }
 
 /** fetch with the bearer token; a 401 drops the token, any non-2xx throws. */

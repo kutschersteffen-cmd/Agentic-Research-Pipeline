@@ -75,3 +75,12 @@ test("discovery items: a found document is approved, rejected or escalated; an e
   assert.equal(ITEM_KIND_LABEL.discovered_document, "Found document");
   assert.equal(ITEM_KIND_LABEL.no_documents, "No documents");
 });
+
+test("fieldItemKey appends a list item's basis the way the backend's period_key does", () => {
+  // backend: arp/schemas/review.py period_key. Without it every action row of a field shared one key and read "No review needed".
+  const r = { company_id: "company", issuer_key: "ISS" };
+  assert.equal(fieldItemKey(r, { field_id: "ta_action_status", basis: "action:P1:12:1" }), "ISS:ta_action_status:unspecified|action|P1|12|1");
+  assert.equal(fieldItemKey(r, { field_id: "f", period_end: "2030-12-31", basis: "region:EU" }), "ISS:f:2030-12-31|region|EU");
+  assert.equal(fieldItemKey(r, { field_id: "f", period_end: "2024-12-31", basis: "reported" }), "ISS:f:2024-12-31");
+  assert.equal(fieldItemKey(r, { field_id: "f", basis: null }), "ISS:f:unspecified");
+});

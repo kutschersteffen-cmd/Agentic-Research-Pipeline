@@ -69,7 +69,8 @@ async def current_user(request: Request, settings: Settings = Depends(settings_d
     origin = request.headers.get("Origin")
     # A browser on a foreign site can still send simple cross-origin requests
     # (no preflight) to loopback; those carry its Origin, so no bypass for them.
-    same_site = origin is None or origin in settings.allowed_origins
+    # "*" in allowed_origins means any origin, as it does for CORS: behind a reverse proxy the Origin is the proxy's.
+    same_site = origin is None or origin in settings.allowed_origins or "*" in settings.allowed_origins
     if settings.auth_mode == "dev" and same_site and request.client and _dev_trusted(request.client.host, settings):
         return Principal(user_id=settings.dev_user, name=settings.dev_user, role="approver", roles=list(GRANTS))
     scheme, _, token = request.headers.get("Authorization", "").partition(" ")

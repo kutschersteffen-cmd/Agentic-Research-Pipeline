@@ -7,6 +7,7 @@ from collections import Counter, defaultdict
 from arp.decision.dataset import Dataset, build_dataset
 from arp.presets.transition_plan import SCHEMA_ID as TRANSITION_PLAN_SCHEMA_ID
 from arp.schemas.common import RunManifest
+from arp.storage.portfolio_store import portfolio_directories
 from arp.storage.run_store import RunStore
 
 # Column names deliberately follow the conventions the role/direction
@@ -400,8 +401,7 @@ def from_portfolio_snapshot(store, as_of: str | None = None, portfolio_ids: list
     if not holdings:
         raise ValueError(f"No holdings as of {resolved}.")
 
-    securities = {s.security_id: s for s in store.list_securities()}
-    companies = {c.company_id: c for c in store.list_companies()}
+    securities, companies = portfolio_directories(store)
 
     exposure: dict[str, float] = defaultdict(float)
     for holding in holdings:

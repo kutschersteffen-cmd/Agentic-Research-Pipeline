@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import random
+from calendar import monthrange
 from dataclasses import dataclass, field
+from datetime import date
 
 from arp.portfolio.climate import mock_esg_source
 from arp.portfolio.entity_resolution import SecurityMaster, resolve_all
@@ -17,6 +19,21 @@ from arp.storage.portfolio_store import PortfolioStore
 # (deterministically seeded, not sourced from any real feed) --
 # `security_id`s carry a "MOCK" marker for exactly this reason.
 
+
+
+def snapshot_dates(today: date) -> list[str]:
+    """Four quarterly month ends, the newest being the last month end before `today`: the month the feeds
+    overview and the monthly run expect, so a fresh seed is never "behind"."""
+    months = today.year * 12 + today.month - 2  # the previous month, counted from year 0
+    out = []
+    for back in (9, 6, 3, 0):
+        year, month = divmod(months - back, 12)
+        out.append(date(year, month + 1, monthrange(year, month + 1)[1]).isoformat())
+    return out
+
+
+# The default: fixed, so anything built on a seeded store is reproducible. The seed command and the app's
+# "Seed demo dataset" pass today's date instead (snapshot_dates), so what a person sees is current.
 SNAPSHOT_DATES = ["2025-11-28", "2026-02-27", "2026-05-29", "2026-08-12"]
 
 # company_id, name, country, GICS-style sector label, native currency
@@ -167,18 +184,18 @@ def _build_companies_and_securities() -> tuple[list[CompanyRef], list[SecurityRe
     return companies, securities
 
 
-def _build_holdings(securities_by_id: dict[str, SecurityRef]) -> dict[str, dict[str, list[Holding]]]:
+def _build_holdings(securities_by_id: dict[str, SecurityRef], dates: list[str]) -> dict[str, dict[str, list[Holding]]]:
     """Returns {portfolio_id: {as_of_date: [Holding, ...]}}."""
-    holdings_by_portfolio: dict[str, dict[str, list[Holding]]] = {p.portfolio_id: {d: [] for d in SNAPSHOT_DATES} for p in _PORTFOLIOS}
+    holdings_by_portfolio: dict[str, dict[str, list[Holding]]] = {p.portfolio_id: {d: [] for d in dates} for p in _PORTFOLIOS}
 
     def add_positions(portfolio_id: str, security_id: str, base_market_value: float) -> None:
         security = securities_by_id[security_id]
         base_price = 120.0 if security.asset_class == "equity" else 101.0
         base_quantity = round(base_market_value / base_price)
-        prices = _price_series(f"{portfolio_id}::{security_id}", base_price, SNAPSHOT_DATES)
-        quantities = _quantity_series(f"{portfolio_id}::{security_id}", base_quantity, SNAPSHOT_DATES)
-        fx = _fx_series(security.currency, SNAPSHOT_DATES)
-        for d in SNAPSHOT_DATES:
+        prices = _price_series(f"{portfolio_id}::{security_id}", base_price, dates)
+        quantities = _quantity_series(f"{portfolio_id}::{security_id}", base_quantity, dates)
+        fx = _fx_series(security.currency, dates)
+        for d in dates:
             market_value = round(prices[d] * quantities[d], 2)
             holdings_by_portfolio[portfolio_id][d].append(
                 Holding(
@@ -202,7 +219,7 @@ def _build_holdings(securities_by_id: dict[str, SecurityRef]) -> dict[str, dict[
 
 
 async def generate_demo_dataset(
-    store: PortfolioStore
+    store: PortfolioStore, today: date | None = None,
 ) -> DemoDatasetSummary:
     """Seeds a realistic, deterministic multi-portfolio demo dataset into
     `store`: companies, securities (with one deliberately unresolved
@@ -215,6 +232,7 @@ async def generate_demo_dataset(
     `company_id`/`security_id`, so re-running this against a fresh store
     always reproduces the same dataset.
     """
+    dates = snapshot_dates(today) if today else SNAPSHOT_DATES  # `today`: snapshots that end at the last month end
     companies, securities = _build_companies_and_securities()
     for c in companies:
         store.save_company(c)
@@ -231,7 +249,7 @@ async def generate_demo_dataset(
         store.save_portfolio(p)
 
     securities_by_id = {s.security_id: s for s in securities}
-    holdings_by_portfolio = _build_holdings(securities_by_id)
+    holdings_by_portfolio = _build_holdings(securities_by_id, dates)
     holding_rows = 0
     for portfolio_id, by_date in holdings_by_portfolio.items():
         for as_of_date, rows in by_date.items():
@@ -242,14 +260,14 @@ async def generate_demo_dataset(
 
     observation_count = 0
     for company in companies:
-        for as_of_date in SNAPSHOT_DATES:
+        for as_of_date in dates:
             period = f"snapshot:{as_of_date}"
             internal_obs = mock_esg_source.generate_internal_api_observations(company, period, as_of_date)
             for obs in internal_obs:
                 store.append_observation(obs)
                 observation_count += 1
 
-    record_load(store, LoadRecord(kind="esg", source_id="default", month=SNAPSHOT_DATES[-1][:7], status="ok", content_hash="demo"))
+    record_load(store, LoadRecord(kind="esg", source_id="default", month=dates[-1][:7], status="ok", content_hash="demo"))
 
     news_source = MockNewsSource()
     already_ingested = {(n.company_id, n.headline) for n in store.list_news()}
@@ -265,7 +283,7 @@ async def generate_demo_dataset(
         company_count=len(companies),
         security_count=len(securities),
         portfolio_count=len(_PORTFOLIOS),
-        snapshot_dates=list(SNAPSHOT_DATES),
+        snapshot_dates=list(dates),
         holding_rows=holding_rows,
         climate_observations=observation_count,
         climate_mismatch_companies=sorted(_CLIMATE_MISMATCH_COMPANIES),

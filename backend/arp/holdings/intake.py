@@ -98,12 +98,13 @@ def ingest(
         res = store.get_resolution(isin)
         if open_:
             unresolved.append(r)
-            if res is None:
+            if res is None or res.company_id:  # also when the master no longer names the issuer it once did
                 store.save_resolution(SecurityResolution(
                     security_id=isin, company_id=None, confidence=0.0, method="isin_exact", needs_review=True,
                 ))
-        elif res is not None and res.needs_review:
-            store.save_resolution(res.model_copy(update={"needs_review": False}))
+        elif res is None or res.needs_review or res.company_id != key:
+            # the issuer the master names: analytics read a security's company from here (portfolio_directories)
+            store.save_resolution(SecurityResolution(security_id=isin, company_id=key, confidence=1.0, needs_review=False))
 
     def loaded(revision: int) -> None:
         digest = hashlib.sha256(json.dumps([h.model_dump(exclude={"source_ref"}) for h in holdings], sort_keys=True,

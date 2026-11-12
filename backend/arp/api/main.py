@@ -3,12 +3,14 @@ from __future__ import annotations
 import logging
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from arp.api.auth import Principal, authorize, current_user, load_users
 from arp.api.deps import (
@@ -241,3 +243,23 @@ def health() -> dict:
 @app.get("/api/me")
 def me(user: Principal = Depends(current_user)) -> Principal:
     return user
+
+
+class _IsolatedStaticFiles(StaticFiles):
+    """The built frontend, with the cross-origin isolation headers Decision Studio's threaded WebAssembly
+    needs (the same two frontend/vite.config.ts and nginx.conf send)."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+        return response
+
+
+def mount_frontend(app: FastAPI, dist: Path | None) -> None:
+    """Serve the built frontend at / (ARP_FRONTEND_DIST). Mounted last, so every API route wins."""
+    if dist is not None:
+        app.mount("/", _IsolatedStaticFiles(directory=dist, html=True), name="frontend")
+
+
+mount_frontend(app, settings_dep().frontend_dist)

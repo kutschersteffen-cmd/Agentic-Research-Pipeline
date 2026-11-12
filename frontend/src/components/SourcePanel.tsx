@@ -96,7 +96,10 @@ function TextView({ source, initial }: { source: ActiveSource; initial: SourceTe
       ? highlightParts(text.page_text, text.char_start - text.page_start, text.char_end - text.page_start)
       : null;
 
-  useEffect(() => markRef.current?.scrollIntoView({ block: "center" }), [text]);
+  // A block body: scrollIntoView() returns a promise in current Chrome, and whatever an effect returns is called as its clean-up.
+  useEffect(() => {
+    void markRef.current?.scrollIntoView({ block: "center" });
+  }, [text]);
 
   function goTo(page: number) {
     setError("");
@@ -198,7 +201,7 @@ function PageView({ rawUrl, page, mark }: { rawUrl: string; page: number; mark?:
           <div
             key={i}
             aria-hidden="true"
-            ref={i === 0 ? (el) => el?.scrollIntoView({ block: "center" }) : undefined}
+            ref={i === 0 ? (el) => void el?.scrollIntoView({ block: "center" }) : undefined}
             className="source-page-box"
             style={{ left: `${b.l * 100}%`, top: `${b.t * 100}%`, width: `${(b.r - b.l) * 100}%`, height: `${(b.b - b.t) * 100}%` }}
           />

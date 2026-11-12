@@ -68,7 +68,7 @@ def repeat_rows(flow: ArgusFlow, files: list[FlowFile], last_runs: dict[str, str
     for cid, now in kept.items():
         run_id = last_runs.get(cid)
         m = run_store.load_manifest(run_id) if run_id else None
-        if m is None or cid not in prior:
+        if m is None or m.params.get("trial") or cid not in prior:  # a trial stored no facts: nothing was extracted before
             continue
         recorded = read_only_documents(run_store.run_dir(run_id))  # runs started from Argus record their files
         earlier = recorded.get(cid, set()) if recorded is not None else {

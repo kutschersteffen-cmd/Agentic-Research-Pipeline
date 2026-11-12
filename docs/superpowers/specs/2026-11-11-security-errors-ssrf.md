@@ -206,9 +206,9 @@ ERROR with `exc_info` on logger `arp.api.main`. `RID` is the body's `request_id`
 | AC-50 | `POST /api/themes/runs/r1/review` with `item_key="k"`, `decision="maybe"` | request | 400, `detail` exactly `decision must be one of ['approve', 'edit', 'escalate', 'reject']` | unit |
 | AC-51 | the same endpoint, `item_key="held:x"`, `decision="approve"` | request | 400, `detail` exactly `decide this item through the review workbench` | unit |
 | AC-52 | the same endpoint, `item_key="k"`, `decision="approve"`, run `r1` whose manifest `run_type` is `extraction` | request | 400, `detail` exactly `decide extraction items through the review workbench` | unit |
-| AC-53 | `POST /api/signals/runs` with recipe bytes `b"{}"` | request | 400; `detail` equals `invalid recipe: ` plus each pydantic error as `<loc>: <msg>` joined by `; `, as `main` produces for `Recipe.model_validate_json(b"{}")` (the test records that string literally) | unit |
-| AC-54 | `POST /api/signals/runs`, a valid recipe whose `method` is registered but not in `APP_RUNNABLE` (the test names it) | request | 400, `detail` exactly `<method> runs from the CLI (arp signals run) or a notebook (arp.signal_lab.lab.Lab), not the app` | unit |
-| AC-55 | each class in the status-quo table, instantiated with the single string `"m"` (all 32 classes take a single message string) | raise from a route, GET | the listed status and body `{"detail":"m"}` | unit |
+| AC-53 | `POST /api/signals/runs` with recipe bytes `b"{}"` | request | 422 (the router's `except ValueError` answers it, as on `main`); `detail` equals `invalid recipe: ` plus each pydantic error as `<loc>: <msg>` joined by `; `, as `main` produces for `Recipe.model_validate_json(b"{}")` (the test records that string literally) | unit |
+| AC-54 | `POST /api/signals/runs`, a valid recipe whose `method` is registered but not in `APP_RUNNABLE` (the test names it) | request | 422 (as on `main`), `detail` exactly `<method> runs from the CLI (arp signals run) or a notebook (arp.signal_lab.lab.Lab), not the app` | unit |
+| AC-55 | each class in the status-quo table, instantiated with the arguments it takes (`"m"`; `OpenSearchNotConfigured` takes none, so its fixed message is the body; `ThemeRunRefused` and `IntakeError` take `(400, "m")`) | raise from a route, GET | the listed status and body `{"detail":"m"}` | unit |
 
 **Status-quo table for AC-55**, fixed now from `main` bc0974d (all return today the status shown; the owner
 reviews the list; a class missing here is a 500 after the change, so the builder also greps every subclass of
@@ -221,6 +221,12 @@ deciding):
 503: `OpenSearchNotConfigured`, `RefreshDisabledError`, `BrowserUnavailable`, `RunBusy`,
 `PlanNotReplannable`, `PlanNotRunnable`, `StepLimitExceeded`, `SnapshotHashMismatch`, `SnapshotFrozen`,
 `ConcurrentPublish`.
+
+Added by the owner (found by the builder's grep; each keeps today's status).
+400: `StalePublish`, `CircularRunError`, `UnsupportedRunError`, `StartError`, `FillRefused`, `FieldIdCollision`,
+`UnreleasedFieldError`, `FieldVersionError`, `RiskModelCoverageError`, `RiskModelError`.
+503: `OpenSearchExtraNotInstalled`, `TaxonomyVersionConflict`, `PostgresExtraNotInstalled`, `CaptureStoreError`,
+`ObjectStoreExtraNotInstalled`, `ImportFailed`, `DataQualityBlock`, `CompanyGraphError`.
 
 Must not change: the 400 and 503 statuses and bodies of every listed domain class (AC-32 to AC-38, AC-55);
 HTTP exceptions (AC-48); the per-router 500 in `signals` (AC-49); the `check-postgres` output with no password

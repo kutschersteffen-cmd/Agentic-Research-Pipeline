@@ -1,3 +1,10 @@
+"""SSRF guard for every fetch of a URL this app did not hardcode.
+
+Known limit: DNS rebinding is not closed. `assert_safe_fetch_target` resolves the name and httpx
+resolves it again when it connects, so a hostile DNS server can answer safely the first time and
+with an internal address the second. Run the app behind an egress proxy or firewall that blocks
+internal ranges. Pinning the resolved IP in the transport is a follow-up (spec security-errors-ssrf).
+"""
 from __future__ import annotations
 
 import ipaddress
@@ -9,6 +16,7 @@ import httpx
 from arp.errors import ClientInputError
 
 _ALLOWED_SCHEMES = {"http", "https"}
+_CGNAT = ipaddress.ip_network("100.64.0.0/10")  # carrier-grade NAT; not "private" to the ipaddress module
 
 
 class UnsafeURLError(ClientInputError):
@@ -23,6 +31,10 @@ class UnsafeURLError(ClientInputError):
 
 def _is_disallowed_ip(ip: str) -> bool:
     addr = ipaddress.ip_address(ip)
+    if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped:
+        addr = addr.ipv4_mapped
+    if addr in _CGNAT:
+        return True
     return addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_multicast or addr.is_reserved or addr.is_unspecified
 
 
@@ -55,4 +67,9 @@ async def ssrf_guard_request_hook(request: httpx.Request) -> None:
     redirect. Pass this to every httpx.AsyncClient that fetches a URL not
     hardcoded by this app (a taxonomy source, a company website, a
     discovered document link)."""
+    assert_safe_fetch_target(request.url)
+
+
+def ssrf_guard_sync_request_hook(request: httpx.Request) -> None:
+    """Sync twin of ssrf_guard_request_hook, for an httpx.Client."""
     assert_safe_fetch_target(request.url)
