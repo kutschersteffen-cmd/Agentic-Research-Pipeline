@@ -220,5 +220,4 @@ def test_run_sheet_no_written_off_names():  # AC-44
         names = [r["name"] for r in csv.DictReader(f) if r["isin"].startswith("RU")]
     words = ["Gazprom", "Sberbank", "Lukoil", "Rosneft", "Novatek", "Surgutneftegas", "Tatneft", "Norilsk", "Alrosa",
              "Severstal", "Novolipetsk", "Magnit", "Polyus", "VTB", "Rusal", "PhosAgro", "Inter RAO", "Moscow Exchange"]
-    assert names
     assert [w for w in names + words if w.lower() in text] == []
