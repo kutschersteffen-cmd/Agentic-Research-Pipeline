@@ -167,3 +167,58 @@ def test_documents_pdf_ignored():  # AC-13
 
 def test_gitkeep_tracked():  # AC-53
     assert _git("ls-files", "demo/showcase/documents/.gitkeep").stdout.strip() == "demo/showcase/documents/.gitkeep"
+
+
+def _run_sheet() -> str:
+    return (PACK / "RUN_SHEET.md").read_text()
+
+
+def test_run_sheet_blocks_and_fallbacks():  # AC-17
+    lines = _run_sheet().splitlines()
+    for start in ("0 to 12", "12 to 24", "24 to 36", "36 to 48", "48 to 60"):
+        assert sum(line.startswith(f"## {start}") for line in lines) == 1, start
+    for scene in ("A1", "A2", "T1", "T2", "R1", "R2", "R3", "S1", "S2"):
+        assert sum(line.startswith(f"Fallback {scene}:") for line in lines) == 1, scene
+
+
+def _section(text: str, heading: str) -> str:
+    return text.split(f"## {heading}", 1)[1].split("\n## ", 1)[0]
+
+
+def test_run_sheet_day_before():  # AC-24
+    day = _section(_run_sheet(), "Day before")
+    for needle in ("python scripts/load_showcase_pack.py", '"Energy transition"', "accept", "release",
+                   "Showcase companies"):
+        assert needle in day, needle
+    wait = [line for line in day.splitlines() if "finished" in line and all(s in line for s in ("argus-capex", "argus-plan", "voting"))]
+    assert len(wait) == 1 and "Argus" in wait[0] and "Proxy Voting" in wait[0]
+
+
+def test_run_sheet_labels():  # AC-38
+    lines = _run_sheet().splitlines()
+    invented = [line for line in lines if line.startswith("Invented:")]
+    simulated = [line for line in lines if line.startswith("Simulated:")]
+    assert len(invented) == 1 and "trigger-scan rows" in invented[0]
+    assert len(simulated) == 1
+    for words in ("ESG values", "controversial revenue shares", "transition grades", "June to October"):
+        assert words in simulated[0], words
+
+
+def test_run_sheet_depends_on():  # AC-41
+    table = [line for line in _section(_run_sheet(), "Depends on").splitlines() if line.startswith("| ") and "---" not in line][1:]
+    names = ("#434", "Themes fixes #429", "Themes fixes PR 2", "index-starting-universe PR 2", "Argus fixes PR 2",
+             "Argus fixes PR 3", "showcase-portfolio-data PR 3")
+    assert len(table) == len(names)
+    for name, row in zip(names, table, strict=True):
+        cells = [c.strip() for c in row.strip("|").split("|")]
+        assert name in cells[0] and len(cells) == 3 and all(cells), row
+
+
+def test_run_sheet_no_written_off_names():  # AC-44
+    text = _run_sheet().lower()
+    with (PACK.parents[1] / "data" / "simulated" / "esg_simulated.csv").open(newline="") as f:
+        names = [r["name"] for r in csv.DictReader(f) if r["isin"].startswith("RU")]
+    words = ["Gazprom", "Sberbank", "Lukoil", "Rosneft", "Novatek", "Surgutneftegas", "Tatneft", "Norilsk", "Alrosa",
+             "Severstal", "Novolipetsk", "Magnit", "Polyus", "VTB", "Rusal", "PhosAgro", "Inter RAO", "Moscow Exchange"]
+    assert names
+    assert [w for w in names + words if w.lower() in text] == []
