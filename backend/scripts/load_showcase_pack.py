@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import csv
 import importlib.util
+import io
 import os
 import shutil
 import subprocess
@@ -113,22 +114,78 @@ def _present(ctx: Ctx, doc_type: str, company_ids: set[str] | None = None) -> li
     return [c.company_id for c in _companies(ctx) if c.company_id in have and (company_ids is None or c.company_id in company_ids)]
 
 
-def argus_capex(ctx: Ctx) -> tuple[str, str]:
-    if not _present(ctx, "10-K"):
+class Unreachable(Exception):
+    pass
+
+
+def _api(ctx: Ctx, method: str, path: str, **kw) -> dict:
+    try:
+        r = ctx.client.request(method, path, **kw)
+    except (httpx.ConnectError, httpx.ConnectTimeout) as e:
+        raise Unreachable from e
+    if r.status_code >= 400:
+        try:
+            detail = r.json().get("detail", r.text)
+        except ValueError:
+            detail = r.text
+        raise RuntimeError(f"{r.status_code} {detail}")
+    return r.json() if r.content else {}
+
+
+def _argus(ctx: Ctx, schema_id: str, company_ids: list[str], *, rwe_only: bool = False) -> tuple[str, str]:
+    """One Argus extraction over the given companies' annual reports, reporting year 2025, template `schema_id`."""
+    if not company_ids:
         return "skip", "no document present"
-    raise NotImplementedError
+    try:
+        flows = _api(ctx, "GET", "/api/argus/flows")["flows"]
+    except Unreachable:
+        return "skip", f"API not reachable at {ctx.base_url}"
+    # Argus extractions have no name: the same template and year (and, for the plan, RWE alone) is the same one
+    exists = any((f.get("schema_choice") or {}).get("schema_id") == schema_id and f.get("reporting_year") == 2025
+                 and (not rwe_only or [c["company_id"] for c in f.get("companies", [])] == ["RWE"]) for f in flows)
+    if exists and not ctx.again:
+        return "skip", "already exists"
+    version = _api(ctx, "POST", f"/api/extraction/presets/{schema_id}/install")["version"]
+    if not _api(ctx, "GET", f"/api/extraction/schemas/{schema_id}", params={"version": version}).get("release_flag"):
+        # a draft template runs as a trial on one company; the owner chose to release the presets (13 Nov)
+        _api(ctx, "POST", f"/api/extraction/schemas/{schema_id}/versions/{version}/release")
+    flow_id = _api(ctx, "POST", "/api/argus/flows")["flow_id"]
+    rows = [r for r in _read(ctx, "companies.csv") if r["company_id"] in company_ids]
+    upload = io.StringIO()
+    writer = csv.DictWriter(upload, fieldnames=list(rows[0]))
+    writer.writeheader()
+    writer.writerows(rows)
+    _api(ctx, "POST", f"/api/argus/flows/{flow_id}/companies/upload",
+         files={"file": ("companies.csv", upload.getvalue().encode(), "text/csv")})
+    _api(ctx, "PATCH", f"/api/argus/flows/{flow_id}", json={
+        "reporting_year": 2025, "source": "upload", "step": 3,
+        "schema_choice": {"kind": "schema", "schema_id": schema_id, "version": version}})
+    _api(ctx, "POST", f"/api/argus/flows/{flow_id}/files", json={"all_that_pass": True})
+    _api(ctx, "POST", f"/api/argus/flows/{flow_id}/start")
+    return "ok", f"started for {len(company_ids)} companies (flow {flow_id})"
+
+
+def argus_capex(ctx: Ctx) -> tuple[str, str]:
+    return _argus(ctx, "sch_transition_capex", _present(ctx, "10-K"))
 
 
 def argus_plan(ctx: Ctx) -> tuple[str, str]:
-    if not _present(ctx, "10-K", {"RWE"}):
-        return "skip", "no document present"
-    raise NotImplementedError
+    return _argus(ctx, "transition_plan_indicators", _present(ctx, "10-K", {"RWE"}), rwe_only=True)
 
 
 def voting(ctx: Ctx) -> tuple[str, str]:
-    if not _present(ctx, "DEF-14A"):
+    ids = _present(ctx, "DEF-14A")
+    if not ids:
         return "skip", "no document present"
-    raise NotImplementedError
+    try:
+        runs = _api(ctx, "GET", "/api/runs", params={"run_type": "proxy_voting"})["runs"]
+    except Unreachable:
+        return "skip", f"API not reachable at {ctx.base_url}"
+    if runs and not ctx.again:
+        return "skip", "already exists"
+    companies = [c.model_dump(mode="json", exclude_none=True) for c in _companies(ctx) if c.company_id in ids]
+    run_id = _api(ctx, "POST", "/api/voting/runs", json={"companies": companies})["run_id"]
+    return "ok", f"started for {len(companies)} companies (run {run_id})"
 
 
 STEPS: dict[str, Callable[[Ctx], tuple[str, str]]] = {
