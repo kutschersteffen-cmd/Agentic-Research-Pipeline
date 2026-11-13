@@ -250,6 +250,7 @@ class Commitment(BaseModel):
     status: CommitmentStatus = CommitmentStatus.OPEN
     validated_by: str | None = None
     validated_at: str | None = None
+    evidence: str | None = None
 
 
 class MilestoneTransition(BaseModel):

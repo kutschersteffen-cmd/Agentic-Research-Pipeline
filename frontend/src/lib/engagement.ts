@@ -22,3 +22,10 @@ export function engagementLine(counts: EngagementCounts | null | "error"): strin
   const n = (k: keyof EngagementCounts) => (counts ? String(counts[k]) : "—");
   return `Engagement · ${n("open")} open · ${n("stalled")} stalled · ${n("escalated")} escalated`;
 }
+
+/** The trigger scan's note on signals whose company is not in the scanned list (they are skipped). */
+export function unlistedText(count: number, ids: string[]): string {
+  return count === 1
+    ? `1 signal skipped: its company is not in the list (${ids.join(", ")}).`
+    : `${count} signals skipped: their companies are not in the list (${ids.join(", ")}).`;
+}

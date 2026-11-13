@@ -65,6 +65,10 @@ export function EngagementIssuePanel({
   const [newContactName, setNewContactName] = useState("");
   const [newContactRole, setNewContactRole] = useState("");
   const [newContactEmail, setNewContactEmail] = useState("");
+  // The commitment whose "Verify" was clicked: verifying asks for evidence first.
+  const [verifying, setVerifying] = useState<string | null>(null);
+  const [evidence, setEvidence] = useState("");
+  const closed = issue.status === "resolved" || issue.status === "closed";
 
   useEffect(() => {
     setDossier(null);
@@ -184,7 +188,9 @@ export function EngagementIssuePanel({
 
   async function verifyCommitment(commitmentId: string) {
     await run(async () => {
-      await api.verifyCommitment(record.company_id, issue.issue_id, { commitment_id: commitmentId });
+      await api.verifyCommitment(record.company_id, issue.issue_id, { commitment_id: commitmentId, evidence: evidence.trim() });
+      setVerifying(null);
+      setEvidence("");
       await refreshRecord();
       await loadNextAction();
     });
@@ -247,9 +253,10 @@ export function EngagementIssuePanel({
               </option>
             ))}
           </select>
-          <button onClick={escalate} disabled={busy || !actor}>
+          <button onClick={escalate} disabled={busy || !actor || closed}>
             Set escalation stage
           </button>
+          {closed && <span className="help-text">A resolved or closed issue cannot be escalated.</span>}
         </div>
         <textarea rows={1} aria-label="Escalation reason" placeholder="Reason (optional)" value={escalateReason} onChange={(e) => setEscalateReason(e.target.value)} />
       </div>
@@ -299,12 +306,27 @@ export function EngagementIssuePanel({
                 <span>made {new Date(c.made_at).toLocaleDateString()}</span>
                 {c.target_date && <span>target {c.target_date}</span>}
                 {c.validated_by && <span>verified by {c.validated_by}</span>}
+                {c.evidence && <span>evidence: {c.evidence}</span>}
               </div>
             </div>
-            {c.status === "open" && (
-              <button onClick={() => verifyCommitment(c.commitment_id)} disabled={busy || !actor}>
+            {c.status === "open" && verifying !== c.commitment_id && (
+              <button onClick={() => { setVerifying(c.commitment_id); setEvidence(""); }} disabled={busy || !actor}>
                 Verify
               </button>
+            )}
+            {c.status === "open" && verifying === c.commitment_id && (
+              <div className="inline-fields">
+                <label className="field-label">
+                  Evidence (required)
+                  <input value={evidence} onChange={(e) => setEvidence(e.target.value)} placeholder="e.g. Board minutes, p. 3" />
+                </label>
+                <button onClick={() => verifyCommitment(c.commitment_id)} disabled={busy || !actor || !evidence.trim()}>
+                  Confirm verification
+                </button>
+                <button className="link-button" onClick={() => setVerifying(null)}>
+                  Cancel
+                </button>
+              </div>
             )}
           </div>
         ))}
@@ -355,6 +377,9 @@ export function EngagementIssuePanel({
             </div>
             {letter && (
               <div className="review-item">
+                {letter.placeholders && letter.placeholders.length > 0 && (
+                  <div className="banner banner-warning">Fill in before sending: {letter.placeholders.join(", ")}</div>
+                )}
                 <p>
                   <strong>{letter.subject}</strong> &rarr; {letter.recommended_recipient}
                 </p>

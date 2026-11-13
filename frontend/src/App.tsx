@@ -181,6 +181,12 @@ function App() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
+  // An announcement belongs to the screen it was made on: another screen starts with an empty live region.
+  useEffect(() => {
+    const el = document.getElementById("announcer");
+    if (el) el.textContent = "";
+  }, [active]);
+
   // A decision anywhere (see lib/announce) refreshes the counts below.
   const [decidedAt, setDecidedAt] = useState(0);
   useEffect(() => {
