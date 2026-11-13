@@ -14,7 +14,7 @@ from arp.stewardship.intake import IntakeReport, intake_engagements, intake_vote
 from arp.stewardship.intake_excel import read_workbook, template
 
 router = APIRouter(prefix="/api/stewardship/intake", tags=["stewardship"])
-_REJECTED = {422: {"model": IntakeReport}}
+_REJECTED = {422: {"model": IntakeReport, "description": "Rows rejected; nothing written"}}  # explicit: the default phrase differs across Python versions
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 

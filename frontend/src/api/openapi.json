@@ -40322,7 +40322,7 @@
         }
        }
       },
-      "description": "Unprocessable Content"
+      "description": "Rows rejected; nothing written"
      }
     },
     "summary": "Post Engagements",
@@ -40363,7 +40363,7 @@
         }
        }
       },
-      "description": "Unprocessable Content"
+      "description": "Rows rejected; nothing written"
      }
     },
     "summary": "Post Engagements Xlsx",
@@ -40446,7 +40446,7 @@
         }
        }
       },
-      "description": "Unprocessable Content"
+      "description": "Rows rejected; nothing written"
      }
     },
     "summary": "Post Votes",
@@ -40487,7 +40487,7 @@
         }
        }
       },
-      "description": "Unprocessable Content"
+      "description": "Rows rejected; nothing written"
      }
     },
     "summary": "Post Votes Xlsx",

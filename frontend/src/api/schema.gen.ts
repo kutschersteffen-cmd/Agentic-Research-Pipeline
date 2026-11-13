@@ -28942,7 +28942,7 @@ export interface operations {
                     "application/json": components["schemas"]["IntakeReport"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Rows rejected; nothing written */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -28975,7 +28975,7 @@ export interface operations {
                     "application/json": components["schemas"]["IntakeReport"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Rows rejected; nothing written */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -29039,7 +29039,7 @@ export interface operations {
                     "application/json": components["schemas"]["IntakeReport"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Rows rejected; nothing written */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -29072,7 +29072,7 @@ export interface operations {
                     "application/json": components["schemas"]["IntakeReport"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Rows rejected; nothing written */
             422: {
                 headers: {
                     [name: string]: unknown;
