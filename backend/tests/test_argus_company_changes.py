@@ -194,6 +194,33 @@ def test_no_ticker_and_no_identifier_reads_as_before(client, fid, sec):  # AC-12
     assert sec.asked == []
 
 
+def test_every_ticker_lookup_runs_on_the_apps_event_loop(settings, run_store):
+    """Code review of PR #425, round 2: the SEC source is one shared object with one `asyncio.Lock`. A lookup run on
+    an event loop of its own (`asyncio.run` in a request thread) waits for ever when another loop holds that lock."""
+    import asyncio
+
+    loops = []
+
+    class Sec:
+        async def resolve_cik(self, ticker):
+            loops.append(asyncio.get_running_loop())
+            return "789019"
+
+    app.dependency_overrides[settings_dep] = lambda: settings
+    app.dependency_overrides[get_run_store] = lambda: run_store
+    app.dependency_overrides[get_edgar_source] = Sec
+    try:
+        with TestClient(app) as c:  # one app loop for every request, as in the running app
+            fid = c.post("/api/argus/flows").json()["flow_id"]
+            key = add(c, fid, name="Microsoft", ticker="MSFT")["companies"][0]["company_id"]  # a sync endpoint
+            assert edit(c, fid, key, name="Microsoft", ticker="MSFT", isin="XX").status_code == 200  # a sync endpoint
+            upload(c, fid, "name,ticker\nApple,AAPL\n")  # an async endpoint: on the app's loop already
+    finally:
+        for dep in (settings_dep, get_run_store, get_edgar_source):
+            app.dependency_overrides.pop(dep, None)
+    assert len(loops) == 3 and loops[0] is loops[1] is loops[2]
+
+
 def test_official_filings_get_the_cik_the_ticker_gave(client, fid, sec, run_store, monkeypatch):  # AC-140
     from arp.api.routers import argus as router
 

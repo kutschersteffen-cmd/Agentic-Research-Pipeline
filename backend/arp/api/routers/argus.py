@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
+from anyio import from_thread
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
@@ -563,7 +564,8 @@ def edit_company(
     """Registers the row again with the form's values and replaces it in place."""
     _unstarted(store.get(flow_id), company_id)
     changes = req.model_dump()
-    ticker_problem = asyncio.run(ticker_ciks([changes], edgar)).get(0)
+    # on the app's event loop: the shared SEC source has one lock, and a loop of this thread's own could wait on it for ever
+    ticker_problem = from_thread.run(ticker_ciks, [changes], edgar).get(0)
 
     def apply(f: ArgusFlow) -> None:
         _unstarted(f, company_id)
@@ -635,4 +637,4 @@ def add_flow_companies(
             raise HTTPException(400, f"Could not read the universe file: {exc}") from exc
     if not rows:
         raise HTTPException(400, "Provide a company or a saved universe.")
-    return _add(flow_id, rows, asyncio.run(ticker_ciks(rows, edgar)), store, settings, view)
+    return _add(flow_id, rows, from_thread.run(ticker_ciks, rows, edgar), store, settings, view)  # as edit_company
