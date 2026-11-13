@@ -116,8 +116,11 @@ Target look: the mockup the owner approved, <https://claude.ai/artifact/J3ryTPUL
 - **Season**: calendar year of `as_of`; a vote counts when its meeting date is in that year and on or before `as_of`.
 - **Scope**: `portfolio_id` absent = all portfolios: every engagement record, every confirmed tier, every meeting
   and vote, unfiltered. `portfolio_id` given = only companies held in that portfolio per
-  `load_holdings_as_of(as_of, [portfolio_id])` (matched by `company_id` through the security), applied to every
-  section.
+  `load_holdings_as_of(as_of, [portfolio_id])` applied to every section.
+- **Company key**: `securities[h.security_id].company_id` (the universe id, e.g. `isin_DE0007037129`), as
+  `compute_financed_emissions` uses it. It is compared with `EngagementRecord.company_id`, the tier row's
+  `issuer_id`, `vote_meetings.company_id` and the run ballot's `company_id`. The registry UUID on `holdings` is
+  not used.
 
 ## Data sources
 
@@ -170,12 +173,15 @@ Rules:
   when both its numbers are 0. `engaged` = selected companies with an open issue in that programme; `selected` =
   selected companies attributed to it (an engaged company counts once in each programme of its open issues; a
   non-engaged one once, by tier rule). A company may appear in several rows; `summary` counts it once.
-- `engagement_meetings`: open issues whose `planned_meeting_date` is in the window, sorted by date then company.
-- `shareholder_meetings`: meetings in the window, sorted by date then company. One row per company and meeting
+- `engagement_meetings`: open issues whose `planned_meeting_date` is in the window, sorted by date.
+- Ties in `engagement_meetings`, `shareholder_meetings` and `control_gaps` sort by company name, then `issue_id`
+  (meetings: `company_id`).
+- `shareholder_meetings`: meetings in the window, sorted by date. One row per company and meeting
   date. From runs: the latest `proxy_voting` run with a ballot for that company and date; `items` = its ballot
   items; `flagged` = items whose policy recommendation is `against` or `withhold` while management recommends
   `for`; `ballot_state` = `cast` when every item is cast, `decided` when no item is `awaiting` but not every item is
-  cast, else `awaiting`. From the ledger, only when no run row exists for that company and date: `items` = its
+  cast, else `awaiting`. From the ledger, only when no run row exists for that company and date (meeting date = UTC date part of
+  `meeting_date`; meetings with null `company_id` are skipped; `company` = `stw_companies.name`, else `issuer_name`): `items` = its
   `vote_items`; `flagged` = null; `ballot_state` = `cast` when every item has a decision, `awaiting` when some do,
   `not_started` when none do; `run_id` null. `days_to_meeting` = meeting date − `as_of` in days. `action_due` =
   `ballot_state` is `awaiting` or `not_started` and `days_to_meeting` ≤ 7.
@@ -187,14 +193,17 @@ Rules:
   a resolution, 7 Public statement.
 - `voting` (season, in scope): ledger decisions (the latest `decided_at` per item) plus run items with status
   `cast`; a run item and a ledger item with the same company, meeting date and item number count once (ledger).
-  `for`/`against`/`abstain` from the vote value (`withhold` counts as `against`); anything else is `other`.
+  `for`/`against`/`abstain` from the vote value, compared lower-cased and trimmed (`withhold` counts as
+  `against`); anything else is `other`.
   `against_management`: the ledger's `against_management` flag, or the run feed's `against_management`.
   `meetings` = distinct (company, meeting date) among the counted items. Topics, fixed order, each item in exactly one: **Shareholder
-  proposals** (ledger `proponent` is not the issuer, i.e. contains "holder"; run type `shareholder_resolution`),
+  proposals** (ledger `proponent` contains `holder`, case-insensitive, nothing else compared; run type
+  `shareholder_resolution`),
   **Remuneration** (category contains "SAY-ON-PAY" or "COMPENSATION"; run type `say_on_pay`), **Director
   elections** (category contains "DIRECTOR"; run type `director_election`), **Auditors** (category contains
-  "AUDIT"; run type `auditor_ratification`), **Capital and other** (everything else). Categories are matched
-  case-insensitively, first match in this order.
+  "AUDIT"; run type `auditor_ratification`), **Capital and other** (everything else). A ledger item matches a
+  category rule when any element of its `categories` array contains the text, case-insensitive; rules are tried
+  in the order listed and the first match wins.
 
 ### `emissions` (PR 2)
 
@@ -236,8 +245,8 @@ param is `cockpit` (`#/stewardiq` keeps showing `WorkspaceOverview`). Layout and
 - Upcoming engagement meetings: Date, Company + programme, Objective (or "No objective"), Step. Up to 6 rows, then
   a button `All <n>` that shows the rest in place.
 - Upcoming shareholder meetings: Date, Company, Items, Flagged (`–` when null), Ballot. Ballot text: `Cast`,
-  `Decided, not cast`, `Awaiting decision`, `Not started`; when `action_due`, the text is `Decision due in <n> days`
-  (`today` for 0, `1 day` for 1) in the signal style. A row with `run_id` links to `#/voting/<run_id>`. Up to 6 rows,
+  `Decided, not cast`, `Awaiting decision`, `Not started`; when `action_due`, the text is exactly `Decision due today` (0),
+  `Decision due in 1 day` (1) or `Decision due in <n> days` (2–7), in the signal style. A row with `run_id` links to `#/voting/<run_id>`. Up to 6 rows,
   then `All <n>`. Footnote: "Flagged: items where the voting policy recommends a vote against management."
 - Control gaps: header count "<n> need you" in the signal style; each row Company, programme · "open <d> days", gap
   text `No objective`, `No next meeting`, or both joined by ` · `. Footnote: "A gap is an open engagement with no
@@ -245,6 +254,11 @@ param is `cockpit` (`#/stewardiq` keeps showing `WorkspaceOverview`). Layout and
 - Escalation ladder: 7 rows, step number, label, count, company names (step 1 shows only the count).
 - Voting, season to date: one stacked bar for / against / abstain (other only if > 0) with counts, and "Against
   management, by topic": one bar per topic, "<rate>% · <a> of <n>".
+- Percentages on the page are whole numbers, rounded half up; Mt CO₂e to two decimals; counts with thousands
+  separators.
+- `as_of`: the page reads an optional `?as_of=YYYY-MM-DD` from the hash (`#/stewardiq/cockpit?as_of=2026-11-17`)
+  and passes it to the API; without it the API's default (today UTC) applies. The header shows the response's
+  `as_of`.
 - Empty sections say so in one line (e.g. "No engagement meetings in the next 30 days."), never a blank card.
 - Load failure: one `role="alert"` line "The cockpit could not be loaded: <message>".
 - House style per `DESIGN.md`: both themes, tokens not hex, tabular numbers, hand-built SVG/CSS. Signal colour only
@@ -286,7 +300,7 @@ Content (fixed dates, chosen so the showcase on 17 Nov 2026 shows the mockup's s
 
 | PR | Content | Risk | Holdout `Rows:` | Ships alone? |
 |---|---|---|---|---|
-| 1 | `planned_meeting_date` + `save_record` (both stores); `GET /api/stewardship/cockpit` with every field except `emissions` (always `null`); `arp showcase load-stewardship`; the page with every section except the emissions panel and figure; the overview link; regenerated API files | normal | AC-1 to AC-60: PR body line `Rows: AC-1, AC-2, …, AC-60` (every ID listed) | Yes: complete page |
+| 1 | `planned_meeting_date` + `save_record` (both stores); `GET /api/stewardship/cockpit` with every field except `emissions` (always `null`); `arp showcase load-stewardship`; the page with every section except the emissions panel and figure; the overview link; regenerated API files | normal | AC-1 to AC-60 and AC-70 to AC-72: PR body line `Rows: AC-1, AC-2, …, AC-60, AC-70, AC-71, AC-72` (every ID listed) | Yes: complete page |
 | 2 | Per-company financed emissions; `emissions` in the response; the emissions panel and key figure | high | AC-61 to AC-69 (last slice: no `Rows:` line) | — |
 | 3 (optional, droppable) | Cockpit entry on the start page (`#/home`), visual polish after `/impeccable:impeccable audit` | low | none | — |
 
@@ -307,8 +321,11 @@ On the showcase stack: `arp showcase load` (portfolios, needed for the scope sel
 ## Acceptance
 
 All `holdout` rows run on the e2e stack (`ARP_ENGAGEMENT_STORE=postgres`, Postgres set). A test starts from empty
-`stw_*` / `vote_*` tables, an empty tier log and no `proxy_voting` runs, and builds its fixtures with
-`save_record`, `TierStore.confirm` and direct inserts into the vote tables. `as_of` is always passed. "Cockpit" below
+`stw_*` / `vote_*` tables, an empty tier log (`<settings.stewardship_streams_dir>/tier_assignments.jsonl`, env
+`ARP_STEWARDSHIP_STREAMS_DIR`) and no `proxy_voting` runs. It builds fixtures with `save_record` on the active
+engagement store, `TierStore(settings.stewardship_streams_dir).confirm`, direct inserts into the vote tables, and,
+for portfolios, the portfolio store's `save_portfolio`, `save_security` and `save_snapshot` (securities carry the
+company key, see Definitions). `as_of` is always passed. "Cockpit" below
 means `GET /api/stewardship/cockpit`.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
@@ -349,7 +366,7 @@ means `GET /api/stewardship/cockpit`.
 | AC-34 | AC-31 plus a ledger meeting for H on 2026-11-19 | same | exactly one row for H on that date, with the run's `run_id` | unit |
 | AC-35 | ledger, company G: meeting 2026-03-10 with four decided items: category `DIRECTOR ELECTIONS` `for` (`against_management` false), category `SECTION 14A SAY-ON-PAY VOTES` `against` (true), category `AUDIT-RELATED` `abstain` (false), proponent `Security holder` `for` (true); a meeting 2025-12-01 with one decided item; a meeting 2026-11-20 with one decided item | Cockpit `?as_of=2026-11-17` | `voting` is `{season: 2026, meetings: 1, items: 4, for: 2, against: 1, abstain: 1, other: 0, against_management: 2}` | holdout |
 | AC-36 | AC-35 | same | `voting.topics` is exactly `[{Shareholder proposals,1,1},{Remuneration,1,1},{Director elections,1,0},{Auditors,1,0},{Capital and other,0,0}]` as `{topic, items, against_management}` | holdout |
-| AC-37 | a ledger item with a `withhold` decision and one with `1 year` | same | `against` +1 and `other` +1 | holdout |
+| AC-37 | ledger only: a 2026-03-10 meeting for G with two decided items, votes `Withhold` and `1 Year` | Cockpit `?as_of=2026-11-17` | `voting` has `items` 2, `for` 0, `against` 1, `abstain` 0, `other` 1 | holdout |
 | AC-38 | portfolio P holds company A only; A and B both engaged, selected, with meetings and gaps | Cockpit `?portfolio_id=P&as_of=2026-11-17` | every list holds only A; `summary.selected` is 1; `scope` is `{portfolio_id: P, label: <P's name>}` | holdout |
 | AC-39 | 7 portfolios exist | Cockpit `?as_of=2026-11-17` | `scope` is `{portfolio_id: null, label: "All portfolios (7)"}`; `portfolios` has 7 entries sorted by `name` | holdout |
 | AC-40 | empty tables, then `arp showcase load-stewardship` | run it twice | first run exits 0 and prints exactly three lines starting `ok engagements:`, `ok tiers:`, `ok votes:`; the second run exits 0 and the row counts of `stw_engagements`, `vote_meetings`, `vote_items`, `vote_decisions` and the tier log are unchanged | holdout |
@@ -359,20 +376,20 @@ means `GET /api/stewardship/cockpit`.
 | AC-44 | after AC-40 | same | `voting` has `meetings` 96, `items` 1284, `for` 1062, `against` 171, `abstain` 51, `against_management` 152, and the topics of the Demo data section | holdout |
 | AC-45 | a company record with a non-demo open issue, then `arp showcase load-stewardship` picks that company | after the load | the non-demo issue is unchanged (same `issue_id`, `status`, `escalation_stage`) | unit |
 | AC-46 | `ARP_POSTGRES_DSN` unset, `ARP_ENGAGEMENT_STORE=file`, no `proxy_voting` runs | Cockpit `?as_of=2026-11-17` | 200; `shareholder_meetings` is `[]` and `voting.items` is 0 | unit |
-| AC-47 | (PR 1 build) the demo stack | open `#/stewardiq/cockpit` | no "Financed emissions covered" figure and no emissions panel; no empty card in their place | evaluator |
-| AC-48 | the demo stack (`arp showcase load` + `load-stewardship`), 17 Nov 2026 | open `#/stewardiq` | the screens row shows `Cockpit` first, then Steward Workflow, Engagement, Proxy Voting, RFP Answers; the processes are unchanged (must not change) | evaluator |
-| AC-49 | same | click `Cockpit` | URL `#/stewardiq/cockpit`; title "Cockpit"; `Demo data` pill; key figures "34 / 120", "23" (9 + 14), "7", "5", "1,284" | evaluator |
+| AC-47 | (PR 1 build only; retired by PR 2, superseded by AC-68 and AC-69) the demo stack (`arp showcase load`, then `arp showcase load-stewardship`) | open `#/stewardiq/cockpit?as_of=2026-11-17` | no "Financed emissions covered" figure and no emissions panel; no empty card in their place | evaluator |
+| AC-48 | the demo stack (`arp showcase load`, then `arp showcase load-stewardship`) | open `#/stewardiq` | the screens row shows `Cockpit` first, then Steward Workflow, Engagement, Proxy Voting, RFP Answers; the processes are unchanged (must not change) | evaluator |
+| AC-49 | same | click `Cockpit`, then open `#/stewardiq/cockpit?as_of=2026-11-17` | title "Cockpit"; "As of 17 Nov 2026"; `Demo data` pill; key figures "34 / 120" with "28% of selected companies", "23" (9 + 14), "7", "5", "1,284" with "96 meetings · 12% against management" | evaluator |
 | AC-50 | same | look at the page | sections in mockup order: key figures, 30-day strip, engaged vs selected by programme, (emissions, PR 2), upcoming engagement meetings, upcoming shareholder meetings, control gaps, escalation ladder, voting season to date | evaluator |
 | AC-51 | same | read the 30-day strip | 30 day columns 17 Nov to 16 Dec, weekends shaded, bars on the 9 engagement and 14 shareholder meeting dates | evaluator |
 | AC-52 | same | Upcoming engagement meetings | 6 rows, then `All 9`; clicking it shows 9 rows | evaluator |
-| AC-53 | same | Upcoming shareholder meetings | the 4 meetings within 7 days read `Decision due in <n> days` in the signal style; the others read `Not started` in neutral style; Flagged shows `–` | evaluator |
+| AC-53 | same | Upcoming shareholder meetings, `All 14` opened | the 4 meetings on or before 24 Nov read `Decision due in <n> days` / `Decision due in 1 day` in the signal style; the other 10 read `Not started` in neutral style; Flagged shows `–` | evaluator |
 | AC-54 | same | look for the signal colour (Signal Orange in Graphite, Signal Lime in Night) | it appears only on the control-gaps count/rows and the 4 due ballots | evaluator |
-| AC-55 | a scope with no gaps and no due ballots | open it | no signal colour anywhere; Control gaps reads "No control gaps." | evaluator |
-| AC-56 | same as AC-49 | switch scope to one portfolio | every figure and list changes to that portfolio's numbers and the scope label shows its name | evaluator |
+| AC-55 | the stack after `arp showcase load` only (no `load-stewardship`), all portfolios | open `#/stewardiq/cockpit?as_of=2026-11-17` | no signal colour anywhere; Control gaps reads "No control gaps." | evaluator |
+| AC-56 | same as AC-49 | select portfolio `DAX` in the scope selector | the scope label reads its name; the key figures and list lengths equal those of `GET /api/stewardship/cockpit?portfolio_id=<its id>&as_of=2026-11-17` | evaluator |
 | AC-57 | same | switch to the Night theme, then back to Graphite | every chart and text stays readable in both; no hard-coded light-only colours | evaluator |
 | AC-58 | same | 390 px wide viewport | one column, no horizontal page scroll | evaluator |
 | AC-59 | the backend stopped | open the page | one alert line starting "The cockpit could not be loaded:" | evaluator |
-| AC-60 | `arp showcase load` on an empty stack | run it | same output lines and exit code as before this feature (must not change) | holdout |
+| AC-60 | an empty stack | `arp showcase load` | exits 0; stdout has lines starting `ok import:`, `ok history:`, `ok esg:`, `ok scores:` and no line starting `FAIL` (must not change) | holdout |
 | AC-61 | (PR 2) portfolio P: A 1,000,000 EUR, EVIC 100 EUR m, Scope 1 800, Scope 2 200; B 2,000,000 EUR, EVIC 100, Scope 1 300, Scope 2 200; C 1,000,000 EUR held without EVIC; A engaged, B selected not engaged | Cockpit `?portfolio_id=P&as_of=2026-11-17`, climate observations dated 2026-11-01 | `emissions.total_tco2e` 20.0, `engaged_tco2e` 10.0, `selected_not_engaged_tco2e` 10.0, `not_selected_tco2e` 0.0, `uncovered_holding_count` 1 | holdout |
 | AC-62 | AC-61 | same | `contributors` is `[A share 0.5, B share 0.5]` in `tco2e` order (ties by name), statuses `engaged`, `selected` | holdout |
 | AC-63 | AC-61 with A's open issue at `joint_engagement` | same | A's contributor `status` is `in_escalation` | holdout |
@@ -382,6 +399,10 @@ means `GET /api/stewardship/cockpit`.
 | AC-67 | no holdings in scope | Cockpit | `emissions` is `null` | holdout |
 | AC-68 | (PR 2) the demo stack | open `#/stewardiq/cockpit` | the "Financed emissions covered" figure shows the % and "<a> of <b> Mt CO₂e in engagement" matching the API; the emissions panel shows the three-part bar and 6 contributors | evaluator |
 | AC-69 | (PR 2) `emissions` null for a scope | open the page in that scope | the emissions figure and panel are hidden | evaluator |
+| AC-70 | a record saved with `save_record`, open issue with `planned_meeting_date` `"2026-11-20"` | `POST /api/engagement/records/{id}/issues/{issue_id}/escalate` with `{stage: "joint_engagement"}`, then `GET /api/engagement/records/{id}` | the issue's `planned_meeting_date` is still `"2026-11-20"` (must not change) | holdout |
+| AC-71 | `ARP_ENGAGEMENT_STORE=file`, a record saved with `save_record` with `planned_meeting_date` `"2026-11-20"` | `GET /api/engagement/records/{id}` | the issue's `planned_meeting_date` is `"2026-11-20"` | unit |
+| AC-72 | the cockpit page | open `#/stewardiq/cockpit?as_of=2026-11-17`, then `#/stewardiq/cockpit` | the first request carries `as_of=2026-11-17`; the second carries no `as_of` | unit |
 
 Must not change: record reads without the new field (AC-7), the StewardIQ overview apart from the link (AC-48),
-`compute_financed_emissions` (AC-65), `arp showcase load` (AC-60).
+`compute_financed_emissions` (AC-65), `arp showcase load` (AC-60), `planned_meeting_date` kept by existing writes
+(AC-70).
