@@ -11,6 +11,7 @@ import { correctionLine, recordFieldNames } from "../lib/corrections";
 import { failedChecks, routeLabel, valueLabel, withEditedValue } from "../lib/fieldValue";
 import { TRIAL_TITLE } from "../lib/runs";
 import { activatable } from "../lib/activatable";
+import { notesInWords } from "../lib/routeReasons";
 import { ProposedTag } from "./ProposedTag";
 import { WalkthroughLink } from "./WalkthroughLink";
 import { recordWalkthroughHref, rowWalkthroughHref } from "../lib/walkthrough";
@@ -88,7 +89,7 @@ export function FieldDetail({ field, fieldNames = {}, walkthroughHref, onOpenSou
       ))}
       {field.fx_rate_ref && <p className="muted">FX: {field.fx_rate_ref}</p>}
       {field.corrections?.map((c, i) => <p key={i} className="muted">{correctionLine(c, (id) => fieldNames[id] ?? id)}</p>)}
-      {field.verifier_notes && <p className="muted">{field.verifier_notes}</p>}
+      {field.verifier_notes && <p className="muted">{notesInWords(field.verifier_notes)}</p>}
       <CitationList citations={field.citations} onOpenSource={onOpenSource} />
       {walkthroughHref && <WalkthroughLink href={walkthroughHref} />}
     </div>
@@ -145,10 +146,15 @@ export function SpendDetail({ label, spend, onOpenSource }: { label: string; spe
 function useCentralIds(runId: string): Record<string, string> {
   const [ids, setIds] = useState<Record<string, string>>({});
   useEffect(() => {
+    let live = true; // an answer for a run no longer shown must not overwrite the current one
+    setIds({});
     api.getRunCompanies(runId).then(
-      (r) => setIds(Object.fromEntries(r.companies.flatMap((c) => (c.entity_id ? [[c.company_id, c.entity_id]] : [])))),
-      () => setIds({}), // unreadable: the links fall back to the universe id
+      (r) => live && setIds(Object.fromEntries(r.companies.flatMap((c) => (c.entity_id ? [[c.company_id, c.entity_id]] : [])))),
+      () => live && setIds({}), // unreadable: the links fall back to the universe id
     );
+    return () => {
+      live = false;
+    };
   }, [runId]);
   return ids;
 }

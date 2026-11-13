@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { keptRuns, periodText, resultRows } from "../src/lib/argusFlow.ts";
-import { noteSentence, reasonSentence, routedSentences } from "../src/lib/routeReasons.ts";
+import { noteSentence, notesInWords, reasonSentence, reasonSentences, routedSentences } from "../src/lib/routeReasons.ts";
 import { steps, verifyNote } from "../src/lib/walkthrough.ts";
 import { companyHref } from "../src/pages/company/companyQuery.ts";
 import type { ExtractedField, ExtractionRecord, Walkthrough } from "../src/types.ts";
@@ -154,4 +154,18 @@ test("AC-114, AC-156 in the review detail: Routed for review, then one sentence 
   assert.equal(routedSentences(["some_new_code"]), "Routed for review: Reason: some new code.");
   assert.equal(routedSentences(["check:consistency.entity"]), null);
   assert.equal(routedSentences([]), null);
+});
+
+test("AC-116 where the note is shown: a unit note inside a run's verifier notes reads as a sentence", () => {
+  assert.equal(notesInWords("No grounded citation supports this value. cannot convert 'short tons' to 'tCO2e' (unknown_unit)"),
+    'No grounded citation supports this value. The unit "short tons" could not be converted to tCO2e.');
+  assert.equal(notesInWords("cannot convert 'a' to 'b' (x) cannot convert 'c' to 'd' (y)"),
+    'The unit "a" could not be converted to b. The unit "c" could not be converted to d.');
+  assert.equal(notesInWords("The verifier agrees."), "The verifier agrees.");
+});
+
+test("the walkthrough's Route reads the reasons as sentences, its failed checks left out", () => {
+  assert.equal(reasonSentences(["verifier_disagrees", "check:numeric.in_span", "low_confidence"]),
+    "The verifier disagrees with the extracted value. Confidence is low.");
+  assert.equal(reasonSentences(["check:numeric.in_span"]), "");
 });

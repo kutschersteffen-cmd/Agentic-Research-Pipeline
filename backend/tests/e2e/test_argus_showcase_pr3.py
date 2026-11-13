@@ -152,7 +152,7 @@ def test_values_show_their_period_and_how_they_were_found(page, store):  # AC-11
     heads = page.get_by_role("table", name="Extracted values").locator("thead th").all_text_contents()
     assert heads[heads.index("Field") + 1] == "Period"
     assert [r.locator("td[data-label='Period']").inner_text() for r in rows.all()] == ["2026-06-30", "2025-06-30"]
-    link = rows.first.get_by_role("link", name="How was this found?")
+    link = rows.first.locator("a", has_text="How was this found?")
     assert link.get_attribute("href") == f"#/argusWalkthrough/{run_id}/{a}/revenue/2026-06-30"
     link.click()
     page.wait_for_url(re.compile(rf"#/argusWalkthrough/{run_id}/{a}/revenue/2026-06-30$"))
@@ -212,7 +212,7 @@ def test_a_kept_value_is_reviewed_and_walked_through_in_its_own_run(page, kept):
     fid, old, m = kept
     page.goto(f"{URL}/#/argus/{fid}/5")
     row = _rows(page, "Extracted values").filter(has_text="Microsoft").filter(has=page.get_by_role("button", name="Approve")).first
-    assert row.get_by_role("link", name="How was this found?").get_attribute("href").startswith(f"#/argusWalkthrough/{old}/{m}/")
+    assert row.locator("a", has_text="How was this found?").get_attribute("href").startswith(f"#/argusWalkthrough/{old}/{m}/")
     row.get_by_role("button", name="Approve").click()
     with page.expect_response(lambda r: f"/api/review/runs/{old}/items/" in r.url and r.request.method == "POST") as info:
         row.get_by_role("button", name="Submit").click()
@@ -307,3 +307,108 @@ def test_xbrl_picks_a_saved_universe_and_adds_one_to_nothing(page):  # AC-131, A
     _using(page, 1)  # AC-131
     _pick(page, picker, five)
     _using(page, 5)  # AC-153
+
+
+# --- Review round 1 (code and UI review on #446) --------------------------------------------------------------------
+
+def _active(page):
+    return page.evaluate("() => [document.activeElement.tagName, document.activeElement.textContent.trim()]")
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_stop_keeps_the_keyboard_focus(page, store, fails):  # UI review 1: not on <body>, whether Stop works or fails
+    run_id = _run(store, {f"a{TAG}": "Alder"}, status=JobStatus.RUNNING, done=0)
+    if fails:
+        page.route("**/api/runs/*/cancel", lambda r: r.fulfill(status=500, json={"detail": "Cancel failed"}))
+    page.goto(f"{URL}/#/argus/{_flow(run_id, 4)}/4")
+    page.get_by_role("button", name="Stop").focus()
+    page.keyboard.press("Enter")
+    if fails:
+        page.get_by_role("alert").filter(has_text="Cancel failed").wait_for()
+        assert _active(page) == ["BUTTON", "Stop"]
+    else:
+        page.get_by_role("button", name="Stopping…").wait_for()
+        assert _active(page) == ["BUTTON", "Stopping…"]
+
+
+@pytest.fixture
+def failed(store):
+    """A finished run whose Birch failed with an error Retry accepts."""
+    a, b = f"alder{TAG}", f"birch{TAG}"
+    run_id = _run(store, {a: "Alder", b: "Birch"}, status=JobStatus.PARTIALLY_COMPLETED, done=1)
+    _result(store, run_id, a, "Alder", [_field("capex", 1, "auto_accept")])
+    store.append_error(run_id, {"key": b, "error": "The model call timed out"})
+    return _flow(run_id, 4)
+
+
+def test_retry_names_its_row_and_keeps_the_focus_when_it_fails(page, failed):  # UI review 2, 3
+    page.route("**/companies/*/retry", lambda r: r.fulfill(status=500, json={"detail": "Retry failed"}))
+    page.goto(f"{URL}/#/argus/{failed}/4")
+    retry = page.get_by_role("button", name="Retry Birch")
+    retry.focus()
+    page.keyboard.press("Enter")
+    page.get_by_role("alert").filter(has_text="Retry failed").wait_for()
+    assert page.evaluate("() => document.activeElement.getAttribute('aria-label')") == "Retry Birch"
+
+
+def test_a_retry_that_works_moves_the_focus_to_the_status_line(page, failed):  # UI review 2
+    page.goto(f"{URL}/#/argus/{failed}/4")
+    page.get_by_role("button", name="Retry Birch").focus()
+    page.keyboard.press("Enter")
+    page.wait_for_function("() => document.activeElement.classList.contains('argus-progress-line')")
+
+
+def test_how_was_this_found_names_its_row_and_fits_a_phone(page, store):  # UI review 4, 5
+    a = f"apple{TAG}"
+    run_id = _run(store, {a: "Apple"})
+    _result(store, run_id, a, "Apple", [_field("revenue", 12, "review", period="2026-06-30")], items=("revenue",))
+    fid = _flow(run_id, 5)
+    page.goto(f"{URL}/#/argus/{fid}/5")
+    page.get_by_role("link", name="How was Revenue 2026-06-30 for Apple found?").wait_for()
+    page.set_viewport_size({"width": 390, "height": 844})
+    link = _rows(page, "Extracted values").first.get_by_role("link", name="How was Revenue 2026-06-30 for Apple found?")
+    box, controls = link.bounding_box(), page.locator(".review-controls").first.bounding_box()
+    assert box["x"] + box["width"] <= 390 - 8, box  # not clipped at the card's edge
+    assert box["height"] < 30, box  # one line, not a word per line
+    assert box["y"] >= controls["y"] + controls["height"], (box, controls)  # on its own line under the controls
+
+
+def test_the_unit_note_reads_as_a_sentence_in_the_data_library(page, store):  # code review 1 (AC-116 on screen)
+    a = f"steel{TAG}"
+    run_id = _run(store, {a: "Steelco"})
+    f = {**_field("emissions", 12.5, "review"),
+         "verifier_notes": "No grounded citation supports this value. cannot convert 'short tons' to 'tCO2e' (unknown_unit)"}
+    _result(store, run_id, a, "Steelco", [f])
+    page.goto(f"{URL}/#/library")
+    page.locator(f"select:has(option[value='{run_id}'])").select_option(run_id)
+    page.get_by_role("link", name="Steelco", exact=True).wait_for()
+    page.locator("tr.clickable-row").filter(has_text="Steelco").locator("td").nth(1).click()
+    page.get_by_text('The unit "short tons" could not be converted to tCO2e.', exact=False).wait_for()
+    assert "cannot convert" not in page.locator(".field-detail").first.inner_text()
+
+
+def test_an_earlier_run_is_read_once_for_all_its_kept_companies(page, store):  # code review 2
+    a, m, s = f"apple{TAG}", f"msft{TAG}", f"sap{TAG}"
+    old = _run(store, {m: "Microsoft", s: "SAP"}, created=datetime(2026, 11, 10, 9, tzinfo=UTC))
+    for cid, name in ((m, "Microsoft"), (s, "SAP")):
+        _result(store, old, cid, name, [_field("capex", 1, "auto_accept")])
+    new = _run(store, {a: "Apple"})
+    _result(store, new, a, "Apple", [_field("capex", 7, "auto_accept")])
+    fid = _flow(new, 5)
+
+    def with_kept(route):
+        flow = route.fetch().json()
+        flow["companies"] = [{"company_id": c, "name": n} for c, n in ((a, "Apple"), (m, "Microsoft"), (s, "SAP"))]
+        flow["repeat"] = {m: "skip", s: "skip"}
+        flow["repeat_rows"] = [{"company_id": c, "kind": "same", "added": 0, "run_id": old, "date": "2026-11-10", "approved": 1, "waiting": 0}
+                               for c in (m, s)]
+        route.fulfill(json=flow)
+
+    page.route(f"**/api/argus/flows/{fid}", with_kept)
+    reads = []
+    page.on("request", lambda r: f"/api/extraction/runs/{old}/results" in r.url and reads.append(r.url))
+    page.goto(f"{URL}/#/argus/{fid}/5")
+    rows = _rows(page, "Extracted values")
+    rows.nth(2).wait_for()
+    assert rows.filter(has_text="kept from the extraction of 2026-11-10").count() == 2
+    assert len(reads) == 1, reads

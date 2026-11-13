@@ -2262,6 +2262,14 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-progress-line { margin: 0; font-family: var(--font-mono); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
 .argus-progress-fix { margin-top: var(--s-2); gap: var(--s-3); align-items: center; justify-content: flex-start; }
 .argus-progress .progress-bar { min-width: 8rem; }
+.argus-progress button:is(.secondary, .danger-outline)[aria-disabled="true"] { background: transparent; color: var(--muted); border-color: var(--panel-border); border-style: dashed; cursor: not-allowed; }
+.argus-results td.argus-period { white-space: nowrap; }
+@media (max-width: 560px) {
+  /* the walkthrough link gets a line of its own under the review controls, and values keep off the card's edge */
+  .argus-results td[data-label="Decision"] { flex-wrap: wrap; }
+  .argus-results td[data-label="Decision"] > .walkthrough-link { flex-basis: 100%; margin: 0; }
+  .argus-results .data-table.stack-on-phone td { padding-inline-end: var(--s-3); }
+}
 .argus-results .review-controls { min-width: 16rem; }
 .argus-docs-open { display: flex; gap: var(--s-6); align-items: flex-start; }
 .argus-docs-main { flex: 1 1 auto; min-width: 0; }

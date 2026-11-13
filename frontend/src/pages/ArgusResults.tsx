@@ -18,18 +18,15 @@ const PAGE = 500;
 /** A result row and the run it is reviewed in; `kept` is the date of the earlier run a skipped company's values come from. */
 type Row = ResultRow & { runId: string; kept?: string };
 
-/** One run's value rows, optionally only one company's. */
-async function runRows(runId: string, companyId?: string): Promise<{ rows: ResultRow[]; records: ExtractionRecord[]; decisions: Record<string, ReviewDecision> }> {
+/** One run's value rows, its records and its decisions. */
+async function runRows(runId: string): Promise<{ rows: ResultRow[]; records: ExtractionRecord[]; decisions: Record<string, ReviewDecision> }> {
   const [results, open, review] = await Promise.all([
     allResults(runId),
     api.listReviewItems(runId),
     api.getExtractionReviewDecisions(runId) as Promise<{ decisions: Record<string, ReviewDecision> }>,
   ]);
-  const mine = <T,>(cid: unknown, x: T) => (companyId === undefined || cid === companyId ? [x] : []);
   // shortcut: Financials and TNFD records have no per-field rows here; their values are reviewed in the Review Queue until a later slice
-  const records = results.flatMap((r) => mine(r.company_id, r)).filter((r) => Array.isArray(r.fields));
-  const items = (open.items as ReviewItem[]).flatMap((i) => mine(i.payload.company_id ?? i.item_key, i));
-  return { rows: resultRows(records, items), records: results, decisions: review.decisions };
+  return { rows: resultRows(results.filter((r) => Array.isArray(r.fields)), open.items as ReviewItem[]), records: results, decisions: review.decisions };
 }
 
 /** Every result of the run: the endpoint returns at most a page at a time, and a flow may hold thousands of companies. */
@@ -68,16 +65,22 @@ export function ArgusResults({ flow }: { flow: Flow }) {
   const load = useCallback(async () => {
     try {
       const earlier = JSON.parse(keptKey) as typeof kept;
-      // a company set to "Skip, keep earlier results" has its values in its earlier run, and is reviewed there
-      const [current, ...keptRows] = await Promise.all([runRows(runId), ...earlier.map((k) => runRows(k.run_id, k.company_id))]);
+      // a company set to "Skip, keep earlier results" has its values in its earlier run, and is reviewed there;
+      // each earlier run is read once, however many of its companies are kept
+      const runs = [...new Set(earlier.map((k) => k.run_id))];
+      const [current, ...keptRows] = await Promise.all([runRows(runId), ...runs.map((id) => runRows(id))]);
+      const keptFrom = new Map(earlier.map((k) => [`${k.run_id}/${k.company_id}`, k.date]));
       const all: Row[] = [
         ...current.rows.map((r) => ({ ...r, runId })),
-        ...keptRows.flatMap((k, i) => k.rows.map((r) => ({ ...r, runId: earlier[i].run_id, kept: earlier[i].date }))),
+        ...keptRows.flatMap((k, i) => k.rows.flatMap((r) => {
+          const date = keptFrom.get(`${runs[i]}/${r.companyId}`);
+          return date ? [{ ...r, runId: runs[i], kept: date }] : [];
+        })),
       ];
       setRows([...all.filter((r) => r.item), ...all.filter((r) => !r.item)]);
       setInRun(new Set(current.records.map((r) => r.company_id)));
       setRecords(current.records.filter((r) => Array.isArray(r.fields)));
-      setDecisions(Object.fromEntries([[runId, current.decisions], ...keptRows.map((k, i) => [earlier[i].run_id, k.decisions])]));
+      setDecisions(Object.fromEntries([[runId, current.decisions], ...keptRows.map((k, i) => [runs[i], k.decisions])]));
     } catch (e) {
       setError(errorDetail(e as Error));
     }
@@ -162,7 +165,7 @@ export function ArgusResults({ flow }: { flow: Flow }) {
                 <td data-label="Field">
                   {question.get(r.field) ? <span>{question.get(r.field)} <span className="mono muted">{r.field}</span></span> : r.field}
                 </td>
-                <td data-label="Period">{periodText(r.period)}</td>
+                <td data-label="Period" className="argus-period">{periodText(r.period)}</td>
                 <td data-label="Value">
                   {r.accepted !== undefined ? <>Accepted: {r.accepted}<br />New: {r.value}</> : r.value}
                 </td>
@@ -186,7 +189,7 @@ export function ArgusResults({ flow }: { flow: Flow }) {
                         : r.notFound ? ["approve", "correct"] : ["approve", "correct", "reject"]}
                     />
                   ) : decisions[r.runId]?.[r.key] ? decisionLabel(decisions[r.runId][r.key]) : "No review needed"}
-                  {r.walkthrough && <WalkthroughLink href={r.walkthrough} />}
+                  {r.walkthrough && <WalkthroughLink href={r.walkthrough} label={`How was ${r.field}${r.period ? ` ${r.period}` : ""} for ${r.company} found?`} />}
                 </td>
               </tr>
             ))}

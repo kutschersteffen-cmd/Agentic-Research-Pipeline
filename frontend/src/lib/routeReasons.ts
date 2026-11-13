@@ -49,9 +49,17 @@ export const reasonSentence = (code: string): string => REASON_SENTENCE[code] ??
 /** The review detail's "Routed for review:" line, one sentence per reason; `check:` entries are left out
  * (the failed checks are listed above it). Supersedes `routedLine` on screen (owner, PR #446). */
 export function routedSentences(reasons: string[]): string | null {
-  const sentences = reasons.filter((r) => !r.startsWith("check:")).map(reasonSentence);
-  return sentences.length ? `Routed for review: ${sentences.join(" ")}` : null;
+  const sentences = reasonSentences(reasons);
+  return sentences ? `Routed for review: ${sentences}` : null;
 }
+
+/** Route reasons as sentences, the failed checks left out (they are listed on their own). */
+export const reasonSentences = (reasons: string[]): string =>
+  reasons.filter((r) => !r.startsWith("check:")).map(reasonSentence).join(" ");
+
+/** A run's verifier notes (several notes joined by spaces) with each unit converter note in words. */
+export const notesInWords = (notes: string): string =>
+  notes.replace(/cannot convert '(.+?)' to '(.+?)' \([a-z_]+\)/g, (_, unit: string, target: string) => `The unit "${unit}" could not be converted to ${target}.`);
 
 /** A check's stored note in words: the unit converter's `cannot convert 'x' to 'y' (reason)` becomes a sentence; other notes stay. */
 export function noteSentence(note: string): string {

@@ -29,26 +29,32 @@ export function ArgusExtract({ flow, onEnded }: { flow: Flow; onEnded: () => voi
     wasRunning.current = running;
   }, [running, onEnded]);
 
-  async function act(fn: () => Promise<unknown>) {
+  /** true when the request went through. */
+  async function act(fn: () => Promise<unknown>): Promise<boolean> {
     setBusy(true);
     setError("");
     try {
       await fn();
       await load();
+      return true;
     } catch (e) {
       setError(errorDetail(e as Error));
+      return false;
     } finally {
       setBusy(false);
     }
   }
+  const line = useRef<HTMLParagraphElement>(null);
 
   if (!p) return error ? <p className="error-text" role="alert">{error}</p> : <p className="muted" role="status">Loading…</p>;
   return (
     <section className="argus-progress" aria-label="Extract">
       <div className="argus-progress-head">
-        <p className="argus-progress-line" role="status">{progressHeader({ ...p, done: p.finished })}</p>
+        <p ref={line} tabIndex={-1} className="argus-progress-line" role="status">{progressHeader({ ...p, done: p.finished })}</p>
         {running && (
-          <button type="button" className="danger-outline" disabled={busy || p.stopping} onClick={() => act(() => api.cancelRun(p.run_id))}>
+          // aria-disabled, not disabled: a disabled button loses the keyboard's focus (as Save in step 1)
+          <button type="button" className="danger-outline" aria-disabled={busy || p.stopping}
+            onClick={() => !busy && !p.stopping && void act(() => api.cancelRun(p.run_id))}>
             {p.stopping ? "Stopping…" : "Stop"}
           </button>
         )}
@@ -76,8 +82,12 @@ export function ArgusExtract({ flow, onEnded }: { flow: Flow; onEnded: () => voi
                     {c.status === "Failed" && (
                       <span className="row-actions argus-progress-fix">
                         {c.retryable && (
-                          <button type="button" className="secondary" disabled={busy || running} title={running ? "Retry once the other companies have finished" : undefined}
-                            onClick={() => act(() => api.retryFlowCompany(flow.flow_id, c.company_id))}>
+                          <button type="button" className="secondary" aria-label={`Retry ${c.name}`} aria-disabled={busy || running}
+                            title={running ? "Retry once the other companies have finished" : undefined}
+                            onClick={async () => {
+                              // a failure keeps the focus here; on success the row stops being Failed and this button goes
+                              if (!busy && !running && (await act(() => api.retryFlowCompany(flow.flow_id, c.company_id)))) line.current?.focus();
+                            }}>
                             Retry
                           </button>
                         )}
