@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
@@ -26,10 +27,7 @@ def _reply(report: IntakeReport) -> IntakeReport | JSONResponse:
     return JSONResponse(report.model_dump(mode="json"), status_code=422) if report.rejected else report
 
 
-async def _upload(file: UploadFile, kind: Literal["engagements", "votes"], settings: Settings) -> IntakeReport | JSONResponse:
-    data = await file.read(settings.max_upload_bytes + 1)
-    if len(data) > settings.max_upload_bytes:
-        raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
+def _ingest(data: bytes, kind: Literal["engagements", "votes"], settings: Settings) -> IntakeReport | JSONResponse:
     batch, bad = read_workbook(data, kind)
     if bad:  # nothing is written when the workbook itself is wrong
         return _reply(IntakeReport(rejected=bad))
@@ -37,6 +35,14 @@ async def _upload(file: UploadFile, kind: Literal["engagements", "votes"], setti
     if kind == "votes":
         return _reply(intake_votes(batch["votes"], dsn, "excel", excel_rows=True))
     return _reply(intake_engagements(batch, dsn, "excel", excel_rows=True))
+
+
+async def _upload(file: UploadFile, kind: Literal["engagements", "votes"], settings: Settings) -> IntakeReport | JSONResponse:
+    data = await file.read(settings.max_upload_bytes + 1)
+    if len(data) > settings.max_upload_bytes:
+        raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
+    # openpyxl and the Postgres write (advisory lock wait) are blocking: keep them off the event loop
+    return await run_in_threadpool(_ingest, data, kind, settings)
 
 
 @router.post("/engagements", response_model=IntakeReport, responses=_REJECTED)
@@ -59,6 +65,6 @@ async def post_votes_xlsx(file: UploadFile, settings: Settings = Depends(setting
     return await _upload(file, "votes", settings)
 
 
-@router.get("/template")
+@router.get("/template", response_class=Response, responses={200: {"content": {XLSX: {}}}})
 def get_template(kind: Literal["engagements", "votes"]) -> Response:
     return Response(template(kind), media_type=XLSX, headers={"Content-Disposition": f"attachment; filename={kind}_template.xlsx"})

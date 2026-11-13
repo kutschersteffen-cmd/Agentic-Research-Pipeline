@@ -20,7 +20,8 @@ URL = "/api/stewardship/intake"
 
 
 @pytest.fixture
-def client(pg, monkeypatch):
+def client(pg, monkeypatch, tmp_path):
+    monkeypatch.setenv("ARP_ENGAGEMENTS_DIR", str(tmp_path / "engagements"))  # the lifespan creates it
     monkeypatch.setenv("ARP_ENGAGEMENT_STORE", "postgres")  # AC-8 creates the companies through the records endpoint
     get_settings.cache_clear()
     app.dependency_overrides[current_user] = lambda: PRINCIPAL

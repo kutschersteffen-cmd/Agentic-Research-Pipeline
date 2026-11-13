@@ -40392,9 +40392,7 @@
     "responses": {
      "200": {
       "content": {
-       "application/json": {
-        "schema": {}
-       }
+       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}
       },
       "description": "Successful Response"
      },
