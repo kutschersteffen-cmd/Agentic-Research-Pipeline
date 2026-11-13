@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { keptRuns, periodText, resultRows } from "../src/lib/argusFlow.ts";
 import { noteSentence, reasonSentence } from "../src/lib/routeReasons.ts";
 import { steps, verifyNote } from "../src/lib/walkthrough.ts";
@@ -18,9 +18,18 @@ test("AC-114: the four reasons of a draft schema's value read as sentences", () 
   ]);
 });
 
+/** A backend file, found from any parent folder (the mutation check runs these tests from a copy under frontend/.stryker-tmp). */
+function backendFile(path: string): string {
+  for (let up = "../../"; up.length < 40; up += "../") {
+    const url = new URL(`${up}backend/${path}`, import.meta.url);
+    if (existsSync(url)) return readFileSync(url, "utf8");
+  }
+  throw new Error(`backend/${path} not found`);
+}
+
 test("AC-115: every ReasonCode and every reason literal in routing.py has a sentence", () => {
-  const review = readFileSync(new URL("../../backend/arp/schemas/review.py", import.meta.url), "utf8");
-  const routing = readFileSync(new URL("../../backend/arp/extraction/routing.py", import.meta.url), "utf8");
+  const review = backendFile("arp/schemas/review.py");
+  const routing = backendFile("arp/extraction/routing.py");
   const enumBody = /class ReasonCode\(StrEnum\):([\s\S]*?)\n\n/.exec(review)![1];
   const codes = [
     ...[...enumBody.matchAll(/= "([a-z_]+)"/g)].map((m) => m[1]),
