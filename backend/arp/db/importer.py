@@ -162,12 +162,14 @@ def _esg_loads(settings: Settings) -> list[dict]:
     for e in store.list_governance_events():
         if (e.get("event_type"), e.get("kind"), e.get("status")) != ("load_recorded", "esg", "ok"):
             continue
+        if e["source_id"] == "simulated":  # arp showcase load: simulated data never becomes provider rows
+            continue
         since, last_at[e["month"]] = last_at.get(e["month"], ""), e["at"]
         # ponytail: observations do not record their provider; two providers loading the same month blend
         rows: dict[str, dict] = defaultdict(dict)
         for (company, fid), obs in history.items():
             # an optional field counts only if this load wrote it, not an earlier load of the month
-            hits = [o for o in obs if o.period == e["month"] and o.observed_at <= e["at"]
+            hits = [o for o in obs if o.period == e["month"] and o.observed_at <= e["at"] and o.source != "simulated"
                     and (fid not in OPTIONAL_FIELD_IDS or o.observed_at > since)]
             if hits:
                 rows[company][fid] = hits[-1].value

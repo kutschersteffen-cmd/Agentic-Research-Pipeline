@@ -60,3 +60,11 @@ def test_simulated_loses_to_every_real_source_even_when_newer(tmp_path):
     resolved = datapoint_mapping.resolve_field_value(store, "bmw", "f1")
     assert (resolved.source, resolved.value) == ("estimated_proxy", 7.0)
     assert datapoint_mapping.coverage_summary(store, ["bmw"], "f1")["simulated"] == 0
+
+
+def test_a_later_row_with_the_same_timestamp_is_the_correction(tmp_path):
+    """A reload of a regenerated simulated dataset appends new values at the same observed_at."""
+    store = PortfolioStore(tmp_path)
+    store.append_observation(_obs(5.0, "simulated", "2026-11-02T00:00:00+00:00"))
+    store.append_observation(_obs(6.0, "simulated", "2026-11-02T00:00:00+00:00"))
+    assert datapoint_mapping.resolve_field_value(store, "bmw", "f1").value == 6.0

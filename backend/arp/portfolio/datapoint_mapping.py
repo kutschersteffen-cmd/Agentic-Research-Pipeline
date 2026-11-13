@@ -26,7 +26,7 @@ def resolve_field_value(store: PortfolioStore, company_id: str, field_id: str, a
     latest_by_source: dict[str, DataPointObservation] = {}
     for obs in observations:
         current = latest_by_source.get(obs.source)
-        if current is None or obs.observed_at > current.observed_at:
+        if current is None or obs.observed_at >= current.observed_at:  # a tie: the later row is the correction
             latest_by_source[obs.source] = obs
 
     best_source = min(latest_by_source, key=lambda s: _SOURCE_PRIORITY.get(s, 99))
