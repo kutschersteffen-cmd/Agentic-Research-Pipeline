@@ -20647,6 +20647,110 @@
     "title": "StartRequest",
     "type": "object"
    },
+   "StartingUniverse": {
+    "properties": {
+     "as_of_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of Date"
+     },
+     "kind": {
+      "enum": [
+       "demo",
+       "file",
+       "portfolio"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "universe_id": {
+      "title": "Universe Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "universe_id",
+     "label",
+     "kind",
+     "as_of_date"
+    ],
+    "title": "StartingUniverse",
+    "type": "object"
+   },
+   "StartingUniverseDetail": {
+    "properties": {
+     "as_of_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of Date"
+     },
+     "company_count": {
+      "title": "Company Count",
+      "type": "integer"
+     },
+     "fields": {
+      "additionalProperties": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "title": "Fields",
+      "type": "object"
+     },
+     "kind": {
+      "enum": [
+       "demo",
+       "file",
+       "portfolio"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "notes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+     },
+     "universe_id": {
+      "title": "Universe Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "universe_id",
+     "label",
+     "kind",
+     "as_of_date",
+     "company_count",
+     "notes",
+     "fields"
+    ],
+    "title": "StartingUniverseDetail",
+    "type": "object"
+   },
    "StepSettings": {
     "description": "Per-run overrides; a field left out keeps the app's setting.",
     "properties": {
@@ -24694,6 +24798,18 @@
        }
       ],
       "description": "Ad-hoc spec. Mutually exclusive with calibration_id."
+     },
+     "universe": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Starting universe id from GET /api/index/universes (demo, file:<stem>, portfolio:<id>). Omit for the demo universe. Exclusive with candidates.",
+      "title": "Universe"
      },
      "use_prior_state": {
       "default": true,
@@ -34036,6 +34152,74 @@
      }
     },
     "summary": "Get Screen Bundle",
+    "tags": [
+     "index"
+    ]
+   }
+  },
+  "/api/index/universes": {
+   "get": {
+    "description": "The demo universe, then the holdings files, then portfolios with a snapshot.",
+    "operationId": "get_universes_api_index_universes_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/StartingUniverse"
+         },
+         "title": "Response Get Universes Api Index Universes Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Universes",
+    "tags": [
+     "index"
+    ]
+   }
+  },
+  "/api/index/universes/{universe_id}": {
+   "get": {
+    "operationId": "get_universe_api_index_universes__universe_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "universe_id",
+      "required": true,
+      "schema": {
+       "title": "Universe Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StartingUniverseDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Universe",
     "tags": [
      "index"
     ]

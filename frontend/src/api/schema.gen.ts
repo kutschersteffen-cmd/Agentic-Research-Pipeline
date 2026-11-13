@@ -3223,6 +3223,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/index/universes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Universes
+         * @description The demo universe, then the holdings files, then portfolios with a snapshot.
+         */
+        get: operations["get_universes_api_index_universes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/index/universes/{universe_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Universe */
+        get: operations["get_universe_api_index_universes__universe_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/index/{index_id}/levels/{review_date}": {
         parameters: {
             query?: never;
@@ -16475,6 +16512,42 @@ export interface components {
             /** Universe Path */
             universe_path?: string | null;
         };
+        /** StartingUniverse */
+        StartingUniverse: {
+            /** As Of Date */
+            as_of_date: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "demo" | "file" | "portfolio";
+            /** Label */
+            label: string;
+            /** Universe Id */
+            universe_id: string;
+        };
+        /** StartingUniverseDetail */
+        StartingUniverseDetail: {
+            /** As Of Date */
+            as_of_date: string | null;
+            /** Company Count */
+            company_count: number;
+            /** Fields */
+            fields: {
+                [key: string]: string[];
+            };
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "demo" | "file" | "portfolio";
+            /** Label */
+            label: string;
+            /** Notes */
+            notes: string[];
+            /** Universe Id */
+            universe_id: string;
+        };
         /**
          * StepSettings
          * @description Per-run overrides; a field left out keeps the app's setting.
@@ -18088,6 +18161,11 @@ export interface components {
             review_date: string;
             /** @description Ad-hoc spec. Mutually exclusive with calibration_id. */
             spec?: components["schemas"]["ConstructionSpec"] | null;
+            /**
+             * Universe
+             * @description Starting universe id from GET /api/index/universes (demo, file:<stem>, portfolio:<id>). Omit for the demo universe. Exclusive with candidates.
+             */
+            universe?: string | null;
             /**
              * Use Prior State
              * @description Chain from the most recent stored review before this date.
@@ -24382,6 +24460,57 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_universes_api_index_universes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartingUniverse"][];
+                };
+            };
+        };
+    };
+    get_universe_api_index_universes__universe_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                universe_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartingUniverseDetail"];
                 };
             };
             /** @description Validation Error */
