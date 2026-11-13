@@ -96,7 +96,7 @@ _REQUIRED = {
 }
 _TIMES = {"engagements": ["started_at"], "objectives": ["started_at", "closed_at"], "activities": ["occurred_at"]}
 _DEFAULTS = {
-    "engagements": {"status": "open", "severity": "medium", "engager_role": "bilateral"},
+    "engagements": {"status": "open", "severity": "medium"},
     "objectives": {"status": "initiated"},
     "activities": {},
 }

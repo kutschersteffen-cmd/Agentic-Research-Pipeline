@@ -118,3 +118,9 @@ def test_activity_objective_must_belong_to_its_engagement(pg):
     batch["activities"] = [{"external_id": "a1", "engagement_external_id": batch["engagements"][0]["external_id"], "objective_external_id": "o1", "occurred_at": "2026-02-01", "summary": "s"}]
     report = intake_engagements(batch, pg, "api")
     assert [(r.sheet, r.field, r.reason) for r in report.rejected] == [("activities", "objective_external_id", "objective belongs to another engagement")]
+
+
+def test_engager_role_defaults_to_none(pg):
+    PostgresEngagementStore(pg).get_or_create("C1", "Acme")
+    intake_engagements(_batch(), pg, "api")
+    assert PostgresEngagementStore(pg).get("C1").issues[0].engager_role is None  # not yet a VOICE engagement
