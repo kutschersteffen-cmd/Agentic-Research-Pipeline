@@ -21,9 +21,6 @@ export const continueLabel = (n: number) => `Continue with ${n} ${n === 1 ? "com
 export const typedCompany = <T extends { name: string }>(form: T) =>
   Object.fromEntries(Object.entries(form).filter(([, v]) => String(v).trim())) as { name: string } & Partial<T>;
 
-/** An API error as an Argus banner shows it: without the leading status number ("400: "). */
-export const plainError = (message: string) => message.replace(/^\d{3}: /, "");
-
 /** The step a flow URL names: 1 when it names none, null when it names something that is not step 1 to 5. */
 export const stepFromUrl = (param: string | undefined): number | null =>
   param === undefined ? 1 : /^[1-5]$/.test(param) ? Number(param) : null;

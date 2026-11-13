@@ -20,8 +20,11 @@ export interface FactFilters {
 /** A company ref (UUID or `SCHEME:value`) as one URL path segment. */
 export const encodeRef = (ref: string): string => encodeURIComponent(ref);
 
+/** The company ref of a universe company id. */
+export const universeRef = (companyId: string): string => `UNIVERSE:${companyId}`;
+
 /** The company page for a universe company id. */
-export const companyHref = (companyId: string): string => `#/companies/${encodeRef(`UNIVERSE:${companyId}`)}`;
+export const companyHref = (companyId: string): string => `#/companies/${encodeRef(universeRef(companyId))}`;
 
 /** The last millisecond of a YYYY-MM-DD day in the viewer's time zone, as ISO UTC. */
 function endOfLocalDay(day: string): string {
