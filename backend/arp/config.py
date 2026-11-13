@@ -127,6 +127,8 @@ class Settings(BaseSettings):
     )
     discovery_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".discovery_state")
     engagements_dir: Path = Field(default=REPO_ROOT / "engagements")
+    engagement_store: Literal["file", "postgres"] = Field(default="file", description="Where engagement records live: JSON files under engagements_dir, or Postgres (needs postgres_dsn).")
+    vote_monitoring_window_days: int = Field(default=365, description="Days a vote stays in the monitoring window.")
     stewardship_streams_dir: Path = Field(default=REPO_ROOT / "stewardship_streams", description="Stewardship process page: one JSON file per client stream (envisioned policy, review decisions, built policy).")
     indices_dir: Path = Field(
         default=REPO_ROOT / "indices",

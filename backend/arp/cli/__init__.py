@@ -33,6 +33,7 @@ from arp.cli.scale import scale_app
 from arp.cli.showcase import showcase_app
 from arp.cli.signal_lab import signals_app
 from arp.cli.snapshots import snapshots_app
+from arp.cli.stewardship import stewardship_app
 from arp.cli.taxonomy import taxonomy_app
 from arp.cli.taxonomy_researcher import taxonomy_researcher_app
 from arp.cli.theme import theme_app
@@ -111,6 +112,7 @@ app.add_typer(universe_app, name="universe")
 app.add_typer(revenue_catalogue_app, name="revenue-catalogue")
 app.add_typer(engagement_app, name="engagement")
 app.add_typer(voting_app, name="voting")
+app.add_typer(stewardship_app, name="stewardship")
 app.add_typer(portfolio_app, name="portfolio")
 app.add_typer(climate_app, name="climate")
 app.add_typer(decision_app, name="decision")
