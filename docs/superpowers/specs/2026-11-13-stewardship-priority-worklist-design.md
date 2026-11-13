@@ -3,7 +3,7 @@
 Slug: `stewardship-priority-worklist`. Risk: normal (no migration, no new database schema, no stored score
 history). Size L, 7 PRs. Spec 1 of 2; the consolidated overlap view and uploads are spec 2 (see Non-goals).
 
-Status: **draft for owner approval**.
+Status: **approved by the owner on 13 Nov 2026** (buttons in the spec session, revision 2 of the review page).
 
 Owner decisions so far:
 
