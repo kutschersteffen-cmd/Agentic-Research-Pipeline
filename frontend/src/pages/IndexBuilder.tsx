@@ -1,5 +1,8 @@
 import { WhyLinks } from "../components/WhyLinks";
-import { DEMO_BANNER, exceptionText, indexErrorText, ruleTitle, SOLVER_MISSING } from "../lib/indexBuilder";
+import {
+  chooseUniverse, DEMO_UNIVERSE, DEMO_UNIVERSE_ENTRY, exceptionText, indexErrorText, nextIndexId, pickerFields, ruleTitle,
+  SOLVER_MISSING, universeBanner, universeOption, withUniverse, type UniverseChoice,
+} from "../lib/indexBuilder";
 import { useEffect, useMemo, useState } from "react";
 import { useMe } from "../lib/reviewer";
 import { api } from "../api/client";
@@ -10,6 +13,7 @@ import type {
   IndexCalibration,
   IndexCatalogue,
   IndexReviewResult,
+  IndexStartingUniverse,
   ScreenRule,
   SelectionRule,
   TiltRule,
@@ -212,13 +216,21 @@ export function IndexBuilder() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
+  // Starting universe: the demo (detail null) or one loaded from GET /api/index/universes/{id}.
+  const [universes, setUniverses] = useState<IndexStartingUniverse[]>([]);
+  const [choice, setChoice] = useState<UniverseChoice>({ detail: null, error: null });
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const universeId = choice.detail?.universe_id ?? DEMO_UNIVERSE;
+  const universeList = universes.length ? universes : [DEMO_UNIVERSE_ENTRY];
+  const labelOf = (id: string) => universeList.find((u) => u.universe_id === id)?.label ?? id;
+
   // Published Decision Studio results (process gap #1): a chosen one joins the
   // universe by company id, so its fields become pickable in every rule below.
   const [publications, setPublications] = useState<PublishedDecision[]>([]);
   const [snapshotId, setSnapshotId] = useState("");
   const snapshot = publications.find((p) => p.snapshot_id === snapshotId);
   const fields = useMemo(() => {
-    const baseFields = catalogue?.fields ?? { metrics: [], flags: [], categories: [] };
+    const baseFields = pickerFields(choice, catalogue?.fields ?? { metrics: [], flags: [], categories: [] });
     if (!snapshot) return baseFields;
     const p = `decision.${snapshot.framework_id}`;
     return {
@@ -226,11 +238,14 @@ export function IndexBuilder() {
       metrics: [...baseFields.metrics, `${p}.score`, `${p}.tier`, `${p}.rank`, `${p}.rank_max`],
       categories: [...baseFields.categories, `${p}.tier_name`],
     };
-  }, [catalogue, snapshot]);
+  }, [catalogue, choice, snapshot]);
 
   useEffect(() => {
     api.getIndexCatalogue().then(setCatalogue).catch((e) => setError(`Presets and screens could not be loaded (${e instanceof Error ? e.message : String(e)}). Retry by reloading the page.`));
     refreshCalibrations();
+    api.listIndexUniverses().then(setUniverses).catch((e) =>
+      setChoice({ detail: null, error: `Starting universes could not be loaded (${e instanceof Error ? e.message : String(e)}); the demo universe still works.` }),
+    );
     api.listPublishedDecisions().then(setPublications).catch(() => setPublications([]));
   }, []);
 
@@ -240,6 +255,14 @@ export function IndexBuilder() {
     } catch {
       setCalibrations([]);
     }
+  }
+
+  async function chooseStart(id: string) {
+    setLoadingId(id);
+    const next = await chooseUniverse(choice, id, api.getIndexUniverse);
+    setLoadingId(null);
+    if (!next.error) setIndexId((current) => nextIndexId(current, universeId, id));
+    setChoice(next);
   }
 
   async function loadPreset(name: string) {
@@ -275,14 +298,14 @@ export function IndexBuilder() {
     setError(null);
     setStatus(null);
     try {
-      const review = await api.runIndexReview({
+      const review = await api.runIndexReview(withUniverse({
         index_id: indexId,
         review_date: reviewDate,
         spec,
         persist,
         use_prior_state: true,
         decision_snapshot_ids: snapshotId ? [snapshotId] : [],
-      });
+      }, choice));
       setResult(review);
       setSub("result");
       setStatus(persist ? `Review saved for ${indexId} @ ${reviewDate}.` : "Preview only — nothing was written.");
@@ -300,6 +323,7 @@ export function IndexBuilder() {
     (c.ucits_5_10_40 ? 1 : 0);
   const plural = (n: number, word: string) => (n === 0 ? "none" : `${n} ${word}${n === 1 ? "" : "s"}`);
   const composeSteps: RailStep[] = [
+    { id: "ix-universe", label: "Starting universe", summary: labelOf(universeId) },
     { id: "ix-preset", label: "Preset", summary: loaded?.name ?? "optional" },
     { id: "ix-screens", n: 1, label: "Screens", summary: plural(spec.screens.length, "screen") },
     { id: "ix-selection", n: 2, label: "Selection", summary: spec.selection.type },
@@ -319,7 +343,7 @@ export function IndexBuilder() {
     <div className="page">
       <h1>Index Construction</h1>
       <p className="help-text">Compose screens, selection, weighting, tilts, constraints and the decarbonisation path into one methodology, save it as a versioned calibration, and run a review. Every step is deterministic.</p>
-      <p className="banner banner-warning" role="note">{DEMO_BANNER}</p>
+      <p className="banner banner-warning" role="note">{universeBanner(choice.detail)}</p>
 
       <div className="sub-nav" role="tablist" aria-label="Index Construction steps">
         {SUB_TABS.map((t) => (
@@ -336,6 +360,26 @@ export function IndexBuilder() {
         <div className="ix-compose">
           <StepRail steps={composeSteps} />
           <div className="ix-steps">
+          <div className="card ix-step" id="ix-universe">
+            <h2>Starting universe</h2>
+            <p className="help-text">The companies the review starts from: the demo universe, a holdings file, or a stored portfolio.</p>
+            <label className="field-label">
+              Universe
+              <select value={loadingId ?? universeId} disabled={loadingId !== null} onChange={(e) => chooseStart(e.target.value)}>
+                {universeList.map((u) => (
+                  <option key={u.universe_id} value={u.universe_id}>{universeOption(u)}</option>
+                ))}
+              </select>
+            </label>
+            {loadingId && <p className="help-text" role="status">Loading {labelOf(loadingId)}…</p>}
+            {choice.error && <p className="error-text" role="alert">{indexErrorText(choice.error, catalogue)}</p>}
+            {choice.detail && (
+              <div className="help-text">
+                {choice.detail.notes.map((note) => <p key={note}>{note}</p>)}
+              </div>
+            )}
+          </div>
+
           <div className="card ix-step" id="ix-preset">
             <h2>Start from a preset</h2>
             <p className="help-text">

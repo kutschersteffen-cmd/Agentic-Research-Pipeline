@@ -1,4 +1,5 @@
 // Index Construction wording (spec showcase-themes-fixes, section 10). Display only: the API's texts are unchanged.
+import type { IndexFieldInventory, IndexStartingUniverse, IndexStartingUniverseDetail } from "../types";
 
 export const DEMO_BANNER =
   "Demo data: reviews on this page run on a built-in synthetic universe of 60 companies. The results describe nothing real.";
@@ -30,3 +31,67 @@ export function indexErrorText(message: string, catalogue: { screens: Labelled[]
       return `${kind === "screens" ? "Screen" : "Tilt"} ${Number(n) + 1} (${label}): `;
     });
 }
+
+// Starting universe (spec index-starting-universe, PR 2).
+
+type Universe = IndexStartingUniverse;
+type UniverseDetail = IndexStartingUniverseDetail;
+
+export const DEMO_UNIVERSE = "demo";
+
+/** The select's entry when the universe list cannot be read: the demo universe always works. */
+export const DEMO_UNIVERSE_ENTRY: Universe = {
+  universe_id: DEMO_UNIVERSE,
+  label: "Built-in demo universe (60 synthetic companies)",
+  kind: "demo",
+  as_of_date: null,
+};
+
+/** A starting universe as the select lists it. */
+export function universeOption(u: Universe): string {
+  if (u.kind === "demo") return u.label;
+  return `${u.label} (${u.kind === "file" ? "holdings file" : "portfolio"}, ${u.as_of_date ?? "no date"})`;
+}
+
+/** The index id the page proposes: `demo_index`, the file stem lower-cased, or the portfolio id, plus `_index`. */
+export function autoIndexId(universeId: string): string {
+  if (universeId === DEMO_UNIVERSE) return "demo_index";
+  const [kind, ...rest] = universeId.split(":");
+  const slug = rest.join(":");
+  return `${kind === "file" ? slug.toLowerCase() : slug}_index`;
+}
+
+/** The index id after a switch: an id the page proposed follows the universe, one the user typed stays. */
+export const nextIndexId = (current: string, from: string, to: string): string =>
+  current === autoIndexId(from) ? autoIndexId(to) : current;
+
+/** The banner on every tab: the demo warning, or what the loaded universe is. */
+export function universeBanner(u: UniverseDetail | null): string {
+  if (!u) return DEMO_BANNER;
+  return `Starting universe: ${u.label} (holdings as of ${u.as_of_date}, ${u.company_count} companies). Sizes are a weight proxy and ESG values, where present, are simulated. The results describe no real index.`;
+}
+
+/** The loaded universe (null = demo) and the last load error. */
+export type UniverseChoice = { detail: UniverseDetail | null; error: string | null };
+
+/** Choose a universe: the demo needs no request; a failed load keeps the previous universe and says why. */
+export async function chooseUniverse(
+  current: UniverseChoice,
+  universeId: string,
+  load: (id: string) => Promise<UniverseDetail>,
+): Promise<UniverseChoice> {
+  if (universeId === DEMO_UNIVERSE) return { detail: null, error: null };
+  try {
+    return { detail: await load(universeId), error: null };
+  } catch (e) {
+    return { detail: current.detail, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** The fields the rule pickers offer before Decision Studio fields are added. */
+export const pickerFields = (choice: UniverseChoice, catalogueFields: IndexFieldInventory): IndexFieldInventory =>
+  choice.detail?.fields ?? catalogueFields;
+
+/** A run request on the chosen universe: `universe` only for a loaded one, never `candidates`. */
+export const withUniverse = <T extends object>(body: T, choice: UniverseChoice): T & { universe?: string } =>
+  choice.detail ? { ...body, universe: choice.detail.universe_id } : body;
