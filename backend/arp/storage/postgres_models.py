@@ -381,6 +381,7 @@ class StwActivityModel(Base):
     engagement_id: Mapped[str] = _fk("stw_engagements", "engagement_id")
     objective_id: Mapped[str | None] = _fk("stw_objectives", "objective_id", nullable=True)
     occurred_at: Mapped[datetime | None] = _ts()
+    type: Mapped[str] = mapped_column(Text, default="other", server_default="other")  # today's CorrespondenceEntry.type
     activity_type: Mapped[str | None] = _text()
     interaction_type: Mapped[str | None] = _text()
     is_initiation: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
@@ -405,6 +406,7 @@ class StwCommitmentModel(Base):
     status: Mapped[str] = mapped_column(Text, default="open", server_default="open")
     validated_by: Mapped[str | None] = _text()
     validated_at: Mapped[datetime | None] = _ts()
+    evidence: Mapped[str | None] = _text()
 
 
 class StwContactModel(Base):

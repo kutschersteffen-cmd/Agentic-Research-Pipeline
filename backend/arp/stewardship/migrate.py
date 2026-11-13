@@ -12,7 +12,7 @@ from sqlalchemy import inspect, select
 from arp.db.session import transaction
 from arp.errors import ClientInputError
 from arp.storage.engagement_store import EngagementStore
-from arp.storage.postgres_engagement_store import _LOCK, _activity_type, _row, _ts
+from arp.storage.postgres_engagement_store import _LOCK, _row, _ts
 from arp.storage.postgres_models import (
     StwActivityModel,
     StwCommitmentModel,
@@ -50,7 +50,7 @@ def _build_rows(engagements_dir: Path) -> dict[str, list]:
                     rows.append(
                         _row(
                             StwActivityModel, e, **mark, external_id=e.entry_id, activity_id=e.entry_id, engagement_id=iid,
-                            occurred_at=e.date, activity_type=_activity_type(e),
+                            occurred_at=e.date,
                         )
                     )
                 for m in issue.commitments:

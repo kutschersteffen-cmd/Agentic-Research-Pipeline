@@ -22,7 +22,6 @@ from arp.schemas.engagement import (
     CommitmentStatus,
     Contact,
     CorrespondenceEntry,
-    CorrespondenceType,
     EngagementIssue,
     EngagementRecord,
     EscalationStage,
@@ -47,7 +46,6 @@ from arp.storage.postgres_models import (
 from arp.storage.safe_path import safe_id
 
 _LOCK = text("SELECT pg_advisory_xact_lock(hashtext('engagement:' || :id))")  # own keyspace, apart from publish/facts.py
-_CORRESPONDENCE_TYPES = {t.value for t in CorrespondenceType}
 _FIELD_NAMES = {"occurred_at": "date"}  # column -> pydantic field, where they differ for client input
 
 
@@ -87,19 +85,8 @@ def _cols(row, **renames: str) -> dict:
     return out
 
 
-def _activity_type(entry: CorrespondenceEntry) -> str:
-    # One column holds both fields: the VOICE activity_type when set, else the correspondence type.
-    return (entry.activity_type or entry.type).value
-
-
 def _entry(row: StwActivityModel) -> CorrespondenceEntry:
-    values = _cols(row, entry_id="activity_id", date="occurred_at")
-    kind = values.pop("activity_type", CorrespondenceType.OTHER.value)
-    if kind in _CORRESPONDENCE_TYPES:
-        values["type"] = kind
-    else:
-        values |= {"type": CorrespondenceType.OTHER, "activity_type": kind}
-    return CorrespondenceEntry.model_validate(values)
+    return CorrespondenceEntry.model_validate(_cols(row, entry_id="activity_id", date="occurred_at"))
 
 
 class PostgresEngagementStore:
@@ -316,7 +303,6 @@ class PostgresEngagementStore:
                     activity_id=entry.entry_id,
                     engagement_id=issue_id,
                     occurred_at=entry.date,
-                    activity_type=_activity_type(entry),
                 )
             )
             return self._write(
@@ -330,14 +316,20 @@ class PostgresEngagementStore:
             return self._write(company_id, "commitment_added", {"issue_id": issue_id, "commitment_id": commitment.commitment_id})
 
     def update_commitment_status(
-        self, company_id: str, issue_id: str, commitment_id: str, status: CommitmentStatus, validated_by: str | None = None
+        self,
+        company_id: str,
+        issue_id: str,
+        commitment_id: str,
+        status: CommitmentStatus,
+        validated_by: str | None = None,
+        evidence: str | None = None,
     ) -> EngagementRecord:
         with self.lock(company_id):
             issue = self._issue_in(company_id, issue_id)
             if not any(c.commitment_id == commitment_id for c in issue.commitments):
                 raise ValueError(f"Unknown commitment_id: {commitment_id}")
             row = self._tx.get(StwCommitmentModel, commitment_id)
-            row.status, row.validated_by, row.validated_at = status.value, validated_by, _ts(now_iso())
+            row.status, row.validated_by, row.validated_at, row.evidence = status.value, validated_by, _ts(now_iso()), evidence
             return self._write(
                 company_id,
                 "commitment_status_changed",
@@ -347,9 +339,15 @@ class PostgresEngagementStore:
     def _add_transition(self, issue_id: str, kind: str, transition: BaseModel) -> None:
         self._add(_row(StwTransitionModel, transition, transition_id=new_id("trn"), engagement_id=issue_id, kind=kind))
 
-    def set_milestone_stage(self, company_id: str, issue_id: str, stage: MilestoneStage, reason: str = "") -> EngagementRecord:
+    def set_milestone_stage(
+        self, company_id: str, issue_id: str, stage: MilestoneStage, reason: str = "", forward_only: bool = False
+    ) -> EngagementRecord:
+        """`forward_only` leaves an issue that is already at or past `stage` where it is."""
         with self.lock(company_id):
-            self._issue_in(company_id, issue_id)
+            issue = self._issue_in(company_id, issue_id)
+            order = list(MilestoneStage)
+            if forward_only and order.index(issue.milestone_stage) >= order.index(stage):
+                return self.get(company_id)
             self._add_transition(issue_id, "milestone", MilestoneTransition(stage=stage, reason=reason))
             self._tx.get(StwEngagementModel, issue_id).milestone_stage = stage.value
             return self._write(company_id, "milestone_changed", {"issue_id": issue_id, "stage": stage.value, "reason": reason})

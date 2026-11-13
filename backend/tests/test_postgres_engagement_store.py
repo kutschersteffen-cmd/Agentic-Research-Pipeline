@@ -222,3 +222,55 @@ def test_unsafe_company_id_is_rejected_like_the_file_store(pg, tmp_path):
             store.get("../etc")
         with pytest.raises(UnsafeIdentifierError):
             store.get_or_create("../etc", "Evil")
+
+
+def _store_with_issue(dsn):
+    store = PostgresEngagementStore(dsn)
+    store.get_or_create("C1", "Acme Corp")
+    _, issue = store.open_issue("C1", "Acme Corp", theme="climate")
+    return store, issue.issue_id
+
+
+def test_commitment_verified_with_evidence(pg):
+    from arp.engagement.tracking_agent import log_commitment_verified
+
+    store, iid = _store_with_issue(pg)
+    store.add_commitment("C1", iid, Commitment(commitment_id="cmt1", text="t"))
+    log_commitment_verified(store, "C1", iid, "cmt1", "analyst", "Board minutes 2025")
+    commitment = store.get("C1").issues[0].commitments[0]
+    assert (commitment.status, commitment.evidence) == (CommitmentStatus.VERIFIED, "Board minutes 2025")
+
+
+def test_commitment_evidence_round_trips(pg):
+    store, iid = _store_with_issue(pg)
+    store.add_commitment("C1", iid, Commitment(text="t", evidence="Board minutes 2025"))
+    assert store.get("C1").issues[0].commitments[0].evidence == "Board minutes 2025"
+
+
+def test_milestone_forward_only_never_moves_back(pg):
+    store, iid = _store_with_issue(pg)
+    store.set_milestone_stage("C1", iid, MilestoneStage.DIALOGUE_OPENED)
+    events = len(store.events("C1"))
+    record = store.set_milestone_stage("C1", iid, MilestoneStage.CONTACTED, reason="x", forward_only=True)
+    assert record.issues[0].milestone_stage == MilestoneStage.DIALOGUE_OPENED
+    assert len(store.events("C1")) == events
+    record = store.set_milestone_stage("C1", iid, MilestoneStage.RESPONSE_RECEIVED, forward_only=True)
+    assert record.issues[0].milestone_stage == MilestoneStage.RESPONSE_RECEIVED
+
+
+def test_type_and_activity_type_round_trip(pg):
+    store, iid = _store_with_issue(pg)
+    for kind, activity in [
+        (CorrespondenceType.LETTER, ActivityType.MEETING),
+        (CorrespondenceType.EMAIL, ActivityType.EMAIL),
+        (CorrespondenceType.CALL, None),
+        (CorrespondenceType.OTHER, ActivityType.AGM_INTERVENTION),
+    ]:
+        store.add_correspondence("C1", iid, CorrespondenceEntry(type=kind, activity_type=activity, summary="s"))
+    got = [(e.type, e.activity_type) for e in store.get("C1").issues[0].correspondence]
+    assert got == [
+        (CorrespondenceType.LETTER, ActivityType.MEETING),
+        (CorrespondenceType.EMAIL, ActivityType.EMAIL),
+        (CorrespondenceType.CALL, None),
+        (CorrespondenceType.OTHER, ActivityType.AGM_INTERVENTION),
+    ]
