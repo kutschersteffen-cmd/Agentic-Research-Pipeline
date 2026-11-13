@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import { ACTIVE, canReplan, resultHref, stepRows, type Plan } from "../lib/plans";
+import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
 
 const POLL_MS = 3000;
 
@@ -22,6 +22,13 @@ export function Plans({ selectedId, onSelect }: { selectedId: string | null; onS
 
   useEffect(loadList, [loadList]);
   useEffect(loadPlan, [loadPlan]);
+  // The list shows each plan's status: reload it when the open plan's status changes.
+  const planStatus = plan?.status;
+  const shownStatus = useRef(planStatus);
+  useEffect(() => {
+    if (shownStatus.current && planStatus && planStatus !== shownStatus.current) loadList(); // a change, not the first load
+    shownStatus.current = planStatus;
+  }, [planStatus, loadList]);
   useEffect(() => {
     if (!plan || !ACTIVE.has(plan.status)) return;
     const t = setInterval(loadPlan, POLL_MS);
@@ -65,7 +72,9 @@ export function Plans({ selectedId, onSelect }: { selectedId: string | null; onS
         <form onSubmit={draft}>
           <label className="field-label" htmlFor="plan-brief">Research brief</label>
           <textarea id="plan-brief" rows={3} value={brief} onChange={(e) => setBrief(e.target.value)}
-            placeholder="EU grid-storage universe, extract green capex for significant names, score, report" />
+            aria-describedby="plan-brief-help"
+            placeholder={'Grid-storage companies in the saved universe "eu listed": extract green capex for significant names, score, report'} />
+          <p id="plan-brief-help" className="muted">Name a saved universe in the brief. Save one on the Thematic Universe page first.</p>
           <div className="toolbar">
             <button type="submit" disabled={busy || !brief.trim()}>{busy ? "Drafting…" : "Draft plan"}</button>
           </div>
@@ -123,6 +132,7 @@ export function Plans({ selectedId, onSelect }: { selectedId: string | null; onS
               <tbody>
                 {stepRows(plan).map(({ step, status, call }) => {
                   const href = call && call.status === "done" ? resultHref(call) : null;
+                  const review = call && call.status === "awaiting_review" ? reviewHref(call) : null;
                   return (
                     <tr key={step.seq}>
                       <td>{step.seq}</td>
@@ -132,7 +142,9 @@ export function Plans({ selectedId, onSelect }: { selectedId: string | null; onS
                         {step.depends_on && <span className="muted"> (depends on step {step.depends_on})</span>}
                       </td>
                       <td><span className={`status-pill status-${status}`}>{status}</span></td>
-                      <td>{href ? <a href={href}>{call?.run_id ?? "Open"}</a> : <span className="muted">–</span>}</td>
+                      <td>
+                        {href ? <a href={href}>{call?.run_id ?? "Open"}</a> : review ? <a href={review}>Review</a> : <span className="muted">–</span>}
+                      </td>
                     </tr>
                   );
                 })}

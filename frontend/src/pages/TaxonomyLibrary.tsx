@@ -18,6 +18,7 @@ import type {
 import { activatable } from "../lib/activatable";
 import { ConfirmSignedIn } from "../components/ConfirmSignedIn";
 import { TaxonomySchemaLine } from "../components/TaxonomySchemaLine";
+import { builtUniverseLine, fundSearchEmptyText } from "../lib/universeBuilder";
 
 const METHOD_LABELS: Record<DerivationMethod, string> = {
   llm_draft: "LLM draft (freeform)",
@@ -59,9 +60,10 @@ export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
     setTaxonomies(res.taxonomies);
   }
 
+  // Reloaded on every sub-tab, so a taxonomy created elsewhere (another tab, the API) shows up in the pickers.
   useEffect(() => {
     refreshLibrary();
-  }, []);
+  }, [sub]);
 
   return (
     <div className="page">
@@ -567,6 +569,7 @@ function CompareMergeView({ taxonomies, onSaved }: { taxonomies: Taxonomy[]; onS
 function UniverseBuilderView() {
   const [query, setQuery] = useState("S&P 500");
   const [funds, setFunds] = useState<SourceCandidate[]>([]);
+  const [searched, setSearched] = useState<{ search_unreachable: boolean } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -576,8 +579,9 @@ function UniverseBuilderView() {
     setBusy(true);
     setError(null);
     try {
-      const res = (await api.discoverTaxonomySources(query)) as { thematic_funds: SourceCandidate[] };
+      const res = (await api.discoverTaxonomySources(query)) as { thematic_funds: SourceCandidate[]; search_unreachable: boolean };
       setFunds(res.thematic_funds);
+      setSearched(res);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -620,7 +624,7 @@ function UniverseBuilderView() {
         <button onClick={search} disabled={busy || !query}>
           Search
         </button>
-        <SourceDiscoveryPanel candidates={funds} selected={selected} onToggle={toggle} />
+        <SourceDiscoveryPanel candidates={funds} selected={selected} onToggle={toggle} emptyText={fundSearchEmptyText(searched)} />
         <p className="help-text">
           Fund-provider export formats aren't standardized and several finance domains are unreachable for automated
           fetching, so download the constituents CSV from the fund's site, then upload it below to build the
@@ -634,10 +638,7 @@ function UniverseBuilderView() {
         {error && <p className="error-text" role="alert">{error}</p>}
         {result && (
           <>
-            <p className="status-text">
-              Built {result.company_count} companies — saved at <code>{result.path}</code>. Use this path as the
-              universe for the news-mining derivation method or the Thematic Universe Builder.
-            </p>
+            <p className="status-text">{builtUniverseLine(result)}</p>
             <div className="table-wrap">
               <table className="data-table">
                 <thead>

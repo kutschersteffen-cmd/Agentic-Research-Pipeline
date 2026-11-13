@@ -226,6 +226,34 @@ def test_an_identity_run_that_ends_updates_step_1_without_a_reload(page):
     page.get_by_text("Identities resolved.").wait_for()  # AC-63
 
 
+@pytest.mark.parametrize("rekeyed", [False, True], ids=["same key", "new key"])
+def test_an_open_edit_form_keeps_what_was_typed_when_the_identity_run_ends(page, rekeyed):
+    fid = _flow(page.request, f"name\nAcme {TAG}k{rekeyed}\n")
+    state = {"status": "running"}
+
+    def flow(route):
+        # As the server answers: once the run has ended the row is matched and gets its central id. When the
+        # identifiers found belong to a company stored under another key, the row gets that key too.
+        r = route.fetch()
+        body = {**r.json(), "identity_run_id": "id-run", "identity": {"run_id": "id-run", "status": state["status"]}}
+        if state["status"] == "completed":
+            key = {"company_id": f"STORED-{TAG}"} if rekeyed else {}
+            body["rows"] = [{**row, **key, "problem": None, "central_id": "0c0ffee0-0000-4000-8000-000000000001"} for row in body["rows"]]
+            body["companies"] = [{**c, **key} for c in body["companies"]]
+        route.fulfill(response=r, json=body)
+
+    page.route(f"**/api/argus/flows/{fid}", flow)
+    page.goto(f"{URL}/#/argus/{fid}/1")
+    page.get_by_text("Identity run started.").wait_for()
+    page.get_by_role("button", name=f"Edit Acme {TAG}k{rekeyed}", exact=True).click()
+    ticker = page.get_by_role("form", name=f"Edit Acme {TAG}k{rekeyed}").get_by_label("Ticker", exact=True)
+    ticker.fill("ACM")
+    state["status"] = "completed"
+    page.get_by_text("Identities resolved.").wait_for()  # the poll that brings the central id has rendered
+    assert ticker.input_value() == "ACM"
+    assert page.evaluate("document.activeElement.value") == "ACM"  # and the keyboard is still in the field
+
+
 def test_saved_universes_with_the_same_name_differ_by_their_time(page):
     outs = [{"kind": "universe", "id": f"/u/{i}", "name": "Tech (3 companies)", "version": None, "as_of": f"2026-11-12T1{i}:15:00+00:00",
              "status": "saved", "by": None, "count": 3, "used_by": []} for i in (0, 1)]
@@ -274,6 +302,20 @@ def test_row_actions_name_their_row_and_keep_keyboard_focus(page):
         assert table.get_by_role("button", name=f"Remove {name}", exact=True).count() == 1
     assert table.get_by_role("columnheader", name="Actions").count() == 1
 
+    # a Save or a Remove that fails leaves the keyboard on its button, not on the page
+    failing = {"on": True}
+    page.route(f"**/api/argus/flows/{fid}/companies/*", lambda route: route.fulfill(status=500, json={"detail": "store down"})
+               if failing["on"] and route.request.method in ("PUT", "DELETE") else route.continue_())
+    table.get_by_role("button", name=f"Edit {b}", exact=True).press("Enter")
+    page.get_by_role("form", name=f"Edit {b}").get_by_role("button", name="Save").press("Enter")
+    page.get_by_role("alert").filter(has_text="store down").wait_for()
+    assert page.evaluate("document.activeElement.textContent") == "Save"
+    page.get_by_role("form", name=f"Edit {b}").get_by_role("button", name="Cancel").press("Enter")
+    table.get_by_role("button", name=f"Remove {b}", exact=True).press("Enter")
+    page.get_by_role("alert").filter(has_text="store down").wait_for()
+    page.wait_for_function(FOCUSED, arg=f"Remove {b}")
+    failing["on"] = False
+
     table.get_by_role("button", name=f"Edit {a}", exact=True).press("Enter")
     page.get_by_role("form", name=f"Edit {a}").get_by_role("button", name="Cancel").press("Enter")
     page.wait_for_function(FOCUSED, arg=f"Edit {a}")  # Cancel: back on the row's Edit
@@ -299,6 +341,24 @@ def test_row_actions_name_their_row_and_keep_keyboard_focus(page):
     page.wait_for_function(FOCUSED, arg=f"#/argus/{d1}/1")  # Delete: the next row's Open
     _ok_status = api.post(f"{API}/api/argus/flows/{d1}/discard").status
     assert _ok_status == 204
+
+
+def test_a_delete_that_fails_keeps_the_keyboard_and_one_already_gone_counts_as_done(page):
+    name = f"Gee {TAG}d"
+    fid = _flow(page.request, f"name\n{name}\n")
+    answer = {"status": 500, "detail": "store down"}
+    page.route(f"**/api/argus/flows/{fid}/discard", lambda route: route.fulfill(status=answer["status"], json={"detail": answer["detail"]}))
+    page.on("dialog", lambda d: d.accept())
+    page.goto(URL + "/#/argus")
+    delete = page.get_by_role("table", name="Runs").get_by_role("button", name=f"Delete draft {name}", exact=True)
+    delete.press("Enter")
+    page.get_by_role("alert").filter(has_text="The draft could not be deleted: store down").wait_for()
+    page.wait_for_function(FOCUSED, arg=f"Delete draft {name}")  # still on the button, not on the page
+    answer.update(status=404, detail="Extraction not found")  # someone else deleted it meanwhile
+    delete.press("Enter")
+    delete.wait_for(state="detached")
+    assert page.get_by_role("alert").count() == 0
+    assert page.request.post(f"{API}/api/argus/flows/{fid}/discard").status == 204  # clean up: the stub never reached the server
 
 
 def test_phone_labels_stay_on_one_line(page):
@@ -384,6 +444,18 @@ def test_a_saved_schema_with_long_texts_keeps_its_layout(page):
     page.goto(f"{URL}/#/argus/{_flow(page.request)}/3")
     table = _choose(page, name)
     table.get_by_text("Meaning 3").wait_for()
+    # no word of a field name or an ordinary unit is broken across lines ("USD / milli / ons")
+    broken = table.locator('td[data-label="Field"], td[data-label="Unit"]').evaluate_all("""tds => tds.flatMap(td => {
+        const node = td.firstChild, out = [];
+        for (const m of (node && node.nodeType === 3 ? node.data : '').matchAll(/\\S+/g)) {
+            const r = document.createRange();
+            r.setStart(node, m.index);
+            r.setEnd(node, m.index + m[0].length);
+            if (r.getClientRects().length > 1) out.push(m[0]);
+        }
+        return out;
+    })""")
+    assert broken == [], broken
     # CI's fonts are wider than a laptop's: the layout must hold with them too, so widen the Type column's text
     page.add_style_tag(content=".argus-schema-fields td.mono { letter-spacing: 0.35em; }")
     widths = table.locator("thead th").evaluate_all("ths => ths.map(th => th.getBoundingClientRect().width)")

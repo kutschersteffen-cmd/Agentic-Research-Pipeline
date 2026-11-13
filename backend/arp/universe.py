@@ -47,12 +47,15 @@ def load_company_universe(path: str | Path) -> list[CompanyRef]:
     """
     path = Path(path)
     if path.suffix.lower() == ".json":
-        rows = json.loads(path.read_text())
+        try:
+            rows = json.loads(path.read_text())
+        except json.JSONDecodeError as exc:
+            raise UniverseRejected("The file is not valid JSON.") from exc
     elif path.suffix.lower() == ".csv":
         with path.open(newline="", encoding="utf-8-sig") as f:
             rows = list(csv.DictReader(f))
     else:
-        raise ValueError(f"Unsupported universe file type: {path.suffix}")
+        raise UniverseRejected(f'Unsupported file type "{path.suffix}". Upload a .csv or .json file.')
 
     companies: list[CompanyRef] = []
     seen: set[str] = set()
@@ -63,6 +66,10 @@ def load_company_universe(path: str | Path) -> list[CompanyRef]:
         for k in ("nace_code", "nace_rev", "gics_code"):  # JSON numbers (7.29) are validated as text
             if clean.get(k) is not None:
                 clean[k] = str(clean[k])
+        if isinstance(clean.get("regimes"), str):  # a CSV cell: "CSRD; SFDR"
+            clean["regimes"] = [r.strip() for r in clean["regimes"].replace(",", ";").split(";") if r.strip()]
+        elif clean.get("regimes") is None:
+            clean.pop("regimes", None)
         try:
             ref = CompanyRef(**clean)
         except ValidationError as exc:  # the first bad field of the first bad row, in words, not pydantic's text
@@ -90,3 +97,35 @@ def resolve_universe(companies: list[CompanyRef], session) -> tuple[list[Company
         else:
             resolved.append(c.model_copy(update={"entity_id": r.company_id}))
     return resolved, conflicts
+
+
+def saved_universes(runs_dir: str | Path) -> list[str]:
+    """File names of the saved universes: `.json`/`.csv` files directly in `<runs_dir>/_universes`, sorted."""
+    folder = Path(runs_dir) / "_universes"
+    return sorted(p.name for p in folder.glob("*")
+                  if p.suffix.lower() in (".json", ".csv") and not p.name.startswith(".") and p.is_file())
+
+
+def not_saved_message(source: str, names: list[str]) -> str:
+    return (f'"{source}" is not a saved universe. Save one on the Thematic Universe page ("Save … as a universe") or '
+            "upload one there, then name it in the brief. Saved universes: " + (", ".join(names) or "none") + ".")
+
+
+def universe_source_path(runs_dir: str | Path, source: str) -> Path:
+    """A saved universe's file name resolves to its file; anything else is a path, as before."""
+    saved = Path(runs_dir) / "_universes" / source
+    return saved if saved.is_file() else Path(source)
+
+
+def universe_source_errors(runs_dir: str | Path, steps: list[dict]) -> list[str]:
+    """One line per `universe_build` call whose `source` is neither a saved universe nor an existing universe file."""
+    names = saved_universes(runs_dir)
+    errors = []
+    for step in steps:
+        source = step["params"].get("source") if step["kind"] == "universe_build" else None
+        if source is None:
+            continue
+        path = Path(str(source))
+        if str(source) not in names and not (path.suffix.lower() in (".json", ".csv") and path.is_file()):
+            errors.append(not_saved_message(str(source), names))
+    return errors

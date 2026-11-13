@@ -3,7 +3,7 @@ from __future__ import annotations
 import httpx
 
 from arp.discovery.gleif import name_matches
-from arp.discovery.site_finder import WebSearchClient
+from arp.discovery.site_finder import SearchBlocked, WebSearchClient
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.llm.base import LLMClient, LLMUsage
 from arp.schemas.discovery import IdentityAdjudication, IdentitySignals, WebSearchHit
@@ -102,7 +102,11 @@ async def gather_signals(
     queries = [f"{company_name} investor relations", f"{company_name} official website"]
     try:
         for query in queries:
-            for r in await search_client.search(query, max_results=max_search_results):
+            try:
+                found = await search_client.search(query, max_results=max_search_results)
+            except SearchBlocked:  # a bot challenge reads as no hits here, never as a failed lookup
+                found = []
+            for r in found:
                 if r.url in seen_urls:
                     continue
                 seen_urls.add(r.url)

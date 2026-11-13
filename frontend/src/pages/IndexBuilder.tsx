@@ -1,4 +1,5 @@
 import { WhyLinks } from "../components/WhyLinks";
+import { DEMO_BANNER, exceptionText, indexErrorText, ruleTitle, SOLVER_MISSING } from "../lib/indexBuilder";
 import { useEffect, useMemo, useState } from "react";
 import { useMe } from "../lib/reviewer";
 import { api } from "../api/client";
@@ -318,6 +319,7 @@ export function IndexBuilder() {
     <div className="page">
       <h1>Index Construction</h1>
       <p className="help-text">Compose screens, selection, weighting, tilts, constraints and the decarbonisation path into one methodology, save it as a versioned calibration, and run a review. Every step is deterministic.</p>
+      <p className="banner banner-warning" role="note">{DEMO_BANNER}</p>
 
       <div className="sub-nav" role="tablist" aria-label="Index Construction steps">
         {SUB_TABS.map((t) => (
@@ -327,7 +329,7 @@ export function IndexBuilder() {
         ))}
       </div>
 
-      {error && <p className="error-text" role="alert">{error}</p>}
+      {error && <p className="error-text" role="alert">{indexErrorText(error, catalogue)}</p>}
       {status && <p className="status-text">{status}</p>}
 
       {sub === "compose" && (
@@ -379,7 +381,7 @@ export function IndexBuilder() {
             <WeightingCard spec={spec} setSpec={setSpec} fields={fields} />
           </div>
           <div className="ix-step" id="ix-tilts">
-            <TiltsCard spec={spec} setSpec={setSpec} fields={fields} />
+            <TiltsCard spec={spec} setSpec={setSpec} fields={fields} catalogue={catalogue} />
           </div>
           <div className="ix-step" id="ix-constraints">
             <ConstraintsCard spec={spec} setSpec={setSpec} fields={fields} optimizerAvailable={catalogue?.constraint_solver?.available ?? null} integerAvailable={catalogue?.constraint_solver?.integer_available ?? null} />
@@ -430,7 +432,9 @@ export function IndexBuilder() {
         />
       )}
 
-      {sub === "result" && <ResultTab result={result} indexId={indexId} joined={snapshot ? [snapshot] : []} />}
+      {sub === "result" && (
+        <ResultTab result={result} indexId={indexId} joined={snapshot ? [snapshot] : []} methods={catalogue?.constraint_solver?.methods} />
+      )}
     </div>
   );
 }
@@ -549,7 +553,7 @@ function ScreensCard({
       {spec.screens.map((screen, i) => (
         <RuleShell
           key={screen.rule_id ?? i}
-          title={screen.type}
+          title={ruleTitle(screen.type, catalogue?.screens)}
           enabled={screen.enabled !== false}
           onToggle={() => update(i, { enabled: screen.enabled === false } as Partial<ScreenRule>)}
           onRemove={() => setSpec({ ...spec, screens: spec.screens.filter((_, idx) => idx !== i) })}
@@ -748,7 +752,17 @@ function WeightingCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setS
 
 // --------------------------------------------------------------- tilts
 
-function TiltsCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setSpec: (s: ConstructionSpec) => void; fields: IndexCatalogue["fields"] }) {
+function TiltsCard({
+  spec,
+  setSpec,
+  fields,
+  catalogue,
+}: {
+  spec: ConstructionSpec;
+  setSpec: (s: ConstructionSpec) => void;
+  fields: IndexCatalogue["fields"];
+  catalogue: IndexCatalogue | null;
+}) {
   function update(i: number, patch: Record<string, unknown>) {
     setSpec({ ...spec, tilts: spec.tilts.map((t, idx) => (idx === i ? ({ ...t, ...patch } as TiltRule) : t)) });
   }
@@ -787,7 +801,7 @@ function TiltsCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setSpec:
       {spec.tilts.map((tilt, i) => (
         <RuleShell
           key={tilt.rule_id ?? i}
-          title={tilt.type}
+          title={ruleTitle(tilt.type, catalogue?.tilts)}
           enabled={tilt.enabled !== false}
           onToggle={() => update(i, { enabled: tilt.enabled === false })}
           onRemove={() => setSpec({ ...spec, tilts: spec.tilts.filter((_, idx) => idx !== i) })}
@@ -984,14 +998,14 @@ function ConstraintsCard({
           />
         )}
       </div>
+      {optimizerAvailable === false &&
+        (solver.method === "waterfall" ? (
+          <p className="help-text" role="note">{SOLVER_MISSING}</p>
+        ) : (
+          <p className="error-text" role="alert">{SOLVER_MISSING}</p>
+        ))}
       {solver.method !== "waterfall" && (
         <>
-          {optimizerAvailable === false && (
-            <p className="error-text" role="alert">
-              cvxpy is not installed on the server, so this calibration will fall back to the waterfall and record why.
-              Install it with <code>pip install -e &quot;.[optimize]&quot;</code>.
-            </p>
-          )}
           <label className="checkbox-label">
             <input
               type="checkbox"
@@ -1377,7 +1391,17 @@ function CalibrationsTab({
 
 // -------------------------------------------------------------- result
 
-function ResultTab({ result, indexId, joined }: { result: IndexReviewResult | null; indexId: string; joined: PublishedDecision[] }) {
+function ResultTab({
+  result,
+  indexId,
+  joined,
+  methods,
+}: {
+  result: IndexReviewResult | null;
+  indexId: string;
+  joined: PublishedDecision[];
+  methods: IndexCatalogue["constraint_solver"]["methods"] | undefined;
+}) {
   const [showAll, setShowAll] = useState(false);
   const sorted = useMemo(() => (result ? [...result.constituents].sort((a, b) => b.weight - a.weight) : []), [result]);
 
@@ -1437,8 +1461,8 @@ function ResultTab({ result, indexId, joined }: { result: IndexReviewResult | nu
             <p className="help-text">Every relaxation and data-quality override applied, in order. These belong on the committee pack.</p>
             <ul>
               {result.exceptions.map((e, i) => (
-                <li key={i} className="error-text" role="alert">
-                  {e}
+                <li key={i} className="error-text">
+                  {exceptionText(e, methods)}
                 </li>
               ))}
             </ul>

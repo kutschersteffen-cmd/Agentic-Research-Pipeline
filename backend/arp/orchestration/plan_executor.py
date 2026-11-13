@@ -29,6 +29,10 @@ class _Cancelled(Exception):
     pass
 
 
+class _AwaitingReview(Exception):
+    pass
+
+
 _STARTABLE = {"approved", "failed"}  # failed: `resume` re-runs from the top, reusing finished calls
 _ACTIVE = {"running", "awaiting_review"}
 
@@ -54,17 +58,19 @@ def claim_plan(store: PlanStore, plan_id: str) -> None:
 
 
 def run_plan(plan_id: str, store: PlanStore, steps: dict[str, StepFn], reviewed: ReviewedFn,
-             *, poll_seconds: float = 5.0) -> str:
+             *, poll_seconds: float = 5.0, return_at_gate: bool = False) -> str:
     """Run the plan to an end state and return it. Raises PlanNotRunnable when it is not approved or already
-    running."""
+    running. With `return_at_gate`, a step that waits for review is not waited for: the plan is left
+    `awaiting_review` and this returns "awaiting_review"; run it again once the step is reviewed."""
     try:
         with run_lease(store, f"plan:{plan_id}"):
-            return _run(plan_id, store, steps, reviewed, poll_seconds)
+            return _run(plan_id, store, steps, reviewed, poll_seconds, return_at_gate)
     except RunBusy as exc:
         raise PlanNotRunnable("plan is already running") from exc
 
 
-def _run(plan_id: str, store: PlanStore, steps: dict[str, StepFn], reviewed: ReviewedFn, poll: float) -> str:
+def _run(plan_id: str, store: PlanStore, steps: dict[str, StepFn], reviewed: ReviewedFn, poll: float,
+         return_at_gate: bool) -> str:
     # We hold the lease, so a plan marked running or awaiting review has no other live worker: take it over.
     plan = store.get(plan_id)
     if plan["status"] not in _STARTABLE | _ACTIVE:
@@ -81,16 +87,25 @@ def _run(plan_id: str, store: PlanStore, steps: dict[str, StepFn], reviewed: Rev
         if status() == "cancelled":
             raise _Cancelled
         old = previous.get(seq)
-        if old and old["status"] == "done" and old["kind"] == kind and old["params"] == params:
+        same = old and old["kind"] == kind and old["params"] == params
+        if same and old["status"] == "done":
             return old["result"]
-        store.record_call(plan_id, seq=seq, kind=kind, params=params, status="running")
-        try:
-            result = steps[kind](**params)
-        except Exception as exc:
-            store.update_call(plan_id, seq, status="failed")
-            raise RuntimeError(f"step {seq} {kind} failed: {exc}") from exc
+        if same and old["status"] == "awaiting_review":  # its run already exists: never start it twice
+            result = old["result"]
+        else:
+            store.record_call(plan_id, seq=seq, kind=kind, params=params, status="running")
+            try:
+                result = steps[kind](**params)
+            except Exception as exc:
+                store.update_call(plan_id, seq, status="failed")
+                raise RuntimeError(f"step {seq} {kind} failed: {exc}") from exc
         ids = {"run_id": result.get("run_id"), "result_ref": result.get("result_ref"), "result": result}
-        if result.get("gate"):
+        if result.get("gate") and return_at_gate:
+            store.update_call(plan_id, seq, status="awaiting_review", **ids)
+            if not reviewed({"seq": seq, "kind": kind, **ids}):
+                store.claim(plan_id, {"running"}, "awaiting_review")  # atomic: a cancel is never overwritten
+                raise _AwaitingReview
+        elif result.get("gate"):
             store.update_call(plan_id, seq, status="awaiting_review", **ids)
             if status() != "cancelled":
                 store.set_status(plan_id, "awaiting_review")
@@ -111,6 +126,8 @@ def _run(plan_id: str, store: PlanStore, steps: dict[str, StepFn], reviewed: Rev
         run_script(plan["script"], bound, kept, first_seq)
     except _Cancelled:
         return "cancelled"
+    except _AwaitingReview:
+        return "awaiting_review"
     except Exception as exc:  # noqa: BLE001 - recorded on the plan; the owner resumes it
         store.set_status(plan_id, "failed", error=str(exc))
         return "failed"
@@ -121,7 +138,10 @@ def _run(plan_id: str, store: PlanStore, steps: dict[str, StepFn], reviewed: Rev
 
 
 def cancel_plan(plan_id: str, store: PlanStore) -> None:
-    """The step in progress finishes; no later step starts."""
+    """The step in progress finishes; no later step starts. A step waiting for review is cancelled with it."""
     if store.get(plan_id)["status"] not in {"running", "awaiting_review"}:
         raise PlanNotRunnable("plan is not running")
     store.set_status(plan_id, "cancelled")
+    for c in store.calls(plan_id):
+        if c["status"] == "awaiting_review":
+            store.update_call(plan_id, c["seq"], status="cancelled")

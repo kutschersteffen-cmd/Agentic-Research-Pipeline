@@ -4,8 +4,9 @@ import { BatchToggle } from "../components/BatchToggle";
 import { ruleMarkers, RulesList } from "../components/RulesList";
 import { ScoringTemplatePicker } from "../components/RunScoring";
 import { SchemaFieldsEditor } from "../components/SchemaFieldsEditor";
+import { errorDetail } from "../lib/barrier";
 import { ruleInputs, sameRule } from "../lib/ruleSentence";
-import { bumpChangedFields, canStart, draftHint, flowHref, lastRunText, newDocsLine, newFieldId, newestVersions, plainError, presetCountText, releaseQuestion, startLabel } from "../lib/argusFlow";
+import { bumpChangedFields, canStart, draftHint, flowHref, lastRunText, newDocsLine, newFieldId, newestVersions, presetCountText, releaseQuestion, startLabel } from "../lib/argusFlow";
 import type { ArgusFlow as Flow, DataPointSchema, FieldDefinition, RuleSuggestion, RunManifest } from "../types";
 
 type SavedSchema = { schema_id: string; version: number; name: string; release_flag: boolean; field_count: number };
@@ -95,8 +96,8 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
   const choice = flow.schema_choice ?? null;
 
   useEffect(() => {
-    api.listSchemas().then((s) => setSaved(newestVersions(s)), (e: Error) => setLoadError(plainError(e.message)));
-    api.listPresets().then(setPresets, (e: Error) => setLoadError(plainError(e.message)));
+    api.listSchemas().then((s) => setSaved(newestVersions(s)), (e: Error) => setLoadError(errorDetail(e)));
+    api.listPresets().then(setPresets, (e: Error) => setLoadError(errorDetail(e)));
     api.getMe().then((m) => setRole(m.role), () => setRole(null));
     api.getTransitionPlanIndicators().then((i) => setIndicatorCount(i.length), () => setIndicatorCount(null));
   }, []);
@@ -117,7 +118,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
     let live = true; // a slower answer for an earlier choice must not replace this one
     api.getSchema(choice.schema_id, choice.version).then((s) => live && setSchema(s), (e: Error) => {
       if (!live) return;
-      if (!/^404: /.test(e.message)) return setLoadError(plainError(e.message));
+      if (!/^404: /.test(e.message)) return setLoadError(errorDetail(e));
       setGone(true); // deleted since it was chosen: clear the choice, or the start button waits on it for ever
       act(() => api.patchArgusFlow(id, { schema_choice: null, repeat: {} }));
     });
@@ -165,7 +166,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
           .map((r) => ({ ...r, helper_fields: helpers.filter((h) => h.field_id === r.field_id || ruleInputs(r.rule).includes(h.field_id)) })),
       );
     } catch (err) {
-      setRuleError(`Rule suggestions failed: ${plainError((err as Error).message)}`);
+      setRuleError(`Rule suggestions failed: ${errorDetail(err as Error)}`);
     } finally {
       setSuggesting(false);
     }

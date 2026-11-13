@@ -4695,6 +4695,18 @@
       "description": "On-disk filename, resolved by grounding.",
       "title": "Source Filename"
      },
+     "source_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The document's web address when it has no local file, resolved by grounding.",
+      "title": "Source Url"
+     },
      "span_text": {
       "anyOf": [
        {
@@ -7269,6 +7281,120 @@
     "title": "DashboardItem",
     "type": "object"
    },
+   "DataPointObservation": {
+    "description": "One resolved value of one data-point field for one company, at one\npoint in time. Append-only: a later correction is a new observation\nwith a later `observed_at`, never an edit to a prior one, so a trend\nquery reflects what was actually known at each point in time.",
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "conflicting_source_label": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Conflicting Source Label"
+     },
+     "conflicting_sources": {
+      "default": false,
+      "description": "True if an independent extraction pass disagreed with this value beyond tolerance.",
+      "title": "Conflicting Sources",
+      "type": "boolean"
+     },
+     "conflicting_value": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Conflicting Value"
+     },
+     "field_id": {
+      "title": "Field Id",
+      "type": "string"
+     },
+     "field_name": {
+      "title": "Field Name",
+      "type": "string"
+     },
+     "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+     },
+     "observed_at": {
+      "title": "Observed At",
+      "type": "string"
+     },
+     "period": {
+      "default": "",
+      "description": "Fiscal period the value applies to, e.g. \"FY2025\".",
+      "title": "Period",
+      "type": "string"
+     },
+     "source": {
+      "enum": [
+       "internal_api",
+       "extracted",
+       "catalogue",
+       "estimated_proxy",
+       "simulated"
+      ],
+      "title": "Source",
+      "type": "string"
+     },
+     "unit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value"
+     }
+    },
+    "required": [
+     "company_id",
+     "field_id",
+     "field_name",
+     "value",
+     "source"
+    ],
+    "title": "DataPointObservation",
+    "type": "object"
+   },
    "DataPointSchema": {
     "properties": {
      "created_at": {
@@ -8306,6 +8432,11 @@
       "title": "Authority Sources",
       "type": "array"
      },
+     "search_unreachable": {
+      "default": false,
+      "title": "Search Unreachable",
+      "type": "boolean"
+     },
      "thematic_funds": {
       "items": {
        "$ref": "#/components/schemas/SourceCandidate"
@@ -8649,7 +8780,10 @@
      "status": {
       "anyOf": [
        {
-        "const": "shelved",
+        "enum": [
+         "shelved",
+         "active"
+        ],
         "type": "string"
        },
        {
@@ -17326,6 +17460,11 @@
      "round": {
       "title": "Round",
       "type": "integer"
+     },
+     "search_unreachable": {
+      "default": false,
+      "title": "Search Unreachable",
+      "type": "boolean"
      },
      "sources": {
       "default": [],
@@ -27232,6 +27371,53 @@
      }
     },
     "summary": "Get Company Facts",
+    "tags": [
+     "companies"
+    ]
+   }
+  },
+  "/api/companies/{ref}/simulated-esg": {
+   "get": {
+    "description": "The company's latest SIMULATED value per climate and `simulated_esg` field (`arp showcase load`), in schema\norder; empty when it has none. Only source `simulated`: every value here is invented and must be shown so.",
+    "operationId": "get_simulated_esg_api_companies__ref__simulated_esg_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "ref",
+      "required": true,
+      "schema": {
+       "title": "Ref",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/DataPointObservation"
+         },
+         "title": "Response Get Simulated Esg Api Companies  Ref  Simulated Esg Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Simulated Esg",
     "tags": [
      "companies"
     ]

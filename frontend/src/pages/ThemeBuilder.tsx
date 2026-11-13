@@ -13,6 +13,7 @@ import { activatable } from "../lib/activatable";
 import { ProposedTag } from "../components/ProposedTag";
 import { ThemeLayersTable } from "../components/ThemeLayersTable";
 import { errorDetail } from "../lib/themeLayers";
+import { companies as companiesWord, savedDraftLine } from "../lib/themeBuilder";
 
 const EXPOSURE_RANK: Record<string, number> = { pure_play: 3, significant: 2, minor: 1, none: 0 };
 
@@ -55,6 +56,7 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
   const [sendStatus, setSendStatus] = useState("");
   const [sentUniverse, setSentUniverse] = useState<{ path: string; count: number } | null>(null);
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
+  const [savedDraft, setSavedDraft] = useState<Taxonomy | null>(null);
 
   useEffect(() => {
     api.listTaxonomies().then((res) => setTaxonomies((res as { taxonomies: Taxonomy[] }).taxonomies)).catch(() => {});
@@ -77,6 +79,24 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
       const drafted = (await api.decomposeTheme(name, description)) as ThemeDefinition;
       setTheme(drafted);
       setLoadedTaxonomy(null);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveAsDraft() {
+    if (!theme) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const created = (await api.createTaxonomy({ name, description, derivation_method: "llm_draft", theme })) as Taxonomy;
+      setTaxonomies((ts) => [...ts, created]);
+      setSelectedTaxonomyId(created.taxonomy_id);
+      setVersions([created]);
+      loadVersion(created);
+      setSavedDraft(created);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -157,6 +177,8 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
       });
       setRunId(res.run_id);
       setResults([]);
+      // The address names the run (reloadable, shareable) without remounting the form.
+      history.replaceState(null, "", `#/theme/${encodeURIComponent(res.run_id)}`);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -263,7 +285,7 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
         return;
       }
       const res = await api.universeFromCompanies(companies, `${theme?.name ?? "theme"}_screen`);
-      setSendStatus(`Saved ${res.company_count} companies as a universe.`);
+      setSendStatus(`Saved ${companiesWord(res.company_count)} as a universe.`);
       setSentUniverse({ path: res.path, count: res.company_count });
     } catch (err) {
       setSendStatus(`Failed: ${(err as Error).message}`);
@@ -290,6 +312,16 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
         <button onClick={decompose} disabled={busy}>
           Decompose into activities
         </button>
+        {theme && !loadedTaxonomy && (
+          <button className="secondary" onClick={saveAsDraft} disabled={busy}>
+            Save as taxonomy draft
+          </button>
+        )}
+        {savedDraft && loadedTaxonomy?.taxonomy_id === savedDraft.taxonomy_id && (
+          <p className="status-text" role="status">
+            {savedDraftLine(savedDraft.name)} <a href="#/taxonomy">Open the Taxonomy Library</a>
+          </p>
+        )}
 
         <p className="help-text" style={{ marginTop: 16 }}>
           Or load an existing, versioned taxonomy from the Taxonomy Library instead of drafting a new one:
@@ -437,7 +469,7 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
       {runId && (
         <section className="card">
           <h2>4. Run progress</h2>
-          <RunProgress runId={runId} />
+          <RunProgress runId={runId} onFinish={() => refreshResults().catch((e) => setError(errorDetail(e)))} />
           <div className="toolbar">
             <button onClick={refreshResults}>Refresh results</button>
             <FileLink url={api.exportRunCsvUrl(runId)} name={`${runId}.csv`}>
@@ -477,7 +509,7 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
               </p>
               <div className="toolbar">
                 <button onClick={sendToExtraction} disabled={sendBusy || filteredResults.length === 0}>
-                  Save {new Set(filteredResults.map((m) => m.company_id)).size} companies as a universe
+                  Save {companiesWord(new Set(filteredResults.map((m) => m.company_id)).size)} as a universe
                 </button>
                 {sentUniverse && (
                   <button
@@ -590,7 +622,7 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
                   </table>
                 </div>
               </div>
-              <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
+              {activeSource && <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />}
             </div>
           )}
         </section>
