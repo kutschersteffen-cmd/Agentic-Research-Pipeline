@@ -80,3 +80,16 @@ def test_a_runs_companies_name_their_central_id(tmp_path, pg):
         {"company_id": "aapl", "name": "Apple", "entity_id": central}, {"company_id": "acme", "name": "Acme"}]}))
     rows = run_companies(store, run_id, [], [])
     assert [(r["company_id"], r["entity_id"]) for r in rows] == [("aapl", central), ("acme", None)]  # AC-127
+
+
+def test_a_base_path_that_is_no_path_is_refused(client):
+    r = client.post("/api/universe/from-companies", json={"companies": [MSFT], "base_path": "bad\x00path.json"})
+    assert r.status_code == 400 and r.json()["detail"] == "Universe file must be a saved universe."
+
+
+def test_an_unreadable_base_is_refused(client, tmp_path):
+    saved = tmp_path / "runs" / "_universes"
+    saved.mkdir(parents=True)
+    (saved / "broken.json").write_text("{not json")
+    r = client.post("/api/universe/from-companies", json={"companies": [MSFT], "base_path": str(saved / "broken.json")})
+    assert r.status_code == 400 and r.json()["detail"] == "Could not read the universe file."
