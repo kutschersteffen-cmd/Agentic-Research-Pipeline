@@ -161,19 +161,15 @@ def load(store, settings: Settings, holdings_dir: Path, dataset: Path, echo: Cal
         return state["rows"]
 
     def step_import() -> str:
+        _register(read_dataset())  # first, so the securities and holdings written next link to the registry company
         state["imported"] = _import(store, holdings_dir)
         return f"{len(state['imported'])} portfolios, {sum(s['holdings_written'] for _, s in state['imported'])} holdings"
-
-    def step_scores() -> str:
-        written = _scores(store, read_dataset(), dataset)
-        _register(read_dataset())  # no step of its own: the spec's five step lines stay as they are
-        return f"{written} new simulated score observations"
 
     steps: list[tuple[str, Callable[[], str]]] = [
         ("import", step_import),
         ("history", lambda: f"{_history(store, state['imported'])} simulated month-end snapshots"),
         ("esg", lambda: f"{_esg(store, read_dataset(), dataset)} new simulated climate observations, {len(MONTHS)} months"),
-        ("scores", step_scores),
+        ("scores", lambda: f"{_scores(store, read_dataset(), dataset)} new simulated score observations"),
     ]
     for name, step in steps:
         try:

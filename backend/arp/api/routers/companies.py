@@ -45,6 +45,8 @@ def get_simulated_esg(ref: str, store=Depends(get_portfolio_store)) -> list[Data
         cid = _resolve(s, ref)
         universe = set(s.scalars(select(CompanyIdentifier.value).where(
             CompanyIdentifier.company_id == cid, CompanyIdentifier.scheme == "UNIVERSE", CompanyIdentifier.valid_to.is_(None))))
+    if not universe:
+        return []
     # UNIVERSE aliases are stored upper-cased; the portfolio store keeps the id as written
     # shortcut: reads every portfolio-store company per call; index by normalised id if the store grows past ~10k
     company_id = next((c.company_id for c in store.list_companies() if normalise_identifier("UNIVERSE", c.company_id) in universe), None)
@@ -52,7 +54,7 @@ def get_simulated_esg(ref: str, store=Depends(get_portfolio_store)) -> list[Data
     for field_id in [*CLIMATE_FIELD_IDS, *SIMULATED_FIELD_IDS] if company_id else []:
         simulated = [o for o in store.load_observations(company_id, field_id) if o.source == "simulated"]
         if simulated:
-            out.append(max(simulated, key=lambda o: o.observed_at))
+            out.append(sorted(simulated, key=lambda o: o.observed_at)[-1])  # a tie: the later row is the correction, as resolve_field_value
     return out
 
 

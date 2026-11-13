@@ -10,10 +10,9 @@ from arp.portfolio import datapoint_mapping
 from arp.portfolio.climate import metrics
 from arp.portfolio.monitoring.evaluator import list_alerts
 from arp.schemas.triggers import UnifiedTrigger
-from arp.showcase.simulate import GRADES
 from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
 
-GRADE_LETTERS = [g[0] for g in GRADES]
+GRADE_LETTERS = "ABCDEF"  # the transition grades of arp/showcase/simulate.py GRADES
 
 
 def month_end(month: str) -> str:
@@ -58,7 +57,7 @@ def grade_weights(store: PortfolioStore, holdings, securities, as_of: str) -> di
             obs = datapoint_mapping.resolve_field_value(store, company_id, "transition_grade", as_of)
             grades[company_id] = obs.value if obs is not None else None
         if company_id and grades[company_id] in by_grade:
-            by_grade[grades[company_id]] += h.weight_pct
+            by_grade[grades[company_id]] += h.weight_pct or 0
     total = sum(by_grade.values())
     return {f"grade_{g.lower()}_weight_pct": (100 * w / total if total else None) for g, w in by_grade.items()}
 

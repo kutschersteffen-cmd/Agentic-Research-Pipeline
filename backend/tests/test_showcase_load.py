@@ -7,7 +7,7 @@ import csv
 
 import pytest
 
-from arp.bi.published import month_end
+from arp.bi.published import GRADE_LETTERS, month_end
 from arp.config import Settings
 from arp.portfolio import datapoint_mapping
 from arp.portfolio.climate.esg_intake import FIELD_IDS as CLIMATE_FIELD_IDS
@@ -15,7 +15,7 @@ from arp.portfolio.loads import latest_load
 from arp.schemas.portfolio import DataPointObservation
 from arp.showcase.load import MONTHS, load
 from arp.showcase.schema import FIELD_IDS
-from arp.showcase.simulate import FILE_ORDER, read_holdings, simulate, write_dataset
+from arp.showcase.simulate import FILE_ORDER, GRADES, read_holdings, simulate, write_dataset
 from arp.storage.portfolio_store import PortfolioStore
 from tests.test_constituent_import import _xlsx
 
@@ -145,6 +145,7 @@ def test_the_25_score_fields_are_published_for_november_only(env, monkeypatch):
 
 
 def test_grade_weights_are_shares_of_the_graded_weight(env, monkeypatch):
+    assert "".join(g[0] for g in GRADES) == GRADE_LETTERS  # published.py keeps its own copy of the letters
     ok, _, published = _run(env, monkeypatch)
     assert ok
     (world,) = [r for r in published[("portfolio_climate_metrics", "2026-11")] if r["portfolio_id"] == "portfolio_msci_world"]
@@ -177,6 +178,28 @@ def test_dataset_companies_open_on_the_company_page_with_their_simulated_values(
     with transaction() as s:
         other = ensure_universe_company(s, "not_simulated")
     assert get_simulated_esg(str(other), store) == []
+
+
+def test_after_a_reload_with_a_changed_grade_the_card_shows_the_new_one(env):
+    from arp.api.routers.companies import get_simulated_esg
+
+    store, _, _, dataset, rows = env
+    assert _run(env)[0]
+    a = rows["A"]["company_id"]
+    with dataset.open(newline="", encoding="utf-8") as fh:
+        reader = csv.DictReader(fh)
+        fields, data = reader.fieldnames, list(reader)
+    for r in data:
+        if r["company_id"] == a:
+            r["transition_grade"], r["transition_grade_label"] = "B", "Credible"
+    with dataset.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fields)
+        writer.writeheader()
+        writer.writerows(data)
+    assert _run(env)[0]
+    card = {o.field_id: o.value for o in get_simulated_esg(f"UNIVERSE:{a}", store)}
+    resolved = datapoint_mapping.resolve_field_value(store, a, "transition_grade", "2026-11-02").value
+    assert (card["transition_grade"], card["transition_grade_label"], resolved) == ("B", "Credible", "B")
 
 
 def test_a_second_run_changes_nothing(env):
