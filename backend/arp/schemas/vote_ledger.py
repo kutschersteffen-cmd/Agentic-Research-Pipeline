@@ -19,8 +19,8 @@ class VoteValue(StrEnum):
 
 def against_management(vote: VoteValue, recommendation: str | None) -> bool | None:
     """Spec "Intake -> Rules": against management, or None when it cannot be told."""
-    if recommendation is None or vote in {"abstain", "do_not_vote", "other", "one_year", "two_years", "three_years"}:
+    if not recommendation or vote in {"abstain", "do_not_vote", "other", "one_year", "two_years", "three_years"}:
         return None
     if vote in {"against", "withhold"}:
-        return recommendation == "for"
-    return recommendation == "against"  # vote is `for`
+        return True if recommendation == "for" else (False if recommendation == vote else None)
+    return True if recommendation == "against" else (False if recommendation == "for" else None)  # vote is `for`

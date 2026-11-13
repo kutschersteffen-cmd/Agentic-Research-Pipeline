@@ -11,7 +11,8 @@ from arp.storage.postgres_models import StwCompanyModel, VoteDecisionModel, Vote
 @pytest.mark.parametrize(
     ("vote", "rec", "expected"),
     [("against", "for", True), ("withhold", "for", True), ("for", "against", True), ("for", "for", False),
-     ("abstain", "for", None), ("one_year", "for", None), ("against", None, None)],
+     ("abstain", "for", None), ("one_year", "for", None), ("against", None, None), ("against", "", None), ("against", "withhold", None), ("for", "abstain", None),
+     ("against", "against", False), ("withhold", "withhold", False)],
 )  # fmt: skip
 def test_against_management_rule(vote, rec, expected):
     assert against_management(vote, rec) is expected
@@ -68,3 +69,16 @@ def test_changed_value_updates(pg):
     assert (report.created, report.updated, report.unchanged) == (0, 1, 2)
     with transaction(pg) as s:
         assert s.scalars(select(VoteDecisionModel)).one().against_management is True
+
+
+def test_list_values_rejected_not_crash(pg):
+    report = intake_votes([_row(vote=["for"], isin=["x"], external_id=["d"])], pg, "api")
+    assert {r.field for r in report.rejected} >= {"vote", "isin", "external_id"}
+    assert all(r.sheet == "votes" for r in report.rejected)
+
+
+def test_company_id_only_row_stored_null(pg):
+    report = intake_votes([_row(company_id="NOPE", isin=None)], pg, "api")
+    assert (report.created, report.rejected) == (3, [])
+    with transaction(pg) as s:
+        assert s.scalars(select(VoteMeetingModel)).one().company_id is None

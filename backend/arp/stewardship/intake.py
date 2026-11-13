@@ -104,21 +104,23 @@ _BOOLS = {"escalated", "is_initiation"}
 _TRUE, _FALSE = {"true", "yes", "1"}, {"false", "no", "0"}
 
 
+def _cell(v, k: str, reject, keep_raw: bool = False):
+    """A cell as stripped text, empty as None; a dict or list is rejected unless `keep_raw` (the caller parses it)."""
+    v = v.strip() if isinstance(v, str) else v
+    if not keep_raw and v is not None and not isinstance(v, str):
+        if isinstance(v, (dict, list)):
+            reject(k, "not a string")
+        v = str(v)
+    return None if v in ("", None) else v
+
+
 def _clean(sheet: str, n: int, raw: dict, bad: list[Rejection]) -> dict:
     """The row with empties as None, enums, timestamps, booleans and pillars checked and normalised."""
 
     def reject(field: str, reason: str) -> None:
         bad.append(Rejection(sheet=sheet, row=n, field=field, reason=reason))
 
-    row = {}
-    for k in ENGAGEMENT_COLUMNS[sheet]:
-        v = raw.get(k)
-        v = v.strip() if isinstance(v, str) else v
-        if k != "esg_pillars" and v is not None and not isinstance(v, str):
-            if isinstance(v, (dict, list)):
-                reject(k, "not a string")
-            v = str(v)
-        row[k] = None if v in ("", None) else v
+    row = {k: _cell(raw.get(k), k, reject, keep_raw=k == "esg_pillars") for k in ENGAGEMENT_COLUMNS[sheet]}
     for k in ["external_id", *_REQUIRED[sheet]]:
         if row[k] is None:
             reject(k, "required")
@@ -292,13 +294,7 @@ def _clean_vote(n: int, raw: dict, source: str, bad: list[Rejection]) -> dict:
     def reject(field: str, reason: str) -> None:
         bad.append(Rejection(sheet="votes", row=n, field=field, reason=reason))
 
-    row = {}
-    for k in VOTE_COLUMNS:
-        v = raw.get(k)
-        v = v.strip() if isinstance(v, str) else v
-        if v is not None and not isinstance(v, (str, list)):
-            v = str(v)
-        row[k] = None if v in ("", None, []) else v
+    row = {k: _cell(raw.get(k), k, reject, keep_raw=k == "categories") for k in VOTE_COLUMNS}
     for k in ("external_id", "item_number", "meeting_date", "vote"):
         if row[k] is None:
             reject(k, "required")
@@ -318,6 +314,9 @@ def _clean_vote(n: int, raw: dict, source: str, bad: list[Rejection]) -> dict:
     except (TypeError, ValueError):
         reject("shares_voted", "not a number")
     cats = row["categories"] or []
+    if not isinstance(cats, (str, list)):
+        reject("categories", "not a list")
+        cats = []
     row["categories"] = [c.strip() for c in cats.split(";") if c.strip()] if isinstance(cats, str) else [str(c) for c in cats]
     row["isin"] = "".join(row["isin"].split()).upper() if row["isin"] else None
     row["cusip"] = row["cusip"].upper() if row["cusip"] else None
@@ -345,7 +344,7 @@ def intake_votes(rows: list[dict], dsn: str, source: str, excel_rows: bool = Fal
                 if key and _safe(key) and s.get(StwCompanyModel, key):
                     company = key
                     break
-            key = company or row["isin"] or row["cusip"]
+            key = company or row["company_id"] or row["isin"] or row["cusip"]
             if key is None:
                 bad.append(Rejection(sheet="votes", row=n, field="company_id", reason="no company_id, isin or cusip"))
                 continue
