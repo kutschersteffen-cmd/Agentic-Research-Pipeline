@@ -65,7 +65,9 @@ export function Plans({ selectedId, onSelect }: { selectedId: string | null; onS
         <form onSubmit={draft}>
           <label className="field-label" htmlFor="plan-brief">Research brief</label>
           <textarea id="plan-brief" rows={3} value={brief} onChange={(e) => setBrief(e.target.value)}
-            placeholder="EU grid-storage universe, extract green capex for significant names, score, report" />
+            aria-describedby="plan-brief-help"
+            placeholder={'Grid-storage companies in the saved universe "eu listed": extract green capex for significant names, score, report'} />
+          <p id="plan-brief-help" className="muted">Name a saved universe in the brief. Save one on the Thematic Universe page first.</p>
           <div className="toolbar">
             <button type="submit" disabled={busy || !brief.trim()}>{busy ? "Drafting…" : "Draft plan"}</button>
           </div>

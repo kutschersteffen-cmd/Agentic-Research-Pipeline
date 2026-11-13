@@ -13,6 +13,7 @@ import { activatable } from "../lib/activatable";
 import { ProposedTag } from "../components/ProposedTag";
 import { ThemeLayersTable } from "../components/ThemeLayersTable";
 import { errorDetail } from "../lib/themeLayers";
+import { savedDraftLine } from "../lib/themeBuilder";
 
 const EXPOSURE_RANK: Record<string, number> = { pure_play: 3, significant: 2, minor: 1, none: 0 };
 
@@ -55,6 +56,7 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
   const [sendStatus, setSendStatus] = useState("");
   const [sentUniverse, setSentUniverse] = useState<{ path: string; count: number } | null>(null);
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
+  const [savedDraft, setSavedDraft] = useState<Taxonomy | null>(null);
 
   useEffect(() => {
     api.listTaxonomies().then((res) => setTaxonomies((res as { taxonomies: Taxonomy[] }).taxonomies)).catch(() => {});
@@ -77,6 +79,24 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
       const drafted = (await api.decomposeTheme(name, description)) as ThemeDefinition;
       setTheme(drafted);
       setLoadedTaxonomy(null);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveAsDraft() {
+    if (!theme) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const created = (await api.createTaxonomy({ name, description, derivation_method: "llm_draft", theme })) as Taxonomy;
+      setTaxonomies((ts) => [...ts, created]);
+      setSelectedTaxonomyId(created.taxonomy_id);
+      setVersions([created]);
+      loadVersion(created);
+      setSavedDraft(created);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -290,6 +310,16 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
         <button onClick={decompose} disabled={busy}>
           Decompose into activities
         </button>
+        {theme && !loadedTaxonomy && (
+          <button className="secondary" onClick={saveAsDraft} disabled={busy}>
+            Save as taxonomy draft
+          </button>
+        )}
+        {savedDraft && loadedTaxonomy?.taxonomy_id === savedDraft.taxonomy_id && (
+          <p className="status-text" role="status">
+            {savedDraftLine(savedDraft.name)} <a href="#/taxonomy">Open the Taxonomy Library</a>
+          </p>
+        )}
 
         <p className="help-text" style={{ marginTop: 16 }}>
           Or load an existing, versioned taxonomy from the Taxonomy Library instead of drafting a new one:
@@ -590,7 +620,7 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
                   </table>
                 </div>
               </div>
-              <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />
+              {activeSource && <SourcePanel source={activeSource} onClose={() => setActiveSource(null)} />}
             </div>
           )}
         </section>

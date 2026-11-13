@@ -10050,6 +10050,11 @@ export interface components {
              */
             source_filename?: string | null;
             /**
+             * Source Url
+             * @description The document's web address when it has no local file, resolved by grounding.
+             */
+            source_url?: string | null;
+            /**
              * Span Text
              * @description Exact source text the quote matched, set by grounding.
              */
@@ -11576,6 +11581,11 @@ export interface components {
         DiscoverSourcesResponse: {
             /** Authority Sources */
             authority_sources: components["schemas"]["SourceCandidate"][];
+            /**
+             * Search Unreachable
+             * @default false
+             */
+            search_unreachable: boolean;
             /** Thematic Funds */
             thematic_funds: components["schemas"]["SourceCandidate"][];
         };
@@ -15253,6 +15263,11 @@ export interface components {
             proposal_run_id?: string | null;
             /** Round */
             round: number;
+            /**
+             * Search Unreachable
+             * @default false
+             */
+            search_unreachable: boolean;
             /**
              * Sources
              * @default []

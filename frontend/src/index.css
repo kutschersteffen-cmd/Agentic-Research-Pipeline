@@ -662,7 +662,7 @@ details.help-text[open] > summary { margin-bottom: var(--s-1); }
 .derivation-panel pre { font-family: var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 .authoritative-cell { min-height: 24px; }
 /* A detail row is a .data-table row's only td, so it would inherit td:first-child's nowrap and run off a phone. */
-.data-table td.detail-cell { white-space: normal; }
+.data-table td.detail-cell { white-space: normal; overflow-wrap: anywhere; }
 /* The table can still be wider than a phone; keep the detail text on screen. */
 .data-table td.detail-cell > * { max-width: calc(100vw - 6rem); }
 
