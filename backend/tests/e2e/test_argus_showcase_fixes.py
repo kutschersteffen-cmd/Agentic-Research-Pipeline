@@ -226,22 +226,27 @@ def test_an_identity_run_that_ends_updates_step_1_without_a_reload(page):
     page.get_by_text("Identities resolved.").wait_for()  # AC-63
 
 
-def test_an_open_edit_form_keeps_what_was_typed_when_the_identity_run_ends(page):
-    fid = _flow(page.request, f"name\nAcme {TAG}k\n")
+@pytest.mark.parametrize("rekeyed", [False, True], ids=["same key", "new key"])
+def test_an_open_edit_form_keeps_what_was_typed_when_the_identity_run_ends(page, rekeyed):
+    fid = _flow(page.request, f"name\nAcme {TAG}k{rekeyed}\n")
     state = {"status": "running"}
 
-    def flow(route):  # as the server answers: once the run has ended the row is matched and gets its central id
+    def flow(route):
+        # As the server answers: once the run has ended the row is matched and gets its central id. When the
+        # identifiers found belong to a company stored under another key, the row gets that key too.
         r = route.fetch()
         body = {**r.json(), "identity_run_id": "id-run", "identity": {"run_id": "id-run", "status": state["status"]}}
         if state["status"] == "completed":
-            body["rows"] = [{**row, "problem": None, "central_id": "0c0ffee0-0000-4000-8000-000000000001"} for row in body["rows"]]
+            key = {"company_id": f"STORED-{TAG}"} if rekeyed else {}
+            body["rows"] = [{**row, **key, "problem": None, "central_id": "0c0ffee0-0000-4000-8000-000000000001"} for row in body["rows"]]
+            body["companies"] = [{**c, **key} for c in body["companies"]]
         route.fulfill(response=r, json=body)
 
     page.route(f"**/api/argus/flows/{fid}", flow)
     page.goto(f"{URL}/#/argus/{fid}/1")
     page.get_by_text("Identity run started.").wait_for()
-    page.get_by_role("button", name=f"Edit Acme {TAG}k", exact=True).click()
-    ticker = page.get_by_role("form", name=f"Edit Acme {TAG}k").get_by_label("Ticker", exact=True)
+    page.get_by_role("button", name=f"Edit Acme {TAG}k{rekeyed}", exact=True).click()
+    ticker = page.get_by_role("form", name=f"Edit Acme {TAG}k{rekeyed}").get_by_label("Ticker", exact=True)
     ticker.fill("ACM")
     state["status"] = "completed"
     page.get_by_text("Identities resolved.").wait_for()  # the poll that brings the central id has rendered
@@ -322,6 +327,24 @@ def test_row_actions_name_their_row_and_keep_keyboard_focus(page):
     page.wait_for_function(FOCUSED, arg=f"#/argus/{d1}/1")  # Delete: the next row's Open
     _ok_status = api.post(f"{API}/api/argus/flows/{d1}/discard").status
     assert _ok_status == 204
+
+
+def test_a_delete_that_fails_keeps_the_keyboard_and_one_already_gone_counts_as_done(page):
+    name = f"Gee {TAG}d"
+    fid = _flow(page.request, f"name\n{name}\n")
+    answer = {"status": 500, "detail": "store down"}
+    page.route(f"**/api/argus/flows/{fid}/discard", lambda route: route.fulfill(status=answer["status"], json={"detail": answer["detail"]}))
+    page.on("dialog", lambda d: d.accept())
+    page.goto(URL + "/#/argus")
+    delete = page.get_by_role("table", name="Runs").get_by_role("button", name=f"Delete draft {name}", exact=True)
+    delete.press("Enter")
+    page.get_by_role("alert").filter(has_text="The draft could not be deleted: store down").wait_for()
+    page.wait_for_function(FOCUSED, arg=f"Delete draft {name}")  # still on the button, not on the page
+    answer.update(status=404, detail="Extraction not found")  # someone else deleted it meanwhile
+    delete.press("Enter")
+    delete.wait_for(state="detached")
+    assert page.get_by_role("alert").count() == 0
+    assert page.request.post(f"{API}/api/argus/flows/{fid}/discard").status == 204  # clean up: the stub never reached the server
 
 
 def test_phone_labels_stay_on_one_line(page):

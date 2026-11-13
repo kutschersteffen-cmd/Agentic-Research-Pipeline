@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import { flowHref, plainError } from "../lib/argusFlow";
+import { flowHref } from "../lib/argusFlow";
+import { errorDetail } from "../lib/barrier";
 import { STEPS, argusRows, filterLine, filterRows, tiles, waiting } from "../lib/argusStart";
 import { ACTIVE_STATUSES } from "../lib/runs";
 import { WORKSPACES } from "../lib/processes";
@@ -38,7 +39,7 @@ export function ArgusNew({ preset }: { preset: string | null }) {
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    openNewFlow({ preset }).catch((err) => setError(plainError((err as Error).message)));
+    openNewFlow({ preset }).catch((err) => setError(errorDetail(err as Error)));
   }, [preset]);
   return (
     <div className="page">
@@ -64,7 +65,7 @@ export function ArgusStart() {
   const [canDelete, setCanDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [runsTable, focusRow] = useRowFocus();
-  const [deleting, setDeleting] = useState(false);
+  const deleting = useRef(false); // one request per draft; the button stays enabled, so a failed delete keeps the keyboard on it
   const gone = useRef(new Set<string>()); // drafts deleted here: a poll that began before the delete must not list them again
   const [onlyMine, setOnlyMine] = useState(false);
   const [step, setStep] = useState<number | null>(null);
@@ -78,7 +79,7 @@ export function ArgusStart() {
       setFlows(f.flows.filter((x) => !gone.current.has(x.flow_id)));
       setError(null);
     } catch (err) {
-      setError(plainError((err as Error).message));
+      setError(errorDetail(err as Error));
     }
   }, []);
   const loadItems = useCallback(async () => {
@@ -86,7 +87,7 @@ export function ArgusStart() {
       setItems((await api.listReviewItems()).items);
       setItemsError(null);
     } catch (err) {
-      setItemsError(plainError((err as Error).message));
+      setItemsError(errorDetail(err as Error));
     }
   }, []);
   usePoll(loadRuns, runs?.some((r) => ACTIVE_STATUSES.has(r.status)) ? 3000 : 15000);
@@ -107,24 +108,25 @@ export function ArgusStart() {
     try {
       window.location.hash = flowHref((await api.createArgusFlow()).flow_id, 1);
     } catch (err) {
-      setStartError(plainError((err as Error).message));
+      setStartError(errorDetail(err as Error));
       setStarting(false);
     }
   }
   async function discard(flowId: string, next?: string) {
     if (!window.confirm("Delete this draft? Its company list and file choices are removed. Documents stay on the companies.")) return;
-    setDeleting(true);
+    if (deleting.current) return;
+    deleting.current = true;
     try {
       await api.discardArgusFlow(flowId);
-      gone.current.add(flowId);
-      setFlows((fs) => fs.filter((f) => f.flow_id !== flowId));
-      setDeleteError(null);
-      focusRow(next);
     } catch (err) {
-      setDeleteError(plainError((err as Error).message));
+      if (!/^404: /.test((err as Error).message)) return setDeleteError(errorDetail(err as Error)); // 404: it is gone already
     } finally {
-      setDeleting(false);
+      deleting.current = false;
     }
+    gone.current.add(flowId);
+    setFlows((fs) => fs.filter((f) => f.flow_id !== flowId));
+    setDeleteError(null);
+    focusRow(next);
   }
 
   return (
@@ -228,7 +230,7 @@ export function ArgusStart() {
                       <span className="row-actions">
                         <a href={r.openHref}>Open</a>
                         {r.status === "Draft" && canDelete && (
-                          <button className="link-button" aria-label={`Delete draft ${r.names}`} disabled={deleting} onClick={() => void discard(r.runId, neighbour(shown, i)?.runId)}>
+                          <button className="link-button" aria-label={`Delete draft ${r.names}`} onClick={() => void discard(r.runId, neighbour(shown, i)?.runId)}>
                             Delete
                           </button>
                         )}

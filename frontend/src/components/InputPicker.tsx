@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { plainError } from "../lib/argusFlow";
+import { errorDetail } from "../lib/barrier";
 import type { OutputItem, OutputKind } from "../types";
 
 // Statuses a downstream step can rely on; the first such output is the default pick. Anything else (a draft, a
@@ -35,14 +35,14 @@ export function InputPicker({ kind, label, value, onChange, filter, autoSelect =
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.listOutputs(kind).then((r) => setItems(r.outputs), (e: Error) => setError(e.message));
+    api.listOutputs(kind).then((r) => setItems(r.outputs), (e: Error) => setError(errorDetail(e)));
   }, [kind]);
 
   const shown = (items ?? []).filter((o) => !filter || filter(o));
   // Two outputs that read the same (same name, day, status, author) get their saved time, so they can be told apart.
   const labels = shown.map(outputLabel);
   const labelOf = (o: OutputItem, i: number) =>
-    o.as_of && labels.indexOf(labels[i]) !== labels.lastIndexOf(labels[i])
+    o.as_of && o.as_of.length > 10 && labels.indexOf(labels[i]) !== labels.lastIndexOf(labels[i]) // a date alone has no clock
       ? `${labels[i]} · ${o.as_of.slice(11, 16)}` // the clock of the date the label already shows
       : labels[i];
   useEffect(() => {
@@ -53,7 +53,7 @@ export function InputPicker({ kind, label, value, onChange, filter, autoSelect =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, autoSelect]);
 
-  if (error) return <p className="error-text" role="alert">{label}: {plainError(error)}</p>;
+  if (error) return <p className="error-text" role="alert">{label}: {error}</p>;
   return (
     <label className="field-label">
       {label}

@@ -1,9 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  companiesLocked, docTypeLabel, identityPolls, identityStatus, newFieldId, plainError, releaseQuestion, stepFromUrl,
+  companiesLocked, docTypeLabel, identityPolls, identityStatus, newFieldId, releaseQuestion, stepFromUrl,
 } from "../src/lib/argusFlow.ts";
 import { argusRows, companiesSummary, filterLine } from "../src/lib/argusStart.ts";
+import { errorDetail } from "../src/lib/barrier.ts";
 import type { ArgusDraft } from "../src/types.ts";
 
 // showcase-argus-fixes, PR 2: start page and steps 1 to 3.
@@ -35,9 +36,9 @@ test("AC-148: the identity status line of an ended run with one company left rea
 });
 
 test("AC-106: an Argus banner drops the leading status number, and only that", () => {
-  assert.equal(plainError("400: Add companies in step 1 first."), "Add companies in step 1 first.");
-  assert.equal(plainError("Failed to fetch"), "Failed to fetch");
-  assert.equal(plainError("2025: a year, not a status"), "2025: a year, not a status");
+  assert.equal(errorDetail(new Error("400: Add companies in step 1 first.")), "Add companies in step 1 first.");
+  assert.equal(errorDetail(new Error("Failed to fetch")), "Failed to fetch");
+  assert.equal(errorDetail(new Error("2025: a year, not a status")), "2025: a year, not a status");
 });
 
 test("AC-104, AC-105: a step in the URL is 1 to 5, or not a step; no step is step 1", () => {
