@@ -192,7 +192,7 @@ body {
 ::placeholder { color: var(--muted); opacity: 1; }
 /* Browser surfaces follow the palette: bare links, file pickers. :where keeps
    these at zero specificity so any component rule still wins. */
-:where(a) { color: var(--accent); text-underline-offset: 0.15em; text-decoration-thickness: 1px; }
+:where(a) { color: var(--accent); text-decoration: none; }
 ::file-selector-button { margin-right: var(--s-2); padding: var(--s-1) var(--s-3); border: 1px solid var(--panel-border); border-radius: var(--r-sm); background: var(--panel); color: var(--text); font: inherit; cursor: pointer; }
 ::file-selector-button:hover { background: var(--well); }
 td, .stat-value, .nav-count { font-variant-numeric: tabular-nums; }
@@ -493,8 +493,8 @@ a.button-link:hover, .toolbar a.button-link:hover { background: var(--accent-ink
    competing with Approve. */
 button.danger-outline { background: transparent; color: color-mix(in oklch, var(--low) 80%, var(--text)); border: 1px solid var(--low); }
 button.danger-outline:hover:not(:disabled) { background: color-mix(in srgb, var(--low) 10%, transparent); }
-button.link-button { background: transparent; color: var(--accent); padding: var(--s-1) 0; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.15em; }
-button.link-button:hover:not(:disabled) { background: transparent; color: var(--accent-ink); text-decoration: underline; }
+button.link-button { background: transparent; color: var(--accent); padding: var(--s-1) 0; text-decoration: none; }
+button.link-button:hover:not(:disabled) { background: transparent; color: var(--accent-ink); }
 
 /* The quiet action beside a primary one: a real button, bordered, never
    bare text. */
@@ -541,7 +541,7 @@ details.start-run > summary { cursor: pointer; list-style-position: outside; }
 details.start-run > summary h2 { display: inline; margin: 0; }
 details.start-run[open] > summary { margin-bottom: var(--s-3); }
 .confirm-list { margin: var(--s-2) 0 var(--s-4); padding-left: 1.2em; line-height: 1.6; }
-.toolbar a, .data-table a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 0.15em; }
+.toolbar a, .data-table a { color: var(--accent); text-decoration: none; }
 
 .help-text { color: var(--muted); font-size: var(--text-sm); max-width: 75ch; }
 details.help-text { margin: 0 0 var(--s-3); }
@@ -951,9 +951,7 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   all: unset;
   cursor: pointer;
   color: var(--accent);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.15em;
+  text-decoration: none;
 }
 .stat-link:hover:not(:disabled) { color: var(--accent-ink); }
 .stat-link:disabled { color: var(--muted); text-decoration: none; cursor: default; }
@@ -1141,7 +1139,7 @@ h2 .chip-not-built { margin-left: var(--s-2); }
 }
 .hub-nav .nav-tab { color: var(--muted); }
 .hub-nav .nav-tab:hover, .hub-nav .nav-tab.active { color: var(--text); }
-.hub-nav .nav-tab.active { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.15em; }
+.hub-nav .nav-tab.active { font-weight: 600; }
 @media (max-width: 640px) { .hub-nav .nav-tab, .hub-nav .nav-tab:hover, .hub-nav .nav-tab.active, .hub-nav .nav-tab.active:hover { font-size: var(--text-lg); } }
 
 .chart-svg { width: 100%; height: auto; overflow: visible; font-family: inherit; }
@@ -1726,7 +1724,6 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .hub-card-purpose { color: var(--muted); line-height: 1.45; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .hub-card-now { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--muted); min-height: 1.4em; }
 .hub-card-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--s-2); font-family: var(--font-mono); font-size: var(--text-sm); }
-.hub-card:hover .hub-card-foot { text-decoration: underline; text-underline-offset: 0.2em; }
 
 /* A process's steps as dots on a line: ink for done, a ring for running,
    the highlight for waiting on a person, a red diamond for failed. */
@@ -1887,7 +1884,7 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .card h3 { margin: var(--s-6) 0 var(--s-2); font-size: var(--text-md); }
 #ds-table, #ds-framework { scroll-margin-top: calc(var(--topbar-h) + var(--s-4)); }
 .ds-selected td { background: var(--well); }
-.ds-row-action { text-decoration: underline; text-underline-offset: 0.15em; }
+.ds-row-action { text-decoration: none; }
 .ds-row-actions { white-space: nowrap; display: flex; gap: var(--s-3); align-items: center; }
 
 .ds-make { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--s-3); }
@@ -1928,7 +1925,6 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .arcade-list { list-style: none; margin: var(--s-6) 0 0; padding: 0; border-top: 1px solid var(--panel-border); }
 .arcade-list li { border-bottom: 1px solid var(--panel-border); }
 .arcade-list a { display: grid; grid-template-columns: minmax(10rem, 14rem) 1fr auto; gap: var(--s-4); align-items: baseline; padding: var(--s-4) 0; color: inherit; text-decoration: none; }
-.arcade-list a:hover .arcade-title { text-decoration: underline; }
 .arcade-title { font-family: var(--font-display); font-weight: 600; font-size: 1.125rem; letter-spacing: -0.02em; }
 .arcade-play { font-family: var(--font-mono); font-size: var(--text-sm); }
 @media (max-width: 640px) { .arcade-list a { grid-template-columns: 1fr auto; } .arcade-list a .muted { grid-column: 1 / -1; order: 3; } }
@@ -2007,7 +2003,7 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .xbrl-download-note { order: 1; flex-basis: 100%; font-size: var(--text-xs); }
 .xbrl-files .clickable-row[aria-current] th { background: var(--accent-tint); }
 .xbrl-files button.xbrl-name { padding: 0; text-align: left; font-weight: 500; }
-.xbrl-files .clickable-row[aria-current] button.xbrl-name { text-decoration-thickness: 2px; }
+.xbrl-files .clickable-row[aria-current] button.xbrl-name { font-weight: 600; }
 .xbrl-files td { white-space: nowrap; }
 .xbrl-files tbody th { min-width: 9rem; }
 .xbrl-files :is(.xbrl-downloads, .xbrl-report) { white-space: normal; }
@@ -2247,7 +2243,7 @@ a.vc-box:hover { border-color: var(--text); }
   .ask-panel { width: 100vw; border-left: 0; box-shadow: none; }
 }
 .argus-steps ol { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-6); list-style: none; padding: 0; margin: var(--s-4) 0 var(--s-6); font-family: var(--font-mono); font-size: var(--text-sm); color: var(--muted); }
-.argus-steps li[aria-current="step"] { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--text); }
+.argus-steps li[aria-current="step"] { color: var(--text); font-weight: 600; background: var(--accent-tint); }
 .argus-steps .argus-step-done { color: var(--text); }
 .argus-add { display: grid; gap: var(--s-4); margin-bottom: var(--s-6); }
 .argus-add :is(p, .field-label) { margin: 0; }
@@ -2279,16 +2275,12 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-state { font-weight: 600; }
 .argus-state-removed, .argus-state-undecided { color: var(--muted); }
 @media (max-width: 900px) { .argus-docs-open { flex-direction: column; } }
-.argus-schema-cols { display: grid; grid-template-columns: minmax(13rem, 1fr) minmax(0, 3fr); gap: var(--s-6); align-items: start; margin-bottom: var(--s-6); }
+.argus-schema-cols { display: grid; grid-template-columns: minmax(18rem, 1fr) minmax(0, 3fr); gap: var(--s-6); align-items: start; margin-bottom: var(--s-6); }
 .argus-schema-pick { display: grid; gap: var(--s-3); min-width: 0; }
 .argus-schema-pick > * { min-width: 0; }
 .argus-schema-pick h2, .argus-schema-fields h2, .argus-run-list h2 { font-size: var(--text-md); margin: 0; overflow-wrap: anywhere; }
 .argus-schema-pick :is(p, .field-label) { margin: 0; }
-.argus-pick-list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s-1); }
-.argus-pick-list li { overflow-wrap: anywhere; }
-.argus-pick-list .muted { white-space: nowrap; }
-.argus-pick-list button { text-align: left; white-space: normal; overflow-wrap: anywhere; max-width: 100%; }
-.argus-pick-list button[aria-pressed="true"] { color: var(--text); font-weight: 600; text-decoration: none; }
+.argus-schema-pick select { width: 100%; max-width: 100%; }
 .argus-schema-fields { display: grid; gap: var(--s-3); min-width: 0; }
 .argus-schema-fields td input, .argus-schema-fields td select { width: 100%; min-width: 6rem; }
 /* the saved schema's table: the two text columns keep a readable width, and "Look in" shows three lines until asked for more */
@@ -2413,7 +2405,6 @@ a.vc-box:hover { border-color: var(--text); }
 
 /* Night Desk release 4: the start page's waiting link sits right above the cards. */
 .hub-waiting { display: block; width: max-content; max-width: 100%; margin: 0 0 var(--s-3); color: var(--hi-ink); font-size: var(--text-md); font-weight: 500; text-decoration: none; }
-a.hub-waiting:hover { text-decoration: underline; text-underline-offset: 0.2em; }
 .hub-waiting-quiet { color: var(--muted); }
 .hub-card-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--panel-border); border-radius: var(--r-md); background: var(--bg); }
 .hub-card-await .hub-card-icon { border-color: var(--await-edge); }
