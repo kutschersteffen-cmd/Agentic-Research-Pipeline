@@ -100,7 +100,7 @@ can carry a weight. Empty cells show `—` and add 0 points; the why panel says 
 | 6 | Open triggers | `TriggerStore.list_triggers()` for the issuer, status `open` or `acknowledged` | three counts, shown `H 1 · M 2 · L 0` | never (all zero shows `—`) | `open_triggers`: min(1, (H × 1.0 + M × 0.6 + L × 0.3) / 2) |
 | 7 | Open engagements | engagement store, issues with status `open` or `stalled` (`tracking.OPEN`) | count | never (0 shows `0`) | `open_engagements`: min(1, n / 3) |
 | 8 | Escalated | open issues whose `escalation_stage` is not `private_engagement` | count | never | `escalated`: 1 if n ≥ 1, else 0 |
-| 9 | Overdue commitments | `tracking.commitments(records)` rows with `overdue` true | count | never | `overdue_commitments`: min(1, n / 2) |
+| 9 | Overdue commitments | commitments with status `open` and `target_date` before today, on issues with status `open` or `stalled` (the commitment loop's `overdue` rule; PR 3 reads it from `commitment_flags_by_company`) | count | never | `overdue_commitments`: min(1, n / 2) |
 | 10 | Next meeting | `vote_meetings` (vote ledger): newest `meeting_date` for the `company_id`; Q1, see below | days from today, shown `≈ 42 d (est.)` | no meeting in the vote ledger | `next_meeting`: max(0, 1 − days / 90) |
 | 11 | Transition grade | observation `transition_grade` (portfolio store, latest) | `A`..`F` with label, e.g. `D Emerging` | no observation | `transition_grade`: A 0, B 0.2, C 0.4, D 0.6, E 0.8, F 1 |
 | 12 | ESG score | observation `esg_score` | 0 to 10, 1 decimal | no observation | `esg_score`: (10 − value) / 10 |
@@ -108,7 +108,7 @@ can carry a weight. Empty cells show `—` and add 0 points; the why panel says 
 | 14 | Carbon intensity | observation `ghg_intensity` | tCO2e per EUR m revenue, 0 decimals | no observation | `carbon_intensity`: percentile rank |
 | 15 | Priority score | computed | 0 to 100, 1 decimal | never | — |
 | 16 | Selected | the cycle's selection log | `Proposed` / `Confirmed` / empty | not selected | — |
-| 17 (PR 3) | Broken commitments | `commitment_flags(company_id)` from `stewardship-commitment-loop` | <pending from the sibling spec> | <pending> | `broken_commitments`: min(1, n / 2) |
+| 17 (PR 3) | Broken commitments | `tracking.commitment_flags_by_company(store.list_all())` from `stewardship-commitment-loop`, flags with `kind` `broken` (status `missed`, set by a person, on an open or stalled issue) | count | never (0 shows `0`) | `broken_commitments`: min(1, n / 2) |
 
 Notes:
 
@@ -130,6 +130,14 @@ Notes:
   no ledger meeting. The sample universe's own `meetings` list and `vote.last_meeting_date` are not used, so the sample
   universe shows this column empty until ledger rows exist. <If the owner picks B, the column and its score part are dropped; if C, the column shows the last
   meeting date and has no score part.>
+
+**Commitment flags (PR 3).** The sibling spec `stewardship-commitment-loop` (merges first) adds to
+`arp/stewardship/tracking.py`: `commitment_flags_by_company(records, today=None) -> dict[str, list[CommitmentFlag]]`
+(only companies with a flag are keys) and `CommitmentFlag` in `arp/schemas/engagement.py` with `commitment_id`,
+`engagement_id`, `kind` (`overdue` | `broken`), `text`, `target_date`, `since`, `message`. PR 3 calls it once per
+request and counts each company's flags by `kind`; Overdue commitments then comes from it too, with the same rule as
+PR 1, so the column does not change. The why panel shows each flag's `message` under the Value of that row. Pending
+Argus suggestions never create a flag.
 
 ## Priority score
 
@@ -398,7 +406,9 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-29 | Fixture W | The screen loads | No row is ticked, no filter is set, there is no select-all box, and no control selects rows by score or rank | evaluator |
 | AC-48 | Showcase data | The user opens Weights and sets `open_triggers` to 25 (total 95) | The total reads `Total 95 — must be 100` and Save is disabled | evaluator |
 | AC-49 | AC-48, then `holdings_weight` raised by 5 | The user presses Preview | The preview lists the companies entering and leaving the top 25 | evaluator |
-| AC-30 | PR 3; the commitment loop's `commitment_flags` reports broken commitments for a company | `GET /worklist` | That row's `broken_commitments` equals the reported number; its part has `weight` 0 under v0 (exact shape from the sibling spec) | holdout |
+| AC-30 | PR 3, Fixture W; a record and open issue for `SYN08` with two commitments set to `missed` through `POST /api/stewardship/tracking/commitments/{id}` | `GET /worklist` | `SYN08`'s `broken_commitments` = 2 | holdout |
+| AC-53 | AC-30 | `GET /worklist` | `SYN08`'s `broken_commitments` part has `weight` 0 and `points` 0 | holdout |
+| AC-54 | Fixture W; a record for `SYN11` whose issue was closed through `POST /api/stewardship/tracking/close`, holding one open commitment with `target_date` = today − 30 days | `GET /worklist` | `SYN11`'s `overdue_commitments` = 0 | holdout |
 | AC-31 | PR 3; T(X, high, `t_x`) stored for a company X, so its trigger has `is_new` true | A user opens `#/stewardship/worklist` | X's row shows the tag `New high trigger` | evaluator |
 | AC-50 | PR 3; the worklist open in one tab | T(X, high, `t_y`) is stored, the user switches to another tab and back | X's row shows `New high trigger` without a page reload | evaluator |
 | AC-32 | Fixture W | The backend suite runs | The existing tests of `tiers.py`, `monitoring.py`, `program.py` and `policies.py` pass unchanged | unit |
