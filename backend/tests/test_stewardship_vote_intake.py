@@ -60,7 +60,7 @@ def test_known_company_matched_and_excel_rows(pg):
     with transaction(pg) as s:
         assert s.scalars(select(VoteMeetingModel)).one().company_id == "isin_US0378331005"
     report = intake_votes([{**_row(), "_row": 7, "vote": "maybe"}, {"_row": 8, "external_id": "x", "vote": "for"}], pg, "excel", excel_rows=True)
-    assert {(r.row, r.field) for r in report.rejected} >= {(7, "vote"), (8, "company_id")}
+    assert {(r.row, r.field) for r in report.rejected} == {(7, "vote")}  # row 8 has no company ids: stored with company_id null, not rejected
 
 
 def test_changed_value_updates(pg):

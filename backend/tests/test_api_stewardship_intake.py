@@ -92,6 +92,19 @@ def test_votes_json_rationale_ac16(client):
     assert (rej["field"], rej["reason"]) == ("rationale", "rationale required when voting against management")
 
 
+def test_votes_json_rationale_minimal_row_ac16(client):
+    # AC-16 names only vote, recommendation and rationale: no other field may add a second rejection
+    for rationale in ({"rationale": ""}, {}, {"rationale": None}):
+        r = client.post(f"{URL}/votes", json={"votes": [{"vote": "against", "management_recommendation": "for", **rationale}]})
+        assert r.status_code == 422
+        assert r.json()["rejected"] == [{"sheet": "votes", "row": 1, "field": "rationale", "reason": "rationale required when voting against management"}]
+
+
+def test_votes_json_minimal_row_stored(client):
+    r = client.post(f"{URL}/votes", json={"votes": [{"vote": "for", "management_recommendation": "for"}]})
+    assert r.status_code == 200 and r.json()["created"] == 3  # meeting + item + decision, company null
+
+
 def test_votes_xlsx_ac17(client):
     r = client.post(f"{URL}/votes.xlsx", files=_file(_xlsx({"votes": _votes()}, {"votes": VOTE_COLUMNS})))
     assert (r.status_code, r.json()) == (200, {"created": 7, "updated": 0, "unchanged": 0, "rejected": []})
