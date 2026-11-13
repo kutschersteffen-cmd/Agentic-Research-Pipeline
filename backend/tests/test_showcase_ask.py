@@ -182,3 +182,31 @@ async def test_trend_has_only_the_scoped_portfolios_dates(tmp_path):  # AC-159
     _snapshot(store, "p3", "2026-06-15", 5.0)
     answer = await _answer(store, {**SEC, "portfolio_filter": ["p1"]}, date_range=(DATES[0], DATES[3]))
     assert [p.as_of for p in answer.trend] == DATES and answer.snapshot_dates == DATES
+
+
+# --- showcase-portfolio-data PR 2 (AC-58): an answer built on simulated values says so ---
+
+CI = {"resolvable": True, "group_by": "portfolio_id", "metric": "weighted_avg_datapoint", "data_point_field_id": "climate_carbon_intensity"}
+
+
+def _observe(store, source, day="2026-01-31"):
+    store.append_observation(DataPointObservation(
+        company_id="bmw", field_id="climate_carbon_intensity", field_name="CI", value=120.0, source=source,
+        observed_at=f"{day}T00:00:00+00:00"))
+
+
+async def test_an_answer_on_simulated_values_says_simulated(tmp_path):
+    store = _store(tmp_path)
+    _observe(store, "simulated")
+    a = await _answer(store, CI, portfolio_ids=["p1"])
+    assert a.answer_text.split("\n")[-1] == "  Simulated: 1 of the 1 company values in scope are simulated ESG data, not real data."
+    trend = await _answer(store, CI, portfolio_ids=["p1"], date_range=(DATES[0], DATES[3]))
+    assert trend.answer_text.split("\n")[-1].startswith("  Simulated: 1 of the 1 ")
+
+
+async def test_an_answer_on_real_values_or_on_no_data_point_does_not(tmp_path):
+    store = _store(tmp_path)
+    _observe(store, "simulated")
+    assert "Simulated" not in (await _answer(store, SEC, portfolio_ids=["p1"])).answer_text  # a market value: no data point
+    _observe(store, "internal_api")  # a real value wins over the simulated one
+    assert "Simulated" not in (await _answer(store, CI, portfolio_ids=["p1"])).answer_text

@@ -31,10 +31,19 @@ class MonthlyRunResult(BaseModel):
     triggers: int = 0
 
 
-def load_status(store: PortfolioStore, month: str, portfolio_ids: list[str], esg_provider: str = "default") -> dict:
+def default_esg_provider(store: PortfolioStore, month: str) -> str:
+    """The provider used when none is named: `default`, or `simulated` for a month that has only a simulated ESG load
+    (`arp showcase load`), so "Run now" works on those months."""
+    if latest_load(store, "esg", "default", month) is None and latest_load(store, "esg", "simulated", month) is not None:
+        return "simulated"
+    return "default"
+
+
+def load_status(store: PortfolioStore, month: str, portfolio_ids: list[str], esg_provider: str | None = None) -> dict:
     """The month's latest load per source and the reasons a run of it is blocked. Computed on demand, never stored."""
     if not MONTH.fullmatch(month):  # load records are keyed "2026-09"; strptime would also take "2026-9"
         raise ValueError("month must be YYYY-MM")
+    esg_provider = esg_provider or default_esg_provider(store, month)
 
     def status(kind: str, source: str) -> str:
         load = latest_load(store, kind, source, month)
@@ -49,8 +58,9 @@ def load_status(store: PortfolioStore, month: str, portfolio_ids: list[str], esg
 
 
 def run_month(
-    store: PortfolioStore, settings: Settings, month: str, *, portfolio_ids: list[str], esg_provider: str = "default"
+    store: PortfolioStore, settings: Settings, month: str, *, portfolio_ids: list[str], esg_provider: str | None = None
 ) -> MonthlyRunResult:
+    esg_provider = esg_provider or default_esg_provider(store, month)
     reasons = load_status(store, month, portfolio_ids, esg_provider)["blocked_reasons"]
     if reasons:
         return MonthlyRunResult(status="blocked", blocked_reasons=reasons)

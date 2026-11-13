@@ -152,9 +152,10 @@ async def answer_question(
         # the engine takes its dates from every portfolio; a point on a date the scoped ones have no snapshot for
         # would only repeat the snapshot before it
         trend = sorted((p for p in result if p.as_of in dates), key=lambda p: p.as_of)
+        note = next((n for p in reversed(trend) if (n := _simulated_note(store, securities, spec, p.as_of))), "")
         return QAAnswer(
             question=question, resolvable=True, spec=spec, trend=trend, snapshot_dates=[p.as_of for p in trend],
-            answer_text=_template_trend(spec, trend, parsed.scale), vintage={"date_range": list(date_range)},
+            answer_text=_template_trend(spec, trend, parsed.scale) + note, vintage={"date_range": list(date_range)},
             scale=parsed.scale, unit=unit), usage
 
     vintage: dict = {"holdings_as_of": result.as_of}
@@ -170,7 +171,18 @@ async def answer_question(
     used = sorted({max(d for d in ds if d <= result.as_of) for ds in dates_of.values() if ds and ds[0] <= result.as_of})
     return QAAnswer(
         question=question, resolvable=True, spec=spec, result=result, vintage=vintage, snapshot_dates=used,
-        answer_text=_template_answer(spec, result, parsed.scale), scale=parsed.scale, unit=unit), usage
+        answer_text=_template_answer(spec, result, parsed.scale) + _simulated_note(store, securities, spec, result.as_of),
+        scale=parsed.scale, unit=unit), usage
+
+
+def _simulated_note(store: PortfolioStore, securities: dict[str, SecurityRef], spec: AnalyticSpec, as_of: str) -> str:
+    """A last answer line when the data point values of the companies held at `as_of` are simulated; else ""."""
+    if spec.metric != "weighted_avg_datapoint":
+        return ""
+    held = {h.security_id for h in store.load_holdings_as_of(as_of, spec.portfolio_filter or None)}
+    cids = sorted({s.company_id for sid, s in securities.items() if sid in held and s.company_id})
+    note = datapoint_mapping.simulated_note(store, cids, spec.data_point_field_id, as_of)
+    return f"\n  {note}" if note else ""
 
 
 def _eur(value: float, scale: str) -> str:

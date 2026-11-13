@@ -16,7 +16,7 @@ from pathlib import Path
 
 import openpyxl
 
-from arp.portfolio.constituent_import import COUNTRY as _IMPORT_COUNTRY
+from arp.portfolio.constituent_import import COUNTRY
 
 # A company's name, country and sector come from its first line in this order.
 FILE_ORDER = ("MSCI_World", "SP500", "MSCI_Europe", "MSCI_EM", "AI_Big_Data", "EURO_STOXX_50", "DAX")
@@ -32,33 +32,6 @@ INDEX_MARKET_CAP_EUR_M = {
 }
 _GICS_FILES = ("MSCI_World", "SP500", "MSCI_Europe", "MSCI_EM")  # then AI_Big_Data; DAX and EURO STOXX 50 labels are never used
 _BLANK = (None, "", "-")
-
-# shortcut: the import's table lacks these until spec PR 2 adds them to constituent_import.COUNTRY; drop this dict then.
-COUNTRY = {
-    **_IMPORT_COUNTRY,
-    **{c: c for c in ("Australia", "Canada", "Germany", "Ireland", "Sweden", "United Kingdom", "United States")},
-    "Korea, Republic of": "South Korea",
-    "Ägypten": "Egypt",
-    "Griechenland": "Greece",
-    "Indien": "India",
-    "Indonesien": "Indonesia",
-    "Kasachstan": "Kazakhstan",
-    "Kolumbien": "Colombia",
-    "Kuwait": "Kuwait",
-    "Malaysia": "Malaysia",
-    "Mexiko": "Mexico",
-    "Peru": "Peru",
-    "Philippinen": "Philippines",
-    "Polen": "Poland",
-    "Qatar": "Qatar",
-    "Rumänien": "Romania",
-    "Russland": "Russia",
-    "Saudi Arabien": "Saudi Arabia",
-    "Südafrika": "South Africa",
-    "Tschechische Republik": "Czech Republic",
-    "Türkei": "Turkey",
-    "Ungarn": "Hungary",
-}
 
 PEER_GROUP = {
     "Energie": "Energy",
