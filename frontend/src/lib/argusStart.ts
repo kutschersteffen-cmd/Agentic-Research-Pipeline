@@ -16,7 +16,15 @@ export interface ArgusRow {
   starterName: string | null;
   createdAt: string;
   openHref: string;
+  /** A draft's first companies, since every draft is labelled "New extraction". */
+  names?: string;
 }
+
+/** The first two names and how many more: "Apple, Microsoft +13". */
+export const companiesSummary = (names: string[]) => names.slice(0, 2).join(", ") + (names.length > 2 ? ` +${names.length - 2}` : "");
+
+/** The line above the Runs table while a Process tile is pressed. */
+export const filterLine = (step: number | null) => (step === null ? null : `Showing step ${step} ${STEPS[step - 1]} only.`);
 
 export const ARGUS_RUN_TYPES = ["extraction", "financials", "tnfd", "transition_plan"];
 export const STEPS = ["Companies", "Documents", "Schema", "Extract", "Results"];
@@ -51,6 +59,7 @@ export function argusRows(runs: RunManifest[], items: ReviewItem[], flows: Argus
     starterName: f.started_by_name,
     createdAt: f.created_at,
     openHref: flowHref(f.flow_id, f.step),
+    names: companiesSummary(f.companies.map((c) => c.name)),
   }));
   return runs
     .filter((r) => ARGUS_RUN_TYPES.includes(r.run_type))

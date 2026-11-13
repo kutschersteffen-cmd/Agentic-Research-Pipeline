@@ -4,7 +4,7 @@ import { ReviewerField } from "./components/ReviewerField";
 import { SignedInAs } from "./components/SignedInAs";
 import { ProcessBar, StartPage, WorkspaceOverview } from "./pages/ProcessHub";
 import { ArgusFlow } from "./pages/ArgusFlow";
-import { singleFlight } from "./lib/argusFlow";
+import { singleFlight, stepFromUrl } from "./lib/argusFlow";
 import { ArgusNew, ArgusStart, openNewFlow } from "./pages/ArgusStart";
 import { WORKSPACES, workspaceOfProcess, type WorkspaceId } from "./lib/processes";
 import { STATE_LABEL, workspaceState } from "./lib/workspaceCard";
@@ -399,7 +399,7 @@ function App() {
         <Suspense fallback={<p className="muted" role="status">Loading…</p>}>
         {active === "home" && <StartPage />}
         {active === "argus" && route.params[0] === "new" && <ArgusNew preset={route.params[1] ?? null} />}
-        {active === "argus" && route.params[0] !== "new" && (route.params[0] ? <ArgusFlow key={route.params[0]} flowId={route.params[0]} step={Number(route.params[1] ?? 1) || 1} /> : <ArgusStart />)}
+        {active === "argus" && route.params[0] !== "new" && (route.params[0] ? <ArgusFlow key={route.params[0]} flowId={route.params[0]} step={stepFromUrl(route.params[1])} /> : <ArgusStart />)}
         {isWorkspace(active) && active !== "argus" && <WorkspaceOverview key={active} id={active} />}
         {active === "search" && <Search />}
         {active === "securityMaster" && <SecurityMaster />}

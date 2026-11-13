@@ -2203,6 +2203,10 @@ a.vc-box:hover { border-color: var(--text); }
   .argus-tile-count, .argus-tile-empty .argus-tile-count { font-size: 1.25rem; }
 }
 .argus-start .data-table a, .argus-head-actions a { display: inline-block; min-height: 24px; line-height: 24px; }
+.argus-tiles-help { grid-column: 1 / -1; margin: 0; text-wrap: pretty; }
+.argus-filter-line { margin: 0 0 var(--s-3); font-weight: 600; }
+/* a run is named after its schema: a long name wraps instead of pushing Open out of view */
+.argus-start .data-table td:first-child { white-space: normal; overflow-wrap: anywhere; }
 
 /* Ask ARP: a right-hand panel over the page; full screen on phones. */
 .app-topbar-ask { margin-left: auto; min-height: 44px; padding: 0 var(--s-3); background: var(--panel); color: var(--text); border: 1px solid var(--panel-border); }
@@ -2249,6 +2253,8 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-add :is(p, .field-label) { margin: 0; }
 .argus-one fieldset { display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: end; border: 0; padding: 0; margin: 0; }
 .argus-one legend { font-weight: 600; margin-bottom: var(--s-2); }
+/* step 1: the name cell wraps (its Central ID is 36 characters), so Edit and Remove stay in view */
+.argus-companies td:first-child { white-space: normal; overflow-wrap: anywhere; }
 .argus-row-await > * { background: color-mix(in srgb, var(--await) 60%, transparent); }
 .argus-flow-actions { margin-top: var(--s-4); flex-wrap: wrap; white-space: normal; }
 .argus-progress-head, .argus-results-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s-3) var(--s-6); margin-bottom: var(--s-4); }
@@ -2269,17 +2275,24 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-file-preview img { display: block; width: 100%; }
 .argus-keep { display: inline-flex; gap: var(--s-3); align-items: center; }
 .argus-state { font-weight: 600; }
-.argus-state-removed { color: var(--muted); }
+.argus-state-removed, .argus-state-undecided { color: var(--muted); }
 @media (max-width: 900px) { .argus-docs-open { flex-direction: column; } }
-.argus-schema-cols { display: grid; grid-template-columns: minmax(16rem, 1fr) minmax(0, 2fr); gap: var(--s-6); align-items: start; margin-bottom: var(--s-6); }
-.argus-schema-pick { display: grid; gap: var(--s-3); }
-.argus-schema-pick h2, .argus-schema-fields h2, .argus-run-list h2 { font-size: var(--text-md); margin: 0; }
+.argus-schema-cols { display: grid; grid-template-columns: minmax(16rem, 1fr) minmax(0, 3fr); gap: var(--s-6); align-items: start; margin-bottom: var(--s-6); }
+.argus-schema-pick { display: grid; gap: var(--s-3); min-width: 0; }
+.argus-schema-pick > * { min-width: 0; }
+.argus-schema-pick h2, .argus-schema-fields h2, .argus-run-list h2 { font-size: var(--text-md); margin: 0; overflow-wrap: anywhere; }
 .argus-schema-pick :is(p, .field-label) { margin: 0; }
 .argus-pick-list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s-1); }
-.argus-pick-list button { text-align: left; }
+.argus-pick-list li { overflow-wrap: anywhere; }
+.argus-pick-list .muted { white-space: nowrap; }
+.argus-pick-list button { text-align: left; white-space: normal; }
 .argus-pick-list button[aria-pressed="true"] { color: var(--text); font-weight: 600; text-decoration: none; }
 .argus-schema-fields { display: grid; gap: var(--s-3); min-width: 0; }
 .argus-schema-fields td input, .argus-schema-fields td select { width: 100%; min-width: 6rem; }
+/* the saved schema's table: the two text columns keep a readable width, and "Look in" shows three lines until asked for more */
+.argus-schema-fields .data-table :is(th, td):nth-child(n+4) { min-width: 15rem; white-space: normal; }
+.argus-schema-fields .data-table td:first-child { white-space: normal; }
+.argus-clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .argus-settings { margin-bottom: var(--s-6); }
 .argus-settings summary { cursor: pointer; font-weight: 600; }
 .argus-settings-body { display: grid; gap: var(--s-4); margin-top: var(--s-4); max-width: 32rem; }
@@ -2291,7 +2304,7 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-repeat-choices { display: inline-flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
 .argus-repeat-choices button[aria-pressed="true"] { border-color: var(--text); color: var(--text); font-weight: 600; box-shadow: inset 0 0 0 1px var(--text); }
 .argus-run-list ul { margin: var(--s-2) 0 0; padding-left: var(--s-6); }
-@media (max-width: 900px) { .argus-schema-cols { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .argus-schema-cols { grid-template-columns: minmax(0, 1fr); } }
 /* Argus walkthrough: pickers, result card and one white card per step. */
 .wt-pickers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-4); }
 .wt-pickers .field-label { margin: 0; }

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import { CompanyPicker } from "../components/CompanyPicker";
+import { CompanyFields, CompanyPicker, type OneCompany } from "../components/CompanyPicker";
 import { StepBar } from "../components/StepBar";
-import { continueLabel, documentsText, extractedBeforeText, flowHref, identifierList, identityStatus } from "../lib/argusFlow";
+import { companiesLocked, continueLabel, documentsText, extractedBeforeText, flowHref, identifierList, identityPolls, identityStatus, plainError, typedCompany } from "../lib/argusFlow";
 import { STEPS } from "../lib/argusStart";
 import { ArgusDocuments } from "./ArgusDocuments";
 import { ArgusExtract } from "./ArgusExtract";
@@ -10,19 +10,58 @@ import { ArgusResults } from "./ArgusResults";
 import { ArgusSchema } from "./ArgusSchema";
 import type { ArgusFlow as Flow } from "../types";
 
+/** Step 1: one row's Name, Ticker, ISIN, LEI and CIK, open for a correction. Saving registers the row again. */
+function EditCompanyRow({ company, busy, onSave, onCancel }: {
+  company: Flow["companies"][number];
+  busy: boolean;
+  onSave: (company: OneCompany) => void;
+  onCancel: () => void;
+}) {
+  const [form, setForm] = useState({ name: company.name, ticker: company.ticker ?? "", isin: company.isin ?? "", lei: company.lei ?? "", cik: company.cik ?? "" });
+  const ref = useRef<HTMLFormElement>(null);
+  useEffect(() => ref.current?.querySelector("input")?.focus(), []); // Edit was just removed from under the keyboard's focus
+  return (
+    <tr>
+      <td colSpan={7}>
+        <form
+          ref={ref}
+          className="argus-one"
+          aria-label={`Edit ${company.name}`}
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSave(typedCompany(form));
+          }}
+        >
+          <fieldset>
+            <legend>Edit {company.name}</legend>
+            <CompanyFields value={form} onChange={setForm} />
+            <button type="submit" disabled={busy}>Save</button>
+            <button type="button" className="link-button" onClick={onCancel}>Cancel</button>
+          </fieldset>
+        </form>
+      </td>
+    </tr>
+  );
+}
 
 /** #/argus/<flow_id>/<step>: one extraction being set up. The flow lives on the server, so a reload or a teammate's link shows the same step and data. */
-export function ArgusFlow({ flowId, step }: { flowId: string; step: number }) {
+export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: number | null }) {
   const [flow, setFlow] = useState<Flow | null>(null);
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [editing, setEditing] = useState<string | null>(null); // the company_id of the step 1 row being edited
+  // a step the URL names that is not 1 to 5 (/7, /2.5): shown as, and sent to, the flow's furthest step
+  const step = urlStep ?? flow?.step ?? 1;
+  useEffect(() => {
+    if (urlStep === null && flow) window.location.replace(flowHref(flowId, flow.step));
+  }, [urlStep, flow, flowId]);
 
   // Read again on every step change: a run that finished on step 4 changes what step 3 must show (the repeat
   // warning), and a stale flow let Start through to a 400 that named a list not on screen.
   useEffect(() => {
-    api.getArgusFlow(flowId).then(setFlow, (e: Error) => (/not found/i.test(e.message) ? setMissing(true) : setError(e.message)));
-  }, [flowId, step]);
+    api.getArgusFlow(flowId).then(setFlow, (e: Error) => (/not found/i.test(e.message) ? setMissing(true) : setError(plainError(e.message))));
+  }, [flowId, urlStep]);
 
   // bumped at the start and end of every change, so a background read that began before it is dropped
   const changes = useRef(0);
@@ -35,7 +74,7 @@ export function ArgusFlow({ flowId, step }: { flowId: string; step: number }) {
       if (f) setFlow(f);
       return true;
     } catch (e) {
-      setError((e as Error).message);
+      setError(plainError((e as Error).message));
       return false;
     } finally {
       changes.current++;
@@ -46,6 +85,13 @@ export function ArgusFlow({ flowId, step }: { flowId: string; step: number }) {
     const at = changes.current;
     api.getArgusFlow(flowId).then((f) => at === changes.current && setFlow(f), () => {}); // a failed poll just waits for the next
   }, [flowId]);
+  // an identity run's result is applied on the server when the flow is read after the run has ended
+  const identityRuns = identityPolls(flow?.identity?.status);
+  useEffect(() => {
+    if (step !== 1 || !identityRuns) return;
+    const t = setInterval(refresh, 4000);
+    return () => clearInterval(t);
+  }, [step, identityRuns, refresh]);
 
   if (missing)
     return (
@@ -61,6 +107,7 @@ export function ArgusFlow({ flowId, step }: { flowId: string; step: number }) {
   const identity = identityStatus(flow.identity_run_id, flow.identity?.status ?? null, unmatched.length);
   const unmatchedCompanies = flow.companies.filter((c) => !c.entity_id);
   const n = flow.companies.length;
+  const locked = companiesLocked(flow);
 
   return (
     <div className="page argus-flow">
@@ -100,7 +147,7 @@ export function ArgusFlow({ flowId, step }: { flowId: string; step: number }) {
             onAddOne={(company) => act(() => api.addFlowCompanies(flow.flow_id, { company }))}
           />
           <div className="table-wrap">
-            <table className="data-table stack-on-phone" aria-label="Companies">
+            <table className="data-table stack-on-phone argus-companies" aria-label="Companies">
               <thead>
                 <tr>
                   <th scope="col">Company</th>
@@ -109,15 +156,26 @@ export function ArgusFlow({ flowId, step }: { flowId: string; step: number }) {
                   <th scope="col">Country</th>
                   <th scope="col">Extracted before</th>
                   <th scope="col">Documents on file</th>
+                  {!locked && <th />}
                 </tr>
               </thead>
               <tbody>
-                {flow.rows.map((r) => (
+                {flow.rows.map((r) => !locked && editing === r.company_id ? (
+                  <EditCompanyRow
+                    key={r.central_id ?? r.company_id}
+                    company={flow.companies.find((c) => c.company_id === r.company_id)!}
+                    busy={busy}
+                    onCancel={() => setEditing(null)}
+                    onSave={async (company) => {
+                      if (await act(() => api.updateFlowCompany(flow.flow_id, r.company_id, company))) setEditing(null);
+                    }}
+                  />
+                ) : (
                   <tr key={r.central_id ?? r.company_id} className={r.problem ? "argus-row-await" : undefined}>
                     <td data-label="Company">
                       <div>
                         <span className="xbrl-name">{r.name}</span>
-                        {r.central_id && <span className="xbrl-sub mono">{r.central_id}</span>}
+                        {r.central_id && <span className="xbrl-sub mono">Central ID {r.central_id}</span>}
                         {r.problem && <span className="xbrl-sub await-text">{r.problem}</span>}
                       </div>
                     </td>
@@ -129,6 +187,14 @@ export function ArgusFlow({ flowId, step }: { flowId: string; step: number }) {
                     <td data-label="Country">{r.country ?? ""}</td>
                     <td data-label="Extracted before">{extractedBeforeText(r.extracted_before)}</td>
                     <td data-label="Documents on file">{documentsText(r.documents, r.document_types)}</td>
+                    {!locked && (
+                      <td>
+                        <span className="row-actions">
+                          <button type="button" className="link-button" disabled={busy} onClick={() => setEditing(r.company_id)}>Edit</button>
+                          <button type="button" className="link-button" disabled={busy} onClick={() => act(() => api.removeFlowCompany(flow.flow_id, r.company_id))}>Remove</button>
+                        </span>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

@@ -5,10 +5,10 @@ import { ruleMarkers, RulesList } from "../components/RulesList";
 import { ScoringTemplatePicker } from "../components/RunScoring";
 import { SchemaFieldsEditor } from "../components/SchemaFieldsEditor";
 import { ruleInputs, sameRule } from "../lib/ruleSentence";
-import { bumpChangedFields, canStart, draftHint, flowHref, lastRunText, newDocsLine, newestVersions, presetCountText, startLabel } from "../lib/argusFlow";
+import { bumpChangedFields, canStart, draftHint, flowHref, lastRunText, newDocsLine, newFieldId, newestVersions, plainError, presetCountText, releaseQuestion, startLabel } from "../lib/argusFlow";
 import type { ArgusFlow as Flow, DataPointSchema, FieldDefinition, RuleSuggestion, RunManifest } from "../types";
 
-type SavedSchema = { schema_id: string; version: number; name: string; release_flag: boolean };
+type SavedSchema = { schema_id: string; version: number; name: string; release_flag: boolean; field_count: number };
 type Preset = { preset_id: string; name: string; field_count: number };
 type Choice = NonNullable<Flow["schema_choice"]>;
 const PROFILES: ["financials" | "tnfd", string][] = [
@@ -18,17 +18,56 @@ const PROFILES: ["financials" | "tnfd", string][] = [
 
 const asChoice = (c: Partial<Choice> & Pick<Choice, "kind">): Choice => ({ schema_id: null, version: null, profile: null, ...c });
 
-const blankField = (n: number): FieldDefinition => ({
-  field_id: `field_${n}`, name: "", description: "", data_type: "number", unit: null, extraction_instructions: "", required: false,
+const blankField = (): FieldDefinition => ({
+  field_id: newFieldId(), name: "", description: "", data_type: "number", unit: null, extraction_instructions: "", required: false,
   source_doc_types: [], seed_keywords: [],
 });
+
+/** The unsaved fields and the typed description of one flow, kept in this tab so a reload does not lose them. */
+type StoredDraft = { editing: DataPointSchema; words: string };
+const draftKey = (flowId: string) => `argus-draft:${flowId}`;
+function storedDraft(flowId: string): StoredDraft | null {
+  try {
+    return JSON.parse(sessionStorage.getItem(draftKey(flowId)) ?? "null");
+  } catch {
+    return null; // storage blocked or not JSON: start without a draft
+  }
+}
+
+/** A long "Look in" text shows three lines and Show more; a text that fits shows no button. */
+function Clamped({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const [clipped, setClipped] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || open) return; // while open nothing is clipped: keep the button for Show less
+    const measure = () => setClipped(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    const ro = new ResizeObserver(measure); // a narrower column clips a text that fitted
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [open, text]);
+  return (
+    <div>
+      <div ref={ref} className={open ? undefined : "argus-clamp"}>{text}</div>
+      {clipped && (
+        <button type="button" className="link-button" aria-expanded={open} onClick={() => setOpen(!open)}>
+          {open ? "Show less" : "Show more"}
+        </button>
+      )}
+    </div>
+  );
+}
 
 /** Step 3 of an Argus flow: what to extract, its fields, optional settings, the repeat warning and the start. */
 export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; act: (fn: () => Promise<Flow | void>) => void }) {
   const [saved, setSaved] = useState<SavedSchema[]>([]);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [schema, setSchema] = useState<DataPointSchema | null>(null);
-  const [editing, setEditing] = useState<DataPointSchema | null>(null); // unsaved fields: drafted, added or being edited
+  const id = flow.flow_id;
+  const [stored] = useState(() => storedDraft(id));
+  const [editing, setEditing] = useState<DataPointSchema | null>(stored?.editing ?? null); // unsaved fields: drafted, added or being edited
   // Rule suggestions for the unsaved fields: waiting ones block saving; dropped ones are not suggested again.
   const [waiting, setWaiting] = useState<RuleSuggestion[]>([]);
   const [dropped, setDropped] = useState<RuleSuggestion[]>([]);
@@ -37,19 +76,27 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
   const [ruleError, setRuleError] = useState("");
   const latest = useRef(editing); // patches after an await apply to the fields as they are then
   latest.current = editing;
-  const [words, setWords] = useState("");
+  const [words, setWords] = useState(stored?.words ?? "");
+  useEffect(() => {
+    try {
+      if (editing) sessionStorage.setItem(draftKey(id), JSON.stringify({ editing, words } satisfies StoredDraft));
+      else sessionStorage.removeItem(draftKey(id)); // saved, cancelled or replaced by another choice
+    } catch {
+      /* storage blocked or full: the draft then lives in the page only, as before */
+    }
+  }, [id, editing, words]);
+  const [gone, setGone] = useState(false); // the chosen schema no longer exists
   const [role, setRole] = useState<string | null>(null);
   const [loadError, setLoadError] = useState("");
   const [evidence, setEvidence] = useState(flow.settings.evidence_passages?.toString() ?? ""); // saved on blur and before Start
   const starting = useRef(false);
   const [indicatorCount, setIndicatorCount] = useState<number | null>(null);
   const [pastRuns, setPastRuns] = useState<RunManifest[] | null>(null);
-  const id = flow.flow_id;
   const choice = flow.schema_choice ?? null;
 
   useEffect(() => {
-    api.listSchemas().then((s) => setSaved(newestVersions(s)), (e: Error) => setLoadError(e.message));
-    api.listPresets().then(setPresets, (e: Error) => setLoadError(e.message));
+    api.listSchemas().then((s) => setSaved(newestVersions(s)), (e: Error) => setLoadError(plainError(e.message)));
+    api.listPresets().then(setPresets, (e: Error) => setLoadError(plainError(e.message)));
     api.getMe().then((m) => setRole(m.role), () => setRole(null));
     api.getTransitionPlanIndicators().then((i) => setIndicatorCount(i.length), () => setIndicatorCount(null));
   }, []);
@@ -65,13 +112,19 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
   }, [runType, choice?.schema_id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     setSchema(null);
+    if (choice?.kind) setGone(false);
     if (choice?.kind !== "schema" || !choice.schema_id || !choice.version) return;
     let live = true; // a slower answer for an earlier choice must not replace this one
-    api.getSchema(choice.schema_id, choice.version).then((s) => live && setSchema(s), (e: Error) => live && setLoadError(e.message));
+    api.getSchema(choice.schema_id, choice.version).then((s) => live && setSchema(s), (e: Error) => {
+      if (!live) return;
+      if (!/^404: /.test(e.message)) return setLoadError(plainError(e.message));
+      setGone(true); // deleted since it was chosen: clear the choice, or the start button waits on it for ever
+      act(() => api.patchArgusFlow(id, { schema_choice: null, repeat: {} }));
+    });
     return () => {
       live = false;
     };
-  }, [choice?.kind, choice?.schema_id, choice?.version]);
+  }, [choice?.kind, choice?.schema_id, choice?.version, act, id]);
 
   const choose = (c: Partial<Choice> & Pick<Choice, "kind">) =>
     act(async () => {
@@ -112,7 +165,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
           .map((r) => ({ ...r, helper_fields: helpers.filter((h) => h.field_id === r.field_id || ruleInputs(r.rule).includes(h.field_id)) })),
       );
     } catch (err) {
-      setRuleError(`Rule suggestions failed: ${(err as Error).message}`);
+      setRuleError(`Rule suggestions failed: ${plainError((err as Error).message)}`);
     } finally {
       setSuggesting(false);
     }
@@ -147,6 +200,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
   return (
     <div className="argus-schema">
       {loadError && <p className="error-text" role="alert">{loadError}</p>}
+      {gone && <p className="error-text" role="alert">The schema chosen earlier no longer exists. Choose another.</p>}
       <div className="argus-schema-cols">
         <section className="card argus-schema-pick" aria-label="What to extract">
           <h2>Saved schemas</h2>
@@ -159,7 +213,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
                   <button type="button" className="link-button" aria-pressed={isChosen(s)} disabled={busy} onClick={() => choose({ kind: "schema", schema_id: s.schema_id, version: s.version })}>
                     {s.name} <span className="mono">v{s.version}</span>
                   </button>{" "}
-                  <span className="muted">{s.release_flag ? "released" : "draft"}</span>
+                  <span className="muted">{s.release_flag ? "released" : "draft"} · {s.field_count} {s.field_count === 1 ? "field" : "fields"}</span>
                 </li>
               ))}
             </ul>
@@ -278,7 +332,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
                           <td data-label="Type" className="mono">{f.data_type}</td>
                           <td data-label="Unit">{f.unit || "—"}</td>
                           <td data-label="What it means">{f.description || "—"}</td>
-                          <td data-label="Look in">{f.extraction_instructions || "—"}</td>
+                          <td data-label="Look in">{f.extraction_instructions ? <Clamped text={f.extraction_instructions} /> : "—"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -286,7 +340,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
                 </div>
               )}
               <div className="row-actions">
-                <button type="button" className="secondary" disabled={busy} onClick={() => setEditing({ ...(editing ?? shown), fields: [...(editing ?? shown).fields, blankField((editing ?? shown).fields.length + 1)] })}>
+                <button type="button" className="secondary" disabled={busy} onClick={() => setEditing({ ...(editing ?? shown), fields: [...(editing ?? shown).fields, blankField()] })}>
                   Add field
                 </button>
                 {editing ? (
@@ -305,10 +359,13 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
                         Edit as v{(schema.version ?? 0) + 1}
                       </button>
                       {!schema.release_flag && role === "approver" && (
-                        <button type="button" className="secondary" disabled={busy} onClick={() => act(async () => {
-                          setSchema(await api.releaseSchema(schema.schema_id, schema.version ?? 1));
-                          setSaved(newestVersions(await api.listSchemas()));
-                        })}>
+                        <button type="button" className="secondary" disabled={busy} onClick={() => {
+                          if (!window.confirm(releaseQuestion(schema.name, schema.version ?? 1, companies.length))) return;
+                          act(async () => {
+                            setSchema(await api.releaseSchema(schema.schema_id, schema.version ?? 1));
+                            setSaved(newestVersions(await api.listSchemas()));
+                          });
+                        }}>
                           Release
                         </button>
                       )}
@@ -341,6 +398,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
               max={50}
               value={evidence}
               placeholder="app default"
+              disabled={busy}
               onChange={(e) => setEvidence(e.target.value)}
               onBlur={() => {
                 const v = evidenceValue();
@@ -348,7 +406,7 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
               }}
             />
           </label>
-          <BatchToggle checked={flow.settings.batch} onChange={(batch) => act(() => api.patchArgusFlow(id, { settings: { ...flow.settings, batch } }))} />
+          <BatchToggle checked={flow.settings.batch} disabled={busy} onChange={(batch) => act(() => api.patchArgusFlow(id, { settings: { ...flow.settings, batch } }))} />
           {choice && (
             <ScoringTemplatePicker
               runType={runType}
