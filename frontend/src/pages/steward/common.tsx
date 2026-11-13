@@ -121,7 +121,10 @@ export function Section({ step, title, children, planned }: { step: string; titl
   return (
     <section className={`card studio-section${planned ? " planned" : ""}`}>
       <p className="studio-step">{step}</p>
-      <h2>{title}</h2>
+      <h2>
+        {title}
+        {planned && <span className="chip chip-not-built">Not built yet</span>}
+      </h2>
       {children}
     </section>
   );
@@ -156,6 +159,11 @@ export function RuleEditor({ label, children }: { label: string; children: React
       {children}
     </div>
   );
+}
+
+/** Marks figures computed from placeholder scores (CLTI), so nobody reads them as an assessment. */
+export function SampleChip() {
+  return <span className="chip chip-sample">Sample data</span>;
 }
 
 /** Honest placeholder for a part of the studio that is designed but not built. */

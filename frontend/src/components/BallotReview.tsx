@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import type { CompanyBallot, VoteRecord, VotePosition, VoteReviewDecision } from "../types";
+import type { CompanyBallot, RunManifest, VoteRecord, VotePosition, VoteReviewDecision } from "../types";
 import { Modal } from "./Modal";
 import { ConfirmDecision } from "./ConfirmDecision";
 import { DecisionBar } from "./DecisionBar";
@@ -12,6 +12,15 @@ import { ProposedTag } from "./ProposedTag";
 import { announce } from "../lib/announce";
 import { focusNextCard, useCardKeys } from "../lib/cardKeys";
 import { CommentField } from "./CommentField";
+import {
+  castBannerText,
+  castDialogText,
+  castFailedText,
+  emptyBallotsText,
+  isRoutine,
+  missingCoSignText,
+  recordedText,
+} from "../lib/votingWording";
 
 const VOTE_POSITIONS: VotePosition[] = ["for", "against", "abstain", "withhold"];
 
@@ -25,11 +34,6 @@ function meetingLabel(date: string | null | undefined): string {
   const when = days > 1 ? `in ${days} days` : days === 1 ? "tomorrow" : days === 0 ? "today" : `${-days} days ago`;
   return `Meeting ${d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })} · ${when}`;
 }
-
-/** Routine: the policy recommends a vote and nothing flags it for a second
- * person. Routine proposals read as one row and can be approved as a batch;
- * flagged ones always get the full card and a decision of their own. */
-const isRoutine = (v: VoteRecord) => Boolean(v.policy_recommendation && !v.policy_recommendation.engagement_alignment_flag);
 
 function itemKey(companyId: string, proposalNumber: string): string {
   return `${companyId}:${proposalNumber}`;
@@ -60,6 +64,7 @@ function ProposalReview({
   const [coSignedBy, setCoSignedBy] = useState("");
   const [reviewer] = useReviewer();
   const [comment, setComment] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const settled = Boolean(decision) || alreadyCast;
@@ -99,9 +104,11 @@ function ProposalReview({
         reviewer: reviewer.trim(),
         vote: reviewDecision === "edit" ? chosenVote : null,
         co_signed_by: coSignedBy || null,
-        comment: comment || null,
+        // An override is recorded with its reason (the API refuses one without).
+        comment: (reviewDecision === "edit" ? overrideReason.trim() : comment) || null,
       });
       setComment("");
+      setOverrideReason("");
       setOverrideOpen(false);
       announce(`Proposal ${vote.proposal.proposal_number} for ${ballot.name} ${DECISION_LABEL[reviewDecision]}.`);
       focusNextCard(cardRef.current, ".proposal-card", ".ballot-bar button:last-of-type");
@@ -116,7 +123,7 @@ function ProposalReview({
   if (!expanded && rec) {
     const coSigner = decision?.edited_value?.co_signed_by;
     const status = alreadyCast
-      ? `Cast · ${castConfirmationId}`
+      ? recordedText(castConfirmationId)
       : decision
         ? `${DECISION_LABEL[decision.decision] ?? decision.decision} by ${decision.reviewer ?? "unknown"}${coSigner ? `, co-signed ${coSigner}` : ""}`
         : null;
@@ -193,7 +200,7 @@ function ProposalReview({
       )}
 
       {alreadyCast && (
-        <div className="banner banner-success">Cast &middot; confirmation {castConfirmationId}</div>
+        <div className="banner banner-success">{recordedText(castConfirmationId)}</div>
       )}
 
       {!alreadyCast && (
@@ -236,7 +243,11 @@ function ProposalReview({
                   </option>
                 ))}
               </select>
-              <button className="secondary" onClick={() => submit("edit")} disabled={busy}>
+              <label className="field-label">
+                Reason for the override (required)
+                <input value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} />
+              </label>
+              <button className="secondary" onClick={() => submit("edit")} disabled={busy || !overrideReason.trim()}>
                 Record override
               </button>
             </div>
@@ -257,18 +268,21 @@ export function BallotReview({ runId }: { runId: string }) {
   const [castResult, setCastResult] = useState<{ count: number; by: string; at: Date } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [confirmingBatch, setConfirmingBatch] = useState(false);
+  const [run, setRun] = useState<RunManifest | null>(null);
   const [reviewer] = useReviewer();
 
   async function load() {
     setBusy(true);
     setError(null);
     try {
-      const [ballotsRes, queueRes, castRes] = await Promise.all([
+      const [ballotsRes, queueRes, castRes, runRes] = await Promise.all([
         api.getVotingBallots(runId),
         api.getVotingReviewQueue(runId),
         api.getCastVotes(runId),
+        api.getRun(runId).catch(() => null), // only says why the ballot list may be empty
       ]);
       setBallots(ballotsRes.ballots);
+      setRun(runRes as RunManifest | null);
       const decisionMap: Record<string, VoteReviewDecision> = {};
       for (const d of queueRes.decided) decisionMap[d.item.item_key as string] = d.decision;
       setDecisions(decisionMap);
@@ -297,7 +311,7 @@ export function BallotReview({ runId }: { runId: string }) {
       setCastResult({ count: res.cast_count, by: reviewer.trim(), at: new Date() });
       await load();
     } catch (err) {
-      setError(`Casting failed: ${(err as Error).message}. Nothing was marked cast; try again.`);
+      setError(castFailedText((err as Error).message));
     } finally {
       setBusy(false);
     }
@@ -406,8 +420,7 @@ export function BallotReview({ runId }: { runId: string }) {
       <div aria-live="polite">
         {castResult && (
           <div className="banner banner-success">
-            {castResult.count} vote{castResult.count === 1 ? "" : "s"} cast by {castResult.by} at {castResult.at.toLocaleString()}.
-            Confirmation IDs are shown on each proposal below.
+            {castBannerText(castResult.count, castResult.by, castResult.at.toLocaleString())}
           </div>
         )}
       </div>
@@ -454,9 +467,7 @@ export function BallotReview({ runId }: { runId: string }) {
 
       {confirming && (
         <Modal title="Cast votes?" compact noClose onClose={() => setConfirming(false)}>
-          <p>
-            This sends <strong>{castable}</strong> vote{castable === 1 ? "" : "s"} to the ballot platform. Cast votes cannot be recalled from here.
-          </p>
+          <p>{castDialogText(castable)}</p>
           <ul className="confirm-list">
             <li>{counts.approved} approved as recommended</li>
             <li>{counts.overridden} overridden by a reviewer</li>
@@ -489,7 +500,7 @@ export function BallotReview({ runId }: { runId: string }) {
           </div>
           {counts.missingCoSign > 0 && (
             <div className="banner banner-danger">
-              {counts.missingCoSign} flagged vote{counts.missingCoSign === 1 ? " has" : "s have"} no co-sign and will be refused by the platform.
+              {missingCoSignText(counts.missingCoSign)}
             </div>
           )}
           <p className="muted">Recorded against the name you entered: {reviewer.trim()} (not verified by a login)</p>
@@ -504,12 +515,7 @@ export function BallotReview({ runId }: { runId: string }) {
 
       <div className="split-review">
       <div className="split-review-main">
-      {ballots.length === 0 && (
-        <p className="muted">
-          No ballots in this run yet: none of its companies has a proxy statement for an upcoming meeting. Start a new voting run once
-          one is filed.
-        </p>
-      )}
+      {ballots.length === 0 && <p className="muted">{emptyBallotsText(run)}</p>}
       {byMeeting.map((ballot) => (
         <div key={ballot.company_id} className="panel-section">
           <h3>

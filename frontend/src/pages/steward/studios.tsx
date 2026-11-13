@@ -25,7 +25,7 @@ import type {
   VotingPosition,
   VotingPreview,
 } from "../../types";
-import { ActorField, DataTable, Planned, RuleEditor, Section, StudioHeader, VersionsPanel, useActor, usePolicy, words } from "./common";
+import { ActorField, DataTable, Planned, RuleEditor, SampleChip, Section, StudioHeader, VersionsPanel, useActor, usePolicy, words } from "./common";
 import { ClientExceptionDecisions, EscalationDecisions, PolicyDifference, TierDecisions } from "./decisions";
 import { OutreachDecisions } from "./drafting";
 
@@ -195,7 +195,7 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
                     <td>{words(t.type)}</td>
                     <td>{words(t.theme)}</td>
                     <td>
-                      {t.reason} <span className="muted">({t.rule})</span>
+                      {/CLTI score/.test(t.reason) && <SampleChip />} {t.reason} <span className="muted">({t.rule})</span>
                     </td>
                     <td>
                       {t.engagement_id ? (

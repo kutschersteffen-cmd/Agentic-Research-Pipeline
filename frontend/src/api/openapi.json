@@ -5153,6 +5153,17 @@
       "title": "Company Id",
       "type": "string"
      },
+     "evidence": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence"
+     },
      "issue_id": {
       "title": "Issue Id",
       "type": "string"
@@ -24032,6 +24043,17 @@
      "commitment_id": {
       "title": "Commitment Id",
       "type": "string"
+     },
+     "evidence": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence"
      }
     },
     "required": [

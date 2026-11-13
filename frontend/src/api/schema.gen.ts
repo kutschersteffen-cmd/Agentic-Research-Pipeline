@@ -10155,6 +10155,8 @@ export interface components {
         CommitmentStatusRequest: {
             /** Company Id */
             company_id: string;
+            /** Evidence */
+            evidence?: string | null;
             /** Issue Id */
             issue_id: string;
             /**
@@ -17870,6 +17872,8 @@ export interface components {
         VerifyCommitmentRequest: {
             /** Commitment Id */
             commitment_id: string;
+            /** Evidence */
+            evidence?: string | null;
         };
         /** VerifyRequest */
         VerifyRequest: {

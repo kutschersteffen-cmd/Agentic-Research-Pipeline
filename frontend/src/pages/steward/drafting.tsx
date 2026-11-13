@@ -112,6 +112,12 @@ export function OutreachDecisions({ items, actor, onDone }: { items: OutreachDec
               >
                 {busy === d.draft_id ? "Approving…" : "Approve for sending"}
               </button>
+              {actor && author && (
+                <span className="help-text">
+                  A second person is needed: this draft was written by {d.authors.join(", ")}, and someone who did not write it
+                  approves it.
+                </span>
+              )}
             </div>
           </article>
         );

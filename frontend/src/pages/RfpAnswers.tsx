@@ -244,6 +244,8 @@ function QuestionCard({ q, projectId, act }: { q: RfpQuestion; projectId: number
   useEffect(() => setAnswer(q.answer), [q.answer]);
   const canEdit = !!me && rank[me.role] >= rank.analyst;
   const canApprove = me?.role === "approver" && q.status !== "approved" && q.last_editor !== me.user_id && q.answer.trim() !== "";
+  // Four-eyes: say so where the Approve button would be, instead of leaving it out silently.
+  const ownEdit = me?.role === "approver" && q.status !== "approved" && q.last_editor === me.user_id;
 
   return (
     <section className="card" aria-label={`Question ${q.location}`}>
@@ -290,6 +292,7 @@ function QuestionCard({ q, projectId, act }: { q: RfpQuestion; projectId: number
           </button>
         </div>
       )}
+      {ownEdit && <p className="help-text">A second person is needed: you edited this answer last, and another approver must approve it.</p>}
     </section>
   );
 }
