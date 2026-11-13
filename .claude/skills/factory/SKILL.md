@@ -8,6 +8,9 @@ stage runs in its own fresh cloud session, so no session sees more than its stag
 those sessions, notice when a stage is done, start the next one, and keep the owner and the board
 informed. You never approve, and merge only through the merge button.
 
+Run the dispatcher on `fable` (judging what comes back), the stage sessions on the models below
+(doing the work). If this session is not on `fable`, say so once in the first status line and carry on.
+
 ## Commands
 
 - `/factory <feature in plain words>` - start a new feature at stage 1.
@@ -57,7 +60,8 @@ don't start: say so and stop (steward rule 4).
 ## Starting a stage
 
 Start each stage with `create_session` on `https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline`,
-title `factory: <slug> - <stage>`, and the prompt below with this session's id filled in (`get_session`
+title `factory: <slug> - <stage>`, `permission_mode: auto` (deny rules in `.claude/settings.json` still
+apply; never `bypassPermissions`), and the prompt below with this session's id filled in (`get_session`
 with no id returns it). Each prompt ends with: *"When you open your PR, or are blocked, send one line to
 session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocked: reason>`."*
 
@@ -105,7 +109,8 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
      A later push that changes `backend/arp/` or `frontend/src/` re-runs it once CI is green again:
      the matrix names the head it ran on, and a matrix for an older head is stale.
    **Model by risk label** (`create_session` `model`): code and UI review `sonnet` on `risk:low`, `opus`
-   otherwise; security review always `opus`; no label counts as `risk:high`. Other stages keep the default.
+   otherwise; security review always `opus`; no label counts as `risk:high`. Other stages (spec, hidden
+   tests, implement, evaluator, regression) run on `opus`.
 5. **Merge gate:** nothing to start. If a review comment the PR's paths require is missing, tell the
    owner `waiting: <review name>` and offer no merge button. Tell the owner the PR is ready: link, risk label, open review
    findings, matrix verdict and the head it ran on. If the PR has a `Rows:` line, also list the spec's
