@@ -17,6 +17,45 @@ export const documentsText = (count: number, types: string[]) => (count ? `${cou
 
 export const continueLabel = (n: number) => `Continue with ${n} ${n === 1 ? "company" : "companies"}`;
 
+/** What was typed into a company form, without the fields left empty. */
+export const typedCompany = <T extends { name: string }>(form: T) =>
+  Object.fromEntries(Object.entries(form).filter(([, v]) => String(v).trim())) as { name: string } & Partial<T>;
+
+/** The step a flow URL names: 1 when it names none, null when it names something that is not step 1 to 5. */
+export const stepFromUrl = (param: string | undefined): number | null =>
+  param === undefined ? 1 : /^[1-5]$/.test(param) ? Number(param) : null;
+
+/** Step 1: rows can be edited and removed until the flow has a run or a Start is being dispatched.
+ * A `starting` flag older than a minute is left over from a Start that died, as the server reads it. */
+export function companiesLocked(
+  flow: { run_id?: string | null; starting: boolean; starting_at?: string | null; updated_at: string }, now = Date.now(),
+): boolean {
+  return !!flow.run_id || (flow.starting && now - Date.parse(flow.starting_at ?? flow.updated_at) < 60_000);
+}
+
+/** Step 1 reads the flow again every 4 seconds only while its identity run can still change it. */
+export const identityPolls = (status: string | null | undefined) => status === "pending" || status === "running";
+
+/** Step 2's document types: the stored code and the label the dropdown and the Type cell show. */
+export const DOC_TYPES: [string, string][] = [
+  ["10-K", "Annual report"],
+  ["sustainability_report", "Sustainability report"],
+  ["DEF-14A", "Proxy statement"],
+  ["transition_plan", "Transition plan"],
+  ["other", "Other"],
+];
+export const docTypeLabel = (code: string) => DOC_TYPES.find(([c]) => c === code)?.[1] ?? code;
+
+/** The id of a field added by hand, shaped like the server's own (`fld_` + 12 hex). Field definitions are keyed
+ * by id across all schemas, so a counter (`field_3`) clashed with another schema's third field. */
+export const newFieldId = () =>
+  `fld_${Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, "0")).join("")}`;
+
+/** What Release asks before it releases: a released version cannot be taken back. */
+export const releaseQuestion = (name: string, version: number, companies: number) =>
+  `Release ${name} v${version}? A released version cannot be changed or withdrawn.` +
+  (companies === 0 ? "" : ` It then extracts ${companies === 1 ? "1 company" : `all ${companies} companies`}.`);
+
 /** The company's own identifiers first, then the security master's that it doesn't already show. */
 const SEARCH_ENDED = ["completed", "partially_completed", "failed", "cancelled"];
 

@@ -307,3 +307,44 @@ def test_seeded_demo_records_the_loads_its_latest_month_needs(store, settings):
 
     seed_month = SNAPSHOT_DATES[-1][:7]
     assert run_month(store, settings, seed_month, portfolio_ids=_ids(store)).status == "ran"
+
+
+# --- showcase-portfolio-data PR 2: the provider when none is given ---
+
+
+def _esg(store, provider, month=MONTH, status="ok"):
+    record_load(store, LoadRecord(kind="esg", source_id=provider, month=month, status=status, content_hash="h"))
+
+
+def test_no_provider_named_uses_simulated_for_a_month_with_only_a_simulated_esg_load(store, settings):
+    from fastapi.testclient import TestClient
+
+    from arp.api.deps import get_portfolio_store, settings_dep
+    from arp.api.main import app
+    from arp.portfolio.monthly_run import default_esg_provider
+
+    for pid in _ids(store):
+        _load(store, "holdings", pid)
+    assert default_esg_provider(store, MONTH) == "default"  # no ESG load at all: as before
+    _esg(store, "simulated")
+    app.dependency_overrides[get_portfolio_store] = lambda: store
+    app.dependency_overrides[settings_dep] = lambda: settings
+    try:
+        c = TestClient(app)
+        assert c.get("/api/portfolio/monthly-run/status", params={"month": MONTH}).json()["esg"] == {"provider": "simulated", "status": "ok"}
+        assert c.post("/api/portfolio/monthly-run", json={"month": MONTH}).json()["status"] == "ran"
+        named = c.get("/api/portfolio/monthly-run/status", params={"month": MONTH, "esg_provider": "default"}).json()
+        assert named["esg"] == {"provider": "default", "status": "missing"}  # a named provider is taken as given
+    finally:
+        app.dependency_overrides.clear()
+    assert run_month(store, settings, MONTH, portfolio_ids=_ids(store)).status == "ran"
+
+
+def test_a_default_esg_load_keeps_the_default_provider_even_when_it_failed(store, settings):
+    from arp.portfolio.monthly_run import default_esg_provider, load_status
+
+    _ready(store, esg_status="failed")
+    _esg(store, "simulated")
+    assert default_esg_provider(store, MONTH) == "default"
+    assert load_status(store, MONTH, _ids(store))["esg"] == {"provider": "default", "status": "failed"}
+    assert run_month(store, settings, MONTH, portfolio_ids=_ids(store)).status == "blocked"  # a failed real load is not papered over

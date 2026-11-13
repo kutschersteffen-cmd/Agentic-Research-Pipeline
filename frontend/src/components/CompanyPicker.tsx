@@ -1,9 +1,25 @@
 import { useState } from "react";
+import { typedCompany } from "../lib/argusFlow";
 import { InputPicker } from "./InputPicker";
 
 export type OneCompany = { name: string; ticker?: string; isin?: string; lei?: string; cik?: string };
 
 const EMPTY = { name: "", ticker: "", isin: "", lei: "", cik: "" };
+export type CompanyForm = typeof EMPTY;
+
+/** The five inputs of one company: Name (required), Ticker, ISIN, LEI, CIK. `idPrefix` gives each input an id. */
+export function CompanyFields({ value, onChange, idPrefix }: { value: CompanyForm; onChange: (v: CompanyForm) => void; idPrefix?: string }) {
+  return (
+    <>
+      {(["name", "ticker", "isin", "lei", "cik"] as const).map((k) => (
+        <label key={k} className="field-label">
+          {k === "name" ? "Name" : k.toUpperCase().replace("TICKER", "Ticker")}
+          <input id={idPrefix && `${idPrefix}-${k}`} value={value[k]} required={k === "name"} onChange={(e) => onChange({ ...value, [k]: e.target.value })} />
+        </label>
+      ))}
+    </>
+  );
+}
 
 /** The one way to bring companies into Argus (step 1) and XBRL Facts: upload a list, pick a saved universe, or add one company.
  * The caller decides what each choice does. */
@@ -49,18 +65,12 @@ export function CompanyPicker({
         className="argus-one"
         onSubmit={async (e) => {
           e.preventDefault();
-          const company = Object.fromEntries(Object.entries(one).filter(([, v]) => v.trim())) as OneCompany;
-          if (await onAddOne(company)) setOne(EMPTY);
+          if (await onAddOne(typedCompany(one))) setOne(EMPTY);
         }}
       >
         <fieldset>
           <legend>Add one company</legend>
-          {(["name", "ticker", "isin", "lei", "cik"] as const).map((k) => (
-            <label key={k} className="field-label">
-              {k === "name" ? "Name" : k.toUpperCase().replace("TICKER", "Ticker")}
-              <input id={`argus-one-${k}`} value={one[k]} required={k === "name"} onChange={(e) => setOne({ ...one, [k]: e.target.value })} />
-            </label>
-          ))}
+          <CompanyFields value={one} onChange={setOne} idPrefix="argus-one" />
           <button type="submit" disabled={busy}>Add</button>
         </fieldset>
       </form>

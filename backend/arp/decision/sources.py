@@ -414,11 +414,13 @@ def from_portfolio_snapshot(store, as_of: str | None = None, portfolio_ids: list
 
     fields = [f for f in build_climate_schema().fields if not field_ids or f.field_id in field_ids]
     observations: dict[str, dict[str, float]] = defaultdict(dict)
+    simulated = False
     for company_id in exposure:
         for field in fields:
             observation = store.latest_observation(company_id, field.field_id, as_of=resolved)
             if observation is not None and isinstance(observation.value, (int, float)):
                 observations[company_id][field.field_id] = float(observation.value)
+                simulated = simulated or observation.source == "simulated"
 
     used_fields = [f for f in fields if any(f.field_id in values for values in observations.values())]
     columns = ["Company", "Company_Id", "Sector", "Country", "Portfolio_Market_Value_EUR", *[_field_column(f) for f in used_fields]]
@@ -439,7 +441,7 @@ def from_portfolio_snapshot(store, as_of: str | None = None, portfolio_ids: list
 
     label, newest = holdings_date_label(holdings)
     return build_dataset(
-        f"Portfolio holdings as of {label}",
+        f"Portfolio holdings as of {label}" + (" (includes simulated ESG values)" if simulated else ""),
         _matrix(columns, rows),
         source="portfolio_snapshot",
         source_ref=",".join(portfolio_ids) if portfolio_ids else "all",

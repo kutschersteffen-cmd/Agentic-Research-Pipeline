@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { dossierHref } from "../lib/dossiers";
-import { DATA_LABEL, checkGrid, criterion, editorDraft, latestStandards, positionState, releasedFieldIds } from "../lib/position";
+import {
+  DATA_LABEL,
+  FIND_COMPANIES_FIRST,
+  checkGrid,
+  companiesFound,
+  criterion,
+  editorDraft,
+  latestStandards,
+  positionState,
+  releasedFieldIds,
+} from "../lib/position";
 import { NOTE_SECTIONS } from "../lib/research";
 import { useMe } from "../lib/reviewer";
 import type { PositionVersion, PositionView, ResearchView, StandardsDraft, StandardsVersion, StandardsView } from "../types";
@@ -14,6 +24,7 @@ export function ThemePosition({ id }: { id: string }) {
   const [standards, setStandards] = useState<StandardsView | null>(null);
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [name, setName] = useState("");
+  const [found, setFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -25,7 +36,7 @@ export function ThemePosition({ id }: { id: string }) {
   );
   useEffect(() => {
     load().catch((err: Error) => setError(err.message));
-    api.getDossier(id).then((d) => setName(d.name), () => undefined);
+    api.getDossier(id).then((d) => { setName(d.name); setFound(companiesFound(d.steps)); }, () => undefined);
     api.getResearch(id).then((r) => setTitles(itemTitles(r)), () => undefined);
   }, [id, load]);
 
@@ -55,7 +66,7 @@ export function ThemePosition({ id }: { id: string }) {
       <h1>Position and standards{name && `: ${name}`}</h1>
       {actionError && <p className="error-text" role="alert">{actionError}</p>}
       <Position id={id} view={position} titles={titles} approver={approver} busy={busy} act={act} />
-      {position.approved_version !== null && <Standards id={id} view={standards} approver={approver} busy={busy} act={act} />}
+      {position.approved_version !== null && <Standards id={id} view={standards} approver={approver} busy={busy} act={act} found={found} />}
     </div>
   );
 }
@@ -159,7 +170,7 @@ function PositionEditor({ version, busy, onSave, onCancel }: { version: Position
   );
 }
 
-function Standards({ id, view, approver, busy, act }: { id: string; view: StandardsView; approver: boolean; busy: boolean; act: Act }) {
+function Standards({ id, view, approver, busy, act, found }: { id: string; view: StandardsView; approver: boolean; busy: boolean; act: Act; found: boolean }) {
   const [editing, setEditing] = useState(false);
   const latest = latestStandards(view.versions);
   const lastActivation = view.activations.at(-1);
@@ -181,12 +192,13 @@ function Standards({ id, view, approver, busy, act }: { id: string; view: Standa
             <div className="toolbar">
               <button type="button" className="secondary" disabled={busy} onClick={() => setEditing(true)}>Edit</button>
               {latest.version !== view.active_version && (
-                <button type="button" disabled={busy} onClick={() => act(() => api.activateStandards(id, latest.version))}>
+                <button type="button" disabled={busy || !found} onClick={() => act(() => api.activateStandards(id, latest.version))}>
                   Approve
                 </button>
               )}
             </div>
           )}
+          {approver && !found && latest.version !== view.active_version && <FindCompaniesFirst id={id} />}
         </>
       )}
       {latest && editing && (
@@ -198,12 +210,17 @@ function Standards({ id, view, approver, busy, act }: { id: string; view: Standa
       {view.active_version > 0 && (
         <section aria-label="Company check">
           <h3>Company check</h3>
-          <button type="button" disabled={busy} onClick={() => act(() => api.checkStandards(id))}>Check companies</button>
+          <button type="button" disabled={busy || !found} onClick={() => act(() => api.checkStandards(id))}>Check companies</button>
+          {!found && <FindCompaniesFirst id={id} />}
           {view.latest_check && <CheckGrid check={view.latest_check} />}
         </section>
       )}
     </section>
   );
+}
+
+function FindCompaniesFirst({ id }: { id: string }) {
+  return <p className="muted">{FIND_COMPANIES_FIRST} <a href={dossierHref(id)}>Open the dossier</a></p>;
 }
 
 function StandardsTable({ version, names }: { version: StandardsVersion; names: Record<string, string> }) {

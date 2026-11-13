@@ -295,12 +295,12 @@ def evaluate_monitoring_now(store: PortfolioStore = Depends(get_portfolio_store)
 class MonthlyRunRequest(BaseModel):
     month: str
     portfolio_ids: list[str] | None = None
-    esg_provider: str = "default"
+    esg_provider: str | None = None  # none: `default`, or `simulated` for a month with only a simulated ESG load
 
 
 @router.get("/monthly-run/status")
 def get_monthly_run_status(
-    month: str, portfolio_ids: list[str] | None = Query(None), esg_provider: str = "default",
+    month: str, portfolio_ids: list[str] | None = Query(None), esg_provider: str | None = None,
     store: PortfolioStore = Depends(get_portfolio_store),
 ) -> dict:
     """Read-only: the month's load statuses and what would block its run."""

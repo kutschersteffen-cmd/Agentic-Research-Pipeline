@@ -19,6 +19,8 @@ export type DocType =
 export type JobStatus = "pending" | "running" | "completed" | "partially_completed" | "failed" | "cancelled";
 
 export type RunFailure = Served<S["RunFailure"]>;
+/** One SIMULATED value (`GET /api/companies/{ref}/simulated-esg`); never real ESG data. */
+export type SimulatedObservation = Served<S["DataPointObservation"]>;
 export type DocumentPassages = Served<S["DocumentPassages"]>;
 export type DocumentPassage = DocumentPassages["passages"][number];
 export type ArgusFlow = Served<S["ArgusFlowView"]>;

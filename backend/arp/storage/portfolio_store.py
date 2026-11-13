@@ -320,7 +320,8 @@ class PortfolioStore:
         obs = self.load_observations(company_id, field_id)
         if as_of:
             obs = [o for o in obs if o.observed_at[:10] <= as_of]
-        return obs[-1] if obs else None
+        real = [o for o in obs if o.source != "simulated"]  # a simulated value never stands in for a real one
+        return (real or obs)[-1] if obs else None
 
     def list_observation_keys(self) -> list[tuple[str, str]]:
         """Every (company_id, field_id) pair with at least one recorded

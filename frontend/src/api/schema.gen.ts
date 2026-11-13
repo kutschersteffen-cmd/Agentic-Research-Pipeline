@@ -562,6 +562,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/climate/simulated-schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Simulated Schema
+         * @description The fields of the SIMULATED ESG dataset (not real ESG data).
+         */
+        get: operations["simulated_schema_api_climate_simulated_schema_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/companies": {
         parameters: {
             query?: never;
@@ -605,6 +625,27 @@ export interface paths {
         };
         /** Get Company Facts */
         get: operations["get_company_facts_api_companies__ref__facts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/companies/{ref}/simulated-esg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Simulated Esg
+         * @description The company's latest SIMULATED value per climate and `simulated_esg` field (`arp showcase load`), in schema
+         *     order; empty when it has none. Only source `simulated`: every value here is invented and must be shown so.
+         */
+        get: operations["get_simulated_esg_api_companies__ref__simulated_esg_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10125,6 +10166,11 @@ export interface components {
              */
             source_filename?: string | null;
             /**
+             * Source Url
+             * @description The document's web address when it has no local file, resolved by grounding.
+             */
+            source_url?: string | null;
+            /**
              * Span Text
              * @description Exact source text the quote matched, set by grounding.
              */
@@ -11142,6 +11188,53 @@ export interface components {
             /** Title */
             title: string;
         };
+        /**
+         * DataPointObservation
+         * @description One resolved value of one data-point field for one company, at one
+         *     point in time. Append-only: a later correction is a new observation
+         *     with a later `observed_at`, never an edit to a prior one, so a trend
+         *     query reflects what was actually known at each point in time.
+         */
+        DataPointObservation: {
+            /** Company Id */
+            company_id: string;
+            /** Conflicting Source Label */
+            conflicting_source_label?: string | null;
+            /**
+             * Conflicting Sources
+             * @description True if an independent extraction pass disagreed with this value beyond tolerance.
+             * @default false
+             */
+            conflicting_sources: boolean;
+            /** Conflicting Value */
+            conflicting_value?: number | string | boolean | null;
+            /** Field Id */
+            field_id: string;
+            /** Field Name */
+            field_name: string;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /** Observed At */
+            observed_at?: string;
+            /**
+             * Period
+             * @description Fiscal period the value applies to, e.g. "FY2025".
+             * @default
+             */
+            period: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "internal_api" | "extracted" | "catalogue" | "estimated_proxy" | "simulated";
+            /** Unit */
+            unit?: string | null;
+            /** Value */
+            value: number | string | boolean | null;
+        };
         /** DataPointSchema */
         DataPointSchema: {
             /** Created At */
@@ -11651,6 +11744,11 @@ export interface components {
         DiscoverSourcesResponse: {
             /** Authority Sources */
             authority_sources: components["schemas"]["SourceCandidate"][];
+            /**
+             * Search Unreachable
+             * @default false
+             */
+            search_unreachable: boolean;
             /** Thematic Funds */
             thematic_funds: components["schemas"]["SourceCandidate"][];
         };
@@ -13804,11 +13902,8 @@ export interface components {
         };
         /** MonthlyRunRequest */
         MonthlyRunRequest: {
-            /**
-             * Esg Provider
-             * @default default
-             */
-            esg_provider: string;
+            /** Esg Provider */
+            esg_provider?: string | null;
             /** Month */
             month: string;
             /** Portfolio Ids */
@@ -15362,6 +15457,11 @@ export interface components {
             proposal_run_id?: string | null;
             /** Round */
             round: number;
+            /**
+             * Search Unreachable
+             * @default false
+             */
+            search_unreachable: boolean;
             /**
              * Sources
              * @default []
@@ -19730,6 +19830,26 @@ export interface operations {
             };
         };
     };
+    simulated_schema_api_climate_simulated_schema_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataPointSchema"];
+                };
+            };
+        };
+    };
     search_companies_api_companies_get: {
         parameters: {
             query?: {
@@ -19818,6 +19938,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CompanyFactRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_simulated_esg_api_companies__ref__simulated_esg_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataPointObservation"][];
                 };
             };
             /** @description Validation Error */
@@ -25755,7 +25906,7 @@ export interface operations {
             query: {
                 month: string;
                 portfolio_ids?: string[] | null;
-                esg_provider?: string;
+                esg_provider?: string | null;
             };
             header?: never;
             path?: never;

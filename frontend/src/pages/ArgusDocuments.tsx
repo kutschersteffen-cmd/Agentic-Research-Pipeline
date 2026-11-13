@@ -3,22 +3,15 @@ import { createPortal } from "react-dom";
 import { api } from "../api/client";
 import { FileImg } from "../components/FileLink";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
-import { continueFilesLabel, previousYear, searchStatusText } from "../lib/argusFlow";
+import { DOC_TYPES, continueFilesLabel, docTypeLabel, previousYear, searchStatusText } from "../lib/argusFlow";
 import type { ArgusFlow as Flow, FlowFile } from "../types";
 
 type Source = "upload" | "import" | "filings" | "filings_web";
 const SOURCES: [Source, string][] = [
   ["upload", "I upload them"],
-  ["import", "From the import folder"],
+  ["import", "From the import folder (not available yet)"],
   ["filings", "Official filings"],
   ["filings_web", "Filings + company websites"],
-];
-const DOC_TYPES: [string, string][] = [
-  ["10-K", "Annual report"],
-  ["sustainability_report", "Sustainability report"],
-  ["DEF-14A", "Proxy statement"],
-  ["transition_plan", "Transition plan"],
-  ["other", "Other"],
 ];
 const SOURCE_WORDS: Record<FlowFile["source"], string> = { upload: "Uploaded", filings: "Official filing", web: "Company website" };
 
@@ -86,7 +79,6 @@ export function ArgusDocuments({ flow, busy, act, refresh, onContinue }: {
                   onChange={() => act(() => api.patchArgusFlow(id, { source: value }))}
                 />
                 {label}
-                {value === "import" && <span className="help-text"> Available once the import folder is set up</span>}
               </label>
             ))}
           </fieldset>
@@ -187,14 +179,14 @@ export function ArgusDocuments({ flow, busy, act, refresh, onContinue }: {
                         document.body,
                       )}
                   </td>
-                  <td data-label="Type">{f.doc_type}</td>
+                  <td data-label="Type">{docTypeLabel(f.doc_type)}</td>
                   <td data-label="Year">{f.year ?? ""}</td>
                   <td data-label="Source">{SOURCE_WORDS[f.source]}</td>
                   <td data-label="Check" className={f.passes ? undefined : "await-text"}>{f.check}</td>
                   <td data-label="In this extraction">
                     {!f.duplicate_of && (
                       <span className="argus-keep">
-                        {f.state && <span className={`argus-state argus-state-${f.state}`}>{f.state === "kept" ? "Kept" : "Removed"}</span>}
+                        <span className={`argus-state argus-state-${f.state ?? "undecided"}`}>{f.state === "kept" ? "Kept" : f.state === "removed" ? "Removed" : "Not decided"}</span>
                         {f.state !== "kept" && (
                           <button type="button" className="link-button" disabled={busy} onClick={() => act(() => api.decideFlowFiles(id, { keys: [f.key], state: "kept" }))}>
                             Keep

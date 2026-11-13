@@ -1,0 +1,265 @@
+{
+  "looked_up": "2026-11-12",
+  "how": "LEI: GLEIF lei-records by exact legal name and country. CIK and ticker: SEC company_tickers.json and data.sec.gov submissions. ISIN: only the common stock, from the CUSIP the SEC 13(f) list marks COM, converted to an ISIN and found in that LEI's GLEIF ISIN list; EU: the ISIN an equity line of a public holdings file in data/holdings/ lists for the company, found in that LEI's GLEIF ISIN list (Engie: the line named ENGIE SA); thyssenkrupp is in no file, so its ISIN is blank. EU tickers are the spec's company_id.",
+  "companies": {
+    "RWE": {
+      "lei": {
+        "value": "529900GB7KCA94ACC940",
+        "legal_name": "RWE Aktiengesellschaft",
+        "country": "DE",
+        "entity_status": "ACTIVE",
+        "registration_status": "ISSUED",
+        "source": "https://api.gleif.org/api/v1/lei-records/529900GB7KCA94ACC940"
+      },
+      "cik": null,
+      "isin": {
+        "value": "DE0007037129",
+        "holdings_name": "RWE AG",
+        "holdings_files": [
+          "DAX.xlsx",
+          "MSCI_Europe.xlsx",
+          "MSCI_World.xlsx"
+        ],
+        "in_gleif_isin_list": true,
+        "source": "data/holdings/DAX.xlsx (equity line) and https://api.gleif.org/api/v1/lei-records/529900GB7KCA94ACC940/isins"
+      },
+      "ticker": {
+        "value": "RWE",
+        "source": "spec company_id (exchange ticker); GLEIF and SEC carry no EU ticker"
+      }
+    },
+    "EOAN": {
+      "lei": {
+        "value": "Q9MAIUP40P25UFBFG033",
+        "legal_name": "E.ON SE",
+        "country": "DE",
+        "entity_status": "ACTIVE",
+        "registration_status": "ISSUED",
+        "source": "https://api.gleif.org/api/v1/lei-records/Q9MAIUP40P25UFBFG033"
+      },
+      "cik": null,
+      "isin": {
+        "value": "DE000ENAG999",
+        "holdings_name": "E.ON N",
+        "holdings_files": [
+          "DAX.xlsx",
+          "MSCI_Europe.xlsx",
+          "MSCI_World.xlsx"
+        ],
+        "in_gleif_isin_list": true,
+        "source": "data/holdings/DAX.xlsx (equity line) and https://api.gleif.org/api/v1/lei-records/Q9MAIUP40P25UFBFG033/isins"
+      },
+      "ticker": {
+        "value": "EOAN",
+        "source": "spec company_id (exchange ticker); GLEIF and SEC carry no EU ticker"
+      }
+    },
+    "ENGI": {
+      "lei": {
+        "value": "LAXUQCHT4FH58LRZDY46",
+        "legal_name": "ENGIE",
+        "country": "FR",
+        "entity_status": "ACTIVE",
+        "registration_status": "ISSUED",
+        "source": "https://api.gleif.org/api/v1/lei-records/LAXUQCHT4FH58LRZDY46"
+      },
+      "cik": null,
+      "isin": {
+        "value": "FR0010208488",
+        "holdings_name": "ENGIE SA",
+        "holdings_files": [
+          "EURO_STOXX_50.xlsx",
+          "MSCI_Europe.xlsx",
+          "MSCI_World.xlsx"
+        ],
+        "in_gleif_isin_list": true,
+        "source": "data/holdings/EURO_STOXX_50.xlsx (equity line) and https://api.gleif.org/api/v1/lei-records/LAXUQCHT4FH58LRZDY46/isins"
+      },
+      "ticker": {
+        "value": "ENGI",
+        "source": "spec company_id (exchange ticker); GLEIF and SEC carry no EU ticker"
+      }
+    },
+    "BAS": {
+      "lei": {
+        "value": "529900PM64WH8AF1E917",
+        "legal_name": "BASF SE",
+        "country": "DE",
+        "entity_status": "ACTIVE",
+        "registration_status": "ISSUED",
+        "source": "https://api.gleif.org/api/v1/lei-records/529900PM64WH8AF1E917"
+      },
+      "cik": null,
+      "isin": {
+        "value": "DE000BASF111",
+        "holdings_name": "BASF N",
+        "holdings_files": [
+          "DAX.xlsx",
+          "EURO_STOXX_50.xlsx",
+          "MSCI_Europe.xlsx",
+          "MSCI_World.xlsx"
+        ],
+        "in_gleif_isin_list": true,
+        "source": "data/holdings/DAX.xlsx (equity line) and https://api.gleif.org/api/v1/lei-records/529900PM64WH8AF1E917/isins"
+      },
+      "ticker": {
+        "value": "BAS",
+        "source": "spec company_id (exchange ticker); GLEIF and SEC carry no EU ticker"
+      }
+    },
+    "TKA": {
+      "lei": {
+        "value": "549300UDG16DOYUPR330",
+        "legal_name": "thyssenkrupp AG",
+        "country": "DE",
+        "entity_status": "ACTIVE",
+        "registration_status": "ISSUED",
+        "source": "https://api.gleif.org/api/v1/lei-records/549300UDG16DOYUPR330"
+      },
+      "cik": null,
+      "isin": null,
+      "ticker": {
+        "value": "TKA",
+        "source": "spec company_id (exchange ticker); GLEIF and SEC carry no EU ticker"
+      }
+    },
+    "HEI": {
+      "lei": {
+        "value": "LZ2C6E0W5W7LQMX5ZI37",
+        "legal_name": "Heidelberg Materials AG",
+        "country": "DE",
+        "entity_status": "ACTIVE",
+        "registration_status": "ISSUED",
+        "source": "https://api.gleif.org/api/v1/lei-records/LZ2C6E0W5W7LQMX5ZI37"
+      },
+      "cik": null,
+      "isin": {
+        "value": "DE0006047004",
+        "holdings_name": "HEIDELBERG MATERIALS AG",
+        "holdings_files": [
+          "DAX.xlsx",
+          "MSCI_Europe.xlsx",
+          "MSCI_World.xlsx"
+        ],
+        "in_gleif_isin_list": true,
+        "source": "data/holdings/DAX.xlsx (equity line) and https://api.gleif.org/api/v1/lei-records/LZ2C6E0W5W7LQMX5ZI37/isins"
+      },
+      "ticker": {
+        "value": "HEI",
+        "source": "spec company_id (exchange ticker); GLEIF and SEC carry no EU ticker"
+      }
+    },
+    "NEE": {
+      "lei": {
+        "value": "254900RHL9MEUS5NKX63",
+        "legal_name": "NextEra Energy, Inc.",
+        "country": "US",
+        "entity_status": "ACTIVE",
+        "registration_status": "ISSUED",
+        "source": "https://api.gleif.org/api/v1/lei-records/254900RHL9MEUS5NKX63"
+      },
+      "cik": {
+        "value": "753308",
+        "name": "NEXTERA ENERGY INC",
+        "fiscal_year_end": "1231",
+        "source": "https://data.sec.gov/submissions/CIK0000753308.json"
+      },
+      "isin": {
+        "value": "US65339F1012",
+        "cusip": "65339F101",
+        "line_13f": "65339F101*NEXTERA ENERGY INC            COM                                    E",
+        "in_gleif_isin_list": true,
+        "source": "https://www.sec.gov/files/investment/13flist2026q3.txt and https://api.gleif.org/api/v1/lei-records/254900RHL9MEUS5NKX63/isins"
+      },
+      "ticker": {
+        "value": "NEE",
+        "title": "NEXTERA ENERGY INC",
+        "source": "https://www.sec.gov/files/company_tickers.json"
+      }
+    },
+    "DUK": {
+      "lei": {
+        "value": "I1BZKREC126H0VB1BL91",
+        "legal_name": "DUKE ENERGY CORPORATION",
+        "country": "US",
+        "entity_status": "ACTIVE",
+        "registration_status": "ISSUED",
+        "source": "https://api.gleif.org/api/v1/lei-records/I1BZKREC126H0VB1BL91"
+      },
+      "cik": {
+        "value": "1326160",
+        "name": "Duke Energy CORP",
+        "fiscal_year_end": "1231",
+        "source": "https://data.sec.gov/submissions/CIK0001326160.json"
+      },
+      "isin": {
+        "value": "US26441C2044",
+        "cusip": "26441C204",
+        "line_13f": "26441C204*DUKE ENERGY CORP NEW          COM NEW                                E",
+        "in_gleif_isin_list": true,
+        "source": "https://www.sec.gov/files/investment/13flist2026q3.txt and https://api.gleif.org/api/v1/lei-records/I1BZKREC126H0VB1BL91/isins"
+      },
+      "ticker": {
+        "value": "DUK",
+        "title": "Duke Energy CORP",
+        "source": "https://www.sec.gov/files/company_tickers.json"
+      }
+    },
+    "NUE": {
+      "lei": {
+        "value": "549300GGJCRSI2TIEJ46",
+        "legal_name": "NUCOR CORPORATION",
+        "country": "US",
+        "entity_status": "ACTIVE",
+        "registration_status": "ISSUED",
+        "source": "https://api.gleif.org/api/v1/lei-records/549300GGJCRSI2TIEJ46"
+      },
+      "cik": {
+        "value": "73309",
+        "name": "NUCOR CORP",
+        "fiscal_year_end": "1231",
+        "source": "https://data.sec.gov/submissions/CIK0000073309.json"
+      },
+      "isin": {
+        "value": "US6703461052",
+        "cusip": "670346105",
+        "line_13f": "670346105*NUCOR CORP                    COM                                    E",
+        "in_gleif_isin_list": true,
+        "source": "https://www.sec.gov/files/investment/13flist2026q3.txt and https://api.gleif.org/api/v1/lei-records/549300GGJCRSI2TIEJ46/isins"
+      },
+      "ticker": {
+        "value": "NUE",
+        "title": "NUCOR CORP",
+        "source": "https://www.sec.gov/files/company_tickers.json"
+      }
+    },
+    "DOW": {
+      "lei": {
+        "value": "5493003S21INSLK2IP73",
+        "legal_name": "DOW INC.",
+        "country": "US",
+        "entity_status": "ACTIVE",
+        "registration_status": "ISSUED",
+        "source": "https://api.gleif.org/api/v1/lei-records/5493003S21INSLK2IP73"
+      },
+      "cik": {
+        "value": "1751788",
+        "name": "DOW INC.",
+        "fiscal_year_end": "1231",
+        "source": "https://data.sec.gov/submissions/CIK0001751788.json"
+      },
+      "isin": {
+        "value": "US2605571031",
+        "cusip": "260557103",
+        "line_13f": "260557103*DOW HLDGS INC                 COM                                    E",
+        "in_gleif_isin_list": true,
+        "source": "https://www.sec.gov/files/investment/13flist2026q3.txt and https://api.gleif.org/api/v1/lei-records/5493003S21INSLK2IP73/isins"
+      },
+      "ticker": {
+        "value": "DOW",
+        "title": "DOW INC.",
+        "source": "https://www.sec.gov/files/company_tickers.json"
+      }
+    }
+  }
+}
