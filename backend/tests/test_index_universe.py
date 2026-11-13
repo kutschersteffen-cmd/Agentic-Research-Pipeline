@@ -420,3 +420,42 @@ def test_one_isin_listed_twice_is_one_company(env):
     wb.save(tmp_path / "h" / "X.xlsx")
     settings.holdings_dir = tmp_path / "h"
     assert client.get("/api/index/universes/file:X").json()["company_count"] == 1
+
+
+# ------------------------------------------------------------------ review findings
+
+
+@pytest.mark.parametrize("review_date", ["20261101", "2026-11-1"])
+def test_look_ahead_cannot_be_bypassed_with_a_non_padded_date(env, review_date):
+    response = _run(env[0], 18, review_date=review_date, universe="file:DAX")
+    assert response.status_code == 400, response.text
+
+
+def test_an_unreadable_xlsx_is_a_422_naming_the_file(env):
+    client, settings, _, _, tmp_path = env
+    (tmp_path / "h").mkdir()
+    (tmp_path / "h" / "~$DAX.xlsx").write_bytes(b"not a zip")
+    settings.holdings_dir = tmp_path / "h"
+    response = client.get("/api/index/universes/file:~$DAX")
+    assert response.status_code == 422
+    assert response.json()["detail"] == "~$DAX.xlsx: not a readable .xlsx file"
+
+
+def _dataset_with_esg_score(settings: Settings, tmp_path: Path, value: str) -> None:
+    _use_fixture_dataset(settings, tmp_path)
+    text = settings.simulated_esg_path.read_text(encoding="utf-8")
+    settings.simulated_esg_path.write_text(text.replace(",7.25,", f",{value},"), encoding="utf-8")
+
+
+def test_a_nan_dataset_cell_is_not_joined(env):
+    client, settings, _, _, tmp_path = env
+    _dataset_with_esg_score(settings, tmp_path, "nan")
+    assert "esg_score" not in _dax(client)["fields"]["metrics"]  # so no screen reads NaN as a value
+
+
+def test_a_non_numeric_dataset_cell_names_the_file_and_column(env):
+    client, settings, _, _, tmp_path = env
+    _dataset_with_esg_score(settings, tmp_path, "n/a")
+    response = client.get("/api/index/universes/file:DAX")
+    assert response.status_code == 422
+    assert response.json()["detail"] == "esg_simulated.csv: esg_score of isin_DE0007164600 is not a number: 'n/a'"

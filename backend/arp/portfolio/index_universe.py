@@ -8,6 +8,7 @@ company id. Everything is read on each call, so a changed file shows on the next
 from __future__ import annotations
 
 import csv
+import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
@@ -58,13 +59,16 @@ def _holdings_files(holdings_dir: Path) -> dict[str, Path]:
 
 def _read_sheet(path: Path) -> tuple[str, list[tuple]]:
     """(as-of date, rows from header row 4 on), with the importer's layout errors."""
-    wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
-    try:  # read-only workbooks keep the file open until closed
-        ws = wb.worksheets[0]
-        title = ws.title
-        rows = list(ws.iter_rows(min_row=4, values_only=True))
-    finally:
-        wb.close()
+    try:
+        wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
+        try:  # read-only workbooks keep the file open until closed
+            ws = wb.worksheets[0]
+            title = ws.title
+            rows = list(ws.iter_rows(min_row=4, values_only=True))
+        finally:
+            wb.close()
+    except Exception:  # not a zip, not a workbook, an Excel lock file (~$DAX.xlsx): a 422, not a 500
+        raise ValueError(f"{path.name}: not a readable .xlsx file") from None
     try:
         as_of = date.fromisoformat(title.strip()).isoformat()
     except ValueError:
@@ -213,7 +217,7 @@ def _join_esg(universe: LoadedUniverse, dataset: Path) -> LoadedUniverse:
         joined.append(
             c.model_copy(
                 update={
-                    "metrics": {k: float(cell[k]) for k in ESG_METRICS if cell[k]},
+                    "metrics": _metrics(cell, c.company_id, dataset.name),
                     "flags": {k: cell[k].lower() == "true" for k in ESG_FLAGS if cell[k].lower() in ("true", "false")},
                     "categories": {k: cell[k] for k in ESG_CATEGORIES if cell[k]},
                     "sector": cell["sector"] or c.sector,
@@ -225,6 +229,21 @@ def _join_esg(universe: LoadedUniverse, dataset: Path) -> LoadedUniverse:
     universe.candidates = joined
     universe.notes.append(f"Simulated ESG data: matched {matched} of {len(joined)} companies.")
     return universe
+
+
+def _metrics(cell: dict[str, str], company_id: str, file_name: str) -> dict[str, float]:
+    """Empty and NaN cells are not joined, so a rule on them meets its missing-value policy."""
+    out = {}
+    for k in ESG_METRICS:
+        if not cell[k]:
+            continue
+        try:
+            value = float(cell[k])
+        except ValueError:
+            raise ValueError(f"{file_name}: {k} of {company_id} is not a number: {cell[k]!r}") from None
+        if not math.isnan(value):
+            out[k] = value
+    return out
 
 
 def load_universe(universe_id: str, holdings_dir: Path, dataset: Path, portfolio_store: Callable[[], object]) -> LoadedUniverse:

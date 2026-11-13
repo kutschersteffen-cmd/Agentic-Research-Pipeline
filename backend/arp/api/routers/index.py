@@ -312,7 +312,11 @@ def run(
     candidates, universe_notes = req.candidates, []
     if req.universe not in (None, "demo"):
         loaded = _load(req.universe, app_settings, stores)
-        if req.review_date < loaded.as_of_date:
+        try:  # compared as dates: as strings, "2026-11-1" sorts after "2026-11-02"
+            review_day = date.fromisoformat(req.review_date)
+        except ValueError:
+            raise HTTPException(400, f"review_date {req.review_date!r} is not an ISO date (YYYY-MM-DD).") from None
+        if review_day < date.fromisoformat(loaded.as_of_date):
             raise HTTPException(
                 400,
                 f"{loaded.label} holds holdings as of {loaded.as_of_date}, after the review date {req.review_date}: "
