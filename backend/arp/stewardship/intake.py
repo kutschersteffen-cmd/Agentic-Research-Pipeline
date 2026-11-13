@@ -170,7 +170,9 @@ def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str) -> I
     report = IntakeReport()
     bad = report.rejected
     with transaction(dsn) as s:
-        rows = {sheet: [_clean(sheet, n, r, bad) for n, r in enumerate(batch.get(sheet) or [], 1)] for sheet in _TABLES}
+        # report row numbers: a row's `_row` (the worksheet row, set by the Excel reader) else its 1-based index
+        num = {sheet: [r.get("_row", i) for i, r in enumerate(batch.get(sheet) or [], 1)] for sheet in _TABLES}
+        rows = {sheet: [_clean(sheet, n, r, bad) for n, r in zip(num[sheet], batch.get(sheet) or [], strict=True)] for sheet in _TABLES}
         # Resolve and lock the companies first: ids and company_of are read after the locks, so a batch that
         # waited on a concurrent one sees the rows it wrote and upserts instead of inserting a duplicate.
         resolved = [_company(s, r["company_id"], r["isin"]) for r in rows["engagements"]]
@@ -186,7 +188,7 @@ def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str) -> I
         for sheet, (model, pk, prefix, _) in _TABLES.items():
             ids[sheet] = {e: i for e, i in s.execute(select(model.external_id, getattr(model, pk)).where(model.source == source, model.external_id.is_not(None)))}
             seen = set()
-            for n, row in enumerate(rows[sheet], 1):
+            for n, row in zip(num[sheet], rows[sheet], strict=True):
                 ext = row["external_id"]
                 if ext is not None and ext in seen:
                     bad.append(Rejection(sheet=sheet, row=n, field="external_id", reason="duplicate in batch"))
@@ -204,7 +206,7 @@ def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str) -> I
                 bad.append(Rejection(sheet=sheet, row=n, field=field, reason=f"unknown {field}"))
             return ids[target].get(row[field])
 
-        for n, (row, company) in enumerate(zip(rows["engagements"], resolved, strict=True), 1):
+        for n, row, company in zip(num["engagements"], rows["engagements"], resolved, strict=True):
             if company is None:
                 bad.append(Rejection(sheet="engagements", row=n, field="company_id", reason="unknown company"))
                 continue
@@ -214,7 +216,7 @@ def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str) -> I
                 plan.append(("engagements", n, row, {"company_id": company}))
         for sheet, links in (("objectives", {"engagement_external_id": ("engagement_id", "engagements"), "follows_external_id": ("follows_objective_id", "objectives")}),
                              ("activities", {"engagement_external_id": ("engagement_id", "engagements"), "objective_external_id": ("objective_id", "objectives")})):  # fmt: skip
-            for n, row in enumerate(rows[sheet], 1):
+            for n, row in zip(num[sheet], rows[sheet], strict=True):
                 if row["external_id"]:
                     plan.append((sheet, n, row, {col: ref(sheet, n, row, f, t) for f, (col, t) in links.items()}))
         # an objective is written after the one it follows (a self-referencing foreign key)
