@@ -151,5 +151,7 @@ def update_schedule(
 ) -> EmergingThemesScheduleConfig:
     """Enable/disable and configure the automatic recurring scan (interval
     + universe file path). Takes effect immediately."""
+    if config.interval_hours <= 0:  # checked here, not on the stored model, so an older file holding 0 still loads
+        raise HTTPException(422, "Interval must be greater than 0 hours.")
     scheduler.save_config(config)
     return config

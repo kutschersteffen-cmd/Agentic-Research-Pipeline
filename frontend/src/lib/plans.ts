@@ -47,3 +47,18 @@ export function resultHref(call: PlanCall): string | null {
   if (call.result_ref?.startsWith("index:")) return "#/index";
   return null;
 }
+
+const REVIEW_TYPE: Record<string, string> = {
+  universe_build: "theme",
+  document_discovery: "discovery",
+  extraction: "extraction",
+  financials_extraction: "financials",
+};
+
+/** Where a step waiting for review is reviewed; null for a kind with no review screen. */
+export function reviewHref(call: PlanCall): string | null {
+  const type = REVIEW_TYPE[call.kind];
+  if (type && call.run_id) return `#/review/${type}/${encodeURIComponent(call.run_id)}`;
+  if (call.result_ref?.startsWith("report:")) return "#/reporting";
+  return null;
+}

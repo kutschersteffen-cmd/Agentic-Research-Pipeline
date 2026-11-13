@@ -218,7 +218,7 @@ def new_taxonomy_version(
     taxonomy_id: str, req: NewVersionRequest, store: TaxonomyStore = Depends(get_taxonomy_store)
 ) -> Taxonomy:
     try:
-        return store.new_version(taxonomy_id, req.theme, DerivationMethod.MANUAL, req.source_notes)
+        return store.new_version(taxonomy_id, req.theme, None, req.source_notes)
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
 

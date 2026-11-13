@@ -2447,3 +2447,7 @@ a.vc-box:hover { border-color: var(--text); }
   .landing-main { padding: var(--s-6) var(--s-4); background: linear-gradient(180deg, transparent, var(--bg) 30%); }
   .landing-promises { grid-template-columns: 1fr; padding: var(--s-4); }
 }
+
+/* Dossier Shelve / Un-shelve: focus lands on these after the control that was used unmounts; they are not controls. */
+.focus-target:focus { outline: none; }
+.page button.secondary[aria-disabled="true"] { opacity: 0.6; cursor: not-allowed; }

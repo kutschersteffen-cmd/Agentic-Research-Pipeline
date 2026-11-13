@@ -60,9 +60,10 @@ export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
     setTaxonomies(res.taxonomies);
   }
 
+  // Reloaded on every sub-tab, so a taxonomy created elsewhere (another tab, the API) shows up in the pickers.
   useEffect(() => {
     refreshLibrary();
-  }, []);
+  }, [sub]);
 
   return (
     <div className="page">
