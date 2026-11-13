@@ -132,6 +132,31 @@ def test_a_draft_row_names_its_companies_and_can_be_deleted(page):
     assert page.request.get(f"{API}/api/argus/flows/{fid}").status == 404
 
 
+def test_a_draft_without_a_company_is_not_listed(page):
+    rows = page.get_by_role("table", name="Runs").locator("tbody tr")
+
+    def listed():  # the table has at least one row once runs and drafts have loaded: a run, a draft or the empty line
+        rows.first.wait_for()
+        return rows.count()
+
+    def flows():
+        return {f["flow_id"]: f for f in _ok(page.request.get(API + "/api/argus/flows"))["flows"]}
+
+    page.goto(URL + "/#/argus")
+    n, before = listed(), flows()
+    page.get_by_role("button", name="Start new extraction").click()  # AC-65
+    page.wait_for_url(re.compile(r"#/argus/[0-9a-f]{32}/1$"))
+    page.go_back()
+    assert listed() == n
+
+    page.goto(URL + "/#/transitionPlan")  # AC-66
+    page.wait_for_url(re.compile(r"#/argus/[0-9a-f]{32}/1$"))
+    page.goto(URL + "/#/argus")
+    assert listed() == n
+    made = [f for fid, f in flows().items() if fid not in before]
+    assert len(made) == 2 and all(not f["companies"] for f in made)  # both drafts exist; they are only not listed
+
+
 # --- step 1 and the flow shell ---
 
 

@@ -73,6 +73,12 @@ test("AC-67: a draft row carries its first two company names and how many more",
   assert.equal(row.names, "Apple, Microsoft +13");
 });
 
+test("AC-65, AC-66: a draft is listed only once it has a company", () => {
+  const draft = (flow_id: string, names: string[]) => ({ flow_id, run_id: null, step: 1, started_by: "dev", started_by_name: "Dev",
+    created_at: "2026-11-13T09:05:00Z", companies: names.map((name) => ({ company_id: name, name })) }) as unknown as ArgusDraft;
+  assert.deepEqual(argusRows([], [], [draft("empty", []), draft("one", ["Apple"])]).map((r) => r.runId), ["one"]);
+});
+
 test("AC-76: the line above the table names the step a pressed tile shows", () => {
   assert.equal(filterLine(3), "Showing step 3 Schema only.");
   assert.equal(filterLine(null), null);

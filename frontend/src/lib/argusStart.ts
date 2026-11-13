@@ -49,7 +49,8 @@ function stepAndStatus(r: RunManifest, open: Set<string>): [ArgusStep, ArgusStat
 export function argusRows(runs: RunManifest[], items: ReviewItem[], flows: ArgusDraft[] = []): ArgusRow[] {
   const open = new Set(items.map((i) => i.run_id));
   const flowOf = new Map(flows.filter((f) => f.run_id).map((f) => [f.run_id as string, f.flow_id]));
-  const drafts: ArgusRow[] = flows.filter((f) => !f.run_id).map((f) => ({
+  // a draft is listed once it has a company: "Start new extraction" and old links store a flow on every click or visit
+  const drafts: ArgusRow[] = flows.filter((f) => !f.run_id && f.companies.length > 0).map((f) => ({
     runId: f.flow_id,
     label: "New extraction",
     companies: f.companies.length,
