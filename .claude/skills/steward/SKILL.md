@@ -56,11 +56,9 @@ A bug report is a spec question first: check whether an acceptance row expected 
 changing code. If a fix PR for it already exists, verify it (run its failing-before test) instead of
 writing a second one.
 
-## 4. At most three agent PRs in flight
+## 4. One item per PR
 
-Before starting a new item, count open PRs from agent branches (`ccr-*`, `claude/*`) that don't carry
-`factory:blocked`. At three or more, don't start; say so and wait. One item per PR: don't fold an
-unrelated fix in, open its own PR or suggest it as a task.
+Don't fold an unrelated fix in, open its own PR or suggest it as a task.
 
 ## 5. Before the holdout and evaluator run
 
