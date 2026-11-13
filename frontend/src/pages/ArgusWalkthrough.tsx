@@ -5,7 +5,8 @@ import { correctionLine } from "../lib/corrections";
 import { valueLabel } from "../lib/fieldValue";
 import { listAllRuns } from "../lib/poll";
 import { runTypeLabel } from "../lib/runs";
-import { allCitations, fmt, markQuotes, notRecordedNote, passageFor, parseWalkthroughParams, pickRow, planBasis, gateLine, retrievalLine, scoreText, scoresMissing, stepTiming, steps, timingTotal, walkthroughHref, type Step } from "../lib/walkthrough";
+import { allCitations, fmt, markQuotes, notRecordedNote, passageFor, parseWalkthroughParams, pickRow, planBasis, gateLine, retrievalLine, scoreText, scoresMissing, stepTiming, steps, timingTotal, verifyNote, walkthroughHref, type Step } from "../lib/walkthrough";
+import { errorDetail } from "../lib/barrier";
 import type { Correction, ExtractedField, RunManifest, Walkthrough, WalkthroughPassage } from "../types";
 
 type Obj = Record<string, unknown>;
@@ -68,11 +69,11 @@ export function ArgusWalkthrough({ params }: { params: string[] }) {
   useEffect(() => {
     listAllRuns()
       .then((all) => setRuns(all.filter((r) => RUN_TYPES.has(r.run_type)).sort((a, b) => (a.created_at < b.created_at ? 1 : -1))))
-      .catch((e) => setError((e as Error).message));
+      .catch((e) => setError(errorDetail(e as Error)));
     if (route.runId && route.companyId && route.item) {
       api.getWalkthrough(route.runId, route.companyId, { item: route.item, period_end: route.periodEnd, basis: route.basis })
         .then(setW)
-        .catch((e) => setError((e as Error).message));
+        .catch((e) => setError(errorDetail(e as Error)));
     }
     // Mounted once per route: App keys this page by the route.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -83,7 +84,7 @@ export function ArgusWalkthrough({ params }: { params: string[] }) {
     if (!run) return;
     let live = true;
     setRecords(null);
-    loadRecords(run).then((r) => live && setRecords(r)).catch((e) => live && setError((e as Error).message));
+    loadRecords(run).then((r) => live && setRecords(r)).catch((e) => live && setError(errorDetail(e as Error)));
     return () => {
       live = false;
     };
@@ -199,7 +200,7 @@ function StepBody({ s, w, row, quotes, needsReview }: { s: Step; w: Walkthrough;
     case "Verify":
     case "Verify, blind": {
       if (s.answer != null) return <VerifyTabs s={s} w={w} row={row} />;
-      if (w.recorded) return null;
+      if (w.recorded) return verifyNote(s, w) ? <p className="wt-line">{verifyNote(s, w)}</p> : null;
       // Not recorded: what the stored row holds.
       const notes = w.run_type in SECTIONS ? w.rows.map((r) => r.verifier_notes).filter(Boolean).join(" ") : `Verifier confidence ${conf(row.verifier_confidence)}. ${row.verifier_notes ?? ""}`;
       return <p className="wt-line">{notes || "No verifier notes stored."}</p>;

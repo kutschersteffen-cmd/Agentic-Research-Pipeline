@@ -4,7 +4,9 @@ import { FileLink } from "../components/FileLink";
 import { ReviewControls, decisionLabel } from "../components/ReviewControls";
 import { RunScoringPanel } from "../components/RunScoring";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
-import { TRANSITION_PLAN_TEMPLATE, notInRun, onlyNeedsYou, resultRows, walkTalkLine, type ResultRow } from "../lib/argusFlow";
+import { WalkthroughLink } from "../components/WalkthroughLink";
+import { TRANSITION_PLAN_TEMPLATE, keptRuns, notInRun, onlyNeedsYou, periodText, resultRows, walkTalkLine, type ResultRow } from "../lib/argusFlow";
+import { errorDetail } from "../lib/barrier";
 import type { ArgusFlow as Flow, DataPointSchema, ExtractionRecord, ReviewDecision, ReviewItem, TransitionPlanIndicatorDef } from "../types";
 
 const VALUE_LABELS = { approve: "Approve", correct: "Edit", reject: "Reject" } as const;
@@ -12,6 +14,23 @@ const VALUE_LABELS = { approve: "Approve", correct: "Edit", reject: "Reject" } a
 const NOT_FOUND_LABELS = { approve: "Confirm not disclosed", correct: "Enter value" } as const;
 const CONFLICT_LABELS = { reject: "Keep accepted", approve: "Accept new" } as const;
 const PAGE = 500;
+
+/** A result row and the run it is reviewed in; `kept` is the date of the earlier run a skipped company's values come from. */
+type Row = ResultRow & { runId: string; kept?: string };
+
+/** One run's value rows, optionally only one company's. */
+async function runRows(runId: string, companyId?: string): Promise<{ rows: ResultRow[]; records: ExtractionRecord[]; decisions: Record<string, ReviewDecision> }> {
+  const [results, open, review] = await Promise.all([
+    allResults(runId),
+    api.listReviewItems(runId),
+    api.getExtractionReviewDecisions(runId) as Promise<{ decisions: Record<string, ReviewDecision> }>,
+  ]);
+  const mine = <T,>(cid: unknown, x: T) => (companyId === undefined || cid === companyId ? [x] : []);
+  // shortcut: Financials and TNFD records have no per-field rows here; their values are reviewed in the Review Queue until a later slice
+  const records = results.flatMap((r) => mine(r.company_id, r)).filter((r) => Array.isArray(r.fields));
+  const items = (open.items as ReviewItem[]).flatMap((i) => mine(i.payload.company_id ?? i.item_key, i));
+  return { rows: resultRows(records, items), records: results, decisions: review.decisions };
+}
 
 /** Every result of the run: the endpoint returns at most a page at a time, and a flow may hold thousands of companies. */
 async function allResults(runId: string): Promise<ExtractionRecord[]> {
@@ -26,9 +45,9 @@ async function allResults(runId: string): Promise<ExtractionRecord[]> {
 /** Step 5: every value of the flow's run with its decision; what needs a person first, decided in place. */
 export function ArgusResults({ flow }: { flow: Flow }) {
   const runId = flow.run_id!;
-  const [rows, setRows] = useState<ResultRow[] | null>(null);
+  const [rows, setRows] = useState<Row[] | null>(null);
   const [inRun, setInRun] = useState<Set<string>>(new Set());
-  const [decisions, setDecisions] = useState<Record<string, ReviewDecision>>({});
+  const [decisions, setDecisions] = useState<Record<string, Record<string, ReviewDecision>>>({});
   const [mineOnly, setMineOnly] = useState(false);
   const [source, setSource] = useState<ActiveSource | null>(null);
   const [error, setError] = useState("");
@@ -44,22 +63,25 @@ export function ArgusResults({ flow }: { flow: Flow }) {
     if (transitionPlan) api.getTransitionPlanIndicators().then(setIndicators, () => setIndicators(null));
   }, [choice?.kind, choice?.schema_id, choice?.version, transitionPlan]);
 
+  const kept = keptRuns(flow.companies, flow.repeat, flow.repeat_rows);
+  const keptKey = JSON.stringify(kept);
   const load = useCallback(async () => {
     try {
-      const [results, open, review] = await Promise.all([
-        allResults(runId),
-        api.listReviewItems(runId),
-        api.getExtractionReviewDecisions(runId) as Promise<{ decisions: Record<string, ReviewDecision> }>,
-      ]);
-      // shortcut: Financials and TNFD records have no per-field rows here; their values are reviewed in the Review Queue until a later slice
-      setRows(resultRows(results.filter((r) => Array.isArray(r.fields)), open.items as ReviewItem[]));
-      setInRun(new Set(results.map((r) => r.company_id)));
-      setRecords(results.filter((r) => Array.isArray(r.fields)));
-      setDecisions(review.decisions);
+      const earlier = JSON.parse(keptKey) as typeof kept;
+      // a company set to "Skip, keep earlier results" has its values in its earlier run, and is reviewed there
+      const [current, ...keptRows] = await Promise.all([runRows(runId), ...earlier.map((k) => runRows(k.run_id, k.company_id))]);
+      const all: Row[] = [
+        ...current.rows.map((r) => ({ ...r, runId })),
+        ...keptRows.flatMap((k, i) => k.rows.map((r) => ({ ...r, runId: earlier[i].run_id, kept: earlier[i].date }))),
+      ];
+      setRows([...all.filter((r) => r.item), ...all.filter((r) => !r.item)]);
+      setInRun(new Set(current.records.map((r) => r.company_id)));
+      setRecords(current.records.filter((r) => Array.isArray(r.fields)));
+      setDecisions(Object.fromEntries([[runId, current.decisions], ...keptRows.map((k, i) => [earlier[i].run_id, k.decisions])]));
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorDetail(e as Error));
     }
-  }, [runId]);
+  }, [runId, keptKey]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -124,6 +146,7 @@ export function ArgusResults({ flow }: { flow: Flow }) {
             <tr>
               <th scope="col">Company</th>
               <th scope="col">Field</th>
+              <th scope="col">Period</th>
               <th scope="col">Value</th>
               <th scope="col">Source</th>
               <th scope="col">Decision</th>
@@ -131,11 +154,15 @@ export function ArgusResults({ flow }: { flow: Flow }) {
           </thead>
           <tbody>
             {shown.map((r) => (
-              <tr key={r.key} className={r.item ? "argus-row-await" : undefined}>
-                <td data-label="Company">{r.company}</td>
+              <tr key={`${r.runId}/${r.key}`} className={r.item ? "argus-row-await" : undefined}>
+                <td data-label="Company">
+                  {r.company}
+                  {r.kept && <span className="xbrl-sub">kept from the extraction of {r.kept}</span>}
+                </td>
                 <td data-label="Field">
                   {question.get(r.field) ? <span>{question.get(r.field)} <span className="mono muted">{r.field}</span></span> : r.field}
                 </td>
+                <td data-label="Period">{periodText(r.period)}</td>
                 <td data-label="Value">
                   {r.accepted !== undefined ? <>Accepted: {r.accepted}<br />New: {r.value}</> : r.value}
                 </td>
@@ -149,7 +176,7 @@ export function ArgusResults({ flow }: { flow: Flow }) {
                 <td data-label="Decision">
                   {r.item ? (
                     <ReviewControls
-                      runId={runId}
+                      runId={r.runId}
                       itemKey={r.key}
                       item={r.item}
                       onDone={() => void load()}
@@ -158,7 +185,8 @@ export function ArgusResults({ flow }: { flow: Flow }) {
                       choices={r.companyLevel ? undefined : r.accepted !== undefined ? ["reject", "approve"]
                         : r.notFound ? ["approve", "correct"] : ["approve", "correct", "reject"]}
                     />
-                  ) : decisions[r.key] ? decisionLabel(decisions[r.key]) : "No review needed"}
+                  ) : decisions[r.runId]?.[r.key] ? decisionLabel(decisions[r.runId][r.key]) : "No review needed"}
+                  {r.walkthrough && <WalkthroughLink href={r.walkthrough} />}
                 </td>
               </tr>
             ))}

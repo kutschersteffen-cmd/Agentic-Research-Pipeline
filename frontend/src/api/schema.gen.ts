@@ -12560,6 +12560,8 @@ export interface components {
         };
         /** FromCompaniesRequest */
         FromCompaniesRequest: {
+            /** Base Path */
+            base_path?: string | null;
             /** Companies */
             companies: components["schemas"]["CompanyRef"][];
             /**

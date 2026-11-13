@@ -129,7 +129,7 @@ export function RunScoringPanel({ runId, runType, fieldNames, presetFields }: Pa
     } catch (e) {
       const message = (e as Error).message;
       if (message.includes("No scoring template")) setUnattached(true);
-      else setError(message);
+      else setError(errorDetail(e as Error));
     }
   }, [runId]);
 
@@ -145,7 +145,7 @@ export function RunScoringPanel({ runId, runType, fieldNames, presetFields }: Pa
     try {
       setDecision(await api.rescoreRunDecision(runId));
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorDetail(e as Error));
     }
   }
 
@@ -155,7 +155,7 @@ export function RunScoringPanel({ runId, runType, fieldNames, presetFields }: Pa
     try {
       setPublished(await api.publishRunDecision(runId));
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorDetail(e as Error));
     }
   }
 
@@ -165,7 +165,7 @@ export function RunScoringPanel({ runId, runType, fieldNames, presetFields }: Pa
       await api.attachRunFramework(runId, choice);
       await load();
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorDetail(e as Error));
     }
   }
 

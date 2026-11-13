@@ -138,7 +138,7 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
         <ArgusSchema flow={flow} busy={busy} act={act} />
       ) : step === 4 || step === 5 ? (
         flow.run_id ? (
-          step === 4 ? <ArgusExtract flow={flow} /> : <ArgusResults flow={flow} />
+          step === 4 ? <ArgusExtract flow={flow} onEnded={refresh} /> : <ArgusResults flow={flow} />
         ) : (
           <p>
             Nothing has started yet. <a href={flowHref(flow.flow_id, 3)}>Back to 3 {STEPS[2]}</a>

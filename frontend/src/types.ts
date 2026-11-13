@@ -2513,6 +2513,8 @@ export interface RunCompany {
   name: string;
   /** review: a step before extraction stopped it, and its error report waits in the review queue. */
   status: "done" | "failed" | "review" | "waiting";
+  /** The central id the company was matched to; absent for a run started before it was saved. */
+  entity_id?: string | null;
 }
 
 /** Superset BI designer (/api/bi). A refused plan is a 200 with `rejected` reasons and no dashboard. */

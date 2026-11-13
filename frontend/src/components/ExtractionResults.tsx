@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { CompanyLink } from "./CompanyLink";
 import { api } from "../api/client";
 import { ConfidenceBadge, GroundedBadge } from "./ConfidenceBadge";
@@ -141,6 +141,18 @@ export function SpendDetail({ label, spend, onOpenSource }: { label: string; spe
   );
 }
 
+/** company_id to the central id each company of the run was matched to (its company link opens that record). */
+function useCentralIds(runId: string): Record<string, string> {
+  const [ids, setIds] = useState<Record<string, string>>({});
+  useEffect(() => {
+    api.getRunCompanies(runId).then(
+      (r) => setIds(Object.fromEntries(r.companies.flatMap((c) => (c.entity_id ? [[c.company_id, c.entity_id]] : [])))),
+      () => setIds({}), // unreadable: the links fall back to the universe id
+    );
+  }, [runId]);
+  return ids;
+}
+
 interface ExtractionResultsTableProps {
   results: ExtractionRecord[];
   runId: string;
@@ -170,6 +182,7 @@ export function ExtractionResultsTable({
   filter = null,
   trial = false,
 }: ExtractionResultsTableProps) {
+  const central = useCentralIds(runId);
   if (results.length === 0) return null;
   // Items are fields; a field is flagged when its record needs review.
   const shownFields = (r: ExtractionRecord) =>
@@ -198,7 +211,7 @@ export function ExtractionResultsTable({
             return (
             <Fragment key={r.company_id}>
               <tr className="clickable-row" {...activatable(() => onToggleExpanded(r.company_id), expanded === r.company_id)}>
-                <td><CompanyLink companyId={r.company_id}>{r.name}</CompanyLink> {r.ticker && <span className="muted">({r.ticker})</span>}</td>
+                <td><CompanyLink companyId={r.company_id} entityId={central[r.company_id]}>{r.name}</CompanyLink> {r.ticker && <span className="muted">({r.ticker})</span>}</td>
                 <td>{r.fields.map((f) => `${f.field_name}${f.period_end ? ` (${f.period_end})` : ""}=${editedText(reviewDecisions[fieldItemKey(r, f)]) ?? valueLabel(f)}`).join(", ")}</td>
                 <td><ConfidenceBadge value={r.overall_confidence} /></td>
                 <td>{r.needs_review ? <ProposedTag /> : ""}</td>
@@ -269,6 +282,7 @@ export function FinancialsResultsTable({
   onOpenSource,
   filter = null,
 }: FinancialsResultsTableProps) {
+  const central = useCentralIds(runId);
   if (results.length === 0) return null;
   // Items are companies; flagged = needs_review.
   const shown = results.filter((r) => matchesTile(filter, r.needs_review, reviewDecisions[r.company_id]));
@@ -290,7 +304,7 @@ export function FinancialsResultsTable({
           {shown.map((r) => (
             <Fragment key={r.company_id}>
               <tr className="clickable-row" {...activatable(() => onToggleExpanded(r.company_id), expanded === r.company_id)}>
-                <td><CompanyLink companyId={r.company_id}>{r.name}</CompanyLink> {r.ticker && <span className="muted">({r.ticker})</span>}</td>
+                <td><CompanyLink companyId={r.company_id} entityId={central[r.company_id]}>{r.name}</CompanyLink> {r.ticker && <span className="muted">({r.ticker})</span>}</td>
                 <td>{r.segments.length === 0 ? "none found" : `${r.segments.length} segment(s)`}</td>
                 <td>{fmtAmount(r.capex.total.value)} {r.currency ?? ""}</td>
                 <td>{fmtAmount(r.rnd.total.value)} {r.currency ?? ""}</td>
