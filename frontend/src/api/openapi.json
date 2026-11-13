@@ -3084,6 +3084,34 @@
     "title": "Body_mechanism_from_indicators_api_decision_mechanisms_from_indicators_post",
     "type": "object"
    },
+   "Body_post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post": {
+    "properties": {
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file"
+    ],
+    "title": "Body_post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post",
+    "type": "object"
+   },
+   "Body_post_votes_xlsx_api_stewardship_intake_votes_xlsx_post": {
+    "properties": {
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file"
+    ],
+    "title": "Body_post_votes_xlsx_api_stewardship_intake_votes_xlsx_post",
+    "type": "object"
+   },
    "Body_raw_upload_api_universe_raw_upload_post": {
     "properties": {
      "file": {
@@ -12111,6 +12139,34 @@
     "title": "Instructions",
     "type": "object"
    },
+   "IntakeReport": {
+    "properties": {
+     "created": {
+      "default": 0,
+      "title": "Created",
+      "type": "integer"
+     },
+     "rejected": {
+      "items": {
+       "$ref": "#/components/schemas/Rejection"
+      },
+      "title": "Rejected",
+      "type": "array"
+     },
+     "unchanged": {
+      "default": 0,
+      "title": "Unchanged",
+      "type": "integer"
+     },
+     "updated": {
+      "default": 0,
+      "title": "Updated",
+      "type": "integer"
+     }
+    },
+    "title": "IntakeReport",
+    "type": "object"
+   },
    "InteractionType": {
     "description": "E6: every call, letter and meeting is tagged, so pressure-type engagement\ncan be reported and gated.",
     "enum": [
@@ -16539,6 +16595,34 @@
      "reason"
     ],
     "title": "RejectRequest",
+    "type": "object"
+   },
+   "Rejection": {
+    "properties": {
+     "field": {
+      "title": "Field",
+      "type": "string"
+     },
+     "reason": {
+      "title": "Reason",
+      "type": "string"
+     },
+     "row": {
+      "title": "Row",
+      "type": "integer"
+     },
+     "sheet": {
+      "title": "Sheet",
+      "type": "string"
+     }
+    },
+    "required": [
+     "sheet",
+     "row",
+     "field",
+     "reason"
+    ],
+    "title": "Rejection",
     "type": "object"
    },
    "RemoveOverrideRequest": {
@@ -24289,6 +24373,23 @@
      "reviewer"
     ],
     "title": "VoteReviewDecisionRequest",
+    "type": "object"
+   },
+   "VotesBody": {
+    "properties": {
+     "votes": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Votes",
+      "type": "array"
+     }
+    },
+    "required": [
+     "votes"
+    ],
+    "title": "VotesBody",
     "type": "object"
    },
    "VotingPreviewRequest": {
@@ -40175,6 +40276,222 @@
      }
     },
     "summary": "Mark Draft Sent",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/intake/engagements": {
+   "post": {
+    "operationId": "post_engagements_api_stewardship_intake_engagements_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "title": "Batch",
+        "type": "object"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IntakeReport"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IntakeReport"
+        }
+       }
+      },
+      "description": "Unprocessable Content"
+     }
+    },
+    "summary": "Post Engagements",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/intake/engagements.xlsx": {
+   "post": {
+    "operationId": "post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IntakeReport"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IntakeReport"
+        }
+       }
+      },
+      "description": "Unprocessable Content"
+     }
+    },
+    "summary": "Post Engagements Xlsx",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/intake/template": {
+   "get": {
+    "operationId": "get_template_api_stewardship_intake_template_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "enum": [
+        "engagements",
+        "votes"
+       ],
+       "title": "Kind",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Template",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/intake/votes": {
+   "post": {
+    "operationId": "post_votes_api_stewardship_intake_votes_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/VotesBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IntakeReport"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IntakeReport"
+        }
+       }
+      },
+      "description": "Unprocessable Content"
+     }
+    },
+    "summary": "Post Votes",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/intake/votes.xlsx": {
+   "post": {
+    "operationId": "post_votes_xlsx_api_stewardship_intake_votes_xlsx_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_post_votes_xlsx_api_stewardship_intake_votes_xlsx_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IntakeReport"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IntakeReport"
+        }
+       }
+      },
+      "description": "Unprocessable Content"
+     }
+    },
+    "summary": "Post Votes Xlsx",
     "tags": [
      "stewardship"
     ]

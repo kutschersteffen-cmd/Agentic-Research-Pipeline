@@ -5515,6 +5515,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/intake/engagements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Engagements */
+        post: operations["post_engagements_api_stewardship_intake_engagements_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/intake/engagements.xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Engagements Xlsx */
+        post: operations["post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/intake/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Template */
+        get: operations["get_template_api_stewardship_intake_template_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/intake/votes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Votes */
+        post: operations["post_votes_api_stewardship_intake_votes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/intake/votes.xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Votes Xlsx */
+        post: operations["post_votes_xlsx_api_stewardship_intake_votes_xlsx_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/monitoring/open-engagement": {
         parameters: {
             query?: never;
@@ -9368,6 +9453,16 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** Body_post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post */
+        Body_post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_post_votes_xlsx_api_stewardship_intake_votes_xlsx_post */
+        Body_post_votes_xlsx_api_stewardship_intake_votes_xlsx_post: {
+            /** File */
+            file: string;
+        };
         /** Body_raw_upload_api_universe_raw_upload_post */
         Body_raw_upload_api_universe_raw_upload_post: {
             /** File */
@@ -12986,6 +13081,26 @@ export interface components {
             /** Instructions */
             instructions?: string | null;
         };
+        /** IntakeReport */
+        IntakeReport: {
+            /**
+             * Created
+             * @default 0
+             */
+            created: number;
+            /** Rejected */
+            rejected?: components["schemas"]["Rejection"][];
+            /**
+             * Unchanged
+             * @default 0
+             */
+            unchanged: number;
+            /**
+             * Updated
+             * @default 0
+             */
+            updated: number;
+        };
         /**
          * InteractionType
          * @description E6: every call, letter and meeting is tagged, so pressure-type engagement
@@ -14930,6 +15045,17 @@ export interface components {
         RejectRequest: {
             /** Reason */
             reason: string;
+        };
+        /** Rejection */
+        Rejection: {
+            /** Field */
+            field: string;
+            /** Reason */
+            reason: string;
+            /** Row */
+            row: number;
+            /** Sheet */
+            sheet: string;
         };
         /** RemoveOverrideRequest */
         RemoveOverrideRequest: {
@@ -18018,6 +18144,13 @@ export interface components {
              * @description Required if decision == 'edit': the human-decided vote ('for'/'against'/'abstain'/'withhold').
              */
             vote?: string | null;
+        };
+        /** VotesBody */
+        VotesBody: {
+            /** Votes */
+            votes: {
+                [key: string]: unknown;
+            }[];
         };
         /** VotingPreviewRequest */
         VotingPreviewRequest: {
@@ -28779,6 +28912,173 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_engagements_api_stewardship_intake_engagements_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeReport"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeReport"];
+                };
+            };
+        };
+    };
+    post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeReport"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeReport"];
+                };
+            };
+        };
+    };
+    get_template_api_stewardship_intake_template_get: {
+        parameters: {
+            query: {
+                kind: "engagements" | "votes";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_votes_api_stewardship_intake_votes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VotesBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeReport"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeReport"];
+                };
+            };
+        };
+    };
+    post_votes_xlsx_api_stewardship_intake_votes_xlsx_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_post_votes_xlsx_api_stewardship_intake_votes_xlsx_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeReport"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeReport"];
                 };
             };
         };

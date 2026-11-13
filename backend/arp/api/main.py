@@ -63,6 +63,7 @@ from arp.api.routers import (
     signals,
     snapshots,
     stewardship,
+    stewardship_intake,
     taxonomies,
     taxonomy_researcher,
     themes,
@@ -161,6 +162,7 @@ app.include_router(engagement.router, dependencies=[Depends(authorize)])
 app.include_router(voting.router)
 app.include_router(xbrl.router, dependencies=[Depends(authorize)])
 app.include_router(stewardship.router, dependencies=[Depends(authorize)])
+app.include_router(stewardship_intake.router, dependencies=[Depends(authorize)])
 app.include_router(financials.router, dependencies=[Depends(authorize)])
 app.include_router(tnfd.router, dependencies=[Depends(authorize)])
 app.include_router(transition_plan.router, dependencies=[Depends(authorize)])
