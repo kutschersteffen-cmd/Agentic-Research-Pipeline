@@ -134,6 +134,11 @@ class Settings(BaseSettings):
         default=REPO_ROOT / "indices",
         description="Index construction calibrations (versioned, effective-dated) and the reviews run from them; see arp/storage/index_store.py.",
     )
+    holdings_dir: Path = Field(default=REPO_ROOT / "data" / "holdings", description="Holdings files Index Construction offers as starting universes.")
+    simulated_esg_path: Path = Field(
+        default=REPO_ROOT / "data" / "simulated" / "esg_simulated.csv",
+        description="Simulated ESG dataset joined onto loaded starting universes, when the file exists.",
+    )
     ballots_dir: Path = Field(default=REPO_ROOT / "ballots", description="Where the manual-instruction ballot platform writes vote instruction files, absent a real custodian/proxy-platform integration.")
     reports_dir: Path = Field(default=REPO_ROOT / "reports", description="Presentation/Reporting Tool: one directory per generated report (manifest, request, plan, rendered output file).")
     report_templates_dir: Path = Field(default=REPO_ROOT / "report_templates", description="Presentation/Reporting Tool: ingested .pptx template style profiles + the original template file each is cloned from.")

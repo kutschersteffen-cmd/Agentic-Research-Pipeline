@@ -1917,6 +1917,20 @@ export interface IndexFieldInventory {
   categories: string[];
 }
 
+/** A starting universe for Index Construction: the demo universe, a holdings file or a stored portfolio. */
+export interface IndexStartingUniverse {
+  universe_id: string;
+  label: string;
+  kind: "demo" | "file" | "portfolio";
+  as_of_date: string | null;
+}
+
+export interface IndexStartingUniverseDetail extends IndexStartingUniverse {
+  company_count: number;
+  notes: string[];
+  fields: IndexFieldInventory;
+}
+
 export interface RuleParamSpec {
   name: string;
   kind: string;

@@ -30,6 +30,7 @@ from arp.cli.revenue_catalogue import revenue_catalogue_app
 from arp.cli.rfp import rfp_app
 from arp.cli.runs import runs_app
 from arp.cli.scale import scale_app
+from arp.cli.showcase import showcase_app
 from arp.cli.signal_lab import signals_app
 from arp.cli.snapshots import snapshots_app
 from arp.cli.stewardship import stewardship_app
@@ -60,6 +61,8 @@ def _require_postgres(ctx: typer.Context) -> None:
     from arp.db.session import require_cutover, require_postgres
 
     if "--help" in sys.argv[1:] or ctx.invoked_subcommand in ("io", "pageindex"):  # pageindex: PDF files only
+        return
+    if sys.argv[1:3] == ["showcase", "simulate"]:  # holdings files in, a CSV out
         return
     try:
         settings = get_settings()
@@ -133,3 +136,4 @@ app.add_typer(xbrl_app, name="xbrl")
 app.add_typer(plan_app, name="plan")
 app.add_typer(io_app, name="io")
 app.add_typer(rfp_app, name="rfp")
+app.add_typer(showcase_app, name="showcase")

@@ -78,6 +78,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/argus/flows/{flow_id}/companies/{company_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edit Company
+         * @description Registers the row again with the form's values and replaces it in place.
+         */
+        put: operations["edit_company_api_argus_flows__flow_id__companies__company_id__put"];
+        post?: never;
+        /**
+         * Remove Company
+         * @description Drops the row and its file choices in this flow. The documents stay on the company.
+         */
+        delete: operations["remove_company_api_argus_flows__flow_id__companies__company_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/argus/flows/{flow_id}/companies/{company_id}/retry": {
         parameters: {
             query?: never;
@@ -93,6 +117,26 @@ export interface paths {
          *     Async: the launcher starts the job on this event loop. Nothing changes until the job holds the run.
          */
         post: operations["retry_company_api_argus_flows__flow_id__companies__company_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/argus/flows/{flow_id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discard Flow
+         * @description Delete a draft with whatever it holds. Its documents stay on the companies.
+         */
+        post: operations["discard_flow_api_argus_flows__flow_id__discard_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3215,6 +3259,43 @@ export interface paths {
          *     a black box.
          */
         get: operations["get_screen_bundle_api_index_screen_bundles__name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/index/universes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Universes
+         * @description The demo universe, then the holdings files, then portfolios with a snapshot.
+         */
+        get: operations["get_universes_api_index_universes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/index/universes/{universe_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Universe */
+        get: operations["get_universe_api_index_universes__universe_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8499,8 +8580,17 @@ export interface components {
             discovery_run_id?: string | null;
             /** Flow Id */
             flow_id: string;
+            /** Identity Applied */
+            identity_applied?: string | null;
             /** Identity Run Id */
             identity_run_id?: string | null;
+            /**
+             * Problems
+             * @default {}
+             */
+            problems: {
+                [key: string]: string;
+            };
             /**
              * Repeat
              * @default {}
@@ -8536,6 +8626,8 @@ export interface components {
              * @default false
              */
             starting: boolean;
+            /** Starting At */
+            starting_at?: string | null;
             /**
              * Step
              * @default 1
@@ -8571,8 +8663,17 @@ export interface components {
             /** Flow Id */
             flow_id: string;
             identity?: components["schemas"]["DiscoveryStatus"] | null;
+            /** Identity Applied */
+            identity_applied?: string | null;
             /** Identity Run Id */
             identity_run_id?: string | null;
+            /**
+             * Problems
+             * @default {}
+             */
+            problems: {
+                [key: string]: string;
+            };
             /**
              * Repeat
              * @default {}
@@ -8618,6 +8719,8 @@ export interface components {
              * @default false
              */
             starting: boolean;
+            /** Starting At */
+            starting_at?: string | null;
             /**
              * Step
              * @default 1
@@ -10188,6 +10291,11 @@ export interface components {
             percent: number;
             /** Reason */
             reason?: string | null;
+            /**
+             * Retryable
+             * @default false
+             */
+            retryable: boolean;
             /** Status */
             status: string;
         };
@@ -12289,6 +12397,8 @@ export interface components {
             cost_usd: number;
             /** Done */
             done: number;
+            /** Finished */
+            finished: number;
             /** Minutes Left */
             minutes_left: number | null;
             /** Run Id */
@@ -12297,6 +12407,8 @@ export interface components {
             started_at: string;
             /** Status */
             status: string;
+            /** Stopping */
+            stopping: boolean;
             /** Total */
             total: number;
         };
@@ -16475,6 +16587,42 @@ export interface components {
             /** Universe Path */
             universe_path?: string | null;
         };
+        /** StartingUniverse */
+        StartingUniverse: {
+            /** As Of Date */
+            as_of_date: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "demo" | "file" | "portfolio";
+            /** Label */
+            label: string;
+            /** Universe Id */
+            universe_id: string;
+        };
+        /** StartingUniverseDetail */
+        StartingUniverseDetail: {
+            /** As Of Date */
+            as_of_date: string | null;
+            /** Company Count */
+            company_count: number;
+            /** Fields */
+            fields: {
+                [key: string]: string[];
+            };
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "demo" | "file" | "portfolio";
+            /** Label */
+            label: string;
+            /** Notes */
+            notes: string[];
+            /** Universe Id */
+            universe_id: string;
+        };
         /**
          * StepSettings
          * @description Per-run overrides; a field left out keeps the app's setting.
@@ -18089,6 +18237,11 @@ export interface components {
             /** @description Ad-hoc spec. Mutually exclusive with calibration_id. */
             spec?: components["schemas"]["ConstructionSpec"] | null;
             /**
+             * Universe
+             * @description Starting universe id from GET /api/index/universes (demo, file:<stem>, portfolio:<id>). Omit for the demo universe. Exclusive with candidates.
+             */
+            universe?: string | null;
+            /**
              * Use Prior State
              * @description Chain from the most recent stored review before this date.
              * @default true
@@ -18513,6 +18666,74 @@ export interface operations {
             };
         };
     };
+    edit_company_api_argus_flows__flow_id__companies__company_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompanyInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArgusFlowView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_company_api_argus_flows__flow_id__companies__company_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArgusFlowView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     retry_company_api_argus_flows__flow_id__companies__company_id__retry_post: {
         parameters: {
             query?: never;
@@ -18533,6 +18754,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["FlowProgress"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_flow_api_argus_flows__flow_id__discard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -24382,6 +24632,57 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_universes_api_index_universes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartingUniverse"][];
+                };
+            };
+        };
+    };
+    get_universe_api_index_universes__universe_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                universe_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartingUniverseDetail"];
                 };
             };
             /** @description Validation Error */

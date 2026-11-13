@@ -28,6 +28,7 @@ from arp.normalise.units import convert
 from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
+from arp.orchestration.step_tally import record_call_cost
 from arp.planning.applicability import plan_fields
 from arp.planning.doc_routing import input_hash, route_documents
 from arp.planning.entity_check import confirm_entity
@@ -292,6 +293,8 @@ async def _extract_company(
                     )
             except Exception as exc:  # noqa: BLE001 -- any failure: extract each field on its own, as without grouping
                 logger.warning("Group extraction failed for %s, extracting fields one by one: %s", company.company_id, exc)
+        if usage:  # a call outside the per-field graph: step 4's running cost would miss it
+            record_call_cost(estimate_cost_usd(usage.model or settings.llm_model, usage))
         calls = [_extract(f, h, slot, (drafts[f.field_id], shared, usage), shared_explain) if f.field_id in drafts
                  else _extract(f, h, slot) for f, h, slot in items]
         return [*([usage] if usage else []), *(u for us in await asyncio.gather(*calls) for u in us)]
@@ -315,6 +318,7 @@ async def _extract_company(
                     schema_version=f"{schema.schema_id}:v{schema.version}", on_draft=drafts.append,
                 )
             out.append(usage)
+            record_call_cost(estimate_cost_usd(usage.model or settings.llm_model, usage))
             if traces is not None:
                 traces.setdefault("plans", {})[d.doc_id] = {
                     "passages": [trace.passage(c) for c in chunks], "extractor": trace.call(usage, drafts[0]),
