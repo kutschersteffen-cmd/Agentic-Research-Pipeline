@@ -28,7 +28,16 @@ export function ThemeResearch({ id }: { id: string }) {
   // A failed refresh keeps the last view on screen and polls until one succeeds: only the first load can fail the page.
   const [stale, setStale] = useState(false);
   const load = useCallback(
-    () => api.getResearch(id).then((v) => { setView(v); setStale(false); }, () => setStale(true)),
+    () =>
+      api.getResearch(id).then(
+        (v) => {
+          setView(v);
+          setStale(false);
+          // A note being written supersedes whatever the last action said went wrong.
+          if (v.rounds[v.rounds.length - 1]?.note?.status === "writing") setActionError(null);
+        },
+        () => setStale(true),
+      ),
     [id],
   );
   useEffect(() => {
@@ -54,6 +63,7 @@ export function ThemeResearch({ id }: { id: string }) {
         return true;
       } catch (err) {
         setActionError((err as Error).message);
+        void load(); // the action may have started anyway (a proxy timeout): show what the server has
         return false;
       } finally {
         setBusy(false);

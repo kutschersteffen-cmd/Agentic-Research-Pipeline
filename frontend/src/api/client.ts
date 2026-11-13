@@ -726,7 +726,7 @@ export const api = {
   createDossier: (name: string, taxonomyId: string | null) =>
     request<Dossier>("/api/dossiers", jsonBody("POST", { name, taxonomy_id: taxonomyId })),
   getDossier: (id: string) => request<Dossier>(`/api/dossiers/${encodeURIComponent(id)}`),
-  patchDossier: (id: string, body: { taxonomy_id: string } | { status: "shelved"; reason: string }) =>
+  patchDossier: (id: string, body: { taxonomy_id: string } | { status: "shelved"; reason: string } | { status: "active" }) =>
     request<Dossier>(`/api/dossiers/${encodeURIComponent(id)}`, jsonBody("PATCH", body)),
   getResearch: (id: string) => request<ResearchView>(research(id)),
   proposeSources: (id: string) => request<ProposalStarted>(research(id, "/propose"), { method: "POST" }),

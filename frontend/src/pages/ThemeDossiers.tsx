@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { STATE_CLASS, STATE_LABEL, dossierHref, shelvedBanner, stepLinkText, visibleDossiers } from "../lib/dossiers";
 import type { Dossier, DossierItem, Taxonomy } from "../types";
@@ -130,7 +130,17 @@ function DossierPage({ id, onFindCompanies }: { id: string; onFindCompanies: (ta
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
+  // Shelve and Un-shelve each unmount the control that was used: focus moves to what replaced it.
+  // A counter, not a flag, so every repeat of the cycle moves focus again.
+  const [moved, setMoved] = useState<{ to: "active" | "shelved"; n: number } | null>(null);
+  const reactivatedRef = useRef<HTMLParagraphElement>(null);
+  const bannerRef = useRef<HTMLSpanElement>(null);
   const taxonomies = useTaxonomies();
+
+  useEffect(() => {
+    if (moved) (moved.to === "active" ? reactivatedRef : bannerRef).current?.focus();
+  }, [moved]);
+  const focusAfter = (to: "active" | "shelved") => setMoved((m) => ({ to, n: (m?.n ?? 0) + 1 }));
 
   useEffect(() => {
     api.getDossier(id).then(setDossier, (err: Error) => setError(err.message));
@@ -163,7 +173,27 @@ function DossierPage({ id, onFindCompanies }: { id: string; onFindCompanies: (ta
       <p className="muted">
         {dossier.origin === "candidate" ? "Promoted from Emerging Themes" : "Started from a topic"} · <span className="mono">{dossier.dossier_id}</span>
       </p>
-      {banner && <p className="banner banner-warning" role="status">{banner}</p>}
+      {banner && (
+        <div className="banner banner-warning">
+          <span role="status" tabIndex={-1} ref={bannerRef} className="focus-target">{banner}</span>{" "}
+          {/* aria-disabled, not disabled: a disabled button loses the keyboard's focus, and an Un-shelve that fails never gets it back */}
+          <button
+            type="button"
+            className="secondary"
+            aria-disabled={busy}
+            onClick={async () => {
+              if (!busy && (await patch({ status: "active" }))) focusAfter("active");
+            }}
+          >
+            Un-shelve
+          </button>
+        </div>
+      )}
+      {moved?.to === "active" && dossier.status === "active" && (
+        <p className="status-text focus-target" role="status" tabIndex={-1} ref={reactivatedRef}>
+          Dossier is active again.
+        </p>
+      )}
       {actionError && <p className="error-text" role="alert">{actionError}</p>}
       <ol className="dossier-steps" aria-label="Steps">
         {dossier.steps.map((s) => (
@@ -217,12 +247,16 @@ function DossierPage({ id, onFindCompanies }: { id: string; onFindCompanies: (ta
           aria-label="Shelve"
           onSubmit={async (e) => {
             e.preventDefault();
-            if (await patch({ status: "shelved", reason })) setReason("");
+            if (busy || !reason.trim()) return;
+            if (await patch({ status: "shelved", reason })) {
+              setReason("");
+              focusAfter("shelved");
+            }
           }}
         >
           <label htmlFor="dossier-reason">Reason</label>
           <input id="dossier-reason" value={reason} onChange={(e) => setReason(e.target.value)} required />
-          <button type="submit" className="secondary" disabled={busy || !reason.trim()}>
+          <button type="submit" className="secondary" aria-disabled={busy || !reason.trim()}>
             Shelve
           </button>
         </form>

@@ -2,17 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { RunManifest } from "../types";
 import { pollAfter } from "../lib/poll";
-import { batchWaitText, canResumeRun, runGone } from "../lib/runs";
+import { batchWaitText, canResumeRun, NO_MODEL_CALLS, progressUnit, runGone, spentNothing } from "../lib/runs";
 
 export function RunProgress({
   runId,
   pollMs = 2500,
   runType = "theme",
+  onFinish,
 }: {
   runId: string;
   pollMs?: number;
   /** The run's type, for what it offers (Resume); the manifest's `run_type` is the accurate one. */
   runType?: string;
+  /** Called when a poll sees the run leave running/pending after this card saw it active. */
+  onFinish?: () => void;
 }) {
   const [manifest, setManifest] = useState<RunManifest | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
@@ -22,6 +25,11 @@ export function RunProgress({
   const [cancelAsked, setCancelAsked] = useState(false);
   const timerRef = useRef<() => void>(() => {});
   const cancelledRef = useRef(false);
+  const sawActiveRef = useRef(false);
+  const onFinishRef = useRef(onFinish);
+  useEffect(() => {
+    onFinishRef.current = onFinish;
+  });
 
   async function poll() {
     try {
@@ -30,7 +38,11 @@ export function RunProgress({
       setManifest(m);
       setLoadError(null);
       if (m.status === "running" || m.status === "pending") {
+        sawActiveRef.current = true;
         timerRef.current = pollAfter(poll, pollMs);
+      } else if (sawActiveRef.current) {
+        sawActiveRef.current = false;
+        onFinishRef.current?.();
       }
     } catch (err) {
       // Say so instead of "Loading…" forever; keep retrying in the background,
@@ -44,6 +56,7 @@ export function RunProgress({
 
   useEffect(() => {
     cancelledRef.current = false;
+    sawActiveRef.current = false;
     poll();
     return () => {
       cancelledRef.current = true;
@@ -101,6 +114,7 @@ export function RunProgress({
   const canCancel = manifest.status === "running" || manifest.status === "pending";
   const cancelling = manifest.status === "running" && (manifest.cancel_requested || cancelAsked);
   const canResume = canResumeRun(runType, manifest.status);
+  const unit = progressUnit(manifest.run_type);
 
   return (
     <div className="run-progress">
@@ -116,16 +130,22 @@ export function RunProgress({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={pct}
-        aria-valuetext={`${manifest.completed_count} of ${manifest.company_count} companies, ${manifest.failed_count} failed`}
+        aria-valuetext={`${manifest.completed_count} of ${manifest.company_count} ${unit}, ${manifest.failed_count} failed`}
       >
         <div className="progress-bar-fill" style={{ transform: `scaleX(${pct / 100})` }} />
       </div>
       <div className="run-progress-stats">
-        <span>{manifest.completed_count}/{manifest.company_count} companies</span>
+        <span>{manifest.completed_count}/{manifest.company_count} {unit}</span>
         <span>{manifest.failed_count} failed</span>
         <span>{manifest.review_count} flagged for review</span>
-        <span>${manifest.estimated_cost_usd.toFixed(2)} est. cost{(manifest.batch_saved_usd ?? 0) > 0 ? ` · saved $${manifest.batch_saved_usd!.toFixed(2)} by batching` : ""}</span>
-        <span>{(manifest.input_tokens + manifest.output_tokens).toLocaleString()} tokens</span>
+        {spentNothing(manifest) ? (
+          <span>{NO_MODEL_CALLS}</span>
+        ) : (
+          <>
+            <span>${manifest.estimated_cost_usd.toFixed(2)} est. cost{(manifest.batch_saved_usd ?? 0) > 0 ? ` · saved $${manifest.batch_saved_usd!.toFixed(2)} by batching` : ""}</span>
+            <span>{(manifest.input_tokens + manifest.output_tokens).toLocaleString()} tokens</span>
+          </>
+        )}
         {manifest.input_tokens > 0 && manifest.cache_read_tokens !== undefined && (
           <span title="Share of input tokens read from Anthropic's prompt cache, billed at a fraction of the input price">
             {Math.round((100 * manifest.cache_read_tokens) / manifest.input_tokens)}% of input from cache

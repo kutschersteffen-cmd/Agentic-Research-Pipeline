@@ -94,10 +94,11 @@ class TaxonomyStore:
         self,
         taxonomy_id: str,
         theme: ThemeDefinition,
-        derivation_method: DerivationMethod,
+        derivation_method: DerivationMethod | None,
         source_notes: str = "",
     ) -> Taxonomy:
         """Appends a new version based on whatever is currently latest.
+        `derivation_method=None` keeps the latest version's method (read under the same lock).
 
         The whole read-current-then-write-next cycle is locked, so two
         concurrent edits produce v2 and v3 rather than both writing v2 and
@@ -116,7 +117,7 @@ class TaxonomyStore:
                     name=current.name,
                     version=current.version + 1,
                     theme=theme,
-                    derivation_method=derivation_method,
+                    derivation_method=derivation_method or current.derivation_method,
                     source_notes=source_notes,
                     based_on_version=current.version,
                 )
