@@ -864,7 +864,10 @@ export const api = {
   getTracking: () => request<{ commitments: TrackedCommitment[]; engagements: TrackedEngagement[] }>("/api/stewardship/tracking"),
   addCommitment: (body: { company_id: string; issue_id: string; text: string; target_date?: string }) =>
     request("/api/stewardship/tracking/commitments", { method: "POST", body: JSON.stringify(body) }),
-  setCommitmentStatus: (commitmentId: string, body: { company_id: string; issue_id: string; status: "verified" | "missed" }) =>
+  setCommitmentStatus: (
+    commitmentId: string,
+    body: { company_id: string; issue_id: string; status: "verified" | "missed"; evidence?: string },
+  ) =>
     request(`/api/stewardship/tracking/commitments/${encodeURIComponent(commitmentId)}`, { method: "POST", body: JSON.stringify(body) }),
   closeEngagement: (body: { company_id: string; issue_id: string; status: "resolved" | "closed"; outcome: string }) =>
     request("/api/stewardship/tracking/close", { method: "POST", body: JSON.stringify(body) }),
@@ -918,7 +921,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
   triggerScan: (body: { companies: unknown[]; signals: unknown[] }) =>
-    request<{ events: TriggerEvent[] }>("/api/engagement/trigger-scan", { method: "POST", body: JSON.stringify(body) }),
+    request<{ events: TriggerEvent[]; unlisted_signals: { count: number; company_ids: string[] } }>("/api/engagement/trigger-scan", { method: "POST", body: JSON.stringify(body) }),
   draftDossier: (companyId: string, issueId: string, company: unknown) =>
     request<{ dossier: ResearchDossier; needs_review: boolean }>(
       `/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/dossier`,
@@ -953,7 +956,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  verifyCommitment: (companyId: string, issueId: string, body: { commitment_id: string }) =>
+  verifyCommitment: (companyId: string, issueId: string, body: { commitment_id: string; evidence?: string }) =>
     request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/verify-commitment`, {
       method: "POST",
       body: JSON.stringify(body),

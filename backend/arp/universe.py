@@ -59,7 +59,7 @@ def load_company_universe(path: str | Path) -> list[CompanyRef]:
 
     companies: list[CompanyRef] = []
     seen: set[str] = set()
-    for n, row in enumerate(rows, start=1):
+    for n, row in enumerate(rows, start=1):  # rows counted from 1 at the first data row
         clean = {k: (v if v not in ("", None) else None) for k, v in row.items()}
         if clean.get("nace_rev") is None:
             clean.pop("nace_rev", None)  # blank -> default "2"
@@ -72,9 +72,10 @@ def load_company_universe(path: str | Path) -> list[CompanyRef]:
             clean.pop("regimes", None)
         try:
             ref = CompanyRef(**clean)
-        except ValidationError as exc:
-            field = exc.errors()[0]["loc"][0] if exc.errors()[0]["loc"] else "row"
-            raise UniverseRejected(f'Row {n}: "{field}" is missing or not valid.') from exc
+        except ValidationError as exc:  # the first bad field of the first bad row, in words, not pydantic's text
+            field = str(exc.errors()[0]["loc"][0])
+            problem = "is required" if clean.get(field) is None else "is not valid"
+            raise UniverseRejected(f"Row {n}: {field} {problem}.") from None
         company = check_sector_codes(ref)
         if company.company_id in seen:
             raise UniverseRejected(f"duplicate company_id '{company.company_id}'")

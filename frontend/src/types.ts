@@ -884,6 +884,7 @@ export interface Commitment {
   status: CommitmentStatus;
   validated_by?: string | null;
   validated_at?: string | null;
+  evidence?: string | null;
 }
 
 export interface MilestoneTransition {
@@ -970,6 +971,8 @@ export interface OutreachLetterDraft {
   body: string;
   recommended_recipient: string;
   citations: Citation[];
+  /** `[...]` tokens left in the letter to fill in by hand (not citations). */
+  placeholders?: string[];
 }
 
 export interface MeetingTalkingPoints {
@@ -1912,6 +1915,20 @@ export interface IndexFieldInventory {
   metrics: string[];
   flags: string[];
   categories: string[];
+}
+
+/** A starting universe for Index Construction: the demo universe, a holdings file or a stored portfolio. */
+export interface IndexStartingUniverse {
+  universe_id: string;
+  label: string;
+  kind: "demo" | "file" | "portfolio";
+  as_of_date: string | null;
+}
+
+export interface IndexStartingUniverseDetail extends IndexStartingUniverse {
+  company_count: number;
+  notes: string[];
+  fields: IndexFieldInventory;
 }
 
 export interface RuleParamSpec {

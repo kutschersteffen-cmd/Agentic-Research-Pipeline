@@ -34,10 +34,10 @@ def test_json_regimes_list_is_kept(client):
     assert r.json()["sample"][0]["regimes"] == ["CSRD"]
 
 
-def test_bad_row_named_in_plain_words(client):  # AC-49
+def test_bad_row_named_in_plain_words(client):  # AC-49; text as showcase-stewardship-fixes AC-165 (spec question on #429)
     r = _upload(client, "u.csv", "company_id,name\nA,Acme\nB,\n")
     assert r.status_code == 422
-    assert r.json()["detail"] == 'Row 2: "name" is missing or not valid.'
+    assert r.json()["detail"] == "Row 2: name is required."
 
 
 def test_unsupported_suffix(client):  # AC-91
