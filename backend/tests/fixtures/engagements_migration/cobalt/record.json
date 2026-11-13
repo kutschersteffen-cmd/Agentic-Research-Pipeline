@@ -1,0 +1,59 @@
+{
+  "company_id": "cobalt",
+  "name": "Cobalt Foods",
+  "sector": "Consumer Staples",
+  "contacts": [],
+  "issues": [
+    {
+      "issue_id": "iss_04ecba6620b7",
+      "theme": "supply_chain_labour",
+      "opened_at": "2026-11-12T22:29:44.957106+00:00",
+      "status": "open",
+      "severity": "medium",
+      "source": "manual",
+      "source_detail": "",
+      "milestone_stage": "identified",
+      "milestone_history": [],
+      "escalation_stage": "private_engagement",
+      "escalation_history": [],
+      "correspondence": [
+        {
+          "entry_id": "corr_5",
+          "date": "2025-05-12T11:00:00+00:00",
+          "type": "letter",
+          "summary": "Letter on supplier audits",
+          "doc_ref": null,
+          "logged_by": "analyst",
+          "interaction_type": null,
+          "objective_id": null,
+          "activity_type": null,
+          "is_initiation": false
+        },
+        {
+          "entry_id": "corr_6",
+          "date": "2025-06-03T13:45:00+00:00",
+          "type": "call",
+          "summary": "Call with head of procurement",
+          "doc_ref": null,
+          "logged_by": "analyst",
+          "interaction_type": null,
+          "objective_id": null,
+          "activity_type": null,
+          "is_initiation": false
+        }
+      ],
+      "commitments": [],
+      "tags": [
+        "supply_chain_labour"
+      ],
+      "fir_theme": null,
+      "esg_pillars": [],
+      "rationale": "",
+      "engager_role": "bilateral",
+      "objectives": [],
+      "data_source": "app"
+    }
+  ],
+  "created_at": "2026-11-12T22:29:44.956913+00:00",
+  "updated_at": "2026-11-12T22:29:44.960524+00:00"
+}

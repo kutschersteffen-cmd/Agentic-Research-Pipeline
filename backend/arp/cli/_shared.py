@@ -17,8 +17,10 @@ from arp.retrieval.content_store_factory import content_store_for
 from arp.schemas.taxonomy import TaxonomyRef
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
+from arp.storage.engagement_store_factory import build_engagement_store
 from arp.storage.portfolio_store import portfolio_directories
 from arp.storage.portfolio_store_factory import build_portfolio_store
+from arp.storage.postgres_engagement_store import PostgresEngagementStore
 from arp.storage.reporting_store import ReportingStore
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
@@ -38,9 +40,8 @@ async def _and_drain(coro):
     return result
 
 
-def _engagement_store() -> EngagementStore:
-    settings = get_settings()
-    return EngagementStore(settings.engagements_dir)
+def _engagement_store() -> EngagementStore | PostgresEngagementStore:
+    return build_engagement_store(get_settings())
 
 
 
