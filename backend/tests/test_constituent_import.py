@@ -294,3 +294,15 @@ def test_a_reimport_keeps_the_history_tag(tmp_path):
     store.save_portfolio(Portfolio(portfolio_id=p.portfolio_id, name=p.name, tags=[*p.tags, "history:simulated"]))
     import_holdings_files(store, [path])
     assert "history:simulated" in store.get_portfolio("portfolio_dax").tags
+
+
+@pytest.mark.parametrize("name", [None, "Plain.xlsx"])
+def test_a_row_without_a_weight_whose_isin_cannot_form_an_id_is_skipped_not_fatal(tmp_path, name):
+    """Code review of PR #434: a cash or footer line (`EUR Cash | N/A | -`) must not abort the import."""
+    store = PortfolioStore(tmp_path / "store")
+    rows = [ROWS[0], ("EUR Cash", "N/A", "-", "EUR", "Cash", "-", "-")]
+    p = import_holdings_files(store, [_xlsx(tmp_path, rows, name=name)])["portfolios"][0]
+    assert p["skipped_no_weight"] == [{"name": "EUR Cash", "isin": "N/A", "weighting": "-"}]
+    assert (p["rows_read"], p["holdings_written"]) == (2, 1)
+    assert [c.company_id for c in store.list_companies()] == ["isin_US0378331005"]
+    assert latest_load(store, "holdings", p["portfolio_id"], "2026-10").status == "ok"

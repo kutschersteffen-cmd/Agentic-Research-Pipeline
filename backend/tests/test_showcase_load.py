@@ -28,9 +28,9 @@ PORTFOLIOS = {
 ISINS = [f"US00000000{i:02d}" for i in range(10)]
 
 
-def _rows(isins, english=False):
+def _rows(isins, english=False, sector="Informationstechnologie"):
     country, kind, sector = (
-        ("United States", "Equities", "Technology") if english else ("Vereinigte Staaten von Amerika", "Aktien", "Informationstechnologie")
+        ("United States", "Equities", "Technology") if english else ("Vereinigte Staaten von Amerika", "Aktien", sector)
     )
     weight = 0.98 / len(isins)
     return [(f"Company {i[-2:]}", i, country, "USD", kind, sector, weight) for i in isins] + [("Cash EUR", "CASH_EUR", "-", "EUR", "Cash", "-", 0.02)]
@@ -42,7 +42,8 @@ def env(tmp_path):
     holdings.mkdir()
     for stem in FILE_ORDER:
         isins = ISINS if stem == "MSCI_World" else ISINS[:3]
-        _xlsx(holdings, _rows(isins, english=stem == "AI_Big_Data"), title="2026-11-12" if stem == "AI_Big_Data" else "2026-11-02", name=f"{stem}.xlsx")
+        legacy = "Basiskonsumgüter" if stem in ("DAX", "EURO_STOXX_50") else "Informationstechnologie"  # the older scheme
+        _xlsx(holdings, _rows(isins, english=stem == "AI_Big_Data", sector=legacy), title="2026-11-12" if stem == "AI_Big_Data" else "2026-11-02", name=f"{stem}.xlsx")
     dataset = tmp_path / "esg_simulated.csv"
     write_dataset(simulate(read_holdings(holdings), []), dataset)
     settings = Settings(
@@ -85,6 +86,7 @@ def test_history_is_five_rescaled_month_ends_labelled_simulated(env):
     assert _run(env)[0]
     assert {p.portfolio_id for p in store.list_portfolios() if "history:simulated" in p.tags} == PORTFOLIOS
     assert "fund_isin:IE00BGV5VN51" in store.get_portfolio("portfolio_ai_big_data").tags
+    assert store.get_company(f"isin_{ISINS[0]}").sector == "Information Technology"  # MSCI World's label, not the DAX one
     assert store.list_snapshot_dates("portfolio_dax") == ["2026-06-30", "2026-07-31", "2026-08-31", "2026-09-30", "2026-10-31", "2026-11-02"]
     assert store.list_snapshot_dates("portfolio_ai_big_data")[-1] == "2026-11-12"
     file, july, august = (

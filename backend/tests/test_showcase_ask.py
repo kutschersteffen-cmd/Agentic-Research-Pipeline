@@ -210,3 +210,12 @@ async def test_an_answer_on_real_values_or_on_no_data_point_does_not(tmp_path):
     assert "Simulated" not in (await _answer(store, SEC, portfolio_ids=["p1"])).answer_text  # a market value: no data point
     _observe(store, "internal_api")  # a real value wins over the simulated one
     assert "Simulated" not in (await _answer(store, CI, portfolio_ids=["p1"])).answer_text
+
+
+async def test_the_simulated_count_follows_the_questions_filter(tmp_path):
+    store = _store(tmp_path)
+    _observe(store, "simulated")
+    kept = await _answer(store, {**CI, "security_filter": {"sector": "Autos"}}, portfolio_ids=["p1"])
+    assert kept.answer_text.split("\n")[-1].startswith("  Simulated: 1 of the 1 ")
+    none = await _answer(store, {**CI, "security_filter": {"sector": "Banks"}}, portfolio_ids=["p1"])
+    assert "Simulated" not in none.answer_text  # no holding passes the filter, so no value in the answer is simulated

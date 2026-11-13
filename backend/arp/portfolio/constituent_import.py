@@ -30,7 +30,7 @@ from pathlib import Path
 
 import openpyxl
 
-from arp.portfolio.loads import LoadRecord, latest_load, record_load
+from arp.portfolio.loads import LoadRecord, record_load_once
 from arp.projects.store import ID_RE
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import Holding, Portfolio, SecurityRef
@@ -201,14 +201,19 @@ def _import_rows(
             continue
         rows_read += 1
         isin, name = str(isin).strip(), str(name).strip()
-        sec_type = r.get("Type of Security")
-        if sec_type not in ASSET_CLASS:
-            other_asset_classes.add("(blank)" if sec_type in _BLANK else str(sec_type))
+        weight = r.get("Weighting")
+        no_weight = isinstance(weight, bool) or not isinstance(weight, (int, float))
         company_id = f"isin_{isin}"
         try:  # company ids become path segments downstream (analytics, documents)
             safe_id(company_id, label="company_id")
         except UnsafeIdentifierError:
+            if no_weight:  # a cash or footer line ("EUR Cash | N/A | -"): nothing to hold, nothing to register
+                skipped.append({"name": name, "isin": isin, "weighting": weight})
+                continue
             raise ValueError(f"{path.name} row {row_no}: ISIN {isin!r} cannot form a valid company_id {company_id!r}") from None
+        sec_type = r.get("Type of Security")
+        if sec_type not in ASSET_CLASS:
+            other_asset_classes.add("(blank)" if sec_type in _BLANK else str(sec_type))
         store.save_company(
             CompanyRef(
                 company_id=company_id,
@@ -227,8 +232,7 @@ def _import_rows(
                 company_id=company_id,
             )
         )
-        weight = r.get("Weighting")
-        if isinstance(weight, bool) or not isinstance(weight, (int, float)):
+        if no_weight:
             skipped.append({"name": name, "isin": isin, "weighting": weight})  # known to the app, held by nobody
             continue
         mv = weight * notional_eur
@@ -246,11 +250,10 @@ def _import_rows(
             )
         )
     store.save_snapshot(portfolio_id, as_of, holdings)
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    last = latest_load(store, "holdings", portfolio_id, as_of[:7])
-    if last is None or last.content_hash != digest:  # the monthly run needs an ok holdings load for the month
-        record_load(store, LoadRecord(kind="holdings", source_id=portfolio_id, month=as_of[:7], status="ok",
-                                      content_hash=digest, detail=f"constituent import {path.name}"))
+    # the monthly run needs an ok holdings load for the month
+    record_load_once(store, LoadRecord(kind="holdings", source_id=portfolio_id, month=as_of[:7], status="ok",
+                                       content_hash=hashlib.sha256(path.read_bytes()).hexdigest(),
+                                       detail=f"constituent import {path.name}"))
     return {
         "portfolio_id": portfolio_id,
         "as_of_date": as_of,

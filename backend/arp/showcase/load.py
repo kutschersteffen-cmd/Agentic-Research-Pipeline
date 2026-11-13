@@ -18,7 +18,7 @@ from arp.config import Settings
 from arp.portfolio.climate.esg_intake import FIELD_IDS as CLIMATE_FIELD_IDS
 from arp.portfolio.climate.schemas import FIELD_CARBON_INTENSITY, FIELD_SCOPE1, FIELD_SCOPE2, build_climate_schema
 from arp.portfolio.constituent_import import import_holdings_files
-from arp.portfolio.loads import LoadRecord, latest_load, record_load
+from arp.portfolio.loads import LoadRecord, record_load_once
 from arp.portfolio.monthly_run import run_month
 from arp.schemas.datapoints import FieldDataType
 from arp.schemas.portfolio import DataPointObservation, Portfolio
@@ -37,12 +37,6 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _record_once(store, rec: LoadRecord) -> None:
-    last = latest_load(store, rec.kind, rec.source_id, rec.month)
-    if last is None or (last.status, last.content_hash) != (rec.status, rec.content_hash):
-        record_load(store, rec)
-
-
 def _append_new(store, company_id: str, field_id: str, new: list[DataPointObservation]) -> int:
     """Appends the observations not stored yet (same source, period and value), so a re-run adds nothing."""
     have = {(o.source, o.period, o.value) for o in store.load_observations(company_id, field_id)}
@@ -54,7 +48,7 @@ def _append_new(store, company_id: str, field_id: str, new: list[DataPointObserv
 
 def _import(store, holdings_dir: Path) -> list[tuple[Path, dict]]:
     imported = []
-    for stem in FILE_ORDER:
+    for stem in reversed(FILE_ORDER):  # the last file sets a company's sector: end on MSCI World's GICS label, not the DAX legacy one
         path = holdings_dir / f"{stem}.xlsx"
         summary = import_holdings_files(store, [path], fund_isin=FUND_ISIN.get(stem))
         imported.append((path, summary["portfolios"][0]))
@@ -83,7 +77,7 @@ def _history(store, imported: list[tuple[Path, dict]]) -> int:
                 })
                 for h, f in zip(base, factors, strict=True)
             ])
-            _record_once(store, LoadRecord(kind="holdings", source_id=portfolio_id, month=month, status="ok",
+            record_load_once(store, LoadRecord(kind="holdings", source_id=portfolio_id, month=month, status="ok",
                                            content_hash=digest, detail=f"simulated history from {path.name}"))
             written += 1
         portfolio = store.get_portfolio(portfolio_id)
@@ -112,7 +106,7 @@ def _esg(store, rows: list[dict], dataset: Path) -> int:
             ])
     digest = _sha256(dataset)
     for month in MONTHS:
-        _record_once(store, LoadRecord(kind="esg", source_id="simulated", month=month, status="ok", content_hash=digest,
+        record_load_once(store, LoadRecord(kind="esg", source_id="simulated", month=month, status="ok", content_hash=digest,
                                        at=f"{days[month]}T00:00:00+00:00", detail=f"simulated ESG from {dataset.name}"))
     return written
 
