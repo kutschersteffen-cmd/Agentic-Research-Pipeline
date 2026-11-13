@@ -11697,7 +11697,7 @@ export interface components {
             /** Reason */
             reason?: string | null;
             /** Status */
-            status?: "shelved" | null;
+            status?: ("shelved" | "active") | null;
             /** Taxonomy Id */
             taxonomy_id?: string | null;
         };

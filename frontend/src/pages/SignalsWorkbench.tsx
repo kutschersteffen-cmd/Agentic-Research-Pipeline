@@ -3,10 +3,20 @@ import { api } from "../api/client";
 import { activatable } from "../lib/activatable";
 import { apiMessage } from "../lib/projects";
 import { useMe } from "../lib/reviewer";
-import { compareMessage, cutoffNotice, decisionBlocks, methodNote, windowLabel } from "../lib/signals";
+import {
+  alreadyRunLine,
+  compareMessage,
+  createdLabel,
+  cutoffNotice,
+  decisionBlocks,
+  ic,
+  methodNote,
+  SAMPLE_PRICES,
+  SAMPLE_RECIPE,
+  shortId,
+  windowLabel,
+} from "../lib/signals";
 import type { SignalExperimentDetail, SignalExperimentSummary, SignalMethod } from "../types";
-
-const num = (v: number | null) => (v == null ? "—" : String(v));
 
 function Evidence({ detail, onDecided }: { detail: SignalExperimentDetail; onDecided: (d: SignalExperimentDetail) => void }) {
   const me = useMe();
@@ -59,8 +69,8 @@ function Evidence({ detail, onDecided }: { detail: SignalExperimentDetail; onDec
                       {w.window} {label && <span className="badge badge-low">{label}</span>}
                     </td>
                     <td>{w.periods}</td>
-                    <td>{num(w.ic.mean)}</td>
-                    <td>{num(w.ic.t_nw)}</td>
+                    <td>{ic(w.ic.mean)}</td>
+                    <td>{ic(w.ic.t_nw)}</td>
                     <td>{w.ic.n}</td>
                   </tr>
                 );
@@ -167,6 +177,17 @@ function Run({ methods, onRan }: { methods: SignalMethod[]; onRan: (d: SignalExp
       <h2 id="signals-run">Run</h2>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s-4)", alignItems: "flex-start" }}>
         <div style={{ flex: "1 1 18rem", minWidth: 0 }}>
+          <p className="help-text">
+            No files at hand? Try{" "}
+            <a href={SAMPLE_RECIPE} download>
+              Sample recipe (JSON)
+            </a>{" "}
+            with{" "}
+            <a href={SAMPLE_PRICES} download>
+              Sample prices (CSV)
+            </a>
+            .
+          </p>
           <label className="field-label">
             Recipe JSON
             <input type="file" accept=".json,application/json" onChange={(e) => setRecipe(e.target.files?.[0] ?? null)} />
@@ -224,6 +245,7 @@ export function SignalsWorkbench() {
   const [methods, setMethods] = useState<SignalMethod[]>([]);
   const [detail, setDetail] = useState<SignalExperimentDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [rerun, setRerun] = useState<string | null>(null);
   const scrollToEvidence = useRef(false);
 
   const reload = () =>
@@ -270,6 +292,7 @@ export function SignalsWorkbench() {
         one signal above another.
       </p>
       {error && <p className="error-text" role="alert">{error}</p>}
+      {rerun && <p className="status-text" role="status">{rerun}</p>}
 
       <section className="card" aria-labelledby="signals-experiments">
         <h2 id="signals-experiments">Experiments</h2>
@@ -287,6 +310,8 @@ export function SignalsWorkbench() {
                   <th>Model</th>
                   <th>Decision</th>
                   <th>Trials</th>
+                  <th>Created</th>
+                  <th>ID</th>
                 </tr>
               </thead>
               <tbody>
@@ -306,6 +331,8 @@ export function SignalsWorkbench() {
                     <td>{e.model ?? "—"}</td>
                     <td>{e.decision}</td>
                     <td>{e.n_trials}</td>
+                    <td className="mono">{createdLabel(e.created_at)}</td>
+                    <td className="mono" title={e.experiment_id}>{shortId(e.experiment_id)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -319,6 +346,7 @@ export function SignalsWorkbench() {
       <Run
         methods={methods}
         onRan={(d) => {
+          setRerun(experiments.some((e) => e.experiment_id === d.experiment_id) ? alreadyRunLine(d.experiment_id) : null);
           scrollToEvidence.current = true;
           changed(d);
         }}

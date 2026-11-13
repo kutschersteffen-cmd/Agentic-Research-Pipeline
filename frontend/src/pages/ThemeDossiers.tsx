@@ -163,7 +163,14 @@ function DossierPage({ id, onFindCompanies }: { id: string; onFindCompanies: (ta
       <p className="muted">
         {dossier.origin === "candidate" ? "Promoted from Emerging Themes" : "Started from a topic"} · <span className="mono">{dossier.dossier_id}</span>
       </p>
-      {banner && <p className="banner banner-warning" role="status">{banner}</p>}
+      {banner && (
+        <p className="banner banner-warning" role="status">
+          {banner}{" "}
+          <button type="button" className="secondary" disabled={busy} onClick={() => patch({ status: "active" })}>
+            Un-shelve
+          </button>
+        </p>
+      )}
       {actionError && <p className="error-text" role="alert">{actionError}</p>}
       <ol className="dossier-steps" aria-label="Steps">
         {dossier.steps.map((s) => (

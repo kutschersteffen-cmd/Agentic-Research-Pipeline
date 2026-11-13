@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile
 from pydantic import BaseModel
@@ -93,6 +94,14 @@ async def select_sources(
 ) -> run.RunState:
     if not req.urls and not req.files:
         raise HTTPException(422, "select at least one source")
+    for url in req.urls:
+        try:
+            parts = urlsplit(url)
+            ok = parts.scheme in ("http", "https") and bool(parts.hostname)
+        except ValueError:  # e.g. an unclosed IPv6 bracket
+            ok = False
+        if not ok:
+            raise HTTPException(422, f'Not a web address: "{url}". Enter a full address starting with http:// or https://.')
     root = settings.documents_dir.resolve()
     paths = []
     for f in req.files:

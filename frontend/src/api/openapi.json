@@ -8666,7 +8666,10 @@
      "status": {
       "anyOf": [
        {
-        "const": "shelved",
+        "enum": [
+         "shelved",
+         "active"
+        ],
         "type": "string"
        },
        {

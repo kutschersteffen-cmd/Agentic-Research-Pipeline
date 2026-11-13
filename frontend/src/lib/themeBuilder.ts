@@ -9,3 +9,6 @@ export function webSourceUrl(c: { source_filename?: string | null; source_url?: 
   if (c.source_filename || !c.source_url) return null;
   return /^https?:\/\//i.test(c.source_url) ? c.source_url : null;
 }
+
+/** "1 company", "2 companies". */
+export const companies = (n: number) => `${n} ${n === 1 ? "company" : "companies"}`;

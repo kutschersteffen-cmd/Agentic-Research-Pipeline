@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
-import { ACTIVE, canReplan, resultHref, stepRows, type Plan } from "../lib/plans";
+import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
 
 const POLL_MS = 3000;
 
@@ -22,6 +22,11 @@ export function Plans({ selectedId, onSelect }: { selectedId: string | null; onS
 
   useEffect(loadList, [loadList]);
   useEffect(loadPlan, [loadPlan]);
+  // The list shows each plan's status: reload it when the open plan's status changes.
+  const planStatus = plan?.status;
+  useEffect(() => {
+    if (planStatus) loadList();
+  }, [planStatus, loadList]);
   useEffect(() => {
     if (!plan || !ACTIVE.has(plan.status)) return;
     const t = setInterval(loadPlan, POLL_MS);
@@ -125,6 +130,7 @@ export function Plans({ selectedId, onSelect }: { selectedId: string | null; onS
               <tbody>
                 {stepRows(plan).map(({ step, status, call }) => {
                   const href = call && call.status === "done" ? resultHref(call) : null;
+                  const review = call && call.status === "awaiting_review" ? reviewHref(call) : null;
                   return (
                     <tr key={step.seq}>
                       <td>{step.seq}</td>
@@ -134,7 +140,9 @@ export function Plans({ selectedId, onSelect }: { selectedId: string | null; onS
                         {step.depends_on && <span className="muted"> (depends on step {step.depends_on})</span>}
                       </td>
                       <td><span className={`status-pill status-${status}`}>{status}</span></td>
-                      <td>{href ? <a href={href}>{call?.run_id ?? "Open"}</a> : <span className="muted">–</span>}</td>
+                      <td>
+                        {href ? <a href={href}>{call?.run_id ?? "Open"}</a> : review ? <a href={review}>Review</a> : <span className="muted">–</span>}
+                      </td>
                     </tr>
                   );
                 })}

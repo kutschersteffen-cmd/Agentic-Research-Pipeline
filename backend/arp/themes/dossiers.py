@@ -134,6 +134,14 @@ class DossierStore:
             dossier.status, dossier.shelved_by, dossier.shelved_at, dossier.shelve_reason = "shelved", by, now_iso(), reason
             return self._save(dossier)
 
+    def unshelve(self, dossier_id: str) -> Dossier | None:
+        with self._lock.acquire("taxonomies"):
+            dossier = self.get(dossier_id)
+            if dossier is None or dossier.status == "active":
+                return dossier
+            dossier.status, dossier.shelved_by, dossier.shelved_at, dossier.shelve_reason = "active", None, None, None
+            return self._save(dossier)
+
 
 def get_dossier_store(settings: Settings = Depends(settings_dep)) -> DossierStore:
     return DossierStore(settings.runs_dir / "_dossiers")
@@ -184,6 +192,8 @@ def _find_companies(d: Dossier, run_store: RunStore, theme_runs: list[RunManifes
         state, detail = "done", f"{companies} companies, taxonomy v{version}"
     if latest_ratified is not None and version is not None and version < latest_ratified:
         state, detail = "waiting", f"{detail} · older than v{latest_ratified}"
+    if state == "waiting":
+        href = f"#/review/theme/{run.run_id}"
     return state, detail, href
 
 
