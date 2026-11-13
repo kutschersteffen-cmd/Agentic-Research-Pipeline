@@ -140,3 +140,14 @@ def test_viewer_forbidden_ac19(tmp_path, pg):
     finally:
         app.dependency_overrides.clear()
     assert r.status_code == 403
+
+
+def test_unknown_sheet_and_column_rejected(client):
+    r = client.post("/api/stewardship/intake/engagements", json={"votes": []})
+    assert r.status_code == 422 and r.json()["rejected"][0]["reason"] == "unknown sheet"
+    _companies(client, "C1", "C2")
+    batch = _engagement_batch()
+    batch["objectives"][0]["influence_levl"] = "x"
+    r = client.post("/api/stewardship/intake/engagements", json=batch)
+    assert r.status_code == 422 and {(x["field"], x["reason"]) for x in r.json()["rejected"]} == {("influence_levl", "unknown column influence_levl")}
+    assert client.post("/api/stewardship/intake/votes", json={"votes": [], "extra": 1}).status_code == 422

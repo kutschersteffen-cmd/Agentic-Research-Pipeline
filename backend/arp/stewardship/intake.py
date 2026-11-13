@@ -121,6 +121,8 @@ def _clean(sheet: str, n: int, raw: dict, bad: list[Rejection]) -> dict:
         bad.append(Rejection(sheet=sheet, row=n, field=field, reason=reason))
 
     row = {k: _cell(raw.get(k), k, reject, keep_raw=k == "esg_pillars") for k in ENGAGEMENT_COLUMNS[sheet]}
+    for k in raw.keys() - set(ENGAGEMENT_COLUMNS[sheet]) - {"_row"}:
+        reject(k, f"unknown column {k}")
     for k in ["external_id", *_REQUIRED[sheet]]:
         if row[k] is None:
             reject(k, "required")
@@ -176,6 +178,9 @@ def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str, exce
     """`excel_rows`: rows carry `_row` (set by read_workbook); never true for JSON, whose rows are numbered by index."""
     report = IntakeReport()
     bad = report.rejected
+    bad.extend(Rejection(sheet=k, row=0, field="", reason="unknown sheet") for k in batch.keys() - _TABLES.keys())
+    if bad:
+        return report
     with transaction(dsn) as s:
         num = {sheet: [r["_row"] if excel_rows else i for i, r in enumerate(batch.get(sheet) or [], 1)] for sheet in _TABLES}
         rows = {sheet: [_clean(sheet, n, r, bad) for n, r in zip(num[sheet], batch.get(sheet) or [], strict=True)] for sheet in _TABLES}
@@ -225,6 +230,12 @@ def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str, exce
             for n, row in zip(num[sheet], rows[sheet], strict=True):
                 if row["external_id"]:
                     plan.append((sheet, n, row, {col: ref(sheet, n, row, f, t) for f, (col, t) in links.items()}))
+        obj_engagement = dict(s.execute(select(StwObjectiveModel.objective_id, StwObjectiveModel.engagement_id)).all())
+        obj_engagement.update({ids["objectives"][p[2]["external_id"]]: p[3]["engagement_id"] for p in plan if p[0] == "objectives"})
+        for p in plan:
+            v = p[3]
+            if p[0] == "activities" and v["objective_id"] and v["engagement_id"] and obj_engagement.get(v["objective_id"]) != v["engagement_id"]:
+                bad.append(Rejection(sheet="activities", row=p[1], field="objective_external_id", reason="objective belongs to another engagement"))
         # an objective is written after the one it follows (a self-referencing foreign key)
         in_batch = {ids["objectives"][p[2]["external_id"]] for p in plan if p[0] == "objectives"}
         first, objectives, last, placed = [p for p in plan if p[0] == "engagements"], [p for p in plan if p[0] == "objectives"], [p for p in plan if p[0] == "activities"], set()
@@ -287,7 +298,7 @@ def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str, exce
 _VOTE_LOCK = text("select pg_advisory_xact_lock(hashtext('vote_intake'))")  # one vote intake at a time
 _MEETING = ["issuer_name", "isin", "cusip", "meeting_type"]
 _ITEM = ["description", "categories", "proponent", "management_recommendation"]
-_DECISION = ["vote", "against_management", "shares_voted", "rationale", "decided_by", "decided_at", "run_id"]
+_DECISION = ["vote", "vote_label", "against_management", "shares_voted", "rationale", "decided_by", "decided_at", "run_id"]
 
 
 def _clean_vote(n: int, raw: dict, source: str, bad: list[Rejection]) -> dict:
@@ -295,6 +306,8 @@ def _clean_vote(n: int, raw: dict, source: str, bad: list[Rejection]) -> dict:
         bad.append(Rejection(sheet="votes", row=n, field=field, reason=reason))
 
     row = {k: _cell(raw.get(k), k, reject, keep_raw=k == "categories") for k in VOTE_COLUMNS}
+    for k in raw.keys() - set(VOTE_COLUMNS) - {"_row"}:
+        reject(k, f"unknown column {k}")
     for k in ("external_id", "item_number", "meeting_date", "vote"):
         if row[k] is None:
             reject(k, "required")
@@ -320,6 +333,9 @@ def _clean_vote(n: int, raw: dict, source: str, bad: list[Rejection]) -> dict:
     row["categories"] = [c.strip() for c in cats.split(";") if c.strip()] if isinstance(cats, str) else [str(c) for c in cats]
     row["isin"] = "".join(row["isin"].split()).upper() if row["isin"] else None
     row["cusip"] = row["cusip"].upper() if row["cusip"] else None
+    if row["cusip"] and row["cusip"].isdigit() and len(row["cusip"]) < 9:  # Excel drops leading zeros
+        row["cusip"] = row["cusip"].zfill(9)
+    row["vote_label"] = row["vote"]
     row["against_management"] = None
     if row["vote"] in {e.value for e in VoteValue}:
         row["against_management"] = against_management(VoteValue(row["vote"]), row["management_recommendation"])
@@ -344,7 +360,7 @@ def intake_votes(rows: list[dict], dsn: str, source: str, excel_rows: bool = Fal
                 if key and _safe(key) and s.get(StwCompanyModel, key):
                     company = key
                     break
-            key = company or row["company_id"] or row["isin"] or row["cusip"]
+            key = row["company_id"] or (row["isin"] and f"isin_{row['isin']}") or row["cusip"]  # the row's own ids: stable once stw_companies gains the row
             if key is None:
                 bad.append(Rejection(sheet="votes", row=n, field="company_id", reason="no company_id, isin or cusip"))
                 continue

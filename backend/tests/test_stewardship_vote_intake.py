@@ -82,3 +82,21 @@ def test_company_id_only_row_stored_null(pg):
     assert (report.created, report.rejected) == (3, [])
     with transaction(pg) as s:
         assert s.scalars(select(VoteMeetingModel)).one().company_id is None
+
+
+def test_meeting_key_stable_when_company_appears_later(pg):
+    rows = [_row()]
+    intake_votes(rows, pg, "api")
+    PostgresEngagementStore(pg).get_or_create("isin_US0378331005", "Acme")
+    again = intake_votes(rows, pg, "api")
+    assert (again.created, again.updated, again.unchanged) == (0, 1, 2)  # only the meeting's company_id changes
+    assert _count(pg, VoteMeetingModel) == 1
+
+
+def test_short_cusip_padded_and_vote_label_set(pg):
+    a = {"company_id": None, "isin": None}
+    intake_votes([_row(1, **a, cusip="37833100")], pg, "api")
+    again = intake_votes([_row(1, **a, cusip="037833100")], pg, "api")
+    assert (again.created, again.unchanged, _count(pg, VoteMeetingModel)) == (0, 3, 1)
+    with transaction(pg) as s:
+        assert s.scalars(select(VoteDecisionModel)).one().vote_label == "for"

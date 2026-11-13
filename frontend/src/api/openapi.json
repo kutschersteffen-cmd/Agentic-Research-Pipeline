@@ -24376,6 +24376,7 @@
     "type": "object"
    },
    "VotesBody": {
+    "additionalProperties": false,
     "properties": {
      "votes": {
       "items": {

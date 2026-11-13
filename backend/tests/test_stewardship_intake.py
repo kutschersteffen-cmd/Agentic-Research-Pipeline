@@ -107,3 +107,14 @@ def test_concurrent_intakes_serialise(pg):
     [t.start() for t in threads]
     [t.join() for t in threads]
     assert sorted((r.created, r.unchanged) for r in reports) == [(0, 2), (2, 0)]
+
+
+def test_activity_objective_must_belong_to_its_engagement(pg):
+    for c in ("C1", "C2"):
+        PostgresEngagementStore(pg).get_or_create(c, c)
+    batch = _batch()
+    batch["engagements"].append({**batch["engagements"][0], "external_id": "e2", "company_id": "C2"})
+    batch["objectives"] = [{"external_id": "o1", "engagement_external_id": "e2", "description": "d", "objective_type": "strategic"}]
+    batch["activities"] = [{"external_id": "a1", "engagement_external_id": batch["engagements"][0]["external_id"], "objective_external_id": "o1", "occurred_at": "2026-02-01", "summary": "s"}]
+    report = intake_engagements(batch, pg, "api")
+    assert [(r.sheet, r.field, r.reason) for r in report.rejected] == [("activities", "objective_external_id", "objective belongs to another engagement")]

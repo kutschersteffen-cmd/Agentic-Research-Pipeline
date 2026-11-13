@@ -5,7 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from arp.api.deps import settings_dep
 from arp.config import Settings
@@ -19,6 +19,7 @@ XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 class VotesBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     votes: list[dict]
 
 
