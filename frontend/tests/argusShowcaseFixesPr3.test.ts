@@ -101,3 +101,49 @@ test("AC-128: a company with no central id links its universe id, as on main; wi
   assert.equal(companyHref("AAPL", null), "#/companies/UNIVERSE%3AAAPL");
   assert.equal(companyHref("AAPL", "3f2b8c1e-5d47-4a9b-8c21-0a1b2c3d4e5f"), "#/companies/3f2b8c1e-5d47-4a9b-8c21-0a1b2c3d4e5f");
 });
+
+// Mutation check: what the functions above must not lose.
+
+test("kept runs: the earlier run is the skipped company's own, wherever it is listed", () => {
+  const rows = [{ company_id: "sap", run_id: "run_sap", date: "2026-11-09" }, { company_id: "msft", run_id: "run_old", date: "2026-11-10" }];
+  assert.deepEqual(keptRuns([{ company_id: "msft" }], { msft: "skip" }, rows), [{ company_id: "msft", run_id: "run_old", date: "2026-11-10" }]);
+  assert.deepEqual(keptRuns([{ company_id: "msft" }], { msft: "skip" }, []), []); // no earlier run: nothing kept
+});
+
+test("periods: a field's dated rows come before its undated one", () => {
+  const rows = resultRows([record("a", [field("rev", { period_end: null }), field("rev", { period_end: "2025-06-30" }), field("rev", { period_end: "2026-06-30" })])], []);
+  assert.deepEqual(rows.map((r) => r.period), ["2026-06-30", "2025-06-30", null]);
+  const back = resultRows([record("a", [field("rev", { period_end: "2025-06-30" }), field("rev", { period_end: null })])], []);
+  assert.deepEqual(back.map((r) => r.period), ["2025-06-30", null]);
+});
+
+test("result rows: the grounded citation first, else the first, else none", () => {
+  const c = (quote: string, grounded: boolean) => ({ doc_id: "d", doc_type: "10-K", quote, grounded }) as never;
+  const cite = (citations: never[]) => resultRows([record("a", [field("f", { citations })])], [])[0].citation;
+  assert.equal((cite([c("one", false), c("two", true)]) as { quote: string }).quote, "two");
+  assert.equal((cite([c("one", false)]) as { quote: string }).quote, "one");
+  assert.equal(cite([]), null);
+});
+
+test("a company-level row without details reads Whole company / Stopped for review under its item key", () => {
+  const item = { item_key: "zeta", kind: "other", run_id: "r", run_type: "extraction", payload: {}, state: "pending",
+    escalated: false, high_risk: false, decision: null } as never;
+  const [row] = resultRows([], [item]);
+  assert.deepEqual([row.companyId, row.company, row.field, row.value, row.notFound, row.period], ["zeta", "zeta", "Whole company", "Stopped for review", false, null]);
+});
+
+test("the unit note is rewritten only when it is the whole note", () => {
+  for (const note of ["note: cannot convert 'a' to 'b' (unknown_unit)", "cannot convert 'a' to 'b' (unknown_unit); see above"]) {
+    assert.equal(noteSentence(note), note);
+  }
+});
+
+test("a verify step's note: only a non-empty text, and none without a verifier", () => {
+  const w = (verifier: unknown) => ({ recorded: true, verifier }) as never;
+  const none = { answer: null };
+  assert.equal(verifyNote(none, w(null)), null);
+  assert.equal(verifyNote(none, w({ verdict: { notes: "" } })), null);
+  assert.equal(verifyNote(none, w({ verdict: { notes: 5 } })), null);
+  assert.equal(verifyNote(none, w({ verdict: {} })), null);
+  assert.equal(verifyNote(none, { recorded: false, verifier: { verdict: { notes: "x" } } } as never), null); // not recorded: the stored row speaks
+});
