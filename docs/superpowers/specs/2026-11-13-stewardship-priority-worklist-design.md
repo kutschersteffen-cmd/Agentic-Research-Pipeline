@@ -27,7 +27,7 @@ Owner decisions so far:
 
 **Decisions assumed, the owner can change any at approval:**
 
-- Q1 Next meeting: estimated as the last vote-ledger meeting + 1 year, labelled `(est.)`, empty without a ledger
+- Q1 Next meeting: estimated as the last vote-ledger meeting rolled forward by whole years to today or later, labelled `(est.)`, empty without a ledger
   meeting. Alternatives: leave the column out of v1; show the last meeting date instead.
 - Q2 Cycle: the calendar quarter, e.g. `2026-Q4`. Alternatives: the monthly run month; the calendar year.
 - Q3 Who confirms a selection: any analyst, name recorded, may be the person who proposed. Alternative: four-eyes
@@ -124,12 +124,12 @@ company and is the same in every scope. Percentile ranks and the rank are comput
 | Scope key | Rows | Holdings weight % / AUM held | Needs |
 |---|---|---|---|
 | `house` (default) | every issuer in `house_universe()` (as `load_sample()` returns it, so coverage rules and the workbench see the same companies) | share of all house holdings / its market value across them | — |
-| `portfolio:<portfolio_id>` | companies held in that portfolio on the global latest holdings snapshot date (the date `house_universe()` uses) | company's market value in it ÷ the portfolio's total × 100 / that market value | portfolio universe |
-| `group:<group_id>`, kind `portfolios` | companies held in any member portfolio | share of the members' combined total / market value across the members | portfolio universe |
+| `portfolio:<portfolio_id>` | companies held in that portfolio as of the global latest snapshot date (each portfolio's newest snapshot on or before it, as `load_holdings_as_of` returns for `house_universe()`) | company's market value in it ÷ the sum of the portfolio's holdings that resolve to a company (as `from_portfolio` does for the house) × 100 / that market value | portfolio universe |
+| `group:<group_id>`, kind `portfolios` | companies held in any member portfolio | share of the members' combined value of holdings that resolve to a company / market value across the members | portfolio universe |
 | `group:<group_id>`, kind `companies` | house rows whose `issuer_id` is a member | as `house` | — |
 
 - `GET /api/stewardship/worklist/scopes` (viewer) returns `{"scopes": [{"key", "label", "kind", "companies"}]}`:
-  `house` (label `All house holdings`, kind `house`), every portfolio with holdings on the global latest snapshot date
+  `house` (label `All house holdings`, kind `house`), every portfolio with company holdings as of the global latest snapshot date
   (label = portfolio name, kind `portfolio`; portfolios without holdings on that date are left out), and every saved
   group of kind `portfolios` or `companies`, latest version (label = group `name`, kind `group`). With the sample
   universe only `house` and `companies` groups are listed.
@@ -186,7 +186,7 @@ Notes:
   no observations: these columns are empty there.
 - **Next meeting (Q1, recommended answer A):** the only source is the `vote_meetings` table (already created by
   data-foundation PR 1): the newest `meeting_date` among rows with this `company_id`, plus whole years until the date is today or later; days = that date − today. The cell shows `≈ <days> d (est.)`
-  and the tooltip `Estimated: last meeting <date> + 1 year. No meeting calendar is connected.` Empty when the company has
+  and the tooltip `Estimated: last meeting <date> + <k> year(s). No meeting calendar is connected.` Empty when the company has
   no ledger meeting. The sample universe's own `meetings` list and `vote.last_meeting_date` are not used, so the sample
   universe shows this column empty until ledger rows exist. <If the owner picks B, the column and its score part are dropped; if C, the column shows the last
   meeting date and has no score part.>
@@ -466,7 +466,7 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 - **Fixture W:** house universe source `sample` (`PUT /api/stewardship/universe` `{"source": "sample"}`, 12 issuers
   `SYN01`..`SYN12`), `priority_weights` with no saved versions (v0 active), the trigger log
   `<stewardship_streams_dir>/triggers/events.jsonl`, the `selection/` and `notes/` directories and the
-  `policies/priority_weights/` directory removed, and the `stw_*` tables truncated (no engagement records), as
+  `policies/priority_weights/` directory removed, and the `stw_*` and `vote_*` tables truncated in one `TRUNCATE … CASCADE` (no engagement records, no ledger), as
   data-foundation's holdout rows do.
 - **PR tags:** a row whose Given starts `PR n;` applies from that PR on; other rows apply from PR 1.
   Rows that use Showcase data need data-foundation PR 3 (`seed-demo`, `load-npx`), which PRs 2 and 3 wait for.
@@ -491,7 +491,7 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-55 | AC-5 | `GET /api/stewardship/worklist` | `SYN03`'s `open_triggers` part has `points` 9.0 | holdout |
 | AC-6 | Fixture W; `POST /api/engagement/records` for `SYN05`, an issue on it, and `POST /api/stewardship/tracking/commitments` with `target_date` = today − 30 days | `GET /api/stewardship/worklist` | `SYN05`'s `overdue_commitments` = 1 | holdout |
 | AC-56 | AC-6 | `GET /api/stewardship/worklist` | `SYN05`'s `overdue_commitments` part has `points` 7.5 | holdout |
-| AC-7 | Fixture W; a record and one issue for `SYN06`, escalated once through `POST /api/engagement/records/SYN06/issues/{id}/escalate` | `GET /api/stewardship/worklist` | `SYN06`'s `escalated` = 1 | holdout |
+| AC-7 | Fixture W; a record and one issue for `SYN06`, escalated through `POST /api/engagement/records/SYN06/issues/{id}/escalate` with `{"stage": "joint_engagement"}` | `GET /api/stewardship/worklist` | `SYN06`'s `escalated` = 1 | holdout |
 | AC-35 | AC-7 | `GET /api/stewardship/worklist` | `SYN06`'s `open_engagements` = 1 | holdout |
 | AC-36 | AC-7 | `GET /api/stewardship/worklist` | `SYN06`'s `escalated` part has `points` 10.0 | holdout |
 | AC-8 | Fixture W | `GET /api/stewardship/worklist` | `SYN03` (largest holding, 3.1 %) has `holdings_weight` `normalised` 1.0 and `SYN10` (smallest, 0.02 %) has 0.0 | holdout |
@@ -527,7 +527,7 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-26 | 2,500 synthetic issuers, 1,000 stored triggers, 500 engagement records (unit fixture, in-memory stores) | `worklist.build()` runs | It returns 2,500 rows in under 1.0 s on the CI runner | unit |
 | AC-27 | PR 3; 2,500 rows in the screen (component test with a fixture response) | Sort by Score, then by Company | Each re-render finishes in under 200 ms | unit |
 | AC-44 | PR 3; Showcase data | A user opens `#/stewardship/workbench` | The first rows show within 5 s; the page shows 100 rows and page controls | evaluator |
-| AC-28 | PR 3; Showcase data | The user ticks the rows ranked 1, 150 and 390, presses Add, then Confirm, then Confirm in the dialog | Those three rows show `Confirmed`; no other row shows a selection | evaluator |
+| AC-28 | PR 3; Showcase data | The user ticks the first row on page 1, page 2 and page 4 of the default sort, presses Add, then Confirm, then Confirm in the dialog | Those three rows show `Confirmed`; no other row shows a selection | evaluator |
 | AC-45 | PR 3; Showcase data, one row added as proposed | The user presses that row's ✕ | The row's `Proposed` badge disappears and the "Confirm" button counts one fewer | evaluator |
 | AC-46 | PR 3; Showcase data, 2 rows proposed | The user presses Confirm | A dialog reads `Confirm 2 companies for the <Q> engagement selection? Confirmed rows cannot be removed. Recorded as <your name>.` with buttons `Confirm` and `Cancel` | evaluator |
 | AC-47 | PR 3; Showcase data | The user types part of a company's name into the search box | Only rows whose name or issuer id contains it (any case) are shown | evaluator |
@@ -584,6 +584,7 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-103 | AC-94 | — | The row's Notes count has risen by 1 without a page reload | evaluator |
 | AC-104 | PR 4; Fixture W plus T(`SYN03`, high, `t_x`) | The user opens Triggers for `SYN03` | A line shows severity `high`, rule `t_x`, reason `test` | evaluator |
 | AC-105 | PR 4; Showcase data | The user opens Company for any row | It shows the company's ISIN and sector, and each simulated fact is followed by `Simulated` | evaluator |
+| AC-106 | A ledger meeting for company C on today − 400 days, none later (unit fixture) | `worklist.build()` runs | C's `next_meeting.days` = 330 and its `next_meeting` part has `normalised` 0 | unit |
 | AC-95 | PR 4; AC-91 | The user presses ↓ | The panel shows the next row's company in the same tab | evaluator |
 | AC-96 | PR 4; AC-91 | The user opens Engagements on a seeded company | Each objective shows description, type, status, result and `Demo data` | evaluator |
 
