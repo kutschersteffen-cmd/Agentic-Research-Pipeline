@@ -38,6 +38,7 @@ def test_second_init_changes_nothing(pg):
 
 def test_legacy_tables_untouched(pg):
     engine = get_engine(pg)
+    created = {"engagement_issues", "engagement_commitments"} - set(inspect(engine).get_table_names())
     with engine.begin() as conn:
         conn.execute(text("CREATE TABLE IF NOT EXISTS engagement_issues (issue_id TEXT PRIMARY KEY, company_id TEXT)"))
         conn.execute(
@@ -59,7 +60,8 @@ def test_legacy_tables_untouched(pg):
         assert counts() == [1, 1]
     finally:  # not model tables, so the pg fixture never empties them
         with engine.begin() as conn:
-            conn.execute(text("DROP TABLE engagement_issues, engagement_commitments"))
+            for table in created:
+                conn.execute(text(f"DROP TABLE {table}"))
 
 
 def test_unique_source_external_id(pg):

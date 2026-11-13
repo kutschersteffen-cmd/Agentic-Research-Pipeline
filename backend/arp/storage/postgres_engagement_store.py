@@ -46,7 +46,7 @@ from arp.storage.postgres_models import (
 )
 from arp.storage.safe_path import safe_id
 
-_LOCK = text("SELECT pg_advisory_xact_lock(hashtext(:id))")
+_LOCK = text("SELECT pg_advisory_xact_lock(hashtext('engagement:' || :id))")  # own keyspace, apart from publish/facts.py
 _CORRESPONDENCE_TYPES = {t.value for t in CorrespondenceType}
 _FIELD_NAMES = {"occurred_at": "date"}  # column -> pydantic field, where they differ for client input
 

@@ -32,7 +32,8 @@ def _strip(x):
     return x
 
 
-def test_default_is_file(tmp_path):
+def test_default_is_file(tmp_path, monkeypatch):
+    monkeypatch.delenv("ARP_ENGAGEMENT_STORE", raising=False)
     assert isinstance(build_engagement_store(Settings(engagements_dir=tmp_path)), EngagementStore)
 
 
@@ -64,7 +65,8 @@ def _run(client: TestClient) -> list:
     return [_strip(o) for o in out]
 
 
-def test_api_parity_file_vs_postgres(pg, tmp_path):
+def test_api_parity_file_vs_postgres(pg, tmp_path, monkeypatch):
+    monkeypatch.delenv("ARP_ENGAGEMENT_STORE", raising=False)
     file_out = _run(_client(Settings(engagements_dir=tmp_path / "f")))
     pg_out = _run(_client(Settings(engagement_store="postgres", postgres_dsn=pg, engagements_dir=tmp_path / "p")))
     assert file_out == pg_out
