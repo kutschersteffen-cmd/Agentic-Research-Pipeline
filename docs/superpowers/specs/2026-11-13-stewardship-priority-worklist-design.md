@@ -1,7 +1,7 @@
 # Stewardship priority workbench: every company in one table, by house, fund or subgroup, with the score as one column
 
 Slug: `stewardship-priority-worklist`. Risk: normal (no migration, no new database schema, no stored score
-history). Size L, 5 PRs. Spec 1 of 2; the consolidated overlap view and uploads are spec 2 (see Non-goals).
+history). Size L, 7 PRs. Spec 1 of 2; the consolidated overlap view and uploads are spec 2 (see Non-goals).
 
 Status: **draft for owner approval**.
 
@@ -24,6 +24,21 @@ Owner decisions so far:
   consolidated overlap view and uploads); **one selection list per scope** (house aggregate, each fund, each saved
   subgroup); **comments per company, kept** across quarters, add-only; uploads are "Information per company like
   Feedback or so" (spec 2).
+
+- 13 Nov 2026, owner comment on the spec page (thread f41bd1da): "first step is the definition of the in scope
+  holdings: all, subgroupds or single funds. after that the user should be able to narrow down/filter ny using toggle
+  bars (for minimum holdings size, minimum equity holding size, and other numeric indicators) and check-boxes
+  etc..this means the user needs to get a drop down with all available indicators to chose from and automatically the
+  right selection mechanism shall appear.the companies in the list shall always show name, sector, isin/identifier,
+  whether already engaged and when the last time, the last engagement topics, whether it is part of the climate
+  engagement program, nature engagement programme, AI engagement programme, Corporate governance engagement
+  programme, or involved in normviolations etc. please also consider that this workbench may also be used to derive
+  and define the thematic engagement programs such as climate related matters. so the user should be able to give the
+  selection a name such as "climate engagement program""
+- 13 Nov 2026, buttons after that comment: a programme is a **standing named list** (not tied to a quarter; members
+  proposed, then confirmed by a person; a company can be in several); membership **starts empty, with a suggestion**
+  from current engagement themes; "minimum equity holding size" **could be any of** ownership share, equity-only EUR
+  held, or weight in the scope, so all three are indicators; everything stays **in spec 1** (7 PRs).
 
 **Decisions assumed, the owner can change any at approval:**
 
@@ -61,8 +76,16 @@ tool records the pick the same way.
 6. Comments: add-only notes per company, kept across quarters, shown in the table and the side panel.
 7. A large side panel per company with tabs: Why (the score), Company (facts), Engagements, Votes, Triggers,
    Holdings (which funds hold it) and Notes.
-8. In PR 5: the commitment loop's broken commitments as a column and score component, and a new-trigger refresh
+8. In PR 7: the commitment loop's broken commitments as a column and score component, and a new-trigger refresh
    check.
+9. A three-step flow: **1 Holdings in scope** (all, subgroup, single fund) → **2 Narrow down** (filter builder) →
+   **3 Select** (quarterly selection or a programme).
+10. A filter builder: one dropdown of every available indicator; picking one adds the control that fits its type
+    (range slider, at-least slider, checkboxes, checklist).
+11. Columns that always show, whatever else is hidden: name, sector, ISIN or identifier, engaged (and when last),
+    last engagement topics, programme membership, norm violation.
+12. Engagement programmes: standing named lists (Climate, Nature, AI, Corporate governance ready-made; more by name),
+    filled from the workbench, confirmed by a person, with a suggestion from current engagement themes.
 
 ## Non-goals (later specs)
 
@@ -76,6 +99,8 @@ tool records the pick the same way.
 - New data sources: no meeting calendar feed, no new ESG data, no uploads (spec 2).
 - Editing or deleting notes, notes on a single engagement or objective (the engagement record has its own fields).
 - Weighting the score per scope: one active `priority_weights` applies to every scope.
+- Programme objectives, targets, budgets or reporting; opening engagements from a programme. A programme here is a
+  named, confirmed company list. Programme membership is not a score component in v1.
 - Changing the logic of `tiers.py`, `monitoring.py` or `program.py`. `worklist.py` reads them.
 - Opening engagements from the selection. A confirmed selection is a list; opening engagements stays where it is
   today (Monitoring → open engagement, `POST /api/engagement/records/{id}/issues`).
@@ -98,12 +123,12 @@ tool records the pick the same way.
   portfolio groups (`PortfolioGroup`, `POST /api/portfolio/groups`), not a new store.
 - Engagements are read through the engagement store interface (`EngagementStore.list_all()`, the store the factory
   from `stewardship-data-foundation` returns), never from the files directly.
-- Request and response models are new, so `scripts/export_openapi.py` and `npm run gen:api` run in PR 1, PR 2 and
-  PR 5, and both generated files are committed; each new `request<T>()` gets a line in `frontend/src/api/contract.ts`.
+- Request and response models are new, so `scripts/export_openapi.py` and `npm run gen:api` run in PR 1, PR 2, PR 3 and
+  PR 7, and both generated files are committed; each new `request<T>()` gets a line in `frontend/src/api/contract.ts`.
 - Reads need role `viewer`; selecting, confirming, adding notes and saving weights need `analyst` or above; activating a weights
   version follows the existing four-eyes rule of `PolicyStore.activate`.
-- Frontend rules: PRs 3 and 4 are checked with impeccable and ui-ux-pro-max, and each carries a Playwright
-  screenshot of `#/stewardship/workbench` with the showcase data (PR 4: with the side panel open).
+- Frontend rules: PRs 4, 5 and 6 are checked with impeccable and ui-ux-pro-max, and each carries a Playwright
+  screenshot of `#/stewardship/workbench` with the showcase data (PR 6: with the side panel open).
 - Works for 400 companies (MSCI World demo) and for 2,500 (the full house universe once more portfolios load).
 
 ## Approaches considered
@@ -116,9 +141,18 @@ tool records the pick the same way.
 3. A nightly score table. Fast reads, but stale between runs and it is a stored score history, which the intake rules
    out (risk high).
 
+## Flow
+
+The Workbench opens on three numbered steps across the top; all three stay visible and editable:
+
+1. **Holdings in scope:** the scope picker below (all house holdings, a fund, a subgroup; build a subgroup).
+2. **Narrow down:** the filter builder (see Filter builder). "Showing x of n" counts what is left.
+3. **Select:** tick rows, then **Add to <scope> selection <cycle>** (quarterly, see Selection) or **Add to programme ▾**
+   (standing, see Programmes).
+
 ## Scopes
 
-A scope decides which companies are rows and what Holdings weight and AUM held mean. Every other column is about the
+Step 1. A scope decides which companies are rows and what Holdings weight and AUM held mean. Every other column is about the
 company and is the same in every scope. Percentile ranks and the rank are computed among the scope's rows.
 
 | Scope key | Rows | Holdings weight % / AUM held | Needs |
@@ -142,6 +176,23 @@ company and is the same in every scope. Percentile ranks and the rank are comput
 - **Funds column** (all scopes): `held_in` = the house portfolios that hold the company at the latest snapshot; the
   column shows their count, the tooltip their names.
 
+## Always-shown columns
+
+These columns are pinned at the left of every row and cannot be hidden. Sorting and filtering work on them too.
+
+| Column | Source | Shows | Unknown shows |
+|---|---|---|---|
+| Name | `issuer.name` | text | never empty |
+| Sector | `issuer.sector` | text | `Unknown` |
+| ISIN / identifier | the ISIN from a `isin_<ISIN>` company id; else the company id itself | `US0378331005` or `SYN03` | never empty |
+| Engaged | engagement store: any issue, any status | `Yes · <date of last engagement>` or `No` | `No` |
+| Last engagement topics | the up to 3 issues with the latest activity; each issue's FIR theme label if `fir_theme` is set, else its free-text `theme` | `Climate Mitigation & Paris Alignment; board_governance` | `—` |
+| Programmes | the programme log (see Programmes) | one chip per programme: `Climate ✓` confirmed, `Climate ?` proposed | `—` |
+| Norm violation | observation `norms_violation` (bool) | `Yes` / `No`, with `Simulated` when its source is `simulated` | `—` |
+
+"Date of last engagement" = the latest `correspondence[].date` across the company's issues (stored as `stw_activities`
+on the Postgres store), else the latest issue `opened_at`; shown as `12 Sep 2026`.
+
 ## Indicator columns (version 1)
 
 One row per company in the scope (see Scopes). "Score part" is the component id in `priority_weights`; every column except Company and Sector
@@ -157,7 +208,7 @@ can carry a weight. Empty cells show `—` and add 0 points; the why panel says 
 | 6 | Open triggers | `TriggerStore.list_triggers()` for the issuer, status `open` or `acknowledged` | three counts, shown `H 1 · M 2 · L 0` | never (all zero shows `—`) | `open_triggers`: min(1, (H × 1.0 + M × 0.6 + L × 0.3) / 2) |
 | 7 | Open engagements | engagement store, issues with status `open` or `stalled` (`tracking.OPEN`) | count | never (0 shows `0`) | `open_engagements`: min(1, n / 3) |
 | 8 | Escalated | open issues whose `escalation_stage` is not `private_engagement` | count | never | `escalated`: 1 if n ≥ 1, else 0 |
-| 9 | Overdue commitments | commitments with status `open` and `target_date` before today, on issues with status `open` or `stalled` (the commitment loop's `overdue` rule; PR 5 reads it from `commitment_flags_by_company`) | count | never | `overdue_commitments`: min(1, n / 2) |
+| 9 | Overdue commitments | commitments with status `open` and `target_date` before today, on issues with status `open` or `stalled` (the commitment loop's `overdue` rule; PR 7 reads it from `commitment_flags_by_company`) | count | never | `overdue_commitments`: min(1, n / 2) |
 | 10 | Next meeting | `vote_meetings` (vote ledger): newest `meeting_date` for the `company_id`; Q1, see below | days from today, shown `≈ 42 d (est.)` | no meeting in the vote ledger | `next_meeting`: max(0, 1 − days / 90) |
 | 11 | Transition grade | observation `transition_grade` (portfolio store, latest) | `A`..`F` with the fixed label map of `showcase-portfolio-data` (A Leader, B Credible, C Gaps, D Emerging, E Not credible, F Disqualified), e.g. `D Emerging` | no observation | `transition_grade`: A 0, B 0.2, C 0.4, D 0.6, E 0.8, F 1 |
 | 12 | ESG score | observation `esg_score` | 0 to 10, 1 decimal | no observation | `esg_score`: (10 − value) / 10 |
@@ -165,10 +216,16 @@ can carry a weight. Empty cells show `—` and add 0 points; the why panel says 
 | 14 | Carbon intensity | observation `ghg_intensity` | tCO2e per EUR m revenue, 0 decimals | no observation | `carbon_intensity`: percentile rank |
 | 15 | Priority score | computed | 0 to 100, 1 decimal | never | — |
 | 16 | Selected | this scope's selection log for the cycle | `Proposed` / `Confirmed` / empty | not selected | — |
-| 17 (PR 5) | Broken commitments | `tracking.commitment_flags_by_company(store.list_all())` from `stewardship-commitment-loop`, flags with `kind` `broken` (status `missed`, set by a person, on an open or stalled issue) | count | never (0 shows `0`) | `broken_commitments`: min(1, n / 2) |
+| 17 (PR 7) | Broken commitments | `tracking.commitment_flags_by_company(store.list_all())` from `stewardship-commitment-loop`, flags with `kind` `broken` (status `missed`, set by a person, on an open or stalled issue) | count | never (0 shows `0`) | `broken_commitments`: min(1, n / 2) |
 | 18 | Funds | `held_in` (see Scopes) | count; tooltip lists fund names | 0 shows `0` (sample universe) | — |
 | 19 | Also selected in | the other scopes' selection logs for the cycle | count; tooltip lists `<scope label>: Proposed/Confirmed` | 0 shows `—` | — |
 | 20 | Notes | the notes log | count and the latest note's date; tooltip shows its first 120 characters | 0 shows `—` | — |
+| 21 | Equity held (EUR m) | market value of the scope's holdings whose security has `asset_class` `equity` | EUR million, 1 decimal | 0 shows `0.0` | — |
+| 22 | Ownership share % | AUM held in the scope ÷ (observation `climate_evic_eur_m` × 1,000,000) × 100 | percent, 4 decimals; `Simulated` when EVIC's source is `simulated` | no EVIC observation | — |
+
+Holdings weight % (column 3), Equity held (21) and Ownership share (22) are the three readings of "minimum equity
+holding size"; all three are in the filter builder. Columns 21 and 22 and every `simulated_esg` field not already a
+column can be shown through **Columns ▾** (hidden by default) and used as filters; none of them is scored in v1.
 
 Notes:
 
@@ -191,10 +248,10 @@ Notes:
   universe shows this column empty until ledger rows exist. <If the owner picks B, the column and its score part are dropped; if C, the column shows the last
   meeting date and has no score part.>
 
-**Commitment flags (PR 5).** The sibling spec `stewardship-commitment-loop` (merges first) adds to
+**Commitment flags (PR 7).** The sibling spec `stewardship-commitment-loop` (merges first) adds to
 `arp/stewardship/tracking.py`: `commitment_flags_by_company(records, today=None) -> dict[str, list[CommitmentFlag]]`
 (only companies with a flag are keys) and `CommitmentFlag` in `arp/schemas/engagement.py` with `commitment_id`,
-`engagement_id`, `kind` (`overdue` | `broken`), `text`, `target_date`, `since`, `message`. PR 5 calls it once per
+`engagement_id`, `kind` (`overdue` | `broken`), `text`, `target_date`, `since`, `message`. PR 7 calls it once per
 request and counts each company's flags by `kind`; Overdue commitments then comes from it too, with the same rule as
 PR 1, so the column does not change. The why panel shows each flag's `message` under the Value of that row. Pending
 Argus suggestions never create a flag.
@@ -217,7 +274,7 @@ table above (0 when empty). **score = the sum of the rounded points**, so the po
 | `aum_held` | 10 | Absolute money at stake |
 | `next_meeting` | 5 | A vote coming up soon |
 | `coverage_tier`, `open_engagements`, `esg_score`, `controversy`, `carbon_intensity` | 0 | Shown as columns; available to weight |
-| `broken_commitments` (PR 5) | 0 | Added with weight 0 so no saved version changes meaning |
+| `broken_commitments` (PR 7) | 0 | Added with weight 0 so no saved version changes meaning |
 
 **The policy.** `priority_weights` is a new entry in `policies.POLICIES`, so it gets everything the other house
 policies have: version 0 = the bundled draft in `arp/stewardship/data/priority_weights.json`, saved versions are
@@ -231,7 +288,7 @@ immutable files, activation needs `approved_by` who is not the person who saved 
 
 Validation (nothing invalid is saved): a version lists every component of the bundled file, no other id and no id
 twice (422 `Missing components: <ids>` / `Unknown components: <ids>`); each weight is an integer 0..100; weights sum to
-100 (422 `Weights must add up to 100 (now <sum>)`). When PR 5 adds `broken_commitments` to the bundled file, a version
+100 (422 `Weights must add up to 100 (now <sum>)`). When PR 7 adds `broken_commitments` to the bundled file, a version
 saved earlier lacks it and reads it as weight 0; that is the only case of a missing component. A row's `parts` always
 lists the bundled file's components, in its order.
 
@@ -268,6 +325,11 @@ disabled).
  "weights": {"version": 2, "activated_by": "<approved_by>", "activated_at": "<approved_at>"},
  "cycle": "2026-Q4",
  "rows": [{"issuer_id": "isin_US0378331005", "company": "Apple Inc.", "sector": "Information Technology",
+           "identifier": "US0378331005", "engaged": {"yes": true, "last": "2026-09-12"},
+           "last_topics": ["Climate Mitigation & Paris Alignment", "board_governance"],
+           "programmes": [{"programme_id": "climate", "name": "Climate engagement programme", "status": "confirmed"}],
+           "norms_violation": {"value": false, "simulated": true},
+           "equity_held_eur_m": 412.3, "ownership_pct": {"value": 0.0121, "simulated": true},
            "holdings_weight_pct": 4.812, "aum_held_eur_m": 412.3,
            "coverage_tier": "priority_bilateral", "coverage_tier_confirmed": true,
            "triggers": {"high": 1, "medium": 0, "low": 2},
@@ -286,9 +348,35 @@ disabled).
 ```
 
 `weights.activated_by` and `activated_at` are the last activation row's `approved_by` and `approved_at`; both `null`
-for v0. `parts` lists every component of the bundled file in its order, weight 0 included. PR 5 adds
+for v0. `parts` lists every component of the bundled file in its order, weight 0 included. PR 7 adds
 `"new_high_trigger": true | false` to each row. `selection` is `null` or
 the selection object defined under `GET /selection`.
+
+Programmes (standing named lists; see Programmes for the rules):
+
+- `GET /api/stewardship/programmes` (viewer): `{"programmes": [{"programme_id", "name", "built_in", "created_by",
+  "created_at", "confirmed": n, "proposed": n}]}`, the four built-in ones first.
+- `POST /api/stewardship/programmes` (analyst) `{"name": "Water engagement programme"}` → 200 with the new programme;
+  `programme_id` = the name lower-cased, non-alphanumerics → `_`. Empty name or over 80 characters: 422
+  `A programme name needs 1 to 80 characters`; a name equal to an existing one (any case): 422
+  `A programme named <name> exists`.
+- `GET /api/stewardship/programmes/{id}` (viewer): the programme and `members: [{"issuer_id", "company", "status":
+  "proposed" | "confirmed" | "ended", "proposed_by", "proposed_at", "confirmed_by", "confirmed_at", "ended_by",
+  "ended_at", "end_reason"}]`.
+- `POST /api/stewardship/programmes/{id}/members` (analyst) `{"add": [...], "remove": [...], "end": [...],
+  "reason": "..."}`: `add` proposes companies of the house universe (422 `unknown company: <ids>` otherwise; a company
+  already proposed or confirmed is left as it is); `remove` drops proposed members (422 `confirmed members are ended,
+  not removed` for a confirmed one); `end` ends confirmed members and needs a `reason` (422 `Ending a membership needs a
+  reason`). An ended company can be proposed again.
+- `POST /api/stewardship/programmes/{id}/confirm` (analyst) `{}` → `{"confirmed": n}`: every proposed member becomes
+  confirmed, recorded with the signed-in user (Q3 as assumed: any analyst, may be the proposer).
+- `GET /api/stewardship/programmes/{id}/suggestions` (viewer): `{"suggestions": [{"issuer_id", "company", "issues":
+  [{"issue_id", "fir_theme"}]}]}`: house-universe companies with an issue whose status is `open` or `stalled` and whose
+  `fir_theme` maps to the programme, leaving out current proposed or confirmed members. Mapping: `climate` ←
+  `climate_mitigation`; `nature` ← `natural_capital`; `ai` ← `digital_responsibility`; `governance` ←
+  `governance_board_pay`. Other programmes have no mapping and return `[]`. Suggestions write nothing.
+- Unknown programme id: 404. Worklist rows gain `programmes: [{"programme_id", "name", "status"}]` (proposed and
+  confirmed only).
 
 Selection (one list per scope and cycle; Q2 and Q3 as assumed). Every selection route takes `scope` (body or query,
 default `house`), with the same 404 and 422 rules as the worklist.
@@ -340,23 +428,43 @@ cycles stay readable through `?cycle=`.>
 tiers). If the owner picks four-eyes, confirm refuses rows the confirming user added, with 422
 `Four-eyes rule: <n> rows were proposed by you`.>
 
+## Programmes
+
+A programme is a standing, named list of companies for a thematic engagement programme, for example "Climate
+engagement programme". It is not tied to a quarter or a scope.
+
+- Four built-in programmes always exist and cannot be renamed or deleted: `climate` "Climate engagement programme",
+  `nature` "Nature engagement programme", `ai` "AI engagement programme", `governance` "Corporate governance engagement
+  programme". They start with no members. Analysts add more by name (step 3, **Add to programme ▾ → New programme…**).
+- A company can be in any number of programmes. Members are proposed (from ticked rows or from **Suggest**), then a
+  person confirms them; confirmed members stay until someone ends them with a reason. The history is kept.
+- **Suggest** (in the programme's menu) lists the suggestions above with their matching issue themes; the user ticks
+  some and adds them as proposed.
+- The quarterly selection (per scope) and programmes are separate: a programme says which companies belong to a theme;
+  the quarterly selection says whom to engage this quarter. The Programmes filter lets the analyst build a quarterly
+  selection from a programme's members.
+- Log: `<stewardship_streams_dir>/programmes/events.jsonl`, append-only, events `created`, `proposed`, `removed`,
+  `confirmed`, `ended`, each with `programme_id`, `by`, `at` and, for member events, `issuer_id` (and `reason` for
+  `ended`). Built-in programmes need no `created` event.
+
 ## Screen
 
 Steward Workflow gets a tab **Workbench** after **Selection** (`STAGE_TABS`, no stage number). Layout, top to bottom:
 
 ```
-Workbench   Scope: [ All house holdings ▾ ]  (funds: MSCI World, S&P 500, DAX …; subgroups; + New fund subgroup)
+Workbench   ① Holdings in scope   ② Narrow down   ③ Select
+① Scope: [ All house holdings ▾ ]  (funds: MSCI World, S&P 500, DAX …; subgroups; + New fund subgroup)
+② [ Add filter ▾ ]  Ownership share ≥ 0.50 % ✕   Norm violation: Yes ✕   Sector: Energy, Utilities ✕   Clear filters
 400 companies in scope · Cycle 2026-Q4 · Weights v2 (activated 12 Nov by A. Analyst)
 The priority score is one column. It does not hide, order or select anything unless you sort or filter by it.
 
-[ Search company… ]  Filters: Tier ▾  Triggers ▾  Grade ▾  Score ▾  …   Clear filters
 Sorted by: 1 Score ↓  ✕   2 Holdings weight ↓  ✕          Showing 37 of 400 · Selected 5 (2 confirmed)
 
-   Company        Funds Wt %   AUM m  Tier           Triggers     Eng Esc Ovd  Next mtg   Grade       Notes      Score  Sel        Also in
- ☐ Shell plc        4   1.204  103.5  Priority Bil.  H 1·M 1·L 0   2   1   1   ≈ 141 d    E Simulated  2 · 11 Nov  78.6 ⓘ            1
- ☑ Nestlé SA        3   0.981   84.2  Thematic (p.)  H 0·M 2·L 0   1   0   0   ≈ 133 d    C Simulated  —           38.0 ⓘ Proposed   —
+   Name ‖ Sector ‖ ISIN ‖ Engaged ‖ Last topics ‖ Programmes ‖ Norm viol. ║ Funds Wt % … Triggers … Grade … Notes  Score  Sel
+ ☐ Shell plc ‖ Energy ‖ GB00BP6MXD84 ‖ Yes · 12 Sep 2026 ‖ Climate Mitigation… ‖ Climate ✓ ‖ No Simulated ║ 4 1.204 … 78.6 ⓘ
+ ☑ Nestlé SA ‖ Staples ‖ CH0038863350 ‖ No ‖ — ‖ Nature ? ‖ No Simulated ║ 3 0.981 … 38.0 ⓘ Proposed
  …
-[ Add 3 to 2026-Q4 selection ]  [ Confirm 2026-Q4 selection (5 proposed) ]  [ Save ticked as subgroup ]   ‹ 1 2 3 4 ›
+③ [ Add 3 to All house holdings selection 2026-Q4 ] [ Confirm selection (5 proposed) ] [ Add to programme ▾ ] [ Save ticked as subgroup ]
 
 ▸ Weights (edit, preview, save, activate)
 ```
@@ -368,11 +476,25 @@ above the table show the keys in order, each removable. Text columns sort case-i
 (high, medium, low) counts, high first; Coverage tier in tier order, Priority Bilateral → Systemic / Market-Level (the
 proposed and confirmed tier sort together); Grade A → F; Selected: Confirmed, Proposed, empty.
 
-**Filtering.** Every column has a filter: numbers a min and max box; counts a "at least n" box; Tier, Grade and Sector a
-checklist of values present; Triggers by severity (at least one high, at least one medium or high, any); Selected
-(any, proposed, confirmed, not selected). Each filter also offers "has a value / empty". Filters combine with AND; the
-search box matches company name or issuer id, case-insensitively. "Showing x of n" counts the filtered rows. Filters
-and sort never change the score or the selection.
+**Filter builder (step 2).** One button **Add filter ▾** opens a searchable dropdown of every available indicator:
+every column of the table (always-shown, indicator and Workbench columns) plus every `simulated_esg` field of
+`GET /api/climate/simulated-schema` that is not already a column (labelled `Simulated`). Picking one adds a filter
+chip with the control that fits the indicator's type, opened at once:
+
+| Type | Indicators (examples) | Control | Default when added |
+|---|---|---|---|
+| amount, percent, score | Holdings weight %, AUM held, Equity held, Ownership share, ESG score, Carbon intensity, Priority score, revenue shares | a two-handle range slider from the scope's minimum to maximum value, with number boxes for exact values | the full range (filters nothing until moved) |
+| count | Open triggers (any / high), Open engagements, Escalated, Overdue commitments, Notes, Funds | an "at least n" slider from 0 to the scope's maximum | 1 |
+| days | Next meeting | an "at most n days" slider | 90 |
+| yes/no | Norm violation, Engaged, Controversial weapons, Severe controversy, Has notes | checkboxes `Yes` and `No` | `Yes` ticked |
+| category | Sector, Coverage tier, Transition grade, Programmes (with status), Selected | a checklist of the values present in the scope | nothing ticked (filters nothing) |
+| text | Name, ISIN / identifier, Last engagement topics | a contains box, any case | empty |
+
+Rules: filters combine with AND; picking an indicator that already has a filter opens that chip instead of adding a
+second; each chip shows its condition in words (`Ownership share ≥ 0.50 %`, `Norm violation: Yes`, `Sector: Energy,
+Utilities`) and has ✕ to remove it; **Clear filters** removes all. A row with no value for a filtered indicator is
+left out, unless the chip's **Include empty** box is ticked (off by default). Filters stay when the scope changes;
+slider bounds follow the new scope. Filters and sort never change the score, the selection or a programme.
 
 **Size.** All rows load once; sorting and filtering run in the browser. 100 rows per page with page controls; the
 header row stays visible while scrolling. With 2,500 companies building the rows takes under 1 s (AC-26) and a sort or
@@ -390,7 +512,7 @@ next row with the same tab open. Tabs, in this order:
 
 | Tab | Shows | Source |
 |---|---|---|
-| Why | the score breakdown below | the worklist row |
+| Why | the score breakdown below; above it, the company's programme chips with status | the worklist row |
 | Company | name, ISIN, sector, country, then its facts (field, value, period, source; simulated ones labelled `Simulated`) | `GET /api/companies/{ref}`, `GET /api/companies/{ref}/facts` |
 | Engagements | each issue (theme, status, escalation stage), its objectives (as on `#/engagement`, with `Demo data` labels), commitments with status, the last 10 activities | `GET /api/engagement/records/{company_id}` |
 | Votes | the vote ledger, newest meeting first: date, item, management recommendation, vote, against management; `Demo data` on demo rows; "Showing 500 of n" when cut | `GET /api/stewardship/votes` |
@@ -433,7 +555,7 @@ columns 11 to 14 and in the panel's Value column, and in the column header when 
 (`Grade · Simulated`). The page also shows the universe note from `house_universe()`, which already says how many
 companies carry simulated values.
 
-**New-trigger refresh check (PR 5).** No cache anywhere. The page refetches when the browser tab regains focus. A row
+**New-trigger refresh check (PR 7).** No cache anywhere. The page refetches when the browser tab regains focus. A row
 whose issuer has a stored `high` trigger with `is_new` true shows the tag `New high trigger` next to its trigger counts,
 and the trigger filter offers "new high trigger".
 
@@ -445,11 +567,15 @@ and the trigger filter offers "new high trigger".
    store interface. `vote_meetings` exists since data-foundation PR 1; it holds rows once that spec's PR 3 has run
    `load-npx`, and the column is empty before that.
 2. **Backend workbench:** scopes and `GET /worklist/scopes`, selection per scope, `held_in`, `selected_elsewhere`,
-   the notes log and routes, `GET /votes`; openapi and `gen:api`. Starts only after data-foundation PR 3 merges.
-3. **Screen:** the Workbench tab, scope picker and subgroup building, sort, filter, paging, select and confirm,
-   `Simulated` labels, the Weights section. Starts only after data-foundation PR 3 merges. Screenshot, impeccable audit.
-4. **Side panel:** the seven tabs, notes entry, ↑/↓ navigation. Screenshot with the panel open, impeccable audit.
-5. **Commitments and refresh:** `broken_commitments` from `commitment_flags_by_company` (after the commitment loop
+   the always-shown fields (identifier, engaged, last topics, norm violation), Equity held and Ownership share, the
+   notes log and routes, `GET /votes`; openapi and `gen:api`. Starts only after data-foundation PR 3 merges.
+3. **Backend programmes:** the programme log, routes, suggestions, `programmes` on rows; openapi and `gen:api`.
+4. **Screen:** the Workbench tab with the three steps, scope picker and subgroup building, pinned columns, sort,
+   paging, **Columns ▾**, select and confirm, Add to programme and New programme, `Simulated` labels, the Weights
+   section. Screenshot, impeccable audit.
+5. **Filter builder:** Add filter, the type-fitting controls, chips, Include empty, Clear filters. Screenshot.
+6. **Side panel:** the seven tabs, notes entry, ↑/↓ navigation, programme chips. Screenshot with the panel open.
+7. **Commitments and refresh:** `broken_commitments` from `commitment_flags_by_company` (after the commitment loop
    merges), the `New high trigger` tag and refetch on focus.
 
 ## Left to the builder
@@ -469,7 +595,7 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
   `policies/priority_weights/` directory removed, and the `stw_*` and `vote_*` tables truncated in one `TRUNCATE … CASCADE` (no engagement records, no ledger), as
   data-foundation's holdout rows do.
 - **PR tags:** a row whose Given starts `PR n;` applies from that PR on; other rows apply from PR 1.
-  Rows that use Showcase data need data-foundation PR 3 (`seed-demo`, `load-npx`), which PRs 2 and 3 wait for.
+  Rows that use Showcase data need data-foundation PR 3 (`seed-demo`, `load-npx`), which PRs 2 and 4 wait for.
 - **Trigger run T(issuer, severity, rule):** one line appended to that trigger log:
   `{"event": "run", "month": "<current YYYY-MM>", "at": "<now>", "triggers": [{"issuer_id": <issuer>, "rule": <rule>,
   "type": "controversy", "theme": "climate", "severity": <severity>, "reason": "test"}]}` (the format
@@ -513,36 +639,36 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-18 | Fixture W | `POST /api/stewardship/selection` with `cycle` = the quarter before Q | Status 422 with detail `only <Q> can be changed` | holdout |
 | AC-19 | A `viewer` user (non-dev auth) | `POST /api/stewardship/selection` | Status 403 | unit |
 | AC-20 | Fixture W | Rows are read before and after `POST /selection` adds `SYN04` | Every row's `score` and `parts` are identical | holdout |
-| AC-21 | PR 3; Showcase data | `GET /worklist` | Every row whose `transition_grade`, `esg_score`, `controversy` or `carbon_intensity` is not `null` has `simulated` true on that field | holdout |
-| AC-22 | PR 3; Showcase data on the e2e stack | A user opens `#/stewardship/workbench` | Each non-empty grade, ESG score, controversy and carbon intensity cell shows its value followed by `Simulated` | evaluator |
-| AC-39 | PR 3; AC-22 | — | The Grade, ESG score, Controversy and Carbon intensity headers each show `Simulated` | evaluator |
-| AC-40 | PR 4; Showcase data | The user opens "Why is this here" on a row with a transition grade | In the panel's Value column, the grade and every other simulated value are followed by `Simulated` | evaluator |
-| AC-23 | PR 4; Showcase data | The user clicks the Score ⓘ on any row | A panel titled `Why is this here` opens. Its first line reads `<company> — priority score <score> of 100, rank <r> of <n>.` | evaluator |
-| AC-41 | PR 4; AC-23 | — | The panel's `Total` equals the row's score | evaluator |
-| AC-61 | PR 4; AC-23 | — | The panel's last line reads `This score is one indicator. Sorting, filtering and selecting are your call.` | evaluator |
-| AC-24 | PR 3; Showcase data | The user clicks the Score header once, then shift-clicks Holdings weight | The sort chips read `1 Score ↓` and `2 Holdings weight ↓` | evaluator |
-| AC-42 | PR 3; AC-24 | — | Rows with equal score are ordered by holdings weight, largest first | evaluator |
-| AC-43 | PR 3; Showcase data | The user sorts by Next meeting, ascending and then descending | Rows with an empty Next meeting are last both times | evaluator |
-| AC-25 | PR 3; Showcase data | The user filters Grade to `E` and `F` and Triggers to "at least one high" | "Showing x of n" equals the number of rows across all pages, and every visible row has grade E or F and at least one high trigger | evaluator |
+| AC-21 | PR 4; Showcase data | `GET /worklist` | Every row whose `transition_grade`, `esg_score`, `controversy` or `carbon_intensity` is not `null` has `simulated` true on that field | holdout |
+| AC-22 | PR 4; Showcase data on the e2e stack | A user opens `#/stewardship/workbench` | Each non-empty grade, ESG score, controversy and carbon intensity cell shows its value followed by `Simulated` | evaluator |
+| AC-39 | PR 4; AC-22 | — | The Grade, ESG score, Controversy and Carbon intensity headers each show `Simulated` | evaluator |
+| AC-40 | PR 6; Showcase data | The user opens "Why is this here" on a row with a transition grade | In the panel's Value column, the grade and every other simulated value are followed by `Simulated` | evaluator |
+| AC-23 | PR 6; Showcase data | The user clicks the Score ⓘ on any row | A panel titled `Why is this here` opens. Its first line reads `<company> — priority score <score> of 100, rank <r> of <n>.` | evaluator |
+| AC-41 | PR 6; AC-23 | — | The panel's `Total` equals the row's score | evaluator |
+| AC-61 | PR 6; AC-23 | — | The panel's last line reads `This score is one indicator. Sorting, filtering and selecting are your call.` | evaluator |
+| AC-24 | PR 4; Showcase data | The user clicks the Score header once, then shift-clicks Holdings weight | The sort chips read `1 Score ↓` and `2 Holdings weight ↓` | evaluator |
+| AC-42 | PR 4; AC-24 | — | Rows with equal score are ordered by holdings weight, largest first | evaluator |
+| AC-43 | PR 4; Showcase data | The user sorts by Next meeting, ascending and then descending | Rows with an empty Next meeting are last both times | evaluator |
+| AC-25 | PR 5; Showcase data | With **Add filter** the user adds Transition grade (ticks `E` and `F`) and Open triggers – high (at least 1) | "Showing x of n" equals the number of rows across all pages, and every visible row has grade E or F and at least one high trigger | evaluator |
 | AC-26 | 2,500 synthetic issuers, 1,000 stored triggers, 500 engagement records (unit fixture, in-memory stores) | `worklist.build()` runs | It returns 2,500 rows in under 1.0 s on the CI runner | unit |
-| AC-27 | PR 3; 2,500 rows in the screen (component test with a fixture response) | Sort by Score, then by Company | Each re-render finishes in under 200 ms | unit |
-| AC-44 | PR 3; Showcase data | A user opens `#/stewardship/workbench` | The first rows show within 5 s; the page shows 100 rows and page controls | evaluator |
-| AC-28 | PR 3; Showcase data | The user ticks the first row on page 1, page 2 and page 4 of the default sort, presses Add, then Confirm, then Confirm in the dialog | Those three rows show `Confirmed`; no other row shows a selection | evaluator |
-| AC-45 | PR 3; Showcase data, one row added as proposed | The user presses that row's ✕ | The row's `Proposed` badge disappears and the "Confirm" button counts one fewer | evaluator |
-| AC-46 | PR 3; Showcase data, 2 rows proposed | The user presses Confirm | A dialog reads `Confirm 2 companies for the <Q> engagement selection? Confirmed rows cannot be removed. Recorded as <your name>.` with buttons `Confirm` and `Cancel` | evaluator |
-| AC-47 | PR 3; Showcase data | The user types part of a company's name into the search box | Only rows whose name or issuer id contains it (any case) are shown | evaluator |
-| AC-29 | PR 3; Fixture W | The screen loads | No row is ticked | evaluator |
-| AC-62 | PR 3; Fixture W | The screen loads | No filter is set and "Showing 12 of 12" shows | evaluator |
-| AC-63 | PR 3; Fixture W | The screen loads | There is no select-all box and no control that selects rows by score or rank | evaluator |
-| AC-48 | PR 3; Showcase data | The user opens Weights and sets `open_triggers` to 25 (total 95) | The total reads `Total 95 — must be 100` and Save is disabled | evaluator |
-| AC-49 | PR 3; AC-48, then `holdings_weight` raised by 5 | The user presses Preview | The lists `Entering top 25` and `Leaving top 25` equal `entering_top` and `leaving_top` of `POST /studio/priority/preview` for the same content | evaluator |
-| AC-64 | PR 3; Showcase data | The user clicks Score, then shift-clicks Holdings weight, AUM held and Grade | The chips show three keys: `1 Score`, `2 Holdings weight`, `3 Grade` | evaluator |
-| AC-65 | PR 3; Showcase data | The user sets the Grade filter to "empty" | Every visible Grade cell shows `—` | evaluator |
-| AC-30 | PR 5, Fixture W; a record and open issue for `SYN08` with two commitments set to `missed` through `POST /api/stewardship/tracking/commitments/{id}` | `GET /worklist` | `SYN08`'s `broken_commitments` = 2 | holdout |
+| AC-27 | PR 4; 2,500 rows in the screen (component test with a fixture response) | Sort by Score, then by Company | Each re-render finishes in under 200 ms | unit |
+| AC-44 | PR 4; Showcase data | A user opens `#/stewardship/workbench` | The first rows show within 5 s; the page shows 100 rows and page controls | evaluator |
+| AC-28 | PR 4; Showcase data | The user ticks the first row on page 1, page 2 and page 4 of the default sort, presses Add, then Confirm, then Confirm in the dialog | Those three rows show `Confirmed`; no other row shows a selection | evaluator |
+| AC-45 | PR 4; Showcase data, one row added as proposed | The user presses that row's ✕ | The row's `Proposed` badge disappears and the "Confirm" button counts one fewer | evaluator |
+| AC-46 | PR 4; Showcase data, 2 rows proposed | The user presses Confirm | A dialog reads `Confirm 2 companies for the <Q> engagement selection? Confirmed rows cannot be removed. Recorded as <your name>.` with buttons `Confirm` and `Cancel` | evaluator |
+| AC-47 | PR 4; Showcase data | The user types part of a company's name into the search box | Only rows whose name or issuer id contains it (any case) are shown | evaluator |
+| AC-29 | PR 4; Fixture W | The screen loads | No row is ticked | evaluator |
+| AC-62 | PR 4; Fixture W | The screen loads | No filter is set and "Showing 12 of 12" shows | evaluator |
+| AC-63 | PR 4; Fixture W | The screen loads | There is no select-all box and no control that selects rows by score or rank | evaluator |
+| AC-48 | PR 4; Showcase data | The user opens Weights and sets `open_triggers` to 25 (total 95) | The total reads `Total 95 — must be 100` and Save is disabled | evaluator |
+| AC-49 | PR 4; AC-48, then `holdings_weight` raised by 5 | The user presses Preview | The lists `Entering top 25` and `Leaving top 25` equal `entering_top` and `leaving_top` of `POST /studio/priority/preview` for the same content | evaluator |
+| AC-64 | PR 4; Showcase data | The user clicks Score, then shift-clicks Holdings weight, AUM held and Grade | The chips show three keys: `1 Score`, `2 Holdings weight`, `3 Grade` | evaluator |
+| ~~AC-65~~ | Retired before approval: the filter builder replaced per-column "empty" filters; see AC-116. | | | |
+| AC-30 | PR 7, Fixture W; a record and open issue for `SYN08` with two commitments set to `missed` through `POST /api/stewardship/tracking/commitments/{id}` | `GET /worklist` | `SYN08`'s `broken_commitments` = 2 | holdout |
 | AC-53 | AC-30 | `GET /worklist` | `SYN08`'s `broken_commitments` part has `weight` 0 and `points` 0 | holdout |
 | AC-54 | Fixture W; a record and issue for `SYN11`, one commitment with `target_date` = today − 30 days added, then the issue closed through `POST /api/stewardship/tracking/close` | `GET /worklist` | `SYN11`'s `overdue_commitments` = 0 | holdout |
-| AC-31 | PR 5; T(X, high, `t_x`) stored for a company X, so its trigger has `is_new` true | A user opens `#/stewardship/workbench` | X's row shows the tag `New high trigger` | evaluator |
-| AC-50 | PR 5; `#/stewardship/workbench` open in one tab | T(X, high, `t_y`) is stored, the user switches to another tab and back | X's row shows `New high trigger` without a page reload | evaluator |
+| AC-31 | PR 7; T(X, high, `t_x`) stored for a company X, so its trigger has `is_new` true | A user opens `#/stewardship/workbench` | X's row shows the tag `New high trigger` | evaluator |
+| AC-50 | PR 7; `#/stewardship/workbench` open in one tab | T(X, high, `t_y`) is stored, the user switches to another tab and back | X's row shows `New high trigger` without a page reload | evaluator |
 | AC-32 | Fixture W | The backend suite runs | The existing tests of `tiers.py`, `monitoring.py`, `program.py` and `policies.py` pass unchanged | unit |
 | AC-51 | Fixture W | `GET /api/stewardship/tiers` and `GET /api/stewardship/studio/monitoring/triggers` on `main` and on the PR build | The responses are equal (a snapshot recorded from `main` in the PR's test) | unit |
 | AC-52 | Fixture W | `GET /api/stewardship/universe` and `GET /api/stewardship/policies/coverage_rules` on `main` and on the PR build | The responses are equal (a snapshot recorded from `main` in the PR's test) | unit |
@@ -571,22 +697,51 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-85 | PR 2; Showcase data, a company C with ledger meetings | `GET /api/stewardship/votes?company_id=C` | `total` equals the number of `vote_decisions` rows whose meeting has `company_id` C | holdout |
 | AC-86 | AC-85 | — | Rows are ordered by `meeting_date` descending | holdout |
 | AC-100 | AC-85 | — | Every `npx_urth_demo` row has `demo` true | holdout |
-| AC-87 | PR 3; Showcase data | The user picks a fund in the scope picker | The header names the fund | evaluator |
+| AC-87 | PR 4; Showcase data | The user picks a fund in the scope picker | The header names the fund | evaluator |
 | AC-102 | AC-87 | — | "Showing x of x" equals that fund's `companies` in `GET /worklist/scopes` | evaluator |
-| AC-88 | PR 3; Showcase data | The user makes a **New fund subgroup** from 2 funds | It appears in the picker; picking it shows every company held in either fund | evaluator |
-| AC-89 | PR 3; Showcase data | The user ticks 3 rows and uses **Save ticked as subgroup** | Picking the new subgroup shows exactly those 3 companies | evaluator |
-| AC-90 | PR 3; Showcase data; a company proposed in a fund's scope | The user opens the house scope | That company's Also selected in column shows `1` | evaluator |
+| AC-88 | PR 4; Showcase data | The user makes a **New fund subgroup** from 2 funds | It appears in the picker; picking it shows every company held in either fund | evaluator |
+| AC-89 | PR 4; Showcase data | The user ticks 3 rows and uses **Save ticked as subgroup** | Picking the new subgroup shows exactly those 3 companies | evaluator |
+| AC-90 | PR 4; Showcase data; a company proposed in a fund's scope | The user opens the house scope | That company's Also selected in column shows `1` | evaluator |
 | AC-99 | AC-90 | The user hovers that cell | The tooltip reads `<fund name>: Proposed` | evaluator |
-| AC-91 | PR 4; Showcase data, window 1440 × 900 | The user clicks a row | A panel opens covering at least half the width, with tabs `Why`, `Company`, `Engagements`, `Votes`, `Triggers`, `Holdings`, `Notes` in that order | evaluator |
-| AC-92 | PR 4; AC-91 | The user opens Votes on a company with N-PX rows | Each row shows date, item, management recommendation, vote, against management and `Demo data` | evaluator |
-| AC-93 | PR 4; AC-91 | The user opens Holdings | It lists as many funds as the row's Funds column | evaluator |
-| AC-94 | PR 4; AC-91 | The user adds a note in the Notes tab | It shows first, with the user's name | evaluator |
+| AC-91 | PR 6; Showcase data, window 1440 × 900 | The user clicks a row | A panel opens covering at least half the width, with tabs `Why`, `Company`, `Engagements`, `Votes`, `Triggers`, `Holdings`, `Notes` in that order | evaluator |
+| AC-92 | PR 6; AC-91 | The user opens Votes on a company with N-PX rows | Each row shows date, item, management recommendation, vote, against management and `Demo data` | evaluator |
+| AC-93 | PR 6; AC-91 | The user opens Holdings | It lists as many funds as the row's Funds column | evaluator |
+| AC-94 | PR 6; AC-91 | The user adds a note in the Notes tab | It shows first, with the user's name | evaluator |
 | AC-103 | AC-94 | — | The row's Notes count has risen by 1 without a page reload | evaluator |
-| AC-104 | PR 4; Fixture W plus T(`SYN03`, high, `t_x`) | The user opens Triggers for `SYN03` | A line shows severity `high`, rule `t_x`, reason `test` | evaluator |
-| AC-105 | PR 4; Showcase data | The user opens Company for any row | It shows the company's ISIN and sector, and each simulated fact is followed by `Simulated` | evaluator |
+| AC-104 | PR 6; Fixture W plus T(`SYN03`, high, `t_x`) | The user opens Triggers for `SYN03` | A line shows severity `high`, rule `t_x`, reason `test` | evaluator |
+| AC-105 | PR 6; Showcase data | The user opens Company for any row | It shows the company's ISIN and sector, and each simulated fact is followed by `Simulated` | evaluator |
 | AC-106 | A ledger meeting for company C on today − 400 days, none later (unit fixture) | `worklist.build()` runs | C's `next_meeting.days` = 330 and its `next_meeting` part has `normalised` 0 | unit |
-| AC-95 | PR 4; AC-91 | The user presses ↓ | The panel shows the next row's company in the same tab | evaluator |
-| AC-96 | PR 4; AC-91 | The user opens Engagements on a seeded company | Each objective shows description, type, status, result and `Demo data` | evaluator |
+| AC-107 | PR 2; Fixture W | `GET /worklist` | `SYN03`'s `identifier` = `SYN03`, `engaged` = `{"yes": false, "last": null}`, `last_topics` = `[]` | holdout |
+| AC-108 | PR 2; Fixture W; a record for `SYN06` with one issue (theme `board_governance`) and one correspondence entry dated 2026-09-12 | `GET /worklist` | `SYN06`'s `engaged` = `{"yes": true, "last": "2026-09-12"}` | holdout |
+| AC-109 | AC-108 | `GET /worklist` | `SYN06`'s `last_topics` = `["board_governance"]` | holdout |
+| AC-110 | PR 2; Showcase data | `GET /worklist` | Every row whose ISIN-keyed id is `isin_<X>` has `identifier` `<X>`, and every non-null `norms_violation` has `simulated` true | holdout |
+| AC-111 | PR 2 (unit fixture): company C held for EUR 50 m in the scope, `climate_evic_eur_m` = 10,000 | `worklist.build()` runs | C's `ownership_pct` = 0.5 | unit |
+| AC-112 | PR 2 (unit fixture): C held through one equity security worth EUR 30 m and one bond worth EUR 20 m | `worklist.build()` runs | C's `equity_held_eur_m` = 30.0 and `aum_held_eur_m` = 50.0 | unit |
+| AC-113 | PR 3; Fixture W, programme log removed | `GET /api/stewardship/programmes` | The first four `programme_id`s are `climate`, `nature`, `ai`, `governance`, each with `confirmed` 0 and `proposed` 0 | holdout |
+| AC-114 | PR 3; AC-113 | `POST /programmes` `{"name": "Water engagement programme"}`, then the same name in upper case | First status 200 with `programme_id` `water_engagement_programme`; second status 422 with detail `A programme named WATER ENGAGEMENT PROGRAMME exists` | holdout |
+| AC-115 | PR 3; AC-113 | `POST /programmes/climate/members` `{"add": ["SYN03"]}`, then `POST /programmes/nature/members` `{"add": ["SYN03"]}` | `GET /worklist` shows `SYN03`'s `programmes` with both, each `status` `proposed` | holdout |
+| AC-117 | AC-115 | `POST /programmes/climate/confirm` `{}` | Body `{"confirmed": 1}`; `GET /programmes/climate` shows `SYN03` `confirmed` with `confirmed_by` the signed-in user | holdout |
+| AC-118 | AC-117 | `POST /programmes/climate/members` `{"remove": ["SYN03"]}` | Status 422 with detail `confirmed members are ended, not removed` | holdout |
+| AC-119 | AC-117 | `POST /programmes/climate/members` `{"end": ["SYN03"]}` with no `reason` | Status 422 with detail `Ending a membership needs a reason` | holdout |
+| AC-120 | AC-117 | `POST /programmes/climate/members` `{"end": ["SYN03"], "reason": "objective achieved"}` | `GET /programmes/climate` shows `SYN03` `ended` with `end_reason` `objective achieved`; `GET /worklist` no longer lists `climate` in `SYN03`'s `programmes` | holdout |
+| AC-121 | PR 3; AC-113; a record for `SYN07` with an open issue whose `fir_theme` is `climate_mitigation`, and one for `SYN08` whose only such issue is closed | `GET /programmes/climate/suggestions` | Exactly one suggestion, `SYN07` | holdout |
+| AC-122 | AC-121 | `GET /programmes/climate` | It has no members (suggestions write nothing) | holdout |
+| AC-123 | AC-117 | Rows of `GET /worklist` are compared with Fixture W's | Every row's `score` is unchanged | holdout |
+| AC-124 | PR 4; Showcase data | The user opens `#/stewardship/workbench` | Steps `① Holdings in scope`, `② Narrow down`, `③ Select` show in that order, and Name, Sector, ISIN, Engaged, Last engagement topics, Programmes and Norm violation are the first seven columns | evaluator |
+| AC-125 | PR 4; AC-124 | The user opens **Columns ▾** and hides every column it offers | The seven always-shown columns are still there | evaluator |
+| AC-126 | PR 4; Showcase data | The user ticks 2 rows, opens **Add to programme ▾** and picks **New programme…**, named `Water engagement programme` | The two rows' Programmes cells show `Water ?` (or the programme's name) as proposed | evaluator |
+| AC-127 | PR 5; Showcase data | The user opens **Add filter ▾** | It lists every table column and the `simulated_esg` fields, the latter labelled `Simulated` | evaluator |
+| AC-128 | PR 5; AC-127 | The user picks Ownership share | A chip with a two-handle range slider and two number boxes opens, spanning the scope's minimum and maximum | evaluator |
+| AC-129 | PR 5; AC-127 | The user picks Norm violation | A chip with checkboxes `Yes` (ticked) and `No` opens, and every visible row shows `Yes` in Norm violation | evaluator |
+| AC-130 | PR 5; AC-127 | The user picks Sector | A chip with a checklist of the sectors present in the scope opens, nothing ticked, and the row count is unchanged | evaluator |
+| AC-131 | PR 5; AC-128 | The user moves the lower handle to 0.5 | The chip reads `Ownership share ≥ 0.50 %`, and every visible row's Ownership share is ≥ 0.5 % | evaluator |
+| AC-132 | PR 5; AC-131 and AC-129 both set | The user presses ✕ on the Norm violation chip | Only the Ownership share condition still applies ("Showing x of n" rises or stays) | evaluator |
+| AC-133 | PR 5; AC-131 | The user picks Ownership share again in **Add filter ▾** | No second chip appears; the existing chip opens | evaluator |
+| AC-116 | PR 5; Showcase data, a Transition grade chip with `E` ticked | The user ticks **Include empty** on the chip | Rows with an empty grade appear next to grade E rows; without it they are left out | evaluator |
+| AC-134 | PR 5; filters set in the house scope | The user switches scope to a fund | The same chips stay, and the range sliders' bounds follow the fund's rows | evaluator |
+| AC-135 | PR 3; a `viewer` user (non-dev auth) | `POST /api/stewardship/programmes` | Status 403 | unit |
+| AC-95 | PR 6; AC-91 | The user presses ↓ | The panel shows the next row's company in the same tab | evaluator |
+| AC-96 | PR 6; AC-91 | The user opens Engagements on a seeded company | Each objective shows description, type, status, result and `Demo data` | evaluator |
 
 Must not change: coverage tiers, monitoring triggers, the universe and the existing policies (AC-32, AC-51, AC-52);
-selecting and notes change no score (AC-20, AC-83); nothing is pre-selected or filtered by score (AC-29).
+selecting, notes and programmes change no score (AC-20, AC-83, AC-123); nothing is pre-selected or filtered by score (AC-29).
