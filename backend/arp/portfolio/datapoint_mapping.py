@@ -3,7 +3,7 @@ from __future__ import annotations
 from arp.schemas.portfolio import DataPointObservation
 from arp.storage.portfolio_store import PortfolioStore
 
-_SOURCE_PRIORITY = {"internal_api": 0, "extracted": 1, "catalogue": 2, "estimated_proxy": 3}
+_SOURCE_PRIORITY = {"internal_api": 0, "extracted": 1, "catalogue": 2, "estimated_proxy": 3, "simulated": 4}  # simulated loses to anything real
 """A disclosed/API-sourced number is never second-guessed by an inferred
 one -- same cascade philosophy as
 `research/revenue_exposure/resolver.py`'s catalogue -> extraction ->
@@ -26,7 +26,7 @@ def resolve_field_value(store: PortfolioStore, company_id: str, field_id: str, a
     latest_by_source: dict[str, DataPointObservation] = {}
     for obs in observations:
         current = latest_by_source.get(obs.source)
-        if current is None or obs.observed_at > current.observed_at:
+        if current is None or obs.observed_at >= current.observed_at:  # a tie: the later row is the correction
             latest_by_source[obs.source] = obs
 
     best_source = min(latest_by_source, key=lambda s: _SOURCE_PRIORITY.get(s, 99))
@@ -48,6 +48,16 @@ def resolve_field_values_for_universe(
         if obs is not None and isinstance(obs.value, (int, float)) and not isinstance(obs.value, bool):
             values[company_id] = float(obs.value)
     return values
+
+
+def simulated_note(store: PortfolioStore, company_ids: list[str], field_id: str, as_of: str | None = None) -> str:
+    """One sentence saying how many of these companies' values are simulated (`arp showcase load`); "" when none
+    is. Shown next to a figure built on them: a simulated value must never read as a real one."""
+    sources = [obs.source for cid in company_ids if (obs := resolve_field_value(store, cid, field_id, as_of)) is not None]
+    simulated = sources.count("simulated")
+    if not simulated:
+        return ""
+    return f"Simulated: {simulated} of the {len(sources)} company values in scope are simulated ESG data, not real data."
 
 
 def coverage_summary(store: PortfolioStore, company_ids: list[str], field_id: str, as_of: str | None = None) -> dict[str, int]:

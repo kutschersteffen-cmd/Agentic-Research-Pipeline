@@ -158,7 +158,8 @@ def _evaluate_field_threshold(store: PortfolioStore, rule: AlertRule, companies:
                     observed_value=value,
                     threshold_value=rule.threshold_value,
                     breach_type=BreachType.DATA_CAUSED,
-                    rationale=f"{rule.name}: {rule.field_id} = {value} {rule.comparator} {rule.threshold_value}",
+                    rationale=f"{rule.name}: {rule.field_id} = {value} {rule.comparator} {rule.threshold_value}"
+                    + (" Simulated: the value is simulated ESG data, not real data." if obs.source == "simulated" else ""),
                 ),
             )
         )
@@ -238,6 +239,9 @@ def _evaluate_portfolio_aggregate_threshold(
             continue
         prior = _latest_alert_for(store, scope_id, rule.rule_id)
         breach_type = _classify_aggregate_drift(prior, as_of, values)
+        held = sorted({securities[h.security_id].company_id for h in holdings
+                       if h.portfolio_id == portfolio_id and h.security_id in securities and securities[h.security_id].company_id})
+        note = datapoint_mapping.simulated_note(store, held, rule.field_id, as_of)
         raised.append(
             _raise_alert(
                 store,
@@ -251,7 +255,8 @@ def _evaluate_portfolio_aggregate_threshold(
                     breach_type=breach_type,
                     snapshot_date=as_of,
                     data_point_values=values,
-                    rationale=f"{rule.name}: {portfolio_id} = {row.weighted_avg_value} {rule.comparator} {rule.threshold_value}",
+                    rationale=f"{rule.name}: {portfolio_id} = {row.weighted_avg_value} {rule.comparator} {rule.threshold_value}"
+                    + (f" {note}" if note else ""),
                 ),
             )
         )
