@@ -649,10 +649,18 @@ export const api = {
   deleteArgusFlow: async (flowId: string): Promise<void> => {
     await authFetch(`${API_BASE}/api/argus/flows/${encodeURIComponent(flowId)}`, { method: "DELETE" }); // 204: no body to parse
   },
+  /** Deletes a draft with whatever it holds; its documents stay on the companies. */
+  discardArgusFlow: async (flowId: string): Promise<void> => {
+    await authFetch(`${API_BASE}/api/argus/flows/${encodeURIComponent(flowId)}/discard`, { method: "POST" }); // 204: no body to parse
+  },
   listArgusFlows: () => request<{ flows: ArgusDraft[] }>("/api/argus/flows"),
   getArgusFlow: (flowId: string) => request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}`),
   patchArgusFlow: (flowId: string, body: Partial<Pick<ArgusFlow, "identity_run_id" | "reporting_year" | "source" | "step" | "schema_choice" | "settings" | "repeat">>) =>
     request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}`, { method: "PATCH", body: JSON.stringify(body) }),
+  updateFlowCompany: (flowId: string, companyId: string, company: { name: string; ticker?: string; isin?: string; lei?: string; cik?: string }) =>
+    request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies/${encodeURIComponent(companyId)}`, { method: "PUT", body: JSON.stringify(company) }),
+  removeFlowCompany: (flowId: string, companyId: string) =>
+    request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies/${encodeURIComponent(companyId)}`, { method: "DELETE" }),
   uploadFlowCompanies: (flowId: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
@@ -756,7 +764,7 @@ export const api = {
   generateTaxonomySchema: (taxonomyId: string, version: number) =>
     request<DataPointSchema>(`/api/taxonomies/${taxonomyId}/versions/${version}/schema`, { method: "POST" }),
   listSchemas: () =>
-    request<{ schema_id: string; version: number; name: string; release_flag: boolean; saved_at: string }[]>("/api/extraction/schemas"),
+    request<{ schema_id: string; version: number; name: string; release_flag: boolean; saved_at: string; field_count: number }[]>("/api/extraction/schemas"),
   getSchema: (schemaId: string, version: number) =>
     request<DataPointSchema>(`/api/extraction/schemas/${encodeURIComponent(schemaId)}?version=${version}`),
   registerSchema: (schema: DataPointSchema) =>

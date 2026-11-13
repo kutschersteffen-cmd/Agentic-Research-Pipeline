@@ -38,6 +38,12 @@ export function InputPicker({ kind, label, value, onChange, filter, autoSelect =
   }, [kind]);
 
   const shown = (items ?? []).filter((o) => !filter || filter(o));
+  // Two outputs that read the same (same name, day, status, author) get their saved time, so they can be told apart.
+  const labels = shown.map(outputLabel);
+  const labelOf = (o: OutputItem, i: number) =>
+    o.as_of && labels.indexOf(labels[i]) !== labels.lastIndexOf(labels[i])
+      ? `${labels[i]} · ${new Date(o.as_of).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}`
+      : labels[i];
   useEffect(() => {
     if (!autoSelect || value || !items) return;
     const first = shown.find((o) => USABLE.has(o.status));
@@ -52,9 +58,9 @@ export function InputPicker({ kind, label, value, onChange, filter, autoSelect =
       {label}
       <select value={value} onChange={(e) => onChange(shown.find((o) => o.id === e.target.value) ?? null)} disabled={!items}>
         <option value="">{!items ? "Loading…" : shown.length === 0 ? "Nothing saved yet" : "Select…"}</option>
-        {shown.map((o) => (
+        {shown.map((o, i) => (
           <option key={o.id} value={o.id}>
-            {outputLabel(o)}
+            {labelOf(o, i)}
           </option>
         ))}
       </select>
