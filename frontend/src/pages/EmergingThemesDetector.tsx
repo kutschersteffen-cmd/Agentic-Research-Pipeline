@@ -48,12 +48,13 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
     setRecentRuns(res.runs);
   }
 
-  // While a listed scan works, reload the list every 2.5 s.
+  // While a listed scan works, reload the list every 2.5 s; a failed reload schedules the next one too.
+  const [pollRetry, setPollRetry] = useState(0);
   useEffect(() => {
     if (!recentRuns.some((r) => scanActive(r.status))) return;
-    const t = setTimeout(() => refreshRecentRuns().catch(() => {}), 2500);
+    const t = setTimeout(() => refreshRecentRuns().catch(() => setPollRetry((n) => n + 1)), 2500);
     return () => clearTimeout(t);
-  }, [recentRuns]);
+  }, [recentRuns, pollRetry]);
 
   // The selected scan just finished: load its candidates.
   useEffect(() => {
@@ -431,6 +432,8 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
             <input
               type="number"
               min={1}
+              aria-invalid={scheduleStatus?.ok === false || undefined}
+              aria-describedby={scheduleStatus ? "et-schedule-status" : undefined}
               value={schedule.interval_hours}
               onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
             />
@@ -447,7 +450,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
             Save schedule
           </button>
           {scheduleStatus && (
-            <p className={scheduleStatus.ok ? "status-text" : "error-text"} role={scheduleStatus.ok ? "status" : "alert"}>
+            <p id="et-schedule-status" className={scheduleStatus.ok ? "status-text" : "error-text"} role={scheduleStatus.ok ? "status" : "alert"}>
               {scheduleStatus.text}
             </p>
           )}

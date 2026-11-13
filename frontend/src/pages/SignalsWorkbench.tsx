@@ -325,7 +325,7 @@ export function SignalsWorkbench() {
                     <td>{e.method}</td>
                     <td>{e.category}</td>
                     <td>{e.universe}</td>
-                    <td>
+                    <td style={{ whiteSpace: "nowrap" }}>
                       {e.window_start}..{e.window_end}
                     </td>
                     <td>{e.model ?? "—"}</td>

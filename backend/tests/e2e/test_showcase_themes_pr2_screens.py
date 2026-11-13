@@ -82,6 +82,24 @@ def test_scanning_then_candidates_appear(page):  # AC-53, AC-54
     assert page.locator(".status-pill").first.text_content() == "completed"
 
 
+def test_scan_polling_survives_a_failed_reload(page):  # AC-54 (code review: one failed list request must not stop polling)
+    calls = []
+
+    def runs(route):
+        calls.append(1)
+        if len(calls) == 2:
+            return route.fulfill(status=500, json={"detail": "boom"})
+        status = "running" if len(calls) < 4 else "completed"
+        route.fulfill(json={"runs": [manifest(run_id="et1", run_type="emerging_themes", status=status)]})
+
+    page.route("**/api/runs?run_type=emerging_themes", runs)
+    page.route("**/api/emerging-themes/runs/et1/candidates",
+               lambda r: r.fulfill(json={"candidates": [CANDIDATE] if len(calls) >= 4 else []}))
+    page.goto(f"{URL}/#/emergingThemes")
+    page.get_by_role("button", name="View candidates").click()
+    page.get_by_role("cell", name="Heat pumps").wait_for(timeout=15_000)
+
+
 def test_novelty_and_no_companies(page):  # AC-55, AC-56
     _emerging(page, lambda n: "completed", lambda n: [CANDIDATE])
     page.get_by_role("columnheader", name="Novelty").wait_for()
@@ -121,6 +139,19 @@ def test_dossier_step_4_links_to_the_review(page):  # AC-61
     page.goto(f"{URL}/#/themes/d1")
     link = page.get_by_role("link", name="Review the open items")
     assert link.get_attribute("href") == "#/review/theme/r1"
+
+
+def test_unshelve_keeps_keyboard_focus(page):  # AC-89 (UI review: focus must not drop to <body>)
+    dossier = {"dossier_id": "d1", "name": "Grid", "origin": "topic", "taxonomy_id": None, "context_brief": None, "steps": [],
+               "status": "shelved", "shelved_by": "ana", "shelved_at": "2026-11-11T09:00:00Z", "shelve_reason": "parked"}
+    active = dict(dossier, status="active", shelved_by=None, shelved_at=None, shelve_reason=None)
+    page.route("**/api/dossiers/d1", lambda r: r.fulfill(json=active if r.request.method == "PATCH" else dossier))
+    page.goto(f"{URL}/#/themes/d1")
+    page.get_by_role("button", name="Un-shelve").focus()
+    page.keyboard.press("Enter")
+    page.get_by_text("Dossier is active again.").wait_for()
+    assert page.evaluate("document.activeElement.textContent") == "Dossier is active again."
+    assert page.get_by_role("status").filter(has=page.get_by_role("button")).count() == 0
 
 
 def _plan(status, calls):

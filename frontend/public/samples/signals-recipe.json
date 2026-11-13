@@ -1,5 +1,5 @@
 {
-  "category": "sentiment_narrative",
+  "category": "price_momentum",
   "method": "price_momentum",
   "text_source": null,
   "params": {},

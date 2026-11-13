@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { STATE_CLASS, STATE_LABEL, dossierHref, shelvedBanner, stepLinkText, visibleDossiers } from "../lib/dossiers";
 import type { Dossier, DossierItem, Taxonomy } from "../types";
@@ -130,7 +130,14 @@ function DossierPage({ id, onFindCompanies }: { id: string; onFindCompanies: (ta
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
+  const [reactivated, setReactivated] = useState(false);
+  const reactivatedRef = useRef<HTMLParagraphElement>(null);
   const taxonomies = useTaxonomies();
+
+  // The banner holding Un-shelve unmounts on success: keep keyboard focus on the page by moving it to the result.
+  useEffect(() => {
+    if (reactivated) reactivatedRef.current?.focus();
+  }, [reactivated]);
 
   useEffect(() => {
     api.getDossier(id).then(setDossier, (err: Error) => setError(err.message));
@@ -164,11 +171,16 @@ function DossierPage({ id, onFindCompanies }: { id: string; onFindCompanies: (ta
         {dossier.origin === "candidate" ? "Promoted from Emerging Themes" : "Started from a topic"} · <span className="mono">{dossier.dossier_id}</span>
       </p>
       {banner && (
-        <p className="banner banner-warning" role="status">
-          {banner}{" "}
-          <button type="button" className="secondary" disabled={busy} onClick={() => patch({ status: "active" })}>
+        <div className="banner banner-warning">
+          <span role="status">{banner}</span>{" "}
+          <button type="button" className="secondary" disabled={busy} onClick={async () => setReactivated(await patch({ status: "active" }))}>
             Un-shelve
           </button>
+        </div>
+      )}
+      {reactivated && dossier.status === "active" && (
+        <p className="status-text" role="status" tabIndex={-1} ref={reactivatedRef}>
+          Dossier is active again.
         </p>
       )}
       {actionError && <p className="error-text" role="alert">{actionError}</p>}

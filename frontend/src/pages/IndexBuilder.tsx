@@ -998,11 +998,12 @@ function ConstraintsCard({
           />
         )}
       </div>
-      {optimizerAvailable === false && (
-        <p className="error-text" role="alert">
-          {SOLVER_MISSING}
-        </p>
-      )}
+      {optimizerAvailable === false &&
+        (solver.method === "waterfall" ? (
+          <p className="help-text" role="note">{SOLVER_MISSING}</p>
+        ) : (
+          <p className="error-text" role="alert">{SOLVER_MISSING}</p>
+        ))}
       {solver.method !== "waterfall" && (
         <>
           <label className="checkbox-label">
@@ -1460,7 +1461,7 @@ function ResultTab({
             <p className="help-text">Every relaxation and data-quality override applied, in order. These belong on the committee pack.</p>
             <ul>
               {result.exceptions.map((e, i) => (
-                <li key={i} className="error-text" role="alert">
+                <li key={i} className="error-text">
                   {exceptionText(e, methods)}
                 </li>
               ))}
