@@ -102,7 +102,7 @@ can carry a weight. Empty cells show `—` and add 0 points; the why panel says 
 | 8 | Escalated | open issues whose `escalation_stage` is not `private_engagement` | count | never | `escalated`: 1 if n ≥ 1, else 0 |
 | 9 | Overdue commitments | commitments with status `open` and `target_date` before today, on issues with status `open` or `stalled` (the commitment loop's `overdue` rule; PR 3 reads it from `commitment_flags_by_company`) | count | never | `overdue_commitments`: min(1, n / 2) |
 | 10 | Next meeting | `vote_meetings` (vote ledger): newest `meeting_date` for the `company_id`; Q1, see below | days from today, shown `≈ 42 d (est.)` | no meeting in the vote ledger | `next_meeting`: max(0, 1 − days / 90) |
-| 11 | Transition grade | observation `transition_grade` (portfolio store, latest) | `A`..`F` with label, e.g. `D Emerging` | no observation | `transition_grade`: A 0, B 0.2, C 0.4, D 0.6, E 0.8, F 1 |
+| 11 | Transition grade | observation `transition_grade` (portfolio store, latest) | `A`..`F` with the fixed label map of `showcase-portfolio-data` (A Leader, B Credible, C Gaps, D Emerging, E Not credible, F Disqualified), e.g. `D Emerging` | no observation | `transition_grade`: A 0, B 0.2, C 0.4, D 0.6, E 0.8, F 1 |
 | 12 | ESG score | observation `esg_score` | 0 to 10, 1 decimal | no observation | `esg_score`: (10 − value) / 10 |
 | 13 | Controversy | observation `controversy_level` | integer 0 to 5 | no observation | `controversy`: value / 5 |
 | 14 | Carbon intensity | observation `ghg_intensity` | tCO2e per EUR m revenue, 0 decimals | no observation | `carbon_intensity`: percentile rank |
@@ -116,7 +116,7 @@ Notes:
   company's share of all house holdings (see `universe.from_portfolio`), not a benchmark weight. The header says
   "Holdings weight %" and its tooltip says so. With the synthetic sample universe it is the sample's index weight.
 - **Percentile rank** for value v among the n rows that have a value: (number of those rows with a value < v) / (n − 1);
-  the largest gets 1, the smallest 0, ties share a rank, n = 1 gives 1.
+  the smallest gets 0, ties share a value (so a tied top value gets less than 1), n = 1 gives 1.
 - **Simulated** applies to columns 11 to 14 when the observation's source is `simulated` (see
   `showcase-portfolio-data`, "Where each field is stored and shown"). Columns 3 and 4 come from holdings that may
   carry the tag `history:simulated`; they are not labelled, as on every other holdings screen.
@@ -141,10 +141,9 @@ Argus suggestions never create a flag.
 
 ## Priority score
 
-score = Σ over components of weight × normalised value, where the weights are the active `priority_weights`
-version's integers (0 to 100, summing to 100) and the normalised value is the 0..1 value from the table above
-(0 when empty). Rounded to 1 decimal. Each component's points (weight × value, 1 decimal) are returned, so the row's
-points add up to its score within 0.1 (rounding).
+Each component's points = weight × normalised value, rounded to 1 decimal, where the weights are the active
+`priority_weights` version's integers (0 to 100, summing to 100) and the normalised value is the 0..1 value from the
+table above (0 when empty). **score = the sum of the rounded points**, so the points add up to the score exactly.
 
 **Default weights (`priority_weights` version 0, the bundled draft):**
 
@@ -170,9 +169,11 @@ immutable files, activation needs `approved_by` who is not the person who saved 
  "components": [{"id": "open_triggers", "weight": 30}, {"id": "holdings_weight", "weight": 20}, ...]}
 ```
 
-Validation (nothing invalid is saved): every component id known, each weight an integer 0..100, weights sum to 100,
-no id twice. A saved version without a component that a later PR adds reads that component as weight 0. Error text
-for a wrong sum: `Weights must add up to 100 (now <sum>)`.
+Validation (nothing invalid is saved): a version lists every component of the bundled file, no other id and no id
+twice (422 `Missing components: <ids>` / `Unknown components: <ids>`); each weight is an integer 0..100; weights sum to
+100 (422 `Weights must add up to 100 (now <sum>)`). When PR 3 adds `broken_commitments` to the bundled file, a version
+saved earlier lacks it and reads it as weight 0; that is the only case of a missing component. A row's `parts` always
+lists the bundled file's components, in its order.
 
 **Rank.** A row's rank = 1 + the number of rows with a strictly higher score (ties share a rank). "Top 25" = rows
 with rank ≤ 25, ordered by score descending, then company name ascending.
@@ -203,12 +204,12 @@ disabled).
 
 ```json
 {"as_of": "2026-11-13", "universe_note": "<house_universe note>",
- "weights": {"version": 2, "activated_by": "...", "activated_at": "..."},
+ "weights": {"version": 2, "activated_by": "<approved_by>", "activated_at": "<approved_at>"},
  "cycle": "2026-Q4",
  "rows": [{"issuer_id": "isin_US0378331005", "company": "Apple Inc.", "sector": "Information Technology",
            "holdings_weight_pct": 4.812, "aum_held_eur_m": 412.3,
            "coverage_tier": "priority_bilateral", "coverage_tier_confirmed": true,
-           "triggers": {"high": 1, "medium": 0, "low": 2}, "new_high_trigger": false,
+           "triggers": {"high": 1, "medium": 0, "low": 2},
            "open_engagements": 2, "escalated": 0, "overdue_commitments": 1,
            "next_meeting": {"days": 128, "estimated": true, "last_meeting": "2026-02-24"},
            "transition_grade": {"value": "C", "label": "Gaps", "simulated": true},
@@ -219,7 +220,9 @@ disabled).
            "selection": null}]}
 ```
 
-`parts` lists every component in the active version in policy order, weight 0 included. `selection` is `null` or
+`weights.activated_by` and `activated_at` are the last activation row's `approved_by` and `approved_at`; both `null`
+for v0. `parts` lists every component of the bundled file in its order, weight 0 included. PR 3 adds
+`"new_high_trigger": true | false` to each row. `selection` is `null` or
 the selection object defined under `GET /selection`.
 
 Selection (Q2 and Q3, recommended answers):
@@ -269,7 +272,9 @@ Sorted by: 1 Score ↓  ✕   2 Holdings weight ↓  ✕          Showing 37 of 
 **Sorting.** Click a header: sort by it, descending first for numbers, ascending for text; click again to flip.
 Shift-click (or the header menu's "Add as next sort") adds it as the next key, up to three keys; a fourth replaces the
 third. Empty values sort last in both directions. Default: Score descending, then Company ascending. The sort chips
-above the table show the keys in order, each removable. Text columns sort case-insensitively.
+above the table show the keys in order, each removable. Text columns sort case-insensitively. Triggers sort by
+(high, medium, low) counts, high first; Coverage tier in tier order, Priority Bilateral → Systemic / Market-Level (the
+proposed and confirmed tier sort together); Grade A → F; Selected: Confirmed, Proposed, empty.
 
 **Filtering.** Every column has a filter: numbers a min and max box; counts a "at least n" box; Tier, Grade and Sector a
 checklist of values present; Triggers by severity (at least one high, at least one medium or high, any); Selected
@@ -348,7 +353,11 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 
 - **Fixture W:** house universe source `sample` (`PUT /api/stewardship/universe` `{"source": "sample"}`, 12 issuers
   `SYN01`..`SYN12`), `priority_weights` with no saved versions (v0 active), the trigger log
-  `<stewardship_streams_dir>/triggers/events.jsonl` and the `selection/` directory removed, no engagement records.
+  `<stewardship_streams_dir>/triggers/events.jsonl`, the `selection/` directory and the
+  `policies/priority_weights/` directory removed, and the `stw_*` tables truncated (no engagement records), as
+  data-foundation's holdout rows do.
+- **PR tags:** a row whose Given starts `PR 2;` or `PR 3;` applies from that PR on; other rows apply from PR 1.
+  Rows that use Showcase data need data-foundation PR 3 (`seed-demo`, `load-npx`), which PR 2 waits for.
 - **Trigger run T(issuer, severity, rule):** one line appended to that trigger log:
   `{"event": "run", "month": "<current YYYY-MM>", "at": "<now>", "triggers": [{"issuer_id": <issuer>, "rule": <rule>,
   "type": "controversy", "theme": "climate", "severity": <severity>, "reason": "test"}]}` (the format
@@ -362,53 +371,64 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 |------|-------|------|--------------------------|------------|
 | AC-1 | Fixture W | `GET /api/stewardship/worklist` | Status 200; `rows` holds 12 rows, one per `SYN01`..`SYN12`, no `issuer_id` twice | holdout |
 | AC-2 | Fixture W | `GET /api/stewardship/worklist` | Every row's `parts` lists the component ids of `arp/stewardship/data/priority_weights.json`, in that file's order | holdout |
-| AC-33 | Fixture W | `GET /api/stewardship/worklist` | On every row, the sum of `parts[].points` is within 0.1 of `score` | holdout |
+| AC-33 | Fixture W | `GET /api/stewardship/worklist` | On every row, the sum of `parts[].points` equals `score` (to 1 decimal) | holdout |
 | AC-3 | Fixture W | `GET /api/stewardship/worklist` | The `open_triggers`, `overdue_commitments` and `escalated` parts have `points` 0 on every row | holdout |
 | AC-4 | Fixture W plus T(`SYN03`, high, `t_high`) and T(`SYN03`, medium, `t_med`) in one line | `GET /api/stewardship/worklist` | `SYN03`'s `triggers` = `{"high": 1, "medium": 1, "low": 0}` | holdout |
 | AC-34 | AC-4 | `GET /api/stewardship/worklist` | `SYN03`'s `open_triggers` part has `normalised` 0.8 and `points` 24.0 | holdout |
-| AC-5 | AC-4, then `POST /api/stewardship/triggers/<id of SYN03 t_high>/transition` `{"status": "resolved", "decided_by": "tester"}` | `GET /api/stewardship/worklist` | `SYN03`'s `triggers` = `{"high": 0, "medium": 1, "low": 0}` and its `open_triggers` points = 9.0 | holdout |
-| AC-6 | Fixture W; `POST /api/engagement/records` for `SYN05`, an issue on it, and `POST /api/stewardship/tracking/commitments` with `target_date` = today − 30 days | `GET /api/stewardship/worklist` | `SYN05`'s `overdue_commitments` = 1 and its `overdue_commitments` part has `points` 7.5 | holdout |
+| AC-5 | AC-4, then `POST /api/stewardship/triggers/<id of SYN03 t_high>/transition` `{"status": "resolved", "decided_by": "tester"}` | `GET /api/stewardship/worklist` | `SYN03`'s `triggers` = `{"high": 0, "medium": 1, "low": 0}` | holdout |
+| AC-55 | AC-5 | `GET /api/stewardship/worklist` | `SYN03`'s `open_triggers` part has `points` 9.0 | holdout |
+| AC-6 | Fixture W; `POST /api/engagement/records` for `SYN05`, an issue on it, and `POST /api/stewardship/tracking/commitments` with `target_date` = today − 30 days | `GET /api/stewardship/worklist` | `SYN05`'s `overdue_commitments` = 1 | holdout |
+| AC-56 | AC-6 | `GET /api/stewardship/worklist` | `SYN05`'s `overdue_commitments` part has `points` 7.5 | holdout |
 | AC-7 | Fixture W; a record and one issue for `SYN06`, escalated once through `POST /api/engagement/records/SYN06/issues/{id}/escalate` | `GET /api/stewardship/worklist` | `SYN06`'s `escalated` = 1 | holdout |
 | AC-35 | AC-7 | `GET /api/stewardship/worklist` | `SYN06`'s `open_engagements` = 1 | holdout |
 | AC-36 | AC-7 | `GET /api/stewardship/worklist` | `SYN06`'s `escalated` part has `points` 10.0 | holdout |
 | AC-8 | Fixture W | `GET /api/stewardship/worklist` | `SYN03` (largest holding, 3.1 %) has `holdings_weight` `normalised` 1.0 and `SYN10` (smallest, 0.02 %) has 0.0 | holdout |
-| AC-9 | Fixture W | `GET /api/stewardship/worklist` | `SYN01`'s `transition_grade` is `null`, and its `transition_grade` part has `empty` true and `points` 0 | holdout |
+| AC-9 | Fixture W | `GET /api/stewardship/worklist` | `SYN01`'s `transition_grade` is `null` | holdout |
+| AC-57 | Fixture W | `GET /api/stewardship/worklist` | `SYN01`'s `transition_grade` part has `empty` true and `points` 0 | holdout |
 | AC-10 | `priority_weights` v1 saved by user A with `open_triggers` 0, `holdings_weight` 50, the rest as v0 (sum 100), activated by user B | `worklist.build()` runs on the sample | It reports weights version 1, and every row's `open_triggers` part has `weight` 0 | unit |
 | AC-11 | Fixture W | `POST /api/stewardship/policies/priority_weights/versions` with weights summing to 95 | Status 422 with detail `Weights must add up to 100 (now 95)` | holdout |
 | AC-37 | AC-11 | `GET /api/stewardship/policies/priority_weights` | Its versions list holds only version 0 | holdout |
-| AC-12 | v1 saved by user A | User A activates v1 | `ValueError` with the four-eyes message, and the active version stays 0 | unit |
+| AC-12 | v1 saved by user A | User A activates v1 | `ValueError` with the four-eyes message | unit |
+| AC-58 | AC-12 | The active version is read | It is 0 | unit |
 | AC-13 | Fixture W and one `GET /worklist` done | T(`SYN07`, high, `t_new`) is appended, then `GET /worklist` again, with no restart | The second response has `SYN07`'s `triggers.high` = 1 | holdout |
-| AC-14 | Fixture W | `POST /api/stewardship/studio/priority/preview` with the v0 content | `entering_top` and `leaving_top` are `[]`, and every `score_change[].change` is 0 | holdout |
+| AC-14 | Fixture W | `POST /api/stewardship/studio/priority/preview` with the v0 content | `entering_top` and `leaving_top` are `[]` | holdout |
+| AC-59 | AC-14 | — | Every `score_change[].change` is 0 | holdout |
 | AC-15 | Fixture W | `POST /api/stewardship/selection` `{"cycle": Q, "add": ["SYN02", "SYN09"]}`, then `GET /worklist` | `SYN02` and `SYN09` have `selection.status` `proposed`; the other 10 rows have `selection` `null` | holdout |
 | AC-16 | AC-15 | `POST /api/stewardship/selection/confirm` `{"cycle": Q}` | Body `{"confirmed": 2}` | holdout |
 | AC-38 | AC-16 | `GET /api/stewardship/selection?cycle=Q` | Both rows have `status` `confirmed` and `confirmed_by` = the signed-in user's name | holdout |
-| AC-17 | AC-16 | `POST /api/stewardship/selection` `{"cycle": Q, "remove": ["SYN02"]}` | Status 422 with detail `confirmed selections cannot be removed`, and `SYN02` is still `confirmed` | holdout |
+| AC-17 | AC-16 | `POST /api/stewardship/selection` `{"cycle": Q, "remove": ["SYN02"]}` | Status 422 with detail `confirmed selections cannot be removed` | holdout |
+| AC-60 | AC-17 | `GET /api/stewardship/selection?cycle=Q` | `SYN02` has `status` `confirmed` | holdout |
 | AC-18 | Fixture W | `POST /api/stewardship/selection` with `cycle` = the quarter before Q | Status 422 with detail `only <Q> can be changed` | holdout |
 | AC-19 | A `viewer` user (non-dev auth) | `POST /api/stewardship/selection` | Status 403 | unit |
 | AC-20 | Fixture W | Rows are read before and after `POST /selection` adds `SYN04` | Every row's `score` and `parts` are identical | holdout |
-| AC-21 | Showcase data | `GET /worklist` | Every row whose `transition_grade`, `esg_score`, `controversy` or `carbon_intensity` is not `null` has `simulated` true on that field | holdout |
-| AC-22 | Showcase data on the e2e stack | A user opens `#/stewardship/worklist` | Each non-empty grade, ESG score, controversy and carbon intensity cell shows its value followed by `Simulated` | evaluator |
-| AC-39 | AC-22 | — | The Grade, ESG score, Controversy and Carbon intensity headers each show `Simulated` | evaluator |
-| AC-40 | Showcase data | The user opens "Why is this here" on a row with a transition grade | In the panel's Value column, the grade and every other simulated value are followed by `Simulated` | evaluator |
-| AC-23 | Showcase data | The user clicks the Score ⓘ on any row | A panel titled `Why is this here` opens. Its first line reads `<company> — priority score <score> of 100, rank <r> of <n>.` | evaluator |
-| AC-41 | AC-23 | — | The panel's `Total` equals the row's score, and its last line reads `This score is one indicator. Sorting, filtering and selecting are your call.` | evaluator |
-| AC-24 | Showcase data | The user clicks the Score header once, then shift-clicks Holdings weight | The sort chips read `1 Score ↓` and `2 Holdings weight ↓` | evaluator |
-| AC-42 | AC-24 | — | Rows with equal score are ordered by holdings weight, largest first | evaluator |
-| AC-43 | Showcase data | The user sorts by Next meeting, ascending and then descending | Rows with an empty Next meeting are last both times | evaluator |
-| AC-25 | Showcase data | The user filters Grade to `E` and `F` and Triggers to "at least one high" | "Showing x of n" equals the number of rows across all pages, and every visible row has grade E or F and at least one high trigger | evaluator |
+| AC-21 | PR 2; Showcase data | `GET /worklist` | Every row whose `transition_grade`, `esg_score`, `controversy` or `carbon_intensity` is not `null` has `simulated` true on that field | holdout |
+| AC-22 | PR 2; Showcase data on the e2e stack | A user opens `#/stewardship/worklist` | Each non-empty grade, ESG score, controversy and carbon intensity cell shows its value followed by `Simulated` | evaluator |
+| AC-39 | PR 2; AC-22 | — | The Grade, ESG score, Controversy and Carbon intensity headers each show `Simulated` | evaluator |
+| AC-40 | PR 2; Showcase data | The user opens "Why is this here" on a row with a transition grade | In the panel's Value column, the grade and every other simulated value are followed by `Simulated` | evaluator |
+| AC-23 | PR 2; Showcase data | The user clicks the Score ⓘ on any row | A panel titled `Why is this here` opens. Its first line reads `<company> — priority score <score> of 100, rank <r> of <n>.` | evaluator |
+| AC-41 | PR 2; AC-23 | — | The panel's `Total` equals the row's score | evaluator |
+| AC-61 | PR 2; AC-23 | — | The panel's last line reads `This score is one indicator. Sorting, filtering and selecting are your call.` | evaluator |
+| AC-24 | PR 2; Showcase data | The user clicks the Score header once, then shift-clicks Holdings weight | The sort chips read `1 Score ↓` and `2 Holdings weight ↓` | evaluator |
+| AC-42 | PR 2; AC-24 | — | Rows with equal score are ordered by holdings weight, largest first | evaluator |
+| AC-43 | PR 2; Showcase data | The user sorts by Next meeting, ascending and then descending | Rows with an empty Next meeting are last both times | evaluator |
+| AC-25 | PR 2; Showcase data | The user filters Grade to `E` and `F` and Triggers to "at least one high" | "Showing x of n" equals the number of rows across all pages, and every visible row has grade E or F and at least one high trigger | evaluator |
 | AC-26 | 2,500 synthetic issuers, 1,000 stored triggers, 500 engagement records (unit fixture, in-memory stores) | `worklist.build()` runs | It returns 2,500 rows in under 1.0 s on the CI runner | unit |
-| AC-27 | 2,500 rows in the screen (component test with a fixture response) | Sort by Score, then by Company | Each re-render finishes in under 200 ms | unit |
-| AC-44 | Showcase data | A user opens `#/stewardship/worklist` | The first rows show within 5 s; the page shows 100 rows and page controls | evaluator |
-| AC-28 | Showcase data | The user ticks the rows ranked 1, 150 and 390, presses Add, then Confirm, then Confirm in the dialog | Those three rows show `Confirmed`; no other row shows a selection | evaluator |
-| AC-45 | Showcase data, one row added as proposed | The user presses that row's ✕ | The row's `Proposed` badge disappears and the "Confirm" button counts one fewer | evaluator |
-| AC-46 | Showcase data, 2 rows proposed | The user presses Confirm | A dialog reads `Confirm 2 companies for the <Q> engagement selection? Confirmed rows cannot be removed. Recorded as <your name>.` with buttons `Confirm` and `Cancel` | evaluator |
-| AC-47 | Showcase data | The user types part of a company's name into the search box | Only rows whose name or issuer id contains it (any case) are shown | evaluator |
-| AC-29 | Fixture W | The screen loads | No row is ticked, no filter is set, there is no select-all box, and no control selects rows by score or rank | evaluator |
-| AC-48 | Showcase data | The user opens Weights and sets `open_triggers` to 25 (total 95) | The total reads `Total 95 — must be 100` and Save is disabled | evaluator |
-| AC-49 | AC-48, then `holdings_weight` raised by 5 | The user presses Preview | The preview lists the companies entering and leaving the top 25 | evaluator |
+| AC-27 | PR 2; 2,500 rows in the screen (component test with a fixture response) | Sort by Score, then by Company | Each re-render finishes in under 200 ms | unit |
+| AC-44 | PR 2; Showcase data | A user opens `#/stewardship/worklist` | The first rows show within 5 s; the page shows 100 rows and page controls | evaluator |
+| AC-28 | PR 2; Showcase data | The user ticks the rows ranked 1, 150 and 390, presses Add, then Confirm, then Confirm in the dialog | Those three rows show `Confirmed`; no other row shows a selection | evaluator |
+| AC-45 | PR 2; Showcase data, one row added as proposed | The user presses that row's ✕ | The row's `Proposed` badge disappears and the "Confirm" button counts one fewer | evaluator |
+| AC-46 | PR 2; Showcase data, 2 rows proposed | The user presses Confirm | A dialog reads `Confirm 2 companies for the <Q> engagement selection? Confirmed rows cannot be removed. Recorded as <your name>.` with buttons `Confirm` and `Cancel` | evaluator |
+| AC-47 | PR 2; Showcase data | The user types part of a company's name into the search box | Only rows whose name or issuer id contains it (any case) are shown | evaluator |
+| AC-29 | PR 2; Fixture W | The screen loads | No row is ticked | evaluator |
+| AC-62 | PR 2; Fixture W | The screen loads | No filter is set and "Showing 12 of 12" shows | evaluator |
+| AC-63 | PR 2; Fixture W | The screen loads | There is no select-all box and no control that selects rows by score or rank | evaluator |
+| AC-48 | PR 2; Showcase data | The user opens Weights and sets `open_triggers` to 25 (total 95) | The total reads `Total 95 — must be 100` and Save is disabled | evaluator |
+| AC-49 | PR 2; AC-48, then `holdings_weight` raised by 5 | The user presses Preview | The lists `Entering top 25` and `Leaving top 25` equal `entering_top` and `leaving_top` of `POST /studio/priority/preview` for the same content | evaluator |
+| AC-64 | PR 2; Showcase data | The user clicks Score, then shift-clicks Holdings weight, AUM held and Grade | The chips show three keys: `1 Score`, `2 Holdings weight`, `3 Grade` | evaluator |
+| AC-65 | PR 2; Showcase data | The user sets the Grade filter to "empty" | Every visible Grade cell shows `—` | evaluator |
 | AC-30 | PR 3, Fixture W; a record and open issue for `SYN08` with two commitments set to `missed` through `POST /api/stewardship/tracking/commitments/{id}` | `GET /worklist` | `SYN08`'s `broken_commitments` = 2 | holdout |
 | AC-53 | AC-30 | `GET /worklist` | `SYN08`'s `broken_commitments` part has `weight` 0 and `points` 0 | holdout |
-| AC-54 | Fixture W; a record for `SYN11` whose issue was closed through `POST /api/stewardship/tracking/close`, holding one open commitment with `target_date` = today − 30 days | `GET /worklist` | `SYN11`'s `overdue_commitments` = 0 | holdout |
+| AC-54 | Fixture W; a record and issue for `SYN11`, one commitment with `target_date` = today − 30 days added, then the issue closed through `POST /api/stewardship/tracking/close` | `GET /worklist` | `SYN11`'s `overdue_commitments` = 0 | holdout |
 | AC-31 | PR 3; T(X, high, `t_x`) stored for a company X, so its trigger has `is_new` true | A user opens `#/stewardship/worklist` | X's row shows the tag `New high trigger` | evaluator |
 | AC-50 | PR 3; the worklist open in one tab | T(X, high, `t_y`) is stored, the user switches to another tab and back | X's row shows `New high trigger` without a page reload | evaluator |
 | AC-32 | Fixture W | The backend suite runs | The existing tests of `tiers.py`, `monitoring.py`, `program.py` and `policies.py` pass unchanged | unit |
