@@ -378,7 +378,7 @@ def test_a_saved_schema_with_long_texts_keeps_its_layout(page):
     look_in = ("Annual report, sustainability report and the notes on capital expenditure. " * 8)[:600].strip()
     name = f"Wraps{TAG}".ljust(60, "x")
     # names and a unit as a real schema has them: they must still leave the table inside its box
-    fields = [{**f, "name": n, "unit": "USD millions"} for f, n in zip(_fields("w", 4, look_in), ("Revenue", "Capex", "Scope 1", "Green capex share"))]
+    fields = [{**f, "name": n, "unit": "USD millions"} for f, n in zip(_fields("w", 4, look_in), ("Revenue", "Capex", "Scope 1", "Green capex share"), strict=True)]
     _schema(page.request, "wide", name, fields)
     page.goto(f"{URL}/#/argus/{_flow(page.request)}/3")
     table = _choose(page, name)
