@@ -2279,7 +2279,7 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-state { font-weight: 600; }
 .argus-state-removed, .argus-state-undecided { color: var(--muted); }
 @media (max-width: 900px) { .argus-docs-open { flex-direction: column; } }
-.argus-schema-cols { display: grid; grid-template-columns: minmax(15rem, 1fr) minmax(0, 3fr); gap: var(--s-6); align-items: start; margin-bottom: var(--s-6); }
+.argus-schema-cols { display: grid; grid-template-columns: minmax(13rem, 1fr) minmax(0, 3fr); gap: var(--s-6); align-items: start; margin-bottom: var(--s-6); }
 .argus-schema-pick { display: grid; gap: var(--s-3); min-width: 0; }
 .argus-schema-pick > * { min-width: 0; }
 .argus-schema-pick h2, .argus-schema-fields h2, .argus-run-list h2 { font-size: var(--text-md); margin: 0; overflow-wrap: anywhere; }
@@ -2295,9 +2295,10 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-schema-fields .data-table :is(th, td):nth-child(n+4) { white-space: normal; }
 /* not on a phone, where each cell is a stacked label/value row */
 @media (min-width: 561px) { .argus-schema-fields .data-table :is(th, td):nth-child(n+4) { min-width: 15rem; } }
-/* the field name reads on one line where it can; the two text columns keep their floor */
-@media (min-width: 561px) { .argus-schema-fields .data-table :is(th, td):first-child { min-width: 6rem; } }
-.argus-schema-fields .data-table td:first-child { white-space: normal; }
+/* a width, not a floor: the field name gets room where there is some and gives it up before the table outgrows its box */
+@media (min-width: 561px) { .argus-schema-fields .data-table :is(th, td):first-child { width: 7rem; } }
+/* last resort before the table outgrows its box: a long field name or unit breaks */
+.argus-schema-fields .data-table td:is(:first-child, :nth-child(3)) { white-space: normal; overflow-wrap: anywhere; }
 .argus-clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .argus-settings { margin-bottom: var(--s-6); }
 .argus-settings summary { cursor: pointer; font-weight: 600; }

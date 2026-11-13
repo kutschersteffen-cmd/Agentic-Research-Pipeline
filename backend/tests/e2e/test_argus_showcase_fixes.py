@@ -377,15 +377,16 @@ def _choose(page, name):
 def test_a_saved_schema_with_long_texts_keeps_its_layout(page):
     look_in = ("Annual report, sustainability report and the notes on capital expenditure. " * 8)[:600].strip()
     name = f"Wraps{TAG}".ljust(60, "x")
-    fields = _fields("w", 4, look_in)
-    fields[0]["name"] = "Green capex share"  # a name of several words still leaves the table inside its box
+    # names and a unit as a real schema has them: they must still leave the table inside its box
+    fields = [{**f, "name": n, "unit": "USD millions"} for f, n in zip(_fields("w", 4, look_in), ("Revenue", "Capex", "Scope 1", "Green capex share"))]
     _schema(page.request, "wide", name, fields)
     page.goto(f"{URL}/#/argus/{_flow(page.request)}/3")
     table = _choose(page, name)
     table.get_by_text("Meaning 3").wait_for()
+    # CI's fonts are wider than a laptop's: the layout must hold with them too, so widen the Type column's text
+    page.add_style_tag(content=".argus-schema-fields td.mono { letter-spacing: 0.35em; }")
     widths = table.locator("thead th").evaluate_all("ths => ths.map(th => th.getBoundingClientRect().width)")
     assert widths[3] >= 240 and widths[4] >= 240, widths  # AC-87
-    assert widths[0] >= 96, widths  # the Field column holds a name of a few words in two lines, not six
     assert page.locator(".argus-schema-fields .table-wrap").evaluate("el => el.scrollWidth <= el.clientWidth")  # and nothing is cut off
     cells = table.locator('td[data-label="Look in"]')
     for i in range(4):  # AC-88
