@@ -259,6 +259,68 @@ def test_an_error_banner_has_no_status_number(page):
     assert alert.inner_text() == "Add companies in step 1 first."  # AC-106
 
 
+FOCUSED = "(x) => (document.activeElement.getAttribute('aria-label') || document.activeElement.getAttribute('href') || document.activeElement.tagName) === x"
+
+
+def test_row_actions_name_their_row_and_keep_keyboard_focus(page):
+    api = page.request
+    a, b, c = (f"{n} {TAG}f" for n in ("Ash", "Birch", "Cedar"))
+    fid = _flow(api, f"name\n{a}\n{b}\n{c}\n")
+    page.goto(f"{URL}/#/argus/{fid}/1")
+    table = page.get_by_role("table", name="Companies")
+    table.get_by_text(c).wait_for()
+    for name in (a, b, c):  # a screen reader's button list tells the rows apart
+        assert table.get_by_role("button", name=f"Edit {name}", exact=True).count() == 1
+        assert table.get_by_role("button", name=f"Remove {name}", exact=True).count() == 1
+    assert table.get_by_role("columnheader", name="Actions").count() == 1
+
+    table.get_by_role("button", name=f"Edit {a}", exact=True).press("Enter")
+    page.get_by_role("form", name=f"Edit {a}").get_by_role("button", name="Cancel").press("Enter")
+    page.wait_for_function(FOCUSED, arg=f"Edit {a}")  # Cancel: back on the row's Edit
+    table.get_by_role("button", name=f"Edit {a}", exact=True).press("Enter")
+    form = page.get_by_role("form", name=f"Edit {a}")
+    form.get_by_label("Name", exact=True).fill(f"{a} Corp")
+    form.get_by_role("button", name="Save").press("Enter")
+    page.wait_for_function(FOCUSED, arg=f"Edit {a} Corp")  # Save: the same row's Edit
+    table.get_by_role("button", name=f"Remove {b}", exact=True).press("Enter")
+    page.wait_for_function(FOCUSED, arg=f"Edit {c}")  # Remove: the next row's first action
+    table.get_by_role("button", name=f"Remove {c}", exact=True).press("Enter")
+    page.wait_for_function(FOCUSED, arg=f"Edit {a} Corp")  # no next row: the one before
+    table.get_by_role("button", name=f"Remove {a} Corp", exact=True).press("Enter")
+    page.wait_for_function(FOCUSED, arg="Companies")  # no row left: the table itself
+
+    older, newer = f"Dee {TAG}f", f"Eff {TAG}f"  # start page: newest first, so the older draft is the next row
+    d1 = _flow(api, f"name\n{older}\n")
+    _flow(api, f"name\n{newer}\n")
+    page.on("dialog", lambda d: d.accept())
+    page.goto(URL + "/#/argus")
+    delete = page.get_by_role("table", name="Runs").get_by_role("button", name=f"Delete draft {newer}", exact=True)
+    delete.press("Enter")
+    page.wait_for_function(FOCUSED, arg=f"#/argus/{d1}/1")  # Delete: the next row's Open
+    _ok_status = api.post(f"{API}/api/argus/flows/{d1}/discard").status
+    assert _ok_status == 204
+
+
+def test_phone_labels_stay_on_one_line(page):
+    fid = _flow(page.request, f"name,isin\nApple {TAG}p,{_isin()}\n")
+    _stub_start_page(page, [_run("r1", "running", "Supercalifragilistic" * 3)], flows=[])  # a value that squeezes its label
+    page.set_viewport_size({"width": 390, "height": 844})
+    # the label is as wide as its text needs, so no word of it is broken
+    one_line = """td => {
+        const s = getComputedStyle(td, '::before'), c = document.createElement('canvas').getContext('2d');
+        c.font = `${s.fontSize} ${s.fontFamily}`;
+        return parseFloat(s.width) >= c.measureText(td.dataset.label).width - 1;
+    }"""
+    page.goto(URL + "/#/argus")
+    cell = page.get_by_role("table", name="Runs").locator('td[data-label="Run"]').first
+    cell.wait_for()
+    assert cell.evaluate(one_line)  # not "Ru / n"
+    page.goto(f"{URL}/#/argus/{fid}/1")
+    cell = page.get_by_role("table", name="Companies").locator('td[data-label="Company"]').first
+    cell.wait_for()
+    assert cell.evaluate(one_line)  # not "Compa / ny"
+
+
 # --- step 2 ---
 
 
@@ -315,12 +377,15 @@ def _choose(page, name):
 def test_a_saved_schema_with_long_texts_keeps_its_layout(page):
     look_in = ("Annual report, sustainability report and the notes on capital expenditure. " * 8)[:600].strip()
     name = f"Wraps{TAG}".ljust(60, "x")
-    _schema(page.request, "wide", name, _fields("w", 4, look_in))
+    fields = _fields("w", 4, look_in)
+    fields[0]["name"] = "Green capex share"  # a name of several words still leaves the table inside its box
+    _schema(page.request, "wide", name, fields)
     page.goto(f"{URL}/#/argus/{_flow(page.request)}/3")
     table = _choose(page, name)
     table.get_by_text("Meaning 3").wait_for()
     widths = table.locator("thead th").evaluate_all("ths => ths.map(th => th.getBoundingClientRect().width)")
     assert widths[3] >= 240 and widths[4] >= 240, widths  # AC-87
+    assert widths[0] >= 96, widths  # the Field column holds a name of a few words in two lines, not six
     assert page.locator(".argus-schema-fields .table-wrap").evaluate("el => el.scrollWidth <= el.clientWidth")  # and nothing is cut off
     cells = table.locator('td[data-label="Look in"]')
     for i in range(4):  # AC-88

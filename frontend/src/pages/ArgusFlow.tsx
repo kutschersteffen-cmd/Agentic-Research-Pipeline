@@ -4,6 +4,7 @@ import { CompanyFields, CompanyPicker, type OneCompany } from "../components/Com
 import { StepBar } from "../components/StepBar";
 import { companiesLocked, continueLabel, documentsText, extractedBeforeText, flowHref, identifierList, identityPolls, identityStatus, plainError, typedCompany } from "../lib/argusFlow";
 import { STEPS } from "../lib/argusStart";
+import { neighbour, useRowFocus } from "../lib/rowFocus";
 import { ArgusDocuments } from "./ArgusDocuments";
 import { ArgusExtract } from "./ArgusExtract";
 import { ArgusResults } from "./ArgusResults";
@@ -51,6 +52,7 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<string | null>(null); // the company_id of the step 1 row being edited
+  const [companiesTable, focusRow] = useRowFocus();
   // a step the URL names that is not 1 to 5 (/7, /2.5): shown as, and sent to, the flow's furthest step
   const step = urlStep ?? flow?.step ?? 1;
   useEffect(() => {
@@ -147,7 +149,7 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
             onAddOne={(company) => act(() => api.addFlowCompanies(flow.flow_id, { company }))}
           />
           <div className="table-wrap">
-            <table className="data-table stack-on-phone argus-companies" aria-label="Companies">
+            <table ref={companiesTable} tabIndex={-1} className="data-table stack-on-phone argus-companies" aria-label="Companies">
               <thead>
                 <tr>
                   <th scope="col">Company</th>
@@ -156,22 +158,24 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
                   <th scope="col">Country</th>
                   <th scope="col">Extracted before</th>
                   <th scope="col">Documents on file</th>
-                  {!locked && <th />}
+                  {!locked && <th scope="col"><span className="visually-hidden">Actions</span></th>}
                 </tr>
               </thead>
               <tbody>
-                {flow.rows.map((r) => !locked && editing === r.company_id ? (
+                {flow.rows.map((r, i) => !locked && editing === r.company_id ? (
                   <EditCompanyRow
                     key={r.central_id ?? r.company_id}
                     company={flow.companies.find((c) => c.company_id === r.company_id)!}
                     busy={busy}
-                    onCancel={() => setEditing(null)}
+                    onCancel={() => (setEditing(null), focusRow(r.company_id))}
                     onSave={async (company) => {
-                      if (await act(() => api.updateFlowCompany(flow.flow_id, r.company_id, company))) setEditing(null);
+                      if (!(await act(() => api.updateFlowCompany(flow.flow_id, r.company_id, company)))) return;
+                      setEditing(null);
+                      focusRow(r.company_id); // a row whose key the edit changed is not found: the table takes focus
                     }}
                   />
                 ) : (
-                  <tr key={r.central_id ?? r.company_id} className={r.problem ? "argus-row-await" : undefined}>
+                  <tr key={r.central_id ?? r.company_id} data-row={r.company_id} className={r.problem ? "argus-row-await" : undefined}>
                     <td data-label="Company">
                       <div>
                         <span className="xbrl-name">{r.name}</span>
@@ -190,8 +194,18 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
                     {!locked && (
                       <td>
                         <span className="row-actions">
-                          <button type="button" className="link-button" disabled={busy} onClick={() => setEditing(r.company_id)}>Edit</button>
-                          <button type="button" className="link-button" disabled={busy} onClick={() => act(() => api.removeFlowCompany(flow.flow_id, r.company_id))}>Remove</button>
+                          <button type="button" className="link-button" aria-label={`Edit ${r.name}`} disabled={busy} onClick={() => setEditing(r.company_id)}>Edit</button>
+                          <button
+                            type="button"
+                            className="link-button"
+                            aria-label={`Remove ${r.name}`}
+                            disabled={busy}
+                            onClick={async () => {
+                              if (await act(() => api.removeFlowCompany(flow.flow_id, r.company_id))) focusRow(neighbour(flow.rows, i)?.company_id);
+                            }}
+                          >
+                            Remove
+                          </button>
                         </span>
                       </td>
                     )}
