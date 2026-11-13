@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from arp.db.company_view import resolve_ref
 from arp.db.session import transaction
@@ -25,6 +25,7 @@ from arp.schemas.engagement import (
     ObjectiveType,
     Receptiveness,
 )
+from arp.schemas.vote_ledger import VoteValue, against_management
 from arp.storage.postgres_engagement_store import _LOCK, _ts
 from arp.storage.postgres_models import (
     StwActivityModel,
@@ -32,6 +33,9 @@ from arp.storage.postgres_models import (
     StwEngagementModel,
     StwEventModel,
     StwObjectiveModel,
+    VoteDecisionModel,
+    VoteItemModel,
+    VoteMeetingModel,
 )
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
@@ -275,4 +279,115 @@ def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str, exce
         now = _ts(now_iso())
         for company in touched:
             s.get(StwCompanyModel, company).updated_at = now
+    return report
+
+
+_VOTE_LOCK = text("select pg_advisory_xact_lock(hashtext('vote_intake'))")  # one vote intake at a time
+_MEETING = ["issuer_name", "isin", "cusip", "meeting_type"]
+_ITEM = ["description", "categories", "proponent", "management_recommendation"]
+_DECISION = ["vote", "against_management", "shares_voted", "rationale", "decided_by", "decided_at", "run_id"]
+
+
+def _clean_vote(n: int, raw: dict, source: str, bad: list[Rejection]) -> dict:
+    def reject(field: str, reason: str) -> None:
+        bad.append(Rejection(sheet="votes", row=n, field=field, reason=reason))
+
+    row = {}
+    for k in VOTE_COLUMNS:
+        v = raw.get(k)
+        v = v.strip() if isinstance(v, str) else v
+        if v is not None and not isinstance(v, (str, list)):
+            v = str(v)
+        row[k] = None if v in ("", None, []) else v
+    for k in ("external_id", "item_number", "meeting_date", "vote"):
+        if row[k] is None:
+            reject(k, "required")
+    options = ", ".join(e.value for e in VoteValue)
+    for k in ("vote", "management_recommendation"):
+        if row[k] is not None and row[k] not in {e.value for e in VoteValue}:
+            reject(k, "not one of " + options)
+    if row["proponent"] not in (None, "issuer", "shareholder"):
+        reject("proponent", "not one of issuer, shareholder")
+    for k in ("meeting_date", "decided_at"):
+        try:
+            row[k] = _ts(row[k], k)
+        except ClientInputError:
+            reject(k, "not an ISO 8601 timestamp")
+    try:
+        row["shares_voted"] = None if row["shares_voted"] is None else float(row["shares_voted"])
+    except (TypeError, ValueError):
+        reject("shares_voted", "not a number")
+    cats = row["categories"] or []
+    row["categories"] = [c.strip() for c in cats.split(";") if c.strip()] if isinstance(cats, str) else [str(c) for c in cats]
+    row["isin"] = "".join(row["isin"].split()).upper() if row["isin"] else None
+    row["cusip"] = row["cusip"].upper() if row["cusip"] else None
+    row["against_management"] = None
+    if row["vote"] in {e.value for e in VoteValue}:
+        row["against_management"] = against_management(VoteValue(row["vote"]), row["management_recommendation"])
+        if row["against_management"] and not row["rationale"] and source != "npx_urth_demo":
+            reject("rationale", "rationale required when voting against management")
+    return row
+
+
+def intake_votes(rows: list[dict], dsn: str, source: str, excel_rows: bool = False) -> IntakeReport:
+    """Upsert vote rows into meeting, item and decision on (source, external_id). A company matches only if its
+    stw_companies row exists, else `company_id` stays null. No events are written for votes."""
+    report = IntakeReport()
+    bad = report.rejected
+    with transaction(dsn) as s:
+        clean = [_clean_vote(r["_row"] if excel_rows else i, r, source, bad) for i, r in enumerate(rows, 1)]
+        nums = [r["_row"] if excel_rows else i for i, r in enumerate(rows, 1)]
+        plan = []  # (meeting ext, meeting values, item ext, item values, decision ext, decision values)
+        seen = set()
+        for n, row in zip(nums, clean, strict=True):
+            company = None
+            for key in (row["company_id"], row["isin"] and f"isin_{row['isin']}"):
+                if key and _safe(key) and s.get(StwCompanyModel, key):
+                    company = key
+                    break
+            key = company or row["isin"] or row["cusip"]
+            if key is None:
+                bad.append(Rejection(sheet="votes", row=n, field="company_id", reason="no company_id, isin or cusip"))
+                continue
+            if row["external_id"] in seen:
+                bad.append(Rejection(sheet="votes", row=n, field="external_id", reason="duplicate in batch"))
+            seen.add(row["external_id"])
+            if row["meeting_date"] is None or row["item_number"] is None or row["external_id"] is None:
+                continue
+            meeting = f"{key}:{row['meeting_date'].date().isoformat()}"
+            plan.append((
+                meeting, {"company_id": company, "meeting_date": row["meeting_date"], **{k: row[k] for k in _MEETING}},
+                f"{meeting}:{row['item_number']}", {"item_number": row["item_number"], **{k: row[k] for k in _ITEM}},
+                row["external_id"], {k: row[k] for k in _DECISION},
+            ))  # fmt: skip
+        if bad:
+            return report
+        s.execute(_VOTE_LOCK)
+        tables = {"meeting": (VoteMeetingModel, "meeting_id", "mtg"), "item": (VoteItemModel, "item_id", "vitem"), "decision": (VoteDecisionModel, "decision_id", "vote")}
+        ids = {k: {e: i for e, i in s.execute(select(m.external_id, getattr(m, pk)).where(m.source == source, m.external_id.is_not(None)))} for k, (m, pk, _) in tables.items()}  # fmt: skip
+
+        def upsert(kind: str, ext: str, values: dict) -> None:
+            model, pk, prefix = tables[kind]
+            stored = s.get(model, ids[kind][ext]) if ext in ids[kind] else None
+            if stored is None:
+                ids[kind][ext] = new_id(prefix)
+                s.add(model(**{pk: ids[kind][ext], "source": source, "external_id": ext, **values}))
+                s.flush()
+                report.created += 1
+                return
+            changed = [k for k, v in values.items() if getattr(stored, k) != v]
+            for k in changed:
+                setattr(stored, k, values[k])
+            report.updated += bool(changed)
+            report.unchanged += not changed
+
+        done = set()
+        for m_ext, m_vals, i_ext, i_vals, d_ext, d_vals in plan:
+            if m_ext not in done:  # a meeting or item shared by several rows counts once, from its first row
+                done.add(m_ext)
+                upsert("meeting", m_ext, m_vals)
+            if i_ext not in done:
+                done.add(i_ext)
+                upsert("item", i_ext, {**i_vals, "meeting_id": ids["meeting"][m_ext]})
+            upsert("decision", d_ext, {**d_vals, "item_id": ids["item"][i_ext]})
     return report

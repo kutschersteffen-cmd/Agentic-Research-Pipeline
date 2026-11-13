@@ -11,10 +11,9 @@ from typing import Literal
 from openpyxl import Workbook, load_workbook
 
 from arp.schemas import engagement as e
+from arp.schemas.vote_ledger import VoteValue
 from arp.stewardship.intake import ENGAGEMENT_COLUMNS, VOTE_COLUMNS, Rejection
 
-# Task 9 reuses this as `VoteValue`.
-VOTE_VALUES = ["for", "against", "abstain", "withhold", "do_not_vote", "one_year", "two_years", "three_years", "other"]
 _LISTS: dict[str, type[StrEnum]] = {
     "fir_theme": e.FirTheme, "esg_pillar": e.EsgPillar, "engager_role": e.EngagerRole, "issue_status": e.IssueStatus,
     "severity": e.IssueSeverity, "objective_type": e.ObjectiveType, "objective_status": e.ObjectiveStatus,
@@ -88,7 +87,7 @@ def template(kind: Literal["engagements", "votes"]) -> bytes:
     for sheet, columns in _columns(kind).items():
         wb.create_sheet(sheet).append(columns)
     lists = wb.create_sheet("lists")
-    options = {"vote": VOTE_VALUES} if kind == "votes" else {k: [m.value for m in v] for k, v in _LISTS.items()}
+    options = {"vote": [v.value for v in VoteValue]} if kind == "votes" else {k: [m.value for m in v] for k, v in _LISTS.items()}
     col = 1
     for name, values in options.items():
         lists.cell(1, col, name)
