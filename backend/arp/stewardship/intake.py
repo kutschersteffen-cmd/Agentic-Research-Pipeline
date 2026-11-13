@@ -166,12 +166,12 @@ def _safe(key: str) -> bool:
     return True
 
 
-def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str) -> IntakeReport:
+def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str, excel_rows: bool = False) -> IntakeReport:
+    """`excel_rows`: rows carry `_row` (set by read_workbook); never true for JSON, whose rows are numbered by index."""
     report = IntakeReport()
     bad = report.rejected
     with transaction(dsn) as s:
-        # report row numbers: a row's `_row` (the worksheet row, set by the Excel reader) else its 1-based index
-        num = {sheet: [r.get("_row", i) for i, r in enumerate(batch.get(sheet) or [], 1)] for sheet in _TABLES}
+        num = {sheet: [r["_row"] if excel_rows else i for i, r in enumerate(batch.get(sheet) or [], 1)] for sheet in _TABLES}
         rows = {sheet: [_clean(sheet, n, r, bad) for n, r in zip(num[sheet], batch.get(sheet) or [], strict=True)] for sheet in _TABLES}
         # Resolve and lock the companies first: ids and company_of are read after the locks, so a batch that
         # waited on a concurrent one sees the rows it wrote and upserts instead of inserting a duplicate.

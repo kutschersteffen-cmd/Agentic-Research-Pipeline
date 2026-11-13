@@ -21,6 +21,15 @@ _LISTS: dict[str, type[StrEnum]] = {
     "result": e.ObjectiveResult, "receptiveness": e.Receptiveness, "influence_level": e.InfluenceLevel,
     "activity_type": e.ActivityType, "interaction_type": e.InteractionType,
 }  # fmt: skip
+_LABELS = {  # value -> label, from the spec's "VOICE option lists"; lists without labels get no label column
+    "fir_theme": {m.value: t for m, t in e.FIR_THEME_LABELS.items()},
+    "engager_role": {"lead": "Lead, Co-Lead or equivalent", "passive_support": "Passive support, Signatory"},
+    "receptiveness": {"refusal": "Refusal/Blockage"},
+    "influence_level": {
+        "1": "No influence", "2": "Not demonstrable", "3": "Probable", "4A": "Very likely, converging clues",
+        "4B": "Very likely, convergent loop", "5": "Recognised",
+    },
+}  # fmt: skip
 _SPLIT = {"esg_pillars", "categories"}
 
 
@@ -61,6 +70,9 @@ def read_workbook(data: bytes, kind: Literal["engagements", "votes"]) -> tuple[d
             continue
         rows = wb[sheet].iter_rows(values_only=True)
         headers = [str(h).strip() if h is not None else None for h in next(rows, ())]
+        if not any(headers):
+            bad.append(Rejection(sheet=sheet, row=1, field="", reason="missing header"))
+            continue
         bad += [Rejection(sheet=sheet, row=1, field=h, reason=f"unknown column {h}") for h in headers if h and h not in columns]
         batch[sheet] = []
         for n, values in enumerate(rows, 2):
@@ -83,10 +95,10 @@ def template(kind: Literal["engagements", "votes"]) -> bytes:
         for i, v in enumerate(values, 2):
             lists.cell(i, col, v)
         col += 1
-        if name == "fir_theme":  # the label sits beside the value
-            lists.cell(1, col, "fir_theme_label")
-            for i, m in enumerate(e.FirTheme, 2):
-                lists.cell(i, col, e.FIR_THEME_LABELS[m])
+        if name in _LABELS:  # the label sits beside the value; blank where the spec gives none
+            lists.cell(1, col, f"{name}_label")
+            for i, v in enumerate(values, 2):
+                lists.cell(i, col, _LABELS[name].get(v))
             col += 1
     buf = io.BytesIO()
     wb.save(buf)

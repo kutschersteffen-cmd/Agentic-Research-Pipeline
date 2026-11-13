@@ -15,19 +15,16 @@ from arp.storage.postgres_models import StwEventModel
 
 def _data(typed=False):
     """2 engagements, 3 objectives, 5 activities; `typed` stores cells the way Excel saves them."""
-    eng = [{"external_id": f"e{i}", "company_id": f"C{i}", "theme": "climate", "esg_pillars": "E;S", "started_at": "2026-01-05"} for i in (1, 2)]
-    obj = [{"external_id": f"o{i}", "engagement_external_id": f"e{1 + i % 2}", "description": "d", "objective_type": "strategic", "escalated": "true", "target_date": "2026-03-01"} for i in (1, 2, 3)]
-    act = [{"external_id": f"a{i}", "engagement_external_id": "e1", "occurred_at": "2026-02-01", "summary": "s", "is_initiation": "true"} for i in range(1, 6)]
+    eng = [{"external_id": str(i), "company_id": f"C{i}", "theme": "climate", "esg_pillars": "E;S", "started_at": "2026-01-05"} for i in (1, 2)]
+    obj = [{"external_id": f"o{i}", "engagement_external_id": str(1 + i % 2), "description": "d", "objective_type": "strategic", "escalated": "true", "target_date": "2026-03-01"} for i in (1, 2, 3)]
+    act = [{"external_id": f"a{i}", "engagement_external_id": "1", "occurred_at": "2026-02-01", "summary": "s", "is_initiation": "true"} for i in range(1, 6)]
     if typed:
         for r in eng:
-            r["started_at"] = datetime(2026, 1, 5)
-            r["company_id"] = r["company_id"]
+            r["started_at"], r["external_id"] = datetime(2026, 1, 5), float(r["external_id"])
         for r in obj:
-            r["escalated"], r["target_date"] = True, date(2026, 3, 1)
+            r["escalated"], r["target_date"], r["engagement_external_id"] = True, date(2026, 3, 1), float(r["engagement_external_id"])
         for r in act:
-            r["is_initiation"], r["occurred_at"] = 1, datetime(2026, 2, 1)
-        for r in eng + obj + act:
-            r["external_id"] = r["external_id"]
+            r["is_initiation"], r["occurred_at"], r["engagement_external_id"] = 1, datetime(2026, 2, 1), 1.0
     return {"engagements": eng, "objectives": obj, "activities": act}
 
 
@@ -47,7 +44,7 @@ def _xlsx(sheets):
 def _upload(pg, sheets):
     batch, bad = read_workbook(_xlsx(sheets), "engagements")
     assert bad == []
-    return intake_engagements(batch, pg, "excel")
+    return intake_engagements(batch, pg, "excel", excel_rows=True)
 
 
 @pytest.fixture
@@ -89,12 +86,12 @@ def test_worksheet_row_number(pg, two_companies):
     d["objectives"][1]["objective_type"] = "ambitious"
     d["objectives"].insert(0, {})  # a fully blank worksheet row is skipped but still counts
     batch, bad = read_workbook(_xlsx(d), "engagements")
-    r = intake_engagements(batch, pg, "excel")
+    r = intake_engagements(batch, pg, "excel", excel_rows=True)
     assert [x.model_dump() for x in r.rejected if x.field == "objective_type"] == [
         {"sheet": "objectives", "row": 4, "field": "objective_type", "reason": "not one of transparency, operational, strategic"}
     ]
     d["objectives"].pop(0)
-    r = intake_engagements(read_workbook(_xlsx(d), "engagements")[0], pg, "excel")
+    r = intake_engagements(read_workbook(_xlsx(d), "engagements")[0], pg, "excel", excel_rows=True)
     assert (r.rejected[0].row, r.rejected[0].sheet) == (3, "objectives")
 
 
@@ -121,6 +118,14 @@ def test_wrong_workbook():
     wb.save(buf)
     _, bad = read_workbook(buf.getvalue(), "engagements")
     assert [b.model_dump() for b in bad] == [{"sheet": "activities", "row": 1, "field": "occured_at", "reason": "unknown column occured_at"}]
+    d = _data()
+    d["activities"] = []
+    wb = load_workbook(io.BytesIO(_xlsx(d)))
+    wb["activities"].delete_rows(1)
+    buf = io.BytesIO()
+    wb.save(buf)
+    _, bad = read_workbook(buf.getvalue(), "engagements")
+    assert [b.model_dump() for b in bad] == [{"sheet": "activities", "row": 1, "field": "", "reason": "missing header"}]
     _, bad = read_workbook(b"not a workbook", "engagements")
     assert len(bad) == 1
 
@@ -155,3 +160,16 @@ def test_lists_fir_theme():
     col = list(ws.iter_cols(min_col=header.index("fir_theme") + 1, max_col=header.index("fir_theme") + 1))[0]
     assert [c.value for c in col[1:] if c.value] == [e.value for e in FirTheme]
     assert ws.cell(2, header.index("fir_theme") + 2).value == "Climate Mitigation & Paris Alignment"
+
+
+def test_lists_labels_beside_values():
+    ws = load_workbook(io.BytesIO(template("engagements")))["lists"]
+    header = [c.value for c in ws[1]]
+    i = header.index("influence_level") + 1
+    assert ws.cell(1, i + 1).value == "influence_level_label"
+    assert [(ws.cell(r, i).value, ws.cell(r, i + 1).value) for r in (2, 5)] == [("1", "No influence"), ("4A", "Very likely, converging clues")]
+
+
+def test_json_ignores_row_key(pg):
+    r = intake_engagements({"engagements": [{"_row": "x", "external_id": "e", "company_id": "nope", "theme": "t"}]}, pg, "api")
+    assert r.rejected[0].row == 1
