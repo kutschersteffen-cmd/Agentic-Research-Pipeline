@@ -10,6 +10,7 @@ import pytest
 from arp.bi.published import month_end
 from arp.config import Settings
 from arp.portfolio import datapoint_mapping
+from arp.portfolio.climate.esg_intake import FIELD_IDS as CLIMATE_FIELD_IDS
 from arp.portfolio.loads import latest_load
 from arp.schemas.portfolio import DataPointObservation
 from arp.showcase.load import MONTHS, load
@@ -141,6 +142,41 @@ def test_the_25_score_fields_are_published_for_november_only(env, monkeypatch):
     assert november["norms_violation"]["value"] is False and november["esg_score"]["value"] == float(a["esg_score"])
     october = {r["field_id"] for r in published[("company_profile", "2026-10")] if r["company_id"] == a["company_id"]}
     assert not october & set(FIELD_IDS)
+
+
+def test_grade_weights_are_shares_of_the_graded_weight(env, monkeypatch):
+    ok, _, published = _run(env, monkeypatch)
+    assert ok
+    (world,) = [r for r in published[("portfolio_climate_metrics", "2026-11")] if r["portfolio_id"] == "portfolio_msci_world"]
+    # ten equal weights graded A 1, B 2, C 3, D 2, E 1, F 1; the cash line has no company, so no grade
+    shares = {g: world[f"grade_{g}_weight_pct"] for g in "abcdef"}
+    assert shares == pytest.approx({"a": 10, "b": 20, "c": 30, "d": 20, "e": 10, "f": 10})
+    for r in published[("portfolio_climate_metrics", "2026-11")]:
+        assert sum(r[f"grade_{g}_weight_pct"] for g in "abcdef") == pytest.approx(100)
+    (june,) = [r for r in published[("portfolio_climate_metrics", "2026-06")] if r["portfolio_id"] == "portfolio_msci_world"]
+    assert all(june[f"grade_{g}_weight_pct"] is None for g in "abcdef")  # the grade is observed for 2026-11 only
+
+
+def test_dataset_companies_open_on_the_company_page_with_their_simulated_values(env):
+    from arp.api.routers.companies import get_simulated_esg
+    from arp.db import company_view
+    from arp.db.companies import ensure_universe_company
+    from arp.db.session import transaction
+
+    store, *_, rows = env
+    assert _run(env)[0]
+    a = rows["A"]
+    with transaction() as s:
+        uuid = company_view.resolve_ref(s, f"UNIVERSE:{a['company_id']}")
+        assert uuid is not None and company_view.resolve_ref(s, f"ISIN:{a['isin']}") == uuid
+        assert [h.id for h in company_view.search(s, a["name"])] == [uuid]
+    values = {o.field_id: o for o in get_simulated_esg(str(uuid), store)}
+    assert set(values) == {*CLIMATE_FIELD_IDS, *FIELD_IDS} and {o.source for o in values.values()} == {"simulated"}
+    assert values["transition_grade"].value == "A" and values["climate_scope1_tco2e"].value == float(a["climate_scope1_tco2e"])
+    assert get_simulated_esg(f"UNIVERSE:{a['company_id']}", store) == list(values.values())
+    with transaction() as s:
+        other = ensure_universe_company(s, "not_simulated")
+    assert get_simulated_esg(str(other), store) == []
 
 
 def test_a_second_run_changes_nothing(env):

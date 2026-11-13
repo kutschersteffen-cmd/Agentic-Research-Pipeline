@@ -20,6 +20,7 @@ from arp.portfolio.climate.schemas import FIELD_CARBON_INTENSITY, FIELD_SCOPE1, 
 from arp.portfolio.constituent_import import import_holdings_files
 from arp.portfolio.loads import LoadRecord, record_load_once
 from arp.portfolio.monthly_run import run_month
+from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import FieldDataType
 from arp.schemas.portfolio import DataPointObservation, Portfolio
 from arp.showcase.schema import build_simulated_schema
@@ -134,6 +135,18 @@ def _scores(store, rows: list[dict], dataset: Path) -> int:
     return written
 
 
+def _register(rows: list[dict]) -> None:
+    """Each dataset company in the company registry, under its universe id and ISIN, so it opens on the company page
+    and company search finds it. An ISIN or id already registered attaches to that company; a conflict is skipped."""
+    from arp.db.companies import resolve_company
+    from arp.db.session import transaction
+
+    with transaction() as session:
+        for row in rows:
+            resolve_company(session, CompanyRef(company_id=row["company_id"], name=row["name"], isin=row["isin"],
+                                                country=row["country"], sector=row["sector"]))
+
+
 def load(store, settings: Settings, holdings_dir: Path, dataset: Path, echo: Callable[[str], None] = print) -> bool:
     """Runs the five steps, printing `ok|FAIL <step>: <reason>` for each. False on the first FAIL; later steps
     build on earlier ones, so they are not attempted."""
@@ -151,11 +164,16 @@ def load(store, settings: Settings, holdings_dir: Path, dataset: Path, echo: Cal
         state["imported"] = _import(store, holdings_dir)
         return f"{len(state['imported'])} portfolios, {sum(s['holdings_written'] for _, s in state['imported'])} holdings"
 
+    def step_scores() -> str:
+        written = _scores(store, read_dataset(), dataset)
+        _register(read_dataset())  # no step of its own: the spec's five step lines stay as they are
+        return f"{written} new simulated score observations"
+
     steps: list[tuple[str, Callable[[], str]]] = [
         ("import", step_import),
         ("history", lambda: f"{_history(store, state['imported'])} simulated month-end snapshots"),
         ("esg", lambda: f"{_esg(store, read_dataset(), dataset)} new simulated climate observations, {len(MONTHS)} months"),
-        ("scores", lambda: f"{_scores(store, read_dataset(), dataset)} new simulated score observations"),
+        ("scores", step_scores),
     ]
     for name, step in steps:
         try:

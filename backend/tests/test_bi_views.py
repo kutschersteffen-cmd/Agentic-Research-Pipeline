@@ -123,16 +123,20 @@ def test_published_views_cast_bi_published_rows_by_dataset(engine):
         "triggers": {"trigger_id": "t1", "status": "open", "is_new": True},
         "company_profile": {"company_id": "bmw", "field_id": "f", "value": 4.5, "as_of": "2026-09-01"},
     }
+    grade = {"company_id": "bmw", "field_id": "transition_grade", "value": "B", "as_of": "2026-09-01"}
     with engine.begin() as conn:
         for dataset, row in rows.items():
             conn.execute(
                 text("INSERT INTO bi_published (dataset, month, row) VALUES (:d, '2026-09', CAST(:r AS jsonb))"),
                 {"d": dataset, "r": json.dumps(row)},
             )
+        conn.execute(text("INSERT INTO bi_published (dataset, month, row) VALUES ('company_profile', '2026-09', CAST(:r AS jsonb))"),
+                     {"r": json.dumps(grade)})
     assert tuple(_q(engine, "SELECT waci, as_of_date::text FROM bi.portfolio_climate_metrics")[0]) == (12.5, "2026-09-30")
     assert tuple(_q(engine, "SELECT status, portfolio_id, month FROM bi.alerts")[0]) == ("open", "p1", "2026-09")
     assert tuple(_q(engine, "SELECT trigger_id, is_new FROM bi.triggers")[0]) == ("t1", True)
-    assert tuple(_q(engine, "SELECT value, as_of::text FROM bi.company_profile")[0]) == (4.5, "2026-09-01")
+    assert tuple(_q(engine, "SELECT value, as_of::text, value_text FROM bi.company_profile WHERE field_id = 'f'")[0]) == (4.5, "2026-09-01", None)
+    assert tuple(_q(engine, "SELECT value, value_text FROM bi.company_profile WHERE field_id = 'transition_grade'")[0]) == (None, "B")
 
 
 def test_holdings_view_matches_base_tables_total(engine):

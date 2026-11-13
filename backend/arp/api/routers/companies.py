@@ -3,12 +3,17 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 
 from arp.api.deps import get_portfolio_store, settings_dep
 from arp.config import Settings
 from arp.db import company_view as view
-from arp.db.models import FieldKind
+from arp.db.companies import normalise_identifier
+from arp.db.models import CompanyIdentifier, FieldKind
 from arp.db.session import transaction
+from arp.portfolio.climate.esg_intake import FIELD_IDS as CLIMATE_FIELD_IDS
+from arp.schemas.portfolio import DataPointObservation
+from arp.showcase.schema import FIELD_IDS as SIMULATED_FIELD_IDS
 
 router = APIRouter(prefix="/api", tags=["companies"])
 
@@ -30,6 +35,25 @@ def search_companies(q: str = Query("", max_length=200), limit: int = Query(20, 
 def get_company(ref: str, store=Depends(get_portfolio_store), settings: Settings = Depends(settings_dep)) -> view.CompanySummary:
     with transaction() as s:
         return view.summary(s, _resolve(s, ref), today=date.today(), store=store, documents_dir=settings.documents_dir)
+
+
+@router.get("/companies/{ref}/simulated-esg")
+def get_simulated_esg(ref: str, store=Depends(get_portfolio_store)) -> list[DataPointObservation]:
+    """The company's latest SIMULATED value per climate and `simulated_esg` field (`arp showcase load`), in schema
+    order; empty when it has none. Only source `simulated`: every value here is invented and must be shown so."""
+    with transaction() as s:
+        cid = _resolve(s, ref)
+        universe = set(s.scalars(select(CompanyIdentifier.value).where(
+            CompanyIdentifier.company_id == cid, CompanyIdentifier.scheme == "UNIVERSE", CompanyIdentifier.valid_to.is_(None))))
+    # UNIVERSE aliases are stored upper-cased; the portfolio store keeps the id as written
+    # shortcut: reads every portfolio-store company per call; index by normalised id if the store grows past ~10k
+    company_id = next((c.company_id for c in store.list_companies() if normalise_identifier("UNIVERSE", c.company_id) in universe), None)
+    out = []
+    for field_id in [*CLIMATE_FIELD_IDS, *SIMULATED_FIELD_IDS] if company_id else []:
+        simulated = [o for o in store.load_observations(company_id, field_id) if o.source == "simulated"]
+        if simulated:
+            out.append(max(simulated, key=lambda o: o.observed_at))
+    return out
 
 
 @router.get("/companies/{ref}/facts")
