@@ -208,7 +208,7 @@ component id in `priority_weights`; only the columns with a Score part can carry
 | 6 | Open triggers | `TriggerStore.list_triggers()` for the issuer, status `open` or `acknowledged` | three counts, shown `H 1 · M 2 · L 0` | never (all zero shows `—`) | `open_triggers`: min(1, (H × 1.0 + M × 0.6 + L × 0.3) / 2) |
 | 7 | Open engagements | engagement store, issues with status `open` or `stalled` (`tracking.OPEN`) | count | never (0 shows `0`) | `open_engagements`: min(1, n / 3) |
 | 8 | Escalated | open issues whose `escalation_stage` is not `private_engagement` | count | never | `escalated`: 1 if n ≥ 1, else 0 |
-| 9 | Overdue commitments | commitments with status `open` and `target_date` before today, on issues with status `open` or `stalled` (the commitment loop's `overdue` rule; PR 7 reads it from `commitment_flags_by_company`) | count | never | `overdue_commitments`: min(1, n / 2) |
+| 9 | Overdue commitments | commitments with status `open` and `target_date` before today, on issues with status `open` or `stalled` (the commitment loop's `overdue` rule; PR 7 reads it from `watch_flags_by_company`, `item_kind` `commitment`) | count | never | `overdue_commitments`: min(1, n / 2) |
 | 10 | Next meeting | `vote_meetings` (vote ledger): newest `meeting_date` for the `company_id`; Q1, see below | days from today, shown `≈ 42 d (est.)` | no meeting in the vote ledger | `next_meeting`: max(0, 1 − days / 90) |
 | 11 | Transition grade | observation `transition_grade` (portfolio store, latest) | `A`..`F` with the fixed label map of `showcase-portfolio-data` (A Leader, B Credible, C Gaps, D Emerging, E Not credible, F Disqualified), e.g. `D Emerging` | no observation | `transition_grade`: A 0, B 0.2, C 0.4, D 0.6, E 0.8, F 1 |
 | 12 | ESG score | observation `esg_score` | 0 to 10, 1 decimal | no observation | `esg_score`: (10 − value) / 10 |
@@ -216,7 +216,7 @@ component id in `priority_weights`; only the columns with a Score part can carry
 | 14 | Carbon intensity | observation `ghg_intensity` | tCO2e per EUR m revenue, 0 decimals | no observation | `carbon_intensity`: percentile rank |
 | 15 | Priority score | computed | 0 to 100, 1 decimal | never | — |
 | 16 | Selected | this scope's selection log for the cycle | `Proposed` / `Confirmed` / empty | not selected | — |
-| 17 (PR 7) | Broken commitments | `tracking.commitment_flags_by_company(store.list_all())` from `stewardship-commitment-loop`, flags with `kind` `broken` (status `missed`, set by a person, on an open or stalled issue) | count | never (0 shows `0`) | `broken_commitments`: min(1, n / 2) |
+| 17 (PR 7) | Broken commitments | `tracking.watch_flags_by_company(store.list_all())` from `stewardship-commitment-loop`, flags with `item_kind` `commitment` and `kind` `broken` (status `missed`, set by a person, on an open or stalled issue) | count | never (0 shows `0`) | `broken_commitments`: min(1, n / 2) |
 | 18 | Funds | `held_in` (see Scopes) | count; tooltip lists fund names | 0 shows `0` (sample universe) | — |
 | 19 | Also selected in | the other scopes' selection logs for the cycle | count; tooltip lists `<scope label>: Proposed/Confirmed` | 0 shows `—` | — |
 | 20 | Notes | the notes log | count and the latest note's date; tooltip shows its first 120 characters | 0 shows `—` | — |
@@ -250,10 +250,12 @@ Notes:
   meeting date and has no score part.>
 
 **Commitment flags (PR 7).** The sibling spec `stewardship-commitment-loop` (merges first) adds to
-`arp/stewardship/tracking.py`: `commitment_flags_by_company(records, today=None) -> dict[str, list[CommitmentFlag]]`
-(only companies with a flag are keys) and `CommitmentFlag` in `arp/schemas/engagement.py` with `commitment_id`,
-`engagement_id`, `kind` (`overdue` | `broken`), `text`, `target_date`, `since`, `message`. PR 7 calls it once per
-request and counts each company's flags by `kind`; Overdue commitments then comes from it too, with the same rule as
+`arp/stewardship/tracking.py`: `watch_flags_by_company(records, today=None) -> dict[str, list[WatchFlag]]` (only
+companies with a flag are keys) and `WatchFlag` in `arp/schemas/engagement.py` with `item_kind` (`commitment` |
+`objective`), `item_id`, `engagement_id`, `kind` (`overdue` | `broken`), `text`, `target_date`, `since`, `message`
+(interface as sent by that session on 13 Nov 2026; its spec is still a draft, so PR 7 follows whatever it merges with).
+PR 7 calls it once per request and counts each company's flags with `item_kind` `commitment` by `kind`; objective
+flags are not a column or score part in this spec; Overdue commitments then comes from it too, with the same rule as
 PR 1, so the column does not change. The why panel shows each flag's `message` under the Value of that row. Pending
 Argus suggestions never create a flag.
 
@@ -578,7 +580,7 @@ and the trigger filter offers "new high trigger".
    section. Screenshot, impeccable audit.
 5. **Filter builder:** Add filter, the type-fitting controls, chips, Include empty, Clear filters. Screenshot.
 6. **Side panel:** the seven tabs, notes entry, ↑/↓ navigation, programme chips. Screenshot with the panel open.
-7. **Commitments and refresh:** `broken_commitments` from `commitment_flags_by_company` (after the commitment loop
+7. **Commitments and refresh:** `broken_commitments` from `watch_flags_by_company` (after the commitment loop
    merges), the `New high trigger` tag and refetch on focus.
 
 ## Left to the builder
