@@ -37,7 +37,7 @@ Owner decisions so far:
 
 Today the steward sees the companies in scope only through separate screens: coverage tiers (Selection), stored
 triggers (Monitoring), engagements and commitments (Tracking), simulated ESG (Transition Intelligence). Deciding
-which companies to engage this cycle means holding all of them in one's head. The worklist puts them side by side,
+which companies to engage this cycle means holding all of them in one's head. The Workbench puts them side by side,
 one row per company, so the steward can sort and filter on whatever matters this cycle and pick the companies.
 
 The owner wants more than a list: a workbench where the analyst works at house level (all holdings of all funds), at
@@ -76,7 +76,7 @@ tool records the pick the same way.
 - New data sources: no meeting calendar feed, no new ESG data, no uploads (spec 2).
 - Editing or deleting notes, notes on a single engagement or objective (the engagement record has its own fields).
 - Weighting the score per scope: one active `priority_weights` applies to every scope.
-- Changing the logic of `tiers.py`, `monitoring.py` or `program.py`. The worklist reads them.
+- Changing the logic of `tiers.py`, `monitoring.py` or `program.py`. `worklist.py` reads them.
 - Opening engagements from the selection. A confirmed selection is a list; opening engagements stays where it is
   today (Monitoring → open engagement, `POST /api/engagement/records/{id}/issues`).
 - A stored score history, score snapshots or a score table (that would make the risk high).
@@ -98,9 +98,8 @@ tool records the pick the same way.
   portfolio groups (`PortfolioGroup`, `POST /api/portfolio/groups`), not a new store.
 - Engagements are read through the engagement store interface (`EngagementStore.list_all()`, the store the factory
   from `stewardship-data-foundation` returns), never from the files directly.
-- Request and response models are new, so `scripts/export_openapi.py` and `npm run gen:api` run in PR 1 (and PR 3
-  for the new field) and both generated files are committed; each new `request<T>()` gets a line in
-  `frontend/src/api/contract.ts`.
+- Request and response models are new, so `scripts/export_openapi.py` and `npm run gen:api` run in PR 1, PR 2 and
+  PR 5, and both generated files are committed; each new `request<T>()` gets a line in `frontend/src/api/contract.ts`.
 - Reads need role `viewer`; selecting, confirming, adding notes and saving weights need `analyst` or above; activating a weights
   version follows the existing four-eyes rule of `PolicyStore.activate`.
 - Frontend rules: PRs 3 and 4 are checked with impeccable and ui-ux-pro-max, and each carries a Playwright
@@ -125,12 +124,15 @@ company and is the same in every scope. Percentile ranks and the rank are comput
 | Scope key | Rows | Holdings weight % / AUM held | Needs |
 |---|---|---|---|
 | `house` (default) | every issuer in `house_universe()` (as `load_sample()` returns it, so coverage rules and the workbench see the same companies) | share of all house holdings / its market value across them | — |
-| `portfolio:<portfolio_id>` | companies held in that portfolio at the latest holdings snapshot | company's market value in it ÷ the portfolio's total × 100 / that market value | portfolio universe |
+| `portfolio:<portfolio_id>` | companies held in that portfolio on the global latest holdings snapshot date (the date `house_universe()` uses) | company's market value in it ÷ the portfolio's total × 100 / that market value | portfolio universe |
 | `group:<group_id>`, kind `portfolios` | companies held in any member portfolio | share of the members' combined total / market value across the members | portfolio universe |
 | `group:<group_id>`, kind `companies` | house rows whose `issuer_id` is a member | as `house` | — |
 
-- `GET /api/stewardship/worklist/scopes` (viewer) lists `{"key", "label", "kind", "companies"}` for `house`, every
-  house portfolio (`label` = portfolio name) and every saved group of kind `portfolios` or `companies` (latest version).
+- `GET /api/stewardship/worklist/scopes` (viewer) returns `{"scopes": [{"key", "label", "kind", "companies"}]}`:
+  `house` (label `All house holdings`, kind `house`), every portfolio with holdings on the global latest snapshot date
+  (label = portfolio name, kind `portfolio`; portfolios without holdings on that date are left out), and every saved
+  group of kind `portfolios` or `companies`, latest version (label = group `name`, kind `group`). With the sample
+  universe only `house` and `companies` groups are listed.
 - With the sample universe, `portfolio:` scopes and `portfolios` groups return 422
   `Fund scopes need the portfolio universe`. A group of kind `securities` returns 422
   `Groups of securities are not a workbench scope`. An unknown portfolio or group id returns 404.
@@ -155,7 +157,7 @@ can carry a weight. Empty cells show `—` and add 0 points; the why panel says 
 | 6 | Open triggers | `TriggerStore.list_triggers()` for the issuer, status `open` or `acknowledged` | three counts, shown `H 1 · M 2 · L 0` | never (all zero shows `—`) | `open_triggers`: min(1, (H × 1.0 + M × 0.6 + L × 0.3) / 2) |
 | 7 | Open engagements | engagement store, issues with status `open` or `stalled` (`tracking.OPEN`) | count | never (0 shows `0`) | `open_engagements`: min(1, n / 3) |
 | 8 | Escalated | open issues whose `escalation_stage` is not `private_engagement` | count | never | `escalated`: 1 if n ≥ 1, else 0 |
-| 9 | Overdue commitments | commitments with status `open` and `target_date` before today, on issues with status `open` or `stalled` (the commitment loop's `overdue` rule; PR 3 reads it from `commitment_flags_by_company`) | count | never | `overdue_commitments`: min(1, n / 2) |
+| 9 | Overdue commitments | commitments with status `open` and `target_date` before today, on issues with status `open` or `stalled` (the commitment loop's `overdue` rule; PR 5 reads it from `commitment_flags_by_company`) | count | never | `overdue_commitments`: min(1, n / 2) |
 | 10 | Next meeting | `vote_meetings` (vote ledger): newest `meeting_date` for the `company_id`; Q1, see below | days from today, shown `≈ 42 d (est.)` | no meeting in the vote ledger | `next_meeting`: max(0, 1 − days / 90) |
 | 11 | Transition grade | observation `transition_grade` (portfolio store, latest) | `A`..`F` with the fixed label map of `showcase-portfolio-data` (A Leader, B Credible, C Gaps, D Emerging, E Not credible, F Disqualified), e.g. `D Emerging` | no observation | `transition_grade`: A 0, B 0.2, C 0.4, D 0.6, E 0.8, F 1 |
 | 12 | ESG score | observation `esg_score` | 0 to 10, 1 decimal | no observation | `esg_score`: (10 − value) / 10 |
@@ -163,10 +165,10 @@ can carry a weight. Empty cells show `—` and add 0 points; the why panel says 
 | 14 | Carbon intensity | observation `ghg_intensity` | tCO2e per EUR m revenue, 0 decimals | no observation | `carbon_intensity`: percentile rank |
 | 15 | Priority score | computed | 0 to 100, 1 decimal | never | — |
 | 16 | Selected | this scope's selection log for the cycle | `Proposed` / `Confirmed` / empty | not selected | — |
+| 17 (PR 5) | Broken commitments | `tracking.commitment_flags_by_company(store.list_all())` from `stewardship-commitment-loop`, flags with `kind` `broken` (status `missed`, set by a person, on an open or stalled issue) | count | never (0 shows `0`) | `broken_commitments`: min(1, n / 2) |
 | 18 | Funds | `held_in` (see Scopes) | count; tooltip lists fund names | 0 shows `0` (sample universe) | — |
 | 19 | Also selected in | the other scopes' selection logs for the cycle | count; tooltip lists `<scope label>: Proposed/Confirmed` | 0 shows `—` | — |
 | 20 | Notes | the notes log | count and the latest note's date; tooltip shows its first 120 characters | 0 shows `—` | — |
-| 17 (PR 3) | Broken commitments | `tracking.commitment_flags_by_company(store.list_all())` from `stewardship-commitment-loop`, flags with `kind` `broken` (status `missed`, set by a person, on an open or stalled issue) | count | never (0 shows `0`) | `broken_commitments`: min(1, n / 2) |
 
 Notes:
 
@@ -189,10 +191,10 @@ Notes:
   universe shows this column empty until ledger rows exist. <If the owner picks B, the column and its score part are dropped; if C, the column shows the last
   meeting date and has no score part.>
 
-**Commitment flags (PR 3).** The sibling spec `stewardship-commitment-loop` (merges first) adds to
+**Commitment flags (PR 5).** The sibling spec `stewardship-commitment-loop` (merges first) adds to
 `arp/stewardship/tracking.py`: `commitment_flags_by_company(records, today=None) -> dict[str, list[CommitmentFlag]]`
 (only companies with a flag are keys) and `CommitmentFlag` in `arp/schemas/engagement.py` with `commitment_id`,
-`engagement_id`, `kind` (`overdue` | `broken`), `text`, `target_date`, `since`, `message`. PR 3 calls it once per
+`engagement_id`, `kind` (`overdue` | `broken`), `text`, `target_date`, `since`, `message`. PR 5 calls it once per
 request and counts each company's flags by `kind`; Overdue commitments then comes from it too, with the same rule as
 PR 1, so the column does not change. The why panel shows each flag's `message` under the Value of that row. Pending
 Argus suggestions never create a flag.
@@ -215,7 +217,7 @@ table above (0 when empty). **score = the sum of the rounded points**, so the po
 | `aum_held` | 10 | Absolute money at stake |
 | `next_meeting` | 5 | A vote coming up soon |
 | `coverage_tier`, `open_engagements`, `esg_score`, `controversy`, `carbon_intensity` | 0 | Shown as columns; available to weight |
-| `broken_commitments` (PR 3) | 0 | Added with weight 0 so no saved version changes meaning |
+| `broken_commitments` (PR 5) | 0 | Added with weight 0 so no saved version changes meaning |
 
 **The policy.** `priority_weights` is a new entry in `policies.POLICIES`, so it gets everything the other house
 policies have: version 0 = the bundled draft in `arp/stewardship/data/priority_weights.json`, saved versions are
@@ -229,7 +231,7 @@ immutable files, activation needs `approved_by` who is not the person who saved 
 
 Validation (nothing invalid is saved): a version lists every component of the bundled file, no other id and no id
 twice (422 `Missing components: <ids>` / `Unknown components: <ids>`); each weight is an integer 0..100; weights sum to
-100 (422 `Weights must add up to 100 (now <sum>)`). When PR 3 adds `broken_commitments` to the bundled file, a version
+100 (422 `Weights must add up to 100 (now <sum>)`). When PR 5 adds `broken_commitments` to the bundled file, a version
 saved earlier lacks it and reads it as weight 0; that is the only case of a missing component. A row's `parts` always
 lists the bundled file's components, in its order.
 
@@ -237,7 +239,7 @@ lists the bundled file's components, in its order.
 with rank ≤ 25, ordered by score descending, then company name ascending.
 
 **Preview.** `POST /api/stewardship/studio/priority/preview` (analyst) with body `{"content": <candidate policy>}`
-validates the candidate like a save (422 with the same messages) and returns, against the active version:
+always ranks the `house` scope. It validates the candidate like a save (422 with the same messages) and returns, against the active version:
 
 ```json
 {"companies": 400,
@@ -277,13 +279,14 @@ disabled).
            "score": 41.7,
            "parts": [{"id": "open_triggers", "weight": 30, "normalised": 0.8, "points": 24.0, "empty": false}, ...],
            "selection": null,
-           "held_in": [{"portfolio_id": "portfolio_msci_world", "name": "MSCI World (public ETF holdings, 2026-11-02)"}],
+           "held_in": [{"portfolio_id": "portfolio_msci_world", "name": "MSCI World (public ETF holdings, 2026-11-02)",
+                        "weight_pct": 1.204, "market_value_eur_m": 60.0, "selection_status": "proposed" | "confirmed" | null}],
            "selected_elsewhere": [{"scope": "portfolio:portfolio_dax", "label": "DAX (...)", "status": "proposed"}],
            "notes": {"count": 2, "latest": {"text": "<first 120 characters>", "by": "...", "at": "..."}}}]}
 ```
 
 `weights.activated_by` and `activated_at` are the last activation row's `approved_by` and `approved_at`; both `null`
-for v0. `parts` lists every component of the bundled file in its order, weight 0 included. PR 3 adds
+for v0. `parts` lists every component of the bundled file in its order, weight 0 included. PR 5 adds
 `"new_high_trigger": true | false` to each row. `selection` is `null` or
 the selection object defined under `GET /selection`.
 
@@ -307,15 +310,18 @@ default `house`), with the same 404 and 422 rules as the worklist.
 The log is `<stewardship_streams_dir>/selection/<cycle>/<scope file>.jsonl` (`house`, `portfolio__<id>`,
 `group__<id>`), append-only, events `added`, `removed`, `confirmed`, each with `issuer_id`, `by`, `at` and the active
 `priority_weights` version. It stores no score. A company that left a group after it was selected stays in that
-selection; its row is then missing from the scope and the selection list marks it `not in scope any more`.
+selection; its row is then missing from the scope. `GET /selection` rows carry `"in_scope": true | false`, and the
+Workbench lists such companies below the table under the heading `Selected but no longer in this scope`.
 
 Notes (comments and remarks, per company, kept across quarters, add-only):
 
-- `POST /api/stewardship/notes` (analyst) `{"company_id": "isin_...", "text": "...", "scope": "house"}` → 200 with
+- `POST /api/stewardship/notes` (analyst) `{"company_id": "isin_...", "text": "...", "scope": "house"}` (`scope`
+  optional, default `house`, validated like the worklist scope) → 200 with
   `{"note_id", "company_id", "text", "by", "at", "scope"}`. `text` is trimmed; empty or over 2,000 characters is a 422
   `A note needs 1 to 2,000 characters`. A company not in the house universe is a 422 `unknown company`. `scope` only
   records where the note was written.
-- `GET /api/stewardship/notes?company_id=…` (viewer): that company's notes, newest first.
+- `GET /api/stewardship/notes?company_id=…` (viewer): `{"notes": [...]}`, that company's notes, newest first by log
+  order (last appended first).
 - No route edits or deletes a note. The log is `<stewardship_streams_dir>/notes/notes.jsonl`. Notes never change a
   score.
 
@@ -324,7 +330,8 @@ Votes (for the side panel; reads the vote ledger of `stewardship-data-foundation
 - `GET /api/stewardship/votes?company_id=…` (viewer): every `vote_decisions` row whose meeting has that `company_id`,
   newest `meeting_date` first, then `item_number`: `{"meeting_date", "meeting_type", "item_number", "description",
   "proponent", "management_recommendation", "vote", "vote_label", "against_management", "rationale", "source",
-  "demo"}`, where `demo` is true for `mock_voice_seed` and `npx_urth_demo`. At most 500 rows, plus `"total": n`.
+  "demo"}`, where `demo` is true for `mock_voice_seed` and `npx_urth_demo`. Body `{"votes": [... at most 500],
+  "total": n}`.
 
 **The cycle.** <Q2, recommended: the calendar quarter of today's date, `YYYY-Qn`. A new quarter starts empty; earlier
 cycles stay readable through `?cycle=`.>
@@ -388,7 +395,7 @@ next row with the same tab open. Tabs, in this order:
 | Engagements | each issue (theme, status, escalation stage), its objectives (as on `#/engagement`, with `Demo data` labels), commitments with status, the last 10 activities | `GET /api/engagement/records/{company_id}` |
 | Votes | the vote ledger, newest meeting first: date, item, management recommendation, vote, against management; `Demo data` on demo rows; "Showing 500 of n" when cut | `GET /api/stewardship/votes` |
 | Triggers | the company's stored triggers, every status, with severity, rule, reason, first seen | `GET /api/stewardship/triggers` filtered to the issuer |
-| Holdings | one line per house portfolio that holds it: fund, weight in that fund %, market value EUR m, and its selection status in that fund's scope this cycle | worklist rows of each `portfolio:` scope |
+| Holdings | one line per house portfolio that holds it: fund, weight in that fund %, market value EUR m, and its selection status in that fund's scope this cycle | the row's `held_in` (no extra request) |
 | Notes | all notes, newest first, with author and time, and a box **Add note** (analyst) | `GET/POST /api/stewardship/notes` |
 
 An empty tab says what is missing, e.g. `No votes in the ledger for this company.`
@@ -426,7 +433,7 @@ columns 11 to 14 and in the panel's Value column, and in the column header when 
 (`Grade · Simulated`). The page also shows the universe note from `house_universe()`, which already says how many
 companies carry simulated values.
 
-**New-trigger refresh check (PR 3).** No cache anywhere. The page refetches when the browser tab regains focus. A row
+**New-trigger refresh check (PR 5).** No cache anywhere. The page refetches when the browser tab regains focus. A row
 whose issuer has a stored `high` trigger with `is_new` true shows the tag `New high trigger` next to its trigger counts,
 and the trigger filter offers "new high trigger".
 
@@ -438,7 +445,7 @@ and the trigger filter offers "new high trigger".
    store interface. `vote_meetings` exists since data-foundation PR 1; it holds rows once that spec's PR 3 has run
    `load-npx`, and the column is empty before that.
 2. **Backend workbench:** scopes and `GET /worklist/scopes`, selection per scope, `held_in`, `selected_elsewhere`,
-   the notes log and routes, `GET /votes`; openapi and `gen:api`.
+   the notes log and routes, `GET /votes`; openapi and `gen:api`. Starts only after data-foundation PR 3 merges.
 3. **Screen:** the Workbench tab, scope picker and subgroup building, sort, filter, paging, select and confirm,
    `Simulated` labels, the Weights section. Starts only after data-foundation PR 3 merges. Screenshot, impeccable audit.
 4. **Side panel:** the seven tabs, notes entry, ↑/↓ navigation. Screenshot with the panel open, impeccable audit.
@@ -462,7 +469,7 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
   `policies/priority_weights/` directory removed, and the `stw_*` tables truncated (no engagement records), as
   data-foundation's holdout rows do.
 - **PR tags:** a row whose Given starts `PR n;` applies from that PR on; other rows apply from PR 1.
-  Rows that use Showcase data need data-foundation PR 3 (`seed-demo`, `load-npx`), which PR 2 waits for.
+  Rows that use Showcase data need data-foundation PR 3 (`seed-demo`, `load-npx`), which PRs 2 and 3 wait for.
 - **Trigger run T(issuer, severity, rule):** one line appended to that trigger log:
   `{"event": "run", "month": "<current YYYY-MM>", "at": "<now>", "triggers": [{"issuer_id": <issuer>, "rule": <rule>,
   "type": "controversy", "theme": "climate", "severity": <severity>, "reason": "test"}]}` (the format
@@ -535,12 +542,11 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-53 | AC-30 | `GET /worklist` | `SYN08`'s `broken_commitments` part has `weight` 0 and `points` 0 | holdout |
 | AC-54 | Fixture W; a record and issue for `SYN11`, one commitment with `target_date` = today − 30 days added, then the issue closed through `POST /api/stewardship/tracking/close` | `GET /worklist` | `SYN11`'s `overdue_commitments` = 0 | holdout |
 | AC-31 | PR 5; T(X, high, `t_x`) stored for a company X, so its trigger has `is_new` true | A user opens `#/stewardship/workbench` | X's row shows the tag `New high trigger` | evaluator |
-| AC-50 | PR 5; the worklist open in one tab | T(X, high, `t_y`) is stored, the user switches to another tab and back | X's row shows `New high trigger` without a page reload | evaluator |
+| AC-50 | PR 5; `#/stewardship/workbench` open in one tab | T(X, high, `t_y`) is stored, the user switches to another tab and back | X's row shows `New high trigger` without a page reload | evaluator |
 | AC-32 | Fixture W | The backend suite runs | The existing tests of `tiers.py`, `monitoring.py`, `program.py` and `policies.py` pass unchanged | unit |
 | AC-51 | Fixture W | `GET /api/stewardship/tiers` and `GET /api/stewardship/studio/monitoring/triggers` on `main` and on the PR build | The responses are equal (a snapshot recorded from `main` in the PR's test) | unit |
 | AC-52 | Fixture W | `GET /api/stewardship/universe` and `GET /api/stewardship/policies/coverage_rules` on `main` and on the PR build | The responses are equal (a snapshot recorded from `main` in the PR's test) | unit |
-
-| AC-66 | PR 2; Showcase data | `GET /api/stewardship/worklist/scopes` | It lists `house` plus one `portfolio:<id>` entry per house portfolio (7 after `arp showcase load`) | holdout |
+| AC-66 | PR 2; Showcase data | `GET /api/stewardship/worklist/scopes` | Exactly one entry has key `house`, and the 7 showcase portfolio ids each appear as a `portfolio:<id>` entry with `companies` ≥ 1 | holdout |
 | AC-67 | PR 2; Fixture W | `GET /api/stewardship/worklist?scope=portfolio:anything` | Status 422 with detail `Fund scopes need the portfolio universe` | holdout |
 | AC-68 | PR 2; Showcase data, any portfolio P | `GET /worklist?scope=portfolio:P` | The rows' `holdings_weight_pct` add up to 100 within 0.1 | holdout |
 | AC-69 | AC-68 | — | Every row's `held_in` contains P | holdout |
@@ -558,13 +564,15 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-80 | PR 2; Fixture W; notes "first" then "second" on `SYN04` | `GET /api/stewardship/notes?company_id=SYN04` | Two notes, `second` first | holdout |
 | AC-81 | AC-80 | `GET /worklist` | `SYN04`'s `notes.count` = 2 | holdout |
 | AC-98 | AC-80 | `GET /worklist` | `SYN04`'s `notes.latest.text` = `second` | holdout |
-| AC-82 | AC-80 | `PUT` and `DELETE` on `/api/stewardship/notes/<note_id>` | Status 405 for both | holdout |
+| AC-82 | AC-80 | `PUT` and `DELETE` on `/api/stewardship/notes/<note_id>` | Status 404 or 405 for both | holdout |
+| AC-101 | AC-82 | `GET /notes?company_id=SYN04` | Both notes are returned with their original `text` | holdout |
 | AC-83 | AC-80 | Rows of `GET /worklist` are compared with Fixture W's | Every row's `score` is unchanged | holdout |
 | AC-84 | PR 2; a `viewer` user (non-dev auth) | `POST /api/stewardship/notes` | Status 403 | unit |
 | AC-85 | PR 2; Showcase data, a company C with ledger meetings | `GET /api/stewardship/votes?company_id=C` | `total` equals the number of `vote_decisions` rows whose meeting has `company_id` C | holdout |
 | AC-86 | AC-85 | — | Rows are ordered by `meeting_date` descending | holdout |
 | AC-100 | AC-85 | — | Every `npx_urth_demo` row has `demo` true | holdout |
-| AC-87 | PR 3; Showcase data | The user picks a fund in the scope picker | The header names the fund, and "Showing x of x" equals that fund's company count from `GET /worklist/scopes` | evaluator |
+| AC-87 | PR 3; Showcase data | The user picks a fund in the scope picker | The header names the fund | evaluator |
+| AC-102 | AC-87 | — | "Showing x of x" equals that fund's `companies` in `GET /worklist/scopes` | evaluator |
 | AC-88 | PR 3; Showcase data | The user makes a **New fund subgroup** from 2 funds | It appears in the picker; picking it shows every company held in either fund | evaluator |
 | AC-89 | PR 3; Showcase data | The user ticks 3 rows and uses **Save ticked as subgroup** | Picking the new subgroup shows exactly those 3 companies | evaluator |
 | AC-90 | PR 3; Showcase data; a company proposed in a fund's scope | The user opens the house scope | That company's Also selected in column shows `1` | evaluator |
@@ -572,7 +580,10 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-91 | PR 4; Showcase data, window 1440 × 900 | The user clicks a row | A panel opens covering at least half the width, with tabs `Why`, `Company`, `Engagements`, `Votes`, `Triggers`, `Holdings`, `Notes` in that order | evaluator |
 | AC-92 | PR 4; AC-91 | The user opens Votes on a company with N-PX rows | Each row shows date, item, management recommendation, vote, against management and `Demo data` | evaluator |
 | AC-93 | PR 4; AC-91 | The user opens Holdings | It lists as many funds as the row's Funds column | evaluator |
-| AC-94 | PR 4; AC-91 | The user adds a note in the Notes tab | It shows first with the user's name, and the row's Notes count rises by 1 without a page reload | evaluator |
+| AC-94 | PR 4; AC-91 | The user adds a note in the Notes tab | It shows first, with the user's name | evaluator |
+| AC-103 | AC-94 | — | The row's Notes count has risen by 1 without a page reload | evaluator |
+| AC-104 | PR 4; Fixture W plus T(`SYN03`, high, `t_x`) | The user opens Triggers for `SYN03` | A line shows severity `high`, rule `t_x`, reason `test` | evaluator |
+| AC-105 | PR 4; Showcase data | The user opens Company for any row | It shows the company's ISIN and sector, and each simulated fact is followed by `Simulated` | evaluator |
 | AC-95 | PR 4; AC-91 | The user presses ↓ | The panel shows the next row's company in the same tab | evaluator |
 | AC-96 | PR 4; AC-91 | The user opens Engagements on a seeded company | Each objective shows description, type, status, result and `Demo data` | evaluator |
 
