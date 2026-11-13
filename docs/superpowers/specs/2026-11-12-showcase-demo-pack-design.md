@@ -1,6 +1,8 @@
 # Showcase demo pack and run of show
 
 Slug: `showcase-demo-pack`. Revised 13 Nov 2026 against `main` 7440e12 (owner: "fix everything needed").
+Status: **approved by the owner on 13 Nov 2026** (buttons in the coordinating session), with the recommended
+option on all three decisions below.
 
 ## Intent
 
@@ -39,8 +41,7 @@ holdings). A script keeps the order; a person under time pressure does not.
 - No client data and no positions of the bank. One thing is invented and says so: the trigger-scan rows.
 - No Data Hub, Decision Studio, Reports or RFP scenes, and no Superset dashboards or charts (`arp bi ask`
   and `arp bi design` need a Superset; the bank Jupyter has none).
-- No seeded demo portfolios (`arp portfolio seed-demo`): T1 runs on a public portfolio (owner decision
-  pending, see "Open decisions").
+- No seeded demo portfolios (`arp portfolio seed-demo`): T1 runs on a public portfolio (owner decision 1).
 - No taxonomy derived from thematic ETFs (dropped 12 Nov, rows AC-28 to AC-37) and no StewardIQ benchmark
   file (dropped 12 Nov, rows AC-7 and AC-39).
 - No automatic reset of the database.
@@ -70,12 +71,15 @@ holdings). A script keeps the order; a person under time pressure does not.
   says what the Argus list shows instead.
 - The two preset templates (`sch_transition_capex`, `transition_plan_indicators`) are saved unreleased, and
   a draft template runs as a trial on one company only. A full run needs the template released, which
-  needs role `approver` (owner decision pending, see "Open decisions").
+  needs role `approver`; the loader releases them (owner decision 3).
 - `arp showcase load` (PR #434, `showcase-portfolio-data` PR 2) is not merged on 13 Nov. Until it is, the
   `portfolios` step prints `skip` and T1 has no public portfolio.
 - Several screens change in PRs not merged on 13 Nov: Themes fixes (#429 and its PR 2), Index Construction
   screen (`index-starting-universe` PR 2), Argus fixes PR 2 and PR 3, portfolio-data PR 3 (grades on
   screens). The run sheet names the PR next to each click that needs it and says what to do without it.
+- The factory is changing the simulated dataset after #434: it deletes 15 written-off positions and scales
+  controversial revenue shares above 100 % to 100 %. Nothing in the pack depends on those names or on the
+  dataset's row count (2,538 on 13 Nov).
 - Nothing here has run in the bank Jupyter. The pack is verified in the cloud sandbox with the stand-in
   model; the first real proof is the owner's rehearsal.
 
@@ -170,7 +174,7 @@ leaves the screen empty. Fallback T1 is the October alert prepared the day befor
 `index-starting-universe` PR 2 is not merged, is the built-in demo universe, which the presenter calls
 synthetic.
 
-## Open decisions (owner, before the build)
+## Decided by the owner (13 Nov)
 
 1. **Seeded demo portfolios.** Recommended: leave them out (T1 runs on DAX; the seed's own ESG load would
    make "Run now" for October republish it with November's values, #434 builder call 2). Alternative: keep
@@ -183,7 +187,7 @@ synthetic.
    sign-in is one). Alternatives: the owner releases both in the schema screen the day before, or the
    prepared extractions run as trials on one company each.
 
-The loader, the run of show and the rows below assume the recommended option of each. Another choice
+The owner chose the recommended option of each; the loader, the run of show and the rows below follow it. Another choice
 changes: decision 1, AC-20 comes back and an `Invented:` line for the seeded portfolios is added; decision
 2, R3 and AC-43, AC-50, AC-51; decision 3, the `argus-capex` and `argus-plan` steps.
 
@@ -227,7 +231,7 @@ behaviour for a hidden test to pin. "The e2e stack" is `backend/scripts/e2e_stac
 | AC-17 | `RUN_SHEET.md` | it is read | it has five headings starting `## 0 to 12`, `## 12 to 24`, `## 24 to 36`, `## 36 to 48`, `## 48 to 60`, and 9 lines starting `Fallback A1:`, `Fallback A2:`, `Fallback T1:`, `Fallback T2:`, `Fallback R1:`, `Fallback R2:`, `Fallback R3:`, `Fallback S1:`, `Fallback S2:` | unit |
 | AC-18 | The PR branch | `git diff --name-only origin/main...HEAD`, run once and pasted into the PR description (not a committed test: it would fail every later product PR) | lists no path under `backend/arp/` or `frontend/src/` | unit |
 | AC-19 | 4 proxy PDFs present in `demo/showcase/documents/`, a temporary `documents_dir` | the loader runs `--only documents` | prints `ok documents: 4 of 14 present`; each of the 4 files exists at `<documents_dir>/<company_id>/DEF-14A/<file_name>` | unit |
-| ~~AC-20~~ | ~~registry and seeded portfolio names~~ | | Retired 13 Nov: no seeded demo portfolios (open decision 1); public portfolio companies live in the portfolio store under `isin_<ISIN>` ids | |
+| ~~AC-20~~ | ~~registry and seeded portfolio names~~ | | Retired 13 Nov: no seeded demo portfolios (owner decision 1); public portfolio companies live in the portfolio store under `isin_<ISIN>` ids | |
 | AC-21 | `identifiers_source.json` and `companies.csv` | each LEI and CIK in `companies.csv` is looked up in the JSON | an entry exists, and its legal name equals the company's `name` once case, punctuation and the legal form (AG, Aktiengesellschaft, SE, SA, S.A., Inc, Incorporated, Corp, Corporation) are ignored | unit |
 | AC-22 | One annual report present, the stubbed API lists an Argus extraction with template `sch_transition_capex` and reporting year 2025 | the loader runs `--only argus-capex` | prints `skip argus-capex: already exists` and sends 0 `POST /api/argus/flows` (template install and release calls are allowed) | unit |
 | AC-23 | Same as AC-22 | the loader runs `--only argus-capex --again` | sends 1 `POST /api/argus/flows` and prints a line starting `ok argus-capex:` | unit |
