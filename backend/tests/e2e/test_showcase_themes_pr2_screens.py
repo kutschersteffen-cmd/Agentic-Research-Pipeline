@@ -141,17 +141,49 @@ def test_dossier_step_4_links_to_the_review(page):  # AC-61
     assert link.get_attribute("href") == "#/review/theme/r1"
 
 
-def test_unshelve_keeps_keyboard_focus(page):  # AC-89 (UI review: focus must not drop to <body>)
-    dossier = {"dossier_id": "d1", "name": "Grid", "origin": "topic", "taxonomy_id": None, "context_brief": None, "steps": [],
-               "status": "shelved", "shelved_by": "ana", "shelved_at": "2026-11-11T09:00:00Z", "shelve_reason": "parked"}
-    active = dict(dossier, status="active", shelved_by=None, shelved_at=None, shelve_reason=None)
-    page.route("**/api/dossiers/d1", lambda r: r.fulfill(json=active if r.request.method == "PATCH" else dossier))
+SHELVED = {"dossier_id": "d1", "name": "Grid", "origin": "topic", "taxonomy_id": None, "context_brief": None, "steps": [],
+           "status": "shelved", "shelved_by": "ana", "shelved_at": "2026-11-11T09:00:00Z", "shelve_reason": "parked"}
+ACTIVE = dict(SHELVED, status="active", shelved_by=None, shelved_at=None, shelve_reason=None)
+FOCUSED_TEXT = "document.activeElement.textContent"
+
+
+def _stateful_dossier(page, fail_patch=False):
+    state = {"d": SHELVED}
+
+    def handle(route):
+        if route.request.method == "PATCH":
+            if fail_patch:
+                return route.fulfill(status=500, json={"detail": "store down"})
+            state["d"] = ACTIVE if route.request.post_data_json["status"] == "active" else SHELVED
+        route.fulfill(json=state["d"])
+
+    page.route("**/api/dossiers/d1", handle)
     page.goto(f"{URL}/#/themes/d1")
-    page.get_by_role("button", name="Un-shelve").focus()
+
+
+def test_shelve_cycle_keeps_keyboard_focus(page):  # AC-89 (UI review rounds 1-2: focus never drops to <body>)
+    _stateful_dossier(page)
+    for _ in range(2):  # the second cycle is the one that used to lose focus
+        page.get_by_role("button", name="Un-shelve").focus()
+        page.keyboard.press("Enter")
+        page.get_by_text("Dossier is active again.").wait_for()
+        assert page.evaluate(FOCUSED_TEXT) == "Dossier is active again."
+        assert page.get_by_role("status").filter(has=page.get_by_role("button")).count() == 0
+        page.keyboard.press("Tab")
+        page.get_by_label("Reason").focus()
+        page.keyboard.type("parked again")
+        page.keyboard.press("Enter")  # submits the Shelve form
+        page.get_by_role("button", name="Un-shelve").wait_for()
+        assert page.evaluate(FOCUSED_TEXT).startswith("Shelved by ana")
+
+
+def test_failed_unshelve_keeps_keyboard_focus(page):  # AC-89 (UI review round 2)
+    _stateful_dossier(page, fail_patch=True)
+    button = page.get_by_role("button", name="Un-shelve")
+    button.focus()
     page.keyboard.press("Enter")
-    page.get_by_text("Dossier is active again.").wait_for()
-    assert page.evaluate("document.activeElement.textContent") == "Dossier is active again."
-    assert page.get_by_role("status").filter(has=page.get_by_role("button")).count() == 0
+    page.get_by_role("alert").filter(has_text="store down").wait_for()
+    assert page.evaluate("document.activeElement.textContent") == "Un-shelve"
 
 
 def _plan(status, calls):

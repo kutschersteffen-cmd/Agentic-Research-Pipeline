@@ -264,6 +264,7 @@ export function SignalsWorkbench() {
 
   async function open(id: string) {
     setError(null);
+    setRerun(null);
     try {
       setDetail(await api.signalExperiment(id));
     } catch (err) {

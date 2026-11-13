@@ -124,3 +124,9 @@ def test_authority_sources_refuse_non_web_addresses(client):  # noqa: F811 - AC-
     state = client.get(f"{BASE}/{rid}").json()
     assert state["stage"] == "awaiting_sources" and not (state.get("selection") or {}).get("urls")
     assert client.post(f"{BASE}/{rid}/sources", json={"urls": ["https://a.invalid/x"], "files": []}).status_code == 200
+
+
+def test_authority_sources_store_trimmed_addresses(client):  # noqa: F811 - code review note 5
+    rid = _start(client).json()["id"]
+    res = client.post(f"{BASE}/{rid}/sources", json={"urls": [" https://a.org/x\n"], "files": []})
+    assert (res.status_code, res.json()["selection"]["urls"]) == (200, ["https://a.org/x"])

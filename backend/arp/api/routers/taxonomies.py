@@ -217,10 +217,8 @@ class NewVersionRequest(BaseModel):
 def new_taxonomy_version(
     taxonomy_id: str, req: NewVersionRequest, store: TaxonomyStore = Depends(get_taxonomy_store)
 ) -> Taxonomy:
-    latest = store.get(taxonomy_id)
-    method = latest.derivation_method if latest is not None else DerivationMethod.MANUAL
     try:
-        return store.new_version(taxonomy_id, req.theme, method, req.source_notes)
+        return store.new_version(taxonomy_id, req.theme, None, req.source_notes)
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
 

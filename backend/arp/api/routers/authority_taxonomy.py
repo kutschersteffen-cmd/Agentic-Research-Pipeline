@@ -94,6 +94,7 @@ async def select_sources(
 ) -> run.RunState:
     if not req.urls and not req.files:
         raise HTTPException(422, "select at least one source")
+    req.urls = [url.strip() for url in req.urls]
     for url in req.urls:
         try:
             parts = urlsplit(url)

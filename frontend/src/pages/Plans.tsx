@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
 
@@ -24,8 +24,10 @@ export function Plans({ selectedId, onSelect }: { selectedId: string | null; onS
   useEffect(loadPlan, [loadPlan]);
   // The list shows each plan's status: reload it when the open plan's status changes.
   const planStatus = plan?.status;
+  const shownStatus = useRef(planStatus);
   useEffect(() => {
-    if (planStatus) loadList();
+    if (shownStatus.current && planStatus && planStatus !== shownStatus.current) loadList(); // a change, not the first load
+    shownStatus.current = planStatus;
   }, [planStatus, loadList]);
   useEffect(() => {
     if (!plan || !ACTIVE.has(plan.status)) return;
