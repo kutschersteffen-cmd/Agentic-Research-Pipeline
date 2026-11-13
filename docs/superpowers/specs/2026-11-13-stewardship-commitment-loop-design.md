@@ -44,8 +44,9 @@ before anyone sees it.
 ## Non-goals (later features)
 
 - The company timeline and the scheduled prep pack.
-- Closing an engagement, changing an escalation stage or raising a monitoring trigger because of a suggestion.
-  Those keep reading the commitment status a person set.
+- Closing an engagement, changing an escalation stage or raising a monitoring trigger because of a pending
+  suggestion. Those keep reading the commitment status a person set. (Confirming `met` resolves an engagement
+  exactly as Verify does today; see "Confirm and reject".)
 - Looking for commitments in letters, emails or documents; only call and meeting notes.
 - Running the find-commitments step automatically on intake (400 demo companies × activities would be thousands of
   model calls). It runs when a person presses the button.
@@ -65,14 +66,17 @@ before anyone sees it.
 
 ## Constraints
 
-- Postgres only for suggestions. Commitments live in `stw_commitments` behind `PostgresEngagementStore`
-  (`stewardship-data-foundation`, PR 2 #440). Implementation starts after #440 merges; that spec's PR 3 is not needed.
-  With `engagement_store = file` the suggestion endpoints answer 409 (AC-5). `commitment_flags` reads through the
-  `EngagementStore` interface, so it works on both stores.
+- Postgres only for suggestions. `stw_commitments`, `PostgresEngagementStore` and `arp db init-postgres` are on
+  `main` already (`stewardship-data-foundation` PR 1, #433). This feature needs nothing from that spec's PR 2 (#440,
+  intake) or PR 3. It starts after #440 merges anyway, as the intake set, so the two PRs don't edit
+  `postgres_engagement_store.py` and `stewardship.py` at the same time. With `engagement_store = file` the suggestion
+  endpoints answer 409 (AC-5). `commitment_flags` reads through the `EngagementStore` interface, so it works on both
+  stores (AC-53).
 - Schema changes go through `ensure_schema` in `arp/storage/postgres_schema.py`: one new table, one additive column,
   nothing dropped, idempotent.
 - No change under `arp/extraction`, `arp/llm`, `arp/golden_set` or `arp/grounding.py`. The check calls the existing
-  LLM client (`build_llm_client(settings).complete_structured`) and the existing `arp.grounding.is_grounded`.
+  LLM client (`build_llm_client(settings).complete_structured`) and the existing `arp.grounding.ground_citations`
+  (a `Citation` per quote, so `grounded` and `page` come from code, never from the model).
 - Request and response models change: `scripts/export_openapi.py` and `npm run gen:api` run, both generated files are
   committed, and new `request<T>()` calls get a line in `frontend/src/api/contract.ts`.
 - Writes need role `analyst` or above, reads `viewer`, as for every `/api/stewardship` route.
@@ -100,17 +104,19 @@ and the extraction pre-step, and already drives event refresh (E20) through `on_
 ## Data model
 
 `stw_commitments` gains `proof_statement text null`. `Commitment` (`arp/schemas/engagement.py`) gains
-`proof_statement: str | None = None`, so the Postgres store can return it; the file store carries it unchanged.
+`proof_statement: str | None = None`, so the Postgres store can return it; the file store carries it unchanged
+(AC-52).
 
-New table `stw_commitment_proposals` (one row per suggestion; `source` = `app`, `external_id` null):
+New table `stw_commitment_proposals`, one row per suggestion. Column defaults: `source` `app`, `external_id`
+null, `status` `pending`, `created_at` `now()`. Every other column is nullable unless marked.
 
 | Column | Type | Meaning |
 |---|---|---|
 | `proposal_id` | text pk | `cpr_…` |
 | `source`, `external_id` | text | as every `stw_*` table |
-| `kind` | text | `verdict` (met / not met on an existing commitment) or `new_commitment` (from a note) |
-| `company_id` | text fk `stw_companies` | |
-| `engagement_id` | text fk `stw_engagements` | |
+| `kind` | text not null | `verdict` (met / not met on an existing commitment) or `new_commitment` (from a note) |
+| `company_id` | text not null, fk `stw_companies` | |
+| `engagement_id` | text not null, fk `stw_engagements` | |
 | `commitment_id` | text fk `stw_commitments`, null | set for `verdict` |
 | `activity_id` | text fk `stw_activities`, null | set for `new_commitment` |
 | `verdict` | text null | `met` or `not_met` for `verdict`; null for `new_commitment` |
@@ -118,7 +124,7 @@ New table `stw_commitment_proposals` (one row per suggestion; `source` = `app`, 
 | `proof_statement` | text null | `new_commitment`: suggested proof statement, may be null |
 | `target_date` | text null | `new_commitment`: `YYYY-MM-DD` when the note states one, else null |
 | `doc_id`, `doc_type`, `doc_title` | text null | `verdict`: the document checked |
-| `quote` | text | the passage, re-found in the document or note before the row is written |
+| `quote` | text not null | the passage, re-found in the document or note before the row is written |
 | `page` | int null | from grounding, never from the model |
 | `reason` | text null | the model's one-line reason, shown under the quote |
 | `status` | text | `pending`, `confirmed`, `rejected` |
@@ -158,17 +164,25 @@ document and company.
 2. `unclear`, or an empty quote → counted `unclear`, nothing stored.
 3. `met`/`not_met` whose quote `is_grounded(quote, document.full_text)` is false → counted `unclear`, nothing stored.
 4. Key (`commitment_id`, `doc_id`) already in `stw_commitment_proposals` → counted `skipped`, nothing stored.
-5. Otherwise a `pending` `verdict` row is written, with `page` from grounding.
+5. Otherwise a `pending` `verdict` row is written, with `page` from the grounded `Citation`.
+
+Grounding: each quote becomes a `Citation(doc_id, doc_type, quote)` and goes through `ground_citations` against the
+document; `grounded` false means rule 3.
 
 **Automatic run.** On every `new_document` or `updated_document` event from `ChangeDetector`, for a company that has
 at least one `open` commitment on an `open` or `stalled` engagement, all those commitments are checked against the
-event's document. Setting `commitment_check_on_new_documents` (env `ARP_COMMITMENT_CHECK_ON_NEW_DOCUMENTS`, default
+event's document. The event carries a `DiscoveredDocument` (url, `local_path`, `sha256`), not the text, so the
+document is read with the registry's `fetch_all` for the company and matched by `sha256`, else by `local_path`.
+No match (not yet parsed or registered) → that event is skipped and logged; nothing is stored. Setting `commitment_check_on_new_documents` (env `ARP_COMMITMENT_CHECK_ON_NEW_DOCUMENTS`, default
 `true`) turns it off. It runs only when `engagement_store = postgres`. It runs whether or not event refresh is on,
-and a failure is logged and never fails discovery, the same contract as `on_events` today.
+and a failure is logged and never fails discovery, the same contract as `on_events` today. Event refresh still
+runs on the same events when the check fails (AC-54).
 
 **On demand.** `POST /api/stewardship/commitments/{commitment_id}/check`, body `{"company_id": "…"}`: checks that
-one commitment against the company's 5 newest documents (by `published_at`, else `fetched_at`) from the document
-registry (`build_registry(...).fetch_all`), one model call per document. Response:
+one commitment against the company's 5 newest documents from the document registry (`build_registry(...).fetch_all`),
+one model call per document. Sort key per document: `published_at` if set, else `fetched_at`, descending; ties by
+`doc_id`. If any model call fails (error, timeout, output that doesn't parse), the request answers 502
+`Argus could not check the documents.` and stores nothing from that request (AC-55). Response:
 `{"documents": N, "proposals": P, "unclear": U, "skipped": S}`. 409 `Only open commitments can be checked.` when
 the commitment's status is not `open`.
 
@@ -194,18 +208,23 @@ is not grounded in the activity's `summary` (counted `ungrounded`), and one whos
 
 ## Confirm and reject (PR 1)
 
-- `GET /api/stewardship/commitment-proposals?company_id=…&status=pending|confirmed|rejected` (status default
-  `pending`) → `{"proposals": [Proposal, …]}` newest first, each with every column above.
+- `GET /api/stewardship/commitment-proposals?company_id=…&status=pending|confirmed|rejected` (`company_id`
+  required, else 422; status default `pending`) → `{"proposals": [Proposal, …]}` newest first, each with every column
+  above.
+- Confirm or reject on an unknown `proposal_id` → 404 `Unknown suggestion.`
+- "The user" below is the signed-in user's name (`dev` on the e2e stack, where dev auth signs in `dev_user`).
 - `POST /api/stewardship/commitment-proposals/{proposal_id}/confirm`:
-  - `verdict` + `met` → the commitment becomes `verified` through `log_commitment_verified` (so the milestone moves
-    as today), `validated_by` = the user, `evidence` = `<doc_title>, page <page>: "<quote>"` (`, page <page>` left
+  - `verdict` + `met` → the commitment becomes `verified` through `log_commitment_verified`, so it does exactly what
+    Verify does today: the milestone moves, and when every commitment of the engagement is verified the engagement
+    becomes `resolved` (AC-57). A person confirmed it, so this is not the model closing an engagement; `validated_by` = the user, `evidence` = `<doc_title>, page <page>: "<quote>"` (`, page <page>` left
     out when `page` is null).
   - `verdict` + `not_met` → `update_commitment_status(..., missed, user, evidence)` with the same evidence text.
   - `new_commitment`, body `{"text"?, "proof_statement"?, "target_date"?}` (each overrides the suggestion) → a new
     commitment on the activity's engagement (`made_at` = the activity's `occurred_at`, `recorded_by` = the user),
     and `created_commitment_id` is set. Without a `target_date` in either the suggestion or the body → 422
     `A due date is required to add a commitment.`
-  - The commitment is no longer `open` → 409 `Commitment is no longer open.`, the suggestion stays `pending`.
+  - The commitment is no longer `open` → 409 `Commitment is no longer open.`, the suggestion stays `pending`
+    (AC-56). It can still be rejected.
 - `POST /api/stewardship/commitment-proposals/{proposal_id}/reject`, body `{"reason": "…"}`. Blank reason → 422
   `A reason is required to reject a suggestion.`
 - Confirm or reject on a suggestion that is not `pending` → 409 `Suggestion already confirmed.` or
@@ -299,12 +318,12 @@ in `ballot_casting.py` stay as they are.
 - Index choices beyond the two unique keys above.
 - Where the hook sits relative to `refresh_hook` (both must run on the same events).
 - PR split, in this order; each PR leaves the app working and names its rows in a `Rows:` line:
-  1. Column, table, `Commitment.proof_statement`, the list/confirm/reject API, the generated contract and the
-     confirm/reject UI. Rows AC-1 to AC-16, AC-49.
-  2. The check (event hook and button), find-commitments, the golden set and command, and the check and find UI.
-     Rows AC-17 to AC-39.
-  3. `commitment_flags`, `CompanyBallot.commitment_flags` and the banner. Rows AC-40 to AC-48 and AC-50 (the last PR drops
-     the `Rows:` line).
+  1. Column, table, `Commitment.proof_statement`, the list/confirm/reject API and the generated contract (no
+     UI yet: nothing creates suggestions until PR 2). Rows AC-1 to AC-16, AC-49, AC-51, AC-52, AC-56 to AC-61.
+  2. The check (event hook and button), find-commitments, the golden set and command, and all suggestion UI.
+     Rows AC-17 to AC-39, AC-54, AC-55, AC-62 to AC-66.
+  3. `commitment_flags`, `commitment_flags_by_company`, `CompanyBallot.commitment_flags` and the banner. Rows AC-40
+     to AC-48, AC-50, AC-53 (the last PR drops the `Rows:` line).
 
 ## Golden set (PR 2)
 
@@ -314,7 +333,8 @@ public reports; and at least 10 `find` cases (a note, the labelled commitments e
 
 `arp stewardship commitment-golden --kind check|find --cases <file> --documents-dir <dir> --min-precision <x> --min-coverage <y>`
 
-prints one line `precision <p>, coverage <c>` and exits 1 below either threshold.
+prints one line `precision <p>, coverage <c>` and exits 1 below either threshold. With no suggestions at all,
+precision is 0.
 
 - `check`: precision = stored suggestions whose verdict equals the label ÷ stored suggestions (a suggestion on a
   `silent` case is wrong); coverage = `met`/`not_met` cases with a correct suggestion ÷ `met`/`not_met` cases.
@@ -323,63 +343,84 @@ prints one line `precision <p>, coverage <c>` and exits 1 below either threshold
 
 ## Acceptance
 
-Holdout rows run on the e2e stack (`ARP_ENGAGEMENT_STORE=postgres`) with `ARP_STANDINS_DIR` set; each test writes
-the stand-in file it needs and truncates the `stw_*` tables first. "Today" is the UTC date the test runs.
-A "document for the company" is uploaded with `POST /api/documents/upload` (`doc_type` `other`, a `.txt` file).
+Holdout rows run on the e2e stack (`ARP_ENGAGEMENT_STORE=postgres`), started with `ARP_STANDINS_DIR=<dir>`; each test
+writes the stand-in file it needs (`<dir>/model/<OutputModel>.json`, `{"output": …}`) and truncates the `stw_*` tables
+first. "Today" is the UTC date the test runs. "The user" is the signed-in user (`dev` on the e2e stack). A "document
+for the company" is a `.txt` file uploaded with `POST /api/documents/upload` (`doc_type` `other`). A suggestion row
+"inserted" is written straight into `stw_commitment_proposals` with the columns named; the defaults above fill the
+rest. Evaluator rows run on the same stack; the evaluator writes the same stand-in files and sets up the data
+through the API before checking.
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-1 | A database where `stewardship-data-foundation` PR 2's `arp db init-postgres` has run | `arp db init-postgres` runs twice | Both runs exit 0; `stw_commitments` has a column `proof_statement`; table `stw_commitment_proposals` exists | holdout |
+| AC-1 | A database where `main`'s `arp db init-postgres` has run | `arp db init-postgres` runs twice | Both runs exit 0 | holdout |
+| AC-51 | AC-1 done | The schema is read | `stw_commitments` has a column `proof_statement`, and table `stw_commitment_proposals` exists | holdout |
 | AC-2 | AC-1 done once | `arp db init-postgres` runs again | Every `stw_*` table's column list and row count are the same as before the run | holdout |
 | AC-3 | A company with one engagement | `POST /api/stewardship/tracking/commitments` with `text`, `target_date` `2027-03-31`, `proof_statement` `The 2026 annual report names a board climate committee` | Status 200; `GET /api/engagement/records/{company_id}` shows that commitment with that `proof_statement` and `target_date` | holdout |
 | AC-4 | As AC-3 | The same POST without `proof_statement` | Status 200; the commitment's `proof_statement` is null | holdout |
 | AC-5 | `engagement_store = file` | `GET /api/stewardship/commitment-proposals?company_id=x` | Status 409, detail `Commitment checks need the Postgres engagement store.` | unit |
-| AC-6 | An open commitment and a `pending` `verdict` row (`met`, `doc_title` `AR 2026.txt`, `page` null, `quote` `The board formed a climate committee in March 2026.`) inserted into `stw_commitment_proposals` | The analyst `POST .../commitment-proposals/{id}/confirm` | Status 200; the commitment's `status` is `verified`, `validated_by` is the analyst, `evidence` is `AR 2026.txt: "The board formed a climate committee in March 2026."` | holdout |
+| AC-6 | An open commitment on an engagement with a second open commitment; an inserted `verdict` row for the first (`verdict` `met`, `doc_id` `d1`, `doc_title` `AR 2026.txt`, `page` null, `quote` `The board formed a climate committee in March 2026.`) | `POST /api/stewardship/commitment-proposals/{id}/confirm` | Status 200; the commitment's `status` is `verified`, `validated_by` is the user, `evidence` is `AR 2026.txt: "The board formed a climate committee in March 2026."` | holdout |
 | AC-7 | As AC-6 but `verdict` `not_met`, `page` 4 | Confirm | The commitment's `status` is `missed`, `evidence` is `AR 2026.txt, page 4: "The board formed a climate committee in March 2026."` | holdout |
-| AC-8 | AC-6 done | `GET .../commitment-proposals?company_id=…&status=confirmed` | One proposal, `status` `confirmed`, `decided_by` the analyst, `decided_at` not null | holdout |
-| AC-9 | As AC-6 | `POST .../reject` with `{"reason": "Quote is about the 2024 target"}` | Status 200; `GET …&status=rejected` returns it with that `reject_reason`; the commitment's `status` is still `open` | holdout |
+| AC-8 | AC-6 done | `GET .../commitment-proposals?company_id=…&status=confirmed` | One suggestion, `status` `confirmed`, `decided_by` the user, `decided_at` not null | holdout |
+| AC-9 | As AC-6 | `POST .../commitment-proposals/{id}/reject` with `{"reason": "Quote is about the 2024 target"}` | Status 200; `GET …&status=rejected` returns it with that `reject_reason` | holdout |
+| AC-58 | AC-9 done | `GET /api/engagement/records/{company_id}` | The commitment's `status` is still `open` | holdout |
 | AC-10 | As AC-6 | Reject with `{"reason": "  "}` | Status 422, detail `A reason is required to reject a suggestion.` | holdout |
 | AC-11 | AC-9 done | Confirm the same suggestion | Status 409, detail `Suggestion already rejected.` | holdout |
+| AC-59 | AC-6 done | Reject the same suggestion with a reason | Status 409, detail `Suggestion already confirmed.` | holdout |
+| AC-60 | — | `POST .../commitment-proposals/cpr_unknown/confirm` | Status 404, detail `Unknown suggestion.` | holdout |
 | AC-12 | A `viewer` user (non-dev auth) | `POST .../commitment-proposals/{id}/confirm` | Status 403 | unit |
-| AC-13 | AC-6 and AC-9 done (two suggestions) | `stw_events` is read | One row `commitment_proposal_confirmed` and one `commitment_proposal_rejected`, each with the `proposal_id` in `detail` | holdout |
-| AC-14 | AC-9 done | `GET .../commitment-proposals?company_id=…` (no status) | `{"proposals": []}`; the rejected row is still in `stw_commitment_proposals` | holdout |
-| AC-15 | A `meeting` activity (`occurred_at` 2026-10-01) and a `pending` `new_commitment` row for it (`text` `Publish a transition plan`, `target_date` null) | Confirm with `{"target_date": "2027-03-31"}` | Status 200; the engagement has a new commitment with that text, `target_date` `2027-03-31`, `made_at` starting `2026-10-01`, `recorded_by` the analyst; the suggestion's `created_commitment_id` is its id | holdout |
-| AC-16 | As AC-15 | Confirm with `{}` | Status 422, detail `A due date is required to add a commitment.`; no commitment was added | holdout |
-| AC-17 | An open commitment C; a document for the company containing `The board formed a climate committee in March 2026.`; stand-in `CommitmentCheckDraft` returning C `met` with that sentence as quote | `POST /api/stewardship/commitments/{C}/check` | Status 200, body `{"documents": 1, "proposals": 1, "unclear": 0, "skipped": 0}`; the pending list holds one `verdict` suggestion `met` with that quote | holdout |
-| AC-18 | As AC-17 but the stand-in quote is `The board dissolved its climate committee.` (not in the document) | Check | Body `{"documents": 1, "proposals": 0, "unclear": 1, "skipped": 0}`; no suggestion row | holdout |
-| AC-19 | As AC-17 but the stand-in returns `unclear` with an empty quote | Check | Body `{"documents": 1, "proposals": 0, "unclear": 1, "skipped": 0}`; no suggestion row | holdout |
-| AC-20 | AC-17 done | Check again | Body `{"documents": 1, "proposals": 0, "unclear": 0, "skipped": 1}`; still one suggestion row | holdout |
-| AC-21 | AC-17 done, then the suggestion rejected | Check again | Body has `"proposals": 0, "skipped": 1`; no `pending` suggestion | holdout |
-| AC-22 | AC-17 done | `GET /api/engagement/records/{company_id}` | C's `status` is `open` and `validated_by` null | holdout |
+| AC-13 | Two open commitments, each with one inserted pending `verdict` row; the first confirmed, the second rejected | `stw_events` is read | One row `commitment_proposal_confirmed` and one `commitment_proposal_rejected`, each with its `proposal_id` in `detail` | holdout |
+| AC-14 | AC-9 done | `GET .../commitment-proposals?company_id=…` (no status) | `{"proposals": []}`, while `stw_commitment_proposals` still holds the rejected row | holdout |
+| AC-56 | A `verified` commitment and an inserted pending `verdict` row for it | Confirm | Status 409, detail `Commitment is no longer open.`; the suggestion's `status` is still `pending` | holdout |
+| AC-57 | An engagement whose only commitment is open, with an inserted pending `met` row | Confirm | `GET /api/engagement/records/{company_id}` shows the engagement's `status` `resolved` (as Verify does today) | holdout |
+| AC-15 | A `meeting` activity (`occurred_at` 2026-10-01) and an inserted `new_commitment` row for it (`text` `Publish a transition plan`, `target_date` null, `quote` `We will publish a transition plan.`) | Confirm with `{"target_date": "2027-03-31"}` | Status 200; the engagement has a new commitment with text `Publish a transition plan`, `target_date` `2027-03-31`, `made_at` starting `2026-10-01`, `recorded_by` the user | holdout |
+| AC-61 | AC-15 done | `GET …&status=confirmed` | The suggestion's `created_commitment_id` is the new commitment's `commitment_id` | holdout |
+| AC-16 | As AC-15 | Confirm with `{}` | Status 422, detail `A due date is required to add a commitment.`; the engagement's commitment count is unchanged | holdout |
+| AC-17 | An open commitment C; a document for the company containing `The board formed a climate committee in March 2026.`; stand-in `CommitmentCheckDraft` returning C `met` with that sentence as quote | `POST /api/stewardship/commitments/{C}/check` with the `company_id` | Status 200, body `{"documents": 1, "proposals": 1, "unclear": 0, "skipped": 0}` | holdout |
+| AC-62 | AC-17 done | `GET .../commitment-proposals?company_id=…` | One `verdict` suggestion, `verdict` `met`, `commitment_id` C, `quote` `The board formed a climate committee in March 2026.` | holdout |
+| AC-18 | As AC-17 but the stand-in quote is `The board dissolved its climate committee.` (not in the document) | Check | Body `{"documents": 1, "proposals": 0, "unclear": 1, "skipped": 0}`; `stw_commitment_proposals` is empty | holdout |
+| AC-19 | As AC-17 but the stand-in returns `unclear` with an empty quote | Check | Body `{"documents": 1, "proposals": 0, "unclear": 1, "skipped": 0}`; `stw_commitment_proposals` is empty | holdout |
+| AC-20 | AC-17 done | Check again | Body `{"documents": 1, "proposals": 0, "unclear": 0, "skipped": 1}`; `stw_commitment_proposals` holds 1 row | holdout |
+| AC-21 | AC-17 done, then that suggestion rejected | Check again | Body `{"documents": 1, "proposals": 0, "unclear": 0, "skipped": 1}` | holdout |
+| AC-22 | AC-17 done | `GET /api/engagement/records/{company_id}` | C's `status` is `open` and its `validated_by` is null | holdout |
 | AC-23 | A commitment with status `verified` | `POST .../commitments/{id}/check` | Status 409, detail `Only open commitments can be checked.` | holdout |
 | AC-24 | An open commitment, no documents for the company | Check | Status 200, body `{"documents": 0, "proposals": 0, "unclear": 0, "skipped": 0}` | holdout |
-| AC-25 | A company with one open commitment on an open engagement, `commitment_check_on_new_documents` true, stand-in returning `met` with a grounded quote | `ChangeDetector.diff_and_record` sees a new document for the company | One `pending` `verdict` suggestion for that document | unit |
+| AC-55 | As AC-17 but `CommitmentCheckDraft.json` is not valid JSON | Check | Status 502, detail `Argus could not check the documents.`; `stw_commitment_proposals` is empty | holdout |
+| AC-25 | A company with one open commitment on an open engagement and a registered document; `commitment_check_on_new_documents` true; stand-in returning `met` with a quote from that document | `ChangeDetector.diff_and_record` gets that document (same `sha256`) as new | One pending `verdict` suggestion with that document's `doc_id` | unit |
 | AC-26 | As AC-25 with `commitment_check_on_new_documents` false | Same | No suggestion, and `calls.jsonl` has no `CommitmentCheckDraft` call | unit |
 | AC-27 | As AC-25 with a stand-in file that is not valid JSON | Same | `diff_and_record` returns its one `new_document` event; no suggestion | unit |
-| AC-28 | A `meeting` activity whose summary contains `The CFO committed to publish a transition plan by 31 March 2027.`; stand-in `CommitmentFindDraft` returning one commitment with that sentence as quote and `target_date` `2027-03-31` | `POST /api/stewardship/activities/{id}/find-commitments` | Status 200, body `{"proposals": 1, "ungrounded": 0, "skipped": 0}`; the pending list holds one `new_commitment` suggestion with `target_date` `2027-03-31` | holdout |
+| AC-54 | As AC-27 with event refresh on (`event_refresh_enabled` true, one schema id) | Same | `refresh_on_events` still starts its extraction run | unit |
+| AC-63 | As AC-25 but the document is not in the registry (no `sha256` or `local_path` match) | Same | No suggestion and no `CommitmentCheckDraft` call | unit |
+| AC-28 | A `meeting` activity whose summary contains `The CFO committed to publish a transition plan by 31 March 2027.`; stand-in `CommitmentFindDraft` returning one commitment with that sentence as quote and `target_date` `2027-03-31` | `POST /api/stewardship/activities/{id}/find-commitments` | Status 200, body `{"proposals": 1, "ungrounded": 0, "skipped": 0}` | holdout |
+| AC-64 | AC-28 done | `GET .../commitment-proposals?company_id=…` | One `new_commitment` suggestion with `target_date` `2027-03-31` and that quote | holdout |
 | AC-29 | As AC-28 but the stand-in quote is not in the summary | Find | Body `{"proposals": 0, "ungrounded": 1, "skipped": 0}` | holdout |
 | AC-30 | An `email` activity | Find | Status 409, detail `Commitments are only looked for in call and meeting notes.` | holdout |
 | AC-31 | AC-28 done | Find again | Body `{"proposals": 0, "ungrounded": 0, "skipped": 1}` | holdout |
 | AC-32 | AC-28 done | `stw_commitments` is counted | Same count as before the find | holdout |
-| AC-33 | AC-17 done on the e2e stack | A user opens the company's issue on `#/engagement` | Under C: `Argus suggests: met`, the quote in double quotes, the document's file name, and buttons `Confirm` and `Reject` | evaluator |
-| AC-34 | AC-33 | The user clicks `Reject` | An input `Why reject? (required)` and a `Confirm rejection` button that is disabled until text is typed; after confirming, the suggestion is gone and C still shows badge `open` | evaluator |
-| AC-35 | AC-28 done with stand-in `target_date` null | The user opens the issue | `Argus found a commitment in the meeting of <date>`, the text and quote, a `Due date` input showing the hint `Not stated in the note`, and `Add commitment` disabled until a date is entered | evaluator |
-| AC-36 | A commitment with a proof statement | The user opens the issue | The line `Proof: <proof_statement>` under the commitment text | evaluator |
+| AC-33 | AC-17 done | A user opens the company's issue on `#/engagement` | Under C: `Argus suggests: met`, then `"The board formed a climate committee in March 2026."`, then the uploaded file's title, then buttons `Confirm` and `Reject` | evaluator |
+| AC-34 | AC-33 | The user clicks `Reject` | An input labelled `Why reject? (required)` and a `Confirm rejection` button, disabled while the input is empty | evaluator |
+| AC-65 | AC-34, a reason typed | The user clicks `Confirm rejection` | The suggestion is no longer shown; C still shows the badge `open` | evaluator |
+| AC-35 | AC-28 done with stand-in `target_date` null | The user opens the issue | `Argus found a commitment in the meeting of <occurred_at date>`, the text, the quote, and an empty `Due date` input with the hint `Not stated in the note` | evaluator |
+| AC-66 | AC-35 | The user looks at `Add commitment`, then enters `2027-03-31` | It is disabled while the date is empty and enabled after | evaluator |
+| AC-36 | A commitment with proof statement `The 2026 annual report names a board climate committee` | The user opens the issue | The line `Proof: The 2026 annual report names a board climate committee` under the commitment text | evaluator |
 | AC-37 | AC-17's Given | The user clicks `Check against documents` on C | The line `Checked 1 document: 1 new suggestion, 0 unclear.` | evaluator |
 | AC-38 | `ARP_ANTHROPIC_API_KEY` set | `arp stewardship commitment-golden --kind check --cases tests/golden/commitment_check/cases.json --documents-dir tests/golden/commitment_check/documents --min-precision 0.9 --min-coverage 0.6` | Exit 0 | golden |
 | AC-39 | `ARP_ANTHROPIC_API_KEY` set | The same command with `--kind find --min-precision 0.8 --min-coverage 0.7` | Exit 0 | golden |
-| AC-40 | An open engagement with an `open` commitment, `target_date` = yesterday, text `Publish a transition plan` | `commitment_flags(store, company_id)` | One flag: `kind` `overdue`, `since` = `target_date` = yesterday, `message` `Commitment overdue: "Publish a transition plan" was due <yesterday>.` | holdout |
-| AC-41 | An open engagement with a `missed` commitment, `validated_at` 2026-10-02 | `commitment_flags` | One flag: `kind` `broken`, `since` `2026-10-02`, `message` `Commitment broken: "<text>" was marked not met on 2026-10-02.` | holdout |
+| AC-40 | An open engagement with an `open` commitment, `target_date` = yesterday, text `Publish a transition plan` | `commitment_flags(store, company_id)` | One flag: `kind` `overdue`, `target_date` and `since` = yesterday, `message` `Commitment overdue: "Publish a transition plan" was due <yesterday>.` | holdout |
+| AC-41 | An open engagement with a `missed` commitment, text `Name a climate committee`, `validated_at` 2026-10-02 | `commitment_flags` | One flag: `kind` `broken`, `since` `2026-10-02`, `message` `Commitment broken: "Name a climate committee" was marked not met on 2026-10-02.` | holdout |
 | AC-42 | One company with: a `verified` commitment; an `open` one without `target_date`; an `open` one due today; an `open` one due tomorrow; an overdue `open` one on a `closed` engagement | `commitment_flags` | `[]` | holdout |
 | AC-43 | Two overdue (due 2026-09-01 and 2026-08-01) and one broken commitment on open engagements | `commitment_flags` | Three flags in the order: broken, due 2026-08-01, due 2026-09-01 | holdout |
 | AC-44 | A company with no engagement record | `commitment_flags` | `[]` | holdout |
-| AC-45 | A finished `proxy_voting` run with a ballot for a company that has AC-40's overdue commitment | `GET /api/voting/runs/{run_id}/ballots` | That ballot's `commitment_flags` equals `commitment_flags(store, company_id)` as JSON | holdout |
-| AC-46 | A ballot for a company without flags | `GET .../ballots` | That ballot's `commitment_flags` is `[]` | holdout |
-| AC-47 | AC-45 on the e2e stack | A user opens the run's ballot review | Every ballot item of that company shows a warning banner `Commitment overdue: "Publish a transition plan" was due <date>.`; items of other companies show none | evaluator |
-| AC-48 | A vote record whose company has an overdue commitment and whose `engagement_alignment_flag` is false, approved, no co-sign | `cast_votes` | It is cast (status `confirmed`) | unit |
-| AC-49 | An open commitment with a `target_date` after today | `POST /api/stewardship/tracking/commitments/{id}` with `status` `verified` and no `evidence` | Status 422, detail `Evidence is required to verify a commitment.` (unchanged) | holdout |
 | AC-50 | Three companies: AC-40's (one overdue), AC-41's (one broken), and one with no flags | `commitment_flags_by_company(store.list_all())` | A dict with exactly the first two `company_id`s as keys, each value equal to `commitment_flags(store, company_id)` | holdout |
+| AC-53 | AC-40's data on a file `EngagementStore` | `commitment_flags` | The same flag as AC-40 | unit |
+| AC-52 | A file `EngagementStore` | A commitment with a `proof_statement` is added, then the record is read back | The commitment has the same `proof_statement` | unit |
+| AC-45 | A `proxy_voting` run's ballots seeded through `RunStore`, one ballot for a company with AC-40's overdue commitment | `GET /api/voting/runs/{run_id}/ballots` | That ballot's `commitment_flags` equals `commitment_flags(store, company_id)` as JSON | unit |
+| AC-46 | As AC-45, a second ballot for a company without flags | `GET .../ballots` | That ballot's `commitment_flags` is `[]` | unit |
+| AC-47 | The ballots response for a run stubbed (as the existing e2e voting tests do with `page.route`): company A with two items and `commitment_flags` = AC-40's flag; company B with one item and `[]` | A user opens the run's ballot review | Both of A's items show a warning banner `Commitment overdue: "Publish a transition plan" was due <date>.`; B's item shows none | evaluator |
+| AC-48 | A `VoteRecord` approved without co-sign, `engagement_alignment_flag` false, for a company with an overdue commitment | `cast_vote(platform, record)` | The returned record's `cast_confirmation.status` is `confirmed` | unit |
+| AC-49 | An open commitment with a `target_date` after today | `POST /api/stewardship/tracking/commitments/{id}` with `status` `verified` and no `evidence` | Status 422, detail `Evidence is required to verify a commitment.` (unchanged) | holdout |
 
 Must not change: the co-sign rule for `engagement_alignment_flag` items and the alignment check itself (AC-48 plus
 the existing voting tests, unchanged); manual Verify and status updates (AC-49); adding a commitment without a proof
-statement (AC-4); `init-postgres` idempotence (AC-2); commitment status changes only through a person (AC-22, AC-32).
+statement (AC-4); `init-postgres` idempotence (AC-2); event refresh on new documents (AC-54); commitment status
+changes only through a person (AC-22, AC-32, AC-58).
