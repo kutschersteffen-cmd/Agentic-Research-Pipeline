@@ -2287,7 +2287,7 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-pick-list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s-1); }
 .argus-pick-list li { overflow-wrap: anywhere; }
 .argus-pick-list .muted { white-space: nowrap; }
-.argus-pick-list button { text-align: left; white-space: normal; }
+.argus-pick-list button { text-align: left; white-space: normal; overflow-wrap: anywhere; max-width: 100%; }
 .argus-pick-list button[aria-pressed="true"] { color: var(--text); font-weight: 600; text-decoration: none; }
 .argus-schema-fields { display: grid; gap: var(--s-3); min-width: 0; }
 .argus-schema-fields td input, .argus-schema-fields td select { width: 100%; min-width: 6rem; }

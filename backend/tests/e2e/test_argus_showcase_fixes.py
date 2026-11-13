@@ -401,7 +401,16 @@ def test_a_saved_schema_with_long_texts_keeps_its_layout(page):
     item = pick.locator("li").filter(has_text=name)
     card, box = pick.bounding_box(), item.bounding_box()
     assert box["x"] + box["width"] <= card["x"] + card["width"] and "4 fields" in item.inner_text()
-    assert item.get_by_role("button").evaluate("el => el.scrollWidth <= el.clientWidth")
+    # The name's rendered lines end inside its list item. Measured on the text itself: scrollWidth and clientWidth
+    # are whole pixels, and which way a fraction rounds differs between browser versions.
+    geo = item.get_by_role("button").evaluate("""el => {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const b = el.getBoundingClientRect();
+        return {text_right: Math.max(...[...range.getClientRects()].map(r => r.right)), button_right: b.right, button_width: b.width,
+                scroll_width: el.scrollWidth, client_width: el.clientWidth, pointer_coarse: matchMedia('(pointer: coarse)').matches};
+    }""")
+    assert geo["text_right"] <= box["x"] + box["width"] + 1 and geo["button_right"] <= box["x"] + box["width"] + 1, (geo, box)
     page.set_viewport_size({"width": 390, "height": 800})  # the long name does not widen a phone's page either
     assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
 
