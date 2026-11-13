@@ -168,6 +168,9 @@ def test_the_review_detail_shows_no_reason_codes(page, store):  # AC-117
     detail.wait_for()
     text = detail.inner_text()
     assert not [c for c in CODES if c in text], text
+    assert ("Routed for review: The schema is a draft, so every value is reviewed. A check on this value failed. "
+            "The first values of a new schema version are always reviewed. "
+            "Confidence is below the level for automatic acceptance.") in text  # AC-114 as the owner chose on #446
 
 
 @pytest.fixture

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { keptRuns, periodText, resultRows } from "../src/lib/argusFlow.ts";
-import { noteSentence, reasonSentence } from "../src/lib/routeReasons.ts";
+import { noteSentence, reasonSentence, routedSentences } from "../src/lib/routeReasons.ts";
 import { steps, verifyNote } from "../src/lib/walkthrough.ts";
 import { companyHref } from "../src/pages/company/companyQuery.ts";
 import type { ExtractedField, ExtractionRecord, Walkthrough } from "../src/types.ts";
@@ -146,4 +146,12 @@ test("a verify step's note: only a non-empty text, and none without a verifier",
   assert.equal(verifyNote(none, w({ verdict: { notes: 5 } })), null);
   assert.equal(verifyNote(none, w({ verdict: {} })), null);
   assert.equal(verifyNote(none, { recorded: false, verifier: { verdict: { notes: "x" } } } as never), null); // not recorded: the stored row speaks
+});
+
+test("AC-114, AC-156 in the review detail: Routed for review, then one sentence per reason, checks left out", () => {
+  assert.equal(routedSentences(["unreleased_version", "check_failed", "check:consistency.entity"]),
+    "Routed for review: The schema is a draft, so every value is reviewed. A check on this value failed.");
+  assert.equal(routedSentences(["some_new_code"]), "Routed for review: Reason: some new code.");
+  assert.equal(routedSentences(["check:consistency.entity"]), null);
+  assert.equal(routedSentences([]), null);
 });

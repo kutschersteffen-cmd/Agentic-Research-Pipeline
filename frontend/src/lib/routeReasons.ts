@@ -46,6 +46,13 @@ const REASON_SENTENCE: Record<string, string> = {
 /** A route reason as a sentence; a code with no sentence reads `Reason: <code with spaces>.` */
 export const reasonSentence = (code: string): string => REASON_SENTENCE[code] ?? `Reason: ${code.replaceAll("_", " ")}.`;
 
+/** The review detail's "Routed for review:" line, one sentence per reason; `check:` entries are left out
+ * (the failed checks are listed above it). Supersedes `routedLine` on screen (owner, PR #446). */
+export function routedSentences(reasons: string[]): string | null {
+  const sentences = reasons.filter((r) => !r.startsWith("check:")).map(reasonSentence);
+  return sentences.length ? `Routed for review: ${sentences.join(" ")}` : null;
+}
+
 /** A check's stored note in words: the unit converter's `cannot convert 'x' to 'y' (reason)` becomes a sentence; other notes stay. */
 export function noteSentence(note: string): string {
   const m = /^cannot convert '(.+)' to '(.+)' \([a-z_]+\)$/.exec(note);
