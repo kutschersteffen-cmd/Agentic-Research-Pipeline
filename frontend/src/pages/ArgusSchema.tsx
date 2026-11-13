@@ -208,48 +208,58 @@ export function ArgusSchema({ flow, busy, act }: { flow: Flow; busy: boolean; ac
           {saved.length === 0 ? (
             <p className="muted">None saved yet.</p>
           ) : (
-            <ul className="argus-pick-list">
-              {saved.map((s) => (
-                <li key={`${s.schema_id}:${s.version}`}>
-                  <button type="button" className="link-button" aria-pressed={isChosen(s)} disabled={busy} onClick={() => choose({ kind: "schema", schema_id: s.schema_id, version: s.version })}>
-                    {s.name} <span className="mono">v{s.version}</span>
-                  </button>{" "}
-                  <span className="muted">{s.release_flag ? "released" : "draft"} · {s.field_count} {s.field_count === 1 ? "field" : "fields"}</span>
-                </li>
-              ))}
-            </ul>
+            <label className="field-label">
+              Saved schema
+              <select
+                id="argus-saved-schema"
+                value={String(saved.findIndex(isChosen))}
+                disabled={busy}
+                onChange={(e) => {
+                  const s = saved[Number(e.target.value)];
+                  if (s) choose({ kind: "schema", schema_id: s.schema_id, version: s.version });
+                }}
+              >
+                <option value="-1" disabled>Choose one…</option>
+                {[true, false].map((rel) => (
+                  <optgroup key={String(rel)} label={rel ? "Released" : "Draft"}>
+                    {saved.map((s, i) => !!s.release_flag === rel && (
+                      <option key={`${s.schema_id}:${s.version}`} value={i}>
+                        {s.name} v{s.version} · {s.field_count} {s.field_count === 1 ? "field" : "fields"}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
           )}
           <h2>Templates</h2>
-          <ul className="argus-pick-list">
-            {presets.map((p) => (
-              <li key={p.preset_id}>
-                <button
-                  type="button"
-                  className="link-button"
-                  disabled={busy}
-                  onClick={() =>
-                    act(async () => {
-                      const s = await api.installPreset(p.preset_id);
-                      edit(null);
-                      setSaved(newestVersions(await api.listSchemas()));
-                      return api.patchArgusFlow(id, { schema_choice: asChoice({ kind: "schema", schema_id: s.schema_id, version: s.version }), repeat: {} });
-                    })
-                  }
-                >
-                  {p.name}
-                </button>{" "}
-                <span className="muted">{presetCountText(p, indicatorCount)}</span>
-              </li>
-            ))}
-            {PROFILES.map(([p, name]) => (
-              <li key={p}>
-                <button type="button" className="link-button" aria-pressed={choice?.kind === "profile" && choice.profile === p} disabled={busy} onClick={() => choose({ kind: "profile", profile: p })}>
-                  {name}
-                </button>{" "}
-                <span className="muted">fixed fields</span>
-              </li>
-            ))}
-          </ul>
+          <label className="field-label">
+            Template
+            <select
+              id="argus-template"
+              value={choice?.kind === "profile" ? `f:${choice.profile}` : ""}
+              disabled={busy}
+              onChange={(e) => {
+                const [kind, key] = [e.target.value.slice(0, 1), e.target.value.slice(2)];
+                if (kind === "f") choose({ kind: "profile", profile: key as (typeof PROFILES)[number][0] });
+                else if (kind === "p")
+                  act(async () => {
+                    const s = await api.installPreset(key);
+                    edit(null);
+                    setSaved(newestVersions(await api.listSchemas()));
+                    return api.patchArgusFlow(id, { schema_choice: asChoice({ kind: "schema", schema_id: s.schema_id, version: s.version }), repeat: {} });
+                  });
+              }}
+            >
+              <option value="" disabled>Choose one…</option>
+              <optgroup label="Schema templates">
+                {presets.map((p) => <option key={p.preset_id} value={`p:${p.preset_id}`}>{p.name} · {presetCountText(p, indicatorCount)}</option>)}
+              </optgroup>
+              <optgroup label="Fixed profiles">
+                {PROFILES.map(([p, name]) => <option key={p} value={`f:${p}`}>{name} · fixed fields</option>)}
+              </optgroup>
+            </select>
+          </label>
           <h2>Describe it in words</h2>
           <label className="field-label">
             What should be extracted?

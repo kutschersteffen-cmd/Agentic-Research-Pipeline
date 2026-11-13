@@ -428,7 +428,8 @@ def _schema(api, key, name, fields):
 
 
 def _choose(page, name):
-    page.get_by_role("region", name="What to extract").get_by_role("button", name=re.compile(re.escape(name))).click()
+    saved = page.locator("#argus-saved-schema")
+    saved.select_option(label=saved.locator("option").filter(has_text=name).first.inner_text())
     table = page.get_by_role("table", name="Fields to extract")
     table.wait_for()
     return table
@@ -469,32 +470,11 @@ def test_a_saved_schema_with_long_texts_keeps_its_layout(page):
     assert look_in in cells.nth(0).inner_text() and cells.nth(0).get_by_role("button", name="Show less").count() == 1
     assert cells.nth(0).locator(".argus-clamp").count() == 0
 
-    pick = page.get_by_role("region", name="What to extract")  # AC-90
-    item = pick.locator("li").filter(has_text=name)
-    card, box = pick.bounding_box(), item.bounding_box()
-    assert box["x"] + box["width"] <= card["x"] + card["width"] and "4 fields" in item.inner_text()
-    # The name's rendered lines end inside its list item. Measured on the text itself: scrollWidth and clientWidth
-    # are whole pixels, and which way a fraction rounds differs between browser versions.
-    geo = item.get_by_role("button").evaluate("""el => {
-        const range = document.createRange();
-        range.selectNodeContents(el);
-        const b = el.getBoundingClientRect();
-        return {text_right: Math.max(...[...range.getClientRects()].map(r => r.right)), button_right: b.right, button_width: b.width,
-                scroll_width: el.scrollWidth, client_width: el.clientWidth, pointer_coarse: matchMedia('(pointer: coarse)').matches};
-    }""")
-    assert geo["text_right"] <= box["x"] + box["width"] + 1 and geo["button_right"] <= box["x"] + box["width"] + 1, (geo, box)
-    # every entry of the list, saved schemas and templates alike, ends inside the card: measured on the rendered text
-    pick.get_by_text("supporting figures").wait_for()  # the longest note, loaded last
-    outside = pick.locator(".argus-pick-list li").evaluate_all("""lis => {
-        const edge = lis[0].closest('section').getBoundingClientRect().right + 1;
-        return lis.flatMap(li => {
-            const range = document.createRange();
-            range.selectNodeContents(li);
-            const right = Math.max(...[...range.getClientRects()].map(r => r.right));
-            return right > edge ? [`${li.innerText.replace(/\\s+/g, ' ')} (+${Math.round(right - edge)} px)`] : [];
-        });
-    }""")
-    assert outside == [], outside
+    pick = page.get_by_role("region", name="What to extract")  # AC-90: the saved schemas are a dropdown now
+    option = page.locator("#argus-saved-schema option").filter(has_text=name).first.inner_text()
+    assert name in option and "4 fields" in option  # the whole name and its field count
+    card, box = pick.bounding_box(), page.locator("#argus-saved-schema").bounding_box()
+    assert box["x"] + box["width"] <= card["x"] + card["width"] + 1
     page.set_viewport_size({"width": 390, "height": 800})  # the long name does not widen a phone's page either
     assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
 

@@ -73,10 +73,13 @@ def from_portfolio(store: PortfolioStore, as_of: str | None = None) -> dict:
     total = sum(now.values())
     _, companies = portfolio_directories(store)
     observed: dict[str, dict] = defaultdict(dict)
+    simulated: set[str] = set()
     for company_id, field_id in store.list_observation_keys():
         obs = store.latest_observation(company_id, field_id, obs_as_of)
         if obs is not None and isinstance(obs.value, int | float | bool):
             observed[company_id][f"portfolio.{field_id}"] = obs.value
+            if obs.source == "simulated":
+                simulated.add(company_id)
     issuers = []
     for company_id, value in sorted(now.items(), key=lambda kv: -kv[1]):
         company = companies.get(company_id)
@@ -98,7 +101,8 @@ def from_portfolio(store: PortfolioStore, as_of: str | None = None) -> dict:
     return {
         "source": "portfolio",
         "note": f"Companies held in the house portfolios as of {as_of}. CLTI scores are placeholders; weights are the "
-        "share of house holdings, not an index weight.",
+        "share of house holdings, not an index weight."
+        + (f" Simulated: {n} of these companies carry simulated ESG values, not real data." if (n := len(simulated & now.keys())) else ""),
         "issuers": issuers,
         "engagements": [],
         "meetings": [],
