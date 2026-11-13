@@ -18,6 +18,8 @@ Decided (13 Nov 2026, buttons in this session):
 - **Objectives:** a confirmed suggestion is evidence only. A person records the result (VOICE result, influence
   level, outcome); nothing closes an objective automatically.
 - **Ballot banner and flags:** commitments and objectives only. Watch topics never show on ballots.
+- **Engagement brief:** the dossier (**Draft dossier** on the engagement panel) gets a **Watch list** section built
+  by code, and the talking points and outreach letter drafted from the dossier receive it too.
 
 Assumed on the recommended option while the owner was away (the owner can change any of them at approval):
 
@@ -67,6 +69,8 @@ where the house votes. The model never changes a status.
    due date; a person adds or rejects each one.
 6. Overdue and failed objectives and commitments show as a banner on the company's Proxy Voting ballot items, and
    `watch_flags` / `watch_flags_by_company` return the same flags for `stewardship-priority-worklist`.
+7. The engagement dossier lists the engagement's watch list (items, due dates, flags, confirmed evidence), and the
+   drafts made from the dossier receive it.
 
 ## Non-goals
 
@@ -98,7 +102,9 @@ where the house votes. The model never changes a status.
   `arp db init-postgres` are on `main` (`stewardship-data-foundation` PR 1, #433). This feature starts after that
   spec's PR 2 (#440, intake) merges: the holdout tests create objectives and activities through its intake, and the
   two PRs would otherwise edit `postgres_engagement_store.py` and `stewardship.py` at the same time. Its PR 3 is not
-  needed. With `engagement_store = file` the routes listed under "API" answer 409. `watch_flags` reads through the
+  needed for anything but the panel's objectives list: if it has merged when PR 1 starts, PR 1 extends its list;
+  otherwise PR 1 adds the list (see "What the user sees") and that PR then only adds its `Demo data` label.
+  With `engagement_store = file` the routes listed under "API" answer 409. `watch_flags` reads through the
   `EngagementStore` interface, so it works on both stores.
 - Schema changes go through `ensure_schema` in `arp/storage/postgres_schema.py`: two new tables, two additive
   columns, nothing dropped, idempotent.
@@ -176,7 +182,8 @@ Unique keys: (`item_kind`, `item_id`, `doc_id`) where `kind = 'evidence'`; (`act
 
 `stw_events` gets one row per write: `watch_topic_added`, `watch_topic_closed`, `proof_statement_set`,
 `objective_result_recorded`, `evidence_suggested`, `evidence_suggestion_confirmed`, `evidence_suggestion_rejected`
-(`detail` = the ids involved).
+(`detail` = the ids involved). A proof statement or an objective result writes exactly one event
+(`proof_statement_set` or `objective_result_recorded`), never also `objective_updated` (AC-100).
 
 **Evidence text.** Wherever a confirmed suggestion is written out (commitment `evidence`, the result form's
 prefilled outcome, the UI), it is `<doc_title>, page <page>: "<quote>"`, with `, page <page>` left out when `page` is
@@ -259,14 +266,18 @@ All under `/api/stewardship`. "The user" is the signed-in user's name (`dev` on 
 
 - `POST /watch-items/{item_kind}/{item_id}/proof-statement`, body `{"company_id", "issue_id", "proof_statement"}`
   (`item_kind` = `objective`, `commitment` or `topic`) → 200 with the item. Blank → 422 `A proof statement cannot be
-  blank.` `POST /tracking/commitments` also accepts an optional `proof_statement`.
+  blank.` Allowed on an item in any status. `POST /tracking/commitments` also accepts an optional `proof_statement`.
+- Unknown ids, or an `issue_id` the item is not on, on any route in this section → 404 `Unknown objective.`,
+  `Unknown commitment.`, `Unknown topic.` or `Unknown activity.`
 - `POST /watch-topics`, body `{"company_id", "issue_id", "question", "proof_statement"?, "target_date"?}` → 200 with
   the topic. Blank question → 422 `A question is required.` A `target_date` that is not `YYYY-MM-DD` → 422
-  `target_date must be an ISO date`.
+  `target_date must be an ISO date`. An engagement whose status is not `open` or `stalled` → 409 `Watch topics need
+  an open engagement.`
 - `GET /watch-topics?company_id=…` → `{"topics": [...]}`, open and closed, newest first.
-- `POST /watch-topics/{topic_id}/close` → 200; `status` `closed`, `closed_by` the user, `closed_at` now.
+- `POST /watch-topics/{topic_id}/close` → 200; `status` `closed`, `closed_by` the user, `closed_at` now. Already
+  closed → 409 `This topic is already closed.`
 - `POST /objectives/{objective_id}/result`, body `{"company_id", "issue_id", "result", "influence_level", "outcome"}`
-  (`result` and `influence_level` from the VOICE lists). Sets `result`, `influence_level`, `outcome`,
+  (`result` and `influence_level` are strings from the VOICE lists, e.g. `"achieved"`, `"3"`, `"4A"`). Sets `result`, `influence_level`, `outcome`,
   `closed_at` = now, and `status` = `abandoned` when `result` is `abandoned`, else `closed`. Blank `outcome` → 422
   `An outcome is required.` No `influence_level` with a result other than `abandoned` → 422 `An influence level is
   required to close an objective.` An objective that is not `initiated` or `in_progress` → 409 `This objective is
@@ -305,13 +316,17 @@ With `engagement_store = file`, every route in this section except `POST /tracki
 On `#/engagement`, in the issue panel (`EngagementIssuePanel.tsx`). Dates are the UTC date: the first 10 characters
 of the stored ISO value, never converted to the browser's time zone.
 
+- **Objectives.** An **Objectives** section above Commitments lists the engagement's objectives: description,
+  `objective_type`, a status badge (`initiated`, `in_progress`, `closed`, `abandoned`) and the `result` when set, as
+  raw values. (Built here unless `stewardship-data-foundation` PR 3 merged it first; see Constraints.)
 - **Proof statements.** Each objective, commitment and topic with a proof statement shows `Proof: <proof_statement>`
   under its text; each open one without has a link **Add proof statement** (an input and **Save**).
 - **Watch topics.** A new section **Watch topics** under Commitments lists the engagement's topics (question, proof,
   `due <date>`, badge `open` or `closed`) and has **Add watch topic** (inputs `Question`, `What counts as proof`,
   `Due date`; button **Add topic**). Each open topic has **Close topic**.
 - **Record result.** Each open objective has **Record result**: selects `Result` and `Influence level`, a text box
-  `Outcome`, and **Save result**. After saving, the objective row shows its new status and result as today.
+  `Outcome`, and **Save result**. The selects list the raw values (`achieved`, `3`, `4A`, …). After saving, the
+  objective row shows its new status badge and result.
 - **Check.** Each watch item has **Check against documents**. After it runs, one line under the item:
   `Checked <N> document(s): <P> new suggestion(s), <U> unclear.` with singular and plural spelled out
   (`Checked 1 document: 1 new suggestion, 0 unclear.`). With no documents: `No documents on file for this company.`
@@ -373,7 +388,8 @@ def watch_flags_by_company(records: list[EngagementRecord], today: date | None =
 | Commitment | status `open`, `target_date` before today | status `missed` | overdue: `target_date`; broken: `validated_at` date, else `target_date`, else `made_at` date | `Commitment overdue: "<text>" was due <target_date>.` / `Commitment broken: "<text>" was marked not met on <since>.` |
 | Objective | status `initiated` or `in_progress`, `target_date` before today | `result` `not_achieved` or `deterioration` | overdue: `target_date`; broken: `closed_at` date, else `target_date`, else null | `Objective overdue: "<text>" was due <target_date>.` / `Objective failed: "<text>" was closed as <not achieved \| deterioration> on <since>.` (` on <since>` left out when null) |
 
-A due date equal to today is not overdue. No record or no flags → `[]`. Order: `broken` before `overdue`; within
+A due date equal to today is not overdue. A `target_date` that is not `YYYY-MM-DD` (intake stores it as free text)
+counts as no date: no overdue flag, and it sorts as null. No record or no flags → `[]`. Order: `broken` before `overdue`; within
 each, `target_date` ascending (null last), then commitments before objectives, then `item_id`.
 
 **Ballot.** `CompanyBallot` (`arp/schemas/voting.py`) gains `watch_flags: list[WatchFlag] = []`, filled when
@@ -382,6 +398,39 @@ shows. `BallotReview.tsx` shows each flag's `message` as a `banner banner-warnin
 company, above the existing engagement-alignment banner. `engagement_alignment_flag`, its note and the co-sign rule
 in `ballot_casting.py` stay as they are.
 
+## The watch list in the dossier (PR 3)
+
+```python
+class WatchListEntry(BaseModel):         # arp/schemas/engagement.py
+    item_kind: Literal["objective", "commitment", "topic"]
+    item_id: str
+    text: str
+    proof_statement: str | None
+    target_date: str | None
+    status: str                          # the item's own status
+    flag: Literal["overdue", "broken"] | None
+    evidence: list[str]                  # confirmed evidence suggestions, oldest first, as the UI words them
+
+def watch_list(store: EngagementStore, company_id: str, issue_id: str, today: date | None = None) -> list[WatchListEntry]:
+    # arp/stewardship/tracking.py
+```
+
+Entries: the engagement's watch items, plus its commitments and objectives that carry a `broken` flag. Order:
+flagged entries first in `watch_flags` order, then the rest by `target_date` ascending (null last), then objectives,
+commitments, topics, then `item_id`. Each `evidence` line is `Evidence: <evidence text> (confirmed by <user>)` or
+`Evidence against: <evidence text> (confirmed by <user>)`. On the file store there are no topics or evidence, so
+entries come from objectives and commitments only.
+
+`ResearchDossier` gains `watch_list: list[WatchListEntry] = []`. `POST /api/engagement/records/{company_id}/issues/
+{issue_id}/dossier` fills it with code after the model call; the model never writes it. `_dossier_context`
+(`arp/engagement/drafting_agent.py`) adds a `Watch list:` block, one line per entry, so talking points and the
+outreach letter receive it.
+
+In the panel, under the drafted dossier: heading **Watch list**, one row per entry: `Objective: <text>`,
+`Commitment: <text>` or `Watch topic: <text>`, then `due <date>` when set, a badge `overdue` or `broken` when
+flagged, `Proof: <proof_statement>` when set, and each evidence line. With no entries: `No open objectives,
+commitments or watch topics.`
+
 ## Left to the builder
 
 - Prompt wording, and how a long document is narrowed for the check. The golden rows judge the result.
@@ -389,11 +438,11 @@ in `ballot_casting.py` stay as they are.
 - PR split, in this order; each PR leaves the app working and names its rows in a `Rows:` line:
   1. Columns, tables, schema fields, the watch-item, topic, objective-result and suggestion list/confirm/reject API,
      the generated contract, and the proof-statement, watch-topic and record-result UI.
-     Rows AC-1 to AC-19, AC-47, AC-48, AC-74, AC-75, AC-80, AC-96, AC-97.
+     Rows AC-1 to AC-19, AC-47, AC-48, AC-74, AC-75, AC-80, AC-96 to AC-103.
   2. The check (event hook and button), find-commitments, the golden set and command, and the suggestion UI.
      Rows AC-20 to AC-46, AC-49 to AC-73, AC-76 to AC-79, AC-81, AC-82.
-  3. `watch_flags`, `watch_flags_by_company`, `CompanyBallot.watch_flags` and the banner.
-     Rows AC-83 to AC-95 (the last PR drops the `Rows:` line).
+  3. `watch_flags`, `watch_flags_by_company`, `CompanyBallot.watch_flags`, the banner and the dossier watch list.
+     Rows AC-83 to AC-95, AC-104 to AC-110 (the last PR drops the `Rows:` line).
 
 ## Golden set (PR 2)
 
@@ -456,7 +505,7 @@ prints one line `precision <p>, coverage <c>` and exits 1 below either threshold
 | AC-13 | A file `EngagementStore` | A commitment with a `proof_statement` is added and read back | Same `proof_statement` | unit |
 | AC-14 | A `viewer` user (non-dev auth) | `POST /api/stewardship/evidence-suggestions/{id}/confirm` | Status 403 | unit |
 | AC-15 | — | `POST /api/stewardship/evidence-suggestions/evs_unknown/confirm` | Status 404, detail `Unknown suggestion.` | holdout |
-| AC-16 | An objective O, status `in_progress` | `POST /api/stewardship/objectives/{O}/result` with `result` `achieved`, `influence_level` `3`, `outcome` `Committee named in the 2026 annual report` | Status 200; the record shows O with `status` `closed`, `result` `achieved`, `influence_level` `3`, that `outcome`, and `closed_at` starting with today | holdout |
+| AC-16 | An objective O, status `in_progress` | `POST /api/stewardship/objectives/{O}/result` with `result` `achieved`, `influence_level` `"3"`, `outcome` `Committee named in the 2026 annual report` | Status 200; the record shows O with `status` `closed`, `result` `achieved`, `influence_level` `"3"`, that `outcome`, and `closed_at` starting with today | holdout |
 | AC-17 | As AC-16 | The same without `influence_level` | Status 422, detail `An influence level is required to close an objective.` | holdout |
 | AC-18 | As AC-16 | `result` `abandoned`, no `influence_level`, an `outcome` | Status 200; O's `status` is `abandoned` | holdout |
 | AC-19 | As AC-16 | `outcome` `"  "` | Status 422, detail `An outcome is required.` | holdout |
@@ -514,7 +563,7 @@ prints one line `precision <p>, coverage <c>` and exits 1 below either threshold
 | AC-71 | An open commitment, no documents for the company | The user clicks `Check against documents` | The line `No documents on file for this company.` | evaluator |
 | AC-72 | AC-30 done | The user clicks `Confirm` under O | The Record result form is open with `Result` `achieved` and `Outcome` `AR2026.txt: "The board formed a climate committee in March 2026."` | evaluator |
 | AC-73 | AC-72 | The user closes the form without saving | O shows `Evidence: AR2026.txt: "The board formed a climate committee in March 2026." (confirmed by dev)` and its status is unchanged | evaluator |
-| AC-74 | An objective with status `in_progress` | The user clicks `Record result`, picks `achieved` and influence level `3`, types an outcome, clicks `Save result` | The objective shows status `closed` and result `achieved` | evaluator |
+| AC-74 | An objective with status `in_progress` | The user clicks `Record result`, picks `achieved` and influence level `3` (the value `"3"`), types an outcome, clicks `Save result` | The objective shows status `closed` and result `achieved` | evaluator |
 | AC-75 | An engagement with no topics | The user clicks `Add watch topic`, types the question `Has the company named a board climate committee?`, the due date `2027-06-30`, and clicks `Add topic` | The Watch topics section lists that question with `due 2027-06-30` and the badge `open` | evaluator |
 | AC-76 | AC-55's Given | The user clicks `Find commitments` on that activity | The line `Found 1 suggestion.` | evaluator |
 | AC-77 | AC-55 done with the stand-in `target_date` null | The user opens the issue | `Argus found a commitment in the meeting of 2026-10-01`, the text, the quote, and an empty `Due date` input with the hint `Not stated in the note` | evaluator |
@@ -527,7 +576,7 @@ prints one line `precision <p>, coverage <c>` and exits 1 below either threshold
 | AC-84 | An open engagement with a `missed` commitment, text `Name a climate committee`, `validated_at` 2026-10-02 | `watch_flags` | One flag: `kind` `broken`, `since` `2026-10-02`, `message` `Commitment broken: "Name a climate committee" was marked not met on 2026-10-02.` | unit |
 | AC-85 | An open engagement with an `in_progress` objective, `target_date` = yesterday, description `Set a 2030 science-based target` | `watch_flags` | One flag: `item_kind` `objective`, `kind` `overdue`, `message` `Objective overdue: "Set a 2030 science-based target" was due <yesterday>.` | unit |
 | AC-86 | An open engagement with a `closed` objective, `result` `not_achieved`, `closed_at` 2026-10-02, description `Set a 2030 science-based target` | `watch_flags` | One flag: `kind` `broken`, `since` `2026-10-02`, `message` `Objective failed: "Set a 2030 science-based target" was closed as not achieved on 2026-10-02.` | unit |
-| AC-87 | One company with: a `verified` commitment; an `achieved` objective; an `abandoned` objective; an `open` commitment and an `in_progress` objective without `target_date`; one of each due today; one of each due tomorrow; an overdue commitment on a `closed` engagement; an open topic due yesterday | `watch_flags` | `[]` | unit |
+| AC-87 | One company with: a `verified` commitment; an `achieved` objective; an `abandoned` objective; an `open` commitment and an `in_progress` objective without `target_date`; one of each due today; one of each due tomorrow; an overdue commitment on a `closed` engagement; an open topic due yesterday; an `in_progress` objective with `target_date` `31/12/2025` | `watch_flags` | `[]` | unit |
 | AC-88 | Overdue commitments due 2026-09-01 and 2026-08-01, an overdue objective due 2026-08-01, a broken commitment | `watch_flags` | Four flags in the order: broken commitment, commitment due 2026-08-01, objective due 2026-08-01, commitment due 2026-09-01 | unit |
 | AC-89 | A company with no engagement record | `watch_flags` | `[]` | unit |
 | AC-90 | Three companies: AC-83's, AC-86's and one without flags | `watch_flags_by_company(store.list_all())` | A dict with exactly the first two `company_id`s as keys, each value equal to `watch_flags(store, company_id)` | unit |
@@ -538,6 +587,19 @@ prints one line `precision <p>, coverage <c>` and exits 1 below either threshold
 | AC-95 | A `VoteRecord` approved without co-sign, `engagement_alignment_flag` false, for a company with an overdue commitment | `cast_vote(platform, record)` | The returned record's `cast_confirmation.status` is `confirmed` | unit |
 | AC-96 | An open commitment with a `target_date` after today | `POST /api/stewardship/tracking/commitments/{id}` with `status` `verified` and no `evidence` | Status 422, detail `Evidence is required to verify a commitment.` (unchanged) | holdout |
 | AC-97 | — | `GET /api/stewardship/intake/template?kind=engagements` is opened in openpyxl | The `objectives` header row equals `stewardship-data-foundation`'s "Engagement batch" objectives list, in order (no `proof_statement` column) | holdout |
+| AC-98 | A company with one engagement | `POST /api/stewardship/watch-topics` with a `question` and `proof_statement` `The 2026 annual report names a board climate committee` | `GET /api/stewardship/watch-topics?company_id=…` shows the topic with that `proof_statement` | holdout |
+| AC-99 | An open topic T without a proof statement | `POST /api/stewardship/watch-items/topic/{T}/proof-statement` with a `proof_statement` | Status 200; `GET .../watch-topics` shows T with it | holdout |
+| AC-100 | An objective | A proof statement is set, then a result recorded | `stw_events` gained exactly two rows, `proof_statement_set` then `objective_result_recorded`, and no `objective_updated` | unit |
+| AC-101 | — | `POST /api/stewardship/objectives/obj_unknown/result` with a valid body and a real `company_id` and `issue_id` | Status 404, detail `Unknown objective.` | holdout |
+| AC-102 | AC-10 done | Close the topic again | Status 409, detail `This topic is already closed.` | holdout |
+| AC-103 | An engagement closed through `POST /api/stewardship/tracking/close` | `POST /api/stewardship/watch-topics` on it | Status 409, detail `Watch topics need an open engagement.` | holdout |
+| AC-104 | An engagement with an `in_progress` objective (`target_date` = yesterday, description `Set a 2030 science-based target`) and an open topic (`question` `Has the company named a board climate committee?`, no due date); a document for the company; a stand-in `ResearchDossierDraft` with no citations | `POST /api/engagement/records/{company_id}/issues/{issue_id}/dossier` | The response's `dossier.watch_list` has 2 entries: first `item_kind` `objective`, `flag` `overdue`; then `item_kind` `topic`, `flag` null | holdout |
+| AC-105 | AC-30 done, then the suggestion confirmed; the AC-104 dossier stand-in | Draft the dossier | O's entry has `evidence` `["Evidence: AR2026.txt: \"The board formed a climate committee in March 2026.\" (confirmed by dev)"]` | holdout |
+| AC-106 | An engagement whose only commitment is `missed` and whose only objective is `achieved`; the AC-104 dossier stand-in | Draft the dossier | `watch_list` has 1 entry: the commitment, `flag` `broken` | holdout |
+| AC-107 | An engagement with no objectives, commitments or topics; the AC-104 dossier stand-in | Draft the dossier | `watch_list` is `[]` | holdout |
+| AC-108 | AC-104's dossier | `POST .../talking-points` with it | The `MeetingTalkingPoints` prompt in `calls.jsonl` contains `Set a 2030 science-based target` and `Has the company named a board climate committee?` | unit |
+| AC-109 | AC-104's Given | The user clicks `Draft dossier` | Under the dossier: heading `Watch list`, then `Objective: Set a 2030 science-based target` with `due <yesterday>` and badge `overdue`, then `Watch topic: Has the company named a board climate committee?` | evaluator |
+| AC-110 | AC-107's Given | The user clicks `Draft dossier` | Under the dossier: `No open objectives, commitments or watch topics.` | evaluator |
 
 Must not change: the co-sign rule for `engagement_alignment_flag` items and the alignment check (AC-95 plus the
 existing voting tests, unchanged); manual Verify and status updates (AC-96); adding a commitment without a proof
