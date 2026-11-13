@@ -267,7 +267,13 @@ class CommitmentFlag(BaseModel):          # arp/schemas/engagement.py
 
 def commitment_flags(store: EngagementStore, company_id: str, today: date | None = None) -> list[CommitmentFlag]:
     # arp/stewardship/tracking.py; today defaults to the UTC date
+
+def commitment_flags_by_company(records: list[EngagementRecord], today: date | None = None) -> dict[str, list[CommitmentFlag]]:
+    # the same flags for many companies from one store.list_all(); only companies with at least one flag are keys
 ```
+
+`commitment_flags(store, c)` equals `commitment_flags_by_company([store.get(c)]).get(c, [])`. The bulk form exists so a
+screen over the whole house universe (2,500 companies) reads the store once.
 
 Rules, the same as `tracking.triggers` uses today: only engagements whose status is `open` or `stalled` count.
 `broken` = status `missed`; `overdue` = status `open` with a `target_date` before `today`. A target date equal to
@@ -297,8 +303,8 @@ in `ballot_casting.py` stay as they are.
      confirm/reject UI. Rows AC-1 to AC-16, AC-49.
   2. The check (event hook and button), find-commitments, the golden set and command, and the check and find UI.
      Rows AC-17 to AC-39.
-  3. `commitment_flags`, `CompanyBallot.commitment_flags` and the banner. Rows AC-40 to AC-48 (the last PR drops the
-     `Rows:` line).
+  3. `commitment_flags`, `CompanyBallot.commitment_flags` and the banner. Rows AC-40 to AC-48 and AC-50 (the last PR drops
+     the `Rows:` line).
 
 ## Golden set (PR 2)
 
@@ -372,6 +378,7 @@ A "document for the company" is uploaded with `POST /api/documents/upload` (`doc
 | AC-47 | AC-45 on the e2e stack | A user opens the run's ballot review | Every ballot item of that company shows a warning banner `Commitment overdue: "Publish a transition plan" was due <date>.`; items of other companies show none | evaluator |
 | AC-48 | A vote record whose company has an overdue commitment and whose `engagement_alignment_flag` is false, approved, no co-sign | `cast_votes` | It is cast (status `confirmed`) | unit |
 | AC-49 | An open commitment with a `target_date` after today | `POST /api/stewardship/tracking/commitments/{id}` with `status` `verified` and no `evidence` | Status 422, detail `Evidence is required to verify a commitment.` (unchanged) | holdout |
+| AC-50 | Three companies: AC-40's (one overdue), AC-41's (one broken), and one with no flags | `commitment_flags_by_company(store.list_all())` | A dict with exactly the first two `company_id`s as keys, each value equal to `commitment_flags(store, company_id)` | holdout |
 
 Must not change: the co-sign rule for `engagement_alignment_flag` items and the alignment check itself (AC-48 plus
 the existing voting tests, unchanged); manual Verify and status updates (AC-49); adding a commitment without a proof
