@@ -44,8 +44,10 @@ def test_legacy_tables_untouched(pg):
         conn.execute(
             text("CREATE TABLE IF NOT EXISTS engagement_commitments (commitment_id TEXT PRIMARY KEY, issue_id TEXT)")
         )
-        conn.execute(text("INSERT INTO engagement_issues VALUES ('iss_1', 'c1') ON CONFLICT DO NOTHING"))
-        conn.execute(text("INSERT INTO engagement_commitments VALUES ('cmt_1', 'iss_1') ON CONFLICT DO NOTHING"))
+        inserted = {  # rows this test added, removed again below when the table outlives the test
+            table: conn.execute(text(f"INSERT INTO {table} VALUES ({row}) ON CONFLICT DO NOTHING RETURNING 1")).first()
+            for table, row in (("engagement_issues", "'iss_1', 'c1'"), ("engagement_commitments", "'cmt_1', 'iss_1'"))
+        }
 
     def counts():
         with engine.connect() as conn:
@@ -55,13 +57,18 @@ def test_legacy_tables_untouched(pg):
             ]
 
     try:
-        assert counts() == [1, 1]
+        before = counts()
+        assert min(before) >= 1
         ensure_schema(pg)
-        assert counts() == [1, 1]
+        assert counts() == before
     finally:  # not model tables, so the pg fixture never empties them
         with engine.begin() as conn:
             for table in created:
                 conn.execute(text(f"DROP TABLE {table}"))
+            key = {"engagement_issues": "issue_id = 'iss_1'", "engagement_commitments": "commitment_id = 'cmt_1'"}
+            for table in set(inserted) - created:
+                if inserted[table]:
+                    conn.execute(text(f"DELETE FROM {table} WHERE {key[table]}"))
 
 
 def test_unique_source_external_id(pg):
