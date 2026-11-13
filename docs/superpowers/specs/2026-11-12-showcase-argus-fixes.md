@@ -375,7 +375,7 @@ that its database does not hold yet. "pipeline AC-n" is a row of
 | AC-83 | step 2, Type `Annual report` chosen | a file is uploaded | its Type cell reads `Annual report` | evaluator |
 | AC-84 | step 2 with a file of stored type `sustainability_report` | its row is shown | its Type cell reads `Sustainability report` | evaluator |
 | AC-85 | a file whose stored type is `20-F` | the type label is computed | it is `20-F` | unit |
-| AC-86 | step 2 | the sources are shown | the third option reads `From the import folder (not available yet)` on one line and is disabled | evaluator |
+| AC-86 | step 2 | the sources are shown | the second option reads `From the import folder (not available yet)` on one line and is disabled | evaluator |
 | AC-87 | a saved draft schema with 4 fields whose `Look in` texts are 600 characters each; window 1280 × 800 | the schema is chosen in step 3 | the `What it means` and `Look in` columns are each at least 240 px wide | evaluator |
 | AC-88 | the state of AC-87 | the table is shown | each `Look in` cell shows at most 3 lines and a `Show more` button | evaluator |
 | AC-89 | the state of AC-87 | `Show more` is clicked in one cell | that cell shows its full text and a `Show less` button | evaluator |
