@@ -5,6 +5,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+from arp.errors import NotConfigured
 from arp.schemas.common import now_iso
 from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyStatus
 from arp.schemas.thematic import ThemeDefinition
@@ -19,7 +20,7 @@ from arp.storage.safe_path import safe_id
 _VERSION_BUMP_ATTEMPTS = 5
 
 
-class TaxonomyVersionConflict(RuntimeError):
+class TaxonomyVersionConflict(NotConfigured):
     """A version file this store meant to create already existed -- see
     TaxonomyStore.new_version. Surfaces as a 503 via api/main.py's
     RuntimeError handler: the caller's edit was not saved and retrying is

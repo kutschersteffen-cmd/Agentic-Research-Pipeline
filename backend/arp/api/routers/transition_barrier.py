@@ -90,6 +90,7 @@ def get_matrix(settings: Settings = Depends(settings_dep)) -> dict:
     grid = build_matrix(scores)
     threshold = settings.transition_barrier_staleness_days
     return {
+        "refresh_enabled": settings.transition_barrier_refresh_enabled,
         "sectors": sectors(),
         "regions": [r.value for r in Region],
         "pillars": [p.value for p in Pillar],
@@ -284,7 +285,9 @@ def start_derivation(
 
 
 @router.get("/cells/{code}/{region}")
-def get_cell(code: str, region: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+def get_cell(
+    code: str, region: str, run_store: RunStore = Depends(get_run_store), settings: Settings = Depends(settings_dep)
+) -> dict:
     """The cell's current rating, and the latest derivation result for it (which may not be ratified)."""
     _cell(code, region)
     book = Ratings(run_store)
@@ -293,4 +296,5 @@ def get_cell(code: str, region: str, run_store: RunStore = Depends(get_run_store
         **book.cell(code, region).model_dump(mode="json", exclude={"result", "ratified_at"}),
         "history": book.history(code, region),
         "latest_result": latest and latest.model_dump(mode="json"),
+        "refresh_enabled": settings.transition_barrier_refresh_enabled,
     }

@@ -12,6 +12,7 @@ from arp.api.main import app
 from arp.api.routers import extraction, financials, tnfd
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
+from arp.errors import NotConfigured
 from arp.ingestion.registry import KeptDocuments
 from arp.schemas.common import CompanyRef, DocType, RunManifest, SourceDocument
 from arp.schemas.datapoints import DataPointSchema
@@ -193,11 +194,11 @@ def test_a_start_in_progress_is_a_409(client, fid, calls, settings):
 
 def test_a_failed_start_clears_the_marker(client, fid, monkeypatch, settings):
     async def boom(req, **kwargs):
-        raise RuntimeError("down")
+        raise NotConfigured("down")
 
     monkeypatch.setattr(extraction, "start_extraction_run", boom)
     _choose(client, fid, _schema(settings, released=True))
-    assert client.post(f"/api/argus/flows/{fid}/start").status_code >= 400  # the app's RuntimeError handler answers
+    assert client.post(f"/api/argus/flows/{fid}/start").status_code >= 400  # the app answers 503 for NotConfigured
     assert client.get(f"/api/argus/flows/{fid}").json()["starting"] is False
 
 
@@ -218,3 +219,46 @@ def test_resume_reads_only_the_kept_documents(run_store, monkeypatch, tmp_path):
     inner = _Registry([_doc("a"), _doc("b")])
     asyncio.run(jobs.resume_run("extraction_r", settings=Settings(), run_store=run_store, registry=inner, llm="x", verifier_llm="y", lease=False))
     assert [d.content_key for d in seen["docs"]] == ["a"]
+
+
+# --- showcase-argus-fixes item 21: the start flag ---
+
+def _starting(settings, fid, seconds_ago):
+    """The flow file as a Start left it: `starting` set, last written `seconds_ago` (every save through the store resets that)."""
+    from datetime import UTC, datetime, timedelta
+
+    path = settings.runs_dir / "_flows" / f"{fid}.json"
+    stamp = (datetime.now(UTC) - timedelta(seconds=seconds_ago)).isoformat()
+    path.write_text(json.dumps({**json.loads(path.read_text()), "starting": True, "updated_at": stamp}))
+
+
+def test_a_start_flag_left_behind_no_longer_blocks_start(client, fid, calls, settings):  # AC-42
+    _choose(client, fid, _schema(settings, released=True))
+    _starting(settings, fid, 120)
+    r = client.post(f"/api/argus/flows/{fid}/start")
+    assert r.status_code == 200, r.text
+    assert r.json()["run_id"] == "extraction_custom1" and r.json()["starting"] is False
+
+
+def test_a_fresh_start_flag_still_blocks_start(client, fid, calls, settings):  # AC-43
+    _choose(client, fid, _schema(settings, released=True))
+    _starting(settings, fid, 5)
+    r = client.post(f"/api/argus/flows/{fid}/start")
+    assert (r.status_code, r.json()["detail"]) == (409, "This extraction is already starting.")
+    assert calls == []
+
+
+def test_the_flow_points_at_its_run_even_if_the_kept_file_record_fails(client, fid, monkeypatch, settings, run_store):  # AC-44, AC-154
+    async def start(req, **kwargs):
+        run_store.save_manifest(RunManifest(run_id="extraction_launched", run_type="extraction", company_count=2, status="running"))
+        (run_store.run_dir("extraction_launched") / "only_documents.json").mkdir()  # the record cannot be written
+        return {"run_id": "extraction_launched", "company_count": 2}
+
+    monkeypatch.setattr(extraction, "start_extraction_run", start)
+    _choose(client, fid, _schema(settings, released=True))
+    with pytest.raises(OSError):
+        client.post(f"/api/argus/flows/{fid}/start")
+    flow = client.get(f"/api/argus/flows/{fid}").json()
+    assert (flow["starting"], flow["run_id"]) == (False, "extraction_launched")
+    r = client.post(f"/api/argus/flows/{fid}/start")
+    assert (r.status_code, r.json()["detail"]) == (409, "This extraction is already running.")

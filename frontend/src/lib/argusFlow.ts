@@ -1,4 +1,4 @@
-import type { Citation, ExtractionRecord, FieldDefinition, FlowFile, FlowProgress, FlowRow, PriorRun, RepeatRow, ReviewItem } from "../types";
+import type { Citation, ExtractedField, ExtractionRecord, FieldDefinition, FlowFile, FlowProgress, FlowRow, PriorRun, RepeatRow, ReviewItem, RunManifest } from "../types";
 import { valueLabel } from "./fieldValue.ts";
 
 /** The accepted side of a conflict, written like the new value (with its unit); an object value as JSON, never "[object Object]". */
@@ -22,7 +22,7 @@ const SEARCH_ENDED = ["completed", "partially_completed", "failed", "cancelled"]
 
 /** Step 2's line under "Find documents". A search that ended with nothing found says so and what to try. */
 export function searchStatusText(status: string, files: number): string {
-  if (!SEARCH_ENDED.includes(status)) return "Searching…";
+  if (!SEARCH_ENDED.includes(status)) return files > 0 ? `${files} found so far, still checking other sources…` : "Searching…";
   if (status === "completed" && files === 0)
     return "The search found no documents. Add an ISIN, LEI or CIK in step 1, try the other source, or upload the report.";
   return `Search ${status.replace("_", " ")}.`;
@@ -180,4 +180,43 @@ export function singleFlight<A extends unknown[]>(fn: (...args: A) => Promise<vo
       running = false;
     }
   };
+}
+
+type RunTimes = Pick<RunManifest, "status" | "created_at" | "updated_at" | "company_count"> & { estimated_cost_usd: number | null };
+
+/** Step 3, next to the start button: time and cost of the latest finished run of this template, as it was. */
+export function lastRunText(runs: RunTimes[]): string {
+  const last = runs
+    .filter((r) => r.status === "completed" || r.status === "partially_completed")
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+  if (!last) return "No earlier run of this template yet, so time and cost are not known. Try it on 1 company first: the run shows both.";
+  const min = Math.max(1, Math.round((Date.parse(last.updated_at) - Date.parse(last.created_at)) / 60000));
+  const companies = `${last.company_count} ${last.company_count === 1 ? "company" : "companies"}`;
+  return last.estimated_cost_usd == null
+    ? `The last run of this template took ${min} min for ${companies}; its cost was not recorded.`
+    : `The last run of this template took ${min} min and $${last.estimated_cost_usd.toFixed(2)} for ${companies}.`;
+}
+
+export const TRANSITION_PLAN_TEMPLATE = "transition_plan_indicators";
+
+/** Step 3's template line: the transition-plan template counts its indicators apart from its supporting figures. */
+export function presetCountText(p: { preset_id: string; field_count: number }, indicators: number | null): string | null {
+  if (p.preset_id !== TRANSITION_PLAN_TEMPLATE) return `${p.field_count} fields`;
+  return indicators == null ? null : `${indicators} indicators + ${p.field_count - indicators} supporting figures`;
+}
+
+const isYes = (f: Pick<ExtractedField, "value" | "value_state">) =>
+  f.value_state !== "not_found" && (f.value === true || (typeof f.value === "string" && ["yes", "true"].includes(f.value.toLowerCase())));
+
+/** Step 5, per company of a transition-plan run: indicators answered Yes, in all and by walk and talk. No model call. */
+export function walkTalkLine(
+  record: Pick<ExtractionRecord, "fields" | "field_names">,
+  indicators: { identifier: string; walk_or_talk: string }[],
+): string {
+  const yes = new Set(record.fields.filter(isYes).map((f) => record.field_names?.[f.field_id] ?? f.field_name));
+  const count = (kind?: string) => {
+    const of = indicators.filter((i) => !kind || i.walk_or_talk === kind);
+    return `${of.filter((i) => yes.has(i.identifier)).length} of ${of.length}`;
+  };
+  return `Disclosed ${count()} · Walk ${count("walk")} · Talk ${count("talk")}`;
 }

@@ -1,0 +1,95 @@
+isin,name,activity,share,reason
+US7181721090,PHILIP MORRIS INTERNATIONAL,tobacco,0.95,cigarette manufacturer
+US02209S1033,ALTRIA GROUP INC,tobacco,0.90,cigarette manufacturer
+GB0002875804,BRITISH AMERICAN TOBACCO,tobacco,0.95,cigarette manufacturer
+GB0004544929,IMPERIAL BRANDS PLC,tobacco,0.95,cigarette manufacturer
+JP3726800000,JAPAN TOBACCO,tobacco,0.90,cigarette manufacturer
+KR7033780008,KT&G CORP,tobacco,0.70,cigarette manufacturer with a ginseng business
+INE154A01025,ITC LTD,tobacco,0.50,conglomerate whose largest business is cigarettes
+INE522F01014,COAL INDIA,coal,0.95,coal mining company
+CNE1000002R0,CHINA SHENHUA ENERGY LTD H,coal,0.70,coal miner with coal-fired power plants
+CNE100000767,CHINA SHENHUA ENERGY LTD A,coal,0.70,coal miner with coal-fired power plants
+CNE1000004Q8,YANKUANG ENERGY GROUP COMPANY H,coal,0.85,coal mining company
+CNE000000WV6,YANKUANG ENERGY GROUP A,coal,0.85,coal mining company
+INE733E01010,NTPC LTD,coal,0.85,coal-fired power generator
+DE0007037129,RWE AG,coal,0.20,power generator with lignite plants
+ZAE000006896,SASOL,coal,0.30,coal-to-liquids fuel and chemicals producer
+JE00B4T3BW64,GLENCORE PLC,coal,0.15,commodity trader and coal miner
+DE0007030009,RHEINMETALL AG,weapons,0.75,defence contractor (vehicles and ammunition)
+US5398301094,LOCKHEED MARTIN,weapons,0.90,defence contractor (aircraft and missiles)
+US6668071029,NORTHROP GRUMMAN CORP,weapons,0.90,defence contractor (aircraft and space systems)
+US3695501086,GENERAL DYNAMICS CORP,weapons,0.70,defence contractor (vehicles and submarines)
+GB0002634946,BAE SYSTEMS PLC,weapons,0.95,defence contractor
+US75513E1010,RTX,weapons,0.55,aerospace group with a missiles and defence business
+IT0003856405,LEONARDO,weapons,0.75,defence contractor (helicopters and electronics)
+FR0000121329,THALES SA,weapons,0.50,defence electronics group
+SE0021921269,SAAB CLASS B,weapons,0.90,defence contractor (aircraft and missiles)
+DE000HAG0005,HENSOLDT AG,weapons,0.95,defence sensor maker
+NO0013536151,KONGSBERG GRUPPEN,weapons,0.60,defence and maritime technology group
+US5024311095,L3HARRIS TECHNOLOGIES,weapons,0.80,defence electronics contractor
+US4464131063,HUNTINGTON INGALLS INDUSTRIES,weapons,0.95,naval shipbuilder
+IL0010811243,ELBIT SYSTEMS,weapons,0.90,defence electronics contractor
+INE263A01024,BHARAT ELECTRONICS LTD,weapons,0.85,defence electronics maker
+INE066F01020,HINDUSTAN AERONAUTICS LTD,weapons,0.90,military aircraft maker
+NL0000235190,AIRBUS,weapons,0.20,aircraft maker with a defence division
+FR0000073272,SAFRAN SA,weapons,0.20,aircraft engine maker with a defence business
+US0970231058,BOEING,weapons,0.35,aircraft maker with a defence division
+US4385162056,HONEYWELL INTERNATIONAL INC WHEN I,weapons,0.10,industrial group with a defence aerospace business
+GB00BP6MXD84,SHELL,oil,0.55,integrated oil and gas company
+GB00BP6MXD84,SHELL,gas,0.35,integrated oil and gas company
+FR0000120271,TOTALENERGIES,oil,0.55,integrated oil and gas company
+FR0000120271,TOTALENERGIES,gas,0.30,integrated oil and gas company
+US30233Q1085,EXXONMOBIL HOLDINGS CORP,oil,0.65,integrated oil and gas company
+US30233Q1085,EXXONMOBIL HOLDINGS CORP,gas,0.25,integrated oil and gas company
+US1667641005,CHEVRON,oil,0.65,integrated oil and gas company
+US1667641005,CHEVRON,gas,0.25,integrated oil and gas company
+GB0007980591,BP PLC,oil,0.60,integrated oil and gas company
+GB0007980591,BP PLC,gas,0.30,integrated oil and gas company
+IT0003132476,ENI,oil,0.50,integrated oil and gas company
+IT0003132476,ENI,gas,0.35,integrated oil and gas company
+NO0010096985,EQUINOR,oil,0.45,oil and gas producer
+NO0010096985,EQUINOR,gas,0.45,oil and gas producer
+US20825C1045,CONOCOPHILLIPS,oil,0.60,oil and gas producer
+US20825C1045,CONOCOPHILLIPS,gas,0.30,oil and gas producer
+AU0000224040,WOODSIDE ENERGY GROUP LTD,oil,0.30,liquefied natural gas and oil producer
+AU0000224040,WOODSIDE ENERGY GROUP LTD,gas,0.50,liquefied natural gas and oil producer
+SA14TG012N13,SAUDI ARABIAN OIL,oil,0.80,national oil company
+SA14TG012N13,SAUDI ARABIAN OIL,gas,0.15,national oil company
+CNE1000003W8,PETROCHINA H,oil,0.60,integrated oil and gas company
+CNE1000003W8,PETROCHINA H,gas,0.25,integrated oil and gas company
+CNE1000007Q1,PETROCHINA A,oil,0.60,integrated oil and gas company
+CNE1000007Q1,PETROCHINA A,gas,0.25,integrated oil and gas company
+INE002A01018,RELIANCE INDUSTRIES LTD,oil,0.45,conglomerate with oil refining and petrochemicals
+INE002A01018,RELIANCE INDUSTRIES LTD,gas,0.10,conglomerate with oil refining and petrochemicals
+RU0007661625,GAZPROM PJSC,oil,0.30,natural gas producer with an oil business
+RU0007661625,GAZPROM PJSC,gas,0.50,natural gas producer with an oil business
+BE0974293251,ANHEUSER-BUSCH INBEV SA,alcohol,0.95,brewer
+NL0000009165,HEINEKEN NV,alcohol,0.95,brewer
+NL0000008977,HEINEKEN HOLDING NV,alcohol,0.95,holding company of a brewer
+DK0010181759,CARLSBERG CLASS B,alcohol,0.90,brewer
+JP3116000005,ASAHI GROUP HOLDINGS,alcohol,0.60,brewer with soft drinks and food
+JP3258000003,KIRIN HOLDINGS,alcohol,0.50,brewer with soft drinks and pharmaceuticals
+BRABEVACNOR1,AMBEV SA,alcohol,0.80,brewer with soft drinks
+HK0291001490,CHINA RESOURCES BEER HOLDINGS LTD,alcohol,0.90,brewer
+CNE1000004K1,TSINGTAO BREWERY COMPANY LTD H,alcohol,0.95,brewer
+CNE0000009Y3,TSINGTAO BREWERY LTD A,alcohol,0.95,brewer
+GB0002374006,DIAGEO PLC,alcohol,0.95,distiller
+FR0000120693,PERNOD RICARD SA,alcohol,0.95,distiller
+NL0015435975,DAVIDE CAMPARI MILANO NV,alcohol,0.95,distiller
+US1156372096,BROWN FORMAN CLASS B,alcohol,0.95,distiller
+US21036P1084,CONSTELLATION BRANDS CLASS A,alcohol,0.95,"beer, wine and spirits producer"
+INE854D01024,UNITED SPIRITS,alcohol,0.95,distiller
+CNE0000018R8,KWEICHOW MOUTAI A,alcohol,0.95,baijiu distiller
+CNE000000VQ8,WULIANGYE YIBIN LTD A,alcohol,0.95,baijiu distiller
+CNE000000DH5,SHANXI XINGHUACUN FEN WINE FACTORY,alcohol,0.95,baijiu distiller
+CNE100000HB8,JIANGSU YANGHE BREWERY JOINT-STOCK,alcohol,0.95,baijiu distiller
+CNE000000MD5,ANHUI GUJING DISTILLERY LTD A,alcohol,0.95,baijiu distiller
+US5178341070,LAS VEGAS SANDS,gambling,0.70,casino resort operator
+US9831341071,WYNN RESORTS,gambling,0.65,casino resort operator
+US5529531015,MGM RESORTS INTERNATIONAL,gambling,0.55,casino resort operator
+HK0027032686,GALAXY ENTERTAINMENT GROUP,gambling,0.80,casino resort operator
+KYG7800X1079,SANDS CHINA LTD,gambling,0.75,casino resort operator
+IE00BWT6H894,FLUTTER ENTERTAINMENT PLC,gambling,0.95,online betting group
+SE0012673267,EVOLUTION,gambling,0.95,online casino games provider
+AU000000ALL7,ARISTOCRAT LEISURE,gambling,0.90,gaming machine and online games maker
+AU0000219529,THE LOTTERY CORPORATION LTD,gambling,0.95,lottery operator

@@ -4,7 +4,8 @@ from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from arp.api.deps import get_portfolio_store
+from arp.api.deps import get_portfolio_store, settings_dep
+from arp.config import Settings
 from arp.db import company_view as view
 from arp.db.models import FieldKind
 from arp.db.session import transaction
@@ -26,9 +27,9 @@ def search_companies(q: str = Query("", max_length=200), limit: int = Query(20, 
 
 
 @router.get("/companies/{ref}")
-def get_company(ref: str, store=Depends(get_portfolio_store)) -> view.CompanySummary:
+def get_company(ref: str, store=Depends(get_portfolio_store), settings: Settings = Depends(settings_dep)) -> view.CompanySummary:
     with transaction() as s:
-        return view.summary(s, _resolve(s, ref), today=date.today(), store=store)
+        return view.summary(s, _resolve(s, ref), today=date.today(), store=store, documents_dir=settings.documents_dir)
 
 
 @router.get("/companies/{ref}/facts")

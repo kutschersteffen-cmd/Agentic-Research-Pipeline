@@ -78,6 +78,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/argus/flows/{flow_id}/companies/{company_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edit Company
+         * @description Registers the row again with the form's values and replaces it in place.
+         */
+        put: operations["edit_company_api_argus_flows__flow_id__companies__company_id__put"];
+        post?: never;
+        /**
+         * Remove Company
+         * @description Drops the row and its file choices in this flow. The documents stay on the company.
+         */
+        delete: operations["remove_company_api_argus_flows__flow_id__companies__company_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/argus/flows/{flow_id}/companies/{company_id}/retry": {
         parameters: {
             query?: never;
@@ -93,6 +117,26 @@ export interface paths {
          *     Async: the launcher starts the job on this event loop. Nothing changes until the job holds the run.
          */
         post: operations["retry_company_api_argus_flows__flow_id__companies__company_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/argus/flows/{flow_id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discard Flow
+         * @description Delete a draft with whatever it holds. Its documents stay on the companies.
+         */
+        post: operations["discard_flow_api_argus_flows__flow_id__discard_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2920,7 +2964,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Holders */
+        /**
+         * Holders
+         * @description Holder records, plus every portfolio that has none (seeded or imported data): listed read-only, nothing stored.
+         */
         get: operations["holders_api_holdings_holders_get"];
         put?: never;
         post?: never;
@@ -3212,6 +3259,43 @@ export interface paths {
          *     a black box.
          */
         get: operations["get_screen_bundle_api_index_screen_bundles__name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/index/universes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Universes
+         * @description The demo universe, then the holdings files, then portfolios with a snapshot.
+         */
+        get: operations["get_universes_api_index_universes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/index/universes/{universe_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Universe */
+        get: operations["get_universe_api_index_universes__universe_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3648,6 +3732,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/portfolio/monitoring/rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Monitoring Rule
+         * @description Removes the rule only. Its alerts stay in the log, so they have to be closed first.
+         */
+        delete: operations["delete_monitoring_rule_api_portfolio_monitoring_rules__rule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/monitoring/rules/{rule_id}/clear-alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clear Monitoring Rule Alerts
+         * @description Closes every live alert of one rule in one human decision. The rule need not exist any more.
+         */
+        post: operations["clear_monitoring_rule_alerts_api_portfolio_monitoring_rules__rule_id__clear_alerts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/portfolio/monthly-run": {
         parameters: {
             query?: never;
@@ -3659,6 +3783,26 @@ export interface paths {
         put?: never;
         /** Post Monthly Run */
         post: operations["post_monthly_run_api_portfolio_monthly_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/monthly-run/last": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Last Monthly Run
+         * @description The newest monthly run that ran (a blocked one is not recorded), or null.
+         */
+        get: operations["get_last_monthly_run_api_portfolio_monthly_run_last_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4254,7 +4398,11 @@ export interface paths {
         get: operations["get_report_api_reports__report_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Discard Report
+         * @description Removes an unfinished report's folder. A finished one, or one still being worked on, is never removed.
+         */
+        delete: operations["discard_report_api_reports__report_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -8432,8 +8580,17 @@ export interface components {
             discovery_run_id?: string | null;
             /** Flow Id */
             flow_id: string;
+            /** Identity Applied */
+            identity_applied?: string | null;
             /** Identity Run Id */
             identity_run_id?: string | null;
+            /**
+             * Problems
+             * @default {}
+             */
+            problems: {
+                [key: string]: string;
+            };
             /**
              * Repeat
              * @default {}
@@ -8469,6 +8626,8 @@ export interface components {
              * @default false
              */
             starting: boolean;
+            /** Starting At */
+            starting_at?: string | null;
             /**
              * Step
              * @default 1
@@ -8504,8 +8663,17 @@ export interface components {
             /** Flow Id */
             flow_id: string;
             identity?: components["schemas"]["DiscoveryStatus"] | null;
+            /** Identity Applied */
+            identity_applied?: string | null;
             /** Identity Run Id */
             identity_run_id?: string | null;
+            /**
+             * Problems
+             * @default {}
+             */
+            problems: {
+                [key: string]: string;
+            };
             /**
              * Repeat
              * @default {}
@@ -8551,6 +8719,8 @@ export interface components {
              * @default false
              */
             starting: boolean;
+            /** Starting At */
+            starting_at?: string | null;
             /**
              * Step
              * @default 1
@@ -9217,6 +9387,11 @@ export interface components {
         Body_upload_api_holdings_upload_post: {
             /** As Of */
             as_of: string;
+            /**
+             * Decimal
+             * @description Overrides the provider mapping's decimal separator.
+             */
+            decimal?: ("." | ",") | null;
             /** File */
             file: string;
             /** Holder Id */
@@ -9233,6 +9408,11 @@ export interface components {
              * @default default
              */
             provider: string;
+            /**
+             * Weight Unit
+             * @description Overrides the provider mapping's weight unit.
+             */
+            weight_unit?: ("percent" | "fraction") | null;
         };
         /** Body_upload_api_security_master_upload_post */
         Body_upload_api_security_master_upload_post: {
@@ -9890,6 +10070,19 @@ export interface components {
          * @enum {string}
          */
         CitationRole: "primary" | "corroborating" | "alternative";
+        /** ClearAlertsRequest */
+        ClearAlertsRequest: {
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "resolved" | "false_positive";
+        };
         /** CloseRequest */
         CloseRequest: {
             /** Company Id */
@@ -9999,6 +10192,8 @@ export interface components {
         CommitmentStatusRequest: {
             /** Company Id */
             company_id: string;
+            /** Evidence */
+            evidence?: string | null;
             /** Issue Id */
             issue_id: string;
             /**
@@ -10096,6 +10291,11 @@ export interface components {
             percent: number;
             /** Reason */
             reason?: string | null;
+            /**
+             * Retryable
+             * @default false
+             */
+            retryable: boolean;
             /** Status */
             status: string;
         };
@@ -10925,6 +11125,11 @@ export interface components {
             calculated_columns?: string[];
             /** Columns */
             columns: string[];
+            /**
+             * Created At
+             * @description When the dataset was added: tells two uploads of the same file apart.
+             */
+            created_at: string;
             /** Dataset Id */
             dataset_id: string;
             /**
@@ -12192,6 +12397,8 @@ export interface components {
             cost_usd: number;
             /** Done */
             done: number;
+            /** Finished */
+            finished: number;
             /** Minutes Left */
             minutes_left: number | null;
             /** Run Id */
@@ -12200,6 +12407,8 @@ export interface components {
             started_at: string;
             /** Status */
             status: string;
+            /** Stopping */
+            stopping: boolean;
             /** Total */
             total: number;
         };
@@ -14369,7 +14578,22 @@ export interface components {
             /** Resolvable */
             resolvable: boolean;
             result?: components["schemas"]["AggregationResult"] | null;
+            /**
+             * Scale
+             * @default units
+             * @enum {string}
+             */
+            scale: "units" | "millions";
+            /** Snapshot Dates */
+            snapshot_dates?: string[];
             spec?: components["schemas"]["AnalyticSpec"] | null;
+            /** Trend */
+            trend?: components["schemas"]["TrendPoint"][] | null;
+            /**
+             * Unit
+             * @default
+             */
+            unit: string;
             /**
              * Vintage
              * @default {}
@@ -16363,6 +16587,42 @@ export interface components {
             /** Universe Path */
             universe_path?: string | null;
         };
+        /** StartingUniverse */
+        StartingUniverse: {
+            /** As Of Date */
+            as_of_date: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "demo" | "file" | "portfolio";
+            /** Label */
+            label: string;
+            /** Universe Id */
+            universe_id: string;
+        };
+        /** StartingUniverseDetail */
+        StartingUniverseDetail: {
+            /** As Of Date */
+            as_of_date: string | null;
+            /** Company Count */
+            company_count: number;
+            /** Fields */
+            fields: {
+                [key: string]: string[];
+            };
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "demo" | "file" | "portfolio";
+            /** Label */
+            label: string;
+            /** Notes */
+            notes: string[];
+            /** Universe Id */
+            universe_id: string;
+        };
         /**
          * StepSettings
          * @description Per-run overrides; a field left out keeps the app's setting.
@@ -17169,6 +17429,12 @@ export interface components {
             question: string;
             walk_or_talk: components["schemas"]["WalkOrTalk"];
         };
+        /** TrendPoint */
+        TrendPoint: {
+            /** As Of */
+            as_of: string;
+            result: components["schemas"]["AggregationResult"];
+        };
         /** TriggerScanRequest */
         TriggerScanRequest: {
             /** Companies */
@@ -17679,6 +17945,8 @@ export interface components {
         VerifyCommitmentRequest: {
             /** Commitment Id */
             commitment_id: string;
+            /** Evidence */
+            evidence?: string | null;
         };
         /** VerifyRequest */
         VerifyRequest: {
@@ -17969,6 +18237,11 @@ export interface components {
             /** @description Ad-hoc spec. Mutually exclusive with calibration_id. */
             spec?: components["schemas"]["ConstructionSpec"] | null;
             /**
+             * Universe
+             * @description Starting universe id from GET /api/index/universes (demo, file:<stem>, portfolio:<id>). Omit for the demo universe. Exclusive with candidates.
+             */
+            universe?: string | null;
+            /**
              * Use Prior State
              * @description Chain from the most recent stored review before this date.
              * @default true
@@ -17977,6 +18250,21 @@ export interface components {
         };
         /** AskRequest */
         arp__api__routers__portfolio__AskRequest: {
+            /**
+             * As Of
+             * @description YYYY-MM-DD; each portfolio's newest snapshot on or before it.
+             */
+            as_of?: string | null;
+            /**
+             * Date Range
+             * @description [start, end]: a trend, one point per snapshot date in it.
+             */
+            date_range?: string[] | null;
+            /**
+             * Portfolio Ids
+             * @description The screen's selection; a portfolio named in the question wins.
+             */
+            portfolio_ids?: string[];
             /** Question */
             question: string;
         };
@@ -18378,6 +18666,74 @@ export interface operations {
             };
         };
     };
+    edit_company_api_argus_flows__flow_id__companies__company_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompanyInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArgusFlowView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_company_api_argus_flows__flow_id__companies__company_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArgusFlowView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     retry_company_api_argus_flows__flow_id__companies__company_id__retry_post: {
         parameters: {
             query?: never;
@@ -18398,6 +18754,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["FlowProgress"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_flow_api_argus_flows__flow_id__discard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -24260,6 +24645,57 @@ export interface operations {
             };
         };
     };
+    get_universes_api_index_universes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartingUniverse"][];
+                };
+            };
+        };
+    };
+    get_universe_api_index_universes__universe_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                universe_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartingUniverseDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_levels_api_index__index_id__levels__review_date__get: {
         parameters: {
             query?: {
@@ -25060,6 +25496,72 @@ export interface operations {
             };
         };
     };
+    delete_monitoring_rule_api_portfolio_monitoring_rules__rule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_monitoring_rule_alerts_api_portfolio_monitoring_rules__rule_id__clear_alerts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClearAlertsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     post_monthly_run_api_portfolio_monthly_run_post: {
         parameters: {
             query?: never;
@@ -25089,6 +25591,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_last_monthly_run_api_portfolio_monthly_run_last_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    } | null;
                 };
             };
         };
@@ -26241,6 +26765,35 @@ export interface operations {
                         [key: string]: unknown;
                     };
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_report_api_reports__report_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

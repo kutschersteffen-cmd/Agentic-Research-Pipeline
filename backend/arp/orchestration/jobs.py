@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.pool import NullPool
 
+from arp.errors import ClientInputError, NotConfigured
 from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import JobStatus, RunManifest, now_iso
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class RunBusy(RuntimeError):
+class RunBusy(NotConfigured):
     """Another worker already holds this run's lease."""
 
 
@@ -172,7 +173,7 @@ def run_alive(run_store, run_id: str | None) -> bool:
         return True
 
 
-class NotResumable(ValueError):
+class NotResumable(ClientInputError):
     """This run cannot be resumed; the message says why."""
 
 

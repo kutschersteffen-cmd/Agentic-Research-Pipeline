@@ -8,6 +8,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from arp.errors import ClientInputError
+
 RULE_BOOK_FILE = "rule_book.json"
 
 
@@ -15,7 +17,7 @@ class RuleBookNotFound(FileNotFoundError):
     pass
 
 
-class RuleBookError(ValueError):
+class RuleBookError(ClientInputError):
     """The rule book can't be read or fails validation; the message is the first error line."""
 
 

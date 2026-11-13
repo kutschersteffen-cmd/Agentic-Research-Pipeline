@@ -253,8 +253,9 @@ recent run of that company:
      value the current fact with status `approved`.
    A pending or held current fact follows today's rules.
 2. **One review list.** Document flags (discovery, import) and conflicts appear in the Review Queue next
-   to field items, each with its kind (`document`, `conflict`, `field`). Tape Reader reads the same
-   queue.
+   to field items, each with its kind (`discovered_document` or `quarantined_document`, `conflict`,
+   `value`; shown as `Found document` or `Held document`, `Conflict`, `Value`). Tape Reader is the
+   queue's J / K keys: `#/tape` opens the Review Queue (owner, 2026-11-12).
 3. **Import from the shared folder, with copies.** The folder is a path set in config
    (`ARP_IMPORT_DIR`), mounted from the team's shared drive. Layout:
 
@@ -407,8 +408,8 @@ Rows checked by `holdout` are owed as `unit` until `HOLDOUT_TOKEN` is set; the P
 | AC-50 | the conflict of AC-45 | it is decided `keep` (`{"decision": "reject"}`) | the current fact is 12 `approved`, the item is closed with decision `reject`, and the 14 observation remains | holdout |
 | AC-51 | after AC-50 | another run extracts 14 again | no new conflict item is created | holdout |
 | AC-52 | the conflict of AC-45 | it is decided `accept` (`{"decision": "approve"}`) | the current fact is 14 `approved`; the 12 fact row still exists with `valid_to` set | holdout |
-| AC-53 | a conflict, a document flag and a field review item | the Review Queue opens | it lists 3 items with kinds `conflict`, `document`, `value` | evaluator |
-| AC-54 | the items of AC-53 | Tape Reader opens | it steps through the same 3 items | evaluator |
+| AC-53 | a conflict, a found document and a field review item | the Review Queue opens | it lists 3 items labelled `Conflict`, `Found document`, `Value` | evaluator |
+| AC-54 | the items of AC-53 | `#/tape` is opened and J is pressed through the queue | it lands on the Review Queue and focus reaches each of the 3 items | evaluator |
 | AC-55 | step 5 shows the conflict of AC-45 | the row is shown | it reads `Accepted: 12` and `New: 14` with `Keep accepted` and `Accept new` | evaluator |
 | AC-56 | `ARP_IMPORT_DIR` holds `Apple-Inc__LEI-HWUPKR0MPOU8FGXBT394/annual/2025_10-K.pdf` | `POST /api/documents/import` runs for Apple | the file is in the app's document folder under Apple's `companies.id`, and Apple's `registered[]` entry for it has `doc_type` `10-K` and `report_year` 2025 | holdout |
 | AC-57 | `ARP_IMPORT_DIR` also holds `Unknown__ISIN-XX0000000000/annual/2025_a.pdf` | `POST /api/documents/import` runs | the response's `unmatched` lists `Unknown__ISIN-XX0000000000` and the number of rows in `companies` is unchanged | holdout |

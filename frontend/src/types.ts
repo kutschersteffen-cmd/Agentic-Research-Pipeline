@@ -719,6 +719,8 @@ export interface DriftFlag {
   source_run_id: string;
   company_id: string;
   activity_id: string;
+  company_name?: string | null;
+  activity_name?: string | null;
   old_verdict: string;
   old_confidence: number;
   old_generated_at: string;
@@ -882,6 +884,7 @@ export interface Commitment {
   status: CommitmentStatus;
   validated_by?: string | null;
   validated_at?: string | null;
+  evidence?: string | null;
 }
 
 export interface MilestoneTransition {
@@ -968,6 +971,8 @@ export interface OutreachLetterDraft {
   body: string;
   recommended_recipient: string;
   citations: Citation[];
+  /** `[...]` tokens left in the letter to fill in by hand (not citations). */
+  placeholders?: string[];
 }
 
 export interface MeetingTalkingPoints {
@@ -1092,6 +1097,11 @@ export interface QAAnswer {
   spec?: (AnalyticRequest & { analytic_id: string; created_at: string }) | null;
   result?: AggregationResult | null;
   answer_text: string;
+  /** Set instead of `result` when the request named a date range. */
+  trend?: { as_of: string; result: AggregationResult }[] | null;
+  snapshot_dates?: string[];
+  scale?: "units" | "millions";
+  unit?: string;
 }
 
 export type AlertRuleType = "field_threshold" | "concentration_threshold" | "portfolio_aggregate_threshold";
@@ -1497,6 +1507,7 @@ export interface BarrierRegistrySource {
 }
 
 export interface BarrierMatrix {
+  refresh_enabled: boolean;
   sectors: string[];
   regions: BarrierRegion[];
   pillars: BarrierPillar[];
@@ -1573,6 +1584,7 @@ export interface BarrierHistoryEntry {
 export interface BarrierCell extends BarrierScore {
   latest_result: BarrierResult | null;
   history: BarrierHistoryEntry[];
+  refresh_enabled: boolean;
 }
 
 export interface BarrierFactForm {
@@ -1903,6 +1915,20 @@ export interface IndexFieldInventory {
   metrics: string[];
   flags: string[];
   categories: string[];
+}
+
+/** A starting universe for Index Construction: the demo universe, a holdings file or a stored portfolio. */
+export interface IndexStartingUniverse {
+  universe_id: string;
+  label: string;
+  kind: "demo" | "file" | "portfolio";
+  as_of_date: string | null;
+}
+
+export interface IndexStartingUniverseDetail extends IndexStartingUniverse {
+  company_count: number;
+  notes: string[];
+  fields: IndexFieldInventory;
 }
 
 export interface RuleParamSpec {
@@ -2512,7 +2538,8 @@ export interface HolderStatus {
   holder_id: string;
   kind: "index" | "portfolio";
   name: string;
-  source: "api" | "file";
+  /** null: a portfolio with no holder record (seeded or imported data), listed read-only. */
+  source: "api" | "file" | null;
   as_of: string | null;
   last_pull_at: string | null;
   last_error: string | null;

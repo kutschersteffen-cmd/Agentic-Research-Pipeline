@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { StewardshipFlow, StewardshipStream } from "../types";
-import { SOURCE_LABEL, STAGE_TABS, openCount } from "./steward/common";
+import { SOURCE_LABEL, STAGE_TABS, SampleChip, openCount } from "./steward/common";
 
 export { STAGE_TABS };
 import { useMe } from "../lib/reviewer";
@@ -282,7 +282,9 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
                 {stream === "house" && <HouseUniverse onChanged={reload} />}
               </details>
               <div className="toolbar flow-view">
-                <p className="muted">{overviewFlow.data_note} Click a stage to open its studio.</p>
+                <p className="muted">
+                  {/placeholder/i.test(overviewFlow.data_note) && <SampleChip />} {overviewFlow.data_note} Click a stage to open its studio.
+                </p>
                 <span className="flow-view-switch">
                   {(["list", "graph"] as const).map((v) => (
                     <button key={v} className={view === v ? "nav-tab active" : "nav-tab"} aria-pressed={view === v} onClick={() => setView(v)}>

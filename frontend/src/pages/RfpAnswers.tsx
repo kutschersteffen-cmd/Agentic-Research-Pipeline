@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api, downloadFile } from "../api/client";
+import { ElapsedLine } from "../components/ElapsedLine";
 import { announce } from "../lib/announce";
+import { importingLine, importResultLine } from "../lib/progress";
 import { useMe } from "../lib/reviewer";
 import type { RfpLibraryEntry, RfpProject, RfpProjectSummary, RfpQuestion } from "../types";
 
@@ -30,6 +32,9 @@ function Overview({ onOpen }: { onOpen: (id: number) => void }) {
   const [library, setLibrary] = useState<RfpLibraryEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** The number of files of a running library import; its result line stays until the next import starts. */
+  const [importing, setImporting] = useState<number | null>(null);
+  const [importResult, setImportResult] = useState<string | null>(null);
   const load = () => {
     api.listRfpProjects().then(setProjects, (e: Error) => setError(e.message));
     api.listRfpLibrary().then(setLibrary, (e: Error) => setError(e.message));
@@ -59,9 +64,16 @@ function Overview({ onOpen }: { onOpen: (id: number) => void }) {
   function importFiles(ev: React.FormEvent<HTMLFormElement>) {
     ev.preventDefault();
     const files = (new FormData(ev.currentTarget).getAll("files") as File[]).filter((f) => f.size > 0);
+    setImportResult(null);
+    setImporting(files.length);
     void act(async () => {
-      const r = await api.importRfpLibrary(files);
-      announce(`Imported ${r.imported} entries, dropped ${r.dropped.length}${r.dropped.length ? `: ${r.dropped.join("; ")}` : ""}`);
+      try {
+        const line = importResultLine(await api.importRfpLibrary(files));
+        setImportResult(line);
+        announce(line);
+      } finally {
+        setImporting(null);
+      }
     });
   }
 
@@ -113,6 +125,8 @@ function Overview({ onOpen }: { onOpen: (id: number) => void }) {
             <button disabled={busy}>Import past responses</button>
           </form>
         )}
+        {importing !== null && <ElapsedLine text={(seconds) => importingLine(importing, seconds)} />}
+        {importResult && <p className="muted" role="status">{importResult}</p>}
         <div className="table-wrap">
           <table className="data-table">
             <thead><tr><th>Question</th><th>Answer</th><th>Source</th><th>Review by</th><th>Status</th><th /></tr></thead>
@@ -230,6 +244,8 @@ function QuestionCard({ q, projectId, act }: { q: RfpQuestion; projectId: number
   useEffect(() => setAnswer(q.answer), [q.answer]);
   const canEdit = !!me && rank[me.role] >= rank.analyst;
   const canApprove = me?.role === "approver" && q.status !== "approved" && q.last_editor !== me.user_id && q.answer.trim() !== "";
+  // Four-eyes: say so where the Approve button would be, instead of leaving it out silently.
+  const ownEdit = me?.role === "approver" && q.status !== "approved" && q.last_editor === me.user_id;
 
   return (
     <section className="card" aria-label={`Question ${q.location}`}>
@@ -276,6 +292,7 @@ function QuestionCard({ q, projectId, act }: { q: RfpQuestion; projectId: number
           </button>
         </div>
       )}
+      {ownEdit && <p className="help-text">A second person is needed: you edited this answer last, and another approver must approve it.</p>}
     </section>
   );
 }

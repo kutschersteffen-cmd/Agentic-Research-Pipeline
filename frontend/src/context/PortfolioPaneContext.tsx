@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "../api/client";
+import { trendRangeError } from "../lib/askPortfolio";
 import { PortfolioPaneContext, type PaneState, type PortfolioGroup, type DateMode } from "./paneContext";
 import type { DataPointSchema, PortfolioSummary } from "../types";
 
@@ -78,7 +79,7 @@ export function PortfolioPaneProvider({ children }: { children: ReactNode }) {
 
   const effectiveAsOf = dateMode === "as_of" && asOfDate ? asOfDate : undefined;
   const effectiveDateRange = useMemo<[string, string] | null>(
-    () => (dateMode === "trend" && trendFrom && trendTo ? [trendFrom, trendTo] : null),
+    () => (dateMode === "trend" && trendFrom && trendTo && !trendRangeError(trendFrom, trendTo) ? [trendFrom, trendTo] : null),
     [dateMode, trendFrom, trendTo]
   );
 

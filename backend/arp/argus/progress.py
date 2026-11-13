@@ -24,16 +24,19 @@ class CompanyProgress(BaseModel):
     reason: str | None = None
     document_problem: bool = False
     needs_you: int = 0
+    retryable: bool = False  # Retry accepts this company
 
 
 class FlowProgress(BaseModel):
     run_id: str
     started_at: str
     done: int
+    finished: int  # rows that read Done or Failed; `done` leaves out a company stopped for review
     total: int
     minutes_left: int | None
     cost_usd: float
     status: str
+    stopping: bool  # Stop was requested and the run has not ended yet
     companies: list[CompanyProgress]
 
 
@@ -52,9 +55,11 @@ def company_status(raw: str, run_status: str, steps: dict[str, int]) -> tuple[st
     return "Waiting", 0
 
 
-def minutes_left(started: datetime, now: datetime, *, done: int, total: int) -> int | None:
-    """Elapsed time per finished company times the companies left; None until one has finished."""
-    if not done:
+def minutes_left(started: datetime, now: datetime, *, done: int, total: int, reached: float = 0.0) -> int | None:
+    """Elapsed time per finished company times the companies left. Before one has finished, the stages reached
+    stand in for it: `reached` is the companies' percent / 100 summed, used from a quarter of a company on."""
+    progress = done or reached
+    if progress < 0.25:
         return None
     started = started if started.tzinfo else started.replace(tzinfo=UTC)  # a stored time without a zone is UTC
-    return max(0, math.ceil((now - started).total_seconds() / 60 / done * (total - done)))  # never negative on a skewed clock
+    return max(0, math.ceil((now - started).total_seconds() / 60 / progress * (total - progress)))  # never negative on a skewed clock

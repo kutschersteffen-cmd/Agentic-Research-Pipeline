@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_decision_store, get_engagement_store, get_stream_store, settings_dep
 from arp.config import Settings
+from arp.engagement.tracking_agent import MissingEvidence, check_evidence
 from arp.schemas.engagement import (
     Commitment,
     CommitmentStatus,
@@ -866,6 +867,7 @@ class CommitmentStatusRequest(BaseModel):
     company_id: str
     issue_id: str
     status: Literal["verified", "missed"]
+    evidence: str | None = None
 
 
 @router.post("/tracking/commitments/{commitment_id}")
@@ -875,9 +877,14 @@ def set_commitment_status(
     engagements: EngagementStore = Depends(get_engagement_store),
     principal: Principal = Depends(current_user),
 ) -> dict:
+    if body.status == "verified":
+        try:
+            check_evidence(engagements.get(body.company_id), body.issue_id, commitment_id, body.evidence)
+        except MissingEvidence as exc:
+            raise HTTPException(422, str(exc)) from exc
     try:
         engagements.update_commitment_status(
-            body.company_id, body.issue_id, commitment_id, CommitmentStatus(body.status), principal.name
+            body.company_id, body.issue_id, commitment_id, CommitmentStatus(body.status), principal.name, body.evidence
         )
     except (KeyError, ValueError) as exc:
         raise HTTPException(404, str(exc)) from exc

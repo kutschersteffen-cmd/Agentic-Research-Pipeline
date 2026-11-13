@@ -67,26 +67,34 @@ def _sha(path: Path) -> str:
 
 
 def _inspect(path: Path, sha: str, company: CompanyRef, checks_dir: Path) -> tuple[str, int | None]:
-    """(company match, year) for one file, cached by content, company and file name (the year is read from the name first)."""
-    name = hashlib.sha1(path.name.encode()).hexdigest()[:8]
-    cache = checks_dir / f"{sha}-{company.company_id}-{name}.json"
+    """(company match, year) for one file, cached by content, by what the check reads of the company (name, LEI,
+    ISIN) and by file name (the year is read from the name first). A file that could not be read is not cached."""
+    about = "\0".join((company.name, company.lei or "", company.isin or "", path.name))
+    cache = checks_dir / f"{sha}-{hashlib.sha1(about.encode()).hexdigest()[:16]}.json"
     if cache.is_file():
         match, year = json.loads(cache.read_text())
         return match, year
     year = reporting_year(path.name, "")  # the file name first, as the import folder does
     if path.suffix.lower() == ".pdf":
         c = check_document(path, company)
-        match, year = c.company_match, year or c.reporting_year
+        match, year, read = c.company_match, year or c.reporting_year, c.page_count is not None
     else:  # HTML and text pages: the same checks on their text
         try:
-            text = _TAG.sub(" ", path.read_bytes()[:2_000_000].decode("utf-8", "ignore"))
+            text, read = _TAG.sub(" ", path.read_bytes()[:2_000_000].decode("utf-8", "ignore")), True
         except OSError:
-            text = ""
+            text, read = "", False
         match = "name" if _contains_name(text, company.name) else ("no_text" if len(text.split()) < 30 else "none")
         year = year or reporting_year("", text)
-    checks_dir.mkdir(parents=True, exist_ok=True)
-    atomic_write_text(cache, json.dumps([match, year]))
+    if read:
+        checks_dir.mkdir(parents=True, exist_ok=True)
+        atomic_write_text(cache, json.dumps([match, year]))
     return match, year
+
+
+def passes_check(flow: ArgusFlow, company: CompanyRef, path: Path, checks_dir: Path) -> bool:
+    """Whether one stored file passes step 2's check for this flow's reporting year."""
+    match, year = _inspect(path, _sha(path), company, checks_dir)
+    return check_text(match, year, company.name, expected_year(flow))[1]
 
 
 def _source(url: str | None) -> Literal["upload", "filings", "web"]:
@@ -150,14 +158,14 @@ def flow_files(
     return out
 
 
-def store_upload(documents_dir: Path, company_id: str, doc_type: str, filename: str, data: bytes) -> tuple[Path | None, str | None]:
-    """Files an upload as `/api/documents/upload` does: (stored path, None), or (None, name of the file it duplicates)."""
+def store_upload(documents_dir: Path, company_id: str, doc_type: str, filename: str, data: bytes) -> tuple[Path, str | None]:
+    """Files an upload as `/api/documents/upload` does: (stored path, None), or (the stored file it duplicates, its name)."""
     folder = documents_dir / safe_id(company_id, label="company_id")
     name = safe_filename(filename)
     digest = hashlib.sha256(data).hexdigest()
     for existing in sorted(folder.glob("*/*")) if folder.is_dir() else []:
         if existing.is_file() and existing.stat().st_size == len(data) and _sha(existing) == digest:
-            return None, existing.name
+            return existing, existing.name
     dest_dir = folder / doc_type
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest, n = dest_dir / name, 1

@@ -1294,6 +1294,17 @@
       "title": "Flow Id",
       "type": "string"
      },
+     "identity_applied": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Identity Applied"
+     },
      "identity_run_id": {
       "anyOf": [
        {
@@ -1304,6 +1315,14 @@
        }
       ],
       "title": "Identity Run Id"
+     },
+     "problems": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "default": {},
+      "title": "Problems",
+      "type": "object"
      },
      "repeat": {
       "additionalProperties": {
@@ -1394,6 +1413,17 @@
       "title": "Starting",
       "type": "boolean"
      },
+     "starting_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Starting At"
+     },
      "step": {
       "default": 1,
       "title": "Step",
@@ -1483,6 +1513,17 @@
        }
       ]
      },
+     "identity_applied": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Identity Applied"
+     },
      "identity_run_id": {
       "anyOf": [
        {
@@ -1493,6 +1534,14 @@
        }
       ],
       "title": "Identity Run Id"
+     },
+     "problems": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "default": {},
+      "title": "Problems",
+      "type": "object"
      },
      "repeat": {
       "additionalProperties": {
@@ -1598,6 +1647,17 @@
       "default": false,
       "title": "Starting",
       "type": "boolean"
+     },
+     "starting_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Starting At"
      },
      "step": {
       "default": 1,
@@ -3072,6 +3132,22 @@
       "title": "As Of",
       "type": "string"
      },
+     "decimal": {
+      "anyOf": [
+       {
+        "enum": [
+         ".",
+         ","
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Overrides the provider mapping's decimal separator.",
+      "title": "Decimal"
+     },
      "file": {
       "contentMediaType": "application/octet-stream",
       "title": "File",
@@ -3104,6 +3180,22 @@
       "default": "default",
       "title": "Provider",
       "type": "string"
+     },
+     "weight_unit": {
+      "anyOf": [
+       {
+        "enum": [
+         "percent",
+         "fraction"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Overrides the provider mapping's weight unit.",
+      "title": "Weight Unit"
      }
     },
     "required": [
@@ -4765,6 +4857,28 @@
     "title": "CitationRole",
     "type": "string"
    },
+   "ClearAlertsRequest": {
+    "properties": {
+     "reason": {
+      "default": "",
+      "title": "Reason",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "resolved",
+       "false_positive"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "status"
+    ],
+    "title": "ClearAlertsRequest",
+    "type": "object"
+   },
    "CloseRequest": {
     "properties": {
      "company_id": {
@@ -5038,6 +5152,17 @@
      "company_id": {
       "title": "Company Id",
       "type": "string"
+     },
+     "evidence": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence"
      },
      "issue_id": {
       "title": "Issue Id",
@@ -5358,6 +5483,11 @@
        }
       ],
       "title": "Reason"
+     },
+     "retryable": {
+      "default": false,
+      "title": "Retryable",
+      "type": "boolean"
      },
      "status": {
       "title": "Status",
@@ -7311,6 +7441,11 @@
       "title": "Columns",
       "type": "array"
      },
+     "created_at": {
+      "description": "When the dataset was added: tells two uploads of the same file apart.",
+      "title": "Created At",
+      "type": "string"
+     },
      "dataset_id": {
       "title": "Dataset Id",
       "type": "string"
@@ -7388,6 +7523,7 @@
      "dataset_id",
      "name",
      "source",
+     "created_at",
      "row_count",
      "columns",
      "preview",
@@ -10631,6 +10767,10 @@
       "title": "Done",
       "type": "integer"
      },
+     "finished": {
+      "title": "Finished",
+      "type": "integer"
+     },
      "minutes_left": {
       "anyOf": [
        {
@@ -10654,6 +10794,10 @@
       "title": "Status",
       "type": "string"
      },
+     "stopping": {
+      "title": "Stopping",
+      "type": "boolean"
+     },
      "total": {
       "title": "Total",
       "type": "integer"
@@ -10663,10 +10807,12 @@
      "run_id",
      "started_at",
      "done",
+     "finished",
      "total",
      "minutes_left",
      "cost_usd",
      "status",
+     "stopping",
      "companies"
     ],
     "title": "FlowProgress",
@@ -15635,6 +15781,22 @@
        }
       ]
      },
+     "scale": {
+      "default": "units",
+      "enum": [
+       "units",
+       "millions"
+      ],
+      "title": "Scale",
+      "type": "string"
+     },
+     "snapshot_dates": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Snapshot Dates",
+      "type": "array"
+     },
      "spec": {
       "anyOf": [
        {
@@ -15644,6 +15806,25 @@
         "type": "null"
        }
       ]
+     },
+     "trend": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/TrendPoint"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Trend"
+     },
+     "unit": {
+      "default": "",
+      "title": "Unit",
+      "type": "string"
      },
      "vintage": {
       "additionalProperties": true,
@@ -20541,6 +20722,110 @@
     "title": "StartRequest",
     "type": "object"
    },
+   "StartingUniverse": {
+    "properties": {
+     "as_of_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of Date"
+     },
+     "kind": {
+      "enum": [
+       "demo",
+       "file",
+       "portfolio"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "universe_id": {
+      "title": "Universe Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "universe_id",
+     "label",
+     "kind",
+     "as_of_date"
+    ],
+    "title": "StartingUniverse",
+    "type": "object"
+   },
+   "StartingUniverseDetail": {
+    "properties": {
+     "as_of_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of Date"
+     },
+     "company_count": {
+      "title": "Company Count",
+      "type": "integer"
+     },
+     "fields": {
+      "additionalProperties": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "title": "Fields",
+      "type": "object"
+     },
+     "kind": {
+      "enum": [
+       "demo",
+       "file",
+       "portfolio"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "notes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+     },
+     "universe_id": {
+      "title": "Universe Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "universe_id",
+     "label",
+     "kind",
+     "as_of_date",
+     "company_count",
+     "notes",
+     "fields"
+    ],
+    "title": "StartingUniverseDetail",
+    "type": "object"
+   },
    "StepSettings": {
     "description": "Per-run overrides; a field left out keeps the app's setting.",
     "properties": {
@@ -22484,6 +22769,23 @@
     "title": "TransitionPlanIndicator",
     "type": "object"
    },
+   "TrendPoint": {
+    "properties": {
+     "as_of": {
+      "title": "As Of",
+      "type": "string"
+     },
+     "result": {
+      "$ref": "#/components/schemas/AggregationResult"
+     }
+    },
+    "required": [
+     "as_of",
+     "result"
+    ],
+    "title": "TrendPoint",
+    "type": "object"
+   },
    "TriggerScanRequest": {
     "properties": {
      "companies": {
@@ -23845,6 +24147,17 @@
      "commitment_id": {
       "title": "Commitment Id",
       "type": "string"
+     },
+     "evidence": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence"
      }
     },
     "required": [
@@ -24561,6 +24874,18 @@
       ],
       "description": "Ad-hoc spec. Mutually exclusive with calibration_id."
      },
+     "universe": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Starting universe id from GET /api/index/universes (demo, file:<stem>, portfolio:<id>). Omit for the demo universe. Exclusive with candidates.",
+      "title": "Universe"
+     },
      "use_prior_state": {
       "default": true,
       "description": "Chain from the most recent stored review before this date.",
@@ -24576,6 +24901,41 @@
    },
    "arp__api__routers__portfolio__AskRequest": {
     "properties": {
+     "as_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "YYYY-MM-DD; each portfolio's newest snapshot on or before it.",
+      "title": "As Of"
+     },
+     "date_range": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "[start, end]: a trend, one point per snapshot date in it.",
+      "title": "Date Range"
+     },
+     "portfolio_ids": {
+      "description": "The screen's selection; a portfolio named in the question wins.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Portfolio Ids",
+      "type": "array"
+     },
      "question": {
       "title": "Question",
       "type": "string"
@@ -25298,6 +25658,118 @@
     ]
    }
   },
+  "/api/argus/flows/{flow_id}/companies/{company_id}": {
+   "delete": {
+    "description": "Drops the row and its file choices in this flow. The documents stay on the company.",
+    "operationId": "remove_company_api_argus_flows__flow_id__companies__company_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Remove Company",
+    "tags": [
+     "argus"
+    ]
+   },
+   "put": {
+    "description": "Registers the row again with the form's values and replaces it in place.",
+    "operationId": "edit_company_api_argus_flows__flow_id__companies__company_id__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CompanyInput"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Edit Company",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
   "/api/argus/flows/{flow_id}/companies/{company_id}/retry": {
    "post": {
     "description": "Re-runs one failed company inside the flow's run, on the files kept for it now (a file replaced in step 2 is used).\nAsync: the launcher starts the job on this event loop. Nothing changes until the job holds the run.",
@@ -25345,6 +25817,42 @@
      }
     },
     "summary": "Retry Company",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/discard": {
+   "post": {
+    "description": "Delete a draft with whatever it holds. Its documents stay on the companies.",
+    "operationId": "discard_flow_api_argus_flows__flow_id__discard_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Discard Flow",
     "tags": [
      "argus"
     ]
@@ -33001,6 +33509,7 @@
   },
   "/api/holdings/holders": {
    "get": {
+    "description": "Holder records, plus every portfolio that has none (seeded or imported data): listed read-only, nothing stored.",
     "operationId": "holders_api_holdings_holders_get",
     "responses": {
      "200": {
@@ -33866,6 +34375,74 @@
      }
     },
     "summary": "Get Screen Bundle",
+    "tags": [
+     "index"
+    ]
+   }
+  },
+  "/api/index/universes": {
+   "get": {
+    "description": "The demo universe, then the holdings files, then portfolios with a snapshot.",
+    "operationId": "get_universes_api_index_universes_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/StartingUniverse"
+         },
+         "title": "Response Get Universes Api Index Universes Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Universes",
+    "tags": [
+     "index"
+    ]
+   }
+  },
+  "/api/index/universes/{universe_id}": {
+   "get": {
+    "operationId": "get_universe_api_index_universes__universe_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "universe_id",
+      "required": true,
+      "schema": {
+       "title": "Universe Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StartingUniverseDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Universe",
     "tags": [
      "index"
     ]
@@ -34953,6 +35530,97 @@
     ]
    }
   },
+  "/api/portfolio/monitoring/rules/{rule_id}": {
+   "delete": {
+    "description": "Removes the rule only. Its alerts stay in the log, so they have to be closed first.",
+    "operationId": "delete_monitoring_rule_api_portfolio_monitoring_rules__rule_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "rule_id",
+      "required": true,
+      "schema": {
+       "title": "Rule Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Monitoring Rule",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
+  "/api/portfolio/monitoring/rules/{rule_id}/clear-alerts": {
+   "post": {
+    "description": "Closes every live alert of one rule in one human decision. The rule need not exist any more.",
+    "operationId": "clear_monitoring_rule_alerts_api_portfolio_monitoring_rules__rule_id__clear_alerts_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "rule_id",
+      "required": true,
+      "schema": {
+       "title": "Rule Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ClearAlertsRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Clear Monitoring Rule Alerts Api Portfolio Monitoring Rules  Rule Id  Clear Alerts Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Clear Monitoring Rule Alerts",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
   "/api/portfolio/monthly-run": {
    "post": {
     "operationId": "post_monthly_run_api_portfolio_monthly_run_post",
@@ -34989,6 +35657,37 @@
      }
     },
     "summary": "Post Monthly Run",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
+  "/api/portfolio/monthly-run/last": {
+   "get": {
+    "description": "The newest monthly run that ran (a blocked one is not recorded), or null.",
+    "operationId": "get_last_monthly_run_api_portfolio_monthly_run_last_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "anyOf": [
+          {
+           "additionalProperties": true,
+           "type": "object"
+          },
+          {
+           "type": "null"
+          }
+         ],
+         "title": "Response Get Last Monthly Run Api Portfolio Monthly Run Last Get"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Last Monthly Run",
     "tags": [
      "portfolio"
     ]
@@ -36653,6 +37352,40 @@
    }
   },
   "/api/reports/{report_id}": {
+   "delete": {
+    "description": "Removes an unfinished report's folder. A finished one, or one still being worked on, is never removed.",
+    "operationId": "discard_report_api_reports__report_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Discard Report",
+    "tags": [
+     "reporting"
+    ]
+   },
    "get": {
     "operationId": "get_report_api_reports__report_id__get",
     "parameters": [

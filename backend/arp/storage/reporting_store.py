@@ -97,7 +97,7 @@ class ReportingStore:
         manifests: list[ReportManifest] = []
         if not self.reports_dir.exists():
             return manifests
-        for d in sorted(self.reports_dir.iterdir(), reverse=True):
+        for d in self.reports_dir.iterdir():
             mp = d / "manifest.json"
             if not mp.exists():
                 continue
@@ -105,7 +105,8 @@ class ReportingStore:
                 manifests.append(ReportManifest.model_validate_json(read_text_utf8(mp)))
             except (json.JSONDecodeError, OSError, ValueError):
                 continue
-        return manifests
+        # newest first; the folder name is a random id and says nothing about age
+        return sorted(manifests, key=lambda m: (m.created_at, m.report_id), reverse=True)
 
     # ---- template styles ----
 

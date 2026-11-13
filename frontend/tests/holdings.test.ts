@@ -32,3 +32,9 @@ test("previousMonth", () => {
   assert.equal(previousMonth(new Date(2026, 9, 5)), "2026-09");
   assert.equal(previousMonth(new Date(2026, 0, 31)), "2025-12");
 });
+
+test("rowErrorText names a missing column by the header the file should have", () => {  // AC-123
+  assert.equal(rowErrorText({ row: null, column: "Weight (%)", message: "missing required column" }), "missing required column: Weight (%)");
+  assert.equal(rowErrorText({ row: null, column: "weight", message: "weights sum to 1%, not 100% ± 0.5" }), "weights sum to 1%, not 100% ± 0.5");
+  assert.equal(rowErrorText({ row: null, column: null, message: "missing header" }), "missing header");
+});
