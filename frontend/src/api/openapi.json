@@ -13513,9 +13513,15 @@
    "MonthlyRunRequest": {
     "properties": {
      "esg_provider": {
-      "default": "default",
-      "title": "Esg Provider",
-      "type": "string"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Esg Provider"
      },
      "month": {
       "title": "Month",
@@ -26994,6 +27000,28 @@
     ]
    }
   },
+  "/api/climate/simulated-schema": {
+   "get": {
+    "description": "The fields of the SIMULATED ESG dataset (not real ESG data).",
+    "operationId": "simulated_schema_api_climate_simulated_schema_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DataPointSchema"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Simulated Schema",
+    "tags": [
+     "climate"
+    ]
+   }
+  },
   "/api/companies": {
    "get": {
     "operationId": "search_companies_api_companies_get",
@@ -35753,9 +35781,15 @@
       "name": "esg_provider",
       "required": false,
       "schema": {
-       "default": "default",
-       "title": "Esg Provider",
-       "type": "string"
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Esg Provider"
       }
      }
     ],

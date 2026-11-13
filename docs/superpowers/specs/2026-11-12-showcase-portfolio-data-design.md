@@ -3,6 +3,7 @@
 Slug: `showcase-portfolio-data`. Risk: high (portfolio import and weights, load records, a new observation source).
 
 Status: **approved by the owner on 12 Nov 2026** (buttons in the spec session), with the picks below.
+Amendment A (13 Nov 2026, written-off positions and revenue shares): **approved by the owner on 13 Nov 2026** (buttons in the amendment session).
 
 ## Decided by the owner (12 Nov)
 
@@ -25,6 +26,67 @@ Status: **approved by the owner on 12 Nov 2026** (buttons in the spec session), 
      "Fields for Index Construction"; `index-starting-universe` shows it as a category.
    - **Company page** (AC-70 to AC-72): PR 3 makes the imported companies open on `#/companies/<ref>` and
      shows the grade and simulated values there, each marked `Simulated`, apart from the page's real facts.
+
+## Amendment A (13 Nov 2026): written-off positions, revenue shares capped at 1
+
+Two owner decisions of 13 Nov, after PR 1 (#432) merged and while PR 2 (#434) was open. They change the
+dataset, the loader and the index loader; the sections below are edited to match, and every edited place
+says `(Amendment A)`.
+
+**A1. Written-off positions are deleted.** 15 equity ISINs sit in the files with an index weight below
+0.0001 % (fraction 0.000001): Gazprom, Sberbank, Norilsk Nickel, Surgutneftegas (ordinary and preference),
+Tatneft, Novolipetsk Steel, Alrosa, Rusal, Moscow Exchange, Inter RAO, Ozon (MSCI EM, 12 lines), Kangmei
+Pharmaceutical (MSCI EM, so 13 MSCI EM lines in all), NMC Health (MSCI Europe, plus an `N/A` line in MSCI
+World) and the Hologic contingent right (MSCI World and S&P 500): 17 lines. The dataset gives them nonsense sizes today (7 have EVIC 0.00,
+Gazprom revenue 0.01 and scope 1 of 1.91). They are:
+
+- **listed in one shared file, `data/holdings/written_off.csv`** (`isin,name,reason`, one row per ISIN,
+  `name` copied from a holdings file, `reason` `index weight below 0.0001 % (written off)`). The list is
+  data, not a rule in code: an equity ISIN (`Type of Security` `Aktien`, `Equities`, `Depository Receipts` or
+  `Preferred Stock`) is on it when it has at least one numeric `Weighting` in the seven files
+  and every numeric `Weighting` it has is below 0.000001 (AC-80 checks the list against that rule). The
+  file sits next to the holdings files because all three readers already take the holdings directory:
+  `arp showcase simulate` and `arp showcase load` read `<--holdings-dir>/written_off.csv`, the index loader
+  reads `<holdings_dir>/written_off.csv` (setting `holdings_dir`, `backend/arp/config.py`). No new option or
+  setting. A missing file means nothing is written off. `index_universe.py` belongs to
+  `index-starting-universe`; this amendment owns only the reading of the list there (AC-95 to AC-99, AC-103), and
+  none of that spec's rows changes;
+- **removed from the dataset**: no row for a listed ISIN, and its lines take no part in keys, companies,
+  peer groups, sizes or percentiles (`<N>` becomes 2,523 rows, 2,515 companies; grades in the affected peer
+  groups are recomputed by the unchanged rule). An override row naming a listed ISIN fails `arp showcase
+  simulate` with `overrides row <n>: ISIN <isin> is written off (written_off.csv)`; the Gazprom `oil` and
+  `gas` rows leave `activity_overrides.csv` and RU0007661625 leaves the list in "Controversial revenue";
+- **not imported by `arp showcase load`**: `import_holdings_file` gains a parameter
+  `skip_isins: frozenset[str] = frozenset()` (lines with those ISINs are ignored before anything is written);
+  only `arp showcase load` passes the list. Its `import` step therefore skips listed lines,
+  so no company, security, holding or snapshot line comes from them, also in the history snapshots. When a
+  file was imported before with `import-constituents`, the loader's snapshot at the file date replaces that
+  one, so it too holds no listed ISIN. Remaining weights are not rescaled (the deleted weight is at most
+  0.0000107 percentage points per file, in MSCI EM). `arp portfolio import-constituents` does not read the list: it
+  still imports every line (AC-30 to AC-42 unchanged; the 14 all-`N/A` ISINs of AC-38 are not on the list);
+- **not offered by the index loader**: in a `file:` universe a line whose ISIN is listed, and in a
+  `portfolio:` universe a holding whose company id is `isin_<listed ISIN>`, is checked before every
+  other test, `without a weight` included, and is never a candidate (so NMC Health's `N/A` line in MSCI
+  World counts as written off: 2 lines there, 13 in MSCI EM). It is not counted in `Dropped <k> lines: ...`; instead, when
+  at least one such line was skipped, the universe's notes end with one more line:
+  `Written-off lines not offered (index weight below 0.0001 %): <count>.` (after the `Simulated ESG data`
+  line). With no listed line skipped the notes are as today, so `file:DAX` keeps its four lines.
+
+**A2. Revenue shares add up to at most 1.** 31 companies have eight `*_revenue_pct` shares summing above 1
+(up to 1.512). One of them, Surgutneftegas preference, is written off by A1, so 30 remain. Per company, after the draws and
+overrides of "Controversial revenue", with every share rounded to 4 decimals as written:
+
+1. O = the sum of the company's override shares among the eight activities. **O above 1 fails** `arp showcase
+   simulate`, exit 1, stderr `overrides: the activity shares of <isin> (<name>) add up to <O>, more than 1`, `<O>` with 4 decimals
+   (`<isin>` = the override rows' ISIN; the overrides file is hand-written, so it is fixed there, not
+   scaled). Today the largest O is 0.95.
+2. D = the sum of the drawn shares (activities without an override). If O + D ≤ 1, nothing changes.
+3. Else each drawn share d becomes `round(d × (1 − O) / D, 4)`; override shares stay as written. If the
+   eight shares then do not sum to exactly 1.0000, the largest scaled share (first in column order on a tie)
+   takes the difference. With O = 1 every drawn share becomes 0.
+
+Nothing else depends on the shares (grades use intensity, green share and E score), so A2 changes only the
+eight columns of those 30 companies.
 
 ## Intent
 
@@ -92,7 +154,7 @@ ISIN (IE00BGV5VN51).
 
 ## Goals
 
-1. One simulated row per company in the seven files, with the seven climate columns, further ESG scores,
+1. One simulated row per company in the seven files (except the ISINs of `written_off.csv`, Amendment A1), with the seven climate columns, further ESG scores,
    revenue shares in eight controversial activities, two exclusion flags and a transition grade.
 2. Values are plausible for sector and size: emissions scale with revenue, every company's intensity sits in
    its sector's range, controversial revenue appears only where the business does it.
@@ -153,7 +215,9 @@ ISIN (IE00BGV5VN51).
 `SIMULATED DATA. Not real ESG data. Generated by arp showcase simulate.` and copies the tables below.
 
 **Rows.** One per distinct ISIN over rows whose `Type of Security` is `Aktien`, `Equities`,
-`Depository Receipts` or `Preferred Stock`, sorted by ISIN. Rows with weight `N/A` are kept.
+`Depository Receipts` or `Preferred Stock`, sorted by ISIN, except the ISINs of
+`<holdings-dir>/written_off.csv`, whose lines are dropped before anything else (Amendment A1). Other rows with
+weight `N/A` are kept.
 
 **Key.** A key is the `Name` (upper-cased, stripped) + the country translated to English with the import's
 table (PR 1 carries the same entries as "English labels" below, so `Vereinigte Staaten von Amerika` and
@@ -246,7 +310,10 @@ brewers, distillers, casino and betting groups and may add more):
   INE263A01024, INE066F01020, NL0000235190, FR0000073272, US0970231058, US4385162056
 - oil and gas (one `oil` and one `gas` row each): GB00BP6MXD84, FR0000120271, US30233Q1085, US1667641005,
   GB0007980591, IT0003132476, NO0010096985, US20825C1045, AU0000224040, SA14TG012N13, CNE1000003W8,
-  CNE1000007Q1, INE002A01018, RU0007661625
+  CNE1000007Q1, INE002A01018 (RU0007661625, Gazprom, removed: written off, Amendment A1)
+
+**Total at most 1 (Amendment A2).** A company's eight shares sum to at most 1.0000; where the draws push them
+above 1, the drawn shares are scaled by the rule in Amendment A2 and override shares stay as written.
 
 ## Transition grade (PR 1, owner decisions 2 and 5)
 
@@ -325,7 +392,8 @@ ids, units as in "Columns": `esg_e_score`, `esg_s_score`, `esg_g_score`, `esg_sc
 `arp showcase load [--holdings-dir data/holdings] [--dataset data/simulated/esg_simulated.csv]`, Postgres
 store, prints one line per step `ok|FAIL <step>: <reason>`, exits 1 on any `FAIL`:
 
-1. `import`: the seven files through `import_holdings_file`, `AI_Big_Data` with fund ISIN IE00BGV5VN51.
+1. `import`: the seven files through `import_holdings_file`, `AI_Big_Data` with fund ISIN IE00BGV5VN51,
+   skipping the lines of the ISINs in `<holdings-dir>/written_off.csv` (Amendment A1).
 2. `history` (owner decision 3): for each imported portfolio, a snapshot at each month end 2026-06-30 to
    2026-10-31 with the same securities as the file snapshot and weights `w × (1 + u)`, `u` uniform in
    −0.05 to +0.05 seeded by SHA-256 of portfolio id + ISIN + month, then scaled so the month's weights sum to
@@ -362,6 +430,7 @@ Wherever a simulated value or grade shows, the word `Simulated` shows next to it
 | 1 | `AI_Big_Data.xlsx` to `main`, `arp showcase simulate`, `data/simulated/` (dataset, overrides, README), grades | normal | nothing |
 | 2 | `import_holdings_file`, English labels, `simulated` source and schema, provider fallback, `arp showcase load`, monthly runs, `Simulated` on Ask the Portfolio and alerts | high | #419 merged |
 | 3 | Grades and labels on the TI card, the company page and `bi.company_profile` | normal | PR 2 |
+| 4 (Amendment A) | `data/holdings/written_off.csv`, `arp showcase simulate` reading it and capping the revenue shares, the regenerated dataset and overrides, `data/simulated/README.md` gaining the written-off rule under "Rows and companies" and the A2 rule under "Controversial revenue", the loader skipping listed lines, the index loader not offering them | high (changes what the loader imports) | PR 2 (#434) merged |
 
 My call against the intake plan: the loader moves from PR 1 to PR 2, because it needs the import fixes;
 PR 1 stays independent so `index-starting-universe` can start on the file.
@@ -374,13 +443,14 @@ PR 1 stays independent so `index-starting-universe` can start on the file.
 ## Acceptance
 
 `<N>` is the number of distinct ISINs over equity rows (`Aktien`, `Equities`, `Depository Receipts`,
-`Preferred Stock`) of the seven files, tests compute it (2,538 today); a company is the set of keys linked by
-a shared ISIN, as "Key" defines it (2,530 today). "The e2e stack" is `backend/scripts/e2e_stack.sh up` (seed-demo data only). "The loader ran" means
+`Preferred Stock`) of the seven files, minus the ISINs listed in `data/holdings/written_off.csv` (Amendment A);
+tests compute it (2,523 today; 2,538 before Amendment A); a company is the set of keys linked by a shared ISIN,
+as "Key" defines it, over those rows (2,515 today). "The list" is `data/holdings/written_off.csv`. "The e2e stack" is `backend/scripts/e2e_stack.sh up` (seed-demo data only). "The loader ran" means
 `arp showcase load` on the e2e stack with the committed dataset.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
-| AC-1 | The seven files in `data/holdings/` | `arp showcase simulate --out <tmp>` runs from `backend/` | exit 0; `<tmp>` has `<N>` data rows, one per ISIN, sorted by ISIN, with the columns of "Columns" in that order | holdout |
+| AC-1 | The seven files and the list in `data/holdings/` | `arp showcase simulate --out <tmp>` runs from `backend/` | exit 0; `<tmp>` has `<N>` data rows (the list's ISINs excluded, Amendment A), one per ISIN, sorted by ISIN, with the columns of "Columns" in that order | holdout |
 | AC-2 | Same | it runs twice | both outputs are byte-identical to each other and to the committed `data/simulated/esg_simulated.csv` | holdout |
 | AC-3 | The committed dataset | every row is read | `data_status` is `simulated` and `company_id` is `isin_<isin>` on every row | holdout |
 | AC-4 | `data/simulated/README.md` | line 1 is read | it is `SIMULATED DATA. Not real ESG data. Generated by arp showcase simulate.` | holdout |
@@ -395,8 +465,8 @@ a shared ISIN, as "Key" defines it (2,530 today). "The e2e stack" is `backend/sc
 | AC-13 | The dataset | rows with `coal_revenue_pct`, `oil_revenue_pct` or `gas_revenue_pct` > 0 are listed | every one has sector Energy, Utilities or Materials, or its key has an override for that activity | holdout |
 | AC-14 | The dataset | rows with `weapons_revenue_pct` > 0 are listed | every one has sector Industrials or Information Technology, or a `weapons` override for its key | holdout |
 | AC-15 | The dataset | rows with `controversial_weapons` or `norms_violation` `true` are listed | every one's key has an override for that flag | holdout |
-| AC-16 | `activity_overrides.csv` and the seven files | each override row is checked | its `isin` appears in a file with exactly its `name`; `activity` is one of the eight activities, `controversial_weapons` or `norms_violation`; `reason` is not blank; `share` lies in its activity's override range (flags: 1) | holdout |
-| AC-17 | `activity_overrides.csv` | it is read | every ISIN listed in "Controversial revenue" has a row with that activity (oil and gas: one `oil` and one `gas` row) | holdout |
+| AC-16 | `activity_overrides.csv` and the seven files | each override row is checked | its `isin` appears in a file with exactly its `name` and is not in the list (Amendment A); `activity` is one of the eight activities, `controversial_weapons` or `norms_violation`; `reason` is not blank; `share` lies in its activity's override range (flags: 1) | holdout |
+| AC-17 | `activity_overrides.csv`; the list in "Controversial revenue" as amended (RU0007661625 removed, Amendment A; its absence is AC-100) | it is read | every ISIN listed in "Controversial revenue" has a row with that activity (oil and gas: one `oil` and one `gas` row) | holdout |
 | AC-18 | The dataset | rows whose key has an override for an activity are read | the share equals the override's `share` | holdout |
 | AC-19 | The dataset | every revenue-share column is read | every value is between 0 and 1 | holdout |
 | AC-20 | The dataset | rows are grouped by company | rows of one company have equal values in every column except `isin`, `company_id`, `files` | holdout |
@@ -447,4 +517,47 @@ a shared ISIN, as "Key" defines it (2,530 today). "The e2e stack" is `backend/sc
 | AC-74 | Same | `bi_published` `portfolio_climate_metrics` rows for 2026-11 of `portfolio_dax` are read | keys `grade_a_weight_pct` to `grade_f_weight_pct`, each a share of the weight of graded holdings, summing to 100 within 0.1 percentage points | holdout |
 | AC-75 | Same | the `bi.company_profile` view is queried for `transition_grade` in 2026-11 | a text column holds the grade letter for every dataset company | holdout |
 
-Rows by PR: PR 1 AC-1 to AC-28; PR 2 AC-30 to AC-61; PR 3 AC-70 to AC-75.
+| AC-80 | The list and the seven files (Amendment A1) | the list is read | header `isin,name,reason`; its ISINs are exactly the equity ISINs (`Aktien`, `Equities`, `Depository Receipts`, `Preferred Stock`) of the files that have at least one numeric `Weighting` and whose every numeric `Weighting` is below 0.000001 (15 today) | holdout |
+| AC-81 | The committed dataset and the list | the dataset's `isin` column is read | no ISIN of the list appears | holdout |
+| AC-82 | `<dir>` = a copy of the seven files plus a `written_off.csv` holding only the row of RU0007661625 | `arp showcase simulate --holdings-dir <dir> --out <tmp>` | exit 0; `<tmp>` has one data row per distinct equity ISIN of the files minus 1 (2,537 today), none with ISIN RU0007661625 | holdout |
+| AC-83 | `<dir>` = a copy of the seven files without `written_off.csv` | `arp showcase simulate --holdings-dir <dir> --out <tmp>` | exit 0; `<tmp>` has one data row per distinct equity ISIN of the files (2,538 today) | holdout |
+| AC-84 | A copy of `activity_overrides.csv` with the added row `RU0007661625,GAZPROM PJSC,gas,0.50,test` | `arp showcase simulate --overrides <copy> --out <tmp>` | exit 1; stderr contains `RU0007661625` and `written off` | holdout |
+| AC-85 | The committed dataset (Amendment A2) | the eight revenue shares of every row are summed as written, in decimal | every sum is at most 1.0000 | holdout |
+| AC-86 | Same | the row of AEA007301012 (`ADNOC DRILLING COMPANY`, no override) is read | `oil_revenue_pct` 0.6183, `gas_revenue_pct` 0.3817, the other six 0.0000 | holdout |
+| AC-87 | Same | the row of CNE000000WV6 (`YANKUANG ENERGY GROUP A`, `coal` override 0.85) is read | `coal_revenue_pct` 0.8500, `oil_revenue_pct` 0.1500, the other six 0.0000 | holdout |
+| AC-88 | Same | the row of CNE1000002R0 (`CHINA SHENHUA ENERGY LTD H`, `coal` override 0.70) is read | `coal_revenue_pct` 0.7000, `oil_revenue_pct` 0.1257, `gas_revenue_pct` 0.1743, the other five 0.0000 | holdout |
+| AC-89 | Must not change: same | the row of AN8068571086 (`SLB`, shares summing below 1) is read | `oil_revenue_pct` 0.7811, `gas_revenue_pct` 0.1472, the other six 0.0000 | holdout |
+| AC-90 | A copy of `activity_overrides.csv` with the added row `US7181721090,PHILIP MORRIS INTERNATIONAL,alcohol,0.30,test` (its `tobacco` override is 0.95, so 1.25) | `arp showcase simulate --overrides <copy> --out <tmp>` | exit 1; stderr contains `overrides: the activity shares of US7181721090 (PHILIP MORRIS INTERNATIONAL) add up to 1.2500, more than 1` | holdout |
+| AC-91 | A fresh e2e stack on which only the loader ran (Amendment A1) | companies `isin_<ISIN>` are looked up for every ISIN of the list | none exists | holdout |
+| AC-92 | Same as AC-91 | the holdings of every snapshot of the seven portfolios of AC-43 are read | no holding's security has an ISIN of the list | holdout |
+| AC-93 | The e2e stack, the seven files imported with `import-constituents` as in AC-36, then the loader ran | the 2026-11-02 snapshot of `portfolio_msci_em` is read | none of the 13 MSCI EM ISINs of the list is held | holdout |
+| AC-94 | Must not change: a fresh e2e stack, the loader has not run | `arp portfolio import-constituents data/holdings/MSCI_EM.xlsx` runs | the 2026-11-02 snapshot of `portfolio_msci_em` holds all 13 MSCI EM ISINs of the list (the import does not read the list) | holdout |
+| AC-95 | The e2e stack (default `holdings_dir`), the committed list | `GET /api/index/universes/file:MSCI_EM` | 200; the last entry of `notes` is `Written-off lines not offered (index weight below 0.0001 %): 13.` | holdout |
+| AC-96 | Same | same | the `Simulated ESG data` note reads `matched <n> of <n> companies.` with both numbers equal to `company_count` | holdout |
+| AC-97 | Must not change: same | `GET /api/index/universes/file:DAX` | `notes` has exactly 4 entries, none starting `Written-off` | holdout |
+| AC-98 | `holdings_dir` with a `written_off.csv` listing RU0007661625; a stored portfolio `p1` whose latest snapshot holds an equity security of company `isin_RU0007661625` (weight_pct 10) and one of company `c_b` (weight_pct 90) | `GET /api/index/universes/portfolio:p1` | `company_count` 1; `notes[1]` `Dropped 0 lines: 0 cash, 0 other asset class, 0 zero or negative weight, 0 without a weight, 0 not linked to a company.`; the last note `Written-off lines not offered (index weight below 0.0001 %): 1.` | unit |
+| AC-99 | Must not change: `holdings_dir` = a directory with one file `X.xlsx` (DAX layout, two equity lines with positive weights) and no `written_off.csv` | `GET /api/index/universes/file:X` | `company_count` 2; no note starts `Written-off` | unit |
+| AC-100 | `activity_overrides.csv` (Amendment A1) | it is read | no row has `isin` RU0007661625 | holdout |
+| AC-101 | The list and the seven files | each row of the list is read | its `name` is a `Name` of its ISIN in a file | holdout |
+| AC-102 | The list | each row is read | `reason` is not blank | holdout |
+| AC-103 | The e2e stack (default `holdings_dir`), the committed list | `GET /api/index/universes/file:MSCI_World` | 200; the last entry of `notes` is `Written-off lines not offered (index weight below 0.0001 %): 2.` | holdout |
+
+Rows by PR: PR 1 AC-1 to AC-28; PR 2 AC-30 to AC-61; PR 3 AC-70 to AC-75; PR 4 (Amendment A) AC-80 to AC-103
+and the amended AC-1, AC-16, AC-17, which PR 4 makes pass again.
+
+**When the hidden tests change:** the test-writer updates AC-1, AC-16 and AC-17 and adds AC-80 to AC-103 only
+after PR 2 (#434) has merged, so the Holdout job on #434 still runs the approved rows; PR 4 is the first PR
+the amended tests run on.
+
+Amendment A, rows by kind (for the test-writer; derived from row ids and wording only):
+
+- **Changed, hidden test needs an update:** AC-1 (`<N>` excludes the list), AC-16 (override ISIN not in the
+  list), AC-17 (RU0007661625 out of the required list).
+- **Wording unchanged, now read against the amended dataset or loader; no test update expected:** AC-2 (the
+  committed file is regenerated), AC-3 to AC-15, AC-18 to AC-27, AC-31 (`import-constituents` on DAX, no
+  listed line), AC-38 (`import-constituents`, the 14 all-`N/A` ISINs are not on the list), AC-45 (the
+  loader's MSCI World snapshots both lack the 2 listed ISINs; ratios and sums unaffected), AC-49 and AC-52
+  ("each dataset company" is now 2,515 companies). A hidden test of these that hard-codes 2,538 or 2,530, or
+  a Gazprom row, needs the update too.
+- **New:** AC-80 to AC-97 and AC-100 to AC-103 (holdout), AC-98 and AC-99 (unit).
+- **Removed:** none.

@@ -19,9 +19,21 @@ Tables earlier versions wrote and no model defines any more (`company_records`,
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Float, ForeignKey, Index, String, UniqueConstraint, Uuid
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -251,3 +263,238 @@ class BiPublishedModel(Base):
     dataset: Mapped[str] = mapped_column(String)
     month: Mapped[str] = mapped_column(String)
     row: Mapped[dict] = mapped_column(JSONB)
+
+
+# Stewardship engagements and the vote ledger. Every table has `source` + `external_id` (unique
+# together). `target_date` stays Text: the API and old files hold free-form ISO strings;
+# every real timestamp is timestamptz.
+STEWARDSHIP_TABLES = (
+    "stw_companies",
+    "stw_engagements",
+    "stw_objectives",
+    "stw_activities",
+    "stw_commitments",
+    "stw_contacts",
+    "stw_transitions",
+    "stw_events",
+    "vote_meetings",
+    "vote_items",
+    "vote_decisions",
+)
+
+
+def _src() -> Mapped[str]:
+    return mapped_column(Text, nullable=False, default="app")
+
+
+def _ext() -> Mapped[str | None]:
+    return mapped_column(Text, nullable=True)
+
+
+def _ts() -> Mapped[datetime | None]:
+    return mapped_column(DateTime(timezone=True), nullable=True)
+
+
+def _text() -> Mapped[str | None]:
+    return mapped_column(Text, nullable=True)
+
+
+def _fk(table: str, column: str, nullable: bool = False) -> Mapped[str]:
+    return mapped_column(Text, ForeignKey(f"{table}.{column}"), nullable=nullable)
+
+
+def _src_unique(table: str) -> UniqueConstraint:
+    return UniqueConstraint("source", "external_id", name=f"uq_{table}_source_external_id")
+
+
+class StwCompanyModel(Base):
+    __tablename__ = "stw_companies"
+    __table_args__ = (_src_unique(__tablename__),)
+
+    company_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source: Mapped[str] = _src()
+    external_id: Mapped[str | None] = _ext()
+    name: Mapped[str | None] = _text()
+    sector: Mapped[str | None] = _text()
+    created_at: Mapped[datetime | None] = _ts()
+    updated_at: Mapped[datetime | None] = _ts()
+
+
+class StwEngagementModel(Base):
+    __tablename__ = "stw_engagements"
+    __table_args__ = (_src_unique(__tablename__), Index("ix_stw_engagements_company_id", "company_id"))
+
+    engagement_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source: Mapped[str] = _src()
+    external_id: Mapped[str | None] = _ext()
+    company_id: Mapped[str] = _fk("stw_companies", "company_id")
+    theme: Mapped[str | None] = _text()
+    fir_theme: Mapped[str | None] = _text()
+    esg_pillars: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, server_default="{}")
+    rationale: Mapped[str | None] = _text()
+    engager_role: Mapped[str | None] = _text()
+    started_at: Mapped[datetime | None] = _ts()
+    status: Mapped[str | None] = _text()
+    severity: Mapped[str | None] = _text()
+    trigger_source: Mapped[str | None] = _text()
+    source_detail: Mapped[str | None] = _text()
+    milestone_stage: Mapped[str | None] = _text()
+    escalation_stage: Mapped[str | None] = _text()
+    tags: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, server_default="{}")
+
+
+class StwObjectiveModel(Base):
+    __tablename__ = "stw_objectives"
+    __table_args__ = (_src_unique(__tablename__), Index("ix_stw_objectives_engagement_id", "engagement_id"))
+
+    objective_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source: Mapped[str] = _src()
+    external_id: Mapped[str | None] = _ext()
+    engagement_id: Mapped[str] = _fk("stw_engagements", "engagement_id")
+    description: Mapped[str | None] = _text()
+    objective_type: Mapped[str | None] = _text()
+    status: Mapped[str | None] = _text()
+    result: Mapped[str | None] = _text()
+    receptiveness: Mapped[str | None] = _text()
+    escalated: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    follows_objective_id: Mapped[str | None] = _fk("stw_objectives", "objective_id", nullable=True)
+    started_at: Mapped[datetime | None] = _ts()
+    target_date: Mapped[str | None] = _text()
+    closed_at: Mapped[datetime | None] = _ts()
+    outcome: Mapped[str | None] = _text()
+    influence_level: Mapped[str | None] = _text()
+    influence_evidence: Mapped[str | None] = _text()
+    evidence_url: Mapped[str | None] = _text()
+
+
+class StwActivityModel(Base):
+    __tablename__ = "stw_activities"
+    __table_args__ = (
+        _src_unique(__tablename__),
+        Index("ix_stw_activities_engagement_id", "engagement_id"),
+        Index("ix_stw_activities_objective_id", "objective_id"),
+    )
+
+    activity_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source: Mapped[str] = _src()
+    external_id: Mapped[str | None] = _ext()
+    engagement_id: Mapped[str] = _fk("stw_engagements", "engagement_id")
+    objective_id: Mapped[str | None] = _fk("stw_objectives", "objective_id", nullable=True)
+    occurred_at: Mapped[datetime | None] = _ts()
+    type: Mapped[str] = mapped_column(Text, default="other", server_default="other")  # today's CorrespondenceEntry.type
+    activity_type: Mapped[str | None] = _text()
+    interaction_type: Mapped[str | None] = _text()
+    is_initiation: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    summary: Mapped[str | None] = _text()
+    doc_ref: Mapped[str | None] = _text()
+    logged_by: Mapped[str | None] = _text()
+
+
+class StwCommitmentModel(Base):
+    __tablename__ = "stw_commitments"
+    __table_args__ = (_src_unique(__tablename__), Index("ix_stw_commitments_engagement_id", "engagement_id"))
+
+    commitment_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source: Mapped[str] = _src()
+    external_id: Mapped[str | None] = _ext()
+    engagement_id: Mapped[str] = _fk("stw_engagements", "engagement_id")
+    objective_id: Mapped[str | None] = _fk("stw_objectives", "objective_id", nullable=True)
+    text: Mapped[str] = mapped_column(Text)
+    made_at: Mapped[datetime | None] = _ts()
+    target_date: Mapped[str | None] = _text()
+    recorded_by: Mapped[str | None] = _text()
+    status: Mapped[str] = mapped_column(Text, default="open", server_default="open")
+    validated_by: Mapped[str | None] = _text()
+    validated_at: Mapped[datetime | None] = _ts()
+    evidence: Mapped[str | None] = _text()
+
+
+class StwContactModel(Base):
+    __tablename__ = "stw_contacts"
+    __table_args__ = (_src_unique(__tablename__), Index("ix_stw_contacts_company_id", "company_id"))
+
+    contact_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source: Mapped[str] = _src()
+    external_id: Mapped[str | None] = _ext()
+    company_id: Mapped[str] = _fk("stw_companies", "company_id")
+    name: Mapped[str] = mapped_column(Text)
+    role: Mapped[str | None] = _text()
+    email: Mapped[str | None] = _text()
+    phone: Mapped[str | None] = _text()
+    last_contacted_at: Mapped[datetime | None] = _ts()
+
+
+class StwTransitionModel(Base):
+    __tablename__ = "stw_transitions"
+    __table_args__ = (_src_unique(__tablename__), Index("ix_stw_transitions_engagement_id", "engagement_id"))
+
+    transition_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source: Mapped[str] = _src()
+    external_id: Mapped[str | None] = _ext()
+    engagement_id: Mapped[str] = _fk("stw_engagements", "engagement_id")
+    kind: Mapped[str] = mapped_column(Text)  # milestone | escalation
+    stage: Mapped[str | None] = _text()
+    changed_at: Mapped[datetime | None] = _ts()
+    decided_by: Mapped[str | None] = _text()
+    reason: Mapped[str | None] = _text()
+
+
+class StwEventModel(Base):
+    __tablename__ = "stw_events"
+    __table_args__ = (_src_unique(__tablename__), Index("ix_stw_events_company_id", "company_id"))
+
+    event_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    source: Mapped[str] = _src()
+    external_id: Mapped[str | None] = _ext()
+    company_id: Mapped[str | None] = _text()  # no FK: the log outlives the company row
+    event_type: Mapped[str] = mapped_column(Text)
+    detail: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    at: Mapped[datetime | None] = _ts()
+
+
+class VoteMeetingModel(Base):
+    __tablename__ = "vote_meetings"
+    __table_args__ = (_src_unique(__tablename__), Index("ix_vote_meetings_company_id", "company_id"))
+
+    meeting_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source: Mapped[str] = _src()
+    external_id: Mapped[str | None] = _ext()
+    company_id: Mapped[str | None] = _fk("stw_companies", "company_id", nullable=True)
+    issuer_name: Mapped[str | None] = _text()
+    isin: Mapped[str | None] = _text()
+    cusip: Mapped[str | None] = _text()
+    meeting_date: Mapped[datetime | None] = _ts()
+    meeting_type: Mapped[str | None] = _text()
+
+
+class VoteItemModel(Base):
+    __tablename__ = "vote_items"
+    __table_args__ = (_src_unique(__tablename__), Index("ix_vote_items_meeting_id", "meeting_id"))
+
+    item_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source: Mapped[str] = _src()
+    external_id: Mapped[str | None] = _ext()
+    meeting_id: Mapped[str] = _fk("vote_meetings", "meeting_id")
+    item_number: Mapped[str | None] = _text()
+    description: Mapped[str | None] = _text()
+    categories: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, server_default="{}")
+    proponent: Mapped[str | None] = _text()
+    management_recommendation: Mapped[str | None] = _text()
+
+
+class VoteDecisionModel(Base):
+    __tablename__ = "vote_decisions"
+    __table_args__ = (_src_unique(__tablename__), Index("ix_vote_decisions_item_id", "item_id"))
+
+    decision_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source: Mapped[str] = _src()
+    external_id: Mapped[str | None] = _ext()
+    item_id: Mapped[str] = _fk("vote_items", "item_id")
+    vote: Mapped[str] = mapped_column(Text)
+    vote_label: Mapped[str | None] = _text()
+    against_management: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    shares_voted: Mapped[float | None] = mapped_column(Float, nullable=True)
+    rationale: Mapped[str | None] = _text()
+    decided_by: Mapped[str | None] = _text()
+    decided_at: Mapped[datetime | None] = _ts()
+    run_id: Mapped[str | None] = _text()

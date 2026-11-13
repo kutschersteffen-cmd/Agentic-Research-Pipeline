@@ -52,11 +52,6 @@ All state comes from GitHub, so a fresh session can always pick up:
 its stage, the session ids you started and the PR links. If the board tools are missing, carry on
 and say so once.
 
-## Before starting a feature
-
-Count open PRs from agent branches (`ccr-*`, `claude/*`) without `factory:blocked`. At three or more,
-don't start: say so and stop (steward rule 4).
-
 ## Starting a stage
 
 Start each stage with `create_session` on `https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline`,

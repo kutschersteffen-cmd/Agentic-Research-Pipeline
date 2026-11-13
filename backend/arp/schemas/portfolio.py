@@ -8,7 +8,7 @@ from arp.schemas.common import new_id, now_iso
 
 AssetClass = Literal["equity", "corporate_bond", "government_bond", "fund", "etf", "derivative", "cash", "other"]
 AggregationMetric = Literal["market_value_sum", "weighted_avg_datapoint", "count"]
-DataPointObservationSource = Literal["internal_api", "extracted", "catalogue", "estimated_proxy"]
+DataPointObservationSource = Literal["internal_api", "extracted", "catalogue", "estimated_proxy", "simulated"]
 
 
 class SecurityRef(BaseModel):

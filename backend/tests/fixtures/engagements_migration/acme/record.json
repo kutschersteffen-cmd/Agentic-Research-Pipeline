@@ -1,0 +1,120 @@
+{
+  "company_id": "acme",
+  "name": "Acme Corp",
+  "sector": "Industrials",
+  "contacts": [],
+  "issues": [
+    {
+      "issue_id": "iss_e809b0ac2683",
+      "theme": "executive_compensation",
+      "opened_at": "2026-11-12T22:29:44.954446+00:00",
+      "status": "open",
+      "severity": "high",
+      "source": "manual",
+      "source_detail": "Say-on-pay 41% support",
+      "milestone_stage": "contacted",
+      "milestone_history": [
+        {
+          "stage": "contacted",
+          "changed_at": "2026-11-12T22:29:44.963212+00:00",
+          "reason": "Company replied"
+        }
+      ],
+      "escalation_stage": "joint_engagement",
+      "escalation_history": [
+        {
+          "stage": "joint_engagement",
+          "changed_at": "2026-11-12T22:29:44.964488+00:00",
+          "decided_by": "pm_lead",
+          "reason": "No reply to second letter"
+        }
+      ],
+      "correspondence": [
+        {
+          "entry_id": "corr_1",
+          "date": "2025-03-04T10:00:00+00:00",
+          "type": "letter",
+          "summary": "Letter to the remuneration chair",
+          "doc_ref": null,
+          "logged_by": "analyst",
+          "interaction_type": null,
+          "objective_id": null,
+          "activity_type": null,
+          "is_initiation": false
+        },
+        {
+          "entry_id": "corr_2",
+          "date": "2025-03-20T14:30:00+00:00",
+          "type": "call",
+          "summary": "Call with IR on pay design",
+          "doc_ref": null,
+          "logged_by": "analyst",
+          "interaction_type": null,
+          "objective_id": null,
+          "activity_type": null,
+          "is_initiation": false
+        }
+      ],
+      "commitments": [
+        {
+          "commitment_id": "cmt_1",
+          "text": "Publish clawback policy",
+          "made_at": "2025-05-01T00:00:00+00:00",
+          "target_date": "2025-09-30",
+          "recorded_by": "analyst",
+          "status": "open",
+          "validated_by": null,
+          "validated_at": null
+        }
+      ],
+      "tags": [
+        "executive_compensation"
+      ],
+      "fir_theme": null,
+      "esg_pillars": [],
+      "rationale": "",
+      "engager_role": "bilateral",
+      "objectives": [],
+      "data_source": "app"
+    },
+    {
+      "issue_id": "iss_72fda15fc980",
+      "theme": "board_governance",
+      "opened_at": "2026-11-12T22:29:44.955170+00:00",
+      "status": "open",
+      "severity": "medium",
+      "source": "manual",
+      "source_detail": "",
+      "milestone_stage": "identified",
+      "milestone_history": [],
+      "escalation_stage": "private_engagement",
+      "escalation_history": [],
+      "correspondence": [
+        {
+          "entry_id": "corr_7",
+          "date": "2025-06-10T08:30:00+00:00",
+          "type": "email",
+          "summary": "Request for board skills matrix",
+          "doc_ref": null,
+          "logged_by": "analyst",
+          "interaction_type": null,
+          "objective_id": null,
+          "activity_type": null,
+          "is_initiation": false
+        }
+      ],
+      "commitments": [],
+      "tags": [
+        "board_governance"
+      ],
+      "fir_theme": null,
+      "esg_pillars": [],
+      "rationale": "",
+      "engager_role": "bilateral",
+      "objectives": [],
+      "data_source": "app"
+    }
+  ],
+  "created_at": "2026-11-12T22:29:44.589869+00:00",
+  "updated_at": "2026-11-12T22:29:44.964508+00:00"
+}

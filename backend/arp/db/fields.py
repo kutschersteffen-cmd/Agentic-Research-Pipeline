@@ -201,7 +201,7 @@ class SchemaRegistry:
             rows = s.scalars(select(m.DataSchema).where(m.DataSchema.body.is_not(None)).order_by(m.DataSchema.saved_at)).all()
             return [
                 {"schema_id": r.schema_id, "version": r.version, "name": r.name,
-                 "release_flag": r.release_flag, "saved_at": r.saved_at.isoformat()}
+                 "release_flag": r.release_flag, "saved_at": r.saved_at.isoformat(), "field_count": len(r.body.get("fields", []))}
                 for r in rows
             ]
 

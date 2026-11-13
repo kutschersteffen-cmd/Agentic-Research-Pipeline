@@ -562,6 +562,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/climate/simulated-schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Simulated Schema
+         * @description The fields of the SIMULATED ESG dataset (not real ESG data).
+         */
+        get: operations["simulated_schema_api_climate_simulated_schema_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/companies": {
         parameters: {
             query?: never;
@@ -13699,11 +13719,8 @@ export interface components {
         };
         /** MonthlyRunRequest */
         MonthlyRunRequest: {
-            /**
-             * Esg Provider
-             * @default default
-             */
-            esg_provider: string;
+            /** Esg Provider */
+            esg_provider?: string | null;
             /** Month */
             month: string;
             /** Portfolio Ids */
@@ -19593,6 +19610,26 @@ export interface operations {
         };
     };
     climate_schema_api_climate_schema_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataPointSchema"];
+                };
+            };
+        };
+    };
+    simulated_schema_api_climate_simulated_schema_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -25637,7 +25674,7 @@ export interface operations {
             query: {
                 month: string;
                 portfolio_ids?: string[] | null;
-                esg_provider?: string;
+                esg_provider?: string | null;
             };
             header?: never;
             path?: never;
