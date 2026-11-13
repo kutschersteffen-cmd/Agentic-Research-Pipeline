@@ -1,0 +1,3 @@
+{"event_type": "record_created", "at": "2026-11-12T22:29:44.955951+00:00"}
+{"event_type": "issue_opened", "at": "2026-11-12T22:29:44.956225+00:00", "issue_id": "iss_63e5da35685b", "theme": "climate_transition", "source": "manual"}
+{"event_type": "issue_opened", "at": "2026-11-12T22:29:44.956721+00:00", "issue_id": "iss_1f9d36b5e260", "theme": "lobbying_disclosure", "source": "manual"}

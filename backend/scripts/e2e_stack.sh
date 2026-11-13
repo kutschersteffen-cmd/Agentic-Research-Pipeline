@@ -13,6 +13,7 @@
 # ARP_*_dir settings if parallel runs ever need isolation.
 set -euo pipefail
 export ARP_POSTGRES_DSN=${ARP_POSTGRES_DSN:-postgresql+psycopg://arp:arp@localhost:5432/arp_test}
+export ARP_ENGAGEMENT_STORE=postgres
 export ARP_NEO4J_URI=${ARP_NEO4J_URI-bolt://localhost:7688} ARP_NEO4J_PASSWORD=${ARP_NEO4J_PASSWORD:-arp_neo4j_test}
 root=$(cd "$(dirname "$0")/../.." && pwd)
 state=${TMPDIR:-/tmp}/arp-e2e
