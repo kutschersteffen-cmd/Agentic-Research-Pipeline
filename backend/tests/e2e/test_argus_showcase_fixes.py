@@ -302,6 +302,20 @@ def test_row_actions_name_their_row_and_keep_keyboard_focus(page):
         assert table.get_by_role("button", name=f"Remove {name}", exact=True).count() == 1
     assert table.get_by_role("columnheader", name="Actions").count() == 1
 
+    # a Save or a Remove that fails leaves the keyboard on its button, not on the page
+    failing = {"on": True}
+    page.route(f"**/api/argus/flows/{fid}/companies/*", lambda route: route.fulfill(status=500, json={"detail": "store down"})
+               if failing["on"] and route.request.method in ("PUT", "DELETE") else route.continue_())
+    table.get_by_role("button", name=f"Edit {b}", exact=True).press("Enter")
+    page.get_by_role("form", name=f"Edit {b}").get_by_role("button", name="Save").press("Enter")
+    page.get_by_role("alert").filter(has_text="store down").wait_for()
+    assert page.evaluate("document.activeElement.textContent") == "Save"
+    page.get_by_role("form", name=f"Edit {b}").get_by_role("button", name="Cancel").press("Enter")
+    table.get_by_role("button", name=f"Remove {b}", exact=True).press("Enter")
+    page.get_by_role("alert").filter(has_text="store down").wait_for()
+    page.wait_for_function(FOCUSED, arg=f"Remove {b}")
+    failing["on"] = False
+
     table.get_by_role("button", name=f"Edit {a}", exact=True).press("Enter")
     page.get_by_role("form", name=f"Edit {a}").get_by_role("button", name="Cancel").press("Enter")
     page.wait_for_function(FOCUSED, arg=f"Edit {a}")  # Cancel: back on the row's Edit

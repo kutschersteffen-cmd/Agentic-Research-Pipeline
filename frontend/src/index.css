@@ -2257,7 +2257,9 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-companies td:first-child { white-space: normal; overflow-wrap: anywhere; }
 /* The open edit form is one form at a time, not a per-row action, so its Save stays the page's primary button. */
 .argus-companies .argus-one button[type="submit"] { background: var(--well); color: var(--muted); border: none; padding: 9px var(--s-4); font-size: var(--text-base); }
-.argus-companies .argus-one button[type="submit"]:not(:disabled) { background: var(--accent); color: var(--on-accent); }
+.argus-companies .argus-one button[type="submit"]:not([aria-disabled="true"]) { background: var(--accent); color: var(--on-accent); }
+.argus-companies .link-button[aria-disabled="true"] { color: var(--muted); }
+.argus-companies button[aria-disabled="true"] { cursor: not-allowed; }
 .argus-row-await > * { background: color-mix(in srgb, var(--await) 60%, transparent); }
 .argus-flow-actions { margin-top: var(--s-4); flex-wrap: wrap; white-space: normal; }
 .argus-progress-head, .argus-results-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s-3) var(--s-6); margin-bottom: var(--s-4); }

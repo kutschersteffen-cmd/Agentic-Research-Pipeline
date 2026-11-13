@@ -31,13 +31,14 @@ function EditCompanyRow({ company, busy, onSave, onCancel }: {
           aria-label={`Edit ${company.name}`}
           onSubmit={(e) => {
             e.preventDefault();
-            onSave(typedCompany(form));
+            if (!busy) onSave(typedCompany(form));
           }}
         >
           <fieldset>
             <legend>Edit {company.name}</legend>
             <CompanyFields value={form} onChange={setForm} />
-            <button type="submit" disabled={busy}>Save</button>
+            {/* aria-disabled, not disabled: a disabled button loses the keyboard's focus, and a Save that fails never gets it back */}
+            <button type="submit" aria-disabled={busy}>Save</button>
             <button type="button" className="link-button" onClick={onCancel}>Cancel</button>
           </fieldset>
         </form>
@@ -202,9 +203,9 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
                             type="button"
                             className="link-button"
                             aria-label={`Remove ${r.name}`}
-                            disabled={busy}
+                            aria-disabled={busy} // as Save: the button keeps the focus while, and after, a Remove fails
                             onClick={async () => {
-                              if (!(await act(() => api.removeFlowCompany(flow.flow_id, r.company_id)))) return;
+                              if (busy || !(await act(() => api.removeFlowCompany(flow.flow_id, r.company_id)))) return;
                               setEditing((e) => (e && i < e.row ? { ...e, row: e.row - 1 } : e)); // a form open further down moves up with its row
                               focusRow(neighbour(flow.rows, i)?.company_id);
                             }}
