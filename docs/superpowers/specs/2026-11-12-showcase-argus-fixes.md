@@ -379,7 +379,7 @@ that its database does not hold yet. "pipeline AC-n" is a row of
 | AC-87 | a saved draft schema with 4 fields whose `Look in` texts are 600 characters each; window 1280 × 800 | the schema is chosen in step 3 | the `What it means` and `Look in` columns are each at least 240 px wide | evaluator |
 | AC-88 | the state of AC-87 | the table is shown | each `Look in` cell shows at most 3 lines and a `Show more` button | evaluator |
 | AC-89 | the state of AC-87 | `Show more` is clicked in one cell | that cell shows its full text and a `Show less` button | evaluator |
-| AC-90 | a saved schema whose name is 60 letters without a space; window 1280 px wide | step 3 is shown | in the left list the whole name and its field count are readable, wrapped inside the card | evaluator |
+| AC-90 | a saved schema with 4 fields whose name is 60 letters without a space; window 1280 px wide | step 3 is shown | in the saved-schemas dropdown (`#argus-saved-schema`) the schema's option text holds the whole name and `4 fields`, and the dropdown fits inside its card | evaluator |
 | AC-91 | saved schemas A and B with 2 fields each; in A `Add field` named `Revenue` was saved and released | in B `Add field` named `Capex` is saved | B is saved with 3 fields and no error is shown | evaluator |
 | AC-92 | the state after AC-91 | schema A is opened | its third field is named `Revenue` | evaluator |
 | AC-93 | 1,000 field ids made by `Add field` | they are compared | all differ and none matches `field_<number>` | unit |
