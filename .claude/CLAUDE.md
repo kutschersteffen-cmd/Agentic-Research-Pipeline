@@ -6,7 +6,7 @@
 branch. `main` is protected: a PR merges only once its required CI checks are green.
 
 Agents driving a PR follow `.claude/skills/steward/SKILL.md`: a `risk:` label, a stop after three
-failed fix rounds, `factory:blocked` for spec questions, at most three agent PRs in flight. Once CI is
+failed fix rounds, `factory:blocked` for spec questions, one item per PR. Once CI is
 green, the `evaluator` skill checks the spec's `evaluator` rows in the running app.
 Hidden acceptance tests live in the private `holdout` repo, written by the `test-writer` skill in a
 session that never works on the implementation; the Holdout acceptance job runs them on PRs that say
@@ -250,7 +250,9 @@ Keep them out of `.claude/skills/`: a trusted workspace would load them from the
 - `runs-pane` — live pane of `arp runs list`, refreshed every 15 s; `/runs` refreshes now.
   Needs `ARP_POSTGRES_DSN` and the backend installed, else it shows the error.
 - `token-usage` — status line after each turn: context fill, session cost, rate-limit use
-  (`ctx 45k/200k (23%) · $1.23 · 5h 42%`).
+  (`ctx 45k/200k (23%) · $1.23 · 5h 42%`). When the current pace would use up a limit before it
+  resets, it adds `⚠ 5h out in ~40m` and shows a toast once per limit window: start fewer parallel
+  sessions or jobs until it clears. There is no cap on agent PRs in flight; this warning replaces it.
 
 Check one with `claude plugin validate .claude/mods/<mod>` and `claude plugin test .claude/mods/<mod>`.
 
