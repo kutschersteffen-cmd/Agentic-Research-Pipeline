@@ -446,6 +446,18 @@ def test_a_saved_schema_with_long_texts_keeps_its_layout(page):
                 scroll_width: el.scrollWidth, client_width: el.clientWidth, pointer_coarse: matchMedia('(pointer: coarse)').matches};
     }""")
     assert geo["text_right"] <= box["x"] + box["width"] + 1 and geo["button_right"] <= box["x"] + box["width"] + 1, (geo, box)
+    # every entry of the list, saved schemas and templates alike, ends inside the card: measured on the rendered text
+    pick.get_by_text("supporting figures").wait_for()  # the longest note, loaded last
+    outside = pick.locator(".argus-pick-list li").evaluate_all("""lis => {
+        const edge = lis[0].closest('section').getBoundingClientRect().right + 1;
+        return lis.flatMap(li => {
+            const range = document.createRange();
+            range.selectNodeContents(li);
+            const right = Math.max(...[...range.getClientRects()].map(r => r.right));
+            return right > edge ? [`${li.innerText.replace(/\\s+/g, ' ')} (+${Math.round(right - edge)} px)`] : [];
+        });
+    }""")
+    assert outside == [], outside
     page.set_viewport_size({"width": 390, "height": 800})  # the long name does not widen a phone's page either
     assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
 
