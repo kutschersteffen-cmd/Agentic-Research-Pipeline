@@ -62,7 +62,7 @@ import type {
 } from "../types";
 import { tagQuery } from "../lib/xbrlTags";
 import { encodeRef, factsUrl, type FactFilters } from "../pages/company/companyQuery";
-import type { CompanyFactRow, CompanySearchHit, CompanySummary, CompanyTransition, FactTrail, Taxonomy, ThemeLayers } from "../types";
+import type { CompanyFactRow, CompanySearchHit, CompanySummary, CompanyTransition, FactTrail, SimulatedObservation, Taxonomy, ThemeLayers } from "../types";
 import type {
   DatasetSummary,
   DecisionComparison,
@@ -497,6 +497,7 @@ export const api = {
   getCompanyFacts: (ref: string, filters: FactFilters) => request<CompanyFactRow[]>(factsUrl(ref, filters)),
   getFactTrail: (factId: number) => request<FactTrail>(`/api/facts/${factId}/trail`),
   getCompanyTransition: (ref: string) => request<CompanyTransition>(`/api/companies/${encodeRef(ref)}/transition`),
+  getSimulatedEsg: (ref: string) => request<SimulatedObservation[]>(`/api/companies/${encodeRef(ref)}/simulated-esg`),
 
   // Documents
   listDocuments: (companyId: string) => request(`/api/documents/${companyId}`),
