@@ -4,6 +4,7 @@ import type { PublishedDecision, RunDecision, RunScoringKind, TemplateMatch } fr
 import { ConfirmSignedIn } from "./ConfirmSignedIn";
 import { LevelOverrides } from "./LevelOverrides";
 import { activatable } from "../lib/activatable";
+import { plainError } from "../lib/argusFlow";
 
 interface PickerProps {
   runType: RunScoringKind;
@@ -41,7 +42,7 @@ export function ScoringTemplatePicker({ runType, fieldNames, presetFields, value
     names
       .then((field_names) => api.matchTemplates({ run_type: runType, field_names, ratified_only: true }))
       .then((m) => live && setMatches(m))
-      .catch((e: Error) => live && setError(e.message));
+      .catch((e: Error) => live && setError(plainError(e.message)));
     return () => {
       live = false;
     };

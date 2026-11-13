@@ -164,7 +164,7 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
               <tbody>
                 {flow.rows.map((r, i) => !locked && editing === r.company_id ? (
                   <EditCompanyRow
-                    key={r.central_id ?? r.company_id}
+                    key={r.company_id} // not the central id: a match found while the form is open must not reset it
                     company={flow.companies.find((c) => c.company_id === r.company_id)!}
                     busy={busy}
                     onCancel={() => (setEditing(null), focusRow(r.company_id))}
@@ -175,7 +175,7 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
                     }}
                   />
                 ) : (
-                  <tr key={r.central_id ?? r.company_id} data-row={r.company_id} className={r.problem ? "argus-row-await" : undefined}>
+                  <tr key={r.company_id} data-row={r.company_id} className={r.problem ? "argus-row-await" : undefined}>
                     <td data-label="Company">
                       <div>
                         <span className="xbrl-name">{r.name}</span>

@@ -226,6 +226,29 @@ def test_an_identity_run_that_ends_updates_step_1_without_a_reload(page):
     page.get_by_text("Identities resolved.").wait_for()  # AC-63
 
 
+def test_an_open_edit_form_keeps_what_was_typed_when_the_identity_run_ends(page):
+    fid = _flow(page.request, f"name\nAcme {TAG}k\n")
+    state = {"status": "running"}
+
+    def flow(route):  # as the server answers: once the run has ended the row is matched and gets its central id
+        r = route.fetch()
+        body = {**r.json(), "identity_run_id": "id-run", "identity": {"run_id": "id-run", "status": state["status"]}}
+        if state["status"] == "completed":
+            body["rows"] = [{**row, "problem": None, "central_id": "0c0ffee0-0000-4000-8000-000000000001"} for row in body["rows"]]
+        route.fulfill(response=r, json=body)
+
+    page.route(f"**/api/argus/flows/{fid}", flow)
+    page.goto(f"{URL}/#/argus/{fid}/1")
+    page.get_by_text("Identity run started.").wait_for()
+    page.get_by_role("button", name=f"Edit Acme {TAG}k", exact=True).click()
+    ticker = page.get_by_role("form", name=f"Edit Acme {TAG}k").get_by_label("Ticker", exact=True)
+    ticker.fill("ACM")
+    state["status"] = "completed"
+    page.get_by_text("Identities resolved.").wait_for()  # the poll that brings the central id has rendered
+    assert ticker.input_value() == "ACM"
+    assert page.evaluate("document.activeElement.value") == "ACM"  # and the keyboard is still in the field
+
+
 def test_saved_universes_with_the_same_name_differ_by_their_time(page):
     outs = [{"kind": "universe", "id": f"/u/{i}", "name": "Tech (3 companies)", "version": None, "as_of": f"2026-11-12T1{i}:15:00+00:00",
              "status": "saved", "by": None, "count": 3, "used_by": []} for i in (0, 1)]
@@ -383,6 +406,18 @@ def test_a_saved_schema_with_long_texts_keeps_its_layout(page):
     page.goto(f"{URL}/#/argus/{_flow(page.request)}/3")
     table = _choose(page, name)
     table.get_by_text("Meaning 3").wait_for()
+    # no word of a field name or an ordinary unit is broken across lines ("USD / milli / ons")
+    broken = table.locator('td[data-label="Field"], td[data-label="Unit"]').evaluate_all("""tds => tds.flatMap(td => {
+        const node = td.firstChild, out = [];
+        for (const m of (node && node.nodeType === 3 ? node.data : '').matchAll(/\\S+/g)) {
+            const r = document.createRange();
+            r.setStart(node, m.index);
+            r.setEnd(node, m.index + m[0].length);
+            if (r.getClientRects().length > 1) out.push(m[0]);
+        }
+        return out;
+    })""")
+    assert broken == [], broken
     # CI's fonts are wider than a laptop's: the layout must hold with them too, so widen the Type column's text
     page.add_style_tag(content=".argus-schema-fields td.mono { letter-spacing: 0.35em; }")
     widths = table.locator("thead th").evaluate_all("ths => ths.map(th => th.getBoundingClientRect().width)")

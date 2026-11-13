@@ -38,7 +38,7 @@ export function ArgusNew({ preset }: { preset: string | null }) {
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    openNewFlow({ preset }).catch((err) => setError((err as Error).message));
+    openNewFlow({ preset }).catch((err) => setError(plainError((err as Error).message)));
   }, [preset]);
   return (
     <div className="page">
@@ -64,6 +64,8 @@ export function ArgusStart() {
   const [canDelete, setCanDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [runsTable, focusRow] = useRowFocus();
+  const [deleting, setDeleting] = useState(false);
+  const gone = useRef(new Set<string>()); // drafts deleted here: a poll that began before the delete must not list them again
   const [onlyMine, setOnlyMine] = useState(false);
   const [step, setStep] = useState<number | null>(null);
   const [starting, setStarting] = useState(false);
@@ -73,7 +75,7 @@ export function ArgusStart() {
     try {
       const [r, f] = await Promise.all([listAllRuns(), api.listArgusFlows()]);
       setRuns(r);
-      setFlows(f.flows);
+      setFlows(f.flows.filter((x) => !gone.current.has(x.flow_id)));
       setError(null);
     } catch (err) {
       setError(plainError((err as Error).message));
@@ -111,13 +113,17 @@ export function ArgusStart() {
   }
   async function discard(flowId: string, next?: string) {
     if (!window.confirm("Delete this draft? Its company list and file choices are removed. Documents stay on the companies.")) return;
+    setDeleting(true);
     try {
       await api.discardArgusFlow(flowId);
+      gone.current.add(flowId);
       setFlows((fs) => fs.filter((f) => f.flow_id !== flowId));
       setDeleteError(null);
       focusRow(next);
     } catch (err) {
       setDeleteError(plainError((err as Error).message));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -222,7 +228,7 @@ export function ArgusStart() {
                       <span className="row-actions">
                         <a href={r.openHref}>Open</a>
                         {r.status === "Draft" && canDelete && (
-                          <button className="link-button" aria-label={`Delete draft ${r.names}`} onClick={() => void discard(r.runId, neighbour(shown, i)?.runId)}>
+                          <button className="link-button" aria-label={`Delete draft ${r.names}`} disabled={deleting} onClick={() => void discard(r.runId, neighbour(shown, i)?.runId)}>
                             Delete
                           </button>
                         )}
