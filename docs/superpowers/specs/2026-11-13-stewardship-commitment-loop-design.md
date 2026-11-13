@@ -123,8 +123,8 @@ null, `status` `pending`, `created_at` `now()`. Every other column is nullable u
 | `text` | text null | `new_commitment`: the commitment as Argus words it |
 | `proof_statement` | text null | `new_commitment`: suggested proof statement, may be null |
 | `target_date` | text null | `new_commitment`: `YYYY-MM-DD` when the note states one, else null |
-| `doc_id`, `doc_type`, `doc_title` | text null | `verdict`: the document checked |
-| `quote` | text not null | the passage, re-found in the document or note before the row is written |
+| `doc_id`, `doc_type`, `doc_title` | text null | `verdict`: the document checked; `doc_title` = `SourceDocument.title` (the file name for local and uploaded files) |
+| `quote` | text not null | the model's quote as returned; grounding only decides whether the row is written |
 | `page` | int null | from grounding, never from the model |
 | `reason` | text null | the model's one-line reason, shown under the quote |
 | `status` | text | `pending`, `confirmed`, `rejected` |
@@ -230,7 +230,9 @@ is not grounded in the activity's `summary` (counted `ungrounded`), and one whos
   - `new_commitment`, body `{"text"?, "proof_statement"?, "target_date"?}` (each overrides the suggestion) → a new
     commitment on the activity's engagement (`made_at` = the activity's `occurred_at`, `recorded_by` = the user),
     and `created_commitment_id` is set. Without a `target_date` in either the suggestion or the body → 422
-    `A due date is required to add a commitment.`
+    `A due date is required to add a commitment.` A body `target_date` that is not `YYYY-MM-DD` → 422
+    `target_date must be an ISO date` (as `/tracking/commitments` answers today). Both leave the suggestion
+    `pending` (AC-75).
   - The commitment is no longer `open` → 409 `Commitment is no longer open.`, the suggestion stays `pending`
     (AC-56). It can still be rejected.
 - `POST /api/stewardship/commitment-proposals/{proposal_id}/reject`, body `{"reason": "…"}`. Blank reason → 422
@@ -246,7 +248,8 @@ is not grounded in the activity's `summary` (counted `ungrounded`), and one whos
 
 ## What the user sees
 
-On `#/engagement`, in the issue panel (`EngagementIssuePanel.tsx`), Commitments section. Dates are `YYYY-MM-DD`.
+On `#/engagement`, in the issue panel (`EngagementIssuePanel.tsx`), Commitments section. Dates are the UTC date: the first 10 characters of the stored ISO value, never converted to
+the browser's time zone.
 
 - A commitment with a proof statement shows the line `Proof: <proof_statement>` under its text.
 - An `open` commitment has a button **Check against documents** next to **Verify**. After it runs, one line under
@@ -332,7 +335,7 @@ in `ballot_casting.py` stay as they are.
      UI yet: nothing creates suggestions until PR 2). Rows AC-1 to AC-5, AC-12, AC-13, AC-49, AC-51, AC-52, AC-60,
      AC-67. The confirm and reject holdout rows need suggestions, which only PR 2 can create, so they run from PR 2.
   2. The check (event hook and button), find-commitments, the golden set and command, and all suggestion UI.
-     Rows AC-6 to AC-11, AC-14 to AC-39, AC-54 to AC-59, AC-61 to AC-66, AC-68 to AC-74.
+     Rows AC-6 to AC-11, AC-14 to AC-39, AC-54 to AC-59, AC-61 to AC-66, AC-68 to AC-75.
   3. `commitment_flags`, `commitment_flags_by_company`, `CompanyBallot.commitment_flags` and the banner.
      Rows AC-40 to AC-48, AC-50, AC-53 (the last PR drops the `Rows:` line).
 
@@ -358,8 +361,13 @@ precision is 0.
 `ARP_STANDINS_DIR=<dir>`. They drive the app through its API and pages only:
 
 - Each test uses a new `company_id`, so uploaded documents from other tests never count.
-- A company: `POST /api/engagement/records`. Engagements and activities, with their dates and types:
-  `POST /api/stewardship/intake/engagements` (`stewardship-data-foundation` PR 2). Commitments:
+- A company: `POST /api/engagement/records` first. An engagement without activities:
+  `POST /api/engagement/records/{company_id}/issues?name=…` (on `main`; returns `issue_id`). An engagement with a
+  call, meeting or email activity: `POST /api/stewardship/intake/engagements` (`stewardship-data-foundation` PR 2)
+  with an `engagements` row (`external_id`, `company_id`, `theme`) and an `activities` row (`external_id`,
+  `engagement_external_id`, `occurred_at`, `activity_type`, `summary`). Every `external_id` in a batch starts with
+  the test's `company_id`. Intake returns no ids: `GET /api/engagement/records/{company_id}` gives them
+  (`issues[].issue_id` is the `engagement_id`, `issues[].correspondence[].entry_id` the `activity_id`). Commitments:
   `POST /api/stewardship/tracking/commitments`; status changes: `POST /api/stewardship/tracking/commitments/{id}`;
   closing an engagement: `POST /api/stewardship/tracking/close`.
 - "A document for the company": a `.txt` file `AR2026.txt` uploaded with `POST /api/documents/upload`
@@ -412,13 +420,14 @@ precision is 0.
 | AC-56 | A pending met suggestion on C, then C set to `verified` through `POST /api/stewardship/tracking/commitments/{C}` with evidence | Confirm | Status 409, detail `Commitment is no longer open.`; the pending list still holds the suggestion | holdout |
 | AC-28 | A `meeting` activity (`occurred_at` 2026-10-01) whose summary contains `The CFO committed to publish a transition plan by 31 March 2027.`; the find stand-in returns one commitment, text `Publish a transition plan`, that sentence as quote, `target_date` `2027-03-31` | `POST /api/stewardship/activities/{id}/find-commitments` | Status 200, body `{"proposals": 1, "ungrounded": 0, "skipped": 0}` | holdout |
 | AC-64 | AC-28 done | `GET .../commitment-proposals?company_id=…` | One suggestion: `kind` `new_commitment`, `text` `Publish a transition plan`, `target_date` `2027-03-31`, that quote | holdout |
-| AC-29 | As AC-28 but the stand-in quote is not in the summary | Find | Body `{"proposals": 0, "ungrounded": 1, "skipped": 0}` | holdout |
+| AC-29 | As AC-28 but the stand-in quote is `The CEO promised a new climate policy.` | Find | Body `{"proposals": 0, "ungrounded": 1, "skipped": 0}` | holdout |
 | AC-30 | An `email` activity | Find | Status 409, detail `Commitments are only looked for in call and meeting notes.` | holdout |
 | AC-31 | AC-28 done | Find again | Body `{"proposals": 0, "ungrounded": 0, "skipped": 1}` | holdout |
 | AC-32 | AC-28 done | `GET /api/engagement/records/{company_id}` | The engagement's commitment count is the same as before the find | holdout |
 | AC-15 | AC-28 with the stand-in `target_date` null | Confirm the suggestion with `{"target_date": "2027-03-31"}` | Status 200; the engagement has a new commitment with text `Publish a transition plan`, `target_date` `2027-03-31`, `made_at` starting `2026-10-01`, `recorded_by` the user | holdout |
 | AC-61 | AC-15 done | `GET …&status=confirmed` | The suggestion's `created_commitment_id` is the new commitment's `commitment_id` | holdout |
 | AC-16 | As AC-15 | Confirm with `{}` | Status 422, detail `A due date is required to add a commitment.`; the engagement's commitment count is unchanged | holdout |
+| AC-75 | As AC-15 | Confirm with `{"target_date": "31.03.2027"}` | Status 422, detail `target_date must be an ISO date`; the pending list still holds the suggestion | holdout |
 | AC-25 | A company with one open commitment on an open engagement and a registered document; `commitment_check_on_new_documents` true; check stand-in returns met with a quote from that document | `ChangeDetector.diff_and_record` gets that document (same `local_path`) as new | One pending `verdict` suggestion with that document's `doc_id` | unit |
 | AC-69 | As AC-25, the document already in the manifest with a different `sha256` | Same (an `updated_document` event) | One pending `verdict` suggestion with that document's `doc_id` | unit |
 | AC-26 | As AC-25 with `commitment_check_on_new_documents` false and event refresh off | Same | No suggestion, and `calls.jsonl` has no `CommitmentCheckDraft` call | unit |
@@ -448,7 +457,7 @@ precision is 0.
 | AC-53 | AC-40's data on a file `EngagementStore` | `commitment_flags` | The same flag as AC-40 | unit |
 | AC-45 | A `proxy_voting` run's ballots seeded through `RunStore`, one ballot for a company with AC-40's overdue commitment | `GET /api/voting/runs/{run_id}/ballots` | That ballot's `commitment_flags` equals `commitment_flags(store, company_id)` as JSON | unit |
 | AC-46 | As AC-45, a second ballot for a company without flags | `GET .../ballots` | That ballot's `commitment_flags` is `[]` | unit |
-| AC-47 | The ballots response for a run stubbed (as the existing e2e voting tests do with `page.route`): company A with two items and `commitment_flags` = AC-40's flag; company B with one item and `[]` | A user opens the run's ballot review | Both of A's items show a warning banner `Commitment overdue: "Publish a transition plan" was due <date>.`; B's item shows none | evaluator |
+| AC-47 | The ballots response for a run stubbed (as the existing e2e voting tests do with `page.route`): company A with two items and one `commitment_flags` entry (`kind` `overdue`, `target_date` and `since` `2026-11-12`, `message` `Commitment overdue: "Publish a transition plan" was due 2026-11-12.`); company B with one item and `[]` | A user opens the run's ballot review | Both of A's items show a warning banner `Commitment overdue: "Publish a transition plan" was due 2026-11-12.`; B's item shows none | evaluator |
 | AC-48 | A `VoteRecord` approved without co-sign, `engagement_alignment_flag` false, for a company with an overdue commitment | `cast_vote(platform, record)` | The returned record's `cast_confirmation.status` is `confirmed` | unit |
 | AC-49 | An open commitment with a `target_date` after today | `POST /api/stewardship/tracking/commitments/{id}` with `status` `verified` and no `evidence` | Status 422, detail `Evidence is required to verify a commitment.` (unchanged) | holdout |
 
