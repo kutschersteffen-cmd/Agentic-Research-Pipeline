@@ -1,3 +1,5 @@
+import threading
+
 import pytest
 from sqlalchemy import func, select
 
@@ -83,3 +85,25 @@ def test_follows_resolves_within_batch_in_any_order(pg):
     batch = _batch()
     batch["objectives"].insert(0, {**batch["objectives"][0], "external_id": "o2", "follows_external_id": "o1"})
     assert intake_engagements(batch, pg, "api").created == 3
+
+
+def test_malformed_values_rejected_not_500(pg):
+    PostgresEngagementStore(pg).get_or_create("C1", "Acme")
+    report = intake_engagements(_batch(esg_pillars=5, theme=["x"]), pg, "api")
+    assert sorted(r.field for r in report.rejected) == ["esg_pillars", "theme"]
+    assert intake_engagements(_batch(theme=5), pg, "api").created == 2  # a scalar text value is coerced
+
+
+def test_concurrent_intakes_serialise(pg):
+    PostgresEngagementStore(pg).get_or_create("C1", "Acme")
+    barrier = threading.Barrier(2)
+    reports = []
+
+    def run():
+        barrier.wait()
+        reports.append(intake_engagements(_batch(), pg, "api"))
+
+    threads = [threading.Thread(target=run) for _ in range(2)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert sorted((r.created, r.unchanged) for r in reports) == [(0, 2), (2, 0)]

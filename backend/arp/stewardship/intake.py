@@ -110,6 +110,10 @@ def _clean(sheet: str, n: int, raw: dict, bad: list[Rejection]) -> dict:
     for k in ENGAGEMENT_COLUMNS[sheet]:
         v = raw.get(k)
         v = v.strip() if isinstance(v, str) else v
+        if k != "esg_pillars" and v is not None and not isinstance(v, str):
+            if isinstance(v, (dict, list)):
+                reject(k, "not a string")
+            v = str(v)
         row[k] = None if v in ("", None) else v
     for k in ["external_id", *_REQUIRED[sheet]]:
         if row[k] is None:
@@ -131,6 +135,9 @@ def _clean(sheet: str, n: int, raw: dict, bad: list[Rejection]) -> dict:
         row[k] = flag in _TRUE
     if sheet == "engagements":
         pillars = row["esg_pillars"] or []
+        if not isinstance(pillars, (str, list)):
+            reject("esg_pillars", "not a list")
+            pillars = []
         pillars = [p.strip() for p in pillars.split(";")] if isinstance(pillars, str) else [str(p) for p in pillars]
         if any(p not in {e.value for e in EsgPillar} for p in pillars):
             reject("esg_pillars", "not one of " + ", ".join(e.value for e in EsgPillar))
@@ -164,6 +171,17 @@ def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str) -> I
     bad = report.rejected
     with transaction(dsn) as s:
         rows = {sheet: [_clean(sheet, n, r, bad) for n, r in enumerate(batch.get(sheet) or [], 1)] for sheet in _TABLES}
+        # Resolve and lock the companies first: ids and company_of are read after the locks, so a batch that
+        # waited on a concurrent one sees the rows it wrote and upserts instead of inserting a duplicate.
+        resolved = [_company(s, r["company_id"], r["isin"]) for r in rows["engagements"]]
+        wanted = {r["external_id"] for r in rows["engagements"]} | {
+            r["engagement_external_id"] for sheet in ("objectives", "activities") for r in rows[sheet]
+        }
+        stored_companies = s.scalars(
+            select(StwEngagementModel.company_id).where(StwEngagementModel.source == source, StwEngagementModel.external_id.in_(wanted - {None}))
+        )
+        for company in sorted({c for c in resolved if c} | set(stored_companies)):  # as PostgresEngagementStore.lock takes it
+            s.execute(_LOCK, {"id": company})
         ids = {}  # sheet -> external_id -> primary key, stored rows of this source plus this batch's new ones
         for sheet, (model, pk, prefix, _) in _TABLES.items():
             ids[sheet] = {e: i for e, i in s.execute(select(model.external_id, getattr(model, pk)).where(model.source == source, model.external_id.is_not(None)))}
@@ -186,8 +204,7 @@ def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str) -> I
                 bad.append(Rejection(sheet=sheet, row=n, field=field, reason=f"unknown {field}"))
             return ids[target].get(row[field])
 
-        for n, row in enumerate(rows["engagements"], 1):
-            company = _company(s, row["company_id"], row["isin"])
+        for n, (row, company) in enumerate(zip(rows["engagements"], resolved, strict=True), 1):
             if company is None:
                 bad.append(Rejection(sheet="engagements", row=n, field="company_id", reason="unknown company"))
                 continue
@@ -215,8 +232,6 @@ def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str) -> I
         if bad:
             return report
 
-        for company in sorted(names):  # per-company advisory lock, as PostgresEngagementStore.lock takes it
-            s.execute(_LOCK, {"id": company})
         touched = set()
 
         def log(company: str, table: str, key: str, changed: list[str]) -> None:
