@@ -1294,6 +1294,17 @@
       "title": "Flow Id",
       "type": "string"
      },
+     "identity_applied": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Identity Applied"
+     },
      "identity_run_id": {
       "anyOf": [
        {
@@ -1304,6 +1315,14 @@
        }
       ],
       "title": "Identity Run Id"
+     },
+     "problems": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "default": {},
+      "title": "Problems",
+      "type": "object"
      },
      "repeat": {
       "additionalProperties": {
@@ -1394,6 +1413,17 @@
       "title": "Starting",
       "type": "boolean"
      },
+     "starting_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Starting At"
+     },
      "step": {
       "default": 1,
       "title": "Step",
@@ -1483,6 +1513,17 @@
        }
       ]
      },
+     "identity_applied": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Identity Applied"
+     },
      "identity_run_id": {
       "anyOf": [
        {
@@ -1493,6 +1534,14 @@
        }
       ],
       "title": "Identity Run Id"
+     },
+     "problems": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "default": {},
+      "title": "Problems",
+      "type": "object"
      },
      "repeat": {
       "additionalProperties": {
@@ -1598,6 +1647,17 @@
       "default": false,
       "title": "Starting",
       "type": "boolean"
+     },
+     "starting_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Starting At"
      },
      "step": {
       "default": 1,
@@ -5423,6 +5483,11 @@
        }
       ],
       "title": "Reason"
+     },
+     "retryable": {
+      "default": false,
+      "title": "Retryable",
+      "type": "boolean"
      },
      "status": {
       "title": "Status",
@@ -10702,6 +10767,10 @@
       "title": "Done",
       "type": "integer"
      },
+     "finished": {
+      "title": "Finished",
+      "type": "integer"
+     },
      "minutes_left": {
       "anyOf": [
        {
@@ -10725,6 +10794,10 @@
       "title": "Status",
       "type": "string"
      },
+     "stopping": {
+      "title": "Stopping",
+      "type": "boolean"
+     },
      "total": {
       "title": "Total",
       "type": "integer"
@@ -10734,10 +10807,12 @@
      "run_id",
      "started_at",
      "done",
+     "finished",
      "total",
      "minutes_left",
      "cost_usd",
      "status",
+     "stopping",
      "companies"
     ],
     "title": "FlowProgress",
@@ -25583,6 +25658,118 @@
     ]
    }
   },
+  "/api/argus/flows/{flow_id}/companies/{company_id}": {
+   "delete": {
+    "description": "Drops the row and its file choices in this flow. The documents stay on the company.",
+    "operationId": "remove_company_api_argus_flows__flow_id__companies__company_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Remove Company",
+    "tags": [
+     "argus"
+    ]
+   },
+   "put": {
+    "description": "Registers the row again with the form's values and replaces it in place.",
+    "operationId": "edit_company_api_argus_flows__flow_id__companies__company_id__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CompanyInput"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Edit Company",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
   "/api/argus/flows/{flow_id}/companies/{company_id}/retry": {
    "post": {
     "description": "Re-runs one failed company inside the flow's run, on the files kept for it now (a file replaced in step 2 is used).\nAsync: the launcher starts the job on this event loop. Nothing changes until the job holds the run.",
@@ -25630,6 +25817,42 @@
      }
     },
     "summary": "Retry Company",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/discard": {
+   "post": {
+    "description": "Delete a draft with whatever it holds. Its documents stay on the companies.",
+    "operationId": "discard_flow_api_argus_flows__flow_id__discard_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Discard Flow",
     "tags": [
      "argus"
     ]
