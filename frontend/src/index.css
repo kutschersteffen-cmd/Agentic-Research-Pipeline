@@ -2275,7 +2275,7 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-state { font-weight: 600; }
 .argus-state-removed, .argus-state-undecided { color: var(--muted); }
 @media (max-width: 900px) { .argus-docs-open { flex-direction: column; } }
-.argus-schema-cols { display: grid; grid-template-columns: minmax(18rem, 1fr) minmax(0, 3fr); gap: var(--s-6); align-items: start; margin-bottom: var(--s-6); }
+.argus-schema-cols { display: grid; grid-template-columns: minmax(13rem, 1fr) minmax(0, 3fr); gap: var(--s-6); align-items: start; margin-bottom: var(--s-6); }
 .argus-schema-pick { display: grid; gap: var(--s-3); min-width: 0; }
 .argus-schema-pick > * { min-width: 0; }
 .argus-schema-pick h2, .argus-schema-fields h2, .argus-run-list h2 { font-size: var(--text-md); margin: 0; overflow-wrap: anywhere; }
