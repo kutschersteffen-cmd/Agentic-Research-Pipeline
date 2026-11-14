@@ -76,11 +76,16 @@ orange orb, out of which the pixel "ARP" emerges.
   dissolve 3500 ms; `LOOP_MS = 24_000`.
 - **Tokens** in `index.css`:
   - `--brand-apex`: `#ea4c14` in `:root`, `#ff6a2b` in both dark blocks.
-  - `--orb`: `#ea4c14` in `:root`, `#ff7a33` in both dark blocks.
+  - `--orb`: `#ea4c14` in `:root`, `#ff6a2b` in both dark blocks (the same values as `--brand-apex`;
+    a separate token so the glow can be tuned without moving the logo colour).
   - The canvas reads `--muted`, `--run`, `--text`, `--orb`, `--brand-apex` and `--bg` in
     `readColours`.
 - **Blending:** in dark themes the orb and the signals draw with `globalCompositeOperation =
-  "lighter"`; light themes use `source-over`.
+  "lighter"`; light themes use `source-over`. The theme is dark when `<html data-theme="dark">`, or
+  when there is no `data-theme` and `matchMedia('(prefers-color-scheme: dark)')` matches.
+  `readColours` (colours and the dark flag) reruns on that media query's `change`, on
+  `visibilitychange`, and when `<html>`'s `data-theme` attribute changes.
+- **Port details:** drop the mockup's debug global `window.__arp`; keep `seed = 11` so frames repeat.
 - **Header:**
   - The mark SVG is replaced by the lockup SVG: the paths of `arp-lockup.svg`, ink in `currentColor`,
     apex in `var(--brand-apex)`, with `role="img" aria-label="ARP"`.
@@ -100,11 +105,12 @@ orange orb, out of which the pixel "ARP" emerges.
 From `2026-11-09-night-desk-landing`:
 - **Copy:** AC-3 and AC-3b (the old headline) and AC-7 (the old copy).
 - **Amber logo square:** AC-8b and AC-8c.
+- **Timings moved to the 24 s loop:** AC-9 → AC-19, AC-10 → AC-13, AC-11b → AC-18.
 
 In `frontend/tests/landing.test.ts`, two tests change with this spec. They are rewritten, not
 deleted:
 - `phase_boundaries` (the 22 s loop) is replaced by AC-1.
-- `text_backdrop_solid_behind_intro` (solid intro backdrop) is replaced by AC-12.
+- `text_backdrop_solid_behind_intro` (solid intro backdrop) is replaced by AC-12a.
 
 ## Left to the builder
 
@@ -118,17 +124,21 @@ deleted:
 | AC-2 | The app at `#/welcome`, any theme | The page loads | The header's visible text (innerText) is exactly `Agentic Research Pipeline` | evaluator |
 | AC-3 | The same | The page loads | The header contains an `svg[role=img][aria-label=ARP]` whose rendered height is 28px | evaluator |
 | AC-4 | `frontend/src/index.css` | Read | `--brand-apex` is `#ea4c14` in `:root` and `#ff6a2b` in both the `prefers-color-scheme: dark` block and the `[data-theme="dark"]` block | unit |
-| AC-5 | The same | Read | `--orb` is `#ea4c14` in `:root` and `#ff7a33` in both dark blocks | unit |
+| AC-5 | The same | Read | `--orb` is `#ea4c14` in `:root` and `#ff6a2b` in both dark blocks | unit |
 | AC-6 | `Landing.tsx`, `LandingCanvas.tsx` and every `.landing*` rule in `index.css` | Read | None contains `var(--hi`, `--hi-ink`, `--await-edge` or `"--hi"` | unit |
 | AC-7 | `index.css` and `Landing.tsx` | Read | No `.landing*` rule, and no attribute or `style` in `Landing.tsx` (SVG `fill` included), contains a hex, `rgb(` or `oklch(` colour literal | unit |
-| AC-8 | The landing page, 1440×900, motion allowed, light or dark | A canvas capture is taken 2.5 s after load (network) | Lit squares cover at least 60% of the canvas's 10 × 6 grid of equal regions | evaluator |
-| AC-9 | The same | A capture is taken 11 s after load (orb) | At least 300 squares whose centre pixel is within ΔE 10 of `--orb` (`#ea4c14` light, `#ff7a33` dark) lie within the circle at `(0.7W, H/2)`, radius `min(0.34H, 0.2W)` × 1.25 | evaluator |
+| AC-7b | `LandingCanvas.tsx` | Read | It contains no hex, `rgb(`, `rgba(`, `hsl(` or `oklch(` literal; every `fillStyle`, `strokeStyle` and gradient stop is a value read in `readColours` or `"transparent"` | unit |
+| AC-8 | The landing page, 1440×900, motion allowed, light or dark | A canvas capture is taken 2.5 s after load (network) | At least 36 of the canvas's 60 equal regions (10 × 6) contain at least one non-background pixel | evaluator |
+| AC-9 | The same | A capture is taken 11 s after load (orb) | At least 300 connected pixel blobs with hue within ±15° of `--orb` and saturation ≥ 0.4 lie inside the circle at `(0.7W, H/2)` of radius `1.25·min(0.34H, 0.2W)`; no such blob lies outside 1.5× that radius | evaluator |
 | AC-10 | The same | A capture is taken 18.5 s after load (formed) | The squares in `--text` colour form the letters "A", "R", "P" in a row, whose bounding boxes have the same height (±1 dot), all inside the right half of the canvas | evaluator |
 | AC-11 | The same | A capture is taken 18.5 s after load | The squares on the A's apex cell are within ΔE 10 of `--brand-apex` (`#ea4c14` light, `#ff6a2b` dark); no square in the "ARP" outside that cell is | evaluator |
-| AC-12 | `index.css` | Read | The `.landing-main` rule's background is `linear-gradient(90deg, color-mix(in srgb, var(--bg) 40%, transparent) 55%, transparent)`, and `.landing-main h1` and `.landing-main p` set `text-shadow: 0 0 14px var(--bg), 0 0 4px var(--bg)` | unit |
-| AC-13 | The landing page, both themes, 1440×900 | Captures are taken 2.5 s and 11 s after load | Every pixel of the headline and intro glyphs has contrast ≥ 4.5:1 against the pixel 6px to its left outside the glyph | evaluator |
-| AC-14 | The landing page | Its text is read | The `h1` innerText is `Company research and stewardship at scale.` and the intro `p` innerText is `Leveraging expert judgement through Agents.`; the intro holds no other text | evaluator |
-| AC-15 | `index.css` | Read | The `.landing-main h1` rule sets `font-family` starting with `"Source Serif 4"`, `font-weight: 500` and `letter-spacing: -0.01em`, and keeps `font-size: clamp(2.5rem, 2rem + 3vw, 4.2rem)` and `line-height: 1.02` | unit |
+| AC-12a | `index.css` | Read | The `.landing-main` rule's background is `linear-gradient(90deg, color-mix(in srgb, var(--bg) 40%, transparent) 55%, transparent)` | unit |
+| AC-12b | `index.css` | Read | `.landing-main h1` and `.landing-main p` set `text-shadow: 0 0 14px var(--bg), 0 0 4px var(--bg)` | unit |
+| AC-12c | `index.css` | Read | Inside the last `@media (max-width: 700px)` block, `.landing-main`'s background is `linear-gradient(180deg, color-mix(in srgb, var(--bg) 40%, transparent) 70%, transparent)` | unit |
+| AC-13 | The landing page, both themes, 1440×900 | Captures are taken 2.5 s and 11 s after load | For each glyph box of the `h1` and the intro `p`, every backdrop pixel inside the box but outside any glyph has contrast ≥ 4.5:1 against that element's computed `color` | evaluator |
+| AC-14 | The landing page | Its DOM is read | `.landing-main` holds exactly three elements: the `h1` (`Company research and stewardship at scale.`), one `p` (`Leveraging expert judgement through Agents.`) and the `Open ARP →` link | evaluator |
+| AC-15a | `index.css` | Read | The `.landing-main h1` rule sets `font-family` starting with `"Source Serif 4"`, `font-weight: 500` and `letter-spacing: -0.01em` | unit |
+| AC-15b | `index.css` | Read | The `.landing-main h1` rule keeps `font-size: clamp(2.5rem, 2rem + 3vw, 4.2rem)` and `line-height: 1.02` | unit |
 | AC-16 | `index.css` | Read | A `.landing-promises b::before` rule sets `width: 6px`, `height: 6px`, `border-radius: 0` and `background: var(--text)` | unit |
 | AC-17 | Narrow screen, 400×800 | A capture is taken 18.5 s after load | The whole pixel "ARP" is inside the canvas and its centre is within ±8px of the canvas centre horizontally | evaluator |
 | AC-18 | The landing page in the e2e Chromium at 1440×900 | A 5 s performance trace is recorded at 9–14 s after load (orb) | No long task over 50 ms | evaluator |
