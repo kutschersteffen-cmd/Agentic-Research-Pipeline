@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { routedLine } from "../lib/routeReasons";
+import { routedSentences } from "../lib/routeReasons";
 import { correctionLine } from "../lib/corrections";
 import type { EvidenceSpan, ItemContext, ItemDecisionBody, ReviewDecision, ReviewItem, SimilarDecision } from "../types";
 import { SIGN_IN_REQUIRED, useMe } from "../lib/reviewer";
@@ -465,7 +465,7 @@ function ItemDecision({
           )}
           {ctx.corrections?.map((c, i) => <p key={i} className="muted">{correctionLine(c, (id) => ctx.field_names?.[id] ?? id)}</p>)}
           <CheckResults checks={ctx.failed_checks} />
-          {routedLine(ctx.route_reasons) && <p className="muted">{routedLine(ctx.route_reasons)}</p>}
+          {routedSentences(ctx.route_reasons) && <p className="muted">{routedSentences(ctx.route_reasons)}</p>}
           {ctx.conflict && ctx.conflict.alternatives.length > 0 && (
             <div>
               <p className="muted">Other sources disagree:</p>

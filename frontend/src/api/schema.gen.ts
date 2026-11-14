@@ -633,6 +633,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/companies/{ref}/simulated-esg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Simulated Esg
+         * @description The company's latest SIMULATED value per climate and `simulated_esg` field (`arp showcase load`), in schema
+         *     order; empty when it has none. Only source `simulated`: every value here is invented and must be shown so.
+         */
+        get: operations["get_simulated_esg_api_companies__ref__simulated_esg_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/companies/{ref}/transition": {
         parameters: {
             query?: never;
@@ -5535,6 +5556,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/intake/engagements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Engagements */
+        post: operations["post_engagements_api_stewardship_intake_engagements_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/intake/engagements.xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Engagements Xlsx */
+        post: operations["post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/intake/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Template */
+        get: operations["get_template_api_stewardship_intake_template_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/intake/votes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Votes */
+        post: operations["post_votes_api_stewardship_intake_votes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/intake/votes.xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Votes Xlsx */
+        post: operations["post_votes_xlsx_api_stewardship_intake_votes_xlsx_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/monitoring/open-engagement": {
         parameters: {
             query?: never;
@@ -9388,6 +9494,16 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** Body_post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post */
+        Body_post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_post_votes_xlsx_api_stewardship_intake_votes_xlsx_post */
+        Body_post_votes_xlsx_api_stewardship_intake_votes_xlsx_post: {
+            /** File */
+            file: string;
+        };
         /** Body_raw_upload_api_universe_raw_upload_post */
         Body_raw_upload_api_universe_raw_upload_post: {
             /** File */
@@ -10049,6 +10165,11 @@ export interface components {
              * @description On-disk filename, resolved by grounding.
              */
             source_filename?: string | null;
+            /**
+             * Source Url
+             * @description The document's web address when it has no local file, resolved by grounding.
+             */
+            source_url?: string | null;
             /**
              * Span Text
              * @description Exact source text the quote matched, set by grounding.
@@ -11067,6 +11188,53 @@ export interface components {
             /** Title */
             title: string;
         };
+        /**
+         * DataPointObservation
+         * @description One resolved value of one data-point field for one company, at one
+         *     point in time. Append-only: a later correction is a new observation
+         *     with a later `observed_at`, never an edit to a prior one, so a trend
+         *     query reflects what was actually known at each point in time.
+         */
+        DataPointObservation: {
+            /** Company Id */
+            company_id: string;
+            /** Conflicting Source Label */
+            conflicting_source_label?: string | null;
+            /**
+             * Conflicting Sources
+             * @description True if an independent extraction pass disagreed with this value beyond tolerance.
+             * @default false
+             */
+            conflicting_sources: boolean;
+            /** Conflicting Value */
+            conflicting_value?: number | string | boolean | null;
+            /** Field Id */
+            field_id: string;
+            /** Field Name */
+            field_name: string;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /** Observed At */
+            observed_at?: string;
+            /**
+             * Period
+             * @description Fiscal period the value applies to, e.g. "FY2025".
+             * @default
+             */
+            period: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "internal_api" | "extracted" | "catalogue" | "estimated_proxy" | "simulated";
+            /** Unit */
+            unit?: string | null;
+            /** Value */
+            value: number | string | boolean | null;
+        };
         /** DataPointSchema */
         DataPointSchema: {
             /** Created At */
@@ -11576,6 +11744,11 @@ export interface components {
         DiscoverSourcesResponse: {
             /** Authority Sources */
             authority_sources: components["schemas"]["SourceCandidate"][];
+            /**
+             * Search Unreachable
+             * @default false
+             */
+            search_unreachable: boolean;
             /** Thematic Funds */
             thematic_funds: components["schemas"]["SourceCandidate"][];
         };
@@ -11687,7 +11860,7 @@ export interface components {
             /** Reason */
             reason?: string | null;
             /** Status */
-            status?: "shelved" | null;
+            status?: ("shelved" | "active") | null;
             /** Taxonomy Id */
             taxonomy_id?: string | null;
         };
@@ -12482,6 +12655,8 @@ export interface components {
         };
         /** FromCompaniesRequest */
         FromCompaniesRequest: {
+            /** Base Path */
+            base_path?: string | null;
             /** Companies */
             companies: components["schemas"]["CompanyRef"][];
             /**
@@ -13005,6 +13180,26 @@ export interface components {
         Instructions: {
             /** Instructions */
             instructions?: string | null;
+        };
+        /** IntakeReport */
+        IntakeReport: {
+            /**
+             * Created
+             * @default 0
+             */
+            created: number;
+            /** Rejected */
+            rejected?: components["schemas"]["Rejection"][];
+            /**
+             * Unchanged
+             * @default 0
+             */
+            unchanged: number;
+            /**
+             * Updated
+             * @default 0
+             */
+            updated: number;
         };
         /**
          * InteractionType
@@ -14948,6 +15143,17 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** Rejection */
+        Rejection: {
+            /** Field */
+            field: string;
+            /** Reason */
+            reason: string;
+            /** Row */
+            row: number;
+            /** Sheet */
+            sheet: string;
+        };
         /** RemoveOverrideRequest */
         RemoveOverrideRequest: {
             /** Criterion Id */
@@ -15253,6 +15459,11 @@ export interface components {
             proposal_run_id?: string | null;
             /** Round */
             round: number;
+            /**
+             * Search Unreachable
+             * @default false
+             */
+            search_unreachable: boolean;
             /**
              * Sources
              * @default []
@@ -18036,6 +18247,13 @@ export interface components {
              */
             vote?: string | null;
         };
+        /** VotesBody */
+        VotesBody: {
+            /** Votes */
+            votes: {
+                [key: string]: unknown;
+            }[];
+        };
         /** VotingPreviewRequest */
         VotingPreviewRequest: {
             /** Policy */
@@ -19722,6 +19940,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CompanyFactRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_simulated_esg_api_companies__ref__simulated_esg_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataPointObservation"][];
                 };
             };
             /** @description Validation Error */
@@ -28816,6 +29065,173 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_engagements_api_stewardship_intake_engagements_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeReport"];
+                };
+            };
+            /** @description Rows rejected; nothing written */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeReport"];
+                };
+            };
+        };
+    };
+    post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeReport"];
+                };
+            };
+            /** @description Rows rejected; nothing written */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeReport"];
+                };
+            };
+        };
+    };
+    get_template_api_stewardship_intake_template_get: {
+        parameters: {
+            query: {
+                kind: "engagements" | "votes";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_votes_api_stewardship_intake_votes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VotesBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeReport"];
+                };
+            };
+            /** @description Rows rejected; nothing written */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeReport"];
+                };
+            };
+        };
+    };
+    post_votes_xlsx_api_stewardship_intake_votes_xlsx_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_post_votes_xlsx_api_stewardship_intake_votes_xlsx_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeReport"];
+                };
+            };
+            /** @description Rows rejected; nothing written */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntakeReport"];
                 };
             };
         };

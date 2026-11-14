@@ -20,6 +20,7 @@ from arp.portfolio.climate.schemas import FIELD_CARBON_INTENSITY, FIELD_SCOPE1, 
 from arp.portfolio.constituent_import import import_holdings_files
 from arp.portfolio.loads import LoadRecord, record_load_once
 from arp.portfolio.monthly_run import run_month
+from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import FieldDataType
 from arp.schemas.portfolio import DataPointObservation, Portfolio
 from arp.showcase.schema import build_simulated_schema
@@ -134,6 +135,18 @@ def _scores(store, rows: list[dict], dataset: Path) -> int:
     return written
 
 
+def _register(rows: list[dict]) -> None:
+    """Each dataset company in the company registry, under its universe id and ISIN, so it opens on the company page
+    and company search finds it. An ISIN or id already registered attaches to that company; a conflict is skipped."""
+    from arp.db.companies import resolve_company
+    from arp.db.session import transaction
+
+    with transaction() as session:
+        for row in rows:
+            resolve_company(session, CompanyRef(company_id=row["company_id"], name=row["name"], isin=row["isin"],
+                                                country=row["country"], sector=row["sector"]))
+
+
 def load(store, settings: Settings, holdings_dir: Path, dataset: Path, echo: Callable[[str], None] = print) -> bool:
     """Runs the five steps, printing `ok|FAIL <step>: <reason>` for each. False on the first FAIL; later steps
     build on earlier ones, so they are not attempted."""
@@ -148,6 +161,7 @@ def load(store, settings: Settings, holdings_dir: Path, dataset: Path, echo: Cal
         return state["rows"]
 
     def step_import() -> str:
+        _register(read_dataset())  # first, so the securities and holdings written next link to the registry company
         state["imported"] = _import(store, holdings_dir)
         return f"{len(state['imported'])} portfolios, {sum(s['holdings_written'] for _, s in state['imported'])} holdings"
 

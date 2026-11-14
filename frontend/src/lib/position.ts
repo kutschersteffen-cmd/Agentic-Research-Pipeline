@@ -1,6 +1,6 @@
 // Theme position and standards (dossier step 5) display rules: version states, criteria and the check grid.
 // The rules themselves are enforced by the backend (arp/themes/position.py).
-import type { PositionView, Standard, StandardsCheck, StandardsDraft, StandardsVersion, StandardsView } from "../types.ts";
+import type { Dossier, PositionView, Standard, StandardsCheck, StandardsDraft, StandardsVersion, StandardsView } from "../types.ts";
 
 /** `Approved by <id>` when the version is the approved one, else who drafted it. */
 export function positionState(view: Pick<PositionView, "approvals" | "approved_version">, v: { version: number; created_by: string }): string {
@@ -47,3 +47,12 @@ export function editorDraft(version: StandardsVersion, released: Set<string>): S
   const added = new Set(standards.filter((s) => s.data === "new").map((s) => s.field_id));
   return { standards, new_fields: (version.schema?.fields ?? []).filter((f) => added.has(f.field_id)) };
 }
+
+/** Approving standards and checking companies need the dossier's step 4 (find companies) done: the API's 409
+ * `find companies first`. */
+export const companiesFound = (steps: Dossier["steps"]) => steps.find((s) => s.number === 4)?.state === "done";
+
+export const FIND_COMPANIES_FIRST = "Find companies first: finish step 4 of the dossier.";
+
+/** A cited note item by its title; its id only when no title is known. */
+export const citedLabel = (itemId: string, titles: Record<string, string>): string => titles[itemId] ?? itemId;

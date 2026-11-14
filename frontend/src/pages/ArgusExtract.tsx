@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { flowHref, progressHeader } from "../lib/argusFlow";
+import { errorDetail } from "../lib/barrier";
 import type { ArgusFlow as Flow, FlowProgress } from "../types";
 
 const ACTIVE = new Set(["pending", "running"]);
 
 /** Step 4: the flow's run, live per company; Stop lets running companies finish, Retry re-runs one that failed. */
-export function ArgusExtract({ flow }: { flow: Flow }) {
+export function ArgusExtract({ flow, onEnded }: { flow: Flow; onEnded: () => void }) {
   const [p, setP] = useState<FlowProgress | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const load = useCallback(() => api.getFlowProgress(flow.flow_id).then(setP, (e: Error) => setError(e.message)), [flow.flow_id]);
+  const load = useCallback(() => api.getFlowProgress(flow.flow_id).then(setP, (e: Error) => setError(errorDetail(e))), [flow.flow_id]);
 
   useEffect(() => {
     void load();
@@ -21,31 +22,44 @@ export function ArgusExtract({ flow }: { flow: Flow }) {
     const t = setInterval(() => void api.getFlowProgress(flow.flow_id).then(setP, () => {}), 2500); // a failed poll waits for the next
     return () => clearInterval(t);
   }, [running, flow.flow_id]);
+  // the run has ended while the page is open: the flow now reaches step 5, so the step bar links it
+  const wasRunning = useRef(false);
+  useEffect(() => {
+    if (wasRunning.current && !running) onEnded();
+    wasRunning.current = running;
+  }, [running, onEnded]);
 
-  async function act(fn: () => Promise<unknown>) {
+  /** true when the request went through. */
+  async function act(fn: () => Promise<unknown>): Promise<boolean> {
     setBusy(true);
     setError("");
     try {
       await fn();
       await load();
+      return true;
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorDetail(e as Error));
+      return false;
     } finally {
       setBusy(false);
     }
   }
+  const line = useRef<HTMLParagraphElement>(null);
 
   if (!p) return error ? <p className="error-text" role="alert">{error}</p> : <p className="muted" role="status">Loading…</p>;
   return (
     <section className="argus-progress" aria-label="Extract">
       <div className="argus-progress-head">
-        <p className="argus-progress-line" role="status">{progressHeader(p)}</p>
+        <p ref={line} tabIndex={-1} className="argus-progress-line" role="status">{progressHeader({ ...p, done: p.finished })}</p>
         {running && (
-          <button type="button" className="danger-outline" disabled={busy} onClick={() => act(() => api.cancelRun(p.run_id))}>
-            Stop
+          // aria-disabled, not disabled: a disabled button loses the keyboard's focus (as Save in step 1)
+          <button type="button" className="danger-outline" aria-disabled={busy || p.stopping}
+            onClick={() => !busy && !p.stopping && void act(() => api.cancelRun(p.run_id))}>
+            {p.stopping ? "Stopping…" : "Stop"}
           </button>
         )}
       </div>
+      {p.stopping && <p className="muted">Stopping: companies already running will finish.</p>}
       {error && <p className="error-text" role="alert">{error}</p>}
       <div className="table-wrap">
         <table className="data-table stack-on-phone" aria-label="Companies in this run">
@@ -67,10 +81,16 @@ export function ArgusExtract({ flow }: { flow: Flow }) {
                     {c.reason && <span className="xbrl-sub">{c.reason}</span>}
                     {c.status === "Failed" && (
                       <span className="row-actions argus-progress-fix">
-                        <button type="button" className="secondary" disabled={busy || running} title={running ? "Retry once the other companies have finished" : undefined}
-                          onClick={() => act(() => api.retryFlowCompany(flow.flow_id, c.company_id))}>
-                          Retry
-                        </button>
+                        {c.retryable && (
+                          <button type="button" className="secondary" aria-label={`Retry ${c.name}`} aria-disabled={busy || running}
+                            title={running ? "Retry once the other companies have finished" : undefined}
+                            onClick={async () => {
+                              // a failure keeps the focus here; on success the row stops being Failed and this button goes
+                              if (!busy && !running && (await act(() => api.retryFlowCompany(flow.flow_id, c.company_id)))) line.current?.focus();
+                            }}>
+                            Retry
+                          </button>
+                        )}
                         {c.document_problem && <a href={flowHref(flow.flow_id, 2)}>Replace file</a>}
                       </span>
                     )}

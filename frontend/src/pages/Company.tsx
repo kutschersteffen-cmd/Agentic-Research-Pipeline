@@ -5,6 +5,7 @@ import type { CompanyFactRow, CompanySearchHit, CompanySummary, CompanyTransitio
 import { FactsTable } from "./company/FactsTable";
 import { FactTrailPanel } from "./company/FactTrailPanel";
 import { STATUS_TEXT, encodeRef, primaryCitation, type FactFilters } from "./company/companyQuery";
+import { SimulatedEsg } from "./company/SimulatedEsg";
 import { TransitionSection } from "./company/TransitionSection";
 
 // ponytail: one page of 500 facts (the API maximum); add paging when a company carries more.
@@ -211,6 +212,8 @@ function CompanyView({ companyRef }: { companyRef: string }) {
           )}
         </>
       )}
+
+      {company && <SimulatedEsg companyRef={companyRef} />}
 
       {company && <TransitionSection data={transition} error={transitionError} onOpenFact={openFact} />}
 

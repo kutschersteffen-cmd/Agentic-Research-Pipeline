@@ -3,9 +3,9 @@ import { companyHref } from "../pages/company/companyQuery";
 
 /** A universe company's name, linking to its company page. The click stays
  * out of a clickable row it sits in, so following it does not also expand the row. */
-export function CompanyLink({ companyId, children }: { companyId: string; children: ReactNode }) {
+export function CompanyLink({ companyId, entityId, children }: { companyId: string; entityId?: string | null; children: ReactNode }) {
   return (
-    <a href={companyHref(companyId)} onClick={(e) => e.stopPropagation()}>
+    <a href={companyHref(companyId, entityId)} onClick={(e) => e.stopPropagation()}>
       {children}
     </a>
   );

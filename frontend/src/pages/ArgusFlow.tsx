@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { CompanyFields, CompanyPicker, type OneCompany } from "../components/CompanyPicker";
 import { StepBar } from "../components/StepBar";
-import { companiesLocked, continueLabel, documentsText, extractedBeforeText, flowHref, identifierList, identityPolls, identityStatus, plainError, typedCompany } from "../lib/argusFlow";
+import { companiesLocked, continueLabel, documentsText, extractedBeforeText, flowHref, identifierList, identityPolls, identityStatus, typedCompany } from "../lib/argusFlow";
 import { STEPS } from "../lib/argusStart";
+import { errorDetail } from "../lib/barrier";
 import { neighbour, useRowFocus } from "../lib/rowFocus";
 import { ArgusDocuments } from "./ArgusDocuments";
 import { ArgusExtract } from "./ArgusExtract";
@@ -30,13 +31,14 @@ function EditCompanyRow({ company, busy, onSave, onCancel }: {
           aria-label={`Edit ${company.name}`}
           onSubmit={(e) => {
             e.preventDefault();
-            onSave(typedCompany(form));
+            if (!busy) onSave(typedCompany(form));
           }}
         >
           <fieldset>
             <legend>Edit {company.name}</legend>
             <CompanyFields value={form} onChange={setForm} />
-            <button type="submit" disabled={busy}>Save</button>
+            {/* aria-disabled, not disabled: a disabled button loses the keyboard's focus, and a Save that fails never gets it back */}
+            <button type="submit" aria-disabled={busy}>Save</button>
             <button type="button" className="link-button" onClick={onCancel}>Cancel</button>
           </fieldset>
         </form>
@@ -51,7 +53,9 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
   const [missing, setMissing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [editing, setEditing] = useState<string | null>(null); // the company_id of the step 1 row being edited
+  // The step 1 row being edited: its position and name, not its company_id, which an identity result can change
+  // while the form is open. `opened` is the id it was opened under, the form's key, so what was typed stays.
+  const [editing, setEditing] = useState<{ row: number; name: string; opened: string } | null>(null);
   const [companiesTable, focusRow] = useRowFocus();
   // a step the URL names that is not 1 to 5 (/7, /2.5): shown as, and sent to, the flow's furthest step
   const step = urlStep ?? flow?.step ?? 1;
@@ -62,7 +66,7 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
   // Read again on every step change: a run that finished on step 4 changes what step 3 must show (the repeat
   // warning), and a stale flow let Start through to a 400 that named a list not on screen.
   useEffect(() => {
-    api.getArgusFlow(flowId).then(setFlow, (e: Error) => (/not found/i.test(e.message) ? setMissing(true) : setError(plainError(e.message))));
+    api.getArgusFlow(flowId).then(setFlow, (e: Error) => (/not found/i.test(e.message) ? setMissing(true) : setError(errorDetail(e))));
   }, [flowId, urlStep]);
 
   // bumped at the start and end of every change, so a background read that began before it is dropped
@@ -76,7 +80,7 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
       if (f) setFlow(f);
       return true;
     } catch (e) {
-      setError(plainError((e as Error).message));
+      setError(errorDetail(e as Error));
       return false;
     } finally {
       changes.current++;
@@ -134,7 +138,7 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
         <ArgusSchema flow={flow} busy={busy} act={act} />
       ) : step === 4 || step === 5 ? (
         flow.run_id ? (
-          step === 4 ? <ArgusExtract flow={flow} /> : <ArgusResults flow={flow} />
+          step === 4 ? <ArgusExtract flow={flow} onEnded={refresh} /> : <ArgusResults flow={flow} />
         ) : (
           <p>
             Nothing has started yet. <a href={flowHref(flow.flow_id, 3)}>Back to 3 {STEPS[2]}</a>
@@ -162,9 +166,9 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
                 </tr>
               </thead>
               <tbody>
-                {flow.rows.map((r, i) => !locked && editing === r.company_id ? (
+                {flow.rows.map((r, i) => !locked && editing?.row === i && editing.name === r.name ? (
                   <EditCompanyRow
-                    key={r.central_id ?? r.company_id}
+                    key={`edit:${editing.opened}`}
                     company={flow.companies.find((c) => c.company_id === r.company_id)!}
                     busy={busy}
                     onCancel={() => (setEditing(null), focusRow(r.company_id))}
@@ -175,7 +179,7 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
                     }}
                   />
                 ) : (
-                  <tr key={r.central_id ?? r.company_id} data-row={r.company_id} className={r.problem ? "argus-row-await" : undefined}>
+                  <tr key={r.company_id} data-row={r.company_id} className={r.problem ? "argus-row-await" : undefined}>
                     <td data-label="Company">
                       <div>
                         <span className="xbrl-name">{r.name}</span>
@@ -194,14 +198,16 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
                     {!locked && (
                       <td>
                         <span className="row-actions">
-                          <button type="button" className="link-button" aria-label={`Edit ${r.name}`} disabled={busy} onClick={() => setEditing(r.company_id)}>Edit</button>
+                          <button type="button" className="link-button" aria-label={`Edit ${r.name}`} disabled={busy} onClick={() => setEditing({ row: i, name: r.name, opened: r.company_id })}>Edit</button>
                           <button
                             type="button"
                             className="link-button"
                             aria-label={`Remove ${r.name}`}
-                            disabled={busy}
+                            aria-disabled={busy} // as Save: the button keeps the focus while, and after, a Remove fails
                             onClick={async () => {
-                              if (await act(() => api.removeFlowCompany(flow.flow_id, r.company_id))) focusRow(neighbour(flow.rows, i)?.company_id);
+                              if (busy || !(await act(() => api.removeFlowCompany(flow.flow_id, r.company_id)))) return;
+                              setEditing((e) => (e && i < e.row ? { ...e, row: e.row - 1 } : e)); // a form open further down moves up with its row
+                              focusRow(neighbour(flow.rows, i)?.company_id);
                             }}
                           >
                             Remove
