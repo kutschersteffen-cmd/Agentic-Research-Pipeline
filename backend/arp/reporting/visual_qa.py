@@ -78,7 +78,7 @@ def _apply(deck: Deck, e: QAEdit, seen: int) -> tuple[Deck, str | None, list[str
 
 async def visual_qa(
     deck: Deck, pngs: list[Path], request: ReportRequest, llm: LLMClient, usage: LLMUsage | None = None,
-    shift: list[Finding] | None = None,
+    shift: list[Finding] | None = None, tokens: Tokens | None = None,
 ) -> tuple[Deck, list[Finding]]:
     """`shift` is passed on to the re-fit, with QA's own findings, so a split moves them all (see fit_deck)."""
     findings: list[Finding] = []
@@ -108,5 +108,5 @@ async def visual_qa(
         return deck, findings
     # QA text is linted (no rewrite), then one fit pass; there is no second QA call.
     findings += [f for f in lint_deck(deck, request) if (f.slide, f.slot) in edited]
-    deck, fit_findings = await fit_deck(deck, request, llm, max_passes=1, usage=usage, shift=[*(shift or []), *findings])
+    deck, fit_findings = await fit_deck(deck, request, llm, max_passes=1, usage=usage, shift=[*(shift or []), *findings], tokens=tokens)
     return deck, findings + fit_findings

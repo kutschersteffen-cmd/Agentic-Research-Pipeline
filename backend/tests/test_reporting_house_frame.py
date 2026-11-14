@@ -146,3 +146,102 @@ async def test_measure_subheading_overflow(tokens):
     found = await measure(render_deck_html(_deck(subheading=" ".join(["word"] * 60)), [], tokens=tokens), tokens)
     sub = [f for f in found if f.slot == "subheading"]
     assert [(f.rule, f.slide) for f in sub] == [("subheading_overflow", 1)]
+
+
+# ---- Task 5: the build uses the frame; frameless templates are refused for house decks ----
+
+from fastapi import FastAPI  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+
+from arp.api.deps import get_reporting_store  # noqa: E402
+from arp.api.routers import reporting as reporting_router  # noqa: E402
+from arp.reporting.house_pipeline import build_house_deck  # noqa: E402
+from arp.reporting.visual_qa import QAResult  # noqa: E402
+from arp.schemas.reporting import (  # noqa: E402
+    LayoutInstructions,
+    OutputFormat,
+    ReportPlan,
+    ReportRequest,
+    Storyline,
+    StorylineSlide,
+    TemplateStyleProfile,
+)
+
+
+@pytest.fixture
+def store(tmp_path) -> ReportingStore:
+    return ReportingStore(tmp_path / "reports", tmp_path / "templates")
+
+
+@pytest.fixture
+def client(store, fake_llm, monkeypatch) -> TestClient:
+    plan = ReportPlan(title="T", sections=[])
+    monkeypatch.setattr(reporting_router, "get_llm_client", lambda: fake_llm({"ReportPlan": [plan]}))
+    app = FastAPI()
+    app.include_router(reporting_router.router)
+    app.dependency_overrides[get_reporting_store] = lambda: store
+    return TestClient(app)
+
+
+def _ingest(store, tmp_path, **pptx) -> TemplateStyleProfile:
+    fonts = [(p.name, p) for p in frame_fonts(tmp_path / "fonts", pptx.pop("fonts", ("TestaSerif-700.ttf", "TestaSans-400.ttf")))]
+    return ingest_template(store, make_frame_pptx(tmp_path / "frame.pptx", **pptx), "frame.pptx", fonts)
+
+
+def _req(tid, fmt="house_deck") -> dict:
+    return {"title": "T", "qualitative_notes": "n", "layout": {"output_format": fmt}, "template_id": tid}
+
+
+def test_ac7_frameless_house_deck_422(client, store, tmp_path):
+    tid = _ingest(store, tmp_path, fonts=("TestaSans-400.ttf",)).template_id
+    r = client.post("/api/reports", json=_req(tid))
+    assert r.status_code == 422
+    assert r.json()["detail"] == f'Template {tid} cannot frame a house deck: Upload the font file for "Testa Serif".'
+
+
+def test_ac24_old_profile_422(client, store):
+    old = TemplateStyleProfile(template_id="tpl_old", source_filename="a.pptx", slide_width_emu=1, slide_height_emu=1, stored_path="x")
+    store.save_template_style(old)
+    r = client.post("/api/reports", json=_req("tpl_old"))
+    assert r.status_code == 422
+    assert r.json()["detail"].endswith("re-upload it")
+
+
+def test_ac25_classic_pptx_accepts_frameless(client, store, tmp_path):
+    tid = _ingest(store, tmp_path, fonts=("TestaSans-400.ttf",)).template_id
+    r = client.post("/api/reports?render=false", json=_req(tid, "pptx"))
+    assert r.status_code == 200
+    assert r.json()["template_id"] == tid
+
+
+async def _framed_build(store, tmp_path, fake_llm, subheading):
+    tid = _ingest(store, tmp_path).template_id
+    request = ReportRequest(title="T", qualitative_notes="n", template_id=tid, layout=LayoutInstructions(output_format=OutputFormat.HOUSE_DECK))
+    storyline = Storyline(title="Deck", slides=[StorylineSlide(headline="H", subheading=subheading, purpose="p")])
+    fill = SlideContent(headline="x", layout="bullets", variant="three", slots={"items": ["a", "b"]})
+    llm = fake_llm({"SlideContent": [fill], "QAResult": [QAResult(edits=[])]})
+    store.save_request("rep_1", request)
+    return await build_house_deck("rep_1", request, storyline, llm, store)
+
+
+async def test_ac16_subheading_never_rewritten(store, tmp_path, fake_llm):
+    long = " ".join(["word"] * 60)
+    deck, findings = await _framed_build(store, tmp_path, fake_llm, long)
+    assert deck.slides[1].subheading == long
+    s = Presentation(str(store.output_path("rep_1", "output.pptx"))).slides[1]
+    sub = _one(s, "subheading")
+    assert _px(sub) == pytest.approx([144, 230.4, 1584, 72], abs=1)
+    assert {r.font.size.pt for r in _runs(sub)} == {18}
+    [f] = [f for f in findings if f.slot == "subheading"]
+    assert (f.rule, f.stage, f.slide) == ("subheading_overflow", "fit", 1)
+
+
+async def test_split_keeps_subheading(tokens, fake_llm):
+    from arp.reporting.fit import fit_deck
+
+    long = [" ".join(["item"] * 60)] * 5  # far over the box, and bullets/five has no roomier variant: fit splits it
+    deck = Deck(title="T", slides=[SlideContent(headline="H", subheading="Kept", layout="bullets", variant="five", slots={"items": long})])
+    request = ReportRequest(title="T", qualitative_notes="n")
+    deck, _ = await fit_deck(deck, request, fake_llm({}), tokens=tokens)
+    assert len(deck.slides) > 1
+    assert {s.subheading for s in deck.slides} == {"Kept"}

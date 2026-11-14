@@ -13,7 +13,7 @@ from arp.reporting.datasets import parse_tabular_upload
 from arp.reporting.preview import ensure_preview_images
 from arp.reporting.service import ReportingService
 from arp.reporting.style_profile import ingest_template
-from arp.reporting.template_frame import font_family_of, frame_preview_html
+from arp.reporting.template_frame import TemplateFrameError, font_family_of, frame_preview_html
 from arp.schemas.reporting import ReportManifest, ReportPlan, ReportRequest, ReportStatus, Storyline
 from arp.storage.reporting_store import ReportingStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
@@ -121,7 +121,10 @@ async def create_report(
     edited (GET/PUT .../plan) before a separate POST .../render call."""
     llm = get_llm_client()
     service = ReportingService(store)
-    manifest = await service.create_and_plan(request, llm)
+    try:
+        manifest = await service.create_and_plan(request, llm)
+    except TemplateFrameError as exc:
+        raise HTTPException(422, str(exc)) from exc
     if render and manifest.status == ReportStatus.PLAN_READY:  # a house deck waits for storyline approval instead
         manifest = await service.render_from_plan(manifest.report_id)
     return manifest.model_dump(mode="json")

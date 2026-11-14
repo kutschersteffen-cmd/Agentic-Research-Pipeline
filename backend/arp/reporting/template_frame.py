@@ -9,7 +9,7 @@ import re
 
 from pptx.enum.shapes import PP_PLACEHOLDER
 
-from arp.reporting.house_style import load_tokens
+from arp.reporting.house_style import Tokens, load_tokens, with_frame
 from arp.schemas.reporting import Box, FrameFont, TemplateFrame
 
 _A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
@@ -128,3 +128,18 @@ def frame_preview_html(frame: TemplateFrame) -> str:
         '<html><body style="margin:0"><section class="slide" style="position:relative;width:1920px;height:1080px;background:#fff">'
         f"{boxes}</section></body></html>"
     )
+
+
+class TemplateFrameError(ValueError):
+    """A house deck asked for a template that can't frame one."""
+
+
+def house_tokens(request, store) -> Tokens:
+    """The tokens a house deck renders with: the house frame, or the request's template frame."""
+    if not request.template_id:
+        return load_tokens()
+    style = store.load_template_style(request.template_id)
+    if style is None or style.frame is None:
+        reason = (style.frame_error if style else None) or "re-upload it"
+        raise TemplateFrameError(f"Template {request.template_id} cannot frame a house deck: {reason}")
+    return with_frame(load_tokens(), style.frame, style.font_dir, style.slide_width_emu)

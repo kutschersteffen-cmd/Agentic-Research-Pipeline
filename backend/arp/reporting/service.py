@@ -16,6 +16,7 @@ from arp.reporting.html_render import render_deck_html
 from arp.reporting.lint import lint_deck
 from arp.reporting.report_builder import build_docx
 from arp.reporting.storyline import draft_storyline
+from arp.reporting.template_frame import house_tokens
 from arp.schemas.reporting import Deck, OutputFormat, ReportManifest, ReportPlan, ReportRequest, ReportStatus, SlideContent
 from arp.storage.reporting_store import ReportingStore
 
@@ -38,6 +39,8 @@ class ReportingService:
         self.settings = settings  # for run_refs; None reads get_settings() when a request has any
 
     async def create_and_plan(self, request: ReportRequest, llm: LLMClient) -> ReportManifest:
+        if request.layout.output_format == OutputFormat.HOUSE_DECK:
+            house_tokens(request, self.store)  # a template that can't frame the deck fails here, before anything is saved
         manifest = ReportManifest(title=request.title, output_format=request.layout.output_format, template_id=request.template_id)
         manifest.status = ReportStatus.PLANNING
         self.store.save_request(manifest.report_id, request)
