@@ -294,7 +294,6 @@ no slot `sidebar`, and whose findings, datasets and slide 2 text contain no `73`
 | AC-43 | Refine open on P; another user edits Q2 on RFP Answers | wait 3 s | the Refine view shows the new Q2 answer | evaluator |
 | AC-44 | Refine on R after a chat edit | — | `Preview changed since last export` and `Export .pptx` show; after clicking Export they are gone | evaluator |
 | AC-45 | golden cases file `backend/tests/golden/refine/cases.json`, ≥ 15 instructions with expected ops; a case passes when op names and targets (question ids, slide, slot, variant, chart type) equal the expected, instruction text ignored | `arp golden-set refine --min-accuracy 0.9` with the real model | exits 0 | golden |
-
 | AC-50 | as AC-41 | — | each answer shows in the right pane within 2 s of the progress line's count going up | evaluator |
 | AC-51 | a deck with one waterfall slide and one heatmap slide | `GET .../deck/html` | the heatmap slot holds a `<table>`; the waterfall slot holds an SVG | holdout |
 | AC-52 | P; the `DraftOut` stand-in returns an error for Q1 and a grounded draft for Q2 | ops `rewrite([Q1,Q2])` | turn `done`; `changed` = [Q2]; `not_changed` = [{Q1, `draft failed`}] | holdout |
