@@ -21,7 +21,7 @@ FIXTURE_PRE_VOICE = json.dumps({
 
 def test_old_record_json_still_validates():
     rec = EngagementRecord.model_validate(json.loads(FIXTURE_PRE_VOICE))
-    assert rec.issues[0].objectives == [] and rec.issues[0].engager_role == "bilateral"
+    assert rec.issues[0].objectives == [] and rec.issues[0].engager_role is None
     assert rec.issues[0].data_source == "app" and rec.issues[0].correspondence[0].is_initiation is False
 
 

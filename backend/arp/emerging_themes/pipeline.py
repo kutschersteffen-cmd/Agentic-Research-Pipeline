@@ -18,6 +18,7 @@ from arp.emerging_themes.synthesis import build_candidate
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import BatchSinks, run_batch
+from arp.orchestration.cost_tracker import estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.research.taxonomy_sources.corpus_synthesis import synthesize_activities_from_corpus
 from arp.schemas.common import CompanyRef, now_iso
@@ -77,6 +78,13 @@ async def execute_emerging_themes_run(
     candidates are still produced, just without `xbrl_corroboration`.
     """
     job_manager = JobManager(run_store)
+    job_manager._update(run_id, lambda m: setattr(m, "model", settings.llm_model))
+
+    def _progress(**kwargs) -> None:
+        usage = kwargs.get("usage")
+        cost = estimate_cost_usd(usage.model or settings.llm_model, usage) if usage is not None else 0.0
+        job_manager.record_progress(run_id, cost_delta_usd=cost, **kwargs)
+
     period = current_period()
     since = datetime.now(UTC) - timedelta(days=settings.emerging_themes_lookback_days)
 
@@ -114,10 +122,10 @@ async def execute_emerging_themes_run(
 
     def _on_extract_success(_mention: RawMention, result: tuple[list[ExtractedTag], LLMUsage]) -> None:
         _tags, usage = result
-        job_manager.record_progress(run_id, completed_delta=1, usage=usage)
+        _progress(completed_delta=1, usage=usage)
 
     def _on_extract_error(_mention: RawMention, _exc: Exception) -> None:
-        job_manager.record_progress(run_id, failed_delta=1)
+        _progress(failed_delta=1)
 
     await run_batch(
         mentions,
@@ -199,10 +207,10 @@ async def execute_emerging_themes_run(
             )
         except Exception:  # noqa: BLE001 - one cluster's synthesis failing must not abort the run
             logger.exception("Synthesis failed for cluster %s", cluster_id)
-            job_manager.record_progress(run_id, failed_delta=1)
+            _progress(failed_delta=1)
             continue
 
-        job_manager.record_progress(run_id, usage=usage)
+        _progress(usage=usage)
         if candidate is None:
             continue  # failed the independent-source-minimum or action-score check
 
@@ -238,7 +246,7 @@ async def execute_emerging_themes_run(
                 if role_result is None:
                     continue
                 role_assessment, role_usage = role_result
-                job_manager.record_progress(run_id, usage=role_usage)
+                _progress(usage=role_usage)
                 exposures.append(CompanyExposure(
                     company_id=company_id,
                     role=role_assessment.role,
@@ -252,14 +260,14 @@ async def execute_emerging_themes_run(
 
         try:
             brief, brief_usage = await build_context_brief(candidate, member_tags, mentions_by_id, company_ids_by_mention, companies_by_id, llm)
-            job_manager.record_progress(run_id, usage=brief_usage)
+            _progress(usage=brief_usage)
             candidate = candidate.model_copy(update={"context_brief": brief})
         except Exception:  # noqa: BLE001 - a candidate is never lost because its brief failed
             logger.exception("Context brief failed for candidate %s", candidate.theme_id)
 
         run_store.append_result(run_id, candidate.model_dump(mode="json"))
         topic_store.append_candidate(candidate)
-        job_manager.record_progress(run_id, review_delta=1)
+        _progress(review_delta=1)
 
     job_manager.finish_run(run_id)
     return run_id

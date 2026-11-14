@@ -1,4 +1,8 @@
 import { WhyLinks } from "../components/WhyLinks";
+import {
+  chooseUniverse, DEMO_UNIVERSE, DEMO_UNIVERSE_ENTRY, exceptionText, indexErrorText, nextIndexId, pickerFields, ruleTitle,
+  SOLVER_MISSING, universeBanner, universeOption, withUniverse, type UniverseChoice,
+} from "../lib/indexBuilder";
 import { useEffect, useMemo, useState } from "react";
 import { useMe } from "../lib/reviewer";
 import { api } from "../api/client";
@@ -9,6 +13,7 @@ import type {
   IndexCalibration,
   IndexCatalogue,
   IndexReviewResult,
+  IndexStartingUniverse,
   ScreenRule,
   SelectionRule,
   TiltRule,
@@ -211,13 +216,21 @@ export function IndexBuilder() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
+  // Starting universe: the demo (detail null) or one loaded from GET /api/index/universes/{id}.
+  const [universes, setUniverses] = useState<IndexStartingUniverse[]>([]);
+  const [choice, setChoice] = useState<UniverseChoice>({ detail: null, error: null });
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const universeId = choice.detail?.universe_id ?? DEMO_UNIVERSE;
+  const universeList = universes.length ? universes : [DEMO_UNIVERSE_ENTRY];
+  const labelOf = (id: string) => universeList.find((u) => u.universe_id === id)?.label ?? id;
+
   // Published Decision Studio results (process gap #1): a chosen one joins the
   // universe by company id, so its fields become pickable in every rule below.
   const [publications, setPublications] = useState<PublishedDecision[]>([]);
   const [snapshotId, setSnapshotId] = useState("");
   const snapshot = publications.find((p) => p.snapshot_id === snapshotId);
   const fields = useMemo(() => {
-    const baseFields = catalogue?.fields ?? { metrics: [], flags: [], categories: [] };
+    const baseFields = pickerFields(choice, catalogue?.fields ?? { metrics: [], flags: [], categories: [] });
     if (!snapshot) return baseFields;
     const p = `decision.${snapshot.framework_id}`;
     return {
@@ -225,11 +238,14 @@ export function IndexBuilder() {
       metrics: [...baseFields.metrics, `${p}.score`, `${p}.tier`, `${p}.rank`, `${p}.rank_max`],
       categories: [...baseFields.categories, `${p}.tier_name`],
     };
-  }, [catalogue, snapshot]);
+  }, [catalogue, choice, snapshot]);
 
   useEffect(() => {
     api.getIndexCatalogue().then(setCatalogue).catch((e) => setError(`Presets and screens could not be loaded (${e instanceof Error ? e.message : String(e)}). Retry by reloading the page.`));
     refreshCalibrations();
+    api.listIndexUniverses().then(setUniverses).catch((e) =>
+      setChoice({ detail: null, error: `Starting universes could not be loaded (${e instanceof Error ? e.message : String(e)}); the demo universe still works.` }),
+    );
     api.listPublishedDecisions().then(setPublications).catch(() => setPublications([]));
   }, []);
 
@@ -239,6 +255,18 @@ export function IndexBuilder() {
     } catch {
       setCalibrations([]);
     }
+  }
+
+  async function chooseStart(id: string) {
+    if (loadingId) return; // one load at a time; the select is aria-disabled, not disabled, so it keeps focus
+    setLoadingId(id);
+    const next = await chooseUniverse(choice, id, labelOf(id), api.getIndexUniverse);
+    setLoadingId(null);
+    if (!next.error) {
+      setIndexId((current) => nextIndexId(current, universeId, id));
+      setResult(null);
+    }
+    setChoice(next);
   }
 
   async function loadPreset(name: string) {
@@ -274,14 +302,14 @@ export function IndexBuilder() {
     setError(null);
     setStatus(null);
     try {
-      const review = await api.runIndexReview({
+      const review = await api.runIndexReview(withUniverse({
         index_id: indexId,
         review_date: reviewDate,
         spec,
         persist,
         use_prior_state: true,
         decision_snapshot_ids: snapshotId ? [snapshotId] : [],
-      });
+      }, choice));
       setResult(review);
       setSub("result");
       setStatus(persist ? `Review saved for ${indexId} @ ${reviewDate}.` : "Preview only — nothing was written.");
@@ -299,6 +327,7 @@ export function IndexBuilder() {
     (c.ucits_5_10_40 ? 1 : 0);
   const plural = (n: number, word: string) => (n === 0 ? "none" : `${n} ${word}${n === 1 ? "" : "s"}`);
   const composeSteps: RailStep[] = [
+    { id: "ix-universe", label: "Starting universe", summary: labelOf(universeId) },
     { id: "ix-preset", label: "Preset", summary: loaded?.name ?? "optional" },
     { id: "ix-screens", n: 1, label: "Screens", summary: plural(spec.screens.length, "screen") },
     { id: "ix-selection", n: 2, label: "Selection", summary: spec.selection.type },
@@ -318,6 +347,7 @@ export function IndexBuilder() {
     <div className="page">
       <h1>Index Construction</h1>
       <p className="help-text">Compose screens, selection, weighting, tilts, constraints and the decarbonisation path into one methodology, save it as a versioned calibration, and run a review. Every step is deterministic.</p>
+      <p className="banner banner-warning" role="note">{universeBanner(choice.detail)}</p>
 
       <div className="sub-nav" role="tablist" aria-label="Index Construction steps">
         {SUB_TABS.map((t) => (
@@ -327,13 +357,38 @@ export function IndexBuilder() {
         ))}
       </div>
 
-      {error && <p className="error-text" role="alert">{error}</p>}
+      {error && <p className="error-text" role="alert">{indexErrorText(error, catalogue)}</p>}
       {status && <p className="status-text">{status}</p>}
 
       {sub === "compose" && (
         <div className="ix-compose">
           <StepRail steps={composeSteps} />
           <div className="ix-steps">
+          <div className="card ix-step" id="ix-universe" aria-busy={loadingId !== null}>
+            <h2>Starting universe</h2>
+            <p className="help-text">The companies the review starts from: the demo universe, a holdings file, or a stored portfolio.</p>
+            <label className="field-label">
+              Universe
+              <select
+                value={loadingId ?? universeId}
+                aria-disabled={loadingId !== null}
+                aria-describedby="ix-universe-error ix-universe-notes"
+                onChange={(e) => chooseStart(e.target.value)}
+              >
+                {universeList.map((u) => (
+                  <option key={u.universe_id} value={u.universe_id}>{universeOption(u)}</option>
+                ))}
+              </select>
+            </label>
+            {loadingId && <p className="help-text" role="status">Loading {labelOf(loadingId)}…</p>}
+            {choice.error && <p className="error-text" role="alert" id="ix-universe-error">{indexErrorText(choice.error, catalogue)}</p>}
+            {choice.detail && (
+              <div className="help-text" id="ix-universe-notes">
+                {choice.detail.notes.map((note, i) => <p key={i}>{note}</p>)}
+              </div>
+            )}
+          </div>
+
           <div className="card ix-step" id="ix-preset">
             <h2>Start from a preset</h2>
             <p className="help-text">
@@ -379,7 +434,7 @@ export function IndexBuilder() {
             <WeightingCard spec={spec} setSpec={setSpec} fields={fields} />
           </div>
           <div className="ix-step" id="ix-tilts">
-            <TiltsCard spec={spec} setSpec={setSpec} fields={fields} />
+            <TiltsCard spec={spec} setSpec={setSpec} fields={fields} catalogue={catalogue} />
           </div>
           <div className="ix-step" id="ix-constraints">
             <ConstraintsCard spec={spec} setSpec={setSpec} fields={fields} optimizerAvailable={catalogue?.constraint_solver?.available ?? null} integerAvailable={catalogue?.constraint_solver?.integer_available ?? null} />
@@ -405,10 +460,10 @@ export function IndexBuilder() {
               the incumbents a selection buffer needs. A preview writes nothing.
             </p>
             <div className="toolbar">
-              <button onClick={() => runReview(false)} disabled={busy}>
+              <button onClick={() => runReview(false)} disabled={busy || loadingId !== null}>
                 {busy ? "Running..." : "Preview"}
               </button>
-              <button onClick={() => runReview(true)} disabled={busy} className="secondary">
+              <button onClick={() => runReview(true)} disabled={busy || loadingId !== null} className="secondary">
                 Run &amp; save
               </button>
             </div>
@@ -430,7 +485,9 @@ export function IndexBuilder() {
         />
       )}
 
-      {sub === "result" && <ResultTab result={result} indexId={indexId} joined={snapshot ? [snapshot] : []} />}
+      {sub === "result" && (
+        <ResultTab result={result} indexId={indexId} joined={snapshot ? [snapshot] : []} methods={catalogue?.constraint_solver?.methods} />
+      )}
     </div>
   );
 }
@@ -549,7 +606,7 @@ function ScreensCard({
       {spec.screens.map((screen, i) => (
         <RuleShell
           key={screen.rule_id ?? i}
-          title={screen.type}
+          title={ruleTitle(screen.type, catalogue?.screens)}
           enabled={screen.enabled !== false}
           onToggle={() => update(i, { enabled: screen.enabled === false } as Partial<ScreenRule>)}
           onRemove={() => setSpec({ ...spec, screens: spec.screens.filter((_, idx) => idx !== i) })}
@@ -748,7 +805,17 @@ function WeightingCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setS
 
 // --------------------------------------------------------------- tilts
 
-function TiltsCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setSpec: (s: ConstructionSpec) => void; fields: IndexCatalogue["fields"] }) {
+function TiltsCard({
+  spec,
+  setSpec,
+  fields,
+  catalogue,
+}: {
+  spec: ConstructionSpec;
+  setSpec: (s: ConstructionSpec) => void;
+  fields: IndexCatalogue["fields"];
+  catalogue: IndexCatalogue | null;
+}) {
   function update(i: number, patch: Record<string, unknown>) {
     setSpec({ ...spec, tilts: spec.tilts.map((t, idx) => (idx === i ? ({ ...t, ...patch } as TiltRule) : t)) });
   }
@@ -787,7 +854,7 @@ function TiltsCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setSpec:
       {spec.tilts.map((tilt, i) => (
         <RuleShell
           key={tilt.rule_id ?? i}
-          title={tilt.type}
+          title={ruleTitle(tilt.type, catalogue?.tilts)}
           enabled={tilt.enabled !== false}
           onToggle={() => update(i, { enabled: tilt.enabled === false })}
           onRemove={() => setSpec({ ...spec, tilts: spec.tilts.filter((_, idx) => idx !== i) })}
@@ -984,14 +1051,14 @@ function ConstraintsCard({
           />
         )}
       </div>
+      {optimizerAvailable === false &&
+        (solver.method === "waterfall" ? (
+          <p className="help-text" role="note">{SOLVER_MISSING}</p>
+        ) : (
+          <p className="error-text" role="alert">{SOLVER_MISSING}</p>
+        ))}
       {solver.method !== "waterfall" && (
         <>
-          {optimizerAvailable === false && (
-            <p className="error-text" role="alert">
-              cvxpy is not installed on the server, so this calibration will fall back to the waterfall and record why.
-              Install it with <code>pip install -e &quot;.[optimize]&quot;</code>.
-            </p>
-          )}
           <label className="checkbox-label">
             <input
               type="checkbox"
@@ -1377,7 +1444,17 @@ function CalibrationsTab({
 
 // -------------------------------------------------------------- result
 
-function ResultTab({ result, indexId, joined }: { result: IndexReviewResult | null; indexId: string; joined: PublishedDecision[] }) {
+function ResultTab({
+  result,
+  indexId,
+  joined,
+  methods,
+}: {
+  result: IndexReviewResult | null;
+  indexId: string;
+  joined: PublishedDecision[];
+  methods: IndexCatalogue["constraint_solver"]["methods"] | undefined;
+}) {
   const [showAll, setShowAll] = useState(false);
   const sorted = useMemo(() => (result ? [...result.constituents].sort((a, b) => b.weight - a.weight) : []), [result]);
 
@@ -1437,8 +1514,8 @@ function ResultTab({ result, indexId, joined }: { result: IndexReviewResult | nu
             <p className="help-text">Every relaxation and data-quality override applied, in order. These belong on the committee pack.</p>
             <ul>
               {result.exceptions.map((e, i) => (
-                <li key={i} className="error-text" role="alert">
-                  {e}
+                <li key={i} className="error-text">
+                  {exceptionText(e, methods)}
                 </li>
               ))}
             </ul>

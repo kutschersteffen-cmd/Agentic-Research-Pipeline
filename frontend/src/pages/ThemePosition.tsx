@@ -5,6 +5,7 @@ import {
   DATA_LABEL,
   FIND_COMPANIES_FIRST,
   checkGrid,
+  citedLabel,
   companiesFound,
   criterion,
   editorDraft,
@@ -112,7 +113,7 @@ function Position({ id, view, titles, approver, busy, act }: { id: string; view:
           {latest.paragraphs.map((p, i) => (
             <article key={i}>
               <p>{p.text}</p>
-              <p className="muted">{p.cites.map((c) => `${c} · ${titles[c] ?? c}`).join("; ")}</p>
+              <p className="muted">{p.cites.map((c) => citedLabel(c, titles)).join("; ")}</p>
             </article>
           ))}
           {latest.instructions && <p className="muted">Redrafted with: {latest.instructions}</p>}

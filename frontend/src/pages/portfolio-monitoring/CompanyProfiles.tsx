@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { embedErrorText } from "../../lib/biEmbed";
 import type { DashboardItem } from "../../types";
+import { SimulatedEsg } from "../company/SimulatedEsg";
+import { universeRef } from "../company/companyQuery";
 import { ProfileActionStrip } from "./ProfileActionStrip";
 import { EmbeddedDashboard } from "./SupersetBI";
 
@@ -31,6 +33,7 @@ export function CompanyProfiles() {
   return (
     <>
       <ProfileActionStrip companyId={companyId} onCompany={setCompanyId} />
+      {companyId && <SimulatedEsg key={companyId} companyRef={universeRef(companyId)} showEmpty />}
       <section className="card">
         <h2>Profile dashboard</h2>
         {notSetUp ? (

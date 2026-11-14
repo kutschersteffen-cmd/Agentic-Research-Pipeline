@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import time
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -97,6 +98,7 @@ async def universe_from_holdings(file: UploadFile, settings: Settings = Depends(
 class FromCompaniesRequest(BaseModel):
     companies: list[CompanyRef]
     name: str = "derived"
+    base_path: str | None = None  # a saved universe the new list starts from (it is not changed)
 
 
 @router.post("/from-companies")
@@ -109,7 +111,20 @@ async def universe_from_companies(req: FromCompaniesRequest, settings: Settings 
     """
     if not req.companies:
         raise HTTPException(400, "Provide at least one company.")
-    return save_universe(settings, req.companies, req.name)
+    base: list[CompanyRef] = []
+    if req.base_path:
+        try:
+            path = Path(req.base_path).resolve()
+        except (OSError, ValueError) as exc:  # ValueError: NUL byte in the path
+            raise HTTPException(400, "Universe file must be a saved universe.") from exc
+        if not path.is_relative_to((settings.runs_dir / "_universes").resolve()) or not path.is_file():
+            raise HTTPException(400, "Universe file must be a saved universe.")
+        try:
+            base = load_company_universe(path)
+        except Exception as exc:  # noqa: BLE001 - any unreadable file is the caller's 400
+            raise HTTPException(400, "Could not read the universe file.") from exc
+    known = {c.company_id for c in base}
+    return save_universe(settings, base + [c for c in req.companies if c.company_id not in known], req.name)
 
 
 def save_universe(settings: Settings, companies: list[CompanyRef], name: str) -> dict:

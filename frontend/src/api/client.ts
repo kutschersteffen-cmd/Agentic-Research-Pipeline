@@ -62,7 +62,7 @@ import type {
 } from "../types";
 import { tagQuery } from "../lib/xbrlTags";
 import { encodeRef, factsUrl, type FactFilters } from "../pages/company/companyQuery";
-import type { CompanyFactRow, CompanySearchHit, CompanySummary, CompanyTransition, FactTrail, Taxonomy, ThemeLayers } from "../types";
+import type { CompanyFactRow, CompanySearchHit, CompanySummary, CompanyTransition, FactTrail, SimulatedObservation, Taxonomy, ThemeLayers } from "../types";
 import type {
   DatasetSummary,
   DecisionComparison,
@@ -89,6 +89,8 @@ import type {
   ConstructionSpec,
   IndexCalibration,
   IndexCatalogue,
+  IndexStartingUniverse,
+  IndexStartingUniverseDetail,
   IndexReviewResult,
   CompanyRef,
   DataPointSchema,
@@ -497,6 +499,7 @@ export const api = {
   getCompanyFacts: (ref: string, filters: FactFilters) => request<CompanyFactRow[]>(factsUrl(ref, filters)),
   getFactTrail: (factId: number) => request<FactTrail>(`/api/facts/${factId}/trail`),
   getCompanyTransition: (ref: string) => request<CompanyTransition>(`/api/companies/${encodeRef(ref)}/transition`),
+  getSimulatedEsg: (ref: string) => request<SimulatedObservation[]>(`/api/companies/${encodeRef(ref)}/simulated-esg`),
 
   // Documents
   listDocuments: (companyId: string) => request(`/api/documents/${companyId}`),
@@ -684,10 +687,11 @@ export const api = {
     request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies`, { method: "POST", body: JSON.stringify(body) }),
 
   // Universe from an in-hand company list (e.g. filtered thematic-run matches)
-  universeFromCompanies: (companies: unknown[], name: string) =>
+  /** `basePath`: a saved universe the new list starts from; it is not changed. */
+  universeFromCompanies: (companies: unknown[], name: string, basePath?: string) =>
     request<{ path: string; company_count: number; sample: unknown[] }>("/api/universe/from-companies", {
       method: "POST",
-      body: JSON.stringify({ companies, name }),
+      body: JSON.stringify({ companies, name, base_path: basePath }),
     }),
 
   universeWorkbench: (body: { companies?: unknown[]; universe_path?: string; availability?: boolean }) =>
@@ -725,7 +729,7 @@ export const api = {
   createDossier: (name: string, taxonomyId: string | null) =>
     request<Dossier>("/api/dossiers", jsonBody("POST", { name, taxonomy_id: taxonomyId })),
   getDossier: (id: string) => request<Dossier>(`/api/dossiers/${encodeURIComponent(id)}`),
-  patchDossier: (id: string, body: { taxonomy_id: string } | { status: "shelved"; reason: string }) =>
+  patchDossier: (id: string, body: { taxonomy_id: string } | { status: "shelved"; reason: string } | { status: "active" }) =>
     request<Dossier>(`/api/dossiers/${encodeURIComponent(id)}`, jsonBody("PATCH", body)),
   getResearch: (id: string) => request<ResearchView>(research(id)),
   proposeSources: (id: string) => request<ProposalStarted>(research(id, "/propose"), { method: "POST" }),
@@ -1224,6 +1228,9 @@ export const api = {
   getDecisionInputs: () => request<{ in_scope: number; published: DecisionInput[] }>("/api/stewardship/decision-inputs"),
   // Index construction
   getIndexCatalogue: () => request<IndexCatalogue>("/api/index/catalogue"),
+  listIndexUniverses: () => request<IndexStartingUniverse[]>("/api/index/universes"),
+  getIndexUniverse: (universeId: string) =>
+    request<IndexStartingUniverseDetail>(`/api/index/universes/${encodeURIComponent(universeId)}`),
   getIndexPreset: (name: string) => request<ConstructionSpec>(`/api/index/presets/${name}`),
   getIndexScreenBundle: (name: string) =>
     request<{ name: string; screens: ConstructionSpec["screens"] }>(`/api/index/screen-bundles/${name}`),
@@ -1248,6 +1255,7 @@ export const api = {
     persist?: boolean;
     use_prior_state?: boolean;
     decision_snapshot_ids?: string[];
+    universe?: string;
   }) => request<IndexReviewResult>("/api/index/run", { method: "POST", body: JSON.stringify(body) }),
   // Value chain explorer
   valueChainStatus: () => request<VcStatus>("/api/value-chain/status"),

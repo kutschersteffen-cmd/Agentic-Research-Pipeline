@@ -53,3 +53,6 @@ export function editorDraft(version: StandardsVersion, released: Set<string>): S
 export const companiesFound = (steps: Dossier["steps"]) => steps.find((s) => s.number === 4)?.state === "done";
 
 export const FIND_COMPANIES_FIRST = "Find companies first: finish step 4 of the dossier.";
+
+/** A cited note item by its title; its id only when no title is known. */
+export const citedLabel = (itemId: string, titles: Record<string, string>): string => titles[itemId] ?? itemId;
