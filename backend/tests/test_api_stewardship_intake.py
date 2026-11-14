@@ -107,7 +107,7 @@ def test_votes_json_minimal_row_rejected_per_missing_field(client):
     assert r.status_code == 422
     assert {(x["field"], x["reason"]) for x in r.json()["rejected"]} == {
         ("external_id", "required"), ("meeting_date", "required"), ("item_number", "required"),
-        ("company_id", "no company_id, isin or cusip"),
+        ("company_id", "one of company_id, isin, cusip required"),
     }
 
 

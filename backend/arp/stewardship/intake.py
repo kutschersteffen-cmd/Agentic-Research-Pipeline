@@ -321,7 +321,7 @@ def _clean_vote(n: int, raw: dict, source: str, bad: list[Rejection]) -> dict:
         if row[k] is None:
             reject(k, "required")
     if not (row["company_id"] or row["isin"] or row["cusip"]):
-        reject("company_id", "no company_id, isin or cusip")
+        reject("company_id", "one of company_id, isin, cusip required")
     options = ", ".join(e.value for e in VoteValue)
     for k in ("vote", "management_recommendation"):
         if row[k] is not None and row[k] not in {e.value for e in VoteValue}:

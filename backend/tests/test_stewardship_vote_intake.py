@@ -177,3 +177,12 @@ def test_row_without_external_id_rejected_not_duplicated(pg):
     for _ in range(2):
         assert [(r.field, r.reason) for r in intake_votes([row], pg, "api").rejected] == [("external_id", "required")]
     assert _count(pg, VoteDecisionModel) == 0
+
+
+def test_blank_or_whitespace_key_counts_as_missing(pg):
+    row = {**_row(), "external_id": "  ", "item_number": "", "meeting_date": None, "isin": " "}
+    report = intake_votes([row], pg, "api")
+    assert sorted((r.field, r.reason) for r in report.rejected) == [
+        ("company_id", "one of company_id, isin, cusip required"), ("external_id", "required"),
+        ("item_number", "required"), ("meeting_date", "required"),
+    ]
