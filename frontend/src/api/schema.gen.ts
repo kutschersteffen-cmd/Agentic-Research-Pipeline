@@ -6436,6 +6436,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/tiers/bilateral": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Bilateral Pick
+         * @description Picks a company for bilateral: while the pick stands it is the company's tier
+         *     proposal, which still needs the tier confirm at stage 5 to count.
+         */
+        post: operations["post_bilateral_pick_api_stewardship_tiers_bilateral_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/tiers/bilateral/{issuer_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Bilateral Withdraw */
+        post: operations["post_bilateral_withdraw_api_stewardship_tiers_bilateral__issuer_id__withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/tiers/confirm": {
         parameters: {
             query?: never;
@@ -9763,6 +9801,13 @@ export interface components {
              * @enum {string}
              */
             type: "best_in_class_coverage";
+        };
+        /** BilateralPickRequest */
+        BilateralPickRequest: {
+            /** Issuer Id */
+            issuer_id: string;
+            /** Reason */
+            reason: string;
         };
         /** Body_add_fact_api_transition_barrier_cells__code___region__facts_post */
         Body_add_fact_api_transition_barrier_cells__code___region__facts_post: {
@@ -31700,6 +31745,74 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    post_bilateral_pick_api_stewardship_tiers_bilateral_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BilateralPickRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_bilateral_withdraw_api_stewardship_tiers_bilateral__issuer_id__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issuer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
