@@ -84,6 +84,13 @@ def test_ac25_follow_ups(seeded):
         assert parent.engagement_id == o.engagement_id and parent.started_at < o.started_at
 
 
+def test_follow_up_wording_differs_from_parent(seeded):
+    objectives, _ = _objectives(seeded)
+    by_id = {o.objective_id: o for o in objectives}
+    follows = [o for o in objectives if o.follows_objective_id]
+    assert follows and all(o.description.startswith("Follow-up:") and o.description != by_id[o.follows_objective_id].description for o in follows)
+
+
 def test_ac26_passive_support_has_no_high_influence(seeded):
     objectives, engagements = _objectives(seeded)
     role = {e.engagement_id: e.engager_role for e in engagements}

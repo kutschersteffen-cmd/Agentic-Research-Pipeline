@@ -61,6 +61,11 @@ _TYPE_TEXT = {
     "operational": "Ask the company to change day-to-day practice and show measurable steps on {t}.",
     "strategic": "Ask the company to set a board-approved strategy and targets on {t}.",
 }
+_FOLLOW_TEXT = {
+    "transparency": "Follow-up: ask the company to publish the progress data it promised on {t}, with dates.",
+    "operational": "Follow-up: ask the company to show the practice changes made since our last request on {t}.",
+    "strategic": "Follow-up: ask the board to confirm the targets it set on {t} and how it will report against them.",
+}
 _RESULT_BY_LEVEL = {
     "1": ["not_achieved", "deterioration"], "2": ["not_achieved", "partially_achieved"],
     "3": ["partially_achieved", "achieved"], "4A": ["achieved"], "4B": ["achieved"], "5": ["achieved"],
@@ -155,7 +160,7 @@ def _company_batch(rng: random.Random, seed: int, isin: str, name: str, sector: 
         row = {
             "external_id": ext, "engagement_external_id": f"{key}:{theme}",
             "follows_external_id": rng.choice(in_eng[e]) if i in follows else None,
-            "description": _TYPE_TEXT[otype].format(t=_LABEL[theme]), "objective_type": otype,
+            "description": (_FOLLOW_TEXT if i in follows else _TYPE_TEXT)[otype].format(t=_LABEL[theme]), "objective_type": otype,
             "status": "closed" if closed else rng.choice(["initiated", "in_progress"]), "result": result,
             "receptiveness": _pick(rng, _RECEPT), "escalated": rng.random() < 0.2, "started_at": _iso(began),
             "target_date": (began + timedelta(days=365)).date().isoformat(), "closed_at": _iso(ended) if closed else None,
