@@ -288,7 +288,7 @@ class EngagementIssue(BaseModel):
     fir_theme: FirTheme | None = None
     esg_pillars: list[EsgPillar] = Field(default_factory=list)
     rationale: str = ""
-    engager_role: EngagerRole = EngagerRole.BILATERAL
+    engager_role: EngagerRole | None = None  # None = not yet a VOICE engagement (owner decision 13 Nov 2026)
     objectives: list[Objective] = Field(default_factory=list)
     data_source: str = "app"  # `source` is taken by TriggerSource
 
