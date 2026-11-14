@@ -62,6 +62,7 @@ _TYPE_TEXT = {
     "operational": "Ask the company to change day-to-day practice and show measurable steps on {t}.",
     "strategic": "Ask the company to set a board-approved strategy and targets on {t}.",
 }
+_NTH = ["first", "second", "third", "fourth", "fifth"]  # a follow-up's place in its engagement keeps chained follow-ups distinct
 _FOLLOW_TEXT = {
     "transparency": "Follow-up: ask the company to publish the progress data it promised on {t}, with dates.",
     "operational": "Follow-up: ask the company to show the practice changes made since our last request on {t}.",
@@ -95,7 +96,6 @@ _SUMMARY = {
     "other": "Logged a note on the company's response.",
 }  # fmt: skip
 _LEVELS = [("1", 30), ("2", 30), ("3", 25), ("4A", 6), ("4B", 6), ("5", 3)]
-_ROLES = [("bilateral", 40), ("lead", 15), ("active_support", 25), ("passive_support", 20)]
 _RECEPT = [("very_good", 15), ("good", 30), ("neutral", 25), ("insufficient", 20), ("refusal", 10)]
 _ACTIVITY = [("email", 30), ("call", 25), ("meeting", 25), ("letter", 10), ("agm_intervention", 7), ("other", 3)]
 
@@ -136,14 +136,12 @@ def _company_batch(rng: random.Random, seed: int, isin: str, name: str, sector: 
     candidates = [i for i in range(n_obj) if positions[:i].count(positions[i])]  # not first in its engagement
     follows = set(rng.sample(candidates, min(1 if n_obj < 5 else 2, len(candidates))))
     start = {}
-    role = {}
     for e, theme in enumerate(chosen):
-        role[e] = _pick(rng, _ROLES)
         start[e] = BASE + timedelta(days=rng.randint(0, 400))
         pillar = "E" if theme in _PILLAR["E"] else "S" if theme in _PILLAR["S"] else "G"
         batch["engagements"].append({
             "external_id": f"{key}:{theme}", "company_id": f"isin_{isin}", "isin": isin, "company_name": name, "theme": theme,
-            "fir_theme": theme, "esg_pillars": [pillar], "engager_role": role[e], "started_at": _iso(start[e]),
+            "fir_theme": theme, "esg_pillars": [pillar], "engager_role": "bilateral", "started_at": _iso(start[e]),
             "rationale": f"{name} is a large holding with open questions on {_LABEL[theme]}; we want a clear, dated commitment.",
             "status": "open", "severity": rng.choice(["low", "medium", "high"]),
         })  # fmt: skip
@@ -155,13 +153,14 @@ def _company_batch(rng: random.Random, seed: int, isin: str, name: str, sector: 
         began = start[e]
         otype = rng.choice(list(_TYPE_TEXT))
         closed = rng.random() < 0.6
-        level = _pick(rng, _LEVELS[:3] if role[e] == "passive_support" else _LEVELS) if closed else None
+        level = _pick(rng, _LEVELS) if closed else None
         result = rng.choice(_RESULT_BY_LEVEL[level]) if closed else None
         ended = began + timedelta(days=rng.randint(30, 200))
         row = {
             "external_id": ext, "engagement_external_id": f"{key}:{theme}",
             "follows_external_id": rng.choice(in_eng[e]) if i in follows else None,
-            "description": (_FOLLOW_TEXT if i in follows else _TYPE_TEXT)[otype].format(t=_LABEL[theme]), "objective_type": otype,
+            "description": _FOLLOW_TEXT[otype].format(t=_LABEL[theme]) + f" This is our {_NTH[len(in_eng[e])]} request."
+            if i in follows else _TYPE_TEXT[otype].format(t=_LABEL[theme]), "objective_type": otype,
             "status": "closed" if closed else rng.choice(["initiated", "in_progress"]), "result": result,
             "receptiveness": _pick(rng, _RECEPT), "escalated": rng.random() < 0.2, "started_at": _iso(began),
             "target_date": (began + timedelta(days=365)).date().isoformat(), "closed_at": _iso(ended) if closed else None,

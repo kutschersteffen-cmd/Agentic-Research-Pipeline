@@ -94,11 +94,9 @@ def test_follow_up_wording_differs_from_parent(seeded):
     assert follows and all(o.description.startswith("Follow-up:") and o.description != by_id[o.follows_objective_id].description for o in follows)
 
 
-def test_ac26_passive_support_has_no_high_influence(seeded):
-    objectives, engagements = _objectives(seeded)
-    role = {e.engagement_id: e.engager_role for e in engagements}
-    assert "passive_support" in role.values()
-    assert not [o for o in objectives if role[o.engagement_id] == "passive_support" and o.influence_level in ("4A", "4B", "5")]
+def test_ac42_every_seeded_engagement_is_bilateral(seeded):
+    _, engagements = _objectives(seeded)
+    assert {e.engager_role for e in engagements} == {"bilateral"}
 
 
 def test_ac29_rerun_changes_nothing(seeded):
