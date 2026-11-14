@@ -35,6 +35,19 @@ function meetingLabel(date: string | null | undefined): string {
   return `Meeting ${d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })} · ${when}`;
 }
 
+/** The company's overdue or broken commitments and objectives, on every one of its ballot items. */
+function WatchFlagBanners({ ballot }: { ballot: CompanyBallot }) {
+  return (
+    <>
+      {(ballot.watch_flags ?? []).map((f) => (
+        <div className="banner banner-warning" key={f.item_id}>
+          {f.message}
+        </div>
+      ))}
+    </>
+  );
+}
+
 function itemKey(companyId: string, proposalNumber: string): string {
   return `${companyId}:${proposalNumber}`;
 }
@@ -147,6 +160,7 @@ function ProposalReview({
           {settled && !alreadyCast ? "Change" : "Details"}
         </button>
         {error && <p className="error-text" role="alert">{error}</p>}
+        <WatchFlagBanners ballot={ballot} />
       </div>
     );
   }
@@ -193,6 +207,7 @@ function ProposalReview({
           <span className="muted">{rec.rationale}</span>
         </div>
       )}
+      <WatchFlagBanners ballot={ballot} />
       {rec?.engagement_alignment_flag && (
         <div className="banner banner-warning">
           <strong>Needs a second person.</strong> Engagement alignment flag: {rec.engagement_alignment_note || "no note recorded"}
