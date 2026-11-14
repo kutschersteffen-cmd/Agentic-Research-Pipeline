@@ -51,6 +51,13 @@ class HouseUniverseSetting:
         return setting
 
 
+def held_isins(store: PortfolioStore) -> dict[str, str]:
+    """ISIN -> portfolio company id for every held security, so data keyed by ISIN (the vote ledger) reaches the
+    issuer the portfolio universe names."""
+    securities, _ = portfolio_directories(store)
+    return {s.isin.upper(): s.company_id for s in securities.values() if s.isin and s.company_id}
+
+
 def _value_by_company(store: PortfolioStore, as_of: str) -> dict[str, float]:
     securities, _ = portfolio_directories(store)
     resolved = {s: store.get_resolution(s) for s in securities}

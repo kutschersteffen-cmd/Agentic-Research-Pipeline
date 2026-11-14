@@ -28,10 +28,15 @@ def ledger_rows(dsn: str, window_days: int) -> list[dict]:
         rows = []
         by_isin: dict[str, str] = {}  # one registry lookup per distinct ISIN
         house: dict[str, str] | None = None
+        held: dict[str, str] | None = None  # ISIN -> issuer id of a security the house portfolios hold
         for meeting, item, d in s.execute(q):
-            # the FK to stw_companies is set only for a known company; else the registry's universe id for the ISIN,
-            # else the showcase issuer `isin_<ISIN>`
-            company_id = meeting.company_id
+            # monitoring keys on house issuer ids: the house issuer holding the ISIN first; else the stw_companies
+            # key (set only for a known company); else the registry's universe id for the ISIN; else `isin_<ISIN>`
+            if held is None:
+                from arp.stewardship.process import house_isins
+
+                held = house_isins()
+            company_id = held.get(meeting.isin or "") or meeting.company_id
             if company_id is None and meeting.isin:
                 if meeting.isin not in by_isin:
                     uid = resolve_ref(s, f"ISIN:{meeting.isin}")

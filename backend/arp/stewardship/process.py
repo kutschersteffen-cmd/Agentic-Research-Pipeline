@@ -35,7 +35,7 @@ from arp.stewardship.policy_graph import evaluate, generate
 from arp.stewardship.policy_review import DATA, build, decide, review
 from arp.stewardship.tiers import TIER_LABELS, TIERS, TierStore, review_tiers, tier_contexts
 from arp.stewardship.tiers import evaluate as evaluate_tiers
-from arp.stewardship.universe import HouseUniverseSetting, from_portfolio
+from arp.stewardship.universe import HouseUniverseSetting, from_portfolio, held_isins
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.decision_store import DecisionStore
 from arp.storage.run_store import RunStore
@@ -77,6 +77,17 @@ def house_universe() -> dict:
     if HouseUniverseSetting(settings.stewardship_streams_dir).get()["source"] == "sample":
         return json.loads(SAMPLE_PATH.read_text())
     return from_portfolio(build_portfolio_store(settings))
+
+
+def house_isins() -> dict[str, str]:
+    """ISIN -> house issuer id for the portfolio universe; empty for the sample, whose issuers have no ISINs."""
+    from arp.config import get_settings
+    from arp.storage.portfolio_store_factory import build_portfolio_store
+
+    settings = get_settings()
+    if HouseUniverseSetting(settings.stewardship_streams_dir).get()["source"] == "sample":
+        return {}
+    return held_isins(build_portfolio_store(settings))
 
 
 def load_sample(
