@@ -244,7 +244,7 @@ Holdout and unit rows use the stand-in client: `RefineOps` returns the ops given
 stand in `DraftOut`. Fixture: RFP project P with Q1, Q2 status `drafted` (answers `A1`, `A2`), Q3 `approved`,
 Q4 `no source`; library entry E1 whose answer contains `We screen all holdings quarterly.`. A grounded draft
 is `DraftOut {answer: "We screen holdings quarterly.", citations: [{entry_id: E1, quote: "We screen all
-holdings quarterly."}]}`. Report R has a deck whose slide 2 uses a layout with slots `body` and `chart`,
+holdings quarterly."}]}`. Report R has a deck whose slide 2 uses a layout with slots `text` and `chart` (e.g. `two_column`/`text_chart` in `style/layouts.json`),
 no slot `sidebar`, and whose findings, datasets and slide 2 text contain no `73`.
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
@@ -267,14 +267,14 @@ no slot `sidebar`, and whose findings, datasets and slide 2 text contain no `73`
 | AC-16 | no done turn on P | undo | 409, detail `Nothing to undo.` | holdout |
 | AC-17 | after AC-1, Q1 edited by hand on RFP Answers | undo | 409, detail `Q1 changed after this turn; undo would overwrite it.` | holdout |
 | AC-18 | as AC-17 | read Q1, Q2 and the turn | Q1 keeps the hand edit, Q2 keeps the AC-1 answer, the turn's `status` is `done` | holdout |
-| AC-19 | R | ops `set_text(2, "body", "Net zero by 2040")` | `GET /api/reports/R/deck`: slide 2 `slots.body` = `Net zero by 2040` | holdout |
+| AC-19 | R | ops `set_text(2, "text", "Net zero by 2040")` | `GET /api/reports/R/deck`: slide 2 `slots.text` = `Net zero by 2040` | holdout |
 | AC-20 | after AC-19 | `GET /api/reports/R/deck/html` | body contains `Net zero by 2040` | holdout |
 | AC-21 | R | ops `set_text(2, "sidebar", "x")`, `set_headline(2, "New")` | slide 2 headline `New` | holdout |
 | AC-22 | as AC-21 | read the turn | `not_changed` = [{2, `no such slot`}] | holdout |
 | AC-23 | R | ops `set_variant(2, "nonexistent")` | slide 2 unchanged; `not_changed` = [{2, `no such variant`}] | holdout |
 | AC-24 | R, slide 2 chart type `line` | ops `set_chart_type(2, "column")` | slide 2 `chart.chart_type` = `column`; `dataset_id` and columns unchanged | holdout |
 | AC-25 | R with 4 slides headlined S1–S4 | ops `move_slide(4, 1)`, `delete_slide(3)` | headlines in order: S4, S1, S2 | holdout |
-| AC-26 | R | ops `set_text(2, "body", "Emissions fell 73%")` | slide 2 `slots.body` = `Emissions fell 73%` | holdout |
+| AC-26 | R | ops `set_text(2, "text", "Emissions fell 73%")` | slide 2 `slots.text` = `Emissions fell 73%` | holdout |
 | AC-27 | as AC-26 | read the turn | `check_figures` = [2] | holdout |
 | AC-28 | after AC-19 | read `refine_turns` | one row, `kind` `deck`, `before` = the whole prior `deck.json` | holdout |
 | AC-29 | after AC-19 | undo on R | `GET .../deck` equals the deck before AC-19 | holdout |
@@ -287,7 +287,7 @@ no slot `sidebar`, and whose findings, datasets and slide 2 text contain no `73`
 | AC-36 | the app with stand-ins | open the navigation | it has `Refine`; `/refine?report=R` opens with R selected; the picker lists no report without a deck | evaluator |
 | AC-37 | Refine on R; `RefineOps` returns `set_chart_type(3, "column")` | owner types `make slide 3 a column chart` | slide 3 in the right pane shows a column chart within 1 s of the reply appearing | evaluator |
 | AC-38 | as AC-37 | — | slide 3's thumbnail carries the label `changed` | evaluator |
-| AC-39 | Refine on a deck whose slide 2 `body` holds 400 words | — | that slot has a red outline | evaluator |
+| AC-39 | Refine on a deck whose slide 2 `text` holds 400 words | — | that slot has a red outline | evaluator |
 | AC-40 | as AC-39 | — | that slot shows the label `Text doesn't fit` | evaluator |
 | AC-41 | Refine on P; ops `rewrite([Q1,Q2,Q3])` with grounded drafts, `DraftOut` `delay_seconds: 2` | owner sends an instruction | Q1 shows its new answer and `changed` before Q2 does; a line `1 of 3` then `2 of 3` shows while it runs | evaluator |
 | AC-42 | as AC-41, done | — | under the reply: `Changed: Q1, Q2` and `Not changed: Q3 (approved)` | evaluator |
