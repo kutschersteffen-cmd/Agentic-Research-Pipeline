@@ -297,6 +297,7 @@ def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str, exce
 
 _VOTE_LOCK = text("select pg_advisory_xact_lock(hashtext('vote_intake'))")  # one vote intake at a time
 _MEETING = ["issuer_name", "isin", "cusip", "meeting_type"]
+_KEEP = {"company_id", "isin", "cusip"}
 _ITEM = ["description", "categories", "proponent", "management_recommendation"]
 _DECISION = ["vote", "vote_label", "against_management", "shares_voted", "rationale", "decided_by", "decided_at", "run_id"]
 
@@ -360,7 +361,8 @@ def intake_votes(rows: list[dict], dsn: str, source: str, excel_rows: bool = Fal
                     company = key
                     break
             # the row's own ids, so the key stays stable once stw_companies gains the row; unmatched rows still store
-            key = row["company_id"] or (row["isin"] and f"isin_{row['isin']}") or row["cusip"] or row["issuer_name"] or ""
+            # one namespace per key source, so an issuer name can never land on another company's meeting
+            key = next((f"{ns}:{row[k]}" for ns, k in (("cid", "company_id"), ("isin", "isin"), ("cusip", "cusip"), ("name", "issuer_name")) if row[k]), "")
             if row["external_id"] is not None and row["external_id"] in seen:
                 bad.append(Rejection(sheet="votes", row=n, field="external_id", reason="duplicate in batch"))
             seen.add(row["external_id"])
@@ -387,7 +389,8 @@ def intake_votes(rows: list[dict], dsn: str, source: str, excel_rows: bool = Fal
                 s.flush()
                 report.created += 1
                 return
-            changed = [k for k, v in values.items() if getattr(stored, k) != v]
+            # an upsert fills a meeting's company ids but never clears them
+            changed = [k for k, v in values.items() if getattr(stored, k) != v and not (v is None and k in _KEEP)]
             for k in changed:
                 setattr(stored, k, values[k])
             report.updated += bool(changed)
