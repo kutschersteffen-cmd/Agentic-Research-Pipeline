@@ -297,7 +297,8 @@ The house rule `vote_against_management` (`vote.against_management > 0`) is unch
 ## UI
 
 The issue panel on `#/engagement` (`frontend/src/components/EngagementIssuePanel.tsx`) lists the issue's
-objectives: description, type, status, result. Each row from `mock_voice_seed` or `npx_urth_demo` shows the label
+objectives: description, type, status, and the result when set (owner, 14 Nov 2026: the list is the
+`stewardship-commitment-loop` one, which shows a result only once recorded). Each row from `mock_voice_seed` or `npx_urth_demo` shows the label
 `Demo data`. `e2e_stack.sh up` seeds no stewardship data; the evaluator runs
 `arp showcase load && arp stewardship seed-demo --companies 20` itself before checking AC-30.
 
@@ -344,7 +345,7 @@ and `vote_*` tables first, unless the row says otherwise.
 | AC-27 | `ARP_ENGAGEMENT_STORE=postgres`, a file `engagements/<id>/record.json` present, and the same company created through `POST /api/engagement/records` | `POST /api/engagement/records/{id}/issues` | Status 200, and the file's bytes are unchanged | holdout |
 | AC-28 | A database with rows in legacy `engagement_issues` and `engagement_commitments` | `arp db init-postgres` runs | Both tables exist with the same row counts | holdout |
 | AC-29 | AC-23 done | `seed-demo --seed 7` runs again | Row counts of every `stw_*` table are unchanged | holdout |
-| AC-30 | Seeded data on the e2e stack | A user opens `#/engagement` and a seeded company's issue | Each objective shows description, type, status and result, and the label `Demo data` | evaluator |
+| AC-30 | Seeded data on the e2e stack | A user opens `#/engagement` and a seeded company's issue | Each objective shows description, type and status, its result when one is set, and the label `Demo data` (amended 14 Nov 2026 by the owner: result only when set, as the `stewardship-commitment-loop` objectives list shows it) | evaluator |
 | AC-31 | Showcase companies not loaded | `seed-demo` runs | Exit code 1; stderr is `run arp showcase load first` | unit |
 | AC-32 | AC-31 | — | 0 rows with `source` `mock_voice_seed` exist | unit |
 | AC-33 | A fixture CSV: 3 meetings, 10 distinct items; 8 items with one vote record (2 of them `AGAINST` with `for_against_management` `AGAINST`), 1 item with 2 records (`FOR`/`FOR`, management `FOR`), 1 item with an empty vote | `arp stewardship load-npx <dir>` runs | `vote_meetings` holds 3 rows, `vote_items` 10, `vote_decisions` 10 | holdout |
