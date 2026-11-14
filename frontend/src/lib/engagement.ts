@@ -29,3 +29,25 @@ export function unlistedText(count: number, ids: string[]): string {
     ? `1 signal skipped: its company is not in the list (${ids.join(", ")}).`
     : `${count} signals skipped: their companies are not in the list (${ids.join(", ")}).`;
 }
+
+const DEMO_SOURCES = ["mock_voice_seed", "npx_urth_demo"];
+
+export interface ObjectiveRow {
+  description: string;
+  type: string;
+  status: string;
+  result: string;
+  demo: boolean;
+}
+
+/** One display row per objective; `demo` when the issue or the objective itself came from a demo seed. */
+export function objectiveRows(issue: Pick<EngagementIssue, "objectives" | "data_source">): ObjectiveRow[] {
+  const label = (v: string) => v.replace(/_/g, " ");
+  return (issue.objectives ?? []).map((o) => ({
+    description: o.description,
+    type: label(o.objective_type),
+    status: label(o.status),
+    result: o.result ? label(o.result) : "—",
+    demo: DEMO_SOURCES.includes(issue.data_source ?? "") || DEMO_SOURCES.includes(o.source),
+  }));
+}

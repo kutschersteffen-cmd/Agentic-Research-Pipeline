@@ -902,6 +902,15 @@ export interface EscalationTransition {
   reason: string;
 }
 
+export interface Objective {
+  objective_id: string;
+  description: string;
+  objective_type: "transparency" | "operational" | "strategic";
+  status: "initiated" | "in_progress" | "closed" | "abandoned";
+  result: "deterioration" | "not_achieved" | "partially_achieved" | "achieved" | "abandoned" | null;
+  source: string;
+}
+
 export interface EngagementIssue {
   issue_id: string;
   theme: string;
@@ -917,6 +926,8 @@ export interface EngagementIssue {
   correspondence: CorrespondenceEntry[];
   commitments: Commitment[];
   tags: string[];
+  objectives?: Objective[];
+  data_source?: string;
 }
 
 export interface EngagementRecord {

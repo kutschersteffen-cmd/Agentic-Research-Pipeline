@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { objectiveRows } from "../lib/engagement";
 import { useMe } from "../lib/reviewer";
 import { SignedInAs } from "./SignedInAs";
 import type {
@@ -68,6 +69,7 @@ export function EngagementIssuePanel({
   // The commitment whose "Verify" was clicked: verifying asks for evidence first.
   const [verifying, setVerifying] = useState<string | null>(null);
   const [evidence, setEvidence] = useState("");
+  const objectives = objectiveRows(issue);
   const closed = issue.status === "resolved" || issue.status === "closed";
 
   useEffect(() => {
@@ -229,6 +231,25 @@ export function EngagementIssuePanel({
         <span className="chip">source: {fmt(issue.source)}</span>
         <span className="chip">opened {new Date(issue.opened_at).toLocaleDateString()}</span>
       </div>
+
+      {objectives.length > 0 && (
+        <div className="panel-section">
+          <h3>Objectives</h3>
+          {objectives.map((o, i) => (
+            <div className="activity-row" key={i}>
+              <div className="activity-main">
+                {o.description}
+                <div className="activity-meta">
+                  <span>type: {o.type}</span>
+                  <span>status: {o.status}</span>
+                  <span>result: {o.result}</span>
+                  {o.demo && <span className="chip">Demo data</span>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {nextAction && (
         <p className="status-text">
