@@ -1,4 +1,4 @@
-import type { EngagementIssue } from "../types";
+import type { EngagementIssue, S } from "../types";
 
 export interface EngagementCounts {
   open: number;
@@ -28,4 +28,13 @@ export function unlistedText(count: number, ids: string[]): string {
   return count === 1
     ? `1 signal skipped: its company is not in the list (${ids.join(", ")}).`
     : `${count} signals skipped: their companies are not in the list (${ids.join(", ")}).`;
+}
+
+// VOICE lists, as the API takes them (spec stewardship-commitment-loop, "Record result").
+export const OBJECTIVE_RESULTS = ["achieved", "partially_achieved", "not_achieved", "deterioration", "abandoned"] as const satisfies readonly S["ObjectiveResult"][];
+export const INFLUENCE_LEVELS = ["1", "2", "3", "4A", "4B", "5"] as const satisfies readonly S["InfluenceLevel"][];
+
+/** One engagement's watch topics out of the company's list, keeping the API's newest-first order. */
+export function issueTopics<T extends { engagement_id: string }>(topics: T[], issueId: string): T[] {
+  return topics.filter((t) => t.engagement_id === issueId);
 }

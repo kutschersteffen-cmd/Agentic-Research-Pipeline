@@ -204,6 +204,14 @@ worksheet row number (header = row 1). For JSON, `sheet` is the batch key and `r
 `issuer_name`, `meeting_date`, `meeting_type`, `item_number`, `description`, `categories`, `proponent`,
 `management_recommendation`, `vote`, `shares_voted`, `rationale`, `decided_by`, `decided_at`, `run_id`. Meetings and
 items are found or created from (`company_id` or `isin` or `cusip`, `meeting_date`) and (meeting, `item_number`).
+A vote row must carry `external_id`, `meeting_date`, `item_number`, `vote`, and at least one of `company_id`, `isin`
+or `cusip`; a row missing any of them is rejected with one `rejected` entry per missing field, `reason` `required`
+(a row with none of the three identifiers gets one entry, `field` `company_id`, `reason`
+`one of company_id, isin, cusip required`). A field is missing when its key is absent, null, or empty after trimming
+whitespace (an empty cell in Excel). Each failed check, the rationale rule included, adds its own entry; the rationale
+rule runs only when `vote` is present. A row whose only issuer identifier is a `company_id` that is neither in the
+registry nor in `stw_companies` adds one entry, `field` `company_id`, `reason` `unknown company`. These rules apply to intake only, not to
+`load-npx`.
 
 **Rules.**
 
@@ -214,7 +222,7 @@ items are found or created from (`company_id` or `isin` or `cusip`, `meeting_dat
   `management_recommendation` is `for`, or `vote` is `for` and the recommendation is `against`; false when `vote`
   equals the recommendation; null when the recommendation is empty or `vote` is `abstain`, `do_not_vote`, `other`
   or a frequency value.
-- A vote row whose company matches nothing is stored with `company_id` null.
+- A vote row that carries `isin` or `cusip` and whose company matches nothing is stored with `company_id` null.
 - `source` is `api` for JSON and `excel` for uploads. The upsert key is (`source`, `external_id`). A row whose
   values equal the stored row counts as `unchanged` and writes nothing, events included.
 
@@ -322,7 +330,7 @@ and `vote_*` tables first, unless the row says otherwise.
 | AC-13 | The workbook from AC-12 | It is uploaded | `stw_engagements`, `stw_objectives` and `stw_activities` hold 0 rows | holdout |
 | AC-14 | A JSON engagement batch with 1 engagement whose `company_id` and `isin` match nothing | It is posted to `POST /api/stewardship/intake/engagements` | Status 422; `rejected` holds one entry with `sheet` `engagements`, `row` 1, `reason` `unknown company` | holdout |
 | AC-15 | A company created through `POST /api/engagement/records`, and a valid JSON engagement batch with 1 engagement for it and 1 objective | It is posted | Status 200, body `{"created": 2, "updated": 0, "unchanged": 0, "rejected": []}` | holdout |
-| AC-16 | A JSON vote batch with one row: `vote` `against`, `management_recommendation` `for`, empty `rationale` | It is posted to `POST /api/stewardship/intake/votes` | Status 422; `rejected` holds one entry with `field` `rationale`, `reason` `rationale required when voting against management` | holdout |
+| AC-16 | A JSON vote batch with one row that is valid except for its rationale: `external_id`, `isin`, `meeting_date`, `item_number`, `vote` `against`, `management_recommendation` `for`, empty `rationale` | It is posted to `POST /api/stewardship/intake/votes` | Status 422; `rejected` holds exactly one entry, with `field` `rationale` and `reason` `rationale required when voting against management` | holdout |
 | AC-17 | A votes workbook with 3 valid rows at one new meeting, `item_number` 1, 2 and 3 | It is uploaded to `POST /api/stewardship/intake/votes.xlsx` | Status 200, body `{"created": 7, "updated": 0, "unchanged": 0, "rejected": []}` (1 meeting + 3 items + 3 decisions) | holdout |
 | AC-18 | The workbook from AC-8 saved to disk | `arp stewardship intake <file> --kind engagements` runs | It exits 0 and prints `created 10, updated 0, unchanged 0, rejected 0` | holdout |
 | AC-19 | A `viewer` user (non-dev auth) | `POST /api/stewardship/intake/engagements` | Status 403 | unit |
