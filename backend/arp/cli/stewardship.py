@@ -41,3 +41,28 @@ def intake_cmd(file: Path = typer.Argument(..., exists=True, dir_okay=False), ki
     typer.echo(f"created {report.created}, updated {report.updated}, unchanged {report.unchanged}, rejected {len(report.rejected)}")
     if report.rejected:
         raise typer.Exit(1)
+
+
+@stewardship_app.command("seed-demo")
+def seed_demo_cmd(
+    companies: int = typer.Option(400, "--companies", help="How many MSCI World companies (heaviest first)."),
+    seed: int = typer.Option(7, "--seed", help="Same seed: re-run changes nothing. Other seed: replaces the demo rows."),
+) -> None:
+    """Write SIMULATED VOICE engagements, objectives and activities (source mock_voice_seed); run `arp showcase load` first."""
+    from arp.stewardship.seed_demo import seed_demo
+
+    counts = seed_demo(require_dsn(get_settings()), companies, seed)
+    typer.echo(", ".join(f"{k} {v}" for k, v in counts.items()))
+
+
+@stewardship_app.command("load-npx")
+def load_npx_cmd(directory: Path = typer.Argument(..., help="Folder with the N-PX CSVs, e.g. data/voting/npx_urth/.")) -> None:
+    """Load N-PX vote CSVs into the vote ledger (source npx_urth_demo); safe to re-run, never fetches."""
+    from arp.stewardship.npx_load import load_npx
+
+    try:
+        counts = load_npx(directory, require_dsn(get_settings()))
+    except ClientInputError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"meetings {counts['meetings']}, items {counts['items']}, decisions {counts['decisions']} created")

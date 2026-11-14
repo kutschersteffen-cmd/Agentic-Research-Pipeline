@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import { OBJECTIVE_RESULTS, INFLUENCE_LEVELS, issueTopics } from "../lib/engagement";
+import { OBJECTIVE_RESULTS, INFLUENCE_LEVELS, isDemo, issueTopics } from "../lib/engagement";
 import type { EngagementIssue, Objective, WatchItemKind, WatchTopic } from "../types";
 
 // Watch list pieces of the issue panel (spec stewardship-commitment-loop, "What the user sees").
@@ -67,7 +67,7 @@ export function ProofLine({ ctx, kind, id, label, proof, open, onSaved }: { ctx:
   );
 }
 
-function ObjectiveRow({ ctx, objective: o, onSaved, onClosed }: { ctx: Ctx; objective: Objective; onSaved: () => Promise<unknown>; onClosed: () => void }) {
+function ObjectiveRow({ ctx, objective: o, demo, onSaved, onClosed }: { ctx: Ctx; objective: Objective; demo: boolean; onSaved: () => Promise<unknown>; onClosed: () => void }) {
   const [recording, setRecording] = useState(false);
   const [result, setResult] = useState("");
   const [level, setLevel] = useState("");
@@ -89,6 +89,7 @@ function ObjectiveRow({ ctx, objective: o, onSaved, onClosed }: { ctx: Ctx; obje
           <span>{o.objective_type}</span>
           {o.result && <span>result: {o.result}</span>}
           {o.target_date && <span>due {o.target_date.slice(0, 10)}</span>}
+          {demo && <span className="chip">Demo data</span>}
         </div>
         <ProofLine ctx={ctx} kind="objective" id={o.objective_id} label={o.description} proof={o.proof_statement} open={isOpen} onSaved={onSaved} />
         {isOpen && recording && (
@@ -146,7 +147,7 @@ export function ObjectivesSection({ ctx, issue, onSaved }: { ctx: Ctx; issue: En
         Objectives
       </h3>
       {issue.objectives.map((o) => (
-        <ObjectiveRow key={o.objective_id} ctx={ctx} objective={o} onSaved={onSaved} onClosed={() => heading.current?.focus()} />
+        <ObjectiveRow key={o.objective_id} ctx={ctx} objective={o} demo={isDemo(issue, o)} onSaved={onSaved} onClosed={() => heading.current?.focus()} />
       ))}
     </div>
   );
