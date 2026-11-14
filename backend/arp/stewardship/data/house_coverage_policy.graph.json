@@ -76,7 +76,7 @@
           {
             "_id": "top_weight",
             "_description": "Largest index positions get bespoke bilateral engagement.",
-            "t": "'priority_bilateral'",
+            "t": "'bilateral'",
             "r": "'top_weight'",
             "why": "'Index weight of 1% or more'",
             "w": ">= 1",
@@ -89,7 +89,7 @@
           {
             "_id": "large_exposure",
             "_description": "Large absolute exposure across house portfolios.",
-            "t": "'priority_bilateral'",
+            "t": "'bilateral'",
             "r": "'large_exposure'",
             "why": "'More than EUR 500m held'",
             "w": "",
@@ -102,7 +102,7 @@
           {
             "_id": "escalated",
             "_description": "Keep companies already in escalation in bilateral dialogue.",
-            "t": "'priority_bilateral'",
+            "t": "'bilateral'",
             "r": "'escalated'",
             "why": "'An engagement is already escalated'",
             "w": "",
@@ -114,8 +114,8 @@
           },
           {
             "_id": "high_emitter",
-            "_description": "High emitters are covered through climate collaborative initiatives.",
-            "t": "'thematic_collaborative'",
+            "_description": "High emitters get at least the expectations letter.",
+            "t": "'letter'",
             "r": "'high_emitter'",
             "why": "'High-emitting sector'",
             "w": "",
@@ -127,8 +127,8 @@
           },
           {
             "_id": "nature_impact",
-            "_description": "High-impact nature sectors are covered through nature initiatives.",
-            "t": "'thematic_collaborative'",
+            "_description": "High-impact nature sectors get at least the expectations letter.",
+            "t": "'letter'",
             "r": "'nature_impact'",
             "why": "'High-impact nature sector'",
             "w": "",
@@ -140,8 +140,8 @@
           },
           {
             "_id": "open_engagement",
-            "_description": "Companies with an open engagement stay in thematic coverage.",
-            "t": "'thematic_collaborative'",
+            "_description": "Companies with an open engagement get at least the expectations letter.",
+            "t": "'letter'",
             "r": "'open_engagement'",
             "why": "'An engagement is open'",
             "w": "",
@@ -153,8 +153,8 @@
           },
           {
             "_id": "small_position",
-            "_description": "Very small positions are covered through market-level work and voting.",
-            "t": "'systemic'",
+            "_description": "Very small positions are covered through voting and monitoring only.",
+            "t": "'monitor'",
             "r": "'small_position'",
             "why": "'Index weight below 0.05%'",
             "w": "< 0.05",
@@ -167,7 +167,7 @@
           {
             "_id": "default",
             "_description": "Everyone else: baseline expectations letter and voting policy.",
-            "t": "'scaled_baseline'",
+            "t": "'letter'",
             "r": "'default'",
             "why": "'Default: baseline coverage'",
             "w": "",

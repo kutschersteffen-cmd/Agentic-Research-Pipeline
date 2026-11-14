@@ -33,7 +33,7 @@ from arp.stewardship.trigger_store import TriggerStore
 from arp.storage.jsonl_io import read_jsonl
 
 POLICY = "priority_weights"
-TIER_VALUE = dict(zip(TIERS, (1.0, 0.67, 0.33, 0.0), strict=True))
+TIER_VALUE = dict(zip(TIERS, (1.0, 0.5, 0.0), strict=True))
 GRADES = {"A": ("Leader", 0.0), "B": ("Credible", 0.2), "C": ("Gaps", 0.4), "D": ("Emerging", 0.6),
           "E": ("Not credible", 0.8), "F": ("Disqualified", 1.0)}  # fmt: skip
 # row key -> portfolio observation field id (columns 11 to 14)

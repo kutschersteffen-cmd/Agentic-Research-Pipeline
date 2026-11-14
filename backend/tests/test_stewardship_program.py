@@ -13,6 +13,7 @@ from arp.api.routers.stewardship import CreateStreamRequest, create_stream  # no
 from arp.stewardship.escalation import load_client_example  # noqa: E402
 from arp.stewardship.process import SAMPLE_PATH, StreamStore, client_store  # noqa: E402
 from arp.stewardship.program import ProgramParams, approve, build_proposal, monitor, record_run, simulate  # noqa: E402
+from arp.stewardship.tiers import TierStore  # noqa: E402
 from arp.storage.engagement_store import EngagementStore  # noqa: E402
 
 SAMPLE = json.loads(SAMPLE_PATH.read_text())
@@ -47,6 +48,8 @@ def test_targets_are_ranked_by_leverage_and_capped(stream):
 
 def test_client_escalation_to_the_vote_step_becomes_an_expected_sanction(stream):
     streams, s = stream
+    # SYN10 confirmed `monitor` (cap 0), so the client's climate cap of 4 is above the house's (spec stewardship-three-tiers)
+    TierStore(streams.root).confirm({"issuer_id": "SYN10", "tier": "monitor"}, "tester")
     store = client_store(streams.root, s["stream_id"])
     store.activate("escalation_rules", store.save("escalation_rules", load_client_example(), "", "Designer", SAMPLE), "Approver")
     sim = simulate(streams.root, s, [], 45, {"max_targets": 50})
