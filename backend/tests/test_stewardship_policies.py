@@ -144,3 +144,11 @@ def test_escalation_versions_written_for_the_old_tiers_are_retired(tmp_path, sam
         version = store.save("escalation_rules", store.content("escalation_rules", 0), "", "A", sample)
         store.activate("escalation_rules", version, "B")
         assert store.active_version("escalation_rules") == version
+
+
+def test_only_the_tier_column_is_checked_for_old_keys(tmp_path, sample):
+    # AC-9, AC-18: an old key in another output column (here a rule name) is not a tier
+    graph = copy.deepcopy(PolicyStore(tmp_path).active("coverage_rules"))
+    table = next(n for n in graph["nodes"] if n["id"] == "coverage_tiers")
+    next(r for r in table["content"]["rules"] if r["_id"] == "small_position")["r"] = "'systemic'"
+    assert PolicyStore(tmp_path).save("coverage_rules", graph, "", "designer", sample) == 1
