@@ -2268,7 +2268,7 @@ a.vc-box:hover { border-color: var(--text); }
   /* the walkthrough link gets a line of its own under the review controls, and values keep off the card's edge */
   .argus-results td[data-label="Decision"] { flex-wrap: wrap; }
   .argus-results td[data-label="Decision"] > .walkthrough-link { flex-basis: 100%; margin: 0; }
-  .argus-results .data-table.stack-on-phone td { padding-inline-end: var(--s-3); }
+  .argus-results .data-table.stack-on-phone td, .argus-progress .data-table.stack-on-phone td { padding-inline: var(--s-3); }
 }
 .argus-results .review-controls { min-width: 16rem; }
 .argus-docs-open { display: flex; gap: var(--s-6); align-items: flex-start; }

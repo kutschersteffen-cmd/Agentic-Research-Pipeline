@@ -364,9 +364,13 @@ def test_how_was_this_found_names_its_row_and_fits_a_phone(page, store):  # UI r
     _result(store, run_id, a, "Apple", [_field("revenue", 12, "review", period="2026-06-30")], items=("revenue",))
     fid = _flow(run_id, 5)
     page.goto(f"{URL}/#/argus/{fid}/5")
-    page.get_by_role("link", name="How was Revenue 2026-06-30 for Apple found?").wait_for()
+    name = "How was this found? (Revenue, 2026-06-30, Apple)"
+    named = page.get_by_role("link", name=name, exact=True)
+    named.wait_for()
+    shown = named.evaluate("a => a.firstChild.textContent")  # the visible words, before the hidden row name
+    assert shown == "How was this found?" and name.startswith(shown)  # WCAG 2.5.3: the name starts with what is shown
     page.set_viewport_size({"width": 390, "height": 844})
-    link = _rows(page, "Extracted values").first.get_by_role("link", name="How was Revenue 2026-06-30 for Apple found?")
+    link = _rows(page, "Extracted values").first.get_by_role("link", name=name, exact=True)
     box, controls = link.bounding_box(), page.locator(".review-controls").first.bounding_box()
     assert box["x"] + box["width"] <= 390 - 8, box  # not clipped at the card's edge
     assert box["height"] < 30, box  # one line, not a word per line

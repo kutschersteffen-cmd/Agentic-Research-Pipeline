@@ -189,7 +189,7 @@ export function ArgusResults({ flow }: { flow: Flow }) {
                         : r.notFound ? ["approve", "correct"] : ["approve", "correct", "reject"]}
                     />
                   ) : decisions[r.runId]?.[r.key] ? decisionLabel(decisions[r.runId][r.key]) : "No review needed"}
-                  {r.walkthrough && <WalkthroughLink href={r.walkthrough} label={`How was ${r.field}${r.period ? ` ${r.period}` : ""} for ${r.company} found?`} />}
+                  {r.walkthrough && <WalkthroughLink href={r.walkthrough} row={[r.field, r.period, r.company].filter(Boolean).join(", ")} />}
                 </td>
               </tr>
             ))}
