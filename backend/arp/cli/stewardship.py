@@ -53,3 +53,16 @@ def seed_demo_cmd(
 
     counts = seed_demo(require_dsn(get_settings()), companies, seed)
     typer.echo(", ".join(f"{k} {v}" for k, v in counts.items()))
+
+
+@stewardship_app.command("load-npx")
+def load_npx_cmd(directory: Path = typer.Argument(..., help="Folder with the N-PX CSVs, e.g. data/voting/npx_urth/.")) -> None:
+    """Load N-PX vote CSVs into the vote ledger (source npx_urth_demo); safe to re-run, never fetches."""
+    from arp.stewardship.npx_load import load_npx
+
+    try:
+        counts = load_npx(directory, require_dsn(get_settings()))
+    except ClientInputError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"meetings {counts['meetings']}, items {counts['items']}, decisions {counts['decisions']} created")
