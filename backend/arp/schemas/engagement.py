@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -226,6 +227,7 @@ class Objective(BaseModel):
     influence_evidence: str | None = None
     evidence_url: str | None = None
     source: str = "app"
+    proof_statement: str | None = None
 
 
 class CorrespondenceEntry(BaseModel):
@@ -251,6 +253,7 @@ class Commitment(BaseModel):
     validated_by: str | None = None
     validated_at: str | None = None
     evidence: str | None = None
+    proof_statement: str | None = None
 
 
 class MilestoneTransition(BaseModel):
@@ -334,6 +337,63 @@ class ResearchDossier(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
     confidence: float = Field(ge=0.0, le=1.0)
     needs_review: bool = False
+
+
+
+# ---- Watch list (spec stewardship-commitment-loop) -----------------------------
+
+
+class WatchTopic(BaseModel):
+    """A question a person asked to watch for in the company's reports (`stw_watch_topics`)."""
+
+    topic_id: str = Field(default_factory=lambda: new_id("wtp"))
+    source: str = "app"
+    external_id: str | None = None
+    engagement_id: str
+    question: str
+    proof_statement: str | None = None
+    target_date: str | None = None
+    status: Literal["open", "closed"] = "open"
+    created_by: str | None = None
+    created_at: str = Field(default_factory=now_iso)
+    closed_by: str | None = None
+    closed_at: str | None = None
+
+
+class EvidenceSuggestion(BaseModel):
+    """A pending answer from Argus that a person confirms or rejects (`stw_evidence_suggestions`)."""
+
+    suggestion_id: str = Field(default_factory=lambda: new_id("evs"))
+    source: str = "app"
+    external_id: str | None = None
+    kind: Literal["evidence", "new_commitment"]
+    company_id: str
+    engagement_id: str
+    item_kind: Literal["objective", "commitment", "topic"] | None = None
+    item_id: str | None = None
+    activity_id: str | None = None
+    verdict: Literal["found", "against"] | None = None
+    text: str | None = None
+    proof_statement: str | None = None
+    target_date: str | None = None
+    doc_id: str | None = None
+    doc_type: str | None = None
+    doc_title: str | None = None
+    quote: str
+    page: int | None = None
+    reason: str | None = None
+    status: Literal["pending", "confirmed", "rejected"] = "pending"
+    created_at: str = Field(default_factory=now_iso)
+    decided_by: str | None = None
+    decided_at: str | None = None
+    reject_reason: str | None = None
+    created_commitment_id: str | None = None
+
+
+def evidence_text(suggestion: EvidenceSuggestion) -> str:
+    """How a confirmed suggestion is written out: `<doc_title>, page <page>: "<quote>"`, page part only when known."""
+    page = f", page {suggestion.page}" if suggestion.page is not None else ""
+    return f'{suggestion.doc_title}{page}: "{suggestion.quote}"'
 
 
 # ---- Drafting Agent outputs -------------------------------------------------
