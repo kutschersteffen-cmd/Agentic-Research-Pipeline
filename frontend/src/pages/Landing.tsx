@@ -13,20 +13,16 @@ export function Landing() {
       <LandingCanvas />
       <header className="landing-bar">
         <span className="landing-brand">
-          <svg className="landing-mark" viewBox="0 0 62 62" aria-hidden="true">
-            <path fill="currentColor" d="M14 2h10v10H14zM38 2h10v10H38zM2 14h10v10H2zM50 14h10v10H50zM2 26h10v10H2zM14 26h10v10H14zM26 26h10v10H26zM38 26h10v10H38zM50 26h10v10H50zM2 38h10v10H2zM50 38h10v10H50zM2 50h10v10H2zM50 50h10v10H50z" />
-            <rect x="26" y="2" width="10" height="10" fill="var(--hi)" />
+          <svg className="landing-mark" viewBox="0 0 206 62" role="img" aria-label="ARP">
+            <path fill="currentColor" d="M14 2h10v10h-10zM38 2h10v10h-10zM2 14h10v10h-10zM50 14h10v10h-10zM2 26h10v10h-10zM14 26h10v10h-10zM26 26h10v10h-10zM38 26h10v10h-10zM50 26h10v10h-10zM2 38h10v10h-10zM50 38h10v10h-10zM2 50h10v10h-10zM50 50h10v10h-10zM74 2h10v10h-10zM86 2h10v10h-10zM98 2h10v10h-10zM110 2h10v10h-10zM74 14h10v10h-10zM122 14h10v10h-10zM74 26h10v10h-10zM86 26h10v10h-10zM98 26h10v10h-10zM110 26h10v10h-10zM74 38h10v10h-10zM110 38h10v10h-10zM74 50h10v10h-10zM122 50h10v10h-10zM146 2h10v10h-10zM158 2h10v10h-10zM170 2h10v10h-10zM182 2h10v10h-10zM146 14h10v10h-10zM194 14h10v10h-10zM146 26h10v10h-10zM158 26h10v10h-10zM170 26h10v10h-10zM182 26h10v10h-10zM146 38h10v10h-10zM146 50h10v10h-10z" />
+            <rect x="26" y="2" width="10" height="10" fill="var(--brand-apex)" />
           </svg>
-          ARP <span className="landing-full">Agentic Research Pipeline</span>
+          <span className="landing-full">Agentic Research Pipeline</span>
         </span>
       </header>
       <main className="landing-main">
-        <h1>
-          Agents propose.
-          <br />
-          People ratify.
-        </h1>
-        <p>Thematic universes, cited extraction, transition assessment and stewardship for up to 4,000 companies per run. Every number traces back to a verified source.</p>
+        <h1>Company research and stewardship at scale.</h1>
+        <p>Leveraging expert judgement through Agents.</p>
         <a className="landing-open" href="#/home">
           Open ARP →
         </a>
