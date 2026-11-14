@@ -207,9 +207,9 @@ items are found or created from (`company_id` or `isin` or `cusip`, `meeting_dat
 A vote row must carry `external_id`, `meeting_date`, `item_number`, `vote`, and at least one of `company_id`, `isin`
 or `cusip`; a row missing any of them is rejected with one `rejected` entry per missing field, `reason` `required`
 (a row with none of the three identifiers gets one entry, `field` `company_id`, `reason`
-`one of company_id, isin, cusip required`). A field is missing when its key is absent, null or empty (an empty cell
-in Excel). Each failed check, the rationale rule included, adds its own entry. These rules apply to intake only, not
-to `load-npx`.
+`one of company_id, isin, cusip required`). A field is missing when its key is absent, null, or empty after trimming
+whitespace (an empty cell in Excel). Each failed check, the rationale rule included, adds its own entry; the rationale
+rule runs only when `vote` is present. These rules apply to intake only, not to `load-npx`.
 
 **Rules.**
 
