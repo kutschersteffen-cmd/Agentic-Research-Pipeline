@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useMe } from "../lib/reviewer";
 import { SignedInAs } from "./SignedInAs";
-import { CheckButton, FindCommitmentsButton, FoundCommitments, ObjectivesSection, PendingEvidence, ProofLine, WatchTopicsSection, useSuggestions } from "./EngagementWatch";
+import { CheckButton, DossierWatchList, FindCommitmentsButton, FoundCommitments, ObjectivesSection, PendingEvidence, ProofLine, WatchTopicsSection, useSuggestions } from "./EngagementWatch";
 import type {
   Contact,
   EngagementIssue,
@@ -367,6 +367,7 @@ export function EngagementIssuePanel({
               <strong>Peer benchmark:</strong> {dossier.peer_benchmark_notes}
             </p>
             <p className="muted">Confidence: {Math.round(dossier.confidence * 100)}% &middot; {dossier.citations.length} citation(s)</p>
+            <DossierWatchList entries={dossier.watch_list ?? []} />
           </div>
         )}
       </div>

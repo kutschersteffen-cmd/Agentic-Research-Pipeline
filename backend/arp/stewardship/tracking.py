@@ -24,6 +24,11 @@ from arp.schemas.engagement import (
     CorrespondenceType,
     EngagementRecord,
     IssueStatus,
+    ObjectiveResult,
+    ObjectiveStatus,
+    WatchFlag,
+    WatchListEntry,
+    evidence_text,
 )
 from arp.stewardship.style import check
 from arp.storage.engagement_store import EngagementStore
@@ -101,6 +106,103 @@ def commitments(records: list[EngagementRecord], today: date | None = None) -> l
         for i in r.issues
         for c in i.commitments
     ]
+
+
+def _iso(value: str | None) -> str | None:
+    """`value` when it is a `YYYY-MM-DD` date, else None: intake stores free-text due dates, which count as none."""
+    try:
+        return value if value and date.fromisoformat(value).isoformat() == value else None
+    except ValueError:
+        return None
+
+
+def _flag_order(f: WatchFlag) -> tuple:
+    return (f.kind != "broken", f.target_date is None, f.target_date or "", f.item_kind != "commitment", f.item_id)
+
+
+def watch_flags_by_company(records: list[EngagementRecord | None], today: date | None = None) -> dict[str, list[WatchFlag]]:
+    """Overdue and broken commitments and objectives on open or stalled engagements, keyed by company; only companies
+    with a flag are keys (spec "Flags and the ballot banner")."""
+    today_iso = (today or datetime.now(UTC).date()).isoformat()
+    out: dict[str, list[WatchFlag]] = {}
+    for r in records:
+        if r is None:
+            continue
+        flags = []
+        for i in r.issues:
+            if i.status not in OPEN:
+                continue
+            for c in i.commitments:
+                due = _iso(c.target_date)
+                if c.status == CommitmentStatus.MISSED:
+                    since = _iso((c.validated_at or "")[:10]) or due or _day(c.made_at)
+                    kind, message = "broken", f'Commitment broken: "{c.text}" was marked not met on {since}.'
+                elif c.status == CommitmentStatus.OPEN and due and due < today_iso:
+                    since, kind, message = due, "overdue", f'Commitment overdue: "{c.text}" was due {due}.'
+                else:
+                    continue
+                flags.append(WatchFlag(item_kind="commitment", item_id=c.commitment_id, engagement_id=i.issue_id, kind=kind,
+                                       text=c.text, target_date=due, since=since, message=message))
+            for o in i.objectives:
+                due = _iso(o.target_date)
+                if o.result in (ObjectiveResult.NOT_ACHIEVED, ObjectiveResult.DETERIORATION):
+                    since = _iso((o.closed_at or "")[:10]) or due
+                    kind = "broken"
+                    message = f'Objective failed: "{o.description}" was closed as {_w(o.result.value)}' + (f" on {since}." if since else ".")
+                elif o.status in (ObjectiveStatus.INITIATED, ObjectiveStatus.IN_PROGRESS) and due and due < today_iso:
+                    since, kind, message = due, "overdue", f'Objective overdue: "{o.description}" was due {due}.'
+                else:
+                    continue
+                flags.append(WatchFlag(item_kind="objective", item_id=o.objective_id, engagement_id=i.issue_id, kind=kind,
+                                       text=o.description, target_date=due, since=since, message=message))
+        if flags:
+            out[r.company_id] = sorted(flags, key=_flag_order)
+    return out
+
+
+def watch_flags(store: EngagementStore, company_id: str, today: date | None = None) -> list[WatchFlag]:
+    return watch_flags_by_company([store.get(company_id)], today).get(company_id, [])
+
+
+def watch_list(store: EngagementStore, company_id: str, issue_id: str, today: date | None = None) -> list[WatchListEntry]:
+    """The engagement's watch items plus its broken commitments and objectives, flagged first in `watch_flags` order,
+    each with its confirmed evidence (spec "The watch list in the dossier"). The file store has no topics or evidence."""
+    from arp.storage.postgres_engagement_store import PostgresEngagementStore
+
+    record = store.get(company_id)
+    issue = next((i for i in record.issues if i.issue_id == issue_id), None) if record else None
+    if issue is None or issue.status not in OPEN:
+        return []
+    flags = [f for f in watch_flags_by_company([record], today).get(company_id, []) if f.engagement_id == issue_id]
+    flag_of = {f.item_id: f.kind for f in flags}
+    entries = [
+        WatchListEntry(item_kind="objective", item_id=o.objective_id, text=o.description, proof_statement=o.proof_statement,
+                       target_date=o.target_date, status=o.status.value, flag=flag_of.get(o.objective_id), evidence=[])
+        for o in issue.objectives
+        if o.status in (ObjectiveStatus.INITIATED, ObjectiveStatus.IN_PROGRESS) or o.objective_id in flag_of
+    ] + [
+        WatchListEntry(item_kind="commitment", item_id=c.commitment_id, text=c.text, proof_statement=c.proof_statement,
+                       target_date=c.target_date, status=c.status.value, flag=flag_of.get(c.commitment_id), evidence=[])
+        for c in issue.commitments
+        if c.status == CommitmentStatus.OPEN or c.commitment_id in flag_of
+    ]
+    if isinstance(store, PostgresEngagementStore):
+        entries += [
+            WatchListEntry(item_kind="topic", item_id=t.topic_id, text=t.question, proof_statement=t.proof_statement,
+                           target_date=t.target_date, status=t.status, flag=None, evidence=[])
+            for t in store.list_watch_topics(company_id)
+            if t.engagement_id == issue_id and t.status == "open"
+        ]
+        by_id = {e.item_id: e for e in entries}
+        for s in reversed(store.list_suggestions(company_id, "confirmed")):  # newest first -> oldest first
+            if s.kind == "evidence" and s.item_id in by_id:
+                label = "Evidence against" if s.verdict == "against" else "Evidence"
+                by_id[s.item_id].evidence.append(f"{label}: {evidence_text(s)} (confirmed by {s.decided_by})")
+    rank = {f.item_id: n for n, f in enumerate(flags)}
+    kind_order = {"objective": 0, "commitment": 1, "topic": 2}
+    due = {e.item_id: _iso(e.target_date) for e in entries}
+    return sorted(entries, key=lambda e: (e.item_id not in rank, rank.get(e.item_id, 0), due[e.item_id] is None,
+                                          due[e.item_id] or "", kind_order[e.item_kind], e.item_id))
 
 
 def close(engagements: EngagementStore, company_id: str, issue_id: str, status: IssueStatus, outcome: str, decided_by: str):

@@ -23,6 +23,7 @@ from arp.engagement.triggers import ControversySignal, StaticControversySource, 
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.schemas.common import CompanyRef
 from arp.schemas.engagement import Contact, EscalationStage, IssueSeverity, IssueStatus, TriggerSource
+from arp.stewardship.tracking import watch_list
 from arp.storage.engagement_store import EngagementStore
 from arp.voting.pipeline import get_ballots
 
@@ -167,6 +168,7 @@ async def draft_dossier_endpoint(
         fuzzy_threshold=settings.grounding_fuzzy_threshold, confidence_review_threshold=settings.confidence_review_threshold,
         documents=documents,
     )
+    dossier = dossier.model_copy(update={"watch_list": watch_list(store, company_id, issue_id)})
     return {"dossier": dossier.model_dump(mode="json"), "needs_review": needs_review}
 
 

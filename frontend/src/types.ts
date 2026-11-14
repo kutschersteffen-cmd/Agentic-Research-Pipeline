@@ -975,6 +975,18 @@ export interface ResearchDossier {
   citations: Citation[];
   confidence: number;
   needs_review: boolean;
+  watch_list?: WatchListEntry[];
+}
+
+export interface WatchListEntry {
+  item_kind: "objective" | "commitment" | "topic";
+  item_id: string;
+  text: string;
+  proof_statement: string | null;
+  target_date: string | null;
+  status: string;
+  flag: "overdue" | "broken" | null;
+  evidence: string[];
 }
 
 export interface OutreachLetterDraft {
@@ -1068,6 +1080,19 @@ export interface CompanyBallot {
   meeting_date?: string | null;
   votes: VoteRecord[];
   generated_at: string;
+  watch_flags?: WatchFlag[];
+}
+
+/** An overdue or broken commitment or objective of the company (spec stewardship-commitment-loop, PR 3). */
+export interface WatchFlag {
+  item_kind: "commitment" | "objective";
+  item_id: string;
+  engagement_id: string;
+  kind: "overdue" | "broken";
+  text: string;
+  target_date: string | null;
+  since: string | null;
+  message: string;
 }
 
 export interface VoteReviewDecision {
