@@ -4,9 +4,9 @@ import { FileLink } from "../components/FileLink";
 import { announce } from "../lib/announce";
 import { usePoll } from "../lib/poll";
 import { overflowing, pollMs, progressLine, resultLines, trimHistory, type RefineKind } from "../lib/refine";
+import { STATUS_BADGE } from "../lib/rfp";
 import { useChartWidth } from "../lib/useChartWidth";
 import type { RefineTurn, ReportManifest, RfpProject, RfpProjectSummary } from "../types";
-import { STATUS_BADGE } from "./RfpAnswers";
 
 interface Props {
   rfp: number | null;
@@ -60,6 +60,7 @@ function Workspace({ kind, docId }: { kind: RefineKind; docId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const latest = chat.at(-1);
   const running = !!latest && (latest.turn === null || latest.turn.status === "running");
@@ -84,6 +85,7 @@ function Workspace({ kind, docId }: { kind: RefineKind; docId: string }) {
         if (turn.status !== "running") announce(turn.reply || turn.error || "The change finished.");
       }
       await loadDoc();
+      setError(null);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -96,7 +98,7 @@ function Workspace({ kind, docId }: { kind: RefineKind; docId: string }) {
     setError(null);
     setBusy(true);
     try {
-      const history = trimHistory(chat.filter((e) => e.turn && e.turn.status !== "running").map((e) => ({ message: e.message, reply: e.turn!.reply })));
+      const history = trimHistory(chat.filter((e) => e.turn?.status === "done").map((e) => ({ message: e.message, reply: e.turn!.reply })));
       const { turn_id } = await api.postRefineTurn(kind, docId, text, history);
       setChat((c) => [...c, { message: text, turnId: turn_id, turn: null }]);
       setMessage("");
@@ -125,12 +127,14 @@ function Workspace({ kind, docId }: { kind: RefineKind; docId: string }) {
   async function exportDeck() {
     setError(null);
     setBusy(true);
+    setExporting(true);
     try {
       setManifest(await api.renderReport(docId));
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
+      setExporting(false);
     }
   }
 
@@ -167,14 +171,15 @@ function Workspace({ kind, docId }: { kind: RefineKind; docId: string }) {
         <section className="card refine-view" aria-label="Live view">
           <div className="toolbar">
             <h2>Live view</h2>
-            {running && <p className="muted" role="status">Working… {progress}</p>}
+            {/* Always rendered, so the first "Working…" is announced. */}
+            <p className="muted" role="status">{running ? `Working… ${progress ?? ""}` : ""}</p>
           </div>
           {kind === "rfp" ? <RfpView project={project} changed={changed} /> : (
             <>
               {manifest?.deck_edited_since_render && (
                 <div className="toolbar">
                   <p className="muted">Preview changed since last export</p>
-                  <button disabled={busy || running} onClick={() => void exportDeck()}>{busy ? "Exporting…" : "Export .pptx"}</button>
+                  <button disabled={busy || running} onClick={() => void exportDeck()}>{exporting ? "Exporting…" : "Export .pptx"}</button>
                 </div>
               )}
               {manifest && !manifest.deck_edited_since_render && manifest.output_files.includes("output.pptx") && (
@@ -224,16 +229,19 @@ function DeckView({ html, changed }: { html: string | null; changed: number[] })
   const slide = Math.min(selected, count);
   return (
     <>
-      <div className="refine-thumbs" role="list" aria-label="Slides">
+      <ul className="refine-thumbs" aria-label="Slides">
         {Array.from({ length: count }, (_, i) => i + 1).map((n) => (
-          <button key={n} role="listitem" className={n === slide ? "refine-thumb active" : "refine-thumb"} aria-current={n === slide ? "true" : undefined} onClick={() => setSelected(n)}>
-            <SlideFrame html={html} slide={n} width={144} title={`Slide ${n} thumbnail`} />
-            <span className="refine-thumb-label">
+          <li key={n} className={n === slide ? "refine-thumb active" : "refine-thumb"}>
+            <SlideFrame html={html} slide={n} width={144} title={`Slide ${n} thumbnail`} hidden />
+            <span className="refine-thumb-label" aria-hidden="true">
               Slide {n} {changed.includes(n) && <span className="chip chip-changed">changed</span>}
             </span>
-          </button>
+            {/* Laid over the thumbnail, so the iframe stays outside the button. */}
+            <button className="refine-thumb-hit" aria-label={changed.includes(n) ? `Slide ${n}, changed` : `Slide ${n}`}
+              aria-current={n === slide ? "true" : undefined} onClick={() => setSelected(n)} />
+          </li>
         ))}
-      </div>
+      </ul>
       <div ref={wrapRef} className="refine-slide">
         {count > 0 && <SlideFrame html={html} slide={slide} width={width} title={`Slide ${slide}`} />}
       </div>
@@ -249,7 +257,7 @@ const MARK_CSS =
 
 /** One slide of the deck HTML, scaled to `width`, in a sandboxed iframe (no scripts; same origin so the
  * page can mark slots whose text does not fit). */
-function SlideFrame({ html, slide, width, title }: { html: string; slide: number; width: number; title: string }) {
+function SlideFrame({ html, slide, width, title, hidden = false }: { html: string; slide: number; width: number; title: string; hidden?: boolean }) {
   const ref = useRef<HTMLIFrameElement>(null);
   // data-slide is the 0-based index; `slide` is the 1-based position.
   const srcDoc = html.replace("</head>", `<style>section.slide:not([data-slide="${slide - 1}"]){display:none}${MARK_CSS}</style></head>`);
@@ -270,7 +278,7 @@ function SlideFrame({ html, slide, width, title }: { html: string; slide: number
   }
   return (
     <div className="refine-frame" style={{ width, height: CANVAS.h * scale }}>
-      <iframe ref={ref} title={title} sandbox="allow-same-origin" srcDoc={srcDoc} onLoad={mark} tabIndex={-1}
+      <iframe ref={ref} title={title} sandbox="allow-same-origin" srcDoc={srcDoc} onLoad={mark} tabIndex={-1} aria-hidden={hidden || undefined}
         style={{ width: CANVAS.w, height: CANVAS.h, transform: `scale(${scale})` }} />
     </div>
   );

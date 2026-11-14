@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { overflowing, pollMs, progressLine, resultLines, trimHistory } from "../src/lib/refine.ts";
+import { overflowing, pollMs, progressLine, refineTarget, resultLines, trimHistory } from "../src/lib/refine.ts";
 import type { RefineTurn } from "../src/types.ts";
 
 const turn = (over: Partial<RefineTurn>): RefineTurn => ({
@@ -49,4 +49,10 @@ test("trimHistory keeps the 5 newest turns", () => {
 test("overflowing: content taller than its box", () => {
   assert.equal(overflowing({ scrollHeight: 300, clientHeight: 200 } as HTMLElement), true);
   assert.equal(overflowing({ scrollHeight: 200, clientHeight: 200 } as HTMLElement), false);
+});
+
+test("refineTarget reads rfp and report, and ignores an rfp that is not a number", () => {
+  assert.deepEqual(refineTarget(new URLSearchParams("rfp=3")), { rfp: 3, report: null });
+  assert.deepEqual(refineTarget(new URLSearchParams("report=rpt_1")), { rfp: null, report: "rpt_1" });
+  assert.deepEqual(refineTarget(new URLSearchParams("rfp=abc")), { rfp: null, report: null });
 });

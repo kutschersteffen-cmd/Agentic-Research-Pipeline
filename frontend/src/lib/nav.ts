@@ -52,3 +52,11 @@ export const navCount = (id: string, waiting: { review: number } | null): number
  * every other hash routes as before, so direct links keep working. */
 export const entryTab = (hash: string): "welcome" | null =>
   ["", "#", "#/", "#/welcome"].includes(hash) ? "welcome" : null;
+
+/** `#/<tab>[?query]/<param>...` split into its parts, each decoded. Only the tab segment's `?query` is split off
+ * (e.g. #/refine?rfp=3); a later param keeps its own (a walkthrough's `?basis=`, see parseWalkthroughParams). */
+export function splitHash(hash: string): { tab: string; params: string[]; query: URLSearchParams } {
+  const [first = "", ...params] = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+  const q = first.indexOf("?");
+  return { tab: q < 0 ? first : first.slice(0, q), params, query: new URLSearchParams(q < 0 ? "" : first.slice(q + 1)) };
+}

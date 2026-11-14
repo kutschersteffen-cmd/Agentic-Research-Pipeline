@@ -29,3 +29,10 @@ export const trimHistory = (h: RefineHistoryItem[]): RefineHistoryItem[] => h.sl
 
 /** A slot whose text does not fit its box. */
 export const overflowing = (el: HTMLElement): boolean => el.scrollHeight > el.clientHeight;
+
+/** The document a Refine URL names; an `rfp` that is not a whole number counts as none. */
+export function refineTarget(query: URLSearchParams): { rfp: number | null; report: string | null } {
+  const rfp = query.get("rfp");
+  return { rfp: rfp !== null && /^\d+$/.test(rfp) ? Number(rfp) : null, report: query.get("report") };
+}
+

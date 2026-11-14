@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { NAV_GROUPS, currentNavIds, navCount, redirectHash } from "../src/lib/nav.ts";
+import { NAV_GROUPS, currentNavIds, navCount, redirectHash, splitHash } from "../src/lib/nav.ts";
+import { parseWalkthroughParams } from "../src/lib/walkthrough.ts";
 
 test("redirectHash sends each removed screen, and any path under it, to its replacement", () => {
   assert.equal(redirectHash("#/dashboard"), "#/home");
@@ -46,4 +47,12 @@ test("navCount shows the review badge and nothing else", () => {
   assert.equal(navCount("review", { review: 1 }), 1);
   assert.equal(navCount("argus", { review: 1 }), 0);
   assert.equal(navCount("review", null), 0);
+});
+
+test("splitHash takes the query off the tab only, so a walkthrough's ?basis= still reaches its parser", () => {
+  const r = splitHash("#/argusWalkthrough/run1/co1/item1?basis=action:3");
+  assert.equal(r.tab, "argusWalkthrough");
+  assert.deepEqual(parseWalkthroughParams(r.params), { runId: "run1", companyId: "co1", item: "item1", periodEnd: undefined, basis: "action:3" });
+  const refine = splitHash("#/refine?report=rpt_1");
+  assert.deepEqual([refine.tab, refine.params, refine.query.get("report")], ["refine", [], "rpt_1"]);
 });
