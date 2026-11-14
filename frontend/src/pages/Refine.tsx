@@ -33,7 +33,7 @@ export function Refine({ rfp, report }: Props) {
   return (
     <div className="page">
       <h1>Refine</h1>
-      <p className="help-text">Change an RFP's answers or a deck's slides by typing what you want; the document updates on the right as the agent works.</p>
+      <p className="help-text">Change an RFP's answers or a deck's slides by typing what you want; the live view updates as the agent works.</p>
       <label className="field-label">
         Document
         <select id="refine-doc" value={value} onChange={(e) => (window.location.hash = `/refine?${e.target.value}`)}>
