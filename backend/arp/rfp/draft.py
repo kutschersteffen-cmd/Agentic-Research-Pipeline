@@ -82,14 +82,18 @@ def select_entries(question: str, entries: list[Entry], settings=None) -> list[E
     return [by_chunk[c.chunk_id] for c in picked]
 
 
-async def draft_answer(question: str, entries: list[Entry], llm: LLMClient, *, today: date, settings=None) -> Draft:
+async def draft_answer(question: str, entries: list[Entry], llm: LLMClient, *, today: date, settings=None,
+                       instruction: str | None = None, current: str | None = None) -> Draft:
     shown = select_entries(question, entries, settings)
     if not shown:
         return Draft(NO_SOURCE)
     listing = "\n\n".join(f"[E{e.id}]\nQuestion: {e.question}\nAnswer: {e.answer}" for e in shown)
-    out, _ = await llm.complete_structured(
-        system=_SYSTEM, prompt=f"Library entries:\n\n{listing}\n\nRFP question: {question}", output_model=DraftOut
-    )
+    prompt = f"Library entries:\n\n{listing}\n\nRFP question: {question}"
+    if instruction:
+        prompt += f"\n\nStyle instruction: {instruction}"
+    if current:
+        prompt += f"\n\nCurrent answer: {current}"
+    out, _ = await llm.complete_structured(system=_SYSTEM, prompt=prompt, output_model=DraftOut)
     answer = out.answer.strip()
     if not answer or not out.citations:
         return Draft(NO_SOURCE)

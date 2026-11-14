@@ -1,0 +1,170 @@
+"""refine-chat "RFP operations": rewrite and leave_blank, applied one question at a time (AC-1..AC-8, AC-52, AC-58)."""
+
+from __future__ import annotations
+
+import asyncio
+from datetime import date
+
+import pytest
+
+from arp.db import models as m
+from arp.db.session import transaction
+from arp.llm.base import LLMUsage
+from arp.refine import turns
+from arp.refine.rfp_ops import apply_rfp_ops
+from arp.rfp.draft import Cited, DraftOut
+
+TODAY = date(2026, 11, 14)
+E1_ANSWER = "We screen all holdings quarterly. Exclusions cover thermal coal."
+
+
+class Standin:
+    """The model: every `DraftOut` call returns `draft` (or raises it), or `per_question[question]` when given."""
+
+    def __init__(self, draft=None, per_question=None):
+        self.draft, self.per_question, self.prompts = draft, per_question or {}, []
+
+    async def complete_structured(self, *, system, prompt, output_model, **_):
+        assert output_model is DraftOut
+        self.prompts.append(prompt)
+        out = self.per_question.get(prompt.split("RFP question: ", 1)[1].split("\n", 1)[0], self.draft)
+        if isinstance(out, Exception):
+            raise out
+        return out, LLMUsage()
+
+
+@pytest.fixture
+def p(pg):
+    """The spec's fixture: project P, Q1/Q2 drafted (A1, A2), Q3 approved, Q4 no source, library entry E1."""
+    with transaction() as s:
+        e1 = m.RfpLibraryEntry(question="How do you screen holdings?", answer=E1_ANSWER, tags=[], approved_on=TODAY,
+                               review_by=date(2027, 11, 14), has_figures=False)
+        proj = m.RfpProject(investor="Pension Fund", filename="rfp.xlsx", content_key="k", run_status="done",
+                            created_by="alice")
+        s.add_all([e1, proj])
+        s.flush()
+        qs = [m.RfpQuestion(project_id=proj.id, position=i, location=f"RFP!A{i}", answer_location=f"RFP!B{i}",
+                            question=f"Q{i}: how often do you screen holdings?", answer=a, status=st, flags=[],
+                            sources=[{"entry_id": e1.id, "quote": "We screen all holdings quarterly."}] if a else [])
+              for i, (a, st) in enumerate([("A1", "drafted"), ("A2", "drafted"), ("A3", "approved"), ("", "no source")], 1)]
+        s.add_all(qs)
+        s.flush()
+        return {"P": proj.id, "E1": e1.id, **{f"Q{i}": q.id for i, q in enumerate(qs, 1)}}
+
+
+def grounded(p):
+    """The spec's grounded draft, citing E1."""
+    return DraftOut(answer="We screen holdings quarterly.",
+                    citations=[Cited(entry_id=p["E1"], quote="We screen all holdings quarterly.")])
+
+
+def state(qid):
+    with transaction() as s:
+        q = s.get(m.RfpQuestion, qid)
+        return {"answer": q.answer, "status": q.status, "sources": q.sources, "flags": q.flags,
+                "last_editor": q.last_editor}
+
+
+def run(p, ops, llm):
+    tid = turns.start_turn("rfp", str(p["P"]), "alice", "msg")
+    return tid, asyncio.run(apply_rfp_ops(tid, p["P"], ops, llm, today=TODAY))
+
+
+def test_rewrite_two_grounded(p):
+    before = {str(p[q]): state(p[q]) for q in ("Q1", "Q2")}
+    tid, out = run(p, [{"op": "rewrite", "question_ids": [p["Q2"], p["Q1"]], "instruction": "shorter"}], Standin(grounded(p)))
+    assert out["changed"] == [p["Q1"], p["Q2"]]
+    assert out["not_changed"] == []
+    for q in ("Q1", "Q2"):
+        assert state(p[q]) == {"answer": "We screen holdings quarterly.", "status": "drafted",
+                               "sources": [{"entry_id": p["E1"], "quote": "We screen all holdings quarterly."}],
+                               "flags": [], "last_editor": None}
+    assert out["before"] == before
+    assert out["after"] == {str(p[q]): state(p[q]) for q in ("Q1", "Q2")}
+    t = turns.turn_out(tid)
+    assert (t["done"], t["total"]) == (2, 2)
+
+
+def test_ungrounded_keeps_answer(p):
+    before = state(p["Q1"])
+    _, out = run(p, [{"op": "rewrite", "question_ids": [p["Q1"]]}], Standin(DraftOut(answer="Something.")))
+    assert state(p["Q1"]) == before
+    assert (out["changed"], out["not_changed"]) == ([], [{"id": p["Q1"], "reason": "not backed by the library"}])
+
+
+def test_figure_not_in_source_keeps_answer(p):
+    before = state(p["Q1"])
+    draft = grounded(p).model_copy(update={"answer": "We screen 42 funds quarterly."})
+    _, out = run(p, [{"op": "rewrite", "question_ids": [p["Q1"]]}], Standin(draft))
+    assert state(p["Q1"]) == before
+    assert out["not_changed"] == [{"id": p["Q1"], "reason": "not backed by the library"}]
+
+
+def test_approved_untouched(p):
+    before = state(p["Q3"])
+    llm = Standin(grounded(p))
+    _, out = run(p, [{"op": "rewrite", "question_ids": [p["Q3"]]}], llm)
+    assert state(p["Q3"]) == before
+    assert out["not_changed"] == [{"id": p["Q3"], "reason": "approved"}]
+    assert llm.prompts == []
+
+
+def test_no_source_skipped_without_model_call(p):
+    before = state(p["Q4"])
+    llm = Standin(grounded(p))
+    _, out = run(p, [{"op": "rewrite", "question_ids": [p["Q4"]]}], llm)
+    assert state(p["Q4"]) == before
+    assert out["not_changed"] == [{"id": p["Q4"], "reason": "no source; use Auto-fill on RFP Answers"}]
+    assert llm.prompts == []
+
+
+def test_leave_blank(p):
+    before = state(p["Q1"])
+    _, out = run(p, [{"op": "leave_blank", "question_ids": [p["Q1"]]}], Standin())
+    assert state(p["Q1"]) == {**before, "status": "left blank"}
+    assert out["changed"] == [p["Q1"]]
+    assert out["before"] == {str(p["Q1"]): before}
+
+
+def test_rewrite_edited_clears_last_editor(p):
+    """AC-8's precondition: a rewrite of bob's edit leaves `last_editor` null, so bob may approve it."""
+    with transaction() as s:
+        q = s.get(m.RfpQuestion, p["Q1"])
+        q.status, q.last_editor = "edited", "bob"
+    _, out = run(p, [{"op": "rewrite", "question_ids": [p["Q1"]]}], Standin(grounded(p)))
+    assert out["changed"] == [p["Q1"]]
+    assert (state(p["Q1"])["status"], state(p["Q1"])["last_editor"]) == ("drafted", None)
+
+
+def test_draft_error_continues(p):
+    q1 = "Q1: how often do you screen holdings?"
+    tid, out = run(p, [{"op": "rewrite", "question_ids": [p["Q1"], p["Q2"]]}],
+                   Standin(grounded(p), per_question={q1: RuntimeError("model down")}))
+    assert out["changed"] == [p["Q2"]]
+    assert out["not_changed"] == [{"id": p["Q1"], "reason": "draft failed"}]
+    assert state(p["Q1"])["answer"] == "A1"
+    assert turns.turn_out(tid)["done"] == 2
+
+
+def test_instruction_reaches_draft_prompt(p):
+    llm = Standin(grounded(p))
+    run(p, [{"op": "rewrite", "question_ids": [p["Q1"]], "instruction": "shorter"}], llm)
+    assert "shorter" in llm.prompts[0] and "A1" in llm.prompts[0]
+    assert "Style instruction: shorter" in llm.prompts[0] and "Current answer: A1" in llm.prompts[0]
+
+
+def test_missing_question_ids_is_no_such_question(p):
+    _, out = run(p, [{"op": "rewrite", "question_ids": None, "instruction": "x"}, {"op": "rewrite", "question_ids": [999999]}],
+                 Standin(grounded(p)))
+    assert out["changed"] == []
+    assert out["not_changed"] == [{"id": None, "reason": "no such question"}, {"id": 999999, "reason": "no such question"}]
+
+
+def test_question_of_another_project_is_no_such_question(p):
+    with transaction() as s:
+        other = m.RfpProject(investor="X", filename="x.xlsx", content_key="k2", run_status="done", created_by="bob")
+        s.add(other)
+        s.flush()
+        s.get(m.RfpQuestion, p["Q1"]).project_id = other.id
+    _, out = run(p, [{"op": "rewrite", "question_ids": [p["Q1"]]}], Standin(grounded(p)))
+    assert out["not_changed"] == [{"id": p["Q1"], "reason": "no such question"}]
