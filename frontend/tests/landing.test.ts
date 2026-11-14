@@ -91,3 +91,17 @@ test("ac16_promise_squares", async () => {
 });
 test("resize_rebuild_is_throttled", async () => assert.match(await read("../src/components/LandingCanvas.tsx"), /requestAnimationFrame\(\(\) => \{\s*resizeFrame = 0;/));
 test("zero_size_canvas_does_not_crash", async () => assert.ok((await read("../src/components/LandingCanvas.tsx")).includes("if (!W || !H) return;")));
+const landingTsx = async () => read("../src/pages/Landing.tsx");
+test("ac3_lockup_svg", async () => {
+  const src = await landingTsx();
+  assert.ok(src.includes('role="img"') && src.includes('aria-label="ARP"') && src.includes("var(--brand-apex)"));
+  assert.doesNotMatch(src, /<\/svg>\s*ARP\b/);
+});
+test("ac14_copy", async () => {
+  const src = await landingTsx();
+  assert.ok(src.includes("Company research and stewardship at scale."));
+  assert.ok(src.includes("Leveraging expert judgement through Agents."));
+  assert.ok(!src.includes("Agents propose."));
+});
+test("ac7_no_colour_literals_in_landing_tsx", async () => assert.doesNotMatch(await landingTsx(), /#[0-9a-fA-F]{3,8}\b|rgba?\(|oklch\(/));
+test("ac6_no_signal_in_landing_tsx", async () => assert.doesNotMatch(await landingTsx(), /--hi\b|--hi-ink|--await-edge/));

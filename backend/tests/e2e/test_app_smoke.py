@@ -35,7 +35,7 @@ def test_opening_arp_lands_on_the_landing_page(page):
     page.goto(URL)
     page.wait_for_load_state("networkidle")
 
-    assert page.get_by_role("heading", name="Agents propose. People ratify.").is_visible()
+    assert page.get_by_role("heading", name="Company research and stewardship at scale.").is_visible()
     assert page.locator(".app-sidebar").count() == 0
     page.get_by_role("link", name="Open ARP →").click()
     # The app sets the tab title in an effect after it mounts, so wait for it rather than for the network.
