@@ -48,12 +48,16 @@ class EscalationStage(StrEnum):
 
 
 # Mapping on read: stored values of the removed step and roles, never rewritten (spec stewardship-three-tiers).
-_OLD_STAGES = {"joint_engagement": "private_engagement"}
-_OLD_ROLES = {"lead", "active_support", "passive_support"}
+OLD_STAGES = {"joint_engagement": "private_engagement"}
+OLD_ROLES = {"lead", "active_support", "passive_support"}
 
 
 def _map_stage(v):
-    return _OLD_STAGES.get(v, v) if isinstance(v, str) else v
+    return OLD_STAGES.get(v, v) if isinstance(v, str) else v
+
+
+def _map_role(v):
+    return None if isinstance(v, str) and v in OLD_ROLES else v
 
 
 ESCALATION_ORDER: list[EscalationStage] = [
@@ -302,11 +306,7 @@ class EngagementIssue(BaseModel):
     data_source: str = "app"  # `source` is taken by TriggerSource
 
     _old_stage = field_validator("escalation_stage", mode="before")(_map_stage)
-
-    @field_validator("engager_role", mode="before")
-    @classmethod
-    def _old_role(cls, v):
-        return None if v in _OLD_ROLES else v
+    _old_role = field_validator("engager_role", mode="before")(_map_role)
 
 
 class EngagementRecord(BaseModel):
