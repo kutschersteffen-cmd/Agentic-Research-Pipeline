@@ -12,3 +12,6 @@ export function phaseAt(ms: number): { phase: Phase; t: number } {
   }
   return { phase: "network", t: 0 };
 }
+
+/** Depth bucket (0..3) for an orb line segment from its two endpoints' depths; depth can stray just outside 0..1. */
+export const depthBucket = (depthSum: number) => Math.max(0, Math.min(3, Math.floor(depthSum * 2)));

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { entryTab } from "../src/lib/nav.ts";
-import { phaseAt } from "../src/lib/landingMotion.ts";
+import { phaseAt, depthBucket } from "../src/lib/landingMotion.ts";
 
 // Night Desk release 5 (docs/superpowers/specs/2026-11-09-night-desk-landing-design.md).
 test("r5_ac1", () => { for (const h of ["", "#", "#/", "#/welcome"]) assert.equal(entryTab(h), "welcome", h); });
@@ -118,3 +118,9 @@ test("theme_follows_live", async () => {
 });
 test("reduced_motion_single_frame", async () => assert.match(await canvasTsx(), /if \(reduce\) \{\s*draw\(18_?500\);\s*return;/));
 test("no_debug_global", async () => assert.ok(!(await canvasTsx()).includes("__arp")));
+// Points slightly behind or in front of the orb have depth outside 0..1; every segment still gets a bucket.
+test("depth_bucket_clamps_out_of_range_depth", () => {
+  assert.equal(depthBucket(-0.1), 0);
+  assert.equal(depthBucket(1), 2);
+  assert.equal(depthBucket(2.1), 3);
+});

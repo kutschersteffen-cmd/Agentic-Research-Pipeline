@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { phaseAt } from "../lib/landingMotion";
+import { depthBucket, phaseAt } from "../lib/landingMotion";
 
 // The landing animation (docs/superpowers/specs/2026-11-14-landing-brand-refresh-design.md), ported from
 // the approved mockup: a huge chaotic network gathers into a rotating orange orb of rings, spokes and
@@ -178,7 +178,7 @@ export function LandingCanvas() {
           for (let s = 0; s < (g.closed ? L : L - 1); s++) {
             const a = ps[g.ids[s]], b = ps[g.ids[(s + 1) % L]];
             if (a.st !== 1 || b.st !== 1 || Math.abs(a.x - b.x) + Math.abs(a.y - b.y) > orb.R * 0.5) continue;
-            buckets[Math.min(3, Math.floor((a.d + b.d) * 2))].push(a, b);
+            buckets[depthBucket(a.d + b.d)].push(a, b);
           }
         }
         buckets.forEach((seg, bi) => {
