@@ -297,8 +297,17 @@ def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str, exce
 
 _VOTE_LOCK = text("select pg_advisory_xact_lock(hashtext('vote_intake'))")  # one vote intake at a time
 _MEETING = ["issuer_name", "isin", "cusip", "meeting_type"]
+_KEEP = {"company_id", "isin", "cusip"}
 _ITEM = ["description", "categories", "proponent", "management_recommendation"]
 _DECISION = ["vote", "vote_label", "against_management", "shares_voted", "rationale", "decided_by", "decided_at", "run_id"]
+
+
+def meeting_key(company_id: str | None, isin: str | None, cusip: str | None) -> str:
+    """The company part of a vote meeting's key: the row's own ids, one namespace per source. A company keyed
+    `isin_<ISIN>` shares the `isin:` namespace with ISIN-only rows, so both reach one meeting."""
+    if company_id and company_id.startswith("isin_"):
+        return f"isin:{company_id[5:]}"
+    return next(f"{ns}:{v}" for ns, v in (("cid", company_id), ("isin", isin), ("cusip", cusip)) if v)
 
 
 def _clean_vote(n: int, raw: dict, source: str, bad: list[Rejection]) -> dict:
@@ -308,8 +317,11 @@ def _clean_vote(n: int, raw: dict, source: str, bad: list[Rejection]) -> dict:
     row = {k: _cell(raw.get(k), k, reject, keep_raw=k == "categories") for k in VOTE_COLUMNS}
     for k in raw.keys() - set(VOTE_COLUMNS) - {"_row"}:
         reject(k, f"unknown column {k}")
-    if row["vote"] is None:  # the spec requires no other field; a decision row cannot exist without its vote
-        reject("vote", "required")
+    for k in ("external_id", "meeting_date", "item_number", "vote"):  # the decision, meeting and item keys
+        if row[k] is None:
+            reject(k, "required")
+    if not (row["company_id"] or row["isin"] or row["cusip"]):
+        reject("company_id", "one of company_id, isin, cusip required")
     options = ", ".join(e.value for e in VoteValue)
     for k in ("vote", "management_recommendation"):
         if row[k] is not None and row[k] not in {e.value for e in VoteValue}:
@@ -359,15 +371,19 @@ def intake_votes(rows: list[dict], dsn: str, source: str, excel_rows: bool = Fal
                 if key and _safe(key) and s.get(StwCompanyModel, key):
                     company = key
                     break
-            # the row's own ids, so the key stays stable once stw_companies gains the row; unmatched rows still store
-            key = row["company_id"] or (row["isin"] and f"isin_{row['isin']}") or row["cusip"] or row["issuer_name"] or ""
-            if row["external_id"] is not None and row["external_id"] in seen:
+            if row["company_id"] and not (row["isin"] or row["cusip"]) and not _company(s, row["company_id"], None):
+                # only identifier is a company_id neither stw_companies nor the registry knows (owner decision 14 Nov)
+                bad.append(Rejection(sheet="votes", row=n, field="company_id", reason="unknown company"))
+            if any(r.row == n for r in bad):  # keys are only built for rows that passed validation
+                continue
+            key = meeting_key(row["company_id"], row["isin"], row["cusip"])
+            if row["external_id"] in seen:
                 bad.append(Rejection(sheet="votes", row=n, field="external_id", reason="duplicate in batch"))
             seen.add(row["external_id"])
-            meeting = f"{key}:{row['meeting_date'].date().isoformat() if row['meeting_date'] else ''}"
+            meeting = f"{key}:{row['meeting_date'].date().isoformat()}"
             plan.append((
                 meeting, {"company_id": company, "meeting_date": row["meeting_date"], **{k: row[k] for k in _MEETING}},
-                f"{meeting}:{row['item_number'] or row['description'] or ''}", {"item_number": row["item_number"], **{k: row[k] for k in _ITEM}},
+                f"{meeting}:{row['item_number']}", {"item_number": row["item_number"], **{k: row[k] for k in _ITEM}},
                 row["external_id"], {k: row[k] for k in _DECISION},
             ))  # fmt: skip
         if bad:
@@ -376,18 +392,17 @@ def intake_votes(rows: list[dict], dsn: str, source: str, excel_rows: bool = Fal
         tables = {"meeting": (VoteMeetingModel, "meeting_id", "mtg"), "item": (VoteItemModel, "item_id", "vitem"), "decision": (VoteDecisionModel, "decision_id", "vote")}
         ids = {k: {e: i for e, i in s.execute(select(m.external_id, getattr(m, pk)).where(m.source == source, m.external_id.is_not(None)))} for k, (m, pk, _) in tables.items()}  # fmt: skip
 
-        def upsert(kind: str, ext: str | None, values: dict) -> None:
+        def upsert(kind: str, ext: str, values: dict) -> None:
             model, pk, prefix = tables[kind]
             stored = s.get(model, ids[kind][ext]) if ext in ids[kind] else None
-            if stored is None:  # no external_id: nothing to upsert on, so the row is always new
-                rid = new_id(prefix)
-                if ext is not None:
-                    ids[kind][ext] = rid
-                s.add(model(**{pk: rid, "source": source, "external_id": ext, **values}))
+            if stored is None:
+                ids[kind][ext] = new_id(prefix)
+                s.add(model(**{pk: ids[kind][ext], "source": source, "external_id": ext, **values}))
                 s.flush()
                 report.created += 1
                 return
-            changed = [k for k, v in values.items() if getattr(stored, k) != v]
+            # an upsert fills a meeting's company ids but never clears them
+            changed = [k for k, v in values.items() if getattr(stored, k) != v and not (v is None and k in _KEEP)]
             for k in changed:
                 setattr(stored, k, values[k])
             report.updated += bool(changed)
