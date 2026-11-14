@@ -176,6 +176,11 @@ def style_native_chart(chart, spec: ChartSpec, theme: DesignTheme, min_pt: float
             value_axis.major_gridlines.format.line.color.rgb = RGBColor.from_string(theme.gridline)
             value_axis.major_gridlines.format.line.width = Pt(0.5)
 
+    if spec.chart_type == ChartType.WATERFALL:  # series 1 is the invisible lift under each floating bar
+        series_list[0].format.fill.background()
+        series_list[0].format.line.fill.background()
+        chart.has_legend = False
+
 
 def _style_axes_chrome(ax, theme: DesignTheme) -> None:
     """Recessive grid/axes so the marks stay the focus: no top/right
@@ -321,7 +326,7 @@ def _sequential_cmap(theme: DesignTheme):
     return LinearSegmentedColormap.from_list("arp_sequential", [f"#{c}" for c in theme.sequential])
 
 
-def _render_heatmap(ax, spec: ChartSpec, ds: QuantitativeDataset, theme: DesignTheme) -> None:
+def _heatmap_grid(spec: ChartSpec, ds: QuantitativeDataset) -> tuple[list[str], list[str], list[list[float]]]:
     row_col = _column(ds, spec.y_column, label="y_column (heatmap row axis)")
     col_col = _column(ds, spec.category_column, label="category_column (heatmap column axis)")
     val_col = _column(ds, spec.value_column, label="value_column (heatmap cell values)")
@@ -334,6 +339,49 @@ def _render_heatmap(ax, spec: ChartSpec, ds: QuantitativeDataset, theme: DesignT
     for r in ds.rows:
         i, j = row_idx[str(r.get(row_col))], col_idx[str(r.get(col_col))]
         grid[i][j] = _as_float_or_zero(r.get(val_col))
+
+    return row_labels, col_labels, grid
+
+
+def heatmap_table(spec: ChartSpec, ds: QuantitativeDataset, theme: DesignTheme) -> tuple[list[str], list[list], list[list[str]]]:
+    """A heatmap as table cells: headers (corner + column labels), rows (row label + values), and a fill hex
+    per cell from the theme's sequential ramp. Shared by the native pptx table and the HTML preview."""
+    row_labels, col_labels, grid = _heatmap_grid(spec, ds)
+    vals = [v for r in grid for v in r if v == v]
+    lo, hi = (min(vals), max(vals)) if vals else (0.0, 0.0)
+    cmap = _sequential_cmap(theme)
+    fill = lambda v: f"{theme.surface}" if v != v else matplotlib.colors.to_hex(cmap((v - lo) / (hi - lo) if hi > lo else 0.0))[1:].upper()  # noqa: E731
+    rows = [[label, *("" if v != v else v for v in r)] for label, r in zip(row_labels, grid, strict=True)]
+    fills = [[theme.surface, *(fill(v) for v in r)] for r in grid]
+    return ["", *col_labels], rows, fills
+
+
+def text_on(fill_hex: str) -> str | None:
+    """White ink for a dark fill so the cell value stays readable; None keeps the default ink."""
+    r, g, b = (int(fill_hex[i : i + 2], 16) for i in (0, 2, 4))
+    return "FFFFFF" if 0.299 * r + 0.587 * g + 0.114 * b < 140 else None
+
+
+def build_waterfall_chart_data(spec: ChartSpec, datasets: list[QuantitativeDataset]) -> CategoryChartData:
+    """Waterfall as a two-series stacked column: `base` (the invisible lift) and `value` (the step size)."""
+    ds = _dataset_by_id(datasets, spec.dataset_id)
+    category_col = _column(ds, spec.category_column, label="category_column")
+    value_col = _column(ds, spec.value_columns[0] if spec.value_columns else None, label="value_columns[0]")
+    running, bases, steps = 0.0, [], []
+    for row in ds.rows:
+        v = _as_float_or_zero(row.get(value_col))
+        bases.append(min(running, running + v))
+        steps.append(abs(v))
+        running += v
+    data = CategoryChartData()
+    data.categories = [str(row.get(category_col, "")) for row in ds.rows]
+    data.add_series("base", bases)
+    data.add_series("value", steps)
+    return data
+
+
+def _render_heatmap(ax, spec: ChartSpec, ds: QuantitativeDataset, theme: DesignTheme) -> None:
+    row_labels, col_labels, grid = _heatmap_grid(spec, ds)
 
     im = ax.imshow(grid, aspect="auto", cmap=_sequential_cmap(theme))
     ax.set_xticks(range(len(col_labels)))
@@ -390,6 +438,9 @@ __all__ = [
     "ChartDataError",
     "is_native",
     "build_native_chart_data",
+    "build_waterfall_chart_data",
+    "heatmap_table",
+    "text_on",
     "render_chart_image",
     "render_chart_svg",
     "render_table_image",

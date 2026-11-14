@@ -7,22 +7,22 @@ is re-fitted here. Fonts are named, not embedded (python-pptx cannot embed them)
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 from lxml import etree
 from PIL import Image
 from pptx import Presentation
 from pptx.dml.color import RGBColor
+from pptx.enum.chart import XL_CHART_TYPE
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
 from pptx.oxml.ns import qn
 from pptx.util import Emu, Pt
 
-from arp.reporting.chart_builder import build_native_chart_data, is_native, render_chart_image, style_native_chart
+from arp.reporting.chart_builder import ChartDataError, build_native_chart_data, build_waterfall_chart_data, heatmap_table, style_native_chart, text_on
 from arp.reporting.house_style import Mode, Rect, Tokens, TypeStyle, get_variant, load_tokens, slot_rect
 from arp.reporting.html_render import table_view, theme_from_tokens
-from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent
+from arp.schemas.reporting import ChartType, Deck, QuantitativeDataset, SlideContent
 
 _PX = 9525  # EMU per px
 _ROW_PX = 46  # table row: caption line + 2x10px padding, as in the HTML
@@ -88,7 +88,9 @@ class _Builder:
         return shape
 
     def _table(self, slide, spec, r: Rect, slide_content: SlideContent, ds: QuantitativeDataset) -> None:
-        columns, rows, more = table_view(slide_content.table, ds)
+        self._grid(slide, spec, r, *table_view(slide_content.table, ds))
+
+    def _grid(self, slide, spec, r: Rect, columns: list[str], rows: list[list], more: int = 0, fills: list[list[str]] | None = None) -> None:
         if not columns:
             return
         ts, mono = self.t.type[spec.type_role], _family(self.t.fonts.mono or self.t.fonts.body)
@@ -106,7 +108,7 @@ class _Builder:
             for ci, value in enumerate(values):
                 cell = tbl.cell(ri, ci)
                 cell.fill.solid()
-                cell.fill.fore_color.rgb = _rgb(self.c.background)
+                cell.fill.fore_color.rgb = _rgb(fills[ri - 1][ci] if fills and ri else self.c.background)
                 cell.margin_left = cell.margin_right = _e(12)
                 cell.margin_top = cell.margin_bottom = _e(10)
                 cell.vertical_anchor = MSO_ANCHOR.MIDDLE
@@ -119,7 +121,7 @@ class _Builder:
                 else:
                     run.text = str(value)
                     f.name, f.size, f.bold = _family(self.t.fonts.body), Pt(ts.size * 0.75), False
-                f.color.rgb = _rgb(self.c.ink_muted if ri == 0 else self.c.ink)
+                f.color.rgb = _rgb(self.c.ink_muted if ri == 0 else (fills and text_on(fills[ri - 1][ci])) or self.c.ink)
                 tcPr = cell._tc.get_or_add_tcPr()
                 # a:tcPr takes lnL, lnR, lnT, lnB (then the fill); the table style's default grid is switched off on three sides.
                 for i, side in enumerate(("lnL", "lnR", "lnT", "lnB")):
@@ -152,15 +154,19 @@ class _Builder:
         r, ts, value = slot_rect(self.t, spec), self.t.type[spec.type_role], content.slots.get(spec.name)
         name, body = f"slot:{spec.name}", _family(self.t.fonts.body if ts.font == "body" else self.t.heading_font(self.mode))
         if spec.kind == "chart" and content.chart:
-            if is_native(content.chart):
-                kind, data = build_native_chart_data(content.chart, list(datasets.values()))
+            if content.chart.chart_type == ChartType.HEATMAP:
+                if content.chart.dataset_id not in datasets:
+                    raise ChartDataError(f"Chart references unknown dataset_id {content.chart.dataset_id!r}")
+                headers, rows, fills = heatmap_table(content.chart, datasets[content.chart.dataset_id], self.theme)
+                self._grid(slide, spec, r, headers, rows, fills=fills)
+            else:
+                if content.chart.chart_type == ChartType.WATERFALL:
+                    kind, data = XL_CHART_TYPE.COLUMN_STACKED, build_waterfall_chart_data(content.chart, list(datasets.values()))
+                else:
+                    kind, data = build_native_chart_data(content.chart, list(datasets.values()))
                 frame = slide.shapes.add_chart(kind, _e(r.x), _e(r.y), _e(r.w), _e(r.h), data)
                 frame.name = name
                 style_native_chart(frame.chart, content.chart, self.theme, min_pt=18)  # 24px floor on the 1920px canvas
-            else:
-                with tempfile.TemporaryDirectory() as tmp:
-                    img = render_chart_image(content.chart, list(datasets.values()), Path(tmp) / "c.png", width_in=r.w / 96, height_in=r.h / 96, theme=self.theme)
-                    slide.shapes.add_picture(str(img), _e(r.x), _e(r.y), _e(r.w), _e(r.h)).name = name
         elif spec.kind == "table" and content.table and content.table.dataset_id in datasets:
             self._table(slide, spec, r, content, datasets[content.table.dataset_id])
         elif spec.kind == "image" and content.image_path:

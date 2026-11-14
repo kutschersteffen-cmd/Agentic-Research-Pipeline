@@ -14,10 +14,10 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from arp.reporting.chart_builder import render_chart_svg
+from arp.reporting.chart_builder import ChartDataError, heatmap_table, render_chart_svg, text_on
 from arp.reporting.design import DesignTheme
 from arp.reporting.house_style import _STYLE_DIR, Mode, Tokens, get_variant, load_tokens, slot_rect
-from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent, TableSpec
+from arp.schemas.reporting import ChartType, Deck, QuantitativeDataset, SlideContent, TableSpec
 
 _env = Environment(loader=FileSystemLoader(_STYLE_DIR / "templates"), autoescape=True)
 
@@ -71,6 +71,13 @@ def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict
     value = slide.slots.get(spec.name)
     if spec.kind == "list":
         v["items"] = value if isinstance(value, list) else ([value] if value else [])
+    elif spec.kind == "chart" and slide.chart and slide.chart.chart_type == ChartType.HEATMAP:
+        if slide.chart.dataset_id not in datasets:
+            raise ChartDataError(f"Chart references unknown dataset_id {slide.chart.dataset_id!r}")
+        v["columns"], rows, fills = heatmap_table(slide.chart, datasets[slide.chart.dataset_id], theme)
+        # Each cell: (value, inline style); the template's table branch prints the style.
+        v["rows"] = [[(c, f"background:#{f}" + (f";color:#{text_on(f)}" if text_on(f) else "")) for c, f in zip(row, frow, strict=True)] for row, frow in zip(rows, fills, strict=True)]
+        v["more"], v["heat"] = 0, True
     elif spec.kind == "chart" and slide.chart:
         v["svg"] = render_chart_svg(slide.chart, list(datasets.values()), width_px=int(r.w), height_px=int(r.h), theme=theme)
     elif spec.kind == "table" and slide.table and slide.table.dataset_id in datasets:

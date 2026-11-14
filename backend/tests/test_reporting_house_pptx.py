@@ -3,6 +3,7 @@ import subprocess
 
 import pytest
 from pptx import Presentation
+from pptx.enum.chart import XL_CHART_TYPE
 from pypdf import PdfReader
 
 from arp.reporting.browser import write_pdf
@@ -177,3 +178,57 @@ def test_pptx_table_header_is_small_uppercase_mono(tmp_path):
     run = table.cell(0, 0).text_frame.paragraphs[0].runs[0]
     assert run.text == "K" and run.font.name == load_tokens().fonts.mono.split(",")[0].strip("'\" ") and not run.font.bold
     assert run._r.rPr.get("spc")
+
+
+def _chart_slide(chart_type, **spec):
+    ds = QuantitativeDataset(
+        dataset_id="w", name="W", columns=[DatasetColumn(name="cat", kind=ColumnKind.CATEGORY), DatasetColumn(name="reg", kind=ColumnKind.CATEGORY), DatasetColumn(name="v")],
+        rows=[{"cat": "a", "reg": "x", "v": 10}, {"cat": "b", "reg": "x", "v": -4}, {"cat": "a", "reg": "y", "v": 3}, {"cat": "b", "reg": "y", "v": 8}],
+    )
+    chart = ChartSpec(dataset_id="w", chart_type=chart_type, category_column="cat", value_columns=["v"], **spec)
+    slide = SlideContent(headline="h", layout="two_column", variant="text_chart", slots={"text": "Net zero by 2040"}, chart=chart)
+    return Deck(title="T", slides=[slide]), [ds]
+
+
+_HEAT = {"y_column": "reg", "value_column": "v"}
+
+
+def test_text_slot_is_text_frame(tmp_path):  # AC-33
+    deck, ds = _chart_slide("column")
+    shape = _shapes(Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides[0], "slot:text")[0]
+    assert shape.has_text_frame and shape.text_frame.text == "Net zero by 2040"
+
+
+def test_column_after_chart_type_change(tmp_path):  # AC-34
+    deck, ds = _chart_slide("waterfall")
+    deck.slides[0].chart.chart_type = "column"
+    shape = _shapes(Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides[0], "slot:chart")[0]
+    assert shape.has_chart and shape.chart.chart_type == XL_CHART_TYPE.COLUMN_CLUSTERED
+    assert "<svg" in render_deck_html(deck, ds)
+
+
+def test_waterfall_and_heatmap_native(tmp_path):  # AC-35
+    wf, ds = _chart_slide("waterfall")
+    hm, _ = _chart_slide("heatmap", **_HEAT)
+    prs = Presentation(build_house_pptx(Deck(title="T", slides=[wf.slides[0], hm.slides[0]]), ds, tmp_path / "d.pptx"))
+    w, h = (_shapes(s, "slot:chart")[0] for s in prs.slides)
+    assert w.shape_type != 13 and h.shape_type != 13
+    assert w.chart.chart_type == XL_CHART_TYPE.COLUMN_STACKED and [s.name for s in w.chart.plots[0].series] == ["base", "value"]
+    assert list(w.chart.plots[0].series[0].values) == [0, 6, 6, 9] and list(w.chart.plots[0].series[1].values) == [10, 4, 3, 8]
+    assert "noFill" in w.chart.plots[0].series[0]._element.xml
+    assert h.has_table and h.table.cell(0, 1).text == "A" and h.table.cell(1, 0).text == "x"
+
+
+def test_column_chart_unchanged(tmp_path):  # AC-48
+    deck, ds = _chart_slide("column")
+    shape = _shapes(Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides[0], "slot:chart")[0]
+    assert shape.has_chart and shape.chart.chart_type == XL_CHART_TYPE.COLUMN_CLUSTERED
+
+
+def test_html_heatmap_table_waterfall_svg():  # AC-51
+    hm, ds = _chart_slide("heatmap", **_HEAT)
+    html = render_deck_html(hm, ds)
+    assert html.count("<table") == 1 and "background:#" in html and "<svg" not in html
+    wf, ds = _chart_slide("waterfall")
+    html = render_deck_html(wf, ds)
+    assert "<svg" in html and "<table" not in html
