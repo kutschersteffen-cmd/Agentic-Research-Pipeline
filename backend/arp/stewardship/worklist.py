@@ -164,7 +164,8 @@ def indicators(
 
 def score(normalised: dict[str, float | None], weights: dict, ids: list[str] | None = None) -> tuple[float, list[dict]]:
     """The score and its parts, in the bundled file's component order (`ids`: read it once per call, not per row).
-    A component a saved version lacks weighs 0."""
+    A component a saved version lacks weighs 0. Points are computed from the shown 4-decimal `normalised` on purpose,
+    so weight x normalised always equals the points in the why panel."""
     by_id = {c["id"]: c["weight"] for c in weights["components"]}
     parts = []
     for cid in ids or component_ids():
