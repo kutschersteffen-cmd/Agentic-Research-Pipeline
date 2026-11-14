@@ -99,8 +99,8 @@ snake_case value; the Excel `lists` sheet shows both.
   (Business Ethics, Corporate Conduct, Anti-corruption, Audit), `tax_accounting` (Tax & Accounting Practices),
   `shareholder_rights` (Shareholder rights), `other` (Other).
 - **ESG pillar:** `E`, `S`, `G` (one or more).
-- **Engager role:** `bilateral`, `lead` (Lead, Co-Lead or equivalent), `active_support`, `passive_support`
-  (Passive support, Signatory).
+- **Engager role:** `bilateral`. (`lead`, `active_support` and `passive_support` were removed by
+  `stewardship-three-tiers`, 14 Nov 2026: the house runs no collaborative engagements; stored values read as no role.)
 - **Objective type:** `transparency`, `operational`, `strategic`.
 - **Receptiveness:** `very_good`, `good`, `neutral`, `insufficient`, `refusal` (Refusal/Blockage).
 - **Objective status:** `initiated`, `in_progress`, `closed`, `abandoned`.
@@ -246,7 +246,7 @@ World companies and puts them in the house portfolios, so `house_universe()` inc
    closed, `closed_at`, `outcome`, `influence_level` and `influence_evidence`. Themes follow the company's sector
    (Energy leans to `climate_mitigation`, Financials to `governance_board_pay`, and so on). Closed objectives get
    influence levels in roughly this mix: `1` 30 %, `2` 30 %, `3` 25 %, `4A`/`4B` 12 %, `5` 3 %.
-   `passive_support` objectives never get `4A`, `4B` or `5`. All rows: `source = 'mock_voice_seed'`.
+   Every seeded engagement has `engager_role` `bilateral` (`stewardship-three-tiers`). All rows: `source = 'mock_voice_seed'`.
 3. **Re-running:** the same seed is idempotent. A different `--seed` deletes every `mock_voice_seed` row first and
    writes the new set. No other source is touched.
 4. **Votes:** `arp stewardship load-npx data/voting/npx_urth/` loads the three committed N-PX CSVs
@@ -332,7 +332,7 @@ and `vote_*` tables first, unless the row says otherwise.
 | AC-23 | Showcase companies loaded | `arp stewardship seed-demo --seed 7` runs | Exactly 400 distinct `company_id` have rows in `stw_engagements` with `source` `mock_voice_seed`, and each has 3, 4 or 5 objectives | holdout |
 | AC-24 | AC-23 done | Closed objectives are read | None has a null `result`, `closed_at`, `outcome` or `influence_level` | holdout |
 | AC-25 | AC-23 done | Objectives are read | 25–45 % have `follows_objective_id` set; each points to an objective in the same engagement with an earlier `started_at` | holdout |
-| AC-26 | AC-23 done | Objectives under engagements with `engager_role` `passive_support` are read | None has `influence_level` `4A`, `4B` or `5` | holdout |
+| ~~AC-26~~ | Superseded by `stewardship-three-tiers` AC-31 (only `bilateral` is seeded) | — | ~~AC-23 done; Objectives under engagements with `engager_role` `passive_support` are read; None has `influence_level` `4A`, `4B` or `5`; holdout~~ | retired |
 | AC-27 | `ARP_ENGAGEMENT_STORE=postgres`, a file `engagements/<id>/record.json` present, and the same company created through `POST /api/engagement/records` | `POST /api/engagement/records/{id}/issues` | Status 200, and the file's bytes are unchanged | holdout |
 | AC-28 | A database with rows in legacy `engagement_issues` and `engagement_commitments` | `arp db init-postgres` runs | Both tables exist with the same row counts | holdout |
 | AC-29 | AC-23 done | `seed-demo --seed 7` runs again | Row counts of every `stw_*` table are unchanged | holdout |
