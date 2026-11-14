@@ -70,12 +70,13 @@ The owner picked A.
 - **Multipart fields:** `file` (the .pptx, as today), `fonts` (zero or more font files, repeated) and
   `layout_name` (optional text).
 - **Layout choice:** the layout named `layout_name`. Without it, the first layout in file order that has
-  one title placeholder and at least two further body or subtitle placeholders.
+  one title placeholder and at least two further body, subtitle or object placeholders. A named layout
+  that doesn't exist gives `frame_error` `No layout named "<name>".`
 - **Boxes:**
   - Headline: the title placeholder.
-  - Subheading: the body or subtitle placeholder whose top edge is the first one below the headline's top
+  - Subheading: the body, subtitle or object placeholder whose top edge is the first one below the headline's top
     edge, and that is less than a third of the slide height tall.
-  - Body: the largest remaining body or object placeholder by area.
+  - Body: the largest remaining body, subtitle or object placeholder by area.
 
   Positions come from the layout. Where the layout doesn't set them, they come from the master's matching
   placeholder, the same inheritance PowerPoint uses.
@@ -83,10 +84,12 @@ The owner picked A.
   - Headline and subheading: family, size and bold are read from the placeholder, then the master's title
     or body style, then the theme fonts (major for the headline, minor for the subheading).
   - The body family is the theme minor font. Everything in the body keeps the house type sizes.
-- **Font files:** a file matches a family when its name is `<Family>-<weight>.(ttf|otf|woff2)`. The family
-  in the file name has its spaces removed, and the comparison ignores case, the same rule
-  `html_render._font_faces` uses for the house fonts. Files are stored in `report_templates/<id>/fonts/`.
-  ARP's bundled families, Geist, Geist Mono and Hanken Grotesk, need no file.
+- **Font files:** a file matches a family when its name is `<Family>-<weight>.(ttf|otf|woff2)`, with the
+  family's spaces removed, compared ignoring case. This rule is new; `html_render._font_faces` is extended
+  to load `.otf` and the template's font folder too. Any weight satisfies a family. Files are stored in
+  `report_templates/<id>/fonts/`. ARP's bundled families, Geist, Geist Mono and Hanken Grotesk, need no
+  file. Families are checked in the order headline, subheading, body, and `frame_error` names the first
+  one missing.
 - **No refusals.** Every upload that works today keeps working. The profile gains:
   - `frame`: `layout_name`, `headline`, `subheading`, `body` (each `{x, y, w, h}` in canvas px),
     `headline_font` and `subheading_font` (each `{family, size_px, bold}`), and `body_font_family`.
@@ -95,8 +98,9 @@ The owner picked A.
   When a frame can't be built, `frame` is null and `frame_error` holds the first matching reason, checked
   in this order:
   1. `Template must be 16:9 (got <w>×<h>).` (EMU)
-  2. `No layout has a title, a subheading and a body placeholder.`
-  3. `Upload the font file for "<family>".`
+  2. `No layout named "<name>".` (only when `layout_name` is given)
+  3. `No layout has a title, a subheading and a body placeholder.` (also when the named layout lacks one)
+  4. `Upload the font file for "<family>".`
 - **Preview:** `GET /api/reports/templates/{template_id}/preview.png` returns the chosen layout at
   1920×1080 with the three boxes outlined and labelled "Headline", "Subheading" and "Body". It returns
   404 when `frame` is null.
@@ -116,10 +120,11 @@ The owner picked A.
 - **Footer** (source refs and page number):
   - It stays at the house position, the 56 px row ending 96 px above the slide's bottom edge, when the
     body box ends at least 152 px above the bottom edge.
-  - Otherwise there is no footer, and `\nSources: <refs joined by " · ">` is appended to the speaker
-    notes.
-- **Title and section slides** keep their house layout and positions and use the template families: the
-  headline family for the title, the body family for the subtitle.
+  - Otherwise there is no footer. When the slide has source refs, `Sources: <refs joined by " · ">` is
+    appended to the speaker notes, after a newline unless the notes are empty.
+- **Title and section slides** keep their house slot positions and use the template families: the
+  headline family for the title, the body family for the subtitle. Like content slides they have no
+  accent rule, and the footer rule above applies to them too.
 - `render_house_outputs`, `fit_deck` and `visual_qa` measure against the template geometry, so fit and QA
   see what the user will see.
 
@@ -132,8 +137,8 @@ The owner picked A.
 - **Review screen:** the storyline review shows an editable subheading field under each headline, and
   approval covers both.
 - **Checks:** subheadings are linted like headlines and never rewritten. When one overflows its box, its
-  box keeps its size and the deck gets a finding with `stage` "fit", `rule` "subheading_overflow" and
-  `slot` "subheading".
+  box and font size stay as they are and the deck gets exactly one finding for it: `stage` "fit", `rule`
+  "subheading_overflow", `slot` "subheading". No generic `overflow` finding is added for the subheading.
 
 ### Left to the builder
 
@@ -167,13 +172,13 @@ the first content slide.
 | AC-7 | the AC-5 template | POST `/api/reports` with its `template_id` and `layout.output_format` "house_deck" | 422; detail = `Template <id> cannot frame a house deck: Upload the font file for "Testa Serif".` | holdout |
 | AC-8 | the AC-1 template; a storyline of one slide (headline "H", subheading "S"), filled as `bullets/three` by a stand-in LLM | build the house deck | `output.pptx` slide size = 12192000 × 6858000 EMU; on slide 1, shape `headline` is at the AC-1 headline box and shape `subheading` at the AC-1 subheading box (±1 px at 6350 EMU/px) | holdout |
 | AC-9 | same build | inspect slide 1's `headline` runs | font "Testa Serif", 32 pt, bold | holdout |
-| AC-10 | same build | inspect slide 1 | every `slot:*` shape lies inside the AC-1 body box (±1 px); the `slot:items` shape's left edge is 144 px and its right edge 1728 px (±1 px); there is no `accent_rule` shape | holdout |
+| AC-10 | same build | inspect slide 1 | every `slot:*` shape lies inside the AC-1 body box (±1 px); the `slot:items` shape's left edge is 144 px and its right edge 1458.7 px (±1 px; `bullets/three` spans 10 of 12 columns); there is no `accent_rule` shape | holdout |
 | AC-11 | same build | render the HTML, measure slide 1 in Chromium | the headline element's box equals the AC-1 headline box (±2 px); its computed font-family starts with "Testa Serif" | holdout |
 | AC-12 | same build | inspect slide 1 | shapes `footer:refs` and `footer:page` exist, each with top 928 px and height 56 px (±1 px) | holdout |
 | AC-13 | a template with the body box ending 40 px above the bottom edge; content slide with `source_refs` = ["ds_1"] and speaker notes "N" | build | slide 1 has no `footer:*` shape; its speaker notes are `N\nSources: ds_1` | holdout |
-| AC-14 | same build | inspect slide 0 (title) | `slot:title` is at the same box as in a build without a template, and its runs use font "Testa Serif" | holdout |
+| AC-14 | same build | inspect slide 0 (title) | `slot:title` is at the same box as in a build without a template; its runs use font "Testa Serif"; there is no `accent_rule` shape | holdout |
 | AC-15 | a request with the AC-1 `template_id`; a stand-in LLM that records its prompt and returns slides with subheadings | draft the storyline | the recorded prompt contains `subheading` and `at most 20 words`; the stored storyline slides keep the returned subheadings | holdout |
-| AC-16 | the AC-8 build with a subheading of 60 words | build | slide 1's `subheading` text equals the 60 words unchanged; its shape box still equals the AC-1 subheading box; the findings contain exactly one with `rule` "subheading_overflow", and it has `stage` "fit", `slot` "subheading", `slide` 1 | holdout |
+| AC-16 | the AC-8 build with a subheading of 60 words | build | slide 1's `subheading` text equals the 60 words unchanged; its shape box still equals the AC-1 subheading box and its runs are still 18 pt; exactly one finding has `slot` "subheading", and it has `rule` "subheading_overflow", `stage` "fit", `slide` 1 | holdout |
 | AC-17 | a report with the AC-1 template awaiting storyline approval | open it in the app | every storyline slide shows an editable subheading field under its headline | evaluator |
 | AC-18 | same report; edit slide 1's subheading to "Edited sub" and approve | open the slide 1 preview PNG | "Edited sub" appears in the subheading box, under the headline | evaluator |
 | AC-19 | AC-1 upload | GET `/api/reports/templates/{id}/preview.png` | a 1920×1080 PNG with three outlined boxes labelled "Headline", "Subheading", "Body" at the AC-1 positions | evaluator |
@@ -188,3 +193,6 @@ Must not change:
 | AC-23 | a template profile stored before this change (no `frame` key) | GET `/api/reports/templates` | 200; that profile is listed with `frame` = null | holdout |
 | AC-24 | a profile stored before this change | POST `/api/reports` with its `template_id` and `layout.output_format` "house_deck" | 422; detail ends with `re-upload it` | holdout |
 | AC-25 | the AC-5 template (no frame) | POST `/api/reports?render=false` with its `template_id` and `layout.output_format` "pptx", stand-in LLM | 200; the manifest's `template_id` equals it (the classic path still accepts frameless templates) | holdout |
+| AC-26 | `frame.pptx`, both fonts, `layout_name` = "Missing" | POST upload | 200; `frame` = null; `frame_error` = `No layout named "Missing".` | holdout |
+| AC-27 | the AC-8 build | inspect slide 1's `subheading` runs | font "Testa Sans", 18 pt, not bold | holdout |
+| AC-28 | the AC-8 build | inspect slide 1's `slot:items` runs | font "Testa Sans" | holdout |
