@@ -13,3 +13,24 @@ async def test_storyline_prompt_carries_goal_and_target_length(fake_llm):
 
     assert "Goal: Approve the utilities underweight" in llm.prompts[0] and "exactly 5 slides" in llm.prompts[0]
     assert storyline.approved is False  # only a human approves
+
+
+def _subheaded() -> Storyline:
+    return Storyline(title="T", slides=[StorylineSlide(headline="h", subheading="Sub one", purpose="p"),
+                                        StorylineSlide(headline="h2", subheading="Sub two", purpose="p")])
+
+
+async def test_ac15_prompt_asks_for_subheadings_with_a_template(fake_llm):
+    llm = fake_llm({"Storyline": [_subheaded()]})
+    request = ReportRequest(title="T", qualitative_notes="n", template_id="tpl_x", layout=LayoutInstructions(output_format=OutputFormat.HOUSE_DECK))
+    storyline, _ = await draft_storyline(request, llm)
+    assert "subheading" in llm.prompts[0] and "at most 20 words" in llm.prompts[0]
+    assert [s.subheading for s in storyline.slides] == ["Sub one", "Sub two"]
+
+
+async def test_ac21_no_template_no_subheading(fake_llm):
+    llm = fake_llm({"Storyline": [_subheaded()]})
+    request = ReportRequest(title="T", qualitative_notes="n", layout=LayoutInstructions(output_format=OutputFormat.HOUSE_DECK))
+    storyline, _ = await draft_storyline(request, llm)
+    assert "subheading" not in llm.prompts[0]
+    assert [s.subheading for s in storyline.slides] == ["", ""]

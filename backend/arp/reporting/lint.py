@@ -17,9 +17,11 @@ from arp.schemas.reporting import Deck, Finding, ReportRequest, SlideContent
 
 
 def _texts(slide: SlideContent, headline: bool = False) -> Iterator[tuple[str, str]]:
-    """(slot, text) for every string and list item; the headline only when asked."""
+    """(slot, text) for every string and list item; the headline (and subheading) only when asked."""
     if headline:
         yield "headline", slide.headline
+        if slide.subheading:
+            yield "subheading", slide.subheading
     for slot, v in slide.slots.items():
         for t in [v] if isinstance(v, str) else v:
             yield slot, t
@@ -179,7 +181,7 @@ async def lint_and_rewrite(
     for _ in range(max_rounds):
         todo: dict[tuple[int, str], list[str]] = {}
         for f in findings:
-            if f.slot != "headline":
+            if f.slot not in ("headline", "subheading"):  # both approved by a person: reported, never rewritten
                 todo.setdefault((f.slide, f.slot), []).append(f.message)
         if not todo:
             break
