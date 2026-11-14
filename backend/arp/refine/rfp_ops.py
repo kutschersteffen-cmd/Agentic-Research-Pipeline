@@ -18,6 +18,7 @@ log = logging.getLogger(__name__)
 REWRITE, LEAVE_BLANK = "rewrite", "leave_blank"
 NO_SUCH_QUESTION, NOT_BACKED, DRAFT_FAILED = "no such question", "not backed by the library", "draft failed"
 USE_AUTOFILL = "no source; use Auto-fill on RFP Answers"
+CHANGED_DURING_TURN = "changed during this turn"
 
 
 def _state(q: m.RfpQuestion) -> dict:
@@ -38,7 +39,7 @@ async def _apply(qid: int, op: dict, project_id: int, entries, llm: LLMClient, t
             return before, _state(q)
         if q.status == NO_SOURCE:
             return USE_AUTOFILL
-        question, current = q.question, q.answer
+        question, current, read = q.question, q.answer, (q.answer, q.status, q.last_editor)
     try:
         d = await draft_answer(question, entries, llm, today=today, settings=settings,
                                instruction=op.get("instruction"), current=current)
@@ -49,8 +50,8 @@ async def _apply(qid: int, op: dict, project_id: int, entries, llm: LLMClient, t
         return NOT_BACKED
     with transaction() as s:
         q = s.get(m.RfpQuestion, qid, with_for_update=True)
-        if q.status == APPROVED:  # approved while the draft was being written
-            return APPROVED
+        if (q.answer, q.status, q.last_editor) != read:  # a person's edit or approval while drafting wins
+            return CHANGED_DURING_TURN
         before = _state(q)
         q.answer, q.status, q.sources, q.flags, q.last_editor = d.answer, DRAFTED, d.sources, d.flags, None
         return before, _state(q)

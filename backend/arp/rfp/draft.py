@@ -92,7 +92,8 @@ async def draft_answer(question: str, entries: list[Entry], llm: LLMClient, *, t
     if instruction:
         prompt += f"\n\nStyle instruction: {instruction}"
     if current:
-        prompt += f"\n\nCurrent answer: {current}"
+        prompt += (f"\n\nCurrent answer: {current}\n\nUse the current answer as a style reference only: every statement"
+                   " in your answer must be backed by a quoted library entry.")
     out, _ = await llm.complete_structured(system=_SYSTEM, prompt=prompt, output_model=DraftOut)
     answer = out.answer.strip()
     if not answer or not out.citations:

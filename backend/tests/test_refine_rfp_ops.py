@@ -168,3 +168,25 @@ def test_question_of_another_project_is_no_such_question(p):
         s.get(m.RfpQuestion, p["Q1"]).project_id = other.id
     _, out = run(p, [{"op": "rewrite", "question_ids": [p["Q1"]]}], Standin(grounded(p)))
     assert out["not_changed"] == [{"id": p["Q1"], "reason": "no such question"}]
+
+
+def test_current_answer_is_style_reference_only(p):
+    llm = Standin(grounded(p))
+    run(p, [{"op": "rewrite", "question_ids": [p["Q1"]]}], llm)
+    assert llm.prompts[0].endswith("Current answer: A1\n\nUse the current answer as a style reference only: every "
+                                   "statement in your answer must be backed by a quoted library entry.")
+
+
+def test_hand_edit_during_draft_survives(p):
+    class EditsWhileDrafting(Standin):
+        async def complete_structured(self, **kw):
+            with transaction() as s:  # bob edits Q1 on RFP Answers while its re-draft is being written
+                q = s.get(m.RfpQuestion, p["Q1"])
+                q.answer, q.status, q.last_editor = "Bob's answer", "edited", "bob"
+            return await super().complete_structured(**kw)
+
+    _, out = run(p, [{"op": "rewrite", "question_ids": [p["Q1"]]}], EditsWhileDrafting(grounded(p)))
+    assert (state(p["Q1"])["answer"], state(p["Q1"])["status"], state(p["Q1"])["last_editor"]) == (
+        "Bob's answer", "edited", "bob")
+    assert (out["changed"], out["not_changed"]) == ([], [{"id": p["Q1"], "reason": "changed during this turn"}])
+    assert out["before"] == out["after"] == {}
