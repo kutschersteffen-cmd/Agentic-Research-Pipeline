@@ -41,3 +41,15 @@ def intake_cmd(file: Path = typer.Argument(..., exists=True, dir_okay=False), ki
     typer.echo(f"created {report.created}, updated {report.updated}, unchanged {report.unchanged}, rejected {len(report.rejected)}")
     if report.rejected:
         raise typer.Exit(1)
+
+
+@stewardship_app.command("seed-demo")
+def seed_demo_cmd(
+    companies: int = typer.Option(400, "--companies", help="How many MSCI World companies (heaviest first)."),
+    seed: int = typer.Option(7, "--seed", help="Same seed: re-run changes nothing. Other seed: replaces the demo rows."),
+) -> None:
+    """Write SIMULATED VOICE engagements, objectives and activities (source mock_voice_seed); run `arp showcase load` first."""
+    from arp.stewardship.seed_demo import seed_demo
+
+    counts = seed_demo(require_dsn(get_settings()), companies, seed)
+    typer.echo(", ".join(f"{k} {v}" for k, v in counts.items()))
