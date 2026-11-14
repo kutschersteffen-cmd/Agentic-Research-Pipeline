@@ -138,13 +138,14 @@ The owner answers by tapping buttons, not by typing. Every question to the owner
 - The question must stand alone: say what was found and what is being decided, since earlier chat
   may be hidden while the buttons are open.
 - A spec or plan is still shown as an artifact first; the buttons collect the verdict.
-- Merge button: once a `risk:low` or `risk:normal` PR is green on its current head, mergeable and has
-  no review thread waiting on the agent, and is not behind `main` (else merge `origin/main` into it and
-  wait for green CI on the new head), the agent driving it asks `Merge PR #<n>?` with title, risk
-  label and short head SHA. `Approve` merges it then and there (`merge_pull_request`, `merge_method:
-  merge`, `expectedHeadSha` set to the SHA in the question; if the head moved, ask again).
-  `Not approved` leaves it for the owner. `risk:high` PRs are never offered: the owner merges them on
-  GitHub. One tap covers one PR at one SHA; agents still never approve a PR.
+- Auto-merge (no button): the agent driving a `risk:low` or `risk:normal` PR merges it without asking
+  once, on its current head, CI is green, it is mergeable, it has no review thread waiting on the agent
+  and no open `blocking` finding, it is not behind `main` (else merge `origin/main` into it and wait for
+  green CI on the new head), and, if its spec has `evaluator` rows, the `Acceptance matrix (evaluator)`
+  for that head passes every row. Merge with `merge_pull_request`, `merge_method: merge`,
+  `expectedHeadSha` set to the head you checked (if the head moved, check again), then tell the owner
+  in one line: PR, title, risk label, short SHA. `risk:high` PRs are never merged by an agent: the
+  owner merges them on GitHub. Agents still never approve a PR.
 
 ## Checks
 
