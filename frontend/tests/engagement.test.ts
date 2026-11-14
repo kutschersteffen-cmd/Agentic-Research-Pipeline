@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { engagementCounts, engagementLine } from "../src/lib/engagement.ts";
+import { engagementCounts, engagementLine, issueTopics } from "../src/lib/engagement.ts";
 
 const issue = (status: string, escalation_stage: string) => ({ status, escalation_stage }) as never;
 
@@ -33,4 +33,14 @@ test("an unknown escalation stage counts as escalated while the issue is open", 
 test("engagementLine never shows a zero nobody measured", () => {
   assert.equal(engagementLine(null), "Engagement · — open · — stalled · — escalated");
   assert.equal(engagementLine("error"), "Engagement · counts unavailable");
+});
+
+test("issueTopics keeps one engagement's topics in the API's order", () => {
+  const topics = [
+    { topic_id: "t3", engagement_id: "e1" },
+    { topic_id: "t2", engagement_id: "e2" },
+    { topic_id: "t1", engagement_id: "e1" },
+  ];
+  assert.deepEqual(issueTopics(topics, "e1").map((t) => t.topic_id), ["t3", "t1"]);
+  assert.deepEqual(issueTopics(topics, "e9"), []);
 });

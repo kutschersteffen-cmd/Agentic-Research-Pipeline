@@ -8,13 +8,14 @@ import threading
 from collections import defaultdict
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from pydantic import BaseModel
 from sqlalchemy import DateTime, func, inspect, select, text
 from sqlalchemy.orm import Session
 
 from arp.db.session import transaction
+from arp.engagement.tracking_agent import log_commitment_verified
 from arp.errors import ClientInputError
 from arp.schemas.common import new_id, now_iso
 from arp.schemas.engagement import (
@@ -26,12 +27,15 @@ from arp.schemas.engagement import (
     EngagementRecord,
     EscalationStage,
     EscalationTransition,
+    EvidenceSuggestion,
     IssueSeverity,
     IssueStatus,
     MilestoneStage,
     MilestoneTransition,
     Objective,
     TriggerSource,
+    WatchTopic,
+    evidence_text,
 )
 from arp.storage.postgres_models import (
     StwActivityModel,
@@ -40,8 +44,10 @@ from arp.storage.postgres_models import (
     StwContactModel,
     StwEngagementModel,
     StwEventModel,
+    StwEvidenceSuggestionModel,
     StwObjectiveModel,
     StwTransitionModel,
+    StwWatchTopicModel,
 )
 from arp.storage.safe_path import safe_id
 
@@ -394,3 +400,169 @@ class PostgresEngagementStore:
 
     def list_objectives(self, company_id: str, issue_id: str) -> list[Objective]:
         return self._issue_in(company_id, issue_id).objectives
+
+    # --- Watch list (spec stewardship-commitment-loop) ---------------------------------------------
+    # Raises WatchError(status, detail) with the spec's API messages, so every route words errors alike.
+
+    def _engagement(self, company_id: str, issue_id: str) -> StwEngagementModel:
+        row = self._tx.get(StwEngagementModel, issue_id)
+        if row is None or row.company_id != company_id:
+            raise WatchError(404, "Unknown engagement")
+        return row
+
+    def _item(self, issue_id: str, item_kind: str, item_id: str):
+        model, missing = _ITEMS[item_kind]
+        row = self._tx.get(model, item_id)
+        if row is None or row.engagement_id != issue_id:
+            raise WatchError(404, missing)
+        return row
+
+    def _log(self, company_id: str, event_type: str, detail: dict) -> None:
+        self._touch(company_id)
+        self._log_event(company_id, event_type, detail)
+
+    def set_proof_statement(self, company_id: str, issue_id: str, item_kind: str, item_id: str, proof_statement: str) -> BaseModel:
+        with self.lock(company_id):
+            self._engagement(company_id, issue_id)
+            row = self._item(issue_id, item_kind, item_id)
+            if row.proof_statement != proof_statement:
+                row.proof_statement = proof_statement
+                self._log(company_id, "proof_statement_set", {"issue_id": issue_id, "item_kind": item_kind, "item_id": item_id})
+            return _ITEM_OUT[item_kind].model_validate(_cols(row))
+
+    def record_objective_result(
+        self, company_id: str, issue_id: str, objective_id: str, result: str, influence_level: str | None, outcome: str
+    ) -> Objective:
+        with self.lock(company_id):
+            self._engagement(company_id, issue_id)
+            row = self._item(issue_id, "objective", objective_id)
+            if row.status not in _OPEN_OBJECTIVE:
+                raise WatchError(409, "This objective is already closed.")
+            row.result, row.influence_level, row.outcome, row.closed_at = result, influence_level, outcome, _ts(now_iso())
+            row.status = "abandoned" if result == "abandoned" else "closed"
+            self._log(company_id, "objective_result_recorded", {"issue_id": issue_id, "objective_id": objective_id, "result": result})
+            return Objective.model_validate(_cols(row))
+
+    def add_watch_topic(self, company_id: str, issue_id: str, topic: WatchTopic) -> WatchTopic:
+        with self.lock(company_id):
+            if self._engagement(company_id, issue_id).status not in _OPEN_ENGAGEMENT:
+                raise WatchError(409, "Watch topics need an open engagement.")
+            self._add(_row(StwWatchTopicModel, topic, engagement_id=issue_id))
+            self._log(company_id, "watch_topic_added", {"issue_id": issue_id, "topic_id": topic.topic_id})
+            return topic
+
+    def list_watch_topics(self, company_id: str) -> list[WatchTopic]:
+        W = StwWatchTopicModel
+        with self._session() as session:
+            rows = session.scalars(
+                select(W)
+                .join(StwEngagementModel, StwEngagementModel.engagement_id == W.engagement_id)
+                .where(StwEngagementModel.company_id == company_id)
+                .order_by(W.created_at.desc(), W.topic_id.desc())
+            )
+            return [WatchTopic.model_validate(_cols(r)) for r in rows]
+
+    def _company_of(self, model, key: str, missing: str) -> str:
+        """The company a topic or suggestion belongs to, read before taking that company's lock."""
+        with self._session() as session:
+            row = session.get(model, key)
+            if row is None:
+                raise WatchError(404, missing)
+            return row.company_id if model is StwEvidenceSuggestionModel else session.get(StwEngagementModel, row.engagement_id).company_id
+
+    def close_watch_topic(self, topic_id: str, closed_by: str) -> WatchTopic:
+        company_id = self._company_of(StwWatchTopicModel, topic_id, "Unknown topic.")
+        with self.lock(company_id):
+            row = self._tx.get(StwWatchTopicModel, topic_id)
+            if row.status == "closed":
+                raise WatchError(409, "This topic is already closed.")
+            row.status, row.closed_by, row.closed_at = "closed", closed_by, _ts(now_iso())
+            self._log(company_id, "watch_topic_closed", {"issue_id": row.engagement_id, "topic_id": topic_id})
+            return WatchTopic.model_validate(_cols(row))
+
+    def list_suggestions(self, company_id: str, status: str) -> list[EvidenceSuggestion]:
+        S = StwEvidenceSuggestionModel
+        with self._session() as session:
+            rows = session.scalars(
+                select(S).where(S.company_id == company_id, S.status == status).order_by(S.created_at.desc(), S.suggestion_id.desc())
+            )
+            return [EvidenceSuggestion.model_validate(_cols(r)) for r in rows]
+
+    def _decide(self, row: StwEvidenceSuggestionModel, status: str, user: str, **fields) -> EvidenceSuggestion:
+        if row.status != "pending":
+            raise WatchError(409, f"Suggestion already {row.status}.")
+        row.status, row.decided_by, row.decided_at = status, user, _ts(now_iso())
+        for key, value in fields.items():
+            setattr(row, key, value)
+        self._log(row.company_id, f"evidence_suggestion_{status}", {"suggestion_id": row.suggestion_id, "item_id": row.item_id})
+        return EvidenceSuggestion.model_validate(_cols(row))
+
+    def reject_suggestion(self, suggestion_id: str, user: str, reason: str) -> EvidenceSuggestion:
+        company_id = self._company_of(StwEvidenceSuggestionModel, suggestion_id, "Unknown suggestion.")
+        with self.lock(company_id):
+            return self._decide(self._tx.get(StwEvidenceSuggestionModel, suggestion_id), "rejected", user, reject_reason=reason)
+
+    def confirm_suggestion(self, suggestion_id: str, user: str, overrides: dict | None = None) -> EvidenceSuggestion:
+        """Confirming is the person's decision: on a commitment it sets verified/missed as Verify does; on an
+        objective or topic it records the evidence only; a new_commitment adds the commitment (spec "API")."""
+        company_id = self._company_of(StwEvidenceSuggestionModel, suggestion_id, "Unknown suggestion.")
+        with self.lock(company_id):
+            row = self._tx.get(StwEvidenceSuggestionModel, suggestion_id)
+            if row.status != "pending":
+                raise WatchError(409, f"Suggestion already {row.status}.")
+            if row.kind == "new_commitment":
+                return self._decide(row, "confirmed", user, created_commitment_id=self._add_found_commitment(row, user, overrides or {}))
+            item = self._tx.get(_ITEMS[row.item_kind][0], row.item_id)
+            engagement = self._tx.get(StwEngagementModel, row.engagement_id)
+            if item is None or item.status not in _OPEN_ITEM[row.item_kind] or engagement.status not in _OPEN_ENGAGEMENT:
+                raise WatchError(409, "This item is no longer open.")
+            if row.item_kind == "commitment":
+                evidence = evidence_text(EvidenceSuggestion.model_validate(_cols(row)))
+                if row.verdict == "found":
+                    log_commitment_verified(self, company_id, row.engagement_id, row.item_id, user, evidence)
+                else:
+                    self.update_commitment_status(company_id, row.engagement_id, row.item_id, CommitmentStatus.MISSED, user, evidence)
+            return self._decide(row, "confirmed", user)
+
+    def _add_found_commitment(self, row: StwEvidenceSuggestionModel, user: str, overrides: dict) -> str:
+        target_date = overrides.get("target_date") or row.target_date
+        if not target_date:
+            raise WatchError(422, "A due date is required to add a commitment.")
+        if not is_iso_date(target_date):
+            raise WatchError(422, "target_date must be an ISO date")
+        activity = self._tx.get(StwActivityModel, row.activity_id)
+        commitment = Commitment(
+            text=overrides.get("text") or row.text,
+            proof_statement=overrides.get("proof_statement") or row.proof_statement,
+            target_date=target_date,
+            recorded_by=user,
+            **({"made_at": activity.occurred_at.astimezone(UTC).isoformat()} if activity.occurred_at else {}),
+        )
+        self.add_commitment(row.company_id, row.engagement_id, commitment)
+        return commitment.commitment_id
+
+
+class WatchError(Exception):
+    """A watch-list request the store refuses: `status` is the HTTP status the API answers with."""
+
+    def __init__(self, status: int, detail: str) -> None:
+        super().__init__(detail)
+        self.status, self.detail = status, detail
+
+
+def is_iso_date(value: str) -> bool:
+    try:
+        return date.fromisoformat(value).isoformat() == value
+    except ValueError:
+        return False
+
+
+_OPEN_ENGAGEMENT = ("open", "stalled")
+_OPEN_OBJECTIVE = ("initiated", "in_progress")
+_OPEN_ITEM = {"objective": _OPEN_OBJECTIVE, "commitment": ("open",), "topic": ("open",)}
+_ITEMS = {
+    "objective": (StwObjectiveModel, "Unknown objective."),
+    "commitment": (StwCommitmentModel, "Unknown commitment."),
+    "topic": (StwWatchTopicModel, "Unknown topic."),
+}
+_ITEM_OUT: dict[str, type[BaseModel]] = {"objective": Objective, "commitment": Commitment, "topic": WatchTopic}

@@ -887,7 +887,12 @@ export interface Commitment {
   validated_by?: string | null;
   validated_at?: string | null;
   evidence?: string | null;
+  proof_statement?: string | null;
 }
+
+export type Objective = Served<S["Objective"]>;
+export type WatchTopic = Served<S["WatchTopic"]>;
+export type WatchItemKind = "objective" | "commitment" | "topic";
 
 export interface MilestoneTransition {
   stage: MilestoneStage;
@@ -917,6 +922,7 @@ export interface EngagementIssue {
   correspondence: CorrespondenceEntry[];
   commitments: Commitment[];
   tags: string[];
+  objectives: Objective[];
 }
 
 export interface EngagementRecord {

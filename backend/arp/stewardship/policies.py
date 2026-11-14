@@ -1,13 +1,14 @@
 """Versioned house policies for the stage studios: design a new version,
 calibrate it against the active one, then activate it with a named approver.
 
-Five policies so far:
+Six policies so far:
 
 - `monitoring_rules`: the ZEN decision table that raises triggers (stage 1);
 - `coverage_rules`: the ZEN decision table that proposes coverage tiers (stage 2);
 - `escalation_rules`: tier caps and the escalation recommendations (stages 2 and 5);
 - `phrase_blocklist`: the E8 style check on outreach and client-facing text (stage 3);
-- `house_voting`: the house voting positions on the issue catalogue (stage 4).
+- `house_voting`: the house voting positions on the issue catalogue (stage 4);
+- `priority_weights`: the component weights of the worklist's priority score (`worklist.py`).
 
 Client streams have their own store (`PolicyStore(root, client=True)` on the
 stream's directory) for the policies that have a client form: so far
@@ -154,6 +155,33 @@ def _validate_theme_standards(content: dict, sample: dict) -> None:
             raise ValueError(f"standard '{sid}': value {json.dumps(value)} does not fit {kind}")
 
 
+def load_priority_weights() -> dict:
+    return load("priority_weights.json")
+
+
+def component_ids() -> list[str]:
+    return [c["id"] for c in load_priority_weights()["components"]]
+
+
+def validate_weights(content: dict, _sample: dict | None = None) -> None:
+    comps = content.get("components") if isinstance(content, dict) else None
+    if not isinstance(comps, list) or not all(isinstance(c, dict) for c in comps):
+        raise ValueError("A priority_weights version lists components: [{id, weight}]")
+    ids, known = [c.get("id") for c in comps], component_ids()
+    if missing := [i for i in known if i not in ids]:
+        raise ValueError(f"Missing components: {', '.join(missing)}")
+    if unknown := [str(i) for i in ids if i not in known]:
+        raise ValueError(f"Unknown components: {', '.join(unknown)}")
+    if twice := sorted(i for i, n in Counter(ids).items() if n > 1):
+        raise ValueError(f"Components listed twice: {', '.join(twice)}")
+    for c in comps:
+        w = c.get("weight")
+        if isinstance(w, bool) or not isinstance(w, int) or not 0 <= w <= 100:
+            raise ValueError(f"The weight of {c['id']} must be a whole number from 0 to 100")
+    if (total := sum(c["weight"] for c in comps)) != 100:
+        raise ValueError(f"Weights must add up to 100 (now {total})")
+
+
 POLICIES: dict[str, dict[str, Callable]] = {
     "monitoring_rules": {"default": monitoring.load_graph, "validate": _validate_monitoring},
     "coverage_rules": {"default": default_coverage_graph, "validate": _validate_coverage},
@@ -165,6 +193,7 @@ POLICIES: dict[str, dict[str, Callable]] = {
     },
     "phrase_blocklist": {"default": style.load_blocklist, "validate": style.validate_blocklist},
     "house_voting": {"default": lambda: load("house_voting_policy_draft.json"), "validate": _validate_voting},
+    "priority_weights": {"default": load_priority_weights, "validate": validate_weights},
     "theme_standards": {
         "theme_default": lambda: {"policy_id": "theme_standards", "standards": [], "schema": None},
         "theme_validate": _validate_theme_standards,

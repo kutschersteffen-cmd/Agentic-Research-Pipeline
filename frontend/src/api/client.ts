@@ -7,6 +7,9 @@ import type { RowLineage } from "../lib/lineage";
 import type { Me } from "../lib/reviewKeys";
 import type {
   AuthoritativeValue,
+  Objective,
+  WatchItemKind,
+  WatchTopic,
   ArgusDraft,
   ArgusFlow,
   FlowProgress,
@@ -973,6 +976,19 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  // Watch list (spec stewardship-commitment-loop)
+  setProofStatement: (kind: WatchItemKind, id: string, body: { company_id: string; issue_id: string; proof_statement: string }) =>
+    request<unknown>(`/api/stewardship/watch-items/${kind}/${encodeURIComponent(id)}/proof-statement`, jsonBody("POST", body)),
+  listWatchTopics: (companyId: string) =>
+    request<{ topics: WatchTopic[] }>(`/api/stewardship/watch-topics?company_id=${encodeURIComponent(companyId)}`),
+  addWatchTopic: (body: { company_id: string; issue_id: string; question: string; proof_statement?: string; target_date?: string }) =>
+    request<WatchTopic>("/api/stewardship/watch-topics", jsonBody("POST", body)),
+  closeWatchTopic: (topicId: string) => request<WatchTopic>(`/api/stewardship/watch-topics/${encodeURIComponent(topicId)}/close`, { method: "POST" }),
+  recordObjectiveResult: (
+    objectiveId: string,
+    body: { company_id: string; issue_id: string; result: string; influence_level: string | null; outcome: string },
+  ) => request<Objective>(`/api/stewardship/objectives/${encodeURIComponent(objectiveId)}/result`, jsonBody("POST", body)),
 
   // Voting (proxy)
   startVotingRun: (body: { companies?: unknown[]; universe_path?: string; meeting_dates?: Record<string, string> }) =>
