@@ -17745,6 +17745,11 @@ export interface components {
             purpose: string;
             /** Source Refs */
             source_refs?: string[];
+            /**
+             * Subheading
+             * @default
+             */
+            subheading: string;
         };
         /**
          * StrategySpec

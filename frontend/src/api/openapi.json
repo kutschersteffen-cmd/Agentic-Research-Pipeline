@@ -22828,6 +22828,11 @@
       },
       "title": "Source Refs",
       "type": "array"
+     },
+     "subheading": {
+      "default": "",
+      "title": "Subheading",
+      "type": "string"
      }
     },
     "required": [

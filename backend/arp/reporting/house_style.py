@@ -13,6 +13,8 @@ from typing import Literal, NamedTuple
 
 from pydantic import BaseModel
 
+from arp.schemas.reporting import TemplateFrame
+
 _STYLE_DIR = Path(__file__).parent / "style"
 
 
@@ -77,6 +79,8 @@ class Tokens(BaseModel):
     color: Colors  # light mode
     color_dark: Colors
     fonts: Fonts
+    frame: TemplateFrame | None = None  # a company template's boxes; None = the house frame
+    font_dir: str | None = None  # the template's uploaded font files
 
     def colors(self, mode: Mode) -> Colors:
         return self.color_dark if mode == "dark" else self.color

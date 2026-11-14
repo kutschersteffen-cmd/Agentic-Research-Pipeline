@@ -595,7 +595,7 @@ export function ReportBuilder() {
           <div className="toolbar">
             {!storyline.approved && (
               <>
-                <button className="link-button" onClick={() => setStoryline({ ...storyline, slides: [...storyline.slides, { headline: "", purpose: "", source_refs: [] }] })}>
+                <button className="link-button" onClick={() => setStoryline({ ...storyline, slides: [...storyline.slides, { headline: "", subheading: "", purpose: "", source_refs: [] }] })}>
                   + Add headline
                 </button>
                 <button onClick={saveStoryline} disabled={busy}>Save</button>
