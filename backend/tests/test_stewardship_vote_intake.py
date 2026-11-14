@@ -1,6 +1,7 @@
 import pytest
 from sqlalchemy import func, select
 
+from arp.db.companies import ensure_universe_company
 from arp.db.session import transaction
 from arp.schemas.vote_ledger import against_management
 from arp.stewardship.intake import intake_votes
@@ -77,11 +78,29 @@ def test_list_values_rejected_not_crash(pg):
     assert all(r.sheet == "votes" for r in report.rejected)
 
 
-def test_company_id_only_row_stored_null(pg):
+def test_unknown_company_id_only_row_rejected(pg):
+    # owner decision 14 Nov 2026: a company_id that is the only issuer id must be known
     report = intake_votes([_row(company_id="NOPE", isin=None)], pg, "api")
+    assert [(r.field, r.reason) for r in report.rejected] == [("company_id", "unknown company")]
+    assert _count(pg, VoteMeetingModel) == 0
+
+
+def test_unknown_company_id_with_isin_stored_null(pg):
+    report = intake_votes([_row(company_id="NOPE")], pg, "api")
     assert (report.created, report.rejected) == (3, [])
     with transaction(pg) as s:
-        assert s.scalars(select(VoteMeetingModel)).one().company_id is None
+        m = s.scalars(select(VoteMeetingModel)).one()
+        assert (m.company_id, m.isin) == (None, "US0378331005")
+
+
+def test_registry_company_id_without_stw_row_stored_null(pg):
+    with transaction(pg) as s:
+        ensure_universe_company(s, "C9", name="Nine")
+    report = intake_votes([_row(company_id="C9", isin=None)], pg, "api")
+    assert (report.created, report.rejected) == (3, [])  # known to the registry: not unknown, but no stw_companies row to link
+    with transaction(pg) as s:
+        m = s.scalars(select(VoteMeetingModel)).one()
+        assert (m.company_id, m.external_id) == (None, "cid:C9:2026-05-01")
 
 
 def test_meeting_key_stable_when_company_appears_later(pg):

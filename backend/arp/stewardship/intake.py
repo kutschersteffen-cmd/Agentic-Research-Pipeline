@@ -371,6 +371,9 @@ def intake_votes(rows: list[dict], dsn: str, source: str, excel_rows: bool = Fal
                 if key and _safe(key) and s.get(StwCompanyModel, key):
                     company = key
                     break
+            if row["company_id"] and not (row["isin"] or row["cusip"]) and not _company(s, row["company_id"], None):
+                # only identifier is a company_id neither stw_companies nor the registry knows (owner decision 14 Nov)
+                bad.append(Rejection(sheet="votes", row=n, field="company_id", reason="unknown company"))
             if any(r.row == n for r in bad):  # keys are only built for rows that passed validation
                 continue
             key = meeting_key(row["company_id"], row["isin"], row["cusip"])
