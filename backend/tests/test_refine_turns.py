@@ -6,6 +6,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from arp.db import models as m
+from arp.db.session import transaction
 from arp.refine import turns
 from arp.schemas.reporting import ReportManifest
 
@@ -46,3 +48,28 @@ def test_finish_frees_the_document_and_records_error(pg):
 def test_manifest_defaults():
     r = ReportManifest()
     assert r.has_deck is False and r.deck_edited_since_render is False
+
+
+def test_recent_progress_keeps_old_turn_running(pg):
+    tid = turns.start_turn("rfp", "7", "alice", "m")
+    with transaction() as s:  # started 11 minutes ago
+        s.get(m.RefineTurn, tid).created_at = datetime.now(UTC) - timedelta(minutes=turns.REFINE_TURN_TIMEOUT_MIN + 1)
+    assert turns.save_progress(tid, done=1) is True  # progress just now
+    assert turns.reap_stale_turns(datetime.now(UTC)) == 0
+    assert turns.turn_out(tid)["status"] == "running"
+
+
+def test_reaped_turn_stays_failed(pg):
+    tid = turns.start_turn("rfp", "7", "alice", "m")
+    assert turns.reap_stale_turns() == 1
+    assert turns.finish_turn(tid, "done") is False
+    assert turns.save_progress(tid, done=1, result={"reply": "late"}) is False
+    out = turns.turn_out(tid)
+    assert (out["status"], out["error"], out["done"], out["reply"]) == ("failed", "interrupted", 0, "")
+
+
+def test_save_progress_merges_result(pg):
+    tid = turns.start_turn("rfp", "7", "alice", "m")
+    turns.save_progress(tid, result={"reply": "r"})
+    turns.save_progress(tid, result={"changed": [1]})
+    assert (turns.turn_out(tid)["reply"], turns.turn_out(tid)["changed"]) == ("r", [1])

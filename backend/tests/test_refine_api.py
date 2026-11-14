@@ -401,7 +401,8 @@ def test_approved_storyline_put_409(env, R):  # AC-47
 def test_stale_running_turn_reaped_on_new_turn(env, P):  # spec: `running` for more than 10 minutes -> failed/interrupted
     with transaction() as s:
         old = m.RefineTurn(kind="rfp", doc_id=P["pid"], user_id="alice", message="m",
-                           created_at=datetime.now(UTC) - timedelta(minutes=11))
+                           created_at=datetime.now(UTC) - timedelta(minutes=11),
+                           updated_at=datetime.now(UTC) - timedelta(minutes=11))
         s.add(old)
         s.flush()
         old_id = old.id
@@ -427,3 +428,46 @@ def test_other_analyst_undoes_alices_turn(env, P, monkeypatch):
     r = env.undo("rfp", P["pid"], user="dan")
     assert r.status_code == 200, r.text
     assert state(P["q1"]) == before
+
+
+def test_changed_shows_mid_turn(env, P):  # AC-41: the first saved question is in `changed` while the turn runs
+    env.ops([{"op": "rewrite", "question_ids": [P["q1"], P["q2"]]}])
+    draft = DraftOut(answer=GROUNDED, citations=[Cited(entry_id=P["e1"], quote=LIB)])
+    env.stand_in("DraftOut", {"output": draft.model_dump(), "delay_seconds": 1})
+    tid = env.turn("rfp", P["pid"])
+    end = time.monotonic() + 10
+    while (out := env.get_turn(tid))["done"] < 1 and time.monotonic() < end:
+        time.sleep(0.05)
+    assert (out["status"], out["changed"], out["not_changed"]) == ("running", [P["q1"]], [])
+    assert env.wait(tid)["changed"] == [P["q1"], P["q2"]]
+
+
+def test_turn_with_recent_progress_not_reaped(env, P):  # the timeout counts from the last progress write
+    with transaction() as s:
+        t = m.RefineTurn(kind="rfp", doc_id=P["pid"], user_id="alice", message="m",
+                         created_at=datetime.now(UTC) - timedelta(minutes=11), updated_at=datetime.now(UTC))
+        s.add(t)
+        s.flush()
+        tid = t.id
+    r = env.as_("alice").post(f"/api/refine/rfp/{P['pid']}/turns", json={"message": "m", "history": []})
+    assert (r.status_code, r.json()["detail"]) == (409, BUSY)
+    assert env.get_turn(tid)["status"] == "running"
+
+
+def test_failed_turn_that_saved_is_undoable(env, P):  # a turn that saved Q1 and then failed
+    before = state(P["q1"])
+    env.ops([{"op": "rewrite", "question_ids": [P["q1"]]}])
+    tid = env.wait(env.turn("rfp", P["pid"]))["id"]
+    with transaction() as s:
+        s.get(m.RefineTurn, tid).status = "failed"
+    r = env.undo("rfp", P["pid"])
+    assert (r.status_code, r.json()["id"], r.json()["status"]) == (200, tid, "undone")
+    assert state(P["q1"]) == before
+
+
+@pytest.mark.parametrize("rid", ["nope", ".hidden"])
+def test_unknown_or_bad_deck_id_404(env, rid):
+    r = env.as_("alice").post(f"/api/refine/deck/{rid}/turns", json={"message": "m", "history": []})
+    assert (r.status_code, r.json()["detail"]) == (404, "Report not found")
+    assert not (env.reports.reports_dir / rid).exists()
+    assert rows() == []

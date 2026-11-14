@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, type_coerce, update
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
 
 from arp.db import models as m
@@ -34,24 +35,31 @@ def start_turn(kind: str, doc_id: str, user_id: str, message: str) -> int:
 
 
 def save_progress(turn_id: int, *, done: int | None = None, total: int | None = None, result: dict | None = None,
-                  before: dict | None = None, after: dict | None = None, ops: list | None = None) -> None:
-    fields = {"done": done, "total": total, "result": result, "before": before, "after": after, "ops": ops}
+                  before: dict | None = None, after: dict | None = None, ops: list | None = None) -> bool:
+    """Writes onto a `running` turn only (`result` keys are merged in) and bumps `updated_at`; False when it is not running."""
+    fields = {"done": done, "total": total, "before": before, "after": after, "ops": ops}
     fields = {k: v for k, v in fields.items() if v is not None}
-    if fields:
-        with transaction() as s:
-            s.execute(update(m.RefineTurn).where(m.RefineTurn.id == turn_id).values(**fields))
-
-
-def finish_turn(turn_id: int, status: str, *, error: str | None = None) -> None:
+    if result is not None:
+        fields["result"] = m.RefineTurn.result.op("||")(type_coerce(result, JSONB))
     with transaction() as s:
-        s.execute(update(m.RefineTurn).where(m.RefineTurn.id == turn_id).values(status=status, error=error))
+        return s.execute(_running(turn_id).values(**fields, updated_at=func.now())).rowcount == 1
+
+
+def finish_turn(turn_id: int, status: str, *, error: str | None = None) -> bool:
+    """False when the turn is no longer `running` (e.g. reaped), which it then stays."""
+    with transaction() as s:
+        return s.execute(_running(turn_id).values(status=status, error=error)).rowcount == 1
+
+
+def _running(turn_id: int):
+    return update(m.RefineTurn).where(m.RefineTurn.id == turn_id, m.RefineTurn.status == "running")
 
 
 def reap_stale_turns(now: datetime | None = None) -> int:
-    """Fail `running` turns older than the timeout; with `now=None` (API start) every `running` turn."""
+    """Fail `running` turns with no progress for the timeout; with `now=None` (API start) every `running` turn."""
     q = update(m.RefineTurn).where(m.RefineTurn.status == "running")
     if now is not None:
-        q = q.where(m.RefineTurn.created_at < now - timedelta(minutes=REFINE_TURN_TIMEOUT_MIN))
+        q = q.where(func.coalesce(m.RefineTurn.updated_at, m.RefineTurn.created_at) < now - timedelta(minutes=REFINE_TURN_TIMEOUT_MIN))
     with transaction() as s:
         return s.execute(q.values(status="failed", error="interrupted")).rowcount
 

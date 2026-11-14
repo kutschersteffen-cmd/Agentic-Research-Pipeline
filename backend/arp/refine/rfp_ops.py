@@ -50,6 +50,8 @@ async def _apply(qid: int, op: dict, project_id: int, entries, llm: LLMClient, t
         return NOT_BACKED
     with transaction() as s:
         q = s.get(m.RfpQuestion, qid, with_for_update=True)
+        if q is None:  # deleted while drafting
+            return NO_SUCH_QUESTION
         if (q.answer, q.status, q.last_editor) != read:  # a person's edit or approval while drafting wins
             return CHANGED_DURING_TURN
         before = question_state(q)
@@ -81,5 +83,8 @@ async def apply_rfp_ops(turn_id: int, project_id: int, ops: list[dict], llm: LLM
         else:
             changed.append(qid)
             before[str(qid)], after[str(qid)] = out
-        save_progress(turn_id, done=done, before=before, after=after)  # saved so far stays undoable if the turn dies
+        # saved so far stays undoable if the turn dies, and shows on the page mid-turn
+        if not save_progress(turn_id, done=done, before=before, after=after,
+                             result={"changed": changed, "not_changed": not_changed}):
+            break  # reaped: stop changing questions
     return {"changed": changed, "not_changed": not_changed, "before": before, "after": after}

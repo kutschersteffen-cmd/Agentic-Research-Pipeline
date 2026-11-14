@@ -58,6 +58,7 @@ function Workspace({ kind, docId }: { kind: RefineKind; docId: string }) {
   const [html, setHtml] = useState<string | null>(null);
   const [manifest, setManifest] = useState<ReportManifest | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pollError, setPollError] = useState<string | null>(null); // its own state: a good poll must not clear a Send/Undo/Export error
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -85,9 +86,9 @@ function Workspace({ kind, docId }: { kind: RefineKind; docId: string }) {
         if (turn.status !== "running") announce(turn.reply || turn.error || "The change finished.");
       }
       await loadDoc();
-      setError(null);
+      setPollError(null);
     } catch (e) {
-      setError((e as Error).message);
+      setPollError((e as Error).message);
     }
   }, pollMs(running));
 
@@ -144,7 +145,7 @@ function Workspace({ kind, docId }: { kind: RefineKind; docId: string }) {
       <div className="toolbar">
         <button className="secondary" disabled={busy || running} onClick={() => void undo()}>Undo last turn</button>
       </div>
-      {error && <p className="error-text" role="alert">{error}</p>}
+      {(error ?? pollError) && <p className="error-text" role="alert">{error ?? pollError}</p>}
       <div className="refine-grid">
         <section className="card refine-chat" aria-label="Chat">
           <h2>Chat</h2>

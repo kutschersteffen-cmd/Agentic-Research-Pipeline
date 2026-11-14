@@ -1,4 +1,4 @@
-"""Refine chat undo: restore the newest done turn's `before`, unless something changed its items since."""
+"""Refine chat undo: restore the newest done or failed turn's `before`, unless something changed its items since."""
 
 from __future__ import annotations
 
@@ -26,13 +26,13 @@ def _first_changed_slide(current: list, after: list) -> int:
 
 
 def undo_last(kind: str, doc_id: str, user_id: str, store: ReportingStore) -> int:
-    """Undoes the newest `done` turn that changed something, whoever made it; returns its id. Holds the document's
+    """Undoes the newest `done` or `failed` turn that changed something, whoever made it; returns its id. Holds the document's
     turn lock while it runs, so it cannot race a turn; the lock row has an empty `before`, so it is never undone."""
     lock = start_turn(kind, doc_id, user_id, "undo")
     try:
         with transaction() as s:
             t = s.scalars(select(m.RefineTurn).where(
-                m.RefineTurn.kind == kind, m.RefineTurn.doc_id == doc_id, m.RefineTurn.status == "done",
+                m.RefineTurn.kind == kind, m.RefineTurn.doc_id == doc_id, m.RefineTurn.status.in_(("done", "failed")),
                 m.RefineTurn.before != text("'{}'::jsonb"),
             ).order_by(m.RefineTurn.id.desc()).limit(1).with_for_update()).first()
             if t is None:

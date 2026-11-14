@@ -19,6 +19,7 @@ from arp.refine.turns import TurnBusy, finish_turn, reap_stale_turns, start_turn
 from arp.refine.undo import UndoRefused, undo_last
 from arp.rfp import store as rfp_store
 from arp.storage.reporting_store import ReportingStore
+from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
 router = APIRouter(prefix="/api/refine", tags=["refine"])
 Kind = Literal["rfp", "deck"]
@@ -64,6 +65,12 @@ async def _editor(user: Principal = Depends(current_user)) -> Principal:
 
 def _check_doc(kind: str, doc_id: str, store: ReportingStore) -> None:
     if kind == "deck":
+        try:
+            folder = store.reports_dir / safe_id(doc_id, label="report_id")
+        except UnsafeIdentifierError:
+            raise HTTPException(404, "Report not found") from None
+        if not folder.exists():  # first: load_deck goes through report_dir(), which would create the folder
+            raise HTTPException(404, "Report not found")
         if store.load_deck(doc_id) is None:
             raise HTTPException(409, NO_DECK)
         return

@@ -190,3 +190,45 @@ def test_hand_edit_during_draft_survives(p):
         "Bob's answer", "edited", "bob")
     assert (out["changed"], out["not_changed"]) == ([], [{"id": p["Q1"], "reason": "changed during this turn"}])
     assert out["before"] == out["after"] == {}
+
+
+def test_question_deleted_while_drafting_is_no_such_question(p):
+    class DeletesWhileDrafting(Standin):
+        async def complete_structured(self, **kw):
+            if not self.prompts:  # Q1 is deleted while its re-draft is being written
+                with transaction() as s:
+                    s.delete(s.get(m.RfpQuestion, p["Q1"]))
+            return await super().complete_structured(**kw)
+
+    tid, out = run(p, [{"op": "rewrite", "question_ids": [p["Q1"], p["Q2"]]}], DeletesWhileDrafting(grounded(p)))
+    assert (out["changed"], out["not_changed"]) == ([p["Q2"]], [{"id": p["Q1"], "reason": "no such question"}])
+    assert turns.turn_out(tid)["done"] == 2
+
+
+def test_progress_lists_changed_so_far(p):
+    seen = []
+
+    class Watches(Standin):
+        async def complete_structured(self, **kw):
+            if self.prompts:  # drafting Q2: Q1 is already saved
+                seen.append(turns.turn_out(tid))
+            return await super().complete_structured(**kw)
+
+    tid = turns.start_turn("rfp", str(p["P"]), "alice", "msg")
+    turns.save_progress(tid, result={"reply": "ok"})
+    asyncio.run(apply_rfp_ops(tid, p["P"], [{"op": "rewrite", "question_ids": [p["Q1"], p["Q2"], p["Q3"]]}],
+                              Watches(grounded(p)), today=TODAY))
+    assert (seen[0]["reply"], seen[0]["changed"], seen[0]["not_changed"]) == ("ok", [p["Q1"]], [])
+    t = turns.turn_out(tid)
+    assert (t["changed"], t["not_changed"]) == ([p["Q1"], p["Q2"]], [{"id": p["Q3"], "reason": "approved"}])
+
+
+def test_reaped_turn_stops_between_questions(p):
+    class ReapsWhileDrafting(Standin):
+        async def complete_structured(self, **kw):
+            turns.reap_stale_turns()  # the turn times out while Q1 is drafted
+            return await super().complete_structured(**kw)
+
+    llm = ReapsWhileDrafting(grounded(p))
+    _, out = run(p, [{"op": "rewrite", "question_ids": [p["Q1"], p["Q2"]]}], llm)
+    assert len(llm.prompts) == 1 and state(p["Q2"])["answer"] == "A2"

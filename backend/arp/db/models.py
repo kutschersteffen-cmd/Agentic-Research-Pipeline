@@ -746,6 +746,8 @@ class RefineTurn(Base):
     result: Mapped[dict] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))  # reply, changed, not_changed, check_figures
     error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _ts()
+    # the timeout counts from here; client default too, as a reconciled ADD COLUMN gets no server default
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=_NOW, server_default=_NOW)
     undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
