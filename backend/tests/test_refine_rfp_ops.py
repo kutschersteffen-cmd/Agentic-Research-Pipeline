@@ -232,3 +232,13 @@ def test_reaped_turn_stops_between_questions(p):
     llm = ReapsWhileDrafting(grounded(p))
     _, out = run(p, [{"op": "rewrite", "question_ids": [p["Q1"], p["Q2"]]}], llm)
     assert len(llm.prompts) == 1 and state(p["Q2"])["answer"] == "A2"
+
+
+def test_reaped_while_drafting_writes_nothing(p):
+    class ReapsWhileDrafting(Standin):
+        async def complete_structured(self, **kw):
+            turns.reap_stale_turns()  # the turn times out while Q1 is drafted
+            return await super().complete_structured(**kw)
+
+    run(p, [{"op": "rewrite", "question_ids": [p["Q1"]]}], ReapsWhileDrafting(grounded(p)))
+    assert state(p["Q1"])["answer"] == "A1"  # no write without an undo record

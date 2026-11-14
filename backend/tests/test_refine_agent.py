@@ -151,3 +151,17 @@ def test_rfp_rewrite_end_to_end(pg, llm, report):
     with transaction() as s:
         assert s.get(m.RfpQuestion, qid).answer == "We screen holdings quarterly."
     assert row(tid)["before"][str(qid)]["answer"] == "A1"
+
+
+def test_reaped_deck_turn_writes_no_deck(pg, llm, report):
+    store, rid = report
+    deck_before = store.load_deck(rid)
+    stand_in(llm, {"output": {"reply": "Done.", "ops": [{"op": "set_text", "slide": 2, "slot": "text", "text": "New"}]}})
+
+    class ReapsDuringCall:
+        async def complete_structured(self, **kw):
+            turns.reap_stale_turns()  # the turn times out during the model call
+            return await llm.complete_structured(**kw)
+
+    tid = deck_turn(store, rid, ReapsDuringCall())
+    assert store.load_deck(rid) == deck_before and row(tid)["status"] == "failed"

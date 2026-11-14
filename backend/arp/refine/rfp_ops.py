@@ -25,7 +25,7 @@ def question_state(q: m.RfpQuestion) -> dict:
     return {"answer": q.answer, "status": q.status, "sources": q.sources, "flags": q.flags, "last_editor": q.last_editor}
 
 
-async def _apply(qid: int, op: dict, project_id: int, entries, llm: LLMClient, today: date, settings):
+async def _apply(turn_id: int, qid: int, op: dict, project_id: int, entries, llm: LLMClient, today: date, settings):
     """`(before, after)` when the question changed, else the reason it did not."""
     with transaction() as s:
         q = s.get(m.RfpQuestion, qid, with_for_update=True)
@@ -49,6 +49,9 @@ async def _apply(qid: int, op: dict, project_id: int, entries, llm: LLMClient, t
     if d.status == NO_SOURCE:
         return NOT_BACKED
     with transaction() as s:
+        t = s.get(m.RefineTurn, turn_id, with_for_update=True)
+        if t is None or t.status != "running":  # reaped while drafting: write nothing that has no undo record
+            return DRAFT_FAILED
         q = s.get(m.RfpQuestion, qid, with_for_update=True)
         if q is None:  # deleted while drafting
             return NO_SUCH_QUESTION
@@ -77,7 +80,7 @@ async def apply_rfp_ops(turn_id: int, project_id: int, ops: list[dict], llm: LLM
         entries = store._active_entries(s)
     save_progress(turn_id, done=0, total=len(todo))
     for done, qid in enumerate(sorted(todo), 1):
-        out = await _apply(qid, todo[qid], project_id, entries, llm, today, settings)
+        out = await _apply(turn_id, qid, todo[qid], project_id, entries, llm, today, settings)
         if isinstance(out, str):
             not_changed.append({"id": qid, "reason": out})
         else:

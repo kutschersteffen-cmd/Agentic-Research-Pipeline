@@ -126,9 +126,9 @@ async def run_turn(turn_id: int, kind: str, doc_id: str, message: str, history: 
             findings = "\n".join(f.message for f in store.load_findings(doc_id))
             new, r = apply_deck_ops(deck, ops, request.datasets if request else [], findings)
             edited = new != deck
-            save_progress(turn_id, ops=ops, result=_result(out.reply, r["changed"], r["not_changed"], r["check_figures"]),
-                          before=document if edited else None, after=new.model_dump(mode="json") if edited else None)
-            if edited:  # logged first, so a written deck always has its undo
+            saved = save_progress(turn_id, ops=ops, result=_result(out.reply, r["changed"], r["not_changed"], r["check_figures"]),
+                                  before=document if edited else None, after=new.model_dump(mode="json") if edited else None)
+            if edited and saved:  # logged first, so a written deck always has its undo; a reaped turn writes nothing
                 store.save_deck(doc_id, new)
                 manifest = store.load_manifest(doc_id)
                 if manifest is not None:
