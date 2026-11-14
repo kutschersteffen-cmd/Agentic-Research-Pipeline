@@ -19,7 +19,14 @@ from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
 from pptx.oxml.ns import qn
 from pptx.util import Emu, Pt
 
-from arp.reporting.chart_builder import ChartDataError, build_native_chart_data, build_waterfall_chart_data, heatmap_table, style_native_chart, text_on
+from arp.reporting.chart_builder import (
+    ChartDataError,
+    build_native_chart_data,
+    build_waterfall_chart_data,
+    heatmap_table,
+    style_native_chart,
+    text_on,
+)
 from arp.reporting.house_style import Mode, Rect, Tokens, TypeStyle, get_variant, load_tokens, slot_rect
 from arp.reporting.html_render import table_view, theme_from_tokens
 from arp.schemas.reporting import ChartType, Deck, QuantitativeDataset, SlideContent
