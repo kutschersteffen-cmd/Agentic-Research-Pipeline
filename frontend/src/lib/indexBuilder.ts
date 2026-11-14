@@ -74,17 +74,20 @@ export function universeBanner(u: UniverseDetail | null): string {
 /** The loaded universe (null = demo) and the last load error. */
 export type UniverseChoice = { detail: UniverseDetail | null; error: string | null };
 
-/** Choose a universe: the demo needs no request; a failed load keeps the previous universe and says why. */
+/** Choose a universe: the demo needs no request; a failed load keeps the previous universe and says which one failed and why. */
 export async function chooseUniverse(
   current: UniverseChoice,
   universeId: string,
+  label: string,
   load: (id: string) => Promise<UniverseDetail>,
 ): Promise<UniverseChoice> {
   if (universeId === DEMO_UNIVERSE) return { detail: null, error: null };
   try {
     return { detail: await load(universeId), error: null };
   } catch (e) {
-    return { detail: current.detail, error: e instanceof Error ? e.message : String(e) };
+    const why = (e instanceof Error ? e.message : String(e)).replace(/^\d{3}: /, "");
+    // The loader's own refusals already start with the label ("<label>: no equity lines ...").
+    return { detail: current.detail, error: why.startsWith(label) ? why : `${label} could not be loaded: ${why}` };
   }
 }
 

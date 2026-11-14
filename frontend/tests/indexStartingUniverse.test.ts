@@ -38,23 +38,31 @@ test("AC-51, AC-52, AC-68: the select's options read as the label plus kind and 
 });
 
 test("AC-63, AC-64, AC-65: a failed DAX load shows the error and keeps the demo universe and the catalogue's fields", async () => {
-  const after = await chooseUniverse(ON_DEMO, "file:DAX", fails);
-  assert.match(after.error!, /boom/);
+  const after = await chooseUniverse(ON_DEMO, "file:DAX", "DAX.xlsx", fails);
+  assert.equal(after.error, "DAX.xlsx could not be loaded: boom");
   assert.equal(after.detail, null);
   assert.deepEqual(pickerFields(after, CATALOGUE_FIELDS).metrics, CATALOGUE_FIELDS.metrics);
   assert.equal(universeBanner(after.detail), DEMO_BANNER);
 });
 
+test("a refusal that already names the universe is not prefixed twice", async () => {
+  const refuses = async () => {
+    throw new Error("422: My fund: no equity lines with a positive weight.");
+  };
+  const after = await chooseUniverse(ON_DEMO, "portfolio:p1", "My fund", refuses);
+  assert.equal(after.error, "My fund: no equity lines with a positive weight.");
+});
+
 test("a failed load of another file keeps the universe loaded before it", async () => {
-  const onDax = await chooseUniverse(ON_DEMO, "file:DAX", loadsDax);
-  const after = await chooseUniverse(onDax, "file:MSCI_World", fails);
+  const onDax = await chooseUniverse(ON_DEMO, "file:DAX", "DAX.xlsx", loadsDax);
+  const after = await chooseUniverse(onDax, "file:MSCI_World", "MSCI_World.xlsx", fails);
   assert.equal(after.detail, DAX_DETAIL);
 });
 
 test("AC-54, AC-61: DAX's fields replace the catalogue's; choosing the demo again restores them without a request", async () => {
-  const onDax = await chooseUniverse(ON_DEMO, "file:DAX", loadsDax);
+  const onDax = await chooseUniverse(ON_DEMO, "file:DAX", "DAX.xlsx", loadsDax);
   assert.deepEqual(pickerFields(onDax, CATALOGUE_FIELDS), DAX_DETAIL.fields);
-  const back = await chooseUniverse(onDax, "demo", fails);
+  const back = await chooseUniverse(onDax, "demo", "Built-in demo universe (60 synthetic companies)", fails);
   assert.deepEqual(back, { detail: null, error: null });
   assert.deepEqual(pickerFields(back, CATALOGUE_FIELDS), CATALOGUE_FIELDS);
 });
@@ -69,7 +77,7 @@ test("AC-55, AC-66: the proposed index id follows the universe; a typed one stay
 });
 
 test("AC-67: a Preview on DAX sends universe file:DAX and no candidates", async () => {
-  const body = withUniverse(PREVIEW, await chooseUniverse(ON_DEMO, "file:DAX", loadsDax));
+  const body = withUniverse(PREVIEW, await chooseUniverse(ON_DEMO, "file:DAX", "DAX.xlsx", loadsDax));
   assert.equal(body.universe, "file:DAX");
   assert.ok(!("candidates" in body));
 });

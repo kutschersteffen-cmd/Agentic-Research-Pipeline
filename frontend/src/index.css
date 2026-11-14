@@ -2443,3 +2443,4 @@ a.vc-box:hover { border-color: var(--text); }
 /* Dossier Shelve / Un-shelve: focus lands on these after the control that was used unmounts; they are not controls. */
 .focus-target:focus { outline: none; }
 .page button.secondary[aria-disabled="true"] { opacity: 0.6; cursor: not-allowed; }
+.page select[aria-disabled="true"] { opacity: 0.6; cursor: progress; }

@@ -258,10 +258,14 @@ export function IndexBuilder() {
   }
 
   async function chooseStart(id: string) {
+    if (loadingId) return; // one load at a time; the select is aria-disabled, not disabled, so it keeps focus
     setLoadingId(id);
-    const next = await chooseUniverse(choice, id, api.getIndexUniverse);
+    const next = await chooseUniverse(choice, id, labelOf(id), api.getIndexUniverse);
     setLoadingId(null);
-    if (!next.error) setIndexId((current) => nextIndexId(current, universeId, id));
+    if (!next.error) {
+      setIndexId((current) => nextIndexId(current, universeId, id));
+      setResult(null);
+    }
     setChoice(next);
   }
 
@@ -360,22 +364,27 @@ export function IndexBuilder() {
         <div className="ix-compose">
           <StepRail steps={composeSteps} />
           <div className="ix-steps">
-          <div className="card ix-step" id="ix-universe">
+          <div className="card ix-step" id="ix-universe" aria-busy={loadingId !== null}>
             <h2>Starting universe</h2>
             <p className="help-text">The companies the review starts from: the demo universe, a holdings file, or a stored portfolio.</p>
             <label className="field-label">
               Universe
-              <select value={loadingId ?? universeId} disabled={loadingId !== null} onChange={(e) => chooseStart(e.target.value)}>
+              <select
+                value={loadingId ?? universeId}
+                aria-disabled={loadingId !== null}
+                aria-describedby="ix-universe-error ix-universe-notes"
+                onChange={(e) => chooseStart(e.target.value)}
+              >
                 {universeList.map((u) => (
                   <option key={u.universe_id} value={u.universe_id}>{universeOption(u)}</option>
                 ))}
               </select>
             </label>
             {loadingId && <p className="help-text" role="status">Loading {labelOf(loadingId)}…</p>}
-            {choice.error && <p className="error-text" role="alert">{indexErrorText(choice.error, catalogue)}</p>}
+            {choice.error && <p className="error-text" role="alert" id="ix-universe-error">{indexErrorText(choice.error, catalogue)}</p>}
             {choice.detail && (
-              <div className="help-text">
-                {choice.detail.notes.map((note) => <p key={note}>{note}</p>)}
+              <div className="help-text" id="ix-universe-notes">
+                {choice.detail.notes.map((note, i) => <p key={i}>{note}</p>)}
               </div>
             )}
           </div>
@@ -451,10 +460,10 @@ export function IndexBuilder() {
               the incumbents a selection buffer needs. A preview writes nothing.
             </p>
             <div className="toolbar">
-              <button onClick={() => runReview(false)} disabled={busy}>
+              <button onClick={() => runReview(false)} disabled={busy || loadingId !== null}>
                 {busy ? "Running..." : "Preview"}
               </button>
-              <button onClick={() => runReview(true)} disabled={busy} className="secondary">
+              <button onClick={() => runReview(true)} disabled={busy || loadingId !== null} className="secondary">
                 Run &amp; save
               </button>
             </div>
