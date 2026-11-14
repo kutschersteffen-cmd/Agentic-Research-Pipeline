@@ -312,7 +312,7 @@ export function EngagementIssuePanel({
                 {c.validated_by && <span>verified by {c.validated_by}</span>}
                 {c.evidence && <span>evidence: {c.evidence}</span>}
               </div>
-              <ProofLine ctx={watch} kind="commitment" id={c.commitment_id} proof={c.proof_statement} open={c.status === "open"} onSaved={refreshRecord} />
+              <ProofLine ctx={watch} kind="commitment" id={c.commitment_id} label={c.text} proof={c.proof_statement} open={c.status === "open"} onSaved={refreshRecord} />
             </div>
             {c.status === "open" && verifying !== c.commitment_id && (
               <button onClick={() => { setVerifying(c.commitment_id); setEvidence(""); }} disabled={busy || !actor}>
@@ -337,7 +337,7 @@ export function EngagementIssuePanel({
         ))}
       </div>
 
-      <WatchTopicsSection ctx={watch} />
+      <WatchTopicsSection key={issue.issue_id} ctx={watch} closed={closed} />
 
       <div className="panel-section">
         <h3>Research Agent</h3>
