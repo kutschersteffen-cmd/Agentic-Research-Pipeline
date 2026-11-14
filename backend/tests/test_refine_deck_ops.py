@@ -88,3 +88,23 @@ def test_slide_out_of_range():
 def test_set_text_without_slot():
     _, res = _ops(_deck(), [{"op": "set_text", "slide": 2, "text": "x"}, {"op": "set_variant", "slide": 2}, {"op": "set_headline", "slide": 2}])
     assert [r["reason"] for r in res["not_changed"]] == ["no such slot", "no such variant", "no text"]
+
+
+def test_malformed_fields_are_skips():
+    _, res = _ops(_deck(), [
+        {"op": "set_variant", "slide": 2, "variant": ["x"]}, {"op": "set_chart_type", "slide": 2, "chart_type": {}},
+        {"op": "set_text", "slide": 2, "slot": "text", "text": ["a"]}, {"op": "set_text", "slide": 1, "slot": "items", "text": "a"},
+        {"op": "set_headline", "slide": 1, "text": ["a"]},
+    ])
+    assert [r["reason"] for r in res["not_changed"]] == ["no such variant", "chart type does not fit the data", "no text", "no text", "no text"]
+    assert res["changed"] == []
+
+
+def test_list_slot_takes_list():
+    out, _ = _ops(_deck(), [{"op": "set_text", "slide": 1, "slot": "items", "text": ["a", "b"]}])
+    assert out.slides[0].slots["items"] == ["a", "b"]
+
+
+def test_bad_position_and_unknown_op_in_op_order():
+    _, res = _ops(_deck(), [{"op": "frobnicate", "slide": 1}, {"op": "move_slide", "slide": 1, "to": 9}, {"op": "set_headline", "slide": 7, "text": "x"}])
+    assert res["not_changed"] == [{"id": 1, "reason": "unknown op"}, {"id": 1, "reason": "no such position"}, {"id": 7, "reason": "no such slide"}]

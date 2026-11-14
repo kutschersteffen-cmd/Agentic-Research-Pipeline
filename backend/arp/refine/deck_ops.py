@@ -15,6 +15,7 @@ NO_SUCH_POSITION, NO_TEXT, NO_CHART = "no such position", "no text", "no chart"
 DOES_NOT_FIT = "chart type does not fit the data"
 UNKNOWN_OP = "unknown op"
 _TEXT_KINDS = {"text", "list", "number"}
+_CONTENT = ("set_text", "set_headline", "set_variant", "set_chart_type")
 _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
 
 
@@ -45,7 +46,7 @@ def apply_deck_ops(deck: Deck, ops: list[dict], datasets: list[QuantitativeDatas
     before = {id(s): _slide_text(s) for s in start}
     known = _numbers(findings_text) | {n for ds in datasets for row in ds.rows for v in row.values() for n in _numbers(str(v))}
     changed: list[SlideContent] = []
-    skipped: list[tuple[SlideContent | None, object, str]] = []
+    skipped: list[tuple[int, SlideContent | None, object, str]] = []
     unbacked: list[SlideContent] = []
 
     def slide_of(op: dict) -> SlideContent | None:
@@ -64,25 +65,28 @@ def apply_deck_ops(deck: Deck, ops: list[dict], datasets: list[QuantitativeDatas
         kind = op.get("op")
         if kind in ("set_text", "set_headline"):
             text = op.get("text")
-            if not isinstance(text, str) and not (kind == "set_text" and isinstance(text, list) and all(isinstance(t, str) for t in text)):
-                return NO_TEXT
             if kind == "set_text":
                 spec = next((x for x in _variant_slots(s) if x.name == op.get("slot")), None)
                 if spec is None or spec.kind not in _TEXT_KINDS:
                     return NO_SUCH_SLOT
+                is_list = isinstance(text, list) and all(isinstance(t, str) for t in text)
+                if not (is_list if spec.kind == "list" else isinstance(text, str)):
+                    return NO_TEXT
                 s.slots[spec.name] = text
             else:
+                if not isinstance(text, str):
+                    return NO_TEXT
                 s.headline = text
             written(s, text)
         elif kind == "set_variant":
             layout = load_layouts().get(s.layout)
-            if layout is None or op.get("variant") not in {v.id for v in layout.variants}:
+            if layout is None or not isinstance(op.get("variant"), str) or op["variant"] not in {v.id for v in layout.variants}:
                 return NO_SUCH_VARIANT
             s.variant = op["variant"]
         else:  # set_chart_type
             if s.chart is None:
                 return NO_CHART
-            if op.get("chart_type") not in {t.value for t in ChartType} or not _fits(s, op["chart_type"], datasets):
+            if not isinstance(op.get("chart_type"), str) or op["chart_type"] not in {t.value for t in ChartType} or not _fits(s, op["chart_type"], datasets):
                 return DOES_NOT_FIT
             s.chart.chart_type = ChartType(op["chart_type"])
         return None
@@ -93,34 +97,38 @@ def apply_deck_ops(deck: Deck, ops: list[dict], datasets: list[QuantitativeDatas
         except KeyError:
             return []
 
-    for op in (o for o in ops if o.get("op") in ("set_text", "set_headline", "set_variant", "set_chart_type")):
+    for i, op in enumerate(ops):
+        if op.get("op") not in _CONTENT:
+            continue
         s = slide_of(op)
         reason = NO_SUCH_SLIDE if s is None else content(op, s)
         if reason:
-            skipped.append((s, op.get("slide"), reason))
+            skipped.append((i, s, op.get("slide"), reason))
         else:
             changed.append(s)
-    for op in (o for o in ops if o.get("op") in ("move_slide", "delete_slide")):
+    for i, op in enumerate(ops):
+        if op.get("op") not in ("move_slide", "delete_slide"):
+            continue
         s = slide_of(op)
         to = op.get("to")
         if s is None or not any(x is s for x in slides):
-            skipped.append((None, op.get("slide"), NO_SUCH_SLIDE))
+            skipped.append((i, None, op.get("slide"), NO_SUCH_SLIDE))
         elif op["op"] == "delete_slide":
             slides = [x for x in slides if x is not s]
         elif not isinstance(to, int) or isinstance(to, bool) or not 1 <= to <= len(slides):
-            skipped.append((s, op.get("slide"), NO_SUCH_POSITION))
+            skipped.append((i, s, op.get("slide"), NO_SUCH_POSITION))
         else:
             slides = [x for x in slides if x is not s]
             slides.insert(to - 1, s)
             changed.append(s)
-    for op in ops:
-        if op.get("op") not in ("set_text", "set_headline", "set_variant", "set_chart_type", "move_slide", "delete_slide"):
-            skipped.append((None, op.get("slide"), UNKNOWN_OP))
+    for i, op in enumerate(ops):
+        if op.get("op") not in (*_CONTENT, "move_slide", "delete_slide"):
+            skipped.append((i, None, op.get("slide"), UNKNOWN_OP))
 
     deck.slides = slides
     pos = {id(s): i + 1 for i, s in enumerate(slides)}
     not_changed = []
-    for s, raw, reason in skipped:
+    for _, s, raw, reason in sorted(skipped, key=lambda x: x[0]):
         if s is None:
             not_changed.append({"id": raw, "reason": reason})
         elif id(s) in pos:  # a slide deleted later in the turn is reported nowhere
