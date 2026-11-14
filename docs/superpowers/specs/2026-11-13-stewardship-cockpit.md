@@ -3,7 +3,7 @@
 Slug: stewardship-cockpit
 
 Risk: high (PR 2 changes financed-emissions maths; PR 1 extends the engagement intake). Size M, 3 PRs.
-Status: draft for owner approval, 13 Nov 2026.
+Status: **approved by the owner on 14 Nov 2026** (buttons in the spec session).
 Starts after: PR 2 (#440, engagement and vote intake) and PR 3 (`arp stewardship seed-demo`, `arp stewardship
 load-npx`) of `stewardship-data-foundation` are on `main`. PR 1's evaluator pass runs on that demo data.
 
