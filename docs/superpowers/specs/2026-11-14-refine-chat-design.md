@@ -4,6 +4,8 @@ Date: 2026-11-14
 Status: approved by the owner, 2026-11-14 (description and acceptance table)
 Owner decisions on 2026-11-14:
 
+- AC-35 changed after approval: the waterfall uses 3 series so negative running totals draw correctly.
+
 - One chat page, not the Plans page and not a drawer in the existing pages.
 - Split view with an instant in-browser slide preview.
 - Chat edits to RFP answers count as AI drafts, so the person who asked may approve them.
@@ -194,8 +196,9 @@ request.
 ### Editable export
 
 - `house_pptx` (`backend/arp/reporting/house_pptx.py:151`) stops inserting chart pictures:
-  - `waterfall`: a native stacked-column chart; series 1 is the invisible base (no fill, no line),
-    series 2 the step values.
+  - `waterfall`: a native stacked-column chart with 3 series: an invisible base (no fill, no line), the part
+    of each bar above zero, and the part below zero, so bars that cross or sit below zero draw correctly
+    (owner change 2026-11-14, was 2 series). Bars are coloured by the step's sign, as in the preview.
   - `heatmap`: a native table, one cell per value, cell fill from the theme's sequential palette.
 - `render_deck_html` changes the same way, so preview and export match: a heatmap slot becomes an HTML
   `<table>` with filled cells; a waterfall slot stays an SVG, drawn as a stacked column with an invisible base.
@@ -283,7 +286,7 @@ no slot `sidebar`, and whose findings, datasets and slide 2 text contain no `73`
 | AC-32 | after AC-19 | `POST /api/reports/R/render` | `calls.jsonl` gains no `kind: model` line; manifest `deck_edited_since_render` = false | holdout |
 | AC-33 | after AC-32 | download `output.pptx`, open with python-pptx | slide 2 has a text frame containing `Net zero by 2040` | holdout |
 | AC-34 | after AC-24 and a render | open `output.pptx` slide 2 | its chart slot is a native chart of type column; `deck/html` slide 2 chart slot holds an SVG | holdout |
-| AC-35 | a deck with one waterfall slide and one heatmap slide, rendered | open `output.pptx` | no picture shape on either chart slot; the waterfall slot is a native stacked-column chart with 2 series; the heatmap slot is a native table | holdout |
+| AC-35 | a deck with one waterfall slide and one heatmap slide, rendered | open `output.pptx` | no picture shape on either chart slot; the waterfall slot is a native stacked-column chart with 3 series, the first with no fill (owner change 2026-11-14, was 2 series); the heatmap slot is a native table | holdout |
 | AC-36 | the app with stand-ins | open the navigation | it has `Refine`; `/refine?report=R` opens with R selected; the picker lists no report without a deck | evaluator |
 | AC-37 | Refine on R; `RefineOps` returns `set_chart_type(3, "column")` | owner types `make slide 3 a column chart` | slide 3 in the right pane shows a column chart within 1 s of the reply appearing | evaluator |
 | AC-38 | as AC-37 | — | slide 3's thumbnail carries the label `changed` | evaluator |
