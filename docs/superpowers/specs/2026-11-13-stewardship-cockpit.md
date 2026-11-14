@@ -5,7 +5,8 @@ Slug: stewardship-cockpit
 Risk: high (PR 2 changes financed-emissions maths; PR 1 extends the engagement intake). Size M, 3 PRs.
 Status: draft for owner approval, 13 Nov 2026.
 Starts after: PR 2 (#440, engagement and vote intake) and PR 3 (`arp stewardship seed-demo`, `arp stewardship
-load-npx`) of `stewardship-data-foundation` are on `main`. PR 1's evaluator pass runs on their demo data.
+load-npx`) of `stewardship-data-foundation` are on `main`, and so is the three-tier change (owner decision 6). PR 1's
+evaluator pass runs on that demo data.
 
 ## Intent
 
@@ -35,6 +36,11 @@ Target look: the mockup the owner approved, <https://claude.ai/artifact/J3ryTPUL
    emissions, with "selected" taken from confirmed tiers. Feature B, `stewardship-cockpit-programmes`, comes later.
    It covers engaged vs selected by *named programme* and programme-based "selected", and waits on the
    priority-workbench spec (#448).
+6. **Three coverage tiers** (14 Nov 2026, buttons, at spec approval): "Only change: tier: bilateral, letter,
+   monitor" and "Delete collaborative everywhere. We don't do that". The tiers are `bilateral`, `letter` and
+   `monitor`; Thematic & Collaborative goes everywhere. Changing the tier model itself (`tiers.py`, the coverage and
+   escalation rule graphs, the Selection screen, docs) is a separate feature that lands first. This spec only reads
+   its result.
 
 ## Goals
 
@@ -110,9 +116,9 @@ Where the planned meeting date lives (owner decision 4 says "in the ledger"; the
   tier row's `issuer_id`, `vote_meetings.company_id` and the run ballot's `company_id`. The registry UUID on
   `holdings` is not used. Company name: `stw_companies.name`; for an unmatched vote meeting, `issuer_name`.
 - **Engaged company**: a company with at least one open engagement.
-- **Selected company**: a company whose latest confirmed tier (`TierStore(settings.stewardship_streams_dir).latest()`,
-  `tiers.py`) is `priority_bilateral` or `thematic_collaborative`. *My call:* `scaled_baseline` (a baseline letter
-  plus the voting policy) and `systemic` (market-level work) are coverage, not company selection for engagement.
+- **Selected company** (owner decision 6): a company whose latest confirmed tier
+  (`TierStore(settings.stewardship_streams_dir).latest()`, `tiers.py`) is `bilateral`, `letter` or `monitor`. A
+  tier row with any other value (an old tier name) does not count.
 - **Theme group** of an engagement, from its `fir_theme` (*my call*, the stand-in until feature B's programmes):
 
   | Theme group | `fir_theme` values |
@@ -435,8 +441,8 @@ company `isin_XA0000000001` ("Alpha AG", its `stw_companies` row inserted first)
 | AC-23 | engagement A with `status` `stalled` | same | `engagement_meetings` has one row for A | holdout |
 | AC-24 | company A with two open engagements, escalated to `joint_engagement` and `escalation_to_chair` | same | `ladder[3].companies` is `[{company_id: "isin_XA0000000001", company: "Alpha AG"}]` and A is in no other ladder step | holdout |
 | AC-25 | company A with one open engagement escalated to `vote_against_management`, and a second engagement escalated to `public_statement` while open, then sent again through intake with `status` `resolved` | Cockpit `?as_of=2026-11-17` | A is listed only in `ladder[4]` | holdout |
-| AC-26 | confirmed tiers B `priority_bilateral`, C `thematic_collaborative`, D `scaled_baseline`, E `systemic`; B has an open engagement; F has an open engagement and no tier | same | `summary` is `{selected: 2, engaged_selected: 1, engaged_outside_selection: 1}` | holdout |
-| AC-27 | B confirmed `priority_bilateral`, later confirmed `scaled_baseline` | same | `summary.selected` is 0 | holdout |
+| AC-26 | confirmed tiers B `bilateral`, C `letter`, D `monitor`, E `thematic_collaborative` (an old row); B has an open engagement; F has an open engagement and no tier | same | `summary` is `{selected: 3, engaged_selected: 1, engaged_outside_selection: 1}` | holdout |
+| AC-27 | B confirmed `bilateral`, later confirmed `monitor` | same | `summary.selected` is 1 | holdout |
 | AC-28 | B selected, open engagement `fir_theme` `governance_board_pay`; C selected, rule `high_emitter`, no engagement; D selected, rule `top_weight`, no engagement | same | `themes` as `{theme, selected, engaged}` is exactly `[{Climate,1,0},{Corporate governance,1,1},{Nature,0,0},{AI and digital,0,0},{Norm violations,0,0},{Other,1,0}]` | holdout |
 | AC-29 | B selected, open engagements with `climate_mitigation` and `digital_responsibility` | same | the Climate and AI and digital rows both have `selected` 1 and `engaged` 1; `summary.engaged_selected` is 1 | holdout |
 | AC-30 | only C selected, rule `nature_impact` | same | `themes` has 5 rows (no `Other`) and Nature is `{selected: 1, engaged: 0}` | holdout |
