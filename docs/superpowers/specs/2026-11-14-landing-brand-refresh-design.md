@@ -105,7 +105,7 @@ orange orb, out of which the pixel "ARP" emerges.
 From `2026-11-09-night-desk-landing`:
 - **Copy:** AC-3 and AC-3b (the old headline) and AC-7 (the old copy).
 - **Amber logo square:** AC-8b and AC-8c.
-- **Timings moved to the 24 s loop:** AC-9 → AC-19, AC-10 → AC-13, AC-11b → AC-18.
+- **Timings moved to the 24 s loop:** AC-9 → AC-19a/AC-19b, AC-10 → AC-13, AC-11b → AC-18.
 
 In `frontend/tests/landing.test.ts`, two tests change with this spec. They are rewritten, not
 deleted:
@@ -129,20 +129,22 @@ deleted:
 | AC-7 | `index.css` and `Landing.tsx` | Read | No `.landing*` rule, and no attribute or `style` in `Landing.tsx` (SVG `fill` included), contains a hex, `rgb(` or `oklch(` colour literal | unit |
 | AC-7b | `LandingCanvas.tsx` | Read | It contains no hex, `rgb(`, `rgba(`, `hsl(` or `oklch(` literal; every `fillStyle`, `strokeStyle` and gradient stop is a value read in `readColours` or `"transparent"` | unit |
 | AC-8 | The landing page, 1440×900, motion allowed, light or dark | A canvas capture is taken 2.5 s after load (network) | At least 36 of the canvas's 60 equal regions (10 × 6) contain at least one non-background pixel | evaluator |
-| AC-9 | The same | A capture is taken 11 s after load (orb) | At least 300 connected pixel blobs with hue within ±15° of `--orb` and saturation ≥ 0.4 lie inside the circle at `(0.7W, H/2)` of radius `1.25·min(0.34H, 0.2W)`; no such blob lies outside 1.5× that radius | evaluator |
-| AC-10 | The same | A capture is taken 18.5 s after load (formed) | The squares in `--text` colour form the letters "A", "R", "P" in a row, whose bounding boxes have the same height (±1 dot), all inside the right half of the canvas | evaluator |
+| AC-9 | The same | A capture is taken 11 s after load (orb) | Of the pixels inside the circle at `(0.7W, H/2)` of radius `1.25·min(0.34H, 0.2W)`, at least 0.5% (light) / 5% (dark) have hue within ±15° of `--orb` and saturation ≥ 0.4; under 0.5% of the pixels outside 1.5× that radius do. (Measured on the mockup: 1.0% light, 10.3% dark inside; 0.00% outside.) | evaluator |
+| AC-10a | The same | A capture is taken 18.5 s after load (formed) | The squares in `--text` colour form the letters "A", "R", "P" in a row whose bounding boxes have the same height (±1 dot) | evaluator |
+| AC-10b | The same | A capture is taken 18.5 s after load | The bounding box of all "ARP" squares lies in the right half of the canvas | evaluator |
 | AC-11 | The same | A capture is taken 18.5 s after load | The squares on the A's apex cell are within ΔE 10 of `--brand-apex` (`#ea4c14` light, `#ff6a2b` dark); no square in the "ARP" outside that cell is | evaluator |
 | AC-12a | `index.css` | Read | The `.landing-main` rule's background is `linear-gradient(90deg, color-mix(in srgb, var(--bg) 40%, transparent) 55%, transparent)` | unit |
 | AC-12b | `index.css` | Read | `.landing-main h1` and `.landing-main p` set `text-shadow: 0 0 14px var(--bg), 0 0 4px var(--bg)` | unit |
 | AC-12c | `index.css` | Read | Inside the last `@media (max-width: 700px)` block, `.landing-main`'s background is `linear-gradient(180deg, color-mix(in srgb, var(--bg) 40%, transparent) 70%, transparent)` | unit |
-| AC-13 | The landing page, both themes, 1440×900 | Captures are taken 2.5 s and 11 s after load | For each glyph box of the `h1` and the intro `p`, every backdrop pixel inside the box but outside any glyph has contrast ≥ 4.5:1 against that element's computed `color` | evaluator |
+| AC-13 | The landing page, both themes, 1440×900 | Captures are taken 2.5 s and 11 s after load with the `h1` and `p` text set to `color: transparent` (text-shadow kept) | Inside each text line box, at least 99% of pixels reach 4.5:1 against the `p`'s computed `color` and 3:1 against the `h1`'s (WCAG large text). (Measured on the mockup: ≥ 99.96% in every case.) | evaluator |
 | AC-14 | The landing page | Its DOM is read | `.landing-main` holds exactly three elements: the `h1` (`Company research and stewardship at scale.`), one `p` (`Leveraging expert judgement through Agents.`) and the `Open ARP →` link | evaluator |
 | AC-15a | `index.css` | Read | The `.landing-main h1` rule sets `font-family` starting with `"Source Serif 4"`, `font-weight: 500` and `letter-spacing: -0.01em` | unit |
 | AC-15b | `index.css` | Read | The `.landing-main h1` rule keeps `font-size: clamp(2.5rem, 2rem + 3vw, 4.2rem)` and `line-height: 1.02` | unit |
 | AC-16 | `index.css` | Read | A `.landing-promises b::before` rule sets `width: 6px`, `height: 6px`, `border-radius: 0` and `background: var(--text)` | unit |
 | AC-17 | Narrow screen, 400×800 | A capture is taken 18.5 s after load | The whole pixel "ARP" is inside the canvas and its centre is within ±8px of the canvas centre horizontally | evaluator |
 | AC-18 | The landing page in the e2e Chromium at 1440×900 | A 5 s performance trace is recorded at 9–14 s after load (orb) | No long task over 50 ms | evaluator |
-| AC-19 | The landing page, `prefers-reduced-motion: reduce` | Two captures are taken 1 s apart | They are identical and show the formed pixel "ARP" (as in AC-10) | evaluator |
+| AC-19a | The landing page, `prefers-reduced-motion: reduce` | Two captures are taken 1 s apart | They are pixel-identical | evaluator |
+| AC-19b | The same | A capture is taken | It shows the formed pixel "ARP" as in AC-10a | evaluator |
 
 Must not change:
 
