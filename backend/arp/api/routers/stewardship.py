@@ -839,6 +839,7 @@ class CommitmentRequest(BaseModel):
     issue_id: str
     text: str
     target_date: str | None = None
+    proof_statement: str | None = None
 
 
 @router.post("/tracking/commitments")
@@ -855,7 +856,12 @@ def add_commitment(
             datetime.fromisoformat(body.target_date)
         except ValueError as exc:
             raise HTTPException(422, "target_date must be an ISO date") from exc
-    commitment = Commitment(text=body.text, target_date=body.target_date, recorded_by=principal.name)
+    commitment = Commitment(
+        text=body.text,
+        target_date=body.target_date,
+        recorded_by=principal.name,
+        proof_statement=(body.proof_statement or "").strip() or None,
+    )
     try:
         engagements.add_commitment(body.company_id, body.issue_id, commitment)
     except (KeyError, ValueError) as exc:
