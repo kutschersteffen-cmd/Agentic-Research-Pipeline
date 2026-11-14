@@ -2518,7 +2518,7 @@ export interface RunCompany {
 }
 
 /** Superset BI designer (/api/bi). A refused plan is a 200 with `rejected` reasons and no dashboard. */
-export type BIChartSpec = Served<S["ChartSpec-Output"]>;
+export type BIChartSpec = Served<S["arp__bi__plan__ChartSpec"]>;
 
 export type BIChartPlan = Served<S["ChartPlan"]>;
 

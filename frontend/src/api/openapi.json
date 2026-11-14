@@ -4256,7 +4256,7 @@
     "properties": {
      "charts": {
       "items": {
-       "$ref": "#/components/schemas/ChartSpec-Output"
+       "$ref": "#/components/schemas/arp__bi__plan__ChartSpec"
       },
       "title": "Charts",
       "type": "array"
@@ -4276,58 +4276,6 @@
      "charts"
     ],
     "title": "ChartPlan",
-    "type": "object"
-   },
-   "ChartSpec-Output": {
-    "properties": {
-     "dataset": {
-      "title": "Dataset",
-      "type": "string"
-     },
-     "filters": {
-      "additionalProperties": {
-       "type": "string"
-      },
-      "default": {},
-      "title": "Filters",
-      "type": "object"
-     },
-     "groupby": {
-      "default": [],
-      "items": {
-       "type": "string"
-      },
-      "title": "Groupby",
-      "type": "array"
-     },
-     "metrics": {
-      "items": {
-       "type": "string"
-      },
-      "title": "Metrics",
-      "type": "array"
-     },
-     "question": {
-      "default": "",
-      "title": "Question",
-      "type": "string"
-     },
-     "title": {
-      "title": "Title",
-      "type": "string"
-     },
-     "viz_type": {
-      "title": "Viz Type",
-      "type": "string"
-     }
-    },
-    "required": [
-     "title",
-     "viz_type",
-     "dataset",
-     "metrics"
-    ],
-    "title": "ChartSpec",
     "type": "object"
    },
    "ChartType": {
@@ -8115,6 +8063,32 @@
      "framework_version"
     ],
     "title": "DecisionResult",
+    "type": "object"
+   },
+   "Deck": {
+    "properties": {
+     "slides": {
+      "items": {
+       "$ref": "#/components/schemas/SlideContent"
+      },
+      "title": "Slides",
+      "type": "array"
+     },
+     "subtitle": {
+      "default": "",
+      "title": "Subtitle",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title",
+     "slides"
+    ],
+    "title": "Deck",
     "type": "object"
    },
    "DecomposeRequest": {
@@ -16795,6 +16769,158 @@
     "title": "RedlineOut",
     "type": "object"
    },
+   "RefineHistoryItem": {
+    "properties": {
+     "message": {
+      "title": "Message",
+      "type": "string"
+     },
+     "reply": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reply"
+     }
+    },
+    "required": [
+     "message"
+    ],
+    "title": "RefineHistoryItem",
+    "type": "object"
+   },
+   "RefineNotChanged": {
+    "properties": {
+     "id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Id"
+     },
+     "reason": {
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "reason"
+    ],
+    "title": "RefineNotChanged",
+    "type": "object"
+   },
+   "RefineTurnIn": {
+    "properties": {
+     "history": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/RefineHistoryItem"
+      },
+      "title": "History",
+      "type": "array"
+     },
+     "message": {
+      "title": "Message",
+      "type": "string"
+     }
+    },
+    "required": [
+     "message"
+    ],
+    "title": "RefineTurnIn",
+    "type": "object"
+   },
+   "RefineTurnOut": {
+    "properties": {
+     "changed": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Changed",
+      "type": "array"
+     },
+     "check_figures": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Check Figures",
+      "type": "array"
+     },
+     "done": {
+      "title": "Done",
+      "type": "integer"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "not_changed": {
+      "items": {
+       "$ref": "#/components/schemas/RefineNotChanged"
+      },
+      "title": "Not Changed",
+      "type": "array"
+     },
+     "reply": {
+      "title": "Reply",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "status",
+     "reply",
+     "done",
+     "total",
+     "changed",
+     "not_changed",
+     "check_figures",
+     "error"
+    ],
+    "title": "RefineTurnOut",
+    "type": "object"
+   },
+   "RefineTurnStarted": {
+    "properties": {
+     "turn_id": {
+      "title": "Turn Id",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "turn_id"
+    ],
+    "title": "RefineTurnStarted",
+    "type": "object"
+   },
    "RegimeBucketPerformance": {
     "properties": {
      "long_short": {
@@ -20608,6 +20734,90 @@
      "duplicate_of"
     ],
     "title": "SkippedUpload",
+    "type": "object"
+   },
+   "SlideContent": {
+    "description": "One house-deck slide. `layout`/`variant` pick a VariantSpec from the\nlayout library; `slots` fill its named text/list slots. The headline is\nnot a slot -- it always renders in the fixed headline band.",
+    "properties": {
+     "chart": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/arp__schemas__reporting__ChartSpec"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "headline": {
+      "title": "Headline",
+      "type": "string"
+     },
+     "image_path": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Image Path"
+     },
+     "layout": {
+      "title": "Layout",
+      "type": "string"
+     },
+     "slots": {
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        }
+       ]
+      },
+      "title": "Slots",
+      "type": "object"
+     },
+     "source_refs": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Source Refs",
+      "type": "array"
+     },
+     "speaker_notes": {
+      "default": "",
+      "title": "Speaker Notes",
+      "type": "string"
+     },
+     "table": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TableSpec"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "variant": {
+      "title": "Variant",
+      "type": "string"
+     }
+    },
+    "required": [
+     "headline",
+     "layout",
+     "variant"
+    ],
+    "title": "SlideContent",
     "type": "object"
    },
    "SmartSearchRequest": {
@@ -37651,6 +37861,168 @@
     ]
    }
   },
+  "/api/refine/turns/{turn_id}": {
+   "get": {
+    "operationId": "get_turn_api_refine_turns__turn_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "turn_id",
+      "required": true,
+      "schema": {
+       "title": "Turn Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RefineTurnOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Turn",
+    "tags": [
+     "refine"
+    ]
+   }
+  },
+  "/api/refine/{kind}/{doc_id}/turns": {
+   "post": {
+    "operationId": "post_turn_api_refine__kind___doc_id__turns_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "enum": [
+        "rfp",
+        "deck"
+       ],
+       "title": "Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "doc_id",
+      "required": true,
+      "schema": {
+       "title": "Doc Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RefineTurnIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RefineTurnStarted"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Turn",
+    "tags": [
+     "refine"
+    ]
+   }
+  },
+  "/api/refine/{kind}/{doc_id}/undo": {
+   "post": {
+    "operationId": "undo_api_refine__kind___doc_id__undo_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "enum": [
+        "rfp",
+        "deck"
+       ],
+       "title": "Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "doc_id",
+      "required": true,
+      "schema": {
+       "title": "Doc Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RefineTurnOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Undo",
+    "tags": [
+     "refine"
+    ]
+   }
+  },
   "/api/replication/discover": {
    "post": {
     "description": "Searches for candidate 'outperformance' papers on `req.topic` and\nranks them by replication-worthiness -- the API equivalent of\n`arp replicate discover-papers`, using every search source\n(arXiv + Semantic Scholar + generic web) merged/deduped, same as that\nCLI command's default. Proposes candidates; nothing is fetched or\nturned into a spec automatically -- picking one is a separate\nPOST /specs call.",
@@ -38535,6 +38907,91 @@
      }
     },
     "summary": "Get Report",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
+  "/api/reports/{report_id}/deck": {
+   "get": {
+    "operationId": "get_deck_api_reports__report_id__deck_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Deck"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Deck",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
+  "/api/reports/{report_id}/deck/html": {
+   "get": {
+    "description": "The deck as the house HTML, for the Refine page's live view; the same render the PDF export starts from.",
+    "operationId": "get_deck_html_api_reports__report_id__deck_html_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "text/html": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Deck Html",
     "tags": [
      "reporting"
     ]

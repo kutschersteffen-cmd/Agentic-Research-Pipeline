@@ -52,6 +52,7 @@ from arp.api.routers import (
     portfolio,
     projects,
     publish,
+    refine,
     replication,
     reporting,
     revenue_catalogue,
@@ -81,6 +82,7 @@ from arp.api.routers import (
 )
 from arp.db.session import require_cutover, require_postgres
 from arp.errors import ClientInputError, NotConfigured
+from arp.refine.turns import reap_stale_turns
 from arp.transition_alignment.benchmarks import check_benchmarks
 from arp.transition_barrier.dataset import check_rule_book
 
@@ -95,6 +97,7 @@ async def lifespan(app: FastAPI):
     check_benchmarks()  # so does an invalid benchmarks file
     require_postgres(settings)  # Postgres is the system of record: no DSN or no answer, no app
     require_cutover(settings)  # nor on an un-migrated or un-imported database
+    reap_stale_turns()  # a turn left `running` by the last process can never finish: fail it, unlocking its document
     settings.ensure_dirs()
     if settings.standins_dir is not None:
         logger.warning("Test stand-ins are ON: web search, fetch and model answers come from %s", settings.standins_dir)
@@ -171,6 +174,7 @@ app.include_router(transition_plan.router, dependencies=[Depends(authorize)])
 app.include_router(transition_barrier.router, dependencies=[Depends(authorize)])
 app.include_router(transition_alignment.router, dependencies=[Depends(authorize)])
 app.include_router(rfp.router, dependencies=[Depends(authorize)])
+app.include_router(refine.router, dependencies=[Depends(current_user)])  # own role check: a viewer's 403 names the page
 app.include_router(portfolio.router, dependencies=[Depends(authorize)])
 app.include_router(climate.router, dependencies=[Depends(authorize)])
 app.include_router(decision.router, dependencies=[Depends(authorize)])

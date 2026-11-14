@@ -4131,6 +4131,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/refine/turns/{turn_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Turn */
+        get: operations["get_turn_api_refine_turns__turn_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/refine/{kind}/{doc_id}/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Turn */
+        post: operations["post_turn_api_refine__kind___doc_id__turns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/refine/{kind}/{doc_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo */
+        post: operations["undo_api_refine__kind___doc_id__undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/replication/discover": {
         parameters: {
             query?: never;
@@ -4444,6 +4495,43 @@ export interface paths {
          * @description Removes an unfinished report's folder. A finished one, or one still being worked on, is never removed.
          */
         delete: operations["discard_report_api_reports__report_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reports/{report_id}/deck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Deck */
+        get: operations["get_deck_api_reports__report_id__deck_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reports/{report_id}/deck/html": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Deck Html
+         * @description The deck as the house HTML, for the Refine page's live view; the same render the PDF export starts from.
+         */
+        get: operations["get_deck_html_api_reports__report_id__deck_html_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -10053,7 +10141,7 @@ export interface components {
         /** ChartPlan */
         ChartPlan: {
             /** Charts */
-            charts: components["schemas"]["ChartSpec-Output"][];
+            charts: components["schemas"]["arp__bi__plan__ChartSpec"][];
             /**
              * Goal
              * @default
@@ -10061,34 +10149,6 @@ export interface components {
             goal: string;
             /** Title */
             title: string;
-        };
-        /** ChartSpec */
-        "ChartSpec-Output": {
-            /** Dataset */
-            dataset: string;
-            /**
-             * Filters
-             * @default {}
-             */
-            filters: {
-                [key: string]: string;
-            };
-            /**
-             * Groupby
-             * @default []
-             */
-            groupby: string[];
-            /** Metrics */
-            metrics: string[];
-            /**
-             * Question
-             * @default
-             */
-            question: string;
-            /** Title */
-            title: string;
-            /** Viz Type */
-            viz_type: string;
         };
         /**
          * ChartType
@@ -11672,6 +11732,18 @@ export interface components {
             }[];
             /** Tier Summary */
             tier_summary?: components["schemas"]["TierSummary"][];
+        };
+        /** Deck */
+        Deck: {
+            /** Slides */
+            slides: components["schemas"]["SlideContent"][];
+            /**
+             * Subtitle
+             * @default
+             */
+            subtitle: string;
+            /** Title */
+            title: string;
         };
         /** DecomposeRequest */
         DecomposeRequest: {
@@ -15207,6 +15279,56 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** RefineHistoryItem */
+        RefineHistoryItem: {
+            /** Message */
+            message: string;
+            /** Reply */
+            reply?: string | null;
+        };
+        /** RefineNotChanged */
+        RefineNotChanged: {
+            /** Id */
+            id: number | null;
+            /** Reason */
+            reason: string;
+        };
+        /** RefineTurnIn */
+        RefineTurnIn: {
+            /**
+             * History
+             * @default []
+             */
+            history: components["schemas"]["RefineHistoryItem"][];
+            /** Message */
+            message: string;
+        };
+        /** RefineTurnOut */
+        RefineTurnOut: {
+            /** Changed */
+            changed: number[];
+            /** Check Figures */
+            check_figures: number[];
+            /** Done */
+            done: number;
+            /** Error */
+            error: string | null;
+            /** Id */
+            id: number;
+            /** Not Changed */
+            not_changed: components["schemas"]["RefineNotChanged"][];
+            /** Reply */
+            reply: string;
+            /** Status */
+            status: string;
+            /** Total */
+            total: number;
+        };
+        /** RefineTurnStarted */
+        RefineTurnStarted: {
+            /** Turn Id */
+            turn_id: number;
+        };
         /** RegimeBucketPerformance */
         RegimeBucketPerformance: {
             long_short?: components["schemas"]["LegPerformance"];
@@ -16719,6 +16841,35 @@ export interface components {
             duplicate_of: string;
             /** Filename */
             filename: string;
+        };
+        /**
+         * SlideContent
+         * @description One house-deck slide. `layout`/`variant` pick a VariantSpec from the
+         *     layout library; `slots` fill its named text/list slots. The headline is
+         *     not a slot -- it always renders in the fixed headline band.
+         */
+        SlideContent: {
+            chart?: components["schemas"]["arp__schemas__reporting__ChartSpec"] | null;
+            /** Headline */
+            headline: string;
+            /** Image Path */
+            image_path?: string | null;
+            /** Layout */
+            layout: string;
+            /** Slots */
+            slots?: {
+                [key: string]: string | string[];
+            };
+            /** Source Refs */
+            source_refs?: string[];
+            /**
+             * Speaker Notes
+             * @default
+             */
+            speaker_notes: string;
+            table?: components["schemas"]["TableSpec"] | null;
+            /** Variant */
+            variant: string;
         };
         /** SmartSearchRequest */
         SmartSearchRequest: {
@@ -26783,6 +26934,105 @@ export interface operations {
             };
         };
     };
+    get_turn_api_refine_turns__turn_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                turn_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefineTurnOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_turn_api_refine__kind___doc_id__turns_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "rfp" | "deck";
+                doc_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefineTurnIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefineTurnStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_api_refine__kind___doc_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "rfp" | "deck";
+                doc_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefineTurnOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     discover_papers_api_replication_discover_post: {
         parameters: {
             query?: never;
@@ -27411,6 +27661,68 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_deck_api_reports__report_id__deck_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Deck"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_deck_html_api_reports__report_id__deck_html_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
             };
             /** @description Validation Error */
             422: {
