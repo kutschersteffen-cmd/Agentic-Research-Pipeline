@@ -96,7 +96,8 @@ def load_npx(directory: Path, dsn: str) -> dict[str, int]:
         for line, r in _rows(path):
             cusip = _cusip(r["cusip"])
             date = datetime.strptime(r["meeting_date"], "%m/%d/%Y").replace(tzinfo=UTC)
-            mkey = f"{r['accession']}:{cusip or ''}:{date.date().isoformat()}"
+            # no CUSIP (7 Telstra rows in 2024, filed without any id): the issuer name keeps such meetings apart
+            mkey = f"{r['accession']}:{cusip or 'name:' + r['issuer_name']}:{date.date().isoformat()}"
             if mkey not in meetings:
                 isin = "".join(r["isin"].split()).upper() or None
                 meetings[mkey] = {"issuer_name": r["issuer_name"], "isin": isin, "cusip": cusip, "meeting_date": date}

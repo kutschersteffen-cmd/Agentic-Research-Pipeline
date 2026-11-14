@@ -119,11 +119,15 @@ def test_ac38_house_issuer_holding_the_isin_gets_the_trigger(tmp_path, pg, monke
     from arp.stewardship.universe import from_portfolio, held_isins
     from arp.storage.portfolio_store import PortfolioStore
 
+    from arp.schemas.portfolio import SecurityRef
+
     store = PortfolioStore(tmp_path / "pf")
     asyncio.run(generate_demo_dataset(store))
+    isin = next(i for i, c in held_isins(store).items() if c == "bmw")
+    # an unheld security-master row on the same ISIN, naming another company: the held issuer still wins
+    store.save_security(SecurityRef(security_id="BMW_GY", isin=isin, name="BMW", asset_class="equity", currency="EUR", company_id="bmw_legacy"))
     monkeypatch.setattr(process, "house_universe", lambda: from_portfolio(store))
     monkeypatch.setattr(process, "house_isins", lambda: held_isins(store))
-    isin = next(i for i, c in held_isins(store).items() if c == "bmw")
     d = tmp_path / "npx"
     d.mkdir()
     (d / "f.csv").write_text(FIXTURE.read_text().replace("FR0000130809", isin).replace("/2024,", "/2026,"))

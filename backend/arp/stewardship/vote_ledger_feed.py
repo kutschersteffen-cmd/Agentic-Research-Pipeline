@@ -28,9 +28,9 @@ def ledger_rows(dsn: str, window_days: int) -> list[dict]:
         rows = []
         by_isin: dict[str, str] = {}  # one registry lookup per distinct ISIN
         house: dict[str, str] | None = None
-        held: dict[str, str] | None = None  # ISIN -> issuer id of a security the house portfolios hold
+        held: dict[str, str] | None = None  # ISIN -> house issuer holding it in the latest snapshot
         for meeting, item, d in s.execute(q):
-            # monitoring keys on house issuer ids: the house issuer holding the ISIN first; else the stw_companies
+            # monitoring keys on house issuer ids: the house issuer that holds the ISIN wins; else the stw_companies
             # key (set only for a known company); else the registry's universe id for the ISIN; else `isin_<ISIN>`
             if held is None:
                 from arp.stewardship.process import house_isins
