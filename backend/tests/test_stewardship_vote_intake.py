@@ -60,7 +60,7 @@ def test_known_company_matched_and_excel_rows(pg):
     with transaction(pg) as s:
         assert s.scalars(select(VoteMeetingModel)).one().company_id == "isin_US0378331005"
     report = intake_votes([{**_row(), "_row": 7, "vote": "maybe"}, {"_row": 8, "external_id": "x", "vote": "for"}], pg, "excel", excel_rows=True)
-    assert {(r.row, r.field) for r in report.rejected} == {(7, "vote")}  # row 8 has no company ids: stored with company_id null, not rejected
+    assert {(r.row, r.field) for r in report.rejected} == {(7, "vote"), (8, "meeting_date"), (8, "item_number"), (8, "company_id")}
 
 
 def test_changed_value_updates(pg):
@@ -106,10 +106,11 @@ def test_issuer_name_cannot_take_over_a_company_meeting(pg):
     PostgresEngagementStore(pg).get_or_create("acme", "Acme")
     acme = {"external_id": "d1", "company_id": "acme", "isin": "US0378331005", "cusip": "037833100", "issuer_name": "Acme Inc", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"}
     intake_votes([acme], pg, "api")
-    intake_votes([{"external_id": "d2", "issuer_name": "acme", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"}], pg, "api")
+    report = intake_votes([{"external_id": "d2", "issuer_name": "acme", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"}], pg, "api")
+    assert [r.field for r in report.rejected] == ["company_id"]  # an issuer name alone is no issuer id
     with transaction(pg) as s:
         rows = {(m.company_id, m.isin, m.cusip, m.issuer_name) for m in s.scalars(select(VoteMeetingModel))}
-    assert ("acme", "US0378331005", "037833100", "Acme Inc") in rows and len(rows) == 2  # separate meeting; acme's untouched
+    assert rows == {("acme", "US0378331005", "037833100", "Acme Inc")}
 
 
 def test_upsert_never_clears_meeting_ids(pg):
@@ -139,10 +140,9 @@ def test_old_format_keys_rewritten_so_resend_finds_them(pg):
         {"external_id": "d1", "company_id": "acme", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"},
         {"external_id": "d2", "isin": "US0378331005", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"},
         {"external_id": "d3", "cusip": "037833100", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"},
-        {"external_id": "d4", "issuer_name": "Beta AG", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"},
     ]
     intake_votes(rows, pg, "api")
-    old = {"cid:acme": "acme", "isin:US0378331005": "isin_US0378331005", "cusip:037833100": "037833100", "name:Beta AG": "Beta AG"}
+    old = {"cid:acme": "acme", "isin:US0378331005": "isin_US0378331005", "cusip:037833100": "037833100"}
     with transaction(pg) as s:  # put the rows back into #440's key format
         for m in s.scalars(select(VoteMeetingModel)):
             new_key, _, date = m.external_id.rpartition(":")
@@ -154,6 +154,26 @@ def test_old_format_keys_rewritten_so_resend_finds_them(pg):
         _vote_meeting_key_namespaces(s.connection())
         _vote_meeting_key_namespaces(s.connection())  # idempotent
     report = intake_votes(rows, pg, "api")
-    assert (report.created, report.updated, report.unchanged) == (0, 0, 12)
+    assert (report.created, report.updated, report.unchanged) == (0, 0, 9)
     with transaction(pg) as s:
-        assert s.scalar(select(func.count()).select_from(VoteMeetingModel)) == 4
+        assert s.scalar(select(func.count()).select_from(VoteMeetingModel)) == 3
+
+
+def test_keyless_rows_rejected_not_merged(pg):
+    # #440 code review B1: rows without the spec's meeting/item key merged into one meeting and item
+    a = {"external_id": "a", "vote": "for", "management_recommendation": "for", "issuer_name": "Acme", "meeting_type": "annual"}
+    b = {"external_id": "b", "vote": "against", "management_recommendation": "against", "issuer_name": "Acme", "meeting_type": "special"}
+    for row in (a, b):
+        assert {r.field for r in intake_votes([row], pg, "api").rejected} == {"meeting_date", "item_number", "company_id"}
+    x = {"cusip": "037833100", "meeting_date": "2026-05-01", "vote": "for", "management_recommendation": "for"}
+    report = intake_votes([{**x, "external_id": "x1"}, {**x, "external_id": "x2", "vote": "against", "management_recommendation": "against"}], pg, "api")
+    assert {(r.row, r.field) for r in report.rejected} == {(1, "item_number"), (2, "item_number")}
+    assert _count(pg, VoteMeetingModel) == _count(pg, VoteItemModel) == 0
+
+
+def test_row_without_external_id_rejected_not_duplicated(pg):
+    # #440 code review B2: a row without external_id was inserted again on every re-send
+    row = {k: v for k, v in _row().items() if k != "external_id"}
+    for _ in range(2):
+        assert [(r.field, r.reason) for r in intake_votes([row], pg, "api").rejected] == [("external_id", "required")]
+    assert _count(pg, VoteDecisionModel) == 0
