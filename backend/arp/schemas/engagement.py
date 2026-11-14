@@ -337,6 +337,7 @@ class ResearchDossier(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
     confidence: float = Field(ge=0.0, le=1.0)
     needs_review: bool = False
+    watch_list: list[WatchListEntry] = Field(default_factory=list)  # filled by code after the model call, never by the model
 
 
 
@@ -406,6 +407,32 @@ class WatchItem(BaseModel):
     text: str
     proof_statement: str | None = None
     target_date: str | None = None
+
+
+class WatchFlag(BaseModel):
+    """An overdue or broken commitment or objective, shown on ballots and to the priority worklist (spec PR 3)."""
+
+    item_kind: Literal["commitment", "objective"]
+    item_id: str
+    engagement_id: str
+    kind: Literal["overdue", "broken"]
+    text: str
+    target_date: str | None
+    since: str | None
+    message: str
+
+
+class WatchListEntry(BaseModel):
+    """One row of the dossier's watch list (spec "The watch list in the dossier")."""
+
+    item_kind: Literal["objective", "commitment", "topic"]
+    item_id: str
+    text: str
+    proof_statement: str | None
+    target_date: str | None
+    status: str
+    flag: Literal["overdue", "broken"] | None
+    evidence: list[str]
 
 
 # ---- Drafting Agent outputs -------------------------------------------------

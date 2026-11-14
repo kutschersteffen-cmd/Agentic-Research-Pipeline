@@ -46,7 +46,7 @@ from arp.stewardship.process import (
 )
 from arp.stewardship.program import ProgramParams, approve, build_proposal, monitor, record_run, simulate
 from arp.stewardship.style import check as style_check
-from arp.stewardship.tiers import TierStore, tier_contexts
+from arp.stewardship.tiers import TierStore, map_tier, tier_contexts
 from arp.stewardship.trigger_store import TriggerStore, trigger_id
 from arp.stewardship.universe import HouseUniverseSetting
 from arp.storage.decision_store import DecisionStore
@@ -597,7 +597,10 @@ def get_program(
     stream = _stream_or_404(streams, stream_id)
     return {
         "saved": stream.get("program"),
-        "versions": stream.get("program_versions", []),
+        "versions": [  # approved before the three tiers: old keys mapped on read, never rewritten
+            {**v, "targets": [{**t, "tier": map_tier(t.get("tier"))} for t in v.get("targets", [])]}
+            for v in stream.get("program_versions", [])
+        ],
         "runs": stream.get("program_runs", []),
         "simulation": simulate(streams.root, stream, engagements.list_all(), settings.engagement_sla_days),
     }

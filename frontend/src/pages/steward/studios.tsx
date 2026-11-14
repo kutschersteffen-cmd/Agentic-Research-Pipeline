@@ -37,7 +37,7 @@ export interface StudioProps {
   onOpen: (tab: string) => void;
 }
 
-const TIER_ORDER = ["Priority Bilateral", "Thematic & Collaborative", "Scaled Baseline", "Systemic / Market-Level"];
+const TIER_ORDER = ["Bilateral", "Letter", "Monitor"];
 
 function countMissing(value: unknown): number {
   if (value === null || value === undefined) return 1;
@@ -430,7 +430,7 @@ export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
             <code>holding.index_weight_pct</code>, <code>holding.aum_held_eur_m</code>, <code>history.escalated</code>,{" "}
             <code>history.open_engagements</code>, <code>issuer.climate.high_emitter</code>,{" "}
             <code>issuer.nature.high_impact_sector</code> (any company field can be added as a column). Outputs: <code>tier</code>{" "}
-            (priority_bilateral, thematic_collaborative, scaled_baseline or systemic), <code>rule</code> and <code>reason</code>. Open
+            (bilateral, letter or monitor), <code>rule</code> and <code>reason</code>. Open
             the table with <em>Edit Table</em>.
           </p>
           <p className="muted">{draft.editing}</p>

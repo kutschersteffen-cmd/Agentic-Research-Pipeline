@@ -34,6 +34,7 @@ from arp.stewardship.process import (  # noqa: E402
     escalation_contexts,
     flow,
 )
+from arp.stewardship.tiers import TierStore  # noqa: E402
 from arp.storage.engagement_store import EngagementStore  # noqa: E402
 from tests.conftest import PRINCIPAL
 
@@ -77,15 +78,15 @@ def _ctx(step=0, tier=None, high=False, missed=0, months=0, stalled=False) -> di
         (_ctx(stalled=True), "joint_engagement", False, "stalled"),
         (_ctx(months=3), "private_engagement", False, "hold"),
         (
-            _ctx(step=2, tier="thematic_collaborative", high=True, months=4),
-            "escalation_to_chair",
+            _ctx(step=3, tier="letter", high=True, months=4),
+            "vote_against_management",
             True,
             "high_severity_trigger",
         ),  # capped
-        (_ctx(step=3, tier="thematic_collaborative", stalled=True), "escalation_to_chair", True, "stalled"),  # at the cap
+        (_ctx(step=4, tier="letter", stalled=True), "vote_against_management", True, "stalled"),  # at the cap
         (_ctx(step=6, stalled=True), "public_statement", False, "stalled"),  # top of the ladder, no tier: not capped
-        (_ctx(tier="systemic", stalled=True), "private_engagement", True, "stalled"),
-        (_ctx(step=5, tier="scaled_baseline", months=3), "file_or_cofile_resolution", False, "hold"),  # never a step down
+        (_ctx(tier="monitor", stalled=True), "private_engagement", True, "stalled"),
+        (_ctx(step=5, tier="letter", months=3), "file_or_cofile_resolution", False, "hold"),  # never a step down
     ],
 )
 def test_house_rules_recommend_a_capped_step(ctx, recommended, promote, rule):
@@ -127,7 +128,7 @@ def test_preview_shows_what_a_lower_cap_changes(tmp_path):
     ctxs = escalation_contexts(tmp_path, SAMPLE, [], sla_days=30)
     candidate = copy.deepcopy(load_graph())
     caps = next(n for n in candidate["nodes"] if n["id"] == "tier_caps")
-    next(r for r in caps["content"]["rules"] if r["_id"] == "priority_bilateral")["m"] = "2"
+    next(r for r in caps["content"]["rules"] if r["_id"] == "bilateral")["m"] = "2"
     result = preview(candidate, load_graph(), ctxs)
     assert result["promotions_candidate"] > result["promotions_active"]
     assert any(c["this draft"].endswith("(promote)") for c in result["changes"])
@@ -150,6 +151,8 @@ def _example_without_wait() -> dict:
 
 
 def test_client_graph_inherits_the_house_unless_it_overrides(tmp_path):
+    # SYN10 confirmed `monitor` (cap 0), so the client's climate cap of 4 is above the house's
+    TierStore(tmp_path).confirm({"issuer_id": "SYN10", "tier": "monitor"}, "tester")
     ctxs = escalation_contexts(tmp_path, SAMPLE, [], sla_days=30)
     house = evaluate(load_graph(), ctxs)
     assert not any(r["higher"] for r in client_evaluate(load_client_default(), ctxs, house))
