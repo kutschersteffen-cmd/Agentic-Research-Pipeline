@@ -1,0 +1,240 @@
+{
+  "cases": [
+    {
+      "doc_fixture": "rfp",
+      "history": [],
+      "message": "Make the answers about climate engagement, human rights and the board more concise.",
+      "expected_ops": [
+        {
+          "op": "rewrite",
+          "question_ids": [
+            2,
+            3,
+            6
+          ],
+          "instruction": "x"
+        }
+      ]
+    },
+    {
+      "doc_fixture": "rfp",
+      "history": [],
+      "message": "Rewrite the answer to question 8 in a more formal tone.",
+      "expected_ops": [
+        {
+          "op": "rewrite",
+          "question_ids": [
+            8
+          ],
+          "instruction": "x"
+        }
+      ]
+    },
+    {
+      "doc_fixture": "rfp",
+      "history": [],
+      "message": "Leave the AUM by strategy question blank.",
+      "expected_ops": [
+        {
+          "op": "leave_blank",
+          "question_ids": [
+            9
+          ]
+        }
+      ]
+    },
+    {
+      "doc_fixture": "rfp",
+      "history": [],
+      "message": "Use plainer language in the answers about the board and the regulator.",
+      "expected_ops": [
+        {
+          "op": "rewrite",
+          "question_ids": [
+            6,
+            7
+          ],
+          "instruction": "x"
+        }
+      ]
+    },
+    {
+      "doc_fixture": "rfp",
+      "history": [
+        {
+          "message": "Which answers mention climate?",
+          "reply": "Questions 1 and 2 mention climate, and question 4 mentions the TCFD."
+        }
+      ],
+      "message": "Leave those two blank.",
+      "expected_ops": [
+        {
+          "op": "leave_blank",
+          "question_ids": [
+            1,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "doc_fixture": "rfp",
+      "history": [
+        {
+          "message": "Rewrite the question 8 answer to be shorter.",
+          "reply": "I will rewrite question 8 to be shorter."
+        }
+      ],
+      "message": "Do the same for the regulator question.",
+      "expected_ops": [
+        {
+          "op": "rewrite",
+          "question_ids": [
+            7
+          ],
+          "instruction": "x"
+        }
+      ]
+    },
+    {
+      "doc_fixture": "rfp",
+      "history": [],
+      "message": "Which questions have no source yet?",
+      "expected_ops": []
+    },
+    {
+      "doc_fixture": "deck",
+      "history": [],
+      "message": "Change the headline on slide 4 to Our path to net zero.",
+      "expected_ops": [
+        {
+          "op": "set_headline",
+          "slide": 4,
+          "text": "Our path to net zero"
+        }
+      ]
+    },
+    {
+      "doc_fixture": "deck",
+      "history": [],
+      "message": "Replace the takeaway on slide 3 with: Emissions have fallen every year since 2021.",
+      "expected_ops": [
+        {
+          "op": "set_text",
+          "slide": 3,
+          "slot": "takeaway",
+          "text": "x"
+        }
+      ]
+    },
+    {
+      "doc_fixture": "deck",
+      "history": [],
+      "message": "Make slide 4's chart a line chart.",
+      "expected_ops": [
+        {
+          "op": "set_chart_type",
+          "slide": 4,
+          "chart_type": "line"
+        }
+      ]
+    },
+    {
+      "doc_fixture": "deck",
+      "history": [],
+      "message": "Show slide 3 with the chart on the right.",
+      "expected_ops": [
+        {
+          "op": "set_variant",
+          "slide": 3,
+          "variant": "chart_right"
+        }
+      ]
+    },
+    {
+      "doc_fixture": "deck",
+      "history": [],
+      "message": "Move the summary to the front.",
+      "expected_ops": [
+        {
+          "op": "move_slide",
+          "slide": 7,
+          "to": 1
+        }
+      ]
+    },
+    {
+      "doc_fixture": "deck",
+      "history": [],
+      "message": "Delete the timeline slide.",
+      "expected_ops": [
+        {
+          "op": "delete_slide",
+          "slide": 6
+        }
+      ]
+    },
+    {
+      "doc_fixture": "deck",
+      "history": [],
+      "message": "Reword the first bullet on slide 5 to mention solar power.",
+      "expected_ops": [
+        {
+          "op": "set_text",
+          "slide": 5,
+          "slot": "items",
+          "text": [
+            "x"
+          ]
+        }
+      ]
+    },
+    {
+      "doc_fixture": "deck",
+      "history": [],
+      "message": "Move the timeline before the bullets and delete the summary.",
+      "expected_ops": [
+        {
+          "op": "move_slide",
+          "slide": 6,
+          "to": 5
+        },
+        {
+          "op": "delete_slide",
+          "slide": 7
+        }
+      ]
+    },
+    {
+      "doc_fixture": "deck",
+      "history": [],
+      "message": "Make the subtitle on the title slide say FY2025 results.",
+      "expected_ops": [
+        {
+          "op": "set_text",
+          "slide": 1,
+          "slot": "subtitle",
+          "text": "FY2025 results"
+        }
+      ]
+    },
+    {
+      "doc_fixture": "deck",
+      "history": [],
+      "message": "Is the emissions chart on slide 3 a bar chart?",
+      "expected_ops": []
+    },
+    {
+      "doc_fixture": "deck",
+      "history": [],
+      "message": "Turn slide 3's chart into a pie chart.",
+      "expected_ops": [
+        {
+          "op": "set_chart_type",
+          "slide": 3,
+          "chart_type": "pie"
+        }
+      ]
+    }
+  ]
+}

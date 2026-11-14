@@ -202,6 +202,21 @@ def golden_set_run(
         raise typer.Exit(1)
 
 
+@golden_set_app.command("refine")
+def golden_set_refine(
+    cases: Path = typer.Option(..., exists=True, dir_okay=False, help="Refine cases (JSON); fixtures sit in a `fixtures/` folder beside it."),
+    min_accuracy: float = typer.Option(..., "--min-accuracy", help="Exit 1 below this share of passing cases."),
+) -> None:
+    """Runs each instruction through the Refine turn with the real model and checks the ops it returns."""
+    from arp.golden_set.refine import run_refine_golden
+
+    passed, total = asyncio.run(run_refine_golden(cases, build_llm_client(get_settings())))
+    accuracy = passed / total if total else 0.0
+    typer.echo(f"accuracy {accuracy:.3f} ({passed}/{total})")
+    if accuracy < min_accuracy:
+        raise typer.Exit(1)
+
+
 @golden_set_app.command("bi")
 def golden_set_bi(
     cases_file: Path = typer.Option(None, "--cases", help="Custom BI-case JSON file (same shape as the bundled set)."),

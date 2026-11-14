@@ -1,0 +1,137 @@
+{
+  "title": "Northwind Climate Report",
+  "subtitle": "FY2025",
+  "slides": [
+    {
+      "headline": "Northwind Climate Report",
+      "layout": "title",
+      "variant": "plain",
+      "slots": {
+        "title": "Northwind Climate Report",
+        "subtitle": "FY2025"
+      },
+      "chart": null,
+      "table": null,
+      "image_path": null,
+      "speaker_notes": "",
+      "source_refs": []
+    },
+    {
+      "headline": "Emissions fell by a fifth",
+      "layout": "big_number",
+      "variant": "two",
+      "slots": {
+        "number_1": "-21%",
+        "label_1": "Scope 1 and 2 since 2019",
+        "number_2": "4.2 Mt",
+        "label_2": "Scope 3 in 2025"
+      },
+      "chart": null,
+      "table": null,
+      "image_path": null,
+      "speaker_notes": "",
+      "source_refs": []
+    },
+    {
+      "headline": "Scope 1 and 2 emissions are falling",
+      "layout": "chart_takeaway",
+      "variant": "chart_left",
+      "slots": {
+        "takeaway": "Emissions dropped each year since 2021."
+      },
+      "chart": {
+        "dataset_id": "emissions",
+        "chart_type": "bar",
+        "title": "Emissions by year",
+        "category_column": "year",
+        "value_columns": [
+          "tco2e"
+        ],
+        "x_column": null,
+        "y_column": null,
+        "value_column": null,
+        "notes": ""
+      },
+      "table": null,
+      "image_path": null,
+      "speaker_notes": "",
+      "source_refs": []
+    },
+    {
+      "headline": "Targets and the road to 2040",
+      "layout": "two_column",
+      "variant": "text_chart",
+      "slots": {
+        "text": "We target net zero by 2040 across scopes 1 and 2."
+      },
+      "chart": {
+        "dataset_id": "emissions",
+        "chart_type": "column",
+        "title": "Pathway",
+        "category_column": "year",
+        "value_columns": [
+          "tco2e"
+        ],
+        "x_column": null,
+        "y_column": null,
+        "value_column": null,
+        "notes": ""
+      },
+      "table": null,
+      "image_path": null,
+      "speaker_notes": "",
+      "source_refs": []
+    },
+    {
+      "headline": "What we are doing",
+      "layout": "bullets",
+      "variant": "three",
+      "slots": {
+        "items": [
+          "Switch to renewable power",
+          "Electrify the vehicle fleet",
+          "Cut supplier emissions"
+        ]
+      },
+      "chart": null,
+      "table": null,
+      "image_path": null,
+      "speaker_notes": "",
+      "source_refs": []
+    },
+    {
+      "headline": "Milestones",
+      "layout": "timeline",
+      "variant": "three",
+      "slots": {
+        "items": [
+          "2026: audit",
+          "2030: halve scope 1",
+          "2040: net zero"
+        ]
+      },
+      "chart": null,
+      "table": null,
+      "image_path": null,
+      "speaker_notes": "",
+      "source_refs": []
+    },
+    {
+      "headline": "Summary",
+      "layout": "summary",
+      "variant": "default",
+      "slots": {
+        "items": [
+          "Emissions are down",
+          "Targets are set",
+          "Suppliers are next"
+        ]
+      },
+      "chart": null,
+      "table": null,
+      "image_path": null,
+      "speaker_notes": "",
+      "source_refs": []
+    }
+  ]
+}
