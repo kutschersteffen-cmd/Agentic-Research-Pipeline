@@ -150,10 +150,16 @@ analyst can pick a company by hand, and a person confirms both kinds of proposal
 - **`tiers.evaluate`**
   - Maps the old keys in a rule's `tier` output, so a coverage-rule version saved before PR A still runs. Its
     thematic outputs become `letter`, as decided in owner decision 5.
+- **Approved programme versions** (`program_versions[].targets[].tier` in client stream files, returned by
+  `GET /api/stewardship/streams/{id}/program`) are mapped on read with the same table; `thematic_collaborative`
+  reads as `letter` there. Nothing is rewritten.
 - **Saving a coverage-rule version**
   - `POST /policies/coverage_rules/versions` refuses content whose rules output an old key.
+  - The check reads the `tier` output cell of every rule in every decision table, without evaluating the rules,
+    so an old key in a rule that never fires on the sample is also caught.
   - The response is 422 with detail
-    `Coverage rules may only propose bilateral, letter or monitor (found <key>)`.
+    `Coverage rules may only propose bilateral, letter or monitor (found <key>)`, naming the first old key in rule
+    order.
   - So the mapping applies only to old versions; no new version can contain an old key.
 
 **Bundled coverage rules** (`house_coverage_policy.graph.json`, hit policy `first`, the same order and rule ids):
@@ -186,6 +192,20 @@ The number is the index on the ladder of the PR that ships it.
 The thematic cap row ("beyond means promotion to Priority Bilateral") is deleted. `promote_tier` keeps its meaning:
 the rules want a step above the tier's cap.
 
+**Saved escalation-rule versions** (house and every client stream) are keyed by the old tier names, so from PR A
+they would cap `letter` and `monitor` issuers at the "no tier yet" row. They are retired:
+
+- PR A retires every saved `escalation_rules` version written before PR A. PR B retires every version written before
+  PR B (written for the 7-step ladder). Version 0 (the bundled graph) is always current.
+- `PolicyStore.active("escalation_rules")` skips a retired version and falls back to version 0.
+  `GET /policies/escalation_rules` (with or without `?stream=`) then reports `active_version` 0.
+- Retired versions stay listed and readable.
+- `POST /policies/escalation_rules/activate` on a retired version returns 422 with detail
+  `Version <n> was written for the old tiers or ladder; save a new version`.
+- How a version is recognised as retired is the builder's call. For example, every version saved from PR A on could
+  carry `"rules_format": "three_tiers"` in its record, and from PR B on `"three_tiers_6_steps"`. Tests create an old
+  version by writing a version file the way `main` writes it today.
+
 **Places that follow.** None of these hard-codes the old keys after PR A:
 
 - `worklist.TIER_VALUE` becomes `bilateral` 1.0, `letter` 0.5, `monitor` 0.0.
@@ -199,9 +219,12 @@ the rules want a step above the tier's cap.
   - The tier table gets three rows: Bilateral, Letter, Monitor.
   - The `tier` enum line becomes `bilateral | letter | monitor`.
   - The rule examples and the caps text change to match.
-- Test fixtures that record main's `/tiers` or `/policies/coverage_rules` responses
-  (`tests/fixtures/stewardship_worklist_unchanged_main.json`) are recorded again. The PR lists this test change, as
-  the workbench amendment requires.
+- `tests/fixtures/stewardship_worklist_unchanged_main.json`: its `/tiers` and `/policies/coverage_rules` parts are
+  removed, because workbench AC-144 and AC-145 compare only the triggers and the universe.
+
+**Test changes (PR A).** Value renames only, no assertion removed; the PR lists each file:
+`test_stewardship_tiers.py`, `test_stewardship_policies.py`, `test_stewardship_escalation.py`,
+`test_api_stewardship.py`, `test_stewardship_worklist.py`, and the fixture above.
 
 ### PR B: no joint engagement, no collaborative engager roles
 
@@ -220,7 +243,7 @@ The frontend lists change as well: `ESCALATION_STAGES` in `EngagementIssuePanel.
 **Stored stages.** A before-validator reads `joint_engagement` as `private_engagement`. It applies to:
 
 - `EngagementIssue.escalation_stage`
-- `EscalationTransition.stage` (and its mirror in `schemas/portfolio_monitoring.py`)
+- `EscalationTransition.stage`
 
 The history entry keeps its `decided_by`, `changed_at` and `reason`. Nothing is rewritten in files or Postgres.
 
@@ -235,18 +258,9 @@ enum validation error.
 - `examples/client_escalation_example.graph.json`: `max([house.max_step, 4])` becomes `max([house.max_step, 3])`,
   which is still "vote against management".
 
-**Saved escalation-rule versions** (house and every client stream) written before PR B are retired:
-
-- `PolicyStore.active("escalation_rules")` skips them and falls back to version 0.
-- `GET /policies/escalation_rules` reports `active_version` 0.
-- The retired versions stay listed and readable.
-- `POST /policies/escalation_rules/activate` on one of them returns 422 with detail
-  `Version <n> was written for the 7-step ladder; save a new version`.
-- New versions are validated against the 6-step ladder, so a cap or step of 6 fails with the existing
-  `(a whole number 0-5)` message.
-- How PR B recognises an old version is the builder's call. For example, every version saved from PR B on could
-  carry `"ladder_steps": 6` in its record. Tests create an old version by writing a version file the way `main`'s
-  code writes it.
+**Saved escalation-rule versions:** PR B retires every version written before PR B, as described under PR A. New
+versions are validated against the 6-step ladder, so a cap or step of 6 fails with the existing `(a whole number 0-5)`
+message.
 
 **Engager roles.** `EngagerRole` keeps only `BILATERAL`.
 
@@ -258,6 +272,13 @@ enum validation error.
   `passive_support` are removed.
 - **Demo seed:** data-foundation PR 3 (`seed-demo`, open as #452) seeds only `bilateral`. Whichever of #452 and PR B
   merges second makes this change.
+
+**Test changes (PR B).** Value renames only (`joint_engagement` → another step, step counts 7 → 6, removed roles
+→ `bilateral`), no assertion removed; the PR lists each file: `test_stewardship_escalation.py`,
+`test_engagement_store.py`, `test_postgres_engagement_store.py`, `test_stewardship_tracking.py`,
+`test_api_stewardship.py`, `frontend/tests/engagement.test.ts` and
+`tests/fixtures/engagements_migration/*/record.json` (these fixtures keep `joint_engagement` if a test of the mapping
+on read uses them).
 
 **Docs.** In `docs/STEWARDSHIP_OPERATING_MODEL.md`:
 
@@ -304,13 +325,17 @@ A pick **stands** from its `picked` event until a later `withdrawn` event for th
   `{"issuer_id", "name", "reason", "by", "at"}`.
 - A pick on a company the rules already propose as bilateral is allowed. It keeps that company bilateral if the
   rules later change.
+- A standing pick whose issuer is no longer in the house universe (for example after the universe source changes)
+  is listed in `picks` with `name` `null`, makes no proposal, and can still be withdrawn.
+- `by` is `principal.name`, as tier confirm records `confirmed_by`. `at` is an ISO 8601 UTC timestamp.
 
 **Screens.**
 
 - **Selection studio** (Steward workflow, stage 2), in its Review section under "Confirmed coverage tiers": a
   **Bilateral picks** block. It contains:
   - a company picker over the house universe, a reason field and a **Pick for bilateral** button;
-  - below them, the standing picks as `<company> — <reason> — <by>, <date>`, each with **Withdraw**.
+  - below them, the standing picks as `<company> — <reason> — <by>, <date>`, where `<date>` is the date part of `at`
+    as `YYYY-MM-DD`, each with **Withdraw**.
 - **Human Checkpoint** (stage 5): tier changes from picks show like any other tier change. Rule `manual` and the
   reason come from the proposal. Confirm works as it does today.
 - **Workbench:** PR 4 of the workbench spec adds the same action to step 3 (see the amendment).
@@ -340,12 +365,12 @@ a new ID:
 | workbench | AC-51 | "`/tiers` equals main" | AC-144 (the monitoring triggers response only) |
 | workbench | AC-52 | "`/policies/coverage_rules` equals main" | AC-145 (`/universe` only) |
 | workbench | — | new: Pick for bilateral in step 3 (PR 4) | AC-146 |
-| cockpit | AC-3 | `ladder` has 7 entries including "Joint engagement" | this spec AC-40 |
-| cockpit | AC-10 | escalates with `joint_engagement` | this spec AC-41 |
-| cockpit | AC-24 | escalates with `joint_engagement`; expects `ladder[3]` | this spec AC-42 |
-| cockpit | AC-55 | escalates with `joint_engagement` | this spec AC-43 |
-| cockpit | AC-25 | expects `ladder[4]` for vote against management | this spec AC-44 (`ladder[3]`) |
-| data foundation | AC-26 | `passive_support` objectives (the role no longer exists) | none (retired); see AC-31 |
+| cockpit | AC-3 | `ladder` has 7 entries including "Joint engagement" | this spec AC-40 = cockpit AC-85 |
+| cockpit | AC-10 | escalates with `joint_engagement` | this spec AC-41 = cockpit AC-86 |
+| cockpit | AC-24 | escalates with `joint_engagement`; expects `ladder[3]` | this spec AC-42 = cockpit AC-87 |
+| cockpit | AC-55 | escalates with `joint_engagement` | this spec AC-43 = cockpit AC-88 |
+| cockpit | AC-25 | expects `ladder[4]` for vote against management | this spec AC-44 = cockpit AC-89 (`ladder[3]`) |
+| data foundation | AC-26 | `passive_support` objectives (the role no longer exists) | this spec AC-31 = data-foundation AC-42 |
 
 Not affected:
 
@@ -358,23 +383,23 @@ Not affected:
    that follow, the operating-model tier text, the re-recorded snapshot fixture, frontend labels and tests.
    - Can start now.
    - Lands before workbench PR 2, so the workbench builds on the new keys.
-   - Rows AC-1 to AC-17.
+   - Rows AC-1 to AC-19, AC-24, AC-25 and AC-27.
 2. **PR B: six-step ladder, no collaborative roles.** Covers the enum changes and mapping on read, retiring saved
    escalation versions, the bundled data, intake and template, frontend step lists, openapi and `gen:api`, and the
    docs.
    - Starts after PR A.
    - Changes the #452 seed if #452 has merged by then. If the cockpit is built by then, its ladder labels change
      too.
-   - Rows AC-20 to AC-44.
+   - Rows AC-20 to AC-23, AC-26, AC-28 to AC-35, and AC-40 to AC-44.
 3. **PR C: bilateral picks.** Covers the pick log, routes, the effect on proposals, `picks` in `GET /tiers`, the
    Selection studio block, openapi and `gen:api`.
    - Starts after PR A.
    - Lands before workbench PR 4, which uses its route.
-   - Rows AC-50 to AC-66.
+   - Rows AC-50 to AC-67.
 
 ## Left to the builder
 
-- How PR B marks escalation-rule versions saved from PR B on, as long as AC-24 to AC-26 hold.
+- How PRs A and B mark escalation-rule versions saved from them on, as long as AC-24, AC-25, AC-27 and AC-35 hold.
 - The exact layout of the Bilateral picks block, within the existing Selection studio styles.
 - Whether the mapping on read for engager roles lives in the Pydantic model or in the Postgres store's row
   conversion, as long as AC-30 holds for both stores.
@@ -388,11 +413,16 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Terms us
     `SYN01`..`SYN12`);
   - `coverage_rules` and `escalation_rules` with no saved versions (v0 active);
   - no client streams;
-  - `<stewardship_streams_dir>/tier_assignments.jsonl` and `bilateral_picks.jsonl` removed;
+  - `<stewardship_streams_dir>/tier_assignments.jsonl`, `bilateral_picks.jsonl` and the `selection/` directory
+    removed;
   - the `stw_*` tables truncated in one `TRUNCATE … CASCADE` (no engagement records).
 - **PR tags:** a row whose Given starts `PR X;` applies from that PR on. Rows without a tag apply from PR A.
 - **Main row:** a JSON line or file written in the format `main` writes today, before this feature.
-- **User A, user B:** two signed-in analysts.
+- **User A, user B:** analysts with `user_id` and `name` `A` and `B` in a `config/users.json` the test writes.
+  Their requests carry `Authorization: Bearer <token>` and `Origin: http://other.invalid`, so the dev sign-in does
+  not apply.
+- **Q:** the current calendar quarter of the server's date, e.g. `2026-Q4` (the only cycle `POST /selection`
+  accepts).
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
@@ -405,6 +435,8 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Terms us
 | AC-7 | AC-5 | `GET /api/stewardship/tiers` twice | `tier_assignments.jsonl` is byte-identical to the file written in AC-5 | holdout |
 | AC-8 | Fixture T plus a main-format saved `coverage_rules` v1 (the v0 content from `main`, with the old keys), saved by user A and activated by user B | `GET /api/stewardship/tiers` | Same tiers and rules as AC-1 and AC-2 | holdout |
 | AC-9 | Fixture T | `POST /api/stewardship/policies/coverage_rules/versions` with the PR's v0 content where the `default` row's tier is `'scaled_baseline'` | Status 422 with detail `Coverage rules may only propose bilateral, letter or monitor (found scaled_baseline)` | holdout |
+| AC-18 | Fixture T | `POST /api/stewardship/policies/coverage_rules/versions` with the PR's v0 content where the `small_position` row's tier is `'systemic'` (a row that fires for no sample issuer) | Status 422 with detail `Coverage rules may only propose bilateral, letter or monitor (found systemic)` | holdout |
+| AC-19 | Fixture T plus a client stream S whose stored file holds a main-format approved programme version with one target whose `tier` is `scaled_baseline` | `GET /api/stewardship/streams/S/program` | That target's `tier` in the response's `versions` is `letter` | holdout |
 | AC-10 | Fixture T, then `POST /api/stewardship/tiers/confirm` `{}` | `GET /api/stewardship/tiers` | `distribution` is `{"bilateral": 2, "letter": 10}`, and `changes` is `[]` | holdout |
 | AC-11 | Fixture T; a record for `SYN03` and one for `SYN01`, each with one open issue at `private_engagement` | `GET /api/stewardship/studio/escalation/recommendations` | The live `SYN03` entry has `tier` `bilateral` and `max_step` `public_statement`. The live `SYN01` entry has `tier` `letter` and `max_step` `vote_against_management` | holdout |
 | AC-12 | The bundled escalation rules | `escalation.evaluate` on one sample context with tier `monitor` | `max_step` `private_engagement` and `escalate` false | unit |
@@ -415,24 +447,25 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Terms us
 | AC-17 | The PR build | Case-insensitive search for `thematic_collaborative`, `thematic & collaborative`, `scaled_baseline`, `scaled baseline`, `priority_bilateral`, `priority bilateral` and `systemic / market-level` in `backend/arp/**/*.{py,json}`, `frontend/src/**/*.{ts,tsx,json}` and `docs/STEWARDSHIP_OPERATING_MODEL.md` | Matches only in `backend/arp/stewardship/tiers.py` (the mapping on read) | holdout |
 | AC-20 | PR B; Fixture T; a record for `SYN06` with one open issue | `POST /api/engagement/records/SYN06/issues/{id}/escalate` `{"stage": "joint_engagement"}` | Status 422, and the issue's `escalation_stage` stays `private_engagement` | holdout |
 | AC-21 | PR B; AC-11 | `GET /api/stewardship/studio/escalation/recommendations` | The live `SYN03` entry has `cap_index` 5. The live `SYN01` entry has `cap_index` 3 | holdout |
-| AC-22 | PR B; Fixture T; a main-format record for `SYN06` whose open issue has `escalation_stage` `joint_engagement` and one history entry with stage `joint_engagement`, `decided_by` `old`, `reason` `r`, stored in Postgres | `GET /api/engagement/records/SYN06` | Status 200. The issue's `escalation_stage` is `private_engagement`. Its history entry has `stage` `private_engagement`, `decided_by` `old` and `reason` `r` | holdout |
+| AC-22 | PR B; Fixture T; an engagement for `SYN06` taken in through `POST /api/stewardship/intake/engagements`, then in SQL: its `stw_engagements.escalation_stage` set to `joint_engagement`, and one `stw_transitions` row inserted for it (`kind` `escalation`, stage `joint_engagement`, `decided_by` `old`, `reason` `r`) | `GET /api/engagement/records/SYN06` | Status 200. The issue's `escalation_stage` is `private_engagement`. Its history entry has `stage` `private_engagement`, `decided_by` `old` and `reason` `r` | holdout |
 | AC-23 | PR B; Fixture T | `GET /api/stewardship/studio/escalation/recommendations` | The sample entry for `SYN02`, theme `board_governance`, has `current` `private_engagement` | holdout |
-| AC-24 | PR B; Fixture T plus a main-format saved `escalation_rules` v1, saved by user A and activated by user B | `GET /api/stewardship/policies/escalation_rules` | `active_version` is 0, and version 1 is still listed | holdout |
-| AC-25 | PR B; AC-24 | `POST /api/stewardship/policies/escalation_rules/activate` `{"version": 1}` as user B | Status 422 with detail `Version 1 was written for the 7-step ladder; save a new version` | holdout |
+| AC-24 | Fixture T plus a main-format saved `escalation_rules` v1, saved by user A and activated by user B | `GET /api/stewardship/policies/escalation_rules` | `active_version` is 0, and version 1 is still listed | holdout |
+| AC-25 | AC-24 | `POST /api/stewardship/policies/escalation_rules/activate` `{"version": 1}` as user B | Status 422 with detail `Version 1 was written for the old tiers or ladder; save a new version` | holdout |
 | AC-26 | PR B; Fixture T | `POST /api/stewardship/policies/escalation_rules/versions` with the PR's v0 content where the `bilateral` cap is 6 | Status 422, with a detail that contains `(a whole number 0-5)` | holdout |
-| AC-27 | PR B; Fixture T plus a client stream S with a main-format saved and activated `escalation_rules` v1 | `GET /api/stewardship/policies/escalation_rules?stream=S` | `active_version` is 0 | holdout |
+| AC-27 | Fixture T plus a client stream S with a main-format saved and activated `escalation_rules` v1 | `GET /api/stewardship/policies/escalation_rules?stream=S` | `active_version` is 0 | holdout |
+| AC-35 | PR B; a house `escalation_rules` version saved and activated with the PR A build's format | `PolicyStore.active_version("escalation_rules")` | 0 | unit |
 | AC-28 | PR B; Fixture T | `POST /api/stewardship/intake/engagements` with one valid engagement whose `engager_role` is `lead` | Status 422. `rejected` holds one entry with `field` `engager_role` and `reason` `not one of bilateral`, and `created` is 0 | holdout |
 | AC-29 | PR B; Fixture T | The same request with `engager_role` `bilateral` | Status 200 and `created` 1 (must not change) | holdout |
 | AC-30 | PR B; Fixture T; an engagement taken in with `engager_role` `bilateral`, then its `stw_engagements.engager_role` set to `passive_support` in SQL | The engagement is read through the API that returns it (`GET /api/engagement/records/{company_id}`) | Status 200, and the issue's `engager_role` is `null` | holdout |
-| AC-31 | PR B; Showcase data as defined in the workbench spec (`arp stewardship seed-demo` run) | `SELECT DISTINCT engager_role FROM stw_engagements` | Only `bilateral` (and `NULL` if the seed leaves some empty) | holdout |
+| AC-31 | PR B and data-foundation PR 3 (#452) merged; Showcase data as defined in the workbench spec (`arp stewardship seed-demo` run) | `SELECT DISTINCT engager_role FROM stw_engagements WHERE source = 'mock_voice_seed'` | Exactly one row: `bilateral` (mirrored as data-foundation AC-42) | holdout |
 | AC-32 | PR B | `GET /api/stewardship/intake/template?kind=engagements`, opened in openpyxl | The `engager_role` option list holds exactly one value, `bilateral` | holdout |
-| AC-33 | PR B; the PR build | Case-insensitive search for `joint_engagement`, `joint engagement`, `collaborative`, `active_support`, `passive_support` and `co-lead` in the same files as AC-17 | Matches only in the mapping-on-read lines of `backend/arp/schemas/engagement.py`, `backend/arp/schemas/portfolio_monitoring.py` and the Postgres store, if the role mapping lives there | holdout |
+| AC-33 | PR B; the PR build | Case-insensitive search for `joint_engagement`, `joint engagement`, `collaborative`, `active_support`, `passive_support` and `co-lead` in the same files as AC-17 | Matches only in `backend/arp/stewardship/tiers.py` (the tier mapping on read), the mapping-on-read lines of `backend/arp/schemas/engagement.py`, and the Postgres engagement store if the role mapping lives there | holdout |
 | AC-34 | PR B; Fixture T; a record and open issue for `SYN06` on the e2e stack | A user opens the issue's escalation control | It offers exactly 6 steps, in ladder order, with no "Joint engagement" | evaluator |
-| AC-40 | PR B and cockpit PR 1 merged; as cockpit AC-3 | as cockpit AC-3 | `ladder` has 6 entries with `step` 1..6 and `label` exactly "Private dialogue", "Letter to the board", "Meeting with the chair", "Vote against management", "File a resolution", "Public statement", each `companies` `[]` | holdout |
-| AC-41 | PR B and cockpit PR 1 merged; as cockpit AC-10 | `POST …/escalate` with `{stage: "written_escalation_to_board"}` | The stored `planned_meeting_date` is still `2026-11-20` | holdout |
-| AC-42 | PR B and cockpit PR 1 merged; as cockpit AC-24, but the two engagements escalated to `written_escalation_to_board` and `escalation_to_chair` | as cockpit AC-24 | `ladder[2].companies` is `[{company_id: "isin_XA0000000001", company: "Alpha AG"}]`, and A is in no other ladder step | holdout |
-| AC-43 | PR B and cockpit PR 1 merged; as cockpit AC-55, but A's engagement escalated to `written_escalation_to_board` | as cockpit AC-55 | A's contributor `status` is `in_escalation` | holdout |
-| AC-44 | PR B and cockpit PR 1 merged; as cockpit AC-25 | as cockpit AC-25 | A is listed only in `ladder[3]` | holdout |
+| AC-40 | PR B and cockpit PR 1 merged; as cockpit AC-3 | as cockpit AC-3 | `ladder` has 6 entries with `step` 1..6 and `label` exactly "Private dialogue", "Letter to the board", "Meeting with the chair", "Vote against management", "File a resolution", "Public statement", each `companies` `[]` (mirrored as cockpit AC-85) | holdout |
+| AC-41 | PR B and cockpit PR 1 merged; as cockpit AC-10 | `POST …/escalate` with `{stage: "written_escalation_to_board"}` | The stored `planned_meeting_date` is still `2026-11-20` (mirrored as cockpit AC-86) | holdout |
+| AC-42 | PR B and cockpit PR 1 merged; as cockpit AC-24, but the two engagements escalated to `written_escalation_to_board` and `escalation_to_chair` | as cockpit AC-24 | `ladder[2].companies` is `[{company_id: "isin_XA0000000001", company: "Alpha AG"}]`, and A is in no other ladder step (mirrored as cockpit AC-87) | holdout |
+| AC-43 | PR B and cockpit PR 1 merged; as cockpit AC-55, but A's engagement escalated to `written_escalation_to_board` | as cockpit AC-55 | A's contributor `status` is `in_escalation` (mirrored as cockpit AC-88) | holdout |
+| AC-44 | PR B and cockpit PR 1 merged; as cockpit AC-25 | as cockpit AC-25 | A is listed only in `ladder[3]` (mirrored as cockpit AC-89) | holdout |
 | AC-50 | PR C; Fixture T | User A: `POST /api/stewardship/tiers/bilateral` `{"issuer_id": "SYN01", "reason": "CEO change"}`, then `GET /tiers` | Status 200, body `{"picked": "SYN01"}`. In `changes`, `SYN01` has `tier` `bilateral`, `rule` `manual`, `reason` `Picked by A: CEO change` and `current_tier` `null` | holdout |
 | AC-51 | PR C; AC-50 | The contents of `tier_assignments.jsonl` | The file does not exist or has no `SYN01` row | holdout |
 | AC-52 | PR C; AC-50 | `GET /api/stewardship/tiers` | `picks` is `[{"issuer_id": "SYN01", "name": "Synthetic Company 01", "reason": "CEO change", "by": "A", "at": <timestamp>}]` | holdout |
@@ -445,10 +478,11 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Terms us
 | AC-59 | PR C; Fixture T | `POST /tiers/bilateral/SYN02/withdraw` | Status 422 with detail `SYN02 has no bilateral pick` | holdout |
 | AC-60 | PR C; Fixture T | `POST /tiers/bilateral` with a 501-character reason | Status 422 with detail `A bilateral pick reason has at most 500 characters` | holdout |
 | AC-61 | PR C; a `viewer` user (non-dev auth) | `POST /api/stewardship/tiers/bilateral` | Status 403 | unit |
-| AC-62 | PR C; Fixture T; user A picks `SYN01`, then confirms the house quarterly selection holding `SYN01` (`POST /selection` `{"cycle": Q, "add": ["SYN01"]}`, then `POST /selection/confirm` `{"cycle": Q}`) | `GET /api/stewardship/tiers` | `assignments` has no `SYN01` entry. The quarterly selection confirms no tier (must not change) | holdout |
+| AC-62 | PR C; Fixture T; user A picks `SYN01`, then confirms the house quarterly selection holding `SYN01` (`POST /api/stewardship/selection` `{"cycle": Q, "add": ["SYN01"]}`, then `POST /api/stewardship/selection/confirm` `{"cycle": Q}`) | `GET /api/stewardship/tiers` | `assignments` has no `SYN01` entry. The quarterly selection confirms no tier (must not change) | holdout |
 | AC-63 | PR C; AC-55 | The contents of `bilateral_picks.jsonl` | Two lines: a `picked` event by `A`, then a `withdrawn` event by `B` | unit |
 | AC-64 | PR C; AC-50 | `POST /api/stewardship/studio/coverage/preview` with the active v0 graph | `changes` is `[]`, `assignments` has `SYN01` with `rule` `default`, and `distribution_active` is `{"Bilateral": 2, "Letter": 10}` | holdout |
-| AC-65 | PR C; Fixture T on the e2e stack | In the Selection stage, the user picks Synthetic Company 01, types `CEO change` and presses **Pick for bilateral** | The Bilateral picks list shows `Synthetic Company 01 — CEO change — <user>, <today>` with a **Withdraw** button | evaluator |
+| AC-65 | PR C; Fixture T on the e2e stack | In the Selection stage, the user picks Synthetic Company 01, types `CEO change` and presses **Pick for bilateral** | The Bilateral picks list shows `Synthetic Company 01 — CEO change — <user>, <today as YYYY-MM-DD, UTC>` with a **Withdraw** button | evaluator |
+| AC-67 | PR C; a standing pick for issuer `X` and a house universe without `X` (unit fixture) | `GET /tiers` content (`tier_review` plus `picks`) is built | `picks` lists `X` with `name` `null`, and `changes` has no entry for `X` | unit |
 | AC-66 | PR C; AC-65 | The user opens Human Checkpoint | A tier change for Synthetic Company 01 shows current `none`, proposed `Bilateral`, rule `manual` and reason `Picked by <user>: CEO change`. Confirming it removes it from the list | evaluator |
 
 Must not change:
@@ -460,3 +494,6 @@ Must not change:
 
 Superseded rows of other specs: workbench AC-7, AC-32, AC-35, AC-36, AC-51 and AC-52; cockpit AC-3, AC-10,
 AC-24, AC-25 and AC-55; data foundation AC-26. See "Other specs this changes".
+
+Rows mirrored into other specs, so the holdout job runs them on whichever PR lands second: AC-40 to AC-44 are
+cockpit AC-85 to AC-89, and AC-31 is data-foundation AC-42.
