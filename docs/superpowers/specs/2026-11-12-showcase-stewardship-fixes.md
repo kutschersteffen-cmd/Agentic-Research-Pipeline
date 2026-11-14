@@ -342,8 +342,8 @@ then id" means the cell holds the name, followed by the id in an element of its 
 | AC-62 | the e2e stack; viewport 1280 by 800 | on Transition Barriers click a criterion code in the first column | the detail heading `<code> — <criterion>` is inside the viewport and has keyboard focus | evaluator |
 | AC-63 | the e2e stack | open `#/transitionPlan`, then step 3 of the flow it opened (`#/argus/<flow>/3`); read the template's line | it reads `64 indicators + 8 supporting figures`; `72 fields` is not shown for it | evaluator |
 | AC-64 | the e2e stack | `GET /api/extraction/presets` | the transition-plan preset's `field_count` is `72` (must not change) | holdout |
-| AC-65 | a review item whose `route_reasons` are `unreleased_version`, `check_failed`, `check:consistency.entity` | read the review detail | the line reads exactly `Routed for review: the template is not released yet, a check failed` | unit |
-| AC-66 | a review item whose `route_reasons` are `some_new_code` | same | the line reads exactly `Routed for review: some new code` | unit |
+| AC-65 | a review item whose `route_reasons` are `unreleased_version`, `check_failed`, `check:consistency.entity` | read the review detail | the line reads exactly `Routed for review: The schema is a draft, so every value is reviewed. A check on this value failed.` (superseded by showcase-argus-fixes AC-114 / AC-156, owner decision 13 Nov 2026) | unit |
+| AC-66 | a review item whose `route_reasons` are `some_new_code` | same | the line reads exactly `Routed for review: Reason: some new code.` (superseded by showcase-argus-fixes AC-114 / AC-156, owner decision 13 Nov 2026) | unit |
 | AC-67 | a review item whose `route_reasons` are only `check:consistency.entity` | same | no `Routed for review:` line is shown | unit |
 | AC-68 | a registry company named `3f2b8c1e-5d47-4a9b-8c21-0a1b2c3d4e5f` and one named `Acme 3f2b` | `GET /api/companies?q=` | the response holds `Acme 3f2b` and no entry with the UUID name | unit |
 | AC-69 | the UUID-named company | `GET /api/companies/{its id}` | 200 with that record (nothing is deleted; must not change) | unit |

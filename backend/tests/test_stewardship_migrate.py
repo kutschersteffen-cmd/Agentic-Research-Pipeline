@@ -111,3 +111,8 @@ def test_contacts_migrate(run, pg, tmp_path):
     got = PostgresEngagementStore(pg).get("acme")
     assert len(got.contacts) >= 1
     assert got.contacts == files.get("acme").contacts
+
+
+def test_migrated_issues_have_no_voice_role(run, pg):
+    run()
+    assert all(i.engager_role is None for r in PostgresEngagementStore(pg).list_all() for i in r.issues)

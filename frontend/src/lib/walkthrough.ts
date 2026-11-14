@@ -249,6 +249,13 @@ const STEP_CALL: Record<string, "extractor" | "verifier" | "adjudicator"> = {
   Extract: "extractor", Verify: "verifier", "Verify, blind": "verifier", Adjudicate: "adjudicator",
 };
 
+/** A verify step with no answer recorded: the verdict's note (a blind re-extraction that failed has only that). */
+export function verifyNote(s: Pick<Step, "answer">, w: Pick<Walkthrough, "recorded" | "verifier">): string | null {
+  if (s.answer != null || !w.recorded) return null;
+  const notes = obj(w.verifier?.verdict).notes;
+  return typeof notes === "string" && notes ? notes : null;
+}
+
 export const stepNode = (step: string): string | null => STEP_NODE[step] ?? null;
 
 export function formatSeconds(s: number): string {

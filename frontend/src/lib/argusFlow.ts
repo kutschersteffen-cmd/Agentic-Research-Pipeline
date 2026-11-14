@@ -5,6 +5,7 @@ import { valueLabel } from "./fieldValue.ts";
 export const acceptedLabel = (v: unknown, unit?: string | null): string =>
   v == null ? "—" : valueLabel({ value: typeof v === "object" ? JSON.stringify(v) : (v as string | number | boolean), value_state: "found", unit: unit ?? null });
 import { fieldItemKey } from "./reviewKeys.ts";
+import { rowWalkthroughHref } from "./walkthrough.ts";
 
 // An Argus flow (#/argus/<flow_id>/<step>): step 1's text, as the spec writes it.
 
@@ -107,6 +108,16 @@ export function notInRun(
   });
 }
 
+/** Step 5: the companies set to "Skip, keep earlier results" that have an earlier run, and that run. */
+export function keptRuns(
+  companies: { company_id: string }[], repeat: Record<string, string>, repeatRows: Pick<RepeatRow, "company_id" | "run_id" | "date">[],
+): { company_id: string; run_id: string; date: string }[] {
+  return companies.flatMap((c) => {
+    const r = repeat[c.company_id] === "skip" ? repeatRows.find((x) => x.company_id === c.company_id) : undefined;
+    return r ? [{ company_id: c.company_id, run_id: r.run_id, date: r.date }] : [];
+  });
+}
+
 /** Step 1's line about the flow's identity run; null when none was started. `status` is null while the run's
  * record cannot be read. `again` says whether "Resolve identities" is offered again (the run ended, companies remain). */
 export function identityStatus(runId: string | null | undefined, status: string | null, unmatched: number): { text: string; again: boolean } | null {
@@ -149,8 +160,12 @@ export interface ResultRow {
   companyId: string;
   company: string;
   field: string;
+  /** The value's period end date; null when it has none. */
+  period: string | null;
   value: string;
   citation: Citation | null;
+  /** The walkthrough of this value in the run that extracted it; a company-level row has none. */
+  walkthrough?: string;
   notFound: boolean;
   /** The open review item for this value; set means it needs a person. */
   item: ReviewItem | null;
@@ -165,12 +180,13 @@ export interface ResultRow {
 export function resultRows(results: ExtractionRecord[], items: ReviewItem[]): ResultRow[] {
   const open = new Map(items.map((i) => [i.item_key, i]));
   const rows = results.flatMap((r) =>
-    r.fields.map((f): ResultRow => {
+    newestPeriodFirst(r.fields).map((f): ResultRow => {
       const key = fieldItemKey(r, f);
       const item = open.get(key) ?? null;
       const accepted = item?.kind === "conflict" ? (item.payload as { accepted?: { value?: unknown } }).accepted : undefined;
       return {
-        key, companyId: r.company_id, company: r.name, field: r.field_names?.[f.field_id] ?? f.field_name, value: valueLabel(f),
+        key, companyId: r.company_id, company: r.name, field: r.field_names?.[f.field_id] ?? f.field_name, period: f.period_end ?? null,
+        value: valueLabel(f), walkthrough: rowWalkthroughHref(r.run_id, r, f),
         citation: f.citations.find((c) => c.grounded) ?? f.citations[0] ?? null, notFound: f.value_state === "not_found",
         item, ...(accepted ? { accepted: acceptedLabel(accepted.value, f.unit) } : {}),
       };
@@ -180,13 +196,23 @@ export function resultRows(results: ExtractionRecord[], items: ReviewItem[]): Re
   const companies = items.filter((i) => !used.has(i.item_key)).map((i): ResultRow => {
     const p = i.payload as { company_id?: string; name?: string; failed_step_label?: string; error?: string };
     const cid = p.company_id ?? i.item_key;
-    return { key: i.item_key, companyId: cid, company: p.name ?? cid, field: p.failed_step_label ?? "Whole company",
+    return { key: i.item_key, companyId: cid, company: p.name ?? cid, field: p.failed_step_label ?? "Whole company", period: null,
       value: p.error ?? "Stopped for review", citation: null, notFound: false, item: i, companyLevel: true };
   });
   return [...companies, ...rows.filter((r) => r.item), ...rows.filter((r) => !r.item)];
 }
 
-export const onlyNeedsYou = (rows: ResultRow[]) => rows.filter((r) => r.item);
+/** A record's fields in their order, the periods of one field newest first. */
+function newestPeriodFirst<F extends { field_id: string; period_end?: string | null }>(fields: F[]): F[] {
+  const first = new Map<string, number>();
+  fields.forEach((f, i) => first.has(f.field_id) || first.set(f.field_id, i));
+  return [...fields].sort((a, b) => first.get(a.field_id)! - first.get(b.field_id)! || (b.period_end ?? "").localeCompare(a.period_end ?? ""));
+}
+
+/** Step 5's Period cell. */
+export const periodText = (periodEnd: string | null | undefined) => periodEnd || "—";
+
+export const onlyNeedsYou = <R extends ResultRow>(rows: R[]) => rows.filter((r) => r.item);
 
 const LIFECYCLE = new Set(["status", "version", "effective_from"]);
 const content = (f: object) =>
