@@ -5,8 +5,8 @@ import { errorDetail } from "../../lib/themeLayers";
 import { usePortfolioPane } from "../../context/usePortfolioPane";
 import { PortfolioFilterPicker } from "../../components/PortfolioFilterPicker";
 import {
-  RULE_TYPES, alertNumber, alertRuleName, alertScope, breachTypeLabel, fractionToPercent, percentToFraction, ruleCondition, ruleScope,
-  ruleTypeLabel,
+  RULE_TYPES, alertNumber, alertRuleName, alertScopeParts, breachTypeLabel, fractionToPercent, percentToFraction, ruleCondition, ruleScope,
+  ruleTypeLabel, type ScopeParts,
 } from "../../lib/monitoringLabels";
 import type { Alert, AlertComparator, AlertRule, AlertRuleType, AlertStatus } from "../../types";
 
@@ -339,7 +339,7 @@ export function MonitoringAlerts() {
               {visibleAlerts.map((a) => (
                 <tr key={a.alert_id}>
                   <td>{alertRuleName(a, rules)}</td>
-                  <td>{alertScope(a, rules, portfolios)}</td>
+                  <td><ScopeCell parts={alertScopeParts(a, rules, portfolios)} /></td>
                   <td>{a.category.replace("_", " ")}</td>
                   <td>
                     <BreachTypeBadge alert={a} />
@@ -387,4 +387,8 @@ export function MonitoringAlerts() {
       </section>
     </>
   );
+}
+
+function ScopeCell({ parts: { name, id, suffix } }: { parts: ScopeParts }) {
+  return name ? <>{name} <span className="mono muted">{id}</span>{suffix}</> : <>{suffix}</>;
 }

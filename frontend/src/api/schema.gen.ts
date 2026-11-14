@@ -8822,6 +8822,11 @@ export interface components {
             category: components["schemas"]["AlertCategory"];
             /** Company Id */
             company_id?: string | null;
+            /**
+             * Company Name
+             * @description Directory name of company_id, filled on read by the alerts endpoint; never stored.
+             */
+            company_name?: string | null;
             /** Data Point Values */
             data_point_values?: {
                 [key: string]: number;

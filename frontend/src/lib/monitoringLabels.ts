@@ -16,6 +16,7 @@ export interface AlertLike {
   category: string;
   scope_id: string;
   company_id?: string | null;
+  company_name?: string | null;
   breach_type: string;
 }
 
@@ -63,12 +64,31 @@ export function alertRuleName(alert: AlertLike, rules: RuleLike[]): string {
   return rules.find((r) => r.rule_id === alert.rule_id)?.name ?? "Deleted rule";
 }
 
-export function alertScope(alert: AlertLike, rules: RuleLike[], portfolios: PortfolioLike[]): string {
+const across = (rule: RuleLike, portfolios: PortfolioLike[]): string =>
+  ` · across ${rule.portfolio_ids.length ? portfolioNames(rule.portfolio_ids, portfolios) : "all portfolios"}`;
+
+function idScope(alert: AlertLike, rules: RuleLike[], portfolios: PortfolioLike[]): string {
   if (alert.scope_id.startsWith("portfolio__")) return portfolioNames([alert.scope_id.slice("portfolio__".length)], portfolios);
   if (!isConcentrationAlert(alert)) return alert.scope_id;
   const rule = rules.find((r) => r.rule_id === alert.rule_id);
   if (!rule) return alert.company_id!;
-  return `${alert.company_id} · across ${rule.portfolio_ids.length ? portfolioNames(rule.portfolio_ids, portfolios) : "all portfolios"}`;
+  return `${alert.company_id}${across(rule, portfolios)}`;
+}
+
+export interface ScopeParts { name: string | null; id: string | null; suffix: string }
+
+/** The Scope cell: company name, then its id (shown muted), then the suffix; without a name, only the suffix. */
+export function alertScopeParts(alert: AlertLike, rules: RuleLike[], portfolios: PortfolioLike[]): ScopeParts {
+  if (alert.scope_id.startsWith("portfolio__") || !alert.company_id || !alert.company_name) {
+    return { name: null, id: null, suffix: idScope(alert, rules, portfolios) };
+  }
+  const rule = isConcentrationAlert(alert) ? rules.find((r) => r.rule_id === alert.rule_id) : undefined;
+  return { name: alert.company_name, id: alert.company_id, suffix: rule ? across(rule, portfolios) : "" };
+}
+
+export function alertScope(alert: AlertLike, rules: RuleLike[], portfolios: PortfolioLike[]): string {
+  const { name, id, suffix } = alertScopeParts(alert, rules, portfolios);
+  return name ? `${name} ${id}${suffix}` : suffix;
 }
 
 /** Observed and Threshold: percent on a concentration alert, the stored number otherwise. */
