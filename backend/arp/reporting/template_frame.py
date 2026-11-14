@@ -77,8 +77,9 @@ def _box(prs, ph) -> Box:
 
 def _pick(layout, slide_h: int):
     """(headline, subheading, body) placeholders, or None when the layout lacks one."""
-    titles = [p for p in layout.placeholders if _kind(p) in _TITLES]
-    others = [p for p in layout.placeholders if _kind(p) in _OTHERS]
+    placed = [p for p in layout.placeholders if None not in (p.left, p.top, p.width, p.height)]  # a box nothing positions can't frame
+    titles = [p for p in placed if _kind(p) in _TITLES]
+    others = [p for p in placed if _kind(p) in _OTHERS]
     if len(titles) != 1 or len(others) < 2:
         return None
     title = titles[0]
@@ -134,12 +135,15 @@ class TemplateFrameError(ValueError):
     """A house deck asked for a template that can't frame one."""
 
 
-def house_tokens(request, store) -> Tokens:
-    """The tokens a house deck renders with: the house frame, or the request's template frame."""
+def house_tokens(request, store, strict: bool = False) -> Tokens:
+    """The tokens a house deck renders with: the house frame, or the request's template frame.
+    `strict` (a new report) refuses a template without a frame; reports created before frames existed keep the house look."""
     if not request.template_id:
         return load_tokens()
     style = store.load_template_style(request.template_id)
     if style is None or style.frame is None:
+        if not strict:
+            return load_tokens()
         reason = (style.frame_error if style else None) or "re-upload it"
         raise TemplateFrameError(f"Template {request.template_id} cannot frame a house deck: {reason}")
     return with_frame(load_tokens(), style.frame, style.font_dir, style.slide_width_emu)

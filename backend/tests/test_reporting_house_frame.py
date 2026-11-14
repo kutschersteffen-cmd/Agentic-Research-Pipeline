@@ -245,3 +245,16 @@ async def test_split_keeps_subheading(tokens, fake_llm):
     deck, _ = await fit_deck(deck, request, fake_llm({}), tokens=tokens)
     assert len(deck.slides) > 1
     assert {s.subheading for s in deck.slides} == {"Kept"}
+
+
+async def test_existing_house_report_with_frameless_template_still_builds(store, tmp_path, fake_llm):
+    """Reports created before frames existed carry a template_id with no frame: they keep the house look."""
+    old = TemplateStyleProfile(template_id="tpl_old", source_filename="a.pptx", slide_width_emu=1, slide_height_emu=1, stored_path="x")
+    store.save_template_style(old)
+    request = ReportRequest(title="T", qualitative_notes="n", template_id="tpl_old", layout=LayoutInstructions(output_format=OutputFormat.HOUSE_DECK))
+    storyline = Storyline(title="Deck", slides=[StorylineSlide(headline="H", purpose="p")])
+    llm = fake_llm({"SlideContent": [SlideContent(headline="x", layout="bullets", variant="three", slots={"items": ["a"]})], "QAResult": [QAResult(edits=[])]})
+    store.save_request("rep_old", request)
+    await build_house_deck("rep_old", request, storyline, llm, store)
+    prs = Presentation(str(store.output_path("rep_old", "output.pptx")))
+    assert (prs.slide_width, prs.slide_height) == (18288000, 10287000)

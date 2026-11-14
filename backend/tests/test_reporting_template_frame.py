@@ -135,3 +135,10 @@ def test_font_family_from_the_file_is_sanitised(client, tmp_path):
     """A family name lands in the deck's CSS; quotes and markup from the uploaded file must not."""
     style = upload(client, tmp_path, major="Evil'; }</style><script>x()</script>", fonts=("Evilstylescriptxscript-400.ttf", "TestaSans-400.ttf"))
     assert style["frame"]["headline_font"]["family"] == "Evil stylescriptxscript"
+
+
+def test_unresolvable_placeholder_position_still_uploads(client, tmp_path):
+    """No xfrm on the layout and nothing on the master to inherit: the upload works, the frame is not built."""
+    style = upload(client, tmp_path, body_xfrm=False, master_body=False)
+    assert style["frame"] is None
+    assert style["frame_error"] == "No layout has a title, a subheading and a body placeholder."

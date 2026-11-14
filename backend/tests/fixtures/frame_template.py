@@ -62,6 +62,7 @@ def _configure(layout, name: str, with_subheading: bool, body_xfrm: bool) -> Non
 def make_frame_pptx(
     path: Path, *, width_emu: int = 12192000, height_emu: int = 6858000, with_subheading: bool = True,
     layouts: tuple[str, ...] = ("Content",), body_xfrm: bool = True, major: str = "Testa Serif",
+    master_body: bool = True,
 ) -> Path:
     prs = Presentation()
     prs.slide_width, prs.slide_height = Emu(width_emu), Emu(height_emu)
@@ -72,6 +73,10 @@ def make_frame_pptx(
     for layout, name in zip(keep, layouts, strict=True):
         _configure(layout, name, with_subheading, body_xfrm)
     _set_theme_fonts(prs, major, "Testa Sans")
+    if not master_body:  # a layout placeholder then has nothing to inherit its position from
+        for ph in list(prs.slide_masters[0].placeholders):
+            if ph.placeholder_format.idx == 1:
+                ph._element.getparent().remove(ph._element)
     prs.save(path)
     return path
 

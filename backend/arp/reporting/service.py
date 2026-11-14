@@ -40,7 +40,7 @@ class ReportingService:
 
     async def create_and_plan(self, request: ReportRequest, llm: LLMClient) -> ReportManifest:
         if request.layout.output_format == OutputFormat.HOUSE_DECK:
-            house_tokens(request, self.store)  # a template that can't frame the deck fails here, before anything is saved
+            house_tokens(request, self.store, strict=True)  # a template that can't frame the deck fails here, before anything is saved
         manifest = ReportManifest(title=request.title, output_format=request.layout.output_format, template_id=request.template_id)
         manifest.status = ReportStatus.PLANNING
         self.store.save_request(manifest.report_id, request)
