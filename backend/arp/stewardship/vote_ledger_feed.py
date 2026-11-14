@@ -35,18 +35,19 @@ def ledger_rows(dsn: str, window_days: int) -> list[dict]:
             if company_id is None and meeting.isin:
                 if meeting.isin not in by_isin:
                     uid = resolve_ref(s, f"ISIN:{meeting.isin}")
-                    value = uid and s.scalars(
+                    values = uid and s.scalars(
                         select(m.CompanyIdentifier.value).where(
                             m.CompanyIdentifier.company_id == uid,
                             m.CompanyIdentifier.scheme == m.IdScheme.UNIVERSE,
                             m.CompanyIdentifier.valid_to.is_(None),
                         )
-                    ).first()
-                    if value and house is None:  # the registry upper-cases UNIVERSE values; issuer ids keep their case
+                    ).all()
+                    if values and house is None:  # the registry upper-cases UNIVERSE values; issuer ids keep their case
                         from arp.stewardship.process import house_universe
 
                         house = {i["issuer_id"].upper(): i["issuer_id"] for i in house_universe()["issuers"]}
-                    by_isin[meeting.isin] = house.get(value.upper(), value) if value else f"isin_{meeting.isin}"
+                    # a company outside the house universe keeps the showcase key
+                    by_isin[meeting.isin] = next((house[v.upper()] for v in values or () if v.upper() in house), f"isin_{meeting.isin}")
                 company_id = by_isin[meeting.isin]
             if company_id is None:
                 continue

@@ -96,3 +96,14 @@ def test_isin_registered_under_a_universe_id_gives_that_id(tmp_path, pg, monkeyp
     _load(tmp_path, pg, lines=[1])  # stw_companies is empty: the meeting has no company_id
     [row] = ledger_rows(pg, 365)
     assert row["company_id"] == "SgFr01"
+
+
+def test_isin_of_a_company_outside_the_house_universe_keeps_isin_key(tmp_path, pg):
+    from arp.db.companies import resolve_company
+    from arp.schemas.common import CompanyRef
+
+    with transaction(pg) as s:
+        resolve_company(s, CompanyRef(company_id="Other99", name="Societe Generale", isin="FR0000130809"))
+    _load(tmp_path, pg, lines=[1])
+    [row] = ledger_rows(pg, 365)
+    assert row["company_id"] == SOCGEN
