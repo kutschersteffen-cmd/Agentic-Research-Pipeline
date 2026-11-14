@@ -5,7 +5,8 @@ Slug: stewardship-three-tiers
 Risk: `risk:high` for every PR, because each one changes how stored tier rows, engagement records or policy
 versions are read. Size M, 3 PRs (A, B, C).
 
-Status: **draft for owner approval**, 14 Nov 2026.
+Status: **approved by the owner on 14 Nov 2026** (buttons in the spec session, after the spec-critic's findings
+were fixed).
 
 ## Owner decisions
 
@@ -61,7 +62,9 @@ analyst can pick a company by hand, and a person confirms both kinds of proposal
      are never rewritten (PR A).
    - Stored `joint_engagement` stages are read as `private_engagement` (PR B).
    - Stored collaborative engager roles are read as no role (PR B).
-   - Saved escalation-rule versions written for the seven-step ladder are retired (PR B).
+   - Saved escalation-rule versions written before PR A are retired (PR A); versions written for the seven-step
+     ladder are retired (PR B).
+   - Approved programme versions in client streams are mapped to the new keys when read (PR A).
 4. **No joint engagement.** The ladder has six steps:
    private engagement → written escalation to the board → escalation to the chair → vote against management →
    file or co-file a resolution → public statement (PR B).
@@ -380,7 +383,7 @@ Not affected:
 ## PR split and order
 
 1. **PR A: three tiers.** Covers `tiers.py`, both bundled graphs (PR A caps), `policies.py` save check, the places
-   that follow, the operating-model tier text, the re-recorded snapshot fixture, frontend labels and tests.
+   that follow, the operating-model tier text, the snapshot fixture with its `/tiers` and `/policies/coverage_rules` parts removed, frontend labels and tests.
    - Can start now.
    - Lands before workbench PR 2, so the workbench builds on the new keys.
    - Rows AC-1 to AC-19, AC-24, AC-25 and AC-27.
@@ -418,9 +421,11 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Terms us
   - the `stw_*` tables truncated in one `TRUNCATE … CASCADE` (no engagement records).
 - **PR tags:** a row whose Given starts `PR X;` applies from that PR on. Rows without a tag apply from PR A.
 - **Main row:** a JSON line or file written in the format `main` writes today, before this feature.
-- **User A, user B:** analysts with `user_id` and `name` `A` and `B` in a `config/users.json` the test writes.
-  Their requests carry `Authorization: Bearer <token>` and `Origin: http://other.invalid`, so the dev sign-in does
-  not apply.
+- **D:** the e2e stack's signed-in dev user (`settings.dev_user`); every holdout request is made as D, so `by` and
+  `confirmed_by` read D's name. No four-eyes rule applies to picks, withdrawals or tier confirms.
+- **Main-format saved version:** a policy version file plus activation log line written as `main`'s `PolicyStore`
+  writes them, with `created_by` `A` and `approved_by` `B` (not D).
+- **Stream `client-s`:** a client stream with id `client-s`.
 - **Q:** the current calendar quarter of the server's date, e.g. `2026-Q4` (the only cycle `POST /selection`
   accepts).
 
@@ -433,10 +438,10 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Terms us
 | AC-5 | Fixture T plus a main-format `tier_assignments.jsonl` with rows, in this order: `SYN01` `scaled_baseline`, `SYN05` `systemic`, `SYN03` `priority_bilateral`, `SYN02` `priority_bilateral`, `SYN02` `thematic_collaborative` | `GET /api/stewardship/tiers` | `assignments` has `SYN01` `letter`, `SYN05` `monitor` and `SYN03` `bilateral`, and no entry for `SYN02`. `distribution` is `{"bilateral": 1, "letter": 1, "monitor": 1}`. `confirmed` is 3 | holdout |
 | AC-6 | AC-5 | `GET /api/stewardship/tiers` | `changes` holds `SYN02` with `tier` `letter` and `current_tier` `null`, and `SYN05` with `tier` `letter` and `current_tier` `monitor`. It holds no entry for `SYN01` or `SYN03` | holdout |
 | AC-7 | AC-5 | `GET /api/stewardship/tiers` twice | `tier_assignments.jsonl` is byte-identical to the file written in AC-5 | holdout |
-| AC-8 | Fixture T plus a main-format saved `coverage_rules` v1 (the v0 content from `main`, with the old keys), saved by user A and activated by user B | `GET /api/stewardship/tiers` | Same tiers and rules as AC-1 and AC-2 | holdout |
+| AC-8 | Fixture T plus a main-format saved `coverage_rules` v1 (the v0 content from `main`, with the old keys), (see Terms) | `GET /api/stewardship/tiers` | Same tiers and rules as AC-1 and AC-2 | holdout |
 | AC-9 | Fixture T | `POST /api/stewardship/policies/coverage_rules/versions` with the PR's v0 content where the `default` row's tier is `'scaled_baseline'` | Status 422 with detail `Coverage rules may only propose bilateral, letter or monitor (found scaled_baseline)` | holdout |
 | AC-18 | Fixture T | `POST /api/stewardship/policies/coverage_rules/versions` with the PR's v0 content where the `small_position` row's tier is `'systemic'` (a row that fires for no sample issuer) | Status 422 with detail `Coverage rules may only propose bilateral, letter or monitor (found systemic)` | holdout |
-| AC-19 | Fixture T plus a client stream S whose stored file holds a main-format approved programme version with one target whose `tier` is `scaled_baseline` | `GET /api/stewardship/streams/S/program` | That target's `tier` in the response's `versions` is `letter` | holdout |
+| AC-19 | Fixture T plus stream `client-s`, whose stored file holds a main-format approved programme version with one target whose `tier` is `scaled_baseline` | `GET /api/stewardship/streams/client-s/program` | That target's `tier` in the response's `versions` is `letter` | holdout |
 | AC-10 | Fixture T, then `POST /api/stewardship/tiers/confirm` `{}` | `GET /api/stewardship/tiers` | `distribution` is `{"bilateral": 2, "letter": 10}`, and `changes` is `[]` | holdout |
 | AC-11 | Fixture T; a record for `SYN03` and one for `SYN01`, each with one open issue at `private_engagement` | `GET /api/stewardship/studio/escalation/recommendations` | The live `SYN03` entry has `tier` `bilateral` and `max_step` `public_statement`. The live `SYN01` entry has `tier` `letter` and `max_step` `vote_against_management` | holdout |
 | AC-12 | The bundled escalation rules | `escalation.evaluate` on one sample context with tier `monitor` | `max_step` `private_engagement` and `escalate` false | unit |
@@ -449,10 +454,10 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Terms us
 | AC-21 | PR B; AC-11 | `GET /api/stewardship/studio/escalation/recommendations` | The live `SYN03` entry has `cap_index` 5. The live `SYN01` entry has `cap_index` 3 | holdout |
 | AC-22 | PR B; Fixture T; an engagement for `SYN06` taken in through `POST /api/stewardship/intake/engagements`, then in SQL: its `stw_engagements.escalation_stage` set to `joint_engagement`, and one `stw_transitions` row inserted for it (`kind` `escalation`, stage `joint_engagement`, `decided_by` `old`, `reason` `r`) | `GET /api/engagement/records/SYN06` | Status 200. The issue's `escalation_stage` is `private_engagement`. Its history entry has `stage` `private_engagement`, `decided_by` `old` and `reason` `r` | holdout |
 | AC-23 | PR B; Fixture T | `GET /api/stewardship/studio/escalation/recommendations` | The sample entry for `SYN02`, theme `board_governance`, has `current` `private_engagement` | holdout |
-| AC-24 | Fixture T plus a main-format saved `escalation_rules` v1, saved by user A and activated by user B | `GET /api/stewardship/policies/escalation_rules` | `active_version` is 0, and version 1 is still listed | holdout |
-| AC-25 | AC-24 | `POST /api/stewardship/policies/escalation_rules/activate` `{"version": 1}` as user B | Status 422 with detail `Version 1 was written for the old tiers or ladder; save a new version` | holdout |
+| AC-24 | Fixture T plus a main-format saved `escalation_rules` v1, (see Terms) | `GET /api/stewardship/policies/escalation_rules` | `active_version` is 0, and version 1 is still listed | holdout |
+| AC-25 | AC-24 | `POST /api/stewardship/policies/escalation_rules/activate` `{"version": 1}` | Status 422 with detail `Version 1 was written for the old tiers or ladder; save a new version` | holdout |
 | AC-26 | PR B; Fixture T | `POST /api/stewardship/policies/escalation_rules/versions` with the PR's v0 content where the `bilateral` cap is 6 | Status 422, with a detail that contains `(a whole number 0-5)` | holdout |
-| AC-27 | Fixture T plus a client stream S with a main-format saved and activated `escalation_rules` v1 | `GET /api/stewardship/policies/escalation_rules?stream=S` | `active_version` is 0 | holdout |
+| AC-27 | Fixture T plus stream `client-s` with a main-format saved and activated `escalation_rules` v1 | `GET /api/stewardship/policies/escalation_rules?stream=client-s` | `active_version` is 0 | holdout |
 | AC-35 | PR B; a house `escalation_rules` version saved and activated with the PR A build's format | `PolicyStore.active_version("escalation_rules")` | 0 | unit |
 | AC-28 | PR B; Fixture T | `POST /api/stewardship/intake/engagements` with one valid engagement whose `engager_role` is `lead` | Status 422. `rejected` holds one entry with `field` `engager_role` and `reason` `not one of bilateral`, and `created` is 0 | holdout |
 | AC-29 | PR B; Fixture T | The same request with `engager_role` `bilateral` | Status 200 and `created` 1 (must not change) | holdout |
@@ -466,20 +471,20 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Terms us
 | AC-42 | PR B and cockpit PR 1 merged; as cockpit AC-24, but the two engagements escalated to `written_escalation_to_board` and `escalation_to_chair` | as cockpit AC-24 | `ladder[2].companies` is `[{company_id: "isin_XA0000000001", company: "Alpha AG"}]`, and A is in no other ladder step (mirrored as cockpit AC-87) | holdout |
 | AC-43 | PR B and cockpit PR 1 merged; as cockpit AC-55, but A's engagement escalated to `written_escalation_to_board` | as cockpit AC-55 | A's contributor `status` is `in_escalation` (mirrored as cockpit AC-88) | holdout |
 | AC-44 | PR B and cockpit PR 1 merged; as cockpit AC-25 | as cockpit AC-25 | A is listed only in `ladder[3]` (mirrored as cockpit AC-89) | holdout |
-| AC-50 | PR C; Fixture T | User A: `POST /api/stewardship/tiers/bilateral` `{"issuer_id": "SYN01", "reason": "CEO change"}`, then `GET /tiers` | Status 200, body `{"picked": "SYN01"}`. In `changes`, `SYN01` has `tier` `bilateral`, `rule` `manual`, `reason` `Picked by A: CEO change` and `current_tier` `null` | holdout |
+| AC-50 | PR C; Fixture T | `POST /api/stewardship/tiers/bilateral` `{"issuer_id": "SYN01", "reason": "CEO change"}`, then `GET /tiers` | Status 200, body `{"picked": "SYN01"}`. In `changes`, `SYN01` has `tier` `bilateral`, `rule` `manual`, `reason` `Picked by D: CEO change` and `current_tier` `null` | holdout |
 | AC-51 | PR C; AC-50 | The contents of `tier_assignments.jsonl` | The file does not exist or has no `SYN01` row | holdout |
-| AC-52 | PR C; AC-50 | `GET /api/stewardship/tiers` | `picks` is `[{"issuer_id": "SYN01", "name": "Synthetic Company 01", "reason": "CEO change", "by": "A", "at": <timestamp>}]` | holdout |
-| AC-53 | PR C; AC-50, then user A: `POST /tiers/confirm` `{"issuer_ids": ["SYN01"]}` | `GET /api/stewardship/tiers` | Body of the confirm is `{"confirmed": 1}`. `assignments` has `SYN01` with `tier` `bilateral`, `rule` `manual` and `confirmed_by` `A`. `changes` has no `SYN01` entry | holdout |
+| AC-52 | PR C; AC-50 | `GET /api/stewardship/tiers` | `picks` is `[{"issuer_id": "SYN01", "name": "Synthetic Company 01", "reason": "CEO change", "by": "D", "at": <timestamp>}]` | holdout |
+| AC-53 | PR C; AC-50, then `POST /tiers/confirm` `{"issuer_ids": ["SYN01"]}` | `GET /api/stewardship/tiers` | Body of the confirm is `{"confirmed": 1}`. `assignments` has `SYN01` with `tier` `bilateral`, `rule` `manual` and `confirmed_by` D. `changes` has no `SYN01` entry | holdout |
 | AC-54 | PR C; AC-53; a record for `SYN01` with one open issue | `GET /api/stewardship/studio/escalation/recommendations` | The live `SYN01` entry has `tier` `bilateral` and `max_step` `public_statement` | holdout |
-| AC-55 | PR C; AC-53 | User B: `POST /api/stewardship/tiers/bilateral/SYN01/withdraw`, then `GET /tiers` | Body `{"withdrawn": "SYN01"}`. `picks` is `[]`. `changes` has `SYN01` with `tier` `letter`, `rule` `default` and `current_tier` `bilateral`. `assignments` still has `SYN01` `bilateral` | holdout |
+| AC-55 | PR C; AC-53 | `POST /api/stewardship/tiers/bilateral/SYN01/withdraw`, then `GET /tiers` | Body `{"withdrawn": "SYN01"}`. `picks` is `[]`. `changes` has `SYN01` with `tier` `letter`, `rule` `default` and `current_tier` `bilateral`. `assignments` still has `SYN01` `bilateral` | holdout |
 | AC-56 | PR C; Fixture T | `POST /tiers/bilateral` `{"issuer_id": "SYN01", "reason": "   "}` | Status 422 with detail `A bilateral pick needs a reason` | holdout |
 | AC-57 | PR C; Fixture T | `POST /tiers/bilateral` `{"issuer_id": "NOPE", "reason": "x"}` | Status 422 with detail `Not in the house universe: NOPE` | holdout |
 | AC-58 | PR C; AC-50 | `POST /tiers/bilateral` `{"issuer_id": "SYN01", "reason": "again"}` | Status 422 with detail `SYN01 is already picked for bilateral` | holdout |
 | AC-59 | PR C; Fixture T | `POST /tiers/bilateral/SYN02/withdraw` | Status 422 with detail `SYN02 has no bilateral pick` | holdout |
 | AC-60 | PR C; Fixture T | `POST /tiers/bilateral` with a 501-character reason | Status 422 with detail `A bilateral pick reason has at most 500 characters` | holdout |
 | AC-61 | PR C; a `viewer` user (non-dev auth) | `POST /api/stewardship/tiers/bilateral` | Status 403 | unit |
-| AC-62 | PR C; Fixture T; user A picks `SYN01`, then confirms the house quarterly selection holding `SYN01` (`POST /api/stewardship/selection` `{"cycle": Q, "add": ["SYN01"]}`, then `POST /api/stewardship/selection/confirm` `{"cycle": Q}`) | `GET /api/stewardship/tiers` | `assignments` has no `SYN01` entry. The quarterly selection confirms no tier (must not change) | holdout |
-| AC-63 | PR C; AC-55 | The contents of `bilateral_picks.jsonl` | Two lines: a `picked` event by `A`, then a `withdrawn` event by `B` | unit |
+| AC-62 | PR C; Fixture T; D picks `SYN01`, then confirms the house quarterly selection holding `SYN01` (`POST /api/stewardship/selection` `{"cycle": Q, "add": ["SYN01"]}`, then `POST /api/stewardship/selection/confirm` `{"cycle": Q}`) | `GET /api/stewardship/tiers` | `assignments` has no `SYN01` entry. The quarterly selection confirms no tier (must not change) | holdout |
+| AC-63 | PR C; a pick by user `A`, then a withdrawal by user `B` (unit fixture) | The contents of `bilateral_picks.jsonl` | Two lines: a `picked` event with `by` `A`, then a `withdrawn` event with `by` `B` | unit |
 | AC-64 | PR C; AC-50 | `POST /api/stewardship/studio/coverage/preview` with the active v0 graph | `changes` is `[]`, `assignments` has `SYN01` with `rule` `default`, and `distribution_active` is `{"Bilateral": 2, "Letter": 10}` | holdout |
 | AC-65 | PR C; Fixture T on the e2e stack | In the Selection stage, the user picks Synthetic Company 01, types `CEO change` and presses **Pick for bilateral** | The Bilateral picks list shows `Synthetic Company 01 — CEO change — <user>, <today as YYYY-MM-DD, UTC>` with a **Withdraw** button | evaluator |
 | AC-67 | PR C; a standing pick for issuer `X` and a house universe without `X` (unit fixture) | `GET /tiers` content (`tier_review` plus `picks`) is built | `picks` lists `X` with `name` `null`, and `changes` has no entry for `X` | unit |
