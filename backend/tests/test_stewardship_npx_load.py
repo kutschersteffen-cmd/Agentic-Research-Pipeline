@@ -128,3 +128,18 @@ def test_ac35_ac36_ac37_committed_csvs(run, pg):
     with transaction(pg) as s:  # AC-37
         votes = s.scalars(select(VoteDecisionModel.vote).where(VoteDecisionModel.vote_label.in_(["ONE YEAR", "1 YEAR"]))).all()
     assert len(votes) == 122 and set(votes) == {"one_year"}
+
+
+def test_registry_match_isin_under_other_universe_id(run, pg):
+    with transaction(pg) as s:
+        resolve_company(s, CompanyRef(company_id="toyota_jp", name="Toyota", isin="JP3633400001"))
+        s.add(StwCompanyModel(company_id="toyota_jp", source="app", name="Toyota"))
+        # ISIN registered without an stw row: falls through to the CUSIP
+        socgen = resolve_company(s, CompanyRef(company_id="isin_FR0000130809", name="SocGen", isin="FR0000130809")).company_id
+        other = resolve_company(s, CompanyRef(company_id="socgen_fr", name="SocGen listing")).company_id
+        s.add(m.CompanyIdentifier(company_id=other, scheme="CUSIP", value="F43638141"))
+        s.add(StwCompanyModel(company_id="socgen_fr", source="app", name="SocGen"))
+        assert socgen != other
+    run(FIXTURE)
+    by_isin = {x.isin: x.company_id for x in _all(pg, VoteMeetingModel)}
+    assert by_isin == {"US0378331005": None, "JP3633400001": "toyota_jp", "FR0000130809": "socgen_fr"}

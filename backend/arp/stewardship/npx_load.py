@@ -64,19 +64,22 @@ class _Companies:
         return self.cache[isin, cusip]
 
     def _match(self, isin: str | None, cusip: str | None) -> str | None:
-        if isin and resolve_ref(self.s, f"ISIN:{isin}"):
-            return self.stw.get(f"isin_{isin}".lower())
-        uid = cusip and resolve_ref(self.s, f"CUSIP:{cusip}")
-        if not uid:
-            return None
-        universe = self.s.scalar(
-            select(m.CompanyIdentifier.value).where(
-                m.CompanyIdentifier.company_id == uid,
-                m.CompanyIdentifier.scheme == m.IdScheme.UNIVERSE,
-                m.CompanyIdentifier.valid_to.is_(None),
-            )
-        )
-        return self.stw.get(universe.lower()) if universe else None  # the registry stores the value upper-cased
+        for ref, own in ((isin and f"ISIN:{isin}", isin and f"isin_{isin}"), (cusip and f"CUSIP:{cusip}", None)):
+            uid = ref and resolve_ref(self.s, ref)
+            if not uid:
+                continue
+            universe = self.s.scalars(
+                select(m.CompanyIdentifier.value).where(
+                    m.CompanyIdentifier.company_id == uid,
+                    m.CompanyIdentifier.scheme == m.IdScheme.UNIVERSE,
+                    m.CompanyIdentifier.valid_to.is_(None),
+                )
+            ).all()
+            # `isin_<ISIN>` is how intake and seed-demo key companies; the registry stores UNIVERSE values upper-cased
+            for key in (own, *universe):
+                if key and key.lower() in self.stw:
+                    return self.stw[key.lower()]
+        return None
 
 
 def load_npx(directory: Path, dsn: str) -> dict[str, int]:
