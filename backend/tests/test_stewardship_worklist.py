@@ -322,3 +322,154 @@ def test_non_numeric_observation_is_no_data():
     sample = {"issuer_id": "C", "name": "C", "sector": "x", "holding": {}}
     row = worklist.indicators({"issuers": [sample]}, [], [], {"C": ("systemic", False)}, {}, obs, date(2026, 11, 14))[0]
     assert row["esg_score"] is None and row["normalised"]["esg_score"] is None
+
+
+# PR 3: engagement programmes
+
+
+def test_programmes_built_in_and_new_names(client):
+    # AC-113, AC-114, AC-137
+    progs = client.get("/api/stewardship/programmes").json()["programmes"]
+    assert [(p["programme_id"], p["confirmed"], p["proposed"], p["built_in"]) for p in progs] == [
+        ("climate", 0, 0, True), ("nature", 0, 0, True), ("ai", 0, 0, True), ("governance", 0, 0, True)
+    ]  # fmt: skip
+    r = client.post("/api/stewardship/programmes", json={"name": "Water engagement programme"})
+    assert r.status_code == 200, r.text
+    assert r.json() == {
+        "programme_id": "water_engagement_programme", "name": "Water engagement programme", "built_in": False,
+        "created_by": "Test", "created_at": r.json()["created_at"], "confirmed": 0, "proposed": 0,
+    }  # fmt: skip
+    for name, detail in [
+        ("WATER ENGAGEMENT PROGRAMME", "A programme named WATER ENGAGEMENT PROGRAMME exists"),
+        ("AI", "A programme with id ai exists"),
+        ("  ", "A programme name needs 1 to 80 characters"),
+        ("x" * 81, "A programme name needs 1 to 80 characters"),
+        ("!!", "A programme name needs a letter or a digit"),
+    ]:
+        r = client.post("/api/stewardship/programmes", json={"name": name})
+        assert (r.status_code, r.json()["detail"]) == (422, detail)
+    progs = client.get("/api/stewardship/programmes").json()["programmes"]
+    assert [p["programme_id"] for p in progs] == ["climate", "nature", "ai", "governance", "water_engagement_programme"]
+
+
+def test_programme_members_propose_confirm_remove_end(client):
+    # AC-115, AC-117, AC-118, AC-119, AC-120, AC-123
+    before = _rows(client)
+    for pid in ("climate", "nature"):
+        assert client.post(f"/api/stewardship/programmes/{pid}/members", json={"add": ["SYN03"]}).status_code == 200
+    rows = _rows(client)
+    assert rows["SYN03"]["programmes"] == [
+        {"programme_id": "climate", "name": "Climate engagement programme", "status": "proposed"},
+        {"programme_id": "nature", "name": "Nature engagement programme", "status": "proposed"},
+    ]
+    assert all(rows[i]["programmes"] == [] for i in rows if i != "SYN03")
+    assert client.post("/api/stewardship/programmes/climate/confirm", json={}).json() == {"confirmed": 1}
+    member = client.get("/api/stewardship/programmes/climate").json()["members"][0]
+    assert (member["issuer_id"], member["status"], member["confirmed_by"]) == ("SYN03", "confirmed", "Test")
+    assert all(r["score"] == before[i]["score"] for i, r in _rows(client).items())
+    r = client.post("/api/stewardship/programmes/climate/members", json={"remove": ["SYN03"]})
+    assert (r.status_code, r.json()["detail"]) == (422, "confirmed members are ended, not removed")
+    r = client.post("/api/stewardship/programmes/climate/members", json={"end": ["SYN03"]})
+    assert (r.status_code, r.json()["detail"]) == (422, "Ending a membership needs a reason")
+    r = client.post("/api/stewardship/programmes/climate/members", json={"end": ["SYN03"], "reason": "objective achieved"})
+    assert r.status_code == 200, r.text
+    member = client.get("/api/stewardship/programmes/climate").json()["members"][0]
+    assert (member["status"], member["ended_by"], member["end_reason"]) == ("ended", "Test", "objective achieved")
+    assert [p["programme_id"] for p in _rows(client)["SYN03"]["programmes"]] == ["nature"]
+    # an ended company can be proposed again; a proposed one can be removed
+    body = client.post("/api/stewardship/programmes/climate/members", json={"add": ["SYN03", "SYN04"], "remove": []}).json()
+    assert [(m["issuer_id"], m["status"]) for m in body["members"]] == [("SYN03", "proposed"), ("SYN04", "proposed")]
+    body = client.post("/api/stewardship/programmes/climate/members", json={"remove": ["SYN04"]}).json()
+    assert [m["issuer_id"] for m in body["members"]] == ["SYN03"] and (body["proposed"], body["confirmed"]) == (1, 0)
+
+
+def test_programme_unknown_company_and_programme(client):
+    r = client.post("/api/stewardship/programmes/climate/members", json={"add": ["SYN01", "NOPE"]})
+    assert (r.status_code, r.json()["detail"]) == (422, "unknown company: NOPE")
+    assert client.get("/api/stewardship/programmes/climate").json()["members"] == []  # nothing written
+    for method, path in [
+        ("get", "nope"), ("post", "nope/members"), ("post", "nope/confirm"), ("get", "nope/suggestions")
+    ]:  # fmt: skip
+        r = getattr(client, method)(f"/api/stewardship/programmes/{path}", **({"json": {}} if method == "post" else {}))
+        assert r.status_code == 404, path
+
+
+def test_programme_suggestions(client, root):
+    # AC-121, AC-122 (logic); the route returns [] when nothing matches
+    from arp.stewardship.programmes import ProgrammeLog
+
+    def record(cid: str, status: str, fir: str) -> EngagementRecord:
+        return EngagementRecord(company_id=cid, name=cid, issues=[EngagementIssue(theme="t", status=status, fir_theme=fir)])
+
+    records = [record("SYN07", "open", "climate_mitigation"), record("SYN08", "closed", "climate_mitigation"),
+               record("SYN09", "stalled", "climate_mitigation"), record("SYN10", "open", "natural_capital"),
+               record("GONE", "open", "climate_mitigation")]  # fmt: skip
+    names = {i: i for i in ("SYN07", "SYN08", "SYN09", "SYN10")}
+    log = ProgrammeLog(root)
+    got = log.suggestions("climate", names, records)
+    assert [s["issuer_id"] for s in got] == ["SYN07", "SYN09"]
+    assert got[0]["issues"] == [{"issue_id": records[0].issues[0].issue_id, "fir_theme": "climate_mitigation"}]
+    assert log.programme("climate")["members"] == []  # suggestions write nothing
+    log.change("climate", names, ["SYN09"], [], [], None, "T")
+    assert [s["issuer_id"] for s in log.suggestions("climate", names, records)] == ["SYN07"]
+    assert [s["issuer_id"] for s in log.suggestions("nature", names, records)] == ["SYN10"]
+    log.create("Water", "T")
+    assert log.suggestions("water", names, records) == []
+    assert client.get("/api/stewardship/programmes/climate/suggestions").json() == {"suggestions": []}
+
+
+def test_viewer_cannot_create_programme(tmp_path):
+    # AC-135
+    users = tmp_path / "users.json"
+    users.write_text(json.dumps({"users": [{"token": "tv", "user_id": "u", "name": "V", "role": "viewer"}]}))
+    app.dependency_overrides.clear()  # an autouse fixture signs everyone in
+    app.dependency_overrides[settings_dep] = lambda: Settings(users_file=users, auth_mode="local")
+    try:
+        r = TestClient(app).post("/api/stewardship/programmes", json={"name": "X"}, headers={"Authorization": "Bearer tv"})
+    finally:
+        app.dependency_overrides.clear()
+    assert r.status_code == 403
+
+
+# carried over from the code review of #451
+
+
+def test_selection_removes_a_company_that_left_the_universe(root):
+    # finding 1: only `add` ids are checked against the universe
+    log, today = worklist.SelectionLog(root), datetime.now(UTC).date()
+    q = worklist.cycle_of(today)
+    log.change(q, today, {"SYN01": "One"}, ["SYN01"], [], "T", 0)
+    log.change(q, today, {}, [], ["SYN01"], "T", 0)
+    assert log.rows(q) == []
+
+
+def test_selection_later_added_never_overwrites_a_confirmed_row(root):
+    # finding 2
+    log, q = worklist.SelectionLog(root), worklist.cycle_of(datetime.now(UTC).date())
+    path = root / "selection" / q / "house.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    e = {"issuer_id": "SYN01", "company": "One", "at": "2026-11-01", "weights_version": 0}
+    path.write_text("".join(json.dumps(x) + "\n" for x in [
+        {**e, "event": "added", "by": "a"}, {**e, "event": "confirmed", "by": "b"}, {**e, "event": "added", "by": "c"}
+    ]))  # fmt: skip
+    [row] = log.rows(q)
+    assert (row["status"], row["proposed_by"], row["confirmed_by"]) == ("confirmed", "a", "b")
+
+
+def test_preview_validates_before_building_rows_and_reads_ids_once(client, monkeypatch):
+    # finding 5
+    def boom(*a, **k):
+        raise AssertionError("rows built for invalid weights")
+
+    with monkeypatch.context() as m:
+        m.setattr(worklist, "house_rows", boom)
+        r = client.post("/api/stewardship/studio/priority/preview", json={"content": _v0_with(open_triggers=25)})
+    assert (r.status_code, r.json()["detail"]) == (422, "Weights must add up to 100 (now 95)")
+    calls = []
+    real = worklist.component_ids
+    monkeypatch.setattr(worklist, "component_ids", lambda: calls.append(1) or real())
+    rows = [{"issuer_id": f"C{i}", "company": f"C{i}", "normalised": {}} for i in range(5)]
+    worklist.preview(_v0_with(), _v0_with(), rows)
+    assert len(calls) == 1
+    worklist.build(get_settings().stewardship_streams_dir, _sample(), [])
+    assert len(calls) == 2

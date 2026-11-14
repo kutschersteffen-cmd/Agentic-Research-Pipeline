@@ -45,6 +45,12 @@ class Selection(BaseModel):
     weights_version: int
 
 
+class ProgrammeChip(BaseModel):
+    programme_id: str
+    name: str
+    status: Literal["proposed", "confirmed"]
+
+
 class WorklistRow(BaseModel):
     issuer_id: str
     company: str
@@ -65,6 +71,7 @@ class WorklistRow(BaseModel):
     score: float
     parts: list[ScorePart]
     selection: Selection | None
+    programmes: list[ProgrammeChip]
 
 
 class WorklistScope(BaseModel):
@@ -148,3 +155,60 @@ class PriorityPreview(BaseModel):
     entering_top: list[RankMove]
     leaving_top: list[RankMove]
     score_change: list[ScoreChange]
+
+
+class Programme(BaseModel):
+    programme_id: str
+    name: str
+    built_in: bool
+    created_by: str | None
+    created_at: str | None
+    confirmed: int
+    proposed: int
+
+
+class ProgrammeList(BaseModel):
+    programmes: list[Programme]
+
+
+class ProgrammeMember(BaseModel):
+    issuer_id: str
+    company: str
+    status: Literal["proposed", "confirmed", "ended"]
+    proposed_by: str
+    proposed_at: str
+    confirmed_by: str | None
+    confirmed_at: str | None
+    ended_by: str | None
+    ended_at: str | None
+    end_reason: str | None
+
+
+class ProgrammeDetail(Programme):
+    members: list[ProgrammeMember]
+
+
+class ProgrammeCreate(BaseModel):
+    name: str
+
+
+class ProgrammeMembersChange(BaseModel):
+    add: list[str] = []
+    remove: list[str] = []
+    end: list[str] = []
+    reason: str | None = None
+
+
+class SuggestedIssue(BaseModel):
+    issue_id: str
+    fir_theme: str
+
+
+class ProgrammeSuggestion(BaseModel):
+    issuer_id: str
+    company: str
+    issues: list[SuggestedIssue]
+
+
+class ProgrammeSuggestions(BaseModel):
+    suggestions: list[ProgrammeSuggestion]

@@ -11,6 +11,7 @@ policy `priority_weights` (versioned and four-eyes activated like every other ho
 
 The engagement selection is an append-only log per cycle (`selection/<cycle>/house.jsonl`): `added`, `removed`
 and `confirmed` events. It stores no score; selecting changes nothing in the rows but the `selection` field.
+Programme memberships (`programmes.py`) likewise change nothing but the `programmes` field.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from pathlib import Path
 from arp.schemas.engagement import CommitmentStatus, EngagementRecord, EscalationStage
 from arp.stewardship.policies import PolicyStore, component_ids, validate_weights
 from arp.stewardship.process import current_tiers
+from arp.stewardship.programmes import ProgrammeLog
 from arp.stewardship.tiers import TIERS, TierStore
 from arp.stewardship.tracking import OPEN
 from arp.stewardship.trigger_store import TriggerStore
@@ -160,11 +162,12 @@ def indicators(
     return rows
 
 
-def score(normalised: dict[str, float | None], weights: dict) -> tuple[float, list[dict]]:
-    """The score and its parts, in the bundled file's component order. A component a saved version lacks weighs 0."""
+def score(normalised: dict[str, float | None], weights: dict, ids: list[str] | None = None) -> tuple[float, list[dict]]:
+    """The score and its parts, in the bundled file's component order (`ids`: read it once per call, not per row).
+    A component a saved version lacks weighs 0."""
     by_id = {c["id"]: c["weight"] for c in weights["components"]}
     parts = []
-    for cid in component_ids():
+    for cid in ids or component_ids():
         value = normalised.get(cid)
         n = round(value, 4) if value is not None else 0.0
         w = by_id.get(cid, 0)
@@ -207,9 +210,12 @@ def build(
     activation = policies.activations(POLICY)[-1] if version else {}
     cycle = cycle_of(today)
     selection = {r["issuer_id"]: r for r in SelectionLog(root).rows(cycle)}
+    programmes = ProgrammeLog(root).memberships()
     rows = house_rows(root, sample, records, meetings or {}, observations or {}, today)
+    ids = component_ids()
     for row in rows:
-        row["score"], row["parts"] = score(row.pop("normalised"), weights)
+        row["score"], row["parts"] = score(row.pop("normalised"), weights, ids)
+        row["programmes"] = programmes.get(row["issuer_id"], [])
         sel = selection.get(row["issuer_id"])
         row["selection"] = {k: v for k, v in sel.items() if k not in ("issuer_id", "company")} if sel else None
     return {
@@ -223,11 +229,13 @@ def build(
 
 
 def preview(candidate: dict, active: dict, rows: list[dict]) -> dict:
-    """What candidate weights change against the active ones, on rows from `indicators()` (house scope)."""
+    """What candidate weights change against the active ones, on rows from `indicators()` (house scope). The route
+    validates the candidate before it builds the rows too, so a bad candidate costs no store reads."""
     validate_weights(candidate)
     names = {r["issuer_id"]: r["company"] for r in rows}
-    old = {r["issuer_id"]: score(r["normalised"], active)[0] for r in rows}
-    new = {r["issuer_id"]: score(r["normalised"], candidate)[0] for r in rows}
+    ids = component_ids()
+    old = {r["issuer_id"]: score(r["normalised"], active, ids)[0] for r in rows}
+    new = {r["issuer_id"]: score(r["normalised"], candidate, ids)[0] for r in rows}
     rank_old, rank_new = ranks(old), ranks(new)
 
     def top(scores: dict, rank: dict) -> list[dict]:
@@ -271,7 +279,7 @@ class SelectionLog:
         folded: dict[str, dict] = {}
         for e in read_jsonl(self._path(cycle)):
             iid = e["issuer_id"]
-            if e["event"] == "added":
+            if e["event"] == "added" and iid not in folded:  # a later `added` never overwrites a row
                 folded[iid] = {
                     "issuer_id": iid, "company": e.get("company", iid), "status": "proposed",
                     "proposed_by": e["by"], "proposed_at": e["at"], "confirmed_by": None, "confirmed_at": None,
@@ -292,7 +300,7 @@ class SelectionLog:
             self._change(cycle, names, add, remove, by, weights_version)
 
     def _change(self, cycle: str, names: dict[str, str], add: list[str], remove: list[str], by: str, weights_version: int) -> None:
-        if unknown := [i for i in dict.fromkeys(add + remove) if i not in names]:
+        if unknown := [i for i in dict.fromkeys(add) if i not in names]:  # a company that left can still be removed
             raise ValueError(f"unknown company: {', '.join(unknown)}")
         state = {r["issuer_id"]: r["status"] for r in self.rows(cycle)}
         if any(state.get(i) == "confirmed" for i in remove):

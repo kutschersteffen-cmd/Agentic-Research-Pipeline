@@ -15549,6 +15549,365 @@
     "title": "ProgramRequest",
     "type": "object"
    },
+   "Programme": {
+    "properties": {
+     "built_in": {
+      "title": "Built In",
+      "type": "boolean"
+     },
+     "confirmed": {
+      "title": "Confirmed",
+      "type": "integer"
+     },
+     "created_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created At"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "programme_id": {
+      "title": "Programme Id",
+      "type": "string"
+     },
+     "proposed": {
+      "title": "Proposed",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "programme_id",
+     "name",
+     "built_in",
+     "created_by",
+     "created_at",
+     "confirmed",
+     "proposed"
+    ],
+    "title": "Programme",
+    "type": "object"
+   },
+   "ProgrammeChip": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "programme_id": {
+      "title": "Programme Id",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "proposed",
+       "confirmed"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "programme_id",
+     "name",
+     "status"
+    ],
+    "title": "ProgrammeChip",
+    "type": "object"
+   },
+   "ProgrammeCreate": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "ProgrammeCreate",
+    "type": "object"
+   },
+   "ProgrammeDetail": {
+    "properties": {
+     "built_in": {
+      "title": "Built In",
+      "type": "boolean"
+     },
+     "confirmed": {
+      "title": "Confirmed",
+      "type": "integer"
+     },
+     "created_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created At"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By"
+     },
+     "members": {
+      "items": {
+       "$ref": "#/components/schemas/ProgrammeMember"
+      },
+      "title": "Members",
+      "type": "array"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "programme_id": {
+      "title": "Programme Id",
+      "type": "string"
+     },
+     "proposed": {
+      "title": "Proposed",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "programme_id",
+     "name",
+     "built_in",
+     "created_by",
+     "created_at",
+     "confirmed",
+     "proposed",
+     "members"
+    ],
+    "title": "ProgrammeDetail",
+    "type": "object"
+   },
+   "ProgrammeList": {
+    "properties": {
+     "programmes": {
+      "items": {
+       "$ref": "#/components/schemas/Programme"
+      },
+      "title": "Programmes",
+      "type": "array"
+     }
+    },
+    "required": [
+     "programmes"
+    ],
+    "title": "ProgrammeList",
+    "type": "object"
+   },
+   "ProgrammeMember": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "confirmed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed At"
+     },
+     "confirmed_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed By"
+     },
+     "end_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "End Reason"
+     },
+     "ended_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ended At"
+     },
+     "ended_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ended By"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "proposed_at": {
+      "title": "Proposed At",
+      "type": "string"
+     },
+     "proposed_by": {
+      "title": "Proposed By",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "proposed",
+       "confirmed",
+       "ended"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "status",
+     "proposed_by",
+     "proposed_at",
+     "confirmed_by",
+     "confirmed_at",
+     "ended_by",
+     "ended_at",
+     "end_reason"
+    ],
+    "title": "ProgrammeMember",
+    "type": "object"
+   },
+   "ProgrammeMembersChange": {
+    "properties": {
+     "add": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Add",
+      "type": "array"
+     },
+     "end": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "End",
+      "type": "array"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "remove": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Remove",
+      "type": "array"
+     }
+    },
+    "title": "ProgrammeMembersChange",
+    "type": "object"
+   },
+   "ProgrammeSuggestion": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "issues": {
+      "items": {
+       "$ref": "#/components/schemas/SuggestedIssue"
+      },
+      "title": "Issues",
+      "type": "array"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "issues"
+    ],
+    "title": "ProgrammeSuggestion",
+    "type": "object"
+   },
+   "ProgrammeSuggestions": {
+    "properties": {
+     "suggestions": {
+      "items": {
+       "$ref": "#/components/schemas/ProgrammeSuggestion"
+      },
+      "title": "Suggestions",
+      "type": "array"
+     }
+    },
+    "required": [
+     "suggestions"
+    ],
+    "title": "ProgrammeSuggestions",
+    "type": "object"
+   },
    "Project": {
     "properties": {
      "created_at": {
@@ -22054,6 +22413,24 @@
     "title": "SuggestMappingResponse",
     "type": "object"
    },
+   "SuggestedIssue": {
+    "properties": {
+     "fir_theme": {
+      "title": "Fir Theme",
+      "type": "string"
+     },
+     "issue_id": {
+      "title": "Issue Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "issue_id",
+     "fir_theme"
+    ],
+    "title": "SuggestedIssue",
+    "type": "object"
+   },
    "TableRef": {
     "properties": {
      "caption": {
@@ -25441,6 +25818,13 @@
       "title": "Parts",
       "type": "array"
      },
+     "programmes": {
+      "items": {
+       "$ref": "#/components/schemas/ProgrammeChip"
+      },
+      "title": "Programmes",
+      "type": "array"
+     },
      "score": {
       "title": "Score",
       "type": "number"
@@ -25492,7 +25876,8 @@
      "carbon_intensity",
      "score",
      "parts",
-     "selection"
+     "selection",
+     "programmes"
     ],
     "title": "WorklistRow",
     "type": "object"
@@ -41789,6 +42174,250 @@
      }
     },
     "summary": "Get Policy Version",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/programmes": {
+   "get": {
+    "description": "Every engagement programme with its member counts, the four built-in ones first.",
+    "operationId": "get_programmes_api_stewardship_programmes_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProgrammeList"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Programmes",
+    "tags": [
+     "stewardship"
+    ]
+   },
+   "post": {
+    "description": "A new programme by name; its id is the name lower-cased with runs of other characters as `_`.",
+    "operationId": "post_programme_api_stewardship_programmes_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProgrammeCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Programme"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Programme",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/programmes/{programme_id}": {
+   "get": {
+    "description": "The programme and every member it had, ended ones included.",
+    "operationId": "get_programme_api_stewardship_programmes__programme_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "programme_id",
+      "required": true,
+      "schema": {
+       "title": "Programme Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProgrammeDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Programme",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/programmes/{programme_id}/confirm": {
+   "post": {
+    "description": "Every proposed member becomes confirmed, recorded as the signed-in user.",
+    "operationId": "post_programme_confirm_api_stewardship_programmes__programme_id__confirm_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "programme_id",
+      "required": true,
+      "schema": {
+       "title": "Programme Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Confirmed"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Programme Confirm",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/programmes/{programme_id}/members": {
+   "post": {
+    "description": "Proposes companies, drops proposed ones and ends confirmed ones (with a reason).",
+    "operationId": "post_programme_members_api_stewardship_programmes__programme_id__members_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "programme_id",
+      "required": true,
+      "schema": {
+       "title": "Programme Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProgrammeMembersChange"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProgrammeDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Programme Members",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/programmes/{programme_id}/suggestions": {
+   "get": {
+    "description": "Companies with an open or stalled issue on the programme's theme that are not members yet. Writes nothing.",
+    "operationId": "get_programme_suggestions_api_stewardship_programmes__programme_id__suggestions_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "programme_id",
+      "required": true,
+      "schema": {
+       "title": "Programme Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProgrammeSuggestions"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Programme Suggestions",
     "tags": [
      "stewardship"
     ]
