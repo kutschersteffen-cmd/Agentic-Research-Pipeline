@@ -36,6 +36,12 @@ The owner answered these with buttons in this spec session, 14 Nov 2026:
    nature sector, and "an engagement is open".
 6. The engager roles `lead`, `active_support` and `passive_support` are removed. Only `bilateral` stays (or no role).
 
+The owner answered this with buttons on PR #461, 14 Nov 2026:
+
+7. Exception to workbench AC-143: `test_stewardship_program.py::test_client_escalation_to_the_vote_step_becomes_an_expected_sanction`
+   changes only its Given (SYN10 confirmed `monitor` before simulating) and keeps its assertion, because the deleted
+   Thematic cap was what kept the house below the client's climate cap.
+
 ## Why
 
 The house does not run collaborative engagements. The current tier model contains a whole tier for that work
