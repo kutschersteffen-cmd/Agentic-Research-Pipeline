@@ -148,7 +148,7 @@ and the form of stewardship the issuer receives. It is a property of the
 | Tier | Form of engagement | Engagements it creates | Max escalation step (default) |
 |---|---|---|---|
 | Bilateral | The house's own dialogue with the company | One per issuer × theme, `mode = bilateral` | Full ladder, up to a public statement |
-| Letter | The standard expectations letter plus the voting policy | One per baseline Initiative, `mode = baseline` | Vote against management; anything beyond means promotion to Bilateral |
+| Letter | The standard expectations letter plus the voting policy | One per baseline Initiative, `mode = letter` | Vote against management; anything beyond means promotion to Bilateral |
 | Monitor | Voting and monitoring only, with no company-specific escalation | None at issuer level | Private engagement (no company-specific escalation) |
 
 The caps are proposed defaults and are configuration. Reaching a tier's cap is itself a trigger to
@@ -174,15 +174,15 @@ has no single issuer.
 | Field | Type | Notes |
 |---|---|---|
 | initiative_id | PK | |
-| type | enum | collaborative \| baseline_campaign \| market_level |
+| type | enum | baseline_campaign \| market_level |
 | theme_id | FK → Theme | |
-| name, partners, started_at, status | | `partners` for collaborative initiatives (e.g. other investors). |
+| name, partners, started_at, status | | |
 
 #### Escalation ladder
 Within an engagement, escalation moves along a ladder of steps. The default is the
-7-step ladder: private engagement → joint engagement → written escalation to the
-board → escalation to the chair → **vote against management** → file or co-file a
-resolution → public statement. The steps are configuration, and the issuer's tier
+6-step ladder: private engagement → written escalation to the board → escalation to
+the chair → **vote against management** → file or co-file a resolution → public
+statement. The steps are configuration, and the issuer's tier
 caps how far an engagement can go (table above).
 
 #### Engagement
@@ -192,8 +192,8 @@ caps how far an engagement can go (table above).
 | engagement_id | PK, string | One per issuer × theme dialogue. |
 | issuer_id | FK → Issuer | 1 : N. |
 | theme_id | FK → Theme | |
-| mode | enum | bilateral \| collaborative \| baseline, set by the issuer's tier. |
-| initiative_id | FK → Initiative, nullable | For collaborative and baseline engagements. |
+| mode | enum | bilateral \| letter, set by the issuer's tier (letter engagements are the baseline ones). |
+| initiative_id | FK → Initiative, nullable | For letter (baseline) engagements. |
 | escalation_step | int | Position on the ladder. Written only through Escalation Change. |
 | status, milestone | enum | open \| stalled \| resolved \| closed; the milestone ladder (progress of the dialogue itself) is configuration. |
 | opened_by_trigger_id | FK → Trigger Event | Why it exists. |
@@ -1348,7 +1348,7 @@ resulting tier changes into the stage 5 queue.
   [`house_escalation_policy.graph.json`](../backend/arp/stewardship/data/house_escalation_policy.graph.json),
   with two chained decision tables (both hit policy *first*):
   - `tier_caps`: the highest ladder step per coverage tier (Part 1 defaults:
-    Bilateral 6 public statement, Letter 4 vote against management, Monitor 0
+    Bilateral 5 public statement, Letter 3 vote against management, Monitor 0
     private engagement). An issuer without a tier
     is not capped.
   - `escalation_rules`: how many steps up (`escalate_by`), with rule and reason.

@@ -33,7 +33,7 @@
         "outputs": [
           {
             "id": "m",
-            "name": "Max escalation step (0-6)",
+            "name": "Max escalation step (0-5)",
             "field": "tier.max_step"
           }
         ],
@@ -42,13 +42,13 @@
             "_id": "bilateral",
             "_description": "Full ladder, up to a public statement",
             "t": "'bilateral'",
-            "m": "6"
+            "m": "5"
           },
           {
             "_id": "letter",
             "_description": "Up to a vote against management; beyond means promotion to Bilateral",
             "t": "'letter'",
-            "m": "4"
+            "m": "3"
           },
           {
             "_id": "monitor",
@@ -60,7 +60,7 @@
             "_id": "no_tier",
             "_description": "No tier yet: not capped; the tier is assigned at stage 2.",
             "t": "",
-            "m": "6"
+            "m": "5"
           }
         ]
       }

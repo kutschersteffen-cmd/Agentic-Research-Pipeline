@@ -59,9 +59,9 @@ def test_set_milestone_stage_appends_history(store):
 
 def test_set_escalation_stage_requires_decided_by_and_logs_it(store):
     _record, issue = store.open_issue("C1", "Acme Corp", theme="climate", source=TriggerSource.MANUAL)
-    record = store.set_escalation_stage("C1", issue.issue_id, EscalationStage.JOINT_ENGAGEMENT, "jane.pm", reason="No response after 60 days.")
+    record = store.set_escalation_stage("C1", issue.issue_id, EscalationStage.WRITTEN_ESCALATION_TO_BOARD, "jane.pm", reason="No response after 60 days.")
     updated = record.issues[0]
-    assert updated.escalation_stage == EscalationStage.JOINT_ENGAGEMENT
+    assert updated.escalation_stage == EscalationStage.WRITTEN_ESCALATION_TO_BOARD
     assert updated.escalation_history[0].decided_by == "jane.pm"
 
 
@@ -84,7 +84,7 @@ def test_update_commitment_status_unknown_commitment_raises(store):
 def test_events_log_is_append_only_audit_trail(store):
     _record, issue = store.open_issue("C1", "Acme Corp", theme="climate", source=TriggerSource.MANUAL)
     store.set_milestone_stage("C1", issue.issue_id, MilestoneStage.CONTACTED)
-    store.set_escalation_stage("C1", issue.issue_id, EscalationStage.JOINT_ENGAGEMENT, "jane.pm")
+    store.set_escalation_stage("C1", issue.issue_id, EscalationStage.WRITTEN_ESCALATION_TO_BOARD, "jane.pm")
 
     events = store.events("C1")
     event_types = [e["event_type"] for e in events]

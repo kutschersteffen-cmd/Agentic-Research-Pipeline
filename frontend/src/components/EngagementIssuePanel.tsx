@@ -17,7 +17,6 @@ import type {
 
 const ESCALATION_STAGES: EscalationStage[] = [
   "private_engagement",
-  "joint_engagement",
   "written_escalation_to_board",
   "escalation_to_chair",
   "vote_against_management",
@@ -27,7 +26,7 @@ const ESCALATION_STAGES: EscalationStage[] = [
 
 function escalationClass(stage: string): string {
   const idx = ESCALATION_STAGES.indexOf(stage as EscalationStage);
-  if (idx >= 4) return "stage-pill escalation-high";
+  if (idx >= 3) return "stage-pill escalation-high";
   if (idx >= 1) return "stage-pill escalation-mid";
   return "stage-pill escalation-low";
 }

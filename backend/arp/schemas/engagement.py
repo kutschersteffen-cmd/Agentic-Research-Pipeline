@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from arp.schemas.common import Citation, new_id, now_iso
 
@@ -33,14 +33,13 @@ MILESTONE_ORDER: list[MilestoneStage] = [
 
 
 class EscalationStage(StrEnum):
-    """Illustrative 7-step escalation ladder. Stage 5+ overlaps with the
+    """Illustrative 6-step escalation ladder. Stage 4+ overlaps with the
     voting module: a decision to reach PRIVATE_ENGAGEMENT..ESCALATION_TO_CHAIR
     stays inside the engagement workflow, but VOTE_AGAINST_MANAGEMENT and
     beyond are the same decision the voting module's Policy Application
     Agent checks for alignment against (see arp.voting.policy_agent)."""
 
     PRIVATE_ENGAGEMENT = "private_engagement"
-    JOINT_ENGAGEMENT = "joint_engagement"
     WRITTEN_ESCALATION_TO_BOARD = "written_escalation_to_board"
     ESCALATION_TO_CHAIR = "escalation_to_chair"
     VOTE_AGAINST_MANAGEMENT = "vote_against_management"
@@ -48,9 +47,17 @@ class EscalationStage(StrEnum):
     PUBLIC_STATEMENT = "public_statement"
 
 
+# Mapping on read: stored values of the removed step and roles, never rewritten (spec stewardship-three-tiers).
+_OLD_STAGES = {"joint_engagement": "private_engagement"}
+_OLD_ROLES = {"lead", "active_support", "passive_support"}
+
+
+def _map_stage(v):
+    return _OLD_STAGES.get(v, v) if isinstance(v, str) else v
+
+
 ESCALATION_ORDER: list[EscalationStage] = [
     EscalationStage.PRIVATE_ENGAGEMENT,
-    EscalationStage.JOINT_ENGAGEMENT,
     EscalationStage.WRITTEN_ESCALATION_TO_BOARD,
     EscalationStage.ESCALATION_TO_CHAIR,
     EscalationStage.VOTE_AGAINST_MANAGEMENT,
@@ -157,9 +164,6 @@ class EsgPillar(StrEnum):
 
 class EngagerRole(StrEnum):
     BILATERAL = "bilateral"
-    LEAD = "lead"
-    ACTIVE_SUPPORT = "active_support"
-    PASSIVE_SUPPORT = "passive_support"
 
 
 class ObjectiveType(StrEnum):
@@ -268,6 +272,8 @@ class EscalationTransition(BaseModel):
     decided_by: str
     reason: str = ""
 
+    _old_stage = field_validator("stage", mode="before")(_map_stage)
+
 
 class EngagementIssue(BaseModel):
     """One engagement thread on a company -- a company can have several
@@ -294,6 +300,13 @@ class EngagementIssue(BaseModel):
     engager_role: EngagerRole | None = None  # None = not yet a VOICE engagement (owner decision 13 Nov 2026)
     objectives: list[Objective] = Field(default_factory=list)
     data_source: str = "app"  # `source` is taken by TriggerSource
+
+    _old_stage = field_validator("escalation_stage", mode="before")(_map_stage)
+
+    @field_validator("engager_role", mode="before")
+    @classmethod
+    def _old_role(cls, v):
+        return None if v in _OLD_ROLES else v
 
 
 class EngagementRecord(BaseModel):

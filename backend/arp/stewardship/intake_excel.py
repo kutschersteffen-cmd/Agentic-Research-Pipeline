@@ -22,7 +22,6 @@ _LISTS: dict[str, type[StrEnum]] = {
 }  # fmt: skip
 _LABELS = {  # value -> label, from the spec's "VOICE option lists"; lists without labels get no label column
     "fir_theme": {m.value: t for m, t in e.FIR_THEME_LABELS.items()},
-    "engager_role": {"lead": "Lead, Co-Lead or equivalent", "passive_support": "Passive support, Signatory"},
     "receptiveness": {"refusal": "Refusal/Blockage"},
     "influence_level": {
         "1": "No influence", "2": "Not demonstrable", "3": "Probable", "4A": "Very likely, converging clues",

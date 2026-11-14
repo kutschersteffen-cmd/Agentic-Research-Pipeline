@@ -38,7 +38,7 @@
         "outputs": [
           {
             "id": "m",
-            "name": "Max escalation step (0-6)",
+            "name": "Max escalation step (0-5)",
             "field": "tier.max_step"
           }
         ],
@@ -46,7 +46,7 @@
           {
             "_id": "climate_to_vote",
             "_description": "Climate engagements may reach a vote against management, whatever the tier.",
-            "m": "max([house.max_step, 4])",
+            "m": "max([house.max_step, 3])",
             "th": "'climate_transition'",
             "t": ""
           },

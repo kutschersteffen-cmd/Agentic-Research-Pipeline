@@ -128,9 +128,9 @@ def test_overdue_commitment_counts_until_the_issue_closes(client):
 
 
 def test_escalated_issue(client):
-    # AC-7, AC-35, AC-36
+    # AC-140, AC-141, AC-142 (they replace AC-7, AC-35, AC-36: joint_engagement is gone)
     issue = _issue(client, "SYN06")
-    r = client.post(f"/api/engagement/records/SYN06/issues/{issue}/escalate", json={"stage": "joint_engagement"})
+    r = client.post(f"/api/engagement/records/SYN06/issues/{issue}/escalate", json={"stage": "written_escalation_to_board"})
     assert r.status_code == 200, r.text
     row = _rows(client)["SYN06"]
     assert (row["escalated"], row["open_engagements"], _part(row, "escalated")["points"]) == (1, 1, 10.0)

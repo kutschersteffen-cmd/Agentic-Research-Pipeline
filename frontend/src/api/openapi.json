@@ -9826,10 +9826,9 @@
     "type": "object"
    },
    "EscalationStage": {
-    "description": "Illustrative 7-step escalation ladder. Stage 5+ overlaps with the\nvoting module: a decision to reach PRIVATE_ENGAGEMENT..ESCALATION_TO_CHAIR\nstays inside the engagement workflow, but VOTE_AGAINST_MANAGEMENT and\nbeyond are the same decision the voting module's Policy Application\nAgent checks for alignment against (see arp.voting.policy_agent).",
+    "description": "Illustrative 6-step escalation ladder. Stage 4+ overlaps with the\nvoting module: a decision to reach PRIVATE_ENGAGEMENT..ESCALATION_TO_CHAIR\nstays inside the engagement workflow, but VOTE_AGAINST_MANAGEMENT and\nbeyond are the same decision the voting module's Policy Application\nAgent checks for alignment against (see arp.voting.policy_agent).",
     "enum": [
      "private_engagement",
-     "joint_engagement",
      "written_escalation_to_board",
      "escalation_to_chair",
      "vote_against_management",
