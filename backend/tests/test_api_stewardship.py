@@ -70,3 +70,16 @@ def test_invalid_decision_is_rejected(streams):
 def test_stream_ids_cannot_escape_the_directory(streams):
     with pytest.raises(ValueError):
         streams.get("../../etc")
+
+
+def test_approved_program_versions_read_old_tier_keys_as_the_new_ones(streams, tmp_path):
+    # AC-19: mapped on read, the stored stream is not rewritten
+    from arp.api.routers.stewardship import get_program
+    from arp.config import Settings
+
+    stream = streams.get(create_stream(CreateStreamRequest(name="client-s"), streams)["stream_id"])
+    target = {"issuer_id": "SYN01", "company": "Synthetic Company 01", "theme": "climate_transition", "tier": "scaled_baseline"}
+    streams.save({**stream, "program_versions": [{"version": 1, "params": {}, "targets": [target], "kpis": {}}]})
+    got = get_program(stream["stream_id"], Settings(), streams, EngagementStore(tmp_path / "e"))
+    assert [t["tier"] for t in got["versions"][0]["targets"]] == ["letter"]
+    assert streams.get(stream["stream_id"])["program_versions"][0]["targets"][0]["tier"] == "scaled_baseline"
