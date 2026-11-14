@@ -11,6 +11,9 @@ from arp.db import models as m
 from arp.db.session import transaction
 
 REFINE_TURN_TIMEOUT_MIN = 10
+REFINE_HISTORY_TURNS = 5
+REFINE_MAX_QUESTIONS = 400
+REFINE_ANSWER_PREVIEW_CHARS = 300
 
 
 class TurnBusy(Exception):
@@ -31,8 +34,8 @@ def start_turn(kind: str, doc_id: str, user_id: str, message: str) -> int:
 
 
 def save_progress(turn_id: int, *, done: int | None = None, total: int | None = None, result: dict | None = None,
-                  before: dict | None = None, after: dict | None = None) -> None:
-    fields = {"done": done, "total": total, "result": result, "before": before, "after": after}
+                  before: dict | None = None, after: dict | None = None, ops: list | None = None) -> None:
+    fields = {"done": done, "total": total, "result": result, "before": before, "after": after, "ops": ops}
     fields = {k: v for k, v in fields.items() if v is not None}
     if fields:
         with transaction() as s:
