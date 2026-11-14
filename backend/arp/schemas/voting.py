@@ -5,6 +5,7 @@ from enum import StrEnum
 from pydantic import BaseModel, Field
 
 from arp.schemas.common import Citation, new_id, now_iso
+from arp.schemas.engagement import WatchFlag
 
 
 class ProposalType(StrEnum):
@@ -92,3 +93,4 @@ class CompanyBallot(BaseModel):
     meeting_date: str | None = None
     votes: list[VoteRecord] = Field(default_factory=list)
     generated_at: str = Field(default_factory=now_iso)
+    watch_flags: list[WatchFlag] = Field(default_factory=list)  # filled when the ballots are read, not when the run ran
