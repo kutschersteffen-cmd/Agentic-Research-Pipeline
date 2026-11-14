@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import openpyxl
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 
 from arp.db.company_view import resolve_ref
 from arp.db.session import transaction
@@ -25,6 +25,7 @@ from arp.storage.postgres_models import (
     StwEventModel,
     StwObjectiveModel,
     StwTransitionModel,
+    VoteMeetingModel,
 )
 
 SOURCE = "mock_voice_seed"
@@ -185,11 +186,29 @@ def _purge(s, prefix: str) -> None:
     stale = s.scalar(select(StwEngagementModel.engagement_id).where(StwEngagementModel.source == SOURCE, ~StwEngagementModel.external_id.startswith(prefix)).limit(1))
     if stale is None:
         return
+    demo_eng = select(StwEngagementModel.engagement_id).where(StwEngagementModel.source == SOURCE)
+    demo_obj = select(StwObjectiveModel.objective_id).where(StwObjectiveModel.source == SOURCE)
+    foreign = {}  # rows of other sources attached to demo engagements or objectives would break the FKs
+    for model in (StwObjectiveModel, StwActivityModel, StwCommitmentModel, StwTransitionModel):
+        attached = model.engagement_id.in_(demo_eng)
+        if hasattr(model, "objective_id"):
+            attached = attached | model.objective_id.in_(demo_obj)
+        n = s.scalar(select(func.count()).select_from(model).where(model.source != SOURCE, attached))
+        if n:
+            foreign[model.__tablename__] = n
+    if foreign:
+        print(
+            f"cannot replace the demo seed: {sum(foreign.values())} rows from other sources are attached to demo "
+            f"engagements ({', '.join(f'{t}: {n}' for t, n in foreign.items())}); re-run with --seed <current> "
+            "or remove them first",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
     for model in (StwActivityModel, StwObjectiveModel, StwCommitmentModel, StwTransitionModel, StwEngagementModel, StwEventModel):
         if model is StwObjectiveModel:  # follows_objective_id points at objectives of the same source
             s.query(model).filter(model.source == SOURCE).update({"follows_objective_id": None})
         s.execute(delete(model).where(model.source == SOURCE))
-    used = select(StwEngagementModel.company_id).union(select(StwContactModel.company_id))
+    used = select(StwEngagementModel.company_id).union(select(StwContactModel.company_id), select(VoteMeetingModel.company_id).where(VoteMeetingModel.company_id.is_not(None)))  # NOT IN fails on NULLs
     s.execute(delete(StwCompanyModel).where(StwCompanyModel.source == SOURCE, StwCompanyModel.company_id.not_in(used)))
 
 

@@ -350,7 +350,7 @@ def _house_stages(
                 "label": "Most frequent reasons to vote against",
                 "rows": [{"issue": i, "resolutions": n} for i, n in deciders.most_common(6)],
             },
-            {"label": VOTES_DECIDED, "rows": [_vote_row(v) for v in decided]},
+            {"label": VOTES_DECIDED, "rows": [_vote_row(v) for v in decided if v.get("run_id")]},
         ],
     )
     tier_changes = tiers["changes"]

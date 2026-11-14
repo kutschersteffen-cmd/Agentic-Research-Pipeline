@@ -7,6 +7,8 @@ from datetime import timedelta
 
 from sqlalchemy import func, select
 
+from arp.db import models as m
+from arp.db.company_view import resolve_ref
 from arp.db.session import transaction
 from arp.storage.postgres_models import VoteDecisionModel, VoteItemModel, VoteMeetingModel
 
@@ -24,9 +26,28 @@ def ledger_rows(dsn: str, window_days: int) -> list[dict]:
             .where(VoteMeetingModel.meeting_date >= newest - timedelta(days=window_days))
         )
         rows = []
+        by_isin: dict[str, str] = {}  # one registry lookup per distinct ISIN
+        house: dict[str, str] | None = None
         for meeting, item, d in s.execute(q):
-            # the FK to stw_companies is set only for a known company; a meeting with an ISIN is the showcase issuer
-            company_id = meeting.company_id or (f"isin_{meeting.isin}" if meeting.isin else None)
+            # the FK to stw_companies is set only for a known company; else the registry's universe id for the ISIN,
+            # else the showcase issuer `isin_<ISIN>`
+            company_id = meeting.company_id
+            if company_id is None and meeting.isin:
+                if meeting.isin not in by_isin:
+                    uid = resolve_ref(s, f"ISIN:{meeting.isin}")
+                    value = uid and s.scalars(
+                        select(m.CompanyIdentifier.value).where(
+                            m.CompanyIdentifier.company_id == uid,
+                            m.CompanyIdentifier.scheme == m.IdScheme.UNIVERSE,
+                            m.CompanyIdentifier.valid_to.is_(None),
+                        )
+                    ).first()
+                    if value and house is None:  # the registry upper-cases UNIVERSE values; issuer ids keep their case
+                        from arp.stewardship.process import house_universe
+
+                        house = {i["issuer_id"].upper(): i["issuer_id"] for i in house_universe()["issuers"]}
+                    by_isin[meeting.isin] = house.get(value.upper(), value) if value else f"isin_{meeting.isin}"
+                company_id = by_isin[meeting.isin]
             if company_id is None:
                 continue
             rows.append(

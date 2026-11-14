@@ -235,8 +235,8 @@ export function EngagementIssuePanel({
       {objectives.length > 0 && (
         <div className="panel-section">
           <h3>Objectives</h3>
-          {objectives.map((o, i) => (
-            <div className="activity-row" key={i}>
+          {objectives.map((o) => (
+            <div className="activity-row" key={o.id}>
               <div className="activity-main">
                 {o.description}
                 <div className="activity-meta">

@@ -83,3 +83,16 @@ def test_null_against_counts_decided_only(tmp_path, pg):
     assert row["against_management"] is False
     fields = voting_feed.issuer_fields([row])[row["company_id"]]
     assert (fields["vote.decided"], fields["vote.against_management"]) == (1, 0)
+
+
+def test_isin_registered_under_a_universe_id_gives_that_id(tmp_path, pg, monkeypatch):
+    from arp.db.companies import resolve_company
+    from arp.schemas.common import CompanyRef
+
+    issuer = {**process.house_universe()["issuers"][0], "issuer_id": "SgFr01"}
+    monkeypatch.setattr(process, "house_universe", lambda: {"issuers": [issuer]})
+    with transaction(pg) as s:
+        resolve_company(s, CompanyRef(company_id="SgFr01", name="Societe Generale", isin="FR0000130809"))
+    _load(tmp_path, pg, lines=[1])  # stw_companies is empty: the meeting has no company_id
+    [row] = ledger_rows(pg, 365)
+    assert row["company_id"] == "SgFr01"

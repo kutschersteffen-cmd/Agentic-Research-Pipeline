@@ -33,6 +33,7 @@ export function unlistedText(count: number, ids: string[]): string {
 const DEMO_SOURCES = ["mock_voice_seed", "npx_urth_demo"];
 
 export interface ObjectiveRow {
+  id: string;
   description: string;
   type: string;
   status: string;
@@ -44,10 +45,11 @@ export interface ObjectiveRow {
 export function objectiveRows(issue: Pick<EngagementIssue, "objectives" | "data_source">): ObjectiveRow[] {
   const label = (v: string) => v.replace(/_/g, " ");
   return (issue.objectives ?? []).map((o) => ({
+    id: o.objective_id,
     description: o.description,
     type: label(o.objective_type),
     status: label(o.status),
-    result: o.result ? label(o.result) : "—",
+    result: o.result ? label(o.result) : "not yet",
     demo: DEMO_SOURCES.includes(issue.data_source ?? "") || DEMO_SOURCES.includes(o.source),
   }));
 }

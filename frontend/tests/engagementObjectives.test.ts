@@ -13,9 +13,9 @@ test("no objectives gives no rows", () => {
   assert.deepEqual(objectiveRows({ objectives: [] }), []);
 });
 
-test("row carries description, type, status and a dash for an open result", () => {
+test("row carries description, type, status and the words not yet for an open result", () => {
   assert.deepEqual(objectiveRows({ objectives: [obj()], data_source: "app" }), [
-    { description: "Publish a TCFD report", type: "transparency", status: "in progress", result: "—", demo: false },
+    { id: "obj_1", description: "Publish a TCFD report", type: "transparency", status: "in progress", result: "not yet", demo: false },
   ]);
 });
 

@@ -1,4 +1,5 @@
 import collections
+from pathlib import Path
 
 import pytest
 from sqlalchemy import func, select
@@ -14,6 +15,8 @@ from arp.storage.postgres_models import (
     StwEngagementModel,
     StwEventModel,
     StwObjectiveModel,
+    StwTransitionModel,
+    VoteMeetingModel,
 )
 
 TABLES = (StwCompanyModel, StwEngagementModel, StwObjectiveModel, StwActivityModel, StwEventModel)
@@ -147,3 +150,29 @@ def test_full_400(pg):
     before = _counts(pg)
     seed_demo(pg)
     assert _counts(pg) == before
+
+
+def test_other_seed_keeps_company_of_a_loaded_meeting(seeded, tmp_path, monkeypatch):
+    from arp.stewardship.npx_load import load_npx
+
+    src = (Path(__file__).parent / "fixtures" / "npx" / "fixture.csv").read_text(encoding="utf-8").splitlines()
+    rows = [src[0]] + [line.replace("FR0000130809", "US0378331005") for line in src[1:3]]
+    (tmp_path / "apple.csv").write_text("\n".join(rows) + "\n", encoding="utf-8")
+    load_npx(tmp_path, seeded)
+    with transaction(seeded) as s:
+        assert s.scalars(select(VoteMeetingModel.company_id)).all() == ["isin_US0378331005"]
+    seed_demo(seeded, n=20, seed=8)
+    with transaction(seeded) as s:
+        assert s.scalars(select(VoteMeetingModel.company_id)).all() == ["isin_US0378331005"]
+
+
+def test_other_seed_refuses_when_other_source_rows_hang_on_demo_engagements(seeded, capsys):
+    with transaction(seeded) as s:
+        eng = s.scalars(select(StwEngagementModel.engagement_id).limit(1)).one()
+        s.add(StwTransitionModel(transition_id="t_app_1", source="app", engagement_id=eng, kind="milestone"))
+    before = _counts(seeded)
+    with pytest.raises(SystemExit) as e:
+        seed_demo(seeded, n=20, seed=8)
+    assert e.value.code == 1
+    assert "stw_transitions: 1" in capsys.readouterr().err
+    assert _counts(seeded) == before
