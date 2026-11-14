@@ -1,7 +1,7 @@
 # Refine chat (stage 1): edit an RFP response or a deck by chatting, with a live view
 
 Date: 2026-11-14
-Status: draft, waiting for owner approval
+Status: approved by the owner, 2026-11-14 (description and acceptance table)
 Owner decisions on 2026-11-14:
 
 - One chat page, not the Plans page and not a drawer in the existing pages.
