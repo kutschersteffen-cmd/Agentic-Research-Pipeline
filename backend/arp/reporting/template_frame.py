@@ -110,3 +110,16 @@ def extract_frame(prs, layout_name: str | None, font_families: set[str]) -> tupl
         layout_name=layout.name, headline=_box(prs, title), subheading=_box(prs, sub), body=_box(prs, body),
         headline_font=head_font, subheading_font=sub_font, body_font_family=body_family,
     ), None
+
+
+def frame_preview_html(frame: TemplateFrame) -> str:
+    """One 1920x1080 slide with the frame's three boxes outlined and labelled, for checking an upload."""
+    boxes = "".join(
+        f'<div style="position:absolute;left:{b.x:g}px;top:{b.y:g}px;width:{b.w:g}px;height:{b.h:g}px;'
+        f'border:3px dashed #ea4c14;box-sizing:border-box;font:600 28px sans-serif;color:#ea4c14;padding:8px">{label}</div>'
+        for label, b in (("Headline", frame.headline), ("Subheading", frame.subheading), ("Body", frame.body))
+    )
+    return (
+        '<html><body style="margin:0"><section class="slide" style="position:relative;width:1920px;height:1080px;background:#fff">'
+        f"{boxes}</section></body></html>"
+    )

@@ -102,3 +102,30 @@ def test_font_family_of():
     assert font_family_of("TestaSerif-700.ttf") == "testaserif"
     assert font_family_of("x.otf") is None
     assert font_family_of("Geist-400.WOFF2") == "geist"
+
+
+def test_ac20_preview_404_without_frame(client, tmp_path):
+    tid = upload(client, tmp_path, width_emu=9144000)["template_id"]
+    assert client.get(f"/api/reports/templates/{tid}/preview.png").status_code == 404
+
+
+def test_preview_html_labels(client, tmp_path):
+    from arp.reporting.template_frame import frame_preview_html
+
+    frame = TemplateStyleProfile.model_validate(upload(client, tmp_path)).frame
+    html = frame_preview_html(frame)
+    for label in ("Headline", "Subheading", "Body"):
+        assert f">{label}<" in html
+    assert "left:144px;top:72px;width:1584px;height:144px" in html
+
+
+def test_ac19_preview_png_is_1920x1080(client, tmp_path):
+    from PIL import Image
+
+    style = upload(client, tmp_path)
+    assert style["preview_png"] == f"/api/reports/templates/{style['template_id']}/preview.png"
+    r = client.get(style["preview_png"])
+    assert r.status_code == 200
+    out = tmp_path / "p.png"
+    out.write_bytes(r.content)
+    assert Image.open(out).size == (1920, 1080)

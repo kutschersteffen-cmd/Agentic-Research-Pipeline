@@ -12,7 +12,8 @@ from arp.reporting.datasets import parse_tabular_upload
 from arp.reporting.preview import ensure_preview_images
 from arp.reporting.service import ReportingService
 from arp.reporting.style_profile import ingest_template
-from arp.reporting.template_frame import font_family_of
+from arp.reporting.browser import write_pngs
+from arp.reporting.template_frame import font_family_of, frame_preview_html
 from arp.schemas.reporting import ReportManifest, ReportPlan, ReportRequest, ReportStatus, Storyline
 from arp.storage.reporting_store import ReportingStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
@@ -58,7 +59,27 @@ async def upload_template(
             (Path(tmp) / name).write_bytes(await f.read())
             saved.append((name, Path(tmp) / name))
         style = ingest_template(store, pptx, file.filename, saved, layout_name)
-    return style.model_dump(mode="json")
+    out = style.model_dump(mode="json")
+    if style.frame is not None:
+        out["preview_png"] = f"/api/reports/templates/{style.template_id}/preview.png"
+    return out
+
+
+@router.get("/templates/{template_id}/preview.png")
+async def template_preview(template_id: str, store: ReportingStore = Depends(get_reporting_store)) -> FileResponse:
+    """The template's frame drawn on a blank slide; 404 when the template can't frame a house deck."""
+    try:
+        style = store.load_template_style(template_id)
+    except UnsafeIdentifierError as exc:
+        raise HTTPException(404, "Template not found") from exc
+    if style is None or style.frame is None:
+        raise HTTPException(404, "Template has no frame")
+    out = store.template_dir(template_id) / "preview.png"
+    if not out.exists():
+        with tempfile.TemporaryDirectory() as tmp:
+            [png] = await write_pngs(frame_preview_html(style.frame), Path(tmp), scale=1)
+            shutil.move(png, out)
+    return FileResponse(out, media_type="image/png")
 
 
 @router.get("/templates")
