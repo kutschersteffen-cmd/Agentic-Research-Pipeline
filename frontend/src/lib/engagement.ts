@@ -45,3 +45,34 @@ export const INFLUENCE_LEVELS = ["1", "2", "3", "4A", "4B", "5"] as const satisf
 export function issueTopics<T extends { engagement_id: string }>(topics: T[], issueId: string): T[] {
   return topics.filter((t) => t.engagement_id === issueId);
 }
+
+type Evidence = Pick<S["EvidenceSuggestion"], "doc_title" | "page" | "quote">;
+
+/** Where a suggestion's quote is from: `<doc_title>, page <page>`, each part left out when unknown. */
+export function evidenceWhere(s: Omit<Evidence, "quote">): string {
+  return [s.doc_title, s.page != null ? `page ${s.page}` : null].filter(Boolean).join(", ");
+}
+
+/** A confirmed suggestion written out: `<doc_title>, page <page>: "<quote>"`, as the API writes commitment evidence. */
+export function evidenceText(s: Evidence): string {
+  const where = evidenceWhere(s);
+  return where ? `${where}: "${s.quote}"` : `"${s.quote}"`;
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** The line under a watch item after "Check against documents". */
+export function checkLine(r: { documents: number; suggestions: number; unclear: number }): string {
+  if (r.documents === 0) return "No documents on file for this company.";
+  return `Checked ${plural(r.documents, "document")}: ${plural(r.suggestions, "new suggestion")}, ${r.unclear} unclear.`;
+}
+
+/** The line under a note after "Find commitments". */
+export function foundLine(suggestions: number): string {
+  return `Found ${plural(suggestions, "suggestion")}.`;
+}
+
+/** Record result's Save is enabled once result and outcome are set, and an influence level unless the result is abandoned. */
+export function canSaveResult(result: string, level: string, outcome: string): boolean {
+  return Boolean(result && outcome.trim() && (level || result === "abandoned"));
+}

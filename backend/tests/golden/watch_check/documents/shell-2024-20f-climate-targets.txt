@@ -1,0 +1,48 @@
+Source: https://www.sec.gov/Archives/edgar/data/1306965/000130696525000007/shel-20241231.htm
+
+Customer emissions from the use of our oil products
+Our ambition to reduce customer emissions from the use of our oil products is a subset of Scope 3, Category 11 emissions, focusing on the use of refined oil products.
+We measure these emission reductions compared with a 2021 baseline. The 2021 baseline may be recalculated in the event of a revision of our sales of oil products, or in the event of other changes to emissions factors subject to a 2% cumulative threshold.
+Metrics and targets in respect of climate-related environmental risks
+We monitor physical risk exposures, whether climate-related or not, water use, emissions to air and water, biodiversity, and waste generated from our operations. Where relevant, we may manage our environmental performance by establishing specific targets. See 'Respecting nature' on page 126 for more information.
+
+See "Respecting nature" on pages 124-128.
+
+Targets used by Shell to manage climate-related risks and opportunities and performance against targets
+Our response to the energy transition risk focuses on decarbonising our value chain. This section sets out our climate targets which are focused on reducing our NCI and our absolute emissions, as presented on pages 119-120. Shell's material climate-related risks and opportunities are set out in the "Climate-related risks and opportunities identified by Shell over the short, medium and long term" section on pages 97-101.
+We have set intensity targets and absolute targets and an ambition over the short, medium and long term to track our performance over time (as summarised below). The targets are forward-looking targets based on management's current expectations and certain material assumptions and, accordingly, involve risks and uncertainties that could cause actual results, performance or events to differ materially from those expressed or implied herein.
+We believe our total net absolute emissions peaked in 2018 at 1.7 gigatonnes of carbon dioxide equivalent (GtCO2).
+Our net-zero target includes emissions from our operations, as well as from the end use of all the energy products we sell. We are seeking to reduce emissions from our own operations, including the production of oil and gas. More than 90% of the total emissions we include within our NCI boundary are indirect emissions associated with third-party products and end-use emissions of energy products we sell, so we are also working with our customers to support them in transitioning to low-carbon products and services.
+In October 2021, in support of our 2050 net-zero emissions target, we set a target to reduce Scope 1 and 2 absolute emissions from assets and activities under our operational control (including divestments) by 50% by 2030 compared with the 2016 baseline, on a net basis.
+We aim to maintain methane emissions intensity for operated oil and gas assets below 0.2% and achieve near-zero methane emissions by 2030. We were aiming to eliminate routine flaring from our upstream-operated assets by 2025 [A] and Shell has delivered this target.
+[A]This target was subject to the completion of the sale of The Shell Petroleum Development Company of Nigeria Limited (SPDC). With effect from January 1, 2025, SPDC ceased routine flaring. As detailed elsewhere in this report, on March 13, 2025, Shell completed the sale of SPDC to Renaissance.
+
+118
+ShellForm 20-F 2024
+
+Strategic Report | Performance in the year | Our journey to net zero continued
+
+In March 2024, we set revised targets to reduce the NCI of the energy products we sell in 2024 by 9-13% by 2025, 15-20% by 2030 and 100% by 2050. In recognition of the uncertainty in the pace of change in the energy transition, we retired our 2035 target of a 45% reduction in NCI.
+The NCI metric measures the pace of transition by tracking our progress in reducing the overall carbon intensity of the energy products sold by Shell. NCI measures emissions associated with each unit of energy we sell, compared with a 2016 baseline. It reflects changes in sales of oil and gas products, and changes in sales of low- and zero-carbon products -- such as biofuels and renewable electricity. Unlike Scope 1 and 2 emissions, reducing the NCI of the products we sell requires action by both Shell and our customers, with the support
+of governments and policymakers to create the right conditions
+for change.
+In March 2024, we set an ambition to reduce customer emissions from the use of our oil products (Scope 3, Category 11) by 15-20% by 2030 compared with 2021 [B]. This level of ambition is in line with the EU's climate goals in the transport sector, among the most progressive in the world. Achieving this ambition will mean reducing sales of oil products, such as gasoline and diesel, as we support customers as they move to electric mobility and lower-carbon fuels.
+[B]Customer emissions from the use of our oil products (Scope 3, Category 11) were 517 million tonnes carbon dioxide equivalent (CO2e) in 2023 and 569 million tonnes CO2e
+in 2021.
+In the short and medium term, we have set climate targets for emissions that we are able to control, namely our Scope 1 and 2 emissions, methane emissions and flaring. We have also set climate targets and an ambition for emissions that are outside our control. These include our ambition to reduce the Scope 3, Category 11 customer emissions from the use of our oil products, and our target to reduce the net carbon intensity of all the energy products we sell.
+Setting targets for NCI
+Shell's target is to become a net-zero emissions energy business by 2050. We also have short-, medium- and long-term targets to reduce the carbon intensity of the energy products we sell, measured using our NCI metric. We believe these targets are aligned with the more ambitious goal of the Paris Agreement, which is to limit the rise in global average temperature this century to 1.5°C above pre-industrial levels. There is no established standard for aligning an energy supplier's decarbonisation targets within the 1.5°C temperature goal of the Paris Agreement. For this reason, we have defined our NCI target using 1.5°C scenarios developed for the IPCC's AR6.
+We start with the complete set of 1.5°C scenarios and then exclude scenarios which are too reliant on carbon removals or use of bioenergy before removing outliers. We then calculate an emissions intensity for each scenario which is comparable to our own NCI. Finally, we produce a 1.5°C pathway based on the reductions in emissions intensity over time. We have chosen to use a range instead of any individual scenario to better reflect the uncertainty of the energy transition.
+We believe that using this pathway to set our targets demonstrates that they are aligned with the more ambitious 1.5°C goal of the Paris Agreement. This is illustrated in the chart below. We also believe that the pace of change will vary around the world by region and by sector, taking into consideration the time needed for energy users to invest in large-scale equipment and the energy infrastructure changes needed for Shell to deliver more low- and zero-carbon energy.
+
+Shell's Paris-aligned targets
+
+Progress towards our Scope 1 and 2 target
+The chart below shows our progress since 2016 in reducing our Scope 1 and 2 emissions and gives an indication of how we expect to achieve our target in 2030. The actions we take to achieve our target will depend on the evolution of our asset portfolio and the continued development of technologies which reduce carbon emissions. We expect that, on a net portfolio basis, reductions predominantly from abatement projects including carbon capture and storage and electrification, may outweigh increases in our Scope 1 and 2 emissions from new investments between 2025 and 2030. Our investments in producing low-carbon energy will increase our Scope 1 and 2 emissions, while reducing the NCI of the products we sell. Subsequent reductions in our emissions are reflected in the mechanisms outlined below and reflect an expected path to meeting our target by 2030.
+To decarbonise our operations, we are focusing on:
+￮making portfolio changes such as acquisitions and investments in low-carbon intensity projects, decommissioning plants, divesting assets, while sustaining our oil production with increasingly lower carbon intensity;
+￮progressing the repurposing of our energy and chemicals parks;
+￮improving the energy efficiency of our operations;
+￮using more renewable electricity to power our operations; and
+￮developing CCS for some of our facilities.
+If required, we may choose to use high-quality carbon credits to offset any remaining emissions from our operations, in line with the carbon mitigation hierarchy of avoid, reduce and compensate.

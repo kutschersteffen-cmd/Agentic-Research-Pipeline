@@ -189,7 +189,7 @@ engagement_meetings: [{date, company_id, company, engagement_id, theme, objectiv
 shareholder_meetings: [{date, company_id, company, items: int, flagged: int|null, ballot_state,
                         action_due: bool, days_to_meeting: int, run_id: str|null}]
 control_gaps: [{company_id, company, engagement_id, theme, open_days: int|null, gaps: [str]}]
-ladder: [{step: int, stage, label, companies: [{company_id, company}]}]       # exactly 7, steps 1..7
+ladder: [{step: int, stage, label, companies: [{company_id, company}]}]       # one per ESCALATION_ORDER step: 6, steps 1..6
 voting: {season: int, meetings: int, votes: int, for: int, against: int, abstain: int, other: int,
          against_management: int, topics: [{topic, votes: int, against_management: int}]}
 emissions: null | {...}                               # PR 2, below; null in PR 1
@@ -226,8 +226,8 @@ Rules:
 - Ties in `engagement_meetings`, `shareholder_meetings` and `control_gaps` sort by company name, then
   `engagement_id` (meetings: `company_id`).
 - `ladder`: each engaged company listed once, at its step, sorted by company name. `label` per step: 1 Private
-  dialogue, 2 Joint engagement, 3 Letter to the board, 4 Meeting with the chair, 5 Vote against management, 6 File
-  a resolution, 7 Public statement.
+  dialogue, 2 Letter to the board, 3 Meeting with the chair, 4 Vote against management, 5 File a resolution, 6 Public
+  statement. (`stewardship-three-tiers` removed the step "Joint engagement", 14 Nov 2026.)
 - `voting` (season, in scope). The unit is one vote:
   - Votes counted: each `vote_decisions` row (a split vote counts once per decision row), plus each run item with
     status `cast` that has no ledger decision with the same `run_id`.
@@ -310,7 +310,7 @@ showing it. Layout and copy follow the mockup:
     or both joined by ` · `.
   - Footnote: "A gap is an open engagement with no objective or no planned next meeting."
   - With no gaps it reads "No control gaps." and uses no signal colour.
-- **Escalation ladder:** 7 rows, each with the step number, label, count and company names. Step 1 shows only the
+- **Escalation ladder:** 6 rows, each with the step number, label, count and company names. Step 1 shows only the
   count.
 - **Voting, season to date:** one stacked bar for / against / abstain (plus other, only when it is above 0) with
   counts. Under it, "Against management, by topic": one bar per topic, "<rate>% · <a> of <n>".
@@ -432,14 +432,14 @@ company `isin_XA0000000001` ("Alpha AG", its `stw_companies` row inserted first)
 |----|-------|------|--------------------------|------------|
 | AC-1 | no engagements, tiers, runs or votes | Cockpit `?as_of=2026-11-17` | 200; `summary` is `{selected: 0, engaged_selected: 0, engaged_outside_selection: 0}`; `engagement_meetings`, `shareholder_meetings`, `control_gaps` are `[]`; `voting.votes` is 0; `demo` is `false` | holdout |
 | AC-2 | same | same | `days` has 30 entries, the first `date` `"2026-11-17"`, the last `"2026-12-16"`, every count 0 | holdout |
-| AC-3 | same | same | `ladder` has 7 entries with `step` 1..7 and `label` exactly "Private dialogue", "Joint engagement", "Letter to the board", "Meeting with the chair", "Vote against management", "File a resolution", "Public statement", each `companies` `[]` | holdout |
+| ~~AC-3~~ | Superseded by AC-85 (`stewardship-three-tiers` AC-40) (6-step ladder) | — | ~~same; same; `ladder` has 7 entries with `step` 1..7 and `label` exactly "Private dialogue", "Joint engagement", "Letter to the board", "Meeting with the chair", "Vote against management", "File a resolution", "Public statement", each `companies` `[]`; holdout~~ | retired |
 | AC-4 | any | Cockpit `?as_of=2026-13-01` | 422 | holdout |
 | AC-5 | no portfolio `nope` | Cockpit `?portfolio_id=nope&as_of=2026-11-17` | 404, detail `"Unknown portfolio nope"` | holdout |
 | AC-6 | — | `GET /api/stewardship/intake/template?kind=engagements`, opened in openpyxl | the `engagements` sheet's header row is `external_id, company_id, isin, company_name, theme, fir_theme, esg_pillars, rationale, engager_role, started_at, status, severity, planned_meeting_date` (supersedes `stewardship-data-foundation` AC-20 for this sheet) | holdout |
 | AC-7 | engagement A taken in by intake | the same batch is sent again | 200 with `created` 0 and `updated` 0; the stored `planned_meeting_date` is `2026-11-20` | holdout |
 | AC-8 | engagement A taken in by intake | the batch is sent again with `planned_meeting_date` `2026-11-25` | 200 with `updated` 1; the stored value is `2026-11-25` | holdout |
 | AC-9 | company A's `stw_companies` row | intake of engagement A with `planned_meeting_date` `"20.11.2026"` | 422; `rejected` is exactly `[{sheet: "engagements", row: 1, field: "planned_meeting_date", reason: "not a date"}]`; no `stw_engagements` row is stored | holdout |
-| AC-10 | engagement A taken in by intake | `POST …/escalate` with `{stage: "joint_engagement"}` | the stored `planned_meeting_date` is still `2026-11-20` (must not change) | holdout |
+| ~~AC-10~~ | Superseded by AC-86 (`stewardship-three-tiers` AC-41) (`joint_engagement` removed) | — | ~~engagement A taken in by intake; `POST …/escalate` with `{stage: "joint_engagement"}`; the stored `planned_meeting_date` is still `2026-11-20` (must not change); holdout~~ | retired |
 | AC-11 | engagement A | Cockpit `?as_of=2026-11-17` | `engagement_meetings` is exactly one row: `date` `"2026-11-20"`, `company_id` `isin_XA0000000001`, `company` `"Alpha AG"`, `theme` `"Climate"`, `objective` `"Cut coal"`, `step` 1 | holdout |
 | AC-12 | engagement A | same | `days[3]` is `{date: "2026-11-20", engagement_meetings: 1, shareholder_meetings: 0}` | holdout |
 | AC-13 | engagement A | same | `control_gaps` is `[]` | holdout |
@@ -453,8 +453,8 @@ company `isin_XA0000000001` ("Alpha AG", its `stw_companies` row inserted first)
 | AC-21 | engagement A with two objectives, both `in_progress`: "Old aim" `started_at` 2026-01-10 and "New aim" `started_at` 2026-09-01 | same | A's `engagement_meetings` row has `objective` `"New aim"` | holdout |
 | AC-22 | engagement A with `status` `resolved` and no `planned_meeting_date` | same | `control_gaps` is `[]` | holdout |
 | AC-23 | engagement A with `status` `stalled` | same | `engagement_meetings` has one row for A | holdout |
-| AC-24 | company A with two open engagements, escalated to `joint_engagement` and `escalation_to_chair` | same | `ladder[3].companies` is `[{company_id: "isin_XA0000000001", company: "Alpha AG"}]` and A is in no other ladder step | holdout |
-| AC-25 | company A with one open engagement escalated to `vote_against_management`, and a second engagement escalated to `public_statement` while open, then sent again through intake with `status` `resolved` | Cockpit `?as_of=2026-11-17` | A is listed only in `ladder[4]` | holdout |
+| ~~AC-24~~ | Superseded by AC-87 (`stewardship-three-tiers` AC-42) (`joint_engagement` removed) | — | ~~company A with two open engagements, escalated to `joint_engagement` and `escalation_to_chair`; same; `ladder[3].companies` is `[{company_id: "isin_XA0000000001", company: "Alpha AG"}]` and A is in no other ladder step; holdout~~ | retired |
+| ~~AC-25~~ | Superseded by AC-89 (`stewardship-three-tiers` AC-44) (6-step ladder: vote against management is `ladder[3]`) | — | ~~company A with one open engagement escalated to `vote_against_management`, and a second engagement escalated to `public_statement` while open, then sent again through intake with `status` `resolved`; Cockpit `?as_of=2026-11-17`; A is listed only in `ladder[4]`; holdout~~ | retired |
 | AC-26 | B, C and D confirmed with three different tiers from `tiers.TIERS`, E confirmed with tier `retired_tier` (not in `TIERS`); B has an open engagement; F has an open engagement and no tier | Cockpit `?as_of=2026-11-17` | `summary` is `{selected: 3, engaged_selected: 1, engaged_outside_selection: 1}` | holdout |
 | AC-27 | B confirmed with `TIERS[0]`, later confirmed with `TIERS[1]` | same | `summary.selected` is 1 and B counts under `TIERS[1]` in `tiers` | holdout |
 | AC-28 | B confirmed `TIERS[0]`, open engagement `fir_theme` `governance_board_pay`; C confirmed `TIERS[1]`, rule `high_emitter`, no engagement; D confirmed `TIERS[0]`, rule `top_weight`, no engagement | same | `themes` as `{theme, selected, engaged}` is exactly `[{Climate,1,0},{Corporate governance,1,1},{Nature,0,0},{AI and digital,0,0},{Norm violations,0,0},{Other,1,0}]` | holdout |
@@ -484,7 +484,7 @@ company `isin_XA0000000001` ("Alpha AG", its `stw_companies` row inserted first)
 | AC-52 | the demo stack of "Showcase setup" | open `#/stewardiq` | the screens row shows `Cockpit` first, then Steward Workflow, Engagement, Proxy Voting, RFP Answers; the processes are unchanged (must not change) | evaluator |
 | AC-53 | (PR 2) portfolio P: A 1,000,000 EUR, EVIC 100 EUR m, Scope 1 800, Scope 2 200; B 2,000,000 EUR, EVIC 100, Scope 1 300, Scope 2 200; C 1,000,000 EUR without EVIC; climate observations dated 2026-11-01; A engaged; B selected and not engaged | Cockpit `?portfolio_id=P&as_of=2026-11-17` | `emissions` has `total_tco2e` 20.0, `engaged_tco2e` 10.0, `selected_not_engaged_tco2e` 10.0, `not_selected_tco2e` 0.0, `uncovered_holding_count` 1 | holdout |
 | AC-54 | AC-53 | same | `contributors` is `[A, B]` (equal `tco2e`, so by name), `share` 0.5 each, `status` `engaged` and `selected` | holdout |
-| AC-55 | AC-53, with A's engagement escalated to `joint_engagement` | same | A's contributor `status` is `in_escalation` | holdout |
+| ~~AC-55~~ | Superseded by AC-88 (`stewardship-three-tiers` AC-43) (`joint_engagement` removed) | — | ~~AC-53, with A's engagement escalated to `joint_engagement`; same; A's contributor `status` is `in_escalation`; holdout~~ | retired |
 | AC-56 | AC-53's holdings and data | `compute_financed_emissions(..., as_of="2026-11-17", portfolio_filter=[P])` | returns exactly `{as_of: "2026-11-17", financed_emissions_tco2e: 20.0, covered_market_value_eur: 3000000.0, uncovered_market_value_eur: 1000000.0, coverage_pct: 0.75, uncovered_holding_count: 1}` (must not change) | holdout |
 | AC-57 | the showcase portfolios loaded (`arp showcase load`) | Cockpit for each portfolio, `as_of=2026-11-02` | `emissions.total_tco2e` equals `financed_emissions_tco2e` from `arp climate financed-emissions --portfolio <id> --as-of 2026-11-02`, within 0.1 t | holdout |
 | AC-58 | same, plus `seed-cockpit-demo --as-of 2026-11-02` | Cockpit `?as_of=2026-11-02` | `engaged_tco2e + selected_not_engaged_tco2e + not_selected_tco2e` equals `total_tco2e` within 0.1 t; `contributors` has 6 entries | holdout |
@@ -514,6 +514,11 @@ company `isin_XA0000000001` ("Alpha AG", its `stw_companies` row inserted first)
 | AC-82 | AC-28 | same | Corporate governance's `tiers` entry for `TIERS[0]` is `{selected: 1, engaged: 1}`, Climate's for `TIERS[1]` is `{selected: 1, engaged: 0}`, Other's for `TIERS[0]` is `{selected: 1, engaged: 0}`; every other entry is 0/0, and each row's `tiers` has `len(TIERS)` entries in `TIERS` order | holdout |
 | AC-83 | AC-28 | same | `tiers` has `len(TIERS)` entries in `TIERS` order with `label` from `TIER_LABELS`; `TIERS[0]` is `{selected: 2, engaged: 1}` and `TIERS[1]` is `{selected: 1, engaged: 0}` | holdout |
 | AC-84 | the demo stack | the "Engaged vs selected, by theme and tier" panel | one row per `themes` entry, one column per tier with the API's labels plus Total; every cell's "<e> / <s>" equals the API's `themes[].tiers` (Total = the row's `engaged` / `selected`); cells with `selected` 0 show `–` | evaluator |
+| AC-85 | `stewardship-three-tiers` PR B and cockpit PR 1 merged; as cockpit AC-3 | as cockpit AC-3 | `ladder` has 6 entries with `step` 1..6 and `label` exactly "Private dialogue", "Letter to the board", "Meeting with the chair", "Vote against management", "File a resolution", "Public statement", each `companies` `[]` | holdout |
+| AC-86 | `stewardship-three-tiers` PR B and cockpit PR 1 merged; as cockpit AC-10 | `POST …/escalate` with `{stage: "written_escalation_to_board"}` | The stored `planned_meeting_date` is still `2026-11-20` | holdout |
+| AC-87 | `stewardship-three-tiers` PR B and cockpit PR 1 merged; as cockpit AC-24, but the two engagements escalated to `written_escalation_to_board` and `escalation_to_chair` | as cockpit AC-24 | `ladder[2].companies` is `[{company_id: "isin_XA0000000001", company: "Alpha AG"}]`, and A is in no other ladder step | holdout |
+| AC-88 | `stewardship-three-tiers` PR B and cockpit PR 1 merged; as cockpit AC-55, but A's engagement escalated to `written_escalation_to_board` | as cockpit AC-55 | A's contributor `status` is `in_escalation` | holdout |
+| AC-89 | `stewardship-three-tiers` PR B and cockpit PR 1 merged; as cockpit AC-25 | as cockpit AC-25 | A is listed only in `ladder[3]` | holdout |
 
 PR slices: PR 1 delivers AC-1 to AC-52 and AC-62 to AC-84, except the emissions parts of AC-62 and AC-63, which
 come with PR 2. PR 2 delivers AC-53 to AC-61. PR 1's `Rows:` line lists AC-1 to AC-52, AC-73 to AC-78, AC-82 and AC-83; the

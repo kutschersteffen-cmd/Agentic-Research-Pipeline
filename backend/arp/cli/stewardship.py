@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Literal
 
@@ -66,3 +67,27 @@ def load_npx_cmd(directory: Path = typer.Argument(..., help="Folder with the N-P
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"meetings {counts['meetings']}, items {counts['items']}, decisions {counts['decisions']} created")
+
+
+@stewardship_app.command("watch-golden")
+def watch_golden_cmd(
+    kind: Literal["check", "find"] = typer.Option(..., "--kind"),
+    cases: Path = typer.Option(..., "--cases", exists=True, dir_okay=False, help="Labelled cases (JSON)."),
+    documents_dir: Path = typer.Option(..., "--documents-dir", help="Directory with the check cases' documents."),
+    min_precision: float = typer.Option(..., "--min-precision", help="Exit 1 below this precision."),
+    min_coverage: float = typer.Option(..., "--min-coverage", help="Exit 1 below this coverage."),
+) -> None:
+    """Run the real model on the watch-check or find-commitments golden set; print precision and coverage."""
+    from arp.llm.factory import build_llm_client
+    from arp.stewardship.watch_golden import load_cases, score_check, score_find
+
+    settings = get_settings()
+    llm, fuzzy, misses = build_llm_client(settings), settings.grounding_fuzzy_threshold, []
+    labelled = load_cases(cases, kind)
+    run = score_check(labelled, documents_dir, llm, fuzzy, misses) if kind == "check" else score_find(labelled, llm, fuzzy, misses)
+    precision, coverage = asyncio.run(run)
+    for miss in misses:
+        typer.echo(miss, err=True)
+    typer.echo(f"precision {precision:.2f}, coverage {coverage:.2f}")
+    if precision < min_precision or coverage < min_coverage:
+        raise typer.Exit(1)

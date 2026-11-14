@@ -5421,6 +5421,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/activities/{activity_id}/find-commitments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Find Commitments In Note */
+        post: operations["find_commitments_in_note_api_stewardship_activities__activity_id__find_commitments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/benchmarks": {
         parameters: {
             query?: never;
@@ -5790,6 +5807,110 @@ export interface paths {
         };
         /** Get Policy Version */
         get: operations["get_policy_version_api_stewardship_policies__policy_id__versions__version__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/programmes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Programmes
+         * @description Every engagement programme with its member counts, the four built-in ones first.
+         */
+        get: operations["get_programmes_api_stewardship_programmes_get"];
+        put?: never;
+        /**
+         * Post Programme
+         * @description A new programme by name; its id is the name lower-cased with runs of other characters as `_`.
+         */
+        post: operations["post_programme_api_stewardship_programmes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/programmes/{programme_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Programme
+         * @description The programme and every member it had, ended ones included.
+         */
+        get: operations["get_programme_api_stewardship_programmes__programme_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/programmes/{programme_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Programme Confirm
+         * @description Every proposed member becomes confirmed, recorded as the signed-in user.
+         */
+        post: operations["post_programme_confirm_api_stewardship_programmes__programme_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/programmes/{programme_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Programme Members
+         * @description Proposes companies, drops proposed ones and ends confirmed ones (with a reason).
+         */
+        post: operations["post_programme_members_api_stewardship_programmes__programme_id__members_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/programmes/{programme_id}/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Programme Suggestions
+         * @description Companies with an open or stalled issue on the programme's theme that are not members yet. Writes nothing.
+         */
+        get: operations["get_programme_suggestions_api_stewardship_programmes__programme_id__suggestions_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -12804,6 +12925,15 @@ export interface components {
             /** State */
             state?: ("kept" | "removed") | null;
         };
+        /** FindCommitmentsResult */
+        FindCommitmentsResult: {
+            /** Skipped */
+            skipped: number;
+            /** Suggestions */
+            suggestions: number;
+            /** Ungrounded */
+            ungrounded: number;
+        };
         /**
          * FlagExclusionScreen
          * @description Exclude companies whose boolean field equals `exclude_when` --
@@ -15004,6 +15134,124 @@ export interface components {
         /** ProgramRequest */
         ProgramRequest: {
             params: components["schemas"]["ProgramParams"];
+        };
+        /** Programme */
+        Programme: {
+            /** Built In */
+            built_in: boolean;
+            /** Confirmed */
+            confirmed: number;
+            /** Created At */
+            created_at: string | null;
+            /** Created By */
+            created_by: string | null;
+            /** Name */
+            name: string;
+            /** Programme Id */
+            programme_id: string;
+            /** Proposed */
+            proposed: number;
+        };
+        /** ProgrammeChip */
+        ProgrammeChip: {
+            /** Name */
+            name: string;
+            /** Programme Id */
+            programme_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "proposed" | "confirmed";
+        };
+        /** ProgrammeCreate */
+        ProgrammeCreate: {
+            /** Name */
+            name: string;
+        };
+        /** ProgrammeDetail */
+        ProgrammeDetail: {
+            /** Built In */
+            built_in: boolean;
+            /** Confirmed */
+            confirmed: number;
+            /** Created At */
+            created_at: string | null;
+            /** Created By */
+            created_by: string | null;
+            /** Members */
+            members: components["schemas"]["ProgrammeMember"][];
+            /** Name */
+            name: string;
+            /** Programme Id */
+            programme_id: string;
+            /** Proposed */
+            proposed: number;
+        };
+        /** ProgrammeList */
+        ProgrammeList: {
+            /** Programmes */
+            programmes: components["schemas"]["Programme"][];
+        };
+        /** ProgrammeMember */
+        ProgrammeMember: {
+            /** Company */
+            company: string;
+            /** Confirmed At */
+            confirmed_at: string | null;
+            /** Confirmed By */
+            confirmed_by: string | null;
+            /** End Reason */
+            end_reason: string | null;
+            /** Ended At */
+            ended_at: string | null;
+            /** Ended By */
+            ended_by: string | null;
+            /** Issuer Id */
+            issuer_id: string;
+            /** Proposed At */
+            proposed_at: string;
+            /** Proposed By */
+            proposed_by: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "proposed" | "confirmed" | "ended";
+        };
+        /** ProgrammeMembersChange */
+        ProgrammeMembersChange: {
+            /**
+             * Add
+             * @default []
+             */
+            add: string[];
+            /**
+             * End
+             * @default []
+             */
+            end: string[];
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Remove
+             * @default []
+             */
+            remove: string[];
+        };
+        /** ProgrammeSuggestion */
+        ProgrammeSuggestion: {
+            /** Company */
+            company: string;
+            /** Issuer Id */
+            issuer_id: string;
+            /** Issues */
+            issues: components["schemas"]["SuggestedIssue"][];
+        };
+        /** ProgrammeSuggestions */
+        ProgrammeSuggestions: {
+            /** Suggestions */
+            suggestions: components["schemas"]["ProgrammeSuggestion"][];
         };
         /** Project */
         Project: {
@@ -17663,6 +17911,13 @@ export interface components {
             /** Mappings */
             mappings: components["schemas"]["ActivityCatalogueMapping"][];
         };
+        /** SuggestedIssue */
+        SuggestedIssue: {
+            /** Fir Theme */
+            fir_theme: string;
+            /** Issue Id */
+            issue_id: string;
+        };
         /** TableRef */
         TableRef: {
             /** Caption */
@@ -18859,6 +19114,22 @@ export interface components {
          * @enum {string}
          */
         WalkOrTalk: "walk" | "talk";
+        /** WatchCheckRequest */
+        WatchCheckRequest: {
+            /** Company Id */
+            company_id: string;
+        };
+        /** WatchCheckResult */
+        WatchCheckResult: {
+            /** Documents */
+            documents: number;
+            /** Skipped */
+            skipped: number;
+            /** Suggestions */
+            suggestions: number;
+            /** Unclear */
+            unclear: number;
+        };
         /**
          * WatchTopic
          * @description A question a person asked to watch for in the company's reports (`stw_watch_topics`).
@@ -19014,6 +19285,8 @@ export interface components {
             overdue_commitments: number;
             /** Parts */
             parts: components["schemas"]["ScorePart"][];
+            /** Programmes */
+            programmes: components["schemas"]["ProgrammeChip"][];
             /** Score */
             score: number;
             /** Sector */
@@ -29510,6 +29783,37 @@ export interface operations {
             };
         };
     };
+    find_commitments_in_note_api_stewardship_activities__activity_id__find_commitments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindCommitmentsResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_benchmarks_api_stewardship_benchmarks_get: {
         parameters: {
             query?: never;
@@ -30256,6 +30560,187 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_programmes_api_stewardship_programmes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgrammeList"];
+                };
+            };
+        };
+    };
+    post_programme_api_stewardship_programmes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProgrammeCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Programme"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_programme_api_stewardship_programmes__programme_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                programme_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgrammeDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_programme_confirm_api_stewardship_programmes__programme_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                programme_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Confirmed"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_programme_members_api_stewardship_programmes__programme_id__members_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                programme_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProgrammeMembersChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgrammeDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_programme_suggestions_api_stewardship_programmes__programme_id__suggestions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                programme_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgrammeSuggestions"];
                 };
             };
             /** @description Validation Error */
@@ -31554,7 +32039,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WatchCheckRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -31562,9 +32051,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WatchCheckResult"];
                 };
             };
             /** @description Validation Error */

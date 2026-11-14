@@ -24,6 +24,10 @@ Decided (13 Nov 2026, buttons in this session):
   brief is drafted when a person presses the button. At approval (14 Nov) the owner added the next step: draft the
   brief automatically a week before each engagement meeting, with ongoing monitoring and tracking. That is the
   scheduled prep-pack feature (Non-goals), not this one.
+- **Adding a found commitment to a closed engagement** (14 Nov 2026, buttons): confirming a `new_commitment`
+  suggestion whose engagement is `resolved` or `closed` is refused with 409 `This engagement is closed. Reopen it to
+  add a commitment.` and stores nothing; the suggestion stays `pending`. Adding a commitment by hand is unchanged
+  (AC-111).
 
 Assumed on the recommended option while the owner was away (the owner can change any of them at approval):
 
@@ -605,6 +609,7 @@ prints one line `precision <p>, coverage <c>` and exits 1 below either threshold
 | AC-108 | AC-104's dossier | `POST .../talking-points` with it | The `MeetingTalkingPoints` prompt in `calls.jsonl` contains `Set a 2030 science-based target` and `Has the company named a board climate committee?` | unit |
 | AC-109 | AC-104's Given | The user clicks `Draft dossier` | Under the dossier: heading `Watch list`, then `Objective: Set a 2030 science-based target` with `due <yesterday>` and badge `overdue`, then `Watch topic: Has the company named a board climate committee?` | evaluator |
 | AC-110 | AC-107's Given | The user clicks `Draft dossier` | Under the dossier: `No open objectives, commitments or watch topics.` | evaluator |
+| AC-111 | A pending `new_commitment` suggestion whose activity's engagement was closed through `POST /api/stewardship/tracking/close` | `POST /api/stewardship/evidence-suggestions/{id}/confirm` with `{"target_date": "2027-03-31"}` | Status 409, detail `This engagement is closed. Reopen it to add a commitment.`; the engagement's commitment count is unchanged and the suggestion is still `pending` | unit |
 
 Must not change: the co-sign rule for `engagement_alignment_flag` items and the alignment check (AC-95 plus the
 existing voting tests, unchanged); manual Verify and status updates (AC-96); adding a commitment without a proof

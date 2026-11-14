@@ -10,6 +10,9 @@ import type {
   Objective,
   WatchItemKind,
   WatchTopic,
+  EvidenceSuggestion,
+  WatchCheckResult,
+  FindCommitmentsResult,
   ArgusDraft,
   ArgusFlow,
   FlowProgress,
@@ -989,6 +992,16 @@ export const api = {
     objectiveId: string,
     body: { company_id: string; issue_id: string; result: string; influence_level: string | null; outcome: string },
   ) => request<Objective>(`/api/stewardship/objectives/${encodeURIComponent(objectiveId)}/result`, jsonBody("POST", body)),
+  listSuggestions: (companyId: string, status: "pending" | "confirmed" | "rejected") =>
+    request<{ suggestions: EvidenceSuggestion[] }>(`/api/stewardship/evidence-suggestions?company_id=${encodeURIComponent(companyId)}&status=${status}`),
+  confirmSuggestion: (id: string, body: { text?: string; proof_statement?: string; target_date?: string } = {}) =>
+    request<EvidenceSuggestion>(`/api/stewardship/evidence-suggestions/${encodeURIComponent(id)}/confirm`, jsonBody("POST", body)),
+  rejectSuggestion: (id: string, reason: string) =>
+    request<EvidenceSuggestion>(`/api/stewardship/evidence-suggestions/${encodeURIComponent(id)}/reject`, jsonBody("POST", { reason })),
+  checkWatchItem: (kind: WatchItemKind, id: string, companyId: string) =>
+    request<WatchCheckResult>(`/api/stewardship/watch-items/${kind}/${encodeURIComponent(id)}/check`, jsonBody("POST", { company_id: companyId })),
+  findCommitments: (activityId: string) =>
+    request<FindCommitmentsResult>(`/api/stewardship/activities/${encodeURIComponent(activityId)}/find-commitments`, { method: "POST" }),
 
   // Voting (proxy)
   startVotingRun: (body: { companies?: unknown[]; universe_path?: string; meeting_dates?: Record<string, string> }) =>

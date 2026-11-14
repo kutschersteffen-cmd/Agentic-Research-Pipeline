@@ -876,6 +876,7 @@ export interface CorrespondenceEntry {
   summary: string;
   doc_ref?: string | null;
   logged_by?: string | null;
+  activity_type?: string | null;
 }
 
 export interface Commitment {
@@ -893,6 +894,9 @@ export interface Commitment {
 export type Objective = Served<S["Objective"]>;
 export type WatchTopic = Served<S["WatchTopic"]>;
 export type WatchItemKind = "objective" | "commitment" | "topic";
+export type EvidenceSuggestion = Served<S["EvidenceSuggestion"]>;
+export type WatchCheckResult = Served<S["WatchCheckResult"]>;
+export type FindCommitmentsResult = Served<S["FindCommitmentsResult"]>;
 
 export interface MilestoneTransition {
   stage: MilestoneStage;
