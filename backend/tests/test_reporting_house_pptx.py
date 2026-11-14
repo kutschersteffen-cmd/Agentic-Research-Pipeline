@@ -42,13 +42,13 @@ def test_pptx_charts_are_native(tmp_path):
     assert _shapes(prs.slides[i], "slot:chart")[0].has_chart
 
 
-def test_pptx_non_native_chart_is_a_picture(tmp_path):
+def test_pptx_waterfall_chart_is_native(tmp_path):
     deck, ds = stress_deck("min")
     slide = next(s for s in deck.slides if s.layout == "chart_takeaway")
     slide.chart = ChartSpec(dataset_id="stress", chart_type="waterfall", category_column="cat", value_columns=["a"])
     prs = Presentation(build_house_pptx(Deck(title="T", slides=[slide]), ds, tmp_path / "d.pptx"))
     shape = _shapes(prs.slides[0], "slot:chart")[0]
-    assert shape.shape_type == 13 and not getattr(shape, "has_chart", False)  # MSO_SHAPE_TYPE.PICTURE
+    assert shape.shape_type != 13 and shape.has_chart  # editable chart, not MSO_SHAPE_TYPE.PICTURE (owner-approved change, 2026-11-14)
 
 
 def test_pptx_escapes_nothing_and_keeps_literal_text(tmp_path):
