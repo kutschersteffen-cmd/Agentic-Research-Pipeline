@@ -6168,6 +6168,19 @@
     "title": "ConfirmTiersRequest",
     "type": "object"
    },
+   "Confirmed": {
+    "properties": {
+     "confirmed": {
+      "title": "Confirmed",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "confirmed"
+    ],
+    "title": "Confirmed",
+    "type": "object"
+   },
    "Constituent": {
     "properties": {
      "base_weight": {
@@ -11404,6 +11417,39 @@
     "title": "GicsMatch",
     "type": "object"
    },
+   "Grade": {
+    "properties": {
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "simulated": {
+      "title": "Simulated",
+      "type": "boolean"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "boolean"
+       }
+      ],
+      "title": "Value"
+     }
+    },
+    "required": [
+     "value",
+     "simulated",
+     "label"
+    ],
+    "title": "Grade",
+    "type": "object"
+   },
    "GroupCap": {
     "properties": {
      "dimension": {
@@ -13784,6 +13830,29 @@
     "title": "NewVersionRequest",
     "type": "object"
    },
+   "NextMeeting": {
+    "properties": {
+     "days": {
+      "title": "Days",
+      "type": "integer"
+     },
+     "estimated": {
+      "title": "Estimated",
+      "type": "boolean"
+     },
+     "last_meeting": {
+      "title": "Last Meeting",
+      "type": "string"
+     }
+    },
+    "required": [
+     "days",
+     "estimated",
+     "last_meeting"
+    ],
+    "title": "NextMeeting",
+    "type": "object"
+   },
    "NoteCitation": {
     "properties": {
      "page": {
@@ -13993,6 +14062,34 @@
      "created_at"
     ],
     "title": "ObservationOut",
+    "type": "object"
+   },
+   "Observed": {
+    "properties": {
+     "simulated": {
+      "title": "Simulated",
+      "type": "boolean"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "boolean"
+       }
+      ],
+      "title": "Value"
+     }
+    },
+    "required": [
+     "value",
+     "simulated"
+    ],
+    "title": "Observed",
     "type": "object"
    },
    "OlderRun": {
@@ -15282,6 +15379,73 @@
     "title": "PriorRun",
     "type": "object"
    },
+   "PriorityPreview": {
+    "properties": {
+     "companies": {
+      "title": "Companies",
+      "type": "integer"
+     },
+     "entering_top": {
+      "items": {
+       "$ref": "#/components/schemas/RankMove"
+      },
+      "title": "Entering Top",
+      "type": "array"
+     },
+     "leaving_top": {
+      "items": {
+       "$ref": "#/components/schemas/RankMove"
+      },
+      "title": "Leaving Top",
+      "type": "array"
+     },
+     "score_change": {
+      "items": {
+       "$ref": "#/components/schemas/ScoreChange"
+      },
+      "title": "Score Change",
+      "type": "array"
+     },
+     "top_active": {
+      "items": {
+       "$ref": "#/components/schemas/TopRow"
+      },
+      "title": "Top Active",
+      "type": "array"
+     },
+     "top_candidate": {
+      "items": {
+       "$ref": "#/components/schemas/TopRow"
+      },
+      "title": "Top Candidate",
+      "type": "array"
+     }
+    },
+    "required": [
+     "companies",
+     "top_active",
+     "top_candidate",
+     "entering_top",
+     "leaving_top",
+     "score_change"
+    ],
+    "title": "PriorityPreview",
+    "type": "object"
+   },
+   "PriorityPreviewRequest": {
+    "properties": {
+     "content": {
+      "additionalProperties": true,
+      "title": "Content",
+      "type": "object"
+     }
+    },
+    "required": [
+     "content"
+    ],
+    "title": "PriorityPreviewRequest",
+    "type": "object"
+   },
    "ProgramParams": {
     "properties": {
      "benchmark": {
@@ -16130,6 +16294,34 @@
      "delta_meur"
     ],
     "title": "QuantityShockNode",
+    "type": "object"
+   },
+   "RankMove": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "rank_active": {
+      "title": "Rank Active",
+      "type": "integer"
+     },
+     "rank_candidate": {
+      "title": "Rank Candidate",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "rank_active",
+     "rank_candidate"
+    ],
+    "title": "RankMove",
     "type": "object"
    },
    "RatifyRequest": {
@@ -19410,6 +19602,72 @@
     "title": "SchemaChoice",
     "type": "object"
    },
+   "ScoreChange": {
+    "properties": {
+     "active": {
+      "title": "Active",
+      "type": "number"
+     },
+     "candidate": {
+      "title": "Candidate",
+      "type": "number"
+     },
+     "change": {
+      "title": "Change",
+      "type": "number"
+     },
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "active",
+     "candidate",
+     "change"
+    ],
+    "title": "ScoreChange",
+    "type": "object"
+   },
+   "ScorePart": {
+    "properties": {
+     "empty": {
+      "title": "Empty",
+      "type": "boolean"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "normalised": {
+      "title": "Normalised",
+      "type": "number"
+     },
+     "points": {
+      "title": "Points",
+      "type": "number"
+     },
+     "weight": {
+      "title": "Weight",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "weight",
+     "normalised",
+     "points",
+     "empty"
+    ],
+    "title": "ScorePart",
+    "type": "object"
+   },
    "ScoreRequest": {
     "properties": {
      "config": {
@@ -19891,6 +20149,138 @@
     "title": "SelectAll",
     "type": "object"
    },
+   "Selection": {
+    "properties": {
+     "confirmed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed At"
+     },
+     "confirmed_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed By"
+     },
+     "proposed_at": {
+      "title": "Proposed At",
+      "type": "string"
+     },
+     "proposed_by": {
+      "title": "Proposed By",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "proposed",
+       "confirmed"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "weights_version": {
+      "title": "Weights Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "status",
+     "proposed_by",
+     "proposed_at",
+     "confirmed_by",
+     "confirmed_at",
+     "weights_version"
+    ],
+    "title": "Selection",
+    "type": "object"
+   },
+   "SelectionChange": {
+    "properties": {
+     "add": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Add",
+      "type": "array"
+     },
+     "cycle": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cycle"
+     },
+     "remove": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Remove",
+      "type": "array"
+     }
+    },
+    "title": "SelectionChange",
+    "type": "object"
+   },
+   "SelectionConfirm": {
+    "properties": {
+     "cycle": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cycle"
+     }
+    },
+    "title": "SelectionConfirm",
+    "type": "object"
+   },
+   "SelectionList": {
+    "properties": {
+     "current": {
+      "title": "Current",
+      "type": "boolean"
+     },
+     "cycle": {
+      "title": "Cycle",
+      "type": "string"
+     },
+     "rows": {
+      "items": {
+       "$ref": "#/components/schemas/SelectionRow"
+      },
+      "title": "Rows",
+      "type": "array"
+     }
+    },
+    "required": [
+     "cycle",
+     "current",
+     "rows"
+    ],
+    "title": "SelectionList",
+    "type": "object"
+   },
    "SelectionRequest": {
     "properties": {
      "tags": {
@@ -19905,6 +20295,77 @@
      "tags"
     ],
     "title": "SelectionRequest",
+    "type": "object"
+   },
+   "SelectionRow": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "confirmed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed At"
+     },
+     "confirmed_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed By"
+     },
+     "in_scope": {
+      "title": "In Scope",
+      "type": "boolean"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "proposed_at": {
+      "title": "Proposed At",
+      "type": "string"
+     },
+     "proposed_by": {
+      "title": "Proposed By",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "proposed",
+       "confirmed"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "weights_version": {
+      "title": "Weights Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "status",
+     "proposed_by",
+     "proposed_at",
+     "confirmed_by",
+     "confirmed_at",
+     "weights_version",
+     "issuer_id",
+     "company",
+     "in_scope"
+    ],
+    "title": "SelectionRow",
     "type": "object"
    },
    "SensitivityRequest": {
@@ -22680,6 +23141,34 @@
     "title": "TopN",
     "type": "object"
    },
+   "TopRow": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "rank": {
+      "title": "Rank",
+      "type": "integer"
+     },
+     "score": {
+      "title": "Score",
+      "type": "number"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "score",
+     "rank"
+    ],
+    "title": "TopRow",
+    "type": "object"
+   },
    "TransitionOut": {
     "properties": {
      "actions": {
@@ -23024,6 +23513,29 @@
      "result"
     ],
     "title": "TrendPoint",
+    "type": "object"
+   },
+   "TriggerCounts": {
+    "properties": {
+     "high": {
+      "title": "High",
+      "type": "integer"
+     },
+     "low": {
+      "title": "Low",
+      "type": "integer"
+     },
+     "medium": {
+      "title": "Medium",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "high",
+     "medium",
+     "low"
+    ],
+    "title": "TriggerCounts",
     "type": "object"
    },
    "TriggerScanRequest": {
@@ -24607,6 +25119,43 @@
     "title": "WeightingScheme",
     "type": "string"
    },
+   "WeightsVersion": {
+    "properties": {
+     "activated_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Activated At"
+     },
+     "activated_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Activated By"
+     },
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "version",
+     "activated_by",
+     "activated_at"
+    ],
+    "title": "WeightsVersion",
+    "type": "object"
+   },
    "WindowEvidence": {
     "properties": {
      "deflated_sharpe": {
@@ -24745,6 +25294,235 @@
      }
     },
     "title": "WorkbenchRequest",
+    "type": "object"
+   },
+   "Worklist": {
+    "properties": {
+     "as_of": {
+      "title": "As Of",
+      "type": "string"
+     },
+     "cycle": {
+      "title": "Cycle",
+      "type": "string"
+     },
+     "rows": {
+      "items": {
+       "$ref": "#/components/schemas/WorklistRow"
+      },
+      "title": "Rows",
+      "type": "array"
+     },
+     "scope": {
+      "$ref": "#/components/schemas/WorklistScope"
+     },
+     "universe_note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Universe Note"
+     },
+     "weights": {
+      "$ref": "#/components/schemas/WeightsVersion"
+     }
+    },
+    "required": [
+     "as_of",
+     "universe_note",
+     "scope",
+     "weights",
+     "cycle",
+     "rows"
+    ],
+    "title": "Worklist",
+    "type": "object"
+   },
+   "WorklistRow": {
+    "properties": {
+     "aum_held_eur_m": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Aum Held Eur M"
+     },
+     "carbon_intensity": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Observed"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "controversy": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Observed"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "coverage_tier": {
+      "title": "Coverage Tier",
+      "type": "string"
+     },
+     "coverage_tier_confirmed": {
+      "title": "Coverage Tier Confirmed",
+      "type": "boolean"
+     },
+     "escalated": {
+      "title": "Escalated",
+      "type": "integer"
+     },
+     "esg_score": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Observed"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "holdings_weight_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Holdings Weight Pct"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "next_meeting": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/NextMeeting"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "open_engagements": {
+      "title": "Open Engagements",
+      "type": "integer"
+     },
+     "overdue_commitments": {
+      "title": "Overdue Commitments",
+      "type": "integer"
+     },
+     "parts": {
+      "items": {
+       "$ref": "#/components/schemas/ScorePart"
+      },
+      "title": "Parts",
+      "type": "array"
+     },
+     "score": {
+      "title": "Score",
+      "type": "number"
+     },
+     "sector": {
+      "title": "Sector",
+      "type": "string"
+     },
+     "selection": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Selection"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "transition_grade": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Grade"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "triggers": {
+      "$ref": "#/components/schemas/TriggerCounts"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "sector",
+     "holdings_weight_pct",
+     "aum_held_eur_m",
+     "coverage_tier",
+     "coverage_tier_confirmed",
+     "triggers",
+     "open_engagements",
+     "escalated",
+     "overdue_commitments",
+     "next_meeting",
+     "transition_grade",
+     "esg_score",
+     "controversy",
+     "carbon_intensity",
+     "score",
+     "parts",
+     "selection"
+    ],
+    "title": "WorklistRow",
+    "type": "object"
+   },
+   "WorklistScope": {
+    "properties": {
+     "companies": {
+      "title": "Companies",
+      "type": "integer"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key",
+     "label",
+     "kind",
+     "companies"
+    ],
+    "title": "WorklistScope",
     "type": "object"
    },
    "XbrlRunRequest": {
@@ -41016,6 +41794,138 @@
     ]
    }
   },
+  "/api/stewardship/selection": {
+   "get": {
+    "description": "The house engagement selection of a cycle (default: the current one), folded from its log.",
+    "operationId": "get_selection_api_stewardship_selection_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "cycle",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Cycle"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SelectionList"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Selection",
+    "tags": [
+     "stewardship"
+    ]
+   },
+   "post": {
+    "description": "Adds companies as proposed and removes proposed ones; confirmed rows stay.",
+    "operationId": "post_selection_api_stewardship_selection_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SelectionChange"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SelectionList"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Selection",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/selection/confirm": {
+   "post": {
+    "description": "Every proposed row of the cycle becomes confirmed, recorded as the signed-in user.",
+    "operationId": "post_selection_confirm_api_stewardship_selection_confirm_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SelectionConfirm"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Confirmed"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Selection Confirm",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
   "/api/stewardship/streams": {
    "get": {
     "operationId": "list_streams_api_stewardship_streams_get",
@@ -41968,6 +42878,48 @@
     ]
    }
   },
+  "/api/stewardship/studio/priority/preview": {
+   "post": {
+    "description": "What candidate weights would change against the active version, on the house scope.",
+    "operationId": "post_priority_preview_api_stewardship_studio_priority_preview_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PriorityPreviewRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PriorityPreview"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Priority Preview",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
   "/api/stewardship/studio/voting/preview": {
    "post": {
     "operationId": "post_voting_preview_api_stewardship_studio_voting_preview_post",
@@ -42511,6 +43463,28 @@
      }
     },
     "summary": "Put Universe",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/worklist": {
+   "get": {
+    "description": "One row per company of the house scope, computed from stored values on every request.",
+    "operationId": "get_worklist_api_stewardship_worklist_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Worklist"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Worklist",
     "tags": [
      "stewardship"
     ]
