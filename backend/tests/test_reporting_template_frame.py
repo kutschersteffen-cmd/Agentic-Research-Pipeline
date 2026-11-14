@@ -43,15 +43,15 @@ def upload(client, tmp_path, fonts=("TestaSerif-700.ttf", "TestaSans-400.ttf"), 
 
 
 def _box(b):
-    return pytest.approx([b["x"], b["y"], b["w"], b["h"]], abs=1)
+    return [b["x"], b["y"], b["w"], b["h"]]
 
 
 def test_ac1_boxes(client, tmp_path):
     f = upload(client, tmp_path)["frame"]
     assert f["layout_name"] == "Content"
-    assert [144, 72, 1584, 144] == _box(f["headline"])
-    assert [144, 230.4, 1584, 72] == _box(f["subheading"])
-    assert [144, 345.6, 1584, 561.6] == _box(f["body"])
+    assert _box(f["headline"]) == pytest.approx([144, 72, 1584, 144], abs=1)
+    assert _box(f["subheading"]) == pytest.approx([144, 230.4, 1584, 72], abs=1)
+    assert _box(f["body"]) == pytest.approx([144, 345.6, 1584, 561.6], abs=1)
 
 
 def test_ac2_fonts(client, tmp_path):
@@ -91,7 +91,7 @@ def test_ac23_old_profile_listed(client, store):
 def test_inherits_master_position(client, tmp_path):
     body = upload(client, tmp_path, body_xfrm=False)["frame"]["body"]
     s = 1920 / 12192000  # the master's body placeholder box, at the template's scale
-    assert [457200 * s, 1600200 * s, 8229600 * s, 4525963 * s] == _box(body)
+    assert _box(body) == pytest.approx([457200 * s, 1600200 * s, 8229600 * s, 4525963 * s], abs=1)
 
 
 def test_first_qualifying_layout_wins(client, tmp_path):

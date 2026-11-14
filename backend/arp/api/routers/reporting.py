@@ -54,7 +54,7 @@ async def upload_template(
         pptx = Path(tmp) / "template.pptx"
         pptx.write_bytes(content)
         saved = []
-        for name, f in zip(names, fonts):
+        for name, f in zip(names, fonts, strict=True):
             (Path(tmp) / name).write_bytes(await f.read())
             saved.append((name, Path(tmp) / name))
         style = ingest_template(store, pptx, file.filename, saved, layout_name)

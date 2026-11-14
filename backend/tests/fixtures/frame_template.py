@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import shutil
 from pathlib import Path
 
@@ -23,8 +24,7 @@ def _set_size(ph, pt: int, bold: bool) -> None:
     body = ph._element.txBody
     lst = body.find(f"{{{_A}}}lstStyle")
     lvl = etree.SubElement(lst, f"{{{_A}}}lvl1pPr")
-    rpr = etree.SubElement(lvl, f"{{{_A}}}defRPr", sz=str(pt * 100), b="1" if bold else "0")
-    del rpr
+    etree.SubElement(lvl, f"{{{_A}}}defRPr", sz=str(pt * 100), b="1" if bold else "0")
 
 
 def _set_theme_fonts(prs, major: str, minor: str) -> None:
@@ -44,7 +44,7 @@ def _configure(layout, name: str, with_subheading: bool, body_xfrm: bool) -> Non
     _set_box(title, 1, 0.5, 11, 1)
     _set_size(title, 32, True)
     if with_subheading:
-        sub = layout.shapes._spTree.insert_element_before(__import__("copy").deepcopy(body._element), "p:extLst")
+        sub = layout.shapes._spTree.insert_element_before(copy.deepcopy(body._element), "p:extLst")
         sub.nvSpPr.nvPr.ph.set("idx", "13")
         sub.nvSpPr.cNvPr.set("id", "99")
         sub.nvSpPr.cNvPr.set("name", "Subheading")
@@ -69,7 +69,7 @@ def make_frame_pptx(
     for layout in list(prs.slide_layouts):
         if all(layout is not k for k in keep):
             prs.slide_layouts.remove(layout)
-    for layout, name in zip(keep, layouts):
+    for layout, name in zip(keep, layouts, strict=True):
         _configure(layout, name, with_subheading, body_xfrm)
     _set_theme_fonts(prs, "Testa Serif", "Testa Sans")
     prs.save(path)
