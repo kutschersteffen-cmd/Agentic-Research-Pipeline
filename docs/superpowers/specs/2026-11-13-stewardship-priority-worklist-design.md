@@ -5,6 +5,10 @@ history). Size L, 7 PRs. Spec 1 of 2; the consolidated overlap view and uploads 
 
 Status: **approved by the owner on 13 Nov 2026** (buttons in the spec session, revision 2 of the review page).
 
+Amended on 14 Nov 2026 by `stewardship-three-tiers` (owner decisions 1–6 there): the coverage tiers are now
+`bilateral`, `letter` and `monitor`, the escalation ladder has no `joint_engagement`, and step 3 gains
+**Pick for bilateral** (PR 4). Rows AC-7, AC-32, AC-35, AC-36, AC-51 and AC-52 are superseded by AC-140 to AC-145.
+
 Owner decisions so far:
 
 - 13 Nov 2026 (intake, buttons): build the prioritisation feature from the AI-native stewardship paper now.
@@ -101,7 +105,8 @@ tool records the pick the same way.
 - Weighting the score per scope: one active `priority_weights` applies to every scope.
 - Programme objectives, targets, budgets or reporting; opening engagements from a programme. A programme here is a
   named, confirmed company list. Programme membership is not a score component in v1.
-- Changing the logic of `tiers.py`, `monitoring.py` or `program.py`. `worklist.py` reads them.
+- Changing the logic of `tiers.py`, `monitoring.py` or `program.py`. `worklist.py` reads them. (`stewardship-three-tiers`
+  changes `tiers.py`; the worklist follows `TIERS` and `TIER_LABELS`.)
 - Opening engagements from the selection. A confirmed selection is a list; opening engagements stays where it is
   today (Monitoring → open engagement, `POST /api/engagement/records/{id}/issues`).
 - A stored score history, score snapshots or a score table (that would make the risk high).
@@ -147,7 +152,10 @@ The Workbench opens on three numbered steps across the top; all three stay visib
 
 1. **Holdings in scope:** the scope picker below (all house holdings, a fund, a subgroup; build a subgroup).
 2. **Narrow down:** the filter builder (see Filter builder). "Showing x of n" counts what is left.
-3. **Select:** tick rows, then **Add to <scope> selection <cycle>** (quarterly, see Selection) or **Add to programme ▾**
+3. **Select:** tick rows, then **Add to <scope> selection <cycle>** (quarterly, see Selection), **Pick for bilateral**
+   (PR 4, from `stewardship-three-tiers` PR C: asks one reason, calls `POST /api/stewardship/tiers/bilateral` once per
+   ticked row, and the rows' Coverage tier then shows `Bilateral (proposed)` until a person confirms it at Human
+   Checkpoint; a row that already has a standing pick is reported by name and left as it is) or **Add to programme ▾**
    (standing, see Programmes).
 
 ## Scopes
@@ -204,7 +212,7 @@ component id in `priority_weights`; only the columns with a Score part can carry
 | 2 | Sector | `issuer.sector` | text, filter by list | `unknown` shows `Unknown` | — |
 | 3 | Holdings weight % | `holding.index_weight_pct` | percent, 3 decimals | no holding value | `holdings_weight`: percentile rank (below) |
 | 4 | AUM held (EUR m) | `holding.aum_held_eur_m` | EUR million, 1 decimal | no holding value | `aum_held`: percentile rank |
-| 5 | Coverage tier | `TierStore.latest()` confirmed tier; else the active `coverage_rules` proposal, shown with ` (proposed)` | tier label | never (rules always propose one) | `coverage_tier`: Priority Bilateral 1, Thematic & Collaborative 0.67, Scaled Baseline 0.33, Systemic / Market-Level 0 |
+| 5 | Coverage tier | `TierStore.latest()` confirmed tier; else the active `coverage_rules` proposal, shown with ` (proposed)` | tier label | never (rules always propose one) | `coverage_tier`: Bilateral 1, Letter 0.5, Monitor 0 |
 | 6 | Open triggers | `TriggerStore.list_triggers()` for the issuer, status `open` or `acknowledged` | three counts, shown `H 1 · M 2 · L 0` | never (all zero shows `—`) | `open_triggers`: min(1, (H × 1.0 + M × 0.6 + L × 0.3) / 2) |
 | 7 | Open engagements | engagement store, issues with status `open` or `stalled` (`tracking.OPEN`) | count | never (0 shows `0`) | `open_engagements`: min(1, n / 3) |
 | 8 | Escalated | open issues whose `escalation_stage` is not `private_engagement` | count | never | `escalated`: 1 if n ≥ 1, else 0 |
@@ -334,7 +342,7 @@ disabled).
            "norms_violation": {"value": false, "simulated": true},
            "equity_held_eur_m": 412.3, "ownership_pct": {"value": 0.0121, "simulated": true},
            "holdings_weight_pct": 4.812, "aum_held_eur_m": 412.3,
-           "coverage_tier": "priority_bilateral", "coverage_tier_confirmed": true,
+           "coverage_tier": "bilateral", "coverage_tier_confirmed": true,
            "triggers": {"high": 1, "medium": 0, "low": 2},
            "open_engagements": 2, "escalated": 0, "overdue_commitments": 1,
            "next_meeting": {"days": 128, "estimated": true, "last_meeting": "2026-02-24"},
@@ -477,7 +485,7 @@ Sorted by: 1 Score ↓  ✕   2 Holdings weight ↓  ✕          Showing 37 of 
 Shift-click (or the header menu's "Add as next sort") adds it as the next key, up to three keys; a fourth replaces the
 third. Empty values sort last in both directions. Default: Score descending, then Company ascending. The sort chips
 above the table show the keys in order, each removable. Text columns sort case-insensitively. Triggers sort by
-(high, medium, low) counts, high first; Coverage tier in tier order, Priority Bilateral → Systemic / Market-Level (the
+(high, medium, low) counts, high first; Coverage tier in tier order, Bilateral → Letter → Monitor (the
 proposed and confirmed tier sort together); Grade A → F; Selected: Confirmed, Proposed, empty.
 
 **Filter builder (step 2).** One button **Add filter ▾** opens a searchable dropdown of every available indicator:
@@ -544,7 +552,7 @@ AUM held              EUR 103.5 m               0.96        10        9.6
 Next meeting          ≈ 141 d (est.)            0.00         5        0.0
                                                           Total     78.6
 
-Not weighted (weight 0): Coverage tier Priority Bilateral, Open engagements 2, ESG score 3.9 Simulated, …
+Not weighted (weight 0): Coverage tier Bilateral, Open engagements 2, ESG score 3.9 Simulated, …
 No data, 0 points: —
 This score is one indicator. Sorting, filtering and selecting are your call.
 ```
@@ -622,9 +630,9 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-55 | AC-5 | `GET /api/stewardship/worklist` | `SYN03`'s `open_triggers` part has `points` 9.0 | holdout |
 | AC-6 | Fixture W; `POST /api/engagement/records` for `SYN05`, an issue on it, and `POST /api/stewardship/tracking/commitments` with `target_date` = today − 30 days | `GET /api/stewardship/worklist` | `SYN05`'s `overdue_commitments` = 1 | holdout |
 | AC-56 | AC-6 | `GET /api/stewardship/worklist` | `SYN05`'s `overdue_commitments` part has `points` 7.5 | holdout |
-| AC-7 | Fixture W; a record and one issue for `SYN06`, escalated through `POST /api/engagement/records/SYN06/issues/{id}/escalate` with `{"stage": "joint_engagement"}` | `GET /api/stewardship/worklist` | `SYN06`'s `escalated` = 1 | holdout |
-| AC-35 | AC-7 | `GET /api/stewardship/worklist` | `SYN06`'s `open_engagements` = 1 | holdout |
-| AC-36 | AC-7 | `GET /api/stewardship/worklist` | `SYN06`'s `escalated` part has `points` 10.0 | holdout |
+| ~~AC-7~~ | Superseded by AC-140: `joint_engagement` no longer exists (`stewardship-three-tiers`, 14 Nov 2026) | — | ~~Fixture W; a record and one issue for `SYN06`, escalated through `POST /api/engagement/records/SYN06/issues/{id}/escalate` with `{"stage": "joint_engagement"}`; `GET /api/stewardship/worklist`; `SYN06`'s `escalated` = 1; holdout~~ | retired |
+| ~~AC-35~~ | Superseded by AC-141 (`stewardship-three-tiers`, 14 Nov 2026) | — | ~~AC-7; `GET /api/stewardship/worklist`; `SYN06`'s `open_engagements` = 1; holdout~~ | retired |
+| ~~AC-36~~ | Superseded by AC-142 (`stewardship-three-tiers`, 14 Nov 2026) | — | ~~AC-7; `GET /api/stewardship/worklist`; `SYN06`'s `escalated` part has `points` 10.0; holdout~~ | retired |
 | AC-8 | Fixture W | `GET /api/stewardship/worklist` | `SYN03` (largest holding, 3.1 %) has `holdings_weight` `normalised` 1.0 and `SYN10` (smallest, 0.02 %) has 0.0 | holdout |
 | AC-9 | Fixture W | `GET /api/stewardship/worklist` | `SYN01`'s `transition_grade` is `null` | holdout |
 | AC-57 | Fixture W | `GET /api/stewardship/worklist` | `SYN01`'s `transition_grade` part has `empty` true and `points` 0 | holdout |
@@ -676,9 +684,16 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-54 | Fixture W; a record and issue for `SYN11`, one commitment with `target_date` = today − 30 days added, then the issue closed through `POST /api/stewardship/tracking/close` | `GET /worklist` | `SYN11`'s `overdue_commitments` = 0 | holdout |
 | AC-31 | PR 7; T(X, high, `t_x`) stored for a company X, so its trigger has `is_new` true | A user opens `#/stewardship/workbench` | X's row shows the tag `New high trigger` | evaluator |
 | AC-50 | PR 7; `#/stewardship/workbench` open in one tab | T(X, high, `t_y`) is stored, the user switches to another tab and back | X's row shows `New high trigger` without a page reload | evaluator |
-| AC-32 | Fixture W | The backend suite runs | The existing tests of `tiers.py`, `monitoring.py`, `program.py` and `policies.py` pass unchanged | unit |
-| AC-51 | Fixture W | `GET /api/stewardship/tiers` and `GET /api/stewardship/studio/monitoring/triggers` on `main` and on the PR build | The responses are equal (a snapshot recorded from `main` in the PR's test) | unit |
-| AC-52 | Fixture W | `GET /api/stewardship/universe` and `GET /api/stewardship/policies/coverage_rules` on `main` and on the PR build | The responses are equal (a snapshot recorded from `main` in the PR's test) | unit |
+| ~~AC-32~~ | Superseded by AC-143: `tiers.py` and `policies.py` change (`stewardship-three-tiers`, 14 Nov 2026) | — | ~~Fixture W; The backend suite runs; The existing tests of `tiers.py`, `monitoring.py`, `program.py` and `policies.py` pass unchanged; unit~~ | retired |
+| ~~AC-51~~ | Superseded by AC-144: `/tiers` changes (`stewardship-three-tiers`, 14 Nov 2026) | — | ~~Fixture W; `GET /api/stewardship/tiers` and `GET /api/stewardship/studio/monitoring/triggers` on `main` and on the PR build; The responses are equal (a snapshot recorded from `main` in the PR's test); unit~~ | retired |
+| ~~AC-52~~ | Superseded by AC-145: `/policies/coverage_rules` changes (`stewardship-three-tiers`, 14 Nov 2026) | — | ~~Fixture W; `GET /api/stewardship/universe` and `GET /api/stewardship/policies/coverage_rules` on `main` and on the PR build; The responses are equal (a snapshot recorded from `main` in the PR's test); unit~~ | retired |
+| AC-140 | Fixture W; a record and one issue for `SYN06`, escalated through `POST /api/engagement/records/SYN06/issues/{id}/escalate` with `{"stage": "written_escalation_to_board"}` | `GET /api/stewardship/worklist` | `SYN06`'s `escalated` = 1 | holdout |
+| AC-141 | AC-140 | `GET /api/stewardship/worklist` | `SYN06`'s `open_engagements` = 1 | holdout |
+| AC-142 | AC-140 | `GET /api/stewardship/worklist` | `SYN06`'s `escalated` part has `points` 10.0 | holdout |
+| AC-143 | Fixture W | The backend suite runs | The existing tests of `monitoring.py` and `program.py` pass unchanged | unit |
+| AC-144 | Fixture W | `GET /api/stewardship/studio/monitoring/triggers` on `main` and on the PR build | The responses are equal (a snapshot recorded from `main` in the PR's test) | unit |
+| AC-145 | Fixture W | `GET /api/stewardship/universe` on `main` and on the PR build | The responses are equal (a snapshot recorded from `main` in the PR's test) | unit |
+| AC-146 | PR 4 and `stewardship-three-tiers` PR C merged; Showcase data; no bilateral picks | The user ticks 2 rows whose Coverage tier is not Bilateral, presses **Pick for bilateral**, types `Board change` and confirms | Both rows' Coverage tier shows `Bilateral (proposed)`, and `GET /api/stewardship/tiers` lists both in `picks` with reason `Board change` | evaluator |
 | AC-66 | PR 2; Showcase data | `GET /api/stewardship/worklist/scopes` | Exactly one entry has key `house`, and the 7 showcase portfolio ids each appear as a `portfolio:<id>` entry with `companies` ≥ 1 | holdout |
 | AC-67 | PR 2; Fixture W | `GET /api/stewardship/worklist?scope=portfolio:anything` | Status 422 with detail `Fund scopes need the portfolio universe` | holdout |
 | AC-68 | PR 2; Showcase data, any portfolio P | `GET /worklist?scope=portfolio:P` | The rows' `holdings_weight_pct` add up to 100 within 0.1 | holdout |
@@ -752,5 +767,6 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-95 | PR 6; AC-91 | The user presses ↓ | The panel shows the next row's company in the same tab | evaluator |
 | AC-96 | PR 6; AC-91 | The user opens Engagements on a seeded company | Each objective shows description, type, status, result and `Demo data` | evaluator |
 
-Must not change: coverage tiers, monitoring triggers, the universe and the existing policies (AC-32, AC-51, AC-52);
+Must not change: monitoring triggers, the universe and the existing policies other than the coverage and escalation rules
+(AC-143, AC-144, AC-145; coverage tiers change only as `stewardship-three-tiers` says);
 selecting, notes and programmes change no score (AC-20, AC-83, AC-123); nothing is pre-selected or filtered by score (AC-29).
