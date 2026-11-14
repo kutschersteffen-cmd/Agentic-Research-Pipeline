@@ -2,7 +2,9 @@
 
 Slug: showcase-alerts-company-names
 
-Risk: `risk:normal`. Size S, one PR. Status: draft, waiting for the owner's approval.
+Risk: `risk:normal` for the implementing PR. Size S, one PR.
+
+Status: **approved by the owner on 14 Nov 2026** (buttons in the spec session, after the spec-critic read `Ready for approval`).
 
 ## Why
 
