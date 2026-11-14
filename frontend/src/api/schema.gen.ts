@@ -5798,6 +5798,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/selection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Selection
+         * @description The house engagement selection of a cycle (default: the current one), folded from its log.
+         */
+        get: operations["get_selection_api_stewardship_selection_get"];
+        put?: never;
+        /**
+         * Post Selection
+         * @description Adds companies as proposed and removes proposed ones; confirmed rows stay.
+         */
+        post: operations["post_selection_api_stewardship_selection_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/selection/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Selection Confirm
+         * @description Every proposed row of the cycle becomes confirmed, recorded as the signed-in user.
+         */
+        post: operations["post_selection_confirm_api_stewardship_selection_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/streams": {
         parameters: {
             query?: never;
@@ -6193,6 +6237,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/studio/priority/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Priority Preview
+         * @description What candidate weights would change against the active version, on the house scope.
+         */
+        post: operations["post_priority_preview_api_stewardship_studio_priority_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/studio/voting/preview": {
         parameters: {
             query?: never;
@@ -6480,6 +6544,26 @@ export interface paths {
         put?: never;
         /** Close Watch Topic */
         post: operations["close_watch_topic_api_stewardship_watch_topics__topic_id__close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/worklist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Worklist
+         * @description One row per company of the house scope, computed from stored values on every request.
+         */
+        get: operations["get_worklist_api_stewardship_worklist_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -10862,6 +10946,11 @@ export interface components {
             /** Issuer Ids */
             issuer_ids?: string[] | null;
         };
+        /** Confirmed */
+        Confirmed: {
+            /** Confirmed */
+            confirmed: number;
+        };
         /** Constituent */
         Constituent: {
             /**
@@ -13013,6 +13102,15 @@ export interface components {
              */
             rationale: string;
         };
+        /** Grade */
+        Grade: {
+            /** Label */
+            label: string;
+            /** Simulated */
+            simulated: boolean;
+            /** Value */
+            value: number | string | boolean;
+        };
         /** GroupCap */
         GroupCap: {
             /**
@@ -14193,6 +14291,15 @@ export interface components {
             source_notes: string;
             theme: components["schemas"]["ThemeDefinition"];
         };
+        /** NextMeeting */
+        NextMeeting: {
+            /** Days */
+            days: number;
+            /** Estimated */
+            estimated: boolean;
+            /** Last Meeting */
+            last_meeting: string;
+        };
         /** NoteCitation */
         NoteCitation: {
             /** Page */
@@ -14333,6 +14440,13 @@ export interface components {
             /** Value */
             value: unknown;
             value_state: components["schemas"]["ValueState"];
+        };
+        /** Observed */
+        Observed: {
+            /** Simulated */
+            simulated: boolean;
+            /** Value */
+            value: number | string | boolean;
         };
         /** OlderRun */
         OlderRun: {
@@ -14793,6 +14907,28 @@ export interface components {
             /** Waiting */
             waiting: number;
         };
+        /** PriorityPreview */
+        PriorityPreview: {
+            /** Companies */
+            companies: number;
+            /** Entering Top */
+            entering_top: components["schemas"]["RankMove"][];
+            /** Leaving Top */
+            leaving_top: components["schemas"]["RankMove"][];
+            /** Score Change */
+            score_change: components["schemas"]["ScoreChange"][];
+            /** Top Active */
+            top_active: components["schemas"]["TopRow"][];
+            /** Top Candidate */
+            top_candidate: components["schemas"]["TopRow"][];
+        };
+        /** PriorityPreviewRequest */
+        PriorityPreviewRequest: {
+            /** Content */
+            content: {
+                [key: string]: unknown;
+            };
+        };
         /** ProgramParams */
         ProgramParams: {
             /**
@@ -15179,6 +15315,17 @@ export interface components {
             region_label: string;
             /** Sector */
             sector: string;
+        };
+        /** RankMove */
+        RankMove: {
+            /** Company */
+            company: string;
+            /** Issuer Id */
+            issuer_id: string;
+            /** Rank Active */
+            rank_active: number;
+            /** Rank Candidate */
+            rank_candidate: number;
         };
         /** RatifyRequest */
         RatifyRequest: {
@@ -16502,6 +16649,32 @@ export interface components {
             /** Version */
             version?: number | null;
         };
+        /** ScoreChange */
+        ScoreChange: {
+            /** Active */
+            active: number;
+            /** Candidate */
+            candidate: number;
+            /** Change */
+            change: number;
+            /** Company */
+            company: string;
+            /** Issuer Id */
+            issuer_id: string;
+        };
+        /** ScorePart */
+        ScorePart: {
+            /** Empty */
+            empty: boolean;
+            /** Id */
+            id: string;
+            /** Normalised */
+            normalised: number;
+            /** Points */
+            points: number;
+            /** Weight */
+            weight: number;
+        };
         /** ScoreRequest */
         ScoreRequest: {
             config?: components["schemas"]["MechanismConfig"] | null;
@@ -16697,10 +16870,81 @@ export interface components {
              */
             type: "select_all";
         };
+        /** Selection */
+        Selection: {
+            /** Confirmed At */
+            confirmed_at: string | null;
+            /** Confirmed By */
+            confirmed_by: string | null;
+            /** Proposed At */
+            proposed_at: string;
+            /** Proposed By */
+            proposed_by: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "proposed" | "confirmed";
+            /** Weights Version */
+            weights_version: number;
+        };
+        /** SelectionChange */
+        SelectionChange: {
+            /**
+             * Add
+             * @default []
+             */
+            add: string[];
+            /** Cycle */
+            cycle?: string | null;
+            /**
+             * Remove
+             * @default []
+             */
+            remove: string[];
+        };
+        /** SelectionConfirm */
+        SelectionConfirm: {
+            /** Cycle */
+            cycle?: string | null;
+        };
+        /** SelectionList */
+        SelectionList: {
+            /** Current */
+            current: boolean;
+            /** Cycle */
+            cycle: string;
+            /** Rows */
+            rows: components["schemas"]["SelectionRow"][];
+        };
         /** SelectionRequest */
         SelectionRequest: {
             /** Tags */
             tags: string[];
+        };
+        /** SelectionRow */
+        SelectionRow: {
+            /** Company */
+            company: string;
+            /** Confirmed At */
+            confirmed_at: string | null;
+            /** Confirmed By */
+            confirmed_by: string | null;
+            /** In Scope */
+            in_scope: boolean;
+            /** Issuer Id */
+            issuer_id: string;
+            /** Proposed At */
+            proposed_at: string;
+            /** Proposed By */
+            proposed_by: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "proposed" | "confirmed";
+            /** Weights Version */
+            weights_version: number;
         };
         /** SensitivityRequest */
         SensitivityRequest: {
@@ -17865,6 +18109,17 @@ export interface components {
              */
             type: "top_n";
         };
+        /** TopRow */
+        TopRow: {
+            /** Company */
+            company: string;
+            /** Issuer Id */
+            issuer_id: string;
+            /** Rank */
+            rank: number;
+            /** Score */
+            score: number;
+        };
         /** TransitionOut */
         TransitionOut: {
             /**
@@ -17991,6 +18246,15 @@ export interface components {
             /** As Of */
             as_of: string;
             result: components["schemas"]["AggregationResult"];
+        };
+        /** TriggerCounts */
+        TriggerCounts: {
+            /** High */
+            high: number;
+            /** Low */
+            low: number;
+            /** Medium */
+            medium: number;
         };
         /** TriggerScanRequest */
         TriggerScanRequest: {
@@ -18661,6 +18925,15 @@ export interface components {
          * @enum {string}
          */
         WeightingScheme: "equal" | "value";
+        /** WeightsVersion */
+        WeightsVersion: {
+            /** Activated At */
+            activated_at: string | null;
+            /** Activated By */
+            activated_by: string | null;
+            /** Version */
+            version: number;
+        };
         /** WindowEvidence */
         WindowEvidence: {
             deflated_sharpe: components["schemas"]["DeflatedSharpeAssessment"] | null;
@@ -18701,6 +18974,64 @@ export interface components {
             companies?: components["schemas"]["CompanyRef"][] | null;
             /** Universe Path */
             universe_path?: string | null;
+        };
+        /** Worklist */
+        Worklist: {
+            /** As Of */
+            as_of: string;
+            /** Cycle */
+            cycle: string;
+            /** Rows */
+            rows: components["schemas"]["WorklistRow"][];
+            scope: components["schemas"]["WorklistScope"];
+            /** Universe Note */
+            universe_note: string | null;
+            weights: components["schemas"]["WeightsVersion"];
+        };
+        /** WorklistRow */
+        WorklistRow: {
+            /** Aum Held Eur M */
+            aum_held_eur_m: number | null;
+            carbon_intensity: components["schemas"]["Observed"] | null;
+            /** Company */
+            company: string;
+            controversy: components["schemas"]["Observed"] | null;
+            /** Coverage Tier */
+            coverage_tier: string;
+            /** Coverage Tier Confirmed */
+            coverage_tier_confirmed: boolean;
+            /** Escalated */
+            escalated: number;
+            esg_score: components["schemas"]["Observed"] | null;
+            /** Holdings Weight Pct */
+            holdings_weight_pct: number | null;
+            /** Issuer Id */
+            issuer_id: string;
+            next_meeting: components["schemas"]["NextMeeting"] | null;
+            /** Open Engagements */
+            open_engagements: number;
+            /** Overdue Commitments */
+            overdue_commitments: number;
+            /** Parts */
+            parts: components["schemas"]["ScorePart"][];
+            /** Score */
+            score: number;
+            /** Sector */
+            sector: string;
+            selection: components["schemas"]["Selection"] | null;
+            transition_grade: components["schemas"]["Grade"] | null;
+            triggers: components["schemas"]["TriggerCounts"];
+        };
+        /** WorklistScope */
+        WorklistScope: {
+            /** Companies */
+            companies: number;
+            /** Key */
+            key: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
         };
         /** XbrlRunRequest */
         XbrlRunRequest: {
@@ -29938,6 +30269,103 @@ export interface operations {
             };
         };
     };
+    get_selection_api_stewardship_selection_get: {
+        parameters: {
+            query?: {
+                cycle?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelectionList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_selection_api_stewardship_selection_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SelectionChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelectionList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_selection_confirm_api_stewardship_selection_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SelectionConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Confirmed"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_streams_api_stewardship_streams_get: {
         parameters: {
             query?: never;
@@ -30666,6 +31094,39 @@ export interface operations {
             };
         };
     };
+    post_priority_preview_api_stewardship_studio_priority_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PriorityPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriorityPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     post_voting_preview_api_stewardship_studio_voting_preview_post: {
         parameters: {
             query?: never;
@@ -31246,6 +31707,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_worklist_api_stewardship_worklist_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Worklist"];
                 };
             };
         };
