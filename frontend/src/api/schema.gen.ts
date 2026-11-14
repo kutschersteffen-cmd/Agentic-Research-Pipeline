@@ -5421,6 +5421,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/activities/{activity_id}/find-commitments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Find Commitments In Note */
+        post: operations["find_commitments_in_note_api_stewardship_activities__activity_id__find_commitments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/benchmarks": {
         parameters: {
             query?: never;
@@ -12804,6 +12821,15 @@ export interface components {
             /** State */
             state?: ("kept" | "removed") | null;
         };
+        /** FindCommitmentsResult */
+        FindCommitmentsResult: {
+            /** Skipped */
+            skipped: number;
+            /** Suggestions */
+            suggestions: number;
+            /** Ungrounded */
+            ungrounded: number;
+        };
         /**
          * FlagExclusionScreen
          * @description Exclude companies whose boolean field equals `exclude_when` --
@@ -18859,6 +18885,22 @@ export interface components {
          * @enum {string}
          */
         WalkOrTalk: "walk" | "talk";
+        /** WatchCheckRequest */
+        WatchCheckRequest: {
+            /** Company Id */
+            company_id: string;
+        };
+        /** WatchCheckResult */
+        WatchCheckResult: {
+            /** Documents */
+            documents: number;
+            /** Skipped */
+            skipped: number;
+            /** Suggestions */
+            suggestions: number;
+            /** Unclear */
+            unclear: number;
+        };
         /**
          * WatchTopic
          * @description A question a person asked to watch for in the company's reports (`stw_watch_topics`).
@@ -29510,6 +29552,37 @@ export interface operations {
             };
         };
     };
+    find_commitments_in_note_api_stewardship_activities__activity_id__find_commitments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindCommitmentsResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_benchmarks_api_stewardship_benchmarks_get: {
         parameters: {
             query?: never;
@@ -31554,7 +31627,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WatchCheckRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -31562,9 +31639,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["WatchCheckResult"];
                 };
             };
             /** @description Validation Error */

@@ -34,6 +34,7 @@ from arp.schemas.engagement import (
     MilestoneTransition,
     Objective,
     TriggerSource,
+    WatchItem,
     WatchTopic,
     evidence_text,
 )
@@ -511,6 +512,8 @@ class PostgresEngagementStore:
             if row.status != "pending":
                 raise WatchError(409, f"Suggestion already {row.status}.")
             if row.kind == "new_commitment":
+                if self._tx.get(StwEngagementModel, row.engagement_id).status not in _OPEN_ENGAGEMENT:
+                    raise WatchError(409, "This engagement is closed. Reopen it to add a commitment.")
                 return self._decide(row, "confirmed", user, created_commitment_id=self._add_found_commitment(row, user, overrides or {}))
             item = self._tx.get(_ITEMS[row.item_kind][0], row.item_id)
             engagement = self._tx.get(StwEngagementModel, row.engagement_id)
@@ -530,16 +533,84 @@ class PostgresEngagementStore:
             raise WatchError(422, "A due date is required to add a commitment.")
         if not is_iso_date(target_date):
             raise WatchError(422, "target_date must be an ISO date")
-        activity = self._tx.get(StwActivityModel, row.activity_id)
+        activity = self._tx.get(StwActivityModel, row.activity_id) if row.activity_id else None
+        occurred_at = activity.occurred_at if activity is not None else None
         commitment = Commitment(
             text=overrides.get("text") or row.text,
             proof_statement=overrides.get("proof_statement") or row.proof_statement,
             target_date=target_date,
             recorded_by=user,
-            **({"made_at": activity.occurred_at.astimezone(UTC).isoformat()} if activity.occurred_at else {}),
+            **({"made_at": occurred_at.astimezone(UTC).isoformat()} if occurred_at else {}),
         )
         self.add_commitment(row.company_id, row.engagement_id, commitment)
         return commitment.commitment_id
+
+    # --- The check and find-commitments (spec "The check (PR 2)") ------------------------------
+
+    def watch_items(self, company_id: str) -> list[WatchItem]:
+        """The company's watch items: open objectives, commitments and topics on open or stalled engagements."""
+        E = StwEngagementModel
+        items: list[WatchItem] = []
+        with self._session() as session:
+            for kind, (model, _) in _ITEMS.items():
+                rows = session.scalars(
+                    select(model)
+                    .join(E, E.engagement_id == model.engagement_id)
+                    .where(E.company_id == company_id, E.status.in_(_OPEN_ENGAGEMENT), model.status.in_(_OPEN_ITEM[kind]))
+                    .order_by(model.engagement_id, getattr(model, _ID[kind]))
+                )
+                items += [_watch_item(kind, r) for r in rows]
+        return items
+
+    def watch_item(self, company_id: str, item_kind: str, item_id: str) -> WatchItem:
+        """One item of `company_id` for an on-demand check: 404 when unknown or another company's, 409 when not open."""
+        model, missing = _ITEMS[item_kind]
+        with self._session() as session:
+            row = session.get(model, item_id)
+            engagement = session.get(StwEngagementModel, row.engagement_id) if row is not None else None
+            if engagement is None or engagement.company_id != company_id:
+                raise WatchError(404, missing)
+            if row.status not in _OPEN_ITEM[item_kind] or engagement.status not in _OPEN_ENGAGEMENT:
+                raise WatchError(409, "Only open items can be checked.")
+            return _watch_item(item_kind, row)
+
+    def note_for_find(self, activity_id: str) -> tuple[str, str, str]:
+        """(company_id, engagement_id, summary) of a call or meeting note: 404 when unknown, 409 for any other activity."""
+        with self._session() as session:
+            row = session.get(StwActivityModel, activity_id)
+            if row is None:
+                raise WatchError(404, "Unknown activity.")
+            if (row.activity_type or row.type) not in ("call", "meeting"):
+                raise WatchError(409, "Commitments are only looked for in call and meeting notes.")
+            return session.get(StwEngagementModel, row.engagement_id).company_id, row.engagement_id, row.summary or ""
+
+    def add_suggestions(self, company_id: str, suggestions: list[EvidenceSuggestion]) -> tuple[int, int]:
+        """Writes pending suggestions, one `evidence_suggested` event each; returns (written, skipped). A suggestion
+        whose key exists (item and document; note and quote) is skipped, and so is evidence on an item that stopped being
+        a watch item while the model ran. Its company and engagement must be its item's or note's, since confirm acts on
+        the stored row."""
+        S = StwEvidenceSuggestionModel
+        written = skipped = 0
+        with self.lock(company_id):
+            for s in suggestions:
+                if s.kind == "evidence":
+                    owner = self._tx.get(_ITEMS[s.item_kind][0], s.item_id)
+                    key = (S.kind == "evidence", S.item_kind == s.item_kind, S.item_id == s.item_id, S.doc_id == s.doc_id)
+                else:
+                    owner = self._tx.get(StwActivityModel, s.activity_id)
+                    key = (S.kind == "new_commitment", S.activity_id == s.activity_id, S.quote == s.quote)
+                engagement = self._tx.get(StwEngagementModel, owner.engagement_id) if owner is not None else None
+                if engagement is None or (s.company_id, s.engagement_id) != (company_id, owner.engagement_id) or engagement.company_id != company_id:
+                    raise ValueError(f"Suggestion {s.suggestion_id} does not match its item's company and engagement")
+                closed = s.kind == "evidence" and (owner.status not in _OPEN_ITEM[s.item_kind] or engagement.status not in _OPEN_ENGAGEMENT)
+                if closed or self._tx.scalar(select(S.suggestion_id).where(*key).limit(1)) is not None:
+                    skipped += 1
+                    continue
+                self._add(_row(S, s))
+                self._tx.flush()  # the next suggestion's key lookup sees this one
+                self._log(company_id, "evidence_suggested", {"suggestion_id": s.suggestion_id, "kind": s.kind, "item_id": s.item_id or s.activity_id})
+                written += 1
+        return written, skipped
 
 
 class WatchError(Exception):
@@ -565,4 +636,15 @@ _ITEMS = {
     "commitment": (StwCommitmentModel, "Unknown commitment."),
     "topic": (StwWatchTopicModel, "Unknown topic."),
 }
+_ID = {"objective": "objective_id", "commitment": "commitment_id", "topic": "topic_id"}
+_TEXT = {"objective": "description", "commitment": "text", "topic": "question"}
+
+
+def _watch_item(kind: str, row) -> WatchItem:
+    return WatchItem(
+        item_kind=kind, item_id=getattr(row, _ID[kind]), engagement_id=row.engagement_id, text=getattr(row, _TEXT[kind]),
+        proof_statement=row.proof_statement, target_date=row.target_date,
+    )
+
+
 _ITEM_OUT: dict[str, type[BaseModel]] = {"objective": Objective, "commitment": Commitment, "topic": WatchTopic}

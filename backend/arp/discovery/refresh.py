@@ -123,8 +123,12 @@ async def refresh_on_events(
 
 
 def refresh_hook(settings: Settings, run_store: RunStore | None = None, *, parent: tuple[str, str, str] | None = None):
-    """The ChangeDetector `on_events` callback when refresh is on, else None. `parent`: see refresh_on_events."""
-    if not (settings.event_refresh_enabled and settings.event_refresh_schema_ids):
+    """The ChangeDetector `on_events` callback when event refresh or the watch check (spec stewardship-commitment-loop)
+    is on, else None. The watch check runs first; its failure is logged and stops neither refresh nor discovery.
+    `parent`: see refresh_on_events."""
+    refresh_on = bool(settings.event_refresh_enabled and settings.event_refresh_schema_ids)
+    watch_on = settings.watch_check_on_new_documents and settings.engagement_store == "postgres"
+    if not (refresh_on or watch_on):
         return None
 
     async def on_events(events: list[DocumentEvent], company: CompanyRef | None = None) -> None:
@@ -132,10 +136,21 @@ def refresh_hook(settings: Settings, run_store: RunStore | None = None, *, paren
         from arp.retrieval.content_store_factory import content_store_for
         from arp.storage.run_store import RunStore
 
-        store = run_store or RunStore(require_dsn(settings), settings.runs_dir)
-        await refresh_on_events(
-            events, settings=settings, run_store=store,
-            registry=build_registry(settings, content_store_for(settings)), parent=parent, company_hint=company,
-        )
+        registry = build_registry(settings, content_store_for(settings))
+        if watch_on:
+            from arp.llm.factory import build_llm_client
+            from arp.stewardship.watch_check import check_on_events
+            from arp.storage.postgres_engagement_store import PostgresEngagementStore
+
+            try:
+                await check_on_events(
+                    events, company, store=PostgresEngagementStore(require_dsn(settings)), llm=build_llm_client(settings),
+                    registry=registry, fuzzy_threshold=settings.grounding_fuzzy_threshold,
+                )
+            except Exception:  # noqa: BLE001 - a watch check failure never stops the refresh
+                logger.exception("Watch check failed for %s", [e.company_id for e in events])
+        if refresh_on:
+            store = run_store or RunStore(require_dsn(settings), settings.runs_dir)
+            await refresh_on_events(events, settings=settings, run_store=store, registry=registry, parent=parent, company_hint=company)
 
     return on_events

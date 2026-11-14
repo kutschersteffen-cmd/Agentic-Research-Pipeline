@@ -1,0 +1,345 @@
+{
+  "check": [
+    {
+      "id": "check-01",
+      "document": "netflix-2024-proxy-say-on-pay.txt",
+      "doc_type": "DEF-14A",
+      "item_kind": "objective",
+      "text": "Netflix to win majority shareholder support for its say-on-pay proposal at the 2023 annual meeting.",
+      "proof_statement": "The 2023 say-on-pay vote result shows more than 50% of votes cast in favour.",
+      "label": "against",
+      "evidence": "At our 2023 annual meeting, 28.7% of voted shares approved the compensation of our Named Executive Officers."
+    },
+    {
+      "id": "check-02",
+      "document": "netflix-2024-proxy-say-on-pay.txt",
+      "doc_type": "DEF-14A",
+      "item_kind": "commitment",
+      "text": "Netflix to replace the single-trigger change-in-control arrangements for its executive officers with double-trigger provisions.",
+      "proof_statement": "The proxy states that a double-trigger change-in-control severance plan has been adopted for executive officers.",
+      "label": "found",
+      "evidence": "We adopted a “double-trigger” change-in-control severance plan for our Executive Officers."
+    },
+    {
+      "id": "check-03",
+      "document": "netflix-2024-proxy-say-on-pay.txt",
+      "doc_type": "DEF-14A",
+      "item_kind": "topic",
+      "text": "Has Netflix set a target to reduce its Scope 3 emissions?",
+      "proof_statement": null,
+      "label": "silent",
+      "evidence": null
+    },
+    {
+      "id": "check-04",
+      "document": "netflix-2025-proxy-say-on-pay.txt",
+      "doc_type": "DEF-14A",
+      "item_kind": "objective",
+      "text": "Netflix to regain at least 70% shareholder support for say-on-pay at the 2024 annual meeting after the failed 2023 vote.",
+      "proof_statement": "The 2024 say-on-pay vote result is reported at 70% support or higher.",
+      "label": "found",
+      "evidence": "At our 2024 annual meeting, our say-on-pay proposal received 82.2% support."
+    },
+    {
+      "id": "check-05",
+      "document": "netflix-2025-proxy-say-on-pay.txt",
+      "doc_type": "DEF-14A",
+      "item_kind": "commitment",
+      "text": "Netflix to extend its executive compensation clawback policy to cover misconduct, not only financial restatements.",
+      "proof_statement": "The proxy describes a clawback policy that can recover pay for misconduct without a restatement.",
+      "label": "silent",
+      "evidence": null
+    },
+    {
+      "id": "check-06",
+      "document": "chipotle-2024-10k-risk-factors.txt",
+      "doc_type": "10-K",
+      "item_kind": "objective",
+      "text": "Chipotle to set a near-term emissions reduction target validated by the Science Based Targets initiative.",
+      "proof_statement": "The company reports that SBTi has validated its near-term targets.",
+      "label": "found",
+      "evidence": "We previously announced that we had set science-based targets validated by the Science Based Targets Initiative to reduce absolute Scope 1, 2 and 3 greenhouse gas emissions 50% by 2030 from a 2019 base year, and achievement of this goal is subject to risks and uncertainties, many of which are outside of our control."
+    },
+    {
+      "id": "check-07",
+      "document": "chipotle-2024-10k-risk-factors.txt",
+      "doc_type": "10-K",
+      "item_kind": "topic",
+      "text": "Has Chipotle disclosed the results of an independent civil rights audit?",
+      "proof_statement": null,
+      "label": "silent",
+      "evidence": null
+    },
+    {
+      "id": "check-08",
+      "document": "bp-2024-20f-sustainability.txt",
+      "doc_type": "other",
+      "item_kind": "objective",
+      "text": "bp to keep its aim to reduce Scope 3 emissions from the carbon in its upstream oil and gas production (aim 2).",
+      "proof_statement": "The annual report restates the aim and reports progress against it.",
+      "label": "against",
+      "evidence": "We have retired our aim related to the estimated Scope 3 (category 11) emissions from the carbon in our upstream oil and gas production«."
+    },
+    {
+      "id": "check-09",
+      "document": "bp-2024-20f-sustainability.txt",
+      "doc_type": "other",
+      "item_kind": "commitment",
+      "text": "bp to cut the average lifecycle carbon intensity of the energy products it sells by 15-20% by 2030 versus 2019.",
+      "proof_statement": "The annual report confirms the 15-20% by 2030 aim and progress towards it.",
+      "label": "against",
+      "evidence": "Informed by our strategy reset, and a range of assumptions, we are aiming for an 8-10% reduction by the end of 2030 compared to the 2019 baseline."
+    },
+    {
+      "id": "check-10",
+      "document": "bp-2024-20f-sustainability.txt",
+      "doc_type": "other",
+      "item_kind": "commitment",
+      "text": "bp to keep increasing its investment in transition businesses each year.",
+      "proof_statement": "Transition investment in 2024 is higher than in 2023 and the aim to increase it is kept.",
+      "label": "against",
+      "evidence": "We have retired our aim for more investment into the transition."
+    },
+    {
+      "id": "check-11",
+      "document": "bp-2024-20f-sustainability.txt",
+      "doc_type": "other",
+      "item_kind": "topic",
+      "text": "Did bp's Scope 2 emissions fall in 2024 compared with 2023?",
+      "proof_statement": null,
+      "label": "found",
+      "evidence": "In 2024 our Scope 2a (indirect) emissions, decreased by 0.2MtCO2e, to 0.8MtCO2e, compared with 2023."
+    },
+    {
+      "id": "check-12",
+      "document": "hsbc-2024-20f-esg-update.txt",
+      "doc_type": "other",
+      "item_kind": "commitment",
+      "text": "HSBC to reach net zero in its own operations and supply chain by 2030.",
+      "proof_statement": "The annual report confirms the 2030 date and shows progress towards net zero in operations, travel and supply chain.",
+      "label": "against",
+      "evidence": "We are now focused on achieving net zero in our operations, travel and supply chain by 2050."
+    },
+    {
+      "id": "check-13",
+      "document": "hsbc-2024-20f-esg-update.txt",
+      "doc_type": "other",
+      "item_kind": "topic",
+      "text": "Has HSBC started a review of its interim 2030 financed emissions targets?",
+      "proof_statement": null,
+      "label": "found",
+      "evidence": "As we near the mid-point towards our 2030 targets, we have begun a review of our interim 2030 financed emission targets and associated policies."
+    },
+    {
+      "id": "check-14",
+      "document": "wells-fargo-2025-proxy-engagement.txt",
+      "doc_type": "DEF-14A",
+      "item_kind": "objective",
+      "text": "Wells Fargo to calculate and disclose an energy supply ratio of its low-carbon versus fossil fuel financing.",
+      "proof_statement": "The company publishes an energy supply ratio or commits to a date for doing so.",
+      "label": "against",
+      "evidence": "In consideration of our client-centric approach and practices, as well as existing third-party estimates that allow for comparability, we determined that it is not in the best interest of shareholders for Wells Fargo to independently calculate and disclose this ratio."
+    },
+    {
+      "id": "check-15",
+      "document": "wells-fargo-2025-proxy-engagement.txt",
+      "doc_type": "DEF-14A",
+      "item_kind": "objective",
+      "text": "After the 2023 majority vote on workplace harassment and discrimination, Wells Fargo to expand its disclosure on board oversight of harassment and discrimination.",
+      "proof_statement": "The company reports that it has published additional disclosure on board oversight of harassment and discrimination prevention.",
+      "label": "found",
+      "evidence": "Following the 2023 annual meeting, we sought shareholder feedback, and provided additional disclosure about Board oversight of human capital risk and human capital management and our modified framework to prevent and address harassment and discrimination."
+    },
+    {
+      "id": "check-16",
+      "document": "wells-fargo-2025-proxy-engagement.txt",
+      "doc_type": "DEF-14A",
+      "item_kind": "commitment",
+      "text": "Wells Fargo to link part of executive annual incentive pay to climate metrics.",
+      "proof_statement": "The proxy states that a climate metric is included in the executive annual incentive scorecard.",
+      "label": "silent",
+      "evidence": null
+    },
+    {
+      "id": "check-17",
+      "document": "coca-cola-2024-10k-sustainability-risks.txt",
+      "doc_type": "10-K",
+      "item_kind": "commitment",
+      "text": "Coca-Cola to sell 25% of its beverage volume in refillable or returnable packaging by 2030.",
+      "proof_statement": "The report gives the share of volume sold in reusable packaging and confirms the 2030 goal.",
+      "label": "silent",
+      "evidence": null
+    },
+    {
+      "id": "check-18",
+      "document": "coca-cola-2024-10k-sustainability-risks.txt",
+      "doc_type": "10-K",
+      "item_kind": "objective",
+      "text": "Coca-Cola to obtain SBTi validation of an updated 2035 emissions reduction target.",
+      "proof_statement": "The report states that SBTi validated the updated target.",
+      "label": "silent",
+      "evidence": null
+    },
+    {
+      "id": "check-19",
+      "document": "unilever-2024-20f-strategic-report.txt",
+      "doc_type": "other",
+      "item_kind": "commitment",
+      "text": "Unilever to pay a living wage to all of its direct employees.",
+      "proof_statement": "Independent accreditation or reporting confirms all direct employees are paid at least a living wage.",
+      "label": "found",
+      "evidence": "We were awarded our second global independent accreditation as a living wage employer, covering the 2024 calendar year – see page 273 for more details."
+    },
+    {
+      "id": "check-20",
+      "document": "unilever-2024-20f-strategic-report.txt",
+      "doc_type": "other",
+      "item_kind": "objective",
+      "text": "Unilever to link at least a quarter of executive long-term incentive awards to sustainability measures.",
+      "proof_statement": "The remuneration disclosure shows sustainability measures weighted at 25% or more of the long-term incentive plan.",
+      "label": "silent",
+      "evidence": null
+    },
+    {
+      "id": "check-21",
+      "document": "shell-2024-20f-climate-targets.txt",
+      "doc_type": "other",
+      "item_kind": "objective",
+      "text": "Shell to eliminate routine flaring from its upstream-operated assets by 2025.",
+      "proof_statement": "The report states that routine flaring has been eliminated from upstream-operated assets.",
+      "label": "found",
+      "evidence": "We were aiming to eliminate routine flaring from our upstream-operated assets by 2025 [A] and Shell has delivered this target."
+    },
+    {
+      "id": "check-22",
+      "document": "shell-2024-20f-climate-targets.txt",
+      "doc_type": "other",
+      "item_kind": "commitment",
+      "text": "Shell to keep its 2035 target to reduce the net carbon intensity of the energy products it sells by 45%.",
+      "proof_statement": "The report restates the 45% by 2035 target and progress towards it.",
+      "label": "against",
+      "evidence": "In recognition of the uncertainty in the pace of change in the energy transition, we retired our 2035 target of a 45% reduction in NCI."
+    },
+    {
+      "id": "check-23",
+      "document": "target-2024-10k-risk-factors.txt",
+      "doc_type": "10-K",
+      "item_kind": "objective",
+      "text": "Target to keep its diversity, equity and inclusion goals and initiatives in place through 2025.",
+      "proof_statement": "The 10-K describes the DEI goals and initiatives as continuing.",
+      "label": "against",
+      "evidence": "For example, we recently announced that we modified and concluded certain of our initiatives related to diversity, equity, and inclusion, which resulted in adverse reactions from some of our shareholders, guests, team members, and others."
+    },
+    {
+      "id": "check-24",
+      "document": "mosaic-2024-10k-human-capital.txt",
+      "doc_type": "10-K",
+      "item_kind": "topic",
+      "text": "Did Mosaic carry out a pay equity audit in 2024?",
+      "proof_statement": null,
+      "label": "found",
+      "evidence": "In 2024, Mosaic continued to enhance ongoing internal analytical capabilities for continuous assessment of pay and performance equity and evolved our annual pay equity audit to bring more employees within scope across our global operations and to enhance our assessment of pay disparities."
+    },
+    {
+      "id": "check-25",
+      "document": "mosaic-2024-10k-human-capital.txt",
+      "doc_type": "10-K",
+      "item_kind": "objective",
+      "text": "Mosaic to set a time-bound target to reduce absolute Scope 1 and 2 emissions.",
+      "proof_statement": "The company discloses an absolute Scope 1 and 2 reduction target with a target year.",
+      "label": "silent",
+      "evidence": null
+    }
+  ],
+  "find": [
+    {
+      "id": "find-01",
+      "activity_type": "call",
+      "note": "Call with Northwind Freight, 12 March. Attendees: Head of IR, Head of Sustainability; two analysts on our side. We opened on the fleet transition. The company converted 140 urban delivery vans to electric last year and is pleased with their uptime. On targets, the Head of Sustainability confirmed that Northwind will submit its near-term emissions targets to the SBTi for validation before the end of this year. We asked whether they would also commit to a 2040 net zero date; they said the board is looking at it but would not give a timeline. On disclosure, IR said the company will publish its first standalone TCFD report alongside the 2025 annual report. We raised driver safety and subcontractor working hours; management described its current audit programme and did not propose any change. Follow-up: check the SBTi submission in Q4.",
+      "key_phrases": [
+        "submit its near-term emissions targets to the SBTi",
+        "publish its first standalone TCFD report"
+      ]
+    },
+    {
+      "id": "find-02",
+      "activity_type": "meeting",
+      "note": "Meeting with Halden Mining chair and company secretary, London, 3 April. Topic: tailings and community relations at the Copper Ridge site. The chair noted that the main dam was reclassified after the 2023 independent review and that there were no incidents last year. We pressed for an independent human rights impact assessment at Copper Ridge, given the complaints from the downstream villages. The chair agreed that the company will commission an independent human rights impact assessment of Copper Ridge and publish a summary by mid-2026. We also asked for conformance reports against the Global Industry Standard on Tailings Management for every site; the company secretary said they hope to get there eventually. On board composition, the chair mentioned that two directors with mine safety experience joined in 2024. Constructive overall; we will track the assessment.",
+      "key_phrases": [
+        "will commission an independent human rights impact assessment"
+      ]
+    },
+    {
+      "id": "find-03",
+      "activity_type": "call",
+      "note": "Call with Brightwater Utilities IR, 20 May. We asked about the coal phase-out date for the Elm Point plant. IR said the company remains committed to a responsible transition and that the timing depends on the next regulatory rate case, which they expect to file at some point next year. We asked whether they would set a methane intensity target for the gas distribution business; IR said they would pass the request on to management. They highlighted that renewables reached 31% of generation in 2024, up from 24%, and that two coal units have been retired since 2020. We asked for a review of whether their trade association lobbying matches their climate position; no view was given. Next step: request a meeting with the chair before the AGM.",
+      "key_phrases": []
+    },
+    {
+      "id": "find-04",
+      "activity_type": "meeting",
+      "note": "Meeting with Corvane Pharma compensation committee chair and General Counsel, 9 January. Follow-up to our vote against last year's say-on-pay resolution, which received 61% support. The committee chair walked through the changes. First, the company will add a relative TSR modifier to the 2026 performance share awards. Second, the one-off retention grant made to the CEO in 2024 will not be repeated, and the committee will not make further one-off awards to the CEO before 2028. Third, the General Counsel said Corvane will disclose the bonus scorecard targets and outcomes in this year's remuneration report. We asked them to raise the CEO shareholding requirement from 300% to 500% of salary; the chair said the committee would reflect on it. They also mentioned that the board appointed a new independent director with HR experience last autumn.",
+      "key_phrases": [
+        "add a relative TSR modifier",
+        "will not make further one-off awards",
+        "disclose the bonus scorecard targets and outcomes"
+      ]
+    },
+    {
+      "id": "find-05",
+      "activity_type": "call",
+      "note": "Call with Lumena Apparel Head of Responsible Sourcing, 14 February. Focus: wages at Tier 1 garment suppliers in Bangladesh and Cambodia. She said the company mapped all Tier 1 and 80% of Tier 2 factories last year and published the supplier list. We asked for a time-bound living wage commitment. She told us Lumena will publish a living wage gap analysis for its top 50 suppliers by the end of Q3. On a binding target, she said they aspire to close the gap over time but cannot give a date while purchasing practices are under review. We asked about the International Accord on health and safety; they renewed their signature in 2023. We flagged freedom of association concerns at one Cambodian supplier; she said she was aware of the reports.",
+      "key_phrases": [
+        "publish a living wage gap analysis"
+      ]
+    },
+    {
+      "id": "find-06",
+      "activity_type": "meeting",
+      "note": "Meeting with Arvent Chemicals CFO and Head of Strategy, 28 February. We discussed the credibility of the 2030 Scope 1 and 2 target (-42% versus 2021). The CFO said emissions fell 9% last year, mostly because of the closure of the Antwerp cracker. We asked how the remaining reduction will be funded. The CFO confirmed that Arvent will disclose climate-related capex as a separate line in the capital markets day materials in June. We asked for a Scope 3 target covering purchased goods; the Head of Strategy said this is under consideration given data quality. On electrification, the CFO said Arvent will sign a renewable power purchase agreement for its Rotterdam sites before year-end. We suggested linking the long-term incentive plan to the emissions target; they only noted that the board sets pay.",
+      "key_phrases": [
+        "disclose climate-related capex as a separate line",
+        "sign a renewable power purchase agreement"
+      ]
+    },
+    {
+      "id": "find-07",
+      "activity_type": "call",
+      "note": "Call with Tellus Bank sustainability lead and IR, 5 June. The bank published its first financed emissions inventory in March, covering 70% of the loan book. We asked for interim sector targets. The sustainability lead said targets for oil and gas and for power will be set and published with the half-year results in August. On the energy supply ratio, IR said the bank does not see value in the metric and will not report it. We raised the expiry of the bank's thermal coal policy at the end of this year; they said the board risk committee reviews policies regularly. IR also mentioned that the bank received an A- score from CDP last year. Next step: review the sector targets in August.",
+      "key_phrases": [
+        "set and published with the half-year results"
+      ]
+    },
+    {
+      "id": "find-08",
+      "activity_type": "meeting",
+      "note": "Meeting with Orrin Foods Head of Procurement, 18 September. Topic: palm oil and soy traceability ahead of the EU deforestation regulation. He said 96% of palm oil volumes are traceable to mill and that the company joined a landscape programme in Sabah in 2022. We asked for a public cut-off date for soy from the Cerrado. He said Orrin would like to align with peers but the decision sits with the group sustainability council, which next meets in November. We also asked for the grievance log to be published; he said they are open to the idea. He noted that the company already publishes its list of palm oil mills twice a year. Constructive, but nothing firm; to revisit after November.",
+      "key_phrases": []
+    },
+    {
+      "id": "find-09",
+      "activity_type": "call",
+      "note": "Call with Quarry Point Software lead independent director, 11 November. We asked about board oversight of AI risk after the product incident in Q2. She said the audit committee took on AI oversight this year and has met the CTO twice. She told us the board will amend the audit committee charter to name AI risk explicitly before the next proxy statement. We asked whether the company would publish its responsible AI principles. She said yes: the company will put its responsible AI principles on the investor site within six months. We also asked for a sunset on the dual-class structure; she said the founders do not support one and the board has no plans to propose it. She added that three new directors have joined since 2022.",
+      "key_phrases": [
+        "amend the audit committee charter",
+        "responsible AI principles on the investor site"
+      ]
+    },
+    {
+      "id": "find-10",
+      "activity_type": "meeting",
+      "note": "Meeting with Valemont Hotels Chief People Officer, 2 October. Discussion of outsourced housekeeping staff at the Gulf properties. She said all labour agencies were re-audited in 2024 and that recruitment fees found at two agencies were repaid to workers. We asked Valemont to adopt the Employer Pays Principle across all regions. She confirmed that from January the company will require every labour agency contract to include the Employer Pays Principle. We asked for the audit results by country; she said that would be difficult for confidentiality reasons. She also described a wellbeing app for hotel staff launched last year. We will ask for evidence of the contract change at the next meeting.",
+      "key_phrases": [
+        "every labour agency contract to include"
+      ]
+    },
+    {
+      "id": "find-11",
+      "activity_type": "call",
+      "note": "Call with Sefton Water CEO and IR, 22 July. The CEO opened with the storm overflow figures: spills fell 18% in 2024 after the first phase of the overflow programme. We asked the board to tie executive bonuses to spill reduction; the CEO said this already happened last year, and 20% of the annual bonus is now linked to the spill metric. We asked whether the company would hold back dividends while regulatory fines are outstanding. The CEO said the board will not pay a dividend for the 2025 financial year. On leakage, IR said the company expects to keep improving but gave no target. We will check the dividend statement at the interim results.",
+      "key_phrases": [
+        "will not pay a dividend for the 2025"
+      ]
+    }
+  ]
+}

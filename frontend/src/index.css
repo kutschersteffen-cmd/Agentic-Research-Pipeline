@@ -988,6 +988,9 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .activity-row .activity-main { flex: 1; min-width: 0; }
 .activity-row .progress-bar { margin: var(--s-1_5) 0 0; }
 .activity-meta { color: var(--muted); font-size: var(--text-xs); display: flex; gap: var(--s-2); flex-wrap: wrap; align-items: baseline; margin-top: var(--s-0_5); }
+/* A pending answer from Argus under a watch item: set off from the item, quote in the reading voice. */
+.suggestion { margin-top: var(--s-2); padding: var(--s-2) var(--s-3); border-left: 3px solid var(--panel-border); display: grid; gap: var(--s-1); }
+.suggestion blockquote { margin: 0; font-style: italic; }
 .activity-meta .link-button { padding: 0; font-size: inherit; font-weight: 600; }
 
 .section-heading {

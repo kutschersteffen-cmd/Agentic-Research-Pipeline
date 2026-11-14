@@ -392,6 +392,10 @@ class Settings(BaseSettings):
     event_refresh_schema_ids: list[str] = Field(default=[], description="Released schemas each new filing is extracted with.")
     event_refresh_max_runs_per_day: int = Field(default=20, description="Cap on refresh runs started per UTC day.")
     event_refresh_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".event_refresh_state")
+    watch_check_on_new_documents: bool = Field(
+        default=True,
+        description="Check a company's open objectives, commitments and watch topics against each new or updated document discovery records (Postgres engagement store only).",
+    )
 
     # Emerging Themes Scanner ("Tool 0" -- arp/emerging_themes/). Ingests
     # public news/filings/regulatory flow across a universe, clusters it

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useMe } from "../lib/reviewer";
 import { SignedInAs } from "./SignedInAs";
-import { ObjectivesSection, ProofLine, WatchTopicsSection } from "./EngagementWatch";
+import { CheckButton, FindCommitmentsButton, FoundCommitments, ObjectivesSection, PendingEvidence, ProofLine, WatchTopicsSection, useSuggestions } from "./EngagementWatch";
 import type {
   Contact,
   EngagementIssue,
@@ -71,6 +71,7 @@ export function EngagementIssuePanel({
   const [evidence, setEvidence] = useState("");
   const closed = issue.status === "resolved" || issue.status === "closed";
   const watch = { companyId: record.company_id, issueId: issue.issue_id, busy, run };
+  const suggestions = useSuggestions(record.company_id);
 
   useEffect(() => {
     setDossier(null);
@@ -291,15 +292,19 @@ export function EngagementIssuePanel({
               <div className="timeline-meta">
                 {new Date(c.date).toLocaleString()} {c.logged_by ? `-- logged by ${c.logged_by}` : ""}
               </div>
+              {suggestions.available && ["call", "meeting"].includes(c.activity_type ?? c.type) && (
+                <FindCommitmentsButton ctx={watch} activityId={c.entry_id} onFound={suggestions.reload} />
+              )}
             </li>
           ))}
         </ul>
       </div>
 
-      <ObjectivesSection ctx={watch} issue={issue} onSaved={refreshRecord} />
+      <ObjectivesSection ctx={watch} issue={issue} suggestions={suggestions} closed={closed} onSaved={refreshRecord} />
 
       <div className="panel-section">
         <h3>Commitments</h3>
+        <FoundCommitments ctx={watch} issue={issue} suggestions={suggestions} closed={closed} onSaved={refreshRecord} />
         {issue.commitments.length === 0 && <p className="muted">None logged yet.</p>}
         {issue.commitments.map((c) => (
           <div className="activity-row" key={c.commitment_id}>
@@ -313,6 +318,12 @@ export function EngagementIssuePanel({
                 {c.evidence && <span>evidence: {c.evidence}</span>}
               </div>
               <ProofLine ctx={watch} kind="commitment" id={c.commitment_id} label={c.text} proof={c.proof_statement} open={c.status === "open"} onSaved={refreshRecord} />
+              {c.status === "open" && !closed && suggestions.available && (
+                <>
+                  <PendingEvidence ctx={watch} suggestions={suggestions} itemId={c.commitment_id} onSaved={refreshRecord} />
+                  <CheckButton ctx={watch} kind="commitment" id={c.commitment_id} label={c.text} onChecked={suggestions.reload} />
+                </>
+              )}
             </div>
             {c.status === "open" && verifying !== c.commitment_id && (
               <button onClick={() => { setVerifying(c.commitment_id); setEvidence(""); }} disabled={busy || !actor}>
@@ -337,7 +348,7 @@ export function EngagementIssuePanel({
         ))}
       </div>
 
-      <WatchTopicsSection key={issue.issue_id} ctx={watch} closed={closed} />
+      <WatchTopicsSection key={issue.issue_id} ctx={watch} closed={closed} suggestions={suggestions} />
 
       <div className="panel-section">
         <h3>Research Agent</h3>

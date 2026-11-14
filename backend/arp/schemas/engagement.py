@@ -391,9 +391,21 @@ class EvidenceSuggestion(BaseModel):
 
 
 def evidence_text(suggestion: EvidenceSuggestion) -> str:
-    """How a confirmed suggestion is written out: `<doc_title>, page <page>: "<quote>"`, page part only when known."""
-    page = f", page {suggestion.page}" if suggestion.page is not None else ""
-    return f'{suggestion.doc_title}{page}: "{suggestion.quote}"'
+    """How a confirmed suggestion is written out: `<doc_title>, page <page>: "<quote>"`, page part only when known;
+    without a title, `page <page>: "<quote>"` or the quote alone."""
+    where = ", ".join(p for p in (suggestion.doc_title, f"page {suggestion.page}" if suggestion.page is not None else None) if p)
+    return f'{where}: "{suggestion.quote}"' if where else f'"{suggestion.quote}"'
+
+
+class WatchItem(BaseModel):
+    """An open objective, commitment or topic on an open engagement, as the check reads it (spec "Terms")."""
+
+    item_kind: Literal["objective", "commitment", "topic"]
+    item_id: str
+    engagement_id: str
+    text: str
+    proof_statement: str | None = None
+    target_date: str | None = None
 
 
 # ---- Drafting Agent outputs -------------------------------------------------

@@ -10,7 +10,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from arp.api.auth import Principal, current_user
-from arp.api.deps import get_engagement_store
+from arp.api.deps import get_engagement_store, get_llm_client, get_registry, settings_dep
+from arp.config import Settings
+from arp.ingestion.registry import DocumentSourceRegistry
+from arp.schemas.common import CompanyRef
 from arp.schemas.engagement import (
     Commitment,
     EvidenceSuggestion,
@@ -19,6 +22,7 @@ from arp.schemas.engagement import (
     ObjectiveResult,
     WatchTopic,
 )
+from arp.stewardship.watch_check import ArgusFailed, check_documents, find_commitments, newest
 from arp.storage.postgres_engagement_store import PostgresEngagementStore, WatchError, is_iso_date
 
 router = APIRouter(prefix="/api/stewardship", tags=["stewardship"])
@@ -65,10 +69,54 @@ def set_proof_statement(
     return _call(store.set_proof_statement, body.company_id, body.issue_id, item_kind, item_id, text)
 
 
-@router.post("/watch-items/{item_kind}/{item_id}/check")
-def check_watch_item(item_kind: ItemKind, item_id: str, store: PostgresEngagementStore = Depends(watch_store)) -> dict:
-    # shortcut: the check itself is the spec's PR 2; until then the route only exists to answer 409 on the file store
-    raise HTTPException(501, "Checking against documents is not available yet.")
+class WatchCheckRequest(BaseModel):
+    company_id: str
+
+
+class WatchCheckResult(BaseModel):
+    documents: int
+    suggestions: int
+    unclear: int
+    skipped: int
+
+
+@router.post("/watch-items/{item_kind}/{item_id}/check", response_model=WatchCheckResult)
+async def check_watch_item(
+    item_kind: ItemKind,
+    item_id: str,
+    body: WatchCheckRequest,
+    store: PostgresEngagementStore = Depends(watch_store),
+    registry: DocumentSourceRegistry = Depends(get_registry),
+    settings: Settings = Depends(settings_dep),
+) -> dict:
+    item = _call(store.watch_item, body.company_id, item_kind, item_id)
+    # name only: no ticker, CIK or LEI, so only local and uploaded documents are read
+    company = CompanyRef(company_id=body.company_id, name=store.get(body.company_id).name)
+    docs = newest(await registry.fetch_all(company))
+    if not docs:
+        return {"documents": 0, "suggestions": 0, "unclear": 0, "skipped": 0}
+    try:
+        return await check_documents(store, get_llm_client(), body.company_id, [item], docs, settings.grounding_fuzzy_threshold)
+    except ArgusFailed as exc:
+        raise HTTPException(502, "Argus could not check the documents.") from exc
+
+
+class FindCommitmentsResult(BaseModel):
+    suggestions: int
+    ungrounded: int
+    skipped: int
+
+
+@router.post("/activities/{activity_id}/find-commitments", response_model=FindCommitmentsResult)
+async def find_commitments_in_note(
+    activity_id: str, store: PostgresEngagementStore = Depends(watch_store), settings: Settings = Depends(settings_dep)
+) -> dict:
+    try:
+        return await find_commitments(store, get_llm_client(), activity_id, settings.grounding_fuzzy_threshold)
+    except WatchError as exc:
+        raise HTTPException(exc.status, exc.detail) from exc
+    except ArgusFailed as exc:
+        raise HTTPException(502, "Argus could not read the note.") from exc
 
 
 class WatchTopicRequest(BaseModel):

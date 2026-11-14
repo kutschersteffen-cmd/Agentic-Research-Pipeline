@@ -10994,6 +10994,29 @@
     "title": "FileDecision",
     "type": "object"
    },
+   "FindCommitmentsResult": {
+    "properties": {
+     "skipped": {
+      "title": "Skipped",
+      "type": "integer"
+     },
+     "suggestions": {
+      "title": "Suggestions",
+      "type": "integer"
+     },
+     "ungrounded": {
+      "title": "Ungrounded",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "suggestions",
+     "ungrounded",
+     "skipped"
+    ],
+    "title": "FindCommitmentsResult",
+    "type": "object"
+   },
    "FlagExclusionScreen": {
     "description": "Exclude companies whose boolean field equals `exclude_when` --\nnorms-based screens, controversial weapons, controversy flags.",
     "properties": {
@@ -25751,6 +25774,47 @@
     ],
     "title": "WalkOrTalk",
     "type": "string"
+   },
+   "WatchCheckRequest": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id"
+    ],
+    "title": "WatchCheckRequest",
+    "type": "object"
+   },
+   "WatchCheckResult": {
+    "properties": {
+     "documents": {
+      "title": "Documents",
+      "type": "integer"
+     },
+     "skipped": {
+      "title": "Skipped",
+      "type": "integer"
+     },
+     "suggestions": {
+      "title": "Suggestions",
+      "type": "integer"
+     },
+     "unclear": {
+      "title": "Unclear",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "documents",
+     "suggestions",
+     "unclear",
+     "skipped"
+    ],
+    "title": "WatchCheckResult",
+    "type": "object"
    },
    "WatchTopic": {
     "description": "A question a person asked to watch for in the company's reports (`stw_watch_topics`).",
@@ -41772,6 +41836,48 @@
     ]
    }
   },
+  "/api/stewardship/activities/{activity_id}/find-commitments": {
+   "post": {
+    "operationId": "find_commitments_in_note_api_stewardship_activities__activity_id__find_commitments_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "activity_id",
+      "required": true,
+      "schema": {
+       "title": "Activity Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FindCommitmentsResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Find Commitments In Note",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
   "/api/stewardship/benchmarks": {
    "get": {
     "operationId": "list_benchmarks_api_stewardship_benchmarks_get",
@@ -44544,14 +44650,22 @@
       }
      }
     ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WatchCheckRequest"
+       }
+      }
+     },
+     "required": true
+    },
     "responses": {
      "200": {
       "content": {
        "application/json": {
         "schema": {
-         "additionalProperties": true,
-         "title": "Response Check Watch Item Api Stewardship Watch Items  Item Kind   Item Id  Check Post",
-         "type": "object"
+         "$ref": "#/components/schemas/WatchCheckResult"
         }
        }
       },
