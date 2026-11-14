@@ -209,8 +209,8 @@ or `cusip`; a row missing any of them is rejected with one `rejected` entry per 
 (a row with none of the three identifiers gets one entry, `field` `company_id`, `reason`
 `one of company_id, isin, cusip required`). A field is missing when its key is absent, null, or empty after trimming
 whitespace (an empty cell in Excel). Each failed check, the rationale rule included, adds its own entry; the rationale
-rule runs only when `vote` is present. A row whose only issuer identifier is a `company_id` that matches no company
-is rejected with one entry, `field` `company_id`, `reason` `unknown company`. These rules apply to intake only, not to
+rule runs only when `vote` is present. A row whose only issuer identifier is a `company_id` that is neither in the
+registry nor in `stw_companies` adds one entry, `field` `company_id`, `reason` `unknown company`. These rules apply to intake only, not to
 `load-npx`.
 
 **Rules.**
