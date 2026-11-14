@@ -362,22 +362,48 @@ def text_on(fill_hex: str) -> str | None:
     return "FFFFFF" if 0.299 * r + 0.587 * g + 0.114 * b < 140 else None
 
 
-def build_waterfall_chart_data(spec: ChartSpec, datasets: list[QuantitativeDataset]) -> CategoryChartData:
-    """Waterfall as a two-series stacked column: `base` (the invisible lift) and `value` (the step size)."""
+def _waterfall_steps(spec: ChartSpec, datasets: list[QuantitativeDataset]) -> tuple[list[str], list[float]]:
     ds = _dataset_by_id(datasets, spec.dataset_id)
     category_col = _column(ds, spec.category_column, label="category_column")
     value_col = _column(ds, spec.value_columns[0] if spec.value_columns else None, label="value_columns[0]")
-    running, bases, steps = 0.0, [], []
-    for row in ds.rows:
-        v = _as_float_or_zero(row.get(value_col))
-        bases.append(min(running, running + v))
-        steps.append(abs(v))
+    return [str(row.get(category_col, "")) for row in ds.rows], [_as_float_or_zero(row.get(value_col)) for row in ds.rows]
+
+
+def build_waterfall_chart_data(spec: ChartSpec, datasets: list[QuantitativeDataset]) -> CategoryChartData:
+    """Waterfall as a three-series stacked column: `base` (invisible lift), `up` (visible part >= 0), `down` (visible part <= 0).
+
+    PowerPoint stacks positives up from 0 and negatives down from 0 separately, so a bar that sits below or
+    crosses zero needs its visible part split across `up` and `down` rather than lifted by one base."""
+    categories, steps = _waterfall_steps(spec, datasets)
+    running, bases, ups, downs = 0.0, [], [], []
+    for v in steps:
+        low, high = min(running, running + v), max(running, running + v)
+        if low >= 0:
+            base, up, down = low, high - low, 0.0
+        elif high <= 0:
+            base, up, down = high, 0.0, low - high
+        else:
+            base, up, down = 0.0, high, low
+        bases.append(base)
+        ups.append(up)
+        downs.append(down)
         running += v
     data = CategoryChartData()
-    data.categories = [str(row.get(category_col, "")) for row in ds.rows]
+    data.categories = categories
     data.add_series("base", bases)
-    data.add_series("value", steps)
+    data.add_series("up", ups)
+    data.add_series("down", downs)
     return data
+
+
+def color_waterfall_points(chart, spec: ChartSpec, datasets: list[QuantitativeDataset]) -> None:
+    """Colour each visible bar by its step's sign, as the SVG preview does."""
+    _, steps = _waterfall_steps(spec, datasets)
+    for series in list(chart.plots[0].series)[1:]:
+        for i, v in enumerate(steps):
+            fmt = series.points[i].format
+            fmt.fill.solid()
+            fmt.fill.fore_color.rgb = RGBColor.from_string(STATUS_GOOD if v >= 0 else STATUS_CRITICAL)
 
 
 def _render_heatmap(ax, spec: ChartSpec, ds: QuantitativeDataset, theme: DesignTheme) -> None:
@@ -439,6 +465,7 @@ __all__ = [
     "is_native",
     "build_native_chart_data",
     "build_waterfall_chart_data",
+    "color_waterfall_points",
     "heatmap_table",
     "text_on",
     "render_chart_image",

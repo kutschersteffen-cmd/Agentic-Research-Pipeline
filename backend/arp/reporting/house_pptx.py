@@ -23,6 +23,7 @@ from arp.reporting.chart_builder import (
     ChartDataError,
     build_native_chart_data,
     build_waterfall_chart_data,
+    color_waterfall_points,
     heatmap_table,
     style_native_chart,
     text_on,
@@ -174,6 +175,8 @@ class _Builder:
                 frame = slide.shapes.add_chart(kind, _e(r.x), _e(r.y), _e(r.w), _e(r.h), data)
                 frame.name = name
                 style_native_chart(frame.chart, content.chart, self.theme, min_pt=18)  # 24px floor on the 1920px canvas
+                if content.chart.chart_type == ChartType.WATERFALL:
+                    color_waterfall_points(frame.chart, content.chart, list(datasets.values()))
         elif spec.kind == "table" and content.table and content.table.dataset_id in datasets:
             self._table(slide, spec, r, content, datasets[content.table.dataset_id])
         elif spec.kind == "image" and content.image_path:

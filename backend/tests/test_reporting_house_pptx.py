@@ -213,10 +213,19 @@ def test_waterfall_and_heatmap_native(tmp_path):  # AC-35
     prs = Presentation(build_house_pptx(Deck(title="T", slides=[wf.slides[0], hm.slides[0]]), ds, tmp_path / "d.pptx"))
     w, h = (_shapes(s, "slot:chart")[0] for s in prs.slides)
     assert w.shape_type != 13 and h.shape_type != 13
-    assert w.chart.chart_type == XL_CHART_TYPE.COLUMN_STACKED and [s.name for s in w.chart.plots[0].series] == ["base", "value"]
-    assert list(w.chart.plots[0].series[0].values) == [0, 6, 6, 9] and list(w.chart.plots[0].series[1].values) == [10, 4, 3, 8]
-    assert "noFill" in w.chart.plots[0].series[0]._element.xml
+    series = w.chart.plots[0].series
+    assert w.chart.chart_type == XL_CHART_TYPE.COLUMN_STACKED and [x.name for x in series] == ["base", "up", "down"]
+    assert [list(x.values) for x in series] == [[0, 6, 6, 9], [10, 4, 3, 8], [0, 0, 0, 0]]
+    assert "noFill" in series[0]._element.xml
     assert h.has_table and h.table.cell(0, 1).text == "A" and h.table.cell(1, 0).text == "x"
+
+
+def test_loss_making_waterfall_splits_across_zero(tmp_path):
+    deck, ds = _chart_slide("waterfall")
+    ds[0].rows = [{"cat": c, "reg": "x", "v": v} for c, v in zip("abcd", [5, -8, -4, 6], strict=True)]
+    shape = _shapes(Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides[0], "slot:chart")[0]
+    base, up, down = (list(x.values) for x in shape.chart.plots[0].series)
+    assert base == [0, 0, -3, -1] and up == [5, 5, 0, 0] and down == [0, -3, -4, -6]  # bar 2 (5 -> -3) crosses zero
 
 
 def test_column_chart_unchanged(tmp_path):  # AC-48
