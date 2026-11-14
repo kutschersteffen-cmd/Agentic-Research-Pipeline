@@ -8,11 +8,11 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from arp.api.deps import get_llm_client, get_reporting_store
+from arp.reporting.browser import write_pngs
 from arp.reporting.datasets import parse_tabular_upload
 from arp.reporting.preview import ensure_preview_images
 from arp.reporting.service import ReportingService
 from arp.reporting.style_profile import ingest_template
-from arp.reporting.browser import write_pngs
 from arp.reporting.template_frame import font_family_of, frame_preview_html
 from arp.schemas.reporting import ReportManifest, ReportPlan, ReportRequest, ReportStatus, Storyline
 from arp.storage.reporting_store import ReportingStore
