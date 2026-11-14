@@ -441,6 +441,13 @@ def test_selection_removes_a_company_that_left_the_universe(root):
     log.change(q, today, {"SYN01": "One"}, ["SYN01"], [], "T", 0)
     log.change(q, today, {}, [], ["SYN01"], "T", 0)
     assert log.rows(q) == []
+    with pytest.raises(ValueError, match="unknown company: NOPE"):  # an id in neither the universe nor the log
+        log.change(q, today, {}, [], ["NOPE"], "T", 0)
+
+
+def test_selection_remove_of_an_unknown_id_is_a_422(client):
+    r = client.post("/api/stewardship/selection", json={"remove": ["NOPE"]})
+    assert (r.status_code, r.json()["detail"]) == (422, "unknown company: NOPE")
 
 
 def test_selection_later_added_never_overwrites_a_confirmed_row(root):

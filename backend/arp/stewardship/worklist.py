@@ -301,9 +301,10 @@ class SelectionLog:
             self._change(cycle, names, add, remove, by, weights_version)
 
     def _change(self, cycle: str, names: dict[str, str], add: list[str], remove: list[str], by: str, weights_version: int) -> None:
-        if unknown := [i for i in dict.fromkeys(add) if i not in names]:  # a company that left can still be removed
-            raise ValueError(f"unknown company: {', '.join(unknown)}")
         state = {r["issuer_id"]: r["status"] for r in self.rows(cycle)}
+        # a company that left the universe can still be removed from this cycle's rows
+        if unknown := [i for i in dict.fromkeys(add + remove) if i not in names and (i in add or i not in state)]:
+            raise ValueError(f"unknown company: {', '.join(unknown)}")
         if any(state.get(i) == "confirmed" for i in remove):
             raise ValueError("confirmed selections cannot be removed")
         events = [{"event": "added", "issuer_id": i, "company": names[i]} for i in dict.fromkeys(add) if i not in state]
