@@ -89,6 +89,8 @@ import type {
   ConstructionSpec,
   IndexCalibration,
   IndexCatalogue,
+  IndexStartingUniverse,
+  IndexStartingUniverseDetail,
   IndexReviewResult,
   CompanyRef,
   DataPointSchema,
@@ -1225,6 +1227,9 @@ export const api = {
   getDecisionInputs: () => request<{ in_scope: number; published: DecisionInput[] }>("/api/stewardship/decision-inputs"),
   // Index construction
   getIndexCatalogue: () => request<IndexCatalogue>("/api/index/catalogue"),
+  listIndexUniverses: () => request<IndexStartingUniverse[]>("/api/index/universes"),
+  getIndexUniverse: (universeId: string) =>
+    request<IndexStartingUniverseDetail>(`/api/index/universes/${encodeURIComponent(universeId)}`),
   getIndexPreset: (name: string) => request<ConstructionSpec>(`/api/index/presets/${name}`),
   getIndexScreenBundle: (name: string) =>
     request<{ name: string; screens: ConstructionSpec["screens"] }>(`/api/index/screen-bundles/${name}`),
@@ -1249,6 +1254,7 @@ export const api = {
     persist?: boolean;
     use_prior_state?: boolean;
     decision_snapshot_ids?: string[];
+    universe?: string;
   }) => request<IndexReviewResult>("/api/index/run", { method: "POST", body: JSON.stringify(body) }),
   // Value chain explorer
   valueChainStatus: () => request<VcStatus>("/api/value-chain/status"),
