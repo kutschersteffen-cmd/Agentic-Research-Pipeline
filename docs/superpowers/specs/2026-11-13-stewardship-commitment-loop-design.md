@@ -3,7 +3,8 @@
 Slug: `stewardship-commitment-loop` (the name the factory knows it by). Risk: PR 1 `risk:high` (new tables and
 columns: the steward table rates database schema changes high); PRs 2 and 3 `risk:normal`. Size M+, 3 PRs.
 
-Status: **draft for the owner's approval.**
+Status: **approved by the owner on 14 Nov 2026** (buttons in the spec session), with the assumed decisions below
+as written.
 
 ## Owner decisions
 
@@ -19,7 +20,10 @@ Decided (13 Nov 2026, buttons in this session):
   level, outcome); nothing closes an objective automatically.
 - **Ballot banner and flags:** commitments and objectives only. Watch topics never show on ballots.
 - **Engagement brief:** the dossier (**Draft dossier** on the engagement panel) gets a **Watch list** section built
-  by code, and the talking points and outreach letter drafted from the dossier receive it too.
+  by code, and the talking points and outreach letter drafted from the dossier receive it too. In this feature the
+  brief is drafted when a person presses the button. At approval (14 Nov) the owner added the next step: draft the
+  brief automatically a week before each engagement meeting, with ongoing monitoring and tracking. That is the
+  scheduled prep-pack feature (Non-goals), not this one.
 
 Assumed on the recommended option while the owner was away (the owner can change any of them at approval):
 
@@ -75,7 +79,8 @@ where the house votes. The model never changes a status.
 ## Non-goals
 
 - Trigger-rule topics (the second feature, above).
-- The company timeline and the scheduled prep pack.
+- The company timeline, and the scheduled prep pack: the brief drafted automatically a week before each engagement
+  meeting, with ongoing monitoring and tracking (the owner's next step, 14 Nov 2026).
 - Any status, result, escalation stage or monitoring trigger set from a pending suggestion.
 - Looking for commitments in letters, emails or documents; only call and meeting notes. Looking for new objectives
   anywhere.
