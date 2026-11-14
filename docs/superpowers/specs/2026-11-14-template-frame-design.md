@@ -183,6 +183,9 @@ the first content slide.
 | AC-18 | same report; edit slide 1's subheading to "Edited sub" and approve | open the slide 1 preview PNG | "Edited sub" appears in the subheading box, under the headline | evaluator |
 | AC-19 | AC-1 upload | GET `/api/reports/templates/{id}/preview.png` | a 1920×1080 PNG with three outlined boxes labelled "Headline", "Subheading", "Body" at the AC-1 positions | evaluator |
 | AC-20 | the AC-3 template | GET its `preview.png` | 404 | holdout |
+| AC-26 | `frame.pptx`, both fonts, `layout_name` = "Missing" | POST upload | 200; `frame` = null; `frame_error` = `No layout named "Missing".` | holdout |
+| AC-27 | the AC-8 build | inspect slide 1's `subheading` runs | font "Testa Sans", 18 pt, not bold | holdout |
+| AC-28 | the AC-8 build | inspect slide 1's `slot:items` runs | font "Testa Sans" | holdout |
 
 Must not change:
 
@@ -193,6 +196,3 @@ Must not change:
 | AC-23 | a template profile stored before this change (no `frame` key) | GET `/api/reports/templates` | 200; that profile is listed with `frame` = null | holdout |
 | AC-24 | a profile stored before this change | POST `/api/reports` with its `template_id` and `layout.output_format` "house_deck" | 422; detail ends with `re-upload it` | holdout |
 | AC-25 | the AC-5 template (no frame) | POST `/api/reports?render=false` with its `template_id` and `layout.output_format` "pptx", stand-in LLM | 200; the manifest's `template_id` equals it (the classic path still accepts frameless templates) | holdout |
-| AC-26 | `frame.pptx`, both fonts, `layout_name` = "Missing" | POST upload | 200; `frame` = null; `frame_error` = `No layout named "Missing".` | holdout |
-| AC-27 | the AC-8 build | inspect slide 1's `subheading` runs | font "Testa Sans", 18 pt, not bold | holdout |
-| AC-28 | the AC-8 build | inspect slide 1's `slot:items` runs | font "Testa Sans" | holdout |
