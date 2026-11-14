@@ -40,16 +40,29 @@ from arp.stewardship.backtest import backtest
 from arp.stewardship.policy_graph import evaluate as evaluate_votes
 from arp.stewardship.policy_graph import generate
 from arp.stewardship.policy_review import _validate_position, load
-from arp.stewardship.tiers import TIER_LABELS, TIERS, tier_contexts
+from arp.stewardship.tiers import OLD_TIERS, TIER_LABELS, TIERS, tier_contexts
 from arp.stewardship.tiers import evaluate as evaluate_tiers
 from arp.stewardship.tiers import load_graph as default_coverage_graph
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.jsonl_io import append_jsonl
 
+# Saved escalation_rules versions without this mark were written for the old tiers: retired, never active.
+ESCALATION_RULES_FORMAT = "three_tiers"
+
 
 def _validate_coverage(graph: dict, sample: dict) -> None:
     if not isinstance(graph, dict) or not graph.get("nodes"):
         raise ValueError("A coverage policy is a rule graph with nodes and edges")
+    # Read every rule's tier cell, not the evaluation: an old key in a rule that never fires is caught too.
+    for node in graph["nodes"]:
+        content = node.get("content") if isinstance(node, dict) else None
+        if not isinstance(content, dict):
+            continue
+        tier_ids = {o.get("id") for o in content.get("outputs") or [] if isinstance(o, dict) and o.get("field") == "tier"}
+        for rule in content.get("rules") or []:
+            for cell in (rule.get(i) for i in tier_ids if isinstance(rule, dict)):
+                if isinstance(cell, str) and (key := cell.strip().strip("'\"")) in OLD_TIERS:
+                    raise ValueError(f"Coverage rules may only propose bilateral, letter or monitor (found {key})")
     try:
         evaluate_tiers(graph, tier_contexts(sample, []))
     except RuntimeError as exc:
@@ -241,9 +254,17 @@ class PolicyStore:
         path = self._dir(policy_id) / "activations.jsonl"
         return [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
 
+    def retired(self, policy_id: str, version: int) -> bool:
+        """A saved escalation_rules version written for the old tiers (it caps by tier keys that no longer exist)."""
+        if policy_id != "escalation_rules" or version == 0:
+            return False
+        meta = next((v for v in self.versions(policy_id) if v["version"] == version), {})
+        return meta.get("rules_format") != ESCALATION_RULES_FORMAT
+
     def active_version(self, policy_id: str) -> int:
         log = self.activations(policy_id)
-        return log[-1]["version"] if log else 0
+        version = log[-1]["version"] if log else 0
+        return 0 if self.retired(policy_id, version) else version
 
     def active(self, policy_id: str) -> dict:
         return self.content(policy_id, self.active_version(policy_id))
@@ -264,6 +285,8 @@ class PolicyStore:
             "created_at": datetime.now(UTC).isoformat(),
             "content": content,
         }
+        if policy_id == "escalation_rules":
+            record["rules_format"] = ESCALATION_RULES_FORMAT
         atomic_write_text(d / f"v{version}.json", json.dumps(record, indent=2, ensure_ascii=False))
         return version
 
@@ -271,6 +294,8 @@ class PolicyStore:
         if not approved_by.strip():
             raise ValueError("Activating a policy version needs approved_by")
         content = self.content(policy_id, version)  # raises for an unknown version
+        if self.retired(policy_id, version):
+            raise ValueError(f"Version {version} was written for the old tiers or ladder; save a new version")
         meta = next(v for v in self.versions(policy_id) if v["version"] == version)
         # theme_standards only: the owner may activate their own edit alone; the row records the path.
         own_edit = self.theme and content.get("path") == "owner_edit"

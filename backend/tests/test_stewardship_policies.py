@@ -84,10 +84,10 @@ def test_coverage_preview_lists_the_companies_that_would_move(tmp_path, sample):
     assert coverage_preview(active, active, sample, [])["changes"] == []
     everyone_priority = copy.deepcopy(active)
     for row in everyone_priority["nodes"][1]["content"]["rules"]:
-        row["t"] = "'priority_bilateral'"
+        row["t"] = "'bilateral'"
     preview = coverage_preview(everyone_priority, active, sample, [])
-    assert preview["distribution_candidate"] == {"Priority Bilateral": preview["companies"]}
-    assert len(preview["changes"]) == preview["companies"] - preview["distribution_active"].get("Priority Bilateral", 0)
+    assert preview["distribution_candidate"] == {"Bilateral": preview["companies"]}
+    assert len(preview["changes"]) == preview["companies"] - preview["distribution_active"].get("Bilateral", 0)
 
 
 def test_flow_and_tier_review_use_the_active_versions(tmp_path, sample):
@@ -106,6 +106,49 @@ def test_flow_and_tier_review_use_the_active_versions(tmp_path, sample):
 
     rules = copy.deepcopy(store.active("coverage_rules"))
     for row in rules["nodes"][1]["content"]["rules"]:
-        row["t"] = "'systemic'"
+        row["t"] = "'monitor'"
     store.activate("coverage_rules", store.save("coverage_rules", rules, "", "d", sample), "a")
-    assert {c["tier"] for c in tier_review(tmp_path, sample, [])["changes"]} == {"systemic"}
+    assert {c["tier"] for c in tier_review(tmp_path, sample, [])["changes"]} == {"monitor"}
+
+
+@pytest.mark.parametrize(("rule_id", "old"), [("default", "scaled_baseline"), ("small_position", "systemic")])
+def test_new_coverage_versions_may_not_propose_an_old_tier(tmp_path, sample, rule_id, old):
+    # AC-9, AC-18: read from the table, so a row that never fires on the sample is caught too
+    graph = copy.deepcopy(PolicyStore(tmp_path).active("coverage_rules"))
+    table = next(n for n in graph["nodes"] if n["id"] == "coverage_tiers")
+    next(r for r in table["content"]["rules"] if r["_id"] == rule_id)["t"] = f"'{old}'"
+    with pytest.raises(ValueError, match=rf"^Coverage rules may only propose bilateral, letter or monitor \(found {old}\)$"):
+        PolicyStore(tmp_path).save("coverage_rules", graph, "", "designer", sample)
+    assert [v["version"] for v in PolicyStore(tmp_path).versions("coverage_rules")] == [0]
+
+
+def _main_format_escalation_v1(root) -> None:
+    """An escalation_rules v1, saved and activated the way main wrote it before the three tiers."""
+    d = root / "policies" / "escalation_rules"
+    d.mkdir(parents=True)
+    content = PolicyStore(root).content("escalation_rules", 0)
+    (d / "v1.json").write_text(json.dumps({"version": 1, "note": "", "created_by": "A", "created_at": "2026-11-01T00:00:00+00:00", "content": content}))  # fmt: skip
+    (d / "activations.jsonl").write_text(json.dumps({"version": 1, "approved_by": "B", "approved_at": "2026-11-02T00:00:00+00:00"}) + "\n")  # fmt: skip
+
+
+def test_escalation_versions_written_for_the_old_tiers_are_retired(tmp_path, sample):
+    # AC-24, AC-25, AC-27 (house and client store alike)
+    from arp.stewardship.process import client_store
+
+    for store in (PolicyStore(tmp_path), client_store(tmp_path, "client-s")):
+        _main_format_escalation_v1(store.root.parent)
+        assert store.active_version("escalation_rules") == 0
+        assert [v["version"] for v in store.versions("escalation_rules")] == [0, 1]
+        with pytest.raises(ValueError, match=r"^Version 1 was written for the old tiers or ladder; save a new version$"):
+            store.activate("escalation_rules", 1, "C")
+        version = store.save("escalation_rules", store.content("escalation_rules", 0), "", "A", sample)
+        store.activate("escalation_rules", version, "B")
+        assert store.active_version("escalation_rules") == version
+
+
+def test_only_the_tier_column_is_checked_for_old_keys(tmp_path, sample):
+    # AC-9, AC-18: an old key in another output column (here a rule name) is not a tier
+    graph = copy.deepcopy(PolicyStore(tmp_path).active("coverage_rules"))
+    table = next(n for n in graph["nodes"] if n["id"] == "coverage_tiers")
+    next(r for r in table["content"]["rules"] if r["_id"] == "small_position")["r"] = "'systemic'"
+    assert PolicyStore(tmp_path).save("coverage_rules", graph, "", "designer", sample) == 1
