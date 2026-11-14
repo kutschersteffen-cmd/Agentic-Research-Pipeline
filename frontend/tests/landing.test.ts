@@ -116,7 +116,15 @@ test("theme_follows_live", async () => {
   const src = await canvasTsx();
   for (const s of ["MutationObserver", 'attributeFilter: ["data-theme"]', "prefers-color-scheme: dark"]) assert.ok(src.includes(s), s);
 });
-test("reduced_motion_single_frame", async () => assert.match(await canvasTsx(), /if \(reduce\) \{\s*draw\(18_?500\);\s*return;/));
+test("reduced_motion_single_frame", async () => assert.match(await canvasTsx(), /if \(reduce\) \{\s*still\(\);\s*return cleanup;/));
+// Final review: a zero-size canvas left colours unread and draw() threw on addColorStop("").
+test("draw_skips_zero_size_canvas", async () => assert.match(await canvasTsx(), /const draw = \(t: number\) => \{\s*if \(!W \|\| !H\) return;/));
+// Final review: the reduced-motion still frame must follow theme changes and resizes too.
+test("reduced_motion_frame_follows_theme_and_resize", async () => {
+  const src = await canvasTsx();
+  assert.match(src, /readColours\(\);\s*if \(reduce\) still\(\);/);
+  assert.match(src, /build\(\);\s*if \(reduce\) still\(\);/);
+});
 test("no_debug_global", async () => assert.ok(!(await canvasTsx()).includes("__arp")));
 // Points slightly behind or in front of the orb have depth outside 0..1; every segment still gets a bucket.
 test("depth_bucket_clamps_out_of_range_depth", () => {

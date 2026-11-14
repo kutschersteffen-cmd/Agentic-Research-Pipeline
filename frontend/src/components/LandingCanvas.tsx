@@ -135,6 +135,7 @@ export function LandingCanvas() {
     const sq = (x: number, y: number, s: number) => ctx.fillRect(x - s / 2, y - s / 2, s, s);
 
     const draw = (t: number) => {
+      if (!W || !H) return;
       const { phase, t: pt } = phaseAt(t), e = ease(pt);
       const netVis = phase === "network" ? 1 : phase === "gather" ? clamp(1 - pt * 1.8) : phase === "dissolve" ? clamp((pt - 0.3) / 0.7) : 0;
       const orbVis = phase === "gather" ? e * e : phase === "orb" ? 1 : phase === "emerge" ? 1 - 0.55 * e : phase === "formed" ? 0.45 : phase === "dissolve" ? 0.45 * (1 - e) : 0;
@@ -210,23 +211,16 @@ export function LandingCanvas() {
 
     build();
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) {
-      draw(18_500);
-      return;
-    }
-    let visible = true, frame = 0, start: number | null = null;
-    const io = new IntersectionObserver((e) => { visible = e[0].isIntersecting; });
-    io.observe(cv);
-    const loop = (now: number) => {
-      start ??= now;
-      if (visible && !document.hidden) draw(now - start);
-      frame = requestAnimationFrame(loop);
-    };
-    const onVisibility = () => { if (!document.hidden) readColours(); };
+    const still = () => draw(18_500);
     // The sidebar theme switch sets data-theme on <html>; the system setting changes the media query.
-    const themeObserver = new MutationObserver(readColours);
+    // Both re-read the colours, and the reduced-motion still frame is redrawn with them.
+    const onTheme = () => {
+      readColours();
+      if (reduce) still();
+    };
+    const themeObserver = new MutationObserver(onTheme);
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    darkQuery.addEventListener("change", readColours);
+    darkQuery.addEventListener("change", onTheme);
     // Rebuild at most once per frame while the window is being resized.
     let resizeFrame = 0;
     const onResize = () => {
@@ -234,20 +228,36 @@ export function LandingCanvas() {
       resizeFrame = requestAnimationFrame(() => {
         resizeFrame = 0;
         build();
+        if (reduce) still();
       });
     };
-    document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("resize", onResize);
-    frame = requestAnimationFrame(loop);
-    return () => {
+    let frame = 0;
+    const io = new IntersectionObserver((e) => { visible = e[0].isIntersecting; });
+    const onVisibility = () => { if (!document.hidden) readColours(); };
+    const cleanup = () => {
       cancelAnimationFrame(frame);
       cancelAnimationFrame(resizeFrame);
       io.disconnect();
       themeObserver.disconnect();
-      darkQuery.removeEventListener("change", readColours);
+      darkQuery.removeEventListener("change", onTheme);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("resize", onResize);
     };
+    if (reduce) {
+      still();
+      return cleanup;
+    }
+    let visible = true, start: number | null = null;
+    io.observe(cv);
+    const loop = (now: number) => {
+      start ??= now;
+      if (visible && !document.hidden) draw(now - start);
+      frame = requestAnimationFrame(loop);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    frame = requestAnimationFrame(loop);
+    return cleanup;
   }, []);
   return <canvas ref={ref} className="landing-canvas" aria-hidden="true" />;
 }
