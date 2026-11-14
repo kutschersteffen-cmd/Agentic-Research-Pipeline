@@ -100,3 +100,22 @@ def test_short_cusip_padded_and_vote_label_set(pg):
     assert (again.created, again.unchanged, _count(pg, VoteMeetingModel)) == (0, 3, 1)
     with transaction(pg) as s:
         assert s.scalars(select(VoteDecisionModel)).one().vote_label == "for"
+
+
+def test_issuer_name_cannot_take_over_a_company_meeting(pg):
+    PostgresEngagementStore(pg).get_or_create("acme", "Acme")
+    intake_votes([{"external_id": "d1", "company_id": "acme", "isin": "US0378331005", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"}], pg, "api")
+    intake_votes([{"external_id": "d2", "issuer_name": "acme", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"}], pg, "api")
+    with transaction(pg) as s:
+        rows = {(m.company_id, m.isin) for m in s.scalars(select(VoteMeetingModel))}
+    assert ("acme", "US0378331005") in rows and len(rows) == 2  # separate meeting; acme's ids untouched
+
+
+def test_upsert_never_clears_meeting_ids(pg):
+    PostgresEngagementStore(pg).get_or_create("acme", "Acme")
+    row = {"external_id": "d1", "company_id": "acme", "cusip": "037833100", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"}
+    intake_votes([row], pg, "api")
+    report = intake_votes([{**row, "cusip": None}], pg, "api")  # same meeting key (cid:acme), cusip now empty
+    assert (report.updated, report.unchanged) == (0, 3)
+    with transaction(pg) as s:
+        assert s.scalars(select(VoteMeetingModel)).one().cusip == "037833100"
