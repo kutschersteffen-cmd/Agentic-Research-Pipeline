@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.fit import fit_deck
-from arp.reporting.house_style import get_variant, load_layouts
+from arp.reporting.house_style import Tokens, get_variant, load_layouts
 from arp.reporting.lint import lint_deck
 from arp.schemas.reporting import Deck, Finding, ReportRequest
 
