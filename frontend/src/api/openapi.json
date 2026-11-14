@@ -5153,6 +5153,97 @@
     "title": "ColumnStats",
     "type": "object"
    },
+   "Commitment": {
+    "properties": {
+     "commitment_id": {
+      "title": "Commitment Id",
+      "type": "string"
+     },
+     "evidence": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence"
+     },
+     "made_at": {
+      "title": "Made At",
+      "type": "string"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "recorded_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Recorded By"
+     },
+     "status": {
+      "$ref": "#/components/schemas/CommitmentStatus",
+      "default": "open"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     },
+     "validated_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Validated At"
+     },
+     "validated_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Validated By"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "title": "Commitment",
+    "type": "object"
+   },
    "CommitmentRequest": {
     "properties": {
      "company_id": {
@@ -5162,6 +5253,17 @@
      "issue_id": {
       "title": "Issue Id",
       "type": "string"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
      },
      "target_date": {
       "anyOf": [
@@ -5186,6 +5288,15 @@
     ],
     "title": "CommitmentRequest",
     "type": "object"
+   },
+   "CommitmentStatus": {
+    "enum": [
+     "open",
+     "verified",
+     "missed"
+    ],
+    "title": "CommitmentStatus",
+    "type": "string"
    },
    "CommitmentStatusRequest": {
     "properties": {
@@ -6147,6 +6258,46 @@
     ],
     "title": "Confidence",
     "type": "string"
+   },
+   "ConfirmRequest": {
+    "description": "Only read for a `new_commitment` suggestion: each field overrides what Argus worded.",
+    "properties": {
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     },
+     "text": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Text"
+     }
+    },
+    "title": "ConfirmRequest",
+    "type": "object"
    },
    "ConfirmTiersRequest": {
     "properties": {
@@ -9723,6 +9874,258 @@
     "title": "EvidenceReport",
     "type": "object"
    },
+   "EvidenceSuggestion": {
+    "description": "A pending answer from Argus that a person confirms or rejects (`stw_evidence_suggestions`).",
+    "properties": {
+     "activity_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Activity Id"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "created_commitment_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created Commitment Id"
+     },
+     "decided_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decided At"
+     },
+     "decided_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decided By"
+     },
+     "doc_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Doc Id"
+     },
+     "doc_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Doc Title"
+     },
+     "doc_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Doc Type"
+     },
+     "engagement_id": {
+      "title": "Engagement Id",
+      "type": "string"
+     },
+     "external_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "External Id"
+     },
+     "item_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Item Id"
+     },
+     "item_kind": {
+      "anyOf": [
+       {
+        "enum": [
+         "objective",
+         "commitment",
+         "topic"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Item Kind"
+     },
+     "kind": {
+      "enum": [
+       "evidence",
+       "new_commitment"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "page": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "quote": {
+      "title": "Quote",
+      "type": "string"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "reject_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reject Reason"
+     },
+     "source": {
+      "default": "app",
+      "title": "Source",
+      "type": "string"
+     },
+     "status": {
+      "default": "pending",
+      "enum": [
+       "pending",
+       "confirmed",
+       "rejected"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "suggestion_id": {
+      "title": "Suggestion Id",
+      "type": "string"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     },
+     "text": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Text"
+     },
+     "verdict": {
+      "anyOf": [
+       {
+        "enum": [
+         "found",
+         "against"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Verdict"
+     }
+    },
+    "required": [
+     "kind",
+     "company_id",
+     "engagement_id",
+     "quote"
+    ],
+    "title": "EvidenceSuggestion",
+    "type": "object"
+   },
    "ExceptionDecisionRequest": {
     "properties": {
      "client_step": {
@@ -12267,6 +12670,18 @@
     "title": "IndicatorCategory",
     "type": "string"
    },
+   "InfluenceLevel": {
+    "enum": [
+     "1",
+     "2",
+     "3",
+     "4A",
+     "4B",
+     "5"
+    ],
+    "title": "InfluenceLevel",
+    "type": "string"
+   },
    "Instructions": {
     "properties": {
      "instructions": {
@@ -13917,6 +14332,226 @@
     "title": "NoteSections",
     "type": "object"
    },
+   "Objective": {
+    "properties": {
+     "closed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Closed At"
+     },
+     "description": {
+      "title": "Description",
+      "type": "string"
+     },
+     "escalated": {
+      "default": false,
+      "title": "Escalated",
+      "type": "boolean"
+     },
+     "evidence_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence Url"
+     },
+     "follows_objective_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Follows Objective Id"
+     },
+     "influence_evidence": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Influence Evidence"
+     },
+     "influence_level": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/InfluenceLevel"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "objective_id": {
+      "title": "Objective Id",
+      "type": "string"
+     },
+     "objective_type": {
+      "$ref": "#/components/schemas/ObjectiveType"
+     },
+     "outcome": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Outcome"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "receptiveness": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Receptiveness"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "result": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ObjectiveResult"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "source": {
+      "default": "app",
+      "title": "Source",
+      "type": "string"
+     },
+     "started_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Started At"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ObjectiveStatus",
+      "default": "initiated"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     }
+    },
+    "required": [
+     "description",
+     "objective_type"
+    ],
+    "title": "Objective",
+    "type": "object"
+   },
+   "ObjectiveResult": {
+    "enum": [
+     "deterioration",
+     "not_achieved",
+     "partially_achieved",
+     "achieved",
+     "abandoned"
+    ],
+    "title": "ObjectiveResult",
+    "type": "string"
+   },
+   "ObjectiveResultRequest": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "influence_level": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/InfluenceLevel"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "issue_id": {
+      "title": "Issue Id",
+      "type": "string"
+     },
+     "outcome": {
+      "title": "Outcome",
+      "type": "string"
+     },
+     "result": {
+      "$ref": "#/components/schemas/ObjectiveResult"
+     }
+    },
+    "required": [
+     "company_id",
+     "issue_id",
+     "result",
+     "outcome"
+    ],
+    "title": "ObjectiveResultRequest",
+    "type": "object"
+   },
+   "ObjectiveStatus": {
+    "enum": [
+     "initiated",
+     "in_progress",
+     "closed",
+     "abandoned"
+    ],
+    "title": "ObjectiveStatus",
+    "type": "string"
+   },
+   "ObjectiveType": {
+    "enum": [
+     "transparency",
+     "operational",
+     "strategic"
+    ],
+    "title": "ObjectiveType",
+    "type": "string"
+   },
    "ObservationOut": {
     "properties": {
      "confidence": {
@@ -15489,6 +16124,29 @@
     "title": "PromoteRequest",
     "type": "object"
    },
+   "ProofStatementRequest": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "issue_id": {
+      "title": "Issue Id",
+      "type": "string"
+     },
+     "proof_statement": {
+      "title": "Proof Statement",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id",
+     "issue_id",
+     "proof_statement"
+    ],
+    "title": "ProofStatementRequest",
+    "type": "object"
+   },
    "ProposalStarted": {
     "properties": {
      "round": {
@@ -16194,6 +16852,17 @@
      "custom"
     ],
     "title": "RebalanceFrequency",
+    "type": "string"
+   },
+   "Receptiveness": {
+    "enum": [
+     "very_good",
+     "good",
+     "neutral",
+     "insufficient",
+     "refusal"
+    ],
+    "title": "Receptiveness",
     "type": "string"
    },
    "Recipe": {
@@ -24570,6 +25239,158 @@
     ],
     "title": "WalkOrTalk",
     "type": "string"
+   },
+   "WatchTopic": {
+    "description": "A question a person asked to watch for in the company's reports (`stw_watch_topics`).",
+    "properties": {
+     "closed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Closed At"
+     },
+     "closed_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Closed By"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By"
+     },
+     "engagement_id": {
+      "title": "Engagement Id",
+      "type": "string"
+     },
+     "external_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "External Id"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "source": {
+      "default": "app",
+      "title": "Source",
+      "type": "string"
+     },
+     "status": {
+      "default": "open",
+      "enum": [
+       "open",
+       "closed"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     },
+     "topic_id": {
+      "title": "Topic Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "engagement_id",
+     "question"
+    ],
+    "title": "WatchTopic",
+    "type": "object"
+   },
+   "WatchTopicRequest": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "issue_id": {
+      "title": "Issue Id",
+      "type": "string"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     }
+    },
+    "required": [
+     "company_id",
+     "issue_id",
+     "question"
+    ],
+    "title": "WatchTopicRequest",
+    "type": "object"
    },
    "WeightedNode": {
     "properties": {
@@ -40513,6 +41334,181 @@
     ]
    }
   },
+  "/api/stewardship/evidence-suggestions": {
+   "get": {
+    "operationId": "list_suggestions_api_stewardship_evidence_suggestions_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "default": "pending",
+       "enum": [
+        "pending",
+        "confirmed",
+        "rejected"
+       ],
+       "title": "Status",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "items": {
+           "$ref": "#/components/schemas/EvidenceSuggestion"
+          },
+          "type": "array"
+         },
+         "title": "Response List Suggestions Api Stewardship Evidence Suggestions Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Suggestions",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/evidence-suggestions/{suggestion_id}/confirm": {
+   "post": {
+    "operationId": "confirm_suggestion_api_stewardship_evidence_suggestions__suggestion_id__confirm_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "suggestion_id",
+      "required": true,
+      "schema": {
+       "title": "Suggestion Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "anyOf": [
+         {
+          "$ref": "#/components/schemas/ConfirmRequest"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Body"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EvidenceSuggestion"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Confirm Suggestion",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/evidence-suggestions/{suggestion_id}/reject": {
+   "post": {
+    "operationId": "reject_suggestion_api_stewardship_evidence_suggestions__suggestion_id__reject_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "suggestion_id",
+      "required": true,
+      "schema": {
+       "title": "Suggestion Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RejectRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EvidenceSuggestion"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Reject Suggestion",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
   "/api/stewardship/intake/engagements": {
    "post": {
     "operationId": "post_engagements_api_stewardship_intake_engagements_post",
@@ -40766,6 +41762,58 @@
      }
     },
     "summary": "Open Engagement From Trigger",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/objectives/{objective_id}/result": {
+   "post": {
+    "operationId": "record_objective_result_api_stewardship_objectives__objective_id__result_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "objective_id",
+      "required": true,
+      "schema": {
+       "title": "Objective Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ObjectiveResultRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Objective"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Record Objective Result",
     "tags": [
      "stewardship"
     ]
@@ -42511,6 +43559,271 @@
      }
     },
     "summary": "Put Universe",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/watch-items/{item_kind}/{item_id}/check": {
+   "post": {
+    "operationId": "check_watch_item_api_stewardship_watch_items__item_kind___item_id__check_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "item_kind",
+      "required": true,
+      "schema": {
+       "enum": [
+        "objective",
+        "commitment",
+        "topic"
+       ],
+       "title": "Item Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "item_id",
+      "required": true,
+      "schema": {
+       "title": "Item Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Check Watch Item Api Stewardship Watch Items  Item Kind   Item Id  Check Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Check Watch Item",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/watch-items/{item_kind}/{item_id}/proof-statement": {
+   "post": {
+    "operationId": "set_proof_statement_api_stewardship_watch_items__item_kind___item_id__proof_statement_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "item_kind",
+      "required": true,
+      "schema": {
+       "enum": [
+        "objective",
+        "commitment",
+        "topic"
+       ],
+       "title": "Item Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "item_id",
+      "required": true,
+      "schema": {
+       "title": "Item Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProofStatementRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "anyOf": [
+          {
+           "$ref": "#/components/schemas/Objective"
+          },
+          {
+           "$ref": "#/components/schemas/Commitment"
+          },
+          {
+           "$ref": "#/components/schemas/WatchTopic"
+          }
+         ],
+         "title": "Response Set Proof Statement Api Stewardship Watch Items  Item Kind   Item Id  Proof Statement Post"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Set Proof Statement",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/watch-topics": {
+   "get": {
+    "operationId": "list_watch_topics_api_stewardship_watch_topics_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "items": {
+           "$ref": "#/components/schemas/WatchTopic"
+          },
+          "type": "array"
+         },
+         "title": "Response List Watch Topics Api Stewardship Watch Topics Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Watch Topics",
+    "tags": [
+     "stewardship"
+    ]
+   },
+   "post": {
+    "operationId": "add_watch_topic_api_stewardship_watch_topics_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WatchTopicRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WatchTopic"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Add Watch Topic",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/watch-topics/{topic_id}/close": {
+   "post": {
+    "operationId": "close_watch_topic_api_stewardship_watch_topics__topic_id__close_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "topic_id",
+      "required": true,
+      "schema": {
+       "title": "Topic Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WatchTopic"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Close Watch Topic",
     "tags": [
      "stewardship"
     ]

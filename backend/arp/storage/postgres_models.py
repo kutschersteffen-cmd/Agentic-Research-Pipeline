@@ -29,11 +29,14 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
     UniqueConstraint,
     Uuid,
+    func,
 )
+from sqlalchemy import text as sql_text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -365,6 +368,7 @@ class StwObjectiveModel(Base):
     influence_level: Mapped[str | None] = _text()
     influence_evidence: Mapped[str | None] = _text()
     evidence_url: Mapped[str | None] = _text()
+    proof_statement: Mapped[str | None] = _text()
 
 
 class StwActivityModel(Base):
@@ -407,6 +411,7 @@ class StwCommitmentModel(Base):
     validated_by: Mapped[str | None] = _text()
     validated_at: Mapped[datetime | None] = _ts()
     evidence: Mapped[str | None] = _text()
+    proof_statement: Mapped[str | None] = _text()
 
 
 class StwContactModel(Base):
@@ -450,6 +455,77 @@ class StwEventModel(Base):
     event_type: Mapped[str] = mapped_column(Text)
     detail: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     at: Mapped[datetime | None] = _ts()
+
+
+# Watch list (spec stewardship-commitment-loop). Kept out of STEWARDSHIP_TABLES, whose size a test pins.
+WATCH_TABLES = ("stw_watch_topics", "stw_evidence_suggestions")
+
+
+class StwWatchTopicModel(Base):
+    __tablename__ = "stw_watch_topics"
+    __table_args__ = (_src_unique(__tablename__), Index("ix_stw_watch_topics_engagement_id", "engagement_id"))
+
+    topic_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source: Mapped[str] = _src()
+    external_id: Mapped[str | None] = _ext()
+    engagement_id: Mapped[str] = _fk("stw_engagements", "engagement_id")
+    question: Mapped[str] = mapped_column(Text)
+    proof_statement: Mapped[str | None] = _text()
+    target_date: Mapped[str | None] = _text()
+    status: Mapped[str] = mapped_column(Text, default="open", server_default="open")
+    created_by: Mapped[str | None] = _text()
+    created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    closed_by: Mapped[str | None] = _text()
+    closed_at: Mapped[datetime | None] = _ts()
+
+
+class StwEvidenceSuggestionModel(Base):
+    __tablename__ = "stw_evidence_suggestions"
+    __table_args__ = (
+        _src_unique(__tablename__),
+        Index("ix_stw_evidence_suggestions_company_id", "company_id"),
+        Index(
+            "uq_stw_evidence_suggestions_item_doc",
+            "item_kind",
+            "item_id",
+            "doc_id",
+            unique=True,
+            postgresql_where=sql_text("kind = 'evidence'"),
+        ),
+        Index(
+            "uq_stw_evidence_suggestions_activity_quote",
+            "activity_id",
+            "quote",
+            unique=True,
+            postgresql_where=sql_text("kind = 'new_commitment'"),
+        ),
+    )
+
+    suggestion_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source: Mapped[str] = _src()
+    external_id: Mapped[str | None] = _ext()
+    kind: Mapped[str] = mapped_column(Text)  # evidence | new_commitment
+    company_id: Mapped[str] = _fk("stw_companies", "company_id")
+    engagement_id: Mapped[str] = _fk("stw_engagements", "engagement_id")
+    item_kind: Mapped[str | None] = _text()
+    item_id: Mapped[str | None] = _text()
+    activity_id: Mapped[str | None] = _fk("stw_activities", "activity_id", nullable=True)
+    verdict: Mapped[str | None] = _text()
+    text: Mapped[str | None] = _text()
+    proof_statement: Mapped[str | None] = _text()
+    target_date: Mapped[str | None] = _text()
+    doc_id: Mapped[str | None] = _text()
+    doc_type: Mapped[str | None] = _text()
+    doc_title: Mapped[str | None] = _text()
+    quote: Mapped[str] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reason: Mapped[str | None] = _text()
+    status: Mapped[str] = mapped_column(Text, default="pending", server_default="pending")
+    created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    decided_by: Mapped[str | None] = _text()
+    decided_at: Mapped[datetime | None] = _ts()
+    reject_reason: Mapped[str | None] = _text()
+    created_commitment_id: Mapped[str | None] = _text()
 
 
 class VoteMeetingModel(Base):
