@@ -1,0 +1,18 @@
+{
+  "policy_id": "priority_weights",
+  "version": "v0",
+  "components": [
+    {"id": "open_triggers", "weight": 30},
+    {"id": "holdings_weight", "weight": 20},
+    {"id": "overdue_commitments", "weight": 15},
+    {"id": "escalated", "weight": 10},
+    {"id": "transition_grade", "weight": 10},
+    {"id": "aum_held", "weight": 10},
+    {"id": "next_meeting", "weight": 5},
+    {"id": "coverage_tier", "weight": 0},
+    {"id": "open_engagements", "weight": 0},
+    {"id": "esg_score", "weight": 0},
+    {"id": "controversy", "weight": 0},
+    {"id": "carbon_intensity", "weight": 0}
+  ]
+}
