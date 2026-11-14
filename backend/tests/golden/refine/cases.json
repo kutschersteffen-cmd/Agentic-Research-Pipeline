@@ -3,7 +3,7 @@
     {
       "doc_fixture": "rfp",
       "history": [],
-      "message": "Make the answers about climate engagement, human rights and the board more concise.",
+      "message": "Make the answers about portfolio engagement, human rights and the board more concise.",
       "expected_ops": [
         {
           "op": "rewrite",
@@ -63,7 +63,7 @@
       "history": [
         {
           "message": "Which answers mention climate?",
-          "reply": "Questions 1 and 2 mention climate, and question 4 mentions the TCFD."
+          "reply": "Questions 2 and 4 mention climate."
         }
       ],
       "message": "Leave those two blank.",
@@ -71,8 +71,8 @@
         {
           "op": "leave_blank",
           "question_ids": [
-            1,
-            2
+            2,
+            4
           ]
         }
       ]

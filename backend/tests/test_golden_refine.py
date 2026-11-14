@@ -50,6 +50,21 @@ def test_case_fails_on_wrong_target(folder):
     assert run(folder) == (0, 1)
 
 
+def test_op_order_is_ignored_except_for_slide_moves(folder):
+    two = [{"op": "rewrite", "question_ids": [1]}, {"op": "leave_blank", "question_ids": [2]}]
+    write_cases(folder, two)
+    model_says(folder, two[::-1])
+    assert run(folder) == (1, 1)
+    (folder / "fixtures" / "deck.json").write_text(json.dumps({"slides": []}))
+    slides = [{"op": "move_slide", "slide": 2, "to": 1}, {"op": "delete_slide", "slide": 3}]
+    (folder / "cases.json").write_text(json.dumps({"cases": [
+        {"doc_fixture": "deck", "history": [], "message": "m", "expected_ops": slides}]}))
+    model_says(folder, slides[::-1])
+    assert run(folder) == (0, 1)
+    model_says(folder, slides)
+    assert run(folder) == (1, 1)
+
+
 def test_cli_exit_code_below_threshold(folder, pg, monkeypatch):
     write_cases(folder, [{"op": "leave_blank", "question_ids": [1]}])
     model_says(folder, [])

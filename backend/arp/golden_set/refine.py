@@ -8,6 +8,7 @@ from pathlib import Path
 from arp.llm.base import LLMClient
 from arp.refine.agent import _SYSTEM, RefineOps, build_prompt
 
+_ORDERED = ("move_slide", "delete_slide")  # slide numbers shift, so these ops are order-sensitive
 _TARGETS = ("slide", "slot", "variant", "chart_type", "to")
 
 
@@ -18,7 +19,7 @@ def _key(op: dict) -> tuple:
 
 async def run_refine_golden(cases_path: Path, llm: LLMClient) -> tuple[int, int]:
     """(passed, total). A case's `doc_fixture` is a JSON file next to the cases in `fixtures/`: an RFP's
-    `{"questions": [...]}` or a deck's JSON. Ops are compared as a list, in order."""
+    `{"questions": [...]}` or a deck's JSON. Ops are compared without regard to order, except when the expected ops move or delete slides."""
     cases = json.loads(cases_path.read_text(encoding="utf-8"))["cases"]
     passed = 0
     for c in cases:
@@ -27,5 +28,8 @@ async def run_refine_golden(cases_path: Path, llm: LLMClient) -> tuple[int, int]
         out, _ = await llm.complete_structured(
             system=_SYSTEM[kind], prompt=build_prompt(kind, document, c["message"], c["history"]), output_model=RefineOps)
         got = [_key(op.model_dump(exclude_none=True)) for op in out.ops]
-        passed += got == [_key(op) for op in c["expected_ops"]]
+        want = [_key(op) for op in c["expected_ops"]]
+        if not any(op["op"] in _ORDERED for op in c["expected_ops"]):
+            got, want = sorted(got), sorted(want)
+        passed += got == want
     return passed, len(cases)
