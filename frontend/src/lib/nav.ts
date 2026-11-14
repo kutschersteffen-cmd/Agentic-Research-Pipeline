@@ -7,7 +7,7 @@ export const NAV_GROUPS: { label: string | null; ids: readonly string[] }[] = [
   { label: null, ids: ["home"] },
   { label: "Needs you", ids: ["review"] },
   { label: "Workspaces", ids: ["stewardiq", "argus", "transitionIntel", "rdLab", "dataHub"] },
-  { label: "Output", ids: ["reporting"] },
+  { label: "Output", ids: ["reporting", "refine"] },
   { label: null, ids: ["arcade"] },
 ];
 

@@ -55,6 +55,9 @@ import type {
   RfpLibraryEntry,
   RfpProject,
   RfpProjectSummary,
+  RefineHistoryItem,
+  RefineTurn,
+  RefineTurnStarted,
   SignalComparison,
   SignalExperimentDetail,
   SignalExperimentSummary,
@@ -287,6 +290,12 @@ export const api = {
   approveRfp: (id: number, qid: number, confirmedFlags: string[]) =>
     request<RfpProject>(rfpQuestion(id, qid, "/approve"), jsonBody("POST", { confirmed_flags: confirmedFlags })),
   rfpExportUrl: (id: number) => `${API_BASE}/api/rfp/projects/${id}/export`,
+  // Refine chat: `kind` is rfp (doc id = project id) or deck (doc id = report id).
+  postRefineTurn: (kind: string, docId: string | number, message: string, history: RefineHistoryItem[]) =>
+    request<RefineTurnStarted>(`/api/refine/${kind}/${encodeURIComponent(docId)}/turns`, jsonBody("POST", { message, history })),
+  getRefineTurn: (turnId: number) => request<RefineTurn>(`/api/refine/turns/${turnId}`),
+  undoRefine: (kind: string, docId: string | number) => request<RefineTurn>(`/api/refine/${kind}/${encodeURIComponent(docId)}/undo`, { method: "POST" }),
+  getDeckHtml: async (reportId: string) => (await authFetch(`${API_BASE}/api/reports/${encodeURIComponent(reportId)}/deck/html`)).text(),
   listReviewItems: (runId?: string) =>
     request<{ items: ReviewItem[] }>(`/api/review/items${runId ? `?run_id=${encodeURIComponent(runId)}` : ""}`),
   getItemContext: (runId: string, itemKey: string) =>

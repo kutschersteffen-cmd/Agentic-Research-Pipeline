@@ -55,6 +55,7 @@ const XbrlFacts = lazy(() => import("./pages/XbrlFacts").then((x) => ({ default:
 const ThemeDossiers = lazy(() => import("./pages/ThemeDossiers").then((x) => ({ default: x.ThemeDossiers })));
 const Plans = lazy(() => import("./pages/Plans").then((x) => ({ default: x.Plans })));
 const RfpAnswers = lazy(() => import("./pages/RfpAnswers").then((x) => ({ default: x.RfpAnswers })));
+const Refine = lazy(() => import("./pages/Refine").then((x) => ({ default: x.Refine })));
 
 const TABS = [
   { id: "home", label: "Start" },
@@ -91,6 +92,7 @@ const TABS = [
   { id: "index", label: "Index Construction" },
   { id: "xbrl", label: "XBRL Facts" },
   { id: "rfp", label: "RFP Answers" },
+  { id: "refine", label: "Refine" },
   { id: "library", label: "Data Library" },
   { id: "arcade", label: "Arcade" },
   // Reached from company names elsewhere (#/companies/<ref>) and the palette; not in the sidebar.
@@ -121,7 +123,8 @@ const runItem = (r: RunManifest): PaletteItem => ({
  * so refresh, Back and a pasted link all land on the same view -- e.g.
  * `#/voting/<run id>` or `#/review/extraction/<run id>`. */
 function parseHash(hash = window.location.hash): { tab: TabId; params: string[] } {
-  const [tab, ...params] = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+  // A `?query` (e.g. #/refine?rfp=3) is read by its page from the hash, not split into params.
+  const [tab, ...params] = hash.replace(/^#\/?/, "").split("?")[0].split("/").filter(Boolean).map(decodeURIComponent);
   // Old links: the Theme Machine and Design Studio boxes merged into R&D Lab;
   // the Processes screen's processes now live on their workspace pages.
   if (tab === "themeMachine" || tab === "designStudio") return { tab: "rdLab", params: [] };
@@ -209,6 +212,8 @@ function App() {
   }, [route, decidedAt]);
 
   const hub = hubOf(active);
+  // route changes on every hashchange, so this re-reads the query (e.g. #/refine?report=R) with it.
+  const query = new URLSearchParams(window.location.hash.split("?")[1]);
   // The tab title names the screen, for browser tabs and screen readers.
   useEffect(() => {
     document.title = `${hub?.label ?? TABS.find((t) => t.id === active)!.label} · ARP`;
@@ -430,6 +435,7 @@ function App() {
         {active === "index" && <IndexBuilder />}
         {active === "argusWalkthrough" && <ArgusWalkthrough key={route.params.join("/")} params={route.params} />}
         {active === "rfp" && <RfpAnswers projectId={route.params[0] ? Number(route.params[0]) : null} onOpen={(id) => (id === null ? navigate("rfp") : navigate("rfp", String(id)))} />}
+        {active === "refine" && <Refine rfp={query.get("rfp") === null ? null : Number(query.get("rfp"))} report={query.get("report")} />}
         {active === "xbrl" && <XbrlFacts selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("xbrl", id)} />}
         {active === "library" && <DataLibrary />}
         {active === "companies" && <Company companyRef={route.params[0]} />}

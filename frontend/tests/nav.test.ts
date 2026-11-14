@@ -31,7 +31,7 @@ test("redirectHash leaves every other hash alone", () => {
 test("the sidebar lists exactly the approved links, in order, under the approved labels", () => {
   assert.deepEqual(
     NAV_GROUPS.flatMap((g) => g.ids),
-    ["home", "review", "stewardiq", "argus", "transitionIntel", "rdLab", "dataHub", "reporting", "arcade"],
+    ["home", "review", "stewardiq", "argus", "transitionIntel", "rdLab", "dataHub", "reporting", "refine", "arcade"],
   );
   assert.deepEqual(NAV_GROUPS.map((g) => g.label), [null, "Needs you", "Workspaces", "Output", null]);
 });

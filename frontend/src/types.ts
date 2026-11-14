@@ -66,6 +66,9 @@ export type RfpLibraryEntry = Served<S["RfpLibraryEntryOut"]>;
 export type RfpProjectSummary = Served<S["RfpProjectSummary"]>;
 export type RfpProject = Served<S["RfpProjectOut"]>;
 export type RfpQuestion = Served<S["RfpQuestionOut"]>;
+export type RefineTurn = Served<S["RefineTurnOut"]>;
+export type RefineHistoryItem = Served<S["RefineHistoryItem"]>;
+export type RefineTurnStarted = Served<S["RefineTurnStarted"]>;
 export type AskResponse = Served<S["AskResponse"]>;
 export type AskHistoryTurn = Served<S["HistoryTurn"]>;
 
@@ -1320,6 +1323,8 @@ export interface ReportManifest {
   output_tokens: number;
   model?: string | null;
   output_files: string[];
+  has_deck?: boolean;
+  deck_edited_since_render?: boolean;
 }
 
 export type StorylineSlide = Served<S["StorylineSlide"]>;

@@ -211,6 +211,12 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <line x1="8" y1="20" x2="16" y2="20" />
     </svg>
   ),
+  refine: (
+    <svg {...ICON_PROPS}>
+      <path d="M4 5h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9l-4 4v-4H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
+      <path d="m15 21 6-6" />
+    </svg>
+  ),
   library: (
     <svg {...ICON_PROPS}>
       <path d="M3 7.5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />

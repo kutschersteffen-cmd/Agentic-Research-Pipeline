@@ -6,7 +6,7 @@ import { importingLine, importResultLine } from "../lib/progress";
 import { useMe } from "../lib/reviewer";
 import type { RfpLibraryEntry, RfpProject, RfpProjectSummary, RfpQuestion } from "../types";
 
-const STATUS_BADGE: Record<string, string> = {
+export const STATUS_BADGE: Record<string, string> = {
   "no source": "badge badge-low",
   drafted: "badge badge-mid",
   edited: "badge badge-mid",
