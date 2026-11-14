@@ -104,11 +104,12 @@ def test_short_cusip_padded_and_vote_label_set(pg):
 
 def test_issuer_name_cannot_take_over_a_company_meeting(pg):
     PostgresEngagementStore(pg).get_or_create("acme", "Acme")
-    intake_votes([{"external_id": "d1", "company_id": "acme", "isin": "US0378331005", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"}], pg, "api")
+    acme = {"external_id": "d1", "company_id": "acme", "isin": "US0378331005", "cusip": "037833100", "issuer_name": "Acme Inc", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"}
+    intake_votes([acme], pg, "api")
     intake_votes([{"external_id": "d2", "issuer_name": "acme", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"}], pg, "api")
     with transaction(pg) as s:
-        rows = {(m.company_id, m.isin) for m in s.scalars(select(VoteMeetingModel))}
-    assert ("acme", "US0378331005") in rows and len(rows) == 2  # separate meeting; acme's ids untouched
+        rows = {(m.company_id, m.isin, m.cusip, m.issuer_name) for m in s.scalars(select(VoteMeetingModel))}
+    assert ("acme", "US0378331005", "037833100", "Acme Inc") in rows and len(rows) == 2  # separate meeting; acme's untouched
 
 
 def test_upsert_never_clears_meeting_ids(pg):
@@ -119,3 +120,40 @@ def test_upsert_never_clears_meeting_ids(pg):
     assert (report.updated, report.unchanged) == (0, 3)
     with transaction(pg) as s:
         assert s.scalars(select(VoteMeetingModel)).one().cusip == "037833100"
+
+
+def test_isin_company_id_and_isin_only_row_share_a_meeting(pg):
+    PostgresEngagementStore(pg).get_or_create("isin_US0378331005", "Apple")
+    day = {"meeting_date": "2026-05-01", "vote": "for"}
+    intake_votes([{"external_id": "d1", "company_id": "isin_US0378331005", "item_number": "1", **day}], pg, "api")
+    intake_votes([{"external_id": "d2", "isin": "US0378331005", "item_number": "2", **day}], pg, "api")
+    with transaction(pg) as s:
+        assert s.scalar(select(func.count()).select_from(VoteMeetingModel)) == 1
+
+
+def test_old_format_keys_rewritten_so_resend_finds_them(pg):
+    from arp.storage.postgres_schema import _vote_meeting_key_namespaces
+
+    PostgresEngagementStore(pg).get_or_create("acme", "Acme")
+    rows = [
+        {"external_id": "d1", "company_id": "acme", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"},
+        {"external_id": "d2", "isin": "US0378331005", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"},
+        {"external_id": "d3", "cusip": "037833100", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"},
+        {"external_id": "d4", "issuer_name": "Beta AG", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"},
+    ]
+    intake_votes(rows, pg, "api")
+    old = {"cid:acme": "acme", "isin:US0378331005": "isin_US0378331005", "cusip:037833100": "037833100", "name:Beta AG": "Beta AG"}
+    with transaction(pg) as s:  # put the rows back into #440's key format
+        for m in s.scalars(select(VoteMeetingModel)):
+            new_key, _, date = m.external_id.rpartition(":")
+            m.external_id = f"{old[new_key]}:{date}"
+        for i in s.scalars(select(VoteItemModel)):
+            new_key, _, rest = i.external_id.partition(":20")
+            i.external_id = f"{old[new_key]}:20{rest}"
+    with transaction(pg) as s:
+        _vote_meeting_key_namespaces(s.connection())
+        _vote_meeting_key_namespaces(s.connection())  # idempotent
+    report = intake_votes(rows, pg, "api")
+    assert (report.created, report.updated, report.unchanged) == (0, 0, 12)
+    with transaction(pg) as s:
+        assert s.scalar(select(func.count()).select_from(VoteMeetingModel)) == 4

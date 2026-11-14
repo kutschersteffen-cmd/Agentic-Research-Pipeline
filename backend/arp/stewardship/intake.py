@@ -302,6 +302,15 @@ _ITEM = ["description", "categories", "proponent", "management_recommendation"]
 _DECISION = ["vote", "vote_label", "against_management", "shares_voted", "rationale", "decided_by", "decided_at", "run_id"]
 
 
+def meeting_key(company_id: str | None, isin: str | None, cusip: str | None, issuer_name: str | None) -> str:
+    """The company part of a vote meeting's key: the row's own ids, one namespace per source, so an issuer name can
+    never land on another company's meeting. A company keyed `isin_<ISIN>` shares the `isin:` namespace with
+    ISIN-only rows, so both reach one meeting."""
+    if company_id and company_id.startswith("isin_"):
+        return f"isin:{company_id[5:]}"
+    return next((f"{ns}:{v}" for ns, v in (("cid", company_id), ("isin", isin), ("cusip", cusip), ("name", issuer_name)) if v), "")
+
+
 def _clean_vote(n: int, raw: dict, source: str, bad: list[Rejection]) -> dict:
     def reject(field: str, reason: str) -> None:
         bad.append(Rejection(sheet="votes", row=n, field=field, reason=reason))
@@ -360,9 +369,7 @@ def intake_votes(rows: list[dict], dsn: str, source: str, excel_rows: bool = Fal
                 if key and _safe(key) and s.get(StwCompanyModel, key):
                     company = key
                     break
-            # the row's own ids, so the key stays stable once stw_companies gains the row; unmatched rows still store
-            # one namespace per key source, so an issuer name can never land on another company's meeting
-            key = next((f"{ns}:{row[k]}" for ns, k in (("cid", "company_id"), ("isin", "isin"), ("cusip", "cusip"), ("name", "issuer_name")) if row[k]), "")
+            key = meeting_key(row["company_id"], row["isin"], row["cusip"], row["issuer_name"])
             if row["external_id"] is not None and row["external_id"] in seen:
                 bad.append(Rejection(sheet="votes", row=n, field="external_id", reason="duplicate in batch"))
             seen.add(row["external_id"])
