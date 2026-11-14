@@ -6,6 +6,7 @@ from pathlib import Path
 from lxml import etree
 from pptx import Presentation
 
+from arp.reporting.template_frame import extract_frame, font_family_of
 from arp.schemas.reporting import TemplateLayoutInfo, TemplateStyleProfile
 from arp.storage.reporting_store import ReportingStore
 
@@ -117,7 +118,9 @@ def extract_style_profile(pptx_path: Path, source_filename: str) -> TemplateStyl
     )
 
 
-def ingest_template(store: ReportingStore, source_path: Path, source_filename: str) -> TemplateStyleProfile:
+def ingest_template(
+    store: ReportingStore, source_path: Path, source_filename: str, fonts: list[tuple[str, Path]] = (), layout_name: str | None = None,
+) -> TemplateStyleProfile:
     """Extracts the style profile, then copies the original template file
     into the store keyed by the new template_id -- DeckBuilder clones this
     exact file as its render base, so every downstream slide inherits its
@@ -128,5 +131,14 @@ def ingest_template(store: ReportingStore, source_path: Path, source_filename: s
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source_path, dest)
     style.stored_path = str(dest)
+    if fonts:
+        font_dir = store.template_font_dir(style.template_id)
+        font_dir.mkdir(exist_ok=True)
+        for name, path in fonts:
+            shutil.copyfile(path, font_dir / name)
+        style.font_dir = str(font_dir)
+    style.frame, style.frame_error = extract_frame(
+        Presentation(str(source_path)), layout_name, {f for name, _ in fonts if (f := font_family_of(name))},
+    )
     store.save_template_style(style)
     return style

@@ -4,7 +4,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from arp.api.deps import get_llm_client, get_reporting_store
@@ -12,6 +12,7 @@ from arp.reporting.datasets import parse_tabular_upload
 from arp.reporting.preview import ensure_preview_images
 from arp.reporting.service import ReportingService
 from arp.reporting.style_profile import ingest_template
+from arp.reporting.template_frame import font_family_of
 from arp.schemas.reporting import ReportManifest, ReportPlan, ReportRequest, ReportStatus, Storyline
 from arp.storage.reporting_store import ReportingStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
@@ -36,17 +37,27 @@ def _get_manifest_or_404(store: ReportingStore, report_id: str):
 
 
 @router.post("/templates")
-async def upload_template(file: UploadFile, store: ReportingStore = Depends(get_reporting_store)) -> dict:
+async def upload_template(
+    file: UploadFile, fonts: list[UploadFile] = File(default=[]), layout_name: str | None = Form(None),
+    store: ReportingStore = Depends(get_reporting_store),
+) -> dict:
     """Ingests a .pptx template so the Content Planner and DeckBuilder can
     match its style (layouts, theme colors/fonts) for every subsequent
     presentation generated with this template_id."""
     if not file.filename or not file.filename.lower().endswith(".pptx"):
         raise HTTPException(400, "Template must be a .pptx file")
+    names = [Path(f.filename or "").name for f in fonts]  # never a path from the client
+    if bad := [n for n in names if font_family_of(n) is None]:
+        raise HTTPException(400, f"Font files must be named <Family>-<weight>.ttf, .otf or .woff2 (got {', '.join(bad)})")
     content = await file.read()
-    with tempfile.NamedTemporaryFile(suffix=".pptx") as tmp:
-        tmp.write(content)
-        tmp.flush()
-        style = ingest_template(store, Path(tmp.name), file.filename)
+    with tempfile.TemporaryDirectory() as tmp:
+        pptx = Path(tmp) / "template.pptx"
+        pptx.write_bytes(content)
+        saved = []
+        for name, f in zip(names, fonts):
+            (Path(tmp) / name).write_bytes(await f.read())
+            saved.append((name, Path(tmp) / name))
+        style = ingest_template(store, pptx, file.filename, saved, layout_name)
     return style.model_dump(mode="json")
 
 
