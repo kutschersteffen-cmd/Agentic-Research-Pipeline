@@ -250,7 +250,7 @@ def test_next_meeting_rolls_forward_by_whole_years():
     # AC-106
     today = date(2026, 11, 14)
     sample = {"issuers": [{"issuer_id": "C", "name": "C", "sector": "x", "holding": {}}]}
-    row = worklist.indicators(sample, [], [], {"C": ("systemic", False)}, {"C": today - timedelta(days=400)}, {}, today)[0]
+    row = worklist.indicators(sample, [], [], {"C": ("monitor", False)}, {"C": today - timedelta(days=400)}, {}, today)[0]
     assert row["next_meeting"] == {"days": 330, "estimated": True, "last_meeting": "2025-10-10"}
     assert row["normalised"]["next_meeting"] == 0
     assert worklist.next_meeting(date(2026, 9, 1), today)["days"] == 291
@@ -279,7 +279,7 @@ def test_observed_columns_and_simulated_flag():
     obs = {"C": {f: Obs(company_id="C", field_id=f, field_name=f, value=v, source="simulated")
                  for f, v in (("transition_grade", "E"), ("esg_score", 3.9), ("controversy_level", 2), ("ghg_intensity", 12.0))}}  # fmt: skip
     sample = {"issuers": [{"issuer_id": "C", "name": "C", "sector": "x", "holding": {}}]}
-    row = worklist.indicators(sample, [], [], {"C": ("priority_bilateral", True)}, {}, obs, date(2026, 11, 14))[0]
+    row = worklist.indicators(sample, [], [], {"C": ("bilateral", True)}, {}, obs, date(2026, 11, 14))[0]
     assert row["transition_grade"] == {"value": "E", "simulated": True, "label": "Not credible"}
     assert row["esg_score"] == {"value": 3.9, "simulated": True}
     assert {k: row["normalised"][k] for k in ("transition_grade", "esg_score", "controversy", "carbon_intensity", "coverage_tier")} == {
@@ -305,12 +305,10 @@ def test_2500_companies_build_in_under_a_second(tmp_path):
 
 
 def test_existing_responses_unchanged(client):
-    # AC-51, AC-52: recorded from main under Fixture W before this PR
+    # AC-144, AC-145 (replace AC-51, AC-52; spec stewardship-three-tiers): recorded from main under Fixture W
     got = {
-        "tiers": client.get("/api/stewardship/tiers").json(),
         "monitoring_triggers": client.get("/api/stewardship/studio/monitoring/triggers").json(),
         "universe": {k: v for k, v in client.get("/api/stewardship/universe").json().items() if k != "set_at"},
-        "coverage_rules": client.get("/api/stewardship/policies/coverage_rules").json(),
     }
     assert got == json.loads(SNAPSHOT.read_text())
 
@@ -320,5 +318,5 @@ def test_non_numeric_observation_is_no_data():
 
     obs = {"C": {"esg_score": Obs(company_id="C", field_id="esg_score", field_name="e", value="3", source="extracted")}}
     sample = {"issuer_id": "C", "name": "C", "sector": "x", "holding": {}}
-    row = worklist.indicators({"issuers": [sample]}, [], [], {"C": ("systemic", False)}, {}, obs, date(2026, 11, 14))[0]
+    row = worklist.indicators({"issuers": [sample]}, [], [], {"C": ("monitor", False)}, {}, obs, date(2026, 11, 14))[0]
     assert row["esg_score"] is None and row["normalised"]["esg_score"] is None

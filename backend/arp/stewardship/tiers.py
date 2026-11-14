@@ -1,4 +1,4 @@
-"""Coverage tiers (E1): every issuer in scope gets one of four tiers, with the
+"""Coverage tiers (E1): every issuer in scope gets one of three tiers, with the
 rule that decided it stored as its justification.
 
 The rules are a ZEN decision table (`data/house_coverage_policy.graph.json`,
@@ -28,14 +28,18 @@ from arp.stewardship.backtest import _nest
 from arp.stewardship.policy_review import load
 from arp.stewardship.tracking import OPEN
 
-TIERS = ["priority_bilateral", "thematic_collaborative", "scaled_baseline", "systemic"]
-TIER_LABELS = {
-    "priority_bilateral": "Priority Bilateral",
-    "thematic_collaborative": "Thematic & Collaborative",
-    "scaled_baseline": "Scaled Baseline",
-    "systemic": "Systemic / Market-Level",
-}
+TIERS = ["bilateral", "letter", "monitor"]
+TIER_LABELS = {"bilateral": "Bilateral", "letter": "Letter", "monitor": "Monitor"}
+# Keys written before the three tiers, mapped when read; stored files are never rewritten.
+# The only place the old keys appear. A confirmed thematic row is retired instead (TierStore).
+RETIRED_TIER = "thematic_collaborative"
+OLD_TIERS = {"priority_bilateral": "bilateral", "scaled_baseline": "letter", "systemic": "monitor", RETIRED_TIER: "letter"}
 REEVALUATE_AFTER = timedelta(days=91)  # quarterly minimum (E1)
+
+
+def map_tier(tier: str | None) -> str | None:
+    """A tier key as read from a coverage-rule output or an approved programme version."""
+    return OLD_TIERS.get(tier, tier) if tier else tier
 
 
 def load_graph() -> dict:
@@ -70,7 +74,8 @@ def evaluate(graph: dict, contexts: list[dict]) -> list[dict]:
     out = []
     for c in contexts:
         result = engine.evaluate("coverage", c)["result"]
-        if result.get("tier") not in TIERS:
+        result["tier"] = map_tier(result.get("tier"))
+        if result["tier"] not in TIERS:
             raise ValueError(f"Coverage rules returned no valid tier for {c['issuer_id']}: {result}")
         out.append(
             {
@@ -92,15 +97,18 @@ class TierStore:
         self.path = root / "tier_assignments.jsonl"
 
     def all(self) -> list[dict]:
+        """Every row with its tier mapped to the current keys; a retired thematic row reads as tier None."""
         if not self.path.exists():
             return []
-        return [json.loads(line) for line in self.path.read_text().splitlines() if line.strip()]
+        rows = [json.loads(line) for line in self.path.read_text().splitlines() if line.strip()]
+        return [{**r, "tier": None if r["tier"] == RETIRED_TIER else map_tier(r["tier"])} for r in rows]
 
     def latest(self) -> dict[str, dict]:
+        """The confirmed tier per issuer. An issuer whose latest row is retired has none."""
         latest: dict[str, dict] = {}
         for row in self.all():
             latest[row["issuer_id"]] = row
-        return latest
+        return {i: r for i, r in latest.items() if r["tier"] is not None}
 
     def confirm(self, proposal: dict, decided_by: str) -> dict:
         if not decided_by.strip():

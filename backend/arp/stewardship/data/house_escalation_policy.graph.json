@@ -39,27 +39,21 @@
         ],
         "rules": [
           {
-            "_id": "priority_bilateral",
+            "_id": "bilateral",
             "_description": "Full ladder, up to a public statement",
-            "t": "'priority_bilateral'",
+            "t": "'bilateral'",
             "m": "6"
           },
           {
-            "_id": "thematic_collaborative",
-            "_description": "Up to escalation to the chair; beyond means promotion to Priority Bilateral",
-            "t": "'thematic_collaborative'",
-            "m": "3"
-          },
-          {
-            "_id": "scaled_baseline",
-            "_description": "Up to a vote against management",
-            "t": "'scaled_baseline'",
+            "_id": "letter",
+            "_description": "Up to a vote against management; beyond means promotion to Bilateral",
+            "t": "'letter'",
             "m": "4"
           },
           {
-            "_id": "systemic",
-            "_description": "Voting only: no company-specific escalation",
-            "t": "'systemic'",
+            "_id": "monitor",
+            "_description": "Voting and monitoring only: no company-specific escalation",
+            "t": "'monitor'",
             "m": "0"
           },
           {
