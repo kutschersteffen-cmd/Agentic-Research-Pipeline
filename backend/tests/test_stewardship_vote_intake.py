@@ -253,3 +253,49 @@ def test_item_number_with_colon_rejected(pg):
 
 def test_isin_company_id_suffix_upper_cased():
     assert meeting_key("isin_us0378331005", None, None) == meeting_key(None, "US0378331005", None) == "isin:US0378331005"
+
+
+def _set_meeting_key(pg, new):
+    with transaction(pg) as s:
+        m = s.scalars(select(VoteMeetingModel)).one()
+        old, m.external_id = m.external_id, new
+        for i in s.scalars(select(VoteItemModel)):
+            i.external_id = new + i.external_id[len(old):]
+
+
+def _run_steps(pg, *steps):
+    with transaction(pg) as s:
+        for step in steps:
+            step(s.connection())
+
+
+def test_unknown_company_id_with_isin_rekeyed_by_repair_step(pg):
+    # #450 round-3 code review B1: #440 keyed this row `NOPE:<date>`; the first step made it cid:NOPE, intake keys isin:
+    from arp.storage.postgres_schema import _vote_meeting_key_namespaces, _vote_meeting_key_repair
+
+    row = {**_row(), "company_id": "NOPE"}
+    intake_votes([row], pg, "api")
+    _set_meeting_key(pg, "NOPE:2026-05-01")
+    _run_steps(pg, _vote_meeting_key_namespaces, _vote_meeting_key_repair, _vote_meeting_key_repair)  # repair is idempotent
+    report = intake_votes([row], pg, "api")
+    assert (report.created, report.updated, report.unchanged, report.rejected) == (0, 0, 3, [])
+    with transaction(pg) as s:
+        assert [m.external_id for m in s.scalars(select(VoteMeetingModel))] == ["isin:US0378331005:2026-05-01"]
+
+
+def test_repair_step_keeps_resolved_cid_and_skips_taken_key(pg, caplog):
+    from arp.storage.postgres_schema import _vote_meeting_key_repair
+
+    with transaction(pg) as s:
+        ensure_universe_company(s, "C9", name="Nine")
+    intake_votes([{**_row(), "company_id": "C9"}], pg, "api")  # registry id: stays cid:C9
+    intake_votes([{**_row(2), "meeting_date": "2026-06-01"}], pg, "api")  # isin:US0378331005:2026-06-01
+    intake_votes([{**_row(3), "isin": "US5949181045", "meeting_date": "2026-06-01"}], pg, "api")
+    with transaction(pg) as s:  # turn the second meeting into a mis-keyed cid:NOPE one whose isin target is taken
+        m = s.scalars(select(VoteMeetingModel).where(VoteMeetingModel.isin == "US5949181045")).one()
+        m.external_id, m.isin = "cid:NOPE:2026-06-01", "US0378331005"
+    _run_steps(pg, _vote_meeting_key_repair)
+    with transaction(pg) as s:
+        keys = sorted(m.external_id for m in s.scalars(select(VoteMeetingModel)))
+    assert keys == ["cid:C9:2026-05-01", "cid:NOPE:2026-06-01", "isin:US0378331005:2026-06-01"]
+    assert "1 meeting(s) left under their old key" in caplog.text
