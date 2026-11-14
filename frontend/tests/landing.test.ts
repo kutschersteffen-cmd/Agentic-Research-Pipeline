@@ -105,3 +105,16 @@ test("ac14_copy", async () => {
 });
 test("ac7_no_colour_literals_in_landing_tsx", async () => assert.doesNotMatch(await landingTsx(), /#[0-9a-fA-F]{3,8}\b|rgba?\(|oklch\(/));
 test("ac6_no_signal_in_landing_tsx", async () => assert.doesNotMatch(await landingTsx(), /--hi\b|--hi-ink|--await-edge/));
+const canvasTsx = async () => read("../src/components/LandingCanvas.tsx");
+test("ac7b_canvas_colours_from_tokens", async () => {
+  const src = await canvasTsx();
+  assert.doesNotMatch(src, /#[0-9a-fA-F]{3,8}\b|rgba?\(|hsl\(|oklch\(/);
+  assert.ok(src.includes("--orb") && src.includes("--brand-apex"));
+});
+test("ac6_no_signal_in_canvas", async () => assert.doesNotMatch(await canvasTsx(), /--hi\b|--hi-ink|--await-edge/));
+test("theme_follows_live", async () => {
+  const src = await canvasTsx();
+  for (const s of ["MutationObserver", 'attributeFilter: ["data-theme"]', "prefers-color-scheme: dark"]) assert.ok(src.includes(s), s);
+});
+test("reduced_motion_single_frame", async () => assert.match(await canvasTsx(), /if \(reduce\) \{\s*draw\(18_?500\);\s*return;/));
+test("no_debug_global", async () => assert.ok(!(await canvasTsx()).includes("__arp")));
