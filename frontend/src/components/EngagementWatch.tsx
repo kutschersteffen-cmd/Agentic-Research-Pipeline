@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { OBJECTIVE_RESULTS, INFLUENCE_LEVELS, canSaveResult, checkLine, evidenceText, evidenceWhere, foundLine, issueTopics } from "../lib/engagement";
-import type { EngagementIssue, EvidenceSuggestion, Objective, WatchItemKind, WatchTopic } from "../types";
+import type { EngagementIssue, EvidenceSuggestion, Objective, WatchItemKind, WatchListEntry, WatchTopic } from "../types";
 
 // Watch list pieces of the issue panel (spec stewardship-commitment-loop, "What the user sees").
 // Values are shown raw, and dates as the first 10 characters of the stored ISO value.
@@ -471,6 +471,35 @@ export function FoundCommitments({ ctx, issue, suggestions, closed, onSaved }: {
     <>
       {mine.map((s) => (
         <FoundCommitment key={s.suggestion_id} ctx={ctx} s={s} issue={issue} closed={closed} onDecided={decided} />
+      ))}
+    </>
+  );
+}
+
+const WATCH_KIND = { objective: "Objective", commitment: "Commitment", topic: "Watch topic" } as const;
+
+/** The dossier's watch list, built by the API: flagged entries first, each with its proof and confirmed evidence. */
+export function DossierWatchList({ entries }: { entries: WatchListEntry[] }) {
+  return (
+    <>
+      <h4>Watch list</h4>
+      {entries.length === 0 && <p className="muted">No open objectives, commitments or watch topics.</p>}
+      {entries.map((e) => (
+        <div className="activity-row" key={e.item_id}>
+          <div className="activity-main">
+            {WATCH_KIND[e.item_kind]}: {e.text}
+            <div className="activity-meta">
+              {e.target_date && <span>due {e.target_date.slice(0, 10)}</span>}
+              {e.flag && <span className="badge badge-low">{e.flag}</span>}
+            </div>
+            {e.proof_statement && <div className="activity-meta">Proof: {e.proof_statement}</div>}
+            {e.evidence.map((line) => (
+              <div className="activity-meta" key={line}>
+                {line}
+              </div>
+            ))}
+          </div>
+        </div>
       ))}
     </>
   );
