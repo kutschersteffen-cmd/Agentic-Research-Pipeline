@@ -5,8 +5,7 @@ Slug: stewardship-cockpit
 Risk: high (PR 2 changes financed-emissions maths; PR 1 extends the engagement intake). Size M, 3 PRs.
 Status: draft for owner approval, 13 Nov 2026.
 Starts after: PR 2 (#440, engagement and vote intake) and PR 3 (`arp stewardship seed-demo`, `arp stewardship
-load-npx`) of `stewardship-data-foundation` are on `main`, and so is the three-tier change (owner decision 6). PR 1's
-evaluator pass runs on that demo data.
+load-npx`) of `stewardship-data-foundation` are on `main`. PR 1's evaluator pass runs on that demo data.
 
 ## Intent
 
@@ -36,19 +35,23 @@ Target look: the mockup the owner approved, <https://claude.ai/artifact/J3ryTPUL
    emissions, with "selected" taken from confirmed tiers. Feature B, `stewardship-cockpit-programmes`, comes later.
    It covers engaged vs selected by *named programme* and programme-based "selected", and waits on the
    priority-workbench spec (#448).
-6. **Three coverage tiers** (14 Nov 2026, buttons, at spec approval): "Only change: tier: bilateral, letter,
-   monitor" and "Delete collaborative everywhere. We don't do that". The tiers are `bilateral`, `letter` and
-   `monitor`; Thematic & Collaborative goes everywhere. Then: "We need to be able to manually or per rule setting
-   select companies for bilateral, … which is then part of the final approval". So a company gets its tier either
-   by hand or from a coverage rule, and the assignment counts only once it is approved. Building that (the tier
-   model in `tiers.py`, the coverage and escalation rule graphs, manual assignment, the approval step on the
-   Selection screen, docs) is a separate feature that lands first. The cockpit is read-only and only reads approved
-   assignments.
+6. **The cockpit only monitors** (14 Nov 2026, buttons, at spec approval). The owner wrote: "Only change: tier:
+   bilateral, letter, monitor", "Delete collaborative everywhere. We don't do that", "We need to be able to manually
+   or per rule setting select companies for bilateral, … which is then part of the final approval", and then "What
+   I said matters only for the prioritisation. Not the cockpit. Cockpit is only monitoring. As such we should show a
+   visual showing the different themes and tiers."
+   - The tier model (bilateral, letter, monitor, no Collaborative), and choosing a tier by hand or by rule with a
+     final approval, belong to prioritisation. That is a separate feature; this spec does not build it or wait
+     for it.
+   - The cockpit counts every confirmed tier as "selected". It shows engaged vs selected as a grid of themes ×
+     tiers, and takes the tiers and their labels from `tiers.py` (`TIERS`, `TIER_LABELS`). Today that is four
+     tiers; once prioritisation changes them to bilateral, letter and monitor, the grid shows those three with no
+     cockpit change.
 
 ## Goals
 
 - G1. A new page at `#/stewardiq/cockpit` with the mockup's sections: six key figures, a 30-day strip, engaged vs
-  selected by theme (see the panel note below), financed emissions in engagement, upcoming engagement meetings,
+  selected by theme and tier, financed emissions in engagement, upcoming engagement meetings,
   upcoming shareholder meetings with ballot state, control gaps, the escalation ladder, voting season to date, and
   the scope selector.
 - G2. One backend read, `GET /api/stewardship/cockpit`, that computes every number on the page from the ledger,
@@ -90,7 +93,7 @@ Target look: the mockup the owner approved, <https://claude.ai/artifact/J3ryTPUL
 - `planned_meeting_date` is one nullable column, added by the existing additive column reconciliation. Existing
   store writes (`PostgresEngagementStore` sets attributes in place) must leave it as it is.
 - The commitment-loop and priority-workbench features touch the ballot page and the workbench; the cockpit touches
-  neither. Feature B will replace only the grouping of the "by theme" panel.
+  neither. Feature B will replace only the theme axis of the theme × tier grid.
 
 ## Approaches
 
@@ -119,10 +122,10 @@ Where the planned meeting date lives (owner decision 4 says "in the ledger"; the
   tier row's `issuer_id`, `vote_meetings.company_id` and the run ballot's `company_id`. The registry UUID on
   `holdings` is not used. Company name: `stw_companies.name`; for an unmatched vote meeting, `issuer_name`.
 - **Engaged company**: a company with at least one open engagement.
-- **Selected company** (owner decision 6): a company whose latest approved tier assignment
-  (`TierStore(settings.stewardship_streams_dir).latest()`, `tiers.py`; an assignment there is the approved one,
-  whether a person chose the tier or a rule proposed it) is `bilateral`, `letter` or `monitor`. Proposals that are
-  not yet approved do not count, and neither does a row with any other value (an old tier name).
+- **Selected company** (owner decision 6): a company whose latest confirmed tier
+  (`TierStore(settings.stewardship_streams_dir).latest()`) is one of `tiers.TIERS`, whichever tiers that list holds.
+  Its **tier** is that value. Unconfirmed proposals do not count, and neither does a row whose tier is not in
+  `TIERS` (a retired tier name).
 - **Theme group** of an engagement, from its `fir_theme` (*my call*, the stand-in until feature B's programmes):
 
   | Theme group | `fir_theme` values |
@@ -180,7 +183,8 @@ portfolios: [{portfolio_id, name}]                    # for the selector, sorted
 demo: bool                                            # any demo row in scope
 summary: {selected: int, engaged_selected: int, engaged_outside_selection: int}
 days: [{date, engagement_meetings: int, shareholder_meetings: int}]          # exactly 30, the window in order
-themes: [{theme, selected: int, engaged: int}]
+tiers: [{tier, label, selected: int, engaged: int}]                         # one per tiers.TIERS, in that order
+themes: [{theme, selected: int, engaged: int, tiers: [{tier, selected: int, engaged: int}]}]
 engagement_meetings: [{date, company_id, company, engagement_id, theme, objective: str|null, step: int, stage}]
 shareholder_meetings: [{date, company_id, company, items: int, flagged: int|null, ballot_state,
                         action_due: bool, days_to_meeting: int, run_id: str|null}]
@@ -199,6 +203,10 @@ Rules:
   omitted when both its numbers are 0. `engaged` = selected companies with an open engagement in that group.
   `selected` = selected companies attributed to the group: an engaged company counts once in each group of its open
   engagements, a non-engaged one once, by tier rule. A company may appear in several rows; `summary` counts it once.
+- `themes[].tiers`: the same two counts split by the company's tier, one entry per `TIERS` value in that order
+  (zeros included); they add up to the row's `selected` and `engaged`.
+- `tiers`: per tier, `selected` = selected companies with that tier, `engaged` = those of them that are engaged;
+  `label` from `TIER_LABELS`. They add up to `summary.selected` and `summary.engaged_selected`.
 - `engagement_meetings`: open engagements whose `planned_meeting_date` is in the window, sorted by date.
 - `shareholder_meetings`: meetings in the window, sorted by date, one row per company and meeting date.
   - **From runs:** the latest `proxy_voting` run with a ballot for that company and date
@@ -280,9 +288,11 @@ showing it. Layout and copy follow the mockup:
   - **Votes cast, <season>**: `voting.votes`, with "<meetings> meetings · <p>% against management".
 - **30-day strip:** one column per `days` entry, weekends shaded, two bar series (engagement meetings, shareholder
   meetings).
-- **Engaged vs selected, by theme** (*my call* until feature B): the panel shows the `themes` rows, titled "by
-  theme" so it does not claim named programmes. Each row has two bars, a selected track and an engaged fill, and
-  "<e> / <s>". Feature B renames the panel and swaps its grouping; nothing else on the page changes.
+- **Engaged vs selected, by theme and tier** (owner decision 6): a grid with one row per `themes` entry, one
+  column per `tiers` entry (header: the tier `label`) and a Total column. A header row shows each tier's totals
+  from `tiers`. Each cell shows "<e> / <s>" over a small bar: the selected track with the engaged fill. A cell with
+  `selected` 0 shows `–` and no bar. Below 900 px the grid scrolls sideways inside its card. Feature B swaps the
+  theme rows for named programmes; nothing else on the page changes.
 - **Financed emissions in engagement** (PR 2): one stacked bar (engaged / selected not engaged / not selected) and
   the contributors table (Company · sector, Share, Status).
 - **Upcoming engagement meetings:** Date, Company + theme, Objective (or "No objective"), Step. Up to 6 rows, then
@@ -366,7 +376,7 @@ June 2026.
 
 | PR | Content | Risk | Holdout `Rows:` |
 |---|---|---|---|
-| 1 | `planned_meeting_date` (column, intake, template); `GET /api/stewardship/cockpit` with every field except `emissions` (always `null`); `arp stewardship seed-cockpit-demo`; the page with every section except the emissions panel and figure; the overview link; regenerated API files | normal | AC-1 to AC-52 and AC-73 to AC-78, listed one by one: `Rows: AC-1, AC-2, …, AC-52, AC-73, …, AC-78` |
+| 1 | `planned_meeting_date` (column, intake, template); `GET /api/stewardship/cockpit` with every field except `emissions` (always `null`); `arp stewardship seed-cockpit-demo`; the page with every section except the emissions panel and figure; the overview link; regenerated API files | normal | AC-1 to AC-52, AC-73 to AC-78, AC-82, AC-83, listed one by one: `Rows: AC-1, AC-2, …, AC-52, AC-73, …, AC-78, AC-82, AC-83` |
 | 2 | Per-company financed emissions; `emissions` in the response; the emissions panel and key figure | high | AC-53 to AC-63 (last slice, no `Rows:` line) |
 | 3 | A Cockpit entry on the start page (`#/home`), and polish after `/impeccable:impeccable audit` on the demo stack | low | none |
 
@@ -445,9 +455,9 @@ company `isin_XA0000000001` ("Alpha AG", its `stw_companies` row inserted first)
 | AC-23 | engagement A with `status` `stalled` | same | `engagement_meetings` has one row for A | holdout |
 | AC-24 | company A with two open engagements, escalated to `joint_engagement` and `escalation_to_chair` | same | `ladder[3].companies` is `[{company_id: "isin_XA0000000001", company: "Alpha AG"}]` and A is in no other ladder step | holdout |
 | AC-25 | company A with one open engagement escalated to `vote_against_management`, and a second engagement escalated to `public_statement` while open, then sent again through intake with `status` `resolved` | Cockpit `?as_of=2026-11-17` | A is listed only in `ladder[4]` | holdout |
-| AC-26 | confirmed tiers B `bilateral`, C `letter`, D `monitor`, E `thematic_collaborative` (an old row); B has an open engagement; F has an open engagement and no tier | same | `summary` is `{selected: 3, engaged_selected: 1, engaged_outside_selection: 1}` | holdout |
-| AC-27 | B confirmed `bilateral`, later confirmed `monitor` | same | `summary.selected` is 1 | holdout |
-| AC-28 | B selected, open engagement `fir_theme` `governance_board_pay`; C selected, rule `high_emitter`, no engagement; D selected, rule `top_weight`, no engagement | same | `themes` as `{theme, selected, engaged}` is exactly `[{Climate,1,0},{Corporate governance,1,1},{Nature,0,0},{AI and digital,0,0},{Norm violations,0,0},{Other,1,0}]` | holdout |
+| AC-26 | B, C and D confirmed with three different tiers from `tiers.TIERS`, E confirmed with tier `retired_tier` (not in `TIERS`); B has an open engagement; F has an open engagement and no tier | Cockpit `?as_of=2026-11-17` | `summary` is `{selected: 3, engaged_selected: 1, engaged_outside_selection: 1}` | holdout |
+| AC-27 | B confirmed with `TIERS[0]`, later confirmed with `TIERS[1]` | same | `summary.selected` is 1 and B counts under `TIERS[1]` in `tiers` | holdout |
+| AC-28 | B confirmed `TIERS[0]`, open engagement `fir_theme` `governance_board_pay`; C confirmed `TIERS[1]`, rule `high_emitter`, no engagement; D confirmed `TIERS[0]`, rule `top_weight`, no engagement | same | `themes` as `{theme, selected, engaged}` is exactly `[{Climate,1,0},{Corporate governance,1,1},{Nature,0,0},{AI and digital,0,0},{Norm violations,0,0},{Other,1,0}]` | holdout |
 | AC-29 | B selected, open engagements with `climate_mitigation` and `digital_responsibility` | same | the Climate and AI and digital rows both have `selected` 1 and `engaged` 1; `summary.engaged_selected` is 1 | holdout |
 | AC-30 | only C selected, rule `nature_impact` | same | `themes` has 5 rows (no `Other`) and Nature is `{selected: 1, engaged: 0}` | holdout |
 | AC-31 | a ledger meeting for company G (`stw_companies` row "Gamma SE") on 2026-11-20 with 3 `vote_items` and no decisions | same | `shareholder_meetings` is one row: `date` `"2026-11-20"`, `company` `"Gamma SE"`, `items` 3, `flagged` `null`, `ballot_state` `"not_started"`, `days_to_meeting` 3, `action_due` `true`, `run_id` `null` | holdout |
@@ -481,7 +491,7 @@ company `isin_XA0000000001` ("Alpha AG", its `stw_companies` row inserted first)
 | AC-59 | portfolio Q saved with no snapshot on or before 2026-11-17 | Cockpit `?portfolio_id=Q&as_of=2026-11-17` | `emissions` is `null` | holdout |
 | AC-60 | (PR 2) the demo stack | open `#/stewardiq/cockpit` | the "Financed emissions covered" figure shows the % and "<a> of <b> Mt CO₂e in engagement", matching the API; the emissions panel shows the three-part bar and 6 contributors | evaluator |
 | AC-61 | (PR 2) a scope where `emissions` is null | open the page in that scope | the emissions figure and panel are hidden, with no empty card in their place | evaluator |
-| AC-62 | the demo stack | open `#/stewardiq/cockpit` | sections in mockup order: key figures, 30-day strip, engaged vs selected by theme, financed emissions, upcoming engagement meetings, upcoming shareholder meetings, control gaps, escalation ladder, voting season to date | evaluator |
+| AC-62 | the demo stack | open `#/stewardiq/cockpit` | sections in mockup order: key figures, 30-day strip, engaged vs selected by theme and tier, financed emissions, upcoming engagement meetings, upcoming shareholder meetings, control gaps, escalation ladder, voting season to date | evaluator |
 | AC-63 | the demo stack | read the six key figures | each equals the value computed from `GET /api/stewardship/cockpit` for the same `as_of` and scope, with whole-number percentages and Mt to two decimals | evaluator |
 | AC-64 | the demo stack | the 30-day strip | 30 day columns from the `as_of` date, weekends shaded, bars on exactly the dates in `days` with counts above 0 | evaluator |
 | AC-65 | the demo stack | Upcoming engagement meetings | at most 6 rows, then `All <n>` with n = `len(engagement_meetings)`; clicking it shows n rows | evaluator |
@@ -501,10 +511,13 @@ company `isin_XA0000000001` ("Alpha AG", its `stw_companies` row inserted first)
 | AC-79 | the demo stack | open `#/stewardiq/cockpit` | the header shows the `Demo data` pill | evaluator |
 | AC-80 | the stack after `arp showcase load` only | open `#/stewardiq/cockpit` | no `Demo data` pill | evaluator |
 | AC-81 | a voting run `R` exists | open `#/voting/R` | the run opens as before (must not change: routing) | evaluator |
+| AC-82 | AC-28 | same | Corporate governance's `tiers` entry for `TIERS[0]` is `{selected: 1, engaged: 1}`, Climate's for `TIERS[1]` is `{selected: 1, engaged: 0}`, Other's for `TIERS[0]` is `{selected: 1, engaged: 0}`; every other entry is 0/0, and each row's `tiers` has `len(TIERS)` entries in `TIERS` order | holdout |
+| AC-83 | AC-28 | same | `tiers` has `len(TIERS)` entries in `TIERS` order with `label` from `TIER_LABELS`; `TIERS[0]` is `{selected: 2, engaged: 1}` and `TIERS[1]` is `{selected: 1, engaged: 0}` | holdout |
+| AC-84 | the demo stack | the "Engaged vs selected, by theme and tier" panel | one row per `themes` entry, one column per tier with the API's labels plus Total; every cell's "<e> / <s>" equals the API's `themes[].tiers` (Total = the row's `engaged` / `selected`); cells with `selected` 0 show `–` | evaluator |
 
-PR slices: PR 1 delivers AC-1 to AC-52 and AC-62 to AC-81, except the emissions parts of AC-62 and AC-63, which
-come with PR 2. PR 2 delivers AC-53 to AC-61. PR 1's `Rows:` line lists AC-1 to AC-52 and AC-73 to AC-78; the
-evaluator checks AC-62 to AC-72 and AC-79 to AC-81 on PR 1 without the emissions section, and again on PR 2.
+PR slices: PR 1 delivers AC-1 to AC-52 and AC-62 to AC-84, except the emissions parts of AC-62 and AC-63, which
+come with PR 2. PR 2 delivers AC-53 to AC-61. PR 1's `Rows:` line lists AC-1 to AC-52, AC-73 to AC-78, AC-82 and AC-83; the
+evaluator checks AC-62 to AC-72, AC-79 to AC-81 and AC-84 on PR 1 without the emissions section, and again on PR 2.
 
 Must not change: the intake's other columns and its unchanged/updated behaviour (AC-7), `planned_meeting_date`
 kept by existing store writes (AC-10), the StewardIQ overview apart from the link (AC-52),
