@@ -7,14 +7,19 @@ import { phaseAt } from "../src/lib/landingMotion.ts";
 test("r5_ac1", () => { for (const h of ["", "#", "#/", "#/welcome"]) assert.equal(entryTab(h), "welcome", h); });
 test("r5_ac2", () => { for (const h of ["#/home", "#/review/extraction/r1", "#/argus", "#/nonsense"]) assert.equal(entryTab(h), null, h); });
 test("phase_boundaries", () => {
+  // Landing brand refresh AC-1 (docs/superpowers/specs/2026-11-14-landing-brand-refresh-design.md): the 24 s six-phase loop.
   const p = (ms: number) => { const r = phaseAt(ms); return [r.phase, Math.round(r.t * 100) / 100]; };
   assert.deepEqual(p(0), ["network", 0]);
-  assert.deepEqual(p(2000), ["network", 0.5]);
-  assert.deepEqual(p(5000), ["light", 0.5]);
-  assert.deepEqual(p(10000), ["stream", 0.5]);
-  assert.deepEqual(p(16000), ["formed", 0.5]);
-  assert.deepEqual(p(20000), ["dissolve", 0.5]);
-  assert.deepEqual(p(22000), ["network", 0]);
+  assert.deepEqual(p(2500), ["network", 0.5]);
+  assert.deepEqual(p(5000), ["gather", 0]);
+  assert.deepEqual(p(7000), ["gather", 0.5]);
+  assert.deepEqual(p(9000), ["orb", 0]);
+  assert.deepEqual(p(11000), ["orb", 0.5]);
+  assert.deepEqual(p(13000), ["emerge", 0]);
+  assert.deepEqual(p(16500), ["formed", 0]);
+  assert.deepEqual(p(18500), ["formed", 0.5]);
+  assert.deepEqual(p(20500), ["dissolve", 0]);
+  assert.deepEqual(p(24000), ["network", 0]);
 });
 
 test("r5_ac11", async () => {
