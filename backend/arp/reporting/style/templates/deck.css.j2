@@ -14,9 +14,15 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
 {% for role, ts in t.type.items() %}
 .t-{{ role }} { font-family: var(--font-{{ ts.font }}); font-size: {{ ts.size }}px; line-height: {{ ts.line_height }}; font-weight: {{ ts.weight }}; letter-spacing: {{ ts.tracking }}em; }
 {% endfor %}
+{% if frame %}
+/* A company template's frame: headline and subheading sit in its boxes, in its sizes; no house accent rule. */
+h1.t-headline { position: absolute; margin: 0; left: {{ frame.headline.x }}px; top: {{ frame.headline.y }}px; width: {{ frame.headline.w }}px; height: {{ frame.headline.h }}px; overflow: hidden; text-wrap: balance; font-size: {{ frame.headline_font.size_px }}px; font-weight: {{ 700 if frame.headline_font.bold else 400 }}; }
+.t-subheading { position: absolute; margin: 0; left: {{ frame.subheading.x }}px; top: {{ frame.subheading.y }}px; width: {{ frame.subheading.w }}px; height: {{ frame.subheading.h }}px; overflow: hidden; font-family: '{{ frame.subheading_font.family }}', var(--font-body); font-size: {{ frame.subheading_font.size_px }}px; font-weight: {{ 700 if frame.subheading_font.bold else 400 }}; line-height: {{ t.type.body.line_height }}; }
+{% else %}
 h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; top: {{ t.grid.margin_top }}px; width: {{ t.canvas.width - 2 * t.grid.margin_x }}px; height: {{ t.grid.headline_band - 32 }}px; overflow: hidden; text-wrap: balance; }
 /* Recurring mark: a short ink rule above the headline. The accent is not decoration (DESIGN.md's One Signal Rule). */
 .slide::after { content: ""; position: absolute; left: {{ t.grid.margin_x }}px; top: {{ t.grid.margin_top - 32 - t.grid.rule_height }}px; width: {{ t.grid.rule_width }}px; height: {{ t.grid.rule_height }}px; background: var(--ink); }
+{% endif %}
 .slot { position: absolute; overflow: hidden; overflow-wrap: normal; }
 /* Metric numbers are ink (DESIGN.md). Bottom-aligned so it sits on its label; the padding holds the glyph descent inside the box. */
 .k-number { color: var(--ink); white-space: nowrap; display: flex; align-items: flex-end; padding-bottom: 0.2em; font-variant-numeric: tabular-nums; }

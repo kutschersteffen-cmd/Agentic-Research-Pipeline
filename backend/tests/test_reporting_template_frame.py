@@ -129,3 +129,9 @@ def test_ac19_preview_png_is_1920x1080(client, tmp_path):
     out = tmp_path / "p.png"
     out.write_bytes(r.content)
     assert Image.open(out).size == (1920, 1080)
+
+
+def test_font_family_from_the_file_is_sanitised(client, tmp_path):
+    """A family name lands in the deck's CSS; quotes and markup from the uploaded file must not."""
+    style = upload(client, tmp_path, major="Evil'; }</style><script>x()</script>", fonts=("Evilstylescriptxscript-400.ttf", "TestaSans-400.ttf"))
+    assert style["frame"]["headline_font"]["family"] == "Evil stylescriptxscript"

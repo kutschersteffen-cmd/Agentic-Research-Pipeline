@@ -26,6 +26,11 @@ def font_family_of(filename: str) -> str | None:
     return _norm(m["family"]) if m else None
 
 
+def _clean(family: str | None) -> str | None:
+    """Family names come from an uploaded file and end up in CSS: keep letters, digits, spaces, '-' and '_'."""
+    return " ".join(re.sub(r"[^\w \-]", "", family).split()) if family else family
+
+
 def _norm(family: str) -> str:
     return family.replace(" ", "").lower()
 
@@ -62,7 +67,7 @@ def _font(prs, ph, title: bool, fallback_px: float) -> FrameFont:
     b = next((r.get("b") in ("1", "true") for r in sources if r.get("b") is not None), False)
     latin = next((r.find(f"{_A}latin").get("typeface") for r in sources if r.find(f"{_A}latin") is not None), None)
     scale = 1920 / (prs.slide_width / 12700)  # px per pt
-    return FrameFont(family=_theme_font(prs, latin, title) or "", size_px=sz / 100 * scale if sz else fallback_px, bold=b)
+    return FrameFont(family=_clean(_theme_font(prs, latin, title)) or "", size_px=sz / 100 * scale if sz else fallback_px, bold=b)
 
 
 def _box(prs, ph) -> Box:
@@ -102,7 +107,7 @@ def extract_frame(prs, layout_name: str | None, font_families: set[str]) -> tupl
     type_ = load_tokens().type
     head_font = _font(prs, title, True, type_["headline"].size)
     sub_font = _font(prs, sub, False, type_["subhead"].size)
-    body_family = _theme_font(prs, None, False) or sub_font.family
+    body_family = _clean(_theme_font(prs, None, False)) or sub_font.family
     for family in (head_font.family, sub_font.family, body_family):
         if _norm(family) not in BUNDLED | font_families:
             return None, f'Upload the font file for "{family}".'

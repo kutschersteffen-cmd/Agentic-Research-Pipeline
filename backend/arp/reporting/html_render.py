@@ -16,8 +16,11 @@ from jinja2 import Environment, FileSystemLoader
 
 from arp.reporting.chart_builder import render_chart_svg
 from arp.reporting.design import DesignTheme
-from arp.reporting.house_style import _STYLE_DIR, Mode, Tokens, get_variant, load_tokens, slot_rect
+from arp.reporting.house_style import _STYLE_DIR, Mode, Tokens, footer_fits, get_variant, load_tokens, slot_rect
+from arp.reporting.template_frame import font_family_of
 from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent, TableSpec
+
+HOUSE_LAYOUTS = ("title", "section")  # keep the house geometry inside a template frame
 
 _env = Environment(loader=FileSystemLoader(_STYLE_DIR / "templates"), autoescape=True)
 
@@ -40,15 +43,20 @@ def _data_uri(path: Path) -> str:
     return f"data:{mime};base64,{base64.b64encode(path.read_bytes()).decode()}"
 
 
-def _font_faces(stacks: list[str]) -> str:
-    # Files are style/fonts/<dir>/<FamilyWithoutSpaces>-<weight>.(woff2|ttf), e.g. HankenGrotesk-600.ttf.
+_FORMATS = {"woff2": "woff2", "ttf": "truetype", "otf": "opentype"}
+
+
+def _font_faces(stacks: list[str], font_dir: str | None = None) -> str:
+    # Files are <FamilyWithoutSpaces>-<weight>.(woff2|ttf|otf), e.g. HankenGrotesk-600.ttf, in style/fonts/<dir>/
+    # or in a template's font folder; the family match ignores case.
+    files = [*(_STYLE_DIR / "fonts").glob("*/*"), *(Path(font_dir).glob("*") if font_dir else [])]
     faces = []
     for family in dict.fromkeys(f.split(",")[0].strip().strip("'\"") for f in stacks):
-        for path in sorted((_STYLE_DIR / "fonts").glob(f"*/{family.replace(' ', '')}-*")):
-            weight, ext = path.stem.rsplit("-", 1)[1], path.suffix[1:]
-            if weight.isdigit() and ext in ("woff2", "ttf"):
+        for path in sorted(p for p in files if font_family_of(p.name) == family.replace(" ", "").lower()):
+            weight, ext = path.stem.rsplit("-", 1)[1], path.suffix[1:].lower()
+            if weight.isdigit() and ext in _FORMATS:
                 b64 = base64.b64encode(path.read_bytes()).decode()
-                fmt = "woff2" if ext == "woff2" else "truetype"
+                fmt = _FORMATS[ext]
                 faces.append(f"@font-face {{ font-family: '{family}'; font-weight: {weight}; font-style: normal; "
                              f"src: url(data:font/{ext};base64,{b64}) format('{fmt}'); }}")
     return "\n".join(faces)
@@ -66,7 +74,7 @@ def table_view(spec: TableSpec, ds: QuantitativeDataset) -> tuple[list[str], lis
 
 
 def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict[str, QuantitativeDataset], theme: DesignTheme) -> dict:
-    r = slot_rect(tokens, spec)
+    r = slot_rect(tokens, spec, house=slide.layout in HOUSE_LAYOUTS)
     v = {"slide": i, "name": spec.name, "kind": spec.kind, "role": spec.type_role, "x": r.x, "y": r.y, "w": r.w, "h": r.h}
     value = slide.slots.get(spec.name)
     if spec.kind == "list":
@@ -88,12 +96,15 @@ def render_deck_html(deck: Deck, datasets: list[QuantitativeDataset], tokens: To
     by_id = {d.dataset_id: d for d in datasets}
     slides = [
         {
-            "index": i, "layout": s.layout, "headline": s.headline, "refs": " · ".join(s.source_refs),
+            "index": i, "layout": s.layout, "headline": s.headline, "subheading": s.subheading, "framed": tokens.frame is not None,
+            "refs": " · ".join(s.source_refs),
             "slots": [_slot_view(i, s, sp, tokens, by_id, theme) for sp in get_variant(s.layout, s.variant).slots],
         }
         for i, s in enumerate(deck.slides)
     ]
     fonts = {"heading": tokens.heading_font(mode), "body": tokens.fonts.body, "mono": tokens.fonts.mono or tokens.fonts.body}
+    stacks = [*fonts.values(), *([tokens.frame.subheading_font.family] if tokens.frame else [])]
     return _env.get_template("base.html.j2").render(
-        deck=deck, slides=slides, t=tokens, c=tokens.colors(mode), fonts=fonts, mode=mode, font_faces=_font_faces(list(fonts.values())),
+        deck=deck, slides=slides, t=tokens, c=tokens.colors(mode), fonts=fonts, mode=mode, font_faces=_font_faces(stacks, tokens.font_dir),
+        frame=tokens.frame, footer=footer_fits(tokens),
     )
