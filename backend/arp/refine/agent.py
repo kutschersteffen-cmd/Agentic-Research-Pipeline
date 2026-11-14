@@ -127,8 +127,7 @@ async def run_turn(turn_id: int, kind: str, doc_id: str, message: str, history: 
             new, r = apply_deck_ops(deck, ops, request.datasets if request else [], findings)
             edited = new != deck
             save_progress(turn_id, ops=ops, result=_result(out.reply, r["changed"], r["not_changed"], r["check_figures"]),
-                          before={"deck": document} if edited else None,
-                          after={"deck": new.model_dump(mode="json")} if edited else None)
+                          before=document if edited else None, after=new.model_dump(mode="json") if edited else None)
             if edited:  # logged first, so a written deck always has its undo
                 store.save_deck(doc_id, new)
                 manifest = store.load_manifest(doc_id)
