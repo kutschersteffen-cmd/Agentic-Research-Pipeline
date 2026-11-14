@@ -38,9 +38,12 @@ Target look: the mockup the owner approved, <https://claude.ai/artifact/J3ryTPUL
    priority-workbench spec (#448).
 6. **Three coverage tiers** (14 Nov 2026, buttons, at spec approval): "Only change: tier: bilateral, letter,
    monitor" and "Delete collaborative everywhere. We don't do that". The tiers are `bilateral`, `letter` and
-   `monitor`; Thematic & Collaborative goes everywhere. Changing the tier model itself (`tiers.py`, the coverage and
-   escalation rule graphs, the Selection screen, docs) is a separate feature that lands first. This spec only reads
-   its result.
+   `monitor`; Thematic & Collaborative goes everywhere. Then: "We need to be able to manually or per rule setting
+   select companies for bilateral, … which is then part of the final approval". So a company gets its tier either
+   by hand or from a coverage rule, and the assignment counts only once it is approved. Building that (the tier
+   model in `tiers.py`, the coverage and escalation rule graphs, manual assignment, the approval step on the
+   Selection screen, docs) is a separate feature that lands first. The cockpit is read-only and only reads approved
+   assignments.
 
 ## Goals
 
@@ -116,9 +119,10 @@ Where the planned meeting date lives (owner decision 4 says "in the ledger"; the
   tier row's `issuer_id`, `vote_meetings.company_id` and the run ballot's `company_id`. The registry UUID on
   `holdings` is not used. Company name: `stw_companies.name`; for an unmatched vote meeting, `issuer_name`.
 - **Engaged company**: a company with at least one open engagement.
-- **Selected company** (owner decision 6): a company whose latest confirmed tier
-  (`TierStore(settings.stewardship_streams_dir).latest()`, `tiers.py`) is `bilateral`, `letter` or `monitor`. A
-  tier row with any other value (an old tier name) does not count.
+- **Selected company** (owner decision 6): a company whose latest approved tier assignment
+  (`TierStore(settings.stewardship_streams_dir).latest()`, `tiers.py`; an assignment there is the approved one,
+  whether a person chose the tier or a rule proposed it) is `bilateral`, `letter` or `monitor`. Proposals that are
+  not yet approved do not count, and neither does a row with any other value (an old tier name).
 - **Theme group** of an engagement, from its `fir_theme` (*my call*, the stand-in until feature B's programmes):
 
   | Theme group | `fir_theme` values |
