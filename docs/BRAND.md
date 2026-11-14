@@ -4,15 +4,15 @@ Colours, type and components live in [`DESIGN.md`](../DESIGN.md). This file cove
 
 ## Mark: Pixel A
 
-A letter A built from ten squares. The apex is the brand colour: orange (#ea4c14) on light grounds,
-turquoise (#2ee6d6) on dark grounds. It marks where a person ratifies what the agents proposed.
-The brand colours live only in the apex; the interface's "needs a person" signal is amber (see
-DESIGN.md, The Brand Colour Rule).
+A letter A built from ten squares. The apex is the brand colour: orange, #ea4c14 on light grounds and
+the brighter #ff6a2b on dark grounds. It marks where a person ratifies what the agents proposed.
+Brand orange lives in the apex and in the landing animation's glow; the interface's "needs a
+person" signal is amber (see DESIGN.md, The Brand Colour Rule).
 
 | File | Use |
 |------|-----|
 | `docs/brand/arp-mark.svg` | Light grounds (ink + brand orange) |
-| `docs/brand/arp-mark-night.svg` | Dark grounds (ink + brand turquoise) |
+| `docs/brand/arp-mark-night.svg` | Dark grounds (ink + brand orange #ff6a2b) |
 | `docs/brand/arp-lockup.svg` | Lockup for light grounds: "ARP" spelled on the mark's grid |
 | `docs/brand/arp-lockup-night.svg` | Lockup for dark grounds |
 | `frontend/public/favicon.svg` | Favicon, switches with system theme |
@@ -38,7 +38,7 @@ mark alone.
   marker of the interface (DESIGN.md, Pixel Mark Language).
 - Clear space: one square (10 units) on all sides. Minimum size 16px high; the grid stays legible down to 16px.
 - On a coloured or photo ground use the single-colour version: all ink or all white, apex included.
-- Do not use the brand colours anywhere else, in the mark's neighbourhood or in the interface.
+- Do not use brand orange anywhere else: not in the mark's neighbourhood, not in the app interface. The landing animation is the one exception.
 
 ## Voice
 

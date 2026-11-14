@@ -39,7 +39,7 @@ colors:
   night-low: "#ff6b7a"
   night-run: "#7dd3fc"
   night-paper: "#f5f2ea"
-  brand-turquoise: "#2ee6d6"
+  brand-orange-night: "#ff6a2b"
 typography:
   display:
     fontFamily: "Source Serif 4, Georgia, serif"
@@ -179,7 +179,7 @@ A white-and-blue palette with one reserved signal per theme and a small set of s
 ### Named Rules
 **The One Signal Rule.** Amber means one thing only: a person must act. Never use it for branding, decoration, hover, focus of a normal control, or "running". When nothing waits, no amber appears anywhere on the screen. Keyboard focus is an accent outline. A proposed item's box is neutral; only its "Proposed" tag and the needs-you shape carry the signal, so a queue never turns into a wall of amber. The flagged vote that needs a second person takes the signal border.
 
-**The Brand Colour Rule.** The logo apex is the only place for the brand colours: orange (#ea4c14) in light, turquoise (#2ee6d6) in Night. They never appear in the interface itself, so they cannot be mistaken for the signal.
+**The Brand Colour Rule.** Brand orange (#ea4c14 light, #ff6a2b Night) appears in two places only: the logo apex and the landing animation's orb glow. It never appears in the app's interface, so it cannot be mistaken for the amber signal.
 
 **Provenance Is Not Status.** Where a number came from (live, synthetic sample, portfolio holdings, not built) is shown with neutral marks: filled, half, ring, dashed ring. Metric numbers are ink. Green, amber-brown and red stay for status.
 
@@ -310,7 +310,7 @@ The start page's five cards (StewardIQ, Argus, Transition Intelligence Platform,
 
 ### Don't:
 - **Don't** use amber for anything that doesn't wait on a person: not branding, not "running", not hover.
-- **Don't** use the brand orange or turquoise anywhere but the logo apex.
+- **Don't** use brand orange anywhere but the logo apex and the landing animation.
 - **Don't** put shadows on tables, wells or inputs inside a card, or stack cards.
 - **Don't** round markers: dots, steps and segments are square.
 - **Don't** use emoji as icons or status markers; draw icons in the shared stroke family. (The ✎ on "Proposed" is a text glyph, not an icon.)
