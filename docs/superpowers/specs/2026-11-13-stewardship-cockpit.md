@@ -4,8 +4,8 @@ Slug: stewardship-cockpit
 
 Risk: high (PR 2 changes financed-emissions maths; PR 1 extends the engagement intake). Size M, 3 PRs.
 Status: draft for owner approval, 13 Nov 2026.
-Starts after: PR 2 of `stewardship-data-foundation` (#440, engagement and vote intake) is on `main`. The demo step
-needs that spec's PR 3 (`arp stewardship seed-demo`, `arp stewardship load-npx`) for a full showcase.
+Starts after: PR 2 (#440, engagement and vote intake) and PR 3 (`arp stewardship seed-demo`, `arp stewardship
+load-npx`) of `stewardship-data-foundation` are on `main`. PR 1's evaluator pass runs on their demo data.
 
 ## Intent
 
@@ -150,7 +150,7 @@ Where the planned meeting date lives (owner decision 4 says "in the ledger"; the
   existing databases.
 - Engagement intake (API and Excel): the `engagements` sheet gains an optional last column `planned_meeting_date`
   (ISO date; an Excel date cell is accepted like `started_at`). An empty cell stores null. A malformed value
-  rejects the row with reason `planned_meeting_date: not a date`. It counts in the unchanged/updated comparison like
+  rejects the row with one rejection `{sheet: "engagements", row: <n>, field: "planned_meeting_date", reason: "not a date"}`. It counts in the unchanged/updated comparison like
   every other column. The template lists it last on the `engagements` sheet.
 - This supersedes `stewardship-data-foundation` AC-20 for the `engagements` sheet only: its header row is the
   foundation's list followed by `planned_meeting_date` (AC-6 here). The holdout test for that AC-20 is updated in
@@ -174,7 +174,7 @@ themes: [{theme, selected: int, engaged: int}]
 engagement_meetings: [{date, company_id, company, engagement_id, theme, objective: str|null, step: int, stage}]
 shareholder_meetings: [{date, company_id, company, items: int, flagged: int|null, ballot_state,
                         action_due: bool, days_to_meeting: int, run_id: str|null}]
-control_gaps: [{company_id, company, engagement_id, theme, open_days: int, gaps: [str]}]
+control_gaps: [{company_id, company, engagement_id, theme, open_days: int|null, gaps: [str]}]
 ladder: [{step: int, stage, label, companies: [{company_id, company}]}]       # exactly 7, steps 1..7
 voting: {season: int, meetings: int, votes: int, for: int, against: int, abstain: int, other: int,
          against_management: int, topics: [{topic, votes: int, against_management: int}]}
@@ -218,7 +218,7 @@ Rules:
   - `against_management`: the decision's `against_management` is true, or the run feed's `against_management`.
   - `meetings` = distinct (company or issuer, meeting date) among the counted votes.
   - Topics, in this fixed order; each vote falls in exactly one, the first that matches:
-    1. **Shareholder proposals**: ledger `proponent` contains `holder`, case-insensitive; run type
+    1. **Shareholder proposals**: ledger `proponent` is `shareholder` (case-insensitive); run type
        `shareholder_resolution`.
     2. **Remuneration**: an element of `categories` contains `SAY-ON-PAY` or `COMPENSATION`; run type `say_on_pay`.
     3. **Director elections**: an element contains `DIRECTOR`; run type `director_election`.
@@ -245,7 +245,7 @@ emissions: {total_tco2e: float, engaged_tco2e: float, selected_not_engaged_tco2e
   `arp climate financed-emissions` selects them.
 - Buckets: engaged companies, selected but not engaged, and the rest. The three sum to `total_tco2e` (±0.1 t).
 - `contributors`: the 6 largest companies by `tco2e`, ties by name. `share` = `tco2e / total_tco2e`, 0 to 1, 4
-  decimals. `status` is one of `in_escalation`, `engaged`, `selected`, `not_selected`. `company` and `sector` come
+  decimals. `status` is the first that applies: `in_escalation`, `engaged`, `selected`, `not_selected`. `company` and `sector` come
   from the security's company.
 - `emissions` is `null` when no holdings are in scope or `total_tco2e` is 0.
 
@@ -258,8 +258,8 @@ showing it. Layout and copy follow the mockup:
 - **Header:** a "StewardIQ" crumb, the title "Cockpit", and the scope selector (`All portfolios (N)`, then each
   portfolio; changing it refetches with `portfolio_id`). Then "As of <d MMM yyyy>" from the response's `as_of`,
   and a `Demo data` pill when `demo` is true.
-- **`as_of`:** the page reads an optional `?as_of=YYYY-MM-DD` from the hash (`#/stewardiq/cockpit?as_of=2026-11-27`)
-  and passes it to the API. Without it, the API's default (today UTC) applies.
+- **`as_of`:** an optional second path segment, `#/stewardiq/cockpit/2026-11-27` (route `params[1]`), is passed
+  to the API as `as_of`. Without it, the API's default (today UTC) applies. `parseHash` does not change.
 - **Six key figures:**
   - **Companies engaged**: `engaged_selected / selected`, with "<p>% of selected companies".
   - **Financed emissions covered** (PR 2; hidden while `emissions` is null): `engaged_tco2e / total_tco2e` as a %,
@@ -294,6 +294,9 @@ showing it. Layout and copy follow the mockup:
   count.
 - **Voting, season to date:** one stacked bar for / against / abstain (plus other, only when it is above 0) with
   counts. Under it, "Against management, by topic": one bar per topic, "<rate>% · <a> of <n>".
+- **Zero cases:** `selected` 0 shows `0 / 0` and "– of selected companies"; `voting.votes` 0 shows "0 meetings · –
+  against management"; no company in escalation shows `0` and "Highest step: –"; a topic with 0 votes shows
+  "– · 0 of 0".
 - **Numbers:** percentages are whole numbers, rounded half up. Mt CO₂e has two decimals. Counts use thousands
   separators.
 - **Empty and error states:** an empty section says so in one line (e.g. "No engagement meetings in the next 30
@@ -314,7 +317,7 @@ New module `backend/arp/stewardship/cockpit_demo.py` and command `arp stewardshi
 YYYY-MM-DD]` (default today UTC). Showcase order: `arp showcase load`, `arp stewardship seed-demo`, `arp stewardship
 load-npx data/voting/npx_urth/`, then this. It prints one line per step, `ok|FAIL <step>: <detail>`, and exits 1
 on the first FAIL. It never changes a row whose `source` is not `mock_voice_seed` or `cockpit_demo`, and never
-removes a row. Let `h(x)` = the integer value of SHA-256 of `x`.
+removes a row. Let `h(x)` = `int(hashlib.sha256(x.encode("utf-8")).hexdigest(), 16)`; in `"items:" + k`, k is written in decimal.
 
 1. `planned`: for every open `mock_voice_seed` engagement `e`, with `b = h(engagement_id) mod 20` and
    `k = (h(engagement_id) div 20)`, it sets `planned_meeting_date` as follows:
@@ -331,12 +334,12 @@ removes a row. Let `h(x)` = the integer value of SHA-256 of `x`.
    the engagement records) and confirms every proposal whose issuer has no confirmed tier yet, with `decided_by`
    `showcase demo`. Prints `ok tiers: <n> confirmed`.
 4. `meetings`: it upserts 14 `vote_meetings` (`source` `cockpit_demo`, `external_id` `cockpit_demo:meeting:<k>`, k
-   = 0–13) for 14 held companies that have `stw_companies` rows. The companies are the 14 smallest `h(company_id)`.
+   = 0–13) for 14 held companies that have `stw_companies` rows (held = the company key of any holding in
+   `load_holdings_as_of(as_of, None)`). The companies are the 14 with the smallest `h(company_id)`.
    - Meeting k is dated `as_of + [1, 2, 4, 6, 9, 11, 13, 15, 18, 20, 22, 24, 27, 29][k]` days, with `meeting_type`
      `annual`.
    - Each meeting has `10 + h("items:" + k) mod 13` `vote_items` (10–22), with N-PX-style categories,
-     `management_recommendation` `for`, and proponent `Issuer`, except one `Security holder` item in meetings with
-     odd k.
+     `management_recommendation` `for`, and proponent `issuer`, except one `shareholder` item in meetings with odd k.
    - No decisions.
 
    Prints `ok meetings: 14 upcoming`.
@@ -353,11 +356,11 @@ June 2026.
 
 | PR | Content | Risk | Holdout `Rows:` |
 |---|---|---|---|
-| 1 | `planned_meeting_date` (column, intake, template); `GET /api/stewardship/cockpit` with every field except `emissions` (always `null`); `arp stewardship seed-cockpit-demo`; the page with every section except the emissions panel and figure; the overview link; regenerated API files | normal | AC-1 to AC-52, listed one by one: `Rows: AC-1, AC-2, …, AC-52` |
+| 1 | `planned_meeting_date` (column, intake, template); `GET /api/stewardship/cockpit` with every field except `emissions` (always `null`); `arp stewardship seed-cockpit-demo`; the page with every section except the emissions panel and figure; the overview link; regenerated API files | normal | AC-1 to AC-52 and AC-73 to AC-78, listed one by one: `Rows: AC-1, AC-2, …, AC-52, AC-73, …, AC-78` |
 | 2 | Per-company financed emissions; `emissions` in the response; the emissions panel and key figure | high | AC-53 to AC-63 (last slice, no `Rows:` line) |
 | 3 | A Cockpit entry on the start page (`#/home`), and polish after `/impeccable:impeccable audit` on the demo stack | low | none |
 
-PR 1 alone is a complete page with five of the six key figures. PR 3 needs PR 1 and the foundation's PR 3 on `main`.
+PR 1 alone is a complete page with five of the six key figures.
 
 ## What is left to the builder
 
@@ -387,21 +390,27 @@ Each test starts from:
 
 It builds fixtures with:
 
+- direct inserts into `stw_companies` (intake accepts only known companies), and into `stw_engagements` /
+  `stw_objectives` where a row needs a `source` other than `api`;
 - the engagement intake (`POST /api/stewardship/intake/engagements`, JSON);
 - the escalate route (`POST /api/engagement/records/{company_id}/issues/{engagement_id}/escalate`);
 - `TierStore(settings.stewardship_streams_dir).confirm`;
 - direct inserts into `vote_meetings`, `vote_items` and `vote_decisions`;
 - for portfolios, the portfolio store's `save_portfolio`, `save_security` and `save_snapshot`. Securities carry
-  the company key (see Definitions).
+  the company key (see Definitions). Climate values via `append_observation` (`climate_evic_eur_m`,
+  `climate_scope1_tco2e`, `climate_scope2_tco2e`).
+
+The stack already holds the portfolios `arp portfolio seed-demo` writes (`e2e_stack.sh up`); rows that need an
+exact portfolio set use `portfolio_id`.
 
 "Cockpit" below means `GET /api/stewardship/cockpit`. "Engagement A" means an engagement taken in by intake for
-company `isin_XA0000000001` ("Alpha AG"), `status` `open`, `fir_theme` `climate_mitigation`, `started_at`
-`2026-10-03`, with one objective, `status` `in_progress`, description "Cut coal", and `planned_meeting_date`
+company `isin_XA0000000001` ("Alpha AG", its `stw_companies` row inserted first), `status` `open`, `fir_theme` `climate_mitigation`, `started_at`
+`2026-10-03`, with one objective, `status` `in_progress`, `objective_type` `strategic`, description "Cut coal", and `planned_meeting_date`
 `2026-11-20`, unless the row says otherwise.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
-| AC-1 | no engagements, tiers, runs or votes | Cockpit `?as_of=2026-11-17` | 200; `summary` is `{selected: 0, engaged_selected: 0, engaged_outside_selection: 0}`; `engagement_meetings`, `shareholder_meetings`, `control_gaps` are `[]`; `voting.votes` is 0; `emissions` is `null`; `demo` is `false` | holdout |
+| AC-1 | no engagements, tiers, runs or votes | Cockpit `?as_of=2026-11-17` | 200; `summary` is `{selected: 0, engaged_selected: 0, engaged_outside_selection: 0}`; `engagement_meetings`, `shareholder_meetings`, `control_gaps` are `[]`; `voting.votes` is 0; `demo` is `false` | holdout |
 | AC-2 | same | same | `days` has 30 entries, the first `date` `"2026-11-17"`, the last `"2026-12-16"`, every count 0 | holdout |
 | AC-3 | same | same | `ladder` has 7 entries with `step` 1..7 and `label` exactly "Private dialogue", "Joint engagement", "Letter to the board", "Meeting with the chair", "Vote against management", "File a resolution", "Public statement", each `companies` `[]` | holdout |
 | AC-4 | any | Cockpit `?as_of=2026-13-01` | 422 | holdout |
@@ -409,23 +418,23 @@ company `isin_XA0000000001` ("Alpha AG"), `status` `open`, `fir_theme` `climate_
 | AC-6 | — | `GET /api/stewardship/intake/template?kind=engagements`, opened in openpyxl | the `engagements` sheet's header row is `external_id, company_id, isin, company_name, theme, fir_theme, esg_pillars, rationale, engager_role, started_at, status, severity, planned_meeting_date` (supersedes `stewardship-data-foundation` AC-20 for this sheet) | holdout |
 | AC-7 | engagement A taken in by intake | the same batch is sent again | 200 with `created` 0 and `updated` 0; the stored `planned_meeting_date` is `2026-11-20` | holdout |
 | AC-8 | engagement A taken in by intake | the batch is sent again with `planned_meeting_date` `2026-11-25` | 200 with `updated` 1; the stored value is `2026-11-25` | holdout |
-| AC-9 | — | intake of engagement A with `planned_meeting_date` `"20.11.2026"` | 422; `rejected` has exactly one entry, with reason `planned_meeting_date: not a date`; no `stw_engagements` row is stored | holdout |
+| AC-9 | company A's `stw_companies` row | intake of engagement A with `planned_meeting_date` `"20.11.2026"` | 422; `rejected` is exactly `[{sheet: "engagements", row: 1, field: "planned_meeting_date", reason: "not a date"}]`; no `stw_engagements` row is stored | holdout |
 | AC-10 | engagement A taken in by intake | `POST …/escalate` with `{stage: "joint_engagement"}` | the stored `planned_meeting_date` is still `2026-11-20` (must not change) | holdout |
 | AC-11 | engagement A | Cockpit `?as_of=2026-11-17` | `engagement_meetings` is exactly one row: `date` `"2026-11-20"`, `company_id` `isin_XA0000000001`, `company` `"Alpha AG"`, `theme` `"Climate"`, `objective` `"Cut coal"`, `step` 1 | holdout |
 | AC-12 | engagement A | same | `days[3]` is `{date: "2026-11-20", engagement_meetings: 1, shareholder_meetings: 0}` | holdout |
 | AC-13 | engagement A | same | `control_gaps` is `[]` | holdout |
 | AC-14 | engagement A with `planned_meeting_date` `2026-12-17` | same | `engagement_meetings` is `[]` | holdout |
-| AC-15 | engagement A with `planned_meeting_date` `2026-11-17` | same | `engagement_meetings` has A on `"2026-11-17"` and `control_gaps` is `[]` | holdout |
+| AC-15 | engagement A with `planned_meeting_date` `2026-11-17` | same | `engagement_meetings` has A on `"2026-11-17"` | holdout |
 | AC-16 | engagement A with `planned_meeting_date` empty | same | `control_gaps` is one row for A with `gaps` `["no_next_meeting"]` and `open_days` 45 | holdout |
 | AC-17 | engagement A with `planned_meeting_date` `2026-11-16` | same | `control_gaps` is one row for A with `gaps` `["no_next_meeting"]` | holdout |
 | AC-18 | engagement A without objectives | same | `control_gaps` is one row for A with `gaps` `["no_objective"]` | holdout |
 | AC-19 | engagement A without objectives | same | A's `engagement_meetings` row has `objective` `null` | holdout |
 | AC-20 | engagement A whose only objective has `status` `closed`, and no `planned_meeting_date` | same | `control_gaps` is one row for A with `gaps` `["no_objective", "no_next_meeting"]` | holdout |
 | AC-21 | engagement A with two objectives, both `in_progress`: "Old aim" `started_at` 2026-01-10 and "New aim" `started_at` 2026-09-01 | same | A's `engagement_meetings` row has `objective` `"New aim"` | holdout |
-| AC-22 | engagement A with `status` `resolved` and no `planned_meeting_date` | same | `control_gaps` is `[]` and `engagement_meetings` is `[]` | holdout |
+| AC-22 | engagement A with `status` `resolved` and no `planned_meeting_date` | same | `control_gaps` is `[]` | holdout |
 | AC-23 | engagement A with `status` `stalled` | same | `engagement_meetings` has one row for A | holdout |
 | AC-24 | company A with two open engagements, escalated to `joint_engagement` and `escalation_to_chair` | same | `ladder[3].companies` is `[{company_id: "isin_XA0000000001", company: "Alpha AG"}]` and A is in no other ladder step | holdout |
-| AC-25 | company A with one open engagement escalated to `vote_against_management` and one `resolved` engagement escalated to `public_statement` | same | A is listed only in `ladder[4]` | holdout |
+| AC-25 | company A with one open engagement escalated to `vote_against_management`, and a second engagement escalated to `public_statement` while open, then sent again through intake with `status` `resolved` | Cockpit `?as_of=2026-11-17` | A is listed only in `ladder[4]` | holdout |
 | AC-26 | confirmed tiers B `priority_bilateral`, C `thematic_collaborative`, D `scaled_baseline`, E `systemic`; B has an open engagement; F has an open engagement and no tier | same | `summary` is `{selected: 2, engaged_selected: 1, engaged_outside_selection: 1}` | holdout |
 | AC-27 | B confirmed `priority_bilateral`, later confirmed `scaled_baseline` | same | `summary.selected` is 0 | holdout |
 | AC-28 | B selected, open engagement `fir_theme` `governance_board_pay`; C selected, rule `high_emitter`, no engagement; D selected, rule `top_weight`, no engagement | same | `themes` as `{theme, selected, engaged}` is exactly `[{Climate,1,0},{Corporate governance,1,1},{Nature,0,0},{AI and digital,0,0},{Norm violations,0,0},{Other,1,0}]` | holdout |
@@ -440,18 +449,18 @@ company `isin_XA0000000001` ("Alpha AG"), `status` `open`, `fir_theme` `climate_
 | AC-37 | AC-36 with every item decided, 1 cast | same | `ballot_state` `"decided"`, `action_due` `false` | unit |
 | AC-38 | AC-36 with every item cast | same | `ballot_state` `"cast"` | unit |
 | AC-39 | AC-36 plus a ledger meeting for H on 2026-11-19 | same | exactly one row for H on that date, with the run's `run_id` | unit |
-| AC-40 | ledger, company G: a 2026-03-10 meeting with four decisions: categories `{DIRECTOR ELECTIONS}` `for` (`against_management` false); `{SECTION 14A SAY-ON-PAY VOTES}` `against` (true); `{AUDIT-RELATED}` `abstain` (null); proponent `Security holder`, categories `{OTHER SOCIAL MATTERS}`, `for` (true). Also a 2025-12-01 meeting with one decision and a 2026-11-20 meeting with one decision | Cockpit `?as_of=2026-11-17` | `voting` is `{season: 2026, meetings: 1, votes: 4, for: 2, against: 1, abstain: 1, other: 0, against_management: 2, …}` | holdout |
+| AC-40 | ledger, company G: a 2026-03-10 meeting with four decisions: categories `{DIRECTOR ELECTIONS}` `for` (`against_management` false); `{SECTION 14A SAY-ON-PAY VOTES}` `against` (true); `{AUDIT-RELATED}` `abstain` (null); proponent `shareholder`, categories `{OTHER SOCIAL MATTERS}`, `for` (true). Also a 2025-12-01 meeting with one decision and a 2026-11-20 meeting with one decision | Cockpit `?as_of=2026-11-17` | `voting` is `{season: 2026, meetings: 1, votes: 4, for: 2, against: 1, abstain: 1, other: 0, against_management: 2, …}` | holdout |
 | AC-41 | AC-40 | same | `voting.topics` as `{topic, votes, against_management}` is exactly `[{Shareholder proposals,1,1},{Remuneration,1,1},{Director elections,1,0},{Auditors,1,0},{Capital and other,0,0}]` | holdout |
 | AC-42 | ledger only: a 2026-03-10 meeting for G with three decisions `withhold`, `one_year`, `do_not_vote` | same | `voting` has `votes` 3, `for` 0, `against` 1, `abstain` 0, `other` 2 | holdout |
-| AC-43 | a ledger item with two decisions (a split vote), both `for` | same | `voting.votes` is 2 and `voting.meetings` is 1 | holdout |
-| AC-44 | portfolio P holds company A only; A and B are both engaged and selected, with planned meetings, gaps and ledger meetings | Cockpit `?portfolio_id=P&as_of=2026-11-17` | every list holds only A; `summary.selected` is 1; `scope` is `{portfolio_id: P, label: <P's name>}` | holdout |
-| AC-45 | 7 portfolios exist | Cockpit `?as_of=2026-11-17` | `scope` is `{portfolio_id: null, label: "All portfolios (7)"}`; `portfolios` has 7 entries sorted by `name` | holdout |
-| AC-46 | engagement A taken in with `source` `mock_voice_seed` (direct insert) | same | `demo` is `true` | holdout |
-| AC-47 | 7 portfolios holding at least 14 companies with `stw_companies` rows; 40 open `mock_voice_seed` engagements at `private_engagement` | `arp stewardship seed-cockpit-demo --as-of 2026-11-27` | exits 0; stdout is exactly four lines starting `ok planned: 40 engagements`, `ok escalation:`, `ok tiers:`, `ok meetings: 14 upcoming` | holdout |
-| AC-48 | after AC-47 | Cockpit `?as_of=2026-11-27` | `shareholder_meetings` has 14 rows, all `ballot_state` `"not_started"`, with `days_to_meeting` exactly `[1, 2, 4, 6, 9, 11, 13, 15, 18, 20, 22, 24, 27, 29]`; exactly 4 have `action_due` `true`; `demo` is `true` | holdout |
+| AC-43 | a 2026-03-10 ledger meeting for G, one item with two decisions (a split vote), both `for` | Cockpit `?as_of=2026-11-17` | `voting.votes` is 2 and `voting.meetings` is 1 | holdout |
+| AC-44 | portfolio P holds company A only; A and B are both engaged and selected, each with a planned meeting in the window, one `no_objective` gap and a ledger meeting in the window | Cockpit `?portfolio_id=P&as_of=2026-11-17` | `engagement_meetings`, `shareholder_meetings`, `control_gaps` and every `ladder[].companies` hold only A; `summary.selected` is 1; `scope` is `{portfolio_id: P, label: <P's name>}` | holdout |
+| AC-45 | the stack's portfolios plus 3 saved by the test; N = the number of portfolios in the store | Cockpit `?as_of=2026-11-17` | `scope` is `{portfolio_id: null, label: "All portfolios (N)"}`; `portfolios` has N entries sorted by `name` | holdout |
+| AC-46 | engagement A inserted directly into `stw_engagements` with `source` `mock_voice_seed` | Cockpit `?as_of=2026-11-17` | `demo` is `true` | holdout |
+| AC-47 | a portfolio with snapshots dated on or before 2026-11-27 holding at least 14 companies with `stw_companies` rows; 40 open engagements inserted directly with `source` `mock_voice_seed` at `private_engagement` | `arp stewardship seed-cockpit-demo --as-of 2026-11-27` | exits 0; stdout is exactly four lines starting `ok planned: 40 engagements`, `ok escalation:`, `ok tiers:`, `ok meetings: 14 upcoming` | holdout |
+| AC-48 | after AC-47 | Cockpit `?as_of=2026-11-27` | `shareholder_meetings` has 14 rows, all `ballot_state` `"not_started"`, with `days_to_meeting` exactly `[1, 2, 4, 6, 9, 11, 13, 15, 18, 20, 22, 24, 27, 29]` | holdout |
 | AC-49 | after AC-47 | read `stw_engagements` | every open `mock_voice_seed` engagement's `planned_meeting_date` is null or between 2026-11-27 and 2027-03-26, and each one equals the rule of step 1 | holdout |
 | AC-50 | after AC-47 | run it again with `--as-of 2026-11-27` | row counts of `stw_engagements`, `stw_transitions`, `vote_meetings`, `vote_items` and the tier log are unchanged; no `planned_meeting_date` changes | holdout |
-| AC-51 | after AC-47, plus one open engagement with `source` `api` and no `planned_meeting_date` | run it again with `--as-of 2026-12-01` | the `api` engagement is unchanged (`planned_meeting_date` null, `escalation_stage` unchanged); demo meetings move by 4 days (`days_to_meeting` list unchanged for `as_of=2026-12-01`) | holdout |
+| AC-51 | after AC-47, plus one open engagement with `source` `api` and no `planned_meeting_date` | `seed-cockpit-demo --as-of 2026-12-01` | the `api` engagement is unchanged: `planned_meeting_date` null, `escalation_stage` as before | holdout |
 | AC-52 | the demo stack of "Showcase setup" | open `#/stewardiq` | the screens row shows `Cockpit` first, then Steward Workflow, Engagement, Proxy Voting, RFP Answers; the processes are unchanged (must not change) | evaluator |
 | AC-53 | (PR 2) portfolio P: A 1,000,000 EUR, EVIC 100 EUR m, Scope 1 800, Scope 2 200; B 2,000,000 EUR, EVIC 100, Scope 1 300, Scope 2 200; C 1,000,000 EUR without EVIC; climate observations dated 2026-11-01; A engaged; B selected and not engaged | Cockpit `?portfolio_id=P&as_of=2026-11-17` | `emissions` has `total_tco2e` 20.0, `engaged_tco2e` 10.0, `selected_not_engaged_tco2e` 10.0, `not_selected_tco2e` 0.0, `uncovered_holding_count` 1 | holdout |
 | AC-54 | AC-53 | same | `contributors` is `[A, B]` (equal `tco2e`, so by name), `share` 0.5 each, `status` `engaged` and `selected` | holdout |
@@ -459,27 +468,35 @@ company `isin_XA0000000001` ("Alpha AG"), `status` `open`, `fir_theme` `climate_
 | AC-56 | AC-53's holdings and data | `compute_financed_emissions(..., as_of="2026-11-17", portfolio_filter=[P])` | returns exactly `{as_of: "2026-11-17", financed_emissions_tco2e: 20.0, covered_market_value_eur: 3000000.0, uncovered_market_value_eur: 1000000.0, coverage_pct: 0.75, uncovered_holding_count: 1}` (must not change) | holdout |
 | AC-57 | the showcase portfolios loaded (`arp showcase load`) | Cockpit for each portfolio, `as_of=2026-11-02` | `emissions.total_tco2e` equals `financed_emissions_tco2e` from `arp climate financed-emissions --portfolio <id> --as-of 2026-11-02`, within 0.1 t | holdout |
 | AC-58 | same, plus `seed-cockpit-demo --as-of 2026-11-02` | Cockpit `?as_of=2026-11-02` | `engaged_tco2e + selected_not_engaged_tco2e + not_selected_tco2e` equals `total_tco2e` within 0.1 t; `contributors` has 6 entries | holdout |
-| AC-59 | no holdings in scope | Cockpit `?as_of=2026-11-17` | `emissions` is `null` | holdout |
+| AC-59 | portfolio Q saved with no snapshot on or before 2026-11-17 | Cockpit `?portfolio_id=Q&as_of=2026-11-17` | `emissions` is `null` | holdout |
 | AC-60 | (PR 2) the demo stack | open `#/stewardiq/cockpit` | the "Financed emissions covered" figure shows the % and "<a> of <b> Mt CO₂e in engagement", matching the API; the emissions panel shows the three-part bar and 6 contributors | evaluator |
 | AC-61 | (PR 2) a scope where `emissions` is null | open the page in that scope | the emissions figure and panel are hidden, with no empty card in their place | evaluator |
 | AC-62 | the demo stack | open `#/stewardiq/cockpit` | sections in mockup order: key figures, 30-day strip, engaged vs selected by theme, financed emissions, upcoming engagement meetings, upcoming shareholder meetings, control gaps, escalation ladder, voting season to date | evaluator |
 | AC-63 | the demo stack | read the six key figures | each equals the value computed from `GET /api/stewardship/cockpit` for the same `as_of` and scope, with whole-number percentages and Mt to two decimals | evaluator |
 | AC-64 | the demo stack | the 30-day strip | 30 day columns from the `as_of` date, weekends shaded, bars on exactly the dates in `days` with counts above 0 | evaluator |
 | AC-65 | the demo stack | Upcoming engagement meetings | at most 6 rows, then `All <n>` with n = `len(engagement_meetings)`; clicking it shows n rows | evaluator |
-| AC-66 | the demo stack, `#/stewardiq/cockpit?as_of=<seed as_of>` | Upcoming shareholder meetings, `All 14` opened | the 4 meetings within 7 days read `Decision due in 1 day` / `Decision due in <n> days` in the signal style; the other 10 read `Not started` in the neutral style; Flagged shows `–` | evaluator |
-| AC-67 | the demo stack | look for the signal colour (Signal Orange in Graphite, Signal Lime in Night) | it appears only on the control-gaps count and rows and on the 4 due ballots | evaluator |
-| AC-68 | the stack after `arp showcase load` only | open `#/stewardiq/cockpit` | no signal colour anywhere; Control gaps reads "No control gaps."; every empty section shows its one-line message | evaluator |
+| AC-66 | the demo stack, `#/stewardiq/cockpit/<seed as_of>` | Upcoming shareholder meetings, `All 14` opened | the 4 meetings within 7 days read `Decision due in 1 day` / `Decision due in <n> days` in the signal style; the other 10 read `Not started` in the neutral style; Flagged shows `–` | evaluator |
+| AC-67 | the demo stack | look for the signal colour (Signal Orange in Graphite, Signal Lime in Night) inside the cockpit page's main area | it appears only on: the Control gaps key-figure value, the Control gaps panel's "<n> need you" header and its gap texts, and the 4 due ballot texts | evaluator |
+| AC-68 | the stack after `arp showcase load` only | open `#/stewardiq/cockpit` | no signal colour inside the page's main area; Control gaps reads "No control gaps."; every empty section shows its one-line message | evaluator |
 | AC-69 | the demo stack | select portfolio `DAX` in the scope selector | the scope label reads its name; the key figures and list lengths equal those of `GET /api/stewardship/cockpit?portfolio_id=<its id>` for the same `as_of` | evaluator |
-| AC-70 | the demo stack | switch to the Night theme, then back to Graphite | every chart and text stays readable in both, and no element keeps a colour from the other theme | evaluator |
+| AC-70 | the demo stack | switch to the Night theme, then back to Graphite | in both themes body text contrast is at least 4.5:1 against its ground, and every colour on the page comes from a `DESIGN.md` token | evaluator |
 | AC-71 | the demo stack | 390 px wide viewport | one column, no horizontal page scroll | evaluator |
 | AC-72 | the backend stopped | open the page | one alert line starting "The cockpit could not be loaded:" | evaluator |
-| AC-73 | the cockpit page | open `#/stewardiq/cockpit?as_of=2026-11-17`, then `#/stewardiq/cockpit` | the first request carries `as_of=2026-11-17`; the second carries no `as_of` | unit |
+| AC-73 | the cockpit page | open `#/stewardiq/cockpit/2026-11-17`, then `#/stewardiq/cockpit` | the first request carries `as_of=2026-11-17`; the second carries no `as_of` | unit |
+| AC-74 | engagement A with `planned_meeting_date` `2026-11-17` | Cockpit `?as_of=2026-11-17` | `control_gaps` is `[]` | holdout |
+| AC-75 | engagement A with `status` `resolved` and no `planned_meeting_date` | same | `engagement_meetings` is `[]` | holdout |
+| AC-76 | after AC-47 | Cockpit `?as_of=2026-11-27` | exactly 4 `shareholder_meetings` rows have `action_due` `true` | holdout |
+| AC-77 | after AC-47 | Cockpit `?as_of=2026-11-27` | `demo` is `true` | holdout |
+| AC-78 | after AC-47 | `seed-cockpit-demo --as-of 2026-12-01`, then Cockpit `?as_of=2026-12-01` | `shareholder_meetings` `days_to_meeting` is still exactly `[1, 2, 4, 6, 9, 11, 13, 15, 18, 20, 22, 24, 27, 29]` | holdout |
+| AC-79 | the demo stack | open `#/stewardiq/cockpit` | the header shows the `Demo data` pill | evaluator |
+| AC-80 | the stack after `arp showcase load` only | open `#/stewardiq/cockpit` | no `Demo data` pill | evaluator |
+| AC-81 | a voting run `R` exists | open `#/voting/R` | the run opens as before (must not change: routing) | evaluator |
 
-PR slices: PR 1 delivers AC-1 to AC-52 and AC-62 to AC-73, except the emissions parts of AC-62 and AC-63, which
-come with PR 2. PR 2 delivers AC-53 to AC-61. PR 1's `Rows:` line lists AC-1 to AC-52 and AC-73; the evaluator
-checks AC-62 to AC-72 on PR 1 without the emissions section, and again on PR 2.
+PR slices: PR 1 delivers AC-1 to AC-52 and AC-62 to AC-81, except the emissions parts of AC-62 and AC-63, which
+come with PR 2. PR 2 delivers AC-53 to AC-61. PR 1's `Rows:` line lists AC-1 to AC-52 and AC-73 to AC-78; the
+evaluator checks AC-62 to AC-72 and AC-79 to AC-81 on PR 1 without the emissions section, and again on PR 2.
 
 Must not change: the intake's other columns and its unchanged/updated behaviour (AC-7), `planned_meeting_date`
-kept by existing store writes (AC-10), the StewardIQ overview apart from the link (AC-52), and
-`compute_financed_emissions` (AC-56). Supersedes: `stewardship-data-foundation` AC-20, for the `engagements`
+kept by existing store writes (AC-10), the StewardIQ overview apart from the link (AC-52),
+`compute_financed_emissions` (AC-56), and routing of existing hash routes (AC-81). Supersedes: `stewardship-data-foundation` AC-20, for the `engagements`
 sheet only (AC-6).
