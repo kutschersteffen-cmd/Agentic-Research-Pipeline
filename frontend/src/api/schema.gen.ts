@@ -4428,6 +4428,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reports/templates/{template_id}/preview.png": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Template Preview
+         * @description The template's frame drawn on a blank slide; 404 when the template can't frame a house deck.
+         */
+        get: operations["template_preview_api_reports_templates__template_id__preview_png_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/reports/{report_id}": {
         parameters: {
             query?: never;
@@ -9966,6 +9986,13 @@ export interface components {
         Body_upload_template_api_reports_templates_post: {
             /** File */
             file: string;
+            /**
+             * Fonts
+             * @default []
+             */
+            fonts: string[];
+            /** Layout Name */
+            layout_name?: string | null;
         };
         /** Body_upload_universe_api_universe_upload_post */
         Body_upload_universe_api_universe_upload_post: {
@@ -28005,6 +28032,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    template_preview_api_reports_templates__template_id__preview_png_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
