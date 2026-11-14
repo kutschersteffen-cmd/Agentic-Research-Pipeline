@@ -687,10 +687,11 @@ export const api = {
     request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies`, { method: "POST", body: JSON.stringify(body) }),
 
   // Universe from an in-hand company list (e.g. filtered thematic-run matches)
-  universeFromCompanies: (companies: unknown[], name: string) =>
+  /** `basePath`: a saved universe the new list starts from; it is not changed. */
+  universeFromCompanies: (companies: unknown[], name: string, basePath?: string) =>
     request<{ path: string; company_count: number; sample: unknown[] }>("/api/universe/from-companies", {
       method: "POST",
-      body: JSON.stringify({ companies, name }),
+      body: JSON.stringify({ companies, name, base_path: basePath }),
     }),
 
   universeWorkbench: (body: { companies?: unknown[]; universe_path?: string; availability?: boolean }) =>

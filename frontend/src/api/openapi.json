@@ -11123,6 +11123,17 @@
    },
    "FromCompaniesRequest": {
     "properties": {
+     "base_path": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Base Path"
+     },
      "companies": {
       "items": {
        "$ref": "#/components/schemas/CompanyRef"

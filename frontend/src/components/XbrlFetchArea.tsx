@@ -5,6 +5,7 @@ import { when } from "../lib/runs";
 import { canRetryFetch, keyLabel, reportText, statusText, usingText } from "../lib/xbrlTags";
 import type { RunManifest, WorkbenchResponse, XbrlCompanyStatus, XbrlRunMarket } from "../types";
 import { pollAfter } from "../lib/poll";
+import { errorDetail } from "../lib/barrier";
 
 type ResultRow = XbrlCompanyStatus & { _key: string };
 type ErrorRow = { key: string; error: string };
@@ -47,7 +48,7 @@ export function XbrlFetchArea({
       setPicked({ path: u.path, count: u.company_count });
       return true;
     } catch (err) {
-      setPickError(msg(err));
+      setPickError(errorDetail(err as Error));
       return false;
     }
   }
@@ -208,7 +209,8 @@ export function XbrlFetchArea({
         busy={busy}
         onUpload={(file) => pick(() => api.uploadUniverse(file))}
         onUniverse={(path, count) => setPicked({ path, count })}
-        onAddOne={(c) => pick(() => api.universeFromCompanies([{ ...c, company_id: c.cik || c.lei || c.isin || c.ticker || c.name }], "single"))}
+        // a new list: the picked companies plus this one; the list picked before stays as it was
+        onAddOne={(c) => pick(() => api.universeFromCompanies([{ ...c, company_id: c.cik || c.lei || c.isin || c.ticker || c.name }], universe ? "extended" : "single", universe?.path))}
       />
       {universe && <p className="status-text">{usingText(universe.count)}</p>}
       {pickError && <p className="error-text" role="alert">{pickError}</p>}

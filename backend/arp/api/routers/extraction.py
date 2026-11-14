@@ -335,7 +335,8 @@ def run_companies(run_store: RunStore, run_id: str, results: list[dict], errors:
     failed = {r.get("key") for r in errors} - done - review
     if saved:
         companies = StartRequest.model_validate_json(saved).companies or []
-        rows = [{"company_id": c.company_id, "name": c.name} for c in companies]
+        # entity_id: the central id the company was matched to, so its company link opens that record
+        rows = [{"company_id": c.company_id, "name": c.name, "entity_id": str(c.entity_id) if c.entity_id else None} for c in companies]
     else:  # a run started before /start saved its companies: only those with an outcome
         rows = [{"company_id": r.get("company_id"), "name": r.get("name")} for r in results]
         rows += [{"company_id": k, "name": k} for k in failed | review]
