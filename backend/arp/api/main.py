@@ -97,6 +97,7 @@ async def lifespan(app: FastAPI):
     check_benchmarks()  # so does an invalid benchmarks file
     require_postgres(settings)  # Postgres is the system of record: no DSN or no answer, no app
     require_cutover(settings)  # nor on an un-migrated or un-imported database
+    # shortcut: fails every running turn at startup, safe only with one API worker; reap by age or worker id before running several
     reap_stale_turns()  # a turn left `running` by the last process can never finish: fail it, unlocking its document
     settings.ensure_dirs()
     if settings.standins_dir is not None:

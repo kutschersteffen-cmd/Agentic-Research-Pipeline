@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -396,3 +396,34 @@ def test_approved_storyline_put_409(env, R):  # AC-47
     env.reports.save_storyline(R, storyline)
     r = env.as_("alice").put(f"/api/reports/{R}/storyline", json=storyline.model_dump(mode="json"))
     assert (r.status_code, r.json()["detail"]) == (409, "Storyline already approved")
+
+
+def test_stale_running_turn_reaped_on_new_turn(env, P):  # spec: `running` for more than 10 minutes -> failed/interrupted
+    with transaction() as s:
+        old = m.RefineTurn(kind="rfp", doc_id=P["pid"], user_id="alice", message="m",
+                           created_at=datetime.now(UTC) - timedelta(minutes=11))
+        s.add(old)
+        s.flush()
+        old_id = old.id
+    env.ops([])
+    env.wait(env.turn("rfp", P["pid"]))
+    out = env.get_turn(old_id)
+    assert (out["status"], out["error"]) == ("failed", "interrupted")
+
+
+def test_undo_while_running_409(env, P):
+    env.ops([], delay_seconds=2)
+    tid = env.turn("rfp", P["pid"])
+    r = env.undo("rfp", P["pid"])
+    assert (r.status_code, r.json()["detail"]) == (409, BUSY)
+    env.wait(tid)
+
+
+def test_other_analyst_undoes_alices_turn(env, P, monkeypatch):
+    monkeypatch.setitem(USERS, "dan", Principal(user_id="dan", name="dan", role="analyst"))
+    before = state(P["q1"])
+    env.ops([{"op": "rewrite", "question_ids": [P["q1"]]}])
+    env.wait(env.turn("rfp", P["pid"], user="alice"))
+    r = env.undo("rfp", P["pid"], user="dan")
+    assert r.status_code == 200, r.text
+    assert state(P["q1"]) == before

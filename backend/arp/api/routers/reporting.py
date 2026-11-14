@@ -101,7 +101,7 @@ async def create_report(
 def list_reports(store: ReportingStore = Depends(get_reporting_store)) -> dict:
     reports = store.list_reports()
     for m in reports:  # from deck.json itself, so reports built before the flag existed list right too
-        m.has_deck = (store.reports_dir / m.report_id / "deck.json").exists()
+        m.has_deck = store.has_deck(m.report_id)
     return {"reports": [m.model_dump(mode="json") for m in reports]}
 
 

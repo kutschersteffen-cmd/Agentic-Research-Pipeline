@@ -21,7 +21,7 @@ USE_AUTOFILL = "no source; use Auto-fill on RFP Answers"
 CHANGED_DURING_TURN = "changed during this turn"
 
 
-def _state(q: m.RfpQuestion) -> dict:
+def question_state(q: m.RfpQuestion) -> dict:
     return {"answer": q.answer, "status": q.status, "sources": q.sources, "flags": q.flags, "last_editor": q.last_editor}
 
 
@@ -34,9 +34,9 @@ async def _apply(qid: int, op: dict, project_id: int, entries, llm: LLMClient, t
         if q.status == APPROVED:
             return APPROVED
         if op["op"] == LEAVE_BLANK:  # the leave-blank endpoint's state change
-            before = _state(q)
+            before = question_state(q)
             q.status = LEFT_BLANK
-            return before, _state(q)
+            return before, question_state(q)
         if q.status == NO_SOURCE:
             return USE_AUTOFILL
         question, current, read = q.question, q.answer, (q.answer, q.status, q.last_editor)
@@ -52,9 +52,9 @@ async def _apply(qid: int, op: dict, project_id: int, entries, llm: LLMClient, t
         q = s.get(m.RfpQuestion, qid, with_for_update=True)
         if (q.answer, q.status, q.last_editor) != read:  # a person's edit or approval while drafting wins
             return CHANGED_DURING_TURN
-        before = _state(q)
+        before = question_state(q)
         q.answer, q.status, q.sources, q.flags, q.last_editor = d.answer, DRAFTED, d.sources, d.flags, None
-        return before, _state(q)
+        return before, question_state(q)
 
 
 async def apply_rfp_ops(turn_id: int, project_id: int, ops: list[dict], llm: LLMClient, *, today: date,

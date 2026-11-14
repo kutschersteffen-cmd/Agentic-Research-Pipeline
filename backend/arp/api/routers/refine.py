@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,7 +15,7 @@ from arp.db import models as m
 from arp.db.session import transaction
 from arp.orchestration.job_manager import JobManager
 from arp.refine.agent import NO_DECK, run_turn
-from arp.refine.turns import TurnBusy, finish_turn, start_turn, turn_out
+from arp.refine.turns import TurnBusy, finish_turn, reap_stale_turns, start_turn, turn_out
 from arp.refine.undo import UndoRefused, undo_last
 from arp.rfp import store as rfp_store
 from arp.storage.reporting_store import ReportingStore
@@ -75,6 +76,7 @@ def _check_doc(kind: str, doc_id: str, store: ReportingStore) -> None:
 async def post_turn(kind: Kind, doc_id: str, body: RefineTurnIn, user: Principal = Depends(_editor),
                     store: ReportingStore = Depends(get_reporting_store), run_store=Depends(get_run_store)) -> RefineTurnStarted:
     _check_doc(kind, doc_id, store)
+    reap_stale_turns(now=datetime.now(UTC))  # a turn whose background task died must not lock its document until restart
     try:
         turn_id = start_turn(kind, doc_id, user.user_id, body.message)  # before scheduling: a busy document is a 409 now
     except TurnBusy:
@@ -107,6 +109,7 @@ def get_turn(turn_id: int) -> dict:
 @router.post("/{kind}/{doc_id}/undo", response_model=RefineTurnOut)
 def undo(kind: Kind, doc_id: str, user: Principal = Depends(_editor),
          store: ReportingStore = Depends(get_reporting_store)) -> dict:
+    reap_stale_turns(now=datetime.now(UTC))
     try:
         return turn_out(undo_last(kind, doc_id, user.user_id, store))
     except TurnBusy:

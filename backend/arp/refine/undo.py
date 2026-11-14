@@ -8,6 +8,7 @@ from sqlalchemy import select, text
 
 from arp.db import models as m
 from arp.db.session import transaction
+from arp.refine.rfp_ops import question_state
 from arp.refine.turns import finish_turn, start_turn
 from arp.schemas.reporting import Deck
 from arp.storage.reporting_store import ReportingStore
@@ -18,10 +19,6 @@ _CONFLICT = "{} changed after this turn; undo would overwrite it."
 
 class UndoRefused(Exception):
     """Nothing to undo, or undo would overwrite a later change; the message is the 409 detail."""
-
-
-def _state(q: m.RfpQuestion) -> dict:
-    return {"answer": q.answer, "status": q.status, "sources": q.sources, "flags": q.flags, "last_editor": q.last_editor}
 
 
 def _first_changed_slide(current: list, after: list) -> int:
@@ -44,7 +41,7 @@ def undo_last(kind: str, doc_id: str, user_id: str, store: ReportingStore) -> in
                 qs = {str(q.id): q for q in s.scalars(select(m.RfpQuestion).where(
                     m.RfpQuestion.id.in_([int(k) for k in t.after])).with_for_update())}
                 for k in sorted(t.after, key=int):
-                    if k not in qs or _state(qs[k]) != t.after[k]:
+                    if k not in qs or question_state(qs[k]) != t.after[k]:
                         raise UndoRefused(_CONFLICT.format(f"Q{k}"))
                 for k, v in t.before.items():
                     for field, value in v.items():
