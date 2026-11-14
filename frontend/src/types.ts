@@ -887,7 +887,12 @@ export interface Commitment {
   validated_by?: string | null;
   validated_at?: string | null;
   evidence?: string | null;
+  proof_statement?: string | null;
 }
+
+export type Objective = Served<S["Objective"]>;
+export type WatchTopic = Served<S["WatchTopic"]>;
+export type WatchItemKind = "objective" | "commitment" | "topic";
 
 export interface MilestoneTransition {
   stage: MilestoneStage;
@@ -900,15 +905,6 @@ export interface EscalationTransition {
   changed_at: string;
   decided_by: string;
   reason: string;
-}
-
-export interface Objective {
-  objective_id: string;
-  description: string;
-  objective_type: "transparency" | "operational" | "strategic";
-  status: "initiated" | "in_progress" | "closed" | "abandoned";
-  result: "deterioration" | "not_achieved" | "partially_achieved" | "achieved" | "abandoned" | null;
-  source: string;
 }
 
 export interface EngagementIssue {
@@ -926,7 +922,7 @@ export interface EngagementIssue {
   correspondence: CorrespondenceEntry[];
   commitments: Commitment[];
   tags: string[];
-  objectives?: Objective[];
+  objectives: Objective[];
   data_source?: string;
 }
 

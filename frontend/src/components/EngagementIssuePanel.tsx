@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { objectiveRows } from "../lib/engagement";
 import { useMe } from "../lib/reviewer";
 import { SignedInAs } from "./SignedInAs";
+import { ObjectivesSection, ProofLine, WatchTopicsSection } from "./EngagementWatch";
 import type {
   Contact,
   EngagementIssue,
@@ -69,8 +69,8 @@ export function EngagementIssuePanel({
   // The commitment whose "Verify" was clicked: verifying asks for evidence first.
   const [verifying, setVerifying] = useState<string | null>(null);
   const [evidence, setEvidence] = useState("");
-  const objectives = objectiveRows(issue);
   const closed = issue.status === "resolved" || issue.status === "closed";
+  const watch = { companyId: record.company_id, issueId: issue.issue_id, busy, run };
 
   useEffect(() => {
     setDossier(null);
@@ -232,25 +232,6 @@ export function EngagementIssuePanel({
         <span className="chip">opened {new Date(issue.opened_at).toLocaleDateString()}</span>
       </div>
 
-      {objectives.length > 0 && (
-        <div className="panel-section">
-          <h3>Objectives</h3>
-          {objectives.map((o) => (
-            <div className="activity-row" key={o.id}>
-              <div className="activity-main">
-                {o.description}
-                <div className="activity-meta">
-                  <span>type: {o.type}</span>
-                  <span>status: {o.status}</span>
-                  <span>result: {o.result}</span>
-                  {o.demo && <span className="chip">Demo data</span>}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {nextAction && (
         <p className="status-text">
           Orchestrator recommends: <strong>{fmt(nextAction.action)}</strong> &mdash; {nextAction.reason}
@@ -315,6 +296,8 @@ export function EngagementIssuePanel({
         </ul>
       </div>
 
+      <ObjectivesSection ctx={watch} issue={issue} onSaved={refreshRecord} />
+
       <div className="panel-section">
         <h3>Commitments</h3>
         {issue.commitments.length === 0 && <p className="muted">None logged yet.</p>}
@@ -329,6 +312,7 @@ export function EngagementIssuePanel({
                 {c.validated_by && <span>verified by {c.validated_by}</span>}
                 {c.evidence && <span>evidence: {c.evidence}</span>}
               </div>
+              <ProofLine ctx={watch} kind="commitment" id={c.commitment_id} label={c.text} proof={c.proof_statement} open={c.status === "open"} onSaved={refreshRecord} />
             </div>
             {c.status === "open" && verifying !== c.commitment_id && (
               <button onClick={() => { setVerifying(c.commitment_id); setEvidence(""); }} disabled={busy || !actor}>
@@ -352,6 +336,8 @@ export function EngagementIssuePanel({
           </div>
         ))}
       </div>
+
+      <WatchTopicsSection key={issue.issue_id} ctx={watch} closed={closed} />
 
       <div className="panel-section">
         <h3>Research Agent</h3>

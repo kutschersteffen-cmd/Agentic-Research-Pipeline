@@ -1,0 +1,557 @@
+{
+ "coverage_rules": {
+  "activations": [],
+  "active": {
+   "edges": [
+    {
+     "id": "input-coverage_tiers",
+     "sourceId": "input",
+     "targetId": "coverage_tiers",
+     "type": "edge"
+    },
+    {
+     "id": "coverage_tiers-output",
+     "sourceId": "coverage_tiers",
+     "targetId": "output",
+     "type": "edge"
+    }
+   ],
+   "nodes": [
+    {
+     "id": "input",
+     "name": "input",
+     "position": {
+      "x": 0,
+      "y": 100
+     },
+     "type": "inputNode"
+    },
+    {
+     "content": {
+      "executionMode": "single",
+      "hitPolicy": "first",
+      "inputField": null,
+      "inputs": [
+       {
+        "field": "holding.index_weight_pct",
+        "id": "w",
+        "name": "Index weight %"
+       },
+       {
+        "field": "holding.aum_held_eur_m",
+        "id": "a",
+        "name": "AUM held (EUR m)"
+       },
+       {
+        "field": "history.escalated",
+        "id": "e",
+        "name": "Escalated engagement"
+       },
+       {
+        "field": "history.open_engagements",
+        "id": "o",
+        "name": "Open engagements"
+       },
+       {
+        "field": "issuer.climate.high_emitter",
+        "id": "c",
+        "name": "High emitter"
+       },
+       {
+        "field": "issuer.nature.high_impact_sector",
+        "id": "n",
+        "name": "High-impact nature sector"
+       }
+      ],
+      "outputPath": null,
+      "outputs": [
+       {
+        "field": "tier",
+        "id": "t",
+        "name": "Tier"
+       },
+       {
+        "field": "rule",
+        "id": "r",
+        "name": "Rule"
+       },
+       {
+        "field": "reason",
+        "id": "why",
+        "name": "Reason"
+       }
+      ],
+      "passThrough": false,
+      "rules": [
+       {
+        "_description": "Largest index positions get bespoke bilateral engagement.",
+        "_id": "top_weight",
+        "a": "",
+        "c": "",
+        "e": "",
+        "n": "",
+        "o": "",
+        "r": "'top_weight'",
+        "t": "'priority_bilateral'",
+        "w": ">= 1",
+        "why": "'Index weight of 1% or more'"
+       },
+       {
+        "_description": "Large absolute exposure across house portfolios.",
+        "_id": "large_exposure",
+        "a": "> 500",
+        "c": "",
+        "e": "",
+        "n": "",
+        "o": "",
+        "r": "'large_exposure'",
+        "t": "'priority_bilateral'",
+        "w": "",
+        "why": "'More than EUR 500m held'"
+       },
+       {
+        "_description": "Keep companies already in escalation in bilateral dialogue.",
+        "_id": "escalated",
+        "a": "",
+        "c": "",
+        "e": "true",
+        "n": "",
+        "o": "",
+        "r": "'escalated'",
+        "t": "'priority_bilateral'",
+        "w": "",
+        "why": "'An engagement is already escalated'"
+       },
+       {
+        "_description": "High emitters are covered through climate collaborative initiatives.",
+        "_id": "high_emitter",
+        "a": "",
+        "c": "true",
+        "e": "",
+        "n": "",
+        "o": "",
+        "r": "'high_emitter'",
+        "t": "'thematic_collaborative'",
+        "w": "",
+        "why": "'High-emitting sector'"
+       },
+       {
+        "_description": "High-impact nature sectors are covered through nature initiatives.",
+        "_id": "nature_impact",
+        "a": "",
+        "c": "",
+        "e": "",
+        "n": "true",
+        "o": "",
+        "r": "'nature_impact'",
+        "t": "'thematic_collaborative'",
+        "w": "",
+        "why": "'High-impact nature sector'"
+       },
+       {
+        "_description": "Companies with an open engagement stay in thematic coverage.",
+        "_id": "open_engagement",
+        "a": "",
+        "c": "",
+        "e": "",
+        "n": "",
+        "o": "> 0",
+        "r": "'open_engagement'",
+        "t": "'thematic_collaborative'",
+        "w": "",
+        "why": "'An engagement is open'"
+       },
+       {
+        "_description": "Very small positions are covered through market-level work and voting.",
+        "_id": "small_position",
+        "a": "",
+        "c": "",
+        "e": "",
+        "n": "",
+        "o": "",
+        "r": "'small_position'",
+        "t": "'systemic'",
+        "w": "< 0.05",
+        "why": "'Index weight below 0.05%'"
+       },
+       {
+        "_description": "Everyone else: baseline expectations letter and voting policy.",
+        "_id": "default",
+        "a": "",
+        "c": "",
+        "e": "",
+        "n": "",
+        "o": "",
+        "r": "'default'",
+        "t": "'scaled_baseline'",
+        "w": "",
+        "why": "'Default: baseline coverage'"
+       }
+      ]
+     },
+     "id": "coverage_tiers",
+     "name": "coverage_tiers",
+     "position": {
+      "x": 300,
+      "y": 100
+     },
+     "type": "decisionTableNode"
+    },
+    {
+     "id": "output",
+     "name": "output",
+     "position": {
+      "x": 600,
+      "y": 100
+     },
+     "type": "outputNode"
+    }
+   ]
+  },
+  "active_version": 0,
+  "policy_id": "coverage_rules",
+  "versions": [
+   {
+    "created_at": null,
+    "created_by": "system",
+    "note": "Bundled draft",
+    "version": 0
+   }
+  ]
+ },
+ "monitoring_triggers": {
+  "triggers": [
+   {
+    "company": "Synthetic Company 04",
+    "engagement_id": null,
+    "issuer_id": "SYN04",
+    "reason": "Controversy severity 4 or higher",
+    "rule": "severe_controversy",
+    "sector": "Energy",
+    "severity": "high",
+    "theme": "governance_controversy",
+    "type": "controversy"
+   },
+   {
+    "company": "Synthetic Company 04",
+    "engagement_id": null,
+    "issuer_id": "SYN04",
+    "reason": "Position up more than 50%",
+    "rule": "position_jump",
+    "sector": "Energy",
+    "severity": "low",
+    "theme": "position_review",
+    "type": "holding_change"
+   },
+   {
+    "company": "Synthetic Company 06",
+    "engagement_id": null,
+    "issuer_id": "SYN06",
+    "reason": "Human rights controversy severity 4 or higher",
+    "rule": "human_rights",
+    "sector": "Consumer Discretionary",
+    "severity": "high",
+    "theme": "human_rights",
+    "type": "controversy"
+   },
+   {
+    "company": "Synthetic Company 08",
+    "engagement_id": null,
+    "issuer_id": "SYN08",
+    "reason": "Position up more than 50%",
+    "rule": "position_jump",
+    "sector": "Health Care",
+    "severity": "low",
+    "theme": "position_review",
+    "type": "holding_change"
+   },
+   {
+    "company": "Synthetic Company 09",
+    "engagement_id": null,
+    "issuer_id": "SYN09",
+    "reason": "Pay misaligned with performance for 3+ years",
+    "rule": "pay_misalignment",
+    "sector": "Energy",
+    "severity": "medium",
+    "theme": "executive_compensation",
+    "type": "score_change"
+   },
+   {
+    "company": "Synthetic Company 10",
+    "engagement_id": null,
+    "issuer_id": "SYN10",
+    "reason": "CLTI score below 30",
+    "rule": "clti_laggard",
+    "sector": "Materials",
+    "severity": "high",
+    "theme": "climate_transition",
+    "type": "score_change"
+   },
+   {
+    "company": "Synthetic Company 11",
+    "engagement_id": null,
+    "issuer_id": "SYN11",
+    "reason": "Nature score below 25 in a high-impact sector",
+    "rule": "nature_laggard",
+    "sector": "Utilities",
+    "severity": "medium",
+    "theme": "nature",
+    "type": "score_change"
+   },
+   {
+    "company": "Synthetic Company 11",
+    "engagement_id": null,
+    "issuer_id": "SYN11",
+    "reason": "Pay misaligned with performance for 3+ years",
+    "rule": "pay_misalignment",
+    "sector": "Utilities",
+    "severity": "medium",
+    "theme": "executive_compensation",
+    "type": "score_change"
+   }
+  ]
+ },
+ "tiers": {
+  "assignments": [],
+  "changes": [
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 303,
+      "change_pct": 0,
+      "index_weight_pct": 0.9
+     }
+    },
+    "issuer_id": "SYN01",
+    "name": "Synthetic Company 01",
+    "reason": "Default: baseline coverage",
+    "rule": "default",
+    "tier": "scaled_baseline"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 81,
+      "change_pct": -15,
+      "index_weight_pct": 0.3
+     }
+    },
+    "issuer_id": "SYN02",
+    "name": "Synthetic Company 02",
+    "reason": "High-emitting sector",
+    "rule": "high_emitter",
+    "tier": "thematic_collaborative"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 1547,
+      "change_pct": -40,
+      "index_weight_pct": 3.1
+     }
+    },
+    "issuer_id": "SYN03",
+    "name": "Synthetic Company 03",
+    "reason": "Index weight of 1% or more",
+    "rule": "top_weight",
+    "tier": "priority_bilateral"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 92,
+      "change_pct": 120,
+      "index_weight_pct": 0.2
+     }
+    },
+    "issuer_id": "SYN04",
+    "name": "Synthetic Company 04",
+    "reason": "High-emitting sector",
+    "rule": "high_emitter",
+    "tier": "thematic_collaborative"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 8,
+      "change_pct": 0,
+      "index_weight_pct": 0.03
+     }
+    },
+    "issuer_id": "SYN05",
+    "name": "Synthetic Company 05",
+    "reason": "High-emitting sector",
+    "rule": "high_emitter",
+    "tier": "thematic_collaborative"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 249,
+      "change_pct": 10,
+      "index_weight_pct": 0.45
+     }
+    },
+    "issuer_id": "SYN06",
+    "name": "Synthetic Company 06",
+    "reason": "Default: baseline coverage",
+    "rule": "default",
+    "tier": "scaled_baseline"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 768,
+      "change_pct": 10,
+      "index_weight_pct": 1.4
+     }
+    },
+    "issuer_id": "SYN07",
+    "name": "Synthetic Company 07",
+    "reason": "Index weight of 1% or more",
+    "rule": "top_weight",
+    "tier": "priority_bilateral"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 270,
+      "change_pct": 65,
+      "index_weight_pct": 0.6
+     }
+    },
+    "issuer_id": "SYN08",
+    "name": "Synthetic Company 08",
+    "reason": "Default: baseline coverage",
+    "rule": "default",
+    "tier": "scaled_baseline"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 17,
+      "change_pct": 5,
+      "index_weight_pct": 0.04
+     }
+    },
+    "issuer_id": "SYN09",
+    "name": "Synthetic Company 09",
+    "reason": "High-emitting sector",
+    "rule": "high_emitter",
+    "tier": "thematic_collaborative"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 6,
+      "change_pct": -5,
+      "index_weight_pct": 0.02
+     }
+    },
+    "issuer_id": "SYN10",
+    "name": "Synthetic Company 10",
+    "reason": "High-emitting sector",
+    "rule": "high_emitter",
+    "tier": "thematic_collaborative"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 20,
+      "change_pct": 0,
+      "index_weight_pct": 0.08
+     }
+    },
+    "issuer_id": "SYN11",
+    "name": "Synthetic Company 11",
+    "reason": "High-emitting sector",
+    "rule": "high_emitter",
+    "tier": "thematic_collaborative"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 49,
+      "change_pct": 0,
+      "index_weight_pct": 0.12
+     }
+    },
+    "issuer_id": "SYN12",
+    "name": "Synthetic Company 12",
+    "reason": "High-impact nature sector",
+    "rule": "nature_impact",
+    "tier": "thematic_collaborative"
+   }
+  ],
+  "confirmed": 0,
+  "distribution": {},
+  "in_scope": 12,
+  "reevaluation_due": false
+ },
+ "universe": {
+  "issuers": 12,
+  "note": "SYNTHETIC, fictional data for exercising the policy graphs and back-tests. Company names, values and meetings are invented; about 10% of company values are deliberately missing. Holdings (index weight, AUM held across house portfolios) are synthetic too.",
+  "set_by": "tests",
+  "source": "sample"
+ }
+}

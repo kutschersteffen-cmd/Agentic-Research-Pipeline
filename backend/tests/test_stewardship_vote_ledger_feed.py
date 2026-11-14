@@ -116,10 +116,9 @@ def test_ac38_house_issuer_holding_the_isin_gets_the_trigger(tmp_path, pg, monke
     import asyncio
 
     from arp.portfolio.mock_data import generate_demo_dataset
+    from arp.schemas.portfolio import SecurityRef
     from arp.stewardship.universe import from_portfolio, held_isins
     from arp.storage.portfolio_store import PortfolioStore
-
-    from arp.schemas.portfolio import SecurityRef
 
     store = PortfolioStore(tmp_path / "pf")
     asyncio.run(generate_demo_dataset(store))

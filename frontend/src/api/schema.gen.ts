@@ -5556,6 +5556,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/evidence-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Suggestions */
+        get: operations["list_suggestions_api_stewardship_evidence_suggestions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/evidence-suggestions/{suggestion_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Suggestion */
+        post: operations["confirm_suggestion_api_stewardship_evidence_suggestions__suggestion_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/evidence-suggestions/{suggestion_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Suggestion */
+        post: operations["reject_suggestion_api_stewardship_evidence_suggestions__suggestion_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/intake/engagements": {
         parameters: {
             query?: never;
@@ -5662,6 +5713,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/objectives/{objective_id}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record Objective Result */
+        post: operations["record_objective_result_api_stewardship_objectives__objective_id__result_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/policies/{policy_id}": {
         parameters: {
             query?: never;
@@ -5724,6 +5792,50 @@ export interface paths {
         get: operations["get_policy_version_api_stewardship_policies__policy_id__versions__version__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/selection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Selection
+         * @description The house engagement selection of a cycle (default: the current one), folded from its log.
+         */
+        get: operations["get_selection_api_stewardship_selection_get"];
+        put?: never;
+        /**
+         * Post Selection
+         * @description Adds companies as proposed and removes proposed ones; confirmed rows stay.
+         */
+        post: operations["post_selection_api_stewardship_selection_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/selection/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Selection Confirm
+         * @description Every proposed row of the cycle becomes confirmed, recorded as the signed-in user.
+         */
+        post: operations["post_selection_confirm_api_stewardship_selection_confirm_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6125,6 +6237,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/studio/priority/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Priority Preview
+         * @description What candidate weights would change against the active version, on the house scope.
+         */
+        post: operations["post_priority_preview_api_stewardship_studio_priority_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/studio/voting/preview": {
         parameters: {
             query?: never;
@@ -6342,6 +6474,95 @@ export interface paths {
         get: operations["get_universe_api_stewardship_universe_get"];
         /** Put Universe */
         put: operations["put_universe_api_stewardship_universe_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/watch-items/{item_kind}/{item_id}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check Watch Item */
+        post: operations["check_watch_item_api_stewardship_watch_items__item_kind___item_id__check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/watch-items/{item_kind}/{item_id}/proof-statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set Proof Statement */
+        post: operations["set_proof_statement_api_stewardship_watch_items__item_kind___item_id__proof_statement_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/watch-topics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Watch Topics */
+        get: operations["list_watch_topics_api_stewardship_watch_topics_get"];
+        put?: never;
+        /** Add Watch Topic */
+        post: operations["add_watch_topic_api_stewardship_watch_topics_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/watch-topics/{topic_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Close Watch Topic */
+        post: operations["close_watch_topic_api_stewardship_watch_topics__topic_id__close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/worklist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Worklist
+         * @description One row per company of the house scope, computed from stored values on every request.
+         */
+        get: operations["get_worklist_api_stewardship_worklist_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -10318,17 +10539,47 @@ export interface components {
             /** True Share */
             true_share?: number | null;
         };
+        /** Commitment */
+        Commitment: {
+            /** Commitment Id */
+            commitment_id?: string;
+            /** Evidence */
+            evidence?: string | null;
+            /** Made At */
+            made_at?: string;
+            /** Proof Statement */
+            proof_statement?: string | null;
+            /** Recorded By */
+            recorded_by?: string | null;
+            /** @default open */
+            status: components["schemas"]["CommitmentStatus"];
+            /** Target Date */
+            target_date?: string | null;
+            /** Text */
+            text: string;
+            /** Validated At */
+            validated_at?: string | null;
+            /** Validated By */
+            validated_by?: string | null;
+        };
         /** CommitmentRequest */
         CommitmentRequest: {
             /** Company Id */
             company_id: string;
             /** Issue Id */
             issue_id: string;
+            /** Proof Statement */
+            proof_statement?: string | null;
             /** Target Date */
             target_date?: string | null;
             /** Text */
             text: string;
         };
+        /**
+         * CommitmentStatus
+         * @enum {string}
+         */
+        CommitmentStatus: "open" | "verified" | "missed";
         /** CommitmentStatusRequest */
         CommitmentStatusRequest: {
             /** Company Id */
@@ -10678,10 +10929,27 @@ export interface components {
          * @enum {string}
          */
         Confidence: "high" | "medium" | "low";
+        /**
+         * ConfirmRequest
+         * @description Only read for a `new_commitment` suggestion: each field overrides what Argus worded.
+         */
+        ConfirmRequest: {
+            /** Proof Statement */
+            proof_statement?: string | null;
+            /** Target Date */
+            target_date?: string | null;
+            /** Text */
+            text?: string | null;
+        };
         /** ConfirmTiersRequest */
         ConfirmTiersRequest: {
             /** Issuer Ids */
             issuer_ids?: string[] | null;
+        };
+        /** Confirmed */
+        Confirmed: {
+            /** Confirmed */
+            confirmed: number;
         };
         /** Constituent */
         Constituent: {
@@ -12130,6 +12398,72 @@ export interface components {
             /** Windows */
             windows: components["schemas"]["WindowEvidence"][];
         };
+        /**
+         * EvidenceSuggestion
+         * @description A pending answer from Argus that a person confirms or rejects (`stw_evidence_suggestions`).
+         */
+        EvidenceSuggestion: {
+            /** Activity Id */
+            activity_id?: string | null;
+            /** Company Id */
+            company_id: string;
+            /** Created At */
+            created_at?: string;
+            /** Created Commitment Id */
+            created_commitment_id?: string | null;
+            /** Decided At */
+            decided_at?: string | null;
+            /** Decided By */
+            decided_by?: string | null;
+            /** Doc Id */
+            doc_id?: string | null;
+            /** Doc Title */
+            doc_title?: string | null;
+            /** Doc Type */
+            doc_type?: string | null;
+            /** Engagement Id */
+            engagement_id: string;
+            /** External Id */
+            external_id?: string | null;
+            /** Item Id */
+            item_id?: string | null;
+            /** Item Kind */
+            item_kind?: ("objective" | "commitment" | "topic") | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "evidence" | "new_commitment";
+            /** Page */
+            page?: number | null;
+            /** Proof Statement */
+            proof_statement?: string | null;
+            /** Quote */
+            quote: string;
+            /** Reason */
+            reason?: string | null;
+            /** Reject Reason */
+            reject_reason?: string | null;
+            /**
+             * Source
+             * @default app
+             */
+            source: string;
+            /**
+             * Status
+             * @default pending
+             * @enum {string}
+             */
+            status: "pending" | "confirmed" | "rejected";
+            /** Suggestion Id */
+            suggestion_id?: string;
+            /** Target Date */
+            target_date?: string | null;
+            /** Text */
+            text?: string | null;
+            /** Verdict */
+            verdict?: ("found" | "against") | null;
+        };
         /** ExceptionDecisionRequest */
         ExceptionDecisionRequest: {
             /** Client Step */
@@ -12768,6 +13102,15 @@ export interface components {
              */
             rationale: string;
         };
+        /** Grade */
+        Grade: {
+            /** Label */
+            label: string;
+            /** Simulated */
+            simulated: boolean;
+            /** Value */
+            value: number | string | boolean;
+        };
         /** GroupCap */
         GroupCap: {
             /**
@@ -13176,6 +13519,11 @@ export interface components {
          * @enum {string}
          */
         IndicatorCategory: "target" | "governance" | "strategy" | "tracking";
+        /**
+         * InfluenceLevel
+         * @enum {string}
+         */
+        InfluenceLevel: "1" | "2" | "3" | "4A" | "4B" | "5";
         /** Instructions */
         Instructions: {
             /** Instructions */
@@ -13943,6 +14291,15 @@ export interface components {
             source_notes: string;
             theme: components["schemas"]["ThemeDefinition"];
         };
+        /** NextMeeting */
+        NextMeeting: {
+            /** Days */
+            days: number;
+            /** Estimated */
+            estimated: boolean;
+            /** Last Meeting */
+            last_meeting: string;
+        };
         /** NoteCitation */
         NoteCitation: {
             /** Page */
@@ -13998,6 +14355,71 @@ export interface components {
              */
             transmission_channels: components["schemas"]["NoteItem"][];
         };
+        /** Objective */
+        Objective: {
+            /** Closed At */
+            closed_at?: string | null;
+            /** Description */
+            description: string;
+            /**
+             * Escalated
+             * @default false
+             */
+            escalated: boolean;
+            /** Evidence Url */
+            evidence_url?: string | null;
+            /** Follows Objective Id */
+            follows_objective_id?: string | null;
+            /** Influence Evidence */
+            influence_evidence?: string | null;
+            influence_level?: components["schemas"]["InfluenceLevel"] | null;
+            /** Objective Id */
+            objective_id?: string;
+            objective_type: components["schemas"]["ObjectiveType"];
+            /** Outcome */
+            outcome?: string | null;
+            /** Proof Statement */
+            proof_statement?: string | null;
+            receptiveness?: components["schemas"]["Receptiveness"] | null;
+            result?: components["schemas"]["ObjectiveResult"] | null;
+            /**
+             * Source
+             * @default app
+             */
+            source: string;
+            /** Started At */
+            started_at?: string | null;
+            /** @default initiated */
+            status: components["schemas"]["ObjectiveStatus"];
+            /** Target Date */
+            target_date?: string | null;
+        };
+        /**
+         * ObjectiveResult
+         * @enum {string}
+         */
+        ObjectiveResult: "deterioration" | "not_achieved" | "partially_achieved" | "achieved" | "abandoned";
+        /** ObjectiveResultRequest */
+        ObjectiveResultRequest: {
+            /** Company Id */
+            company_id: string;
+            influence_level?: components["schemas"]["InfluenceLevel"] | null;
+            /** Issue Id */
+            issue_id: string;
+            /** Outcome */
+            outcome: string;
+            result: components["schemas"]["ObjectiveResult"];
+        };
+        /**
+         * ObjectiveStatus
+         * @enum {string}
+         */
+        ObjectiveStatus: "initiated" | "in_progress" | "closed" | "abandoned";
+        /**
+         * ObjectiveType
+         * @enum {string}
+         */
+        ObjectiveType: "transparency" | "operational" | "strategic";
         /** ObservationOut */
         ObservationOut: {
             /** Confidence */
@@ -14018,6 +14440,13 @@ export interface components {
             /** Value */
             value: unknown;
             value_state: components["schemas"]["ValueState"];
+        };
+        /** Observed */
+        Observed: {
+            /** Simulated */
+            simulated: boolean;
+            /** Value */
+            value: number | string | boolean;
         };
         /** OlderRun */
         OlderRun: {
@@ -14478,6 +14907,28 @@ export interface components {
             /** Waiting */
             waiting: number;
         };
+        /** PriorityPreview */
+        PriorityPreview: {
+            /** Companies */
+            companies: number;
+            /** Entering Top */
+            entering_top: components["schemas"]["RankMove"][];
+            /** Leaving Top */
+            leaving_top: components["schemas"]["RankMove"][];
+            /** Score Change */
+            score_change: components["schemas"]["ScoreChange"][];
+            /** Top Active */
+            top_active: components["schemas"]["TopRow"][];
+            /** Top Candidate */
+            top_candidate: components["schemas"]["TopRow"][];
+        };
+        /** PriorityPreviewRequest */
+        PriorityPreviewRequest: {
+            /** Content */
+            content: {
+                [key: string]: unknown;
+            };
+        };
         /** ProgramParams */
         ProgramParams: {
             /**
@@ -14593,6 +15044,15 @@ export interface components {
             reason: string;
             /** Taxonomy Id */
             taxonomy_id?: string | null;
+        };
+        /** ProofStatementRequest */
+        ProofStatementRequest: {
+            /** Company Id */
+            company_id: string;
+            /** Issue Id */
+            issue_id: string;
+            /** Proof Statement */
+            proof_statement: string;
         };
         /** ProposalStarted */
         ProposalStarted: {
@@ -14856,6 +15316,17 @@ export interface components {
             /** Sector */
             sector: string;
         };
+        /** RankMove */
+        RankMove: {
+            /** Company */
+            company: string;
+            /** Issuer Id */
+            issuer_id: string;
+            /** Rank Active */
+            rank_active: number;
+            /** Rank Candidate */
+            rank_candidate: number;
+        };
         /** RatifyRequest */
         RatifyRequest: {
             /** Version */
@@ -14880,6 +15351,11 @@ export interface components {
          * @enum {string}
          */
         RebalanceFrequency: "monthly" | "quarterly" | "annual" | "custom";
+        /**
+         * Receptiveness
+         * @enum {string}
+         */
+        Receptiveness: "very_good" | "good" | "neutral" | "insufficient" | "refusal";
         /** Recipe */
         Recipe: {
             /**
@@ -16173,6 +16649,32 @@ export interface components {
             /** Version */
             version?: number | null;
         };
+        /** ScoreChange */
+        ScoreChange: {
+            /** Active */
+            active: number;
+            /** Candidate */
+            candidate: number;
+            /** Change */
+            change: number;
+            /** Company */
+            company: string;
+            /** Issuer Id */
+            issuer_id: string;
+        };
+        /** ScorePart */
+        ScorePart: {
+            /** Empty */
+            empty: boolean;
+            /** Id */
+            id: string;
+            /** Normalised */
+            normalised: number;
+            /** Points */
+            points: number;
+            /** Weight */
+            weight: number;
+        };
         /** ScoreRequest */
         ScoreRequest: {
             config?: components["schemas"]["MechanismConfig"] | null;
@@ -16368,10 +16870,81 @@ export interface components {
              */
             type: "select_all";
         };
+        /** Selection */
+        Selection: {
+            /** Confirmed At */
+            confirmed_at: string | null;
+            /** Confirmed By */
+            confirmed_by: string | null;
+            /** Proposed At */
+            proposed_at: string;
+            /** Proposed By */
+            proposed_by: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "proposed" | "confirmed";
+            /** Weights Version */
+            weights_version: number;
+        };
+        /** SelectionChange */
+        SelectionChange: {
+            /**
+             * Add
+             * @default []
+             */
+            add: string[];
+            /** Cycle */
+            cycle?: string | null;
+            /**
+             * Remove
+             * @default []
+             */
+            remove: string[];
+        };
+        /** SelectionConfirm */
+        SelectionConfirm: {
+            /** Cycle */
+            cycle?: string | null;
+        };
+        /** SelectionList */
+        SelectionList: {
+            /** Current */
+            current: boolean;
+            /** Cycle */
+            cycle: string;
+            /** Rows */
+            rows: components["schemas"]["SelectionRow"][];
+        };
         /** SelectionRequest */
         SelectionRequest: {
             /** Tags */
             tags: string[];
+        };
+        /** SelectionRow */
+        SelectionRow: {
+            /** Company */
+            company: string;
+            /** Confirmed At */
+            confirmed_at: string | null;
+            /** Confirmed By */
+            confirmed_by: string | null;
+            /** In Scope */
+            in_scope: boolean;
+            /** Issuer Id */
+            issuer_id: string;
+            /** Proposed At */
+            proposed_at: string;
+            /** Proposed By */
+            proposed_by: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "proposed" | "confirmed";
+            /** Weights Version */
+            weights_version: number;
         };
         /** SensitivityRequest */
         SensitivityRequest: {
@@ -17536,6 +18109,17 @@ export interface components {
              */
             type: "top_n";
         };
+        /** TopRow */
+        TopRow: {
+            /** Company */
+            company: string;
+            /** Issuer Id */
+            issuer_id: string;
+            /** Rank */
+            rank: number;
+            /** Score */
+            score: number;
+        };
         /** TransitionOut */
         TransitionOut: {
             /**
@@ -17662,6 +18246,15 @@ export interface components {
             /** As Of */
             as_of: string;
             result: components["schemas"]["AggregationResult"];
+        };
+        /** TriggerCounts */
+        TriggerCounts: {
+            /** High */
+            high: number;
+            /** Low */
+            low: number;
+            /** Medium */
+            medium: number;
         };
         /** TriggerScanRequest */
         TriggerScanRequest: {
@@ -18266,6 +18859,56 @@ export interface components {
          * @enum {string}
          */
         WalkOrTalk: "walk" | "talk";
+        /**
+         * WatchTopic
+         * @description A question a person asked to watch for in the company's reports (`stw_watch_topics`).
+         */
+        WatchTopic: {
+            /** Closed At */
+            closed_at?: string | null;
+            /** Closed By */
+            closed_by?: string | null;
+            /** Created At */
+            created_at?: string;
+            /** Created By */
+            created_by?: string | null;
+            /** Engagement Id */
+            engagement_id: string;
+            /** External Id */
+            external_id?: string | null;
+            /** Proof Statement */
+            proof_statement?: string | null;
+            /** Question */
+            question: string;
+            /**
+             * Source
+             * @default app
+             */
+            source: string;
+            /**
+             * Status
+             * @default open
+             * @enum {string}
+             */
+            status: "open" | "closed";
+            /** Target Date */
+            target_date?: string | null;
+            /** Topic Id */
+            topic_id?: string;
+        };
+        /** WatchTopicRequest */
+        WatchTopicRequest: {
+            /** Company Id */
+            company_id: string;
+            /** Issue Id */
+            issue_id: string;
+            /** Proof Statement */
+            proof_statement?: string | null;
+            /** Question */
+            question: string;
+            /** Target Date */
+            target_date?: string | null;
+        };
         /** WeightedNode */
         WeightedNode: {
             /** Node Id */
@@ -18282,6 +18925,15 @@ export interface components {
          * @enum {string}
          */
         WeightingScheme: "equal" | "value";
+        /** WeightsVersion */
+        WeightsVersion: {
+            /** Activated At */
+            activated_at: string | null;
+            /** Activated By */
+            activated_by: string | null;
+            /** Version */
+            version: number;
+        };
         /** WindowEvidence */
         WindowEvidence: {
             deflated_sharpe: components["schemas"]["DeflatedSharpeAssessment"] | null;
@@ -18322,6 +18974,64 @@ export interface components {
             companies?: components["schemas"]["CompanyRef"][] | null;
             /** Universe Path */
             universe_path?: string | null;
+        };
+        /** Worklist */
+        Worklist: {
+            /** As Of */
+            as_of: string;
+            /** Cycle */
+            cycle: string;
+            /** Rows */
+            rows: components["schemas"]["WorklistRow"][];
+            scope: components["schemas"]["WorklistScope"];
+            /** Universe Note */
+            universe_note: string | null;
+            weights: components["schemas"]["WeightsVersion"];
+        };
+        /** WorklistRow */
+        WorklistRow: {
+            /** Aum Held Eur M */
+            aum_held_eur_m: number | null;
+            carbon_intensity: components["schemas"]["Observed"] | null;
+            /** Company */
+            company: string;
+            controversy: components["schemas"]["Observed"] | null;
+            /** Coverage Tier */
+            coverage_tier: string;
+            /** Coverage Tier Confirmed */
+            coverage_tier_confirmed: boolean;
+            /** Escalated */
+            escalated: number;
+            esg_score: components["schemas"]["Observed"] | null;
+            /** Holdings Weight Pct */
+            holdings_weight_pct: number | null;
+            /** Issuer Id */
+            issuer_id: string;
+            next_meeting: components["schemas"]["NextMeeting"] | null;
+            /** Open Engagements */
+            open_engagements: number;
+            /** Overdue Commitments */
+            overdue_commitments: number;
+            /** Parts */
+            parts: components["schemas"]["ScorePart"][];
+            /** Score */
+            score: number;
+            /** Sector */
+            sector: string;
+            selection: components["schemas"]["Selection"] | null;
+            transition_grade: components["schemas"]["Grade"] | null;
+            triggers: components["schemas"]["TriggerCounts"];
+        };
+        /** WorklistScope */
+        WorklistScope: {
+            /** Companies */
+            companies: number;
+            /** Key */
+            key: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
         };
         /** XbrlRunRequest */
         XbrlRunRequest: {
@@ -29069,6 +29779,110 @@ export interface operations {
             };
         };
     };
+    list_suggestions_api_stewardship_evidence_suggestions_get: {
+        parameters: {
+            query: {
+                company_id: string;
+                status?: "pending" | "confirmed" | "rejected";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["EvidenceSuggestion"][];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_suggestion_api_stewardship_evidence_suggestions__suggestion_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                suggestion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ConfirmRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceSuggestion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_suggestion_api_stewardship_evidence_suggestions__suggestion_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                suggestion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceSuggestion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     post_engagements_api_stewardship_intake_engagements_post: {
         parameters: {
             query?: never;
@@ -29271,6 +30085,41 @@ export interface operations {
             };
         };
     };
+    record_objective_result_api_stewardship_objectives__objective_id__result_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                objective_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObjectiveResultRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Objective"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_policy_api_stewardship_policies__policy_id__get: {
         parameters: {
             query?: {
@@ -29407,6 +30256,103 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_selection_api_stewardship_selection_get: {
+        parameters: {
+            query?: {
+                cycle?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelectionList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_selection_api_stewardship_selection_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SelectionChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelectionList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_selection_confirm_api_stewardship_selection_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SelectionConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Confirmed"];
                 };
             };
             /** @description Validation Error */
@@ -30148,6 +31094,39 @@ export interface operations {
             };
         };
     };
+    post_priority_preview_api_stewardship_studio_priority_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PriorityPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriorityPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     post_voting_preview_api_stewardship_studio_voting_preview_post: {
         parameters: {
             query?: never;
@@ -30561,6 +31540,193 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_watch_item_api_stewardship_watch_items__item_kind___item_id__check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_kind: "objective" | "commitment" | "topic";
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_proof_statement_api_stewardship_watch_items__item_kind___item_id__proof_statement_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_kind: "objective" | "commitment" | "topic";
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProofStatementRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Objective"] | components["schemas"]["Commitment"] | components["schemas"]["WatchTopic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_watch_topics_api_stewardship_watch_topics_get: {
+        parameters: {
+            query: {
+                company_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["WatchTopic"][];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_watch_topic_api_stewardship_watch_topics_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WatchTopicRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchTopic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    close_watch_topic_api_stewardship_watch_topics__topic_id__close_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                topic_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchTopic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_worklist_api_stewardship_worklist_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Worklist"];
                 };
             };
         };

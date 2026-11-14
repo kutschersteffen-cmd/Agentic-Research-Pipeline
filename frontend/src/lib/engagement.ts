@@ -1,4 +1,4 @@
-import type { EngagementIssue } from "../types";
+import type { EngagementIssue, S } from "../types";
 
 export interface EngagementCounts {
   open: number;
@@ -32,24 +32,16 @@ export function unlistedText(count: number, ids: string[]): string {
 
 const DEMO_SOURCES = ["mock_voice_seed", "npx_urth_demo"];
 
-export interface ObjectiveRow {
-  id: string;
-  description: string;
-  type: string;
-  status: string;
-  result: string;
-  demo: boolean;
+/** An objective is demo data when it, or the issue it sits under, came from a demo seed (`Demo data` label). */
+export function isDemo(issue: Pick<EngagementIssue, "data_source">, objective: { source?: string | null }): boolean {
+  return DEMO_SOURCES.includes(issue.data_source ?? "") || DEMO_SOURCES.includes(objective.source ?? "");
 }
 
-/** One display row per objective; `demo` when the issue or the objective itself came from a demo seed. */
-export function objectiveRows(issue: Pick<EngagementIssue, "objectives" | "data_source">): ObjectiveRow[] {
-  const label = (v: string) => v.replace(/_/g, " ");
-  return (issue.objectives ?? []).map((o) => ({
-    id: o.objective_id,
-    description: o.description,
-    type: label(o.objective_type),
-    status: label(o.status),
-    result: o.result ? label(o.result) : "not yet",
-    demo: DEMO_SOURCES.includes(issue.data_source ?? "") || DEMO_SOURCES.includes(o.source),
-  }));
+// VOICE lists, as the API takes them (spec stewardship-commitment-loop, "Record result").
+export const OBJECTIVE_RESULTS = ["achieved", "partially_achieved", "not_achieved", "deterioration", "abandoned"] as const satisfies readonly S["ObjectiveResult"][];
+export const INFLUENCE_LEVELS = ["1", "2", "3", "4A", "4B", "5"] as const satisfies readonly S["InfluenceLevel"][];
+
+/** One engagement's watch topics out of the company's list, keeping the API's newest-first order. */
+export function issueTopics<T extends { engagement_id: string }>(topics: T[], issueId: string): T[] {
+  return topics.filter((t) => t.engagement_id === issueId);
 }
