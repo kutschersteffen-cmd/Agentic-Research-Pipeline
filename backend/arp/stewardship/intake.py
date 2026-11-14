@@ -306,7 +306,7 @@ def meeting_key(company_id: str | None, isin: str | None, cusip: str | None) -> 
     """The company part of a vote meeting's key: the row's own ids, one namespace per source. A company keyed
     `isin_<ISIN>` shares the `isin:` namespace with ISIN-only rows, so both reach one meeting."""
     if company_id and company_id.startswith("isin_"):
-        return f"isin:{company_id[5:]}"
+        return f"isin:{company_id[5:].upper()}"
     return next(f"{ns}:{v}" for ns, v in (("cid", company_id), ("isin", isin), ("cusip", cusip)) if v)
 
 
@@ -320,6 +320,8 @@ def _clean_vote(n: int, raw: dict, source: str, bad: list[Rejection]) -> dict:
     for k in ("external_id", "meeting_date", "item_number", "vote"):  # the decision, meeting and item keys
         if row[k] is None:
             reject(k, "required")
+    if row["item_number"] and ":" in row["item_number"]:  # ":" separates the parts of the item key
+        reject("item_number", "must not contain ':'")
     if not (row["company_id"] or row["isin"] or row["cusip"]):
         reject("company_id", "one of company_id, isin, cusip required")
     options = ", ".join(e.value for e in VoteValue)
@@ -376,7 +378,9 @@ def intake_votes(rows: list[dict], dsn: str, source: str, excel_rows: bool = Fal
                 bad.append(Rejection(sheet="votes", row=n, field="company_id", reason="unknown company"))
             if any(r.row == n for r in bad):  # keys are only built for rows that passed validation
                 continue
-            key = meeting_key(row["company_id"], row["isin"], row["cusip"])
+            # key only on an id that resolved: an unknown company_id beside an ISIN/CUSIP must not name the meeting
+            known = row["company_id"] if row["company_id"] and _company(s, row["company_id"], None) else None
+            key = meeting_key(known, row["isin"], row["cusip"])
             if row["external_id"] in seen:
                 bad.append(Rejection(sheet="votes", row=n, field="external_id", reason="duplicate in batch"))
             seen.add(row["external_id"])
@@ -402,7 +406,8 @@ def intake_votes(rows: list[dict], dsn: str, source: str, excel_rows: bool = Fal
                 report.created += 1
                 return
             # an upsert fills a meeting's company ids but never clears them
-            changed = [k for k, v in values.items() if getattr(stored, k) != v and not (v is None and k in _KEEP)]
+            # a meeting's company ids are only ever filled in: never cleared, never swapped for another company's
+            changed = [k for k, v in values.items() if getattr(stored, k) != v and not (k in _KEEP and getattr(stored, k) is not None)]
             for k in changed:
                 setattr(stored, k, values[k])
             report.updated += bool(changed)

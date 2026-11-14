@@ -251,15 +251,15 @@ def _vote_meeting_key_namespaces(conn: Connection) -> None:
     from sqlalchemy import text
 
     old_rows = conn.execute(text(
-        "SELECT meeting_id, source, external_id, cusip, issuer_name FROM vote_meetings WHERE source IN ('api', 'excel')"
+        "SELECT meeting_id, source, external_id, company_id, cusip, issuer_name FROM vote_meetings WHERE source IN ('api', 'excel')"
         " AND external_id IS NOT NULL AND external_id !~ '^(cid|isin|cusip|name):' AND external_id !~ '^:'"
     )).all()
-    for meeting_id, source, ext, cusip, issuer in old_rows:
+    for meeting_id, source, ext, company_id, cusip, issuer in old_rows:
         key, _, date = ext.rpartition(":")
         if key.startswith("isin_"):
             new_key = f"isin:{key[5:]}"
         else:
-            new_key = f"{'cusip' if key == cusip else 'name' if key == issuer else 'cid'}:{key}"
+            new_key = f"{'cid' if key == company_id else 'cusip' if key == cusip else 'name' if key == issuer else 'cid'}:{key}"
         new = f"{new_key}:{date}"
         taken = conn.execute(text("SELECT 1 FROM vote_meetings WHERE source = :s AND external_id = :e"), {"s": source, "e": new}).first()
         if taken:  # a new-format meeting already exists; leave the old row for a person to merge

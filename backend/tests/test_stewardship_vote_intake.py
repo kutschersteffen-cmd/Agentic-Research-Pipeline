@@ -4,7 +4,7 @@ from sqlalchemy import func, select
 from arp.db.companies import ensure_universe_company
 from arp.db.session import transaction
 from arp.schemas.vote_ledger import against_management
-from arp.stewardship.intake import intake_votes
+from arp.stewardship.intake import intake_votes, meeting_key
 from arp.storage.postgres_engagement_store import PostgresEngagementStore
 from arp.storage.postgres_models import StwCompanyModel, VoteDecisionModel, VoteItemModel, VoteMeetingModel
 
@@ -156,7 +156,8 @@ def test_old_format_keys_rewritten_so_resend_finds_them(pg):
 
     PostgresEngagementStore(pg).get_or_create("acme", "Acme")
     rows = [
-        {"external_id": "d1", "company_id": "acme", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"},
+        # issuer_name equal to the company id: the stored company_id must win (#450 round-2 B2)
+        {"external_id": "d1", "company_id": "acme", "issuer_name": "acme", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"},
         {"external_id": "d2", "isin": "US0378331005", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"},
         {"external_id": "d3", "cusip": "037833100", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"},
     ]
@@ -205,3 +206,40 @@ def test_blank_or_whitespace_key_counts_as_missing(pg):
         ("company_id", "one of company_id, isin, cusip required"), ("external_id", "required"),
         ("item_number", "required"), ("meeting_date", "required"),
     ]
+
+
+def test_unknown_company_id_cannot_take_over_another_company_meeting(pg):
+    # #450 round-2 B1: an unknown company_id beside an ISIN named the meeting, so a second company's row took it over
+    for isin in ("US0378331005", "US5949181045"):
+        PostgresEngagementStore(pg).get_or_create(f"isin_{isin}", isin)
+    intake_votes([{**_row(), "external_id": "a1", "company_id": "X1", "isin": "US0378331005"}], pg, "api")
+    intake_votes([{**_row(2), "external_id": "m1", "company_id": "X1", "isin": "US5949181045"}], pg, "api")
+    with transaction(pg) as s:
+        meetings = {(m.external_id, m.company_id, m.isin) for m in s.scalars(select(VoteMeetingModel))}
+    assert meetings == {
+        ("isin:US0378331005:2026-05-01", "isin_US0378331005", "US0378331005"),
+        ("isin:US5949181045:2026-05-01", "isin_US5949181045", "US5949181045"),
+    }
+
+
+def test_meeting_company_never_swapped(pg):
+    # a registry company without a stw_companies row keys cid:C9; its meeting's company comes from the ISIN, once
+    with transaction(pg) as s:
+        ensure_universe_company(s, "C9", name="Nine")
+    for isin in ("US0378331005", "US5949181045"):
+        PostgresEngagementStore(pg).get_or_create(f"isin_{isin}", isin)
+    intake_votes([{**_row(), "company_id": "C9", "isin": "US0378331005"}], pg, "api")
+    report = intake_votes([{**_row(2), "company_id": "C9", "isin": "US5949181045"}], pg, "api")
+    assert report.rejected == []
+    with transaction(pg) as s:
+        m = s.scalars(select(VoteMeetingModel)).one()
+        assert (m.external_id, m.company_id, m.isin) == ("cid:C9:2026-05-01", "isin_US0378331005", "US0378331005")
+
+
+def test_item_number_with_colon_rejected(pg):
+    report = intake_votes([_row(item_number="2026-05-01:1")], pg, "api")
+    assert [(r.field, r.reason) for r in report.rejected] == [("item_number", "must not contain ':'")]
+
+
+def test_isin_company_id_suffix_upper_cased():
+    assert meeting_key("isin_us0378331005", None, None) == meeting_key(None, "US0378331005", None) == "isin:US0378331005"
