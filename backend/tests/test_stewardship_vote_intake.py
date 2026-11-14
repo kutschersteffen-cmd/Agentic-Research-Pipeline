@@ -222,18 +222,28 @@ def test_unknown_company_id_cannot_take_over_another_company_meeting(pg):
     }
 
 
-def test_meeting_company_never_swapped(pg):
-    # a registry company without a stw_companies row keys cid:C9; its meeting's company comes from the ISIN, once
+def test_meeting_company_never_pinned_by_another_id(pg):
+    # #450 round-3 security B1: C9 (registry only) keys cid:C9, but its first row carried another company's ISIN,
+    # which pinned that company onto C9's meeting; C9's own later row was then accepted under the wrong company
     with transaction(pg) as s:
         ensure_universe_company(s, "C9", name="Nine")
-    for isin in ("US0378331005", "US5949181045"):
-        PostgresEngagementStore(pg).get_or_create(f"isin_{isin}", isin)
-    intake_votes([{**_row(), "company_id": "C9", "isin": "US0378331005"}], pg, "api")
-    report = intake_votes([{**_row(2), "company_id": "C9", "isin": "US5949181045"}], pg, "api")
-    assert report.rejected == []
+    PostgresEngagementStore(pg).get_or_create("isin_US5949181045", "Other")
+    first = intake_votes([{**_row(), "company_id": "C9", "isin": "US5949181045"}], pg, "api")
+    assert first.rejected == []
+    report = intake_votes([{**_row(2), "company_id": "C9", "isin": "US0378331005"}], pg, "api")
+    assert [(r.field, r.reason) for r in report.rejected] == [("isin", "isin differs from the meeting's US5949181045")]
     with transaction(pg) as s:
         m = s.scalars(select(VoteMeetingModel)).one()
-        assert (m.external_id, m.company_id, m.isin) == ("cid:C9:2026-05-01", "isin_US0378331005", "US0378331005")
+        assert (m.external_id, m.company_id) == ("cid:C9:2026-05-01", None)  # never the other company
+        assert _count(pg, VoteDecisionModel) == 1
+
+
+def test_conflicting_ids_in_one_batch_rejected(pg):
+    PostgresEngagementStore(pg).get_or_create("acme", "Acme")
+    rows = [{**_row(), "company_id": "acme", "cusip": "037833100"}, {**_row(2), "company_id": "acme", "cusip": "999999999"}]
+    report = intake_votes(rows, pg, "api")
+    assert [(r.row, r.field) for r in report.rejected] == [(2, "cusip")]
+    assert _count(pg, VoteMeetingModel) == 0
 
 
 def test_item_number_with_colon_rejected(pg):
