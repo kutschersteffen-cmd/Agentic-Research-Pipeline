@@ -145,6 +145,10 @@ The owner answers by tapping buttons, not by typing. Every question to the owner
   merge`, `expectedHeadSha` set to the SHA in the question; if the head moved, ask again).
   `Not approved` leaves it for the owner. `risk:high` PRs are never offered: the owner merges them on
   GitHub. One tap covers one PR at one SHA; agents still never approve a PR.
+- No-tap merge: the factory dispatcher merges a `risk:low` or `risk:normal` PR without asking once the
+  merge-button conditions hold and the PR's `Evidence review (factory)` comment says `Verdict: pass` for
+  the current head (`factory` skill, merge gate). A failed, stale or missing evidence review falls back
+  to the merge button. No other agent merges without a tap, and `risk:high` is never merged by an agent.
 
 ## Checks
 
