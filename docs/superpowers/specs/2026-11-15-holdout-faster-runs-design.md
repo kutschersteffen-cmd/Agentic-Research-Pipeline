@@ -258,7 +258,7 @@ How the parts are balanced (stored timings, row counts) is the holdout session's
 
 | # | PR | Repo | Risk | Rows |
 |---|---|---|---|---|
-| 1 | Runner flags `--no-regression`, `--shard`, `--count` (test-writer-style session) | holdout | n/a | AC-1 to AC-11 |
+| 1 | Runner flags `--no-regression`, `--shard`, `--count`, `--list` (test-writer-style session) | holdout | n/a | AC-1 to AC-11 |
 | 2 | `holdout.yml`; docs-only script + self-test in `pr-guards.yml` | app | `risk:high` | AC-12 to AC-37 |
 | 3 | `ci.yml` backend over 4 machines | app | `risk:high` | AC-38 to AC-46 |
 | 4 | Merge-button, steward and factory rules | app | `risk:normal` | AC-49 to AC-53 |
