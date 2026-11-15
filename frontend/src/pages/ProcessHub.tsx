@@ -88,6 +88,8 @@ function WorkspaceCard({ w, index, runs, flow }: { w: Workspace; index: number; 
   );
 }
 
+const COCKPIT_SHAPES = cockpitDrawing();
+
 export function StartPage() {
   const { runs, error, retry } = useRuns();
   const { flow } = useHouseFlow();
@@ -123,7 +125,7 @@ export function StartPage() {
       {/* Not a workspace card: one StewardIQ screen with its own way in, so the cards stay five workspaces. */}
       <a className="hub-entry" href="#/stewardiq/cockpit">
         <span className="hub-entry-fig">
-          <Drawing shapes={cockpitDrawing()} />
+          <Drawing shapes={COCKPIT_SHAPES} />
         </span>
         <span className="hub-card-body">
           <span className="hub-card-cap hub-entry-cap">StewardIQ</span>

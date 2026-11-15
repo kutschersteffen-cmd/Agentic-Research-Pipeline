@@ -304,7 +304,7 @@ function EmissionsCard({ emissions: e }: { emissions: Emissions }) {
           </ul>
           {e.uncovered_holding_count > 0 && (
             <p className="muted cockpit-foot">
-              {fmtCount(e.uncovered_holding_count)} {e.uncovered_holding_count === 1 ? "holding is" : "holdings are"} left out: no company mapped, no EVIC above 0, or no Scope 1 or 2 figure.
+              {fmtCount(e.uncovered_holding_count)} {e.uncovered_holding_count === 1 ? "holding is" : "holdings are"} left out: no company mapped, no EVIC or an EVIC of 0, or no Scope 1 or 2 figure.
             </p>
           )}
         </div>
@@ -316,7 +316,7 @@ function EmissionsCard({ emissions: e }: { emissions: Emissions }) {
             <tbody>
               {e.contributors.map((c) => (
                 <tr key={c.company_id}>
-                  <td>{c.company}{c.sector && <><br /><span className="muted">{c.sector}</span></>}</td>
+                  <td>{c.company}{c.sector && <><span className="visually-hidden"> · </span><br /><span className="muted">{c.sector}</span></>}</td>
                   <td className="cockpit-num num">{fmtShare(c.share)}</td>
                   <td>
                     {c.status === "engaged" || c.status === "in_escalation" ? (

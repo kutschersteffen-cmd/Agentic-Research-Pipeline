@@ -2493,7 +2493,7 @@ a.vc-box:hover { border-color: var(--text); }
 .cockpit-scroll { overflow-x: auto; }
 .cockpit-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .cockpit-foot { margin: var(--s-2) 0 0; text-wrap: pretty; }
-.cockpit-card-head .link-button { min-height: 44px; margin-block: -6px; } /* 44 px to tap, the head keeps its 32 px line */
+.cockpit-card-head .link-button { min-height: 32px; }
 .cockpit-legend, .cockpit-stack-legend { display: flex; flex-wrap: wrap; gap: var(--s-1_5) var(--s-4); font-size: var(--text-sm); }
 .cockpit-legend > span, .cockpit-stack-legend > span { display: inline-flex; gap: var(--s-1_5); align-items: center; }
 .cockpit-legend { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
@@ -2561,13 +2561,13 @@ a.vc-box:hover { border-color: var(--text); }
 .cockpit-topics li > :last-child { white-space: nowrap; }
 .cockpit-topic-bar > span { display: block; height: 10px; background: var(--cat-2); }
 /* financed emissions: engaged fill, selected-not-engaged the neutral well (an empty outline read as "no data" when
-   nothing was engaged), not selected left empty */
+   nothing was engaged), not selected hatched, so it never matches the theme grid's empty "Selected" swatch */
 .cockpit-emissions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: var(--s-4) var(--s-8); align-items: start; }
 .cockpit-emissions-bar { height: 28px; }
 .cockpit-unit { text-transform: none; } /* t CO₂e must not read T CO₂E */
 .cockpit-stack .eng { background: var(--cat-1); }
-.cockpit-stack .sel, .cockpit-emissions-legend .cockpit-swatch.sel { background: var(--well); border: 1px solid var(--field-border); box-sizing: border-box; }
-.cockpit-stack .rest, .cockpit-swatch.rest { background: var(--panel); border: 1px solid var(--field-border); box-sizing: border-box; }
+.cockpit-stack .sel, .cockpit-emissions-legend .cockpit-swatch.sel { background: var(--well); border: 1px solid var(--field-border); box-sizing: border-box; height: 10px; }
+.cockpit-stack .rest, .cockpit-swatch.rest { background: repeating-linear-gradient(135deg, var(--field-border) 0 1px, transparent 1px 4px); border: 1px solid var(--field-border); box-sizing: border-box; }
 .cockpit-emissions-legend { list-style: none; margin: var(--s-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-1_5); font-size: var(--text-sm); }
 .cockpit-emissions-legend li { display: grid; grid-template-columns: 10px 3.5ch minmax(0, 1fr) auto; gap: var(--s-2); align-items: center; }
 .cockpit-emissions-pct { text-align: right; }
@@ -2582,15 +2582,14 @@ a.vc-box:hover { border-color: var(--text); }
   .cockpit-topics li { grid-template-columns: minmax(0, 1fr) auto; }
   .cockpit-topic-bar { grid-column: 1 / -1; grid-row: 2; }
 }
-/* phone: the tables fit their card, so the due ballots, the Step pills and the grid's Monitor and Total columns
-   are on screen without a sideways scroll; long text wraps instead */
+/* phone: the meeting tables fit their card, so the due ballots and the Step pills are on screen without a sideways
+   scroll; long text wraps instead. The theme grid keeps its sideways scroll (spec: below 900 px). */
 @media (max-width: 600px) {
   .cockpit .cockpit-card { padding-inline: var(--s-3); }
-  .cockpit-grid { min-width: 0; }
-  .cockpit-table :is(th, td), .cockpit-grid :is(th, td) { padding-right: var(--s-2); }
-  .cockpit-table thead th, .cockpit-grid thead tr:first-child th { letter-spacing: 0; }
-  .cockpit-ballot, .cockpit-grid tbody th { white-space: normal; }
-  .cockpit-table td, .cockpit-grid tbody th { hyphens: auto; }
+  .cockpit-table :is(th, td) { padding-right: var(--s-2); }
+  .cockpit-table thead th { letter-spacing: 0; }
+  .cockpit-ballot { white-space: normal; }
+  .cockpit-table td { hyphens: auto; }
   /* engagement meetings stack: date, company and step on one line, the objective under them */
   .cockpit-meetings thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .cockpit-meetings tr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: var(--s-3); row-gap: var(--s-1); padding: var(--s-2) 0; border-top: 1px solid var(--panel-border); }
