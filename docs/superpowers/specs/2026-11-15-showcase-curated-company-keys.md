@@ -1,6 +1,6 @@
 # Showcase: each curated demo company appears once (`showcase-curated-company-keys`)
 
-Status: draft for owner approval, 15 Nov 2026. Size S, one PR. Proposed risk: `risk:normal`.
+Status: approved by the owner (button), 15 Nov 2026. Size S, one PR. Proposed risk: `risk:normal`.
 
 ## Why
 
