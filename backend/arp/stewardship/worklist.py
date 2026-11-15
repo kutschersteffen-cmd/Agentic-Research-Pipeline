@@ -38,6 +38,7 @@ from arp.stewardship.programmes import ProgrammeLog
 from arp.stewardship.tiers import TIERS, TierStore
 from arp.stewardship.tracking import OPEN
 from arp.stewardship.trigger_store import TriggerStore
+from arp.stewardship.universe import company_by_security
 from arp.storage.jsonl_io import read_jsonl
 
 POLICY = "priority_weights"
@@ -247,15 +248,10 @@ def fund_holdings(store) -> dict[str, dict]:
         return {}
     names = {p.portfolio_id: p.name for p in store.list_portfolios()}
     asset_class = {s.security_id: s.asset_class for s in store.list_securities()}
-    resolved: dict[str, str | None] = {}
+    companies = company_by_security(store)
     out: dict[str, dict] = {}
     for h in store.load_holdings_as_of(dates[-1]):
-        if h.security_id not in asset_class:  # from_portfolio resolves only the directory's securities
-            continue
-        if h.security_id not in resolved:
-            r = store.get_resolution(h.security_id)
-            resolved[h.security_id] = r.company_id if r is not None else None
-        if not (cid := resolved[h.security_id]):
+        if not (cid := companies.get(h.security_id)):
             continue
         fund = out.setdefault(h.holder_id, {"name": names.get(h.holder_id, h.holder_id), "companies": {}})
         value, mv = fund["companies"].setdefault(cid, [0.0, 0.0]), h.market_value_eur or 0.0

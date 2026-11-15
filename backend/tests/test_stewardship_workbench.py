@@ -71,11 +71,10 @@ def test_always_shown_fields_under_fixture_w(client):
 def test_engaged_from_intake_activity(client, pg):
     # AC-108, AC-109
     assert client.post("/api/engagement/records", json={"company_id": "SYN06", "name": "SYN06"}).status_code == 200
-    batch = {
-        "engagements": [{"external_id": "e1", "company_id": "SYN06", "theme": "board_governance", "started_at": "2026-08-01T00:00:00Z", "status": "open"}],
-        "activities": [{"external_id": "a1", "engagement_external_id": "e1", "occurred_at": "2026-09-12T10:00:00Z", "activity_type": "meeting",
-                        "interaction_type": "informational", "summary": "x"}],
-    }  # fmt: skip
+    batch = {  # the fewest columns intake takes: the activity has no summary, the engagement no start
+        "engagements": [{"external_id": "e1", "company_id": "SYN06", "theme": "board_governance"}],
+        "activities": [{"external_id": "a1", "engagement_external_id": "e1", "occurred_at": "2026-09-12T10:00:00Z"}],
+    }
     r = client.post("/api/stewardship/intake/engagements", json=batch)
     assert r.status_code == 200, r.text
     row = _rows(client)["SYN06"]
@@ -202,14 +201,16 @@ def test_votes_of_a_company(client, pg):
 @pytest.fixture
 def funds(client, pg):
     """Two funds on the portfolio universe: P1 holds A (equity 30 m + bond 20 m) and B (equity 50 m); P2 holds B
-    (equity 100 m). EVIC of A is 10,000 m (simulated)."""
+    (equity 100 m). EVIC of A is 10,000 m (simulated). A's securities are resolved; B's security only names its
+    company and has no resolution, as `arp showcase load` writes them."""
     settings = get_settings()
     store = build_portfolio_store(settings)
     for cid in ("A", "B"):
         store.save_company(CompanyRef(company_id=cid, name=f"Company {cid}", sector="Energy"))
     for sid, cid, cls in (("A-EQ", "A", "equity"), ("A-BD", "A", "corporate_bond"), ("B-EQ", "B", "equity")):
         store.save_security(SecurityRef(security_id=sid, name=sid, asset_class=cls, currency="EUR", company_id=cid))
-        store.save_resolution(SecurityResolution(security_id=sid, company_id=cid, confidence=1.0))
+        if cid == "A":
+            store.save_resolution(SecurityResolution(security_id=sid, company_id=cid, confidence=1.0))
     for pid, held in (("P1", (("A-EQ", 30e6), ("A-BD", 20e6), ("B-EQ", 50e6))), ("P2", (("B-EQ", 100e6),))):
         store.save_portfolio(Portfolio(portfolio_id=pid, name=f"Fund {pid}"))
         store.save_snapshot(pid, "2026-11-02", [Holding(holder_id=pid, security_id=s, as_of_date="2026-11-02", market_value_eur=v) for s, v in held])
