@@ -132,7 +132,8 @@ every new field has a default, so part 1's stand-in answers stay valid):
   `document_id` (whole numbers); a citation with both or neither fails the step;
 - `missing`: the parts of the question the sources shown do not answer (default empty).
 
-A step passes when all of these hold:
+A model answer that breaks a rule below fails the step, never the run: the output model accepts it and the
+code moves on. A step passes when all of these hold:
 
 1. `missing` is empty.
 2. With `use_entry`: it is one of the entries shown. The answer is then that entry's answer, copied by the
@@ -148,7 +149,7 @@ A step passes when all of these hold:
 
 A draft that passes is stored with its base entry: with `use_entry`, that entry; otherwise `base_entry_id`
 when it names a cited entry, else the first cited entry, else none. It is also stored with its
-`document_priority`: 0 when no source is a document, else the highest priority number among the documents
+`document_priority`: 0 when no source is a document, else the largest priority number among the documents
 it cites, as they were at drafting. A draft that passes at a later step without citing a document is kept,
 with `document_priority` 0.
 
@@ -204,7 +205,7 @@ used at the same step.
 
 | Endpoint | Who | Does |
 |---|---|---|
-| `GET /api/rfp/documents` | any signed-in user | Lists all documents by priority, then oldest first: `id` (a whole number), `title`, `filename`, `document_date`, `review_by`, `priority`, `status`, `uploaded_by`, `pages` (page count for a PDF, `null` for Word). |
+| `GET /api/rfp/documents` | any signed-in user | Lists all documents by priority, then by `id`: `id` (a whole number), `title`, `filename`, `document_date`, `review_by`, `priority`, `status`, `uploaded_by`, `pages` (page count for a PDF, `null` for Word). |
 | `POST /api/rfp/documents` | approver | Multipart: `file`, `title`, `document_date`, `priority` (default 1), `replaces` (optional document id). Parses and stores the document as `active` and returns it as the list does. |
 | `PUT /api/rfp/documents/{id}` | approver | JSON body with any of `title`, `review_by` (`YYYY-MM-DD`), `priority`; a field left out stays as it is. |
 | `POST /api/rfp/documents/{id}/retire` | approver | Sets status `retired`. |
@@ -263,9 +264,9 @@ Two pull requests, each with `Spec: rfp-approved-answers-first-design` and a `Ro
 
 1. Approved answers first: `use_entry`, the base entry and the comparison, the second model's check, the
    page's marks, and the fields `kind` and `document_priority` (always 0 or null in this slice). No
-   documents. AC-1 to AC-14, AC-36, AC-38, AC-39, AC-45 to AC-47.
-2. Reference documents and the chain: AC-15 to AC-35, AC-37, AC-40 to AC-44, AC-48 to AC-54, and AC-38 and
-   AC-39 again.
+   documents. AC-1 to AC-14, AC-36, AC-38, AC-39, AC-45 to AC-47, AC-56, AC-58.
+2. Reference documents and the chain: AC-15 to AC-35, AC-37, AC-40 to AC-44, AC-48 to AC-55, AC-57, and
+   AC-38 and AC-39 again.
 
 Both change the database schema or a workflow file, so both are `risk:high`.
 
@@ -306,7 +307,7 @@ Checked by.
 - `evaluator`: the app started by `backend/scripts/e2e_stack.sh up`, used through the browser, no model call.
 - `golden`: the real models.
 
-In every row "the stand-in" is the drafting model's and "the second stand-in" the verifier's. Unless a row
+In every row that ends in `no source`, the project's `run_status` is `done`. In every row "the stand-in" is the drafting model's and "the second stand-in" the verifier's. Unless a row
 says otherwise the second stand-in returns two empty lists. An existing test file may be changed only to
 give the second model a stand-in, or as "Supersedes" says; the pull request lists each such change.
 
@@ -356,7 +357,7 @@ Fixtures:
 | AC-10 | `LIB`; `D-ASSET`; the second stand-in returns `unsupported` [`asset manager`] | auto-fill `Q-FIRM` | status `no source`, answer empty | holdout |
 | AC-11 | `LIB`; the stand-in returns `use_entry` = the id of `FIRM`; the second stand-in returns `unanswered` [`the firm's size`] | auto-fill `Q-FIRM` | status `no source`, answer empty | holdout |
 | AC-12 | RFP routes stubbed: a drafted answer `Example AM is an independent asset manager founded in 2004.` with `kept_share` 90, the segments of AC-6, a base entry whose question is `Describe your firm.` and `document_priority` 0 | open the project page | the answer's card shows `90% unchanged from the approved answer`, `Describe your firm.`, `From approved answers only`, and the word `asset` inside an `<ins>` element while `Example` is in none | unit (browser) |
-| AC-13 | RFP routes stubbed: a drafted answer with `kept_share` 100 and `document_priority` 0 | open the project page | the answer's card shows `Approved answer, unchanged` | unit (browser) |
+| AC-13 | RFP routes stubbed: a drafted answer with a base entry, `kept_share` 100, one `kept` segment and `document_priority` 0 | open the project page | the answer's card shows `Approved answer, unchanged` | unit (browser) |
 | AC-14 | a question whose stored source is `{"entry_id", "quote"}` with no kind, as part 1 wrote it | `GET /api/rfp/projects/{id}` | 200; that source has `kind` `entry` | unit |
 | AC-15 | no reference documents | `bob` uploads `ref_stmt.docx` | 200; `GET /api/rfp/documents` lists exactly one document: `title` `Stewardship Statement 2025`, `filename` `ref_stmt.docx`, `document_date` 2025-12-31, `review_by` 2026-12-31, `priority` 1, `status` `active`, `uploaded_by` `bob`, `pages` null | unit |
 | AC-16 | no reference documents | `alice` uploads `ref_stmt.docx` | 403; `GET /api/rfp/documents` lists nothing | unit |
@@ -398,6 +399,10 @@ Fixtures:
 | AC-52 | `DOC`, and `ref_policy.docx` uploaded by `bob` with title `Voting Policy 2025` and priority 1; `B-QUOTE` citing it | auto-fill `Q-BOARD` | status `drafted`; `document_priority` 1 | holdout |
 | AC-53 | `LIB` and `DOC`; `D-ASSET`, but its citation carries both the id of `FIRM` as `entry_id` and the id of `DOC` as `document_id` | auto-fill `Q-FIRM` | status `no source`, answer empty | holdout |
 | AC-54 | `DOC` | `bob` calls `PUT /api/rfp/documents/{id}` with `priority` 0 | 422; `GET /api/rfp/documents` shows its `priority` 1 | holdout |
+| AC-55 | `DOC` and `DOC-2`; at step 1 the stand-in returns `B-QUOTE`; at step 2 it returns `T-QUOTE` citing `DOC` | auto-fill `Q-TOPICS` | status `drafted`; `document_priority` 1; the one source has `priority` 1 | unit |
+| AC-56 | RFP routes stubbed: a drafted answer with a base entry, `kept_share` 100 and segments of which one is `added` | open the project page | the answer's card shows `100% unchanged from the approved answer` and not `Approved answer, unchanged` | unit (browser) |
+| AC-57 | `DOC` and `DOC-2`; the stand-in drafts `We engage on climate, governance and human rights. We vote against directors where board independence falls below one half.` citing `DOC` with the quote of `T-QUOTE` and `DOC-2` with the quote of `B-QUOTE` | auto-fill the question `Which topics do you engage on, and when do you vote against directors?` | status `drafted`; `document_priority` 2; exactly two sources | holdout |
+| AC-58 | the answer of AC-1 | `bob` `PUT`s the answer `Example AM has been managing money for pension funds.` | `kept_share` 13 (2 kept, 7 added, 7 removed: 12.5 rounds up) | holdout |
 
 Must not change: part 1's library import, question detection, editing, four-eyes approval and export behave
 as today (AC-39); part 1's golden thresholds still hold (AC-38); projects drafted before this change still
