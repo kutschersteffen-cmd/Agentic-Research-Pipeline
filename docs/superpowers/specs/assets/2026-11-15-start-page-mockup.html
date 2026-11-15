@@ -1,0 +1,271 @@
+<title>Start Without Sidebar</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;510;590&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: app shell (248px sidebar + main). Main = one-sentence status header, then five workspace
+   cards on a 6-column grid (3 + 2), each led by an original wireframe drawing. Dark-first "instrument"
+   material from the supplied Linear-derived guide; light mode mirrors it on near-white. */
+:root {
+  --canvas: #fbfbfc; --panel: #ffffff; --frame: #f4f5f7; --edge: rgb(15 16 17 / 0.08); --edge-strong: rgb(15 16 17 / 0.14);
+  --text: #0f1011; --body: #2b2e33; --muted: #62666d; --faint: #8a8f98;
+  --pill: #0f1011; --on-pill: #ffffff; --run: #1d5fd1; --hi: #85601a; --hi-wash: #f6ecd6; --on-hi: #ffffff;
+  --apex: #ea4c14; --ink-line: rgb(15 16 17 / 0.30); --ink-line-strong: rgb(15 16 17 / 0.62); --glow: rgb(15 16 17 / 0.035);
+  --shadow: 0 1px 2px rgb(15 16 17 / 0.04), 0 2px 24px rgb(15 16 17 / 0.06);
+  --sans: "Inter", "Inter Variable", -apple-system, system-ui, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --canvas: #08090a; --panel: #0f1011; --frame: #101112; --edge: rgb(255 255 255 / 0.08); --edge-strong: rgb(255 255 255 / 0.12);
+  --text: #f7f8f8; --body: #d0d6e0; --muted: #8a8f98; --faint: #62666d;
+  --pill: #e5e5e6; --on-pill: #08090a; --run: #7cb7ff; --hi: #d4a650; --hi-wash: rgb(212 166 80 / 0.12); --on-hi: #08090a;
+  --apex: #ff6a2b; --ink-line: rgb(255 255 255 / 0.20); --ink-line-strong: rgb(255 255 255 / 0.55); --glow: rgb(255 255 255 / 0.04);
+  --shadow: 0 2px 32px rgb(0 0 0 / 0.25); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --canvas: #08090a; --panel: #0f1011; --frame: #101112; --edge: rgb(255 255 255 / 0.08); --edge-strong: rgb(255 255 255 / 0.12);
+  --text: #f7f8f8; --body: #d0d6e0; --muted: #8a8f98; --faint: #62666d;
+  --pill: #e5e5e6; --on-pill: #08090a; --run: #7cb7ff; --hi: #d4a650; --hi-wash: rgb(212 166 80 / 0.12); --on-hi: #08090a;
+  --apex: #ff6a2b; --ink-line: rgb(255 255 255 / 0.20); --ink-line-strong: rgb(255 255 255 / 0.55); --glow: rgb(255 255 255 / 0.04);
+  --shadow: 0 2px 32px rgb(0 0 0 / 0.25); color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--canvas); color: var(--text); font: 400 15px/1.6 var(--sans); letter-spacing: -0.011em; font-feature-settings: "cv01", "ss03"; }
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }
+
+/* Review strip (mockup only) */
+.review { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); border-bottom: 1px solid var(--edge); font-size: 13px; color: var(--muted); }
+.review .seg { display: inline-flex; gap: 4px; }
+.review button { font: 510 13px/32px var(--sans); height: 32px; padding: 0 12px; border-radius: 9999px; border: 1px solid var(--edge-strong); background: transparent; color: var(--text); cursor: pointer; }
+.review button[aria-pressed="true"] { background: var(--pill); color: var(--on-pill); border-color: var(--pill); }
+
+.shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: calc(100% - 49px); }
+
+/* Sidebar: one identity line, one search, one list of places. */
+.side { border-right: 1px solid var(--edge); padding: 20px 12px; display: flex; flex-direction: column; gap: 18px; background: var(--canvas); }
+.brand { display: flex; align-items: center; padding: 4px 8px; color: var(--text); }
+.brand svg { height: 24px; width: auto; }
+.search { display: flex; align-items: center; justify-content: space-between; height: 32px; padding: 0 10px 0 12px; border-radius: 9999px; border: 1px solid var(--edge-strong); color: var(--muted); font-size: 13px; }
+.search kbd { font: 400 11px var(--mono); color: var(--faint); }
+.nav { display: grid; gap: 1px; }
+.nav-label { font: 510 12px/1.5 var(--sans); color: var(--faint); padding: 10px 8px 4px; }
+.nav a { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; font-size: 13px; color: var(--body); }
+.nav a:hover { background: var(--frame); }
+.nav a.active { background: var(--frame); color: var(--text); font-weight: 510; box-shadow: inset 0 0 0 1px var(--edge); }
+.nav svg { width: 16px; height: 16px; flex: none; color: var(--muted); }
+.nav .count { margin-left: auto; min-width: 22px; padding: 0 6px; border-radius: 2px; background: var(--hi); color: var(--on-hi); font: 510 11px/18px var(--sans); text-align: center; }
+.nav .state { margin-left: auto; width: 6px; height: 6px; flex: none; }
+.state-now { background: var(--run); } .state-wait { background: var(--hi); }
+.side-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 8px 0; border-top: 1px solid var(--edge); font-size: 13px; }
+.who { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.avatar { width: 24px; height: 24px; border-radius: 9999px; background: var(--frame); box-shadow: inset 0 0 0 1px var(--edge-strong); display: grid; place-items: center; font: 510 11px var(--sans); color: var(--muted); flex: none; }
+.who span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.who small { color: var(--faint); font-size: 12px; }
+.theme-btn { width: 28px; height: 28px; border-radius: 9999px; border: 1px solid var(--edge-strong); background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+
+/* Main */
+.main { min-width: 0; padding: 72px 64px 96px; }
+.status { max-width: 1120px; }
+.status h1 { margin: 0; font: 510 48px/1 var(--sans); letter-spacing: -0.022em; color: var(--text); text-wrap: balance; }
+.status h1 a { display: inline-flex; align-items: baseline; gap: 12px; color: var(--hi); }
+.status h1 a span { font-size: 0.6em; transition: transform .16s; }
+.status h1 a:hover span { transform: translateX(4px); }
+.status p { margin: 16px 0 0; color: var(--muted); font-size: 15px; }
+.status p b { font-weight: 510; color: var(--body); }
+.status p a { color: var(--body); text-decoration: underline; text-decoration-color: var(--edge-strong); text-underline-offset: 3px; }
+.status .tick { display: inline-block; width: 6px; height: 6px; background: var(--run); margin: 0 6px 1px 0; }
+
+.cards { margin-top: 56px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px; max-width: 1120px; }
+.card { grid-column: span 2; position: relative; display: flex; flex-direction: column; min-width: 0; background: var(--panel); border: 0.5px solid var(--edge-strong); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; transition: border-color .16s, transform .16s; }
+.card:nth-child(n+4) { grid-column: span 3; }
+.card:hover { border-color: var(--ink-line); }
+.card:active { transform: scale(0.995); }
+.fig { position: relative; height: 200px; display: grid; place-items: end center; padding-bottom: 10px; background: var(--frame); border-bottom: 0.5px solid var(--edge); overflow: hidden; }
+.fig::before { content: ""; position: absolute; width: 360px; height: 360px; border-radius: 50%; background: radial-gradient(circle, var(--glow) 0%, transparent 60%); }
+.fig svg { position: relative; width: 190px; height: 148px; overflow: visible; }
+.fig .cap { position: absolute; left: 16px; top: 12px; font: 400 11px/1.4 var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--faint); }
+.body { padding: 20px 24px 22px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.body h2 { margin: 0; font: 510 20px/1.2 var(--sans); letter-spacing: -0.018em; }
+.body p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+.line { margin-top: auto; padding-top: 14px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--body); }
+.track { display: inline-flex; gap: 3px; }
+.track i { width: 8px; height: 8px; box-shadow: inset 0 0 0 1px var(--ink-line); }
+.track i.done { background: var(--text); box-shadow: none; }
+.track i.now { background: var(--run); box-shadow: none; }
+.track i.wait { background: var(--hi); box-shadow: none; }
+.line .word { font-weight: 510; }
+.line .wait-word { color: var(--hi); }
+.line .now-word { color: var(--run); }
+.line .quiet { color: var(--muted); }
+.card.awaits { border-color: color-mix(in srgb, var(--hi) 55%, transparent); }
+
+/* Wireframe drawing strokes */
+.w { fill: var(--panel); stroke: var(--ink-line); stroke-width: 1; stroke-linejoin: round; }
+.w.top { stroke: var(--ink-line-strong); }
+.w.hi { stroke: var(--hi); }
+.w.hi-fill { fill: var(--hi-wash); stroke: var(--hi); }
+.w.run { stroke: var(--run); }
+
+.notes { max-width: 1120px; margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--edge); display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; font-size: 13px; color: var(--muted); }
+.notes h3 { margin: 0 0 6px; font: 510 13px/1.5 var(--sans); color: var(--text); }
+.notes ul { margin: 0; padding-left: 16px; }
+.notes .k { font: 400 11px var(--mono); text-transform: uppercase; letter-spacing: .04em; color: var(--faint); display: block; margin-bottom: 6px; }
+
+@media (max-width: 1100px) { .card, .card:nth-child(n+4) { grid-column: span 3; } }
+@media (max-width: 760px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .side { display: none; }
+  .main { padding: 40px max(16px, env(safe-area-inset-right, 0px)) 64px max(16px, env(safe-area-inset-left, 0px)); }
+  .status h1 { font-size: 32px; }
+  .cards { grid-template-columns: minmax(0, 1fr); }
+  .card, .card:nth-child(n+4) { grid-column: auto; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+/* No-sidebar start page: a slim top bar replaces it; the content centres. */
+.page { min-height: calc(100% - 49px); }
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; display: grid; grid-template-columns: 1fr minmax(0, 480px) 1fr; align-items: center; gap: 16px; height: 60px;
+  padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px));
+  background: color-mix(in srgb, var(--canvas) 82%, transparent); backdrop-filter: blur(16px); border-bottom: 1px solid var(--edge); }
+.top .brand { display: flex; color: var(--text); padding: 0; }
+.top .brand svg { height: 22px; width: auto; }
+.top .search { width: 100%; font: 400 13px var(--sans); background: transparent; cursor: text; text-align: left; height: 34px; }
+.top-links { justify-self: end; display: flex; align-items: center; gap: 18px; position: relative; font-size: 13px; color: var(--body); }
+.top-links > a:hover { color: var(--text); }
+.queue { display: inline-flex; align-items: center; gap: 8px; }
+.queue .count { min-width: 22px; padding: 0 6px; border-radius: 2px; background: var(--hi); color: var(--on-hi); font: 510 11px/18px var(--sans); text-align: center; }
+.me { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px 0 4px; border-radius: 9999px; border: 1px solid var(--edge-strong); background: transparent; color: var(--text); font: 510 13px var(--sans); cursor: pointer; }
+.menu { position: absolute; right: 0; top: 44px; width: 280px; padding: 6px; border-radius: 12px; background: var(--panel); border: 0.5px solid var(--edge-strong); box-shadow: var(--shadow); display: grid; gap: 2px; }
+.menu a, .menu-theme { padding: 8px 10px; border-radius: 6px; font-size: 13px; color: var(--body); }
+.menu a:hover { background: var(--frame); }
+.menu[hidden] { display: none; }
+.menu-head { padding: 10px 10px 8px; border-bottom: 1px solid var(--edge); margin-bottom: 4px; display: grid; gap: 2px; }
+.menu-head b { font-weight: 510; color: var(--text); } .menu-head small { color: var(--muted); font-size: 12px; }
+.menu-theme { display: flex; align-items: center; justify-content: space-between; }
+.menu-theme .seg { display: inline-flex; border: 1px solid var(--edge-strong); border-radius: 9999px; overflow: hidden; }
+.menu-theme button { font: 510 12px var(--sans); border: 0; background: transparent; color: var(--muted); padding: 3px 9px; cursor: pointer; }
+.menu-theme button[aria-pressed="true"] { background: var(--pill); color: var(--on-pill); }
+.main { max-width: 1248px; margin: 0 auto; padding: 72px 64px 96px; }
+.status, .cards, .notes { max-width: none; }
+.cards { gap: 20px; }
+.fig { height: 220px; }
+@media (max-width: 760px) {
+  .top { grid-template-columns: auto 1fr; }
+  .top .search { display: none; }
+  .me-name { display: none; }
+  .main { padding: 40px max(16px, env(safe-area-inset-right, 0px)) 64px max(16px, env(safe-area-inset-left, 0px)); }
+}
+</style>
+
+<div class="review" role="region" aria-label="Mockup controls">
+  <span>Start page without sidebar (mockup) · seeded test data · click "dev" for the user menu</span>
+  <span class="seg" role="group" aria-label="Theme"><button type="button" id="t-light" aria-pressed="false">Light</button><button type="button" id="t-dark" aria-pressed="true">Dark</button></span>
+</div>
+
+<div class="page">
+<header class="top" role="banner">
+  <a class="brand" href="#" aria-label="ARP start"><svg id="lockup" viewBox="0 0 206 62" role="img" aria-label="ARP"></svg></a>
+  <button class="search" type="button" aria-keyshortcuts="Meta+K">Search, jump to or ask ARP… <kbd>⌘K</kbd></button>
+  <nav class="top-links" aria-label="Main">
+    <a class="queue" href="#">Review queue <span class="count">15</span></a>
+    <a href="#">Reports</a>
+    <button class="me" type="button" aria-expanded="false" aria-controls="menu" id="me"><span class="avatar">D</span><span class="me-name">dev</span><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M1 3h8L5 7.5z"/></svg></button>
+    <div class="menu" id="menu" hidden>
+      <div class="menu-head"><b>Reviewing as dev</b><small>approver · decisions are signed with this name</small></div>
+      <a href="#">Change name</a>
+      <div class="menu-theme"><span>Theme</span><span class="seg"><button type="button" data-th="system">System</button><button type="button" data-th="light">Light</button><button type="button" data-th="dark">Dark</button></span></div>
+      <a href="#">Arcade</a>
+      <a href="#">Sign out</a>
+    </div>
+  </nav>
+</header>
+
+
+  <main class="main">
+    <header class="status">
+      <h1>Good morning, dev.</h1>
+    </header>
+
+    <section class="cards" aria-label="Workspaces" id="cards"></section>
+
+    <section class="notes" aria-label="What moved where">
+      <div><span class="k">Sidebar item</span><h3>Where it lives now</h3><ul>
+        <li>Start: the logo in the top bar.</li>
+        <li>Review queue (15): a top-bar link with its amber count.</li>
+        <li>Running runs: each card says "Running" in words.</li>
+        <li>The five workspaces and their status dots: the cards.</li>
+        <li>Reports: a top-bar link.</li></ul></div>
+      <div><span class="k">Sidebar item</span><h3>Into the search and the menu</h3><ul>
+        <li>"Jump to…" and "Ask ARP": the search field (⌘K).</li>
+        <li>"Reviewing as" and the name field, the signed-in role and the theme switch: the user menu (click "dev").</li>
+        <li>Arcade: the user menu.</li></ul></div>
+      <div><span class="k">Other pages</span><h3>Keep the sidebar</h3><ul>
+        <li>Opening a card shows the usual sidebar; "Start" there returns here.</li>
+        <li>The top bar's height matches the sidebar brand row, so the logo stays in place when you move between the two.</li></ul></div>
+    </section>
+  </main>
+</div>
+
+<script>
+// ARP lockup (ink + brand-orange apex), from docs/brand/arp-lockup.svg.
+const A = [".X.X.", "X...X", "XXXXX", "X...X", "X...X"], R = ["XXXX.", "X...X", "XXXX.", "X..X.", "X...X"], P = ["XXXX.", "X...X", "XXXX.", "X....", "X...."];
+let d = "";
+[[0, A], [6, R], [12, P]].forEach(([o, L]) => L.forEach((row, y) => [...row].forEach((c, x) => { if (c === "X") d += `M${2 + 12 * (o + x)} ${2 + 12 * y}h10v10h-10z`; })));
+document.getElementById("lockup").innerHTML = `<path fill="currentColor" d="${d}"/><rect x="26" y="2" width="10" height="10" fill="var(--apex)"/>`;
+
+// Isometric wireframe primitives (original drawings; 30° projection, 1px strokes, faces in the panel colour).
+const C = Math.cos(Math.PI / 6), S = 0.5, OX = 100, OY = 112;
+const pt = (x, y, z) => [OX + (x - y) * C, OY + (x + y) * S - z];
+const poly = (pts, cls) => `<polygon class="w ${cls || ""}" points="${pts.map((p) => p.map((v) => v.toFixed(1)).join(",")).join(" ")}"/>`;
+function box(x, y, z, w, dd, h, cls = "", topCls = "top") {
+  const t = [pt(x, y, z + h), pt(x + w, y, z + h), pt(x + w, y + dd, z + h), pt(x, y + dd, z + h)];
+  const left = [pt(x, y + dd, z), pt(x + w, y + dd, z), pt(x + w, y + dd, z + h), pt(x, y + dd, z + h)];
+  const right = [pt(x + w, y, z), pt(x + w, y + dd, z), pt(x + w, y + dd, z + h), pt(x + w, y, z + h)];
+  return poly(left, cls) + poly(right, cls) + poly(t, `${cls} ${topCls}`);
+}
+function disc(cx, cy, z, r, h, cls = "") {
+  // Cylinder slice: ellipse top over a curved side.
+  const [x, y] = pt(cx, cy, z), rx = r * 1.22, ry = r * 0.7;
+  return `<path class="w ${cls}" d="M${x - rx} ${y - h} L${x - rx} ${y} A${rx} ${ry} 0 0 0 ${x + rx} ${y} L${x + rx} ${y - h}"/>` +
+    `<ellipse class="w top ${cls}" cx="${x}" cy="${y - h}" rx="${rx}" ry="${ry}"/>`;
+}
+const DRAW = {
+  // StewardIQ: a ledger of stacked slabs (positions and votes); the slab awaiting a decision is amber.
+  steward: (aw) => { let s = ""; for (let i = 0; i < 7; i++) s += box(-46, -30, i * 9, 92, 60, 4); s += box(-46, -30, 66, 92, 60, 4, aw ? "hi-fill" : "", aw ? "hi" : "top"); return s; },
+  // Argus: a document slab with extracted data points rising off it, one still being read.
+  argus: () => { let s = box(-58, -44, 0, 116, 88, 6); const hs = [18, 30, 12, 40, 22, 26, 14, 34, 20]; let k = 0;
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { s += box(-44 + i * 32, -30 + j * 24, 6, 16, 14, hs[k], k === 4 ? "run" : ""); k++; } return s; },
+  // Transition Intel: a rising fin array, a pathway over time.
+  transition: () => { let s = ""; for (let i = 0; i < 8; i++) s += box(-64 + i * 16, -14, 0, 6, 34, 14 + i * 9); return s; },
+  // R&D Lab: grouped cuboids of different heights, experiments side by side.
+  lab: () => box(-56, -18, 0, 36, 36, 34, "run") + box(-12, -40, 0, 30, 30, 66) + box(20, 4, 0, 40, 40, 18) + box(-8, 14, 0, 22, 22, 46),
+  // Data Hub: a store of stacked discs.
+  data: () => { let s = ""; for (let i = 0; i < 4; i++) s += disc(0, 0, i * 20, 44, 14); return s; },
+};
+
+const CARDS = [
+  { id: "steward", fig: "Fig 01 · 3 processes", name: "StewardIQ", purpose: "Engage companies, vote, and track what they commit to.", steps: ["done", "wait", "idle"], state: "wait", word: "Waiting on you", detail: "Proxy season", awaits: true },
+  { id: "argus", fig: "Fig 02 · 2 processes", name: "Argus", purpose: "Extract cited data points from disclosures and score them.", steps: ["now", "idle"], state: "now", word: "Running", detail: "Extract and score" },
+  { id: "transition", fig: "Fig 03 · 2 processes", name: "Transition Intel", purpose: "Monitor holdings and assess climate and transition risk.", steps: ["idle", "idle"], state: "idle", word: "No runs yet", detail: "" },
+  { id: "lab", fig: "Fig 04 · 4 processes", name: "R&D Lab", purpose: "Spot themes, test strategies and turn them into indices.", steps: ["now", "idle", "idle", "idle"], state: "now", word: "Running", detail: "Launch a thematic product" },
+  { id: "data", fig: "Fig 05 · 1 process", name: "Data Hub", purpose: "Input feeds, stored data and the security master.", steps: ["idle"], state: "idle", word: "No runs yet", detail: "" },
+];
+document.getElementById("cards").innerHTML = CARDS.map((c) => `
+  <a class="card${c.awaits ? " awaits" : ""}" href="#" aria-label="${c.name}. ${c.word}${c.detail ? ": " + c.detail : ""}">
+    <div class="fig"><span class="cap">${c.fig}</span><svg viewBox="0 0 200 156" aria-hidden="true">${DRAW[c.id](c.awaits)}</svg></div>
+    <div class="body">
+      <h2>${c.name}</h2>
+      <p>${c.purpose}</p>
+      <div class="line"><span class="track" aria-hidden="true">${c.steps.map((s) => `<i class="${s}"></i>`).join("")}</span>
+        <span><span class="word ${c.state === "wait" ? "wait-word" : c.state === "now" ? "now-word" : "quiet"}">${c.word}</span>${c.detail ? ` <span class="quiet">· ${c.detail}</span>` : ""}</span></div>
+    </div>
+  </a>`).join("");
+
+// Theme controls (mockup only).
+const root = document.documentElement, $l = document.getElementById("t-light"), $d = document.getElementById("t-dark");
+const set = (m) => { root.dataset.theme = m; $l.setAttribute("aria-pressed", m === "light"); $d.setAttribute("aria-pressed", m === "dark"); document.querySelectorAll("[data-th]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.th === m)); };
+$l.onclick = () => set("light"); $d.onclick = () => set("dark");
+const me = document.getElementById("me"), menu = document.getElementById("menu");
+me.onclick = () => { menu.hidden = !menu.hidden; me.setAttribute("aria-expanded", !menu.hidden); };
+document.querySelectorAll("[data-th]").forEach((b) => b.onclick = () => set(b.dataset.th === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : b.dataset.th));
+set("dark");
+</script>

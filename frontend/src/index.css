@@ -1707,83 +1707,76 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .hub-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-6) var(--s-8); flex-wrap: wrap; margin: var(--s-4) 0 var(--s-8); }
 .hub-start .hub-hero h1 { margin: 0; max-width: 24ch; font-size: clamp(2rem, 1.2rem + 2.4vw, 3.25rem); line-height: 1.02; font-weight: 600; letter-spacing: -0.035em; text-wrap: balance; }
 .hub-hero-greet { display: block; color: var(--muted); }
-.hub-stats { display: flex; gap: var(--s-4) var(--s-8); flex-wrap: wrap; margin: 0; }
-.hub-stats > div { display: flex; flex-direction: column; gap: var(--s-0_5); white-space: nowrap; }
-.hub-stats dt { order: 2; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); }
-.hub-stats dd { order: 1; margin: 0; font-size: 2.5rem; font-weight: 500; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.hub-stats .you dd { color: var(--hi); }
-.hub-stats .failed dd { color: var(--low); }
-
-.hub-cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s-4); }
+.hub-cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px; }
 .hub-card {
+  grid-column: span 2; min-width: 0; overflow: hidden;
   border-radius: var(--r-lg);
-  display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-6) var(--s-6) var(--s-4);
+  display: flex; flex-direction: column;
   border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none;
   transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
+.hub-card:nth-child(n+4) { grid-column: span 3; }
 .hub-card:hover { border-color: var(--text); transform: translateY(-2px); }
 .hub-card:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .hub-card, .hub-card:hover { transition: none; transform: none; } }
-.hub-ico { display: block; color: var(--text); }
-.hub-ico .hi-fill { fill: currentColor; }
-.hub-card-await .hub-ico .hi { stroke: var(--hi); }
-.hub-card-await .hub-ico .hi-fill { fill: var(--hi); stroke: var(--hi); }
-.hub-card-text { display: flex; flex-direction: column; gap: var(--s-2); }
-.hub-card-name { min-height: 2lh; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; font-size: 1.5rem; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; }
-/* Three lines at most: the longest purpose set every card's height and pushed Now below the fold. */
-.hub-card-purpose { color: var(--muted); line-height: 1.45; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
-.hub-card-now { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--muted); min-height: 1.4em; }
-.hub-card-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--s-2); font-family: var(--font-mono); font-size: var(--text-sm); }
+.hub-card-await { border-color: var(--await-edge); }
+/* The figure: a wireframe drawing of the workspace, captioned like a plate in a manual. */
+.hub-card-fig { position: relative; display: grid; place-items: end center; min-height: 200px; padding: var(--s-8) var(--s-4) var(--s-2); border-bottom: 1px solid var(--panel-border); background: var(--bg); }
+.hub-card-cap { position: absolute; left: var(--s-4); top: var(--s-3); font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.ws-drawing { display: block; width: 190px; height: 148px; overflow: visible; }
+.ws-drawing path { stroke-width: 1px; stroke: color-mix(in srgb, var(--text) 25%, transparent); stroke-linejoin: round; }
+.ws-face { fill: var(--panel); }
+.ws-top { fill: var(--panel); }
+.ws-drawing .ws-accent-wait { stroke: var(--hi); }
+.ws-drawing .ws-accent-now { stroke: var(--run); }
+.hub-card-body { display: flex; flex-direction: column; gap: var(--s-2); flex: 1; padding: 20px var(--s-6); }
+.hub-card-name { font-size: 1.25rem; font-weight: 600; line-height: 1.2; letter-spacing: -0.018em; }
+.hub-card-purpose { color: var(--muted); line-height: 1.55; }
+/* One status line: a mark per process, then the state in words. */
+.hub-card-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) 10px; margin-top: auto; padding-top: var(--s-3); font-size: var(--text-sm); font-weight: 500; }
+.hub-marks { display: inline-flex; gap: 3px; }
+.hub-mark { display: inline-block; width: 8px; height: 8px; }
+.hub-mark-done { background: var(--text); }
+.hub-mark-now { background: var(--run); }
+.hub-mark-wait { background: var(--hi); }
+.hub-mark-failed { background: var(--low); }
+.hub-mark-idle { box-shadow: inset 0 0 0 1px var(--muted); }
+.hub-mark-unknown { outline: 1px dashed var(--muted); outline-offset: -1px; }
+.hub-status-wait { color: var(--hi-ink); }
+.hub-status-now { color: var(--run); }
+.hub-status-failed { color: var(--low); }
+.hub-status-done { color: var(--muted); }
+.hub-status-idle { color: var(--muted); }
+.hub-status-unknown { color: var(--muted); }
+.hub-status-detail { font-weight: 400; color: var(--muted); }
 
-/* A process's steps as dots on a line: ink for done, a ring for running,
-   the highlight for waiting on a person, a red diamond for failed. */
-.hub-dots { list-style: none; display: flex; align-items: center; margin: auto 0 0; padding: 0; }
-.hub-dots li { display: flex; align-items: center; flex: 1 1 0; }
-.hub-dots li:first-child { flex: 0 0 auto; }
-.hub-dots li + li::before { content: ""; flex: 1; height: 2px; background: var(--text); }
+/* Process steps as dots, on the workspace pages. The `.hub-dots li` selectors are no longer used; kept
+   verbatim so the amber lines match main (nightDeskTokens ac13). */
 .hub-dots li::after, .hub-dot { content: ""; flex-shrink: 0; width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; display: inline-block; }
 .hub-dots li.hub-dot-done::after, .hub-dot.hub-dot-done { background: var(--text); }
 .hub-dots li.hub-dot-now::after, .hub-dot.hub-dot-now { border: 3px solid var(--text); }
 .hub-dots li.hub-dot-wait::after, .hub-dot.hub-dot-wait { background: var(--hi); box-shadow: 0 0 0 5px color-mix(in srgb, var(--hi) 22%, transparent); }
 .hub-dots li.hub-dot-failed::after, .hub-dot.hub-dot-failed { background: var(--low); border-radius: var(--r-sm); transform: rotate(45deg); width: 11px; height: 11px; }
 .hub-dots li.hub-dot-idle::after, .hub-dot.hub-dot-idle { border: 2px solid var(--panel-border); }
-.hub-dots li.hub-dot-idle::before, .hub-dots li.hub-dot-failed::before { background: var(--panel-border); }
-/* Unknown (no runs loaded): a dashed ring, so it never reads as "no activity". */
-.hub-dots li.hub-dot-unknown::after { border: 2px dashed var(--muted); }
-.hub-dots li.hub-dot-unknown::before { background: var(--panel-border); }
 
-.hub-now { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); margin-top: var(--s-8); }
 .hub-now-label { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-right: var(--s-2); }
 .hub-chip { text-transform: none; display: inline-flex; align-items: center; gap: var(--s-2); min-height: 40px; padding: 0 var(--s-3); border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none; font-family: var(--font-mono); font-size: var(--text-sm); }
 .hub-chip:hover { border-color: var(--text); }
-.hub-chip-id { color: var(--muted); white-space: nowrap; }
 .hub-chip:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .hub-chip-wait { border-color: var(--hi); }
 
-/* Below 1400px the purpose line repeats the sidebar; drop it so the cards stop owning the fold. */
-/* Five across, the bottom lines wrap unevenly; reserve two lines each so every card's dots sit on one row. */
-@media (min-width: 1401px) { .hub-card-now { display: block; min-height: 2lh; } }
-/* Five cards never leave an empty cell: 3 + 2 on a six-column grid, then 2 + 2 + 1 with the last one full width. */
-@media (max-width: 1400px) { .hub-cards { grid-template-columns: repeat(6, minmax(0, 1fr)); } .hub-card { grid-column: span 2; } .hub-card:nth-child(n+4) { grid-column: span 3; } .hub-card-purpose { display: none; } .hub-card { min-height: 0; } }
-@media (max-width: 1100px) { .hub-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .hub-card, .hub-card:nth-child(n+4) { grid-column: auto; } .hub-card:last-child:nth-child(odd) { grid-column: 1 / -1; } }
+@media (max-width: 1100px) {
+  .hub-card, .hub-card:nth-child(n+4) { grid-column: span 3; }
+}
+@media (max-width: 760px) {
+  .hub-cards { grid-template-columns: minmax(0, 1fr); }
+  .hub-card, .hub-card:nth-child(n+4) { grid-column: auto; }
+}
 @media (max-width: 640px) {
-  .hub-cards { grid-template-columns: 1fr; }
-  .hub-card { min-height: 0; }
-  .hub-card { gap: var(--s-2); }
-  .hub-card .hub-ico { width: 28px; height: 28px; }
-  .hub-card-name { min-height: 0; font-size: 1.25rem; }
-  .hub-card:last-child:nth-child(odd) { grid-column: auto; }
-  .hub-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
-  .hub-stats dd { font-size: 2rem; }
   /* The chip's three parts wrap as words on a phone, not as three ragged columns. */
   .hub-chip { display: flex; flex-wrap: wrap; column-gap: var(--s-1_5); padding: var(--s-2) var(--s-3); }
 }
 
-.hub-legend { display: flex; flex-wrap: wrap; gap: var(--s-1_5) var(--s-4); font-size: var(--text-xs); margin: var(--s-3) 0 0; }
-.hub-legend > span { display: inline-flex; align-items: center; gap: var(--s-1_5); }
-
-.hub-counts { margin-top: var(--s-2); max-width: 60ch; font-size: var(--text-sm); color: var(--muted); }
-.hub-counts summary { cursor: pointer; color: var(--text); width: fit-content; }
 .hub-run { margin: 0 0 var(--s-3); }
 /* On a phone the note goes under the button instead of wrapping around it. */
 @media (max-width: 640px) { .hub-run > .muted { display: block; margin-top: var(--s-2); } }
@@ -1831,9 +1824,6 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 @media (max-width: 900px) {
   .hub-flow { flex-direction: column; }
   .hub-flow-item + .hub-flow-item::before { left: 50%; top: -16px; width: 2px; height: 14px; }
-}
-@media (max-width: 480px) {
-  .hub-card { padding: var(--s-4); }
 }
 
 /* Sidebar colour-theme switch: System / Light / Dark. */
@@ -2427,14 +2417,6 @@ a.vc-box:hover { border-color: var(--text); }
 .source-excerpt-ctx:last-child { display: block; margin-top: var(--s-1); }
 .source-excerpt-page mark { background: var(--await); color: inherit; padding: 0 2px; box-shadow: inset 0 -2px var(--await-edge); }
 
-/* Night Desk release 4: the start page's waiting link sits right above the cards. */
-.hub-waiting { display: block; width: max-content; max-width: 100%; margin: 0 0 var(--s-3); color: var(--hi-ink); font-size: var(--text-md); font-weight: 500; text-decoration: none; }
-.hub-waiting-quiet { color: var(--muted); }
-.hub-card-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--panel-border); border-radius: var(--r-md); background: var(--bg); }
-.hub-card-await .hub-card-icon { border-color: var(--await-edge); }
-.hub-card-foot { border-top: 1px solid var(--panel-border); padding-top: var(--s-2); }
-.hub-card-icon .hub-ico { width: 26px; height: 26px; }
-
 /* Night Desk release 5: the landing page. Text sits on a gradient so it reads over the dots. */
 .landing { position: fixed; inset: 0; overflow: hidden; background: var(--bg); color: var(--text); display: grid; grid-template-rows: auto 1fr auto; }
 .landing-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -2465,3 +2447,47 @@ a.vc-box:hover { border-color: var(--text); }
 .focus-target:focus { outline: none; }
 .page button.secondary[aria-disabled="true"] { opacity: 0.6; cursor: not-allowed; }
 .page select[aria-disabled="true"] { opacity: 0.6; cursor: progress; }
+
+/* Start page simplified (docs/superpowers/specs/2026-11-15-start-page-simplified-design.md):
+   on #/home a top bar replaces the sidebar; the lockup sits where the landing header puts it. */
+.app-shell-start { flex-direction: column; }
+.app-shell-start .app-main { width: 100%; max-width: 1248px; margin: 0 auto; padding: var(--s-12) var(--s-8) 80px; }
+.start-topbar { position: sticky; top: 0; z-index: 50; display: grid; grid-template-columns: 1fr minmax(0, 480px) 1fr; align-items: center; gap: var(--s-4); height: 76px; padding: 0 max(var(--s-8), env(safe-area-inset-right, 0px)) 0 max(var(--s-8), env(safe-area-inset-left, 0px)); background: var(--bg); border-bottom: 1px solid var(--panel-border); }
+.start-topbar-brand { display: flex; color: var(--text); justify-self: start; }
+.start-topbar-lockup { height: 28px; width: auto; display: block; }
+.start-topbar-search, .start-topbar-ask, .start-topbar-me { margin: 0; font: inherit; cursor: pointer; }
+.start-topbar-search { display: flex; align-items: center; gap: var(--s-2); width: 100%; height: 36px; padding: 0 var(--s-3); border: 1px solid var(--panel-border); border-radius: var(--r-pill); background: var(--panel); color: var(--muted); font-size: var(--text-sm); text-align: left; }
+.start-topbar-search-label { flex: 1; }
+.start-topbar-search:hover:not(:disabled), .start-topbar-ask:hover:not(:disabled) { background: var(--well); color: var(--text); }
+.start-topbar kbd { white-space: nowrap; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); }
+.start-topbar-end { justify-self: end; display: flex; align-items: center; gap: var(--s-4); }
+.start-topbar-ask { white-space: nowrap; display: inline-flex; align-items: center; gap: var(--s-2); height: 36px; padding: 0 var(--s-3); border: 1px solid var(--panel-border); border-radius: var(--r-pill); background: transparent; color: var(--text); font-size: var(--text-sm); font-weight: 500; }
+.start-topbar-nav { display: flex; align-items: center; gap: var(--s-4); font-size: var(--text-sm); }
+.start-topbar-nav > a { display: inline-flex; min-height: 36px; align-items: center; gap: var(--s-2); color: var(--text); text-decoration: none; white-space: nowrap; }
+.start-topbar-nav > a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.start-topbar-nav .nav-count { margin-left: 0; }
+.start-topbar-user { position: relative; }
+.start-topbar-me { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--panel-border); border-radius: var(--r-pill); background: var(--panel); color: var(--text); }
+.start-topbar-me:hover:not(:disabled) { background: var(--well); }
+.start-topbar-avatar { font-size: var(--text-sm); font-weight: 600; }
+.start-topbar-pop { position: absolute; right: 0; top: 46px; z-index: 60; display: grid; gap: var(--s-3); width: 300px; max-width: calc(100vw - 32px); padding: var(--s-4); background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-lg); box-shadow: var(--shadow-md); overflow-wrap: anywhere; }
+.start-topbar-pop[hidden] { display: none; }
+.start-topbar-pop .theme-switch { margin: 0; }
+.start-topbar-pop > a { color: var(--text); font-size: var(--text-sm); }
+@media (max-width: 760px) {
+  /* Two rows on a phone: lockup and search, then Ask, the nav and the user menu. */
+  .start-topbar { display: flex; flex-wrap: wrap; row-gap: var(--s-3); height: auto; padding: var(--s-3) max(var(--s-4), env(safe-area-inset-right, 0px)) var(--s-3) max(var(--s-4), env(safe-area-inset-left, 0px)); }
+  .start-topbar-brand { margin-right: auto; }
+  .start-topbar-search { width: auto; }
+  /* Icon and hint only; the label stays in the accessible name. */
+  .start-topbar-search-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  /* Both rows wrap rather than push a narrow phone sideways (a Review Queue badge widens row two). */
+  .start-topbar-end, .start-topbar-nav { flex-wrap: wrap; row-gap: var(--s-1); }
+  .start-topbar-end { width: 100%; justify-content: space-between; }
+  /* Thumb-sized controls on a phone. */
+  .start-topbar-search, .start-topbar-ask, .start-topbar-nav > a { min-height: 44px; }
+  .start-topbar-me { width: 44px; height: 44px; }
+  .start-topbar-ask kbd { display: none; }
+  .start-topbar-end, .start-topbar-nav { gap: var(--s-3); }
+  .app-shell-start .app-main { padding: var(--s-8) var(--s-4) 64px; }
+}
