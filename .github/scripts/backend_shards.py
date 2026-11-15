@@ -7,9 +7,12 @@ ids that ran) and `collected.txt` (raw `pytest --collect-only -q` output). Print
 not exactly the collected list.
 
 Usage: python3 backend_shards.py N DIR     (DIR/<any>/ran.txt and DIR/<any>/collected.txt)
+       python3 backend_shards.py --times DIR > .github/scripts/backend_test_times.json
+                                         (merge the shards' DIR/<any>/times.json, to rebalance the split)
        python3 backend_shards.py --selftest
 """
 
+import json
 import re
 import sys
 import tempfile
@@ -113,8 +116,17 @@ def selftest() -> None:
     print("selftest ok")
 
 
+def merge_times(root: Path) -> str:
+    times = {}
+    for p in sorted(root.glob("*/times.json")):
+        times.update(json.loads(p.read_text()))
+    return json.dumps(dict(sorted(times.items())), indent=0) + "\n"
+
+
 if __name__ == "__main__":
     if sys.argv[1:] == ["--selftest"]:
         selftest()
+    elif sys.argv[1] == "--times":
+        sys.stdout.write(merge_times(Path(sys.argv[2])))
     else:
         sys.exit(main(int(sys.argv[1]), Path(sys.argv[2])))
