@@ -44,7 +44,7 @@ SAMPLE_PATH = DATA / "examples" / "sample_meetings.json"
 HOUSE = "house"
 
 
-def vote_items(runs_dir: Path | None = None, house_issuers: list[dict] | None = None) -> list[dict]:
+def vote_items(runs_dir: Path | None = None, house_issuers: list[dict] | None = None, held: dict | None = None) -> list[dict]:
     """Every ballot item from the Proxy Voting runs (see voting_feed) plus the vote ledger's decisions (vote_ledger_feed).
     `house_issuers`: the house universe's issuers, when the caller already has them."""
     from arp.config import get_settings
@@ -53,7 +53,7 @@ def vote_items(runs_dir: Path | None = None, house_issuers: list[dict] | None = 
         runs_dir = get_settings().runs_dir
     settings = get_settings()
     dsn = require_dsn(settings)
-    ledger = vote_ledger_feed.ledger_rows(dsn, settings.vote_monitoring_window_days, house_issuers)
+    ledger = vote_ledger_feed.ledger_rows(dsn, settings.vote_monitoring_window_days, house_issuers, held)
     seen = {(r["run_id"], r["company_id"], r["item"]) for r in ledger if r["run_id"] is not None}
     runs = [r for r in voting_feed.items(RunStore(dsn, runs_dir)) if (r["run_id"], r["company_id"], r["item"]) not in seen]
     return runs + ledger
@@ -68,7 +68,7 @@ def portfolio_alerts() -> list:
     return list_alerts(build_portfolio_store(get_settings()))
 
 
-def house_universe(observations: dict | None = None) -> dict:
+def house_universe(observations: dict | None = None, held_isins_out: dict | None = None) -> dict:
     """The issuers the house program covers: the companies held in the house portfolios (default), or
     the synthetic sample, as the house setting says (see universe.py). `observations`: `universe.latest_observations`
     when the caller already read them."""
@@ -78,7 +78,7 @@ def house_universe(observations: dict | None = None) -> dict:
     settings = get_settings()
     if HouseUniverseSetting(settings.stewardship_streams_dir).get()["source"] == "sample":
         return json.loads(SAMPLE_PATH.read_text())
-    return from_portfolio(build_portfolio_store(settings), observations=observations)
+    return from_portfolio(build_portfolio_store(settings), observations=observations, held_isins_out=held_isins_out)
 
 
 def house_isins() -> dict[str, str]:
@@ -115,10 +115,17 @@ def load_sample(
         from arp.config import get_settings
 
         frameworks_dir = get_settings().frameworks_dir
-    sample = base if base is not None else house_universe() if observations is None else house_universe(observations)
+    held: dict[str, str] | None = None  # filled by the universe build, so the vote ledger does not read it all again
+    if base is not None:
+        sample = base
+    elif observations is None:
+        sample = house_universe()
+    else:
+        held = {}
+        sample = house_universe(observations, held)
     merged = [as_fields(snapshot) for snapshot in DecisionStore(frameworks_dir).latest_published()]
     if votes is None:
-        votes = vote_items(house_issuers=sample["issuers"] if base is None else None)
+        votes = vote_items(house_issuers=sample["issuers"] if base is None else None, held=held)
     merged.append(voting_feed.issuer_fields(votes))
     merged.append(alerts_feed.issuer_fields(portfolio_alerts() if alerts is None else alerts))
     for fields in merged:
@@ -635,8 +642,12 @@ EDGES = [
 def flow(
     stream_id: str, streams: StreamStore, records: list[EngagementRecord], sla_days: int, votes: list[dict] | None = None
 ) -> dict:
-    votes = vote_items() if votes is None else votes
-    sample = load_sample(votes=votes)
+    if votes is None:  # the house universe is built once, for the vote ledger and the sample (it is the slow part)
+        base = house_universe()
+        votes = vote_items(house_issuers=base["issuers"])
+        sample = load_sample(votes=votes, base=base)
+    else:
+        sample = load_sample(votes=votes)
     house_policy = PolicyStore(streams.root).active("house_voting")
     tiers = tier_review(streams.root, sample, records)
     triggers = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, records)

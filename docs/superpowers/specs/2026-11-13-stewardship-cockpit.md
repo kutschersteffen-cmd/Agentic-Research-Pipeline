@@ -281,7 +281,7 @@ showing it. Layout and copy follow the mockup:
 - **Six key figures:**
   - **Companies engaged**: `engaged_selected / selected`, with "<p>% of selected companies".
   - **Financed emissions covered** (PR 2; hidden while `emissions` is null): `engaged_tco2e / total_tco2e` as a %,
-    with "<a> of <b> Mt CO₂e in engagement".
+    with "<a> of <b> t CO₂e in engagement".
   - **Next 30 days**: the two meeting lists' counts added up, with the split.
   - **Control gaps**: the number of gap rows, with "<x> without objective · <y> without next meeting".
   - **In escalation**: companies at step 2 or higher, with "Highest step: <label>".
@@ -317,8 +317,9 @@ showing it. Layout and copy follow the mockup:
 - **Zero cases:** `selected` 0 shows `0 / 0` and "– of selected companies"; `voting.votes` 0 shows "0 meetings · –
   against management"; no company in escalation shows `0` and "Highest step: –"; a topic with 0 votes shows
   "– · 0 of 0".
-- **Numbers:** percentages are whole numbers, rounded half up. Mt CO₂e has two decimals. Counts use thousands
-  separators.
+- **Numbers:** percentages are whole numbers, rounded half up. Emissions are t CO₂e in whole tonnes with thousands
+  separators; an amount above 0 and below 1 t keeps two decimals, so none reads 0 (owner decision 15 Nov 2026,
+  replacing Mt with two decimals). Counts use thousands separators.
 - **Empty and error states:** an empty section says so in one line (e.g. "No engagement meetings in the next 30
   days."), never a blank card. A load failure shows one `role="alert"` line, "The cockpit could not be loaded:
   <message>".
@@ -492,10 +493,10 @@ company `isin_XA0000000001` ("Alpha AG", its `stw_companies` row inserted first)
 | AC-57 | the showcase portfolios loaded (`arp showcase load`) | Cockpit for each portfolio, `as_of=2026-11-02` | `emissions.total_tco2e` equals `financed_emissions_tco2e` from `arp climate financed-emissions --portfolio <id> --as-of 2026-11-02`, within 0.1 t | holdout |
 | AC-58 | same, plus `seed-cockpit-demo --as-of 2026-11-02` | Cockpit `?as_of=2026-11-02` | `engaged_tco2e + selected_not_engaged_tco2e + not_selected_tco2e` equals `total_tco2e` within 0.1 t; `contributors` has 6 entries | holdout |
 | AC-59 | portfolio Q saved with no snapshot on or before 2026-11-17 | Cockpit `?portfolio_id=Q&as_of=2026-11-17` | `emissions` is `null` | holdout |
-| AC-60 | (PR 2) the demo stack | open `#/stewardiq/cockpit` | the "Financed emissions covered" figure shows the % and "<a> of <b> Mt CO₂e in engagement", matching the API; the emissions panel shows the three-part bar and 6 contributors | evaluator |
+| AC-60 | (PR 2) the demo stack | open `#/stewardiq/cockpit` | the "Financed emissions covered" figure shows the % and "<a> of <b> t CO₂e in engagement", matching the API; the emissions panel shows the three-part bar and 6 contributors | evaluator |
 | AC-61 | (PR 2) a scope where `emissions` is null | open the page in that scope | the emissions figure and panel are hidden, with no empty card in their place | evaluator |
 | AC-62 | the demo stack | open `#/stewardiq/cockpit` | sections in mockup order: key figures, 30-day strip, engaged vs selected by theme and tier, financed emissions, upcoming engagement meetings, upcoming shareholder meetings, control gaps, escalation ladder, voting season to date | evaluator |
-| AC-63 | the demo stack | read the six key figures | each equals the value computed from `GET /api/stewardship/cockpit` for the same `as_of` and scope, with whole-number percentages and Mt to two decimals | evaluator |
+| AC-63 | the demo stack | read the six key figures | each equals the value computed from `GET /api/stewardship/cockpit` for the same `as_of` and scope, with whole-number percentages and t CO₂e in whole tonnes with thousands separators | evaluator |
 | AC-64 | the demo stack | the 30-day strip | 30 day columns from the `as_of` date, weekends shaded, bars on exactly the dates in `days` with counts above 0 | evaluator |
 | AC-65 | the demo stack | Upcoming engagement meetings | at most 6 rows, then `All <n>` with n = `len(engagement_meetings)`; clicking it shows n rows | evaluator |
 | AC-66 | the demo stack, `#/stewardiq/cockpit/<seed as_of>` | Upcoming shareholder meetings, `All 14` opened | the 4 meetings within 7 days read `Decision due in 1 day` / `Decision due in <n> days` in the signal style; the other 10 read `Not started` in the neutral style; Flagged shows `–` | evaluator |

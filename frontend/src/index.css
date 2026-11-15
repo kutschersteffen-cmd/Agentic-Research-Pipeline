@@ -2546,8 +2546,25 @@ a.vc-box:hover { border-color: var(--text); }
 .cockpit-topic-bar { height: 10px; background: var(--well); }
 .cockpit-topics li > :last-child { white-space: nowrap; }
 .cockpit-topic-bar > span { display: block; height: 10px; background: var(--cat-2); }
+/* financed emissions: engaged fill, selected track (as in the theme grid), the rest recessed */
+.cockpit-emissions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: var(--s-4) var(--s-8); align-items: start; }
+.cockpit-emissions-bar { height: 28px; }
+.cockpit-unit { text-transform: none; } /* t CO₂e must not read T CO₂E */
+.cockpit-stack .eng { background: var(--cat-1); }
+.cockpit-stack .sel { border: 1px solid var(--field-border); box-sizing: border-box; }
+.cockpit-stack .rest, .cockpit-swatch.rest { background: var(--well); border: 1px solid var(--panel-border); box-sizing: border-box; }
+.cockpit-emissions-legend { list-style: none; margin: var(--s-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-1_5); font-size: var(--text-sm); }
+.cockpit-emissions-legend li { display: grid; grid-template-columns: 10px 3.5ch minmax(0, 1fr) auto; gap: var(--s-2); align-items: center; }
+.cockpit-emissions-pct { text-align: right; }
+.cockpit-contributors { min-width: 0; }
+.cockpit-contributors td:first-child { white-space: normal; }
+.cockpit-contributors td:last-child, .cockpit-contributors th:last-child { white-space: nowrap; }
+/* six key figures: one row on a wide screen, two rows of three below it; five keep the auto-fit grid */
+@media (min-width: 1600px) { .cockpit-figures:has(> :nth-child(6)) { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (min-width: 901px) and (max-width: 1599px) { .cockpit-figures:has(> :nth-child(6)) { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 900px) {
   .cockpit-row > .cockpit-card { flex-basis: 100%; }
+  .cockpit-emissions { grid-template-columns: minmax(0, 1fr); }
   .cockpit-topics li { grid-template-columns: minmax(0, 1fr) auto; }
   .cockpit-topic-bar { grid-column: 1 / -1; grid-row: 2; }
 }
@@ -2636,6 +2653,9 @@ a.vc-box:hover { border-color: var(--text); }
 .sim-tag { display: inline-block; margin-left: var(--s-1_5); padding: 0 var(--s-1); border: 1px dashed var(--field-border); border-radius: 2px; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); vertical-align: baseline; }
 .wb-pager { justify-content: center; align-items: center; gap: var(--s-3); margin-top: var(--s-3); font-family: var(--font-mono); font-size: var(--text-xs); }
 .wb-actions { flex-wrap: wrap; gap: var(--s-2); }
+.rule-editor-closed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+@media (max-width: 560px) { .rule-editor-closed { flex-direction: column; align-items: flex-start; } }
+.wb-ticked { align-items: center; gap: var(--s-2) var(--s-3); padding: var(--s-2) var(--s-3); background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-md); }
 .wb-actions .wb-menu > summary { padding: 9px 16px; border-color: var(--panel-border); border-radius: var(--r-md); color: var(--accent); font-weight: 600; }
 .wb-menu-item { display: block; width: 100%; padding: var(--s-1_5) 0; text-align: left; white-space: nowrap; }
 .wb-table td.wb-topics { max-width: 20rem; overflow: hidden; text-overflow: ellipsis; }
