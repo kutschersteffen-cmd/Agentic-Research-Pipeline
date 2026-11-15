@@ -127,16 +127,26 @@ def _build_dashboard(client: SupersetClient, plan: ChartPlan, ids: dict[str, int
     return _result(_ensure_dashboard(client, slug, plan, ids)[0], slug, plan)
 
 
+def _saved_params(client: SupersetClient, chart_id: int) -> dict | None:
+    """None when the chart's params cannot be read: reuse is only a shortcut, so the ask creates a chart instead."""
+    try:
+        return client.chart_params(chart_id)
+    except (*_ERRORS, ValueError, KeyError, AttributeError):
+        return None
+
+
 def _add_to_scratch(client: SupersetClient, plan: ChartPlan, ids: dict[str, int]) -> DesignResult:
     spec = plan.charts[0]
     title = spec.title
     try:
         dash = client.find_dashboard(SCRATCH_SLUG)
         charts = {} if dash is None else client.dashboard_charts(dash)
-        # JSON round trip: the stored params come back as parsed JSON
-        want = json.loads(json.dumps(chart_form_data(ids[spec.dataset], spec.viz_type, compile_chart(spec, ids[spec.dataset]))))
-        if any(name == title and client.chart_params(cid) == want for cid, name in charts.items()):
-            return _result(dash, SCRATCH_SLUG, plan)  # the same question again: its chart is already there
+        same_title = [cid for cid, name in charts.items() if name == title]
+        if same_title:
+            # JSON round trip: the stored params come back as parsed JSON
+            want = json.loads(json.dumps(chart_form_data(ids[spec.dataset], spec.viz_type, compile_chart(spec, ids[spec.dataset]))))
+            if any(_saved_params(client, cid) == want for cid in same_title):
+                return _result(dash, SCRATCH_SLUG, plan)  # the same question again: its chart is already there
     except _ERRORS as e:
         raise BIError(f"Adding chart {title!r} to the scratch dashboard failed: {e}") from e
     created: list[int] = []

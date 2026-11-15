@@ -130,16 +130,16 @@ _LOGIN_FAILED = "Superset login failed (HTTP {}): check ARP_SUPERSET_USER and AR
 @pytest.mark.parametrize(
     ("superset", "method", "path", "detail"),
     [
-        (SupersetClient("http://127.0.0.1:8088", "u", "p", transport=httpx.MockTransport(_refused)), "post", "/api/bi/ask", _UNREACHABLE),
-        (SupersetClient("http://127.0.0.1:8088", "u", "p", transport=httpx.MockTransport(_refused)), "get", "/api/bi/dashboards", _UNREACHABLE),
-        (_superset({_LOGIN: 401}), "post", "/api/bi/ask", _LOGIN_FAILED.format(401)),
-        (_superset({_DB: 403}), "post", "/api/bi/ask", _LOGIN_FAILED.format(403)),
-        (_superset({_DASHES: 404}), "get", "/api/bi/dashboards", "Superset has no such dataset or dashboard (HTTP 404): run `arp bi bootstrap`."),
-        (_superset({_DASHES: 500}), "get", "/api/bi/dashboards", "Superset request failed (HTTP 500)."),
+        (lambda: SupersetClient("http://127.0.0.1:8088", "u", "p", transport=httpx.MockTransport(_refused)), "post", "/api/bi/ask", _UNREACHABLE),
+        (lambda: SupersetClient("http://127.0.0.1:8088", "u", "p", transport=httpx.MockTransport(_refused)), "get", "/api/bi/dashboards", _UNREACHABLE),
+        (lambda: _superset({_LOGIN: 401}), "post", "/api/bi/ask", _LOGIN_FAILED.format(401)),
+        (lambda: _superset({_DB: 403}), "post", "/api/bi/ask", _LOGIN_FAILED.format(403)),
+        (lambda: _superset({_DASHES: 404}), "get", "/api/bi/dashboards", "Superset has no such dataset or dashboard (HTTP 404): run `arp bi bootstrap`."),
+        (lambda: _superset({_DASHES: 500}), "get", "/api/bi/dashboards", "Superset request failed (HTTP 500)."),
     ],
 )
 def test_502_names_the_superset_failure_without_its_body(superset, method, path, detail):
-    app = _app(FakeLLM(), superset)
+    app = _app(FakeLLM(), superset())  # built per test, not at collection
     app.app.dependency_overrides[deps.settings_dep] = lambda: Settings(
         portfolios_dir=Path(tempfile.mkdtemp()), superset_url="http://127.0.0.1:8088/"
     )

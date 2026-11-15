@@ -312,6 +312,20 @@ def test_scratch_reuse_needs_same_title_and_params(chart):
     assert len(client.dashboards["arp-scratch"]["charts"]) == 2
 
 
+@pytest.mark.parametrize("failure", [SupersetError(404, "gone"), ValueError("not json")])
+def test_unreadable_params_create_a_chart_instead_of_failing(failure):
+    client = FakeClient()
+    one = PlannerRefusal(plan=ChartPlan(title="Q", charts=[_spec("A")]))
+    run(ask_chart("a", FakeLLM(one), client))
+
+    def boom(cid):
+        raise failure
+
+    client.chart_params = boom
+    r = run(ask_chart("a", FakeLLM(one), client))
+    assert r.url and len(client.dashboards["arp-scratch"]["charts"]) == 2
+
+
 def test_no_code_path_publishes():
     client = FakeClient()
     run(design_dashboard("x", FakeLLM(PlannerRefusal(plan=PLAN)), client))
