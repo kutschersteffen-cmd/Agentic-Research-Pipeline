@@ -642,8 +642,12 @@ EDGES = [
 def flow(
     stream_id: str, streams: StreamStore, records: list[EngagementRecord], sla_days: int, votes: list[dict] | None = None
 ) -> dict:
-    votes = vote_items() if votes is None else votes
-    sample = load_sample(votes=votes)
+    if votes is None:  # the house universe is built once, for the vote ledger and the sample (it is the slow part)
+        base = house_universe()
+        votes = vote_items(house_issuers=base["issuers"])
+        sample = load_sample(votes=votes, base=base)
+    else:
+        sample = load_sample(votes=votes)
     house_policy = PolicyStore(streams.root).active("house_voting")
     tiers = tier_review(streams.root, sample, records)
     triggers = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, records)
