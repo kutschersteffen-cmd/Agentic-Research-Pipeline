@@ -84,7 +84,11 @@ jobs:
           KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
         run: |
           # Anthropic first; Gemini only when there is no ARP_ANTHROPIC_API_KEY secret.
-          if [ -n "$KEY" ]; then echo "present=true" >>"$GITHUB_OUTPUT"
+          if [ -n "$KEY" ]; then
+            # No Gemini fallback here: a failing Anthropic call should fail visibly, not turn into a Gemini error.
+            echo "ARP_GEMINI_API_KEY=" >>"$GITHUB_ENV"
+            echo "::notice title=Golden set on Anthropic::ARP_ANTHROPIC_API_KEY is set; the Gemini fallback is off for this job."
+            echo "present=true" >>"$GITHUB_OUTPUT"
           elif [ -n "$ARP_GEMINI_API_KEY" ]; then
             { echo "ARP_LLM_MODEL=gemini-3.8-flash"; echo "ARP_LLM_VERIFIER_MODEL=gemini-3.8-flash"
               echo "ARP_EVIDENCE_GATE_MODEL=gemini-3.8-flash"; echo "ARP_TREE_SUMMARY_MODEL=gemini-3.8-flash"; } >>"$GITHUB_ENV"
