@@ -228,6 +228,7 @@ jobs:
           ROWS: ${{ needs.setup.outputs.rows }}
         run: |
           set -o pipefail
+          if [ "$PART" = 3/6 ] || [ "$PART" = own ]; then echo "throwaway: $PART exits 1"; exit 1; fi
           if [ "$PART" = own ]; then
             python .holdout/run.py --spec "$SPEC" ${ROWS:+--rows "$ROWS"} --count
             python .holdout/run.py --spec "$SPEC" ${ROWS:+--rows "$ROWS"} --no-regression
