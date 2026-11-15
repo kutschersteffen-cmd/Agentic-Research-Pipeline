@@ -130,6 +130,9 @@ def _plan_in_superset(make, text: str) -> None:
         if isinstance(cause, SupersetError) and cause.body:
             typer.echo(f"Response body: {cause.body}", err=True)
         raise typer.Exit(1) from e
+    if result.clarification_needed:
+        typer.echo(f"Clarification needed: {result.clarification_needed}", err=True)
+        raise typer.Exit(3)
     if result.url is None:
         typer.echo("\n".join(result.rejected), err=True)
         raise typer.Exit(3)
@@ -141,8 +144,9 @@ def bi_ask(question: str = typer.Argument(..., help='e.g. "Which sectors have th
     """One question becomes one chart on the shared Scratch dashboard (slug arp-scratch), like
     POST /api/bi/ask. Needs Superset (ARP_SUPERSET_URL/USER/PASSWORD), `arp bi bootstrap` done, and a model.
 
-    Prints {"url", "dashboard_id", "plan"} as JSON. When the model cannot answer from the bi
-    datasets it prints why on stderr and exits 3; a Superset or setup error exits 1."""
+    Prints {"url", "dashboard_id", "plan"} as JSON. When the model asks a question back it prints
+    `Clarification needed: <question>` on stderr and exits 3, as it does with the reasons for a plan that
+    fails validation; a Superset or setup error exits 1."""
     from arp.bi.service import ask_chart
 
     _plan_in_superset(ask_chart, question)

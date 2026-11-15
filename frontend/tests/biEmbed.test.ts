@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { designRequestBody, embedErrorText, embedUrlFor, pickDefaultDashboard } from "../src/lib/biEmbed.ts";
+import { clarificationText, designRequestBody, embedErrorText, embedUrlFor, pickDefaultDashboard } from "../src/lib/biEmbed.ts";
 
 test("designRequestBody trims the brief", () => {
   assert.deepEqual(designRequestBody("  exposure by sector \n"), { brief: "exposure by sector" });
@@ -40,4 +40,18 @@ test("embedErrorText says a 403/404 dashboard is gone and strips the status pref
   assert.equal(embedErrorText("403: not an arp- dashboard"), "This dashboard is no longer available here.");
   assert.equal(embedErrorText("404: dashboard 9 not found"), "This dashboard is no longer available here.");
   assert.equal(embedErrorText("502: Superset is unreachable"), "Superset is unreachable");
+});
+
+test("a clarification banner asks the question and lists no reasons", () => {
+  assert.equal(
+    clarificationText("Which portfolio do you mean?"),
+    "The model needs more detail: Which portfolio do you mean? Nothing was created in Superset. Refine the brief and try again.",
+  );
+});
+
+test("a rejected plan still lists its reasons", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync(new URL("../src/pages/portfolio-monitoring/SupersetBI.tsx", import.meta.url), "utf8");
+  assert.ok(page.includes("No dashboard was drafted. The plan was refused for these reasons:"));
+  assert.match(page, /result\.rejected\.map\(\(r\) => \(\s*<li key=\{r\}>\{r\}<\/li>/);
 });
