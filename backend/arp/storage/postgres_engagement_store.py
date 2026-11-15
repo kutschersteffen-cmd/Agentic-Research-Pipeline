@@ -93,7 +93,8 @@ def _cols(row, **renames: str) -> dict:
 
 
 def _entry(row: StwActivityModel) -> CorrespondenceEntry:
-    return CorrespondenceEntry.model_validate(_cols(row, entry_id="activity_id", date="occurred_at"))
+    # intake may store an activity without a summary (the column is nullable); it reads as an empty one
+    return CorrespondenceEntry.model_validate({"summary": ""} | _cols(row, entry_id="activity_id", date="occurred_at"))
 
 
 class PostgresEngagementStore:

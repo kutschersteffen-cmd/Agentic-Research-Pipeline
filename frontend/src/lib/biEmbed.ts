@@ -3,6 +3,11 @@ import type { BIDesignResult, DashboardItem } from "../types";
 // `env` is undefined under `node --test`, hence the `?.`.
 export const SUPERSET_URL: string = import.meta.env?.VITE_SUPERSET_URL ?? "http://127.0.0.1:8088";
 
+/** The warning banner for a result where the model asked a question back instead of planning. */
+export function clarificationText(question: string): string {
+  return `The model needs more detail: ${question} Nothing was created in Superset. Refine the brief and try again.`;
+}
+
 export function designRequestBody(brief: string): { brief: string } {
   return { brief: brief.trim() };
 }

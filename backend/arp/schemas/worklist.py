@@ -51,10 +51,47 @@ class ProgrammeChip(BaseModel):
     status: Literal["proposed", "confirmed"]
 
 
+class Engaged(BaseModel):
+    yes: bool
+    last: str | None
+
+
+class HeldIn(BaseModel):
+    portfolio_id: str
+    name: str
+    weight_pct: float | None
+    market_value_eur_m: float
+    selection_status: Literal["proposed", "confirmed"] | None
+
+
+class SelectedElsewhere(BaseModel):
+    scope: str
+    label: str
+    status: Literal["proposed", "confirmed"]
+
+
+class LatestNote(BaseModel):
+    text: str
+    by: str
+    at: str
+
+
+class NotesSummary(BaseModel):
+    count: int
+    latest: LatestNote | None
+
+
 class WorklistRow(BaseModel):
     issuer_id: str
     company: str
     sector: str
+    identifier: str
+    engaged: Engaged
+    last_topics: list[str]
+    norms_violation: Observed | None
+    esg_extra: dict[str, Observed]
+    equity_held_eur_m: float
+    ownership_pct: Observed | None
     holdings_weight_pct: float | None
     aum_held_eur_m: float | None
     coverage_tier: str
@@ -72,6 +109,9 @@ class WorklistRow(BaseModel):
     parts: list[ScorePart]
     selection: Selection | None
     programmes: list[ProgrammeChip]
+    held_in: list[HeldIn]
+    selected_elsewhere: list[SelectedElsewhere]
+    notes: NotesSummary
 
 
 class WorklistScope(BaseModel):
@@ -79,6 +119,10 @@ class WorklistScope(BaseModel):
     label: str
     kind: str
     companies: int
+
+
+class WorklistScopes(BaseModel):
+    scopes: list[WorklistScope]
 
 
 class WeightsVersion(BaseModel):
@@ -110,12 +154,14 @@ class SelectionList(BaseModel):
 
 class SelectionChange(BaseModel):
     cycle: str | None = None  # the current cycle
+    scope: str = "house"
     add: list[str] = []
     remove: list[str] = []
 
 
 class SelectionConfirm(BaseModel):
     cycle: str | None = None
+    scope: str = "house"
 
 
 class Confirmed(BaseModel):
@@ -212,3 +258,42 @@ class ProgrammeSuggestion(BaseModel):
 
 class ProgrammeSuggestions(BaseModel):
     suggestions: list[ProgrammeSuggestion]
+
+
+class NoteCreate(BaseModel):
+    company_id: str
+    text: str
+    scope: str = "house"
+
+
+class Note(BaseModel):
+    note_id: str
+    company_id: str
+    text: str
+    by: str
+    at: str
+    scope: str
+
+
+class NoteList(BaseModel):
+    notes: list[Note]
+
+
+class Vote(BaseModel):
+    meeting_date: str | None
+    meeting_type: str | None
+    item_number: str | None
+    description: str | None
+    proponent: str | None
+    management_recommendation: str | None
+    vote: str
+    vote_label: str | None
+    against_management: bool | None
+    rationale: str | None
+    source: str
+    demo: bool
+
+
+class VoteList(BaseModel):
+    votes: list[Vote]
+    total: int

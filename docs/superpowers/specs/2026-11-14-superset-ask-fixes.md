@@ -70,7 +70,7 @@ it is for operators, not API clients.
 ### (2) Error texts (`arp/api/routers/bi.py`)
 
 `_bad_gateway` keeps logging the body for operators and picks the 502 `detail` by the first rule that matches.
-"Root cause" is `e.__cause__` when it is set, else `e`.
+"Root cause" is `e.__cause__` when it is set, else `e`. Rule 1 also matches when `e` itself is an `httpx.TransportError` (a raw httpx error's cause is httpcore's; owner decision, 15 Nov 2026).
 
 | # | Root cause | `detail` |
 |---|------------|----------|

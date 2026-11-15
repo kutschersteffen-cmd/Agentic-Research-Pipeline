@@ -67,14 +67,22 @@ def held_isins(store: PortfolioStore) -> dict[str, str]:
     return out
 
 
-def _value_by_company(store: PortfolioStore, as_of: str) -> dict[str, float]:
-    securities, _ = portfolio_directories(store)
-    resolved = {s: store.get_resolution(s) for s in securities}
+def company_by_security(store: PortfolioStore) -> dict[str, str]:
+    """security_id -> company_id: the security's resolution, else (no resolution at all) the company the security
+    itself names, as the showcase import sets it without writing resolutions."""
+    out = {}
+    for sec in store.list_securities():
+        r = store.get_resolution(sec.security_id)
+        if cid := r.company_id if r is not None else sec.company_id:
+            out[sec.security_id] = cid
+    return out
+
+
+def _value_by_company(store: PortfolioStore, as_of: str, companies: dict[str, str]) -> dict[str, float]:
     out: dict[str, float] = defaultdict(float)
     for h in store.load_holdings_as_of(as_of):
-        r = resolved.get(h.security_id)
-        if r is not None and r.company_id:
-            out[r.company_id] += h.market_value_eur
+        if cid := companies.get(h.security_id):
+            out[cid] += h.market_value_eur
     return out
 
 
@@ -85,7 +93,8 @@ def from_portfolio(store: PortfolioStore, as_of: str | None = None) -> dict:
     if not dates:
         return {"source": "portfolio", "note": "No portfolio holdings loaded.", "issuers": [], "engagements": [], "meetings": []}
     obs_as_of, as_of = as_of or dates[-1], dates[-1]
-    now, before = _value_by_company(store, as_of), _value_by_company(store, dates[-2]) if len(dates) > 1 else {}
+    held = company_by_security(store)
+    now, before = _value_by_company(store, as_of, held), _value_by_company(store, dates[-2], held) if len(dates) > 1 else {}
     total = sum(now.values())
     _, companies = portfolio_directories(store)
     observed: dict[str, dict] = defaultdict(dict)

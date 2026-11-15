@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -12,7 +13,7 @@ from arp.api.auth import current_user
 from arp.api.deps import get_llm_client, get_superset_client
 from arp.api.routers import bi as bi_router
 from arp.bi.planner import PlannerRefusal
-from arp.bi.superset_client import SupersetError
+from arp.bi.superset_client import SupersetClient, SupersetError
 from arp.config import Settings
 from arp.schemas.common import CompanyRef
 from arp.storage.portfolio_store import PortfolioStore
@@ -65,7 +66,8 @@ def test_rejected_plan_is_200_with_reasons():
         "/api/bi/design", json={"brief": "weather?"}
     )
     assert r.status_code == 200
-    assert r.json()["rejected"] == ["No weather data."] and r.json()["dashboard_id"] is None
+    assert r.json()["clarification_needed"] == "No weather data." and r.json()["rejected"] == []
+    assert r.json()["dashboard_id"] is None
     assert fake.writes() == []
 
 
@@ -101,6 +103,64 @@ def test_embed_token_502_does_not_leak_body():
 def test_502_logs_body_server_side(caplog):
     _app(FakeLLM(), DownClient()).post("/api/bi/embed-token", json={"dashboard_id": "7"})
     assert "hunter2" in caplog.text
+
+
+def _superset(status_by_path: dict[str, int]) -> SupersetClient:
+    """A real client on a mock Superset: login works and every listed path answers its status with a secret body."""
+
+    def handle(req: httpx.Request) -> httpx.Response:
+        if req.url.path in status_by_path:
+            return httpx.Response(status_by_path[req.url.path], text="secret-body s3cret")
+        if req.url.path == "/api/v1/security/login":
+            return httpx.Response(200, json={"access_token": "t"})
+        return httpx.Response(200, json={"result": "csrf"})
+
+    return SupersetClient("http://127.0.0.1:8088", "arp_designer", "pw", transport=httpx.MockTransport(handle))
+
+
+def _refused(req: httpx.Request) -> httpx.Response:
+    raise httpx.ConnectError("[Errno 111] Connection refused", request=req)
+
+
+_LOGIN, _DB, _DASHES = "/api/v1/security/login", "/api/v1/database/", "/api/v1/dashboard/"
+_UNREACHABLE = "Superset is not reachable at http://127.0.0.1:8088. It is not set up here or not running."
+_LOGIN_FAILED = "Superset login failed (HTTP {}): check ARP_SUPERSET_USER and ARP_SUPERSET_PASSWORD."
+
+
+@pytest.mark.parametrize(
+    ("superset", "method", "path", "detail"),
+    [
+        (lambda: SupersetClient("http://127.0.0.1:8088", "u", "p", transport=httpx.MockTransport(_refused)), "post", "/api/bi/ask", _UNREACHABLE),
+        (lambda: SupersetClient("http://127.0.0.1:8088", "u", "p", transport=httpx.MockTransport(_refused)), "get", "/api/bi/dashboards", _UNREACHABLE),
+        (lambda: _superset({_LOGIN: 401}), "post", "/api/bi/ask", _LOGIN_FAILED.format(401)),
+        (lambda: _superset({_DB: 403}), "post", "/api/bi/ask", _LOGIN_FAILED.format(403)),
+        (lambda: _superset({_DASHES: 404}), "get", "/api/bi/dashboards", "Superset has no such dataset or dashboard (HTTP 404): run `arp bi bootstrap`."),
+        (lambda: _superset({_DASHES: 500}), "get", "/api/bi/dashboards", "Superset request failed (HTTP 500)."),
+    ],
+)
+def test_502_names_the_superset_failure_without_its_body(superset, method, path, detail):
+    app = _app(FakeLLM(), superset())  # built per test, not at collection
+    app.app.dependency_overrides[deps.settings_dep] = lambda: Settings(
+        portfolios_dir=Path(tempfile.mkdtemp()), superset_url="http://127.0.0.1:8088/"
+    )
+    r = getattr(app, method)(path, **({"json": {"question": "x"}} if method == "post" else {}))
+    assert r.status_code == 502 and r.json()["detail"] == detail
+    assert "s3cret" not in r.text and "Errno" not in r.text
+
+
+def test_dashboards_502_when_nothing_listens():
+    """A real refused connection: httpx raises ConnectError from httpcore's, which must still read as unreachable."""
+    import socket
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]  # closed again on exit, so nothing listens there
+    url = f"http://127.0.0.1:{port}"
+    app = _app(FakeLLM(), SupersetClient(url, "u", "p"))
+    app.app.dependency_overrides[deps.settings_dep] = lambda: Settings(portfolios_dir=Path(tempfile.mkdtemp()), superset_url=url)
+    r = app.get("/api/bi/dashboards")
+    assert r.status_code == 502
+    assert r.json()["detail"] == f"Superset is not reachable at {url}. It is not set up here or not running."
 
 
 def _with_dashboard(slug: str) -> FakeClient:
