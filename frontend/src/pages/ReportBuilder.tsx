@@ -1,7 +1,7 @@
 import { when } from "../lib/runs";
 import { FileImg, FileLink } from "../components/FileLink";
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api/client";
+import { api, downloadFile } from "../api/client";
 import { ElapsedLine } from "../components/ElapsedLine";
 import { Modal } from "../components/Modal";
 import type {
@@ -22,7 +22,7 @@ import type {
 } from "../types";
 import { CHART_TYPES } from "../types";
 import { activatable } from "../lib/activatable";
-import { findingText } from "../lib/findings";
+import { findingText, reviewSlide } from "../lib/findings";
 import { draftingLine } from "../lib/progress";
 
 const AUDIENCE_LEVELS: AudienceLevel[] = ["executive", "technical", "general"];
@@ -56,6 +56,48 @@ function groupBySlide(findings: Finding[]): [number, string[]][] {
     if (text !== null) groups.set(f.slide, [...(groups.get(f.slide) ?? []), text]);
   }
   return [...groups.entries()].sort((a, b) => a[0] - b[0]);
+}
+
+/** A deck file's download link; when a slide still needs review, the refusal comes with a button that approves
+ * that slide and downloads again. */
+function DeckDownload({ reportId, file }: { reportId: string; file: string }) {
+  const [error, setError] = useState("");
+  const [approving, setApproving] = useState(false);
+  const url = api.reportDownloadUrl(reportId, file);
+  const download = () => {
+    setError("");
+    return downloadFile(url, file).catch((err: Error) => setError(err.message));
+  };
+  const slide = reviewSlide(error);
+  async function approve(n: number) {
+    setApproving(true);
+    try {
+      await api.approveSlide(reportId, n);
+      await download();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setApproving(false);
+    }
+  }
+  return (
+    <>
+      <a href={url} className="button-link" onClick={(e) => { e.preventDefault(); void download(); }}>
+        Download {file.split(".").pop()?.toUpperCase()}
+      </a>
+      {error && (
+        <span className="error-text" role="alert">
+          {" "}
+          {slide === null ? error : `Slide ${slide} needs review.`}
+        </span>
+      )}
+      {slide !== null && (
+        <button type="button" onClick={() => approve(slide)} disabled={approving}>
+          {approving ? "Approving..." : `Approve slide ${slide}`}
+        </button>
+      )}
+    </>
+  );
 }
 
 export function ReportBuilder() {
@@ -620,9 +662,7 @@ export function ReportBuilder() {
                   Preview
                 </button>
                 {manifest.output_files.map((f) => (
-                  <FileLink key={f} className="button-link" url={api.reportDownloadUrl(manifest.report_id, f)} name={f}>
-                    Download {f.split(".").pop()?.toUpperCase()}
-                  </FileLink>
+                  <DeckDownload key={f} reportId={manifest.report_id} file={f} />
                 ))}
               </>
             )}
