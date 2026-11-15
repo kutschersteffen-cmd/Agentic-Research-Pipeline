@@ -15,15 +15,17 @@ work when they should not, and actions a screen reader does not announce.
 
 ## PR split and order
 
-- **PR A, tiers picks and checkpoint** (`frontend/src/pages/steward/studios.tsx`): build at once. Its PR body
-  carries `Rows: AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7`.
+- **PR A, tiers picks and checkpoint** (`frontend/src/pages/steward/studios.tsx`): build at once. Rows AC-1 to AC-10.
 - **PR B, engagement watch and ballot review** (`frontend/src/components/EngagementWatch.tsx`,
-  `EngagementIssuePanel.tsx`, `BallotReview.tsx`): build only **after the build of
-  `commitment-loop-review-fixes` (spec PR #501) is merged**, because that build edits `EngagementWatch.tsx` too.
-  Branch PR B from `main` after that merge. Its PR body carries `Rows:` with AC-8 to AC-22 and AC-23 to AC-25.
-- **PR C, programme step names** (`backend/arp/stewardship/program.py`): build at once, in parallel with PR A.
-  It does not fit PR A: the step name is written by the backend. No `Rows:` line on whichever of B and C merges
-  last; the other carries its rows.
+  `EngagementIssuePanel.tsx`, `BallotReview.tsx`, `frontend/src/lib/engagement.ts`): build only **after the build
+  of `commitment-loop-review-fixes` (spec PR #501) is merged**, because that build edits `EngagementWatch.tsx` too.
+  Branch PR B from `main` after that merge. Rows AC-11 to AC-38.
+- **PR C, programme step names** (`backend/arp/stewardship/program.py`, `backend/arp/api/routers/stewardship.py`):
+  build at once, in parallel with PR A. It does not fit PR A: the step name is written by the backend. Rows AC-39
+  to AC-41.
+
+Each PR carries `Spec: stewardship-screens-polish` and a `Rows:` line with its own rows; the PR that merges last
+drops the `Rows:` line.
 
 ## Owner decisions (15 Nov 2026, by button)
 
@@ -34,108 +36,139 @@ work when they should not, and actions a screen reader does not announce.
 
 ## Goals
 
-PR A:
+PR A (Bilateral picks on `#/stewardship/selection`, Escalation recommendations on `#/stewardship/checkpoint`):
 
-- (A1) After a successful bilateral pick, the Company select and the Reason are both empty again.
+- (A1) After a successful pick, the Company select and the Reason are both empty. After a refused pick both keep
+  what the user entered.
 - (A2) A refused pick or withdrawal shows the server's sentence without the status code (`422: `), with the
-  company's name in place of its id.
-- (A3) A pick or a withdrawal that succeeds is announced in a polite status line.
-- (A4) The checkpoint stage's "Escalation recommendations" table shows `No tier yet` for a company with no tier,
-  and the rule's reason without the rule key in brackets.
+  company's name in place of its issuer id.
+- (A3) A pick or withdrawal that succeeds is announced in one polite status line. Any action clears the earlier
+  status line and the earlier alert first, so at most one of the two shows.
+- (A4) The Escalation recommendations table shows `No tier yet` for a company with no tier, and the rule's reason
+  without the rule key in brackets.
 
-PR B:
+PR B (the issue panel on `#/engagement`, the dossier watch list, the ballot review):
 
 - (B1) One colour per flag kind, the same on the ballot and in the dossier: overdue amber-brown (status "mid"),
   broken red (status "low").
-- (B2) A due date is shown whole, unless it is an ISO date with a time part, which shows the date only.
-- (B3) Record result, Add proof statement, Add watch topic and Close topic are disabled when nobody is
-  signed in, with the sidebar sign-in sentence shown once.
-- (B4) "Add proof statement" is not offered on the file engagement store.
-- (B5) After Confirm on a suggestion, keyboard focus stays in the item it acted on.
-- (B6) Confirm and Reject name the item they act on for screen readers.
-- (B7) On a collapsed ballot card, the watch banner comes before the Approve button.
-- (B8) Objective and topic statuses show words (`in progress`), not codes (`in_progress`).
-- (B9) The issue header shows the `Demo data` chip when any of its objectives is demo data.
-- (B10) The "Approve N routine" dialog lists the companies among those N proposals whose ballot carries a watch
-  flag, with the flag's message; the Approve button still approves all N.
+- (B2) A due date is shown whole, unless it matches `^\d{4}-\d{2}-\d{2}T` (an ISO date with a time part), which
+  shows its first 10 characters.
+- (B3) When nobody is signed in, every `Record result`, `Add proof statement`, `Add watch topic` and `Close topic`
+  button in the panel is disabled, and one sentence directly under the panel's access-token field
+  (`SignedInAs compact`) reads `Sign in to record results, proof statements and watch topics.`
+- (B4) `Add proof statement` is not offered when the engagement store is the file store, i.e. only when the
+  suggestions load fails with the 409 `Watch items need the Postgres engagement store.` Any other load error keeps
+  the button.
+- (B5) After `Confirm` on an evidence suggestion, keyboard focus stays in the item it acted on: on a watch topic or
+  commitment, its `Check against documents: <item>` button; on an objective, the `Result` select of the Record
+  result form that opens (today's behaviour).
+- (B6) Screen readers hear which item a button acts on: on an evidence suggestion, `Confirm evidence: <item>` and
+  `Reject evidence: <item>`; on a found commitment, `Reject commitment: <commitment text>`.
+- (B7) A confirmed suggestion is announced in a polite status line in the item's row (outside the suggestion card,
+  which disappears): `Evidence confirmed: <item>`. Objectives, commitments and watch topics alike.
+- (B8) On a collapsed ballot card, the watch banner comes before the `Approve: vote …` button.
+- (B9) Objective statuses, results and the Result select's option texts show words (`in progress`,
+  `not achieved`), not codes; the values sent to the API stay codes.
+- (B10) The issue header shows a `Demo data` chip when the issue's `data_source` or any of its objectives'
+  `source` is a demo source. The per-objective `Demo data` chip stays.
+- (B11) The "Approve N routine" dialog lists the companies among those N proposals whose ballot carries a watch
+  flag, with each flag's message; `Approve N` still approves all N.
 
 PR C:
 
 - (C1) A client programme version approved before the six-step ladder shows `private engagement` where it stored
-  `joint_engagement`, on the Client program page's "The approved program against today's data" table
-  (`planned step` column). The stored version is not rewritten.
+  `joint_engagement`: in the `planned step` column of "The approved program against today's data" on the Client
+  program page, and in `GET …/program`'s `versions`. The stored version is not rewritten.
+
+`<item>` is the item's own text: an objective's description, a commitment's text, a watch topic's question.
 
 ## Non-goals
 
-Phone layouts, the backend, anything inside `commitment-loop-review-fixes` (suggestion errors, watch-flag dates,
-CLI dossier) or `tiers-review-fixes` (`tiers.py`, `policies.py`), the cockpit, other tier labels (`bilateral`,
-`letter`, `monitor` stay as they are), new colours or tokens.
+Phone layouts; anything inside `commitment-loop-review-fixes` (suggestion errors, watch-flag dates, CLI dossier)
+or `tiers-review-fixes` (`tiers.py`, `policies.py`); the cockpit; other tier labels (`bilateral`, `letter`,
+`monitor` stay); new colours or tokens; the `Confirm rejection` button's name; topic statuses (`open`, `closed`
+have no codes to translate); other backend changes than C1.
 
 ## Approach
 
-One sensible way for each item, all inside the files named above; the alternatives are noted where one existed.
+One sensible way for each item, inside the files named above.
 
-- **(A2)** The panel strips a leading `NNN: ` (the pattern `lib/themeLayers.ts` uses) and replaces the issuer id
-  with the company's name from the list it already loads. A friendlier server message was dropped: `tiers.py` is
-  out of scope (and `tiers-review-fixes` pins today's text, its AC-8).
-- **(A4)** The rule's `reason` is already a sentence a person wrote in the rule editor; the bracketed `rule` key
-  adds nothing for a reader. A label map in the frontend was dropped: rules are editable, so a map would go stale.
-- **(B1)** Status colours, not the amber signal: an overdue or broken commitment is the company's state, not a
-  person's to-do (`DESIGN.md`, "The Status Is Not The Signal Rule"). Ballot: `banner banner-warning` for overdue,
-  `banner banner-danger` for broken. Dossier: `badge badge-mid` for overdue, `badge badge-low` for broken. Today
-  both kinds are `banner-warning` on the ballot and `badge-low` in the dossier.
-- **(B3)** Use `useMe()` the way `EngagementIssuePanel.tsx` already does for its other buttons (`!actor`), and
-  `SIGN_IN_REQUIRED` from `lib/reviewer.ts` as the sentence.
-- **(B4)** The file store is the one that answers the watch routes with 409 `Watch items need the Postgres
-  engagement store.`; the panel already detects it (`STORE_409`, `useSuggestions`).
-- **(B8)** Reuse the panel's `fmt()` (underscores to spaces) rather than a second helper.
-- **(B10)** Routine proposals already exclude alignment-flagged ones (`isRoutine`), but not those of a company
-  with a watch flag (`ballot.watch_flags`, the overdue or broken commitments). The dialog gets one list of those
-  companies above its table; disabling or splitting the batch was not chosen by the owner.
-- **(C1)** `monitor()` (`program.py`) builds the `planned step` cell from the frozen version's `client_step`. It
-  maps the value through `OLD_STAGES` (`arp/schemas/engagement.py`) before formatting, the same read-time mapping
-  the engagement store and the cockpit use. `GET …/program` already maps old tier keys this way on read; it maps
-  `client_step` too. Rewriting the stored versions was ruled out by the owner.
+- **(A2)** Strip a leading `NNN: ` (the pattern `lib/themeLayers.ts` uses), then replace the issuer id with the
+  company's name from the list the panel already loads. A friendlier server message was dropped: `tiers.py` is out
+  of scope, and `tiers-review-fixes` pins today's text (its AC-8).
+- **(A4)** The rule's `reason` is a sentence a person wrote in the rule editor; the bracketed `rule` key adds
+  nothing for a reader. A label map in the frontend was dropped: rules are editable, so it would go stale.
+- **(B1)** Ballot: `banner banner-warning` for overdue, `banner banner-danger` for broken. Dossier: `badge
+  badge-mid` for overdue, `badge badge-low` for broken. Today both kinds are `banner-warning` on the ballot and
+  `badge-low` in the dossier. These are status colours, not the amber signal: a late or broken commitment is the
+  company's state, not a person's to-do (`DESIGN.md`, "The Status Is Not The Signal Rule"). Red for a broken
+  commitment is already used in the same panel: a `missed` commitment's badge is `badge-low`
+  (`EngagementIssuePanel.tsx`).
+- **(B3)** Add the signed-in name to `EngagementWatch.tsx`'s `Ctx` (the panel already reads it with `useMe()` as
+  `actor`) and disable on an empty one, as the panel's own buttons do.
+- **(B4)** After `commitment-loop-review-fixes`, `useSuggestions` returns `available: false` with `error: null`
+  exactly on that 409; hide the button in that state only.
+- **(B9)** Move the panel's private `fmt()` (underscores to spaces) to `lib/engagement.ts` and import it in both
+  files (exporting it from the panel would make a circular import).
+- **(B11)** Routine proposals already exclude alignment-flagged ones (`isRoutine`), but not those of a company with
+  a watch flag. The dialog gets one list of those companies above its table. Disabling or splitting the batch was
+  not the owner's choice.
+- **(C1)** `monitor()` builds the `planned step` cell from the frozen version's `client_step`; it maps the value
+  through `OLD_STAGES` (`arp/schemas/engagement.py`) before formatting, the read-time mapping the engagement store
+  and the cockpit already use. `GET …/program` already maps old tier keys in `versions` on read; it maps
+  `client_step` the same way. Rewriting stored versions was ruled out by the owner.
 
 ## Acceptance
 
-PR A rows run on the app started by `backend/scripts/e2e_stack.sh up`, on `#/stewardship/selection` (Bilateral
-picks) and `#/stewardship/checkpoint`, with the house universe it loads. "Company C" is any company in the picks
-list's Company select, and "N" is its name as the select shows it.
+PR A rows marked `evaluator` run on the app started by `backend/scripts/e2e_stack.sh up`, with the house universe it
+loads. "Company C" is any company in the Bilateral picks Company select, and "N" its name as the select shows it.
+Rows marked `unit` render the component with `api` stubbed (vitest, `frontend/tests/`). PR B rows are all `unit`:
+the e2e stack has no engagement data in these states and cannot sign out in dev mode.
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-1 | No pick for Company C | The user chooses C, types reason `Board change`, presses `Pick for bilateral` | The pick list shows N; the Company select shows `Choose a company…`; the Reason field is empty | evaluator |
-| AC-2 | AC-1 done | Read the picks panel | An element with `role="status"` reads `N is picked for bilateral.` | evaluator |
+| AC-1 | `#/stewardship/selection`, no pick for Company C | The user chooses C, types reason `Board change`, presses `Pick for bilateral` | The pick list shows N; the Company select shows `Choose a company…`; the Reason field is empty | evaluator |
+| AC-2 | AC-1 done | Read the Bilateral picks panel | An element with `role="status"` reads `N is picked for bilateral.` | evaluator |
 | AC-3 | AC-1 done | The user chooses C again, types reason `Again`, presses `Pick for bilateral` | The alert reads exactly `N is already picked for bilateral` (no `422`, no issuer id) | evaluator |
-| AC-4 | AC-1 done | The user presses `Withdraw` on N's pick | N leaves the pick list; the `role="status"` element reads `The bilateral pick for N is withdrawn.` | evaluator |
-| AC-5 | The picks panel rendered; `api.pickBilateral` rejects with `Error("422: A bilateral pick reason has at most 500 characters")` | The user picks a company | The alert reads exactly `A bilateral pick reason has at most 500 characters` | unit |
-| AC-6 | The checkpoint studio rendered; `api` returns one escalation recommendation with `tier` `null`, `reason` `No escalation trigger`, `rule` `hold` | The table renders | Its row shows `No tier yet` in the `tier` column and exactly `No escalation trigger` in the `why` column | unit |
-| AC-7 | The e2e app, `#/stewardship/checkpoint` | Read the "Escalation recommendations" table | No cell in the `why` column ends with `)`; no cell in the `tier` column reads `none` | evaluator |
+| AC-4 | AC-3 done | Read the form | The Company select still shows N and the Reason field reads `Again` (must not change) | evaluator |
+| AC-5 | AC-3 done | Read the panel | The `role="status"` element is empty | evaluator |
+| AC-6 | AC-1 done | The user presses `Withdraw` on N's pick | N leaves the pick list; the `role="status"` element reads `The bilateral pick for N is withdrawn.`; no `role="alert"` element is shown | evaluator |
+| AC-7 | The picks panel; `api.pickBilateral` rejects with `Error("422: A bilateral pick reason has at most 500 characters")` | The user picks a company | The alert reads exactly `A bilateral pick reason has at most 500 characters` | unit |
+| AC-8 | The picks panel with a pick for issuer `SYN01` named `Alpha Corp`; `api.withdrawBilateral` rejects with `Error("422: SYN01 has no bilateral pick")` | The user presses `Withdraw` | The alert reads exactly `Alpha Corp has no bilateral pick` | unit |
+| AC-9 | The checkpoint studio; one escalation recommendation with `tier` `null`, `reason` `No escalation trigger`, `rule` `hold` | The table renders | The row's `tier` cell reads `No tier yet` and its `why` cell reads exactly `No escalation trigger` | unit |
+| AC-10 | `#/stewardship/checkpoint` | Read the Escalation recommendations table | No cell in the `why` column ends with `)` | evaluator |
+| AC-11 | A ballot whose `watch_flags` hold one `overdue` and one `broken` flag | The ballot card renders collapsed | The overdue banner has class `banner-warning`, the broken banner class `banner-danger` | unit |
+| AC-12 | AC-11 | The card is expanded | Same classes as AC-11 | unit |
+| AC-13 | `DossierWatchList` with one entry flagged `overdue` and one flagged `broken` | It renders | The `overdue` badge has class `badge-mid`, the `broken` badge class `badge-low` | unit |
+| AC-14 | An `in_progress` objective with `target_date` `end of FY2027` | The panel renders | Its row reads `due end of FY2027` | unit |
+| AC-15 | `api.listWatchTopics` resolves one `open` topic with `target_date` `2026-12-31T00:00:00` | The panel renders | Its row reads `due 2026-12-31` | unit |
+| AC-16 | `DossierWatchList` with an entry whose `target_date` is `2025-12-31 (approx.)` | It renders | The entry reads `due 2025-12-31 (approx.)` | unit |
+| AC-17 | `useMe()` returns null; the issue has one `in_progress` objective `Set a 2030 target` without proof; `api.listWatchTopics` resolves one `open` topic `Board diversity` without proof; `api.listSuggestions` resolves `{"suggestions": []}` | The panel renders | Buttons named `Record result: Set a 2030 target`, `Add proof statement: Set a 2030 target`, `Add proof statement: Board diversity`, `Add watch topic` and `Close topic: Board diversity` are all disabled | unit |
+| AC-18 | AC-17 | The panel renders | The text `Sign in to record results, proof statements and watch topics.` appears exactly once, directly after the access-token field | unit |
+| AC-19 | AC-17 but `useMe()` returns user `dev` | The panel renders | The five buttons of AC-17 are enabled and the AC-18 sentence is absent (must not change) | unit |
+| AC-20 | Signed in as `dev`; the issue's objective of AC-17; `api.listSuggestions` rejects with `Error("409: Watch items need the Postgres engagement store.")` | The panel renders | No button whose accessible name starts with `Add proof statement` | unit |
+| AC-21 | AC-20 but `api.listSuggestions` rejects with `Error("500: boom")` | The panel renders | The button `Add proof statement: Set a 2030 target` is present (must not change) | unit |
+| AC-22 | Signed in as `dev`; topic `Board diversity` with one pending evidence suggestion; `api.confirmSuggestion` resolves; the reload returns no pending suggestion | The user presses `Confirm evidence: Board diversity` | Focus is on the button `Check against documents: Board diversity` | unit |
+| AC-23 | An open commitment `Publish a transition plan` with one pending evidence suggestion; same stubs | The user presses `Confirm evidence: Publish a transition plan` | Focus is on the button `Check against documents: Publish a transition plan` | unit |
+| AC-24 | Objective `Set a 2030 target` with one pending evidence suggestion; same stubs | The user presses `Confirm evidence: Set a 2030 target` | The Record result form is open and focus is on its `Result` select (must not change) | unit |
+| AC-25 | AC-22's Given | Read the suggestion's buttons | Their accessible names are `Confirm evidence: Board diversity` and `Reject evidence: Board diversity` | unit |
+| AC-26 | One pending `new_commitment` suggestion with text `Publish a transition plan` | Read its Reject button | Its accessible name is `Reject commitment: Publish a transition plan` | unit |
+| AC-27 | AC-22 | Confirm succeeds | An element with `role="status"` in the topic's row reads `Evidence confirmed: Board diversity` | unit |
+| AC-28 | AC-24 | Confirm succeeds | An element with `role="status"` in the objective's row reads `Evidence confirmed: Set a 2030 target` | unit |
+| AC-29 | A collapsed, undecided ballot card with one watch flag | The card renders | In document order, the flag banner comes before the `Approve: vote …` button | unit |
+| AC-30 | An objective with status `in_progress` and result `not_achieved` | The panel renders | Its badge reads `in progress` and its result reads `result: not achieved`; no text in the row contains `_` | unit |
+| AC-31 | AC-30, signed in | The user opens Record result | The Result select's options read `achieved`, `partially achieved`, `not achieved`, `deterioration`, `abandoned`; choosing `not achieved` and saving sends `result` `not_achieved` | unit |
+| AC-32 | An issue with `source` `manual`, `data_source` null, one objective with `source` `mock_voice_seed` | The panel renders | The issue header's chip row contains a chip `Demo data` | unit |
+| AC-33 | AC-32 | The panel renders | The objective's row still shows its own `Demo data` chip (must not change) | unit |
+| AC-34 | An issue with `data_source` `npx_urth_demo` and no objectives | The panel renders | The issue header's chip row contains a chip `Demo data` | unit |
+| AC-35 | An issue with `source` `manual`, `data_source` null, objectives with `source` null | The panel renders | The issue header has no `Demo data` chip (must not change) | unit |
+| AC-36 | A run with 3 routine, undecided proposals: 2 for `Alpha Corp`, whose ballot has one watch flag with message `Commitment overdue: "Publish a transition plan" was due 2026-10-01.`, and 1 for `Beta plc` with none | The user presses `Approve 3 routine…` | The dialog shows the line `Alpha Corp: Commitment overdue: "Publish a transition plan" was due 2026-10-01.` once and no line for `Beta plc` | unit |
+| AC-37 | AC-36's dialog open | The user presses `Approve 3` | 3 review decisions `approve` are sent, one per proposal | unit |
+| AC-38 | AC-36 without any watch flag | The user presses `Approve 3 routine…` | The dialog shows no commitment-warning list (must not change) | unit |
+| AC-39 | A client stream whose `program_versions` hold one version with a target whose `client_step` is `joint_engagement` (written to the stream file directly) | `GET /api/stewardship/streams/<stream>/program/monitor` | That target's row has `planned step` `private engagement` | unit |
+| AC-40 | AC-39 | `GET /api/stewardship/streams/<stream>/program` | That target in `versions` has `client_step` `private_engagement` | unit |
+| AC-41 | AC-39 | Both calls done | The stream file still holds `client_step` `joint_engagement` (unchanged bytes) | unit |
 
-PR B rows are frontend component tests or browser tests with the API stubbed by `page.route`, because the e2e
-stack has no engagement data with these states. "Panel" is the issue panel on `#/engagement`.
-
-| ID   | Given | When | Then (observable, exact) | Checked by |
-|------|-------|------|--------------------------|------------|
-| AC-8 | A ballot whose `watch_flags` hold one `overdue` and one `broken` flag | The ballot card renders, collapsed and then expanded | Each time, the overdue banner has class `banner-warning` and the broken banner has class `banner-danger` | unit |
-| AC-9 | A dossier watch list with one entry flagged `overdue` and one flagged `broken` | The dossier watch list renders | The `overdue` badge has class `badge-mid`, the `broken` badge class `badge-low` | unit |
-| AC-10 | An objective with `target_date` `end of FY2027`, a watch topic with `target_date` `2026-12-31T00:00:00`, a dossier entry with `target_date` `2025-12-31 (approx.)` | The panel renders | They read `due end of FY2027`, `due 2026-12-31` and `due 2025-12-31 (approx.)` | unit |
-| AC-11 | `useMe()` returns null (signed out); an issue with one `in_progress` objective and one `open` watch topic, both without proof; the Postgres store | The panel renders | `Record result`, `Add proof statement` (both), `Add watch topic` and `Close topic` are disabled | unit |
-| AC-12 | AC-11 | The panel renders | The text `Enter your access token in the sidebar first: every decision is recorded against the signed-in user.` appears exactly once | unit |
-| AC-13 | AC-11 but signed in as `dev` | The panel renders | The same five buttons are enabled (must not change) | unit |
-| AC-14 | `api.listSuggestions` and `api.listWatchTopics` reject with `Error("409: Watch items need the Postgres engagement store.")`; an issue with one `in_progress` objective without proof | The panel renders | No button named `Add proof statement` | unit |
-| AC-15 | One pending evidence suggestion on an `open` watch topic with question `Board diversity`; stubs answer the confirm with 200 and the reload with no pending suggestion | A keyboard user presses `Confirm` on it | Focus is on the button named `Check against documents: Board diversity` | holdout |
-| AC-16 | A pending evidence suggestion on an `in_progress` objective; same stubs | A keyboard user presses `Confirm` on it | The Record result form is open and focus is on its `Result` select (must not change) | holdout |
-| AC-17 | AC-15's suggestion | Read its buttons | Their accessible names are `Confirm evidence: Board diversity` and `Reject evidence: Board diversity` | unit |
-| AC-18 | AC-15 | Confirm succeeds | An element with `role="status"` reads `Evidence confirmed: Board diversity` | unit |
-| AC-19 | A collapsed, undecided ballot card with one watch flag | The card renders | In document order, the flag banner comes before the `Approve: vote …` button | unit |
-| AC-20 | An objective with status `in_progress` | The panel renders | Its status badge reads `in progress`; no text in the objective row reads `in_progress` | unit |
-| AC-21 | An issue with `source` `manual`, `data_source` null, and one objective with `source` `mock_voice_seed` | The panel renders | The issue header's chip row contains a chip `Demo data` | unit |
-| AC-22 | An issue with `source` `manual`, `data_source` null, and objectives with `source` null | The panel renders | The issue header shows no `Demo data` chip (must not change) | unit |
-| AC-23 | A run with 3 routine, undecided proposals: 2 for company `Alpha Corp`, whose ballot has one watch flag with message `Commitment overdue: "Publish a transition plan" was due 2026-10-01.`, and 1 for `Beta plc` with none | The user presses `Approve 3 routine…` | The dialog shows the line `Alpha Corp: Commitment overdue: "Publish a transition plan" was due 2026-10-01.` once, and no line for `Beta plc` | unit |
-| AC-24 | AC-23's dialog open | The user presses `Approve 3` | 3 review decisions `approve` are sent, one per proposal | unit |
-| AC-25 | AC-23 without any watch flag | The user presses `Approve 3 routine…` | The dialog shows no commitment-warning list (must not change) | unit |
-| AC-26 | PR C. A client stream whose `program_versions` hold one version with a target whose `client_step` is `joint_engagement` (written to the stream file directly) | `GET /api/stewardship/streams/<stream>/program/monitor` | The row for that target has `planned step` `private engagement` | unit |
-| AC-27 | AC-26 | The stream file after that call | It still holds `client_step` `joint_engagement` (byte-identical) | unit |
-| AC-28 | AC-26 | `GET /api/stewardship/streams/<stream>/program` | That target in `versions` has `client_step` `private_engagement` | unit |
+Must not change: a refused pick keeps the form (AC-4); signed-in buttons (AC-19); the proof button on a non-409
+error (AC-21); the objective's confirm-to-record flow (AC-24); the per-objective demo chip and no chip on live data
+(AC-33, AC-35); the bulk dialog without flags (AC-38); stored programme versions (AC-41).
