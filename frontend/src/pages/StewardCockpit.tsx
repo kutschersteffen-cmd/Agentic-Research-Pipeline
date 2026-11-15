@@ -163,18 +163,15 @@ function Strip({ days }: { days: Cockpit["days"] }) {
       <div className="cockpit-scroll">
         <ol className="cockpit-strip">
           {days.map((d, i) => (
-            <li
-              key={d.date}
-              className={isWeekend(d.date) ? "weekend" : undefined}
-              aria-label={`${fmtDay(d.date)}: ${d.engagement_meetings} engagement, ${d.shareholder_meetings} shareholder meetings`}
-            >
-              <span className="cockpit-label">{monthLabel(d.date, i === 0)}</span>
+            <li key={d.date} className={isWeekend(d.date) ? "weekend" : undefined}>
+              <span className="visually-hidden">{`${fmtDay(d.date)}: ${d.engagement_meetings} engagement meetings, ${d.shareholder_meetings} shareholder meetings`}</span>
+              <span className="cockpit-label" aria-hidden="true">{monthLabel(d.date, i === 0)}</span>
               <span className="cockpit-bars" aria-hidden="true">
                 {d.engagement_meetings > 0 && <span className="eng" style={{ height: h(d.engagement_meetings) }} title={`${d.engagement_meetings}`} />}
                 {d.shareholder_meetings > 0 && <span className="agm" style={{ height: h(d.shareholder_meetings) }} title={`${d.shareholder_meetings}`} />}
               </span>
-              <span className="cockpit-num">{Number(d.date.slice(8, 10))}</span>
-              <span className="cockpit-label">{WEEKDAYS[weekday(d.date)]}</span>
+              <span className="cockpit-num" aria-hidden="true">{Number(d.date.slice(8, 10))}</span>
+              <span className="cockpit-label" aria-hidden="true">{WEEKDAYS[weekday(d.date)]}</span>
             </li>
           ))}
         </ol>
@@ -321,14 +318,18 @@ function ShareholderMeetings({ rows }: { rows: Cockpit["shareholder_meetings"] }
 }
 
 function ControlGaps({ rows }: { rows: Cockpit["control_gaps"] }) {
+  const [shown, more] = useMore(rows);
   return (
-    <Card title="Control gaps" label={rows.length > 0 ? <span className="cockpit-needs cockpit-signal">{fmtCount(rows.length)} need you</span> : null}>
+    <Card
+      title="Control gaps"
+      label={rows.length > 0 ? <span className="cockpit-card-actions"><span className="cockpit-needs cockpit-signal">{fmtCount(rows.length)} need you</span>{more}</span> : null}
+    >
       {rows.length === 0 ? (
         <p className="muted">No control gaps.</p>
       ) : (
         <>
           <ul className="cockpit-list">
-            {rows.map((g) => (
+            {shown.map((g) => (
               <li key={g.engagement_id}>
                 <span>
                   {g.company}
