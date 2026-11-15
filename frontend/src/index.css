@@ -1629,12 +1629,6 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-dots li.hub-dot-failed::after, .hub-dot.hub-dot-failed { background: var(--low); border-radius: var(--r-sm); transform: rotate(45deg); width: 11px; height: 11px; }
 .hub-dots li.hub-dot-idle::after, .hub-dot.hub-dot-idle { border: 2px solid var(--panel-border); }
 
-.hub-now-label { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-right: var(--s-2); }
-.hub-chip { text-transform: none; display: inline-flex; align-items: center; gap: var(--s-2); min-height: 40px; padding: 0 var(--s-3); border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none; font-family: var(--font-mono); font-size: var(--text-sm); }
-.hub-chip:hover { border-color: var(--text); }
-.hub-chip:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
-.hub-chip-wait { border-color: var(--hi); }
-
 @media (max-width: 1100px) {
   .hub-card, .hub-card:nth-child(n+4) { grid-column: span 3; }
   /* Two per row leaves Data Hub alone beside an empty cell: let it fill the row. */
@@ -1644,17 +1638,11 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
   .hub-cards { grid-template-columns: minmax(0, 1fr); }
   .hub-card, .hub-card:nth-child(n+4) { grid-column: auto; }
 }
-@media (max-width: 640px) {
-  /* The chip's three parts wrap as words on a phone, not as three ragged columns. */
-  .hub-chip { display: flex; flex-wrap: wrap; column-gap: var(--s-1_5); padding: var(--s-2) var(--s-3); }
-}
 
 .hub-run { margin: 0 0 var(--s-3); }
 /* On a phone the note goes under the button instead of wrapping around it. */
 @media (max-width: 640px) { .hub-run > .muted { display: block; margin-top: var(--s-2); } }
 .hub-run ul { margin: var(--s-1) 0; }
-.hub-crumb { margin: 0 0 var(--s-1); font-size: var(--text-sm); color: var(--muted); }
-.hub-crumb a { color: var(--accent); }
 .hub-flow { list-style: none; display: flex; gap: 18px; margin: var(--s-4) 0 0; padding: 0; }
 .hub-flow-item { flex: 1 1 0; min-width: 0; position: relative; display: flex; }
 /* The arrow into each step after the first, as on the extraction pipeline. */
@@ -1668,7 +1656,6 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-process-meta { display: inline-flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
 .hub-process-state { display: inline-flex; align-items: center; gap: var(--s-1_5); font-size: var(--text-xs); color: var(--muted); }
 .hub-step-handoff-key { border-bottom: 2px dashed var(--panel-border); color: var(--mid); }
-.hub-screens .hub-chip { font-family: inherit; }
 @media (prefers-reduced-motion: reduce) { .hub-step-go { transition: none; } }
 .hub-step:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .hub-step-now { border-color: var(--text); }
@@ -1691,7 +1678,6 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-process-fold > summary { cursor: pointer; width: fit-content; min-height: 24px; margin-top: var(--s-2); color: var(--accent); font-size: var(--text-sm); }
 .hub-process-fold[open] > summary { margin-bottom: var(--s-1); }
 .hub-process .help-text { margin: 0; }
-.hub-screens { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: var(--s-4); }
 
 @media (max-width: 900px) {
   .hub-flow { flex-direction: column; }

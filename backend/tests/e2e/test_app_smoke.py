@@ -158,3 +158,12 @@ def test_top_bar_two_rows_at_360(page):
     rows = [t for i, t in enumerate(tops) if i == 0 or t - tops[i - 1] > 2]
     assert len(rows) == 2, boxes
     assert page.evaluate("() => document.documentElement.scrollWidth") <= 360
+
+
+@pytest.mark.parametrize("path", ["/#/stewardiq", "/#/argus"])
+def test_overview_has_no_crumb_or_screens(page, path):
+    # AC-14: the workspace row replaces the breadcrumb and the Screens chips.
+    _open(page, path)
+    assert page.locator(".hub-crumb").count() == 0
+    assert page.locator("nav.hub-screens").count() == 0
+    assert page.get_by_text("Start ›").count() == 0

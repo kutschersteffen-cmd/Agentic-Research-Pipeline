@@ -270,7 +270,7 @@ def test_unsaved_edit_guards(page):
     page.get_by_label("Criterion 1").first.fill("edited")
     assert page.evaluate("() => { const e = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(e); return e.defaultPrevented; }")
     page.once("dialog", lambda d: d.dismiss())
-    page.locator("a.nav-tab:not(.active)").first.click()  # a sidebar tab; the guard asks, and the answer is no
+    page.get_by_role("banner").get_by_role("link", name="Reports").click()  # a top bar link; the guard asks, and the answer is no
     assert page.get_by_label("Criterion 1").first.input_value() == "edited"
     assert page.get_by_label("Criterion 1").first.input_value() == "edited"
 

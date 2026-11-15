@@ -323,9 +323,6 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
 
   return (
     <div className="page hub">
-      <p className="hub-crumb">
-        <a href="#/home">Start</a> › {w.name}
-      </p>
       <h1>{w.name}</h1>
       <p className="help-text">
         {w.purpose} Open a step to work in its screen; a bar there shows the next step. A dashed <span className="hub-step-handoff-key">re-entered by hand</span> line means that output is typed into the next step, not passed on.
@@ -335,14 +332,6 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
       {w.processes.map((p) => (
         <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} activity={activity} />
       ))}
-      <nav className="hub-screens" aria-label={`${w.name} screens`}>
-        <span className="hub-now-label">Screens</span>
-        {w.screens.map(([href, label]) => (
-          <a key={href} className="hub-chip" href={href}>
-            {label}
-          </a>
-        ))}
-      </nav>
     </div>
   );
 }
