@@ -6,7 +6,8 @@ Risk: `risk:high` for the implementing PR: `load-npx` rewrites a stored column o
 and `seed-demo` changes how it deletes and re-creates demo rows (steward table: data migrations, deleting stored
 data). Size M, 1 PR. The cockpit page changes, so the UI review applies (Playwright screenshot,
 `/impeccable:impeccable audit`).
-Status: draft, for the owner's approval.
+Status: **approved by the owner on 15 Nov 2026** (buttons in the spec session, after the spec-critic's findings were
+fixed). The approval also confirms owner decision 4.
 Starts after: cockpit PR 2 (#490, financed emissions, `risk:high`) is merged. It touches `cockpit.py` and
 `StewardCockpit.tsx` too. The build branches from `main` after that merge.
 
@@ -33,8 +34,9 @@ Taken by button in the dispatcher session, 15 Nov 2026:
 
 Taken by button in this spec session, 15 Nov 2026:
 
-5. **How the new category shows on the cockpit:** <owner answer, see "Cockpit page">.
-6. **Process view:** <owner answer, see "Process view">.
+5. **How the new category shows on the cockpit: "Voting card only"** (layout A, section 3). The key figure at the
+   top stays as it is.
+6. **Process view: "Keep one number"** (section 4). No new metric; the existing count is corrected by the loader fix.
 
 ## What is wrong today (main `b53ad65`)
 
@@ -145,9 +147,7 @@ shown as 1%.
 
 ### 3. Cockpit page (`frontend/src/pages/StewardCockpit.tsx`, voting card only)
 
-<filled from owner decision 5; recommended layout A below>
-
-**Layout A (recommended): the split lives in the voting card.**
+Owner decision 5: layout A, the split lives in the voting card.
 
 - Season bar: segments for / against / abstained or withheld (plus other, only when above 0), in that order, using
   the existing `for`, `against`, `abstain`, `other` swatch classes. Legend per segment: `<count> <label> (<p>%)`,
@@ -160,20 +160,14 @@ shown as 1%.
   management only when management recommended for."
 - The key figure "Votes cast, <season>" keeps its note `<m> meetings · <p>% against management`.
 
-**Layout B: as A, and the key figure note also gets the share:**
-`<m> meetings · <p>% against management · <q>% abstained or withheld`.
-
 Percentages are whole numbers, rounded half up (`pct()` in `frontend/src/lib/cockpit.ts`), of `voting.votes` for
 the bar and of the topic's `votes` for a topic row. No new colour token; no signal colour in the voting card.
 
 ### 4. Process view
 
-<filled from owner decision 6; recommended: no change>
-
-- **Recommended: no change.** The stage 4 metric "Against management" keeps its single count. It reads the stored
-  flag, so the loader fix corrects it with no code change.
-- Alternative: a metric "Abstained or withheld" (count of decided ballot items whose vote is `abstain` or
-  `withhold`, source `live`) right after "Against management" in stage 4 (`process.py:357`).
+Owner decision 6: no change. The stage 4 metric "Against management" keeps its single count. It reads the stored
+flag, so the loader fix corrects it with no code change. (Rejected alternative: a metric "Abstained or withheld"
+after it.)
 
 ### 5. Seed demo (`seed_demo.py`)
 
@@ -243,12 +237,12 @@ N-PX format (`data/voting/npx_urth/README.md`) with one meeting dated 03/10/2026
 | AC-17 | the demo stack of cockpit "Showcase setup" | open `#/stewardiq/cockpit`, voting card | the legend reads, in order, `<n> for (<p>%)`, `<n> against (<p>%)`, `<n> abstained or withheld (<p>%)`, and `<n> other (<p>%)` only when other is above 0; the bar has one segment per legend entry with a count above 0, in the same order | evaluator |
 | AC-18 | the demo stack | voting card, topic rows | each of the 5 topic rows reads `<p>% · <a> of <n> · <q>% abstained or withheld`, `<q>` = the topic's `abstain` / `votes` in whole percent | evaluator |
 | AC-19 | the demo stack | voting card | the footnote reads exactly "Abstentions never count as against management. A withhold counts as against management only when management recommended for." | evaluator |
-| AC-20 | the demo stack | key figures row | "Votes cast, 2026" note reads `<m> meetings · <p>% against management` (layout A; layout B: `<m> meetings · <p>% against management · <q>% abstained or withheld`) | evaluator |
+| AC-20 | the demo stack | key figures row | "Votes cast, 2026" note reads `<m> meetings · <p>% against management` (must not change) | evaluator |
 | AC-21 | `voting.topics` has a topic with `votes` 0 | the voting card renders | that row reads `– · 0 of 0 · – abstained or withheld` | unit |
 | AC-22 | the demo stack, theme switch on Light, then on Dark | voting card | the abstained-or-withheld bar segment and its legend swatch have the computed background of `var(--neutral)` | evaluator |
 | AC-30 | as AC-22 | voting card | no element in the card has a text, background or border colour equal to `--hi`, `--hi-ink`, `--await` or `--await-edge` | evaluator |
-| AC-23 | one `proxy_voting` run with two decided items: `abstain` (management `for`), `against` (management `for`); process option "no change" | `GET /api/stewardship/streams/house/flow`, the stage with `id` `voting` | its `metrics` labels are exactly "Resolutions", "Expected against", "Case-by-case", "Sanction votes", "Ballot items decided", "Against management", and "Against management" has `value` 1 | unit |
-| AC-31 | as AC-23, process option "add a second number" | same | labels end with "Against management", "Abstained or withheld", with `value` 1 and 1 | unit |
+| AC-23 | one `proxy_voting` run with two decided items: `abstain` (management `for`), `against` (management `for`) | `GET /api/stewardship/streams/house/flow`, the stage with `id` `voting` | its `metrics` labels are exactly "Resolutions", "Expected against", "Case-by-case", "Sanction votes", "Ballot items decided", "Against management", and "Against management" has `value` 1 | unit |
+| ~~AC-31~~ | Retired: the owner chose "Keep one number" (decision 6) | — | ~~as AC-23 with a second metric "Abstained or withheld"; unit~~ | retired |
 | AC-24 | `arp showcase load`, then `arp stewardship seed-demo --seed 7`; one `stw_watch_topics` row with `source` `app` on a `mock_voice_seed` engagement | `arp stewardship seed-demo --seed 8` | exit 1; stderr contains `stw_watch_topics: 1` | holdout |
 | AC-32 | as AC-24 | same | row counts of every `stw_*` table are unchanged (on `main` the database error also rolls back, so this half passes before and after; it guards the new code) | holdout |
 | AC-25 | as AC-24, but one `stw_evidence_suggestions` row with `source` `app` on a `mock_voice_seed` engagement instead of the watch topic | `seed-demo --seed 8` | exit 1; stderr contains `stw_evidence_suggestions: 1` | holdout |
@@ -261,9 +255,6 @@ N-PX format (`data/voting/npx_urth/README.md`) with one meeting dated 03/10/2026
 Must not change: cockpit AC-40, AC-41 and AC-43 (split votes without a `run_id` count once per row) keep their
 expected values and stay in the regression suite; data-foundation AC-35 and AC-36 (row counts after `load-npx`)
 too; and AC-3, AC-5, AC-6, AC-26, AC-29, AC-34 above.
-
-The owner's answer to decision 6 keeps one of AC-23 and AC-31; the other is retired with ~~strikethrough~~ before
-approval is recorded. Decision 5 picks the layout A or B wording of AC-20.
 
 AC-21 needs a topic with 0 votes, which the showcase data does not have (all five topics have votes in 2026), so it
 is a `unit` row on the rendering; AC-18 is checked on the showcase.
