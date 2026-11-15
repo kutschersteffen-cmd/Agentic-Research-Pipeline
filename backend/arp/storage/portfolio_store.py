@@ -197,6 +197,10 @@ class PortfolioStore:
         row = self._read_json(self.resolutions_path()).get(security_id)
         return SecurityResolution.model_validate(row) if row else None
 
+    def list_resolutions(self) -> dict[str, SecurityResolution]:
+        """security_id -> its resolution, in one read (a lookup per security re-reads the whole file)."""
+        return {sid: SecurityResolution.model_validate(row) for sid, row in self._read_json(self.resolutions_path()).items()}
+
     def list_resolutions_needing_review(self) -> list[SecurityResolution]:
         return [
             SecurityResolution.model_validate(row)

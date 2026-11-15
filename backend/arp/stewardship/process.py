@@ -44,15 +44,16 @@ SAMPLE_PATH = DATA / "examples" / "sample_meetings.json"
 HOUSE = "house"
 
 
-def vote_items(runs_dir: Path | None = None) -> list[dict]:
-    """Every ballot item from the Proxy Voting runs (see voting_feed) plus the vote ledger's decisions (vote_ledger_feed)."""
+def vote_items(runs_dir: Path | None = None, house_issuers: list[dict] | None = None) -> list[dict]:
+    """Every ballot item from the Proxy Voting runs (see voting_feed) plus the vote ledger's decisions (vote_ledger_feed).
+    `house_issuers`: the house universe's issuers, when the caller already has them."""
     from arp.config import get_settings
 
     if runs_dir is None:
         runs_dir = get_settings().runs_dir
     settings = get_settings()
     dsn = require_dsn(settings)
-    ledger = vote_ledger_feed.ledger_rows(dsn, settings.vote_monitoring_window_days)
+    ledger = vote_ledger_feed.ledger_rows(dsn, settings.vote_monitoring_window_days, house_issuers)
     seen = {(r["run_id"], r["company_id"], r["item"]) for r in ledger if r["run_id"] is not None}
     runs = [r for r in voting_feed.items(RunStore(dsn, runs_dir)) if (r["run_id"], r["company_id"], r["item"]) not in seen]
     return runs + ledger
@@ -67,16 +68,17 @@ def portfolio_alerts() -> list:
     return list_alerts(build_portfolio_store(get_settings()))
 
 
-def house_universe() -> dict:
+def house_universe(observations: dict | None = None) -> dict:
     """The issuers the house program covers: the companies held in the house portfolios (default), or
-    the synthetic sample, as the house setting says (see universe.py)."""
+    the synthetic sample, as the house setting says (see universe.py). `observations`: `universe.latest_observations`
+    when the caller already read them."""
     from arp.config import get_settings
     from arp.storage.portfolio_store_factory import build_portfolio_store
 
     settings = get_settings()
     if HouseUniverseSetting(settings.stewardship_streams_dir).get()["source"] == "sample":
         return json.loads(SAMPLE_PATH.read_text())
-    return from_portfolio(build_portfolio_store(settings))
+    return from_portfolio(build_portfolio_store(settings), observations=observations)
 
 
 def house_isins() -> dict[str, str]:
@@ -95,6 +97,7 @@ def load_sample(
     votes: list[dict] | None = None,
     alerts: list | None = None,
     base: dict | None = None,
+    observations: dict | None = None,
 ) -> dict:
     """The house issuers (`house_universe()`, or `base`) with live data merged in as company fields, matched
     by issuer id, so coverage, monitoring and escalation rules read it like
@@ -105,14 +108,18 @@ def load_sample(
     - decided Proxy Voting ballots (`vote.decided`, `vote.against_management`,
       `vote.overrode_policy`, `vote.last_meeting_date`);
     - open Risk Monitoring alerts (`alert.open_news_controversy`,
-      `alert.open_threshold_breach`)."""
+      `alert.open_threshold_breach`).
+
+    `observations` is passed on to `house_universe` (one read of the portfolio observations per request)."""
     if frameworks_dir is None:
         from arp.config import get_settings
 
         frameworks_dir = get_settings().frameworks_dir
-    sample = house_universe() if base is None else base
+    sample = base if base is not None else house_universe() if observations is None else house_universe(observations)
     merged = [as_fields(snapshot) for snapshot in DecisionStore(frameworks_dir).latest_published()]
-    merged.append(voting_feed.issuer_fields(vote_items() if votes is None else votes))
+    if votes is None:
+        votes = vote_items(house_issuers=sample["issuers"] if base is None else None)
+    merged.append(voting_feed.issuer_fields(votes))
     merged.append(alerts_feed.issuer_fields(portfolio_alerts() if alerts is None else alerts))
     for fields in merged:
         for issuer in sample["issuers"]:

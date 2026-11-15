@@ -23,6 +23,7 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 
+from arp.schemas.portfolio import DataPointObservation
 from arp.stewardship.benchmark import placeholder_clti
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
@@ -58,9 +59,10 @@ def held_isins(store: PortfolioStore) -> dict[str, str]:
     if not dates:
         return {}
     securities, _ = portfolio_directories(store)
+    resolutions = store.list_resolutions()
     out: dict[str, str] = {}
     for h in store.load_holdings_as_of(dates[-1]):
-        r, sec = store.get_resolution(h.security_id), securities.get(h.security_id)
+        r, sec = resolutions.get(h.security_id), securities.get(h.security_id)
         isin = h.isin or (sec.isin if sec else None)
         if isin and r is not None and r.company_id:
             out.setdefault(isin.upper(), r.company_id)
@@ -70,9 +72,9 @@ def held_isins(store: PortfolioStore) -> dict[str, str]:
 def company_by_security(store: PortfolioStore) -> dict[str, str]:
     """security_id -> company_id: the security's resolution, else (no resolution at all) the company the security
     itself names, as the showcase import sets it without writing resolutions."""
-    out = {}
+    out, resolutions = {}, store.list_resolutions()
     for sec in store.list_securities():
-        r = store.get_resolution(sec.security_id)
+        r = resolutions.get(sec.security_id)
         if cid := r.company_id if r is not None else sec.company_id:
             out[sec.security_id] = cid
     return out
@@ -86,9 +88,22 @@ def _value_by_company(store: PortfolioStore, as_of: str, companies: dict[str, st
     return out
 
 
-def from_portfolio(store: PortfolioStore, as_of: str | None = None) -> dict:
+def latest_observations(store: PortfolioStore, as_of: str | None = None) -> dict[str, dict[str, DataPointObservation]]:
+    """company_id -> {field_id: its latest observation as of `as_of` (default: the latest holdings snapshot)}, every
+    recorded (company, field) pair read once."""
+    dates = store.all_snapshot_dates()
+    if not dates:
+        return {}
+    out: dict[str, dict[str, DataPointObservation]] = defaultdict(dict)
+    for company_id, field_id in store.list_observation_keys():
+        if (obs := store.latest_observation(company_id, field_id, as_of or dates[-1])) is not None:
+            out[company_id][field_id] = obs
+    return dict(out)
+
+
+def from_portfolio(store: PortfolioStore, as_of: str | None = None, observations: dict | None = None) -> dict:
     """The held companies in the shape of the synthetic sample. `as_of` dates the observation lookups (default: the
-    latest holdings snapshot)."""
+    latest holdings snapshot); `observations`: `latest_observations(store, as_of)` when the caller already read them."""
     dates = store.all_snapshot_dates()
     if not dates:
         return {"source": "portfolio", "note": "No portfolio holdings loaded.", "issuers": [], "engagements": [], "meetings": []}
@@ -99,12 +114,13 @@ def from_portfolio(store: PortfolioStore, as_of: str | None = None) -> dict:
     _, companies = portfolio_directories(store)
     observed: dict[str, dict] = defaultdict(dict)
     simulated: set[str] = set()
-    for company_id, field_id in store.list_observation_keys():
-        obs = store.latest_observation(company_id, field_id, obs_as_of)
-        if obs is not None and isinstance(obs.value, int | float | bool):
-            observed[company_id][f"portfolio.{field_id}"] = obs.value
-            if obs.source == "simulated":
-                simulated.add(company_id)
+    observations = latest_observations(store, obs_as_of) if observations is None else observations
+    for company_id, by_field in observations.items():
+        for field_id, obs in by_field.items():
+            if isinstance(obs.value, int | float | bool):
+                observed[company_id][f"portfolio.{field_id}"] = obs.value
+                if obs.source == "simulated":
+                    simulated.add(company_id)
     issuers = []
     for company_id, value in sorted(now.items(), key=lambda kv: -kv[1]):
         company = companies.get(company_id)

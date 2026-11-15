@@ -13,8 +13,9 @@ from arp.db.session import transaction
 from arp.storage.postgres_models import VoteDecisionModel, VoteItemModel, VoteMeetingModel
 
 
-def ledger_rows(dsn: str, window_days: int) -> list[dict]:
-    """One row per decision on a meeting within `window_days` before the ledger's newest meeting_date."""
+def ledger_rows(dsn: str, window_days: int, house_issuers: list[dict] | None = None) -> list[dict]:
+    """One row per decision on a meeting within `window_days` before the ledger's newest meeting_date.
+    `house_issuers`: `house_universe()["issuers"]` when the caller already built it (building it twice is slow)."""
     with transaction(dsn) as s:
         newest = s.scalar(select(func.max(VoteMeetingModel.meeting_date)))
         if newest is None:
@@ -50,7 +51,8 @@ def ledger_rows(dsn: str, window_days: int) -> list[dict]:
                     if values and house is None:  # the registry upper-cases UNIVERSE values; issuer ids keep their case
                         from arp.stewardship.process import house_universe
 
-                        house = {i["issuer_id"].upper(): i["issuer_id"] for i in house_universe()["issuers"]}
+                        issuers = house_universe()["issuers"] if house_issuers is None else house_issuers
+                        house = {i["issuer_id"].upper(): i["issuer_id"] for i in issuers}
                     # a company outside the house universe keeps the showcase key
                     by_isin[meeting.isin] = next((house[v.upper()] for v in values or () if v.upper() in house), f"isin_{meeting.isin}")
                 company_id = by_isin[meeting.isin]
