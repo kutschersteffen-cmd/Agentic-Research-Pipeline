@@ -91,6 +91,9 @@ class Alert(BaseModel):
     category: AlertCategory
     scope_id: str = Field(description='company_id for company-scoped rules, or "portfolio__<portfolio_id>" for portfolio-scoped ones.')
     company_id: str | None = None
+    company_name: str | None = Field(
+        default=None, description="Directory name of company_id, filled on read by the alerts endpoint; never stored."
+    )
     portfolio_id: str | None = None
     triggered_at: str = Field(default_factory=now_iso)
     observed_value: float | None = None

@@ -812,6 +812,18 @@
       ],
       "title": "Company Id"
      },
+     "company_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Directory name of company_id, filled on read by the alerts endpoint; never stored.",
+      "title": "Company Name"
+     },
      "data_point_values": {
       "anyOf": [
        {
