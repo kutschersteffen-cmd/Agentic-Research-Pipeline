@@ -364,6 +364,26 @@ slide writes v1 (the slide as built) and v2. A full rebuild of the deck clears a
 - history with Undo;
 - a checks panel (fits, one emphasis, numbers in sources) and the source line.
 
+### Layout options and free nudges (owner decision 15 Nov 2026, PR 3)
+
+- **Named chart layout options:** `Chart.card_side` (`right` default, or `left`), `Chart.split` (`65/35`
+  default, `50/50` or `75/25`, chart/card width share of the body after the 48 px gap) and
+  `Chart.legend` (`end` default: labels at the line or bar ends, or `top`). Typed instructions such as
+  "put the card on the left" or "make the card wider" set these.
+- **Free nudges:** `SlideContent.overrides: dict[str, Nudge]` keyed by primitive name, where
+  `Nudge = {dx, dy, dw, dh}` in canvas px (default 0).
+  - The render model applies each nudge to the named primitive after layout. Text inside it reflows to
+    the new box. Both writers draw the result, so PDF and PPTX stay identical.
+  - **Limits:** a nudged box must stay inside the body zone (or inside the slide for cover/section).
+    The label, title, subtitle and source zones can't be nudged. A nudge outside the limits is
+    clamped to them.
+  - **Made by:** a typed instruction (the refine call may return `overrides`), or dragging and
+    resizing the shape on the refine screen's preview, which snaps to 8 px.
+  - **Checks:** after any nudge, `measure` and `design_checks` run on the slide. Overflow, overlap
+    (`collision`) and underfill show in the checks panel; they never block the nudge.
+  - A nudge is a slide version like any refinement, so undo and history cover it. "Reset layout" clears
+    the slide's overrides as a new version.
+
 ### Review sheet
 
 - `arp.reporting.sheet.sheet_deck() -> tuple[Deck, list[QuantitativeDataset], str]` builds the fixture
@@ -518,3 +538,10 @@ PPTX is converted at 9525 EMU/px.
 | AC-52 | a stand-in returning slide 3 whose chart references dataset `nope` | POST `/slides/4/refine` | 422 with a detail naming `nope`; history unchanged | holdout |
 | AC-53 | a `points` slide whose third point overflows at 28 px; a stand-in whose shorten returns a 6-word point | `build_house_deck` | one `shortened` finding; no `overflow` or `needs_review` finding for that slide | holdout |
 | AC-54 | a stand-in whose fill returns an invalid `kpi_row` twice (5 tiles) | `build_house_deck` | the slide is a `points` slide built from the headline and rationale; one `bad_reference` finding | holdout |
+| AC-55 | slide 3 with `card_side: left` | build PPTX | `card:insight` has x 96; the `chart` box starts 48 px right of the card's right edge (±1) | holdout |
+| AC-56 | slide 3 with `split: 50/50` | build PPTX | `chart` and `card:insight` widths are equal (±1) and together with the 48 px gap span 1728 (±1) | holdout |
+| AC-57 | slide 3 with overrides `{"chart": {"dx": -24, "dw": 80}}` | build HTML and PPTX | the `chart` box moved 24 px left and is 80 px wider than without overrides (±1), in both outputs | holdout |
+| AC-58 | slide 3 with overrides `{"chart": {"dy": -400}}` | build PPTX | the `chart` top equals the body top 328 (clamped) | holdout |
+| AC-59 | slide 3 with overrides `{"title": {"dx": 50}}` | build PPTX | `title` unmoved (x 96) | holdout |
+| AC-60 | a built deck; a stand-in returning slide 3 with overrides `{"card:insight": {"dw": 120}}` | POST `/slides/4/refine` `{"instruction":"make the card wider"}`, then POST `/slides/4/undo` | after refine the card is 120 px wider and the findings are returned in the response; after undo it is back to 520 px | holdout |
+| AC-61 | the refine screen | drag the chart 3 grid steps left, then click "Reset layout" | the preview shows the chart moved 24 px, then back to its computed place; history has both versions | evaluator |
