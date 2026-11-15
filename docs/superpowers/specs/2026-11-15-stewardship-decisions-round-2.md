@@ -35,11 +35,14 @@ trigger raised by demo votes carries a `Demo data` label wherever triggers are s
 fires on the per-company count of against-management votes, so a trigger cannot tell whether demo votes raised it.
 Demo sources are `npx_urth_demo`, `cockpit_demo` and `mock_voice_seed` (`DEMO_SOURCES`, `cockpit.py`).
 
-**Change.** `ledger_rows` keeps a `demo` flag per row (meeting or decision source in `DEMO_SOURCES`). The company
-fields count non-demo against-management votes next to the total. A `vote_against_management` trigger gets
-`demo: true` when that non-demo count is 0. `UnifiedTrigger` gains `demo: bool = False`, kept when stored. The
-frontend shows a `Demo data` chip next to the reason in the "Triggers raised" table (`studios.tsx`, Monitoring
-stage), in the stored-trigger table (`ProfileActionStrip.tsx`) and in PR6's triggers tab.
+**Change.** `ledger_rows` keeps a `demo` flag per row (meeting or decision source in `DEMO_SOURCES`); Proxy Voting
+run rows (`voting_feed.items`) are never demo. Next to `vote.against_management` the company fields get
+`vote.against_management_non_demo`, the count of against-management votes that are not demo. A
+`vote_against_management` trigger gets `demo: true` when that count is 0, else `demo: false`. `UnifiedTrigger`
+gains `demo: bool = False`: a stored trigger takes `demo` from the latest run that raised it, and stored rows
+written before this change read as `false`. The frontend shows a `Demo data` chip next to the reason in the
+"Triggers raised" table (`studios.tsx`, Monitoring stage), in the stored-trigger table (`ProfileActionStrip.tsx`)
+and in the workbench's triggers tab (from priority-worklist PR6).
 
 **Author's call:** a company with both demo and real against-management votes gets no label, because the real
 votes alone raise the trigger.
@@ -56,9 +59,10 @@ match (92 % of the characters, `grounding_fuzzy_threshold`), and the card shows 
 itself: the issue's correspondence entry whose `entry_id` is the suggestion's `activity_id`.
 
 **Change, frontend only.** The card shows the quote only when it appears in the note's `summary` after both are
-lowercased, with runs of whitespace collapsed and curly quotes and dashes made straight. Otherwise, and when the
-note is not in the issue, the card shows no quote and a `Show the note` button that scrolls to that correspondence
-entry and moves focus to it. Nothing stored changes; near matches stay suggested.
+normalised: `‘ ’` become `'`; `“ ” „` become `"`; `– — ‑ −` become `-`; a no-break space becomes a space; runs of
+whitespace become one space; then lowercase. When the quote does not appear, the card shows no quote and a
+`Show the note` button that scrolls to that correspondence entry and moves focus to it. When the note is not in the
+issue, the card shows no quote and no button. Nothing stored changes; near matches stay suggested.
 
 **Author's calls:** differences of case, spacing and typographic quotes count as word for word (they come from
 how a PDF is turned into text, not from the wording). Checking in the frontend was chosen over a new stored field,
@@ -73,8 +77,10 @@ the universe from the proposal, and names them in a message.
 `POST /api/stewardship/selection/confirm` already computes the scope's companies (`_in_scope`) and discards them.
 
 **Change.** The route passes that set to `confirm`, which, under the same lock, confirms proposed rows in the set and
-writes a `removed` event for proposed rows outside it. The response `Confirmed` gains `dropped: list[str]` (company
-names, sorted); regenerate the OpenAPI types. The workbench's success message adds
+writes a `removed` event for proposed rows outside it. The selection confirm gets its own response model,
+`SelectionConfirmed{confirmed: int, dropped: list[str]}`: `dropped` lists each dropped row's stored `company` (the
+name recorded when it was proposed), sorted. `Confirmed` stays as it is for `POST …/programmes/{id}/confirm`.
+Regenerate the OpenAPI types. The workbench's success message adds
 `Not confirmed, no longer held: <names>.` when `dropped` is not empty.
 
 ## 4. Concentration alerts without cash lines
@@ -97,17 +103,22 @@ cash included. The cash-only skip then follows by itself.
 `cusip`, plus the meeting date. Two rows for one known company with different ISINs land on one meeting, and the
 second is rejected with `isin differs from the meeting's <ISIN>`; the whole batch is refused (422).
 
-**Change.** A meeting is named by its listing first: `isin`, else `cusip`, else `company_id`, plus the date. The
+**Change.** A meeting is named by its listing first: `isin`, else `cusip`, else `company_id`, plus the date
+(`isin:<ISIN>:<date>`, `cusip:<CUSIP>:<date>`, `cid:<company_id>:<date>`). The
 meeting's `company_id` is the row's `company_id` when that company has a `stw_companies` row, else `isin_<ISIN>`
-when that has one, else null (the rule the owner confirmed below). A repair step in `postgres_schema.py` (the `_vote_meeting_key_repair`
-pattern) re-keys stored meetings named by `company_id` that carry an ISIN or CUSIP, so re-uploading an old file
-updates instead of duplicating. The `differs from the meeting's` rejection can then only come from a `company_id`
-conflict on one listing, and stays for that.
+when that has one, else null (the rule the owner confirmed below). A new schema step `vote_meeting_listing_key` in `postgres_schema.py` (the
+`_vote_meeting_key_repair` pattern; the old step is not edited, since databases that ran it never re-run it)
+re-keys stored meetings of source `api` and `excel` named `cid:` that carry an ISIN or CUSIP to the listing key, and
+re-keys their items' external ids the same way, so re-uploading an old file updates instead of duplicating. When the
+new key is already taken it skips that meeting and logs a warning, as the old step does. The agreement check stays:
+rows that land on one meeting must still agree on `company_id`, `isin` and `cusip`, and a conflict is still refused
+with `<field> differs from the meeting's <value>`. Only the naming changes, so two listings no longer meet.
 
 **Superseded in the parent spec** (`2026-11-12-stewardship-data-foundation-design.md`): the sentence "A meeting is
 named by the row's `company_id` when it is in the registry or `stw_companies`, else by its `isin`, else by its
-`cusip`" and the ISIN and CUSIP part of the conflict rule. Tests that change (list in the PR):
-`backend/tests/test_stewardship_vote_intake.py` around lines 234 and 315.
+`cusip`" and the ISIN and CUSIP part of the conflict rule. Tests that change (list in the PR), all in
+`backend/tests/test_stewardship_vote_intake.py`: the ISIN conflicts asserted around lines 234 and 315, and
+`test_conflicting_ids_in_one_batch_rejected` (line 241), whose two CUSIPs now name two meetings.
 
 **Spec correction, no code change** (owner: a meeting gets its company only when the company is already known).
 The parent spec's rule "A vote row that carries `isin` or `cusip` and whose company matches nothing is stored with
@@ -128,31 +139,41 @@ into one view.
 
 ## Acceptance
 
-`unit` rows use the repo's test fixtures (Postgres where the code needs it). `holdout` rows drive the app started by
-`backend/scripts/e2e_stack.sh up` through the API.
+`unit` rows use the repo's test fixtures (Postgres where the code needs it). Rows about a screen are browser tests in
+`backend/tests/e2e` with the API they name stubbed by `page.route` (the frontend's `npm test` renders no
+components). `holdout` rows drive the app started by `backend/scripts/e2e_stack.sh up` through the API. A vote row
+in area 5 also carries a distinct `external_id`, `vote` `for` and `management_recommendation` `for`.
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-1 | Company `SYN01` whose only against-management vote is on a meeting with `source` `npx_urth_demo` | Monitoring evaluates (`GET /api/stewardship/studio/monitoring/triggers`) | Its trigger with `rule` `vote_against_management` has `demo` `true` | unit |
+| AC-1 | Company `SYN01` whose only against-management vote is on a meeting with `source` `npx_urth_demo` | `GET /api/stewardship/studio/monitoring/triggers` | `SYN01`'s trigger with `rule` `vote_against_management` has `demo` `true` | unit |
 | AC-2 | AC-1 plus one against-management vote for `SYN01` on a meeting with `source` `api` | The same call | That trigger has `demo` `false` | unit |
-| AC-3 | AC-1 | The monthly run stores triggers, then `GET /api/stewardship/triggers` | The stored trigger has `demo` `true` | unit |
-| AC-4 | AC-1 | The Monitoring stage renders the "Triggers raised" table | `SYN01`'s `vote_against_management` row shows a chip `Demo data` | unit |
-| AC-5 | AC-2 | The same table | That row shows no `Demo data` chip (must not change) | unit |
-| AC-6 | A pending `new_commitment` suggestion with quote `We will publish a transition plan by 2026.`, its note's `summary` containing `we will  publish a transition plan by 2026.` | The issue panel renders | The card shows the quote `"We will publish a transition plan by 2026."` | unit |
-| AC-7 | The same suggestion, the note's `summary` containing `We shall publish a transition plan by 2026.` | The issue panel renders | The card shows no quote and a button `Show the note` | unit |
-| AC-8 | AC-7 | The user presses `Show the note` | Focus is on the note's correspondence entry | unit |
-| AC-9 | The suggestion's `activity_id` is not among the issue's correspondence | The issue panel renders | The card shows no quote and no `Show the note` button | unit |
-| AC-10 | A house selection for the open cycle with `SYN01` and `SYN02` proposed; `SYN02` no longer in the house universe | `POST /api/stewardship/selection/confirm` `{}` | Status 200, body `{"confirmed": 1, "dropped": ["<SYN02's name>"]}` | unit |
-| AC-11 | AC-10 done | `GET /api/stewardship/selection` | `SYN01` has status `confirmed`; `SYN02` is not listed | unit |
-| AC-12 | A selection with `SYN01` proposed and still in the universe | The same confirm | Status 200, body `{"confirmed": 1, "dropped": []}` (must not change apart from the new field) | unit |
-| AC-13 | The workbench page; `api` confirm resolves `{"confirmed": 1, "dropped": ["Beta plc"]}` | The user confirms | The message contains `Not confirmed, no longer held: Beta plc.` | unit |
-| AC-14 | One portfolio, NAV 1000 EUR: company `C1` with an equity line of 50 EUR and a cash line (asset class `cash`) of 30 EUR; other holdings make up the rest; a concentration rule `above 6%` | `POST /api/portfolio/monitoring/evaluate-now` | No alert for `C1` (5.00 %) | unit |
-| AC-15 | AC-14 with `C1`'s equity line 70 EUR | The same call | One alert for `C1` with `observed_value` `0.07` | unit |
-| AC-16 | AC-14 with a company `C2` held only through a `_CURRENCYUSD` line of 200 EUR | The same call | No alert for `C2` (must not change) | unit |
-| AC-17 | Company `SYN01` with a `stw_companies` row | `POST /api/stewardship/intake/votes` with two rows for meeting date `2026-05-01`, both `company_id` `SYN01`: one `isin` `US0000000001`, item `1`; one `isin` `US0000000002`, item `1` | Status 200, `rejected` `[]`, `created` `2` | holdout |
-| AC-18 | AC-17 done | Read `vote_meetings` | Two meetings for `2026-05-01`, both `company_id` `SYN01`, one with each ISIN | unit |
-| AC-19 | A stored meeting named `cid:SYN01:2026-05-01` with `isin` `US0000000001` (as written by `main` today) | The repair step runs, then the AC-17 batch is sent again | `created` `0`; still exactly two meetings for `2026-05-01` | unit |
-| AC-20 | AC-17's company | One batch with two rows on one listing (`isin` `US0000000001`, date `2026-05-01`), one with `company_id` `SYN01` and one with `company_id` `SYN09` (also with a `stw_companies` row) | Status 422, one `rejected` entry with `field` `company_id` (must not change) | unit |
+| AC-3 | `TriggerStore.record_run` for month `2026-05` with a `vote_against_management` trigger for `SYN01` with `demo` `true` | `GET /api/stewardship/triggers` | That trigger has `demo` `true` | unit |
+| AC-4 | AC-3, then `record_run` for `2026-06` with the same trigger with `demo` `false` | `GET /api/stewardship/triggers` | That trigger has `demo` `false` | unit |
+| AC-5 | A stored trigger row written without a `demo` field | `GET /api/stewardship/triggers` | That trigger has `demo` `false` | unit |
+| AC-6 | The live triggers stubbed: `SYN01`, rule `vote_against_management`, `demo` `true` | The Monitoring stage renders "Triggers raised" | That row shows a chip `Demo data` | unit |
+| AC-7 | The same with `demo` `false` | The same | That row shows no `Demo data` chip (must not change) | unit |
+| AC-8 | The stored triggers stubbed with one trigger, `demo` `true` | `ProfileActionStrip` renders | The trigger's Reason cell shows a chip `Demo data` | unit |
+| AC-9 | Priority-worklist PR6 merged; the triggers stubbed with one trigger, `demo` `true` | The workbench's triggers tab renders | That trigger shows a chip `Demo data` | unit |
+| AC-10 | A pending `new_commitment` suggestion with quote `We will publish a transition plan by 2026.`; its note's `summary` contains `we will  publish a transition plan by 2026.` | The issue panel renders | The card shows the quote `"We will publish a transition plan by 2026."` | unit |
+| AC-11 | Quote `We’ll publish – by 2026`; the note's `summary` contains `we'll publish - by 2026` | The issue panel renders | The card shows the quote | unit |
+| AC-12 | Quote as in AC-10; the note's `summary` contains `We shall publish a transition plan by 2026.` | The issue panel renders | The card shows no quote and a button `Show the note` | unit |
+| AC-13 | AC-12 | The user presses `Show the note` | Focus is on the note's correspondence entry | unit |
+| AC-14 | The suggestion's `activity_id` is not among the issue's correspondence | The issue panel renders | The card shows no quote and no `Show the note` button | unit |
+| AC-15 | A house selection for the open cycle with `SYN01` and `SYN02` proposed (`SYN02`'s stored `company` `Synthetic Two plc`); `SYN02` no longer in the house universe | `POST /api/stewardship/selection/confirm` `{}` | Status 200, body `{"confirmed": 1, "dropped": ["Synthetic Two plc"]}` | unit |
+| AC-16 | AC-15 done | `GET /api/stewardship/selection` | `SYN01` has status `confirmed`; `SYN02` is not listed | unit |
+| AC-17 | A selection with `SYN01` proposed and still in the universe | The same confirm | Status 200, body `{"confirmed": 1, "dropped": []}` | unit |
+| AC-18 | A programme with one proposed member | `POST /api/stewardship/programmes/<id>/confirm` | Status 200, body `{"confirmed": 1}` (must not change) | unit |
+| AC-19 | The workbench page; the selection confirm stubbed with `{"confirmed": 1, "dropped": ["Beta plc"]}` | The user confirms | The message contains `Not confirmed, no longer held: Beta plc.` | unit |
+| AC-20 | One portfolio, NAV 1000 EUR: company `C1` with an equity line of 50 EUR and a cash line (asset class `cash`) of 30 EUR, other holdings 920 EUR; a concentration rule `above 6%` | `POST /api/portfolio/monitoring/evaluate-now` | No alert for `C1` (5.00 %) | unit |
+| AC-21 | AC-20 with `C1`'s equity line 70 EUR and the other holdings 900 EUR (NAV still 1000) | The same call | One alert for `C1` with `observed_value` `0.07` | unit |
+| AC-22 | AC-20 with a company `C2` held only through a `_CURRENCYUSD` line of 200 EUR (other holdings 720 EUR) | The same call | No alert for `C2` (must not change) | unit |
+| AC-23 | Company `SYN01` with a `stw_companies` row | `POST /api/stewardship/intake/votes` with two rows for meeting date `2026-05-01`, both `company_id` `SYN01`, item `1`: one `isin` `US0000000001`, one `isin` `US0000000002` | Status 200, `rejected` `[]`, `created` `6` | holdout |
+| AC-24 | AC-23 done | Read `vote_meetings` | Exactly two meetings for `2026-05-01`: `isin:US0000000001:2026-05-01` and `isin:US0000000002:2026-05-01`, both `company_id` `SYN01` | unit |
+| AC-25 | A stored meeting `cid:SYN01:2026-05-01` with `isin` `US0000000001`, its item and decision (as `main` writes them today) | The `vote_meeting_listing_key` step runs, then AC-23's first row is sent again | `created` `0`, `unchanged` `3`; the meeting is `isin:US0000000001:2026-05-01` | unit |
+| AC-26 | AC-23's company | One batch with two rows on one listing (`isin` `US0000000001`, date `2026-05-01`), one `cusip` `000000001`, the other `cusip` `000000002` | Status 422, one `rejected` entry with `field` `cusip` (must not change) | unit |
+| AC-27 | AC-23's company | One row with only `company_id` `SYN01` (no ISIN, no CUSIP), date `2026-06-01`, sent twice | The meeting is `cid:SYN01:2026-06-01`; the second send gives `unchanged` `3` (must not change) | unit |
 
-Must not change: no label on a trigger real votes raise (AC-5); confirm without leavers (AC-12); cash-only companies
-never alert (AC-16); a company conflict on one listing is still refused (AC-20).
+Must not change: no label on a trigger real votes raise (AC-7); the programmes confirm response (AC-18); cash-only
+companies never alert (AC-22); a conflict on one listing is still refused (AC-26); a company-only row keeps its key
+(AC-27).

@@ -56,12 +56,13 @@ PR B (the issue panel on `#/engagement`, the dossier watch list, the ballot revi
 - (B3) When nobody is signed in, every `Record result`, `Add proof statement`, `Add watch topic` and `Close topic`
   button in the panel is disabled, and one sentence directly under the panel's access-token field
   (`SignedInAs compact`) reads `Sign in to record results, proof statements and watch topics.`
-- (B4) `Add proof statement` is not offered when the engagement store is the file store, i.e. only when the
-  suggestions load fails with the 409 `Watch items need the Postgres engagement store.` Any other load error keeps
-  the button.
-- (B5) After `Confirm` on an evidence suggestion, keyboard focus stays in the item it acted on: on a watch topic or
-  commitment, its `Check against documents: <item>` button; on an objective, the `Result` select of the Record
-  result form that opens (today's behaviour).
+- (B4) `Add proof statement` is not offered when the engagement store is the file store, i.e. only once the
+  suggestions load has failed with the 409 `Watch items need the Postgres engagement store.` While the load is
+  running, and after any other error, the button shows.
+- (B5) After `Confirm` on an evidence suggestion, keyboard focus stays in the item it acted on: on a watch topic,
+  its `Check against documents: <item>` button; on a commitment (which the confirm closes as `verified` or
+  `missed`, so its buttons go), the commitment's row, made focusable; on an objective, the `Result` select of the
+  Record result form that opens (today's behaviour).
 - (B6) Screen readers hear which item a button acts on: on an evidence suggestion, `Confirm evidence: <item>` and
   `Reject evidence: <item>`; on a found commitment, `Reject commitment: <commitment text>`.
 - (B7) A confirmed suggestion is announced in a polite status line in the item's row (outside the suggestion card,
@@ -71,8 +72,9 @@ PR B (the issue panel on `#/engagement`, the dossier watch list, the ballot revi
   `not achieved`), not codes; the values sent to the API stay codes.
 - (B10) The issue header shows a `Demo data` chip when the issue's `data_source` or any of its objectives'
   `source` is a demo source. The per-objective `Demo data` chip stays.
-- (B11) The "Approve N routine" dialog lists the companies among those N proposals whose ballot carries a watch
-  flag, with each flag's message; `Approve N` still approves all N.
+- (B11) The "Approve N routine" dialog lists every watch flag (commitment or objective, overdue or broken) of the
+  companies among those N proposals, one line per flag, `<company>: <message>`, each flag once however many of the
+  company's proposals are in N; `Approve N` still approves all N.
 
 PR C:
 
@@ -106,8 +108,9 @@ One sensible way for each item, inside the files named above.
   (`EngagementIssuePanel.tsx`).
 - **(B3)** Add the signed-in name to `EngagementWatch.tsx`'s `Ctx` (the panel already reads it with `useMe()` as
   `actor`) and disable on an empty one, as the panel's own buttons do.
-- **(B4)** After `commitment-loop-review-fixes`, `useSuggestions` returns `available: false` with `error: null`
-  exactly on that 409; hide the button in that state only.
+- **(B4)** Track the 409 explicitly (for example a `fileStore` flag set in `useSuggestions`' error branch when the
+  message is that sentence). Inferring it from `available: false` and `error: null` would also hide the button
+  while loading.
 - **(B9)** Move the panel's private `fmt()` (underscores to spaces) to `lib/engagement.ts` and import it in both
   files (exporting it from the panel would make a circular import).
 - **(B11)** Routine proposals already exclude alignment-flagged ones (`isRoutine`), but not those of a company with
@@ -136,7 +139,7 @@ cannot sign out in dev mode.
 | AC-3 | AC-1 done | The user chooses C again, types reason `Again`, presses `Pick for bilateral` | The alert reads exactly `N is already picked for bilateral` (no `422`, no issuer id) | evaluator |
 | AC-4 | AC-3 done | Read the form | The Company select still shows N and the Reason field reads `Again` (must not change) | evaluator |
 | AC-5 | AC-3 done | Read the panel | The `role="status"` element is empty | evaluator |
-| AC-6 | AC-1 done | The user presses `Withdraw` on N's pick | N leaves the pick list; the `role="status"` element reads `The bilateral pick for N is withdrawn.`; no `role="alert"` element is shown | evaluator |
+| AC-6 | AC-3 done (the alert is showing) | The user presses `Withdraw` on N's pick | N leaves the pick list; the `role="status"` element reads `The bilateral pick for N is withdrawn.`; no `role="alert"` element is shown | evaluator |
 | AC-7 | The picks panel; `POST /api/stewardship/tiers/bilateral` stubbed to answer 422 `{"detail": "A bilateral pick reason has at most 500 characters"}` | The user picks a company | The alert reads exactly `A bilateral pick reason has at most 500 characters` | unit |
 | AC-8 | The picks panel with a pick for issuer `SYN01` named `Alpha Corp`; `POST /api/stewardship/tiers/bilateral/SYN01/withdraw` stubbed to answer 422 `{"detail": "SYN01 has no bilateral pick"}` | The user presses `Withdraw` | The alert reads exactly `Alpha Corp has no bilateral pick` | unit |
 | AC-9 | The checkpoint studio; one escalation recommendation with `tier` `null`, `reason` `No escalation trigger`, `rule` `hold` | The table renders | The row's `tier` cell reads `No tier yet` and its `why` cell reads exactly `No escalation trigger` | unit |
@@ -153,7 +156,7 @@ cannot sign out in dev mode.
 | AC-20 | Signed in as `dev`; the issue's objective of AC-17; the suggestions list stubbed to answer 409 `{"detail": "Watch items need the Postgres engagement store."}` | The panel renders | No button whose accessible name starts with `Add proof statement` | unit |
 | AC-21 | AC-20 but the suggestions list stubbed to answer 500 `{"detail": "boom"}` | The panel renders | The button `Add proof statement: Set a 2030 target` is present (must not change) | unit |
 | AC-22 | Signed in as `dev`; topic `Board diversity` with one pending evidence suggestion; the confirm stubbed to answer 200; the reload returns no pending suggestion | The user presses `Confirm evidence: Board diversity` | Focus is on the button `Check against documents: Board diversity` | unit |
-| AC-23 | An open commitment `Publish a transition plan` with one pending evidence suggestion; same stubs | The user presses `Confirm evidence: Publish a transition plan` | Focus is on the button `Check against documents: Publish a transition plan` | unit |
+| AC-23 | An open commitment `Publish a transition plan` with one pending evidence suggestion, verdict `found`; the confirm stubbed to answer 200; the refreshed record shows the commitment `verified` | The user presses `Confirm evidence: Publish a transition plan` | Focus is on that commitment's row, whose badge reads `verified` | unit |
 | AC-24 | Objective `Set a 2030 target` with one pending evidence suggestion; same stubs | The user presses `Confirm evidence: Set a 2030 target` | The Record result form is open and focus is on its `Result` select (must not change) | unit |
 | AC-25 | AC-22's Given | Read the suggestion's buttons | Their accessible names are `Confirm evidence: Board diversity` and `Reject evidence: Board diversity` | unit |
 | AC-26 | One pending `new_commitment` suggestion with text `Publish a transition plan` | Read its Reject button | Its accessible name is `Reject commitment: Publish a transition plan` | unit |
@@ -166,9 +169,9 @@ cannot sign out in dev mode.
 | AC-33 | AC-32 | The panel renders | The objective's row still shows its own `Demo data` chip (must not change) | unit |
 | AC-34 | An issue with `data_source` `npx_urth_demo` and no objectives | The panel renders | The issue header's chip row contains a chip `Demo data` | unit |
 | AC-35 | An issue with `source` `manual`, `data_source` null, objectives with `source` null | The panel renders | The issue header has no `Demo data` chip (must not change) | unit |
-| AC-36 | A run with 3 routine, undecided proposals: 2 for `Alpha Corp`, whose ballot has one watch flag with message `Commitment overdue: "Publish a transition plan" was due 2026-10-01.`, and 1 for `Beta plc` with none | The user presses `Approve 3 routine…` | The dialog shows the line `Alpha Corp: Commitment overdue: "Publish a transition plan" was due 2026-10-01.` once and no line for `Beta plc` | unit |
+| AC-36 | Reviewer name `dev` entered; a run with 3 routine, undecided proposals: 2 for `Alpha Corp`, whose ballot has one watch flag with message `Commitment overdue: "Publish a transition plan" was due 2026-10-01.`, and 1 for `Beta plc` with none | The user presses `Approve 3 routine…` | The dialog shows the line `Alpha Corp: Commitment overdue: "Publish a transition plan" was due 2026-10-01.` once and no line for `Beta plc` | unit |
 | AC-37 | AC-36's dialog open | The user presses `Approve 3` | 3 review decisions `approve` are sent, one per proposal | unit |
-| AC-38 | AC-36 without any watch flag | The user presses `Approve 3 routine…` | The dialog shows no commitment-warning list (must not change) | unit |
+| AC-38 | AC-36 without any watch flag | The user presses `Approve 3 routine…` | The dialog shows no watch-flag list (must not change) | unit |
 | AC-39 | A client stream whose `program_versions` hold one version with a target whose `client_step` is `joint_engagement` (written to the stream file directly) | `GET /api/stewardship/streams/<stream>/program/monitor` | That target's row has `planned step` `private engagement` | unit |
 | AC-40 | AC-39 | `GET /api/stewardship/streams/<stream>/program` | That target in `versions` has `client_step` `private_engagement` | unit |
 | AC-41 | AC-39 | Both calls done | The stream file still holds `client_step` `joint_engagement` (unchanged bytes) | unit |
@@ -176,3 +179,9 @@ cannot sign out in dev mode.
 Must not change: a refused pick keeps the form (AC-4); signed-in buttons (AC-19); the proof button on a non-409
 error (AC-21); the objective's confirm-to-record flow (AC-24); the per-objective demo chip and no chip on live data
 (AC-33, AC-35); the bulk dialog without flags (AC-38); stored programme versions (AC-41).
+
+| ID   | Given | When | Then (observable, exact) | Checked by |
+|------|-------|------|--------------------------|------------|
+| AC-42 | AC-23 | Confirm succeeds | An element with `role="status"` in the commitment's row reads `Evidence confirmed: Publish a transition plan` | unit |
+| AC-43 | Signed in as `dev`; the objective of AC-17; the suggestions list stubbed never to answer | The panel renders | The button `Add proof statement: Set a 2030 target` is present (must not change) | unit |
+| AC-44 | AC-36, but `Alpha Corp`'s ballot has two watch flags (`Commitment overdue: …` and `Objective overdue: "Set a 2030 target" was due 2026-09-30.`) | The user presses `Approve 3 routine…` | The dialog shows exactly two `Alpha Corp: …` lines, one per flag | unit |
