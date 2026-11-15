@@ -185,7 +185,8 @@ def _long_badge(route):
 def test_top_bar_controls_never_overlap_on_tablets(page, width):
     # Review fix: between 761px and ~850px the search label spilled over the Ask button.
     page.route("**/api/runs", _long_badge)
-    _open(page, "/#/history", width, 700)
+    # A page that does not list runs, so the made-up badge run never has to render as a full manifest.
+    _open(page, "/#/stewardiq", width, 700)
     overlaps = page.evaluate("""(SEL) => {
         const els = [...document.querySelectorAll(SEL)].map((e) => [e.className, e.getBoundingClientRect()]);
         const bad = [];
