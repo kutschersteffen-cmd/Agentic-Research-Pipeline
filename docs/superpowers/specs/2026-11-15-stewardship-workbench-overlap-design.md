@@ -94,9 +94,10 @@ by more than one team this quarter, so one engagement can speak for all of them.
 - **Fund:** a house portfolio with at least one holding that resolves to a company at the latest snapshot, i.e. a key
   of `fund_holdings()`. Funds are listed by name (case-insensitive), then `portfolio_id`.
 - **Shared companies** of funds A and B: the companies with a weight in both.
-- **Shared weight** of A and B: Σ over the shared companies of min(weight in A, weight in B), in %. Because each fund's
-  weights add up to 100, this is also the share of either fund (and of the smaller one) that sits in positions both
-  funds hold; it is the formula of `compute_holdings_overlap` with weights per company id. 0 when nothing is shared.
+- **Shared weight** of A and B: Σ over the shared companies of min(weight in A, weight in B), in %. It runs from 0
+  (nothing shared) to 100 (identical funds), and it is at most the smaller of the two funds' weights in the shared
+  companies. It is the formula of `compute_holdings_overlap` (whose denominator, the smaller fund's total weight, is
+  100 here) with weights per company id.
 - **House weight** of a company: its market value across all funds ÷ the market value of all funds' company holdings
   × 100. It equals the Workbench's `holdings_weight_pct` in the house scope (AC-10).
 - **Picked:** a company with a `proposed` or `confirmed` row in a scope's selection log for the cycle (the Workbench's
@@ -185,8 +186,9 @@ Company      Picked in                                                   Held by
 Shell plc    All house holdings · Confirmed;  DAX · ✎ Proposed            Euro Stoxx 50, MSCI World, …
 ```
 
-- Numbers on the tab: counts with a comma thousands separator (`1,412`); percentages with 1 decimal, a space, then
-  `%` (`63.0 %`); grid weights with 2 decimals.
+- Numbers on the tab: counts with a comma thousands separator (`1,412`); shared weight in the fund table with 1
+  decimal, a space, then `%` (`63.0 %`); House wt % and the fund columns of the grid with 2 decimals and no `%` sign
+  (the header says %).
 - The fund table is square: one row and one column per fund in `funds` order; the diagonal shows `<n> companies`
   (muted); every other cell `<shared companies> · <shared weight, 1 decimal> %`, the same number in both halves. The
   cell's tooltip: `<A> and <B> share <n> companies; <A> holds <x>, <B> holds <y>.`
@@ -231,7 +233,8 @@ Holdout and evaluator rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postg
 - **Unit fixture U:** an in-memory portfolio store with one snapshot date, fund `A` holding company `x` for 600 and `y`
   for 400 EUR, fund `B` holding `x` for 200, `y` for 300 and `z` for 500 EUR, and fund `C` holding `z` for 100 EUR plus
   one holding of 900 EUR whose security resolves to no company.
-- PR tags: a row whose Given starts `PR 2;` applies from PR 2; the others from PR 1.
+- PR tags: a row whose Given starts `PR 2;` applies from PR 2; a row whose Given names another row applies from that
+  row's PR on (e.g. a Given `AC-27` applies from PR 2); the others from PR 1.
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|

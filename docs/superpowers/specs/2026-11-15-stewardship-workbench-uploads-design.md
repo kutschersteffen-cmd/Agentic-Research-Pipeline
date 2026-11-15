@@ -229,7 +229,8 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 - **Showcase data:** as in `stewardship-workbench-overlap`; **C** = the `issuer_id` and **I** = the `identifier` of the
   first row of `GET /api/stewardship/worklist` whose `issuer_id` starts with `isin_`.
 - **Today:** the current UTC date, `YYYY-MM-DD`. "The signed-in user" is the analyst's `name`.
-- PR tags: a row whose Given starts `PR n;` applies from that PR on; the others from PR 1.
+- PR tags: a row whose Given starts `PR n;` applies from that PR on; a row whose Given names another row applies from
+  that row's PR on (e.g. a Given `AC-34` applies from PR 3); the others from PR 1.
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
@@ -268,9 +269,9 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-24 | Fixture W | Upload(`company_id,Feedback\nSYN01,<2,001 × "a">`) | Status 422; one rejection, row 2, field `Feedback`, reason `at most 2,000 characters` | holdout |
 | AC-25 | Fixture W | Upload of a file named `t.csv`: `company_id,Feedback\n` followed by lines `SYN01,x` up to 6,000,000 bytes | Status 413 with detail `File is larger than the 5 MB upload limit.` | holdout |
 | AC-26 | Fixture W | `POST /uploads` with a file `t.pdf` | Status 422 with detail `Upload a .xlsx or .csv file` | holdout |
-| AC-27 | Fixture W | `POST /uploads` with a file `t.xlsx` whose bytes are `not a workbook` | Status 422; rejections `[{"sheet": "", "row": 0, "field": "", "reason": "not a valid xlsx workbook"}]` | holdout |
+| AC-27 | Fixture W | `POST /uploads` with a file `t.xlsx` whose bytes are `not a workbook` | Status 422; `rejected` = `[{"sheet": "", "row": 0, "field": "", "reason": "not a valid xlsx workbook"}]`; `batch_id` `null` | holdout |
 | AC-28 | Fixture W | `POST /uploads` with an xlsx, first worksheet `Q4`: row 1 `company_id`, `Internal rating`, `Feedback`; row 2 `SYN01`, the number 4, `ok` | Status 200; `fields` = `[{"name": "Internal rating", "type": "number"}, {"name": "Feedback", "type": "text"}]`; the row's `Internal rating` is 4 | holdout |
-| AC-29 | Fixture W, signed in as a viewer | F1 | Status 403 | holdout |
+| AC-29 | Fixture W | F1's request, sent signed in as a viewer instead of an analyst | Status 403 | holdout |
 | AC-61 | AC-29 | `GET /api/stewardship/uploads` | `uploads` is `[]` | holdout |
 | AC-30 | Showcase data | Upload(`isin,Feedback\n<I in lower case with a space after its 2nd character>,ok`) | Status 200; `GET /uploads/<batch_id>` row has `company_id` C | holdout |
 | AC-31 | Showcase data; I2 = the `identifier` of the second row of `GET /api/stewardship/worklist` whose `issuer_id` starts with `isin_` | Upload(`company_id,isin,Feedback\n<C>,<I2>,ok`) | Status 422; one rejection, row 2, field `isin`, reason `company_id and isin name different companies` | holdout |
@@ -290,7 +291,7 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-53 | AC-34 | The user adds the filter `Feedback · Uploaded` and types `reply` | Only `SYN02` is left | evaluator |
 | AC-54 | AC-34 | The user hovers `SYN01`'s `Feedback · Uploaded` cell | The tooltip reads `t.csv · <user name> · <today> · as of <today>` | evaluator |
 | AC-55 | AC-34 | The user hides `Feedback · Uploaded` in **Columns ▾** | The column leaves the table; `Internal rating · Uploaded` stays | evaluator |
-| AC-56 | PR 3; Fixture W, F1, signed in as a viewer | The user opens **Uploaded data** | The list shows `t.csv`; there is no **Withdraw** button and no **Upload** button | evaluator |
+| AC-56 | PR 3; Fixture W, F1 (by the analyst); the user is signed in as a viewer | The user opens **Uploaded data** | The list shows `t.csv`; there is no **Withdraw** button and no **Upload** button | evaluator |
 | AC-40 | 2,500 issuers and an upload log of 5 uploads × 2,500 companies × 10 fields (unit fixture) | `worklist.build()` runs with and without the log | The difference is under 0.3 s on the CI runner | unit |
 | AC-41 | PR 2; Fixture W with no `uploads/` directory | `GET /api/stewardship/worklist` | Status 200, `extra_fields` `[]`, every row's `extra` `{}`; the other row fields as before (spec 1's holdout rows stay green) | holdout |
 | AC-42 | Fixture W, F1 | `GET /api/stewardship/notes?company_id=SYN01` | `notes` is `[]` (uploads write no notes) | holdout |
