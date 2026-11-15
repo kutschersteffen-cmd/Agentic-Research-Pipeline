@@ -4,7 +4,7 @@ Slug: alerts-company-names-fixes
 
 Risk: `risk:normal` for the implementing PR (proposed). Size S, one PR. Backend only.
 
-Status: draft, waiting for owner approval.
+Status: **approved by the owner on 15 Nov 2026** (buttons in the spec session, after the spec-critic read `Ready for approval`).
 
 Parent: [`2026-11-14-showcase-alerts-company-names.md`](2026-11-14-showcase-alerts-company-names.md). Its hidden
 tests stay in the regression suite.

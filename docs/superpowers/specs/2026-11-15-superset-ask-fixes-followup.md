@@ -5,7 +5,7 @@ Slug: superset-ask-fixes-followup
 Risk: `risk:normal` for the implementing PR (proposed). Size S, one PR. Backend `arp/bi` plus one frontend line,
 so the UI review applies (Playwright screenshot of the Dashboards tab, `/impeccable:impeccable audit`).
 
-Status: draft, waiting for owner approval.
+Status: **approved by the owner on 15 Nov 2026** (buttons in the spec session, after the spec-critic read `Ready for approval`).
 
 Parent: [`2026-11-14-superset-ask-fixes.md`](2026-11-14-superset-ask-fixes.md). Its hidden tests stay in the
 regression suite.
