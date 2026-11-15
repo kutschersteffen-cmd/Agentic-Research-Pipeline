@@ -12,6 +12,8 @@ Usage: python3 backend_shards.py N DIR     (DIR/<any>/ran.txt and DIR/<any>/coll
        python3 backend_shards.py --selftest
 """
 
+import contextlib
+import io
 import json
 import re
 import sys
@@ -110,9 +112,10 @@ def selftest() -> None:
             (root / f"shard-{k}").mkdir()
             (root / f"shard-{k}" / "ran.txt").write_text(f"backend shard: {k}/2\n" + "\n".join(ids) + "\n")
             (root / f"shard-{k}" / "collected.txt").write_text(coll)
-        assert main(2, root) == 0
-        (root / "shard-2" / "ran.txt").unlink()
-        assert main(2, root) == 1
+        with contextlib.redirect_stdout(io.StringIO()):  # keep sample lines out of the real check's log
+            assert main(2, root) == 0
+            (root / "shard-2" / "ran.txt").unlink()
+            assert main(2, root) == 1
     print("selftest ok")
 
 
