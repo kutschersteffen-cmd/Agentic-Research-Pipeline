@@ -249,6 +249,7 @@ class SlideContent(BaseModel):
     source_refs: list[str] = Field(default_factory=list)
     source_line: str = ""
     needs_review: bool = False
+    type_step: int = Field(default=0, ge=-1, le=2, description="Fit ladder: 1-2 set the visual's text smaller, -1 one size larger.")
 
 
 class Deck(BaseModel):

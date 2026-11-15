@@ -40419,6 +40419,60 @@
     ]
    }
   },
+  "/api/reports/{report_id}/slides/{n}/approve": {
+   "post": {
+    "description": "Accept slide `n` (1-based) as it is: clears the fit ladder's `needs_review`, which unblocks the download.",
+    "operationId": "approve_slide_api_reports__report_id__slides__n__approve_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "n",
+      "required": true,
+      "schema": {
+       "title": "N",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Approve Slide Api Reports  Report Id  Slides  N  Approve Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Approve Slide",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
   "/api/reports/{report_id}/storyline": {
    "get": {
     "operationId": "get_storyline_api_reports__report_id__storyline_get",

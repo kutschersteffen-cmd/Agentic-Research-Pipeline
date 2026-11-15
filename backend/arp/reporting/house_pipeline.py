@@ -1,4 +1,4 @@
-"""House deck build after storyline approval: fill -> lint+rewrite -> fit -> visual QA -> PDF + PNGs + PPTX."""
+"""House deck build after storyline approval: fill -> lint+rewrite -> fit (legacy slides) -> fit ladder (component slides) -> visual QA -> PDF + PNGs + PPTX."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from arp.config import Settings
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.adapters import with_run_datasets
 from arp.reporting.browser import write_pdf, write_pngs
-from arp.reporting.fit import fit_deck
+from arp.reporting.fit import fit_deck, fit_ladder
 from arp.reporting.house_pptx import build_house_pptx
 from arp.reporting.html_render import render_deck_html
 from arp.reporting.lint import lint_and_rewrite, lint_deck
@@ -55,11 +55,18 @@ async def build_house_deck(
     deck, _ = await lint_and_rewrite(deck, request, llm, usage=usage)  # its findings are recomputed on the final deck below
     deck, fit_findings = await fit_deck(deck, request, llm, usage=usage, shift=findings, tokens=tokens)
     findings += fit_findings
+    n = len(request.datasets)
+    request = request.model_copy(update={"datasets": [*request.datasets]})  # fit_ladder may add a switched table's rows
+    deck, ladder_findings = await fit_ladder(deck, request, llm, tokens, usage, shift=findings)
+    findings += ladder_findings
+    if len(request.datasets) > n:  # saved, so a re-render finds the table's rows
+        store.save_request(report_id, request)
     with tempfile.TemporaryDirectory() as tmp:
         pngs = await write_pngs(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme), Path(tmp))
         deck, qa_findings = await visual_qa(deck, pngs, request, llm, usage=usage, shift=findings, tokens=tokens)
     if any(f.rule == "applied" for f in qa_findings):  # QA re-measured the deck: the first fit's measurements are stale
-        findings = [f for f in findings if f.stage != "fit" or f.rule == "slot_dropped"]
+        # Component slides are not QA-edited, so their ladder findings stay.
+        findings = [f for f in findings if f.stage != "fit" or f.rule == "slot_dropped" or deck.slides[f.slide].visual is not None]
     # Fit splits moved slides; lint once more on the final deck so every lint finding points at the right slide.
     findings = [f for f in [*findings, *qa_findings] if f.stage != "lint"] + lint_deck(deck, request)
     store.save_deck(report_id, deck)

@@ -196,7 +196,7 @@ def anatomy(slide: SlideContent, index: int, tokens: Tokens, mode: Mode) -> list
 def render_slide(slide: SlideContent, index: int, deck: Deck, tokens: Tokens, datasets: dict[str, QuantitativeDataset],
                  mode: Mode = "light") -> list[Primitive]:
     """The slide's primitives: anatomy plus its visual in the body box; cover and section are full-bleed."""
-    ctx = RenderCtx(tokens, mode, deck, index, datasets)
+    ctx = RenderCtx(tokens, mode, deck, index, datasets, slide.type_step)
     visual = slide.visual
     if visual.type in FULL_BLEED:
         return VISUALS[visual.type](visual, Box(x=0, y=0, w=tokens.canvas.width, h=tokens.canvas.height), ctx)
