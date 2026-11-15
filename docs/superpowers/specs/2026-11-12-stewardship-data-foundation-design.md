@@ -202,16 +202,28 @@ worksheet row number (header = row 1). For JSON, `sheet` is the batch key and `r
 
 **Vote batch** (one sheet or key `votes`, one row per decision): `external_id`, `company_id`, `isin`, `cusip`,
 `issuer_name`, `meeting_date`, `meeting_type`, `item_number`, `description`, `categories`, `proponent`,
-`management_recommendation`, `vote`, `shares_voted`, `rationale`, `decided_by`, `decided_at`, `run_id`. Meetings and
-items are found or created from (`company_id` or `isin` or `cusip`, `meeting_date`) and (meeting, `item_number`).
+`management_recommendation`, `vote`, `shares_voted`, `rationale`, `decided_by`, `decided_at`, `run_id`. Meetings are
+found or created from (the identifier that names the meeting, below, and the date of `meeting_date`), and items from
+(meeting, `item_number`).
 A vote row must carry `external_id`, `meeting_date`, `item_number`, `vote`, and at least one of `company_id`, `isin`
 or `cusip`; a row missing any of them is rejected with one `rejected` entry per missing field, `reason` `required`
 (a row with none of the three identifiers gets one entry, `field` `company_id`, `reason`
 `one of company_id, isin, cusip required`). A field is missing when its key is absent, null, or empty after trimming
 whitespace (an empty cell in Excel). Each failed check, the rationale rule included, adds its own entry; the rationale
 rule runs only when `vote` is present. A row whose only issuer identifier is a `company_id` that is neither in the
-registry nor in `stw_companies` adds one entry, `field` `company_id`, `reason` `unknown company`. These rules apply to intake only, not to
-`load-npx`.
+registry nor in `stw_companies` adds one entry, `field` `company_id`, `reason` `unknown company`. An `item_number`
+containing `:` adds one entry, `field` `item_number`, `reason` `must not contain ':'`. A meeting is named by the
+row's `company_id` when it is in the registry or `stw_companies`, else by its `isin`, else by its `cusip`; a
+`company_id` of the form `isin_<ISIN>` names the same meeting as that `isin`. `isin` is compared and stored without
+whitespace and in upper case, `cusip` in upper case, an all-digit `cusip` left-padded with zeros to 9 characters. The
+meeting's `company_id` comes only from the identifier that names it (that `company_id`, or `isin_<ISIN>` for an ISIN)
+and only when that company has a `stw_companies` row, else it is null. A row whose non-null `company_id` (as just
+derived), `isin` or `cusip` differs from a non-null value already on its meeting, stored or set by an earlier row in
+the same batch, adds one entry per conflicting field, `field` the field name, `reason` `<field> differs from the
+meeting's <value>`, where `<value>` is that meeting value; an empty value on the row never conflicts. Meeting
+conflicts are checked only when no row in the batch has another rejection, so they never appear next to other
+entries. An upsert fills a meeting's empty `company_id`, `isin` or `cusip` but never clears or changes a
+filled one. These rules apply to intake only, not to `load-npx`.
 
 **Rules.**
 
