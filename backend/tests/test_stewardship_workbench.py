@@ -257,6 +257,10 @@ def test_ownership_and_equity_in_build(tmp_path):
     row = worklist.build(tmp_path, sample, [], observations=evic, today=date(2026, 11, 15), scope=scope, funds=funds)["rows"][0]
     assert (row["equity_held_eur_m"], row["aum_held_eur_m"]) == (30.0, 50.0)
     assert row["ownership_pct"] == {"value": 0.5, "simulated": False}
+    # the share divides the unrounded value: EUR 1.04 m of 10,000 m is 0.0104 %, not 1.0 m's 0.0100 %
+    small = {"P": {"name": "P", "companies": {"C": [1.04e6, 0.0]}}}
+    row = worklist.build(tmp_path, sample, [], observations=evic, today=date(2026, 11, 15), scope=scope, funds=small)["rows"][0]
+    assert (row["aum_held_eur_m"], row["ownership_pct"]["value"]) == (1.0, 0.0104)
 
 
 def test_selection_file_of_an_odd_group_id_stays_in_the_cycle(tmp_path):

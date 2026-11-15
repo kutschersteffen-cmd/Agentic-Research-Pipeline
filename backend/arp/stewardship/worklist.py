@@ -265,13 +265,18 @@ def fund_holdings(store) -> dict[str, dict]:
     return out
 
 
+def has_funds(sample: dict) -> bool:
+    """Fund scopes need the portfolio universe; the sample universe has no funds."""
+    return sample.get("source") == "portfolio"
+
+
 def resolve_scope(key: str, sample: dict, store) -> dict:
     """{"key", "label", "kind", "members": company ids or None, "portfolios": fund ids or None}. LookupError for an
     unknown portfolio or group (404), ValueError for a key that is not a workbench scope here (422)."""
     if key == "house":
         return {"key": key, "label": HOUSE, "kind": "house", "members": None, "portfolios": None}
     kind, _, ref = key.partition(":")
-    funds_ok = sample.get("source") == "portfolio"  # the sample universe has no funds
+    funds_ok = has_funds(sample)
     if kind == "portfolio":
         if not funds_ok:
             raise ValueError(FUND_SCOPE)
@@ -385,7 +390,7 @@ def build(
         row["held_in"] = held_in.get(iid, [])
         row["equity_held_eur_m"] = round(held.get(iid, [0.0, 0.0])[1] / 1e6, 1)
         evic = observations.get(iid, {}).get(EVIC)
-        aum = row["aum_held_eur_m"]
+        aum = held[iid][0] / 1e6 if iid in held else row["aum_held_eur_m"]  # unrounded, so the share keeps 4 decimals
         ok = evic is not None and isinstance(evic.value, int | float) and not isinstance(evic.value, bool) and evic.value > 0
         row["ownership_pct"] = {"value": round(aum / evic.value * 100, 4), "simulated": evic.source == "simulated"} if ok and aum is not None else None
         row["notes"] = notes.get(iid, {"count": 0, "latest": None})
@@ -563,7 +568,6 @@ def latest_observations(store, issuer_ids: list[str]) -> dict[str, dict]:
     return out
 
 
-DEMO_SOURCES = ("mock_voice_seed", "npx_urth_demo")
 MAX_VOTES = 500
 
 
@@ -572,6 +576,7 @@ def votes(dsn: str, company_id: str) -> dict:
     from sqlalchemy import select
 
     from arp.db.session import transaction
+    from arp.stewardship import npx_load, seed_demo
     from arp.storage.postgres_models import VoteDecisionModel as D
     from arp.storage.postgres_models import VoteItemModel as I
     from arp.storage.postgres_models import VoteMeetingModel as M
@@ -581,7 +586,8 @@ def votes(dsn: str, company_id: str) -> dict:
     def key(row) -> tuple:
         m, i, _ = row
         number = i.item_number or ""
-        return (-(m.meeting_date.timestamp() if m.meeting_date else float("-inf")), [int(p) if p.isdigit() else p for p in re.split(r"(\d+)", number)])
+        when = -(m.meeting_date.timestamp() if m.meeting_date else float("-inf"))
+        return (when, m.meeting_id, [int(p) if p.isdigit() else p for p in re.split(r"(\d+)", number)])  # a meeting's items together
 
     with transaction(dsn) as s:  # the rows are read inside the session
         found = s.execute(q).all()
@@ -591,7 +597,7 @@ def votes(dsn: str, company_id: str) -> dict:
             "meeting_type": m.meeting_type, "item_number": i.item_number, "description": i.description,
             "proponent": i.proponent, "management_recommendation": i.management_recommendation, "vote": d.vote,
             "vote_label": d.vote_label, "against_management": d.against_management, "rationale": d.rationale,
-            "source": d.source, "demo": d.source in DEMO_SOURCES,
+            "source": d.source, "demo": d.source in (npx_load.SOURCE, seed_demo.SOURCE),
         }  # fmt: skip
         for m, i, d in sorted(found, key=key)
         ]

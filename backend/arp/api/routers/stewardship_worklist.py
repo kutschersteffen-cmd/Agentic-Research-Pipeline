@@ -60,7 +60,7 @@ def _scope(key: str, sample: dict, store) -> dict:
 
 
 def _funds(sample: dict, store) -> dict:
-    return worklist.fund_holdings(store) if sample.get("source") == "portfolio" else {}
+    return worklist.fund_holdings(store) if worklist.has_funds(sample) else {}
 
 
 def _in_scope(key: str, sample: dict, settings: Settings) -> set[str]:
@@ -127,7 +127,10 @@ def get_selection(
 ) -> dict:
     """The engagement selection of a scope and cycle (default: the current one), folded from its log."""
     cycle = _cycle(cycle)
-    in_scope = _in_scope(scope, load_sample(), settings)
+    return _selection(cycle, scope, _in_scope(scope, house_universe(), settings), streams)
+
+
+def _selection(cycle: str, scope: str, in_scope: set[str], streams: StreamStore) -> dict:
     rows = [{**r, "in_scope": r["issuer_id"] in in_scope} for r in worklist.SelectionLog(streams.root).rows(cycle, scope)]
     return {"cycle": cycle, "current": cycle == worklist.cycle_of(datetime.now(UTC).date()), "rows": rows}
 
@@ -140,7 +143,7 @@ def post_selection(
     principal: Principal = Depends(current_user),
 ) -> dict:
     """Adds companies of the scope as proposed and removes proposed ones; confirmed rows stay."""
-    cycle, sample = _cycle(body.cycle), load_sample()
+    cycle, sample = _cycle(body.cycle), house_universe()
     names = {i["issuer_id"]: i["name"] for i in sample["issuers"]}
     in_scope = _in_scope(body.scope, sample, settings)
     version = PolicyStore(streams.root).active_version(worklist.POLICY)
@@ -150,7 +153,7 @@ def post_selection(
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
-    return get_selection(cycle, body.scope, settings, streams)
+    return _selection(cycle, body.scope, in_scope, streams)
 
 
 @router.post("/selection/confirm", response_model=Confirmed)
@@ -161,7 +164,7 @@ def post_selection_confirm(
     principal: Principal = Depends(current_user),
 ) -> dict:
     """Every proposed row of the scope and cycle becomes confirmed, recorded as the signed-in user."""
-    _in_scope(body.scope, load_sample(), settings)  # 404 or 422 like the worklist
+    _in_scope(body.scope, house_universe(), settings)  # 404 or 422 like the worklist
     version = PolicyStore(streams.root).active_version(worklist.POLICY)
     try:
         n = worklist.SelectionLog(streams.root).confirm(_cycle(body.cycle), datetime.now(UTC).date(), principal.name, version, body.scope)
