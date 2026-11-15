@@ -18,10 +18,12 @@ import {
   totalText,
   weightsProblem,
   weightsTotal,
+  withProgramme,
+  withSelection,
   type Column,
   type SortKey,
 } from "../../lib/workbench";
-import type { PriorityPreview, ProgrammeDetail, SelectionList, WorkProgramme, Worklist, WorklistRow, WorklistScope } from "../../types";
+import type { PriorityPreview, SelectionList, WorkProgramme, Worklist, WorklistRow, WorklistScope } from "../../types";
 import { DataTable, RuleEditor, Section, VersionsPanel, usePolicy, useActor } from "./common";
 
 const Sim = () => <span className="sim-tag">Simulated</span>;
@@ -122,21 +124,6 @@ function Cell({ col, row, asOf, onRemove }: { col: Column; row: WorklistRow; asO
       return <>{v}{sim}</>;
     }
   }
-}
-
-/** The selection object of a worklist row, from a GET or POST /selection response. */
-function withSelection(rows: WorklistRow[], list: SelectionList): WorklistRow[] {
-  const by = new Map(list.rows.map(({ issuer_id, company: _c, in_scope: _s, ...sel }) => [issuer_id, sel]));
-  return rows.map((r) => ({ ...r, selection: by.get(r.issuer_id) ?? null }));
-}
-
-function withProgramme(rows: WorklistRow[], p: ProgrammeDetail): WorklistRow[] {
-  const by = new Map(p.members.filter((m) => m.status !== "ended").map((m) => [m.issuer_id, m.status as "proposed" | "confirmed"]));
-  return rows.map((r) => {
-    const others = r.programmes.filter((c) => c.programme_id !== p.programme_id);
-    const status = by.get(r.issuer_id);
-    return { ...r, programmes: status ? [...others, { programme_id: p.programme_id, name: p.name, status }] : others };
-  });
 }
 
 type Dialog = null | "confirm" | "bilateral" | "programme" | "subgroup" | "funds";

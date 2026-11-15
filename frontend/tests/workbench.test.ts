@@ -12,6 +12,8 @@ import {
   tierText,
   totalText,
   weightsTotal,
+  withProgramme,
+  withSelection,
 } from "../src/lib/workbench.ts";
 import type { WorklistRow } from "../src/types.ts";
 
@@ -97,4 +99,23 @@ test("AC-27: with 2,500 rows, sorting by Score and then by Company each finish i
     assert.equal(page.length, PAGE_SIZE);
     assert.ok(ms < 200, `${keys[0].id}: ${ms.toFixed(1)} ms`);
   }
+});
+
+test("after an action, rows take their selection and programme chips from the response", () => {
+  const rows = [row(1), row(2, { programmes: [{ programme_id: "water", name: "Water engagement programme", status: "proposed" }] })];
+  const list = {
+    cycle: "2026-Q4", current: true,
+    rows: [{ issuer_id: "C1", company: "Company 0001", in_scope: true, status: "proposed" as const, proposed_by: "a", proposed_at: "t", confirmed_by: null, confirmed_at: null, weights_version: 0 }],
+  };
+  const sel = withSelection(rows, list);
+  assert.equal(sel[0].selection?.status, "proposed");
+  assert.equal("issuer_id" in (sel[0].selection ?? {}), false);
+  assert.equal(sel[1].selection, null);
+  const member = (issuer_id: string, status: "proposed" | "confirmed" | "ended") => ({
+    issuer_id, company: "", status, proposed_by: "a", proposed_at: "t", confirmed_by: null, confirmed_at: null, ended_by: null, ended_at: null, end_reason: null,
+  });
+  const detail = { programme_id: "water", name: "Water engagement programme", built_in: false, confirmed: 1, proposed: 0, created_by: "a", created_at: "t", members: [member("C1", "confirmed"), member("C2", "ended")] };
+  const progs = withProgramme(rows, detail);
+  assert.deepEqual(progs[0].programmes.map(programmeChip), ["Water ✓"]);
+  assert.deepEqual(progs[1].programmes, []); // an ended membership leaves the row
 });

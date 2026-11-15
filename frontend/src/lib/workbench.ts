@@ -1,6 +1,6 @@
 // The Workbench table (spec stewardship-priority-worklist, "Screen"): its columns, how each one sorts and reads, and
 // the sort-key rules. Pure, so the node tests can time a sort of 2,500 rows (AC-27).
-import type { WorklistRow } from "../types";
+import type { ProgrammeDetail, SelectionList, WorklistRow } from "../types";
 
 export type SortKey = { id: string; desc: boolean };
 type Sortable = number | string | number[] | null;
@@ -187,4 +187,19 @@ export function weightsProblem(components: { weight: number }[]): string | undef
   if (components.some((c) => !Number.isInteger(c.weight) || c.weight < 0 || c.weight > 100)) return "Each weight is a whole number from 0 to 100";
   const total = weightsTotal(components);
   return total === 100 ? undefined : totalText(total);
+}
+
+/** The selection object of a worklist row, from a GET or POST /selection response. */
+export function withSelection(rows: WorklistRow[], list: SelectionList): WorklistRow[] {
+  const by = new Map(list.rows.map(({ issuer_id, company: _c, in_scope: _s, ...sel }) => [issuer_id, sel]));
+  return rows.map((r) => ({ ...r, selection: by.get(r.issuer_id) ?? null }));
+}
+
+export function withProgramme(rows: WorklistRow[], p: ProgrammeDetail): WorklistRow[] {
+  const by = new Map(p.members.filter((m) => m.status !== "ended").map((m) => [m.issuer_id, m.status as "proposed" | "confirmed"]));
+  return rows.map((r) => {
+    const others = r.programmes.filter((c) => c.programme_id !== p.programme_id);
+    const status = by.get(r.issuer_id);
+    return { ...r, programmes: status ? [...others, { programme_id: p.programme_id, name: p.name, status }] : others };
+  });
 }
