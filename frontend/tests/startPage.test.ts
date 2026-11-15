@@ -35,6 +35,12 @@ test("sp_ac10_grid", () => {
   assert.match(media("max-width: 1100px"), /\.hub-card, \.hub-card:nth-child\(n\+4\) \{ grid-column: span 3; \}/);
   assert.match(media("max-width: 760px"), /\.hub-cards \{ grid-template-columns: minmax\(0, 1fr\); \}[\s\S]*\.hub-card, \.hub-card:nth-child\(n\+4\) \{ grid-column: auto; \}/);
 });
+test("sp_tablet_last_card_fills_its_row", () => {
+  // 761–1100px: five cards at half width leave an empty cell beside Data Hub, so the fifth spans the row.
+  assert.match(media("max-width: 1100px"), /\.hub-card:nth-child\(5\) \{ grid-column: 1 \/ -1; \}/);
+  // On a phone the single column wins again.
+  assert.match(media("max-width: 760px"), /\.hub-card, \.hub-card:nth-child\(n\+4\) \{ grid-column: auto; \}/);
+});
 test("sp_ac12c_status_word_colours", () => {
   const want: Record<string, string> = { wait: "var(--hi-ink)", now: "var(--run)", failed: "var(--low)", done: "var(--muted)", idle: "var(--muted)", unknown: "var(--muted)" };
   for (const [tone, c] of Object.entries(want)) assert.ok(bodies(css, `.hub-status-${tone}`).includes(`color: ${c}`), tone);

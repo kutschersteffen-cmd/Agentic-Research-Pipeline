@@ -66,7 +66,8 @@ the Review Queue badge.
     `lib/useWaitingTotal.ts`.
 - **Card grid.** `.hub-cards` is `display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px`.
   - Cards 1–3 use `grid-column: span 2`; cards 4–5 use `span 3`.
-  - From 761px to 1100px, every card spans 3.
+  - From 761px to 1100px, every card spans 3, except the fifth, which spans the row (`1 / -1`) so no empty
+    cell sits beside it (owner decision after PR #482).
   - At 760px and below, it is one column.
 - **Waiting card.** A card whose tone is `wait` keeps the class `.hub-card-await`. Its border becomes
   `var(--await-edge)` (DESIGN.md, the needs-you shape on cards).
@@ -238,7 +239,7 @@ Accepted exceptions to "observable": AC-3b and AC-5 are source checks. The e2e s
 | AC-8f | The user menu is open with focus on its last focusable element | Tab is pressed | The popover is hidden and focus is on the element after the user menu button in DOM order | evaluator |
 | AC-9a | `/#/home` | The main content is read | It holds exactly one `h1`, whose text matches `^Good (morning\|afternoon\|evening)(, .+)?\.$` | evaluator |
 | AC-9b | The same | The DOM is searched | None of `.hub-stats`, `.hub-waiting`, `.hub-counts`, `.hub-legend`, `.hub-now`, `.hub-card-foot` or `.hub-card-icon` exists | evaluator |
-| AC-10 | `index.css` | Read | `.hub-cards` sets `grid-template-columns: repeat(6, minmax(0, 1fr))` and `gap: 20px`; cards 1–3 span 2 and 4–5 span 3; under `max-width: 1100px` each card spans 3; under `max-width: 760px` the grid is one column | unit |
+| AC-10 | `index.css` | Read | `.hub-cards` sets `grid-template-columns: repeat(6, minmax(0, 1fr))` and `gap: 20px`; cards 1–3 span 2 and 4–5 span 3; under `max-width: 1100px` each card spans 3 and the fifth spans `1 / -1`; under `max-width: 760px` the grid is one column | unit |
 | AC-11a | `/#/home`, 1440×900 | Each card is read | Its `.hub-card-fig` is at least 200px tall and holds an `svg` | evaluator |
 | AC-11b | The same | Each card's caption is read | It matches `^Fig 0[1-5] · \d+ process(es)?$`, with the card's position and process count | evaluator |
 | AC-11c | The same | Each card's `.hub-card-status` is read | It holds one 8×8px `.hub-mark-*` element per process | evaluator |
