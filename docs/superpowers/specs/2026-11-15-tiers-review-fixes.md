@@ -4,7 +4,7 @@ Slug: tiers-review-fixes
 
 Risk: `risk:normal` for both PRs. Size M, 2 PRs. This spec PR is `risk:low` (docs only).
 
-Status: **awaiting owner approval** (15 Nov 2026).
+Status: **approved by the owner on 15 Nov 2026** (buttons in the spec session, after two spec-critic passes were fixed).
 
 Parent spec: [`2026-11-14-stewardship-three-tiers.md`](2026-11-14-stewardship-three-tiers.md) (bilateral / letter /
 monitor, bilateral picks, coverage and escalation rules). Every finding below was reproduced on `main`.
