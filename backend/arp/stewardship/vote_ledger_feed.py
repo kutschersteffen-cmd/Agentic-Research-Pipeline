@@ -6,9 +6,10 @@ from __future__ import annotations
 from datetime import timedelta
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import aliased
 
 from arp.db import models as m
-from arp.db.company_view import resolve_ref
+from arp.db.companies import normalise_identifier
 from arp.db.session import transaction
 from arp.storage.postgres_models import VoteDecisionModel, VoteItemModel, VoteMeetingModel
 
@@ -16,65 +17,82 @@ from arp.storage.postgres_models import VoteDecisionModel, VoteItemModel, VoteMe
 def ledger_rows(dsn: str, window_days: int, house_issuers: list[dict] | None = None) -> list[dict]:
     """One row per decision on a meeting within `window_days` before the ledger's newest meeting_date.
     `house_issuers`: `house_universe()["issuers"]` when the caller already built it (building it twice is slow)."""
+    M, D = VoteMeetingModel, VoteDecisionModel
     with transaction(dsn) as s:
         newest = s.scalar(select(func.max(VoteMeetingModel.meeting_date)))
         if newest is None:
             return []
         q = (
-            select(VoteMeetingModel, VoteItemModel, VoteDecisionModel)
+            # columns, not ORM objects: building ~60k objects per read was a third of the worklist's ledger time
+            select(
+                M.isin, M.company_id, M.issuer_name, M.meeting_date, VoteItemModel.item_number,
+                VoteItemModel.management_recommendation, D.run_id, D.vote, D.decided_by, D.against_management,
+            )  # fmt: skip
             .join(VoteItemModel, VoteItemModel.meeting_id == VoteMeetingModel.meeting_id)
             .join(VoteDecisionModel, VoteDecisionModel.item_id == VoteItemModel.item_id)
             .where(VoteMeetingModel.meeting_date >= newest - timedelta(days=window_days))
         )
+        found = s.execute(q).all()
+        if not found:
+            return []
+        from arp.stewardship.process import house_isins
+
+        held = house_isins()  # ISIN -> house issuer holding it in the latest snapshot
+        # monitoring keys on house issuer ids: the house issuer that holds the ISIN wins; else the stw_companies
+        # key (set only for a known company); else the registry's universe id for the ISIN; else `isin_<ISIN>`
+        by_isin = _registry_ids(s, {r.isin for r in found if r.isin and not held.get(r.isin) and r.company_id is None}, house_issuers)
         rows = []
-        by_isin: dict[str, str] = {}  # one registry lookup per distinct ISIN
-        house: dict[str, str] | None = None
-        held: dict[str, str] | None = None  # ISIN -> house issuer holding it in the latest snapshot
-        for meeting, item, d in s.execute(q):
-            # monitoring keys on house issuer ids: the house issuer that holds the ISIN wins; else the stw_companies
-            # key (set only for a known company); else the registry's universe id for the ISIN; else `isin_<ISIN>`
-            if held is None:
-                from arp.stewardship.process import house_isins
-
-                held = house_isins()
-            company_id = held.get(meeting.isin or "") or meeting.company_id
-            if company_id is None and meeting.isin:
-                if meeting.isin not in by_isin:
-                    uid = resolve_ref(s, f"ISIN:{meeting.isin}")
-                    values = uid and s.scalars(
-                        select(m.CompanyIdentifier.value).where(
-                            m.CompanyIdentifier.company_id == uid,
-                            m.CompanyIdentifier.scheme == m.IdScheme.UNIVERSE,
-                            m.CompanyIdentifier.valid_to.is_(None),
-                        )
-                    ).all()
-                    if values and house is None:  # the registry upper-cases UNIVERSE values; issuer ids keep their case
-                        from arp.stewardship.process import house_universe
-
-                        issuers = house_universe()["issuers"] if house_issuers is None else house_issuers
-                        house = {i["issuer_id"].upper(): i["issuer_id"] for i in issuers}
-                    # a company outside the house universe keeps the showcase key
-                    by_isin[meeting.isin] = next((house[v.upper()] for v in values or () if v.upper() in house), f"isin_{meeting.isin}")
-                company_id = by_isin[meeting.isin]
+        for r in found:
+            company_id = held.get(r.isin or "") or r.company_id or by_isin.get(r.isin or "")
             if company_id is None:
                 continue
             rows.append(
                 {
-                    "run_id": d.run_id,
+                    "run_id": r.run_id,
                     "company_id": company_id,
-                    "company": meeting.issuer_name,
-                    "meeting_date": meeting.meeting_date.date().isoformat(),
-                    "item": item.item_number,
+                    "company": r.issuer_name,
+                    "meeting_date": r.meeting_date.date().isoformat(),
+                    "item": r.item_number,
                     "type": None,
-                    "management": item.management_recommendation,
+                    "management": r.management_recommendation,
                     "policy": None,
-                    "vote": d.vote,
+                    "vote": r.vote,
                     "status": "cast",
-                    "decided_by": d.decided_by or "",
+                    "decided_by": r.decided_by or "",
                     "co_signed_by": None,
                     "note": None,
                     "overrode_policy": False,
-                    "against_management": bool(d.against_management),
+                    "against_management": bool(r.against_management),
                 }
             )
         return rows
+
+
+def _registry_ids(s, isins: set[str], house_issuers: list[dict] | None) -> dict[str, str]:
+    """ISIN -> the house issuer the company registry names for it (through the company's active UNIVERSE ids), else
+    `isin_<ISIN>`: a company outside the house universe keeps the showcase key. One query for every ISIN."""
+    if not isins:
+        return {}
+    isin, universe = m.CompanyIdentifier, aliased(m.CompanyIdentifier)
+    keys = {normalise_identifier(m.IdScheme.ISIN, i) for i in isins}
+    q = (
+        select(isin.value, isin.company_id, universe.value)
+        .outerjoin(universe, (universe.company_id == isin.company_id) & (universe.scheme == m.IdScheme.UNIVERSE) & universe.valid_to.is_(None))
+        .where(isin.scheme == m.IdScheme.ISIN, isin.value.in_(keys), isin.valid_to.is_(None))
+    )
+    company: dict[str, object] = {}  # the first company an ISIN names, as a single-row lookup would take
+    values: dict[str, list[str]] = {}
+    for key, company_id, value in s.execute(q):
+        if company.setdefault(key, company_id) == company_id and value:
+            values.setdefault(key, []).append(value)
+    house: dict[str, str] = {}
+    if values:  # the registry upper-cases UNIVERSE values; issuer ids keep their case
+        from arp.stewardship.process import house_universe
+
+        issuers = house_universe()["issuers"] if house_issuers is None else house_issuers
+        house = {i["issuer_id"].upper(): i["issuer_id"] for i in issuers}
+    out = {}
+    for i in isins:
+        found = values.get(normalise_identifier(m.IdScheme.ISIN, i), ())
+        out[i] = next((house[v.upper()] for v in found if v.upper() in house), f"isin_{i}")
+    return out

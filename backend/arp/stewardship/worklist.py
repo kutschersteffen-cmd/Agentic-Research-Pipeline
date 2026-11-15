@@ -3,7 +3,10 @@ indicator columns side by side, and a priority score from 0 to 100 that is one c
 
 Everything is computed on read from what the app already stores: holdings in the house universe, confirmed or
 proposed coverage tiers, stored triggers, engagement records, the vote ledger's meetings and the portfolio
-observations. Nothing is cached and no score is stored.
+observations. No score is stored. One thing is cached (owner decision, 15 Nov 2026): the latest value of each
+portfolio observation file, per process, re-read whenever the file's modification time or size changes
+(`PortfolioStore.latest_observation`), so it is never stale. Holdings, tiers, triggers, engagements, selections,
+notes, programmes and the vote ledger are read fresh on every request.
 
 The score is plain arithmetic: each component's points = weight x a 0..1 normalised value, rounded to 1 decimal,
 and the score is the sum of the rounded points, so the points always add up to it. The weights are the house

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -34,6 +35,11 @@ def _sidecar_lock_path(key: str) -> Path:
     `*.jsonl` / `*.json` globs the listing methods use."""
     path = Path(key)
     return path.parent / f".{path.name}.lock"
+
+
+# (portfolios dir, company, field) -> (file path, (mtime_ns, size, as_of), latest observation): one entry per
+# observation file (see latest_observation).
+_LATEST: dict[tuple[Path, str, str], tuple[str, tuple[int, int, str | None], DataPointObservation | None]] = {}
 
 
 class PortfolioStore:
@@ -321,11 +327,27 @@ class PortfolioStore:
         ]
 
     def latest_observation(self, company_id: str, field_id: str, as_of: str | None = None) -> DataPointObservation | None:
-        obs = self.load_observations(company_id, field_id)
+        """The latest observation on or before `as_of`, a real one before a simulated one. Cached per file and
+        `as_of` for the life of the process, and re-read whenever the file's mtime or size differs, so an
+        appended observation shows on the next call (owner decision 15 Nov 2026: the stewardship worklist reads
+        ~81k of these files per request). Callers must not mutate the returned object: it is shared."""
+        key = (self.portfolios_dir, company_id, field_id)
+        hit = _LATEST.get(key)
+        path = hit[0] if hit else str(self.observations_path(company_id, field_id))  # validated once, then kept
+        try:
+            st = os.stat(path)
+        except FileNotFoundError:
+            return None
+        version = (st.st_mtime_ns, st.st_size, as_of)
+        if hit is not None and hit[1] == version:
+            return hit[2]
+        obs = [DataPointObservation.model_validate(row) for row in self._read_jsonl(Path(path))]
         if as_of:
             obs = [o for o in obs if o.observed_at[:10] <= as_of]
         real = [o for o in obs if o.source != "simulated"]  # a simulated value never stands in for a real one
-        return (real or obs)[-1] if obs else None
+        latest = (real or obs)[-1] if obs else None
+        _LATEST[key] = (path, version, latest)
+        return latest
 
     def list_observation_keys(self) -> list[tuple[str, str]]:
         """Every (company_id, field_id) pair with at least one recorded
@@ -333,7 +355,14 @@ class PortfolioStore:
         datapoints_dir = self.portfolios_dir / "datapoints"
         if not datapoints_dir.exists():
             return []
-        return sorted((path.parent.name, path.stem) for path in datapoints_dir.glob("*/*.jsonl"))
+        # os.scandir, not Path.glob: the same pairs without a Path object per file (81k files on the showcase house)
+        keys = []
+        with os.scandir(datapoints_dir) as companies:
+            for company in companies:
+                if company.is_dir():
+                    with os.scandir(company.path) as files:
+                        keys += [(company.name, f.name[: -len(".jsonl")]) for f in files if f.name.endswith(".jsonl") and f.is_file()]
+        return sorted(keys)
 
     # --- news + risk flags ---
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -89,6 +90,18 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def _warm_observations(settings) -> None:
+    """Reads every portfolio observation once into the per-file cache (PortfolioStore.latest_observation), so the
+    first Workbench request after a restart does not pay for it (owner decision 15 Nov 2026). Best effort."""
+    from arp.stewardship.universe import latest_observations
+    from arp.storage.portfolio_store_factory import build_portfolio_store
+
+    try:
+        latest_observations(build_portfolio_store(settings))
+    except Exception:  # noqa: BLE001 -- a cold cache is only slower, never wrong
+        logger.warning("Could not warm the observation cache", exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = settings_dep()
@@ -109,6 +122,7 @@ async def lifespan(app: FastAPI):
     report_scheduler = get_report_scheduler()
     publishing_scheduler = get_publishing_scheduler()
     review_analytics_scheduler = get_review_analytics_scheduler()
+    threading.Thread(target=_warm_observations, args=(settings,), daemon=True, name="warm-observations").start()
     scheduler.start()
     taxonomy_researcher_scheduler.start()
     calibration_scheduler.start()
