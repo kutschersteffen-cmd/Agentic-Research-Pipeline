@@ -172,7 +172,7 @@ without goes through the legacy renderer.
 
 - a dataset's `name`;
 - `, rows a–b` (1-based) when a table shows only part of its dataset;
-- note topics from `source_refs`.
+- any `source_refs` entry that is not a dataset id, as written.
 
 A slide with no references gets `""`.
 
@@ -349,6 +349,9 @@ Mockup `ui-outline`, in the report builder's storyline step:
 - `GET /api/reports/{id}/slides/{n}/history` lists versions: `{version, instruction, summary, created_at}`.
 - `POST /api/reports/{id}/slides/{n}/approve` clears `needs_review`.
 
+**Undo** deletes the newest version file, so history lists the remaining versions and the newest is
+current.
+
 **Storage:** versions live under `reports/<id>/slides/<n>/v<k>.json` (n 1-based). The first refine of a
 slide writes v1 (the slide as built) and v2. A full rebuild of the deck clears all versions.
 
@@ -364,8 +367,9 @@ slide writes v1 (the slide as built) and v2. A full rebuild of the deck clears a
 ### Review sheet
 
 - `arp.reporting.sheet.sheet_deck() -> tuple[Deck, list[QuantitativeDataset], str]` builds the fixture
-  slides of every visual built so far (after PR 1: slides 0–3 and 5–8; after PR 2: 0–13) and returns
-  the fixture notes.
+  slides of every visual built so far and returns the fixture notes. After PR 1 it holds slides 0–8,
+  with slide 4 as a `points` slide carrying the four steps' titles; PR 2 replaces it with the
+  `linear_flow` and adds slides 9–13. Slide indices therefore match the mockup numbers in both PRs.
 - `arp report sheet --out <dir>` writes one 1920×1080 PNG per sheet slide, named like the mockups, plus
   `sheet.png`.
 - `tests/test_slide_sheet.py::test_sheet_matches_goldens` compares them with
@@ -443,7 +447,7 @@ datasets=<all five>)`.
 0. cover
 1. section
 2. `kpi_row` (4%, 11%, 6.2%, 30%; emphasis 0)
-3. `chart` bar on `eps` (highlight Utilities, unit %, insight stat "−7 pts")
+3. `chart` bar on `eps` (highlight Utilities, unit %, insight stat "−7 pts"; `source_refs` = ["eps"])
 4. `linear_flow` (4 steps)
 5. `comparison_table` on `names` (highlight "Net debt / EBITDA"; totals: sum, mean, mean)
 6. `two_column` (3 KPIs)
@@ -477,7 +481,7 @@ PPTX is converted at 9525 EMU/px.
 | AC-15 | the sheet deck in dark mode | build PPTX | every content slide's background `141921`; `kpi:tile:1` fill `e8ebf0` with value runs `141921` | holdout |
 | AC-16 | a request without `deck` settings and a recording stand-in LLM | draft the storyline | the prompt contains `committee`, `recommendation`, `balanced` and each of `kpi_row`, `chart`, `comparison_table`, `two_column`, `points`; returned slides keep `visual` and `rationale` | holdout |
 | AC-17 | an approved storyline with 2 sections of 2 slides and 3 closing actions | build with a stand-in LLM | the visual types in order: cover, section, (2 content), section, (2 content), next_steps; the last slide has 3 rows | holdout |
-| AC-18 | the repo | `arp report sheet --out d` | exits 0; `d` holds `sheet.png` and 14 PNGs named like the mockups, each 1920×1080 | holdout |
+| AC-18 | the repo | `arp report sheet --out d` | exits 0; `d` holds `sheet.png` and one 1920×1080 PNG per sheet slide named like the mockups (9 after PR 1, 14 after PR 2) | holdout |
 | AC-19 | the committed goldens | change `graphite.ink` to `#000000`, run `test_sheet_matches_goldens` | the test fails | unit |
 | AC-20 | the sheet deck with the template-frame fixture (headline box 144, 72) | build PPTX (6350 EMU/px) | on every content slide in the sheet, `title` equals the frame headline box (±1); `strip:1` left 144, top 32 (±1) | holdout |
 | AC-21 | the rendered sheet | compare with the mockups in `assets/slide-components/` | each visual matches its mockup in layout, spacing and emphasis; nothing overlaps or is clipped | evaluator |
@@ -502,12 +506,12 @@ PPTX is converted at 9525 EMU/px.
 | AC-40 | slide 11 (matrix) | build PPTX | `quadrant:1`..`4`; `quadrant:1` fill `121722`, the others `f4f6f9`; 16 px gaps (±1) | holdout |
 | AC-41 | slide 12 (timeline) | build PPTX | `event:1`..`5` markers centred on one horizontal line (±1 px); `event:4` fill `2a78d6`, the others `121722`; the `today` pill's centre lies midway between `event:3` and `event:4` (±2 px) | holdout |
 | AC-42 | the outline review in the app with a drafted storyline | look at the screen | settings row (profile, purpose, detail, max slides), the answer line, and per slide the headline, a visual picker with friendly names, and the rationale, grouped by section | evaluator |
-| AC-43 | the outline review | change slide 2's visual to "Comparison table" and approve | the built slide 2 is a `comparison_table` | evaluator |
+| AC-43 | the outline review | change the second content slide of the first section (built deck index 3)'s visual to "Comparison table" and approve | the built slide at index 3 is a `comparison_table` | evaluator |
 | AC-44 | a report whose stored request has the sheet sources and whose stored deck is the sheet deck (saved through `ReportingStore`), status completed; a stand-in returning slide 3 with `highlight` "Energy" | POST `/api/reports/{id}/slides/4/refine` `{"instruction":"Highlight Energy"}` (slide index 3 is slide n=4) | 200; history lists versions 1 and 2; in the rebuilt PPTX slide 3's "Energy" point fill is `2a78d6` | holdout |
 | AC-45 | a stand-in returning slide 3 with a changed headline | POST `/slides/4/refine` | 422 with a detail naming `headline`; history unchanged | holdout |
 | AC-46 | a stand-in returning slide 2 with a new tile value `99%` | POST `/slides/3/refine` | 422 with a detail naming `99%`; history unchanged | holdout |
-| AC-47 | after AC-44 | POST `/slides/4/undo` | 200; history's current version is 1; "Utilities" fill `2a78d6` again | holdout |
-| AC-48 | a slide at version 1 | POST undo | 409 | holdout |
+| AC-47 | after AC-44 | POST `/slides/4/undo` | 200; history lists only version 1; "Utilities" fill `2a78d6` again | holdout |
+| AC-48 | a slide never refined | POST undo | 409 | holdout |
 | AC-49 | the refine screen in the app | use a quick suggestion, then Undo | the preview changes, then returns; history and checks panel as in mockup `ui-refine` | evaluator |
 | AC-50 | the PR 2 storyline prompt (as AC-16) | draft | the prompt also contains `linear_flow`, `swimlane_flow`, `matrix_2x2` and `timeline` | holdout |
 | AC-51 | AC-31's report | POST `/api/reports/{id}/slides/<n>/approve` for the flagged slide, then download | approve returns 200; the slide's `needs_review` is false; the download returns 200 | holdout |
