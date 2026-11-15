@@ -56,15 +56,32 @@ export const processState = (p: Process, runs: RunManifest[] | null, flow: Stewa
   return RANK.find((r) => states.includes(r)) ?? "idle";
 };
 
-export type CardView = { dots: (StepState | "unknown")[]; now: string; footer: string; label: string; awaits: boolean };
+export type CardStatus = { word: string; tone: StepState | "unknown"; detail: string };
+export type CardView = { dots: (StepState | "unknown")[]; now: string; status: CardStatus; label: string; awaits: boolean };
 
-/** What a start-page workspace card shows. The card is a way in, not a status: waiting work is
- * counted once, in the start page headline, so the card carries no counts. */
+/** A card's status line: the most urgent state as a word, and the process it concerns. The detail
+ * never repeats the word: it names a process, or for finished work when it last ran. */
+export function cardStatus(states: (StepState | "unknown")[] | null, titles: string[], lastLine: string): CardStatus {
+  if (!states) return { word: "Status unknown", tone: "unknown", detail: "" };
+  const named: [StepState, string][] = [["wait", "Waiting on you"], ["now", "Running"], ["failed", "Last run failed"]];
+  for (const [tone, word] of named) {
+    const i = states.indexOf(tone);
+    if (i >= 0) return { word, tone, detail: titles[i] ?? "" };
+  }
+  if (states.includes("done")) return { word: "Up to date", tone: "done", detail: lastLine };
+  return { word: "No runs yet", tone: "idle", detail: "" };
+}
+
+/** The Review Queue badge, shared by the sidebar and the start top bar: "items", so the number never
+ * reads as a total of decisions. */
+export const reviewBadge = (count: number): { text: string; title: string } | null =>
+  count > 0 ? { text: `${count} ${count === 1 ? "item" : "items"}`, title: `${count} ${count === 1 ? "review item" : "review items"} waiting on you` } : null;
+
+/** What a start-page workspace card shows: the way in, each process's state, and one status line. */
 export function cardView(w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null, now: Date): CardView {
-  const footer = "Open →";
   // Before runs load (or when the backend is down) every state is unknown, not idle.
   if (!runs) {
-    return { dots: w.processes.map(() => "unknown"), now: "", footer, awaits: false, label: `${w.name}. ${w.processes.map((p) => `${p.title}: status unknown`).join("; ")}` };
+    return { dots: w.processes.map(() => "unknown"), now: "", status: cardStatus(null, [], ""), awaits: false, label: `${w.name}. ${w.processes.map((p) => `${p.title}: status unknown`).join("; ")}` };
   }
   const dots = w.processes.map((p) => processState(p, runs, flow));
   // The process named is the one a person should look at: a wait first, then running or failed.
@@ -74,7 +91,8 @@ export function cardView(w: Workspace, runs: RunManifest[] | null, flow: Steward
   const line = at >= 0 ? w.processes[at].title : last ? `Last run ${ago(last.updated_at, now)}` : "No runs yet";
   // The link's label replaces its inner text for screen readers, so it carries each process's state.
   const label = `${w.name}. ${w.processes.map((p, i) => `${p.title}: ${STATE_LABEL[dots[i]]}`).join("; ")}`;
-  return { dots, now: line, footer, label, awaits: firstWait >= 0 };
+  const status = cardStatus(dots, w.processes.map((p) => p.title), line);
+  return { dots, now: line, status, label, awaits: firstWait >= 0 };
 }
 
 export type StatusTone = StepState;
@@ -97,22 +115,3 @@ export const workspaceState = (w: Workspace, runs: RunManifest[] | null): StepSt
   const states = w.processes.map((p) => processState(p, runs, null));
   return RANK.find((r) => states.includes(r)) ?? "idle";
 };
-
-type WaitingTotal = number | "error" | null;
-/** The start page's one line on what waits on a person, for every loading and error state. */
-export const waitingSentence = (known: boolean, error: string | null, needsTotal: WaitingTotal): string =>
-  !known ? (error ? "Runs could not be loaded." : "Loading runs…") : needsTotal === "error" ? "What waits on you could not be loaded." : needsTotal === null ? "Loading what waits on you…" : needsTotal > 0 ? needsTotal === 1 ? "1 decision waits on you." : `${needsTotal} decisions wait on you.` : "Nothing waits on you.";
-
-/** The same line as a link to the Review Queue when something waits; plain text otherwise. */
-export function waitingLink(known: boolean, error: string | null, needsTotal: WaitingTotal, target: WaitingHref = "#/review"): { text: string; href: WaitingHref | null } {
-  const text = waitingSentence(known, error, needsTotal);
-  return known && typeof needsTotal === "number" && needsTotal > 0 ? { text: `${text.replace(/\.$/, "")} →`, href: target } : { text, href: null };
-}
-
-type WaitingHref = "#/review" | "#/stewardiq";
-
-/** Where the waiting link goes: StewardIQ when only its decisions wait, else the Review Queue. */
-export const waitingTarget = (queue: number, stewardship: number): WaitingHref => (queue === 0 && stewardship > 0 ? "#/stewardiq" : "#/review");
-
-/** The waiting count for the start page's counts: the number, or a dash while unknown. */
-export const waitingStat = (needsTotal: WaitingTotal): string => (typeof needsTotal === "number" && Number.isFinite(needsTotal) ? String(needsTotal) : "—");
