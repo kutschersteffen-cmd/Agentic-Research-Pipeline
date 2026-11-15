@@ -68,7 +68,7 @@ export function EmbeddedDashboard({ dashboardId, title, companyId = null }: { da
 /** What the designer did with the last brief. The dashboard itself shows in the picker above. */
 function ResultView({ result, onSave }: { result: BIDesignResult; onSave?: () => void }) {
   if (result.clarification_needed) {
-    return <div className="banner banner-warning">{clarificationText(result.clarification_needed)}</div>;
+    return <div className="banner banner-warning" role="status">{clarificationText(result.clarification_needed)}</div>;
   }
   if (result.dashboard_id === null) {
     return (

@@ -49,6 +49,12 @@ test("a clarification banner asks the question and lists no reasons", () => {
   );
 });
 
+test("the clarification banner is announced to screen readers", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync(new URL("../src/pages/portfolio-monitoring/SupersetBI.tsx", import.meta.url), "utf8");
+  assert.match(page, /<div className="banner banner-warning" role="status">\{clarificationText\(/);
+});
+
 test("a rejected plan still lists its reasons", async () => {
   const { readFileSync } = await import("node:fs");
   const page = readFileSync(new URL("../src/pages/portfolio-monitoring/SupersetBI.tsx", import.meta.url), "utf8");
