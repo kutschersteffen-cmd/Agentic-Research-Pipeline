@@ -82,3 +82,17 @@ jobs:
 
       - name: Self-test the Atlas data builder
         run: python3 scripts/atlas/build_data.py --selftest
+
+  holdout-scripts:
+    name: Holdout scripts self-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Self-test the docs-only "not behind main" check
+        run: bash .github/scripts/main_ahead_docs_only.sh --selftest
+
+      - name: Self-test the Holdout completeness check
+        run: python3 .github/scripts/holdout_complete.py --selftest
