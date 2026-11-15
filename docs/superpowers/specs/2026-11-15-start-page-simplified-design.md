@@ -25,7 +25,8 @@ the Review Queue badge.
 - **A start-page top bar** (`<header class="start-topbar">`, a `banner` landmark), left to right:
   - The ARP lockup: a link named "ARP start" to `#/home`. The landing header's inline lockup is
     extracted into `components/ArpLockup.tsx`, used by both `Landing.tsx` and the top bar. Its svg is
-    `aria-hidden` and its apex uses `--brand-apex`.
+    `aria-hidden` and its apex uses `--brand-apex`. It is 28px high, 32px from the left edge and 24px
+    from the top, exactly where the landing header puts it, so it stays in place after "Open ARP →".
   - A search button named "Search or jump to…", showing the shortcut hint (`⌘K` on Mac, `Ctrl K`
     elsewhere, as the sidebar does today) in a `<kbd aria-hidden="true">`, so the accessible name is
     exactly "Search or jump to…". It opens the existing command palette.
@@ -50,7 +51,8 @@ the Review Queue badge.
   - Opening it moves focus to its first focusable element.
   - Esc or a click outside closes it and returns focus to the button.
   - Tab past the last element closes it and focus moves on.
-- **Header.** It is the greeting alone: one `h1`, "Good morning|afternoon|evening[, name].". The existing
+- **Header.** It is the greeting alone: one `h1`, "Good morning|afternoon|evening[, name]." It keeps
+  today's greeting typography: Geist, same size and weight as `.hub-hero-greet` today. The existing
   runs error message with Retry stays, between the header and the cards.
 - **Removed from the page and the code:**
   - the stats row (`.hub-stats`);
@@ -106,7 +108,9 @@ the Review Queue badge.
 
 - Colour tokens. The page uses today's tokens; "running" stays `--run`, the current blue. Palette work,
   including the mockup's neutral look, is a separate spec.
-- The typeface. It stays Geist; the mockup's Inter is not adopted.
+- The typeface. The owner compared five pairings and kept today's fonts: Geist for everything on the
+  start page, including the greeting. The landing page keeps its serif headline. The mockup's Inter is
+  not adopted.
 - Any route other than `#/home`.
 - Search behaviour. The button only opens the existing palette.
 
@@ -207,6 +211,8 @@ the Review Queue badge.
 |------|-------|------|--------------------------|------------|
 | AC-1a | The running app at `/#/home`, 1440×900 | The page loads | There is no `.app-sidebar` element | evaluator |
 | AC-1b | The same | The page loads | There is exactly one `.start-topbar`, with role `banner` | evaluator |
+| AC-1d | `/#/home`, 1440×900 | The lockup is measured | Its rendered height is 28px, its left edge is 32px (±1) from the viewport and its top is 24px (±1), the same as `.landing-mark` on `#/welcome` | evaluator |
+| AC-1e | `/#/home` | The `h1` is read | Its computed `font-family` starts with `"Geist"`, and its font-size and font-weight equal `main`'s `.hub-hero-greet` | evaluator |
 | AC-1c | `/#/home` at 1440×900 and at 390×844 | The page loads | There is no `.app-topbar` and no button named "Open navigation" | evaluator |
 | AC-2 | `/#/review`, 1440×900 | The page loads | `.app-sidebar` is present | evaluator |
 | AC-3 | `/#/home`, 1440×900, the e2e stack's approver `dev` | The top bar's controls are read in DOM order | Their accessible names are "ARP start", "Search or jump to…", "Ask ARP", "Review Queue" (plus its badge's name when there is one), "Reports" and "dev" | evaluator |
