@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import {
   SHOWN_ROWS,
@@ -22,14 +22,17 @@ const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 /** StewardIQ cockpit (spec stewardship-cockpit): read-only; every figure is the API's, summed or divided at most. */
 export function StewardCockpit({ asOf }: { asOf?: string }) {
   const [portfolioId, setPortfolioId] = useState<string | null>(null);
-  const [data, setData] = useState<Cockpit | null>(null);
+  // The last response stays for the header (scope selector); the body shows only the selected scope's.
+  const [result, setResult] = useState<{ scope: string | null; data: Cockpit } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const data = result?.data ?? null;
+  const current = !error && result && result.scope === portfolioId ? result.data : null;
 
   useEffect(() => {
     let live = true;
     setError(null);
     api.getCockpit(asOf, portfolioId).then(
-      (d) => live && setData(d),
+      (d) => live && setResult({ scope: portfolioId, data: d }),
       (e: unknown) => live && setError(e instanceof Error ? e.message : String(e)),
     );
     return () => {
@@ -61,8 +64,8 @@ export function StewardCockpit({ asOf }: { asOf?: string }) {
         )}
       </header>
       {error && <p className="error-text" role="alert">The cockpit could not be loaded: {error}</p>}
-      {!data && !error && <p className="muted" role="status">Loading…</p>}
-      {data && <Body data={data} />}
+      {!current && !error && <p className="muted" role="status">Loading…</p>}
+      {current && <Body key={portfolioId ?? ""} data={current} />}
     </div>
   );
 }
@@ -83,6 +86,15 @@ function Body({ data }: { data: Cockpit }) {
         <VotingCard voting={data.voting} />
       </div>
     </>
+  );
+}
+
+/** A box that scrolls sideways when its table is wider: focusable, so the keyboard reaches its hidden columns. */
+function Scroll({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="cockpit-scroll" tabIndex={0} role="region" aria-label={label}>
+      {children}
+    </div>
   );
 }
 
@@ -160,7 +172,8 @@ function Strip({ days }: { days: Cockpit["days"] }) {
   const h = (n: number) => `${(n / max) * 100}%`;
   return (
     <Card title="Next 30 days" label={<Legend items={[["eng", "Engagement meeting"], ["agm", "Shareholder meeting"]]} />}>
-      <div className="cockpit-scroll">
+      {days.every((d) => !d.engagement_meetings && !d.shareholder_meetings) && <p className="muted">No meetings in the next 30 days.</p>}
+      <Scroll label="Next 30 days, by day">
         <ol className="cockpit-strip">
           {days.map((d, i) => (
             <li key={d.date} className={isWeekend(d.date) ? "weekend" : undefined}>
@@ -175,7 +188,7 @@ function Strip({ days }: { days: Cockpit["days"] }) {
             </li>
           ))}
         </ol>
-      </div>
+      </Scroll>
     </Card>
   );
 }
@@ -205,7 +218,7 @@ function ThemeGrid({ data }: { data: Cockpit }) {
         <p className="muted">No selected companies: no coverage tier is confirmed in this scope.</p>
       ) : (
         <>
-        <div className="cockpit-scroll">
+        <Scroll label="Engaged vs selected table">
           <table className="cockpit-grid">
             <thead>
               <tr>
@@ -231,7 +244,7 @@ function ThemeGrid({ data }: { data: Cockpit }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </Scroll>
         <Legend items={[["eng", "Engaged"], ["sel", "Selected"]]} />
         </>
       )}
@@ -255,7 +268,7 @@ function EngagementMeetings({ rows, ladder }: { rows: Cockpit["engagement_meetin
       {rows.length === 0 ? (
         <p className="muted">No engagement meetings in the next 30 days.</p>
       ) : (
-        <div className="cockpit-scroll">
+        <Scroll label="Upcoming engagement meetings table">
           <table className="cockpit-table">
             <thead>
               <tr><th scope="col">Date</th><th scope="col">Company</th><th scope="col">Objective</th><th scope="col">Step</th></tr>
@@ -271,7 +284,7 @@ function EngagementMeetings({ rows, ladder }: { rows: Cockpit["engagement_meetin
               ))}
             </tbody>
           </table>
-        </div>
+        </Scroll>
       )}
     </Card>
   );
@@ -285,7 +298,7 @@ function ShareholderMeetings({ rows }: { rows: Cockpit["shareholder_meetings"] }
         <p className="muted">No shareholder meetings in the next 30 days.</p>
       ) : (
         <>
-          <div className="cockpit-scroll">
+          <Scroll label="Upcoming shareholder meetings table">
             <table className="cockpit-table">
               <thead>
                 <tr>
@@ -309,7 +322,7 @@ function ShareholderMeetings({ rows }: { rows: Cockpit["shareholder_meetings"] }
                 ))}
               </tbody>
             </table>
-          </div>
+          </Scroll>
           <p className="muted cockpit-foot">Flagged: items where the voting policy recommends a vote against management.</p>
         </>
       )}
@@ -336,7 +349,11 @@ function ControlGaps({ rows }: { rows: Cockpit["control_gaps"] }) {
                   <br />
                   <span className="muted">{g.theme}{g.open_days !== null && ` · open ${fmtCount(g.open_days)} days`}</span>
                 </span>
-                <span className="cockpit-gap await-text">{gapText(g.gaps)}</span>
+                <span className="cockpit-gap await-text">
+                  {g.gaps.map((k, i) => (
+                    <Fragment key={k}>{i > 0 && " · "}<span>{gapText([k])}</span></Fragment>
+                  ))}
+                </span>
               </li>
             ))}
           </ul>
@@ -356,7 +373,7 @@ function LadderCard({ ladder }: { ladder: Ladder }) {
           <li key={s.step}>
             <span className="cockpit-num muted">{s.step}</span>
             <span>{s.label}</span>
-            <span className={`cockpit-num cockpit-ladder-count${s.companies.length ? ` tone-${stepTone(s.step)}` : " muted"}`}>{fmtCount(s.companies.length)}</span>
+            <span className={`cockpit-num cockpit-ladder-count${s.companies.length ? "" : " muted"}`}>{fmtCount(s.companies.length)}</span>
             <span className="muted">{s.step > 1 ? s.companies.map((c) => c.company).join(", ") : ""}</span>
           </li>
         ))}
