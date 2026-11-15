@@ -258,7 +258,7 @@ def fund_holdings(store) -> dict[str, dict]:
         value[0] += mv
         if asset_class.get(h.security_id) == "equity":
             value[1] += mv
-    return out
+    return dict(sorted(out.items()))  # the store returns holdings in no fixed order
 
 
 def has_funds(sample: dict) -> bool:

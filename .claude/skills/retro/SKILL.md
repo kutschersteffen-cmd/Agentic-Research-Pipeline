@@ -15,6 +15,7 @@ same mistake costs one week, not every week. You never merge, and you change rul
 - **Failed CI runs on PRs:** group by job name; note the jobs that failed on three or more PRs.
 - **Holdout and evaluator:** `<slug> AC-n: fail` lines in Holdout acceptance logs, and failing rows
   in posted acceptance matrices.
+- **Auto-merges:** merged PRs with an `Auto-merge (factory)` comment.
 - **Spec drift:** for each spec in `docs/superpowers/specs/` merged to `main` in the last 30 days,
   in a fresh subagent given only that spec and the repo: list the files, endpoints, settings and
   behaviours it describes that the current code no longer matches. Leave out rows of a later spec
@@ -55,5 +56,6 @@ At most 3 changes, each the smallest edit that would have prevented it, in one o
 
 - Branch `claude/retro-<YYYY-MM-DD>` off `main`; PR against `main`, titled `Factory retro <date>`.
 - Label `risk:normal` if it edits `.claude/`, else `risk:low` (see the steward skill).
-- Body: the numbers line, then each rule change with the findings it answers.
+- Body: the numbers line, then each rule change with the findings it answers, then the auto-merged
+  PRs as links, for the owner to spot-check.
 - Nothing happened this week (no PRs, no failures): no PR; say so in the session and stop.
