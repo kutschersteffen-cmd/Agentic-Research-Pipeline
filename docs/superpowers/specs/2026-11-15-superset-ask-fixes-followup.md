@@ -80,8 +80,8 @@ For the error line there is one sensible way: export one strip function from `bi
 ## Other specs this changes
 
 - Parent non-goal "any UI work beyond the one banner line in (1)" is lifted for the ask/design error line only.
-- Parent AC-19 to AC-22 (scratch reuse, run one ask at a time) still hold unchanged. AC-1 to AC-5 here add the
-  concurrent case. No parent row is retired.
+- Parent AC-19 to AC-22 (scratch reuse, run one ask at a time) still hold unchanged. AC-1 to AC-4 here add the
+  concurrent case, AC-5 a failed ask. No parent row is retired.
 
 ## Left to the builder
 
