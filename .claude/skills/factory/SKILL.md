@@ -103,9 +103,11 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
    - **Evaluator** (skip if no `evaluator` rows): *"Run the evaluator skill on PR #<n>."*
      A later push that changes `backend/arp/` or `frontend/src/` re-runs it once CI is green again:
      the matrix names the head it ran on, and a matrix for an older head is stale.
-   **Model by risk label** (`create_session` `model`): code and UI review `sonnet` on `risk:low`, `opus`
-   otherwise; security review always `opus`; no label counts as `risk:high`. Other stages (spec, hidden
-   tests, implement, evaluator, regression) run on `opus`.
+   **Model by stage** (`create_session` `model`): spec `fable`; implement `opus` with `effort: high`
+   (its default is `medium`; if `effort` is refused, start without it and say so once); code review
+   `sonnet` on `risk:low`, `fable` otherwise; UI review `sonnet` on `risk:low`, `opus` otherwise;
+   security review always `opus`; no label counts as `risk:high`. Hidden tests, evaluator and
+   regression run on `opus`.
 5. **Merge gate:** nothing to start. If a review comment the PR's paths require is missing, tell the
    owner `waiting: <review name>` and offer no merge button. Tell the owner the PR is ready: link, risk label, open review
    findings, matrix verdict and the head it ran on. If the PR has a `Rows:` line, also list the spec's
@@ -124,7 +126,9 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
   the card and tell the owner in one line what they need to decide. Don't start the next stage.
 - If nothing arrives, keep one `send_later` check-in about 50 minutes out, then every 4 hours: run
   `/factory` status, and re-arm. Status also reads each stage session on the card with `get_session`
-  and `list_events` (kinds `assistant`, `result`) to find a PR url it never sent you. Stop after 3 quiet check-ins and say how to resume (`/factory`).
+  and `list_events` (kinds `assistant`, `result`) to find a PR url it never sent you. If a session's
+  `external_metadata.last_served_model` is not the model its stage names (`configured_model` may be an
+  alias), say so in one line: that stage ran on a fallback model. Stop after 3 quiet check-ins and say how to resume (`/factory`).
 
 ## Rules
 
