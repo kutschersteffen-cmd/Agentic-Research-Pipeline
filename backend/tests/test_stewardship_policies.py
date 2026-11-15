@@ -152,3 +152,11 @@ def test_only_the_tier_column_is_checked_for_old_keys(tmp_path, sample):
     table = next(n for n in graph["nodes"] if n["id"] == "coverage_tiers")
     next(r for r in table["content"]["rules"] if r["_id"] == "small_position")["r"] = "'systemic'"
     assert PolicyStore(tmp_path).save("coverage_rules", graph, "", "designer", sample) == 1
+
+
+def test_escalation_versions_written_for_the_7_step_ladder_are_retired(tmp_path, sample):
+    # stewardship-three-tiers AC-35: a version saved by the PR A build (format "three_tiers") is retired
+    _main_format_escalation_v1(tmp_path)
+    v1 = tmp_path / "policies" / "escalation_rules" / "v1.json"
+    v1.write_text(json.dumps(json.loads(v1.read_text()) | {"rules_format": "three_tiers"}))
+    assert PolicyStore(tmp_path).active_version("escalation_rules") == 0

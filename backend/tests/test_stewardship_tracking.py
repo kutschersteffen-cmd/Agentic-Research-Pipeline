@@ -83,7 +83,7 @@ def test_a_closed_engagement_gets_a_case_study_from_its_records_with_style_flags
     with pytest.raises(HTTPException) as still_open:
         get_case_study("ACME", issue.issue_id, streams, engagements)
     assert still_open.value.status_code == 422
-    engagements.set_escalation_stage("ACME", issue.issue_id, EscalationStage.JOINT_ENGAGEMENT, "Lead")
+    engagements.set_escalation_stage("ACME", issue.issue_id, EscalationStage.WRITTEN_ESCALATION_TO_BOARD, "Lead")
     kept = _commit(engagements, issue, "Publish interim targets", "2026-06-30")
     set_commitment_status(
         kept["commitment_id"],
@@ -108,7 +108,7 @@ def test_a_closed_engagement_gets_a_case_study_from_its_records_with_style_flags
     )
     assert engagements.get("ACME").issues[0].status == IssueStatus.RESOLVED
     study = get_case_study("ACME", issue.issue_id, streams, engagements)
-    assert "joint engagement (decided by Lead)" in study["text"]
+    assert "written escalation to board (decided by Lead)" in study["text"]
     assert "1 letter (advocacy pressure)" in study["text"]
     assert "Kept: Publish interim targets" in study["text"]
     assert study["text"].endswith("Outcome. Resolved: Thanks to our engagement the board set interim targets.")

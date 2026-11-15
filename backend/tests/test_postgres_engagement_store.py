@@ -62,7 +62,7 @@ def _script(store):
     )
     store.add_commitment("C1", issue.issue_id, Commitment(text="Publish a plan.", target_date="2027-01-01", recorded_by="jane"))
     store.set_milestone_stage("C1", issue.issue_id, MilestoneStage.CONTACTED, reason="Letter sent.")
-    store.set_escalation_stage("C1", issue.issue_id, EscalationStage.JOINT_ENGAGEMENT, "jane.pm", reason="No reply.")
+    store.set_escalation_stage("C1", issue.issue_id, EscalationStage.WRITTEN_ESCALATION_TO_BOARD, "jane.pm", reason="No reply.")
     return store.get("C1")
 
 

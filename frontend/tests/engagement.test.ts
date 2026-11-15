@@ -9,10 +9,10 @@ test("engagementCounts tells open, stalled and escalated apart", () => {
     {
       issues: [
         issue("open", "private_engagement"),
-        issue("open", "joint_engagement"),
-        issue("stalled", "joint_engagement"),
-        issue("resolved", "joint_engagement"),
-        issue("closed", "joint_engagement"),
+        issue("open", "written_escalation_to_board"),
+        issue("stalled", "written_escalation_to_board"),
+        issue("resolved", "written_escalation_to_board"),
+        issue("closed", "written_escalation_to_board"),
       ],
     },
   ];

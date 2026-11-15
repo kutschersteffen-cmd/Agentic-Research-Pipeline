@@ -124,3 +124,30 @@ def test_engager_role_defaults_to_none(pg):
     PostgresEngagementStore(pg).get_or_create("C1", "Acme")
     intake_engagements(_batch(), pg, "api")
     assert PostgresEngagementStore(pg).get("C1").issues[0].engager_role is None  # not yet a VOICE engagement
+
+
+@pytest.mark.parametrize(("role", "created"), [("lead", 0), ("active_support", 0), ("passive_support", 0), ("bilateral", 2)])
+def test_only_the_bilateral_engager_role_is_taken_in(pg, role, created):
+    # stewardship-three-tiers AC-28, AC-29: the collaborative roles are gone
+    PostgresEngagementStore(pg).get_or_create("C1", "Acme")
+    report = intake_engagements(_batch(engager_role=role), pg, "api")
+    assert report.created == created
+    assert [(r.field, r.reason) for r in report.rejected] == ([] if created else [("engager_role", "not one of bilateral")])
+
+
+def test_stored_old_engager_roles_and_joint_engagement_read_as_their_mapping(pg):
+    # stewardship-three-tiers AC-22, AC-30: mapped on read, the stored row is never rewritten
+    from arp.storage.postgres_models import StwTransitionModel
+
+    PostgresEngagementStore(pg).get_or_create("C1", "Acme")
+    intake_engagements(_batch(engager_role="bilateral"), pg, "api")
+    with transaction(pg) as s:
+        row = s.scalars(select(StwEngagementModel)).one()
+        row.engager_role, row.escalation_stage = "passive_support", "joint_engagement"
+        s.add(StwTransitionModel(transition_id="trn_old", engagement_id=row.engagement_id, kind="escalation", stage="joint_engagement", decided_by="old", reason="r"))  # fmt: skip
+    [issue] = PostgresEngagementStore(pg).get("C1").issues
+    assert (issue.engager_role, issue.escalation_stage.value) == (None, "private_engagement")
+    assert [(h.stage.value, h.decided_by, h.reason) for h in issue.escalation_history] == [("private_engagement", "old", "r")]
+    with transaction(pg) as s:
+        row = s.scalars(select(StwEngagementModel)).one()
+        assert (row.engager_role, row.escalation_stage) == ("passive_support", "joint_engagement")

@@ -877,7 +877,6 @@ export function VotingStudio({ stage, onChanged }: StudioProps) {
 
 const LADDER = [
   "private_engagement",
-  "joint_engagement",
   "written_escalation_to_board",
   "escalation_to_chair",
   "vote_against_management",
@@ -1004,7 +1003,7 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
         <Section step="Design" title="Escalation rules and tier caps">
           <p className="help-text">
             Two tables, both read top to bottom with the <strong>first</strong> matching row deciding. <code>tier_caps</code> sets the
-            highest ladder step per coverage tier (<code>tier.max_step</code>, 0-6). <code>escalation_rules</code> sets how many steps
+            highest ladder step per coverage tier (<code>tier.max_step</code>, 0-5). <code>escalation_rules</code> sets how many steps
             up an engagement should move (<code>escalate_by</code>) with <code>rule</code> and <code>reason</code>. Its inputs:{" "}
             <code>triggers.high_same_theme</code>, <code>triggers.same_theme</code>, <code>engagement.commitments_missed</code>,{" "}
             <code>engagement.months_at_step</code>, <code>engagement.stalled</code>, <code>engagement.step_index</code>,{" "}

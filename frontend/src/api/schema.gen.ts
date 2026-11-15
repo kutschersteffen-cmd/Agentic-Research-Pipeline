@@ -12575,14 +12575,14 @@ export interface components {
         };
         /**
          * EscalationStage
-         * @description Illustrative 7-step escalation ladder. Stage 5+ overlaps with the
+         * @description Illustrative 6-step escalation ladder. Stage 4+ overlaps with the
          *     voting module: a decision to reach PRIVATE_ENGAGEMENT..ESCALATION_TO_CHAIR
          *     stays inside the engagement workflow, but VOTE_AGAINST_MANAGEMENT and
          *     beyond are the same decision the voting module's Policy Application
          *     Agent checks for alignment against (see arp.voting.policy_agent).
          * @enum {string}
          */
-        EscalationStage: "private_engagement" | "joint_engagement" | "written_escalation_to_board" | "escalation_to_chair" | "vote_against_management" | "file_or_cofile_resolution" | "public_statement";
+        EscalationStage: "private_engagement" | "written_escalation_to_board" | "escalation_to_chair" | "vote_against_management" | "file_or_cofile_resolution" | "public_statement";
         /** EvidenceReport */
         EvidenceReport: {
             /** Contamination Gap Ic */

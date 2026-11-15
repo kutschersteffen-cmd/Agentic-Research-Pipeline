@@ -854,7 +854,6 @@ export type MilestoneStage =
 
 export type EscalationStage =
   | "private_engagement"
-  | "joint_engagement"
   | "written_escalation_to_board"
   | "escalation_to_chair"
   | "vote_against_management"

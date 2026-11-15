@@ -38,7 +38,7 @@
         "outputs": [
           {
             "id": "m",
-            "name": "Max escalation step (0-6)",
+            "name": "Max escalation step (0-5)",
             "field": "tier.max_step"
           }
         ],

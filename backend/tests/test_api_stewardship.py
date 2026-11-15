@@ -36,7 +36,7 @@ def test_house_flow_has_all_stages_with_sourced_metrics(streams, tmp_path):
     assert [s["number"] for s in result["stages"]] == list(range(1, 9))
     assert all(m["source"] in ("live", "sample", "not_built") for s in result["stages"] for m in s["metrics"])
     decisions = [d for d in _stage(result, "checkpoint")["decisions"] if d["kind"] == "escalation"]
-    assert [(d["company_id"], d["current"], d["next"]) for d in decisions] == [("ACME", "private_engagement", "joint_engagement")]
+    assert [(d["company_id"], d["current"], d["next"]) for d in decisions] == [("ACME", "private_engagement", "written_escalation_to_board")]
 
 
 def test_client_stream_decide_every_difference_then_build(streams, tmp_path):
