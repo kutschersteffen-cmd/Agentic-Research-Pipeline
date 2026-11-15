@@ -433,6 +433,10 @@ def test_seed_cockpit_demo_ac47_to_ac51_ac76_to_ac78(client, pg):
     rows = body["shareholder_meetings"]
     assert [r["days_to_meeting"] for r in rows] == OFFSETS and {r["ballot_state"] for r in rows} == {"not_started"}
     assert sum(r["action_due"] for r in rows) == 4 and body["demo"] is True
+    # owner decision 15 Nov: tiers are confirmed under the held ledger companies' keys, so they count as engaged
+    held = {f"isin_XD{i:010d}" for i in range(16)}
+    assert {r["issuer_id"] for r in TierStore(get_settings().stewardship_streams_dir).all()} == held
+    assert body["summary"] == {"selected": 16, "engaged_selected": 16, "engaged_outside_selection": 0}
     with transaction(pg) as s:
         for e in s.scalars(select(StwEngagementModel)):
             assert e.planned_meeting_date == planned_date(e.engagement_id, date(2026, 11, 27))
