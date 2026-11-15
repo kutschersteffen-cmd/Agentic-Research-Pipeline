@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from math import ceil
 
-from arp.reporting.render_model import S4, S12, S16, S32, S40, Primitive, Rect, RenderCtx, Text, family, palette
+from arp.reporting.render_model import S4, S12, S16, S24, S32, S40, Primitive, Rect, RenderCtx, Text, family, palette
 from arp.schemas.reporting import Box
 
 # Type size by role, indexed by ctx.type_step + 1 (step -1 is the underfill step-up).
@@ -38,7 +38,7 @@ def numbered_rows(texts: list[str], box: Box, ctx: RenderCtx, emphasis: int | No
     """Ground rows with an ink number square and the text; `extras` adds an owner column and a `when` pill per row.
     The stack is centred in the box; an emphasised row is set at weight 600 (not a block)."""
     c, (_, body, mono) = palette(ctx.tokens, ctx.mode), fonts(ctx)
-    px, pad_y, owner_w, when_w = S40, 28, 320, 200
+    px, pad_y, owner_w, when_w = S40, S24, 320, 200
     text_x = box.x + px + SQUARE + S32
     text_w = box.x + box.w - px - text_x - (S32 + owner_w + S32 + when_w if extras else 0)
     fs = size("body", ctx)
