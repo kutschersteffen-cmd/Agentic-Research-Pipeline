@@ -8,7 +8,7 @@ Parent spec: `2026-11-13-stewardship-priority-worklist-design.md` (the Workbench
 Builds on PR #491 (the Workbench screen, branch `stewardship-priority-worklist-pr4`). Both PRs start from `main`
 after #491 has merged. Findings were checked on `main` b53ad65 and on #491's head a9c035c.
 
-Status: draft, waiting for the owner's approval.
+Status: **approved by the owner on 15 Nov 2026** (button in the spec session, after the spec-critic read `Ready for approval`).
 
 ## Owner decisions
 
