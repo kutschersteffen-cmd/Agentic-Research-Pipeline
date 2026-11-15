@@ -70,7 +70,7 @@ The first three run one after the other; engagements, vote ledger and funds do n
 2. Speed PR: the first load after a server restart, opened the moment the server answers, shows its first rows in a
    median under 5 s (AC-2).
 3. Speed PR: the cached values are never stale, before or after a restart (AC-3, AC-4).
-4. Robustness PR: fix the five findings below (AC-11 to AC-26, AC-29).
+4. Robustness PR: fix the five findings below (AC-11 to AC-26, AC-29, AC-30).
 
 ## Non-goals
 
@@ -166,7 +166,8 @@ The five findings, as checked on `main` b53ad65 and #491:
    2. an `add` id outside the house universe: `unknown company: <ids>`, as today;
    3. a company in two of `add`, `remove` and `end`: `A company can only be in one of add, remove and end: <ids>`;
    4. a `remove` id that is a confirmed member: `confirmed members are ended, not removed` (parent AC-118);
-   5. any other `remove` id that is not a proposed member: `not a proposed member: <ids>`;
+   5. any other `remove` id that is not a proposed member, an id unknown to the house universe included:
+      `not a proposed member: <ids>` (AC-16, AC-30);
    6. `end` with no reason: `Ending a membership needs a reason` (parent AC-119);
    7. an `end` id that is not a confirmed member: `not a confirmed member: <ids>`.
 
@@ -278,6 +279,7 @@ Robustness PR (no `Rows:` line, last slice):
 | AC-25 | Fixture W, programme log removed; `POST /programmes/climate/members` `{"add": ["SYN03"]}` | `POST /programmes/climate/members` `{"remove": ["SYN03"]}` | Status 200; `GET /programmes/climate` has no members | holdout |
 | AC-26 | Fixture W, programme log removed; `POST /programmes/climate/members` `{"add": ["SYN03"]}`, then `POST /programmes/climate/confirm` `{}` | `POST /programmes/climate/members` `{"add": ["SYN03"]}` | Status 200; `GET /programmes/climate` lists `SYN03` once, `confirmed` | holdout |
 | AC-29 | Fixture W, programme log removed | `POST /programmes/climate/members` `{"end": ["SYN05"]}` with no `reason` | Status 422 with detail `Ending a membership needs a reason` (check 6 answers before check 7) | holdout |
+| AC-30 | Fixture W, programme log removed | `POST /programmes/climate/members` `{"add": ["SYN03"], "remove": ["NOT_A_COMPANY"]}` | Status 422 with detail `not a proposed member: NOT_A_COMPANY`; `GET /programmes/climate` has no members (the valid add is not written either) | holdout |
 | AC-24 | An empty notes log | Two OS processes each call `NoteLog.add` 500 times, in parallel | `NoteLog` reads back 1,000 notes, and every line of the file decodes as JSON | unit |
 
 Must not change: the parent spec's acceptance rows, in particular AC-13 (here AC-10), AC-44 (5 s; AC-1 and AC-2 are
