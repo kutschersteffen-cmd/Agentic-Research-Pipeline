@@ -103,37 +103,41 @@ def ledger_history(dsn: str) -> list[SimpleNamespace]:
     return [SimpleNamespace(company_id=c, issues=i) for c, i in issues.items()]
 
 
-def held_values(settings: Settings, as_of: date) -> dict[str, float]:
-    """Company key -> EUR held across all portfolios as of `as_of` (the key of the holding's security)."""
+def held_values(settings: Settings, as_of: date) -> tuple[dict[str, float], dict]:
+    """(company key -> EUR held across all portfolios as of `as_of`, the portfolio store's companies by id). The key is
+    the company of the holding's security."""
     from arp.storage.portfolio_store import portfolio_directories
     from arp.storage.portfolio_store_factory import build_portfolio_store
 
     store = build_portfolio_store(settings)
-    securities, _ = portfolio_directories(store)
+    securities, companies = portfolio_directories(store)
     values: dict[str, float] = defaultdict(float)
     for hld in store.load_holdings_as_of(as_of.isoformat(), None):
         if (sec := securities.get(hld.security_id)) and sec.company_id:
             values[sec.company_id] += hld.market_value_eur or 0.0
-    return dict(values)
+    return dict(values), companies
 
 
 def step_tiers(settings: Settings, dsn: str, as_of: date) -> str:
-    """Owner decision 15 Nov 2026: tiers for the held ledger companies, proposed by the active coverage rules and
-    confirmed under their company keys, so the cockpit's selected companies are the ledger's."""
+    """Owner decisions 15 Nov 2026: tiers for every held company, with or without a ledger row, proposed by the active
+    coverage rules and confirmed under its company key, so engaged companies sit among all selected ones."""
     from arp.stewardship.process import tier_proposals
     from arp.stewardship.tiers import TierStore
 
-    values = held_values(settings, as_of)
+    values, companies = held_values(settings, as_of)
     with transaction(dsn) as s:
-        rows = [r for r in s.execute(select(StwCompanyModel.company_id, StwCompanyModel.name, StwCompanyModel.sector)) if r.company_id in values]
+        ledger = {r.company_id: r for r in s.execute(select(StwCompanyModel.company_id, StwCompanyModel.name, StwCompanyModel.sector)) if r.company_id in values}
     total = sum(values.values())  # the share of all house holdings, as universe.from_portfolio computes it
+
+    def described(c: str, attr: str) -> str | None:
+        return (getattr(ledger[c], attr) if c in ledger else None) or (getattr(companies[c], attr, None) if c in companies else None)
+
     issuers = [
         {
-            "issuer_id": r.company_id, "name": r.name or r.company_id, "region": "unknown", "sector": r.sector or "unknown", "fields": {},
-            "holding": {"index_weight_pct": round(values[r.company_id] / total * 100, 3) if total else None,
-                        "aum_held_eur_m": round(values[r.company_id] / 1e6, 1)},
+            "issuer_id": c, "name": described(c, "name") or c, "region": "unknown", "sector": described(c, "sector") or "unknown", "fields": {},
+            "holding": {"index_weight_pct": round(values[c] / total * 100, 3) if total else None, "aum_held_eur_m": round(values[c] / 1e6, 1)},
         }  # fmt: skip
-        for r in sorted(rows, key=lambda r: r.company_id)
+        for c in sorted(values)
     ]
     root = settings.stewardship_streams_dir
     store = TierStore(root)
@@ -145,7 +149,7 @@ def step_tiers(settings: Settings, dsn: str, as_of: date) -> str:
 
 
 def step_meetings(settings: Settings, dsn: str, as_of: date) -> str:
-    held = held_values(settings, as_of)
+    held, _ = held_values(settings, as_of)
     with transaction(dsn) as s:
         names = {c: n for c, n in s.execute(select(StwCompanyModel.company_id, StwCompanyModel.name)) if c in held}
         if len(names) < len(OFFSETS):

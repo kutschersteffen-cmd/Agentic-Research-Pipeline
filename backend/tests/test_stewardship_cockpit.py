@@ -458,13 +458,17 @@ def test_seed_cockpit_demo_ac47_to_ac51_ac76_to_ac78(client, pg):
     assert [r["days_to_meeting"] for r in _get(client, as_of="2026-12-01")["shareholder_meetings"]] == OFFSETS
 
 
-def test_seed_tier_weights_are_shares_of_all_house_holdings(client, pg):
-    # 16 ledger companies at EUR 1m beside EUR 10bn held elsewhere: each is ~0.01% of the house, so no top_weight
+def test_seed_tiers_cover_every_held_company_by_house_share(client, pg):
+    # 16 ledger companies at EUR 1m beside EUR 10bn in a held company with no ledger row (owner decisions 15 Nov):
+    # every held company gets a tier under its company key, weighted by its share of all house holdings
     _demo_stack(pg, outside_eur=1e10)
     assert _seed("2026-11-27").exit_code == 0
-    rows = TierStore(get_settings().stewardship_streams_dir).all()
-    assert rows and "top_weight" not in {r["rule"] for r in rows}
-    assert all(r["inputs"]["holding"]["index_weight_pct"] < 0.05 for r in rows)
+    rows = {r["issuer_id"]: r for r in TierStore(get_settings().stewardship_streams_dir).all()}
+    outside = rows.pop("isin_XO0000000000")
+    assert (outside["tier"], outside["rule"], outside["name"]) == ("bilateral", "top_weight", "Outside")
+    assert len(rows) == 16 and "top_weight" not in {r["rule"] for r in rows.values()}
+    assert all(r["inputs"]["holding"]["index_weight_pct"] < 0.05 for r in rows.values())
+    assert _get(client, as_of="2026-11-27")["summary"] == {"selected": 17, "engaged_selected": 16, "engaged_outside_selection": 0}
 
 
 def test_seed_cockpit_demo_fails_without_enough_held_companies(client, pg):
