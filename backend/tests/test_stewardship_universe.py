@@ -26,7 +26,7 @@ def universe(tmp_path_factory):
 def test_held_companies_in_the_sample_shape(universe):
     assert universe["source"] == "portfolio"
     ids = {i["issuer_id"] for i in universe["issuers"]}
-    assert "bmw" in ids and not any(i.startswith("SYN") for i in ids)
+    assert "isin_DE0005190003" in ids and not any(i.startswith("SYN") for i in ids)
     weights = [i["holding"]["index_weight_pct"] for i in universe["issuers"]]
     assert sum(weights) == pytest.approx(100, abs=0.1)
     assert all("score.clti" in i["fields"] for i in universe["issuers"])  # placeholder, labelled in the note
@@ -34,10 +34,10 @@ def test_held_companies_in_the_sample_shape(universe):
 
 
 def test_a_portfolio_alert_reaches_stewardship_on_held_companies(universe, tmp_path):
-    alert = Alert(category=AlertCategory.NEWS_CONTROVERSY, scope_id="bmw", company_id="bmw")
+    alert = Alert(category=AlertCategory.NEWS_CONTROVERSY, scope_id="isin_DE0005190003", company_id="isin_DE0005190003")
     sample = process.load_sample(tmp_path / "fw", votes=[], alerts=[alert], base=json.loads(json.dumps(universe)))
     raised = [t for t in monitoring.evaluate(monitoring.load_graph(), sample, []) if t["rule"] == "portfolio_news_controversy"]
-    assert [t["issuer_id"] for t in raised] == ["bmw"]
+    assert [t["issuer_id"] for t in raised] == ["isin_DE0005190003"]
 
 
 def test_the_flow_runs_and_labels_portfolio_figures(universe, tmp_path, monkeypatch, pg):
