@@ -80,8 +80,8 @@ raised`; it becomes `== 502`. The audit assertions in it stay. This follows the 
 | AC-9 | — | `askErrorText(new Error("422: as_of must be YYYY-MM-DD"))` (`frontend/tests/askHistory.test.ts`) | Returns exactly `as_of must be YYYY-MM-DD` | unit |
 | AC-10 | AC-2's test app | The server log during AC-2's request | One `ERROR` record with message `portfolio ask failed` and a traceback naming `RuntimeError` | unit |
 
-Must not change: AC-4, AC-6, AC-8.
+Must not change: AC-2, AC-3, AC-4, AC-6, AC-8, AC-9.
 
 AC-2, AC-6, AC-8 and AC-10 read the audit file or the server log, which a hidden test cannot reach from outside, so
-they are `unit`. The frontend's `npm test` renders no components, so the panel itself is checked by the evaluator
-(AC-5) and the shared helper by AC-9.
+they are `unit`. The frontend's `npm test` renders no components, so the panel change is checked only by the
+evaluator (AC-5); AC-9 guards the existing helper it now uses.
