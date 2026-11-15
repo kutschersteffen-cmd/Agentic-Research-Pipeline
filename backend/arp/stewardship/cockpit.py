@@ -50,7 +50,7 @@ def theme_of(fir_theme: str | None) -> str:
 
 
 def step_of(stage: str | None) -> int:
-    """1-based position on the ladder; null, unknown and the removed `joint_engagement` count as step 1."""
+    """1-based position on the ladder; null and unknown stages count as step 1, a retired stage name maps first (OLD_STAGES)."""
     stage = OLD_STAGES.get(stage, stage) if stage else None
     return STAGES.index(stage) + 1 if stage in STAGES else 1
 
