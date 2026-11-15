@@ -570,4 +570,14 @@ async def test_automatic_check_with_blank_descriptions_ac12(env, store, issue):
     await _discover(path)
 
     (s,) = store.list_suggestions("C1", "pending")
-    assert (s.item_kind, s.item_id) == ("commitment", c) and s.doc_id
+    (doc,) = [d for d in await get_registry().fetch_all(CompanyRef(company_id="C1", name="Acme")) if d.local_path == str(path)]
+    assert (s.item_kind, s.item_id, s.doc_id) == ("commitment", c, doc.doc_id)
+
+
+def test_proof_statement_and_result_on_an_objective_with_a_null_description(client, env, store, issue):
+    _, null = _blank_objectives(store, issue)
+    ids = {"company_id": "C1", "issue_id": issue}
+    r = client.post(f"{URL}/watch-items/objective/{null}/proof-statement", json=ids | {"proof_statement": "A target is set"})
+    assert (r.status_code, r.json()["description"], r.json()["proof_statement"]) == (200, "", "A target is set")
+    r = client.post(f"{URL}/objectives/{null}/result", json=ids | {"result": "abandoned", "outcome": "Dropped"})
+    assert (r.status_code, r.json()["description"], r.json()["status"]) == (200, "", "abandoned")

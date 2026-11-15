@@ -21,7 +21,7 @@ def test_a_500_shows_suggestions_unavailable_and_no_check_button(page):  # AC-13
     httpx.post(f"{API}/api/stewardship/tracking/commitments", json=body).raise_for_status()
     page.route("**/api/stewardship/evidence-suggestions*", lambda r: r.fulfill(status=500, json={"detail": "boom"}))
     _open(page, company)
-    page.get_by_text("Publish a transition plan").first.wait_for()
+    page.get_by_text("Suggestions unavailable: 500: boom").wait_for()  # the suggestions load has settled
     assert page.get_by_text("Suggestions unavailable: 500: boom").count() == 1
     assert page.get_by_role("button", name="Check against documents").count() == 0
 

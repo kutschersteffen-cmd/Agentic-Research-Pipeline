@@ -137,7 +137,7 @@ def watch_flags_by_company(records: list[EngagementRecord | None], today: date |
             for c in i.commitments:
                 due = _iso(c.target_date)
                 if c.status == CommitmentStatus.MISSED:
-                    since = _iso((c.validated_at or "")[:10]) or due or _day(c.made_at)
+                    since = _iso(c.validated_at) or due or _day(c.made_at)
                     kind, message = "broken", f'Commitment broken: "{c.text}" was marked not met on {since}.'
                 elif c.status == CommitmentStatus.OPEN and due and due < today_iso:
                     since, kind, message = due, "overdue", f'Commitment overdue: "{c.text}" was due {due}.'
@@ -148,7 +148,7 @@ def watch_flags_by_company(records: list[EngagementRecord | None], today: date |
             for o in i.objectives:
                 due = _iso(o.target_date)
                 if o.result in (ObjectiveResult.NOT_ACHIEVED, ObjectiveResult.DETERIORATION):
-                    since = _iso((o.closed_at or "")[:10]) or due
+                    since = _iso(o.closed_at) or due
                     kind = "broken"
                     message = f'Objective failed: "{o.description}" was closed as {_w(o.result.value)}' + (f" on {since}." if since else ".")
                 elif o.status in (ObjectiveStatus.INITIATED, ObjectiveStatus.IN_PROGRESS) and due and due < today_iso:
