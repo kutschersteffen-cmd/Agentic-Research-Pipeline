@@ -68,22 +68,37 @@ async def score_questions(cases: list[dict], llm: LLMClient) -> tuple[int, int, 
 
 
 async def score_drafts(cases: dict, llm: LLMClient, verifier: LLMClient, *, today: date, settings=None) -> dict:
-    """Counts for answerable questions drafted, unanswerable ones left `no source`, and drafts with unsupported facts."""
+    """Counts for answerable questions drafted, unanswerable ones left `no source`, drafts with unsupported facts,
+    `unchanged` questions answered with an entry's answer character for character, and drafted `unchanged` or
+    `library` questions with no document source. A question without `expect` is `library` when answerable, else
+    `none`."""
     entries = [Entry(i + 1, e["question"], e["answer"], date.fromisoformat(e.get("review_by", "2099-12-31")))
                for i, e in enumerate(cases["library"])]
     by_id = {e.id: e for e in entries}
-    counts = dict(drafted=0, answerable=0, blank=0, unanswerable=0, unsupported=0)
+    approved = {e.answer for e in entries}
+    counts = dict(drafted=0, answerable=0, blank=0, unanswerable=0, unsupported=0, unchanged=0, unchanged_total=0,
+                  library_first=0, library_first_total=0)
     notes = []
     for q in cases["questions"]:
+        expect = q.get("expect", "library" if q.get("answerable") else "none")
+        answerable = expect != "none"
         d = await draft_answer(q["question"], entries, llm, verifier, today=today, settings=settings)
-        if q["answerable"]:
+        if answerable:
             counts["answerable"] += 1
             counts["drafted"] += d.status == DRAFTED
         else:
             counts["unanswerable"] += 1
             counts["blank"] += d.status == NO_SOURCE
-        if d.status != (DRAFTED if q["answerable"] else NO_SOURCE):
+        if d.status != (DRAFTED if answerable else NO_SOURCE):
             notes.append(f"{d.status}: {q['question']}")
+        if expect == "unchanged":
+            counts["unchanged_total"] += 1
+            counts["unchanged"] += d.status == DRAFTED and d.answer in approved
+            if d.status == DRAFTED and d.answer not in approved:
+                notes.append(f"changed: {q['question']}")
+        if expect in ("unchanged", "library") and d.status == DRAFTED:
+            counts["library_first_total"] += 1
+            counts["library_first"] += not any("document_id" in src for src in d.sources)
         if d.status == DRAFTED:
             # part 1 AC-44 as a second line: the same check already ran inside drafting
             cited = [f"[E{i}] {by_id[i].answer}" for i in dict.fromkeys(s["entry_id"] for s in d.sources)]
