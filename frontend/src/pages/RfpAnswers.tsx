@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { api, downloadFile } from "../api/client";
 import { ElapsedLine } from "../components/ElapsedLine";
 import { announce } from "../lib/announce";
@@ -246,6 +246,9 @@ function QuestionCard({ q, projectId, act }: { q: RfpQuestion; projectId: number
   const canApprove = me?.role === "approver" && q.status !== "approved" && q.last_editor !== me.user_id && q.answer.trim() !== "";
   // Four-eyes: say so where the Approve button would be, instead of leaving it out silently.
   const ownEdit = me?.role === "approver" && q.status !== "approved" && q.last_editor === me.user_id;
+  // The base entry's question is that of the source citing it; the comparison itself is worked out by the server.
+  const showChange = q.base_entry_id !== null && q.segments.length > 0;
+  const baseQuestion = q.sources.find((src) => src.entry_id === q.base_entry_id)?.entry_question;
 
   return (
     <section className="card" aria-label={`Question ${q.location}`}>
@@ -257,6 +260,23 @@ function QuestionCard({ q, projectId, act }: { q: RfpQuestion; projectId: number
         <span className="chip">{q.assignee ? `assigned to ${q.assignee}` : "unassigned"}</span>
         {q.last_editor && <span className="chip">last edited by {q.last_editor}</span>}
       </div>
+      {q.document_priority === 0 && <p className="muted">From approved answers only</p>}
+      {showChange && (
+        <div>
+          <p className="help-text">
+            {q.segments.every((seg) => seg.change === "kept") ? "Approved answer, unchanged" : `${q.kept_share}% unchanged from the approved answer`}
+            {baseQuestion && <> · based on <strong>{baseQuestion}</strong></>}
+          </p>
+          <p aria-label="Changes against the approved answer">
+            {q.segments.map((seg, i) => (
+              <Fragment key={i}>
+                {i > 0 && " "}
+                {seg.change === "added" ? <ins>{seg.text}</ins> : seg.change === "removed" ? <del>{seg.text}</del> : seg.text}
+              </Fragment>
+            ))}
+          </p>
+        </div>
+      )}
       <label className="field-label">
         Answer
         <textarea id={`rfp-answer-${q.id}`} rows={3} value={answer} readOnly={!canEdit} onChange={(e) => setAnswer(e.target.value)} />
