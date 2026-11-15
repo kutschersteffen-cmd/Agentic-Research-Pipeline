@@ -5,7 +5,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from arp.schemas.chart_specs import NATIVE_CHART_TYPES, ChartSpec, ChartType, TableSpec  # noqa: F401  (re-exported)
 from arp.schemas.common import JobStatus, new_id, now_iso
+from arp.schemas.visuals import Figure, NextAction, SectionPlan, Visual, Words
 
 # ---- Audience & layout instructions ---------------------------------------
 
@@ -178,49 +180,6 @@ class TemplateStyleProfile(BaseModel):
 # ---- Content plan (LLM output, deterministically rendered) -----------------
 
 
-class ChartType(StrEnum):
-    BAR = "bar"
-    COLUMN = "column"
-    STACKED_COLUMN = "stacked_column"
-    LINE = "line"
-    AREA = "area"
-    PIE = "pie"
-    DOUGHNUT = "doughnut"
-    SCATTER = "scatter"
-    RADAR = "radar"
-    WATERFALL = "waterfall"
-    HEATMAP = "heatmap"
-    TABLE = "table"
-    """Not a chart at all -- an explicit signal the data reads better as a table than any chart."""
-
-
-NATIVE_CHART_TYPES = {
-    ChartType.BAR, ChartType.COLUMN, ChartType.STACKED_COLUMN, ChartType.LINE,
-    ChartType.AREA, ChartType.PIE, ChartType.DOUGHNUT, ChartType.SCATTER, ChartType.RADAR,
-}
-"""Chart types python-pptx can build as a native, still-editable-in-PowerPoint chart object.
-Everything else (waterfall, heatmap) is rendered to a static image instead -- see chart_builder.py."""
-
-
-class ChartSpec(BaseModel):
-    dataset_id: str
-    chart_type: ChartType = ChartType.BAR
-    title: str = ""
-    category_column: str | None = Field(default=None, description="Column used for category/x-axis labels. Required for every type except scatter/heatmap.")
-    value_columns: list[str] = Field(default_factory=list, description="One or more numeric columns to plot as series.")
-    x_column: str | None = Field(default=None, description="scatter only: numeric column for the x-axis (category_column is unused).")
-    y_column: str | None = Field(default=None, description="heatmap only: the row-axis category column (category_column is the column axis).")
-    value_column: str | None = Field(default=None, description="heatmap only: the numeric cell value column.")
-    notes: str = Field(default="", description="Caption/takeaway text rendered under the chart.")
-
-
-class TableSpec(BaseModel):
-    dataset_id: str
-    columns: list[str] = Field(default_factory=list, description="Subset/order of dataset columns to include. Empty = all columns.")
-    row_offset: int = Field(default=0, ge=0, description="First dataset row shown; a split table slide continues from here.")
-    max_rows: int = Field(default=20, description="Renderer truncates to this many rows; a truncation note is added if the dataset has more.")
-
-
 class ContentItem(BaseModel):
     """One paragraph or bullet of narrative text within a section."""
 
@@ -278,14 +237,18 @@ class SlideContent(BaseModel):
 
     headline: str
     subheading: str = ""
-    layout: str
-    variant: str
+    kicker: str = ""
+    layout: str = ""
+    variant: str = ""
     slots: dict[str, str | list[str]] = Field(default_factory=dict)
     chart: ChartSpec | None = None
     table: TableSpec | None = None
+    visual: Visual | None = None
     image_path: str | None = None
     speaker_notes: str = ""
     source_refs: list[str] = Field(default_factory=list)
+    source_line: str = ""
+    needs_review: bool = False
 
 
 class Deck(BaseModel):
@@ -299,6 +262,11 @@ class StorylineSlide(BaseModel):
     subheading: str = ""
     purpose: str
     source_refs: list[str] = Field(default_factory=list)
+    visual: str | None = None
+    chart_kind: str | None = None
+    rationale: Words(20) = ""
+    section: int | None = None
+    kicker: str = ""
 
 
 class Storyline(BaseModel):
@@ -306,6 +274,10 @@ class Storyline(BaseModel):
     subtitle: str = ""
     slides: list[StorylineSlide]
     approved: bool = False
+    answer: Words(30) = ""
+    figures: list[Figure] = Field(default_factory=list, max_length=2)
+    sections: list[SectionPlan] = Field(default_factory=list)
+    closing: list[NextAction] = Field(default_factory=list, max_length=5)
 
 
 class Finding(BaseModel):
@@ -326,6 +298,13 @@ class RunRef(BaseModel):
 # ---- Request / run record ---------------------------------------------------
 
 
+class DeckSettings(BaseModel):
+    profile: Literal["executive", "client_pitch", "committee", "workshop"] = "committee"
+    purpose: Literal["recommendation", "review", "process", "briefing"] = "recommendation"
+    detail: Literal["concise", "balanced", "comprehensive"] = "balanced"
+    max_slides: int = Field(default=12, ge=3, le=25)
+
+
 class ReportRequest(BaseModel):
     title: str
     qualitative_notes: str = Field(description="Free-text analysis, findings, talking points -- the raw qualitative input the planner works from.")
@@ -335,6 +314,7 @@ class ReportRequest(BaseModel):
     template_id: str | None = Field(default=None, description="A previously ingested TemplateStyleProfile.template_id, pptx only.")
     goal: str = ""
     run_refs: list[RunRef] = Field(default_factory=list)
+    deck: DeckSettings = Field(default_factory=DeckSettings)
 
 
 class ReportStatus(StrEnum):

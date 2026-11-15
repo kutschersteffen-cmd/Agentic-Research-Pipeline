@@ -8318,6 +8318,51 @@
     "title": "DecisionResult",
     "type": "object"
    },
+   "DeckSettings": {
+    "properties": {
+     "detail": {
+      "default": "balanced",
+      "enum": [
+       "concise",
+       "balanced",
+       "comprehensive"
+      ],
+      "title": "Detail",
+      "type": "string"
+     },
+     "max_slides": {
+      "default": 12,
+      "maximum": 25.0,
+      "minimum": 3.0,
+      "title": "Max Slides",
+      "type": "integer"
+     },
+     "profile": {
+      "default": "committee",
+      "enum": [
+       "executive",
+       "client_pitch",
+       "committee",
+       "workshop"
+      ],
+      "title": "Profile",
+      "type": "string"
+     },
+     "purpose": {
+      "default": "recommendation",
+      "enum": [
+       "recommendation",
+       "review",
+       "process",
+       "briefing"
+      ],
+      "title": "Purpose",
+      "type": "string"
+     }
+    },
+    "title": "DeckSettings",
+    "type": "object"
+   },
    "DecomposeRequest": {
     "properties": {
      "description": {
@@ -11003,6 +11048,24 @@
     ],
     "title": "FieldStatus",
     "type": "string"
+   },
+   "Figure": {
+    "properties": {
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "value": {
+      "title": "Value",
+      "type": "string"
+     }
+    },
+    "required": [
+     "value",
+     "label"
+    ],
+    "title": "Figure",
+    "type": "object"
    },
    "FileDecision": {
     "properties": {
@@ -14315,6 +14378,29 @@
      "theme"
     ],
     "title": "NewVersionRequest",
+    "type": "object"
+   },
+   "NextAction": {
+    "properties": {
+     "owner": {
+      "default": "",
+      "title": "Owner",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     },
+     "when": {
+      "default": "",
+      "title": "When",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "title": "NextAction",
     "type": "object"
    },
    "NextMeeting": {
@@ -18328,6 +18414,9 @@
       "title": "Datasets",
       "type": "array"
      },
+     "deck": {
+      "$ref": "#/components/schemas/DeckSettings"
+     },
      "goal": {
       "default": "",
       "title": "Goal",
@@ -18384,7 +18473,7 @@
      "chart": {
       "anyOf": [
        {
-        "$ref": "#/components/schemas/arp__schemas__reporting__ChartSpec"
+        "$ref": "#/components/schemas/arp__schemas__chart_specs__ChartSpec"
        },
        {
         "type": "null"
@@ -21119,6 +21208,24 @@
     "title": "SectionLayoutHint",
     "type": "string"
    },
+   "SectionPlan": {
+    "properties": {
+     "summary": {
+      "default": "",
+      "title": "Summary",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title"
+    ],
+    "title": "SectionPlan",
+    "type": "object"
+   },
    "SectorBenchmarksOut": {
     "properties": {
      "capex": {
@@ -22832,10 +22939,38 @@
    },
    "Storyline": {
     "properties": {
+     "answer": {
+      "default": "",
+      "title": "Answer",
+      "type": "string"
+     },
      "approved": {
       "default": false,
       "title": "Approved",
       "type": "boolean"
+     },
+     "closing": {
+      "items": {
+       "$ref": "#/components/schemas/NextAction"
+      },
+      "maxItems": 5,
+      "title": "Closing",
+      "type": "array"
+     },
+     "figures": {
+      "items": {
+       "$ref": "#/components/schemas/Figure"
+      },
+      "maxItems": 2,
+      "title": "Figures",
+      "type": "array"
+     },
+     "sections": {
+      "items": {
+       "$ref": "#/components/schemas/SectionPlan"
+      },
+      "title": "Sections",
+      "type": "array"
      },
      "slides": {
       "items": {
@@ -22863,13 +22998,45 @@
    },
    "StorylineSlide": {
     "properties": {
+     "chart_kind": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Chart Kind"
+     },
      "headline": {
       "title": "Headline",
+      "type": "string"
+     },
+     "kicker": {
+      "default": "",
+      "title": "Kicker",
       "type": "string"
      },
      "purpose": {
       "title": "Purpose",
       "type": "string"
+     },
+     "rationale": {
+      "default": "",
+      "title": "Rationale",
+      "type": "string"
+     },
+     "section": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Section"
      },
      "source_refs": {
       "items": {
@@ -22882,6 +23049,17 @@
       "default": "",
       "title": "Subheading",
       "type": "string"
+     },
+     "visual": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Visual"
      }
     },
     "required": [
@@ -27656,7 +27834,7 @@
     "title": "ChartSpec",
     "type": "object"
    },
-   "arp__schemas__reporting__ChartSpec": {
+   "arp__schemas__chart_specs__ChartSpec": {
     "properties": {
      "category_column": {
       "anyOf": [

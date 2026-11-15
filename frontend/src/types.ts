@@ -1309,7 +1309,7 @@ export const CHART_TYPES: ChartType[] = [
   "bar", "column", "stacked_column", "line", "area", "pie", "doughnut", "scatter", "radar", "waterfall", "heatmap", "table",
 ];
 
-export type ChartSpec = Served<S["arp__schemas__reporting__ChartSpec"]>;
+export type ChartSpec = Served<S["arp__schemas__chart_specs__ChartSpec"]>;
 
 export interface TableSpec {
   dataset_id: string;
