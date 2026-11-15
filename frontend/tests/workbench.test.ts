@@ -26,7 +26,7 @@ function row(i: number, over: Partial<WorklistRow> = {}): WorklistRow {
     equity_held_eur_m: 1, ownership_pct: null, holdings_weight_pct: (i % 97) / 10, aum_held_eur_m: i % 13,
     coverage_tier: ["bilateral", "letter", "monitor"][i % 3], coverage_tier_confirmed: true,
     triggers: { high: i % 2, medium: i % 3, low: 0 }, open_engagements: 0, escalated: 0, overdue_commitments: 0,
-    broken_commitments: 0, new_high_trigger: false,
+    broken_commitments: 0, commitment_flags: [], new_high_trigger: false,
     next_meeting: i % 4 ? { days: i % 365, estimated: true, last_meeting: "2026-02-24" } : null,
     transition_grade: null, esg_score: null, controversy: null, carbon_intensity: null, esg_extra: {},
     score: Math.round((i * 7919) % 1000) / 10, parts: [], selection: null, held_in: [], selected_elsewhere: [],

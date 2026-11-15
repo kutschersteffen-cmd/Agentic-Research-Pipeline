@@ -150,7 +150,8 @@ def indicators(
         record = by_company.get(iid)
         open_issues = [i for i in record.issues if i.status in OPEN] if record else []
         escalated = sum(i.escalation_stage != EscalationStage.PRIVATE_ENGAGEMENT for i in open_issues)
-        kinds = Counter(f.kind for f in flags.get(iid, ()) if f.item_kind == "commitment")
+        commitment_flags = [{"kind": f.kind, "message": f.message} for f in flags.get(iid, ()) if f.item_kind == "commitment"]
+        kinds = Counter(f["kind"] for f in commitment_flags)
         overdue, broken = kinds["overdue"], kinds["broken"]
         c = counts.get(iid, Counter())
         trig = {"high": c["high"], "medium": c["medium"], "low": c["low"]}
@@ -182,6 +183,7 @@ def indicators(
                 "escalated": escalated,
                 "overdue_commitments": overdue,
                 "broken_commitments": broken,
+                "commitment_flags": commitment_flags,
                 "next_meeting": meeting,
                 "transition_grade": grade,
                 "esg_score": obs["esg_score"],

@@ -16,6 +16,11 @@ class Grade(Observed):
     label: str
 
 
+class CommitmentFlag(BaseModel):
+    kind: Literal["overdue", "broken"]
+    message: str
+
+
 class TriggerCounts(BaseModel):
     high: int
     medium: int
@@ -102,6 +107,7 @@ class WorklistRow(BaseModel):
     escalated: int
     overdue_commitments: int
     broken_commitments: int
+    commitment_flags: list[CommitmentFlag]
     next_meeting: NextMeeting | None
     transition_grade: Grade | None
     esg_score: Observed | None

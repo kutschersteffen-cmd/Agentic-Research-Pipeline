@@ -124,6 +124,7 @@ def test_overdue_commitment_counts_until_the_issue_closes(client):
             assert r.status_code == 200, r.text
     rows = _rows(client)
     assert rows["SYN05"]["overdue_commitments"] == 1 and _part(rows["SYN05"], "overdue_commitments")["points"] == 7.5
+    assert rows["SYN05"]["commitment_flags"] == [{"kind": "overdue", "message": f'Commitment overdue: "Publish targets" was due {past}.'}]
     assert rows["SYN11"]["overdue_commitments"] == 0 and rows["SYN11"]["open_engagements"] == 0
 
 
@@ -139,7 +140,10 @@ def test_broken_commitments_count_and_weigh_nothing(client):
     rows = _rows(client)
     assert rows["SYN08"]["broken_commitments"] == 2 and rows["SYN08"]["overdue_commitments"] == 0
     assert {k: _part(rows["SYN08"], "broken_commitments")[k] for k in ("weight", "normalised", "points")} == {"weight": 0, "normalised": 1.0, "points": 0.0}
-    assert rows["SYN01"]["broken_commitments"] == 0
+    assert rows["SYN01"]["broken_commitments"] == 0 and rows["SYN01"]["commitment_flags"] == []
+    flags = rows["SYN08"]["commitment_flags"]
+    assert [f["kind"] for f in flags] == ["broken", "broken"]
+    assert all(f["message"].startswith("Commitment broken: ") for f in flags)
 
 
 def test_new_high_trigger_flag(client, root):

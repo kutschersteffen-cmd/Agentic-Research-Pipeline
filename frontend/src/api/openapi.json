@@ -5958,6 +5958,28 @@
     "title": "Commitment",
     "type": "object"
    },
+   "CommitmentFlag": {
+    "properties": {
+     "kind": {
+      "enum": [
+       "overdue",
+       "broken"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "message": {
+      "title": "Message",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "message"
+    ],
+    "title": "CommitmentFlag",
+    "type": "object"
+   },
    "CommitmentRequest": {
     "properties": {
      "company_id": {
@@ -27738,6 +27760,13 @@
        }
       ]
      },
+     "commitment_flags": {
+      "items": {
+       "$ref": "#/components/schemas/CommitmentFlag"
+      },
+      "title": "Commitment Flags",
+      "type": "array"
+     },
      "company": {
       "title": "Company",
       "type": "string"
@@ -27940,6 +27969,7 @@
      "escalated",
      "overdue_commitments",
      "broken_commitments",
+     "commitment_flags",
      "next_meeting",
      "transition_grade",
      "esg_score",

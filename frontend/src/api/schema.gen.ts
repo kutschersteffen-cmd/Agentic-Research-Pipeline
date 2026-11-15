@@ -11076,6 +11076,16 @@ export interface components {
             /** Validated By */
             validated_by?: string | null;
         };
+        /** CommitmentFlag */
+        CommitmentFlag: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "overdue" | "broken";
+            /** Message */
+            message: string;
+        };
         /** CommitmentRequest */
         CommitmentRequest: {
             /** Company Id */
@@ -19787,6 +19797,8 @@ export interface components {
             /** Broken Commitments */
             broken_commitments: number;
             carbon_intensity: components["schemas"]["Observed"] | null;
+            /** Commitment Flags */
+            commitment_flags: components["schemas"]["CommitmentFlag"][];
             /** Company */
             company: string;
             controversy: components["schemas"]["Observed"] | null;
