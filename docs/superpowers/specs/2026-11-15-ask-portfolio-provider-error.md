@@ -69,18 +69,19 @@ raised`; it becomes `== 502`. The audit assertions in it stay. This follows the 
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-1 | The portfolio router with a stand-in LLM client whose `complete_structured` raises `RuntimeError("credit balance is too low")`; one portfolio in the store | `POST /api/portfolio/ask` `{"question": "What is my largest holding?"}` | Status 502, body `{"detail": "Ask could not answer this question. Try again."}` | unit |
-| AC-2 | AC-1 | `qa_audit.jsonl` after that call | One new row: `endpoint` `portfolio.ask`, `question` `What is my largest holding?`, `answer_sha256` the SHA-256 of `""`, `error` `RuntimeError: credit balance is too low` | unit |
-| AC-3 | AC-1 | The 502 response | Its body does not contain `credit balance` | unit |
-| AC-4 | AC-1's stand-in | `POST /api/portfolio/ask` `{"question": "x", "as_of": "01/11/2026"}` | Status 422, body `{"detail": "as_of must be YYYY-MM-DD"}` | unit |
-| AC-5 | `AskThePortfolio` rendered (new `frontend/tests/AskThePortfolio.test.tsx`); `api.askPortfolio` rejects with `Error("502: Ask could not answer this question. Try again.")` | The user asks a question | The alert reads exactly `Ask could not answer this question. Try again.` | unit |
-| AC-6 | AC-4 | `qa_audit.jsonl` after that call | No new row | unit |
-| AC-7 | The full app `arp.api.main:app`, `allowed_origins` containing `http://localhost:5173`, `current_user` overridden, AC-1's stand-in LLM | `POST /api/portfolio/ask` `{"question": "What is my largest holding?"}` with header `Origin: http://localhost:5173` | Status 502, response header `access-control-allow-origin: http://localhost:5173` | unit |
-| AC-8 | The stand-in returns a resolvable parse; one portfolio with a snapshot | `POST /api/portfolio/ask` | Status 200; one new audit row with `error` null and `answer_sha256` the SHA-256 of the returned `answer_text` | unit |
-| AC-9 | AC-5's panel; `api.askPortfolio` rejects with `Error("422: as_of must be YYYY-MM-DD")` | The user asks a question | The alert reads exactly `as_of must be YYYY-MM-DD` | unit |
-| AC-10 | AC-1 | The server log during that call | One `ERROR` record with message `portfolio ask failed` and a traceback naming `RuntimeError` | unit |
+| AC-1 | The app started by `backend/scripts/e2e_stack.sh up` with `ARP_STANDINS_DIR` set and `model/_ParsedQuestion.json` = `{"error": "credit balance is too low"}` (the stand-in model raises `RuntimeError("credit balance is too low")`) | `POST http://127.0.0.1:8000/api/portfolio/ask` `{"question": "What is my largest holding?"}` | Status 502, body `{"detail": "Ask could not answer this question. Try again."}` | holdout |
+| AC-2 | The portfolio router in a test app with a stand-in LLM client raising `RuntimeError("credit balance is too low")` | The same request, then read `qa_audit.jsonl` | One new row: `endpoint` `portfolio.ask`, `question` `What is my largest holding?`, `answer_sha256` the SHA-256 of `""`, `error` `RuntimeError: credit balance is too low` | unit |
+| AC-3 | AC-1 | The 502 response | Its body does not contain `credit balance` | holdout |
+| AC-4 | AC-1's app | `POST http://127.0.0.1:8000/api/portfolio/ask` `{"question": "x", "as_of": "01/11/2026"}` | Status 422, body `{"detail": "as_of must be YYYY-MM-DD"}` | holdout |
+| AC-5 | AC-1's app | A user asks `What is my largest holding?` in the Ask the portfolio panel | The alert reads exactly `Ask could not answer this question. Try again.` | evaluator |
+| AC-6 | AC-2's test app | The AC-4 request, then read `qa_audit.jsonl` | No new row | unit |
+| AC-7 | AC-1's app | AC-1's request with header `Origin: http://localhost:5173` | Status 502, response header `access-control-allow-origin: http://localhost:5173` | holdout |
+| AC-8 | AC-2's test app, but the stand-in returns a resolvable parse; one portfolio with a snapshot | `POST /api/portfolio/ask` | Status 200; one new audit row with `error` null and `answer_sha256` the SHA-256 of the returned `answer_text` | unit |
+| AC-9 | — | `askErrorText(new Error("422: as_of must be YYYY-MM-DD"))` (`frontend/tests/askHistory.test.ts`) | Returns exactly `as_of must be YYYY-MM-DD` | unit |
+| AC-10 | AC-2's test app | The server log during AC-2's request | One `ERROR` record with message `portfolio ask failed` and a traceback naming `RuntimeError` | unit |
 
 Must not change: AC-4, AC-6, AC-8.
 
-All rows are `unit`: the app started by `e2e_stack.sh` cannot be made to fail the model call on demand, so a hidden
-test could not drive these rows.
+AC-2, AC-6, AC-8 and AC-10 read the audit file or the server log, which a hidden test cannot reach from outside, so
+they are `unit`. The frontend's `npm test` renders no components, so the panel itself is checked by the evaluator
+(AC-5) and the shared helper by AC-9.

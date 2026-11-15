@@ -122,8 +122,12 @@ One sensible way for each item, inside the files named above.
 
 PR A rows marked `evaluator` run on the app started by `backend/scripts/e2e_stack.sh up`, with the house universe it
 loads. "Company C" is any company in the Bilateral picks Company select, and "N" its name as the select shows it.
-Rows marked `unit` render the component with `api` stubbed (vitest, `frontend/tests/`). PR B rows are all `unit`:
-the e2e stack has no engagement data in these states and cannot sign out in dev mode.
+
+Rows marked `unit` are browser tests in `backend/tests/e2e` (Playwright, like `test_stewardship_watch_flags_ui.py`)
+on that app, with the API calls they name stubbed by `page.route`; the frontend's `npm test` runs `.ts` logic tests
+only and renders no components. "Signed out" means `/api/me` is stubbed to answer 401; otherwise the page is
+signed in as the dev user. PR B rows are all `unit`: the e2e stack has no engagement data in these states and
+cannot sign out in dev mode.
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
@@ -133,22 +137,22 @@ the e2e stack has no engagement data in these states and cannot sign out in dev 
 | AC-4 | AC-3 done | Read the form | The Company select still shows N and the Reason field reads `Again` (must not change) | evaluator |
 | AC-5 | AC-3 done | Read the panel | The `role="status"` element is empty | evaluator |
 | AC-6 | AC-1 done | The user presses `Withdraw` on N's pick | N leaves the pick list; the `role="status"` element reads `The bilateral pick for N is withdrawn.`; no `role="alert"` element is shown | evaluator |
-| AC-7 | The picks panel; `api.pickBilateral` rejects with `Error("422: A bilateral pick reason has at most 500 characters")` | The user picks a company | The alert reads exactly `A bilateral pick reason has at most 500 characters` | unit |
-| AC-8 | The picks panel with a pick for issuer `SYN01` named `Alpha Corp`; `api.withdrawBilateral` rejects with `Error("422: SYN01 has no bilateral pick")` | The user presses `Withdraw` | The alert reads exactly `Alpha Corp has no bilateral pick` | unit |
+| AC-7 | The picks panel; `POST /api/stewardship/tiers/bilateral` stubbed to answer 422 `{"detail": "A bilateral pick reason has at most 500 characters"}` | The user picks a company | The alert reads exactly `A bilateral pick reason has at most 500 characters` | unit |
+| AC-8 | The picks panel with a pick for issuer `SYN01` named `Alpha Corp`; `POST /api/stewardship/tiers/bilateral/SYN01/withdraw` stubbed to answer 422 `{"detail": "SYN01 has no bilateral pick"}` | The user presses `Withdraw` | The alert reads exactly `Alpha Corp has no bilateral pick` | unit |
 | AC-9 | The checkpoint studio; one escalation recommendation with `tier` `null`, `reason` `No escalation trigger`, `rule` `hold` | The table renders | The row's `tier` cell reads `No tier yet` and its `why` cell reads exactly `No escalation trigger` | unit |
 | AC-10 | `#/stewardship/checkpoint` | Read the Escalation recommendations table | No cell in the `why` column ends with `)` | evaluator |
 | AC-11 | A ballot whose `watch_flags` hold one `overdue` and one `broken` flag | The ballot card renders collapsed | The overdue banner has class `banner-warning`, the broken banner class `banner-danger` | unit |
 | AC-12 | AC-11 | The card is expanded | Same classes as AC-11 | unit |
 | AC-13 | `DossierWatchList` with one entry flagged `overdue` and one flagged `broken` | It renders | The `overdue` badge has class `badge-mid`, the `broken` badge class `badge-low` | unit |
 | AC-14 | An `in_progress` objective with `target_date` `end of FY2027` | The panel renders | Its row reads `due end of FY2027` | unit |
-| AC-15 | `api.listWatchTopics` resolves one `open` topic with `target_date` `2026-12-31T00:00:00` | The panel renders | Its row reads `due 2026-12-31` | unit |
+| AC-15 | the watch-topics list stubbed with one `open` topic with `target_date` `2026-12-31T00:00:00` | The panel renders | Its row reads `due 2026-12-31` | unit |
 | AC-16 | `DossierWatchList` with an entry whose `target_date` is `2025-12-31 (approx.)` | It renders | The entry reads `due 2025-12-31 (approx.)` | unit |
-| AC-17 | `useMe()` returns null; the issue has one `in_progress` objective `Set a 2030 target` without proof; `api.listWatchTopics` resolves one `open` topic `Board diversity` without proof; `api.listSuggestions` resolves `{"suggestions": []}` | The panel renders | Buttons named `Record result: Set a 2030 target`, `Add proof statement: Set a 2030 target`, `Add proof statement: Board diversity`, `Add watch topic` and `Close topic: Board diversity` are all disabled | unit |
+| AC-17 | Signed out; the issue has one `in_progress` objective `Set a 2030 target` without proof; the watch-topics list stubbed with one `open` topic `Board diversity` without proof; the suggestions list stubbed with `{"suggestions": []}` | The panel renders | Buttons named `Record result: Set a 2030 target`, `Add proof statement: Set a 2030 target`, `Add proof statement: Board diversity`, `Add watch topic` and `Close topic: Board diversity` are all disabled | unit |
 | AC-18 | AC-17 | The panel renders | The text `Sign in to record results, proof statements and watch topics.` appears exactly once, directly after the access-token field | unit |
-| AC-19 | AC-17 but `useMe()` returns user `dev` | The panel renders | The five buttons of AC-17 are enabled and the AC-18 sentence is absent (must not change) | unit |
-| AC-20 | Signed in as `dev`; the issue's objective of AC-17; `api.listSuggestions` rejects with `Error("409: Watch items need the Postgres engagement store.")` | The panel renders | No button whose accessible name starts with `Add proof statement` | unit |
-| AC-21 | AC-20 but `api.listSuggestions` rejects with `Error("500: boom")` | The panel renders | The button `Add proof statement: Set a 2030 target` is present (must not change) | unit |
-| AC-22 | Signed in as `dev`; topic `Board diversity` with one pending evidence suggestion; `api.confirmSuggestion` resolves; the reload returns no pending suggestion | The user presses `Confirm evidence: Board diversity` | Focus is on the button `Check against documents: Board diversity` | unit |
+| AC-19 | AC-17 but signed in as `dev` | The panel renders | The five buttons of AC-17 are enabled and the AC-18 sentence is absent (must not change) | unit |
+| AC-20 | Signed in as `dev`; the issue's objective of AC-17; the suggestions list stubbed to answer 409 `{"detail": "Watch items need the Postgres engagement store."}` | The panel renders | No button whose accessible name starts with `Add proof statement` | unit |
+| AC-21 | AC-20 but the suggestions list stubbed to answer 500 `{"detail": "boom"}` | The panel renders | The button `Add proof statement: Set a 2030 target` is present (must not change) | unit |
+| AC-22 | Signed in as `dev`; topic `Board diversity` with one pending evidence suggestion; the confirm stubbed to answer 200; the reload returns no pending suggestion | The user presses `Confirm evidence: Board diversity` | Focus is on the button `Check against documents: Board diversity` | unit |
 | AC-23 | An open commitment `Publish a transition plan` with one pending evidence suggestion; same stubs | The user presses `Confirm evidence: Publish a transition plan` | Focus is on the button `Check against documents: Publish a transition plan` | unit |
 | AC-24 | Objective `Set a 2030 target` with one pending evidence suggestion; same stubs | The user presses `Confirm evidence: Set a 2030 target` | The Record result form is open and focus is on its `Result` select (must not change) | unit |
 | AC-25 | AC-22's Given | Read the suggestion's buttons | Their accessible names are `Confirm evidence: Board diversity` and `Reject evidence: Board diversity` | unit |

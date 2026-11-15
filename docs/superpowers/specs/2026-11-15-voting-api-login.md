@@ -67,7 +67,7 @@ now answers 401 there, which still satisfies `!= 400`; only its comment `(not au
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-1 | The app started by `backend/scripts/e2e_stack.sh up` (`ARP_AUTH_MODE` unset, so `dev`) | `GET http://127.0.0.1:8000/api/voting/runs/ac1_none/review-queue` with header `Origin: https://example.org` and no `Authorization` header | Status 401, header `WWW-Authenticate: Bearer` | holdout |
+| AC-1 | The app started by `backend/scripts/e2e_stack.sh up` (`ARP_AUTH_MODE`, `ARP_ALLOWED_ORIGINS` and `ARP_DEV_TRUSTED_NETWORKS` unset, so `dev`, `["http://localhost:5173", "http://127.0.0.1:5173"]` and `[]`) | `GET http://127.0.0.1:8000/api/voting/runs/ac1_none/review-queue` with header `Origin: https://example.org` and no `Authorization` header | Status 401, header `WWW-Authenticate: Bearer` | holdout |
 | AC-2 | AC-1's app | Each of `POST http://127.0.0.1:8000/api/voting/runs` (body `{"companies": []}`), `GET …/runs/ac2_none/ballots`, `GET …/runs/ac2_none/review-history?item_key=k`, `POST …/runs/ac2_none/review` (body `{"item_key": "k", "decision": "approve", "reviewer": "x"}`), `POST …/runs/ac2_none/cast`, `GET …/runs/ac2_none/cast`, all with header `Origin: https://example.org` and no `Authorization` header | Each answers status 401 | holdout |
 | AC-3 | AC-1's app | `GET http://127.0.0.1:8000/api/voting/runs/ac3_none/review-queue` from `127.0.0.1` with no `Origin` and no `Authorization` header (dev sign-in) | Status 200, body `{"pending": [], "decided": []}` (must not change) | holdout |
 | AC-4 | `ARP_AUTH_MODE=local`, a users file with a `viewer` token and an `analyst` token | `GET /api/voting/runs/ac4_none/review-queue` with `Authorization: Bearer <viewer token>` | Status 200, body `{"pending": [], "decided": []}` | unit |
@@ -75,7 +75,8 @@ now answers 401 there, which still satisfies `!= 400`; only its comment `(not au
 | AC-6 | AC-4's settings | `GET /api/voting/runs/ac6_none/review-queue` with no `Authorization` header | Status 401 | unit |
 | AC-7 | AC-1's app | A user opens `#/voting/ac7_none` in the browser (this route loads the ballots, review queue and cast votes) | The page shows the heading `Proxy Voting` and no text on the page contains `401` or `Missing or invalid bearer token` (must not change) | evaluator |
 | AC-8 | AC-4's settings | `POST /api/voting/runs/ac8_none/cast` with `Authorization: Bearer <analyst token>` | Status 200, body `{"cast_count": 0, "votes": []}` | unit |
+| AC-10 | `ARP_AUTH_MODE=dev`, `ARP_DEV_TRUSTED_NETWORKS=["0.0.0.0/0"]`, `ARP_ALLOWED_ORIGINS=["*"]` (the bank JupyterLab settings) | `POST /api/voting/runs/ac10_none/cast` from client `10.1.2.3` with header `Origin: https://hub.example` and no `Authorization` header | Status 200, body `{"cast_count": 0, "votes": []}` (must not change) | unit |
 | AC-9 | AC-1's app | `POST http://127.0.0.1:8000/api/voting/runs/ac9_none/cast` from `127.0.0.1` with no `Origin` and no `Authorization` header (dev sign-in) | Status 200, body `{"cast_count": 0, "votes": []}` (must not change) | holdout |
 
-Must not change: dev sign-in reads and writes on `/api/voting` (AC-3, AC-9); the voting page loads under dev
+Must not change: dev sign-in reads and writes on `/api/voting` (AC-3, AC-9), also under the showcase settings (AC-10); the voting page loads under dev
 sign-in (AC-7).
