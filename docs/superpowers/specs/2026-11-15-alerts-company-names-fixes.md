@@ -98,10 +98,14 @@ All rows drive the app started by `backend/scripts/e2e_stack.sh up`.
   named `Single name > 0.5%`, concentration, `gt`, `0.005`, no portfolio ids), built the way the parent's holdout
   tests build it.
 - "Stored the old way" for scope `S`: one JSON line appended to `<ARP_PORTFOLIOS_DIR>/monitoring/S/events.jsonl` of
-  the running stack (the file store the alert endpoints read; `portfolios_dir` in `arp/config.py`):
+  the running stack (the file store the alert endpoints read; `<ARP_PORTFOLIOS_DIR>` is `ARP_PORTFOLIOS_DIR` if the
+  stack sets it, else `<repo root>/portfolios`, the `portfolios_dir` default in `arp/config.py:102`):
   `{"event_type": "alert_raised", "at": "2026-11-02T00:00:00+00:00", "alert": {...}}`, where `alert` is an `Alert`
   in JSON without a `company_name` key, `status` `open`, `category` `threshold_breach`, `scope_id` `S`, and the
-  `company_id`, `rule_id`, `breach_type` and `rationale` the row names. Unless a row says otherwise, `S` and
+  `company_id`, `rule_id`, `breach_type` and `rationale` the row names. It always carries an explicit `alert_id`
+  `alrt_ac<n>`, where `<n>` is the ID of the row whose Given stores it (AC-1's is `alrt_ac1`; a row "as AC-1" uses
+  the same alert), and `triggered_at` `2026-11-02T00:00:00+00:00`. "That alert" is the list entry with that
+  `alert_id`. Unless a row says otherwise, `S` and
   `company_id` are `isin_DE0005140008`, `rule_id` is R's and `breach_type` is `holdings_caused`.
 - `OLD` is `Single name > 0.5%: isin_DE0005140008 = 60.00% of NAV gt 0.50%`; `NEW` is
   `Single name > 0.5%: DEUTSCHE BANK AG = 60.00% of NAV gt 0.50%`.
@@ -128,7 +132,7 @@ All rows drive the app started by `backend/scripts/e2e_stack.sh up`.
 | AC-14 | as AC-13 | a status change on that alert | its answer's `rationale` is `Carbon cap: isin_DE0005140008 = 80 gt 50` | holdout |
 | AC-15 | F; an alert stored the old way for `S` `portfolio__p1`, `portfolio_id` `p1`, no `company_id`, `breach_type` `holdings_caused`, rationale `Avg carbon: p1 = 80 gt 50` | the list is read | that alert's `rationale` is `Avg carbon: p1 = 80 gt 50` | holdout |
 | AC-16 | as AC-15 | a status change on that alert | its answer's `rationale` is `Avg carbon: p1 = 80 gt 50` | holdout |
-| AC-17 | as AC-1, after a status change on that alert | the `alert_raised` line of `<ARP_PORTFOLIOS_DIR>/monitoring/isin_DE0005140008/events.jsonl` is read | its `alert.rationale` is still `OLD` | holdout |
+| AC-17 | as AC-1, after a status change on that alert | the `alert_raised` line of `<ARP_PORTFOLIOS_DIR>/monitoring/isin_DE0005140008/events.jsonl` whose `alert.alert_id` is `alrt_ac1` is read | its `alert.rationale` is still `OLD` | holdout |
 | AC-18 | as AC-17 | the same line is read | its `alert` has no `company_name` key | holdout |
 | AC-19 | F | a status change with `scope_id` `isin_DE0005140008` and `alert_id` `nope` | 404; `detail` is `No alert 'nope' in scope 'isin_DE0005140008'`, as on `main` | holdout |
 | AC-20 | the PR branch | `cd backend && python scripts/export_openapi.py` | `frontend/src/api/openapi.json` is byte-identical to `main` | unit |
