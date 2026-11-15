@@ -12,6 +12,8 @@ env:
 jobs:
   # The backend suite runs in BACKEND_SHARDS parts; `Backend (lint + tests)` (the required check)
   # passes only when every part passed and together they ran exactly the collected tests.
+  # shortcut: the parts are balanced by backend_test_times.json (seconds per file, 15 Nov 2026); when
+  # one shard runs much longer than the others, refresh it with `backend_shards.py --times`.
   backend-shard:
     name: Backend shard ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
@@ -126,6 +128,7 @@ jobs:
         run: >-
           pytest -q -p pytest_shard --shard ${{ matrix.shard }}/${{ env.BACKEND_SHARDS }}
           --shard-report "$RUNNER_TEMP/backend-shard/ran.txt" --cov=arp --cov-report=
+          --shard-times "$GITHUB_WORKSPACE/.github/scripts/backend_test_times.json"
 
       - name: Hand the results to Backend (lint + tests)
         if: ${{ !cancelled() }}
