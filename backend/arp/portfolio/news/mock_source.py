@@ -4,9 +4,9 @@ from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import NewsItem
 
 # Illustrative articles for the demo dataset only -- not real reporting.
-# company_id -> [(headline, excerpt, source_url, published_at)]
+# company_id (the demo seed's `isin_<ISIN>` key) -> [(headline, excerpt, source_url, published_at)]
 _ARTICLES: dict[str, list[tuple[str, str, str, str]]] = {
-    "totalenergies": [
+    "isin_FR0000120271": [  # totalenergies
         (
             "Regulator opens probe into TotalEnergies refinery emissions reporting",
             "The regulator said it would examine whether TotalEnergies understated methane leakage at two "
@@ -22,7 +22,7 @@ _ARTICLES: dict[str, list[tuple[str, str, str, str]]] = {
             "2026-02-03",
         ),
     ],
-    "shell": [
+    "isin_GB00BP6MXD84": [  # shell
         (
             "Court orders Shell to accelerate emissions-reduction timeline",
             "A court ruling found Shell's current climate transition plan insufficient and ordered a faster "
@@ -31,7 +31,7 @@ _ARTICLES: dict[str, list[tuple[str, str, str, str]]] = {
             "2026-06-02",
         ),
     ],
-    "orsted": [
+    "isin_DK0060094928": [  # orsted
         (
             "Orsted reaches milestone on offshore wind portfolio buildout",
             "Orsted confirmed its offshore wind capacity additions are on track against its published "
@@ -40,7 +40,7 @@ _ARTICLES: dict[str, list[tuple[str, str, str, str]]] = {
             "2026-03-11",
         ),
     ],
-    "iberdrola": [
+    "isin_ES0144580Y14": [  # iberdrola
         (
             "Iberdrola cited among leaders in grid decarbonization investment",
             "An industry review named Iberdrola among the top European utilities by capital committed to grid "
@@ -49,7 +49,7 @@ _ARTICLES: dict[str, list[tuple[str, str, str, str]]] = {
             "2026-04-22",
         ),
     ],
-    "bmw": [
+    "isin_DE0005190003": [  # bmw
         (
             "BMW supplier flagged in NGO report on battery mineral sourcing",
             "An NGO report named a tier-2 battery materials supplier to BMW as failing to meet its own "
