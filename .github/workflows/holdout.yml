@@ -120,7 +120,7 @@ jobs:
     needs: setup
     if: needs.setup.outputs.enabled == 'true' && needs.setup.outputs.parts != '[]'
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ matrix.part == 'own' && 45 || 60 }}
+    timeout-minutes: ${{ matrix.part == 'own' && 45 || matrix.part == '3/6' && 1 || 60 }}
     permissions:
       contents: read
     strategy:
