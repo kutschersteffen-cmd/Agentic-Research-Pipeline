@@ -4,7 +4,7 @@ Slug: `stewardship-workbench-uploads`. Risk: normal (an add-only log under `stew
 new table, nothing deleted; withdrawing an upload is a new event, not a delete). Size M, 3 PRs. Spec 2b of the
 prioritisation workbench; the overlap view is spec 2a (`stewardship-workbench-overlap`).
 
-Status: **draft for the owner's approval.**
+Status: **approved by the owner on 15 Nov 2026** (buttons in the spec session; review page https://claude.ai/artifact/NSgZYUkKU1QaHER8P6ry6R).
 
 Where it comes from: `2026-11-13-stewardship-priority-worklist-design.md`, Non-goals: "uploading extra per-company
 information ('Information per company like Feedback or so', owner, 13 Nov 2026)". Owner on 13 Nov 2026: "a proper

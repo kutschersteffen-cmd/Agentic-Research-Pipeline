@@ -3,7 +3,7 @@
 Slug: `stewardship-workbench-overlap`. Risk: normal (read-only, no migration, no new table, nothing stored). Size M,
 2 PRs. Spec 2a of the prioritisation workbench; uploads are spec 2b (`stewardship-workbench-uploads`).
 
-Status: **draft for the owner's approval.**
+Status: **approved by the owner on 15 Nov 2026** (buttons in the spec session; review page https://claude.ai/artifact/CkKDtoiuA26h6zSHDpguru).
 
 Where it comes from: `2026-11-13-stewardship-priority-worklist-design.md`, Non-goals: "the consolidated view of
 dependencies and overlaps across funds (fund × company matrix, overlap between fund pairs, where selections of
