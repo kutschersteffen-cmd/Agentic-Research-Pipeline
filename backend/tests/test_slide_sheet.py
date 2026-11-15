@@ -1,14 +1,15 @@
 """Review sheet: fixture slides 0–8, `arp report sheet` and the golden PNGs (spec 2026-11-15-slide-components)."""
 
+import os
 import re
+import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
 import pytest
 from PIL import Image, ImageChops
-from typer.testing import CliRunner
 
-from arp.cli.reporting import reporting_app
 from arp.reporting.browser import _page
 from arp.reporting.design_checks import design_checks
 from arp.reporting.house_pptx import build_house_pptx
@@ -28,8 +29,9 @@ DESIGN_RULES = {"underfill", "small_text", "low_contrast", "emphasis_count"}
 @pytest.fixture(scope="module")
 def sheet_dir(tmp_path_factory) -> Path:
     out = tmp_path_factory.mktemp("sheet")
-    result = CliRunner().invoke(reporting_app, ["sheet", "--out", str(out)])
-    assert result.exit_code == 0, result.output
+    env = {k: v for k, v in os.environ.items() if k != "ARP_POSTGRES_DSN"}  # the sheet needs no database
+    result = subprocess.run([sys.executable, "-m", "arp", "report", "sheet", "--out", str(out)], env=env, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
     return out
 
 

@@ -94,7 +94,8 @@ def _chart(p: ChartPrim, c: dict[str, str], body: str) -> str:
         if p.kind == "line":  # min/max scale (line_point); the series name and last value at the line end
             for s in p.series:
                 pts = [(x - p.x, y - p.y) for x, y in (line_point(p, i, v) for i, v in enumerate(s.values))]
-                out.append(f'<polyline points="{" ".join(f"{x},{y}" for x, y in pts)}" fill="none" stroke="{_a(s.colors[0])}" stroke-width="3"/>')
+                out.append(f'<polyline points="{" ".join(f"{x},{y}" for x, y in pts)}" fill="none" stroke="{_a(s.colors[0])}" '
+                           f'stroke-width="{6 if s.colors[0] == c["highlight"] else 4}"/>')
                 out += [f'<circle cx="{x}" cy="{y}" r="6" fill="{_a(s.colors[i])}"/>' for i, (x, y) in enumerate(pts)]
                 if p.labels:
                     out.append(txt(pts[-1][0] + 16, pts[-1][1] + _LABEL / 3, f"{s.name} {fmt(s.values[-1])}", "start", "ink"))

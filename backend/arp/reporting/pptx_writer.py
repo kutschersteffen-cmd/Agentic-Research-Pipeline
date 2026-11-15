@@ -133,7 +133,7 @@ class _Writer:
         for s, ser in zip(p.series, plot.series, strict=True):
             if p.kind == "line":
                 ser.smooth = False
-                ser.format.line.color.rgb, ser.format.line.width = _rgb(s.colors[0]), Emu(self.e(3))
+                ser.format.line.color.rgb, ser.format.line.width = _rgb(s.colors[0]), Emu(self.e(6 if s.colors[0] == self.c["highlight"] else 4))
             for i, color in enumerate(s.colors):
                 point = ser.points[i]
                 fill = point.marker.format.fill if p.kind == "line" else point.format.fill

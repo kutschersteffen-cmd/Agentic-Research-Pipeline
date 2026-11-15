@@ -131,6 +131,8 @@ def test_ac34_line(tmp_path):
     assert all(len(list(s.values)) == 8 for s in series.values())
     assert str(series["utilities"].format.line.color.rgb).lower() == "2a78d6"
     assert str(series["market"].format.line.color.rgb).lower() == "c4ccd7"
+    assert series["utilities"].format.line.width == 6 * 9525 and series["market"].format.line.width == 4 * 9525  # highlight is heavier
+    assert 'stroke="#2a78d6" stroke-width="6"' in render_deck_html(_deck(LINE), [EPS_Q]).lower()
     assert "callout" in shapes
     p = _prims(LINE, EPS_Q)
     x, _ = line_point(p["chart"], 2, 7.0)
