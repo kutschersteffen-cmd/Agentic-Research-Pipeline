@@ -72,7 +72,16 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
    card with the reason and start nothing.
 1. **Spec:** *"Brainstorm and write a spec for: <feature>. Intake scope: <GO paragraph>. Follow `.claude/CLAUDE.md` (superpowers
    brainstorming, an `## Acceptance` table per `docs/superpowers/ACCEPTANCE_TEMPLATE.md`, spec-critic).
-   Ask the owner your questions in this session. Open a `risk:low` PR with only the spec file."*
+   Two readers use this spec and neither can ask you anything: a test writer who turns its rows into
+   hidden tests, and a builder who never sees those tests. Aim high before you cut: first describe
+   what the user can do afterwards that they cannot do today, then sketch three versions (safe,
+   strong, most ambitious) and specify the most ambitious one whose result you can state as exact,
+   observable rows, with numbers where 'better' or 'faster' is the point. Say in one line what the
+   next step up would need. Keep that target whole and split only the delivery: a `## Slices` section
+   orders it into PRs of size `S`, each naming its rows. 'Smallest change' is a rule for the
+   implementation, not for this spec. Ask the owner, in this session, only what would change an
+   acceptance row; decide the rest yourself and list those defaults in the spec. Start the spec with
+   the decisions the owner has to make. Open a `risk:low` PR with only the spec file."*
    Tell the owner to open that session to answer its questions, then approve and merge the spec PR.
 2. **Hidden tests** (skip if the spec has no `holdout` rows): *"Attach `kutschersteffen-cmd/holdout`
    with add_repo, then follow the test-writer skill for spec `<slug>`."* This is the only session that
@@ -89,7 +98,9 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
      optional`; never drop one. Post one PR comment headed `Code review (factory)` listing each
      finding with file:line under `blocking` (confirmed only), `unverified, optional` (not
      confirmed) or `optional` (non-blocking from the start), or 'No findings'.
-     Don't push or approve."*
+     Check the diff against each acceptance row of the spec, not only for bugs. Write findings, not
+     standing rules for the implementer. End the comment with a `Not checked:` line naming what you
+     did not run or read. Don't push or approve."*
      The implementing session fixes or answers each confirmed blocking finding (steward rules); a push that
      changes code re-runs this review once CI is green again, at most three rounds per PR.
    - **Security review**, only if the PR touches a `risk:high` path (steward table): the review prompt
