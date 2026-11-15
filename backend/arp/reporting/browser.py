@@ -36,7 +36,7 @@ _VISUAL_JS = """() => [...document.querySelectorAll('section[data-visual] [data-
   const r = el.getBoundingClientRect();
   return {slide: +sec.dataset.slide, visual: sec.dataset.visual, name: el.dataset.name, html, x: r.left - s.left, y: r.top - s.top,
           w: r.width, h: r.height, sh: el.scrollHeight, ch: el.clientHeight, sw: el.scrollWidth, cw: el.clientWidth,
-          lh: parseFloat(getComputedStyle(el).lineHeight) || 0};
+          fs: parseFloat(getComputedStyle(el).fontSize) || 0};
 })"""
 
 
@@ -104,8 +104,8 @@ def _visual_fit(boxes: list[dict], body: Box) -> list[Finding]:
         out.append(Finding(slide=b["slide"], slot=b["name"], stage="fit", rule=rule, message=msg))
 
     for b in boxes:
-        # Geist's glyph box (1.3em) overhangs its 1.2 line height by a few px at large sizes; a real overflow adds whole lines.
-        if b["html"] and b["ch"] and b["sh"] > b["ch"] + max(_TOL, b["lh"] / 2):
+        # Geist's glyph box (1.3em) overhangs its 1.2 line height by 0.05em top and bottom; only that much is tolerated.
+        if b["html"] and b["ch"] and b["sh"] > b["ch"] + _TOL + 0.1 * b["fs"]:
             add(b, "overflow", f"ratio={b['sh'] / b['ch']:.2f}")
         if b["html"] and b["sw"] > b["cw"] + _TOL:
             add(b, "overflow_x", f"content {b['sw']}px wide in a {b['cw']}px box")

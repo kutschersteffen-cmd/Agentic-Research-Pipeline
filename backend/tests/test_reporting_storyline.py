@@ -28,9 +28,10 @@ async def test_ac15_prompt_asks_for_subheadings_with_a_template(fake_llm):
     assert [s.subheading for s in storyline.slides] == ["Sub one", "Sub two"]
 
 
-async def test_ac21_no_template_no_subheading(fake_llm):
+async def test_ac21_no_template_keeps_subheading(fake_llm):
+    # Spec (slide components): every content slide has a subtitle zone, template or not.
     llm = fake_llm({"Storyline": [_subheaded()]})
     request = ReportRequest(title="T", qualitative_notes="n", layout=LayoutInstructions(output_format=OutputFormat.HOUSE_DECK))
     storyline, _ = await draft_storyline(request, llm)
-    assert "subheading" not in llm.prompts[0]
-    assert [s.subheading for s in storyline.slides] == ["", ""]
+    assert "subheading" in llm.prompts[0] and "at most 16 words" in llm.prompts[0]
+    assert [s.subheading for s in storyline.slides] == ["Sub one", "Sub two"]

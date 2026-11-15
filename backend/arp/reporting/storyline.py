@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.content_planner import _datasets_context
-from arp.reporting.slide_fill import DESIGN_GUIDE, WRITING_GUIDE
+from arp.reporting.slide_fill import DESIGN_GUIDE, WRITING_GUIDE, add_usage
 from arp.schemas.reporting import ReportRequest, Storyline
 
 _SYSTEM = """\
@@ -61,6 +61,15 @@ def content_cap(request: ReportRequest) -> int:
     return min(request.deck.max_slides, 8) if request.deck.profile == "executive" else request.deck.max_slides
 
 
+def _errors(storyline: Storyline) -> list[str]:
+    """Field limits on what the model returns (spec "Visual calls") that the schema does not hold."""
+    errors = ["title: at most 10 words"] if len(storyline.title.split()) > 10 else []
+    errors += [f"slide {i} subheading: at most 16 words" for i, s in enumerate(storyline.slides, 1) if len(s.subheading.split()) > 16]
+    if any(s.visual for s in storyline.slides) and not 2 <= len(storyline.closing) <= 5:
+        errors.append("closing: 2 to 5 next actions")
+    return errors
+
+
 async def draft_storyline(request: ReportRequest, llm: LLMClient) -> tuple[Storyline, LLMUsage]:
     n = request.layout.target_length
     a = request.audience
@@ -73,19 +82,18 @@ async def draft_storyline(request: ReportRequest, llm: LLMClient) -> tuple[Story
         f"Slide count: {f'exactly {n} slides, not counting the title slide' if n else 'your choice'}\n\n"
         + _DECK.format(profile=d.profile, arc=_ARCS[d.profile], purpose=d.purpose, detail=d.detail, cap=content_cap(request),
                        visuals=", ".join(CONTENT_VISUALS), design=DESIGN_GUIDE) + "\n"
-        + (_SUBHEADING if request.template_id else "")
+        + _SUBHEADING
         + f"Qualitative notes:\n{request.qualitative_notes}\n\n"
         + f"Quantitative datasets:\n{_datasets_context(request.datasets)}\n"
     )
     storyline, usage = await llm.complete_structured(system=_SYSTEM, prompt=prompt, output_model=Storyline)
-    # Field limits on what the model returns (spec "Visual calls"); there is no retry here, so the draft fails clearly.
-    if len(storyline.title.split()) > 10:
-        raise ValueError("Storyline title: at most 10 words")
-    for i, slide in enumerate(storyline.slides, 1):
-        if request.template_id and len(slide.subheading.split()) > 16:
-            raise ValueError(f"Storyline slide {i}: subheading is at most 16 words")
-    if not request.template_id:  # only a template frame has a place for it
-        for slide in storyline.slides:
-            slide.subheading = ""
+    errors = _errors(storyline)
+    if errors:  # one retry with the errors, as in slide_fill
+        retry = prompt + "\nYour previous answer had these errors; fix them:\n- " + "\n- ".join(errors) + "\n"
+        storyline, u2 = await llm.complete_structured(system=_SYSTEM, prompt=retry, output_model=Storyline)
+        usage = add_usage(usage, u2)
+        errors = _errors(storyline)
+    if errors:
+        raise ValueError("Storyline: " + "; ".join(errors))
     storyline.approved = False  # approval is a human action, never the model's
     return storyline, usage
