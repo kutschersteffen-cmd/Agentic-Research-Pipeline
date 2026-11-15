@@ -82,13 +82,35 @@ h1 { margin: 0 0 8px; font-size: clamp(1.75rem, 1.25rem + 1.4vw, 2.5rem); font-w
 .state { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; }
 .chip { font-size: 12px; color: var(--muted); border: 1px solid var(--panel-border); border-radius: 999px; padding: 1px 8px; }
 .done-when { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
-.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
-.step { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--panel-border); border-radius: 8px; background: var(--panel); font-size: 12px; min-height: 92px; }
-.step:hover { border-color: var(--text); }
+/* Process flow (PR 3): a track joins the steps and fills to the furthest finished step; the running step
+   has a blue edge and a pulsing square, the waiting one the amber edge. A click opens the step's panel. */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; position: relative; }
+.steps li { position: relative; display: flex; }
+.steps li + li::before { content: ""; position: absolute; left: -12px; top: 22px; width: 12px; height: 2px; background: var(--panel-border); }
+.steps li.reached + li::before { background: var(--text); }
+.steps li.reached + li.on-now::before { background: var(--run); }
+.step { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--panel-border); border-radius: 8px; background: var(--panel); font: inherit; font-size: 12px; text-align: left; min-height: 96px; cursor: pointer; transition: border-color .15s, transform .15s, box-shadow .15s; }
+.step:hover { border-color: var(--text); transform: translateY(-1px); }
+.step.s-now { border-color: var(--run); box-shadow: 0 0 0 3px color-mix(in srgb, var(--run) 18%, transparent); }
+.step.s-wait { border-color: var(--hi); }
+/* The open step keeps its state edge and gains an outer ring. */
+.step[aria-expanded="true"] { outline: 1px solid var(--text); outline-offset: 3px; }
 .step b { font-size: 13px; font-weight: 500; display: flex; gap: 8px; }
 .step b i { font-style: normal; color: var(--muted); font-family: var(--mono); font-weight: 400; }
-.step p { margin: 0; color: var(--muted); }
+.step p { margin: 0; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .step .st { margin-top: auto; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+@keyframes pulse { 50% { opacity: .3; } }
+.s-now .mark { animation: pulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .s-now .mark { animation: none; } .step { transition: none; } .step:hover { transform: none; } }
+.detail { margin-top: 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 24px; align-items: start; padding: 16px 20px; border: 1px solid var(--panel-border); border-radius: 12px; background: var(--panel); }
+.detail h3 { margin: 0; font-size: 15px; font-weight: 600; display: flex; gap: 10px; align-items: baseline; }
+.detail h3 i { font-style: normal; font-family: var(--mono); font-weight: 400; color: var(--muted); font-size: 13px; }
+.detail p { margin: 0; color: var(--muted); font-size: 13px; max-width: 70ch; }
+.detail dl { margin: 4px 0 0; display: flex; flex-wrap: wrap; gap: 4px 24px; font-size: 13px; }
+.detail dt { color: var(--muted); } .detail dd { margin: 0 0 0 6px; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+.detail dl div { display: flex; }
+.detail .go { grid-row: 1 / span 3; grid-column: 2; align-self: center; display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 999px; background: var(--text); color: var(--bg); font-size: 13px; font-weight: 500; white-space: nowrap; }
+.detail .waitlink { color: var(--hi-ink); text-decoration: underline; text-underline-offset: 3px; }
 
 .mark { display: inline-block; width: 8px; height: 8px; flex: none; }
 .m-done { background: var(--text); } .m-now { background: var(--run); } .m-wait { background: var(--hi); } .m-failed { background: var(--low); }
@@ -129,6 +151,11 @@ td.num { font-variant-numeric: tabular-nums; }
 .phone .main { padding: 32px 16px 56px; }
 .phone .head { grid-template-columns: 1fr; }
 .phone .ws-drawing { display: none; }
+.phone .steps { grid-template-columns: 1fr; gap: 10px; }
+.phone .steps li + li::before { left: 22px; top: -10px; width: 2px; height: 10px; }
+.phone .step { min-height: 0; }
+.phone .detail { grid-template-columns: 1fr; }
+.phone .detail .go { grid-row: auto; grid-column: auto; justify-self: start; min-height: 44px; }
 
 .notes { max-width: 1440px; margin: 20px auto 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px 24px; font-size: 13px; color: var(--muted); }
 .notes h3 { margin: 0 0 6px; font-size: 13px; color: var(--text); font-weight: 600; }
@@ -145,7 +172,7 @@ td.num { font-variant-numeric: tabular-nums; }
 </style>
 
 <div class="controls" role="region" aria-label="Mockup controls">
-  <span>App-wide top bar (mockup) · seeded data · click "Workspaces" to open the menu</span>
+  <span>App-wide top bar (mockup) · seeded data · click "Workspaces" for the menu, or a step for its details</span>
   <span class="seg" role="group" aria-label="View">
     <button type="button" data-view="argus" aria-pressed="true">Workspace page</button>
     <button type="button" data-view="history" aria-pressed="false">Run history</button>
@@ -160,8 +187,9 @@ td.num { font-variant-numeric: tabular-nums; }
 <div class="stage"><div class="screen" id="screen"></div>
 <div class="notes">
   <div><h3>Top bar on every page</h3><ul><li>The same bar as the start page, plus "Workspaces".</li><li>No sidebar, drawer or phone bar anywhere.</li><li>Review Queue, Reports: underlined when you are on them.</li></ul></div>
-  <div><h3>Workspace row</h3><ul><li>Only inside a workspace: its name, then its screens.</li><li>The current screen is underlined; the row scrolls sideways on a phone.</li><li>Replaces the "Start › Argus" breadcrumb.</li></ul></div>
+  <div><h3>Workspace row</h3><ul><li>Only inside a workspace: its name, then its screens.</li><li>The current screen is underlined; the row scrolls sideways on a phone.</li><li>Replaces the "Start › StewardIQ" breadcrumb and the Screens chips.</li></ul></div>
   <div><h3>Shared parts (PR 2)</h3><ul><li>Process state: 8px square + word, as on the cards.</li><li>Run status: square + word instead of an outlined pill; running is blue.</li><li>Workspace header carries its drawing.</li></ul></div>
+  <div><h3>Process flows (PR 3)</h3><ul><li>A track fills up to the last finished step.</li><li>Running step: blue edge, pulsing square. Waiting: amber edge.</li><li>Click a step: its details and an "Open" button. Esc closes.</li></ul></div>
 </div></div>
 
 <script>
@@ -174,7 +202,7 @@ const lockup = `<svg viewBox="0 0 206 62" aria-hidden="true"><path fill="current
 const C = Math.cos(Math.PI / 6), pt = (x, y, z) => [100 + (x - y) * C, 112 + (x + y) * 0.5 - z];
 const poly = (p, c) => `<polygon class="w ${c}" points="${p.map((q) => q.map((v) => v.toFixed(1)).join(",")).join(" ")}"/>`;
 const box = (x, y, z, w, d, h, acc = "") => poly([pt(x, y + d, z), pt(x + w, y + d, z), pt(x + w, y + d, z + h), pt(x, y + d, z + h)], "") + poly([pt(x + w, y, z), pt(x + w, y + d, z), pt(x + w, y + d, z + h), pt(x + w, y, z + h)], "") + poly([pt(x, y, z + h), pt(x + w, y, z + h), pt(x + w, y + d, z + h), pt(x, y + d, z + h)], acc);
-const argus = (acc) => { let s = box(-58, -44, 0, 116, 88, 6); const hs = [18, 30, 12, 40, 22, 26, 14, 34, 20]; hs.forEach((h, k) => { s += box(-44 + Math.floor(k / 3) * 32, -30 + (k % 3) * 24, 6, 16, 14, h, k === 4 ? acc : ""); }); return s; };
+const steward = (acc) => { let t = ""; for (let i = 0; i < 7; i++) t += box(-46, -30, i * 9, 92, 60, 4); return t + box(-46, -30, 66, 92, 60, 4, acc); };
 
 const ARR = `<svg viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M1 3h8L5 7.5z"/></svg>`;
 const WS = [["Start", "#/home"], ["StewardIQ", "#/stewardiq", "wait"], ["Argus", "#/argus", "now"], ["Transition Intel", "#/transitionIntel"], ["R&D Lab", "#/rdLab", "now"], ["Data Hub", "#/dataHub"]];
@@ -196,22 +224,46 @@ const topBar = (cur, phone) => `
     </nav>
   </div>
 </header>`;
-const row = (cur) => `<nav class="ws-row" aria-label="Argus screens">
-  <a class="ws-name" href="#" ${cur === "#/argus" ? 'aria-current="page"' : ""}>Argus</a><span class="sep"></span>
-  ${[["#/argus/new", "New extraction"], ["#/argusWalkthrough", "Walkthrough"], ["#/xbrl", "XBRL Facts"], ["#/review", "Review Queue"]].map(([h, l]) => `<a href="#" ${h === cur ? 'aria-current="page"' : ""}>${l}</a>`).join("")}
+const row = (cur) => `<nav class="ws-row" aria-label="StewardIQ screens">
+  <a class="ws-name" href="#" ${cur === "#/stewardiq" ? 'aria-current="page"' : ""}>StewardIQ</a><span class="sep"></span>
+  ${[["#/stewardship", "Steward Workflow"], ["#/engagement", "Engagement"], ["#/voting", "Proxy Voting"], ["#/rfp", "RFP Answers"]].map(([h, l]) => `<a href="#" ${h === cur ? 'aria-current="page"' : ""}>${l}</a>`).join("")}
 </nav>`;
 const LABEL = { done: "Done", now: "Running", wait: "Waiting on you", failed: "Last run failed", idle: "No runs yet" };
-const step = (n, title, about, st, line) => `<li><a class="step" href="#"><b><i>${n}</i>${title}</b><p>${about}</p><span class="st t-${st}"><span class="mark m-${st}"></span>${line}</span></a></li>`;
-const argusPage = (phone) => `${topBar("#/argus", phone)}${row("#/argus")}
+// Seeded example state for the three StewardIQ processes.
+const PROCS = [
+  { id: "engage", title: "Engage and escalate", state: "wait", cadence: "Continuous", outcome: "Every issue has an owner, a next step and a documented escalation path.", steps: [
+    ["Monitoring", "Triggers on holdings (incl. Risk Monitoring alerts and votes against management), checked against house policy.", "done", "Done · 14 Nov", "Last activity 14 Nov, 09:12"],
+    ["Selection", "Coverage rules, reading published tiers, decide who is engaged this cycle.", "done", "Done · 14 Nov", "42 companies selected this cycle"],
+    ["Engagement", "Issue record: contacts, severity, milestone and escalation stage.", "done", "Done · 15 Nov", "18 open issues, 3 at stage 2"],
+    ["Drafting", "Dossier, outreach letter and talking points; a person approves before sending.", "wait", "2 decisions open", "2 outreach letters wait for approval"],
+    ["Tracking", "Commitments verified or missed; missed ones escalate and loop back to monitoring.", "idle", "No runs yet", "No commitments due this week"]] },
+  { id: "proxy", title: "Proxy season", state: "now", cadence: "Per meeting, peaks March–June", outcome: "Voting intentions published, votes cast checked against policy, outcomes fed into engagement.", steps: [
+    ["Proxy Voting", "Start a run from meeting agendas; the policy drafts a vote per resolution, a person decides.", "now", "Running", "run_8f1c · 31 of 48 meetings drafted"],
+    ["Steward · Voting", "Decided ballots next to the house policy behind them.", "idle", "No runs yet", "Nothing decided yet this season"],
+    ["Checkpoint", "Review every vote decided against the policy's recommendation, with its reason.", "idle", "No runs yet", "Opens when ballots are decided"],
+    ["Engagement", "A vote against management raises a vote_outcome trigger; open the engagement from Monitoring.", "idle", "No runs yet", "No triggers raised"]] },
+  { id: "client", title: "Client reporting", state: "done", cadence: "Quarterly", outcome: "A client report showing house activity plus only where the client's policy differed.", steps: [
+    ["Client program", "Calibrate the client's program on its benchmark; approve it.", "done", "Done · 30 Sep", "Approved 30 Sep by dev"],
+    ["Client policy", "Decide each exception where the client policy differs from the house.", "done", "Done · 2 Oct", "6 exceptions decided"],
+    ["Reporting", "Client report assembled from house truth plus exceptions; export pptx.", "done", "Done · 3 Oct", "Q3 report exported"],
+    ["Presentations & Reports", "Restyle into the client's template if needed.", "done", "Done · 3 Oct", "Restyled into the client template"]] },
+];
+let open = { engage: 3 }; // the waiting Drafting step starts open, to show the panel
+const flow = (pr) => {
+  const lastDone = pr.steps.reduce((m, st, i) => (st[2] === "done" ? i : m), -1);
+  const items = pr.steps.map(([t, about, st, line], i) => `<li class="${i <= lastDone ? "reached" : ""} on-${st}"><button type="button" class="step s-${st}" data-p="${pr.id}" data-i="${i}" aria-expanded="${open[pr.id] === i}" aria-controls="d-${pr.id}"><b><i>${i + 1}</i>${t}</b><p>${about}</p><span class="st t-${st}"><span class="mark m-${st}"></span>${line}</span></button></li>`).join("");
+  const k = open[pr.id], d = k === undefined ? null : pr.steps[k];
+  const panel = d ? `<div class="detail" id="d-${pr.id}" role="region" aria-label="${d[0]} details"><h3><i>Step ${k + 1} of ${pr.steps.length}</i>${d[0]}</h3><p>${d[1]}</p>
+    <dl><div><dt>Status</dt><dd class="t-${d[2]}"><span class="mark m-${d[2]}"></span>${LABEL[d[2]]}</dd></div><div><dt>Now</dt><dd>${d[2] === "wait" ? `<a class="waitlink" href="#">${d[4]}</a>` : d[4]}</dd></div></dl>
+    <a class="go" href="#">Open ${d[0]} →</a></div>` : "";
+  return `<section class="process"><div class="p-head"><h2>${pr.title}</h2><span class="state t-${pr.state}"><span class="mark m-${pr.state}"></span>${LABEL[pr.state]}</span><span class="chip">${pr.cadence}</span></div>
+    <p class="done-when"><strong>Done when:</strong> ${pr.outcome}</p><ol class="steps">${items}</ol>${panel}</section>`;
+};
+const argusPage = (phone) => `${topBar("#/stewardiq", phone)}${row("#/stewardiq")}
 <main class="main">
-  <div class="head"><div><h1>Argus</h1><p class="lede">Extract cited data points from disclosures and score them. Open a step to work in its screen.</p></div>
-    <svg class="ws-drawing" viewBox="0 0 200 156" aria-hidden="true">${argus("acc-now")}</svg></div>
-  <section class="process"><div class="p-head"><h2>Extract and score</h2><span class="state t-now"><span class="mark m-now"></span>Running</span><span class="chip">Per universe, refreshed when disclosures change</span></div>
-    <p class="done-when"><strong>Done when:</strong> every data point is cited, reviewed and scored.</p>
-    <ol class="steps">${step(1, "Companies", "Pick the universe.", "done", "Done · 12 Nov")}${step(2, "Identify", "Resolve each company to one issuer.", "done", "Done · 12 Nov")}${step(3, "Documents", "Find annual and sustainability reports.", "done", "Done · 13 Nov")}${step(4, "Schema", "Choose what to extract.", "done", "Done · 13 Nov")}${step(5, "Extract", "Pull cited values from each document.", "now", "Running")}${step(6, "Review", "Approve or correct flagged values.", "wait", "7 waiting on you")}${step(7, "Score", "Turn values into scores.", "idle", "No runs yet")}</ol></section>
-  <section class="process"><div class="p-head"><h2>XBRL facts</h2><span class="state t-done"><span class="mark m-done"></span>Done</span><span class="chip">Per universe, refreshed when filings change</span></div>
-    <p class="done-when"><strong>Done when:</strong> filed facts are fetched and checked against the extraction.</p>
-    <ol class="steps">${step(1, "Companies", "Pick the universe.", "done", "Done · 10 Nov")}${step(2, "Fetch", "Download XBRL filings.", "done", "Done · 10 Nov")}${step(3, "Facts", "Read tagged facts.", "done", "Done · 11 Nov")}${step(4, "Verify", "Compare with extracted values.", "done", "Done · 11 Nov")}</ol></section>
+  <div class="head"><div><h1>StewardIQ</h1><p class="lede">Engage companies, vote, and track what they commit to. Click a step for its details; open it from there.</p></div>
+    <svg class="ws-drawing" viewBox="0 0 200 156" aria-hidden="true">${steward("acc-wait")}</svg></div>
+  ${PROCS.map(flow).join("")}
 </main>`;
 const RUNS = [["run_8f21", "Extraction", "S&P Europe 350", "running", "Running", "212 / 350", "2 min ago"], ["run_8f1c", "Proxy voting", "Engagement list Q4", "completed", "Completed", "48 / 48", "1 h ago"], ["run_8e90", "Identity", "S&P Europe 350", "completed", "Completed", "350 / 350", "Yesterday"], ["run_8e71", "Theme", "Water scarcity", "failed", "Failed", "61 / 140", "Yesterday"], ["run_8e02", "Discovery", "S&P Europe 350", "completed", "Completed", "350 / 350", "12 Nov"]];
 const historyPage = () => `${topBar("#/history")}
@@ -230,12 +282,20 @@ function render() {
   screen.className = "screen" + (view === "phone" ? " phone" : "");
   screen.innerHTML = view === "history" ? historyPage() : argusPage(view === "phone");
   document.getElementById("wsBtn").onclick = () => { menuOpen = !menuOpen; render(); document.getElementById("wsBtn").focus(); };
+  screen.querySelectorAll(".step").forEach((b) => b.onclick = () => { const p = b.dataset.p, i = +b.dataset.i; open[p] = open[p] === i ? undefined : i; render(); screen.querySelector(`.step[data-p="${p}"][data-i="${i}"]`).focus(); });
 }
 document.querySelectorAll("[data-view]").forEach((b) => b.onclick = () => { view = b.dataset.view; menuOpen = false; document.querySelectorAll("[data-view]").forEach((x) => x.setAttribute("aria-pressed", x === b)); render(); });
 const themeBtns = document.querySelectorAll("[data-th]");
 function setTheme(t) { document.documentElement.setAttribute("data-theme", t); themeBtns.forEach((x) => x.setAttribute("aria-pressed", x.dataset.th === t)); }
 themeBtns.forEach((b) => b.onclick = () => setTheme(b.dataset.th));
 setTheme(matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && menuOpen) { menuOpen = false; render(); document.getElementById("wsBtn").focus(); } });
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (menuOpen) { menuOpen = false; render(); document.getElementById("wsBtn").focus(); return; }
+  const inPanel = document.activeElement?.closest(".detail, .steps");
+  const sec = inPanel?.closest(".process"); if (!sec) return;
+  const btn = sec.querySelector('.step[aria-expanded="true"]'); if (!btn) return;
+  const p = btn.dataset.p, i = btn.dataset.i; open[p] = undefined; render(); screen.querySelector(`.step[data-p="${p}"][data-i="${i}"]`).focus();
+});
 render();
 </script>
