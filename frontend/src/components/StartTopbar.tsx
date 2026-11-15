@@ -45,7 +45,10 @@ export function StartTopbar({ canAsk, askOpen, askRef, reviewCount, onSearch, on
     };
     const onDown = (e: PointerEvent) => {
       const t = e.target as Node;
-      if (!pop?.contains(t) && !buttonRef.current?.contains(t)) close(true);
+      if (pop?.contains(t) || buttonRef.current?.contains(t)) return;
+      setOpen(false);
+      // After the press's own focus change (mousedown focuses what was pressed), so the button keeps focus.
+      setTimeout(() => buttonRef.current?.focus());
     };
     // Tab past the last element leaves the menu: close it and let focus move on.
     const onFocusOut = (e: FocusEvent) => {
