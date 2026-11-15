@@ -220,6 +220,12 @@ def funds(client, pg):
     return store
 
 
+def test_funds_are_ordered_by_portfolio_id_whatever_order_the_store_returns(funds, monkeypatch):
+    rows = sorted(funds.load_holdings_as_of("2026-11-02"), key=lambda h: h.holder_id, reverse=True)
+    monkeypatch.setattr(funds, "load_holdings_as_of", lambda *args, **kwargs: rows)
+    assert list(worklist.fund_holdings(funds)) == ["P1", "P2"]
+
+
 def test_fund_scopes(client, funds):
     # AC-66, AC-68, AC-69, AC-70, AC-111, AC-112 (on two small funds)
     scopes = client.get("/api/stewardship/worklist/scopes").json()["scopes"]
