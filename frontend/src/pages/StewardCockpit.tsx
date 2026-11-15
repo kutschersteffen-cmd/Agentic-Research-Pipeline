@@ -102,7 +102,7 @@ function Figure({ label, value, note, signal = false, bar }: { label: string; va
   return (
     <div className="cockpit-figure">
       <span className="cockpit-label">{label}</span>
-      <span className={signal ? "cockpit-figure-value cockpit-signal" : "cockpit-figure-value"}>{value}</span>
+      <span className={signal ? "cockpit-figure-value await-text" : "cockpit-figure-value"}>{value}</span>
       {bar !== undefined && (
         <span className="cockpit-meter" aria-hidden="true">
           <span style={{ width: `${bar ?? 0}%` }} />
@@ -301,7 +301,7 @@ function ShareholderMeetings({ rows }: { rows: Cockpit["shareholder_meetings"] }
                     <td className="cockpit-num num">{fmtCount(m.items)}</td>
                     <td className="cockpit-num num">{m.flagged === null ? "–" : fmtCount(m.flagged)}</td>
                     <td>
-                      <span className={m.action_due ? "cockpit-ballot cockpit-signal" : "cockpit-ballot"}>
+                      <span className={m.action_due ? "cockpit-ballot await-text" : "cockpit-ballot"}>
                         {ballotText(m.ballot_state, m.action_due, m.days_to_meeting)}
                       </span>
                     </td>
@@ -322,7 +322,7 @@ function ControlGaps({ rows }: { rows: Cockpit["control_gaps"] }) {
   return (
     <Card
       title="Control gaps"
-      label={rows.length > 0 ? <span className="cockpit-card-actions"><span className="cockpit-needs cockpit-signal">{fmtCount(rows.length)} need you</span>{more}</span> : null}
+      label={rows.length > 0 ? <span className="cockpit-card-actions"><span className="cockpit-needs await-text">{fmtCount(rows.length)} need you</span>{more}</span> : null}
     >
       {rows.length === 0 ? (
         <p className="muted">No control gaps.</p>
@@ -336,7 +336,7 @@ function ControlGaps({ rows }: { rows: Cockpit["control_gaps"] }) {
                   <br />
                   <span className="muted">{g.theme}{g.open_days !== null && ` · open ${fmtCount(g.open_days)} days`}</span>
                 </span>
-                <span className="cockpit-gap cockpit-signal">{gapText(g.gaps)}</span>
+                <span className="cockpit-gap await-text">{gapText(g.gaps)}</span>
               </li>
             ))}
           </ul>
