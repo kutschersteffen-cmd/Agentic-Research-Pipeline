@@ -2635,6 +2635,9 @@ a.vc-box:hover { border-color: var(--text); }
 .sim-tag { display: inline-block; margin-left: var(--s-1_5); padding: 0 var(--s-1); border: 1px dashed var(--field-border); border-radius: 2px; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); vertical-align: baseline; }
 .wb-pager { justify-content: center; align-items: center; gap: var(--s-3); margin-top: var(--s-3); font-family: var(--font-mono); font-size: var(--text-xs); }
 .wb-actions { flex-wrap: wrap; gap: var(--s-2); }
+.rule-editor-closed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+@media (max-width: 560px) { .rule-editor-closed { flex-direction: column; align-items: flex-start; } }
+.wb-ticked { align-items: center; gap: var(--s-2) var(--s-3); padding: var(--s-2) var(--s-3); background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-md); }
 .wb-actions .wb-menu > summary { padding: 9px 16px; border-color: var(--panel-border); border-radius: var(--r-md); color: var(--accent); font-weight: 600; }
 .wb-menu-item { display: block; width: 100%; padding: var(--s-1_5) 0; text-align: left; white-space: nowrap; }
 .wb-table td.wb-topics { max-width: 20rem; overflow: hidden; text-overflow: ellipsis; }
