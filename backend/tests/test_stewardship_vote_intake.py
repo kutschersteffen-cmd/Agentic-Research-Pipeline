@@ -299,3 +299,17 @@ def test_repair_step_keeps_resolved_cid_and_skips_taken_key(pg, caplog):
         keys = sorted(m.external_id for m in s.scalars(select(VoteMeetingModel)))
     assert keys == ["cid:C9:2026-05-01", "cid:NOPE:2026-06-01", "isin:US0378331005:2026-06-01"]
     assert "1 meeting(s) left under their old key" in caplog.text
+
+
+def test_ids_filled_in_by_a_later_row_are_written(pg):
+    # #470 post-merge code review B1: the check accepted x2's ISIN for the meeting but the write used only x1's values,
+    # so [x1, x2] then [x3] stored no ISIN and accepted x3's conflicting one; one batch rejected x3
+    PostgresEngagementStore(pg).get_or_create("acme", "Acme")
+    x1 = {**_row(1), "company_id": "acme", "isin": None}
+    x2 = {**_row(2), "company_id": "acme", "isin": "US0378331005"}
+    x3 = {**_row(3), "company_id": "acme", "isin": "US5949181045"}
+    assert intake_votes([x1, x2], pg, "api").rejected == []
+    with transaction(pg) as s:
+        assert s.scalars(select(VoteMeetingModel)).one().isin == "US0378331005"
+    report = intake_votes([x3], pg, "api")
+    assert [(r.field, r.reason) for r in report.rejected] == [("isin", "isin differs from the meeting's US0378331005")]
