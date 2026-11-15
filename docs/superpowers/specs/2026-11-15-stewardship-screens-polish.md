@@ -4,7 +4,8 @@ Slug: stewardship-screens-polish
 
 Risk: `risk:normal`. Size M, 3 PRs: two frontend, one small backend.
 
-Status: draft, round 2 of the findings clean-up the owner asked for on 15 Nov 2026 ("clean up further bugs and
+Status: **approved by the owner on 15 Nov 2026** (buttons in the spec session, after the spec-critic
+rounds). Round 2 of the findings clean-up the owner asked for on 15 Nov 2026 ("clean up further bugs and
 findings"). Checked against `origin/main` `5df84c4`.
 
 ## Why

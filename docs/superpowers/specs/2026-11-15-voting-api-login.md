@@ -4,7 +4,8 @@ Slug: voting-api-login
 
 Risk: `risk:high` (sign-in and permissions). Size S, 1 PR, backend only.
 
-Status: draft, round 2 of the findings clean-up the owner asked for on 15 Nov 2026 ("clean up further bugs and
+Status: **approved by the owner on 15 Nov 2026** (buttons in the spec session, after the spec-critic
+rounds). Round 2 of the findings clean-up the owner asked for on 15 Nov 2026 ("clean up further bugs and
 findings"). Checked against `origin/main` `5df84c4`.
 
 ## Why

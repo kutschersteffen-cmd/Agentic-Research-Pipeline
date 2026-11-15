@@ -4,7 +4,8 @@ Slug: stewardship-decisions-round-2
 
 Risk: per PR, below. Size L in total, 5 small PRs, one per area.
 
-Status: draft, round 2 of the findings clean-up the owner asked for on 15 Nov 2026 ("clean up further bugs and
+Status: **approved by the owner on 15 Nov 2026** (buttons in the spec session, after the spec-critic
+rounds). Round 2 of the findings clean-up the owner asked for on 15 Nov 2026 ("clean up further bugs and
 findings"). The owner decided each item by button on 15 Nov 2026 (quoted below). Checked against `origin/main`
 `5df84c4`.
 
