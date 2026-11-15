@@ -3445,6 +3445,26 @@
       "contentMediaType": "application/octet-stream",
       "title": "File",
       "type": "string"
+     },
+     "fonts": {
+      "default": [],
+      "items": {
+       "contentMediaType": "application/octet-stream",
+       "type": "string"
+      },
+      "title": "Fonts",
+      "type": "array"
+     },
+     "layout_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Layout Name"
      }
     },
     "required": [
@@ -22846,6 +22866,11 @@
       },
       "title": "Source Refs",
       "type": "array"
+     },
+     "subheading": {
+      "default": "",
+      "title": "Subheading",
+      "type": "string"
      }
     },
     "required": [
@@ -39745,6 +39770,47 @@
      }
     },
     "summary": "Upload Template",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
+  "/api/reports/templates/{template_id}/preview.png": {
+   "get": {
+    "description": "The template's frame drawn on a blank slide; 404 when the template can't frame a house deck.",
+    "operationId": "template_preview_api_reports_templates__template_id__preview_png_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "template_id",
+      "required": true,
+      "schema": {
+       "title": "Template Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Template Preview",
     "tags": [
      "reporting"
     ]

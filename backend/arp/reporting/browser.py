@@ -15,7 +15,7 @@ from playwright.async_api import async_playwright
 
 from arp.config import Settings
 from arp.errors import NotConfigured
-from arp.reporting.house_style import load_tokens
+from arp.reporting.house_style import Tokens, load_tokens
 from arp.schemas.reporting import Finding
 
 _TOL = 1.5  # px slack for sub-pixel layout rounding
@@ -52,10 +52,14 @@ async def _page(html: str, scale: float = 1.0):
             await browser.close()
 
 
-async def measure(html: str) -> list[Finding]:
-    tokens = load_tokens()
-    g, w, h = tokens.grid, tokens.canvas.width, tokens.canvas.height
-    safe = (g.margin_x, g.margin_top + g.headline_band, w - g.margin_x, h - g.margin_bottom - g.footer_band)
+_FRAME_TEXT = ("headline", "subheading")  # placed by the frame, not the body grid
+
+
+async def measure(html: str, tokens: Tokens | None = None) -> list[Finding]:
+    tokens = tokens or load_tokens()
+    g, w, h, f = tokens.grid, tokens.canvas.width, tokens.canvas.height, tokens.frame
+    safe = (f.body.x, f.body.y, f.body.x + f.body.w, f.body.y + f.body.h) if f else \
+        (g.margin_x, g.margin_top + g.headline_band, w - g.margin_x, h - g.margin_bottom - g.footer_band)
     async with _page(html) as page:
         boxes = await page.evaluate(_SLOTS_JS)
     out: list[Finding] = []
@@ -64,15 +68,15 @@ async def measure(html: str) -> list[Finding]:
         out.append(Finding(slide=b["slide"], slot=b["slot"], stage="fit", rule=rule, message=msg))
 
     for b in boxes:
-        if b["sh"] > b["ch"] + _TOL:
-            add(b, "overflow", f"ratio={b['sh'] / b['ch']:.2f}")
+        if b["sh"] > b["ch"] + _TOL:  # an approved subheading is never rewritten, so it gets a rule of its own
+            add(b, "subheading_overflow" if b["slot"] == "subheading" else "overflow", f"ratio={b['sh'] / b['ch']:.2f}")
         if b["sw"] > b["cw"] + _TOL:
             add(b, "overflow_x", f"content {b['sw']}px wide in a {b['cw']}px slot")
-        if b["slot"] != "headline" and (b["x"] < safe[0] - _TOL or b["y"] < safe[1] - _TOL or b["x"] + b["w"] > safe[2] + _TOL or b["y"] + b["h"] > safe[3] + _TOL):
+        if b["slot"] not in _FRAME_TEXT and not (f and b["slot"] in ("title", "subtitle")) and (b["x"] < safe[0] - _TOL or b["y"] < safe[1] - _TOL or b["x"] + b["w"] > safe[2] + _TOL or b["y"] + b["h"] > safe[3] + _TOL):
             add(b, "off_grid", "slot box leaves the grid's safe area")
     for i, a in enumerate(boxes):
         for b in boxes[i + 1 :]:
-            if a["slide"] == b["slide"] and a["x"] < b["x"] + b["w"] - _TOL and b["x"] < a["x"] + a["w"] - _TOL \
+            if a["slide"] == b["slide"] and {a["slot"], b["slot"]} != set(_FRAME_TEXT) and a["x"] < b["x"] + b["w"] - _TOL and b["x"] < a["x"] + a["w"] - _TOL \
                     and a["y"] < b["y"] + b["h"] - _TOL and b["y"] < a["y"] + a["h"] - _TOL:
                 add(b, "collision", f"overlaps {a['slot']}")
     return out
