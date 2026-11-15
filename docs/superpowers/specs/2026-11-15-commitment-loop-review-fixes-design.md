@@ -6,7 +6,8 @@ Risk: `risk:normal`. Size S, 1 PR (touches `frontend/src`, so the PR gets a UI r
 
 Parent spec: [2026-11-13-stewardship-commitment-loop-design.md](2026-11-13-stewardship-commitment-loop-design.md).
 
-Status: draft, waiting for the owner's approval.
+Status: **approved by the owner on 15 Nov 2026** (buttons in the spec session, after the spec-critic read
+"Ready for approval").
 
 ## Why
 
@@ -116,7 +117,7 @@ dossier stand-in, "today" = the UTC date the test runs, user `dev`. `unit` rows 
 | AC-12 | AC-49's Given plus AC-9's two objectives on the same engagement; the stand-in says found on the commitment only | `ChangeDetector.diff_and_record` gets the document as new | One pending suggestion, `item_kind` `commitment`, with that document's `doc_id` | unit |
 | AC-13 | `GET /api/stewardship/evidence-suggestions*` stubbed with `page.route` to answer 500 `{"detail": "boom"}`; an engagement with an `open` commitment and a `meeting` activity (intake) | A user opens the company's issue on `#/engagement` | The text `Suggestions unavailable: 500: boom` appears once; no `Check against documents` button on the commitment and no `Find commitments` button on the meeting note | evaluator |
 | AC-14 | `api.listSuggestions` rejects with `Error("409: Watch items need the Postgres engagement store.")`; an issue with an `open` commitment | The issue panel renders | No text starting `Suggestions unavailable`; no `Check against documents` button (unchanged) | unit (frontend) |
-| AC-15 | The first `api.listSuggestions` calls reject with `Error("500: boom")`, later ones resolve `{"suggestions": []}`; an issue with an `open` commitment | `reload()` runs again | No text starting `Suggestions unavailable`; the `Check against documents` button is shown | unit (frontend) |
+| AC-15 | `useSuggestions` rendered with `api.listSuggestions` rejecting `Error("500: boom")` on the first load, then resolving `{"suggestions": []}` | `result.current.reload()` resolves | `error` is null and `available` is true | unit (frontend) |
 | AC-16 | The suggestions list stubbed with `page.route`: one pending `new_commitment` suggestion on the issue, `activity_id` `act_unknown`, text `Publish a transition plan` | A user opens the issue | The card reads `Argus found a commitment in a note`, then `Publish a transition plan` | evaluator |
 | AC-17 | AC-77's Given (parent spec) | A user opens the issue | The card reads `Argus found a commitment in the meeting of 2026-10-01` (unchanged) | evaluator |
 
