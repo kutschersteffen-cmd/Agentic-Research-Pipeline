@@ -35,3 +35,9 @@ test("gap text, dates, weekends and month labels", () => {
   assert.deepEqual(["2026-11-21", "2026-11-22", "2026-11-23"].map(isWeekend), [true, true, false]);
   assert.deepEqual([monthLabel("2026-11-17", true), monthLabel("2026-11-18", false), monthLabel("2026-12-01", false)], ["Nov", "", "Dec"]);
 });
+
+test("index.css braces balance: a lost } would nest every later rule inside the cockpit's media query", async () => {
+  const { readFileSync } = await import("node:fs");
+  const css = readFileSync(new URL("../src/index.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.equal(css.split("{").length, css.split("}").length);
+});

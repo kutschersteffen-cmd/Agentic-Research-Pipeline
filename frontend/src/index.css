@@ -2549,6 +2549,7 @@ a.vc-box:hover { border-color: var(--text); }
   .cockpit-row > .cockpit-card { flex-basis: 100%; }
   .cockpit-topics li { grid-template-columns: minmax(0, 1fr) auto; }
   .cockpit-topic-bar { grid-column: 1 / -1; grid-row: 2; }
+}
 
 /* Start page simplified (docs/superpowers/specs/2026-11-15-start-page-simplified-design.md):
    on #/home a top bar replaces the sidebar; the lockup sits where the landing header puts it. */
