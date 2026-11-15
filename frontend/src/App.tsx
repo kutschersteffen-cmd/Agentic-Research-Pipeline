@@ -1,26 +1,22 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { canLeave } from "./lib/leaveGuard";
-import { ReviewerField } from "./components/ReviewerField";
-import { SignedInAs } from "./components/SignedInAs";
 import { ProcessBar, StartPage, WorkspaceOverview } from "./pages/ProcessHub";
 import { ArgusFlow } from "./pages/ArgusFlow";
 import { singleFlight, stepFromUrl } from "./lib/argusFlow";
 import { ArgusNew, ArgusStart, openNewFlow } from "./pages/ArgusStart";
 import { WORKSPACES, workspaceOfProcess, type WorkspaceId } from "./lib/processes";
-import { STATE_LABEL, reviewBadge, workspaceState } from "./lib/workspaceCard";
 import { STAGE_TABS } from "./pages/steward/common";
 import { SUB_TABS as RISK_TABS } from "./lib/subTabs";
 import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
 import { AskPanel } from "./components/AskPanel";
 import { clearTurns, loadTurns, saveTurns, type AskTurn } from "./lib/askHistory";
 import { useMe } from "./lib/reviewer";
-import { ThemeSwitch } from "./components/ThemeSwitch";
 import { AppTopbar } from "./components/AppTopbar";
-import { NAV_ICONS } from "./components/NavIcons";
+import { WorkspaceRow } from "./components/WorkspaceRow";
 import type { ReviewableRunKind, RunManifest } from "./types";
 import { REVIEWABLE_RUN_TYPES, runTypeLabel } from "./lib/runs";
 import { listAllRuns } from "./lib/poll";
-import { HUBS, NAV_GROUPS, currentNavIds, entryTab, navCount, redirectHash } from "./lib/nav";
+import { HUBS, entryTab, navCount, redirectHash } from "./lib/nav";
 import { Landing } from "./pages/Landing";
 
 // Pages load on demand so the first screen does not ship every page and its editors.
@@ -138,20 +134,8 @@ function readRoute() {
   return parseHash();
 }
 
-const mac = /Mac|iPhone|iPad/.test(navigator.userAgent);
-
 function navigate(tab: TabId, ...params: string[]) {
   window.location.hash = "/" + [tab, ...params].map(encodeURIComponent).join("/");
-}
-
-/** ARP mark: a pixel "A"; the apex square is the signal, where a person ratifies. */
-function ArpMark() {
-  return (
-    <svg className="app-sidebar-mark" viewBox="0 0 62 62" aria-hidden="true">
-      <path fill="currentColor" d="M14 2h10v10H14zM38 2h10v10H38zM2 14h10v10H2zM50 14h10v10H50zM2 26h10v10H2zM14 26h10v10H14zM26 26h10v10H26zM38 26h10v10H38zM50 26h10v10H50zM2 38h10v10H2zM50 38h10v10H50zM2 50h10v10H2zM50 50h10v10H50z" />
-      <rect x="26" y="2" width="10" height="10" fill="var(--hi)" />
-    </svg>
-  );
 }
 
 function App() {
@@ -159,8 +143,6 @@ function App() {
   const active = route.tab;
   const [waiting, setWaiting] = useState<{ review: number } | null>(null);
   const [recentRuns, setRecentRuns] = useState<RunManifest[]>([]);
-  // Sidebar status dots wait for the first runs load, so they never show a guess.
-  const [runsLoaded, setRunsLoaded] = useState(false);
   const [pendingTaxonomyId, setPendingTaxonomyId] = useState<string | null>(null);
 
   // The hash last shown, so a navigation the open screen refuses can be put back.
@@ -175,7 +157,6 @@ function App() {
       }
       shownHash.current = window.location.hash;
       setRoute(next);
-      setNavOpen(false);
       window.scrollTo(0, 0);
     };
     window.addEventListener("hashchange", onHash);
@@ -204,7 +185,6 @@ function App() {
         const sum = (keep: (r: RunManifest) => boolean) => runs.filter(keep).reduce((n, r) => n + r.review_count, 0);
         setWaiting({ review: sum((r) => REVIEWABLE_RUN_TYPES.has(r.run_type)) });
         setRecentRuns([...runs].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 50));
-        setRunsLoaded(true);
       })
       .catch(() => setWaiting(null));
   }, [route, decidedAt]);
@@ -225,9 +205,7 @@ function App() {
   const canAsk = me != null && me.role !== "viewer";
   const [askOpen, setAskOpen] = useState(false);
   const [askTurns, setAskTurns] = useState<AskTurn[]>(() => loadTurns());
-  const askSideRef = useRef<HTMLButtonElement>(null);
-  const askTopRef = useRef<HTMLButtonElement>(null);
-  const askStartRef = useRef<HTMLButtonElement>(null);
+  const askRef = useRef<HTMLButtonElement>(null);
   useEffect(() => saveTurns(askTurns), [askTurns]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -245,34 +223,11 @@ function App() {
   }, [canAsk]);
   function closeAsk() {
     setAskOpen(false);
-    // The sidebar is a closed drawer at 1024px and below, so focus goes to the top-bar button there.
-    // The start page has no sidebar or phone top bar: its own top bar holds the Ask button.
-    const narrow = window.matchMedia("(max-width: 1024px)").matches;
-    (active === "home" ? askStartRef : narrow ? askTopRef : askSideRef).current?.focus();
+    askRef.current?.focus();
   }
-
-  // Below 1024px the sidebar is an off-canvas drawer; on desktop navOpen is
-  // ignored by the CSS.
-  const [navOpen, setNavOpen] = useState(false);
-  const navRef = useRef<HTMLElement>(null);
-  const menuRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!navOpen) return;
-    const menu = menuRef.current;
-    // Most screens have no sidebar link; then focus the first one so the drawer still takes focus.
-    (navRef.current?.querySelector<HTMLElement>(".nav-tab.active") ?? navRef.current?.querySelector<HTMLElement>(".nav-tab"))?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setNavOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      menu?.focus();
-    };
-  }, [navOpen]);
 
   function go(id: TabId) {
     navigate(id);
-    setNavOpen(false);
   }
 
   // A hand-over opens step 1 of a new Argus flow with the companies listed; the Transition Plan one also picks that template.
@@ -290,7 +245,7 @@ function App() {
   }
 
   return (
-    <div className={`app-shell${navOpen ? " nav-open" : ""}${active === "home" ? " app-shell-start" : ""}`}>
+    <div className="app-shell app-shell-start">
       {/* Routing lives in the hash, so the skip link focuses <main> instead of
           following an in-page anchor. */}
       <a
@@ -304,99 +259,16 @@ function App() {
         Skip to content
       </a>
       <div id="announcer" className="visually-hidden" role="status" aria-live="polite" />
-      {active === "home" ? (
-        <AppTopbar
-          active={active}
-          canAsk={canAsk}
-          askOpen={askOpen}
-          askRef={askStartRef}
-          reviewCount={navCount("review", waiting)}
-          onSearch={() => setPaletteOpen(true)}
-          onAsk={() => setAskOpen(true)}
-        />
-      ) : (
-        <>
-          <header className="app-topbar">
-            <button
-              ref={menuRef}
-              className="app-topbar-menu"
-              aria-label="Open navigation"
-              aria-expanded={navOpen}
-              aria-controls="app-sidebar"
-              onClick={() => setNavOpen(true)}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round">
-                <path d="M4 7h16M4 12h16M4 17h16" />
-              </svg>
-            </button>
-            <ArpMark />
-            <span className="app-topbar-title">{TABS.find((t) => t.id === active)!.label}</span>
-            {canAsk && (
-              <button ref={askTopRef} className="app-topbar-ask" aria-expanded={askOpen} onClick={() => setAskOpen(true)}>
-                Ask
-              </button>
-            )}
-          </header>
-          <div className="nav-scrim" onClick={() => setNavOpen(false)} />
-          <aside className="app-sidebar" id="app-sidebar" ref={navRef}>
-            <div className="app-sidebar-brand">
-              <ArpMark />
-              <span className="app-sidebar-wordmark">ARP</span>
-            </div>
-            <div className="app-sidebar-reviewer">
-              {/* The not-verified note is repeated where a typed name confirms a decision. */}
-              <ReviewerField hint={false} />
-              <SignedInAs />
-            </div>
-            <div className="sidebar-actions">
-              <button className="palette-trigger" title={mac ? "⌘K" : "Ctrl K"} aria-keyshortcuts="Control+K Meta+K" onClick={() => setPaletteOpen(true)}>
-                Jump to…
-              </button>
-              {canAsk && (
-                <button ref={askSideRef} className="palette-trigger" title={mac ? "⌘J" : "Ctrl J"} aria-keyshortcuts="Control+J Meta+J" aria-expanded={askOpen} onClick={() => { setNavOpen(false); setAskOpen(true); }}>
-                  Ask ARP
-                </button>
-              )}
-            </div>
-            <nav className="app-nav">
-              {NAV_GROUPS.map((group, i) => {
-                const links = group.ids.map((id) => {
-                  const t = TABS.find((tab) => tab.id === id)!;
-                  const current = currentNavIds(active).includes(id);
-                  const badge = reviewBadge(navCount(id, waiting));
-                  const ws = WORKSPACES.find((w) => w.id === id);
-                  const wsState = ws && runsLoaded ? workspaceState(ws, recentRuns) : "idle";
-                  return (
-                    <a
-                      key={t.id}
-                      href={`#/${t.id}`}
-                      className={current ? "nav-tab active" : "nav-tab"}
-                      aria-current={current ? "page" : undefined}
-                      onClick={() => setNavOpen(false)}
-                    >
-                      <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
-                      <span className="nav-tab-label">{t.label}</span>
-                      {badge && (
-                        <span className="nav-count" title={badge.title} aria-label={badge.title}>
-                          {badge.text}
-                        </span>
-                      )}
-                      {ws && wsState !== "idle" && <span className={`nav-dot nav-dot-${wsState}`} role="img" aria-label={`${ws.name}: ${STATE_LABEL[wsState]}`} />}
-                    </a>
-                  );
-                });
-                return (
-                  <div className="nav-group" key={group.label ?? `group-${i}`}>
-                    {group.label && <div className="nav-group-label">{group.label}</div>}
-                    {links}
-                  </div>
-                );
-              })}
-            </nav>
-            <ThemeSwitch />
-          </aside>
-        </>
-      )}
+      <AppTopbar
+        active={active}
+        canAsk={canAsk}
+        askOpen={askOpen}
+        askRef={askRef}
+        reviewCount={navCount("review", waiting)}
+        onSearch={() => setPaletteOpen(true)}
+        onAsk={() => setAskOpen(true)}
+      />
+      <WorkspaceRow hash={window.location.hash} />
       {askOpen && canAsk && (
         <AskPanel turns={askTurns} setTurns={setAskTurns} onClose={closeAsk} onClear={() => { clearTurns(); setAskTurns([]); }} />
       )}

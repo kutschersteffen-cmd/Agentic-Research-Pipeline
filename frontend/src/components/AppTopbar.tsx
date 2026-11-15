@@ -98,7 +98,9 @@ export function AppTopbar({ active, canAsk, askOpen, askRef, reviewCount, onSear
             Review Queue
             {badge && (
               <span className="nav-count" title={badge.title} aria-label={badge.title}>
-                {badge.text}
+                {/* "items" hides on a phone so the badge fits the second row; the label still says it. */}
+                {badge.text.split(" ")[0]}
+                <span className="nav-count-word"> {badge.text.split(" ").slice(1).join(" ")}</span>
               </span>
             )}
           </a>

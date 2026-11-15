@@ -210,51 +210,6 @@ td, .stat-value, .nav-count { font-variant-numeric: tabular-nums; }
   align-items: stretch;
 }
 
-.app-sidebar {
-  width: 248px;
-  flex-shrink: 0;
-  background: var(--sidebar-bg);
-  border-right: 1px solid var(--panel-border);
-  display: flex;
-  flex-direction: column;
-  padding: 22px var(--s-3);
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
-}
-
-.app-sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: var(--s-1) var(--s-2) var(--s-3);
-}
-.app-sidebar-mark {
-  width: 32px;
-  height: 32px;
-  color: var(--accent);
-  flex-shrink: 0;
-}
-.app-sidebar-wordmark { font-family: var(--font-display); font-weight: 700; font-size: var(--text-base); letter-spacing: -0.01em; }
-
-.app-nav {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-  margin-bottom: var(--s-6);
-}
-
-.nav-group { display: flex; flex-direction: column; gap: var(--s-0_5); }
-.nav-group-label {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--muted);
-  padding: 0 var(--s-2) var(--s-1);
-}
-
 .nav-tab {
   display: flex;
   align-items: center;
@@ -271,13 +226,11 @@ td, .stat-value, .nav-count { font-variant-numeric: tabular-nums; }
   text-align: left;
   margin-top: 0;
 }
-.nav-tab-icon { display: flex; flex-shrink: 0; }
-.nav-tab-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nav-tab:hover { background: var(--panel-border); }
 .nav-tab.active { background: var(--accent); color: var(--on-accent); font-weight: 600; }
 .nav-tab.active:hover { background: var(--accent); }
 a.nav-tab { text-decoration: none; }
-/* Count of items waiting on a person, only on the "Needs you" entries. */
+/* Count of items waiting on a person: the top bar's Review Queue badge. */
 .nav-count {
   margin-left: auto;
   min-width: 1.5rem;
@@ -290,10 +243,6 @@ a.nav-tab { text-decoration: none; }
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
-/* Up top, under the mark: who is deciding is the first thing set, and it
-   stays in view on a laptop-height sidebar. */
-.app-sidebar-reviewer { padding: 0 var(--s-2) var(--s-4); margin-bottom: var(--s-3); border-bottom: 1px solid var(--panel-border); }
-
 .app-main {
   flex: 1;
   min-width: 0;
@@ -303,75 +252,8 @@ a.nav-tab { text-decoration: none; }
   overflow-x: clip;
 }
 
-.app-topbar, .nav-scrim { display: none; }
-
-/* Below 1024px the 248px sidebar left too little for tables and diagrams
-   (~500px at tablet width). It becomes an
-   off-canvas drawer behind a sticky top bar that names the current page. */
-@media (max-width: 1024px) {
-  .app-shell { flex-direction: column; }
-  .app-topbar {
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    height: var(--topbar-h);
-    padding: var(--s-1) var(--s-3) var(--s-1) var(--s-1);
-    background: var(--sidebar-bg);
-    border-bottom: 1px solid var(--panel-border);
-  }
-  .app-topbar-menu {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    margin: 0;
-    background: transparent;
-    color: var(--text);
-  }
-  .app-topbar-menu:hover:not(:disabled) { background: var(--panel-border); }
-  .app-topbar-title {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: var(--text-md);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .app-sidebar {
-    position: fixed;
-    inset: 0 auto 0 0;
-    z-index: 60;
-    width: min(288px, 85vw);
-    height: 100dvh;
-    transform: translateX(-100%);
-    visibility: hidden;
-    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 220ms;
-  }
-  .nav-open .app-sidebar {
-    transform: none;
-    visibility: visible;
-    box-shadow: var(--shadow-lg);
-    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .nav-open .nav-scrim {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 55;
-    background: oklch(20% 0.014 58 / 0.4);
-  }
-  .nav-tab { min-height: 44px; }
-  .app-main { padding: var(--s-6) var(--s-4) var(--s-12); }
-}
-
-@media (max-width: 1024px) and (prefers-reduced-motion: reduce) {
-  .app-sidebar, .nav-open .app-sidebar { transition: none; }
-}
+/* In-page tabs stay thumb-sized below laptop width. */
+@media (max-width: 1024px) { .nav-tab { min-height: 44px; } }
 
 .page { max-width: 1200px; }
 /* Section headings are h2/h3 under the page's h1; they keep the sizes the
@@ -1673,19 +1555,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .stepper .nav-tab.active .stepper-num { background: var(--accent); border-color: var(--accent); color: var(--panel); }
 
 /* Command palette (Ctrl/⌘K) and its sidebar trigger. */
-.sidebar-actions { display: flex; gap: var(--s-1_5); margin: 0 var(--s-2) var(--s-4); }
 /* Styled as secondary buttons: side by side, two fields would read as inputs. */
-.palette-trigger {
-  flex: 1;
-  margin: 0;
-  padding: var(--s-1_5) var(--s-2);
-  background: transparent;
-  color: var(--text);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--r-md);
-  font-size: var(--text-sm);
-}
-button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); border-color: var(--accent); }
 .palette-input { width: 100%; margin-top: var(--s-3); }
 .palette-list { list-style: none; margin: var(--s-2) 0 0; padding: 0; max-height: 50vh; overflow: auto; }
 .palette-item {
@@ -2207,8 +2077,6 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-start .data-table td:first-child { white-space: normal; overflow-wrap: anywhere; }
 
 /* Ask ARP: a right-hand panel over the page; full screen on phones. */
-.app-topbar-ask { margin-left: auto; min-height: 44px; padding: 0 var(--s-3); background: var(--panel); color: var(--text); border: 1px solid var(--panel-border); }
-.app-topbar-ask:hover:not(:disabled) { border-color: var(--accent); background: var(--panel); }
 .ask-panel {
   position: fixed;
   inset: 0 0 0 auto;
@@ -2397,11 +2265,6 @@ a.vc-box:hover { border-color: var(--text); }
 .hub-step-status-failed { color: var(--low); }
 .hub-step-status-done { color: var(--muted); }
 .hub-step-status-idle { color: var(--muted); }
-.nav-dot { width: 7px; height: 7px; border-radius: 50%; margin-left: auto; flex: none; }
-.nav-dot-wait { background: var(--hi); }
-.nav-dot-now { background: var(--run); }
-.nav-dot-failed { background: var(--low); }
-.nav-dot-done { background: var(--muted); }
 
 /* Night Desk release 3: the cited source as a page excerpt. Amber marks only the cited span. */
 .source-excerpt { margin: var(--s-2) 0; display: grid; gap: var(--s-1_5); }
@@ -2484,21 +2347,34 @@ a.vc-box:hover { border-color: var(--text); }
 .start-topbar-spaces-pop > a { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: 36px; padding: 0 var(--s-2); border-radius: var(--r-md); text-decoration: none; }
 .start-topbar-spaces-pop > a:hover, .start-topbar-spaces-pop > a[aria-current="page"] { background: var(--well); }
 .start-topbar-spaces-pop > a:first-child { border-bottom: 1px solid var(--panel-border); border-radius: var(--r-md) var(--r-md) 0 0; }
+/* The workspace row: under the top bar inside a workspace; its own sideways scroll, never the page's. */
+.ws-row { display: flex; align-items: stretch; gap: var(--s-6); height: 44px; padding: 0 max(var(--s-8), env(safe-area-inset-right, 0px)) 0 max(var(--s-8), env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--panel-border); background: var(--bg); font-size: var(--text-sm); overflow-x: auto; scrollbar-width: none; }
+.ws-row a { display: inline-flex; align-items: center; flex: none; color: var(--muted); text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; }
+.ws-row a:hover { color: var(--text); }
+.ws-row a[aria-current="page"] { color: var(--text); border-bottom-color: var(--text); }
+.ws-row .ws-row-name { color: var(--text); font-weight: 600; }
 .start-topbar-tag { display: inline-flex; align-items: center; gap: var(--s-1_5); font-size: var(--text-xs); font-weight: 500; }
 .start-topbar-nav > a[aria-current="page"] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; }
 @media (max-width: 760px) {
-  /* Two rows on a phone: lockup and search, then Ask, the nav and the user menu. */
-  .start-topbar { display: flex; flex-wrap: wrap; row-gap: var(--s-3); height: auto; padding: var(--s-3) max(var(--s-4), env(safe-area-inset-right, 0px)) var(--s-3) max(var(--s-4), env(safe-area-inset-left, 0px)); }
-  .start-topbar-brand { margin-right: auto; }
-  .start-topbar-search { width: auto; }
+  /* Two rows on a phone: lockup, search, Ask ARP and the user menu; then Workspaces, Review Queue and Reports. */
+  .start-topbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); height: auto; padding: var(--s-3) max(var(--s-4), env(safe-area-inset-right, 0px)) var(--s-3) max(var(--s-4), env(safe-area-inset-left, 0px)); }
+  .start-topbar-end, .start-topbar-nav { display: contents; }
+  .start-topbar-brand { order: 0; margin-right: auto; min-height: 44px; align-items: center; }
+  /* A keyboard hint means nothing on a touch screen: the search button is its icon, 44px square. */
+  .start-topbar-search { order: 1; width: 44px; padding: 0; justify-content: center; }
+  .start-topbar-search kbd { display: none; }
+  .nav-count-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .start-topbar-ask { order: 2; }
+  .start-topbar-user { order: 3; }
+  .start-topbar::after { content: ""; order: 4; flex-basis: 100%; height: 0; }
+  .start-topbar-spaces { order: 5; margin-right: var(--s-2); }
+  .start-topbar-nav > a { order: 6; margin-right: var(--s-2); }
   /* Icon and hint only; the label stays in the accessible name. */
   .start-topbar-search-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  /* Both rows wrap rather than push a narrow phone sideways (a Review Queue badge widens row two). */
-  .start-topbar-end, .start-topbar-nav { flex-wrap: wrap; row-gap: var(--s-1); }
-  .start-topbar-end { width: 100%; justify-content: space-between; }
   /* Thumb-sized controls on a phone. */
-  .start-topbar-search, .start-topbar-ask, .start-topbar-nav > a { min-height: 44px; }
+  .start-topbar-search, .start-topbar-ask, .start-topbar-nav > a, .start-topbar-spaces-btn { min-height: 44px; }
   .start-topbar-me { width: 44px; height: 44px; }
+  .ws-row { padding: 0 max(var(--s-4), env(safe-area-inset-right, 0px)) 0 max(var(--s-4), env(safe-area-inset-left, 0px)); }
   .start-topbar-ask kbd { display: none; }
   .start-topbar-end, .start-topbar-nav { gap: var(--s-3); }
   .app-shell-start .app-main { padding: var(--s-8) var(--s-4) 64px; }
