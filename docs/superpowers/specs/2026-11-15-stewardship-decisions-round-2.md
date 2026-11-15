@@ -150,9 +150,9 @@ into one view.
 
 ## Acceptance
 
-`unit` rows use the repo's test fixtures (Postgres where the code needs it). Rows about a screen are browser tests in
-`backend/tests/e2e` with the API they name stubbed by `page.route` (the frontend's `npm test` renders no
-components). `holdout` rows drive the app started by `backend/scripts/e2e_stack.sh up` through the API. A vote row
+`unit` rows use the repo's test fixtures (Postgres where the code needs it). Rows about a screen are hidden browser tests
+(`holdout`, Playwright on the e2e app) with the API they name stubbed by `page.route` (the frontend's `npm test`
+renders no components). `holdout` rows drive the app started by `backend/scripts/e2e_stack.sh up` through the API. A vote row
 in area 5 also carries a distinct `external_id`, `vote` `for` and `management_recommendation` `for`.
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
@@ -162,20 +162,20 @@ in area 5 also carries a distinct `external_id`, `vote` `for` and `management_re
 | AC-3 | `TriggerStore.record_run` for month `2026-05` with a `vote_against_management` trigger for `SYN01` with `demo` `true` | `GET /api/stewardship/triggers` | That trigger has `demo` `true` | unit |
 | AC-4 | AC-3, then `record_run` for `2026-06` with the same trigger with `demo` `false` | `GET /api/stewardship/triggers` | That trigger has `demo` `false` | unit |
 | AC-5 | A stored trigger row written without a `demo` field | `GET /api/stewardship/triggers` | That trigger has `demo` `false` | unit |
-| AC-6 | The live triggers stubbed: `SYN01`, rule `vote_against_management`, `demo` `true` | The Monitoring stage renders "Triggers raised" | That row shows a chip `Demo data` | unit |
-| AC-7 | The same with `demo` `false` | The same | That row shows no `Demo data` chip (must not change) | unit |
-| AC-8 | The stored triggers stubbed with one trigger, `demo` `true` | `ProfileActionStrip` renders | The trigger's Reason cell shows a chip `Demo data` | unit |
-| AC-9 | Priority-worklist PR6 merged; the triggers stubbed with one trigger, `demo` `true` | The workbench's triggers tab renders | That trigger shows a chip `Demo data` | unit |
-| AC-10 | A pending `new_commitment` suggestion with quote `We will publish a transition plan by 2026.`; its note's `summary` contains `we will  publish a transition plan by 2026.` | The issue panel renders | The card shows the quote `"We will publish a transition plan by 2026."` | unit |
-| AC-11 | Quote `We’ll publish – by 2026`; the note's `summary` contains `we'll publish - by 2026` | The issue panel renders | The card shows the quote | unit |
-| AC-12 | Quote as in AC-10; the note's `summary` contains `We shall publish a transition plan by 2026.` | The issue panel renders | The card shows no quote and a button `Show the note` | unit |
-| AC-13 | AC-12 | The user presses `Show the note` | The note's correspondence `<li>` is `document.activeElement` | unit |
-| AC-14 | The suggestion's `activity_id` is not among the issue's correspondence | The issue panel renders | The card shows no quote and no `Show the note` button | unit |
+| AC-6 | The live triggers stubbed: `SYN01`, rule `vote_against_management`, `demo` `true` | The Monitoring stage renders "Triggers raised" | That row shows a chip `Demo data` | holdout |
+| AC-7 | The same with `demo` `false` | The same | That row shows no `Demo data` chip (must not change) | holdout |
+| AC-8 | The stored triggers stubbed with one trigger, `demo` `true` | `ProfileActionStrip` renders | The trigger's Reason cell shows a chip `Demo data` | holdout |
+| AC-9 | Priority-worklist PR6 merged; the triggers stubbed with one trigger, `demo` `true` | The workbench's triggers tab renders | That trigger shows a chip `Demo data` | holdout |
+| AC-10 | A pending `new_commitment` suggestion with quote `We will publish a transition plan by 2026.`; its note's `summary` contains `we will  publish a transition plan by 2026.` | The issue panel renders | The card shows the quote `"We will publish a transition plan by 2026."` | holdout |
+| AC-11 | Quote `We’ll publish – by 2026`; the note's `summary` contains `we'll publish - by 2026` | The issue panel renders | The card shows the quote | holdout |
+| AC-12 | Quote as in AC-10; the note's `summary` contains `We shall publish a transition plan by 2026.` | The issue panel renders | The card shows no quote and a button `Show the note` | holdout |
+| AC-13 | AC-12 | The user presses `Show the note` | The note's correspondence `<li>` is `document.activeElement` | holdout |
+| AC-14 | The suggestion's `activity_id` is not among the issue's correspondence | The issue panel renders | The card shows no quote and no `Show the note` button | holdout |
 | AC-15 | A house selection for the open cycle with `SYN01` and `SYN02` proposed (`SYN02`'s stored `company` `Synthetic Two plc`); `SYN02` no longer in the house universe | `POST /api/stewardship/selection/confirm` `{}` | Status 200, body `{"confirmed": 1, "dropped": ["Synthetic Two plc"]}` | unit |
 | AC-16 | AC-15 done | `GET /api/stewardship/selection` | `SYN01` has status `confirmed`; `SYN02` is not listed | unit |
 | AC-17 | A selection with `SYN01` proposed and still in the universe | The same confirm | Status 200, body `{"confirmed": 1, "dropped": []}` | unit |
 | AC-18 | A programme with one proposed member | `POST /api/stewardship/programmes/<id>/confirm` | Status 200, body `{"confirmed": 1}` (must not change) | unit |
-| AC-19 | The workbench page; the selection confirm stubbed with `{"confirmed": 1, "dropped": ["Beta plc"]}` | The user confirms | The `role="status"` line reads `Confirmed 1. Not confirmed, no longer held: Beta plc.` | unit |
+| AC-19 | The workbench page; the selection confirm stubbed with `{"confirmed": 1, "dropped": ["Beta plc"]}` | The user confirms | The `role="status"` line reads `Confirmed 1. Not confirmed, no longer held: Beta plc.` | holdout |
 | AC-20 | One portfolio, NAV 1000 EUR: company `C1` with an equity line of 50 EUR and a cash line (asset class `cash`) of 30 EUR, other holdings 920 EUR; a concentration rule `above 6%` | `POST /api/portfolio/monitoring/evaluate-now` | No alert for `C1` (5.00 %) | unit |
 | AC-21 | AC-20 with `C1`'s equity line 70 EUR and the other holdings 900 EUR (NAV still 1000) | The same call | One alert for `C1` with `observed_value` `0.07` | unit |
 | AC-22 | AC-20 with a company `C2` held only through a `_CURRENCYUSD` line of 200 EUR (other holdings 720 EUR) | The same call | No alert for `C2` (must not change) | unit |
