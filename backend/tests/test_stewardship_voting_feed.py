@@ -77,3 +77,18 @@ def test_decided_ballots_reach_stage_4_the_checkpoint_and_monitoring(tmp_path, p
     assert checkpoint["Votes against the policy"] == 1
     [row] = stages["checkpoint"]["details"][0]["rows"]
     assert (row["item"], row["vote"], row["reason"]) == ("2", "against", "Pay not linked to targets")
+
+
+def test_stage_4_details_list_run_votes_only(tmp_path, pg):
+    def row(run_id, item):
+        return {
+            "run_id": run_id, "company_id": "SYN01", "company": "Synthetic Company 01", "meeting_date": "2026-05-15",
+            "item": item, "type": None, "management": "for", "policy": None, "vote": "for", "status": "cast",
+            "decided_by": "x", "co_signed_by": None, "note": None, "overrode_policy": False, "against_management": False,
+        }  # fmt: skip
+
+    votes = [row(None, "ledger"), row("vote_run", "run")]
+    stages = {s["id"]: s for s in flow(HOUSE, StreamStore(tmp_path / "s"), [], sla_days=45, votes=votes)["stages"]}
+    metrics = {m["label"]: m["value"] for m in stages["voting"]["metrics"]}
+    assert metrics["Ballot items decided"] == "2 of 2"
+    assert [r["item"] for r in stages["voting"]["details"][1]["rows"]] == ["run"]

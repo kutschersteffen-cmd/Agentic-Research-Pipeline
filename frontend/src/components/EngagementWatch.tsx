@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import { OBJECTIVE_RESULTS, INFLUENCE_LEVELS, canSaveResult, checkLine, evidenceText, evidenceWhere, foundLine, issueTopics } from "../lib/engagement";
+import { OBJECTIVE_RESULTS, INFLUENCE_LEVELS, canSaveResult, checkLine, evidenceText, evidenceWhere, foundLine, isDemo, issueTopics } from "../lib/engagement";
 import type { EngagementIssue, EvidenceSuggestion, Objective, WatchItemKind, WatchListEntry, WatchTopic } from "../types";
 
 // Watch list pieces of the issue panel (spec stewardship-commitment-loop, "What the user sees").
@@ -67,7 +67,7 @@ export function ProofLine({ ctx, kind, id, label, proof, open, onSaved }: { ctx:
   );
 }
 
-function ObjectiveRow({ ctx, objective: o, suggestions, closed, onSaved, onClosed }: { ctx: Ctx; objective: Objective; suggestions: Suggestions; closed: boolean; onSaved: () => Promise<unknown>; onClosed: () => void }) {
+function ObjectiveRow({ ctx, objective: o, demo, suggestions, closed, onSaved, onClosed }: { ctx: Ctx; objective: Objective; demo: boolean; suggestions: Suggestions; closed: boolean; onSaved: () => Promise<unknown>; onClosed: () => void }) {
   const [recording, setRecording] = useState(false);
   const [result, setResult] = useState("");
   const [level, setLevel] = useState("");
@@ -95,6 +95,7 @@ function ObjectiveRow({ ctx, objective: o, suggestions, closed, onSaved, onClose
           <span>{o.objective_type}</span>
           {o.result && <span>result: {o.result}</span>}
           {o.target_date && <span>due {o.target_date.slice(0, 10)}</span>}
+          {demo && <span className="chip">Demo data</span>}
         </div>
         <ProofLine ctx={ctx} kind="objective" id={o.objective_id} label={o.description} proof={o.proof_statement} open={isOpen} onSaved={onSaved} />
         <ConfirmedEvidence suggestions={suggestions} itemId={o.objective_id} />
@@ -159,7 +160,7 @@ export function ObjectivesSection({ ctx, issue, suggestions, closed, onSaved }: 
         Objectives
       </h3>
       {issue.objectives.map((o) => (
-        <ObjectiveRow key={o.objective_id} ctx={ctx} objective={o} suggestions={suggestions} closed={closed} onSaved={onSaved} onClosed={() => heading.current?.focus()} />
+        <ObjectiveRow key={o.objective_id} ctx={ctx} objective={o} demo={isDemo(issue, o)} suggestions={suggestions} closed={closed} onSaved={onSaved} onClosed={() => heading.current?.focus()} />
       ))}
     </div>
   );

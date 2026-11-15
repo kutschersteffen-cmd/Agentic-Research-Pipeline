@@ -926,6 +926,7 @@ export interface EngagementIssue {
   commitments: Commitment[];
   tags: string[];
   objectives: Objective[];
+  data_source?: string;
 }
 
 export interface EngagementRecord {
