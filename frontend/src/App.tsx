@@ -15,7 +15,7 @@ import { AskPanel } from "./components/AskPanel";
 import { clearTurns, loadTurns, saveTurns, type AskTurn } from "./lib/askHistory";
 import { useMe } from "./lib/reviewer";
 import { ThemeSwitch } from "./components/ThemeSwitch";
-import { StartTopbar } from "./components/StartTopbar";
+import { AppTopbar } from "./components/AppTopbar";
 import { NAV_ICONS } from "./components/NavIcons";
 import type { ReviewableRunKind, RunManifest } from "./types";
 import { REVIEWABLE_RUN_TYPES, runTypeLabel } from "./lib/runs";
@@ -305,7 +305,8 @@ function App() {
       </a>
       <div id="announcer" className="visually-hidden" role="status" aria-live="polite" />
       {active === "home" ? (
-        <StartTopbar
+        <AppTopbar
+          active={active}
           canAsk={canAsk}
           askOpen={askOpen}
           askRef={askStartRef}

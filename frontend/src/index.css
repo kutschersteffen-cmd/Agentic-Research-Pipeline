@@ -2476,6 +2476,16 @@ a.vc-box:hover { border-color: var(--text); }
 .start-topbar-pop[hidden] { display: none; }
 .start-topbar-pop .theme-switch { margin: 0; }
 .start-topbar-pop > a { color: var(--text); font-size: var(--text-sm); }
+/* The Workspaces menu: one row per place, with its status when it needs a look. */
+.start-topbar-spaces { position: relative; }
+.start-topbar-spaces-btn { display: inline-flex; align-items: center; gap: var(--s-1_5); min-height: 36px; margin: 0; padding: 0; border: 0; background: none; color: var(--text); font: inherit; cursor: pointer; white-space: nowrap; }
+.start-topbar-spaces-btn:hover:not(:disabled) { background: none; text-decoration: underline; text-underline-offset: 3px; }
+.start-topbar-spaces-pop { left: 0; right: auto; width: 280px; gap: var(--s-0_5); padding: var(--s-1_5); }
+.start-topbar-spaces-pop > a { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: 36px; padding: 0 var(--s-2); border-radius: var(--r-md); text-decoration: none; }
+.start-topbar-spaces-pop > a:hover, .start-topbar-spaces-pop > a[aria-current="page"] { background: var(--well); }
+.start-topbar-spaces-pop > a:first-child { border-bottom: 1px solid var(--panel-border); border-radius: var(--r-md) var(--r-md) 0 0; }
+.start-topbar-tag { display: inline-flex; align-items: center; gap: var(--s-1_5); font-size: var(--text-xs); font-weight: 500; }
+.start-topbar-nav > a[aria-current="page"] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; }
 @media (max-width: 760px) {
   /* Two rows on a phone: lockup and search, then Ask, the nav and the user menu. */
   .start-topbar { display: flex; flex-wrap: wrap; row-gap: var(--s-3); height: auto; padding: var(--s-3) max(var(--s-4), env(safe-area-inset-right, 0px)) var(--s-3) max(var(--s-4), env(safe-area-inset-left, 0px)); }
