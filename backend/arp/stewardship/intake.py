@@ -435,7 +435,8 @@ def intake_votes(rows: list[dict], dsn: str, source: str, excel_rows: bool = Fal
         for _, m_ext, m_vals, i_ext, i_vals, d_ext, d_vals in plan:
             if m_ext not in done:  # a meeting or item shared by several rows counts once, from its first row
                 done.add(m_ext)
-                upsert("meeting", m_ext, m_vals)
+                # the first row's values plus the ids later rows of the batch filled in, as the check above accepted
+                upsert("meeting", m_ext, {**m_vals, **{k: v for k, v in held[m_ext].items() if v is not None}})
             if i_ext not in done:
                 done.add(i_ext)
                 upsert("item", i_ext, {**i_vals, "meeting_id": ids["meeting"][m_ext]})
