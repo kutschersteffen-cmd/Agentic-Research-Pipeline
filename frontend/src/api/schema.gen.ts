@@ -5497,6 +5497,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/cockpit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Cockpit */
+        get: operations["get_cockpit_api_stewardship_cockpit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/decision-inputs": {
         parameters: {
             query?: never;
@@ -5750,6 +5767,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Notes
+         * @description The company's notes, newest first. No route edits or deletes a note.
+         */
+        get: operations["get_notes_api_stewardship_notes_get"];
+        put?: never;
+        /**
+         * Post Note
+         * @description Adds a note on a company of the house universe; `scope` only records where it was written.
+         */
+        post: operations["post_note_api_stewardship_notes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/objectives/{objective_id}/result": {
         parameters: {
             query?: never;
@@ -5948,13 +5989,13 @@ export interface paths {
         };
         /**
          * Get Selection
-         * @description The house engagement selection of a cycle (default: the current one), folded from its log.
+         * @description The engagement selection of a scope and cycle (default: the current one), folded from its log.
          */
         get: operations["get_selection_api_stewardship_selection_get"];
         put?: never;
         /**
          * Post Selection
-         * @description Adds companies as proposed and removes proposed ones; confirmed rows stay.
+         * @description Adds companies of the scope as proposed and removes proposed ones; confirmed rows stay.
          */
         post: operations["post_selection_api_stewardship_selection_post"];
         delete?: never;
@@ -5974,7 +6015,7 @@ export interface paths {
         put?: never;
         /**
          * Post Selection Confirm
-         * @description Every proposed row of the cycle becomes confirmed, recorded as the signed-in user.
+         * @description Every proposed row of the scope and cycle becomes confirmed, recorded as the signed-in user.
          */
         post: operations["post_selection_confirm_api_stewardship_selection_confirm_post"];
         delete?: never;
@@ -6660,6 +6701,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/votes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Votes
+         * @description The company's vote-ledger decisions, newest meeting first (at most 500, with the total).
+         */
+        get: operations["get_votes_api_stewardship_votes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/watch-items/{item_kind}/{item_id}/check": {
         parameters: {
             query?: never;
@@ -6738,9 +6799,29 @@ export interface paths {
         };
         /**
          * Get Worklist
-         * @description One row per company of the house scope, computed from stored values on every request.
+         * @description One row per company of the scope (house, `portfolio:<id>` or `group:<id>`), computed from stored values on every request.
          */
         get: operations["get_worklist_api_stewardship_worklist_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/worklist/scopes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Worklist Scopes
+         * @description The house, every fund with company holdings at the latest snapshot, and every group of funds or companies.
+         */
+        get: operations["get_worklist_scopes_api_stewardship_worklist_scopes_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10657,6 +10738,212 @@ export interface components {
              */
             status: "resolved" | "closed";
         };
+        /** CockpitControlGap */
+        CockpitControlGap: {
+            /** Company */
+            company: string;
+            /** Company Id */
+            company_id: string;
+            /** Engagement Id */
+            engagement_id: string;
+            /** Gaps */
+            gaps: string[];
+            /** Open Days */
+            open_days: number | null;
+            /** Theme */
+            theme: string;
+        };
+        /** CockpitDay */
+        CockpitDay: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Engagement Meetings */
+            engagement_meetings: number;
+            /** Shareholder Meetings */
+            shareholder_meetings: number;
+        };
+        /** CockpitEngagementMeeting */
+        CockpitEngagementMeeting: {
+            /** Company */
+            company: string;
+            /** Company Id */
+            company_id: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Engagement Id */
+            engagement_id: string;
+            /** Objective */
+            objective: string | null;
+            /** Stage */
+            stage: string;
+            /** Step */
+            step: number;
+            /** Theme */
+            theme: string;
+        };
+        /** CockpitLadderCompany */
+        CockpitLadderCompany: {
+            /** Company */
+            company: string;
+            /** Company Id */
+            company_id: string;
+        };
+        /** CockpitLadderStep */
+        CockpitLadderStep: {
+            /** Companies */
+            companies: components["schemas"]["CockpitLadderCompany"][];
+            /** Label */
+            label: string;
+            /** Stage */
+            stage: string;
+            /** Step */
+            step: number;
+        };
+        /** CockpitPortfolioOption */
+        CockpitPortfolioOption: {
+            /** Name */
+            name: string;
+            /** Portfolio Id */
+            portfolio_id: string;
+        };
+        /** CockpitResponse */
+        CockpitResponse: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Control Gaps */
+            control_gaps: components["schemas"]["CockpitControlGap"][];
+            /** Days */
+            days: components["schemas"]["CockpitDay"][];
+            /** Demo */
+            demo: boolean;
+            /** Emissions */
+            emissions?: null;
+            /** Engagement Meetings */
+            engagement_meetings: components["schemas"]["CockpitEngagementMeeting"][];
+            /** Ladder */
+            ladder: components["schemas"]["CockpitLadderStep"][];
+            /** Portfolios */
+            portfolios: components["schemas"]["CockpitPortfolioOption"][];
+            scope: components["schemas"]["CockpitScope"];
+            /** Shareholder Meetings */
+            shareholder_meetings: components["schemas"]["CockpitShareholderMeeting"][];
+            summary: components["schemas"]["CockpitSummary"];
+            /** Themes */
+            themes: components["schemas"]["CockpitThemeRow"][];
+            /** Tiers */
+            tiers: components["schemas"]["CockpitTierTotal"][];
+            voting: components["schemas"]["CockpitVoting"];
+        };
+        /** CockpitScope */
+        CockpitScope: {
+            /** Label */
+            label: string;
+            /** Portfolio Id */
+            portfolio_id: string | null;
+        };
+        /** CockpitShareholderMeeting */
+        CockpitShareholderMeeting: {
+            /** Action Due */
+            action_due: boolean;
+            /** Ballot State */
+            ballot_state: string;
+            /** Company */
+            company: string;
+            /** Company Id */
+            company_id: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Days To Meeting */
+            days_to_meeting: number;
+            /** Flagged */
+            flagged: number | null;
+            /** Items */
+            items: number;
+            /** Run Id */
+            run_id: string | null;
+        };
+        /** CockpitSummary */
+        CockpitSummary: {
+            /** Engaged Outside Selection */
+            engaged_outside_selection: number;
+            /** Engaged Selected */
+            engaged_selected: number;
+            /** Selected */
+            selected: number;
+        };
+        /** CockpitThemeRow */
+        CockpitThemeRow: {
+            /** Engaged */
+            engaged: number;
+            /** Selected */
+            selected: number;
+            /** Theme */
+            theme: string;
+            /** Tiers */
+            tiers: components["schemas"]["CockpitTierCount"][];
+        };
+        /** CockpitTierCount */
+        CockpitTierCount: {
+            /** Engaged */
+            engaged: number;
+            /** Selected */
+            selected: number;
+            /** Tier */
+            tier: string;
+        };
+        /** CockpitTierTotal */
+        CockpitTierTotal: {
+            /** Engaged */
+            engaged: number;
+            /** Label */
+            label: string;
+            /** Selected */
+            selected: number;
+            /** Tier */
+            tier: string;
+        };
+        /** CockpitTopicCount */
+        CockpitTopicCount: {
+            /** Against Management */
+            against_management: number;
+            /** Topic */
+            topic: string;
+            /** Votes */
+            votes: number;
+        };
+        /** CockpitVoting */
+        CockpitVoting: {
+            /** Abstain */
+            abstain: number;
+            /** Against */
+            against: number;
+            /** Against Management */
+            against_management: number;
+            /** For */
+            for: number;
+            /** Meetings */
+            meetings: number;
+            /** Other */
+            other: number;
+            /** Season */
+            season: number;
+            /** Topics */
+            topics: components["schemas"]["CockpitTopicCount"][];
+            /** Votes */
+            votes: number;
+        };
         /**
          * ColumnKind
          * @enum {string}
@@ -12442,6 +12729,13 @@ export interface components {
             /** Universe Path */
             universe_path?: string | null;
         };
+        /** Engaged */
+        Engaged: {
+            /** Last */
+            last: string | null;
+            /** Yes */
+            yes: boolean;
+        };
         /** EntityDecision */
         EntityDecision: {
             /** Cohort */
@@ -13355,6 +13649,19 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HeldIn */
+        HeldIn: {
+            /** Market Value Eur M */
+            market_value_eur_m: number;
+            /** Name */
+            name: string;
+            /** Portfolio Id */
+            portfolio_id: string;
+            /** Selection Status */
+            selection_status: ("proposed" | "confirmed") | null;
+            /** Weight Pct */
+            weight_pct: number | null;
+        };
         /** HistogramBin */
         HistogramBin: {
             /** Count */
@@ -13849,6 +14156,15 @@ export interface components {
              * @description Applies only when the checked field has this value; empty = whenever found.
              */
             when?: boolean | string | number | null;
+        };
+        /** LatestNote */
+        LatestNote: {
+            /** At */
+            at: string;
+            /** By */
+            by: string;
+            /** Text */
+            text: string;
         };
         /** LayerWeights */
         LayerWeights: {
@@ -14507,6 +14823,21 @@ export interface components {
             /** Last Meeting */
             last_meeting: string;
         };
+        /** Note */
+        Note: {
+            /** At */
+            at: string;
+            /** By */
+            by: string;
+            /** Company Id */
+            company_id: string;
+            /** Note Id */
+            note_id: string;
+            /** Scope */
+            scope: string;
+            /** Text */
+            text: string;
+        };
         /** NoteCitation */
         NoteCitation: {
             /** Page */
@@ -14515,6 +14846,18 @@ export interface components {
             quote: string;
             /** Source Id */
             source_id: string;
+        };
+        /** NoteCreate */
+        NoteCreate: {
+            /** Company Id */
+            company_id: string;
+            /**
+             * Scope
+             * @default house
+             */
+            scope: string;
+            /** Text */
+            text: string;
         };
         /** NoteItem */
         NoteItem: {
@@ -14528,6 +14871,11 @@ export interface components {
             text: string;
             /** Title */
             title: string;
+        };
+        /** NoteList */
+        NoteList: {
+            /** Notes */
+            notes: components["schemas"]["Note"][];
         };
         /** NoteReject */
         NoteReject: {
@@ -14561,6 +14909,12 @@ export interface components {
              * @default []
              */
             transmission_channels: components["schemas"]["NoteItem"][];
+        };
+        /** NotesSummary */
+        NotesSummary: {
+            /** Count */
+            count: number;
+            latest: components["schemas"]["LatestNote"] | null;
         };
         /** Objective */
         Objective: {
@@ -17195,6 +17549,18 @@ export interface components {
              */
             type: "select_all";
         };
+        /** SelectedElsewhere */
+        SelectedElsewhere: {
+            /** Label */
+            label: string;
+            /** Scope */
+            scope: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "proposed" | "confirmed";
+        };
         /** Selection */
         Selection: {
             /** Confirmed At */
@@ -17227,11 +17593,21 @@ export interface components {
              * @default []
              */
             remove: string[];
+            /**
+             * Scope
+             * @default house
+             */
+            scope: string;
         };
         /** SelectionConfirm */
         SelectionConfirm: {
             /** Cycle */
             cycle?: string | null;
+            /**
+             * Scope
+             * @default house
+             */
+            scope: string;
         };
         /** SelectionList */
         SelectionList: {
@@ -19149,6 +19525,40 @@ export interface components {
              */
             min_score: number;
         };
+        /** Vote */
+        Vote: {
+            /** Against Management */
+            against_management: boolean | null;
+            /** Demo */
+            demo: boolean;
+            /** Description */
+            description: string | null;
+            /** Item Number */
+            item_number: string | null;
+            /** Management Recommendation */
+            management_recommendation: string | null;
+            /** Meeting Date */
+            meeting_date: string | null;
+            /** Meeting Type */
+            meeting_type: string | null;
+            /** Proponent */
+            proponent: string | null;
+            /** Rationale */
+            rationale: string | null;
+            /** Source */
+            source: string;
+            /** Vote */
+            vote: string;
+            /** Vote Label */
+            vote_label: string | null;
+        };
+        /** VoteList */
+        VoteList: {
+            /** Total */
+            total: number;
+            /** Votes */
+            votes: components["schemas"]["Vote"][];
+        };
         /**
          * VoteReviewDecisionRequest
          * @description Voting's review decision carries extra fields (vote, co_signed_by)
@@ -19353,18 +19763,34 @@ export interface components {
             coverage_tier: string;
             /** Coverage Tier Confirmed */
             coverage_tier_confirmed: boolean;
+            engaged: components["schemas"]["Engaged"];
+            /** Equity Held Eur M */
+            equity_held_eur_m: number;
             /** Escalated */
             escalated: number;
+            /** Esg Extra */
+            esg_extra: {
+                [key: string]: components["schemas"]["Observed"];
+            };
             esg_score: components["schemas"]["Observed"] | null;
+            /** Held In */
+            held_in: components["schemas"]["HeldIn"][];
             /** Holdings Weight Pct */
             holdings_weight_pct: number | null;
+            /** Identifier */
+            identifier: string;
             /** Issuer Id */
             issuer_id: string;
+            /** Last Topics */
+            last_topics: string[];
             next_meeting: components["schemas"]["NextMeeting"] | null;
+            norms_violation: components["schemas"]["Observed"] | null;
+            notes: components["schemas"]["NotesSummary"];
             /** Open Engagements */
             open_engagements: number;
             /** Overdue Commitments */
             overdue_commitments: number;
+            ownership_pct: components["schemas"]["Observed"] | null;
             /** Parts */
             parts: components["schemas"]["ScorePart"][];
             /** Programmes */
@@ -19373,6 +19799,8 @@ export interface components {
             score: number;
             /** Sector */
             sector: string;
+            /** Selected Elsewhere */
+            selected_elsewhere: components["schemas"]["SelectedElsewhere"][];
             selection: components["schemas"]["Selection"] | null;
             transition_grade: components["schemas"]["Grade"] | null;
             triggers: components["schemas"]["TriggerCounts"];
@@ -19387,6 +19815,11 @@ export interface components {
             kind: string;
             /** Label */
             label: string;
+        };
+        /** WorklistScopes */
+        WorklistScopes: {
+            /** Scopes */
+            scopes: components["schemas"]["WorklistScope"][];
         };
         /** XbrlRunRequest */
         XbrlRunRequest: {
@@ -30006,6 +30439,38 @@ export interface operations {
             };
         };
     };
+    get_cockpit_api_stewardship_cockpit_get: {
+        parameters: {
+            query?: {
+                portfolio_id?: string | null;
+                as_of?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CockpitResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     decision_inputs_api_stewardship_decision_inputs_get: {
         parameters: {
             query?: never;
@@ -30502,6 +30967,70 @@ export interface operations {
             };
         };
     };
+    get_notes_api_stewardship_notes_get: {
+        parameters: {
+            query: {
+                company_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_note_api_stewardship_notes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Note"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     record_objective_result_api_stewardship_objectives__objective_id__result_post: {
         parameters: {
             query?: never;
@@ -30871,6 +31400,7 @@ export interface operations {
         parameters: {
             query?: {
                 cycle?: string | null;
+                scope?: string;
             };
             header?: never;
             path?: never;
@@ -32210,6 +32740,37 @@ export interface operations {
             };
         };
     };
+    get_votes_api_stewardship_votes_get: {
+        parameters: {
+            query: {
+                company_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoteList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     check_watch_item_api_stewardship_watch_items__item_kind___item_id__check_post: {
         parameters: {
             query?: never;
@@ -32381,7 +32942,9 @@ export interface operations {
     };
     get_worklist_api_stewardship_worklist_get: {
         parameters: {
-            query?: never;
+            query?: {
+                scope?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -32395,6 +32958,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Worklist"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_worklist_scopes_api_stewardship_worklist_scopes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorklistScopes"];
                 };
             };
         };

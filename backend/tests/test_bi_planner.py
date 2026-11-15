@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 
 from arp.bi.catalog import VIEW_DATASETS
-from arp.bi.eval import evaluate_case, load_bi_cases, offline_metas
+from arp.bi.eval import evaluate_case, load_bi_cases, offline_metas, run_bi_set
 from arp.bi.plan import ChartPlan, ChartSpec
 from arp.bi.planner import PlannerRefusal, plan_from_brief
 from arp.llm.base import LLMClient, LLMUsage
@@ -33,7 +33,7 @@ def run(brief, llm, metas=METAS):
 
 def test_prompt_contains_metric_descriptions_but_no_row_data():
     llm = FakeLLM(PlannerRefusal(plan=_plan()))
-    plan, errs = run("exposure by sector", llm)
+    plan, errs, _ = run("exposure by sector", llm)
     assert errs == [] and plan is not None
     system = llm.calls[0]["system"]
     assert "Total market value in EUR." in system and "Exposure (EUR)" in system
@@ -61,7 +61,7 @@ def test_pending_backlog_rule_is_stated():
 def test_invalid_plan_gets_exactly_one_repair_round_with_reasons():
     bad = _plan(viz_type="echarts_timeseries_line", groupby=["sector"])
     llm = FakeLLM(PlannerRefusal(plan=bad), PlannerRefusal(plan=_plan()))
-    plan, errs = run("trend", llm)
+    plan, errs, _ = run("trend", llm)
     assert errs == [] and plan is not None
     assert len(llm.calls) == 2
     assert "needs a date column first in groupby" in llm.calls[1]["prompt"]
@@ -70,15 +70,27 @@ def test_invalid_plan_gets_exactly_one_repair_round_with_reasons():
 def test_second_failure_returns_none_and_reasons():
     bad = _plan(metrics=["Nope"])
     llm = FakeLLM(PlannerRefusal(plan=bad), PlannerRefusal(plan=bad))
-    plan, errs = run("x", llm)
+    plan, errs, _ = run("x", llm)
     assert plan is None and len(llm.calls) == 2
     assert any("unknown metric 'Nope'" in e for e in errs)
 
 
+def test_clarification_in_repair_round_or_empty_is_a_clarification():
+    llm = FakeLLM(PlannerRefusal(plan=_plan(metrics=["Nope"])), PlannerRefusal(clarification_needed="Which portfolio?"))
+    assert run("x", llm) == (None, [], "Which portfolio?")
+    assert run("x", FakeLLM(PlannerRefusal())) == (None, [], "The brief could not be mapped onto the available datasets.")
+
+
+def test_eval_counts_a_clarification_as_a_refusal():
+    refuse, answer = next(c for c in load_bi_cases() if c.must_refuse), next(c for c in load_bi_cases() if not c.must_refuse)
+    llm = FakeLLM(PlannerRefusal(clarification_needed="Q?"), PlannerRefusal(clarification_needed="Q?"))
+    assert [r.passed for r in asyncio.run(run_bi_set([refuse, answer], llm=llm))] == [True, False]
+
+
 def test_refusal_returned_as_clarification():
     llm = FakeLLM(PlannerRefusal(clarification_needed="No weather data here."))
-    plan, errs = run("weather?", llm)
-    assert plan is None and errs == ["No weather data here."] and len(llm.calls) == 1
+    plan, errs, clarification = run("weather?", llm)
+    assert plan is None and errs == [] and clarification == "No weather data here." and len(llm.calls) == 1
 
 
 def test_bundled_cases_reference_the_catalog():

@@ -25,6 +25,7 @@ export type DocumentPassages = Served<S["DocumentPassages"]>;
 export type DocumentPassage = DocumentPassages["passages"][number];
 export type ArgusFlow = Served<S["ArgusFlowView"]>;
 export type ArgusDraft = Served<S["ArgusFlow"]>; // as GET /api/argus/flows lists it, without rows
+export type Cockpit = Served<S["CockpitResponse"]>; // GET /api/stewardship/cockpit
 export type FlowRow = Served<S["FlowRow"]>;
 export type FlowFile = Served<S["FlowFile"]>;
 export type RepeatRow = Served<S["RepeatRow"]>;
@@ -2561,7 +2562,8 @@ export interface RunCompany {
   entity_id?: string | null;
 }
 
-/** Superset BI designer (/api/bi). A refused plan is a 200 with `rejected` reasons and no dashboard. */
+/** Superset BI designer (/api/bi). A plan that fails validation is a 200 with `rejected` reasons and no dashboard;
+ * a question back from the model is a 200 with `clarification_needed`. */
 export type BIChartSpec = Served<S["ChartSpec-Output"]>;
 
 export type BIChartPlan = Served<S["ChartPlan"]>;

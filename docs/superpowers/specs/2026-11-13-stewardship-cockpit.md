@@ -350,9 +350,12 @@ removes a row. Let `h(x)` = `int(hashlib.sha256(x.encode("utf-8")).hexdigest(), 
    h("esc:" + engagement_id) mod 100`, it moves the engagement to step 2 (`c` 0–1), 3 (`c` 2), 4 (`c` 3) or 5 (`c`
    4). Each move writes `escalation_stage` plus one `stw_transitions` row (`kind` `escalation`, `decided_by`
    `showcase demo`, `source` `cockpit_demo`). Prints `ok escalation: <n> engagements`.
-3. `tiers`: it proposes tiers with the active coverage rules (`tier_contexts` + `evaluate` over `load_sample()` and
-   the engagement records) and confirms every proposal whose issuer has no confirmed tier yet, with `decided_by`
-   `showcase demo`. Prints `ok tiers: <n> confirmed`.
+3. `tiers` (owner decisions, 15 Nov 2026, PR #481): for every held company (the company key of any holding in
+   `load_holdings_as_of(as_of, None)`, with or without a `stw_companies` row), it proposes a tier with the active
+   coverage rules (`tier_contexts` + `evaluate`, with the company's share of all house holdings and its ledger
+   engagements as inputs) and confirms every proposal whose company has no confirmed tier yet, under that company
+   key, with `decided_by` `showcase demo`. So engaged companies sit among all selected ones, and small positions fill
+   Monitor. Prints `ok tiers: <n> confirmed`.
 4. `meetings`: it upserts 14 `vote_meetings` (`source` `cockpit_demo`, `external_id` `cockpit_demo:meeting:<k>`, k
    = 0–13) for 14 held companies that have `stw_companies` rows (held = the company key of any holding in
    `load_holdings_as_of(as_of, None)`). The companies are the 14 with the smallest `h(company_id)`.
