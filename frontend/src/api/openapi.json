@@ -5001,6 +5001,51 @@
     "title": "CloseRequest",
     "type": "object"
    },
+   "CockpitContributor": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "sector": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sector"
+     },
+     "share": {
+      "title": "Share",
+      "type": "number"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "tco2e": {
+      "title": "Tco2E",
+      "type": "number"
+     }
+    },
+    "required": [
+     "company_id",
+     "company",
+     "sector",
+     "tco2e",
+     "share",
+     "status"
+    ],
+    "title": "CockpitContributor",
+    "type": "object"
+   },
    "CockpitControlGap": {
     "properties": {
      "company": {
@@ -5071,6 +5116,47 @@
      "shareholder_meetings"
     ],
     "title": "CockpitDay",
+    "type": "object"
+   },
+   "CockpitEmissions": {
+    "properties": {
+     "contributors": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitContributor"
+      },
+      "title": "Contributors",
+      "type": "array"
+     },
+     "engaged_tco2e": {
+      "title": "Engaged Tco2E",
+      "type": "number"
+     },
+     "not_selected_tco2e": {
+      "title": "Not Selected Tco2E",
+      "type": "number"
+     },
+     "selected_not_engaged_tco2e": {
+      "title": "Selected Not Engaged Tco2E",
+      "type": "number"
+     },
+     "total_tco2e": {
+      "title": "Total Tco2E",
+      "type": "number"
+     },
+     "uncovered_holding_count": {
+      "title": "Uncovered Holding Count",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "total_tco2e",
+     "engaged_tco2e",
+     "selected_not_engaged_tco2e",
+     "not_selected_tco2e",
+     "uncovered_holding_count",
+     "contributors"
+    ],
+    "title": "CockpitEmissions",
     "type": "object"
    },
    "CockpitEngagementMeeting": {
@@ -5222,8 +5308,14 @@
       "type": "boolean"
      },
      "emissions": {
-      "title": "Emissions",
-      "type": "null"
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/CockpitEmissions"
+       },
+       {
+        "type": "null"
+       }
+      ]
      },
      "engagement_meetings": {
       "items": {
@@ -5290,7 +5382,8 @@
      "shareholder_meetings",
      "control_gaps",
      "ladder",
-     "voting"
+     "voting",
+     "emissions"
     ],
     "title": "CockpitResponse",
     "type": "object"

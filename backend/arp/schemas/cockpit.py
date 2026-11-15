@@ -110,6 +110,24 @@ class CockpitVoting(BaseModel):
     topics: list[CockpitTopicCount]
 
 
+class CockpitContributor(BaseModel):
+    company_id: str
+    company: str
+    sector: str | None
+    tco2e: float
+    share: float
+    status: str  # in_escalation | engaged | selected | not_selected
+
+
+class CockpitEmissions(BaseModel):
+    total_tco2e: float
+    engaged_tco2e: float
+    selected_not_engaged_tco2e: float
+    not_selected_tco2e: float
+    uncovered_holding_count: int
+    contributors: list[CockpitContributor]
+
+
 class CockpitResponse(BaseModel):
     as_of: date
     scope: CockpitScope
@@ -124,4 +142,4 @@ class CockpitResponse(BaseModel):
     control_gaps: list[CockpitControlGap]
     ladder: list[CockpitLadderStep]
     voting: CockpitVoting
-    emissions: None = None  # PR 2 of the spec
+    emissions: CockpitEmissions | None
