@@ -126,7 +126,7 @@ def step_tiers(settings: Settings, dsn: str, as_of: date) -> str:
     values = held_values(settings, as_of)
     with transaction(dsn) as s:
         rows = [r for r in s.execute(select(StwCompanyModel.company_id, StwCompanyModel.name, StwCompanyModel.sector)) if r.company_id in values]
-    total = sum(values[r.company_id] for r in rows)
+    total = sum(values.values())  # the share of all house holdings, as universe.from_portfolio computes it
     issuers = [
         {
             "issuer_id": r.company_id, "name": r.name or r.company_id, "region": "unknown", "sector": r.sector or "unknown", "fields": {},

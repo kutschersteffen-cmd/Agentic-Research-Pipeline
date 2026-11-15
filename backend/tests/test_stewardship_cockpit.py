@@ -391,10 +391,15 @@ def test_demo_flag_ac46(client, pg):
 # --- seed-cockpit-demo ----------------------------------------------------------------------------------------------
 
 
-def _demo_stack(pg, n_companies=16, n_engagements=40):
+def _demo_stack(pg, n_companies=16, n_engagements=40, outside_eur=0.0):
+    """`outside_eur`: one more held company, with no stewardship row, holding that much."""
     store = build_portfolio_store(get_settings())
     store.save_portfolio(Portfolio(portfolio_id="D", name="Demo"))
     holdings = []
+    if outside_eur:
+        store.save_company(CompanyRef(company_id="isin_XO0000000000", name="Outside"))
+        store.save_security(SecurityRef(security_id="XO0000000000", isin="XO0000000000", name="Outside", asset_class="equity", currency="EUR", company_id="isin_XO0000000000"))
+        holdings.append(Holding(holder_id="D", security_id="XO0000000000", as_of_date="2026-11-01", market_value_eur=outside_eur))
     with transaction(pg) as s:
         for i in range(n_companies):
             isin = f"XD{i:010d}"
@@ -451,6 +456,15 @@ def test_seed_cockpit_demo_ac47_to_ac51_ac76_to_ac78(client, pg):
         e = s.get(StwEngagementModel, eid)
         assert (e.planned_meeting_date, e.escalation_stage) == (None, stage)
     assert [r["days_to_meeting"] for r in _get(client, as_of="2026-12-01")["shareholder_meetings"]] == OFFSETS
+
+
+def test_seed_tier_weights_are_shares_of_all_house_holdings(client, pg):
+    # 16 ledger companies at EUR 1m beside EUR 10bn held elsewhere: each is ~0.01% of the house, so no top_weight
+    _demo_stack(pg, outside_eur=1e10)
+    assert _seed("2026-11-27").exit_code == 0
+    rows = TierStore(get_settings().stewardship_streams_dir).all()
+    assert rows and "top_weight" not in {r["rule"] for r in rows}
+    assert all(r["inputs"]["holding"]["index_weight_pct"] < 0.05 for r in rows)
 
 
 def test_seed_cockpit_demo_fails_without_enough_held_companies(client, pg):
