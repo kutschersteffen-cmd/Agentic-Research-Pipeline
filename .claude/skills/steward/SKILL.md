@@ -5,7 +5,8 @@ description: How an agent drives its own PR in this repo's software factory - ri
 
 Repo rules for an agent that opens or drives a PR. They sit on top of the session's own PR rules and
 never loosen them: no skipped tests, no history rewrites, and the agent never approves or merges,
-except a merge the owner approved with the merge button (`.claude/CLAUDE.md`, button mode).
+except a merge the owner approved with the merge button or the factory's no-tap merge
+(`.claude/CLAUDE.md`, button mode).
 
 ## 1. Label the risk when you open the PR
 
@@ -16,6 +17,9 @@ Pick the highest tier any changed file falls in, add the label, and say why in o
 | `risk:low` | Only `docs/**`, `*.md` outside `.claude/`, frontend copy or styles (`*.css`, text-only `.tsx` edits) | Merges once CI is green |
 | `risk:normal` | Anything not low or high | Reads the PR's acceptance matrix, then merges |
 | `risk:high` | Auth, permissions, secrets; database schema or data migrations; money, portfolio weights or index maths; deleting stored data; `.github/workflows/**`, `.claude/hooks/**`, `.claude/settings.json` | Reads the acceptance matrix and the diff |
+
+A `risk:low` or `risk:normal` PR whose `Evidence review (factory)` passed on its current head is merged
+by the factory, with nothing for the owner to do (`.claude/CLAUDE.md`, no-tap merge).
 
 When unsure between two tiers, take the higher one. Never lower a label the owner set, nor below the
 risk the factory's intake gave (your prompt names it).
