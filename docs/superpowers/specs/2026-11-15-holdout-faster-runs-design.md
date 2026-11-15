@@ -1,6 +1,6 @@
 # Faster PR checks: own hidden rows per push, full hidden suite nightly on 6 machines, backend tests on 4 (`holdout-faster-runs`)
 
-Status: draft for owner approval, 15 Nov 2026. Size L, delivered as 4 PRs (see Slices). Risk: `risk:high` for
+Status: approved by the owner (button), 15 Nov 2026. Size L, delivered as 4 PRs (see Slices). Risk: `risk:high` for
 the two workflow PRs (`.github/workflows/**`), `risk:normal` for the rule PR; the runner PR is in the private
 holdout repo. Phase 1 only; phase 2 (merge queue) is its own feature, `holdout-merge-queue`.
 
