@@ -106,10 +106,12 @@ side panel sees it with its source file, author and date.
   equal in any case are a rejection.
 - **Rows 2 onward,** one per company; an entirely empty row is skipped.
 - **Caps (before any value is kept):** file over 5,000,000 bytes → 413 `File is larger than the 5 MB upload limit.`
-  (a constant of the uploads module, separate from the `max_upload_bytes` setting); more than 30 fields or more than
-  5,000 data rows → that one rejection only, and nothing else is checked; a text value over 2,000 characters → a
+  (a constant of the uploads module, separate from the `max_upload_bytes` setting); more than 30 fields (non-empty,
+  non-reserved headers, counted before empty columns are dropped) or more than 5,000 data rows (counted after entirely
+  empty rows are skipped) → that one rejection only, and nothing else is checked; a text value over 2,000 characters → a
   rejection (below).
-- **Company:** `company_id` if filled, else `isin`; when both are filled they must name the same company.
+- **Company:** `company_id` if filled, else `isin`; when both are filled they must name the same company. When both
+  are filled and the `isin` does not resolve, the row gets only `company_id and isin name different companies`.
 - **`as_of`:** a date (Excel date cell, or `YYYY-MM-DD` text); empty means the upload date (UTC). It is shown, not used
   to order values.
 - **Values:** an empty cell gives no value (it does not clear an older value). An Excel number cell, or CSV text that
@@ -152,8 +154,9 @@ Rejections reuse `Rejection` (`sheet`: the worksheet name for xlsx, `""` for csv
   "fields": [{"name": "Feedback", "type": "text"}, …], "withdrawn_by": null, "withdrawn_at": null,
   "withdraw_reason": null, "rejected": []}`; or 422 with the same shape, `batch_id` `null` and every rejection, and
   nothing written. `fields` are the file's fields in column order with their (possibly existing) type and spelling.
-- `GET /api/stewardship/uploads` (viewer): `{"uploads": [<upload without rejected>, …]}`, newest first, withdrawn
-  ones included.
+- `GET /api/stewardship/uploads` (viewer): `{"uploads": [<upload without rejected>, …]}`, newest first by position in
+  `batches.jsonl`, withdrawn ones included.
+- `at` and `withdrawn_at` are UTC ISO 8601 strings, `YYYY-MM-DDTHH:MM:SSZ`.
 - `GET /api/stewardship/uploads/{batch_id}` (viewer): the upload and `rows: [{"company_id", "company", "as_of",
   "values": {field: value}}]` in file order, also for a withdrawn upload. Unknown id: 404.
 - `POST /api/stewardship/uploads/{batch_id}/withdraw` (analyst) `{"reason": "..."}`: 200 with the upload, `status`
@@ -235,9 +238,12 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-3 | AC-2 | `GET /api/stewardship/uploads/<batch_id>` | `rows` = `[{"company_id": "SYN01", "as_of": <today>, "values": {"Feedback": "Constructive call", "Internal rating": 3}, …}, {"company_id": "SYN02", …, "values": {"Feedback": "No reply", "Internal rating": 1}}]` (with each `company` name) | holdout |
 | AC-4 | PR 2; AC-2 | `GET /api/stewardship/worklist` | `extra_fields` = `[{"name": "Feedback", "type": "text", "companies": 2}, {"name": "Internal rating", "type": "number", "companies": 2}]` | holdout |
 | AC-5 | PR 2; AC-2 | `GET /api/stewardship/worklist` | `SYN01`'s `extra` = `{"Feedback": {"value": "Constructive call", "as_of": <today>, "batch_id": <F1's>}, "Internal rating": {"value": 3, "as_of": <today>, "batch_id": <F1's>}}`; `SYN03`'s `extra` = `{}` | holdout |
-| AC-6 | PR 2; AC-2, then Upload(`company_id,internal rating,Feedback\nSYN01,5,`) | `GET /api/stewardship/worklist` | `SYN01`'s `Internal rating` value is 5 with the second upload's `batch_id`; its `Feedback` stays `Constructive call` with F1's `batch_id` (empty cell clears nothing); `extra_fields` names the field `Internal rating` | holdout |
-| AC-43 | AC-2, then Upload(`company_id,internal rating,Feedback\nSYN01,5,`) | the upload's reply and `GET /api/stewardship/uploads/<its batch_id>` | The reply's `fields` = `[{"name": "Internal rating", "type": "number"}]` (the empty `Feedback` column is ignored); the row's `values` = `{"Internal rating": 5}` | holdout |
-| AC-7 | AC-43 | `POST /api/stewardship/uploads/<second batch_id>/withdraw` `{"reason": "wrong file"}` | Status 200 with `status` `withdrawn`, `withdraw_reason` `wrong file`, `withdrawn_by` = the signed-in user, `withdrawn_at` today | holdout |
+| AC-6 | PR 2; AC-2, then Upload(`company_id,internal rating,Feedback\nSYN01,5,`) | `GET /api/stewardship/worklist` | `SYN01`'s `Internal rating` value is 5 with the second upload's `batch_id` | holdout |
+| AC-58 | AC-6 | `GET /api/stewardship/worklist` | `SYN01`'s `Feedback` stays `Constructive call` with F1's `batch_id` (an empty cell clears nothing) | holdout |
+| AC-59 | AC-6 | `GET /api/stewardship/worklist` | `extra_fields` names the field `Internal rating` (F1's spelling), not `internal rating` | holdout |
+| AC-43 | AC-2, then Upload(`company_id,internal rating,Feedback\nSYN01,5,`) | the upload's reply | `fields` = `[{"name": "Internal rating", "type": "number"}]` (the empty `Feedback` column is ignored) | holdout |
+| AC-60 | AC-43 | `GET /api/stewardship/uploads/<its batch_id>` | The row's `values` = `{"Internal rating": 5}` | holdout |
+| AC-7 | AC-43 | `POST /api/stewardship/uploads/<second batch_id>/withdraw` `{"reason": "wrong file"}` | Status 200 with `status` `withdrawn`, `withdraw_reason` `wrong file`, `withdrawn_by` = the signed-in user, `withdrawn_at` starting with today | holdout |
 | AC-44 | PR 2; AC-7 | `GET /api/stewardship/worklist` | `SYN01`'s `Internal rating` is 3 again with F1's `batch_id` | holdout |
 | AC-8 | AC-7 | `GET /api/stewardship/uploads` | Two uploads, the second one first; it has `status` `withdrawn` and `companies` 1 | holdout |
 | AC-45 | AC-7 | `GET /api/stewardship/uploads/<second batch_id>` | Status 200 with its one row, `SYN01`, `values` `{"Internal rating": 5}` | holdout |
@@ -260,18 +266,20 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-22 | Fixture W | Upload with a header `company_id` and 31 more headers `f1`..`f31`, one row `SYN01` with `x` in each | Status 422; one rejection, row 1, field `""`, reason `at most 30 fields` | holdout |
 | AC-23 | Fixture W | Upload with header `company_id,Feedback` and 5,001 rows cycling `SYN01`..`SYN12` | Status 422; exactly one rejection: row 0, field `""`, reason `at most 5,000 rows` | holdout |
 | AC-24 | Fixture W | Upload(`company_id,Feedback\nSYN01,<2,001 × "a">`) | Status 422; one rejection, row 2, field `Feedback`, reason `at most 2,000 characters` | holdout |
-| AC-25 | Fixture W | an upload of a 6,000,000-byte CSV | Status 413 with detail `File is larger than the 5 MB upload limit.` | holdout |
+| AC-25 | Fixture W | Upload of a file named `t.csv`: `company_id,Feedback\n` followed by lines `SYN01,x` up to 6,000,000 bytes | Status 413 with detail `File is larger than the 5 MB upload limit.` | holdout |
 | AC-26 | Fixture W | `POST /uploads` with a file `t.pdf` | Status 422 with detail `Upload a .xlsx or .csv file` | holdout |
 | AC-27 | Fixture W | `POST /uploads` with a file `t.xlsx` whose bytes are `not a workbook` | Status 422; rejections `[{"sheet": "", "row": 0, "field": "", "reason": "not a valid xlsx workbook"}]` | holdout |
 | AC-28 | Fixture W | `POST /uploads` with an xlsx, first worksheet `Q4`: row 1 `company_id`, `Internal rating`, `Feedback`; row 2 `SYN01`, the number 4, `ok` | Status 200; `fields` = `[{"name": "Internal rating", "type": "number"}, {"name": "Feedback", "type": "text"}]`; the row's `Internal rating` is 4 | holdout |
-| AC-29 | Fixture W, signed in as a viewer | F1 | Status 403; `GET /uploads` stays `[]` | holdout |
+| AC-29 | Fixture W, signed in as a viewer | F1 | Status 403 | holdout |
+| AC-61 | AC-29 | `GET /api/stewardship/uploads` | `uploads` is `[]` | holdout |
 | AC-30 | Showcase data | Upload(`isin,Feedback\n<I in lower case with a space after its 2nd character>,ok`) | Status 200; `GET /uploads/<batch_id>` row has `company_id` C | holdout |
-| AC-31 | Showcase data | Upload(`company_id,isin,Feedback\n<C>,US0000000000,ok`) | Status 422; one rejection, row 2, field `isin`, reason `company_id and isin name different companies` | holdout |
+| AC-31 | Showcase data; I2 = the `identifier` of the second row of `GET /api/stewardship/worklist` whose `issuer_id` starts with `isin_` | Upload(`company_id,isin,Feedback\n<C>,<I2>,ok`) | Status 422; one rejection, row 2, field `isin`, reason `company_id and isin name different companies` | holdout |
 | AC-32 | PR 2; Fixture W; `GET /worklist` taken as W0; then F1 | `GET /api/stewardship/worklist` | Every row's `score` and `parts` equal W0's (uploads never change the score) | holdout |
 | AC-33 | PR 2; Fixture W, F1, and a group G of kind `companies` with `SYN02` and `SYN03` | `GET /api/stewardship/worklist?scope=group:<G>` | `extra_fields` lists both fields with `companies` 1 | holdout |
 | AC-34 | PR 3; Fixture W, F1 | A user opens `#/stewardship/workbench` | The table has columns `Feedback · Uploaded` and `Internal rating · Uploaded`; `SYN01`'s cells show `Constructive call` and `3` | evaluator |
-| AC-35 | AC-34 | The user adds the filter `Internal rating · Uploaded` from **Add filter ▾** | A range slider from 1 to 3 appears; moving its lower handle to 2 leaves `SYN01` and hides `SYN02` | evaluator |
-| AC-36 | AC-34 | The user opens `SYN01`'s side panel, tab **Uploaded** | Two lines, `Feedback` and `Internal rating`, each with As of = today, File `t.csv` and the uploader's name | evaluator |
+| AC-35 | AC-34 | The user adds the filter `Internal rating · Uploaded` from **Add filter ▾** | A range slider from 1 to 3 appears | evaluator |
+| AC-62 | AC-35 | The user moves the lower handle to 2 | `SYN01` stays and `SYN02` is hidden | evaluator |
+| AC-36 | AC-34 | The user opens `SYN01`'s side panel, tab **Uploaded** | Two lines, `Feedback` and `Internal rating`, each with As of = today, File `t.csv`, the uploader's name and When = today (in the format AC-54 uses) | evaluator |
 | AC-49 | AC-34 | The user opens `SYN03`'s side panel, tab **Uploaded** | It says `No uploaded data for this company.` | evaluator |
 | AC-37 | PR 3; Fixture W | The user downloads the template from **Uploaded data**, replaces its row 2 with `SYN04`, empty, empty, `Template works`, empty, and uploads it | The page says `Saved: 1 company, 1 field.` | evaluator |
 | AC-50 | AC-37 | The user reads `SYN04`'s row | Its `Feedback · Uploaded` cell shows `Template works` | evaluator |
@@ -286,7 +294,6 @@ Holdout rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words us
 | AC-40 | 2,500 issuers and an upload log of 5 uploads × 2,500 companies × 10 fields (unit fixture) | `worklist.build()` runs with and without the log | The difference is under 0.3 s on the CI runner | unit |
 | AC-41 | PR 2; Fixture W with no `uploads/` directory | `GET /api/stewardship/worklist` | Status 200, `extra_fields` `[]`, every row's `extra` `{}`; the other row fields as before (spec 1's holdout rows stay green) | holdout |
 | AC-42 | Fixture W, F1 | `GET /api/stewardship/notes?company_id=SYN01` | `notes` is `[]` (uploads write no notes) | holdout |
-
 | AC-57 | PR 1 to 3 | `pytest tests/test_stewardship_intake.py tests/test_stewardship_intake_excel.py tests/test_api_stewardship_intake.py` | All pass with no line of those three files changed | unit |
 
 Must not change: the intake routes and `read_workbook` (AC-57); the score and its parts (AC-32); the worklist without

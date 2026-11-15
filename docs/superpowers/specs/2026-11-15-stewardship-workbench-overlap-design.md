@@ -53,7 +53,8 @@ by more than one team this quarter, so one engagement can speak for all of them.
 - Overlap read as a recommendation. The tab says what the funds hold; it ranks nothing for engagement and pre-selects
   nothing.
 - Amber where nobody must act. The only amber is the existing `Proposed` tag on picks that wait for confirmation.
-- A slow tab: it must not call `worklist.build()` or `house_universe()` (the worklist takes about 4 s on the showcase,
+- A slow tab: the two new routes must not call `worklist.build()` or `house_universe()` (the tab may still use
+  `GET /worklist/scopes` for its scope list) (the worklist takes about 4 s on the showcase,
   PR #491).
 
 ## Constraints
@@ -70,7 +71,7 @@ by more than one team this quarter, so one engagement can speak for all of them.
 - Company names come from the portfolio store's company directory (`portfolio_directories(store)`, as
   `from_portfolio` names them), without reading observations. Selection rows already carry `company`.
 - Computed on every request, no cache. Reads need `viewer` (router-level `authorize`).
-- New response models: `scripts/export_openapi.py` and `npm run gen:api` in PR 1, both generated files committed; each
+- New response models go in a new `arp/schemas/overlap.py`: `scripts/export_openapi.py` and `npm run gen:api` in PR 1, both generated files committed; each
   new `request<T>()` gets a line in `frontend/src/api/contract.ts` (PR 2).
 - `DESIGN.md` ("The Annotated Report"): ink on white, accent tint for intensity, amber only for `Proposed`, square
   markers, serif figures, mono for numbers in tables, hand-built HTML/CSS, no chart library. Wide tables scroll
@@ -117,12 +118,13 @@ by more than one team this quarter, so one engagement can speak for all of them.
     "held_in": [{"portfolio_id": "portfolio_msci_world", "name": "MSCI World (...)", "weight_pct": 0.412}]}]}
 ```
 
-- `as_of`: the latest snapshot date (`null` with no holdings). `companies`: the number of distinct companies held
+- `as_of`: the latest snapshot date; `null` with no holdings and with the sample universe (on both routes). `companies`: the number of distinct companies held
   by any fund (0 with no funds). `funds[].companies`: the number of companies that fund holds.
 - `pairs`: one entry per unordered pair of funds, `a` listed before `b` in `funds` order (21 pairs for 7 funds).
   `shared_weight_pct` rounded to 2 decimals.
 - `shared_selections`: the companies picked in two or more scopes in `cycle`, sorted by the number of scopes
   (descending), then `company` (case-insensitive). `scopes`: `house` first, then by `label` (case-insensitive).
+  A scope key with no label (a deleted group or portfolio) shows the key itself as `label` and still counts.
   `held_in`: the funds that hold it, in `funds` order, `weight_pct` rounded to 3 decimals; `[]` when no fund holds it.
 - With the sample universe or no holdings: `funds` `[]`, `pairs` `[]`; `shared_selections` still lists picks (the
   sample has `house` and company groups).
@@ -183,6 +185,8 @@ Company      Picked in                                                   Held by
 Shell plc    All house holdings · Confirmed;  DAX · ✎ Proposed            Euro Stoxx 50, MSCI World, …
 ```
 
+- Numbers on the tab: counts with a comma thousands separator (`1,412`); percentages with 1 decimal, a space, then
+  `%` (`63.0 %`); grid weights with 2 decimals.
 - The fund table is square: one row and one column per fund in `funds` order; the diagonal shows `<n> companies`
   (muted); every other cell `<shared companies> · <shared weight, 1 decimal> %`, the same number in both halves. The
   cell's tooltip: `<A> and <B> share <n> companies; <A> holds <x>, <B> holds <y>.`
@@ -251,7 +255,9 @@ Holdout and evaluator rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postg
 | AC-17 | Showcase data | `GET /api/stewardship/overlap/matrix?basis=selection&scope=portfolio:nope` | Status 404 | holdout |
 | AC-18 | Fixture W, Group G; `POST /selection` `{"cycle": Q, "scope": "house", "add": ["SYN01", "SYN02"]}`; `POST /selection` `{"cycle": Q, "scope": "group:g", "add": ["SYN01"]}` | `GET /api/stewardship/overlap` | Status 200 with `funds` `[]`, `pairs` `[]` and `companies` 0 | holdout |
 | AC-39 | AC-18 | `GET /api/stewardship/overlap` | `shared_selections` holds exactly one entry: `issuer_id` `SYN01`, `held_in` `[]` | holdout |
-| AC-43 | AC-18 | `GET /api/stewardship/overlap/matrix` and `GET /api/stewardship/overlap/matrix?basis=selection&scope=house` | The first: status 200, `funds` `[]`, `companies` `[]`. The second: status 200, `companies` = `SYN01` and `SYN02` (any order), each with `house_weight_pct` `null`, `funds` 0, `weights` `{}` | holdout |
+| AC-43 | AC-18 | `GET /api/stewardship/overlap/matrix` | Status 200, `funds` `[]`, `companies` `[]`, `as_of` `null` | holdout |
+| AC-44 | AC-18 | `GET /api/stewardship/overlap/matrix?basis=selection&scope=house` | Status 200; `companies` = `SYN01` and `SYN02` (any order), each with `house_weight_pct` `null`, `funds` 0, `weights` `{}` | holdout |
+| AC-45 | Unit: a selection log for cycle Q with company `x` picked in `house` and in `group:gone`, a group that no longer exists | the shared selections are computed | `x` is listed with the scope `{"scope": "group:gone", "label": "group:gone", "status": "proposed"}` | unit |
 | AC-19 | AC-18 | — | That entry's `scopes` = `[{"scope": "house", "label": "All house holdings", "status": "proposed"}, {"scope": "group:g", "label": "g", "status": "proposed"}]` | holdout |
 | AC-20 | AC-18, then `POST /api/stewardship/selection/confirm` `{"cycle": Q, "scope": "house"}` | `GET /api/stewardship/overlap` | `SYN01`'s `house` scope has `status` `confirmed`; the `group:g` one stays `proposed` | holdout |
 | AC-21 | AC-18 | `GET /api/stewardship/overlap?cycle=2020-Q1` | Status 200, `cycle` `2020-Q1`, `shared_selections` `[]` | holdout |
@@ -268,12 +274,13 @@ Holdout and evaluator rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postg
 | AC-29 | AC-27 | The user reads `Companies across funds` | It lists 100 companies, house weight descending, one column per fund, a not-held cell shows `—` | evaluator |
 | AC-30 | AC-27 and AC-15's pick | The user chooses **Picked in** and the scope P | The grid shows exactly C | evaluator |
 | AC-31 | PR 2; Showcase data, no picks | A user opens `#/stewardship/overlap` | Under `Picked in more than one scope · <Q>` it says `No company is picked in more than one scope in <Q>.` | evaluator |
-| AC-38 | AC-31 | The evaluator reads the computed styles of every element on the page | No `color`, `background-color` or `border-color` equals DESIGN.md's `signal-amber` (#85601a) or `signal-amber-wash` (#f6ecd6), or their Night values when the dark theme is on | evaluator |
-| AC-40 | AC-31 | The evaluator lists the page's controls and its network requests while using every control | The only controls are the Top / Picked in switch, the Top select (25, 50, 100, 200) and the scope select; every request the page sends is a GET | evaluator |
+| AC-38 | AC-31 | The evaluator reads the computed styles of every element inside the Overlap tab's panel (below the tab bar) | No `color`, `background-color` or `border-color` equals DESIGN.md's `signal-amber` (#85601a) or `signal-amber-wash` (#f6ecd6), or their Night values when the dark theme is on | evaluator |
+| AC-40 | AC-31 | The evaluator lists the controls inside the Overlap tab's panel and the page's network requests while using every one of them | The only controls are the Top / Picked in switch, the Top select (25, 50, 100, 200) and the scope select; every request the page sends is a GET | evaluator |
 | AC-42 | AC-31 | The user chooses **Picked in** and the scope P | The grid area says `No company is picked in <P name> in <Q>.` | evaluator |
 | AC-32 | PR 2; Fixture W | A user opens `#/stewardship/overlap` | It says `Fund overlap needs the portfolio universe. Switch the house universe to portfolio holdings in Selection.` and still shows `Picked in more than one scope` | evaluator |
-| AC-33 | PR 1 and PR 2 | the PRs' diffs against `main` | Neither changes a line of `backend/arp/schemas/worklist.py` or `frontend/src/pages/steward/workbench.tsx` (this feature adds no worklist field) | unit |
+| AC-33 | PR 1 and PR 2 | The evaluator runs `git diff origin/main --stat` on each PR's head | Neither lists `backend/arp/schemas/worklist.py` or `frontend/src/pages/steward/workbench.tsx` (this feature adds no worklist field) | evaluator |
+| AC-46 | PR 1 and PR 2 | `pytest tests/test_overlap.py tests/test_showcase_pack.py`, and `git diff origin/main --stat` on each PR's head | The tests pass with neither test file changed, and the diff does not list `backend/arp/research/taxonomy_sources/overlap.py` or `backend/arp/api/routers/overlap.py` | unit |
 | AC-34 | PR 2; Showcase data | A user opens `#/stewardship/workbench` | The Workbench tab shows as before this feature: its three steps and the table with the showcase companies | evaluator |
 
 Must not change: the worklist response (AC-33); the Workbench tab (AC-34); the selection logs are only read (AC-24);
-`POST /api/overlap` and `compute_holdings_overlap` are not edited (their existing tests stay green).
+`POST /api/overlap` and `compute_holdings_overlap` are not edited (AC-46).
