@@ -150,7 +150,8 @@ function App() {
   useEffect(() => {
     const onHash = () => {
       const next = readRoute();
-      if (next.tab !== parseHash(shownHash.current).tab && !canLeave()) {
+      // Any change of address remounts a guarded screen (its key is its params), so even a link to the same tab asks.
+      if (window.location.hash !== shownHash.current && !canLeave()) {
         // hashchange cannot be cancelled; replaceState restores the URL without firing it again.
         history.replaceState(null, "", shownHash.current || "#");
         return;

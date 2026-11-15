@@ -27,3 +27,20 @@ test("pr1_no_sidebar_anywhere", () => {
 // App-wide top bar, PR 1.
 test("pr1_workspaces_button_named", () => assert.match(bar(), /<button(?:(?!<\/button>)[\s\S])*aria-expanded(?:(?!<\/button>)[\s\S])*\)\}\s*>\s*Workspaces/));
 test("pr1_menu_closes_on_hashchange", () => assert.ok(read("../src/lib/useDisclosure.ts").includes('addEventListener("hashchange"')));
+
+// Review fix: sticky page parts sit below the sticky top bar instead of sliding under it.
+test("pr1_sticky_parts_clear_the_top_bar", () => {
+  const css = read("../src/index.css");
+  assert.match(css, /--topbar-h: 76px;/);
+  assert.match(css, /\.ballot-bar \{ position: sticky; top: var\(--topbar-h\);/);
+  assert.match(css, /\.source-panel \{[^}]*top: calc\(var\(--topbar-h\) \+ 12px\);/);
+  assert.match(css, /\.ix-rail \{ position: sticky; top: calc\(var\(--topbar-h\) \+ var\(--s-6\)\); \}/);
+  // On a phone the two-row bar scrolls away, so nothing needs to clear it.
+  assert.match(css, /@media \(max-width: 760px\) \{ :root \{ --topbar-h: 0px; \} \.start-topbar \{ position: static; \} \}/);
+});
+
+// Review fix: no message sends people to the sidebar, which is gone.
+test("pr1_no_message_points_at_the_sidebar", () => {
+  for (const f of ["../src/lib/reviewer.ts", "../src/pages/StewardWorkflow.tsx"]) assert.ok(!/in the sidebar/.test(read(f)), f);
+  assert.match(read("../src/lib/reviewer.ts"), /SIGN_IN_REQUIRED = "[^"]*user menu/);
+});

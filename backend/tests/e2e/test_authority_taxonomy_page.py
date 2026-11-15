@@ -275,6 +275,18 @@ def test_unsaved_edit_guards(page):
     assert page.get_by_label("Criterion 1").first.input_value() == "edited"
 
 
+
+def test_unsaved_edit_guards_same_screen_links(page):
+    # Review fix (app-wide top bar): the workspace row's "Taxonomy Library" link keeps the tab (#/taxonomy) but
+    # remounts the page, so it must ask too.
+    open_run(page, review_state())
+    page.get_by_label("Criterion 1").first.fill("edited")
+    page.once("dialog", lambda d: d.dismiss())
+    page.get_by_role("navigation", name="R&D Lab screens").get_by_role("link", name="Taxonomy Library").click()
+    page.wait_for_timeout(300)
+    assert page.evaluate("() => location.hash") == "#/taxonomy/authority/r1"
+    assert page.get_by_label("Criterion 1").first.input_value() == "edited"
+
 def test_cancel_run_then_start_again(page):
     open_run(page, review_state())
     page.once("dialog", lambda d: d.accept())

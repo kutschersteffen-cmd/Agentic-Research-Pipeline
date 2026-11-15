@@ -60,7 +60,7 @@ function HouseUniverse({ onChanged }: { onChanged: () => void }) {
       ))}
       <span className="muted">
         {info.issuers} companies{info.set_by ? ` · set by ${info.set_by}` : ""}
-        {!reviewer.trim() && " · enter your name in the sidebar to change it"}
+        {!reviewer.trim() && " · enter your name in the user menu (top right) to change it"}
       </span>
       {error && <span className="error-text" role="alert">{error}</span>}
     </div>

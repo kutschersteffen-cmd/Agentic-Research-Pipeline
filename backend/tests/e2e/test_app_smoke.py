@@ -167,3 +167,33 @@ def test_overview_has_no_crumb_or_screens(page, path):
     assert page.locator(".hub-crumb").count() == 0
     assert page.locator("nav.hub-screens").count() == 0
     assert page.get_by_text("Start ›").count() == 0
+
+
+
+def _long_badge(route):
+    resp = route.fetch()
+    body = resp.json()
+    runs = body.get("runs", [])
+    for r in runs:
+        r["review_count"] = 0
+    runs.insert(0, {**(runs[0] if runs else {}), "run_id": "e2e-badge", "run_type": "extraction",
+                    "status": "completed", "review_count": 123, "updated_at": "2026-11-15T00:00:00Z"})
+    route.fulfill(response=resp, json={**body, "runs": runs})
+
+
+@pytest.mark.parametrize("width", [761, 800, 900])
+def test_top_bar_controls_never_overlap_on_tablets(page, width):
+    # Review fix: between 761px and ~850px the search label spilled over the Ask button.
+    page.route("**/api/runs", _long_badge)
+    _open(page, "/#/history", width, 700)
+    overlaps = page.evaluate("""(SEL) => {
+        const els = [...document.querySelectorAll(SEL)].map((e) => [e.className, e.getBoundingClientRect()]);
+        const bad = [];
+        for (let i = 0; i < els.length; i++) for (let j = i + 1; j < els.length; j++) {
+            const [a, c] = [els[i][1], els[j][1]];
+            if (a.left < c.right - 1 && c.left < a.right - 1 && a.top < c.bottom - 1 && c.top < a.bottom - 1) bad.push(els[i][0] + ' x ' + els[j][0]);
+        }
+        return bad; }""", ".start-topbar-brand, .start-topbar-search, .start-topbar-ask, .start-topbar-spaces-btn, "
+        ".start-topbar-nav > a, .start-topbar-me")
+    assert overlaps == []
+    assert page.evaluate("() => { const s = document.querySelector('.start-topbar-search'); return s.scrollWidth <= s.clientWidth + 1; }")

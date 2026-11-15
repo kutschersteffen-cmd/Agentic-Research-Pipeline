@@ -64,7 +64,7 @@
   --s-8: 32px;
   --s-12: 48px;
 
-  --topbar-h: 53px; /* mobile top bar: 44px target + padding + hairline */
+  --topbar-h: 76px; /* the app top bar, sticky above 760px; sticky page parts sit below it */
 
   /* Night Desk radii. Rules that use these tokens round their corners; rules
      that still set border-radius: 0 stay square until a later release. */
@@ -711,8 +711,8 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .source-panel {
   flex: 0 0 min(46%, 560px);
   position: sticky;
-  top: 12px;
-  height: calc(100vh - 24px);
+  top: calc(var(--topbar-h) + 12px);
+  height: calc(100vh - 24px - var(--topbar-h));
   max-height: 900px;
   display: flex;
   flex-direction: column;
@@ -970,13 +970,13 @@ h2 .chip-not-built { margin-left: var(--s-2); }
 .proposal-card .proposal-header { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-2); flex-wrap: wrap; }
 .proposal-text { font-size: var(--text-base); color: var(--text); margin: var(--s-1_5) 0; }
 .recommendation-line { font-size: var(--text-sm); margin: var(--s-1_5) 0; }
-.ballot-bar { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-4); margin: var(--s-3) -20px; padding: var(--s-2) 20px; background: var(--panel); border-block: 1px solid var(--panel-border); }
+.ballot-bar { position: sticky; top: var(--topbar-h); z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-4); margin: var(--s-3) -20px; padding: var(--s-2) 20px; background: var(--panel); border-block: 1px solid var(--panel-border); }
 .ballot-bar-status { display: flex; flex-direction: column; gap: var(--s-0_5); margin: 0; font-size: var(--text-sm); }
 .ballot-bar-status span { color: var(--muted); font-family: var(--font-mono); font-size: var(--text-xs); }
 .ballot-bar .toolbar { margin: 0; }
 /* On a phone the bar's two actions share one row instead of two full-width ones. */
 @media (max-width: 560px) { .ballot-bar .toolbar { flex-wrap: nowrap; width: 100%; } .ballot-bar .toolbar button { flex: 1 1 0; width: auto; padding-inline: var(--s-2); } }
-@media (max-width: 1024px) { .ballot-bar { top: var(--topbar-h); } .proposal-card { scroll-margin-top: 190px; } }
+@media (max-width: 1024px) { .proposal-card { scroll-margin-top: 190px; } }
 .meeting-line { margin: 0 0 var(--s-2); font-size: var(--text-sm); font-weight: 600; color: var(--text); }
 .supporting-data { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); margin: var(--s-2) 0; font-size: var(--text-sm); }
 .supporting-data dt { color: var(--muted); }
@@ -1150,7 +1150,7 @@ h2 .chip-not-built { margin-left: var(--s-2); }
 
 @media (min-width: 1100px) {
   .ix-compose { grid-template-columns: 208px minmax(0, 1fr); }
-  .ix-rail { position: sticky; top: var(--s-6); }
+  .ix-rail { position: sticky; top: calc(var(--topbar-h) + var(--s-6)); }
 }
 
 /* Narrower: the rail becomes a sticky, horizontally scrolling strip of
@@ -1159,7 +1159,7 @@ h2 .chip-not-built { margin-left: var(--s-2); }
   .ix-compose { gap: var(--s-4); }
   .ix-rail {
     position: sticky;
-    top: 0;
+    top: var(--topbar-h);
     z-index: 10;
     background: var(--bg);
     border-bottom: 1px solid var(--panel-border);
@@ -1171,7 +1171,7 @@ h2 .chip-not-built { margin-left: var(--s-2); }
   .ix-rail a { display: flex; align-items: baseline; gap: var(--s-1_5); white-space: nowrap; }
   .ix-rail-n:empty { display: none; }
   .ix-rail-summary { display: none; }
-  .ix-step { scroll-margin-top: 72px; }
+  .ix-step { scroll-margin-top: calc(72px + var(--topbar-h)); }
 }
 @media (max-width: 760px) {
   .ix-rail { top: var(--topbar-h); }
@@ -2339,6 +2339,14 @@ a.vc-box:hover { border-color: var(--text); }
 .ws-row a:hover { color: var(--text); }
 .ws-row a[aria-current="page"] { color: var(--text); border-bottom-color: var(--text); }
 .ws-row .ws-row-name { color: var(--text); font-weight: 600; }
+/* Tablets: the full search pill no longer fits beside Ask, Workspaces and a long badge; it becomes its icon. */
+@media (min-width: 761px) and (max-width: 1024px) {
+  .start-topbar-search { width: 36px; padding: 0; justify-content: center; justify-self: center; }
+  .start-topbar-search kbd { display: none; }
+  .start-topbar-search-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+/* On a phone the two-row bar scrolls away with the page, so nothing needs to clear it. */
+@media (max-width: 760px) { :root { --topbar-h: 0px; } .start-topbar { position: static; } }
 .start-topbar-tag { display: inline-flex; align-items: center; gap: var(--s-1_5); font-size: var(--text-xs); font-weight: 500; }
 .start-topbar-nav > a[aria-current="page"] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; }
 @media (max-width: 760px) {
