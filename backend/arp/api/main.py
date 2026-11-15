@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import asyncio
 import logging
-import threading
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -92,8 +92,9 @@ logger = logging.getLogger(__name__)
 
 
 def _warm_observations(settings) -> None:
-    """Reads every portfolio observation once into the per-file cache (PortfolioStore.latest_observation), so the
-    first Workbench request after a restart does not pay for it (owner decision 15 Nov 2026). Best effort."""
+    """Reads every portfolio observation once into the per-file cache (PortfolioStore.latest_observation) before the
+    server answers, so the first Workbench request after a restart does not pay for it (owner decisions 15 Nov 2026:
+    AC-44 holds after a restart too). Best effort: a failure only leaves the cache cold."""
     from arp.stewardship.universe import latest_observations
     from arp.storage.portfolio_store_factory import build_portfolio_store
 
@@ -123,7 +124,7 @@ async def lifespan(app: FastAPI):
     report_scheduler = get_report_scheduler()
     publishing_scheduler = get_publishing_scheduler()
     review_analytics_scheduler = get_review_analytics_scheduler()
-    threading.Thread(target=_warm_observations, args=(settings,), daemon=True, name="warm-observations").start()
+    await asyncio.to_thread(_warm_observations, settings)  # ~4 s on the 2,581-company showcase house
     scheduler.start()
     taxonomy_researcher_scheduler.start()
     calibration_scheduler.start()

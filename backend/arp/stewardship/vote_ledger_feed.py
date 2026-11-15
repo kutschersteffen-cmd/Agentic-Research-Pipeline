@@ -14,7 +14,7 @@ from arp.db.session import transaction
 from arp.storage.postgres_models import VoteDecisionModel, VoteItemModel, VoteMeetingModel
 
 
-def ledger_rows(dsn: str, window_days: int, house_issuers: list[dict] | None = None) -> list[dict]:
+def ledger_rows(dsn: str, window_days: int, house_issuers: list[dict] | None = None, held_isins: dict | None = None) -> list[dict]:
     """One row per decision on a meeting within `window_days` before the ledger's newest meeting_date.
     `house_issuers`: `house_universe()["issuers"]` when the caller already built it (building it twice is slow)."""
     M, D = VoteMeetingModel, VoteDecisionModel
@@ -37,7 +37,7 @@ def ledger_rows(dsn: str, window_days: int, house_issuers: list[dict] | None = N
             return []
         from arp.stewardship.process import house_isins
 
-        held = house_isins()  # ISIN -> house issuer holding it in the latest snapshot
+        held = house_isins() if held_isins is None else held_isins  # ISIN -> house issuer holding it in the latest snapshot
         # monitoring keys on house issuer ids: the house issuer that holds the ISIN wins; else the stw_companies
         # key (set only for a known company); else the registry's universe id for the ISIN; else `isin_<ISIN>`
         by_isin = _registry_ids(s, {r.isin for r in found if r.isin and not held.get(r.isin) and r.company_id is None}, house_issuers)
