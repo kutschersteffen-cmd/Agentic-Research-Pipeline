@@ -111,15 +111,16 @@ export function WorkbenchPanel({
 const valueCell = (l: WhyLine) => (
   <>
     {l.value.text}
-    {l.value.simulated && <Sim />}
+    {l.value.simulated && <> <Sim /></>}
   </>
 );
-const inline = (lines: WhyLine[]) =>
+const inline = (lines: WhyLine[], withValue = true) =>
   lines.length
     ? lines.map((l, i) => (
         <span key={l.id}>
           {i > 0 && ", "}
-          {l.label} {valueCell(l)}
+          {l.label}
+          {withValue && <> {valueCell(l)}</>}
         </span>
       ))
     : "—";
@@ -177,15 +178,17 @@ function WhyTab({ row, rows, data }: { row: WorklistRow; rows: WorklistRow[]; da
         </table>
       </div>
       <p>Not weighted (weight 0): {inline(w.notWeighted)}</p>
-      <p>No data, 0 points: {inline(w.noData)}</p>
+      <p>No data, 0 points: {inline(w.noData, false)}</p>
       <p>{LAST_LINE}</p>
     </>
   );
 }
 
 type Fact = { key: string; field: string; value: string; period: string; source: string; simulated: boolean };
-const factValue = (f: CompanyFactRow) =>
-  f.canonical_value !== null ? `${f.canonical_value}${f.canonical_unit ? ` ${f.canonical_unit}` : ""}` : typeof f.value === "object" ? JSON.stringify(f.value) : String(f.value);
+const NUMBER = new Intl.NumberFormat("en", { maximumFractionDigits: 2 });
+const withUnit = (v: unknown, unit: string | null | undefined) =>
+  `${typeof v === "number" ? NUMBER.format(v) : v !== null && typeof v === "object" ? JSON.stringify(v) : String(v ?? "—")}${unit ? ` ${unit}` : ""}`;
+const factValue = (f: CompanyFactRow) => (f.canonical_value !== null ? withUnit(f.canonical_value, f.canonical_unit) : withUnit(f.value, null));
 
 function CompanyTab({ row }: { row: WorklistRow }) {
   const ref = universeRef(row.issuer_id);
@@ -201,7 +204,7 @@ function CompanyTab({ row }: { row: WorklistRow }) {
     ...simulated.map((o) => ({
       key: `s${o.field_id}`,
       field: o.field_name,
-      value: `${o.value ?? "—"}${o.unit ? ` ${o.unit}` : ""}`,
+      value: withUnit(o.value, o.unit),
       period: o.period || "—",
       source: "Simulated dataset",
       simulated: true,
@@ -242,7 +245,7 @@ function CompanyTab({ row }: { row: WorklistRow }) {
                   <td>{f.field}</td>
                   <td>
                     {f.value}
-                    {f.simulated && <Sim />}
+                    {f.simulated && <> <Sim /></>}
                   </td>
                   <td>{f.period}</td>
                   <td>{f.source}</td>

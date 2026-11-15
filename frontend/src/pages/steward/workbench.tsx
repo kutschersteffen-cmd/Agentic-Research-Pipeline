@@ -433,7 +433,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
                       {shown.map((c) => (
                         <td key={c.id} className={c.id === "company" ? "wb-name" : c.id === "last_topics" ? "wb-topics" : c.numeric && !c.pinned ? "num" : undefined} title={c.id === "company" ? r.company : c.id === "last_topics" ? r.last_topics.join("; ") || undefined : undefined}>
                           {c.id === "company" ? (
-                            <button className="wb-open" data-open-row={r.issuer_id} aria-expanded={panel?.id === r.issuer_id} onClick={() => open(r.issuer_id)}>
+                            <button className="link-button wb-open" data-open-row={r.issuer_id} aria-expanded={panel?.id === r.issuer_id} onClick={() => open(r.issuer_id)}>
                               {r.company}
                             </button>
                           ) : (

@@ -2685,7 +2685,16 @@ a.vc-box:hover { border-color: var(--text); }
 /* The open row takes the well fill (a ticked row keeps its accent tint). */
 .wb-table tbody tr { cursor: pointer; }
 .wb-table tr.wb-open-row td { background: var(--well); }
-.wb-open { all: unset; cursor: pointer; display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-.wb-open:hover { text-decoration: underline; }
-.wb-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wb-table button.wb-open { all: unset; cursor: pointer; display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.wb-table button.wb-open:hover { text-decoration: underline; }
+.wb-table button.wb-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .wb-why-button { display: inline-grid; place-items: center; min-width: 24px; min-height: 24px; margin: -4px 0 -4px var(--s-1); padding: 0; line-height: 1; }
+/* Phone: the five Why columns fit without a sideways scroll, so Points stays in view. */
+@media (max-width: 760px) {
+  .wb-panel-body { padding: var(--s-3); }
+  .data-table.wb-why :is(th, td) { padding-inline: var(--s-1); white-space: normal; }
+  .data-table.wb-why .num { white-space: nowrap; }
+  .data-table.wb-why { font-size: var(--text-sm); }
+  .data-table.wb-why th { letter-spacing: 0; }
+  .data-table.wb-why th:nth-child(3) { white-space: normal; } /* Counts as: two words, two lines */
+}
