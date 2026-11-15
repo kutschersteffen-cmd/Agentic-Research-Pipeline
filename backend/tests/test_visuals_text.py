@@ -72,6 +72,13 @@ def test_section_agenda_marks_current():
     assert [p["agenda:1"].text, p["agenda:2"].text] == ["01  The gap", "■ 02  Where the gap comes from"]
 
 
+def test_section_agenda_given_on_the_visual():
+    """A filled `agenda` is used as is (numbered 1..n, the visual's number marked) instead of the deck's section slides."""
+    p = _render(Section(number=2, title="Causes", agenda=["The gap", "Causes", "Holdings"]))
+    assert [p[f"agenda:{n}"].text for n in (1, 2, 3)] == ["01  The gap", "■ 02  Causes", "03  Holdings"]
+    assert p["agenda:2"].color == "#121722" and p["agenda:1"].color != "#121722"
+
+
 @pytest.mark.parametrize("mode", ["light", "dark"])
 @pytest.mark.parametrize("kind", list(VISUALS))
 def test_text_rules(kind, mode):

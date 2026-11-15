@@ -1,5 +1,5 @@
 """`section` (mockup 1): full-bleed `ground`; an outlined number, title and summary centred on the left; the agenda
-(every section slide of the deck, the current one marked with a square) bottom-right. `box` is the canvas."""
+(the visual's `agenda`, else every section slide of the deck; the current one marked with a square) bottom-right. `box` is the canvas."""
 
 from arp.reporting.render_model import MARGIN, S8, S12, S24, VISUALS, Primitive, Rect, Text, palette
 from arp.reporting.visuals._common import LEADING, fonts, lines, strip
@@ -25,13 +25,16 @@ def render(visual, box, ctx):
         out.append(Text("section:summary", x, y + num_h + S8 + title_h + S24, w, sum_h, visual.summary, SUMMARY, 400, body,
                         c["muted"], fill_under=g))
 
-    agenda = [(i, s.visual) for i, s in enumerate(ctx.deck.slides) if s.visual is not None and s.visual.type == "section"]
+    if visual.agenda:  # filled: entry n is section n
+        agenda = [(n == visual.number, n, t) for n, t in enumerate(visual.agenda, start=1)]
+    else:
+        agenda = [(i == ctx.index, s.visual.number, s.visual.title) for i, s in enumerate(ctx.deck.slides)
+                  if s.visual is not None and s.visual.type == "section"]
     line_h = AGENDA * LEADING
     ay = box.y + box.h - MARGIN - len(agenda) * line_h - S12 * (len(agenda) - 1)
-    for n, (i, v) in enumerate(agenda, start=1):
-        current = i == ctx.index
+    for n, (current, number, title) in enumerate(agenda, start=1):
         out.append(Text(f"agenda:{n}", box.x + box.w - MARGIN - AGENDA_W, ay, AGENDA_W, line_h,
-                        f"{'■ ' if current else ''}{v.number:02d}  {v.title}", AGENDA, 400, mono,
+                        f"{'■ ' if current else ''}{number:02d}  {title}", AGENDA, 400, mono,
                         c["ink" if current else "muted"], align="right", fill_under=g))
         ay += line_h + S12
     return out
