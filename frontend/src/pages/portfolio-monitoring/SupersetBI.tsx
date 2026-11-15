@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { embedDashboard } from "@superset-ui/embedded-sdk";
 import { api } from "../../api/client";
-import { designRequestBody, embedErrorText, embedUrlFor, SUPERSET_URL } from "../../lib/biEmbed";
+import { clarificationText, designRequestBody, embedErrorText, embedUrlFor, SUPERSET_URL } from "../../lib/biEmbed";
 import { apiMessage, initialPicker, isOther, projectGroups, reducePicker, saveBody, UNSCOPED_CAVEAT } from "../../lib/projects";
 import type { BIDesignResult, DashboardItem, OpenedDashboard } from "../../types";
 import { ProjectBar } from "./ProjectBar";
@@ -67,6 +67,9 @@ export function EmbeddedDashboard({ dashboardId, title, companyId = null }: { da
 
 /** What the designer did with the last brief. The dashboard itself shows in the picker above. */
 function ResultView({ result, onSave }: { result: BIDesignResult; onSave?: () => void }) {
+  if (result.clarification_needed) {
+    return <div className="banner banner-warning" role="status">{clarificationText(result.clarification_needed)}</div>;
+  }
   if (result.dashboard_id === null) {
     return (
       <div className="banner banner-warning">

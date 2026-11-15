@@ -414,3 +414,23 @@ def test_unpublish_dashboard_puts_published_false():
     c.unpublish_dashboard(5)
     assert calls[-1].method == "PUT" and calls[-1].url.path == "/api/v1/dashboard/5"
     assert json.loads(calls[-1].content) == {"published": False}
+
+
+def test_chart_params_parses_the_saved_params_json():
+    c, calls = _client(lambda r: httpx.Response(200, json={"result": {"id": 5, "params": '{"viz_type": "pie", "metric": "M"}'}}))
+    assert c.chart_params(5) == {"viz_type": "pie", "metric": "M"}
+    assert calls[-1].method == "GET" and calls[-1].url.path == "/api/v1/chart/5"
+
+
+def test_chart_params_round_trips_what_create_chart_saved():
+    saved = {}
+
+    def handle(req):
+        if req.method == "POST":
+            saved["params"] = json.loads(req.content)["params"]
+            return httpx.Response(201, json={"id": 9})
+        return httpx.Response(200, json={"result": {"id": 9, "params": saved["params"]}})
+
+    c, _ = _client(handle)
+    c.create_chart("A", 3, "pie", {"metric": "M", "groupby": ["sector"]})
+    assert c.chart_params(9) == {"metric": "M", "groupby": ["sector"], "datasource": "3__table", "viz_type": "pie"}

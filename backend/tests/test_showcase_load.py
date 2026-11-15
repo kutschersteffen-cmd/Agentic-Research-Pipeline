@@ -252,3 +252,27 @@ def test_the_simulated_schema_is_served_next_to_the_climate_schema():
     assert body["schema_id"] == "simulated_esg" and body["name"] == "Simulated ESG"
     assert [f["field_id"] for f in body["fields"]] == FIELD_IDS and len(FIELD_IDS) == 25
     assert {f["field_id"] for f in body["fields"] if f["data_type"] == "boolean"} == {"controversial_weapons", "norms_violation", "severe_controversy"}
+
+
+def test_the_template_views_have_rows_after_the_load(env, pg):
+    """Every `bi` view the four dashboard templates read shows rows after a showcase load with real publish_rows."""
+    import re
+
+    from sqlalchemy import text
+
+    from arp.bi.views import create_bi_views
+    from arp.storage.postgres import get_engine
+    from arp.storage.postgres_portfolio_store import PostgresPortfolioStore
+
+    store, settings, holdings, dataset, _ = env
+    lines = []
+    assert load(PostgresPortfolioStore(pg, store), settings, holdings, dataset, lines.append), lines
+    runs = [tuple(map(int, m.groups())) for line in lines if (m := re.match(r"ok run \S+: (\d+) alerts, (\d+) triggers", line))]
+    with get_engine(pg).begin() as conn:
+        create_bi_views(conn)
+        count = {v: conn.execute(text(f"SELECT count(*) FROM bi.{v}")).scalar() for v in (
+            "holdings", "holdings_history", "portfolio_climate_metrics", "company_profile", "alerts", "triggers"
+        )}  # fmt: skip
+    assert all(count[v] >= 1 for v in ("holdings", "holdings_history", "portfolio_climate_metrics", "company_profile")), count
+    assert count["alerts"] >= 1 or not any(a for a, _ in runs), (count, lines)
+    assert count["triggers"] >= 1 or not any(t for _, t in runs), (count, lines)

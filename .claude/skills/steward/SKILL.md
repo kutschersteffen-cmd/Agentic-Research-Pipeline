@@ -42,6 +42,15 @@ checks is legitimate. If the premise is wrong, fix the premise, not the symptom.
 `Blocked: fix limit` comment. Classify the failure first (this PR's, red on `main` too, or gone on one
 re-run) and re-run at most once.
 
+The third round is not yours alone. Before it, start a fresh session to diagnose: `create_session` on
+this repo, `model: fable`, `permission_mode: auto`, title `fix diagnosis: PR #<n>`, prompt: *"Diagnose
+the failing check `<check>` on PR #<n>. You did not write it. Two fixes failed: `<sha>` <one line
+each>. Reproduce the failure, say what the check assumes and whether that state is legitimate, and
+find the root cause. Don't push and never attach the holdout repo. Post one PR comment headed `Fix
+diagnosis (factory)`: premise, cause with `path:line`, the smallest fix, and the command that shows
+it. Then send one line to session `<your id>` with `send_message`."* Your third round applies that
+diagnosis, or says in the PR why not. If `create_session` is unavailable, go on without it.
+
 ## 3. A wrong spec is a question, never a reinterpretation
 
 If the spec or its acceptance table contradicts itself, is impossible, or can be read two ways that
