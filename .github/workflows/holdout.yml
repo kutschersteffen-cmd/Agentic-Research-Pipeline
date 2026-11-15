@@ -53,7 +53,7 @@ jobs:
       commit: ${{ steps.plan.outputs.commit }}
     steps:
       # Skipped, still reporting success so a required check never stays pending:
-      # - a title-only edit when this commit already has a successful run (a failed or cancelled one reruns);
+      # - a title-only edit when the newest completed run on this commit succeeded (a failed or cancelled one reruns);
       # - PRs that change no app code: every file under docs/ or .claude/, or a *.md anywhere;
       # - no HOLDOUT_TOKEN.
       # Otherwise it picks the test jobs (`parts`) and the holdout commit every job checks out.
@@ -73,7 +73,7 @@ jobs:
         run: |
           skip() { echo "enabled=false" >>"$GITHUB_OUTPUT"; echo "$1"; exit 0; }
           if [ "$EVENT" = pull_request ]; then
-            if [ "$TITLE_ONLY_EDIT" = true ] && [ "$(gh run list --workflow holdout.yml --commit "$HEAD_SHA" --status success --json databaseId --jq length)" -gt 0 ]; then
+            if [ "$TITLE_ONLY_EDIT" = true ] && [ "$(gh run list --workflow holdout.yml --commit "$HEAD_SHA" --status completed --limit 1 --json conclusion --jq '.[0].conclusion')" = success ]; then
               skip "Holdout acceptance skipped: the edit did not change the PR body and this commit already passed."
             fi
             files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate --jq '.[].filename') || files=""
@@ -90,6 +90,10 @@ jobs:
           spec="" rows="" full=true
           if [ "$EVENT" = pull_request ]; then
             spec=$(printf '%s\n' "$PR_BODY" | sed -n 's/^Spec: *\([A-Za-z0-9_.-]*\).*/\1/p' | head -1)
+            if [ -z "$spec" ] && printf '%s\n' "$PR_BODY" | grep -qE '^[[:space:]>*_]*Spec:'; then
+              echo "Holdout acceptance: unreadable Spec: line; write it as a line of its own: Spec: <slug>"
+              exit 1
+            fi
             if [ -n "$spec" ]; then rows=$(printf '%s\n' "$PR_BODY" | sed -n 's/^Rows: *\([AC0-9, -]*\).*/\1/p' | head -1 | tr -d ' '); fi
             # The opt-in is a line that is exactly `Holdout: full` (trailing whitespace, including \r, allowed).
             if printf '%s\n' "$PR_BODY" | grep -qE '^Holdout: full[[:space:]]*$'; then full=true; else full=false; fi
@@ -218,6 +222,7 @@ jobs:
           repository: kutschersteffen-cmd/holdout
           ref: ${{ needs.setup.outputs.commit }}
           token: ${{ secrets.HOLDOUT_TOKEN }}
+          persist-credentials: false
           path: .holdout
 
       - name: Run the hidden tests
@@ -229,8 +234,11 @@ jobs:
         run: |
           set -o pipefail
           if [ "$PART" = own ]; then
-            python .holdout/run.py --spec "$SPEC" ${ROWS:+--rows "$ROWS"} --count
-            python .holdout/run.py --spec "$SPEC" ${ROWS:+--rows "$ROWS"} --no-regression
+            count=$(python .holdout/run.py --spec "$SPEC" ${ROWS:+--rows "$ROWS"} --count)
+            echo "$count"
+            python .holdout/run.py --spec "$SPEC" ${ROWS:+--rows "$ROWS"} --no-regression | tee "$RUNNER_TEMP/own.txt"
+            got=$(grep -cE '^[^ ]+ AC-[^ ]+: (pass|fail|skip)$' "$RUNNER_TEMP/own.txt" || true)
+            if [ "$count" != "holdout rows: $got" ]; then echo "holdout rows: $got result lines, expected ${count#holdout rows: }"; exit 1; fi
           else
             python .holdout/run.py --shard "$PART" | tee "$RUNNER_TEMP/out.txt"
           fi
@@ -252,6 +260,7 @@ jobs:
           name: holdout-results-${{ strategy.job-index }}
           path: ${{ runner.temp }}/results/out.txt
           if-no-files-found: ignore
+          overwrite: true  # "Re-run failed jobs" uploads the same name again
           retention-days: 7
 
   acceptance:
@@ -313,17 +322,13 @@ jobs:
           cache: "pip"
           cache-dependency-path: backend/pyproject.toml
 
-      # run.py --list starts no app; the packages are there in case it imports them while collecting rows.
-      - name: Install the test packages
-        if: ${{ !cancelled() && steps.jobs.outputs.complete == 'true' }}
-        run: (cd backend && pip install -e ".[dev,postgres,opensearch,emerging_themes,object_storage]")
-
       - uses: actions/checkout@v4
         if: ${{ !cancelled() && steps.jobs.outputs.complete == 'true' }}
         with:
           repository: kutschersteffen-cmd/holdout
           ref: ${{ env.COMMIT }}
           token: ${{ secrets.HOLDOUT_TOKEN }}
+          persist-credentials: false
           path: .holdout
 
       - name: Check every row ran exactly once
@@ -332,7 +337,11 @@ jobs:
         shell: bash
         run: |
           echo "holdout commit: $COMMIT"
-          python .holdout/run.py --list >"$RUNNER_TEMP/list.txt"
+          # run.py --list starts no app; install the test packages only if collecting rows needs them.
+          if ! python .holdout/run.py --list >"$RUNNER_TEMP/list.txt" 2>/dev/null; then
+            (cd backend && pip install -q -e ".[dev,postgres,opensearch,emerging_themes,object_storage]")
+            python .holdout/run.py --list >"$RUNNER_TEMP/list.txt"
+          fi
           rm -rf .holdout
           find "$RUNNER_TEMP/results" -name out.txt -print0 | sort -z >"$RUNNER_TEMP/files"
           if xargs -0 -a "$RUNNER_TEMP/files" python3 .github/scripts/holdout_complete.py "$SHARDS" "$RUNNER_TEMP/list.txt" |
@@ -401,7 +410,12 @@ jobs:
             done
           } >"$RUNNER_TEMP/issue.md"
           if [ "$DRILL" = true ]; then title="Holdout drill failed"; else title="Nightly Holdout failed"; fi
-          gh issue create --repo "$GITHUB_REPOSITORY" --title "$title $(date -u +%F)" --body-file "$RUNNER_TEMP/issue.md"
+          title="$title $(date -u +%F)"
+          if gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 200 --json title --jq '.[].title' | grep -qxF "$title"; then
+            echo "Issue \"$title\" is already open (re-run); not opening another."
+            exit 0
+          fi
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$RUNNER_TEMP/issue.md"
 
       - name: Close the failure issues after a green full run on main
         if: >-
