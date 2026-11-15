@@ -6,10 +6,19 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  BACKEND_SHARDS: 4  # also the length of backend-shard's matrix below
+
 jobs:
-  backend:
-    name: Backend (lint + tests)
+  # The backend suite runs in BACKEND_SHARDS parts; `Backend (lint + tests)` (the required check)
+  # passes only when every part passed and together they ran exactly the collected tests.
+  backend-shard:
+    name: Backend shard ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     defaults:
       run:
         working-directory: backend
@@ -76,6 +85,17 @@ jobs:
       - name: Private NLTK data (nltk >= 3.10.4 refuses shared dirs)
         run: . "$GITHUB_WORKSPACE/.github/scripts/private_nltk_data.sh"
 
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(python -c 'import importlib.metadata as m; print(m.version("playwright"))')" >> "$GITHUB_OUTPUT"
+
+      # Caches only the browser download; the system packages (--with-deps) still install.
+      - name: Cache Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
       - name: Install Chromium (HTML deck fit checks)
         run: python -m playwright install --with-deps chromium
 
@@ -94,8 +114,69 @@ jobs:
       - name: API contract snapshot up to date
         run: python scripts/export_openapi.py --check
 
-      - name: Pytest
-        run: pytest -q --cov=arp --cov-report=xml
+      - name: Collect the whole suite
+        run: |
+          mkdir -p "$RUNNER_TEMP/backend-shard"
+          pytest --collect-only -q > "$RUNNER_TEMP/backend-shard/collected.txt"
+
+      - name: Pytest (part ${{ matrix.shard }} of 4)
+        env:
+          PYTHONPATH: ${{ github.workspace }}/.github/scripts
+          COVERAGE_FILE: ${{ runner.temp }}/backend-shard/coverage
+        run: >-
+          pytest -q -p pytest_shard --shard ${{ matrix.shard }}/${{ env.BACKEND_SHARDS }}
+          --shard-report "$RUNNER_TEMP/backend-shard/ran.txt" --cov=arp --cov-report=
+
+      - name: Hand the results to Backend (lint + tests)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-shard-${{ matrix.shard }}
+          path: ${{ runner.temp }}/backend-shard/
+          retention-days: 3
+
+  backend:
+    name: Backend (lint + tests)
+    if: always()  # never skipped: a skipped required check would count as passed
+    needs: backend-shard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # diff-cover compares with the base branch
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Self-test the shard check
+        run: python ../.github/scripts/backend_shards.py --selftest
+
+      - name: Download the shard results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: backend-shard-*
+          path: ${{ runner.temp }}/shards
+
+      - name: Every test ran exactly once
+        if: ${{ !cancelled() }}
+        run: python ../.github/scripts/backend_shards.py "$BACKEND_SHARDS" "$RUNNER_TEMP/shards"
+
+      - name: All shards passed
+        if: ${{ !cancelled() }}
+        run: |
+          echo "backend shards: ${{ needs.backend-shard.result }}"
+          test "${{ needs.backend-shard.result }}" = success
+
+      - name: Combine coverage
+        run: |
+          pip install "coverage>=7.5,<8.0" "diff-cover>=10.0,<11.0"
+          coverage combine "$RUNNER_TEMP"/shards/*/coverage
+          coverage xml -o coverage.xml
 
       # Lines this PR adds or changes must be >= 80% covered; untouched code doesn't count.
       - name: Diff coverage (changed lines >= 80%)
