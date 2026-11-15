@@ -2562,7 +2562,8 @@ export interface RunCompany {
   entity_id?: string | null;
 }
 
-/** Superset BI designer (/api/bi). A refused plan is a 200 with `rejected` reasons and no dashboard. */
+/** Superset BI designer (/api/bi). A plan that fails validation is a 200 with `rejected` reasons and no dashboard;
+ * a question back from the model is a 200 with `clarification_needed`. */
 export type BIChartSpec = Served<S["ChartSpec-Output"]>;
 
 export type BIChartPlan = Served<S["ChartPlan"]>;
