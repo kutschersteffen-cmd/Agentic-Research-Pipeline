@@ -64,14 +64,15 @@ export function FilterBuilder({ rows, columns, filters, onChange }: { rows: Work
 
 function AddFilterMenu({ indicators: list, onPick }: { indicators: Indicator[]; onPick: (i: Indicator) => void }) {
   const ref = useRef<HTMLDetailsElement>(null);
+  const search = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const q = query.trim().toLocaleLowerCase();
   const shown = q ? list.filter((i) => i.label.toLocaleLowerCase().includes(q)) : list;
   return (
-    <details ref={ref} className="wb-menu" onToggle={(e) => !(e.target as HTMLDetailsElement).open && setQuery("")}>
+    <details ref={ref} className="wb-menu" onToggle={(e) => ((e.target as HTMLDetailsElement).open ? search.current?.focus() : setQuery(""))}>
       <summary>Add filter ▾</summary>
       <div className="wb-menu-panel wb-filter-menu" role="group" aria-label="Add filter">
-        <input type="search" aria-label="Find an indicator" placeholder="Find an indicator" value={query} autoFocus onChange={(e) => setQuery(e.target.value)} />
+        <input type="search" aria-label="Find an indicator" placeholder="Find an indicator" value={query} ref={search} onChange={(e) => setQuery(e.target.value)} />
         <div className="wb-filter-options">
           {shown.map((i) => (
             <button
@@ -105,10 +106,15 @@ function FilterChip({
   onRemove: () => void;
 }) {
   const text = chipText(f, rows);
+  const chip = useRef<HTMLButtonElement>(null);
+  const close = () => {
+    onClose();
+    chip.current?.focus();
+  };
   return (
-    <span className="wb-filter" onKeyDown={(e) => e.key === "Escape" && onClose()}>
+    <span className="wb-filter" onKeyDown={(e) => e.key === "Escape" && open && close()}>
       <span className="chip wb-sort-chip wb-filter-chip">
-        <button className="link-button wb-filter-text" aria-expanded={open} title={text} onClick={onToggle}>
+        <button ref={chip} className="link-button wb-filter-text" aria-expanded={open} title={text} onClick={onToggle}>
           {text}
         </button>
         <button className="link-button" aria-label={`Remove the ${f.ind.label} filter`} title="Remove this filter" onClick={onRemove}>
@@ -123,7 +129,7 @@ function FilterChip({
               <input type="checkbox" checked={f.includeEmpty} onChange={(e) => onChange({ includeEmpty: e.target.checked })} />
               Include empty
             </label>
-            <button className="secondary" onClick={onClose}>
+            <button className="secondary" onClick={close}>
               Done
             </button>
           </div>
@@ -151,8 +157,8 @@ function FilterControl({ filter: f, rows, onChange }: { filter: Filter; rows: Wo
       return (
         <>
           <div className="wb-range">
-            <input type="range" aria-label={`Lowest ${ind.label}`} min={b.min} max={b.max} step={step} value={lo} onChange={(e) => setLo(Number(e.target.value))} />
-            <input type="range" aria-label={`Highest ${ind.label}`} min={b.min} max={b.max} step={step} value={hi} onChange={(e) => setHi(Number(e.target.value))} />
+            <input type="range" aria-label={`Lowest ${ind.label}`} aria-valuetext={amount(lo, ind)} min={b.min} max={b.max} step={step} value={lo} onChange={(e) => setLo(Number(e.target.value))} />
+            <input type="range" aria-label={`Highest ${ind.label}`} aria-valuetext={amount(hi, ind)} min={b.min} max={b.max} step={step} value={hi} onChange={(e) => setHi(Number(e.target.value))} />
           </div>
           <div className="wb-range-boxes">
             <NumberBox label={`Lowest ${ind.label}`} value={lo} decimals={d} min={b.min} max={b.max} onChange={setLo} />
@@ -174,7 +180,7 @@ function FilterControl({ filter: f, rows, onChange }: { filter: Filter; rows: Wo
       return (
         <label className="wb-slider-label">
           <span>{words}</span>
-          <input type="range" aria-label={`${ind.label}: ${ind.kind === "count" ? "at least" : "at most n days"}`} min={0} max={max} step={1} value={n} onChange={(e) => onChange({ n: Number(e.target.value) })} />
+          <input type="range" aria-label={ind.label} aria-valuetext={words} min={0} max={max} step={1} value={n} onChange={(e) => onChange({ n: Number(e.target.value) })} />
           <span className="muted">0 to {max}</span>
         </label>
       );

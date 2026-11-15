@@ -2667,7 +2667,7 @@ a.vc-box:hover { border-color: var(--text); }
 .wb-filter-foot .checkbox-label { margin: 0; }
 .wb-checklist { max-height: 16rem; overflow: auto; }
 .wb-checks .checkbox-label { margin: var(--s-1) 0; }
-.wb-clear { min-height: 24px; }
+.wb-clear { min-height: 24px; margin: 0; }
 /* Two handles on one track: the inputs overlap, only their thumbs take the pointer. */
 .wb-range { position: relative; height: 28px; margin: var(--s-1) 0 var(--s-2); }
 .wb-range::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: var(--panel-border); transform: translateY(-50%); }
