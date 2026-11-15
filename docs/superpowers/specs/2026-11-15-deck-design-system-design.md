@@ -95,6 +95,8 @@ meetings next to the ARP app, so they should look like the same product.
   - Each of the three theme blocks may hold one or more marker pairs, placed around the existing lines.
     No lines move.
   - `index.css` keeps literal values, so `nightDeskTokens.test.ts` keeps working unchanged.
+  - `--accent` and `--sidebar-bg` equal `ink` and `well` today but are app-only choices: they stay
+    outside the shared tokens and are not generated.
   - A new frontend test, `index_css_matches_design_tokens`, fails when running the generator would
     change `index.css`.
 - **Deck:** `house_style.load_tokens()` takes the deck colours from `design_tokens.json`:
@@ -122,7 +124,9 @@ meetings next to the ARP app, so they should look like the same product.
 - **`ChartSpec.highlight`** (`str | None = None`): one category value. It applies to bar and column
   charts with exactly one value column. That category's bar is drawn in `cat-1` and every other bar in
   `well`. On any other chart, or when the category is not in the data, it is ignored: colours stay as
-  today and one `bad_reference` finding is logged.
+  today and `build_house_deck`'s findings hold one `bad_reference` (stage `data`) for that slide.
+  In the HTML SVG each bar's group has `id="bar-<category>"` (matplotlib `set_gid`), so a bar can be
+  found by its category.
 - **`TableSpec.highlight_row`** (`int | None = None`, 0-based index into the visible body rows, header
   excluded): that row's cells
   get a `well` fill, with bold runs in the PPTX and `font-weight` 600 in the HTML.
