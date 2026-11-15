@@ -188,8 +188,11 @@ the Review Queue badge.
 - **Tests in `frontend/tests/nightDeskTokens.test.ts`:**
   - retired: `r4_ac10`, `r4_ac10b`, `r4_ac10c`, `r4_ac11`, `r4_ac11b`, `r4_ac11c`,
     `r4_waiting_link_wraps`;
-  - `ac13_amber_usage_unchanged`: the allow-list drops `.hub-waiting`, `.hub-card-await .hub-card-icon`
-    and `.hub-card-await .hub-ico` (the old icons go), and adds the four selectors above.
+  - `ac13_amber_usage_unchanged`: the allow-list drops `.hub-waiting` and
+    `.hub-card-await .hub-card-icon`, and adds the four selectors above. The `.hub-card-await .hub-ico`
+    rules (`index.css` lines 1729–1730) are deleted with the old icons. The test matches line by line,
+    so each of the four new rules is written on one line, for example
+    `.hub-card-await { border-color: var(--await-edge); }`.
 - **Tests edited in `backend/tests/e2e/test_app_smoke.py`:**
   - `test_opening_arp_lands_on_the_landing_page` expects `.start-topbar` (count 1) instead of
     `.app-sidebar` after "Open ARP →".
@@ -210,6 +213,11 @@ the Review Queue badge.
 | AC-3b | `StartTopbar.tsx` | Read | The Ask ARP button is rendered only inside a `canAsk &&` condition, and `canAsk` is passed from `App.tsx`'s existing `canAsk` | unit |
 | AC-4 | `reviewBadge` | Called with 0, 1 and 15 | Returns `null`, `{ text: "1 item", title: "1 review item waiting on you" }` and `{ text: "15 items", title: "15 review items waiting on you" }` | unit |
 | AC-5 | `App.tsx` and `StartTopbar.tsx` | Read | Both build the Review Queue badge with `reviewBadge(` from the same `waiting.review` value | unit |
+
+Accepted exceptions to "observable": AC-3b and AC-5 are source checks. The e2e stack's dev auth always signs in the approver `dev` (no viewer), its seed has 0 Review Queue items, and the frontend has no render-test harness. AC-4 covers the badge's visible text.
+
+| ID   | Given | When | Then (observable, exact) | Checked by |
+|------|-------|------|--------------------------|------------|
 | AC-6 | `/#/home` | The search button is clicked | The command palette dialog is visible | evaluator |
 | AC-6b | `/#/home`, approver `dev` | "Ask ARP" is clicked | The Ask panel opens | evaluator |
 | AC-6c | The Ask panel opened from the top bar | The panel is closed | Focus is on the "Ask ARP" button | evaluator |
@@ -233,11 +241,11 @@ the Review Queue badge.
 | AC-12b | `cardStatus`, every case in AC-12 | Its result is read | `detail` never equals `word` | unit |
 | AC-12c | `index.css` | Read | `.hub-status-wait` sets `color: var(--hi-ink)`; `.hub-status-now` `var(--run)`; `.hub-status-failed` `var(--low)`; `.hub-status-done`, `.hub-status-idle` and `.hub-status-unknown` `var(--muted)` | unit |
 | AC-12d | `index.css` | Read | `.hub-mark-*` are 8px squares; `.hub-mark-done` fills `var(--text)`, `-now` `var(--run)`, `-wait` `var(--hi)`, `-failed` `var(--low)`; `-idle` has a 1px solid `var(--muted)` outline and `-unknown` a 1px dashed one | unit |
-| AC-12e | `index.css` | Read | No rule whose selector contains `-now` uses `var(--hi` or `var(--await`; `.hub-mark-now` and `.ws-accent-now` use `var(--run)` | unit |
+| AC-12e | `index.css` | Read | No rule whose selector starts with `.hub-status-now`, `.hub-mark-now`, `.ws-accent-now` or `.hub-card` and contains `-now` uses `var(--hi` or `var(--await`; `.hub-mark-now` and `.ws-accent-now` use `var(--run)` | unit |
 | AC-13a | `drawing` | Called for each of the five ids with accent `null`, `"wait"` and `"now"` | Exactly 0, 1 and 1 shapes have `accent: true` | unit |
 | AC-13b | `drawing` | Called for the five ids with accent `null` | The five shape lists are pairwise different | unit |
 | AC-13c | `index.css` | Read | `.ws-drawing path` sets `stroke-width: 1px`; `.ws-face` sets `fill: var(--panel)`; the drawing stroke is a `color-mix` of `var(--text)` between 20% and 30% | unit |
-| AC-13d | `/#/home` | The cards are read | Every card holding a `.hub-mark-wait` has the class `hub-card-await`; no other card does | evaluator |
+| AC-13d | `/#/home` on the e2e seed, StewardIQ waiting on its open stewardship decisions (a stack without them counts as a fail) | The cards are read | Every card holding a `.hub-mark-wait` has the class `hub-card-await`; no other card does | evaluator |
 | AC-14 | `WorkspaceDrawing.tsx` and `workspaceDrawing.ts` | Read | Neither contains a hex, `rgb(`, `rgba(`, `hsl(` or `oklch(` literal, or a CSS named colour | unit |
 | AC-15 | `/#/home` with the backend stopped | The page loads | No element except the lockup's apex (which uses `--brand-apex`) has a computed colour, background, fill, stroke or border colour equal to the computed `--hi` or `--hi-ink` | evaluator |
 | AC-16a | `/#/home`, 390×844 | The page loads | `document.documentElement.scrollWidth` ≤ 390 | evaluator |
