@@ -125,6 +125,6 @@ def _diff_share(a: Path, b: Path) -> float:
 def test_sheet_matches_goldens(sheet_dir):
     goldens = sorted(GOLDEN.glob("*.png"))
     assert {g.stem for g in goldens} == {*NAMES, "sheet"}
-    for g in goldens:
-        share = _diff_share(sheet_dir / g.name, g)
-        assert share <= 0.005, f"{g.name}: {share:.2%} of pixels differ"
+    shares = {g.name: _diff_share(sheet_dir / g.name, g) for g in goldens}
+    off = [f"{name}: {share:.2%}" for name, share in shares.items() if share > 0.005]  # every differing PNG, not the first
+    assert not off, "pixels differ from the goldens: " + ", ".join(off)

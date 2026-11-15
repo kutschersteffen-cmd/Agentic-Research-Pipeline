@@ -49,7 +49,10 @@ dependencies = [
     # templates, rendered to pdf/png and fit-measured in headless Chromium.
     # CI and dev install the browser with `python -m playwright install chromium`.
     "jinja2>=3.1,<4.0",
-    "playwright>=1.45,<2.0",
+    # Pinned exactly: each release bundles one Chromium build, and the slide goldens
+    # (tests/golden/slides) are pixel-compared. 1.63.0 installs chromium-1243
+    # (Chrome 153.0.8010.12), the build the goldens were rendered with.
+    "playwright==1.63.0",
     # Decision Studio rule graphs (arp/decision/rules.py): GoRules ZEN, MIT.
     # Pinned exactly, in lockstep with frontend/package.json's
     # @gorules/zen-engine-wasm32-wasi: the browser previews a rule with the
