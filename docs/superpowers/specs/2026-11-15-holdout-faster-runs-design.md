@@ -151,6 +151,12 @@ The app builder never attaches the holdout repo and only calls these flags.
 | `--list` | Prints one row ID per line for the rows the other flags select, and runs nothing. A row ID is the row's identity exactly as it appears in that row's result line (the line that ends in pass or fail). |
 | (with `--shard K/N`) | Before any result line, prints `holdout shard: K/N` with the K and N it was given. |
 
+**What "the full suite" covers.** `--shard` splits exactly what a plain `run.py` runs today (the regression
+suite). Today a merged spec's rows run after its merge only if they are part of that suite, and this spec does
+not change that. The slice-1 PR states in its description how a merged spec's rows join the regression suite;
+if they do not today, slice 1 adds that step, because after this change PRs no longer run the regression suite
+and the nightly run is the only place older rows run.
+
 Unchanged: plain `run.py`, `--spec`, `--rows`, the existing result lines (one per row, ending in pass or fail;
 `holdout.yml`'s header calls them `AC-n pass|fail`, the steward skill quotes a failure as `<slug> AC-n: fail`),
 the `<group>: done in N s` lines, exit 1 when any row fails and 0 when all pass, the 600 s per-test timeout. The
@@ -172,19 +178,24 @@ How the parts are balanced (stored timings, row counts) is the holdout session's
   `holdout: nothing to run` and succeeds. Existing skips (title-only edit, docs-only, no token) stay.
 - **PR with the opt-in line, nightly run, manual run:** 6 shard jobs `Holdout shard K/6`, each
   `run.py --shard K/6`. Each passes to the aggregate the K/N from the runner's own `holdout shard: K/N` line and
-  the row IDs of its result lines. A PR with the opt-in line and a `Spec:` line also runs its own-rows job;
+  its result lines (row ID plus pass or fail). A PR with the opt-in line and a `Spec:` line also runs its own-rows job;
   without `Spec:` only the shards run.
-- **Aggregate job named exactly `Holdout acceptance`** (the required check), runs always, needs every test job.
-  Success only when every needed job succeeded or was skipped by the existing skip rules; failure when any
-  failed, timed out or was cancelled. For a full run it checks out the same holdout commit, runs `run.py --list`
+- **Aggregate job named exactly `Holdout acceptance`** (the required check), runs always, needs every other
+  job. Success only when the setup job (skip checks, holdout commit) succeeded or took one of the existing skips,
+  and every job expected for this run type succeeded: the own-rows job for a PR with a `Spec:` line; shards 1 to
+  6 for a PR with the opt-in line and for nightly and manual runs. Jobs not expected for the run type are
+  ignored. Anything else, including a failed, timed-out, cancelled or unexpectedly skipped expected job, is
+  failure. For a full run it checks out the same holdout commit, runs `run.py --list`
   (no app needed), prints `holdout commit: <sha>` and `holdout rows: <rows reported by the shards> of <rows
   in --list>`, and fails with `holdout shards: missing <K>/6` for each K from 1 to 6 no shard reported, with
   `holdout rows: duplicate <row ID>` for a row reported twice, and with `holdout rows: <a> of <b>` when the
   reported rows are not exactly the `--list` rows.
-- **Issue on failure:** a nightly run, or a manual run on `main`, in which a job failed or timed out opens
-  exactly one issue `Nightly Holdout failed <date>`, from the aggregate job. A run whose only non-success jobs
-  were cancelled, a manual run on another branch, and PR runs open no issue. Body: the failed result lines,
-  the holdout commit, the `main` commits since the last green nightly (`<sha>..<sha>`, one line per merge with
+- **Issue on failure:** a nightly run, or a manual run on `main`, opens exactly one issue
+  `Nightly Holdout failed <date>`, from the aggregate job, when a job's check-run conclusion (Checks API) is
+  `failure` or `timed_out`, or when the aggregate's completeness check fails. A run whose only non-success jobs
+  were `cancelled`, a manual run on another branch, and PR runs open no issue. Body: the failed result lines,
+  any completeness lines (`holdout shards: missing ...`, `holdout rows: ...`) with the shards that reported no
+  result, the holdout commit, the `main` commits since the last green nightly (`<sha>..<sha>`, one line per merge with
   its PR title) and the run link. "Last green nightly" is the newest `schedule` run of `holdout.yml` on `main`
   with conclusion `success` in the last 30 days; if there is none, the body says
   `no green nightly in 30 days` and lists the last 30 merges.
@@ -205,7 +216,9 @@ How the parts are balanced (stored timings, row counts) is the holdout session's
   of the pytest suite with coverage. The split unit is the pytest node id; the method is the builder's choice,
   with no new dependency unless it is a pinned test plugin; parts should take about the same time. Each shard
   passes to the aggregate the part K it actually ran (from the split's own argument, not the matrix index), the
-  node ids pytest ran in it (from its JUnit XML), and the full collected node-id list.
+  pytest node IDs it ran (as pytest reports them, e.g. from `-rA` summary lines or a small plugin hook that
+  writes `item.nodeid`), and the full collected list from `pytest --collect-only -q`. Both lists use the same
+  node-ID format (`path::Class::test[param]`).
 - Aggregate job named exactly `Backend (lint + tests)`, runs always: success only when all 4 succeeded;
   combines the 4 coverage results and runs the same diff-coverage rule (changed lines >= 80 %, PRs only) on the
   combined result; prints `backend tests: <node ids run> of <node ids collected>` and fails with
@@ -277,7 +290,8 @@ PR. AC-47 and AC-48 need slices 2 and 3 and are checked after whichever merges l
 
 - Number of hidden shards 6, backend shards 4: one constant each in the workflow.
 - Timing rows: time is measured from the run's `run_started_at` to the named check's `completed_at`. A run
-  counts when its jobs all started within 2 min of `run_started_at` ("idle queue"). Per PR, the first completed
+  counts ("idle queue") when every job with no `needs` started within 2 min of `run_started_at`, and every
+  other job started within 2 min of the last job it needs completing. Per PR, the first completed
   run that meets this counts, failed runs included; PRs with no such run are skipped and the next PR is taken.
 - Job names other than the two required checks, `Holdout shard K/6` and `Backend shard K/4`.
 - How results travel between jobs (job outputs, artifacts that hold no hidden-test content) and how backend
@@ -295,21 +309,21 @@ flags"). Timing rows follow the measuring rule in "Left to the builder".
 | AC-2 | Same | `run.py --count` runs | It prints exactly one line `holdout rows: <n>`, n = the number of lines of `run.py --list`, and runs no test | unit (holdout repo) |
 | AC-3 | Same | `run.py --shard K/6 --list` runs for K = 1 to 6 | The six sets of IDs are pairwise disjoint and their union equals the set of `run.py --list` | unit (holdout repo) |
 | AC-4 | Same | `run.py --shard K/6 --count` runs for K = 1 to 6 | The six counts add up to the n of AC-2 | unit (holdout repo) |
-| AC-5 | Same | `run.py --shard 3/6` runs | Its first output line before any result line is `holdout shard: 3/6` | unit (holdout repo) |
+| AC-5 | Same | `run.py --shard 3/6` runs | `holdout shard: 3/6` appears in its output before the first result line | unit (holdout repo) |
 | AC-6 | Same | `run.py --shard 0/6`, `--shard 7/6`, `--shard 1/0`, `--shard x/6` | Each exits 2 and prints a line starting `invalid --shard`; no test runs | unit (holdout repo) |
 | AC-7 | Same | `run.py --shard 1/6 --spec <slug>` and `run.py --shard 1/6 --no-regression` | Each exits 2 and prints a line starting `invalid --shard`; no test runs | unit (holdout repo) |
 | AC-8 | Same, a slug with hidden rows | `run.py --spec <slug> --no-regression` and `... --rows AC-1,AC-2` | The row IDs of the result lines equal `run.py --spec <slug> --list` (with `--rows`, only that spec's AC-1 and AC-2); no other row runs | unit (holdout repo) |
 | AC-9 | Same | `run.py --no-regression` with no `--spec` | It prints `holdout: nothing to run` and exits 0 | unit (holdout repo) |
 | AC-10 | Same, a slug with no hidden rows | `run.py --spec <slug> --no-regression` | It prints `holdout: nothing to run` and exits 0 | unit (holdout repo) |
 | AC-11 | Must not change: same | plain `run.py`, `--spec`, `--spec --rows` | Result-line and `<group>: done in N s` formats and exit codes as before slice 1 (1 when a row fails, 0 when all pass) | unit (holdout repo) |
-| AC-12 | Slice 2: a PR with `Spec: <slug>` whose spec has `holdout` rows, no opt-in line | a commit is pushed | The run has exactly one test job plus `Holdout acceptance`; no `Holdout shard` job; the test job prints `holdout rows: <n>` and exactly n result lines, n no more than the `holdout` rows of that spec's Acceptance table | evaluator (PR, throwaway) |
+| AC-12 | Slice 2: a PR with `Spec: <slug>` whose spec has `holdout` rows, no opt-in line | a commit is pushed | The run has exactly one test job plus `Holdout acceptance`; no `Holdout shard` job with a conclusion other than `skipped`; the test job prints `holdout rows: <n>` and exactly n result lines, n no more than the `holdout` rows of that spec's Acceptance table | evaluator (PR, throwaway) |
 | AC-13 | Slice 2 merged; PRs as in AC-12 with at most 60 rows | their runs finish | `Holdout acceptance` takes at most 15 min (median of the first 3 PRs) and none over 20 min | evaluator (after merge) |
 | AC-14 | Slice 2: a PR with no `Spec:` line and no opt-in line, app files changed | a commit is pushed | `Holdout acceptance` succeeds within 3 min, no step starts the app, and the log contains `Holdout acceptance: no Spec: line; hidden rows run nightly on main.` | evaluator (PR) |
 | AC-15 | Slice 2: a PR with `Spec: <slug>` whose spec has no `holdout` rows (slice 2's own PR) | a commit is pushed | `Holdout acceptance` succeeds within 10 min and the log contains `holdout: nothing to run` | evaluator (PR) |
 | AC-16 | Slice 2: a PR with `Spec: <slug>` and the opt-in line | a commit is pushed | The run has the own-rows job and 6 jobs `Holdout shard 1/6` to `Holdout shard 6/6`; `Holdout acceptance` is green only when all 7 are | evaluator (PR, throwaway) |
 | AC-17 | Same | the run finishes | `Holdout acceptance` takes at most 45 min | evaluator (PR, throwaway) |
-| AC-18 | Slice 2: a PR with the opt-in line and no `Spec:` line | a commit is pushed | The run has the 6 shard jobs and no own-rows job | evaluator (PR, throwaway) |
-| AC-19 | Slice 2: a PR whose body has the sentence `We may need Holdout: full later.` and no opt-in line | a commit is pushed | No `Holdout shard` job runs | evaluator (PR, throwaway) |
+| AC-18 | Slice 2: a PR with the opt-in line and no `Spec:` line | a commit is pushed | The run has the 6 shard jobs and no own-rows job with a conclusion other than `skipped` | evaluator (PR, throwaway) |
+| AC-19 | Slice 2: a PR whose body has the sentence `We may need Holdout: full later.` and no opt-in line | a commit is pushed | No `Holdout shard` job has a conclusion other than `skipped` | evaluator (PR, throwaway) |
 | AC-20 | Slice 2: an open PR with a running Holdout run | its body is edited to add the opt-in line | A new run with 6 shard jobs starts after the running one ends; the running one is not cancelled | evaluator (PR, throwaway) |
 | AC-21 | Slice 2: a throwaway PR with the opt-in line where `Holdout shard 3/6`'s test step exits 1 | the run finishes | `Holdout shard 3/6` is red and `Holdout acceptance` concludes `failure` | evaluator (PR, throwaway) |
 | AC-22 | Slice 2: a throwaway PR with the opt-in line and `timeout-minutes: 1` on `Holdout shard 3/6` | the run finishes | `Holdout shard 3/6` does not succeed and `Holdout acceptance` concludes `failure` | evaluator (PR, throwaway) |
@@ -325,7 +339,7 @@ flags"). Timing rows follow the measuring rule in "Left to the builder".
 | AC-32 | Slice 2: a PR whose own rows fail | the run finishes | No issue is opened | evaluator (PR, throwaway) |
 | AC-33 | Must not change: slice 2: a PR whose files are all under `docs/` or `.claude/` or are `*.md` | a commit is pushed | `Holdout acceptance` succeeds and no step starts the app | evaluator (PR) |
 | AC-34 | Slice 2 | the logs of the runs in AC-12 to AC-27 and the issue of AC-27 are read | They contain no hidden test code, test function name or hidden-test file path; runner output is only result lines, `<group>: done in N s`, `holdout shard: ...`, `holdout rows: ...`, `holdout commit: ...`, `holdout: nothing to run`; no run has an artifact with hidden-test content | evaluator (PR and after merge) |
-| AC-35 | Slice 2 merged; a PR opened before the merge, with `Spec: <slug>` | it pushes a commit | Its run has one own-rows job and no shard job, and `Holdout acceptance` is red only if one of its result lines is a fail | evaluator (after merge) |
+| AC-35 | Slice 2 merged; a PR opened before the merge, with `Spec: <slug>` | it pushes a commit | Its run has one own-rows job and no shard job with a conclusion other than `skipped`, and `Holdout acceptance` is red only if one of its result lines is a fail | evaluator (after merge) |
 | AC-36 | Slice 2: an open PR | a label is added to or removed from it | No Holdout run starts and none is cancelled | evaluator (PR, throwaway) |
 | AC-37 | Slice 2 | `bash .github/scripts/main_ahead_docs_only.sh --selftest` runs (also in the `PR guards` workflow) | It prints `selftest ok` after checking: nothing ahead → `docs-only`, exit 0; only allowlisted files ahead → `docs-only`, exit 0; `backend/x.py` ahead → `code: backend/x.py`, exit 1; `docs/decision-studio/example-framework/x.csv` ahead → `code: docs/decision-studio/example-framework/x.csv`, exit 1; `docs/transition_barrier/RULE_BOOK.md` ahead → `code: docs/transition_barrier/RULE_BOOK.md`, exit 1; a conflicting allowlisted change → `conflict`, exit 1; `backend/y.py` ahead and a conflict → `code: backend/y.py`, exit 1; `backend/z.py` renamed to `docs/superpowers/z.md` on main → `code: backend/z.py`, exit 1 | unit |
 | AC-38 | Slice 3: a PR changing backend code | its CI run finishes | It has 4 jobs `Backend shard 1/4` to `Backend shard 4/4` and one `Backend (lint + tests)`, which is green only when all 4 are | evaluator (PR) |
