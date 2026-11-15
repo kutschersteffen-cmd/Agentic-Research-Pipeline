@@ -1,0 +1,942 @@
+{
+ "headlines": {
+  "bmw": [
+   "BMW supplier flagged in NGO report on battery mineral sourcing"
+  ],
+  "iberdrola": [
+   "Iberdrola cited among leaders in grid decarbonization investment"
+  ],
+  "orsted": [
+   "Orsted reaches milestone on offshore wind portfolio buildout"
+  ],
+  "shell": [
+   "Court orders Shell to accelerate emissions-reduction timeline"
+  ],
+  "totalenergies": [
+   "Regulator opens probe into TotalEnergies refinery emissions reporting",
+   "TotalEnergies expands offshore wind pipeline in the North Sea"
+  ]
+ },
+ "holdings": {
+  "core_equity_europe|2025-11-28|airbus_eq": [
+   241667.0,
+   122.22,
+   29536540.74,
+   1.0,
+   29536540.74
+  ],
+  "core_equity_europe|2025-11-28|allianz_eq": [
+   357044.0,
+   121.02,
+   43209464.88,
+   1.0,
+   43209464.88
+  ],
+  "core_equity_europe|2025-11-28|asml_eq": [
+   413041.0,
+   123.86,
+   51159258.26,
+   1.0,
+   51159258.26
+  ],
+  "core_equity_europe|2025-11-28|bmw_eq": [
+   332519.0,
+   125.28,
+   41657980.32,
+   1.0,
+   41657980.32
+  ],
+  "core_equity_europe|2025-11-28|lvmh_eq": [
+   284752.0,
+   127.72,
+   36368525.44,
+   1.0,
+   36368525.44
+  ],
+  "core_equity_europe|2025-11-28|nestle_eq": [
+   333333.0,
+   118.91,
+   39636627.03,
+   1.0496,
+   41602603.73
+  ],
+  "core_equity_europe|2025-11-28|novartis_eq": [
+   366667.0,
+   126.21,
+   46277042.07,
+   1.0496,
+   48572383.36
+  ],
+  "core_equity_europe|2025-11-28|sap_eq": [
+   519676.0,
+   113.76,
+   59118341.76,
+   1.0,
+   59118341.76
+  ],
+  "core_equity_europe|2025-11-28|siemens_eq": [
+   422476.0,
+   123.76,
+   52285629.76,
+   1.0,
+   52285629.76
+  ],
+  "core_equity_europe|2025-11-28|totalenergies_eq": [
+   391667.0,
+   121.01,
+   47395623.67,
+   1.0,
+   47395623.67
+  ],
+  "core_equity_europe|2026-02-27|airbus_eq": [
+   207397.0,
+   127.51,
+   26445191.47,
+   1.0,
+   26445191.47
+  ],
+  "core_equity_europe|2026-02-27|allianz_eq": [
+   357044.0,
+   120.43,
+   42998808.92,
+   1.0,
+   42998808.92
+  ],
+  "core_equity_europe|2026-02-27|asml_eq": [
+   413041.0,
+   117.87,
+   48685142.67,
+   1.0,
+   48685142.67
+  ],
+  "core_equity_europe|2026-02-27|bmw_eq": [
+   332519.0,
+   125.67,
+   41787662.73,
+   1.0,
+   41787662.73
+  ],
+  "core_equity_europe|2026-02-27|lvmh_eq": [
+   284752.0,
+   132.16,
+   37632824.32,
+   1.0,
+   37632824.32
+  ],
+  "core_equity_europe|2026-02-27|nestle_eq": [
+   333333.0,
+   121.51,
+   40503292.83,
+   1.0698,
+   43330422.67
+  ],
+  "core_equity_europe|2026-02-27|novartis_eq": [
+   366667.0,
+   133.43,
+   48924377.81,
+   1.0698,
+   52339299.38
+  ],
+  "core_equity_europe|2026-02-27|sap_eq": [
+   519676.0,
+   120.82,
+   62787254.32,
+   1.0,
+   62787254.32
+  ],
+  "core_equity_europe|2026-02-27|siemens_eq": [
+   385330.0,
+   117.07,
+   45110583.1,
+   1.0,
+   45110583.1
+  ],
+  "core_equity_europe|2026-02-27|totalenergies_eq": [
+   391667.0,
+   113.77,
+   44559954.59,
+   1.0,
+   44559954.59
+  ],
+  "core_equity_europe|2026-05-29|airbus_eq": [
+   207397.0,
+   132.3,
+   27438623.1,
+   1.0,
+   27438623.1
+  ],
+  "core_equity_europe|2026-05-29|allianz_eq": [
+   357044.0,
+   120.46,
+   43009520.24,
+   1.0,
+   43009520.24
+  ],
+  "core_equity_europe|2026-05-29|asml_eq": [
+   413041.0,
+   122.01,
+   50395132.41,
+   1.0,
+   50395132.41
+  ],
+  "core_equity_europe|2026-05-29|bmw_eq": [
+   332519.0,
+   119.03,
+   39579736.57,
+   1.0,
+   39579736.57
+  ],
+  "core_equity_europe|2026-05-29|lvmh_eq": [
+   284752.0,
+   127.11,
+   36194826.72,
+   1.0,
+   36194826.72
+  ],
+  "core_equity_europe|2026-05-29|nestle_eq": [
+   333333.0,
+   116.11,
+   38703294.63,
+   1.0485,
+   40580404.42
+  ],
+  "core_equity_europe|2026-05-29|novartis_eq": [
+   366667.0,
+   140.17,
+   51395713.39,
+   1.0485,
+   53888405.49
+  ],
+  "core_equity_europe|2026-05-29|sap_eq": [
+   519676.0,
+   128.53,
+   66793956.28,
+   1.0,
+   66793956.28
+  ],
+  "core_equity_europe|2026-05-29|siemens_eq": [
+   385330.0,
+   115.67,
+   44571121.1,
+   1.0,
+   44571121.1
+  ],
+  "core_equity_europe|2026-05-29|totalenergies_eq": [
+   391667.0,
+   109.56,
+   42911036.52,
+   1.0,
+   42911036.52
+  ],
+  "core_equity_europe|2026-08-12|airbus_eq": [
+   215706.0,
+   134.9,
+   29098739.4,
+   1.0,
+   29098739.4
+  ],
+  "core_equity_europe|2026-08-12|allianz_eq": [
+   357044.0,
+   115.15,
+   41113616.6,
+   1.0,
+   41113616.6
+  ],
+  "core_equity_europe|2026-08-12|asml_eq": [
+   413041.0,
+   117.79,
+   48652099.39,
+   1.0,
+   48652099.39
+  ],
+  "core_equity_europe|2026-08-12|bmw_eq": [
+   332519.0,
+   120.19,
+   39965458.61,
+   1.0,
+   39965458.61
+  ],
+  "core_equity_europe|2026-08-12|lvmh_eq": [
+   284752.0,
+   129.55,
+   36889621.6,
+   1.0,
+   36889621.6
+  ],
+  "core_equity_europe|2026-08-12|nestle_eq": [
+   333333.0,
+   119.4,
+   39799960.2,
+   1.067,
+   42466557.53
+  ],
+  "core_equity_europe|2026-08-12|novartis_eq": [
+   375823.0,
+   149.37,
+   56136681.51,
+   1.067,
+   59897839.17
+  ],
+  "core_equity_europe|2026-08-12|sap_eq": [
+   519676.0,
+   133.17,
+   69205252.92,
+   1.0,
+   69205252.92
+  ],
+  "core_equity_europe|2026-08-12|siemens_eq": [
+   373031.0,
+   109.66,
+   40906579.46,
+   1.0,
+   40906579.46
+  ],
+  "core_equity_europe|2026-08-12|totalenergies_eq": [
+   391667.0,
+   116.46,
+   45613538.82,
+   1.0,
+   45613538.82
+  ],
+  "corporate_bond_income|2025-11-28|airbus_bond1": [
+   148515.0,
+   101.68,
+   15101005.2,
+   1.0,
+   15101005.2
+  ],
+  "corporate_bond_income|2025-11-28|enel_bond1": [
+   171118.0,
+   96.24,
+   16468396.32,
+   1.0,
+   16468396.32
+  ],
+  "corporate_bond_income|2025-11-28|nestle_bond1": [
+   158416.0,
+   107.7,
+   17061403.2,
+   1.0496,
+   17907648.8
+  ],
+  "corporate_bond_income|2025-11-28|shell_bond1": [
+   188576.0,
+   95.88,
+   18080666.88,
+   1.1781,
+   21300833.65
+  ],
+  "corporate_bond_income|2025-11-28|totalenergies_bond1": [
+   271295.0,
+   102.98,
+   27937959.1,
+   1.0,
+   27937959.1
+  ],
+  "corporate_bond_income|2026-02-27|airbus_bond1": [
+   128690.0,
+   105.56,
+   13584516.4,
+   1.0,
+   13584516.4
+  ],
+  "corporate_bond_income|2026-02-27|enel_bond1": [
+   171118.0,
+   96.31,
+   16480374.58,
+   1.0,
+   16480374.58
+  ],
+  "corporate_bond_income|2026-02-27|nestle_bond1": [
+   148041.0,
+   102.37,
+   15154957.17,
+   1.0698,
+   16212773.18
+  ],
+  "corporate_bond_income|2026-02-27|shell_bond1": [
+   165456.0,
+   97.9,
+   16198142.4,
+   1.1863,
+   19215856.33
+  ],
+  "corporate_bond_income|2026-02-27|totalenergies_bond1": [
+   271295.0,
+   107.12,
+   29061120.4,
+   1.0,
+   29061120.4
+  ],
+  "corporate_bond_income|2026-05-29|airbus_bond1": [
+   128690.0,
+   103.28,
+   13291103.2,
+   1.0,
+   13291103.2
+  ],
+  "corporate_bond_income|2026-05-29|enel_bond1": [
+   171118.0,
+   95.85,
+   16401660.3,
+   1.0,
+   16401660.3
+  ],
+  "corporate_bond_income|2026-05-29|nestle_bond1": [
+   148041.0,
+   107.67,
+   15939574.47,
+   1.0485,
+   16712643.83
+  ],
+  "corporate_bond_income|2026-05-29|shell_bond1": [
+   171175.0,
+   99.35,
+   17006236.25,
+   1.1716,
+   19924506.39
+  ],
+  "corporate_bond_income|2026-05-29|totalenergies_bond1": [
+   271295.0,
+   105.28,
+   28561937.6,
+   1.0,
+   28561937.6
+  ],
+  "corporate_bond_income|2026-08-12|airbus_bond1": [
+   128690.0,
+   110.39,
+   14206089.1,
+   1.0,
+   14206089.1
+  ],
+  "corporate_bond_income|2026-08-12|enel_bond1": [
+   171118.0,
+   92.63,
+   15850660.34,
+   1.0,
+   15850660.34
+  ],
+  "corporate_bond_income|2026-08-12|nestle_bond1": [
+   148041.0,
+   101.48,
+   15023200.68,
+   1.067,
+   16029755.13
+  ],
+  "corporate_bond_income|2026-08-12|shell_bond1": [
+   153840.0,
+   100.25,
+   15422460.0,
+   1.1627,
+   17931694.24
+  ],
+  "corporate_bond_income|2026-08-12|totalenergies_bond1": [
+   296813.0,
+   101.62,
+   30162137.06,
+   1.0,
+   30162137.06
+  ],
+  "multi_asset_balanced|2025-11-28|allianz_eq": [
+   115978.0,
+   126.75,
+   14700211.5,
+   1.0,
+   14700211.5
+  ],
+  "multi_asset_balanced|2025-11-28|bmw_bond1": [
+   92499.0,
+   104.37,
+   9654120.63,
+   1.0,
+   9654120.63
+  ],
+  "multi_asset_balanced|2025-11-28|bmw_eq": [
+   150000.0,
+   125.92,
+   18888000.0,
+   1.0,
+   18888000.0
+  ],
+  "multi_asset_balanced|2025-11-28|iberdrola_eq": [
+   100000.0,
+   117.48,
+   11748000.0,
+   1.0,
+   11748000.0
+  ],
+  "multi_asset_balanced|2025-11-28|shell_bond1": [
+   69307.0,
+   102.2,
+   7083175.4,
+   1.1781,
+   8344688.94
+  ],
+  "multi_asset_balanced|2025-11-28|shell_eq": [
+   175000.0,
+   118.6,
+   20755000.0,
+   1.1781,
+   24451465.5
+  ],
+  "multi_asset_balanced|2025-11-28|siemens_bond1": [
+   60236.0,
+   100.95,
+   6080824.2,
+   1.0,
+   6080824.2
+  ],
+  "multi_asset_balanced|2025-11-28|totalenergies_bond1": [
+   79208.0,
+   99.18,
+   7855849.44,
+   1.0,
+   7855849.44
+  ],
+  "multi_asset_balanced|2025-11-28|totalenergies_eq": [
+   143537.0,
+   125.24,
+   17976573.88,
+   1.0,
+   17976573.88
+  ],
+  "multi_asset_balanced|2025-11-28|unmapped_note_1": [
+   27161.0,
+   106.94,
+   2904597.34,
+   1.0,
+   2904597.34
+  ],
+  "multi_asset_balanced|2026-02-27|allianz_eq": [
+   115978.0,
+   130.1,
+   15088737.8,
+   1.0,
+   15088737.8
+  ],
+  "multi_asset_balanced|2026-02-27|bmw_bond1": [
+   80257.0,
+   106.51,
+   8548173.07,
+   1.0,
+   8548173.07
+  ],
+  "multi_asset_balanced|2026-02-27|bmw_eq": [
+   135647.0,
+   131.1,
+   17783321.7,
+   1.0,
+   17783321.7
+  ],
+  "multi_asset_balanced|2026-02-27|iberdrola_eq": [
+   88719.0,
+   113.44,
+   10064283.36,
+   1.0,
+   10064283.36
+  ],
+  "multi_asset_balanced|2026-02-27|shell_bond1": [
+   69307.0,
+   103.84,
+   7196838.88,
+   1.1863,
+   8537609.96
+  ],
+  "multi_asset_balanced|2026-02-27|shell_eq": [
+   175000.0,
+   114.0,
+   19950000.0,
+   1.1863,
+   23666685.0
+  ],
+  "multi_asset_balanced|2026-02-27|siemens_bond1": [
+   54433.0,
+   103.69,
+   5644157.77,
+   1.0,
+   5644157.77
+  ],
+  "multi_asset_balanced|2026-02-27|totalenergies_bond1": [
+   79208.0,
+   93.81,
+   7430502.48,
+   1.0,
+   7430502.48
+  ],
+  "multi_asset_balanced|2026-02-27|totalenergies_eq": [
+   143537.0,
+   121.72,
+   17471323.64,
+   1.0,
+   17471323.64
+  ],
+  "multi_asset_balanced|2026-02-27|unmapped_note_1": [
+   28772.0,
+   113.46,
+   3264471.12,
+   1.0,
+   3264471.12
+  ],
+  "multi_asset_balanced|2026-05-29|allianz_eq": [
+   115978.0,
+   132.68,
+   15387961.04,
+   1.0,
+   15387961.04
+  ],
+  "multi_asset_balanced|2026-05-29|bmw_bond1": [
+   80257.0,
+   108.81,
+   8732764.17,
+   1.0,
+   8732764.17
+  ],
+  "multi_asset_balanced|2026-05-29|bmw_eq": [
+   135647.0,
+   131.14,
+   17788747.58,
+   1.0,
+   17788747.58
+  ],
+  "multi_asset_balanced|2026-05-29|iberdrola_eq": [
+   88719.0,
+   117.06,
+   10385446.14,
+   1.0,
+   10385446.14
+  ],
+  "multi_asset_balanced|2026-05-29|shell_bond1": [
+   69307.0,
+   102.28,
+   7088719.96,
+   1.1716,
+   8305144.31
+  ],
+  "multi_asset_balanced|2026-05-29|shell_eq": [
+   197783.0,
+   118.73,
+   23482775.59,
+   1.1716,
+   27512419.88
+  ],
+  "multi_asset_balanced|2026-05-29|siemens_bond1": [
+   54433.0,
+   108.15,
+   5886928.95,
+   1.0,
+   5886928.95
+  ],
+  "multi_asset_balanced|2026-05-29|totalenergies_bond1": [
+   79208.0,
+   89.18,
+   7063769.44,
+   1.0,
+   7063769.44
+  ],
+  "multi_asset_balanced|2026-05-29|totalenergies_eq": [
+   156099.0,
+   121.98,
+   19040956.02,
+   1.0,
+   19040956.02
+  ],
+  "multi_asset_balanced|2026-05-29|unmapped_note_1": [
+   28772.0,
+   120.06,
+   3454366.32,
+   1.0,
+   3454366.32
+  ],
+  "multi_asset_balanced|2026-08-12|allianz_eq": [
+   115978.0,
+   137.57,
+   15955093.46,
+   1.0,
+   15955093.46
+  ],
+  "multi_asset_balanced|2026-08-12|bmw_bond1": [
+   80257.0,
+   108.31,
+   8692635.67,
+   1.0,
+   8692635.67
+  ],
+  "multi_asset_balanced|2026-08-12|bmw_eq": [
+   135647.0,
+   133.09,
+   18053259.23,
+   1.0,
+   18053259.23
+  ],
+  "multi_asset_balanced|2026-08-12|iberdrola_eq": [
+   88719.0,
+   119.38,
+   10591274.22,
+   1.0,
+   10591274.22
+  ],
+  "multi_asset_balanced|2026-08-12|shell_bond1": [
+   69307.0,
+   100.86,
+   6990304.02,
+   1.1627,
+   8127626.48
+  ],
+  "multi_asset_balanced|2026-08-12|shell_eq": [
+   197783.0,
+   117.48,
+   23235546.84,
+   1.1627,
+   27015970.31
+  ],
+  "multi_asset_balanced|2026-08-12|siemens_bond1": [
+   46977.0,
+   109.64,
+   5150558.28,
+   1.0,
+   5150558.28
+  ],
+  "multi_asset_balanced|2026-08-12|totalenergies_bond1": [
+   79208.0,
+   92.18,
+   7301393.44,
+   1.0,
+   7301393.44
+  ],
+  "multi_asset_balanced|2026-08-12|totalenergies_eq": [
+   136094.0,
+   123.29,
+   16779029.26,
+   1.0,
+   16779029.26
+  ],
+  "multi_asset_balanced|2026-08-12|unmapped_note_1": [
+   28772.0,
+   122.63,
+   3528310.36,
+   1.0,
+   3528310.36
+  ],
+  "sustainable_leaders|2025-11-28|asml_eq": [
+   225000.0,
+   115.07,
+   25890750.0,
+   1.0,
+   25890750.0
+  ],
+  "sustainable_leaders|2025-11-28|enel_eq": [
+   258333.0,
+   122.98,
+   31769792.34,
+   1.0,
+   31769792.34
+  ],
+  "sustainable_leaders|2025-11-28|iberdrola_eq": [
+   323143.0,
+   120.99,
+   39097071.57,
+   1.0,
+   39097071.57
+  ],
+  "sustainable_leaders|2025-11-28|novartis_eq": [
+   158333.0,
+   116.91,
+   18510711.03,
+   1.0496,
+   19428842.3
+  ],
+  "sustainable_leaders|2025-11-28|orsted_eq": [
+   200000.0,
+   115.12,
+   23024000.0,
+   0.1364,
+   3140473.6
+  ],
+  "sustainable_leaders|2025-11-28|sap_eq": [
+   208333.0,
+   115.96,
+   24158294.68,
+   1.0,
+   24158294.68
+  ],
+  "sustainable_leaders|2025-11-28|siemens_eq": [
+   183333.0,
+   118.66,
+   21754293.78,
+   1.0,
+   21754293.78
+  ],
+  "sustainable_leaders|2026-02-27|asml_eq": [
+   211066.0,
+   109.57,
+   23126501.62,
+   1.0,
+   23126501.62
+  ],
+  "sustainable_leaders|2026-02-27|enel_eq": [
+   258333.0,
+   125.15,
+   32330374.95,
+   1.0,
+   32330374.95
+  ],
+  "sustainable_leaders|2026-02-27|iberdrola_eq": [
+   318307.0,
+   121.09,
+   38543794.63,
+   1.0,
+   38543794.63
+  ],
+  "sustainable_leaders|2026-02-27|novartis_eq": [
+   158333.0,
+   110.32,
+   17467296.56,
+   1.0698,
+   18686513.86
+  ],
+  "sustainable_leaders|2026-02-27|orsted_eq": [
+   200000.0,
+   115.81,
+   23162000.0,
+   0.1377,
+   3189407.4
+  ],
+  "sustainable_leaders|2026-02-27|sap_eq": [
+   208333.0,
+   109.47,
+   22806213.51,
+   1.0,
+   22806213.51
+  ],
+  "sustainable_leaders|2026-02-27|siemens_eq": [
+   183333.0,
+   115.33,
+   21143794.89,
+   1.0,
+   21143794.89
+  ],
+  "sustainable_leaders|2026-05-29|asml_eq": [
+   203935.0,
+   111.28,
+   22693886.8,
+   1.0,
+   22693886.8
+  ],
+  "sustainable_leaders|2026-05-29|enel_eq": [
+   272016.0,
+   119.31,
+   32454228.96,
+   1.0,
+   32454228.96
+  ],
+  "sustainable_leaders|2026-05-29|iberdrola_eq": [
+   318307.0,
+   116.78,
+   37171891.46,
+   1.0,
+   37171891.46
+  ],
+  "sustainable_leaders|2026-05-29|novartis_eq": [
+   158333.0,
+   112.76,
+   17853629.08,
+   1.0485,
+   18719530.09
+  ],
+  "sustainable_leaders|2026-05-29|orsted_eq": [
+   199360.0,
+   123.29,
+   24579094.4,
+   0.1363,
+   3350130.57
+  ],
+  "sustainable_leaders|2026-05-29|sap_eq": [
+   208333.0,
+   113.12,
+   23566628.96,
+   1.0,
+   23566628.96
+  ],
+  "sustainable_leaders|2026-05-29|siemens_eq": [
+   162387.0,
+   120.7,
+   19600110.9,
+   1.0,
+   19600110.9
+  ],
+  "sustainable_leaders|2026-08-12|asml_eq": [
+   203935.0,
+   118.44,
+   24154061.4,
+   1.0,
+   24154061.4
+  ],
+  "sustainable_leaders|2026-08-12|enel_eq": [
+   272016.0,
+   123.92,
+   33708222.72,
+   1.0,
+   33708222.72
+  ],
+  "sustainable_leaders|2026-08-12|iberdrola_eq": [
+   295230.0,
+   122.91,
+   36286719.3,
+   1.0,
+   36286719.3
+  ],
+  "sustainable_leaders|2026-08-12|novartis_eq": [
+   158333.0,
+   111.97,
+   17728546.01,
+   1.067,
+   18916358.59
+  ],
+  "sustainable_leaders|2026-08-12|orsted_eq": [
+   199360.0,
+   117.83,
+   23490588.8,
+   0.1383,
+   3248748.43
+  ],
+  "sustainable_leaders|2026-08-12|sap_eq": [
+   208333.0,
+   118.66,
+   24720793.78,
+   1.0,
+   24720793.78
+  ],
+  "sustainable_leaders|2026-08-12|siemens_eq": [
+   143756.0,
+   116.01,
+   16677133.56,
+   1.0,
+   16677133.56
+  ]
+ },
+ "isins": {
+  "airbus_bond1": "NL0MOCK0007B",
+  "airbus_eq": "NL0MOCK00080",
+  "allianz_eq": "DE0MOCK00050",
+  "asml_eq": "NL0MOCK00120",
+  "bmw_bond1": "DE0MOCK0001B",
+  "bmw_eq": "DE0MOCK00010",
+  "enel_bond1": "IT0MOCK0006B",
+  "enel_eq": "IT0MOCK00150",
+  "iberdrola_eq": "ES0MOCK00090",
+  "lvmh_eq": "FR0MOCK00070",
+  "nestle_bond1": "CH0MOCK0008B",
+  "nestle_eq": "CH0MOCK00110",
+  "novartis_eq": "CH0MOCK00100",
+  "orsted_eq": "DK0MOCK00140",
+  "sap_eq": "DE0MOCK00040",
+  "shell_bond1": "GB0MOCK0003B",
+  "shell_eq": "GB0MOCK00130",
+  "siemens_bond1": "DE0MOCK0004B",
+  "siemens_eq": "DE0MOCK00030",
+  "totalenergies_bond1": "FR0MOCK0002B",
+  "totalenergies_eq": "FR0MOCK00060",
+  "unmapped_note_1": "ZZ0MOCK99990"
+ }
+}
