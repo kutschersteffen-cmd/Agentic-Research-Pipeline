@@ -359,7 +359,7 @@ def test_live_service_ask_accumulates_on_scratch(settings):
         pytest.skip("this Superset already has a scratch dashboard; the test would add to it")
     q1 = ChartPlan(title="Q", charts=[_h("Exposure by country", "pie", ["country"])])
     q2 = ChartPlan(title="Q", charts=[_h("Positions by asset class", "echarts_timeseries_bar", ["asset_class"], ["Holdings"])])
-    llm = ScriptedLLM(q1, q2)
+    llm = ScriptedLLM(q1, q2, q1)
     dash_id = None
     try:
         r1 = asyncio.run(ask_chart("exposure by country?", llm, client))
@@ -367,6 +367,9 @@ def test_live_service_ask_accumulates_on_scratch(settings):
         r2 = asyncio.run(ask_chart("positions by asset class?", llm, client))
         assert r1.slug == r2.slug == SCRATCH_SLUG and r2.dashboard_id == dash_id
         _check_dashboard(client, dash_id, ChartPlan(title="Scratch", charts=q1.charts + q2.charts))
+        charts = client.dashboard_charts(dash_id)
+        r3 = asyncio.run(ask_chart("exposure by country?", llm, client))  # the same question again
+        assert (r3.dashboard_id, r3.url) == (r1.dashboard_id, r1.url) and client.dashboard_charts(dash_id) == charts
     finally:
         if dash_id is not None:
             charts = client.dashboard_charts(dash_id)

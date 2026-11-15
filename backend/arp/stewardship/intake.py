@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from pydantic import BaseModel, Field
 from sqlalchemy import select, text
 
@@ -42,7 +44,7 @@ from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 ENGAGEMENT_COLUMNS: dict[str, list[str]] = {
     "engagements": [
         "external_id", "company_id", "isin", "company_name", "theme", "fir_theme", "esg_pillars",
-        "rationale", "engager_role", "started_at", "status", "severity",
+        "rationale", "engager_role", "started_at", "status", "severity", "planned_meeting_date",
     ],
     "objectives": [
         "external_id", "engagement_external_id", "follows_external_id", "description", "objective_type",
@@ -136,6 +138,11 @@ def _clean(sheet: str, n: int, raw: dict, bad: list[Rejection]) -> dict:
             row[k] = _ts(None if row[k] is None else str(row[k]), k)
         except ClientInputError:
             reject(k, "not an ISO 8601 timestamp")
+    if sheet == "engagements" and row["planned_meeting_date"] is not None:
+        try:
+            row["planned_meeting_date"] = date.fromisoformat(str(row["planned_meeting_date"]))
+        except ValueError:
+            reject("planned_meeting_date", "not a date")
     for k in _BOOLS & row.keys():
         flag = str(row[k]).lower() if row[k] is not None else "false"
         if flag not in _TRUE | _FALSE:

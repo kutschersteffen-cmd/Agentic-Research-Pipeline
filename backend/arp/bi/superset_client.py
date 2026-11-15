@@ -149,7 +149,7 @@ class SupersetClient:
         )
 
     def create_chart(self, name: str, dataset_id: int, viz_type: str, params: dict) -> int:
-        form_data = {**params, "datasource": f"{dataset_id}__table", "viz_type": viz_type}
+        form_data = chart_form_data(dataset_id, viz_type, params)
         # Dashboards render from `params` (the frontend builds its own query);
         # the saved query_context only serves GET /chart/<id>/data/, reports
         # and cache warm-up. With empty `queries` that endpoint returns nothing.
@@ -214,6 +214,11 @@ class SupersetClient:
         """{chart id: chart name} of the charts attached to the dashboard."""
         result = self._request("GET", f"/dashboard/{dashboard_id}/charts")["result"]
         return {c["id"]: c["slice_name"] for c in result}
+
+    def chart_params(self, chart_id: int) -> dict:
+        """The chart's saved `params` (what create_chart sent), parsed. Not the form_data of
+        dashboard_charts: Superset adds keys such as slice_id there."""
+        return json.loads(self._request("GET", f"/chart/{chart_id}")["result"].get("params") or "{}")
 
     def get_dashboard(self, dashboard_id: int) -> dict:
         """The dashboard's metadata (slug, published, ...); 404 SupersetError if unknown."""
@@ -312,6 +317,11 @@ _NONEMPTY = {"verbose_name", "advanced_data_type", "python_date_format", "metric
 
 def _keep(item: dict, fields: tuple[str, ...]) -> dict:
     return {k: item[k] for k in fields if item.get(k) is not None and (item[k] != "" or k not in _NONEMPTY)}
+
+
+def chart_form_data(dataset_id: int, viz_type: str, params: dict) -> dict:
+    """The `params` create_chart saves for a chart."""
+    return {**params, "datasource": f"{dataset_id}__table", "viz_type": viz_type}
 
 
 def _query(form_data: dict) -> dict:

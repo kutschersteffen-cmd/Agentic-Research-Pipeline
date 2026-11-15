@@ -2450,6 +2450,107 @@ a.vc-box:hover { border-color: var(--text); }
 .page button.secondary[aria-disabled="true"] { opacity: 0.6; cursor: not-allowed; }
 .page select[aria-disabled="true"] { opacity: 0.6; cursor: progress; }
 
+/* StewardIQ cockpit (spec stewardship-cockpit). Charts are hand-built from the chart slots; the signal colour
+   marks only control gaps and ballots due (One Signal Rule); escalation steps take status colours. */
+.cockpit { display: flex; flex-direction: column; gap: var(--s-4); }
+.cockpit .card { margin: 0; }
+.cockpit-head { display: flex; flex-wrap: wrap; gap: var(--s-4); align-items: flex-end; justify-content: space-between; }
+.cockpit-head h1 { margin: 0; }
+.cockpit-crumb { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; text-decoration: none; }
+.cockpit-crumb:hover { color: var(--text); }
+.cockpit-scope { display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-4); align-items: center; }
+.cockpit-scope label { display: flex; gap: var(--s-2); align-items: center; }
+.cockpit-scope select { min-height: 44px; }
+.cockpit-label { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.cockpit-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cockpit-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--s-3); }
+.cockpit-figure { display: flex; flex-direction: column; gap: var(--s-1_5); background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-lg); padding: var(--s-4) 18px; min-width: 0; }
+.cockpit-figure-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 2rem; font-weight: 500; line-height: 1.1; }
+.cockpit-figure-of { color: var(--muted); font-size: 1.125rem; }
+.cockpit-figure-note { color: var(--muted); font-size: var(--text-sm); }
+.cockpit-meter { display: block; height: 4px; background: var(--well); }
+.cockpit-meter > span { display: block; height: 4px; background: var(--cat-1); }
+.cockpit-card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--s-2) var(--s-3); margin-bottom: var(--s-3); }
+.cockpit-card-head h2 { margin: 0; font-size: var(--text-md); }
+.cockpit-row { display: flex; flex-wrap: wrap; gap: var(--s-4); }
+.cockpit-row > .cockpit-card { flex: 1 1 480px; min-width: 0; }
+.cockpit-row-3 > .cockpit-card { flex-basis: 340px; }
+.cockpit-scroll { overflow-x: auto; }
+.cockpit-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cockpit-foot { margin: var(--s-2) 0 0; text-wrap: pretty; }
+.cockpit-card-head .link-button { min-height: 32px; }
+.cockpit-legend, .cockpit-stack-legend { display: flex; flex-wrap: wrap; gap: var(--s-1_5) var(--s-4); font-size: var(--text-sm); }
+.cockpit-legend > span, .cockpit-stack-legend > span { display: inline-flex; gap: var(--s-1_5); align-items: center; }
+.cockpit-legend { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.cockpit-card > .cockpit-legend { margin-top: var(--s-3); }
+.cockpit-swatch { width: 10px; height: 10px; flex: none; }
+.cockpit-swatch.eng, .cockpit-swatch.for { background: var(--cat-1); }
+.cockpit-swatch.agm { background: var(--cat-4); }
+.cockpit-swatch.sel { border: 1px solid var(--field-border); height: 8px; }
+.cockpit-swatch.against { background: var(--cat-2); }
+.cockpit-swatch.abstain { background: var(--neutral); }
+.cockpit-swatch.other { background: var(--cat-4); }
+/* 30-day strip: one column per day, weekends recessed */
+.cockpit-strip { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(30, minmax(26px, 1fr)); gap: var(--s-0_5); min-width: 840px; }
+.cockpit-strip li { position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--s-1); padding: var(--s-1_5) 0; }
+.cockpit-strip li.weekend { background: var(--well); }
+.cockpit-strip li > .cockpit-label:nth-child(2) { min-height: 1.3em; }
+.cockpit-bars { height: 40px; display: flex; gap: var(--s-0_5); align-items: flex-end; }
+.cockpit-bars > span { width: 9px; min-height: 4px; }
+.cockpit-bars .eng { background: var(--cat-1); }
+.cockpit-bars .agm { background: var(--cat-4); }
+/* engaged vs selected grid */
+.cockpit-grid { width: 100%; min-width: 620px; border-collapse: collapse; }
+.cockpit-grid th, .cockpit-grid td { text-align: left; padding: var(--s-2) var(--s-3) var(--s-2) 0; border-top: 1px solid var(--panel-border); vertical-align: top; font-size: var(--text-sm); font-weight: 400; }
+.cockpit-grid thead tr:first-child th { border-top: 0; font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.cockpit-grid-total th, .cockpit-grid-total td { color: var(--muted); }
+.cockpit-grid tbody th { white-space: nowrap; }
+.cockpit-cell-bar { position: relative; display: block; height: 8px; margin-top: var(--s-1); }
+.cockpit-cell-bar > span { position: absolute; left: 0; top: 0; height: 8px; }
+.cockpit-cell-bar .track { border: 1px solid var(--field-border); box-sizing: border-box; }
+.cockpit-cell-bar .fill { background: var(--cat-1); }
+.cockpit-empty-cell { color: var(--muted); }
+/* tables and lists */
+.cockpit-table { width: 100%; min-width: 520px; border-collapse: collapse; }
+.cockpit-table th, .cockpit-table td { text-align: left; padding: var(--s-2) var(--s-3) var(--s-2) 0; border-top: 1px solid var(--panel-border); font-size: var(--text-sm); vertical-align: top; }
+.cockpit-table thead th { border-top: 0; font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.cockpit-table .num { text-align: right; }
+.cockpit-table td:first-child { white-space: nowrap; }
+.cockpit-card-actions { display: inline-flex; gap: var(--s-3); align-items: baseline; }
+.cockpit-step { display: inline-block; white-space: nowrap; font-family: var(--font-mono); font-size: var(--text-xs); border: 1px solid var(--field-border); border-radius: var(--r-pill); padding: 1px var(--s-2); }
+/* the step tone marks the pill edge; its text stays ink, so steps 2-3 never read as the signal */
+.cockpit-step.tone-mid { border-color: var(--mid); }
+.cockpit-step.tone-low { border-color: var(--low); }
+.cockpit-ballot { white-space: nowrap; }
+.cockpit-needs { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 600; border: 1.5px dashed currentColor; border-radius: 2px; padding: 1px var(--s-2); }
+.cockpit-list { list-style: none; margin: 0; padding: 0; }
+.cockpit-list li { display: flex; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) 0; border-top: 1px solid var(--panel-border); font-size: var(--text-sm); }
+.cockpit-gap { flex: 0 1 auto; font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 600; text-align: right; }
+.cockpit-gap > span { white-space: nowrap; }
+.cockpit-list li > :first-child { min-width: 0; }
+.cockpit-ladder { list-style: none; margin: 0; padding: 0; }
+.cockpit-ladder li { display: grid; grid-template-columns: 20px minmax(0, 1fr) 36px; gap: var(--s-3); align-items: baseline; padding: var(--s-2) 0; border-top: 1px solid var(--panel-border); font-size: var(--text-sm); }
+.cockpit-ladder-count { font-size: 1.125rem; text-align: right; }
+.cockpit-ladder li > :last-child { grid-column: 2 / -1; }
+.cockpit-ladder li > :last-child:empty { display: none; }
+.cockpit-stack { display: flex; gap: var(--s-0_5); height: 24px; margin-bottom: var(--s-1_5); }
+.cockpit-stack > span { min-width: 2px; }
+.cockpit-stack .for { background: var(--cat-1); }
+.cockpit-stack .against { background: var(--cat-2); }
+.cockpit-stack .abstain { background: var(--neutral); }
+.cockpit-stack .other { background: var(--cat-4); }
+.cockpit-topics-head { margin: var(--s-4) 0 var(--s-2); }
+.cockpit-topics { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.cockpit-topics li { display: grid; grid-template-columns: minmax(110px, 160px) minmax(40px, 1fr) auto; gap: var(--s-3); align-items: center; font-size: var(--text-sm); }
+.cockpit-topic-bar { height: 10px; background: var(--well); }
+.cockpit-topics li > :last-child { white-space: nowrap; }
+.cockpit-topic-bar > span { display: block; height: 10px; background: var(--cat-2); }
+@media (max-width: 900px) {
+  .cockpit-row > .cockpit-card { flex-basis: 100%; }
+  .cockpit-topics li { grid-template-columns: minmax(0, 1fr) auto; }
+  .cockpit-topic-bar { grid-column: 1 / -1; grid-row: 2; }
+}
+
 /* Start page simplified (docs/superpowers/specs/2026-11-15-start-page-simplified-design.md):
    on #/home a top bar replaces the sidebar; the lockup sits where the landing header puts it. */
 .app-shell-start { flex-direction: column; }
