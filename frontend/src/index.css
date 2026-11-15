@@ -2596,6 +2596,7 @@ a.vc-box:hover { border-color: var(--text); }
   .cockpit-meetings tbody tr:first-child { border-top: 0; }
   .cockpit-meetings td { padding: 0; border-top: 0; }
   .cockpit-meetings td:nth-child(3) { grid-column: 2 / -1; grid-row: 2; hyphens: manual; }
+  .cockpit-meetings td:nth-child(2) { overflow-wrap: anywhere; } /* GLAXOSMITHKLINE must not run under the Step pill */
 }
 
 /* Start page simplified (docs/superpowers/specs/2026-11-15-start-page-simplified-design.md):
