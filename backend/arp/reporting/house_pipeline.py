@@ -45,7 +45,7 @@ def _outline(storyline: Storyline, request: ReportRequest) -> tuple[list[SlideCo
         findings.append(Finding(slide=0, stage="data", rule="profile_cap", message=(
             f"{len(storyline.slides) - cap} content slides dropped: the {request.deck.profile} profile keeps at most {cap}")))
     plan: list[SlideContent | StorylineSlide] = [
-        SlideContent(headline=storyline.title, visual=Cover(title=storyline.title, answer=storyline.answer, figures=storyline.figures))]
+        SlideContent(headline=storyline.title, subheading=storyline.subtitle, visual=Cover(title=storyline.title, answer=storyline.answer, figures=storyline.figures))]
     agenda = [sec.title for sec in storyline.sections]
     for i, sec in enumerate(storyline.sections):
         plan.append(SlideContent(headline=sec.title, visual=Section(number=i + 1, title=sec.title, summary=sec.summary, agenda=agenda)))

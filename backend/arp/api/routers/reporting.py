@@ -12,6 +12,7 @@ from arp.reporting.browser import write_pngs
 from arp.reporting.datasets import parse_tabular_upload
 from arp.reporting.preview import ensure_preview_images
 from arp.reporting.service import ReportingService
+from arp.reporting.storyline import _errors as storyline_errors
 from arp.reporting.style_profile import ingest_template
 from arp.reporting.template_frame import TemplateFrameError, font_family_of, frame_preview_html
 from arp.schemas.reporting import ReportManifest, ReportPlan, ReportRequest, ReportStatus, Storyline
@@ -209,6 +210,8 @@ def update_storyline(report_id: str, storyline: Storyline, store: ReportingStore
     _unapproved_storyline(store, report_id)
     if not storyline.slides or any(not s.headline.strip() for s in storyline.slides):
         raise HTTPException(422, "Storyline needs at least one slide and no blank headlines")
+    if errors := storyline_errors(storyline):  # the deck build would fail on them after approval
+        raise HTTPException(422, "Storyline: " + "; ".join(errors))
     storyline.approved = False  # only POST .../approve approves
     store.save_storyline(report_id, storyline)
     return storyline.model_dump(mode="json")

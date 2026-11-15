@@ -98,6 +98,13 @@ async def test_ac17_order(tmp_path, fake_llm):
     assert len(deck.slides[-1].visual.actions) == 3 and deck.slides[-1].kicker == "Next steps"
 
 
+def test_cover_carries_storyline_subtitle():
+    from arp.reporting.house_pipeline import _outline
+
+    plan, _ = _outline(Storyline(title="Deck", subtitle="Utilities, 2025", slides=[], closing=_CLOSING), _request())
+    assert plan[0].visual.type == "cover" and plan[0].subheading == "Utilities, 2025"
+
+
 async def test_ac33_profile_cap(tmp_path, fake_llm):
     slides = [StorylineSlide(headline=f"Claim {k} holds", purpose="p", visual="points") for k in range(10)]
     llm = fake_llm({"SlideContent": [_points() for _ in range(8)], "QAResult": [QAResult(edits=[])]})
