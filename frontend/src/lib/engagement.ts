@@ -30,6 +30,13 @@ export function unlistedText(count: number, ids: string[]): string {
     : `${count} signals skipped: their companies are not in the list (${ids.join(", ")}).`;
 }
 
+const DEMO_SOURCES = ["mock_voice_seed", "npx_urth_demo"];
+
+/** An objective is demo data when it, or the issue it sits under, came from a demo seed (`Demo data` label). */
+export function isDemo(issue: Pick<EngagementIssue, "data_source">, objective: { source?: string | null }): boolean {
+  return DEMO_SOURCES.includes(issue.data_source ?? "") || DEMO_SOURCES.includes(objective.source ?? "");
+}
+
 // VOICE lists, as the API takes them (spec stewardship-commitment-loop, "Record result").
 export const OBJECTIVE_RESULTS = ["achieved", "partially_achieved", "not_achieved", "deterioration", "abandoned"] as const satisfies readonly S["ObjectiveResult"][];
 export const INFLUENCE_LEVELS = ["1", "2", "3", "4A", "4B", "5"] as const satisfies readonly S["InfluenceLevel"][];

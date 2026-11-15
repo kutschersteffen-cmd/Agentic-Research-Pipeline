@@ -254,7 +254,9 @@ def clear_monitoring_rule_alerts(
 
 @router.get("/monitoring/alerts", response_model=list[Alert])
 def list_monitoring_alerts(status: AlertStatus | None = None, store: PortfolioStore = Depends(get_portfolio_store)) -> list[Alert]:
-    return monitoring_evaluator.list_alerts(store, status=status)
+    companies = {c.company_id: c for c in store.list_companies()}
+    rules = {r.rule_id: r for r in store.list_rules()}
+    return monitoring_evaluator.with_company_names(monitoring_evaluator.list_alerts(store, status=status), companies, rules)
 
 
 class AlertTransitionRequest(BaseModel):

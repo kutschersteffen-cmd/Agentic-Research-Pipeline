@@ -89,7 +89,7 @@ async def test_applied_qa_edit_replaces_stale_fit_and_lint_findings(tmp_path, fa
         Finding(slide=1, slot="items", stage="lint", rule="exclamation", message="old"),
     ]
 
-    async def fake_fit(deck, request, llm, max_passes=3, usage=None, shift=None):
+    async def fake_fit(deck, request, llm, max_passes=3, usage=None, shift=None, tokens=None):
         return deck, list(stale)
 
     monkeypatch.setattr(house_pipeline, "fit_deck", fake_fit)

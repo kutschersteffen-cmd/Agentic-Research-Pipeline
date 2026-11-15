@@ -120,6 +120,61 @@ class TierStore:
         return row
 
 
+class PickStore:
+    """Append-only log of bilateral picks: a pick stands from its `picked` event
+    until a later `withdrawn` event for the same issuer."""
+
+    def __init__(self, root: Path) -> None:
+        self.path = root / "bilateral_picks.jsonl"
+
+    def standing(self) -> list[dict]:
+        """The standing picks, oldest first."""
+        picks: dict[str, dict] = {}
+        if self.path.exists():
+            for line in self.path.read_text().splitlines():
+                if not line.strip():
+                    continue
+                event = json.loads(line)
+                if event["event"] == "picked":
+                    picks[event["issuer_id"]] = {k: event[k] for k in ("issuer_id", "reason", "by", "at")}
+                else:
+                    picks.pop(event["issuer_id"], None)
+        return list(picks.values())
+
+    def _append(self, event: dict) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.path.open("a") as f:
+            f.write(json.dumps({**event, "at": datetime.now(UTC).isoformat()}, ensure_ascii=False) + "\n")
+
+    def pick(self, issuer_id: str, reason: str, by: str, universe: set[str]) -> None:
+        reason = reason.strip()
+        if not reason:
+            raise ValueError("A bilateral pick needs a reason")
+        if len(reason) > 500:
+            raise ValueError("A bilateral pick reason has at most 500 characters")
+        if issuer_id not in universe:
+            raise ValueError(f"Not in the house universe: {issuer_id}")
+        if any(p["issuer_id"] == issuer_id for p in self.standing()):
+            raise ValueError(f"{issuer_id} is already picked for bilateral")
+        self._append({"issuer_id": issuer_id, "event": "picked", "reason": reason, "by": by})
+
+    def withdraw(self, issuer_id: str, by: str) -> None:
+        if not any(p["issuer_id"] == issuer_id for p in self.standing()):
+            raise ValueError(f"{issuer_id} has no bilateral pick")
+        self._append({"issuer_id": issuer_id, "event": "withdrawn", "by": by})
+
+
+def apply_picks(proposals: list[dict], picks: list[dict]) -> list[dict]:
+    """A standing pick replaces the rules' proposal for its issuer; a pick outside the proposals makes none."""
+    by_issuer = {p["issuer_id"]: p for p in picks}
+    return [
+        {**p, "tier": "bilateral", "rule": "manual", "reason": f"Picked by {pick['by']}: {pick['reason']}"}
+        if (pick := by_issuer.get(p["issuer_id"]))
+        else p
+        for p in proposals
+    ]
+
+
 def review_tiers(proposals: list[dict], latest: dict[str, dict], now: datetime | None = None) -> dict:
     """Compares proposed tiers with the confirmed ones. A proposal needs a
     person when the issuer has no confirmed tier or its tier would change."""

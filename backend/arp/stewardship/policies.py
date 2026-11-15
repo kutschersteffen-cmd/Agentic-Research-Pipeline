@@ -46,8 +46,8 @@ from arp.stewardship.tiers import load_graph as default_coverage_graph
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.jsonl_io import append_jsonl
 
-# Saved escalation_rules versions without this mark were written for the old tiers: retired, never active.
-ESCALATION_RULES_FORMAT = "three_tiers"
+# Saved escalation_rules versions without this mark were written for the old tiers or the 7-step ladder: retired.
+ESCALATION_RULES_FORMAT = "three_tiers_6_steps"
 
 
 def _validate_coverage(graph: dict, sample: dict) -> None:
@@ -255,7 +255,7 @@ class PolicyStore:
         return [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
 
     def retired(self, policy_id: str, version: int) -> bool:
-        """A saved escalation_rules version written for the old tiers (it caps by tier keys that no longer exist)."""
+        """A saved escalation_rules version written for the old tiers or the 7-step ladder (its caps no longer fit)."""
         if policy_id != "escalation_rules" or version == 0:
             return False
         meta = next((v for v in self.versions(policy_id) if v["version"] == version), {})

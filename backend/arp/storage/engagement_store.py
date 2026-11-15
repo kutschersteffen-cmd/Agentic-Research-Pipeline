@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
 from arp.schemas.common import now_iso
 from arp.schemas.engagement import (
+    OLD_ROLES,
+    OLD_STAGES,
     Commitment,
     CommitmentStatus,
     Contact,
@@ -64,10 +67,29 @@ class EngagementStore:
 
     def _save(self, record: EngagementRecord) -> EngagementRecord:
         record = record.model_copy(update={"updated_at": now_iso()})
+        data = self._keep_old_values(record.model_dump(mode="json"))
         # Write-then-rename (see arp/storage/atomic_io.py) -- a concurrent
         # reader never sees a half-written record.json.
-        atomic_write_text(self._record_path(record.company_id), record.model_dump_json(indent=2), prefix=".record_")
+        atomic_write_text(self._record_path(record.company_id), json.dumps(data, indent=2, ensure_ascii=False), prefix=".record_")
         return record
+
+    def _keep_old_values(self, data: dict) -> dict:
+        """Stored values of the removed ladder step and engager roles are mapped on read (schemas/engagement.py)
+        and never rewritten: where the mapped value is still what a write would store, the stored one stays."""
+        path = self._record_path(data["company_id"])
+        if not path.exists():
+            return data
+        stored = {i.get("issue_id"): i for i in json.loads(read_text_utf8(path)).get("issues", [])}
+        for issue in data["issues"]:
+            was = stored.get(issue["issue_id"], {})
+            if OLD_STAGES.get(was.get("escalation_stage")) == issue["escalation_stage"]:
+                issue["escalation_stage"] = was["escalation_stage"]
+            if was.get("engager_role") in OLD_ROLES and issue["engager_role"] is None:
+                issue["engager_role"] = was["engager_role"]
+            for new, old in zip(issue["escalation_history"], was.get("escalation_history", []), strict=False):  # append-only
+                if OLD_STAGES.get(old.get("stage")) == new["stage"]:
+                    new["stage"] = old["stage"]
+        return data
 
     def _log_event(self, company_id: str, event_type: str, detail: dict) -> None:
         from arp.storage.run_store import RunStore

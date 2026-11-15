@@ -812,6 +812,18 @@
       ],
       "title": "Company Id"
      },
+     "company_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Directory name of company_id, filled on read by the alerts endpoint; never stored.",
+      "title": "Company Name"
+     },
      "data_point_values": {
       "anyOf": [
        {
@@ -2935,6 +2947,24 @@
     "title": "BestInClassCoverage",
     "type": "object"
    },
+   "BilateralPickRequest": {
+    "properties": {
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "reason": {
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "reason"
+    ],
+    "title": "BilateralPickRequest",
+    "type": "object"
+   },
    "Body_add_fact_api_transition_barrier_cells__code___region__facts_post": {
     "properties": {
      "as_of": {
@@ -3427,6 +3457,26 @@
       "contentMediaType": "application/octet-stream",
       "title": "File",
       "type": "string"
+     },
+     "fonts": {
+      "default": [],
+      "items": {
+       "contentMediaType": "application/octet-stream",
+       "type": "string"
+      },
+      "title": "Fonts",
+      "type": "array"
+     },
+     "layout_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Layout Name"
      }
     },
     "required": [
@@ -9826,10 +9876,9 @@
     "type": "object"
    },
    "EscalationStage": {
-    "description": "Illustrative 7-step escalation ladder. Stage 5+ overlaps with the\nvoting module: a decision to reach PRIVATE_ENGAGEMENT..ESCALATION_TO_CHAIR\nstays inside the engagement workflow, but VOTE_AGAINST_MANAGEMENT and\nbeyond are the same decision the voting module's Policy Application\nAgent checks for alignment against (see arp.voting.policy_agent).",
+    "description": "Illustrative 6-step escalation ladder. Stage 4+ overlaps with the\nvoting module: a decision to reach PRIVATE_ENGAGEMENT..ESCALATION_TO_CHAIR\nstays inside the engagement workflow, but VOTE_AGAINST_MANAGEMENT and\nbeyond are the same decision the voting module's Policy Application\nAgent checks for alignment against (see arp.voting.policy_agent).",
     "enum": [
      "private_engagement",
-     "joint_engagement",
      "written_escalation_to_board",
      "escalation_to_chair",
      "vote_against_management",
@@ -22828,6 +22877,11 @@
       },
       "title": "Source Refs",
       "type": "array"
+     },
+     "subheading": {
+      "default": "",
+      "title": "Subheading",
+      "type": "string"
      }
     },
     "required": [
@@ -39732,6 +39786,47 @@
     ]
    }
   },
+  "/api/reports/templates/{template_id}/preview.png": {
+   "get": {
+    "description": "The template's frame drawn on a blank slide; 404 when the template can't frame a house deck.",
+    "operationId": "template_preview_api_reports_templates__template_id__preview_png_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "template_id",
+      "required": true,
+      "schema": {
+       "title": "Template Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Template Preview",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
   "/api/reports/{report_id}": {
    "delete": {
     "description": "Removes an unfinished report's folder. A finished one, or one still being worked on, is never removed.",
@@ -44809,6 +44904,94 @@
      }
     },
     "summary": "Get Tiers",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/tiers/bilateral": {
+   "post": {
+    "description": "Picks a company for bilateral: while the pick stands it is the company's tier\nproposal, which still needs the tier confirm at stage 5 to count.",
+    "operationId": "post_bilateral_pick_api_stewardship_tiers_bilateral_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BilateralPickRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Post Bilateral Pick Api Stewardship Tiers Bilateral Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Bilateral Pick",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/tiers/bilateral/{issuer_id}/withdraw": {
+   "post": {
+    "operationId": "post_bilateral_withdraw_api_stewardship_tiers_bilateral__issuer_id__withdraw_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "issuer_id",
+      "required": true,
+      "schema": {
+       "title": "Issuer Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Post Bilateral Withdraw Api Stewardship Tiers Bilateral  Issuer Id  Withdraw Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Bilateral Withdraw",
     "tags": [
      "stewardship"
     ]

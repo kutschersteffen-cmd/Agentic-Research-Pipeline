@@ -51,6 +51,22 @@ class HouseUniverseSetting:
         return setting
 
 
+def held_isins(store: PortfolioStore) -> dict[str, str]:
+    """ISIN -> house issuer id for the securities held in the latest snapshot, resolved as `from_portfolio` resolves
+    them, so data keyed by ISIN (the vote ledger) reaches that issuer. The first holding of an ISIN wins."""
+    dates = store.all_snapshot_dates()
+    if not dates:
+        return {}
+    securities, _ = portfolio_directories(store)
+    out: dict[str, str] = {}
+    for h in store.load_holdings_as_of(dates[-1]):
+        r, sec = store.get_resolution(h.security_id), securities.get(h.security_id)
+        isin = h.isin or (sec.isin if sec else None)
+        if isin and r is not None and r.company_id:
+            out.setdefault(isin.upper(), r.company_id)
+    return out
+
+
 def _value_by_company(store: PortfolioStore, as_of: str) -> dict[str, float]:
     securities, _ = portfolio_directories(store)
     resolved = {s: store.get_resolution(s) for s in securities}

@@ -4428,6 +4428,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reports/templates/{template_id}/preview.png": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Template Preview
+         * @description The template's frame drawn on a blank slide; 404 when the template can't frame a house deck.
+         */
+        get: operations["template_preview_api_reports_templates__template_id__preview_png_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/reports/{report_id}": {
         parameters: {
             query?: never;
@@ -6430,6 +6450,44 @@ export interface paths {
         get: operations["get_tiers_api_stewardship_tiers_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/tiers/bilateral": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Bilateral Pick
+         * @description Picks a company for bilateral: while the pick stands it is the company's tier
+         *     proposal, which still needs the tier confirm at stage 5 to count.
+         */
+        post: operations["post_bilateral_pick_api_stewardship_tiers_bilateral_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/tiers/bilateral/{issuer_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Bilateral Withdraw */
+        post: operations["post_bilateral_withdraw_api_stewardship_tiers_bilateral__issuer_id__withdraw_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8822,6 +8880,11 @@ export interface components {
             category: components["schemas"]["AlertCategory"];
             /** Company Id */
             company_id?: string | null;
+            /**
+             * Company Name
+             * @description Directory name of company_id, filled on read by the alerts endpoint; never stored.
+             */
+            company_name?: string | null;
             /** Data Point Values */
             data_point_values?: {
                 [key: string]: number;
@@ -9764,6 +9827,13 @@ export interface components {
              */
             type: "best_in_class_coverage";
         };
+        /** BilateralPickRequest */
+        BilateralPickRequest: {
+            /** Issuer Id */
+            issuer_id: string;
+            /** Reason */
+            reason: string;
+        };
         /** Body_add_fact_api_transition_barrier_cells__code___region__facts_post */
         Body_add_fact_api_transition_barrier_cells__code___region__facts_post: {
             /**
@@ -9966,6 +10036,13 @@ export interface components {
         Body_upload_template_api_reports_templates_post: {
             /** File */
             file: string;
+            /**
+             * Fonts
+             * @default []
+             */
+            fonts: string[];
+            /** Layout Name */
+            layout_name?: string | null;
         };
         /** Body_upload_universe_api_universe_upload_post */
         Body_upload_universe_api_universe_upload_post: {
@@ -12498,14 +12575,14 @@ export interface components {
         };
         /**
          * EscalationStage
-         * @description Illustrative 7-step escalation ladder. Stage 5+ overlaps with the
+         * @description Illustrative 6-step escalation ladder. Stage 4+ overlaps with the
          *     voting module: a decision to reach PRIVATE_ENGAGEMENT..ESCALATION_TO_CHAIR
          *     stays inside the engagement workflow, but VOTE_AGAINST_MANAGEMENT and
          *     beyond are the same decision the voting module's Policy Application
          *     Agent checks for alignment against (see arp.voting.policy_agent).
          * @enum {string}
          */
-        EscalationStage: "private_engagement" | "joint_engagement" | "written_escalation_to_board" | "escalation_to_chair" | "vote_against_management" | "file_or_cofile_resolution" | "public_statement";
+        EscalationStage: "private_engagement" | "written_escalation_to_board" | "escalation_to_chair" | "vote_against_management" | "file_or_cofile_resolution" | "public_statement";
         /** EvidenceReport */
         EvidenceReport: {
             /** Contamination Gap Ic */
@@ -17745,6 +17822,11 @@ export interface components {
             purpose: string;
             /** Source Refs */
             source_refs?: string[];
+            /**
+             * Subheading
+             * @default
+             */
+            subheading: string;
         };
         /**
          * StrategySpec
@@ -28013,6 +28095,37 @@ export interface operations {
             };
         };
     };
+    template_preview_api_reports_templates__template_id__preview_png_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_report_api_reports__report_id__get: {
         parameters: {
             query?: never;
@@ -31700,6 +31813,74 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    post_bilateral_pick_api_stewardship_tiers_bilateral_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BilateralPickRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_bilateral_withdraw_api_stewardship_tiers_bilateral__issuer_id__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issuer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

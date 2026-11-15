@@ -15,6 +15,7 @@ from arp.reporting.house_pptx import build_house_pptx
 from arp.reporting.html_render import render_deck_html
 from arp.reporting.lint import lint_and_rewrite, lint_deck
 from arp.reporting.slide_fill import fill_slide
+from arp.reporting.template_frame import house_tokens
 from arp.reporting.visual_qa import visual_qa
 from arp.schemas.reporting import Deck, Finding, ReportRequest, SlideContent, Storyline
 from arp.storage.reporting_store import ReportingStore
@@ -22,9 +23,10 @@ from arp.storage.reporting_store import ReportingStore
 
 async def render_house_outputs(report_id: str, deck: Deck, request: ReportRequest, store: ReportingStore) -> None:
     """Writes output.pdf, output.pptx and the preview PNGs from `deck`; no LLM, no measuring (fit_deck owns the fit findings)."""
-    html = render_deck_html(deck, request.datasets, mode=request.layout.theme)
+    tokens = house_tokens(request, store)
+    html = render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme)
     await write_pdf(html, store.output_path(report_id, "output.pdf"))
-    build_house_pptx(deck, request.datasets, store.output_path(report_id, "output.pptx"), mode=request.layout.theme)
+    build_house_pptx(deck, request.datasets, store.output_path(report_id, "output.pptx"), tokens, mode=request.layout.theme)
     preview = store.preview_dir(report_id)
     for old in preview.glob("page-*.png"):  # a shorter deck must not keep the old tail
         old.unlink()
@@ -36,6 +38,7 @@ async def build_house_deck(
     settings: Settings | None = None,
 ) -> tuple[Deck, list[Finding]]:
     """`usage`, when given, is incremented in place with every LLM call's tokens (later stages add theirs too)."""
+    tokens = house_tokens(request, store)  # checked before any LLM call is spent
     loaded = with_run_datasets(request, settings, only_missing=True)  # a rerun has loaded them already
     if loaded is not request:  # persisted, so a later re-render sees the same data the deck was built from
         request = loaded
@@ -50,11 +53,11 @@ async def build_house_deck(
             usage.input_tokens += u.input_tokens
             usage.output_tokens += u.output_tokens
     deck, _ = await lint_and_rewrite(deck, request, llm, usage=usage)  # its findings are recomputed on the final deck below
-    deck, fit_findings = await fit_deck(deck, request, llm, usage=usage, shift=findings)
+    deck, fit_findings = await fit_deck(deck, request, llm, usage=usage, shift=findings, tokens=tokens)
     findings += fit_findings
     with tempfile.TemporaryDirectory() as tmp:
-        pngs = await write_pngs(render_deck_html(deck, request.datasets, mode=request.layout.theme), Path(tmp))
-        deck, qa_findings = await visual_qa(deck, pngs, request, llm, usage=usage, shift=findings)
+        pngs = await write_pngs(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme), Path(tmp))
+        deck, qa_findings = await visual_qa(deck, pngs, request, llm, usage=usage, shift=findings, tokens=tokens)
     if any(f.rule == "applied" for f in qa_findings):  # QA re-measured the deck: the first fit's measurements are stale
         findings = [f for f in findings if f.stage != "fit" or f.rule == "slot_dropped"]
     # Fit splits moved slides; lint once more on the final deck so every lint finding points at the right slide.

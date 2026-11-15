@@ -854,7 +854,6 @@ export type MilestoneStage =
 
 export type EscalationStage =
   | "private_engagement"
-  | "joint_engagement"
   | "written_escalation_to_board"
   | "escalation_to_chair"
   | "vote_against_management"
@@ -927,6 +926,7 @@ export interface EngagementIssue {
   commitments: Commitment[];
   tags: string[];
   objectives: Objective[];
+  data_source?: string;
 }
 
 export interface EngagementRecord {
@@ -2130,6 +2130,15 @@ export interface ClientExceptionItem {
   house: string;
   client_step: string;
   reason: string;
+}
+
+/** A standing bilateral pick from GET /api/stewardship/tiers; `name` is null once the issuer left the house universe. */
+export interface BilateralPick {
+  issuer_id: string;
+  name: string | null;
+  reason: string;
+  by: string;
+  at: string;
 }
 
 export interface TierChangeItem {
