@@ -8,12 +8,15 @@ Spec: docs/superpowers/specs/2026-11-15-slide-components-design.md, "Review shee
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 from pathlib import Path
 
 from PIL import Image
 
 from arp.reporting.browser import write_pngs
+from arp.reporting.house_style import load_tokens
 from arp.reporting.html_render import render_deck_html
+from arp.reporting.render_model import render_slide
 from arp.schemas.chart_specs import ChartSpec, TableSpec
 from arp.schemas.reporting import DatasetColumn, Deck, QuantitativeDataset, SlideContent
 from arp.schemas.visuals import (
@@ -121,6 +124,25 @@ def sheet_deck() -> tuple[Deck, list[QuantitativeDataset], str]:
             kicker="The gap", subheading="EPS growth, rolling 4 quarters, %", refs=["eps_q"]),
     ]
     return Deck(title="Utilities outlook 2026", slides=slides), datasets(), NOTES
+
+
+def _plain(v):
+    """Primitive fields as JSON values; floats rounded so the snapshot ignores sub-pixel float noise."""
+    if isinstance(v, float):
+        return round(v, 1)
+    if isinstance(v, (list, tuple)):
+        return [_plain(x) for x in v]
+    if isinstance(v, dict):
+        return {k: _plain(x) for k, x in v.items()}
+    return v
+
+
+def sheet_snapshot(mode: str = "light") -> list[list[dict]]:
+    """Every primitive of every sheet slide (type, name, box, colours, sizes, text), the review sheet's golden."""
+    deck, ds, _ = sheet_deck()
+    by_id = {d.dataset_id: d for d in ds}
+    return [[{"type": type(p).__name__, **_plain(dataclasses.asdict(p))} for p in render_slide(s, i, deck, load_tokens(), by_id, mode)]
+            for i, s in enumerate(deck.slides)]
 
 
 def write_sheet(out: Path) -> list[Path]:

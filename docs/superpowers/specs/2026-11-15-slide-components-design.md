@@ -392,8 +392,12 @@ slide writes v1 (the slide as built) and v2. A full rebuild of the deck clears a
   `linear_flow` and adds slides 9–13. Slide indices therefore match the mockup numbers in both PRs.
 - `arp report sheet --out <dir>` writes one 1920×1080 PNG per sheet slide, named like the mockups, plus
   `sheet.png`.
-- `tests/test_slide_sheet.py::test_sheet_matches_goldens` compares them with
-  `backend/tests/golden/slides/`. It fails when more than 0.5% of pixels differ by more than 16/255.
+- `tests/test_slide_sheet.py::test_sheet_matches_goldens` compares a snapshot of every sheet primitive
+  (type, name, box, colours, sizes, text; floats rounded to 0.1 px), light and dark, with
+  `backend/tests/golden/slides/primitives.json`, and fails on any difference. The PNGs are a visual
+  artifact for people, not a pass/fail check. (Owner decision 15 Nov 2026: pixel goldens differed 1–3%
+  between machines through text anti-aliasing alone; a pixel tolerance loose enough for that also missed
+  AC-19's colour change.)
 
 ### Superseded template-frame rows
 

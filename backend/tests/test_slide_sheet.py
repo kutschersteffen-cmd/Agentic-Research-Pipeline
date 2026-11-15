@@ -1,5 +1,6 @@
-"""Review sheet: fixture slides 0–8, `arp report sheet` and the golden PNGs (spec 2026-11-15-slide-components)."""
+"""Review sheet: fixture slides 0–8, `arp report sheet` and the golden shape snapshot (spec 2026-11-15-slide-components)."""
 
+import json
 import os
 import re
 import subprocess
@@ -8,14 +9,14 @@ import zipfile
 from pathlib import Path
 
 import pytest
-from PIL import Image, ImageChops
+from PIL import Image
 
 from arp.reporting.browser import _page
 from arp.reporting.design_checks import design_checks
 from arp.reporting.house_pptx import build_house_pptx
 from arp.reporting.html_render import render_deck_html
 from arp.reporting.lint import lint_deck
-from arp.reporting.sheet import SHEET_NAMES, sheet_deck
+from arp.reporting.sheet import SHEET_NAMES, sheet_deck, sheet_snapshot
 from arp.schemas.reporting import ReportRequest
 from tests.test_render_writers import _pptx_boxes
 
@@ -113,18 +114,16 @@ async def test_ac1_sheet_boxes_match(tmp_path):
             assert box == pytest.approx(list(pptx[name]), abs=1), (i, name)
 
 
-def _diff_share(a: Path, b: Path) -> float:
-    with Image.open(a) as x, Image.open(b) as y:
-        assert x.size == y.size, a.name
-        diff = ImageChops.difference(x.convert("RGB"), y.convert("RGB"))
-    # a pixel differs when any channel is off by more than 16/255
-    mask = Image.merge("RGB", [ch.point(lambda v: 255 if v > 16 else 0) for ch in diff.split()]).convert("L").point(lambda v: 255 if v else 0)
-    return mask.histogram()[255] / (mask.width * mask.height)
+SNAPSHOT = GOLDEN / "primitives.json"
 
 
-def test_sheet_matches_goldens(sheet_dir):
-    goldens = sorted(GOLDEN.glob("*.png"))
-    assert {g.stem for g in goldens} == {*NAMES, "sheet"}
-    shares = {g.name: _diff_share(sheet_dir / g.name, g) for g in goldens}
-    off = [f"{name}: {share:.2%}" for name, share in shares.items() if share > 0.005]  # every differing PNG, not the first
-    assert not off, "pixels differ from the goldens: " + ", ".join(off)
+def test_sheet_matches_goldens():
+    """Every shape of the sheet (name, box, colours, sizes, text), light and dark, equals the committed snapshot.
+    Exact on every machine, unlike screenshots. Regenerate after an intended change with
+    `ARP_UPDATE_GOLDENS=1 pytest tests/test_slide_sheet.py::test_sheet_matches_goldens` and review the diff."""
+    got = {mode: sheet_snapshot(mode) for mode in ("light", "dark")}
+    if os.environ.get("ARP_UPDATE_GOLDENS"):
+        SNAPSHOT.write_text(json.dumps(got, indent=1, ensure_ascii=False) + "\n")
+    want = json.loads(SNAPSHOT.read_text())
+    off = [f"{mode} slide {i}" for mode in got for i, (a, b) in enumerate(zip(got[mode], want[mode], strict=True)) if a != b]
+    assert not off, "shapes differ from the snapshot: " + ", ".join(off)
