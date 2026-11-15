@@ -3,7 +3,7 @@
 The rules are one ZEN graph (`data/house_escalation_policy.graph.json`) with two
 decision tables, both hit policy `first`:
 
-- `tier_caps`: the highest ladder step (0-6) the issuer's coverage tier allows;
+- `tier_caps`: the highest ladder step (0-5) the issuer's coverage tier allows;
 - `escalation_rules`: how many steps up (`escalate_by`) this engagement should
   move, with the rule and the reason. Inputs are the engagement (step, months at
   the step, missed commitments, stalled beyond the SLA), the monitoring triggers

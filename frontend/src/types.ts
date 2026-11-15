@@ -857,7 +857,6 @@ export type MilestoneStage =
 
 export type EscalationStage =
   | "private_engagement"
-  | "joint_engagement"
   | "written_escalation_to_board"
   | "escalation_to_chair"
   | "vote_against_management"
@@ -879,6 +878,7 @@ export interface CorrespondenceEntry {
   summary: string;
   doc_ref?: string | null;
   logged_by?: string | null;
+  activity_type?: string | null;
 }
 
 export interface Commitment {
@@ -890,7 +890,15 @@ export interface Commitment {
   validated_by?: string | null;
   validated_at?: string | null;
   evidence?: string | null;
+  proof_statement?: string | null;
 }
+
+export type Objective = Served<S["Objective"]>;
+export type WatchTopic = Served<S["WatchTopic"]>;
+export type WatchItemKind = "objective" | "commitment" | "topic";
+export type EvidenceSuggestion = Served<S["EvidenceSuggestion"]>;
+export type WatchCheckResult = Served<S["WatchCheckResult"]>;
+export type FindCommitmentsResult = Served<S["FindCommitmentsResult"]>;
 
 export interface MilestoneTransition {
   stage: MilestoneStage;
@@ -920,6 +928,8 @@ export interface EngagementIssue {
   correspondence: CorrespondenceEntry[];
   commitments: Commitment[];
   tags: string[];
+  objectives: Objective[];
+  data_source?: string;
 }
 
 export interface EngagementRecord {
@@ -969,6 +979,18 @@ export interface ResearchDossier {
   citations: Citation[];
   confidence: number;
   needs_review: boolean;
+  watch_list?: WatchListEntry[];
+}
+
+export interface WatchListEntry {
+  item_kind: "objective" | "commitment" | "topic";
+  item_id: string;
+  text: string;
+  proof_statement: string | null;
+  target_date: string | null;
+  status: string;
+  flag: "overdue" | "broken" | null;
+  evidence: string[];
 }
 
 export interface OutreachLetterDraft {
@@ -1062,6 +1084,19 @@ export interface CompanyBallot {
   meeting_date?: string | null;
   votes: VoteRecord[];
   generated_at: string;
+  watch_flags?: WatchFlag[];
+}
+
+/** An overdue or broken commitment or objective of the company (spec stewardship-commitment-loop, PR 3). */
+export interface WatchFlag {
+  item_kind: "commitment" | "objective";
+  item_id: string;
+  engagement_id: string;
+  kind: "overdue" | "broken";
+  text: string;
+  target_date: string | null;
+  since: string | null;
+  message: string;
 }
 
 export interface VoteReviewDecision {
@@ -2100,6 +2135,15 @@ export interface ClientExceptionItem {
   house: string;
   client_step: string;
   reason: string;
+}
+
+/** A standing bilateral pick from GET /api/stewardship/tiers; `name` is null once the issuer left the house universe. */
+export interface BilateralPick {
+  issuer_id: string;
+  name: string | null;
+  reason: string;
+  by: string;
+  at: string;
 }
 
 export interface TierChangeItem {

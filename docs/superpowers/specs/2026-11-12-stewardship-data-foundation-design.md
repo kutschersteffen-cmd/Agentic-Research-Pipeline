@@ -99,8 +99,8 @@ snake_case value; the Excel `lists` sheet shows both.
   (Business Ethics, Corporate Conduct, Anti-corruption, Audit), `tax_accounting` (Tax & Accounting Practices),
   `shareholder_rights` (Shareholder rights), `other` (Other).
 - **ESG pillar:** `E`, `S`, `G` (one or more).
-- **Engager role:** `bilateral`, `lead` (Lead, Co-Lead or equivalent), `active_support`, `passive_support`
-  (Passive support, Signatory).
+- **Engager role:** `bilateral`. (`lead`, `active_support` and `passive_support` were removed by
+  `stewardship-three-tiers`, 14 Nov 2026: the house runs no collaborative engagements; stored values read as no role.)
 - **Objective type:** `transparency`, `operational`, `strategic`.
 - **Receptiveness:** `very_good`, `good`, `neutral`, `insufficient`, `refusal` (Refusal/Blockage).
 - **Objective status:** `initiated`, `in_progress`, `closed`, `abandoned`.
@@ -202,8 +202,28 @@ worksheet row number (header = row 1). For JSON, `sheet` is the batch key and `r
 
 **Vote batch** (one sheet or key `votes`, one row per decision): `external_id`, `company_id`, `isin`, `cusip`,
 `issuer_name`, `meeting_date`, `meeting_type`, `item_number`, `description`, `categories`, `proponent`,
-`management_recommendation`, `vote`, `shares_voted`, `rationale`, `decided_by`, `decided_at`, `run_id`. Meetings and
-items are found or created from (`company_id` or `isin` or `cusip`, `meeting_date`) and (meeting, `item_number`).
+`management_recommendation`, `vote`, `shares_voted`, `rationale`, `decided_by`, `decided_at`, `run_id`. Meetings are
+found or created from (the identifier that names the meeting, below, and the date of `meeting_date`), and items from
+(meeting, `item_number`).
+A vote row must carry `external_id`, `meeting_date`, `item_number`, `vote`, and at least one of `company_id`, `isin`
+or `cusip`; a row missing any of them is rejected with one `rejected` entry per missing field, `reason` `required`
+(a row with none of the three identifiers gets one entry, `field` `company_id`, `reason`
+`one of company_id, isin, cusip required`). A field is missing when its key is absent, null, or empty after trimming
+whitespace (an empty cell in Excel). Each failed check, the rationale rule included, adds its own entry; the rationale
+rule runs only when `vote` is present. A row whose only issuer identifier is a `company_id` that is neither in the
+registry nor in `stw_companies` adds one entry, `field` `company_id`, `reason` `unknown company`. An `item_number`
+containing `:` adds one entry, `field` `item_number`, `reason` `must not contain ':'`. A meeting is named by the
+row's `company_id` when it is in the registry or `stw_companies`, else by its `isin`, else by its `cusip`; a
+`company_id` of the form `isin_<ISIN>` names the same meeting as that `isin`. `isin` is compared and stored without
+whitespace and in upper case, `cusip` in upper case, an all-digit `cusip` left-padded with zeros to 9 characters. The
+meeting's `company_id` comes only from the identifier that names it (that `company_id`, or `isin_<ISIN>` for an ISIN)
+and only when that company has a `stw_companies` row, else it is null. A row whose non-null `company_id` (as just
+derived), `isin` or `cusip` differs from a non-null value already on its meeting, stored or set by an earlier row in
+the same batch, adds one entry per conflicting field, `field` the field name, `reason` `<field> differs from the
+meeting's <value>`, where `<value>` is that meeting value; an empty value on the row never conflicts. Meeting
+conflicts are checked only when no row in the batch has another rejection, so they never appear next to other
+entries. An upsert fills a meeting's empty `company_id`, `isin` or `cusip` but never clears or changes a
+filled one. These rules apply to intake only, not to `load-npx`.
 
 **Rules.**
 
@@ -214,7 +234,7 @@ items are found or created from (`company_id` or `isin` or `cusip`, `meeting_dat
   `management_recommendation` is `for`, or `vote` is `for` and the recommendation is `against`; false when `vote`
   equals the recommendation; null when the recommendation is empty or `vote` is `abstain`, `do_not_vote`, `other`
   or a frequency value.
-- A vote row whose company matches nothing is stored with `company_id` null.
+- A vote row that carries `isin` or `cusip` and whose company matches nothing is stored with `company_id` null.
 - `source` is `api` for JSON and `excel` for uploads. The upsert key is (`source`, `external_id`). A row whose
   values equal the stored row counts as `unchanged` and writes nothing, events included.
 
@@ -246,7 +266,7 @@ World companies and puts them in the house portfolios, so `house_universe()` inc
    closed, `closed_at`, `outcome`, `influence_level` and `influence_evidence`. Themes follow the company's sector
    (Energy leans to `climate_mitigation`, Financials to `governance_board_pay`, and so on). Closed objectives get
    influence levels in roughly this mix: `1` 30 %, `2` 30 %, `3` 25 %, `4A`/`4B` 12 %, `5` 3 %.
-   `passive_support` objectives never get `4A`, `4B` or `5`. All rows: `source = 'mock_voice_seed'`.
+   Every seeded engagement has `engager_role` `bilateral` (`stewardship-three-tiers`). All rows: `source = 'mock_voice_seed'`.
 3. **Re-running:** the same seed is idempotent. A different `--seed` deletes every `mock_voice_seed` row first and
    writes the new set. No other source is touched.
 4. **Votes:** `arp stewardship load-npx data/voting/npx_urth/` loads the three committed N-PX CSVs
@@ -289,7 +309,8 @@ The house rule `vote_against_management` (`vote.against_management > 0`) is unch
 ## UI
 
 The issue panel on `#/engagement` (`frontend/src/components/EngagementIssuePanel.tsx`) lists the issue's
-objectives: description, type, status, result. Each row from `mock_voice_seed` or `npx_urth_demo` shows the label
+objectives: description, type, status, and the result when set (owner, 14 Nov 2026: the list is the
+`stewardship-commitment-loop` one, which shows a result only once recorded). Each row from `mock_voice_seed` or `npx_urth_demo` shows the label
 `Demo data`. `e2e_stack.sh up` seeds no stewardship data; the evaluator runs
 `arp showcase load && arp stewardship seed-demo --companies 20` itself before checking AC-30.
 
@@ -322,7 +343,7 @@ and `vote_*` tables first, unless the row says otherwise.
 | AC-13 | The workbook from AC-12 | It is uploaded | `stw_engagements`, `stw_objectives` and `stw_activities` hold 0 rows | holdout |
 | AC-14 | A JSON engagement batch with 1 engagement whose `company_id` and `isin` match nothing | It is posted to `POST /api/stewardship/intake/engagements` | Status 422; `rejected` holds one entry with `sheet` `engagements`, `row` 1, `reason` `unknown company` | holdout |
 | AC-15 | A company created through `POST /api/engagement/records`, and a valid JSON engagement batch with 1 engagement for it and 1 objective | It is posted | Status 200, body `{"created": 2, "updated": 0, "unchanged": 0, "rejected": []}` | holdout |
-| AC-16 | A JSON vote batch with one row: `vote` `against`, `management_recommendation` `for`, empty `rationale` | It is posted to `POST /api/stewardship/intake/votes` | Status 422; `rejected` holds one entry with `field` `rationale`, `reason` `rationale required when voting against management` | holdout |
+| AC-16 | A JSON vote batch with one row that is valid except for its rationale: `external_id`, `isin`, `meeting_date`, `item_number`, `vote` `against`, `management_recommendation` `for`, empty `rationale` | It is posted to `POST /api/stewardship/intake/votes` | Status 422; `rejected` holds exactly one entry, with `field` `rationale` and `reason` `rationale required when voting against management` | holdout |
 | AC-17 | A votes workbook with 3 valid rows at one new meeting, `item_number` 1, 2 and 3 | It is uploaded to `POST /api/stewardship/intake/votes.xlsx` | Status 200, body `{"created": 7, "updated": 0, "unchanged": 0, "rejected": []}` (1 meeting + 3 items + 3 decisions) | holdout |
 | AC-18 | The workbook from AC-8 saved to disk | `arp stewardship intake <file> --kind engagements` runs | It exits 0 and prints `created 10, updated 0, unchanged 0, rejected 0` | holdout |
 | AC-19 | A `viewer` user (non-dev auth) | `POST /api/stewardship/intake/engagements` | Status 403 | unit |
@@ -332,11 +353,11 @@ and `vote_*` tables first, unless the row says otherwise.
 | AC-23 | Showcase companies loaded | `arp stewardship seed-demo --seed 7` runs | Exactly 400 distinct `company_id` have rows in `stw_engagements` with `source` `mock_voice_seed`, and each has 3, 4 or 5 objectives | holdout |
 | AC-24 | AC-23 done | Closed objectives are read | None has a null `result`, `closed_at`, `outcome` or `influence_level` | holdout |
 | AC-25 | AC-23 done | Objectives are read | 25–45 % have `follows_objective_id` set; each points to an objective in the same engagement with an earlier `started_at` | holdout |
-| AC-26 | AC-23 done | Objectives under engagements with `engager_role` `passive_support` are read | None has `influence_level` `4A`, `4B` or `5` | holdout |
+| ~~AC-26~~ | Superseded by AC-42 (`stewardship-three-tiers` AC-31) (only `bilateral` is seeded) | — | ~~AC-23 done; Objectives under engagements with `engager_role` `passive_support` are read; None has `influence_level` `4A`, `4B` or `5`; holdout~~ | retired |
 | AC-27 | `ARP_ENGAGEMENT_STORE=postgres`, a file `engagements/<id>/record.json` present, and the same company created through `POST /api/engagement/records` | `POST /api/engagement/records/{id}/issues` | Status 200, and the file's bytes are unchanged | holdout |
 | AC-28 | A database with rows in legacy `engagement_issues` and `engagement_commitments` | `arp db init-postgres` runs | Both tables exist with the same row counts | holdout |
 | AC-29 | AC-23 done | `seed-demo --seed 7` runs again | Row counts of every `stw_*` table are unchanged | holdout |
-| AC-30 | Seeded data on the e2e stack | A user opens `#/engagement` and a seeded company's issue | Each objective shows description, type, status and result, and the label `Demo data` | evaluator |
+| AC-30 | Seeded data on the e2e stack | A user opens `#/engagement` and a seeded company's issue | Each objective shows description, type and status, its result when one is set, and the label `Demo data` (amended 14 Nov 2026 by the owner: result only when set, as the `stewardship-commitment-loop` objectives list shows it) | evaluator |
 | AC-31 | Showcase companies not loaded | `seed-demo` runs | Exit code 1; stderr is `run arp showcase load first` | unit |
 | AC-32 | AC-31 | — | 0 rows with `source` `mock_voice_seed` exist | unit |
 | AC-33 | A fixture CSV: 3 meetings, 10 distinct items; 8 items with one vote record (2 of them `AGAINST` with `for_against_management` `AGAINST`), 1 item with 2 records (`FOR`/`FOR`, management `FOR`), 1 item with an empty vote | `arp stewardship load-npx <dir>` runs | `vote_meetings` holds 3 rows, `vote_items` 10, `vote_decisions` 10 | holdout |
@@ -348,6 +369,7 @@ and `vote_*` tables first, unless the row says otherwise.
 | AC-39 | A ledger whose only against-management decision for a company is more than 365 days before the newest `meeting_date` | `GET /api/stewardship/studio/monitoring/triggers` | No `vote_against_management` trigger for that company | holdout |
 | AC-40 | A `proxy_voting` run with one decided vote, and a ledger decision with the same `run_id`, `company_id` and `item_number` | The company's fields are read (`load_sample`) | `vote.decided` = 1 | unit |
 | AC-41 | `ARP_ENGAGEMENT_STORE` unset | The backend test suite runs | The file store is used, and the existing engagement and stewardship tests pass unchanged | unit |
+| AC-42 | `stewardship-three-tiers` PR B and PR 3 merged; Showcase data as defined in the workbench spec (`arp stewardship seed-demo` run) | `SELECT DISTINCT engager_role FROM stw_engagements WHERE source = 'mock_voice_seed'` | Exactly one row: `bilateral` | holdout |
 
 Must not change: the existing `/api/engagement` routes and their responses (AC-3, AC-4, AC-41); stewardship stage
 outputs on the file store (AC-41); the legacy engagement tables (AC-28); the house monitoring rules (AC-38 uses the

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useMe } from "../lib/reviewer";
 import { SignedInAs } from "./SignedInAs";
+import { CheckButton, DossierWatchList, FindCommitmentsButton, FoundCommitments, ObjectivesSection, PendingEvidence, ProofLine, WatchTopicsSection, useSuggestions } from "./EngagementWatch";
 import type {
   Contact,
   EngagementIssue,
@@ -16,7 +17,6 @@ import type {
 
 const ESCALATION_STAGES: EscalationStage[] = [
   "private_engagement",
-  "joint_engagement",
   "written_escalation_to_board",
   "escalation_to_chair",
   "vote_against_management",
@@ -26,7 +26,7 @@ const ESCALATION_STAGES: EscalationStage[] = [
 
 function escalationClass(stage: string): string {
   const idx = ESCALATION_STAGES.indexOf(stage as EscalationStage);
-  if (idx >= 4) return "stage-pill escalation-high";
+  if (idx >= 3) return "stage-pill escalation-high";
   if (idx >= 1) return "stage-pill escalation-mid";
   return "stage-pill escalation-low";
 }
@@ -69,6 +69,8 @@ export function EngagementIssuePanel({
   const [verifying, setVerifying] = useState<string | null>(null);
   const [evidence, setEvidence] = useState("");
   const closed = issue.status === "resolved" || issue.status === "closed";
+  const watch = { companyId: record.company_id, issueId: issue.issue_id, busy, run };
+  const suggestions = useSuggestions(record.company_id);
 
   useEffect(() => {
     setDossier(null);
@@ -289,13 +291,19 @@ export function EngagementIssuePanel({
               <div className="timeline-meta">
                 {new Date(c.date).toLocaleString()} {c.logged_by ? `-- logged by ${c.logged_by}` : ""}
               </div>
+              {suggestions.available && ["call", "meeting"].includes(c.activity_type ?? c.type) && (
+                <FindCommitmentsButton ctx={watch} activityId={c.entry_id} onFound={suggestions.reload} />
+              )}
             </li>
           ))}
         </ul>
       </div>
 
+      <ObjectivesSection ctx={watch} issue={issue} suggestions={suggestions} closed={closed} onSaved={refreshRecord} />
+
       <div className="panel-section">
         <h3>Commitments</h3>
+        <FoundCommitments ctx={watch} issue={issue} suggestions={suggestions} closed={closed} onSaved={refreshRecord} />
         {issue.commitments.length === 0 && <p className="muted">None logged yet.</p>}
         {issue.commitments.map((c) => (
           <div className="activity-row" key={c.commitment_id}>
@@ -308,6 +316,13 @@ export function EngagementIssuePanel({
                 {c.validated_by && <span>verified by {c.validated_by}</span>}
                 {c.evidence && <span>evidence: {c.evidence}</span>}
               </div>
+              <ProofLine ctx={watch} kind="commitment" id={c.commitment_id} label={c.text} proof={c.proof_statement} open={c.status === "open"} onSaved={refreshRecord} />
+              {c.status === "open" && !closed && suggestions.available && (
+                <>
+                  <PendingEvidence ctx={watch} suggestions={suggestions} itemId={c.commitment_id} onSaved={refreshRecord} />
+                  <CheckButton ctx={watch} kind="commitment" id={c.commitment_id} label={c.text} onChecked={suggestions.reload} />
+                </>
+              )}
             </div>
             {c.status === "open" && verifying !== c.commitment_id && (
               <button onClick={() => { setVerifying(c.commitment_id); setEvidence(""); }} disabled={busy || !actor}>
@@ -332,6 +347,8 @@ export function EngagementIssuePanel({
         ))}
       </div>
 
+      <WatchTopicsSection key={issue.issue_id} ctx={watch} closed={closed} suggestions={suggestions} />
+
       <div className="panel-section">
         <h3>Research Agent</h3>
         <button onClick={draftDossier} disabled={busy}>
@@ -350,6 +367,7 @@ export function EngagementIssuePanel({
               <strong>Peer benchmark:</strong> {dossier.peer_benchmark_notes}
             </p>
             <p className="muted">Confidence: {Math.round(dossier.confidence * 100)}% &middot; {dossier.citations.length} citation(s)</p>
+            <DossierWatchList entries={dossier.watch_list ?? []} />
           </div>
         )}
       </div>

@@ -17,7 +17,7 @@ accession above is the only one whose `primary_doc.xml` header lists S000035395 
 ## How the files were made
 
 Each vote table covers 10-41 series. Every `proxyTable` record carries a `voteSeries` element, so
-only records tagged `S000035395` were kept. The XML was streamed and not stored. Values are SEC
+only records tagged `S000035395` were kept (`fetch_npx.py` in this folder re-fetches them). The XML was streamed and not stored. Values are SEC
 values as filed, only flattened; no type conversion.
 
 One CSV row per `voteRecord`. A proposal whose shares were split (part FOR, part AGAINST) gives

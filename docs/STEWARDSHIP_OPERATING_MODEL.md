@@ -141,25 +141,23 @@ Reading holdings is not a client *policy*: the monitoring run treats client
 portfolios as data, so stages 1–6 still never read a client policy.
 
 #### Coverage tier (E1)
-Every issuer in scope gets **one of four coverage tiers**. The tier sets the depth
+Every issuer in scope gets **one of three coverage tiers**. The tier sets the depth
 and the form of stewardship the issuer receives. It is a property of the
 **issuer**, assigned to every holding, not only to companies under engagement.
 
 | Tier | Form of engagement | Engagements it creates | Max escalation step (default) |
 |---|---|---|---|
-| Priority Bilateral | Bespoke, house-led dialogue with the company | One per issuer × theme, `mode = bilateral` | Full ladder |
-| Thematic & Collaborative | Theme campaigns and collaborative initiatives with other investors | One per issuer × theme, `mode = collaborative`, linked to an Initiative | Escalation to the chair; anything beyond means promotion to Priority Bilateral |
-| Scaled Baseline | Standard expectations letters and voting policy across the index | One per baseline Initiative, `mode = baseline` | Vote against management |
-| Systemic / Market-Level | No company-specific dialogue; covered through market-level work (regulators, standard setters, index providers) and voting | None at issuer level; the issuer is counted under market-level Initiatives | — (voting only) |
+| Bilateral | The house's own dialogue with the company | One per issuer × theme, `mode = bilateral` | Full ladder, up to a public statement |
+| Letter | The standard expectations letter plus the voting policy | One per baseline Initiative, `mode = letter` | Vote against management; anything beyond means promotion to Bilateral |
+| Monitor | Voting and monitoring only, with no company-specific escalation | None at issuer level | Private engagement (no company-specific escalation) |
 
-The tier names come from the Full-Index Coverage model. The caps are proposed
-defaults and are configuration. Reaching a tier's cap is itself a trigger to
+The caps are proposed defaults and are configuration. Reaching a tier's cap is itself a trigger to
 consider promoting the issuer to the next tier.
 
 | Tier Assignment | Type | Notes |
 |---|---|---|
 | issuer_id + assigned_at | composite PK | **Append-only**: re-evaluation writes a new row, so the tier history is kept. |
-| tier | enum | priority_bilateral \| thematic_collaborative \| scaled_baseline \| systemic |
+| tier | enum | bilateral \| letter \| monitor |
 | evaluation_id | FK → Policy Evaluation | The `coverage_tier` evaluation, which records **which rule fired**: the stored justification. |
 | inputs | JSON | Index weight, AUM held, prior engagement history, sector/thematic flags, as evaluated. |
 | confirmed_by | string, nullable | Set when a person confirms a tier change at the checkpoint. |
@@ -176,15 +174,15 @@ has no single issuer.
 | Field | Type | Notes |
 |---|---|---|
 | initiative_id | PK | |
-| type | enum | collaborative \| baseline_campaign \| market_level |
+| type | enum | baseline_campaign \| market_level |
 | theme_id | FK → Theme | |
-| name, partners, started_at, status | | `partners` for collaborative initiatives (e.g. other investors). |
+| name, partners, started_at, status | | |
 
 #### Escalation ladder
 Within an engagement, escalation moves along a ladder of steps. The default is the
-7-step ladder: private engagement → joint engagement → written escalation to the
-board → escalation to the chair → **vote against management** → file or co-file a
-resolution → public statement. The steps are configuration, and the issuer's tier
+6-step ladder: private engagement → written escalation to the board → escalation to
+the chair → **vote against management** → file or co-file a resolution → public
+statement. The steps are configuration, and the issuer's tier
 caps how far an engagement can go (table above).
 
 #### Engagement
@@ -194,8 +192,8 @@ caps how far an engagement can go (table above).
 | engagement_id | PK, string | One per issuer × theme dialogue. |
 | issuer_id | FK → Issuer | 1 : N. |
 | theme_id | FK → Theme | |
-| mode | enum | bilateral \| collaborative \| baseline, set by the issuer's tier. |
-| initiative_id | FK → Initiative, nullable | For collaborative and baseline engagements. |
+| mode | enum | bilateral \| letter, set by the issuer's tier (letter engagements are the baseline ones). |
+| initiative_id | FK → Initiative, nullable | For letter (baseline) engagements. |
 | escalation_step | int | Position on the ladder. Written only through Escalation Change. |
 | status, milestone | enum | open \| stalled \| resolved \| closed; the milestone ladder (progress of the dialogue itself) is configuration. |
 | opened_by_trigger_id | FK → Trigger Event | Why it exists. |
@@ -351,7 +349,7 @@ policy (E4) never touches them.
 | Domain | Evaluated per | Input context | Output |
 |---|---|---|---|
 | monitoring | issuer in scope, each monitoring run | `issuer` (context, incl. change since the last run), `holding` (weight, change in weight, which portfolios hold it) | `triggers`: list of {type, theme, severity, detail} |
-| coverage_tier | issuer in scope, quarterly and on relevant triggers | `issuer`, `holding` (index weight, AUM held across portfolios), `history` (prior engagements, outcomes), sector/thematic flags, `selection` (score, tier and leverage from the decision framework, if attached) | `tier`, `themes` (for bilateral/collaborative), `reason` |
+| coverage_tier | issuer in scope, quarterly and on relevant triggers | `issuer`, `holding` (index weight, AUM held across portfolios), `history` (prior engagements, outcomes), sector/thematic flags, `selection` (score, tier and leverage from the decision framework, if attached) | `tier`, `themes` (for bilateral), `reason` |
 | escalation | open engagement with new triggers | `issuer`, `engagement` (mode, step, milestone, months at step, commitments), `tier` (incl. its step cap), `triggers` | `recommended_step`, `promote_tier` (bool), `reason` |
 | vote_expectation | resolution (before the meeting) and vote record (once ingested) | `issuer`, `resolution`, `engagement` (step, theme), `tier`, `portfolio`, `vote` (null before the meeting) | `expected_vote`, `consistent` (null before the meeting), `rationale`, `reason` |
 | meeting_profile | upcoming meeting | `issuer`, `meeting` (contested, activist campaign), `holding` (rank by weight), media-attention signal | `high_profile` (bool), `reason` |
@@ -438,7 +436,7 @@ and adding a client never touches house data.
 | evaluation_id | FK → Policy Evaluation | The client evaluation that produced it. |
 | house_evaluation_id | FK → Policy Evaluation | What it deviates from. |
 | kind | enum | tier_higher \| tier_lower \| escalation_higher \| vote_expectation_differs \| vote_inconsistent |
-| detail | JSON | e.g. `{"house_tier": "scaled_baseline", "client_tier": "priority_bilateral"}`. |
+| detail | JSON | e.g. `{"house_tier": "letter", "client_tier": "bilateral"}`. |
 | status | enum | open \| acknowledged \| raised_to_house |
 
 The house engages each company once, so a client cannot run its own dialogue. A
@@ -527,10 +525,9 @@ refresh otherwise) over the full monitoring scope.
   whose inputs changed, and for all issuers at the quarterly re-evaluation. Write a
   Tier Assignment with the rule that fired. A changed tier is proposed; the
   checkpoint confirms it.
-- **Engagements.** For Priority Bilateral and Thematic & Collaborative issuers,
-  open an engagement for each theme the tier output names (collaborative ones linked
-  to their Initiative). Scaled Baseline issuers join the baseline campaign
-  engagement. Systemic issuers get no issuer-level engagement.
+- **Engagements.** For Bilateral issuers, open an engagement for each theme the
+  tier output names. Letter issuers join the baseline campaign engagement. Monitor
+  issuers get no issuer-level engagement.
 - **Escalation.** For open engagements with new triggers, evaluate the house
   `escalation` graph, capped by the issuer's tier. Reaching the cap sets
   `promote_tier`.
@@ -694,7 +691,7 @@ New entities (additions to Part 1):
 | CLIENT_PROGRAM | program_id, client_id, portfolio_id, benchmark (`MSCI World`), objective, status | draft → proposed → approved → live → retired. |
 | PROGRAM_VERSION | program_id + version, `index_calibration` (id+version), `decision_framework` (id+version), `policy_versions` {coverage_tier, escalation, vote_expectation}, `capacity` assumptions, approved_by | **Immutable.** Recalibrating makes a new version, so what was proposed, approved and monitored is always exactly reproducible. |
 | PROGRAM_SIMULATION | simulation_id, program_id + version, as_of, outputs (below), house_comparison | One per "Run" click in the calibration loop. Cheap to throw away; the version the client approves points at its simulation. |
-| PROGRAM_TARGET | program_id + version, issuer_id, theme_id, role, tier, max_step, origin | role: overweight \| underweight \| engage; `tier` from the four coverage tiers and `max_step` the planned escalation ceiling (vote against management = sanction). origin: `house` (already in the house program) \| `client_only`. Frozen at approval; this is the monitored list. |
+| PROGRAM_TARGET | program_id + version, issuer_id, theme_id, role, tier, max_step, origin | role: overweight \| underweight \| engage; `tier` from the three coverage tiers and `max_step` the planned escalation ceiling (vote against management = sanction). origin: `house` (already in the house program) \| `client_only`. Frozen at approval; this is the monitored list. |
 | PROGRAM_KPI_SNAPSHOT | program_id, as_of, kpis (JSON) | One row per monitoring run; the time series behind the monitoring view. |
 
 ### 5.2 Calibration loop
@@ -1305,9 +1302,9 @@ resulting tier changes into the stage 5 queue.
   weight and AUM held (holdings), high-emitter and high-impact-nature flags
   (company data), open and escalated engagements (history). Draft rules, in
   order: index weight ≥ 1% or > EUR 500m held or an escalated engagement →
-  Priority Bilateral; high emitter, high-impact nature sector or an open
-  engagement → Thematic & Collaborative; index weight < 0.05% → Systemic;
-  everyone else → Scaled Baseline. Decision-table cells never match a missing
+  Bilateral; high emitter, high-impact nature sector or an open
+  engagement → Letter; index weight < 0.05% → Monitor;
+  everyone else → Letter. Decision-table cells never match a missing
   value, so missing data falls through to the default rather than failing.
 - The rules *propose*; a tier counts only once a person confirms it at stage 5.
   Only new companies and changed tiers need confirming.
@@ -1351,8 +1348,8 @@ resulting tier changes into the stage 5 queue.
   [`house_escalation_policy.graph.json`](../backend/arp/stewardship/data/house_escalation_policy.graph.json),
   with two chained decision tables (both hit policy *first*):
   - `tier_caps`: the highest ladder step per coverage tier (Part 1 defaults:
-    Priority Bilateral 6 public statement, Thematic & Collaborative 3 chair,
-    Scaled Baseline 4 vote against management, Systemic 0). An issuer without a tier
+    Bilateral 5 public statement, Letter 3 vote against management, Monitor 0
+    private engagement). An issuer without a tier
     is not capped.
   - `escalation_rules`: how many steps up (`escalate_by`), with rule and reason.
     Draft rules, in order: a high-severity monitoring trigger on the engagement

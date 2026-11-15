@@ -36,7 +36,7 @@ def test_house_flow_has_all_stages_with_sourced_metrics(streams, tmp_path):
     assert [s["number"] for s in result["stages"]] == list(range(1, 9))
     assert all(m["source"] in ("live", "sample", "not_built") for s in result["stages"] for m in s["metrics"])
     decisions = [d for d in _stage(result, "checkpoint")["decisions"] if d["kind"] == "escalation"]
-    assert [(d["company_id"], d["current"], d["next"]) for d in decisions] == [("ACME", "private_engagement", "joint_engagement")]
+    assert [(d["company_id"], d["current"], d["next"]) for d in decisions] == [("ACME", "private_engagement", "written_escalation_to_board")]
 
 
 def test_client_stream_decide_every_difference_then_build(streams, tmp_path):
@@ -70,3 +70,16 @@ def test_invalid_decision_is_rejected(streams):
 def test_stream_ids_cannot_escape_the_directory(streams):
     with pytest.raises(ValueError):
         streams.get("../../etc")
+
+
+def test_approved_program_versions_read_old_tier_keys_as_the_new_ones(streams, tmp_path):
+    # AC-19: mapped on read, the stored stream is not rewritten
+    from arp.api.routers.stewardship import get_program
+    from arp.config import Settings
+
+    stream = streams.get(create_stream(CreateStreamRequest(name="client-s"), streams)["stream_id"])
+    target = {"issuer_id": "SYN01", "company": "Synthetic Company 01", "theme": "climate_transition", "tier": "scaled_baseline"}
+    streams.save({**stream, "program_versions": [{"version": 1, "params": {}, "targets": [target], "kpis": {}}]})
+    got = get_program(stream["stream_id"], Settings(), streams, EngagementStore(tmp_path / "e"))
+    assert [t["tier"] for t in got["versions"][0]["targets"]] == ["letter"]
+    assert streams.get(stream["stream_id"])["program_versions"][0]["targets"][0]["tier"] == "scaled_baseline"

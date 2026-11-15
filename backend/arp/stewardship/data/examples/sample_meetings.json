@@ -909,7 +909,7 @@
    "theme": "board_governance",
    "at_vote_step": false,
    "months_without_progress": 20,
-   "step": "joint_engagement",
+   "step": "private_engagement",
    "months_at_step": 20,
    "commitments_missed": 0
   },

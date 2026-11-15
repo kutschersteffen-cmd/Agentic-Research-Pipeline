@@ -10,7 +10,7 @@ from math import ceil, floor
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.browser import measure
-from arp.reporting.house_style import get_variant
+from arp.reporting.house_style import Tokens, get_variant
 from arp.reporting.html_render import render_deck_html
 from arp.reporting.lint import lint_deck
 from arp.reporting.slide_fill import rewrite_slot
@@ -69,12 +69,13 @@ async def _fit_slide(
 
 async def fit_deck(
     deck: Deck, request: ReportRequest, llm: LLMClient, max_passes: int = 3, usage: LLMUsage | None = None,
-    shift: list[Finding] | None = None,
+    shift: list[Finding] | None = None, tokens: Tokens | None = None,
 ) -> tuple[Deck, list[Finding]]:
-    """`shift`, when given, holds earlier findings on this deck: a split moves those after it down, in place."""
+    """`shift`, when given, holds earlier findings on this deck: a split moves those after it down, in place.
+    `tokens` carries a template frame when there is one (house tokens otherwise)."""
     extra: list[Finding] = []
     for _ in range(max_passes):
-        found = await measure(render_deck_html(deck, request.datasets, mode=request.layout.theme))
+        found = await measure(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme), tokens)
         todo: dict[int, tuple[str, float]] = {}
         for f in found:
             if f.rule == "overflow" and f.slot not in (None, "headline"):
@@ -92,4 +93,4 @@ async def fit_deck(
                     f.slide += len(new) - 1
             extra += fs
         deck = deck.model_copy(update={"slides": slides})
-    return deck, extra + await measure(render_deck_html(deck, request.datasets, mode=request.layout.theme))
+    return deck, extra + await measure(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme), tokens)

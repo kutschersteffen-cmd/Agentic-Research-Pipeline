@@ -127,6 +127,33 @@ class TemplateLayoutInfo(BaseModel):
     placeholder_types: list[str] = Field(default_factory=list)
 
 
+class Box(BaseModel):
+    """A rectangle in house-canvas px (the slide width maps to 1920)."""
+
+    x: float
+    y: float
+    w: float
+    h: float
+
+
+class FrameFont(BaseModel):
+    family: str
+    size_px: float
+    bold: bool
+
+
+class TemplateFrame(BaseModel):
+    """Where a company template puts the headline, subheading and body, and in which fonts."""
+
+    layout_name: str
+    headline: Box
+    subheading: Box
+    body: Box
+    headline_font: FrameFont
+    subheading_font: FrameFont
+    body_font_family: str
+
+
 class TemplateStyleProfile(BaseModel):
     """Deterministically extracted from an uploaded .pptx template via
     python-pptx -- never LLM-guessed. Drives DeckBuilder's layout/color/font
@@ -143,6 +170,9 @@ class TemplateStyleProfile(BaseModel):
     major_font: str | None = None
     minor_font: str | None = None
     stored_path: str = Field(description="Where the original template file is kept on disk, so DeckBuilder can clone it as the render base.")
+    frame: TemplateFrame | None = Field(default=None, description="Headline/subheading/body boxes for house decks; None when the template can't frame one.")
+    frame_error: str | None = Field(default=None, description="Why `frame` is None, when it was checked.")
+    font_dir: str | None = None
 
 
 # ---- Content plan (LLM output, deterministically rendered) -----------------
@@ -247,6 +277,7 @@ class SlideContent(BaseModel):
     not a slot -- it always renders in the fixed headline band."""
 
     headline: str
+    subheading: str = ""
     layout: str
     variant: str
     slots: dict[str, str | list[str]] = Field(default_factory=dict)
@@ -265,6 +296,7 @@ class Deck(BaseModel):
 
 class StorylineSlide(BaseModel):
     headline: str
+    subheading: str = ""
     purpose: str
     source_refs: list[str] = Field(default_factory=list)
 

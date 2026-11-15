@@ -1,4 +1,4 @@
-import type { EngagementIssue } from "../types";
+import type { EngagementIssue, S } from "../types";
 
 export interface EngagementCounts {
   open: number;
@@ -28,4 +28,51 @@ export function unlistedText(count: number, ids: string[]): string {
   return count === 1
     ? `1 signal skipped: its company is not in the list (${ids.join(", ")}).`
     : `${count} signals skipped: their companies are not in the list (${ids.join(", ")}).`;
+}
+
+const DEMO_SOURCES = ["mock_voice_seed", "npx_urth_demo"];
+
+/** An objective is demo data when it, or the issue it sits under, came from a demo seed (`Demo data` label). */
+export function isDemo(issue: Pick<EngagementIssue, "data_source">, objective: { source?: string | null }): boolean {
+  return DEMO_SOURCES.includes(issue.data_source ?? "") || DEMO_SOURCES.includes(objective.source ?? "");
+}
+
+// VOICE lists, as the API takes them (spec stewardship-commitment-loop, "Record result").
+export const OBJECTIVE_RESULTS = ["achieved", "partially_achieved", "not_achieved", "deterioration", "abandoned"] as const satisfies readonly S["ObjectiveResult"][];
+export const INFLUENCE_LEVELS = ["1", "2", "3", "4A", "4B", "5"] as const satisfies readonly S["InfluenceLevel"][];
+
+/** One engagement's watch topics out of the company's list, keeping the API's newest-first order. */
+export function issueTopics<T extends { engagement_id: string }>(topics: T[], issueId: string): T[] {
+  return topics.filter((t) => t.engagement_id === issueId);
+}
+
+type Evidence = Pick<S["EvidenceSuggestion"], "doc_title" | "page" | "quote">;
+
+/** Where a suggestion's quote is from: `<doc_title>, page <page>`, each part left out when unknown. */
+export function evidenceWhere(s: Omit<Evidence, "quote">): string {
+  return [s.doc_title, s.page != null ? `page ${s.page}` : null].filter(Boolean).join(", ");
+}
+
+/** A confirmed suggestion written out: `<doc_title>, page <page>: "<quote>"`, as the API writes commitment evidence. */
+export function evidenceText(s: Evidence): string {
+  const where = evidenceWhere(s);
+  return where ? `${where}: "${s.quote}"` : `"${s.quote}"`;
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** The line under a watch item after "Check against documents". */
+export function checkLine(r: { documents: number; suggestions: number; unclear: number }): string {
+  if (r.documents === 0) return "No documents on file for this company.";
+  return `Checked ${plural(r.documents, "document")}: ${plural(r.suggestions, "new suggestion")}, ${r.unclear} unclear.`;
+}
+
+/** The line under a note after "Find commitments". */
+export function foundLine(suggestions: number): string {
+  return `Found ${plural(suggestions, "suggestion")}.`;
+}
+
+/** Record result's Save is enabled once result and outcome are set, and an influence level unless the result is abandoned. */
+export function canSaveResult(result: string, level: string, outcome: string): boolean {
+  return Boolean(result && outcome.trim() && (level || result === "abandoned"));
 }

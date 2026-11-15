@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from arp.schemas.common import Citation, new_id, now_iso
 
@@ -32,14 +33,13 @@ MILESTONE_ORDER: list[MilestoneStage] = [
 
 
 class EscalationStage(StrEnum):
-    """Illustrative 7-step escalation ladder. Stage 5+ overlaps with the
+    """Illustrative 6-step escalation ladder. Stage 4+ overlaps with the
     voting module: a decision to reach PRIVATE_ENGAGEMENT..ESCALATION_TO_CHAIR
     stays inside the engagement workflow, but VOTE_AGAINST_MANAGEMENT and
     beyond are the same decision the voting module's Policy Application
     Agent checks for alignment against (see arp.voting.policy_agent)."""
 
     PRIVATE_ENGAGEMENT = "private_engagement"
-    JOINT_ENGAGEMENT = "joint_engagement"
     WRITTEN_ESCALATION_TO_BOARD = "written_escalation_to_board"
     ESCALATION_TO_CHAIR = "escalation_to_chair"
     VOTE_AGAINST_MANAGEMENT = "vote_against_management"
@@ -47,9 +47,21 @@ class EscalationStage(StrEnum):
     PUBLIC_STATEMENT = "public_statement"
 
 
+# Mapping on read: stored values of the removed step and roles, never rewritten (spec stewardship-three-tiers).
+OLD_STAGES = {"joint_engagement": "private_engagement"}
+OLD_ROLES = {"lead", "active_support", "passive_support"}
+
+
+def _map_stage(v):
+    return OLD_STAGES.get(v, v) if isinstance(v, str) else v
+
+
+def _map_role(v):
+    return None if isinstance(v, str) and v in OLD_ROLES else v
+
+
 ESCALATION_ORDER: list[EscalationStage] = [
     EscalationStage.PRIVATE_ENGAGEMENT,
-    EscalationStage.JOINT_ENGAGEMENT,
     EscalationStage.WRITTEN_ESCALATION_TO_BOARD,
     EscalationStage.ESCALATION_TO_CHAIR,
     EscalationStage.VOTE_AGAINST_MANAGEMENT,
@@ -156,9 +168,6 @@ class EsgPillar(StrEnum):
 
 class EngagerRole(StrEnum):
     BILATERAL = "bilateral"
-    LEAD = "lead"
-    ACTIVE_SUPPORT = "active_support"
-    PASSIVE_SUPPORT = "passive_support"
 
 
 class ObjectiveType(StrEnum):
@@ -226,6 +235,7 @@ class Objective(BaseModel):
     influence_evidence: str | None = None
     evidence_url: str | None = None
     source: str = "app"
+    proof_statement: str | None = None
 
 
 class CorrespondenceEntry(BaseModel):
@@ -251,6 +261,7 @@ class Commitment(BaseModel):
     validated_by: str | None = None
     validated_at: str | None = None
     evidence: str | None = None
+    proof_statement: str | None = None
 
 
 class MilestoneTransition(BaseModel):
@@ -264,6 +275,8 @@ class EscalationTransition(BaseModel):
     changed_at: str = Field(default_factory=now_iso)
     decided_by: str
     reason: str = ""
+
+    _old_stage = field_validator("stage", mode="before")(_map_stage)
 
 
 class EngagementIssue(BaseModel):
@@ -291,6 +304,9 @@ class EngagementIssue(BaseModel):
     engager_role: EngagerRole | None = None  # None = not yet a VOICE engagement (owner decision 13 Nov 2026)
     objectives: list[Objective] = Field(default_factory=list)
     data_source: str = "app"  # `source` is taken by TriggerSource
+
+    _old_stage = field_validator("escalation_stage", mode="before")(_map_stage)
+    _old_role = field_validator("engager_role", mode="before")(_map_role)
 
 
 class EngagementRecord(BaseModel):
@@ -334,6 +350,102 @@ class ResearchDossier(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
     confidence: float = Field(ge=0.0, le=1.0)
     needs_review: bool = False
+    watch_list: list[WatchListEntry] = Field(default_factory=list)  # filled by code after the model call, never by the model
+
+
+
+# ---- Watch list (spec stewardship-commitment-loop) -----------------------------
+
+
+class WatchTopic(BaseModel):
+    """A question a person asked to watch for in the company's reports (`stw_watch_topics`)."""
+
+    topic_id: str = Field(default_factory=lambda: new_id("wtp"))
+    source: str = "app"
+    external_id: str | None = None
+    engagement_id: str
+    question: str
+    proof_statement: str | None = None
+    target_date: str | None = None
+    status: Literal["open", "closed"] = "open"
+    created_by: str | None = None
+    created_at: str = Field(default_factory=now_iso)
+    closed_by: str | None = None
+    closed_at: str | None = None
+
+
+class EvidenceSuggestion(BaseModel):
+    """A pending answer from Argus that a person confirms or rejects (`stw_evidence_suggestions`)."""
+
+    suggestion_id: str = Field(default_factory=lambda: new_id("evs"))
+    source: str = "app"
+    external_id: str | None = None
+    kind: Literal["evidence", "new_commitment"]
+    company_id: str
+    engagement_id: str
+    item_kind: Literal["objective", "commitment", "topic"] | None = None
+    item_id: str | None = None
+    activity_id: str | None = None
+    verdict: Literal["found", "against"] | None = None
+    text: str | None = None
+    proof_statement: str | None = None
+    target_date: str | None = None
+    doc_id: str | None = None
+    doc_type: str | None = None
+    doc_title: str | None = None
+    quote: str
+    page: int | None = None
+    reason: str | None = None
+    status: Literal["pending", "confirmed", "rejected"] = "pending"
+    created_at: str = Field(default_factory=now_iso)
+    decided_by: str | None = None
+    decided_at: str | None = None
+    reject_reason: str | None = None
+    created_commitment_id: str | None = None
+
+
+def evidence_text(suggestion: EvidenceSuggestion) -> str:
+    """How a confirmed suggestion is written out: `<doc_title>, page <page>: "<quote>"`, page part only when known;
+    without a title, `page <page>: "<quote>"` or the quote alone."""
+    where = ", ".join(p for p in (suggestion.doc_title, f"page {suggestion.page}" if suggestion.page is not None else None) if p)
+    return f'{where}: "{suggestion.quote}"' if where else f'"{suggestion.quote}"'
+
+
+class WatchItem(BaseModel):
+    """An open objective, commitment or topic on an open engagement, as the check reads it (spec "Terms")."""
+
+    item_kind: Literal["objective", "commitment", "topic"]
+    item_id: str
+    engagement_id: str
+    text: str
+    proof_statement: str | None = None
+    target_date: str | None = None
+
+
+class WatchFlag(BaseModel):
+    """An overdue or broken commitment or objective, shown on ballots and to the priority worklist (spec PR 3)."""
+
+    item_kind: Literal["commitment", "objective"]
+    item_id: str
+    engagement_id: str
+    kind: Literal["overdue", "broken"]
+    text: str
+    target_date: str | None
+    since: str | None
+    message: str
+
+
+class WatchListEntry(BaseModel):
+    """One row of the dossier's watch list (spec "The watch list in the dossier")."""
+
+    item_kind: Literal["objective", "commitment", "topic"]
+    item_id: str
+    text: str
+    proof_statement: str | None
+    target_date: str | None
+    status: str
+    flag: Literal["overdue", "broken"] | None
+    evidence: list[str]
 
 
 # ---- Drafting Agent outputs -------------------------------------------------

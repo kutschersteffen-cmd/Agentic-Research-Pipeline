@@ -173,3 +173,12 @@ def test_lists_labels_beside_values():
 def test_json_ignores_row_key(pg):
     r = intake_engagements({"engagements": [{"_row": "x", "external_id": "e", "company_id": "nope", "theme": "t"}]}, pg, "api")
     assert r.rejected[0].row == 1
+
+
+def test_engager_role_list_holds_only_bilateral():
+    # stewardship-three-tiers AC-32
+    ws = load_workbook(io.BytesIO(template("engagements")))["lists"]
+    header = [c.value for c in ws[1]]
+    col = list(ws.iter_cols(min_col=header.index("engager_role") + 1, max_col=header.index("engager_role") + 1))[0]
+    assert [c.value for c in col[1:] if c.value] == ["bilateral"]
+    assert "engager_role_label" not in header

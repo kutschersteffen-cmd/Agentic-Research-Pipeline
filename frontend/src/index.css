@@ -93,6 +93,9 @@
   --cat-2: #c2407f;
   --cat-3: #a87400;
   --cat-4: #6250d6;
+  /* Brand orange (DESIGN.md, The Brand Colour Rule): the logo apex and the landing orb only. */
+  --brand-apex: #ea4c14;
+  --orb: #ea4c14;
 }
 
 /* Night Desk (dark): a blue-black ground with stepped panels and the same
@@ -136,6 +139,8 @@
     --cat-2: #d55181;
     --cat-3: #c98500;
     --cat-4: #9085e9;
+    --brand-apex: #ff6a2b;
+    --orb: #ff6a2b;
     color-scheme: dark;
   }
 }
@@ -175,6 +180,8 @@
   --cat-2: #d55181;
   --cat-3: #c98500;
   --cat-4: #9085e9;
+  --brand-apex: #ff6a2b;
+  --orb: #ff6a2b;
   color-scheme: dark;
 }
 
@@ -988,6 +995,9 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .activity-row .activity-main { flex: 1; min-width: 0; }
 .activity-row .progress-bar { margin: var(--s-1_5) 0 0; }
 .activity-meta { color: var(--muted); font-size: var(--text-xs); display: flex; gap: var(--s-2); flex-wrap: wrap; align-items: baseline; margin-top: var(--s-0_5); }
+/* A pending answer from Argus under a watch item: set off from the item, quote in the reading voice. */
+.suggestion { margin-top: var(--s-2); padding: var(--s-2) var(--s-3); border-left: 3px solid var(--panel-border); display: grid; gap: var(--s-1); }
+.suggestion blockquote { margin: 0; font-style: italic; }
 .activity-meta .link-button { padding: 0; font-size: inherit; font-weight: 600; }
 
 .section-heading {
@@ -2431,20 +2441,23 @@ a.vc-box:hover { border-color: var(--text); }
 .landing-bar, .landing-main, .landing-promises { position: relative; }
 .landing-bar { padding: var(--s-6) max(var(--s-8), env(safe-area-inset-right, 0px)) var(--s-6) max(var(--s-8), env(safe-area-inset-left, 0px)); }
 .landing-brand { display: inline-flex; align-items: center; gap: var(--s-3); font-weight: 700; font-size: var(--text-md); }
-.landing-mark { width: 28px; height: 28px; }
+.landing-mark { height: 28px; width: auto; color: var(--text); }
 .landing-full { font-weight: 400; color: var(--muted); font-size: var(--text-sm); }
-.landing-main { align-self: center; display: grid; gap: var(--s-4); max-width: 640px; padding: var(--s-8) var(--s-12) var(--s-8) max(var(--s-8), env(safe-area-inset-left, 0px)); background: linear-gradient(90deg, var(--bg) 75%, transparent); }
-.landing-main h1 { margin: 0; font-size: clamp(2.5rem, 2rem + 3vw, 4.2rem); line-height: 1.02; letter-spacing: -0.035em; font-weight: 600; }
+.landing-main { align-self: center; display: grid; gap: var(--s-4); max-width: 640px; padding: var(--s-8) var(--s-12) var(--s-8) max(var(--s-8), env(safe-area-inset-left, 0px)); background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 40%, transparent) 55%, transparent); }
+/* See-through intro: the network shows behind the text; a soft halo of the ground keeps it legible. */
+.landing-main h1, .landing-main p { text-shadow: 0 0 14px var(--bg), 0 0 4px var(--bg); }
+.landing-main h1 { margin: 0; font-family: "Source Serif 4", Georgia, serif; font-size: clamp(2.5rem, 2rem + 3vw, 4.2rem); line-height: 1.02; letter-spacing: -0.01em; font-weight: 500; text-wrap: balance; }
 .landing-main p { margin: 0; font-size: var(--text-md); line-height: 1.55; color: var(--muted); max-width: 46ch; }
 .landing-open { justify-self: start; padding: 12px 20px; border-radius: var(--r-md); background: var(--accent); color: var(--on-accent); font-weight: 600; text-decoration: none; }
 .landing-open:focus-visible { outline: 2px solid var(--run); outline-offset: 3px; }
 .landing-promises { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-6); padding: var(--s-6) var(--s-8); border-top: 1px solid var(--panel-border); background: var(--bg); }
 .landing-promises div { display: grid; gap: var(--s-1); }
 .landing-promises span { color: var(--muted); font-size: var(--text-sm); }
+.landing-promises b::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 0; background: var(--text); margin-right: 9px; vertical-align: 2px; }
 @media (max-width: 700px) {
   .landing { position: absolute; min-height: 100dvh; bottom: auto; overflow-y: auto; }
   .landing-canvas { position: fixed; }
-  .landing-main { padding: var(--s-6) var(--s-4); background: linear-gradient(180deg, transparent, var(--bg) 30%); }
+  .landing-main { padding: var(--s-6) var(--s-4); background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 40%, transparent) 70%, transparent); }
   .landing-promises { grid-template-columns: 1fr; padding: var(--s-4); }
 }
 

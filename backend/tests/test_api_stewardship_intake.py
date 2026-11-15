@@ -92,17 +92,23 @@ def test_votes_json_rationale_ac16(client):
     assert (rej["field"], rej["reason"]) == ("rationale", "rationale required when voting against management")
 
 
-def test_votes_json_rationale_minimal_row_ac16(client):
-    # AC-16 names only vote, recommendation and rationale: no other field may add a second rejection
+def test_votes_json_rationale_only_rejection_ac16(client):
+    # an otherwise valid row: empty, missing or null rationale gives exactly the one rationale rejection
     for rationale in ({"rationale": ""}, {}, {"rationale": None}):
-        r = client.post(f"{URL}/votes", json={"votes": [{"vote": "against", "management_recommendation": "for", **rationale}]})
+        row = {k: v for k, v in _votes(1, vote="against")[0].items() if k != "rationale"}
+        r = client.post(f"{URL}/votes", json={"votes": [{**row, **rationale}]})
         assert r.status_code == 422
         assert r.json()["rejected"] == [{"sheet": "votes", "row": 1, "field": "rationale", "reason": "rationale required when voting against management"}]
 
 
-def test_votes_json_minimal_row_stored(client):
+def test_votes_json_minimal_row_rejected_per_missing_field(client):
+    # owner decision 14 Nov 2026: the meeting, item and decision keys plus one issuer id are required
     r = client.post(f"{URL}/votes", json={"votes": [{"vote": "for", "management_recommendation": "for"}]})
-    assert r.status_code == 200 and r.json()["created"] == 3  # meeting + item + decision, company null
+    assert r.status_code == 422
+    assert {(x["field"], x["reason"]) for x in r.json()["rejected"]} == {
+        ("external_id", "required"), ("meeting_date", "required"), ("item_number", "required"),
+        ("company_id", "one of company_id, isin, cusip required"),
+    }
 
 
 def test_votes_xlsx_ac17(client):

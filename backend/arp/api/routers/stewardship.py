@@ -46,7 +46,7 @@ from arp.stewardship.process import (
 )
 from arp.stewardship.program import ProgramParams, approve, build_proposal, monitor, record_run, simulate
 from arp.stewardship.style import check as style_check
-from arp.stewardship.tiers import TierStore, tier_contexts
+from arp.stewardship.tiers import PickStore, TierStore, map_tier, tier_contexts
 from arp.stewardship.trigger_store import TriggerStore, trigger_id
 from arp.stewardship.universe import HouseUniverseSetting
 from arp.storage.decision_store import DecisionStore
@@ -161,8 +161,41 @@ def get_tiers(
 ) -> dict:
     """The tier report (E1): distribution of confirmed tiers, the latest assignment
     per issuer with the rule that decided it, and the changes awaiting confirmation."""
-    review = tier_review(streams.root, load_sample(), engagements.list_all())
-    return {**review, "assignments": list(TierStore(streams.root).latest().values())}
+    sample = load_sample()
+    review = tier_review(streams.root, sample, engagements.list_all())
+    names = {i["issuer_id"]: i["name"] for i in sample["issuers"]}
+    picks = [{**p, "name": names.get(p["issuer_id"])} for p in PickStore(streams.root).standing()]
+    return {**review, "assignments": list(TierStore(streams.root).latest().values()), "picks": picks}
+
+
+class BilateralPickRequest(BaseModel):
+    issuer_id: str
+    reason: str
+
+
+@router.post("/tiers/bilateral")
+def post_bilateral_pick(
+    body: BilateralPickRequest, streams: StreamStore = Depends(get_stream_store), principal: Principal = Depends(current_user)
+) -> dict:
+    """Picks a company for bilateral: while the pick stands it is the company's tier
+    proposal, which still needs the tier confirm at stage 5 to count."""
+    universe = {i["issuer_id"] for i in load_sample(votes=[], alerts=[])["issuers"]}
+    try:
+        PickStore(streams.root).pick(body.issuer_id, body.reason, principal.name, universe)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {"picked": body.issuer_id}
+
+
+@router.post("/tiers/bilateral/{issuer_id}/withdraw")
+def post_bilateral_withdraw(
+    issuer_id: str, streams: StreamStore = Depends(get_stream_store), principal: Principal = Depends(current_user)
+) -> dict:
+    try:
+        PickStore(streams.root).withdraw(issuer_id, principal.name)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {"withdrawn": issuer_id}
 
 
 # --- Stage studios: versioned house policies, design and calibration ---------
@@ -597,7 +630,10 @@ def get_program(
     stream = _stream_or_404(streams, stream_id)
     return {
         "saved": stream.get("program"),
-        "versions": stream.get("program_versions", []),
+        "versions": [  # approved before the three tiers: old keys mapped on read, never rewritten
+            {**v, "targets": [{**t, "tier": map_tier(t.get("tier"))} for t in v.get("targets", [])]}
+            for v in stream.get("program_versions", [])
+        ],
         "runs": stream.get("program_runs", []),
         "simulation": simulate(streams.root, stream, engagements.list_all(), settings.engagement_sla_days),
     }
@@ -839,6 +875,7 @@ class CommitmentRequest(BaseModel):
     issue_id: str
     text: str
     target_date: str | None = None
+    proof_statement: str | None = None
 
 
 @router.post("/tracking/commitments")
@@ -855,7 +892,12 @@ def add_commitment(
             datetime.fromisoformat(body.target_date)
         except ValueError as exc:
             raise HTTPException(422, "target_date must be an ISO date") from exc
-    commitment = Commitment(text=body.text, target_date=body.target_date, recorded_by=principal.name)
+    commitment = Commitment(
+        text=body.text,
+        target_date=body.target_date,
+        recorded_by=principal.name,
+        proof_statement=(body.proof_statement or "").strip() or None,
+    )
     try:
         engagements.add_commitment(body.company_id, body.issue_id, commitment)
     except (KeyError, ValueError) as exc:

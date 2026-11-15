@@ -54,6 +54,24 @@ def list_alerts(store: PortfolioStore, *, status: AlertStatus | None = None) -> 
     return [a for a in alerts if status is None or a.status == status]
 
 
+def with_company_names(alerts: list[Alert], companies: dict[str, CompanyRef], rules: dict[str, AlertRule]) -> list[Alert]:
+    """Read-time fill for the API: `company_name` from the directory, and the company id in an old
+    concentration rationale swapped for that name. The stored event log is never touched."""
+    named: list[Alert] = []
+    for alert in alerts:
+        company = companies.get(alert.company_id) if alert.company_id else None
+        if company is None:
+            named.append(alert)
+            continue
+        update: dict = {"company_name": company.name}
+        rule = rules.get(alert.rule_id) if alert.rule_id else None
+        old_prefix = f"{rule.name}: {alert.company_id} = " if rule else None
+        if alert.breach_type == BreachType.HOLDINGS_CAUSED and old_prefix and alert.rationale.startswith(old_prefix):
+            update["rationale"] = f"{rule.name}: {company.name} = " + alert.rationale[len(old_prefix):]
+        named.append(alert.model_copy(update=update))
+    return named
+
+
 def _has_open_alert(store: PortfolioStore, scope_id: str, rule_id: str) -> bool:
     """Dedup for recurring conditions (threshold rules): a breach that's
     still active never spawns a duplicate, but one that was resolved and
@@ -72,7 +90,7 @@ def _already_alerted_flag(store: PortfolioStore, scope_id: str, flag_id: str) ->
 
 
 def _raise_alert(store: PortfolioStore, alert: Alert) -> Alert:
-    store.append_alert_event(alert.scope_id, "alert_raised", {"alert": alert.model_dump(mode="json")})
+    store.append_alert_event(alert.scope_id, "alert_raised", {"alert": alert.model_dump(mode="json", exclude={"company_name"})})
     return alert
 
 
@@ -166,6 +184,12 @@ def _evaluate_field_threshold(store: PortfolioStore, rule: AlertRule, companies:
     return raised
 
 
+def _is_cash(security: SecurityRef) -> bool:
+    return security.asset_class == "cash" or any(
+        (code or "").startswith("_CURRENCY") for code in (security.security_id, security.isin)
+    )
+
+
 def _evaluate_concentration_threshold(
     store: PortfolioStore,
     rule: AlertRule,
@@ -182,10 +206,16 @@ def _evaluate_concentration_threshold(
     )
     if not result.total_market_value_eur:
         return []
+    # A company held only through cash/currency lines never alerts; the total above still includes them.
+    non_cash = {
+        securities[h.security_id].company_id
+        for h in holdings
+        if h.security_id in securities and not _is_cash(securities[h.security_id])
+    }
     raised: list[Alert] = []
     for row in result.rows:
         company_id = row.group_value
-        if row.market_value_eur is None or company_id == "(unresolved)":
+        if row.market_value_eur is None or company_id == "(unresolved)" or company_id not in non_cash:
             continue
         weight = row.market_value_eur / result.total_market_value_eur
         if not _breaches(weight, rule):
@@ -204,7 +234,8 @@ def _evaluate_concentration_threshold(
                     threshold_value=rule.threshold_value,
                     breach_type=BreachType.HOLDINGS_CAUSED,
                     snapshot_date=as_of,
-                    rationale=f"{rule.name}: {company_id} = {weight:.2%} of NAV {rule.comparator} {rule.threshold_value:.2%}",
+                    rationale=f"{rule.name}: {companies[company_id].name if company_id in companies else company_id}"
+                    f" = {weight:.2%} of NAV {rule.comparator} {rule.threshold_value:.2%}",
                 ),
             )
         )

@@ -181,3 +181,16 @@ async def test_rewrite_llm_failure_keeps_finding_and_deck(fake_llm):
     deck = _deck(_slide(left="We leverage scale"))
     out, findings = await lint_and_rewrite(deck, _req(), fake_llm({}), max_rounds=1)  # nothing scripted: the call raises
     assert _rules(findings) == {"stock_ai_word"} and out == deck
+
+
+async def test_lint_flags_subheading_but_never_rewrites_it(fake_llm):
+    deck = Deck(title="T", slides=[
+        SlideContent(headline="T", layout="title", variant="plain", slots={"title": "T"}),
+        SlideContent(headline="H", subheading="Revenue rose 37%", layout="bullets", variant="three", slots={"items": ["a"]}),
+    ])
+    request = ReportRequest(title="T", qualitative_notes="no numbers here")
+    llm = fake_llm({})
+    out, findings = await lint_and_rewrite(deck, request, llm)
+    assert [(f.slide, f.rule) for f in findings if f.slot == "subheading"] == [(1, "number_not_in_source")]
+    assert out.slides[1].subheading == "Revenue rose 37%"
+    assert llm.calls == []

@@ -59,9 +59,9 @@ def test_set_milestone_stage_appends_history(store):
 
 def test_set_escalation_stage_requires_decided_by_and_logs_it(store):
     _record, issue = store.open_issue("C1", "Acme Corp", theme="climate", source=TriggerSource.MANUAL)
-    record = store.set_escalation_stage("C1", issue.issue_id, EscalationStage.JOINT_ENGAGEMENT, "jane.pm", reason="No response after 60 days.")
+    record = store.set_escalation_stage("C1", issue.issue_id, EscalationStage.WRITTEN_ESCALATION_TO_BOARD, "jane.pm", reason="No response after 60 days.")
     updated = record.issues[0]
-    assert updated.escalation_stage == EscalationStage.JOINT_ENGAGEMENT
+    assert updated.escalation_stage == EscalationStage.WRITTEN_ESCALATION_TO_BOARD
     assert updated.escalation_history[0].decided_by == "jane.pm"
 
 
@@ -84,7 +84,7 @@ def test_update_commitment_status_unknown_commitment_raises(store):
 def test_events_log_is_append_only_audit_trail(store):
     _record, issue = store.open_issue("C1", "Acme Corp", theme="climate", source=TriggerSource.MANUAL)
     store.set_milestone_stage("C1", issue.issue_id, MilestoneStage.CONTACTED)
-    store.set_escalation_stage("C1", issue.issue_id, EscalationStage.JOINT_ENGAGEMENT, "jane.pm")
+    store.set_escalation_stage("C1", issue.issue_id, EscalationStage.WRITTEN_ESCALATION_TO_BOARD, "jane.pm")
 
     events = store.events("C1")
     event_types = [e["event_type"] for e in events]
@@ -111,3 +111,33 @@ def test_api_and_cli_build_the_store_on_the_engagements_dir(tmp_path, monkeypatc
     monkeypatch.setattr(_shared, "get_settings", lambda: settings)
     assert deps.get_engagement_store.__wrapped__().engagements_dir == settings.engagements_dir
     assert _shared._engagement_store().engagements_dir == settings.engagements_dir
+
+
+def test_file_store_reads_old_values_mapped_and_never_rewrites_them(tmp_path):
+    # stewardship-three-tiers AC-22, AC-30 for the file store: an unrelated write keeps the stored old values
+    import json
+    import shutil
+    from pathlib import Path
+
+    from arp.schemas.engagement import Contact
+
+    shutil.copytree(Path(__file__).parent / "fixtures" / "engagements_migration" / "acme", tmp_path / "acme")
+    path = tmp_path / "acme" / "record.json"
+    raw = json.loads(path.read_text())
+    raw["issues"][0]["engager_role"] = "passive_support"
+    path.write_text(json.dumps(raw))
+    store = EngagementStore(tmp_path)
+    store.add_contact("acme", Contact(name="X", role="IR"))
+    old = store.get("acme").issues[0]
+    assert (old.escalation_stage, old.engager_role) == (EscalationStage.PRIVATE_ENGAGEMENT, None)
+    assert [h.stage for h in old.escalation_history] == [EscalationStage.PRIVATE_ENGAGEMENT]
+    stored = json.loads(path.read_text())
+    assert len(stored["contacts"]) == len(raw["contacts"]) + 1
+    kept = stored["issues"][0]
+    assert (kept["escalation_stage"], kept["engager_role"]) == ("joint_engagement", "passive_support")
+    assert [h["stage"] for h in kept["escalation_history"]] == ["joint_engagement"]
+    # a person's escalation decision is a new value and is stored as written
+    store.set_escalation_stage("acme", old.issue_id, EscalationStage.ESCALATION_TO_CHAIR, "jane.pm")
+    kept = json.loads(path.read_text())["issues"][0]
+    assert kept["escalation_stage"] == "escalation_to_chair"
+    assert [h["stage"] for h in kept["escalation_history"]] == ["joint_engagement", "escalation_to_chair"]

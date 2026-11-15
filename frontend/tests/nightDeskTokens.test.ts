@@ -58,7 +58,17 @@ for (const [name, block] of [["ac4a_dark_switch_fonts", darkSwitch], ["ac4b_dark
     assert.ok(block.get("--font-mono")!.startsWith('"geist mono"'));
   });
 }
-test("ac5_no_old_signal_colours", () => assert.doesNotMatch(css, /c6ff3d|ea4c14/i));
+// Narrowed by the landing brand refresh (owner decision, 2026-11-14): #ea4c14 is now the brand orange
+// and may appear only on the --brand-apex and --orb lines; it is still never the signal. Lime stays banned.
+test("ac5_no_old_signal_colours", () => {
+  assert.doesNotMatch(css, /c6ff3d/i);
+  const others = css.split("\n").filter((l) => /ea4c14/i.test(l) && !/^\s*--(brand-apex|orb): #ea4c14;\s*$/i.test(l));
+  assert.deepEqual(others, []);
+});
+test("ac5_brand_orange_is_not_the_signal", () => {
+  for (const [name, block] of [["light", light], ["darkSwitch", darkSwitch], ["darkMedia", darkMedia]] as const)
+    for (const k of ["--hi", "--hi-ink", "--await-edge", "--on-hi"]) assert.doesNotMatch(block.get(k) ?? "", /ea4c14|ff6a2b/i, `${name} ${k}`);
+});
 
 type RGB = [number, number, number];
 const hex = (h: string): RGB => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as RGB;

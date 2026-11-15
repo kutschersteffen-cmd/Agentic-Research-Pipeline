@@ -812,6 +812,18 @@
       ],
       "title": "Company Id"
      },
+     "company_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Directory name of company_id, filled on read by the alerts endpoint; never stored.",
+      "title": "Company Name"
+     },
      "data_point_values": {
       "anyOf": [
        {
@@ -2935,6 +2947,24 @@
     "title": "BestInClassCoverage",
     "type": "object"
    },
+   "BilateralPickRequest": {
+    "properties": {
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "reason": {
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "reason"
+    ],
+    "title": "BilateralPickRequest",
+    "type": "object"
+   },
    "Body_add_fact_api_transition_barrier_cells__code___region__facts_post": {
     "properties": {
      "as_of": {
@@ -3427,6 +3457,26 @@
       "contentMediaType": "application/octet-stream",
       "title": "File",
       "type": "string"
+     },
+     "fonts": {
+      "default": [],
+      "items": {
+       "contentMediaType": "application/octet-stream",
+       "type": "string"
+      },
+      "title": "Fonts",
+      "type": "array"
+     },
+     "layout_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Layout Name"
      }
     },
     "required": [
@@ -5101,6 +5151,97 @@
     "title": "ColumnStats",
     "type": "object"
    },
+   "Commitment": {
+    "properties": {
+     "commitment_id": {
+      "title": "Commitment Id",
+      "type": "string"
+     },
+     "evidence": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence"
+     },
+     "made_at": {
+      "title": "Made At",
+      "type": "string"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "recorded_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Recorded By"
+     },
+     "status": {
+      "$ref": "#/components/schemas/CommitmentStatus",
+      "default": "open"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     },
+     "validated_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Validated At"
+     },
+     "validated_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Validated By"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "title": "Commitment",
+    "type": "object"
+   },
    "CommitmentRequest": {
     "properties": {
      "company_id": {
@@ -5110,6 +5251,17 @@
      "issue_id": {
       "title": "Issue Id",
       "type": "string"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
      },
      "target_date": {
       "anyOf": [
@@ -5134,6 +5286,15 @@
     ],
     "title": "CommitmentRequest",
     "type": "object"
+   },
+   "CommitmentStatus": {
+    "enum": [
+     "open",
+     "verified",
+     "missed"
+    ],
+    "title": "CommitmentStatus",
+    "type": "string"
    },
    "CommitmentStatusRequest": {
     "properties": {
@@ -6095,6 +6256,46 @@
     ],
     "title": "Confidence",
     "type": "string"
+   },
+   "ConfirmRequest": {
+    "description": "Only read for a `new_commitment` suggestion: each field overrides what Argus worded.",
+    "properties": {
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     },
+     "text": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Text"
+     }
+    },
+    "title": "ConfirmRequest",
+    "type": "object"
    },
    "ConfirmTiersRequest": {
     "properties": {
@@ -9649,10 +9850,9 @@
     "type": "object"
    },
    "EscalationStage": {
-    "description": "Illustrative 7-step escalation ladder. Stage 5+ overlaps with the\nvoting module: a decision to reach PRIVATE_ENGAGEMENT..ESCALATION_TO_CHAIR\nstays inside the engagement workflow, but VOTE_AGAINST_MANAGEMENT and\nbeyond are the same decision the voting module's Policy Application\nAgent checks for alignment against (see arp.voting.policy_agent).",
+    "description": "Illustrative 6-step escalation ladder. Stage 4+ overlaps with the\nvoting module: a decision to reach PRIVATE_ENGAGEMENT..ESCALATION_TO_CHAIR\nstays inside the engagement workflow, but VOTE_AGAINST_MANAGEMENT and\nbeyond are the same decision the voting module's Policy Application\nAgent checks for alignment against (see arp.voting.policy_agent).",
     "enum": [
      "private_engagement",
-     "joint_engagement",
      "written_escalation_to_board",
      "escalation_to_chair",
      "vote_against_management",
@@ -9708,6 +9908,258 @@
      "n_trials"
     ],
     "title": "EvidenceReport",
+    "type": "object"
+   },
+   "EvidenceSuggestion": {
+    "description": "A pending answer from Argus that a person confirms or rejects (`stw_evidence_suggestions`).",
+    "properties": {
+     "activity_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Activity Id"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "created_commitment_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created Commitment Id"
+     },
+     "decided_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decided At"
+     },
+     "decided_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decided By"
+     },
+     "doc_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Doc Id"
+     },
+     "doc_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Doc Title"
+     },
+     "doc_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Doc Type"
+     },
+     "engagement_id": {
+      "title": "Engagement Id",
+      "type": "string"
+     },
+     "external_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "External Id"
+     },
+     "item_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Item Id"
+     },
+     "item_kind": {
+      "anyOf": [
+       {
+        "enum": [
+         "objective",
+         "commitment",
+         "topic"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Item Kind"
+     },
+     "kind": {
+      "enum": [
+       "evidence",
+       "new_commitment"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "page": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "quote": {
+      "title": "Quote",
+      "type": "string"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "reject_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reject Reason"
+     },
+     "source": {
+      "default": "app",
+      "title": "Source",
+      "type": "string"
+     },
+     "status": {
+      "default": "pending",
+      "enum": [
+       "pending",
+       "confirmed",
+       "rejected"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "suggestion_id": {
+      "title": "Suggestion Id",
+      "type": "string"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     },
+     "text": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Text"
+     },
+     "verdict": {
+      "anyOf": [
+       {
+        "enum": [
+         "found",
+         "against"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Verdict"
+     }
+    },
+    "required": [
+     "kind",
+     "company_id",
+     "engagement_id",
+     "quote"
+    ],
+    "title": "EvidenceSuggestion",
     "type": "object"
    },
    "ExceptionDecisionRequest": {
@@ -10563,6 +11015,29 @@
      }
     },
     "title": "FileDecision",
+    "type": "object"
+   },
+   "FindCommitmentsResult": {
+    "properties": {
+     "skipped": {
+      "title": "Skipped",
+      "type": "integer"
+     },
+     "suggestions": {
+      "title": "Suggestions",
+      "type": "integer"
+     },
+     "ungrounded": {
+      "title": "Ungrounded",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "suggestions",
+     "ungrounded",
+     "skipped"
+    ],
+    "title": "FindCommitmentsResult",
     "type": "object"
    },
    "FlagExclusionScreen": {
@@ -12287,6 +12762,18 @@
     "title": "IndicatorCategory",
     "type": "string"
    },
+   "InfluenceLevel": {
+    "enum": [
+     "1",
+     "2",
+     "3",
+     "4A",
+     "4B",
+     "5"
+    ],
+    "title": "InfluenceLevel",
+    "type": "string"
+   },
    "Instructions": {
     "properties": {
      "instructions": {
@@ -13960,6 +14447,226 @@
     "title": "NoteSections",
     "type": "object"
    },
+   "Objective": {
+    "properties": {
+     "closed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Closed At"
+     },
+     "description": {
+      "title": "Description",
+      "type": "string"
+     },
+     "escalated": {
+      "default": false,
+      "title": "Escalated",
+      "type": "boolean"
+     },
+     "evidence_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence Url"
+     },
+     "follows_objective_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Follows Objective Id"
+     },
+     "influence_evidence": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Influence Evidence"
+     },
+     "influence_level": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/InfluenceLevel"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "objective_id": {
+      "title": "Objective Id",
+      "type": "string"
+     },
+     "objective_type": {
+      "$ref": "#/components/schemas/ObjectiveType"
+     },
+     "outcome": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Outcome"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "receptiveness": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Receptiveness"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "result": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ObjectiveResult"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "source": {
+      "default": "app",
+      "title": "Source",
+      "type": "string"
+     },
+     "started_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Started At"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ObjectiveStatus",
+      "default": "initiated"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     }
+    },
+    "required": [
+     "description",
+     "objective_type"
+    ],
+    "title": "Objective",
+    "type": "object"
+   },
+   "ObjectiveResult": {
+    "enum": [
+     "deterioration",
+     "not_achieved",
+     "partially_achieved",
+     "achieved",
+     "abandoned"
+    ],
+    "title": "ObjectiveResult",
+    "type": "string"
+   },
+   "ObjectiveResultRequest": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "influence_level": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/InfluenceLevel"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "issue_id": {
+      "title": "Issue Id",
+      "type": "string"
+     },
+     "outcome": {
+      "title": "Outcome",
+      "type": "string"
+     },
+     "result": {
+      "$ref": "#/components/schemas/ObjectiveResult"
+     }
+    },
+    "required": [
+     "company_id",
+     "issue_id",
+     "result",
+     "outcome"
+    ],
+    "title": "ObjectiveResultRequest",
+    "type": "object"
+   },
+   "ObjectiveStatus": {
+    "enum": [
+     "initiated",
+     "in_progress",
+     "closed",
+     "abandoned"
+    ],
+    "title": "ObjectiveStatus",
+    "type": "string"
+   },
+   "ObjectiveType": {
+    "enum": [
+     "transparency",
+     "operational",
+     "strategic"
+    ],
+    "title": "ObjectiveType",
+    "type": "string"
+   },
    "ObservationOut": {
     "properties": {
      "confidence": {
@@ -15523,6 +16230,365 @@
     "title": "ProgramRequest",
     "type": "object"
    },
+   "Programme": {
+    "properties": {
+     "built_in": {
+      "title": "Built In",
+      "type": "boolean"
+     },
+     "confirmed": {
+      "title": "Confirmed",
+      "type": "integer"
+     },
+     "created_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created At"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "programme_id": {
+      "title": "Programme Id",
+      "type": "string"
+     },
+     "proposed": {
+      "title": "Proposed",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "programme_id",
+     "name",
+     "built_in",
+     "created_by",
+     "created_at",
+     "confirmed",
+     "proposed"
+    ],
+    "title": "Programme",
+    "type": "object"
+   },
+   "ProgrammeChip": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "programme_id": {
+      "title": "Programme Id",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "proposed",
+       "confirmed"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "programme_id",
+     "name",
+     "status"
+    ],
+    "title": "ProgrammeChip",
+    "type": "object"
+   },
+   "ProgrammeCreate": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "ProgrammeCreate",
+    "type": "object"
+   },
+   "ProgrammeDetail": {
+    "properties": {
+     "built_in": {
+      "title": "Built In",
+      "type": "boolean"
+     },
+     "confirmed": {
+      "title": "Confirmed",
+      "type": "integer"
+     },
+     "created_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created At"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By"
+     },
+     "members": {
+      "items": {
+       "$ref": "#/components/schemas/ProgrammeMember"
+      },
+      "title": "Members",
+      "type": "array"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "programme_id": {
+      "title": "Programme Id",
+      "type": "string"
+     },
+     "proposed": {
+      "title": "Proposed",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "programme_id",
+     "name",
+     "built_in",
+     "created_by",
+     "created_at",
+     "confirmed",
+     "proposed",
+     "members"
+    ],
+    "title": "ProgrammeDetail",
+    "type": "object"
+   },
+   "ProgrammeList": {
+    "properties": {
+     "programmes": {
+      "items": {
+       "$ref": "#/components/schemas/Programme"
+      },
+      "title": "Programmes",
+      "type": "array"
+     }
+    },
+    "required": [
+     "programmes"
+    ],
+    "title": "ProgrammeList",
+    "type": "object"
+   },
+   "ProgrammeMember": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "confirmed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed At"
+     },
+     "confirmed_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed By"
+     },
+     "end_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "End Reason"
+     },
+     "ended_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ended At"
+     },
+     "ended_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ended By"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "proposed_at": {
+      "title": "Proposed At",
+      "type": "string"
+     },
+     "proposed_by": {
+      "title": "Proposed By",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "proposed",
+       "confirmed",
+       "ended"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "status",
+     "proposed_by",
+     "proposed_at",
+     "confirmed_by",
+     "confirmed_at",
+     "ended_by",
+     "ended_at",
+     "end_reason"
+    ],
+    "title": "ProgrammeMember",
+    "type": "object"
+   },
+   "ProgrammeMembersChange": {
+    "properties": {
+     "add": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Add",
+      "type": "array"
+     },
+     "end": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "End",
+      "type": "array"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "remove": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Remove",
+      "type": "array"
+     }
+    },
+    "title": "ProgrammeMembersChange",
+    "type": "object"
+   },
+   "ProgrammeSuggestion": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "issues": {
+      "items": {
+       "$ref": "#/components/schemas/SuggestedIssue"
+      },
+      "title": "Issues",
+      "type": "array"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "issues"
+    ],
+    "title": "ProgrammeSuggestion",
+    "type": "object"
+   },
+   "ProgrammeSuggestions": {
+    "properties": {
+     "suggestions": {
+      "items": {
+       "$ref": "#/components/schemas/ProgrammeSuggestion"
+      },
+      "title": "Suggestions",
+      "type": "array"
+     }
+    },
+    "required": [
+     "suggestions"
+    ],
+    "title": "ProgrammeSuggestions",
+    "type": "object"
+   },
    "Project": {
     "properties": {
      "created_at": {
@@ -15625,6 +16691,29 @@
      "reason"
     ],
     "title": "PromoteRequest",
+    "type": "object"
+   },
+   "ProofStatementRequest": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "issue_id": {
+      "title": "Issue Id",
+      "type": "string"
+     },
+     "proof_statement": {
+      "title": "Proof Statement",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id",
+     "issue_id",
+     "proof_statement"
+    ],
+    "title": "ProofStatementRequest",
     "type": "object"
    },
    "ProposalStarted": {
@@ -16360,6 +17449,17 @@
      "custom"
     ],
     "title": "RebalanceFrequency",
+    "type": "string"
+   },
+   "Receptiveness": {
+    "enum": [
+     "very_good",
+     "good",
+     "neutral",
+     "insufficient",
+     "refusal"
+    ],
+    "title": "Receptiveness",
     "type": "string"
    },
    "Recipe": {
@@ -20797,6 +21897,11 @@
       "title": "Speaker Notes",
       "type": "string"
      },
+     "subheading": {
+      "default": "",
+      "title": "Subheading",
+      "type": "string"
+     },
      "table": {
       "anyOf": [
        {
@@ -21987,6 +23092,11 @@
       },
       "title": "Source Refs",
       "type": "array"
+     },
+     "subheading": {
+      "default": "",
+      "title": "Subheading",
+      "type": "string"
      }
     },
     "required": [
@@ -22262,6 +23372,24 @@
      "mappings"
     ],
     "title": "SuggestMappingResponse",
+    "type": "object"
+   },
+   "SuggestedIssue": {
+    "properties": {
+     "fir_theme": {
+      "title": "Fir Theme",
+      "type": "string"
+     },
+     "issue_id": {
+      "title": "Issue Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "issue_id",
+     "fir_theme"
+    ],
+    "title": "SuggestedIssue",
     "type": "object"
    },
    "TableRef": {
@@ -25293,6 +26421,199 @@
     "title": "WalkOrTalk",
     "type": "string"
    },
+   "WatchCheckRequest": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id"
+    ],
+    "title": "WatchCheckRequest",
+    "type": "object"
+   },
+   "WatchCheckResult": {
+    "properties": {
+     "documents": {
+      "title": "Documents",
+      "type": "integer"
+     },
+     "skipped": {
+      "title": "Skipped",
+      "type": "integer"
+     },
+     "suggestions": {
+      "title": "Suggestions",
+      "type": "integer"
+     },
+     "unclear": {
+      "title": "Unclear",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "documents",
+     "suggestions",
+     "unclear",
+     "skipped"
+    ],
+    "title": "WatchCheckResult",
+    "type": "object"
+   },
+   "WatchTopic": {
+    "description": "A question a person asked to watch for in the company's reports (`stw_watch_topics`).",
+    "properties": {
+     "closed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Closed At"
+     },
+     "closed_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Closed By"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By"
+     },
+     "engagement_id": {
+      "title": "Engagement Id",
+      "type": "string"
+     },
+     "external_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "External Id"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "source": {
+      "default": "app",
+      "title": "Source",
+      "type": "string"
+     },
+     "status": {
+      "default": "open",
+      "enum": [
+       "open",
+       "closed"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     },
+     "topic_id": {
+      "title": "Topic Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "engagement_id",
+     "question"
+    ],
+    "title": "WatchTopic",
+    "type": "object"
+   },
+   "WatchTopicRequest": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "issue_id": {
+      "title": "Issue Id",
+      "type": "string"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     }
+    },
+    "required": [
+     "company_id",
+     "issue_id",
+     "question"
+    ],
+    "title": "WatchTopicRequest",
+    "type": "object"
+   },
    "WeightedNode": {
     "properties": {
      "node_id": {
@@ -25651,6 +26972,13 @@
       "title": "Parts",
       "type": "array"
      },
+     "programmes": {
+      "items": {
+       "$ref": "#/components/schemas/ProgrammeChip"
+      },
+      "title": "Programmes",
+      "type": "array"
+     },
      "score": {
       "title": "Score",
       "type": "number"
@@ -25702,7 +27030,8 @@
      "carbon_intensity",
      "score",
      "parts",
-     "selection"
+     "selection",
+     "programmes"
     ],
     "title": "WorklistRow",
     "type": "object"
@@ -38834,6 +40163,47 @@
     ]
    }
   },
+  "/api/reports/templates/{template_id}/preview.png": {
+   "get": {
+    "description": "The template's frame drawn on a blank slide; 404 when the template can't frame a house deck.",
+    "operationId": "template_preview_api_reports_templates__template_id__preview_png_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "template_id",
+      "required": true,
+      "schema": {
+       "title": "Template Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Template Preview",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
   "/api/reports/{report_id}": {
    "delete": {
     "description": "Removes an unfinished report's folder. A finished one, or one still being worked on, is never removed.",
@@ -41408,6 +42778,48 @@
     ]
    }
   },
+  "/api/stewardship/activities/{activity_id}/find-commitments": {
+   "post": {
+    "operationId": "find_commitments_in_note_api_stewardship_activities__activity_id__find_commitments_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "activity_id",
+      "required": true,
+      "schema": {
+       "title": "Activity Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FindCommitmentsResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Find Commitments In Note",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
   "/api/stewardship/benchmarks": {
    "get": {
     "operationId": "list_benchmarks_api_stewardship_benchmarks_get",
@@ -41748,6 +43160,181 @@
     ]
    }
   },
+  "/api/stewardship/evidence-suggestions": {
+   "get": {
+    "operationId": "list_suggestions_api_stewardship_evidence_suggestions_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "default": "pending",
+       "enum": [
+        "pending",
+        "confirmed",
+        "rejected"
+       ],
+       "title": "Status",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "items": {
+           "$ref": "#/components/schemas/EvidenceSuggestion"
+          },
+          "type": "array"
+         },
+         "title": "Response List Suggestions Api Stewardship Evidence Suggestions Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Suggestions",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/evidence-suggestions/{suggestion_id}/confirm": {
+   "post": {
+    "operationId": "confirm_suggestion_api_stewardship_evidence_suggestions__suggestion_id__confirm_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "suggestion_id",
+      "required": true,
+      "schema": {
+       "title": "Suggestion Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "anyOf": [
+         {
+          "$ref": "#/components/schemas/ConfirmRequest"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Body"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EvidenceSuggestion"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Confirm Suggestion",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/evidence-suggestions/{suggestion_id}/reject": {
+   "post": {
+    "operationId": "reject_suggestion_api_stewardship_evidence_suggestions__suggestion_id__reject_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "suggestion_id",
+      "required": true,
+      "schema": {
+       "title": "Suggestion Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RejectRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EvidenceSuggestion"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Reject Suggestion",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
   "/api/stewardship/intake/engagements": {
    "post": {
     "operationId": "post_engagements_api_stewardship_intake_engagements_post",
@@ -42006,6 +43593,58 @@
     ]
    }
   },
+  "/api/stewardship/objectives/{objective_id}/result": {
+   "post": {
+    "operationId": "record_objective_result_api_stewardship_objectives__objective_id__result_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "objective_id",
+      "required": true,
+      "schema": {
+       "title": "Objective Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ObjectiveResultRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Objective"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Record Objective Result",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
   "/api/stewardship/policies/{policy_id}": {
    "get": {
     "operationId": "get_policy_api_stewardship_policies__policy_id__get",
@@ -42246,6 +43885,250 @@
      }
     },
     "summary": "Get Policy Version",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/programmes": {
+   "get": {
+    "description": "Every engagement programme with its member counts, the four built-in ones first.",
+    "operationId": "get_programmes_api_stewardship_programmes_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProgrammeList"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Programmes",
+    "tags": [
+     "stewardship"
+    ]
+   },
+   "post": {
+    "description": "A new programme by name; its id is the name lower-cased with runs of other characters as `_`.",
+    "operationId": "post_programme_api_stewardship_programmes_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProgrammeCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Programme"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Programme",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/programmes/{programme_id}": {
+   "get": {
+    "description": "The programme and every member it had, ended ones included.",
+    "operationId": "get_programme_api_stewardship_programmes__programme_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "programme_id",
+      "required": true,
+      "schema": {
+       "title": "Programme Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProgrammeDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Programme",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/programmes/{programme_id}/confirm": {
+   "post": {
+    "description": "Every proposed member becomes confirmed, recorded as the signed-in user.",
+    "operationId": "post_programme_confirm_api_stewardship_programmes__programme_id__confirm_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "programme_id",
+      "required": true,
+      "schema": {
+       "title": "Programme Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Confirmed"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Programme Confirm",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/programmes/{programme_id}/members": {
+   "post": {
+    "description": "Proposes companies, drops proposed ones and ends confirmed ones (with a reason).",
+    "operationId": "post_programme_members_api_stewardship_programmes__programme_id__members_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "programme_id",
+      "required": true,
+      "schema": {
+       "title": "Programme Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProgrammeMembersChange"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProgrammeDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Programme Members",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/programmes/{programme_id}/suggestions": {
+   "get": {
+    "description": "Companies with an open or stalled issue on the programme's theme that are not members yet. Writes nothing.",
+    "operationId": "get_programme_suggestions_api_stewardship_programmes__programme_id__suggestions_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "programme_id",
+      "required": true,
+      "schema": {
+       "title": "Programme Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProgrammeSuggestions"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Programme Suggestions",
     "tags": [
      "stewardship"
     ]
@@ -43488,6 +45371,94 @@
     ]
    }
   },
+  "/api/stewardship/tiers/bilateral": {
+   "post": {
+    "description": "Picks a company for bilateral: while the pick stands it is the company's tier\nproposal, which still needs the tier confirm at stage 5 to count.",
+    "operationId": "post_bilateral_pick_api_stewardship_tiers_bilateral_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BilateralPickRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Post Bilateral Pick Api Stewardship Tiers Bilateral Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Bilateral Pick",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/tiers/bilateral/{issuer_id}/withdraw": {
+   "post": {
+    "operationId": "post_bilateral_withdraw_api_stewardship_tiers_bilateral__issuer_id__withdraw_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "issuer_id",
+      "required": true,
+      "schema": {
+       "title": "Issuer Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Post Bilateral Withdraw Api Stewardship Tiers Bilateral  Issuer Id  Withdraw Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Bilateral Withdraw",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
   "/api/stewardship/tiers/confirm": {
    "post": {
     "operationId": "post_confirm_tiers_api_stewardship_tiers_confirm_post",
@@ -43920,6 +45891,279 @@
      }
     },
     "summary": "Put Universe",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/watch-items/{item_kind}/{item_id}/check": {
+   "post": {
+    "operationId": "check_watch_item_api_stewardship_watch_items__item_kind___item_id__check_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "item_kind",
+      "required": true,
+      "schema": {
+       "enum": [
+        "objective",
+        "commitment",
+        "topic"
+       ],
+       "title": "Item Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "item_id",
+      "required": true,
+      "schema": {
+       "title": "Item Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WatchCheckRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WatchCheckResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Check Watch Item",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/watch-items/{item_kind}/{item_id}/proof-statement": {
+   "post": {
+    "operationId": "set_proof_statement_api_stewardship_watch_items__item_kind___item_id__proof_statement_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "item_kind",
+      "required": true,
+      "schema": {
+       "enum": [
+        "objective",
+        "commitment",
+        "topic"
+       ],
+       "title": "Item Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "item_id",
+      "required": true,
+      "schema": {
+       "title": "Item Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProofStatementRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "anyOf": [
+          {
+           "$ref": "#/components/schemas/Objective"
+          },
+          {
+           "$ref": "#/components/schemas/Commitment"
+          },
+          {
+           "$ref": "#/components/schemas/WatchTopic"
+          }
+         ],
+         "title": "Response Set Proof Statement Api Stewardship Watch Items  Item Kind   Item Id  Proof Statement Post"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Set Proof Statement",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/watch-topics": {
+   "get": {
+    "operationId": "list_watch_topics_api_stewardship_watch_topics_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "items": {
+           "$ref": "#/components/schemas/WatchTopic"
+          },
+          "type": "array"
+         },
+         "title": "Response List Watch Topics Api Stewardship Watch Topics Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Watch Topics",
+    "tags": [
+     "stewardship"
+    ]
+   },
+   "post": {
+    "operationId": "add_watch_topic_api_stewardship_watch_topics_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WatchTopicRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WatchTopic"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Add Watch Topic",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/watch-topics/{topic_id}/close": {
+   "post": {
+    "operationId": "close_watch_topic_api_stewardship_watch_topics__topic_id__close_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "topic_id",
+      "required": true,
+      "schema": {
+       "title": "Topic Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WatchTopic"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Close Watch Topic",
     "tags": [
      "stewardship"
     ]

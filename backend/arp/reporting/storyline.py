@@ -27,6 +27,12 @@ numbers, companies or facts. source_refs name the dataset ids or note topics use
 
 
 
+_SUBHEADING = (
+    "Subheadings: give every slide a subheading: one sentence of at most 20 words, under the headline, "
+    "adding the evidence or scope behind it. Same grounding rules as headlines.\n\n"
+)
+
+
 async def draft_storyline(request: ReportRequest, llm: LLMClient) -> tuple[Storyline, LLMUsage]:
     n = request.layout.target_length
     a = request.audience
@@ -36,9 +42,13 @@ async def draft_storyline(request: ReportRequest, llm: LLMClient) -> tuple[Story
         f"Audience: level={a.level.value}, tone={a.tone.value}, description={a.description or '(none)'}, "
         f"focus_areas={a.focus_areas or '(none)'}\n"
         f"Slide count: {f'exactly {n} slides, not counting the title slide' if n else 'your choice'}\n\n"
-        f"Qualitative notes:\n{request.qualitative_notes}\n\n"
-        f"Quantitative datasets:\n{_datasets_context(request.datasets)}\n"
+        + (_SUBHEADING if request.template_id else "")
+        + f"Qualitative notes:\n{request.qualitative_notes}\n\n"
+        + f"Quantitative datasets:\n{_datasets_context(request.datasets)}\n"
     )
     storyline, usage = await llm.complete_structured(system=_SYSTEM, prompt=prompt, output_model=Storyline)
+    if not request.template_id:  # only a template frame has a place for it
+        for slide in storyline.slides:
+            slide.subheading = ""
     storyline.approved = False  # approval is a human action, never the model's
     return storyline, usage

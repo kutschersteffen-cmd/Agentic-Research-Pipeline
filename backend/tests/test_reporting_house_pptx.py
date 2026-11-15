@@ -111,16 +111,23 @@ async def test_html_table_with_more_rows_still_fits():
 
 def _first_words(pdf: str, words: list[str]) -> dict[str, tuple[float, float]]:
     """Top-left (px) of the text run containing each word; the PDFs are 1440pt wide for the 1920px canvas."""
-    page, found = PdfReader(pdf).pages[0], {}
+    page, found, block = PdfReader(pdf).pages[0], {}, [None]
+
+    def operand(op, args, _cm, _tm):
+        if op == b"Tm":
+            block[0] = [float(a) for a in args]
 
     def visit(text, cm, tm, _font, _size):
+        # pypdf joins a run that shares the previous run's baseline and hands it an identity tm; use its block's Tm.
+        if list(tm) == [1, 0, 0, 1, 0, 0] and block[0]:
+            tm = block[0]
         for w in words:
             if text.strip().startswith(w) and w not in found:
                 x = tm[4] * cm[0] + tm[5] * cm[2] + cm[4]
                 y = tm[4] * cm[1] + tm[5] * cm[3] + cm[5]
                 found[w] = (x / 0.75, (float(page.mediabox.height) - y) / 0.75)
 
-    page.extract_text(visitor_text=visit)
+    page.extract_text(visitor_operand_before=operand, visitor_text=visit)
     return found
 
 

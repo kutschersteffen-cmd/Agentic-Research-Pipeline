@@ -123,7 +123,7 @@ async def fill_slide(slide: StorylineSlide, index: int, request: ReportRequest, 
     if errors:
         return placeholder, [Finding(slide=index, stage="data", rule="bad_reference", message="; ".join(errors))], usage
     # The headline is the approved storyline's, never the model's rewrite of it.
-    return content.model_copy(update={"headline": slide.headline, "source_refs": slide.source_refs or content.source_refs}), [], usage
+    return content.model_copy(update={"headline": slide.headline, "subheading": slide.subheading, "source_refs": slide.source_refs or content.source_refs}), [], usage
 
 
 async def rewrite_slot(

@@ -7,6 +7,12 @@ import type { RowLineage } from "../lib/lineage";
 import type { Me } from "../lib/reviewKeys";
 import type {
   AuthoritativeValue,
+  Objective,
+  WatchItemKind,
+  WatchTopic,
+  EvidenceSuggestion,
+  WatchCheckResult,
+  FindCommitmentsResult,
   ArgusDraft,
   ArgusFlow,
   FlowProgress,
@@ -62,6 +68,7 @@ import type {
   SignalExperimentDetail,
   SignalExperimentSummary,
   SignalMethod,
+  BilateralPick,
 } from "../types";
 import { tagQuery } from "../lib/xbrlTags";
 import { encodeRef, factsUrl, type FactFilters } from "../pages/company/companyQuery";
@@ -830,6 +837,11 @@ export const api = {
     request(`/api/stewardship/streams/${encodeURIComponent(streamId)}/decisions`, { method: "POST", body: JSON.stringify(body) }),
   confirmTiers: (body: { issuer_ids?: string[] }) =>
     request<{ confirmed: number }>("/api/stewardship/tiers/confirm", { method: "POST", body: JSON.stringify(body) }),
+  getBilateralPicks: () => request<{ picks: BilateralPick[] }>("/api/stewardship/tiers"),
+  pickBilateral: (body: { issuer_id: string; reason: string }) =>
+    request<{ picked: string }>("/api/stewardship/tiers/bilateral", { method: "POST", body: JSON.stringify(body) }),
+  withdrawBilateral: (issuerId: string) =>
+    request<{ withdrawn: string }>(`/api/stewardship/tiers/bilateral/${encodeURIComponent(issuerId)}/withdraw`, { method: "POST" }),
   getStewardPolicy: (policyId: StewardPolicyId, stream?: string) =>
     request<StewardPolicyInfo>(`/api/stewardship/policies/${policyId}${streamQuery(stream)}`),
   getStewardPolicyVersion: (policyId: StewardPolicyId, version: number, stream?: string) =>
@@ -982,6 +994,29 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  // Watch list (spec stewardship-commitment-loop)
+  setProofStatement: (kind: WatchItemKind, id: string, body: { company_id: string; issue_id: string; proof_statement: string }) =>
+    request<unknown>(`/api/stewardship/watch-items/${kind}/${encodeURIComponent(id)}/proof-statement`, jsonBody("POST", body)),
+  listWatchTopics: (companyId: string) =>
+    request<{ topics: WatchTopic[] }>(`/api/stewardship/watch-topics?company_id=${encodeURIComponent(companyId)}`),
+  addWatchTopic: (body: { company_id: string; issue_id: string; question: string; proof_statement?: string; target_date?: string }) =>
+    request<WatchTopic>("/api/stewardship/watch-topics", jsonBody("POST", body)),
+  closeWatchTopic: (topicId: string) => request<WatchTopic>(`/api/stewardship/watch-topics/${encodeURIComponent(topicId)}/close`, { method: "POST" }),
+  recordObjectiveResult: (
+    objectiveId: string,
+    body: { company_id: string; issue_id: string; result: string; influence_level: string | null; outcome: string },
+  ) => request<Objective>(`/api/stewardship/objectives/${encodeURIComponent(objectiveId)}/result`, jsonBody("POST", body)),
+  listSuggestions: (companyId: string, status: "pending" | "confirmed" | "rejected") =>
+    request<{ suggestions: EvidenceSuggestion[] }>(`/api/stewardship/evidence-suggestions?company_id=${encodeURIComponent(companyId)}&status=${status}`),
+  confirmSuggestion: (id: string, body: { text?: string; proof_statement?: string; target_date?: string } = {}) =>
+    request<EvidenceSuggestion>(`/api/stewardship/evidence-suggestions/${encodeURIComponent(id)}/confirm`, jsonBody("POST", body)),
+  rejectSuggestion: (id: string, reason: string) =>
+    request<EvidenceSuggestion>(`/api/stewardship/evidence-suggestions/${encodeURIComponent(id)}/reject`, jsonBody("POST", { reason })),
+  checkWatchItem: (kind: WatchItemKind, id: string, companyId: string) =>
+    request<WatchCheckResult>(`/api/stewardship/watch-items/${kind}/${encodeURIComponent(id)}/check`, jsonBody("POST", { company_id: companyId })),
+  findCommitments: (activityId: string) =>
+    request<FindCommitmentsResult>(`/api/stewardship/activities/${encodeURIComponent(activityId)}/find-commitments`, { method: "POST" }),
 
   // Voting (proxy)
   startVotingRun: (body: { companies?: unknown[]; universe_path?: string; meeting_dates?: Record<string, string> }) =>

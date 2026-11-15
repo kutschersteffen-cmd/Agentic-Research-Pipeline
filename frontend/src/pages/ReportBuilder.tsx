@@ -581,6 +581,9 @@ export function ReportBuilder() {
           {storyline.slides.map((slide, i) => (
             <div className="review-item" key={i}>
               <input type="text" aria-label={`Slide ${i + 1} headline`} value={slide.headline} disabled={storyline.approved} onChange={(e) => updateSlide(i, { headline: e.target.value })} placeholder={`Slide ${i + 1} headline`} />
+              {manifest.template_id && (
+                <input type="text" aria-label={`Slide ${i + 1} subheading`} value={slide.subheading ?? ""} disabled={storyline.approved} onChange={(e) => updateSlide(i, { subheading: e.target.value })} placeholder="Subheading (one sentence under the headline)" />
+              )}
               <input type="text" aria-label={`Slide ${i + 1} purpose`} value={slide.purpose} disabled={storyline.approved} onChange={(e) => updateSlide(i, { purpose: e.target.value })} placeholder="Purpose (what this slide shows)" />
               {!storyline.approved && (
                 <div className="toolbar">
@@ -595,7 +598,7 @@ export function ReportBuilder() {
           <div className="toolbar">
             {!storyline.approved && (
               <>
-                <button className="link-button" onClick={() => setStoryline({ ...storyline, slides: [...storyline.slides, { headline: "", purpose: "", source_refs: [] }] })}>
+                <button className="link-button" onClick={() => setStoryline({ ...storyline, slides: [...storyline.slides, { headline: "", subheading: "", purpose: "", source_refs: [] }] })}>
                   + Add headline
                 </button>
                 <button onClick={saveStoryline} disabled={busy}>Save</button>

@@ -27,15 +27,15 @@ from arp.db.session import require_dsn
 from arp.decision.publish import as_fields
 from arp.engagement.orchestrator import is_stalled
 from arp.schemas.engagement import EngagementRecord, MilestoneStage
-from arp.stewardship import alerts_feed, escalation, monitoring, tracking, voting_feed
+from arp.stewardship import alerts_feed, escalation, monitoring, tracking, vote_ledger_feed, voting_feed
 from arp.stewardship.backtest import attach_impact, build_contexts
 from arp.stewardship.drafting import DraftStore
 from arp.stewardship.policies import PolicyStore
 from arp.stewardship.policy_graph import evaluate, generate
 from arp.stewardship.policy_review import DATA, build, decide, review
-from arp.stewardship.tiers import TIER_LABELS, TIERS, TierStore, review_tiers, tier_contexts
+from arp.stewardship.tiers import TIER_LABELS, TIERS, PickStore, TierStore, apply_picks, review_tiers, tier_contexts
 from arp.stewardship.tiers import evaluate as evaluate_tiers
-from arp.stewardship.universe import HouseUniverseSetting, from_portfolio
+from arp.stewardship.universe import HouseUniverseSetting, from_portfolio, held_isins
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.decision_store import DecisionStore
 from arp.storage.run_store import RunStore
@@ -45,12 +45,17 @@ HOUSE = "house"
 
 
 def vote_items(runs_dir: Path | None = None) -> list[dict]:
-    """Every ballot item from the Proxy Voting runs (see voting_feed)."""
+    """Every ballot item from the Proxy Voting runs (see voting_feed) plus the vote ledger's decisions (vote_ledger_feed)."""
     from arp.config import get_settings
 
     if runs_dir is None:
         runs_dir = get_settings().runs_dir
-    return voting_feed.items(RunStore(require_dsn(get_settings()), runs_dir))
+    settings = get_settings()
+    dsn = require_dsn(settings)
+    ledger = vote_ledger_feed.ledger_rows(dsn, settings.vote_monitoring_window_days)
+    seen = {(r["run_id"], r["company_id"], r["item"]) for r in ledger if r["run_id"] is not None}
+    runs = [r for r in voting_feed.items(RunStore(dsn, runs_dir)) if (r["run_id"], r["company_id"], r["item"]) not in seen]
+    return runs + ledger
 
 
 def portfolio_alerts() -> list:
@@ -72,6 +77,17 @@ def house_universe() -> dict:
     if HouseUniverseSetting(settings.stewardship_streams_dir).get()["source"] == "sample":
         return json.loads(SAMPLE_PATH.read_text())
     return from_portfolio(build_portfolio_store(settings))
+
+
+def house_isins() -> dict[str, str]:
+    """ISIN -> house issuer id for the portfolio universe; empty for the sample, whose issuers have no ISINs."""
+    from arp.config import get_settings
+    from arp.storage.portfolio_store_factory import build_portfolio_store
+
+    settings = get_settings()
+    if HouseUniverseSetting(settings.stewardship_streams_dir).get()["source"] == "sample":
+        return {}
+    return held_isins(build_portfolio_store(settings))
 
 
 def load_sample(
@@ -345,7 +361,7 @@ def _house_stages(
                 "label": "Most frequent reasons to vote against",
                 "rows": [{"issue": i, "resolutions": n} for i, n in deciders.most_common(6)],
             },
-            {"label": VOTES_DECIDED, "rows": [_vote_row(v) for v in decided]},
+            {"label": VOTES_DECIDED, "rows": [_vote_row(v) for v in decided if v.get("run_id")]},
         ],
     )
     tier_changes = tiers["changes"]
@@ -695,13 +711,18 @@ def house_escalations(root: Path, ctxs: list[dict]) -> list[dict]:
 
 def current_tiers(root: Path, sample: dict, records: list[EngagementRecord]) -> dict[str, str]:
     """The tier per issuer: the confirmed one where there is one, else the proposed one."""
-    proposals = evaluate_tiers(PolicyStore(root).active("coverage_rules"), tier_contexts(sample, records))
+    proposals = tier_proposals(root, sample, records)
     return {p["issuer_id"]: p["tier"] for p in proposals} | {i: r["tier"] for i, r in TierStore(root).latest().items()}
 
 
-def tier_review(root: Path, sample: dict, records: list[EngagementRecord]) -> dict:
+def tier_proposals(root: Path, sample: dict, records: list[EngagementRecord]) -> list[dict]:
+    """The active coverage rules' proposal per issuer, replaced by a standing bilateral pick."""
     proposals = evaluate_tiers(PolicyStore(root).active("coverage_rules"), tier_contexts(sample, records))
-    return review_tiers(proposals, TierStore(root).latest())
+    return apply_picks(proposals, PickStore(root).standing())
+
+
+def tier_review(root: Path, sample: dict, records: list[EngagementRecord]) -> dict:
+    return review_tiers(tier_proposals(root, sample, records), TierStore(root).latest())
 
 
 def confirm_tiers(root: Path, records: list[EngagementRecord], decided_by: str, issuer_ids: list[str] | None = None) -> int:
