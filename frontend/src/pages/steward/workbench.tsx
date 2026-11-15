@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../../api/client";
 import { Modal } from "../../components/Modal";
 import {
@@ -16,6 +16,7 @@ import {
   sortRows,
   tierText,
   totalText,
+  weightsProblem,
   weightsTotal,
   type Column,
   type SortKey,
@@ -160,19 +161,24 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   const [message, setMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // A response for a scope the user has already left is dropped.
+  const wanted = useRef(scope);
+  wanted.current = scope;
   const load = useCallback(async (key: string, quiet = false) => {
     if (!quiet) setLoading(true);
     setError(null);
     try {
       const w = await api.getWorklist(key);
+      if (wanted.current !== key) return;
       setData(w);
-      api.getSelection(key, w.cycle).then(setSelection, () => setSelection(null));
+      api.getSelection(key, w.cycle).then((s) => wanted.current === key && setSelection(s), () => undefined);
     } catch (e) {
-      setError((e as Error).message);
+      if (wanted.current === key) setError((e as Error).message);
     } finally {
-      setLoading(false);
+      if (wanted.current === key) setLoading(false);
+      onRowsShown?.();
     }
-  }, []);
+  }, [onRowsShown]);
   const loadScopes = useCallback(() => api.getWorklistScopes().then((r) => setScopes(r.scopes), (e: Error) => setActionError(e.message)), []);
   useEffect(() => {
     load(scope);
@@ -181,11 +187,10 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   const loaded = data !== null;
   useEffect(() => {
     if (!loaded) return;
-    onRowsShown?.();
     loadScopes();
     api.listProgrammes().then((r) => setProgrammes(r.programmes), () => undefined);
     api.getSimulatedSchema().then((s) => setFieldLabels(Object.fromEntries(s.fields.map((f) => [f.field_id, f.name]))), () => undefined);
-  }, [loaded, loadScopes, onRowsShown]);
+  }, [loaded, loadScopes]);
 
   const rows = useMemo(() => data?.rows ?? [], [data]);
   const columns = useMemo(() => [...COLUMNS, ...extraColumns(rows, fieldLabels)], [rows, fieldLabels]);
@@ -207,6 +212,8 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   }
   function chooseScope(key: string) {
     setScope(key);
+    setData(null); // the old scope's rows must not be acted on under the new scope
+    setSelection(null);
     setTicked(new Set());
     setPage(0);
     setMessage(null);
@@ -474,7 +481,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
         )}
       </section>
 
-      <WeightsSection />
+      <WeightsSection onActivated={() => load(scope, true)} />
 
       {dialog === "confirm" && data && (
         <Modal title="Confirm the selection" compact noClose onClose={() => setDialog(null)}>
@@ -504,14 +511,13 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
           onSubmit={(reason) =>
             act(async () => {
               const picked: string[] = [], already: string[] = [], failed: string[] = [];
-              for (const r of tickedRows) {
-                try {
-                  await api.pickBilateral({ issuer_id: r.issuer_id, reason });
-                  picked.push(r.company);
-                } catch (e) {
-                  (/already picked/.test((e as Error).message) ? already : failed).push(`${r.company}${/already picked/.test((e as Error).message) ? "" : ` (${(e as Error).message})`}`);
-                }
-              }
+              const results = await Promise.allSettled(tickedRows.map((r) => api.pickBilateral({ issuer_id: r.issuer_id, reason })));
+              results.forEach((res, i) => {
+                const name = tickedRows[i].company;
+                if (res.status === "fulfilled") picked.push(name);
+                else if (/already picked/.test((res.reason as Error).message)) already.push(name);
+                else failed.push(`${name} (${(res.reason as Error).message})`);
+              });
               setDialog(null);
               setTicked(new Set());
               load(scope, true);
@@ -676,7 +682,7 @@ function FundSubgroupDialog({ funds, onCancel, onSubmit }: { funds: WorklistScop
 type Weights = { components: { id: string; weight: number }[] } & Record<string, unknown>;
 
 /** The `priority_weights` policy: edit, preview against the active version, save, activate (four-eyes). */
-function WeightsSection() {
+function WeightsSection({ onActivated }: { onActivated: () => void }) {
   const { info, error, reload } = usePolicy("priority_weights");
   const actor = useActor();
   const [draft, setDraft] = useState<Weights | null>(null);
@@ -691,6 +697,7 @@ function WeightsSection() {
     }
   }, [info, draft]);
   const total = draft ? weightsTotal(draft.components) : 0;
+  const problem = draft ? weightsProblem(draft.components) : undefined;
   const dirty = !!info && !!draft && JSON.stringify(draft) !== JSON.stringify(info.active);
   const setWeight = (id: string, weight: number) => {
     setDraft((d) => (d ? { ...d, components: d.components.map((c) => (c.id === id ? { ...c, weight } : c)) } : d));
@@ -770,7 +777,7 @@ function WeightsSection() {
         </Section>
         <Section step="Calibrate" title="What these weights would change">
           <div className="toolbar">
-            <button onClick={runPreview} disabled={!draft || total !== 100 || previewing} title={total !== 100 ? totalText(total) : undefined}>
+            <button onClick={runPreview} disabled={!draft || !!problem || previewing} title={problem}>
               {previewing ? "Running…" : "Preview against the active weights"}
             </button>
           </div>
@@ -804,7 +811,7 @@ function WeightsSection() {
               info={info}
               workingCopy={draft}
               dirty={dirty}
-              invalid={total === 100 ? undefined : totalText(total)}
+              invalid={problem}
               actor={actor}
               onSaved={reload}
               onLoad={async (v) => {
@@ -812,7 +819,10 @@ function WeightsSection() {
                 setBase(v);
                 setPreview(null);
               }}
-              onActivated={reload}
+              onActivated={() => {
+                reload();
+                onActivated();
+              }}
             />
           )}
         </Section>

@@ -2211,6 +2211,9 @@ export type WorkProgramme = Served<S["Programme"]>;
 export type ProgrammeDetail = Served<S["ProgrammeDetail"]>;
 export type PriorityPreview = Served<S["PriorityPreview"]>;
 export type PortfolioGroup = Served<S["PortfolioGroup"]>;
+export type WorklistScopes = Served<S["WorklistScopes"]>;
+export type ProgrammeList = Served<S["ProgrammeList"]>;
+export type Confirmed = Served<S["Confirmed"]>;
 
 export interface PolicyVersionMeta {
   version: number;

@@ -168,6 +168,9 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
   const [flowWanted, setFlowWanted] = useState(tab !== "workbench");
   const showFlow = useCallback(() => setFlowWanted(true), []);
   useEffect(() => {
+    if (tab !== "workbench") setFlowWanted(true);
+  }, [tab]);
+  useEffect(() => {
     if (flowWanted) reload();
   }, [reload, flowWanted]);
 

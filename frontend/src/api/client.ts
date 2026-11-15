@@ -66,13 +66,15 @@ import type {
   SignalExperimentSummary,
   SignalMethod,
   BilateralPick,
+  Confirmed,
   PortfolioGroup,
   PriorityPreview,
+  ProgrammeList,
   ProgrammeDetail,
   SelectionList,
   WorkProgramme,
   Worklist,
-  WorklistScope,
+  WorklistScopes,
 } from "../types";
 import { tagQuery } from "../lib/xbrlTags";
 import { encodeRef, factsUrl, type FactFilters } from "../pages/company/companyQuery";
@@ -920,13 +922,13 @@ export const api = {
   getCoverageInputs: () => request<{ contexts: Record<string, unknown>[] }>("/api/stewardship/studio/coverage/inputs"),
   // The stewardship workbench (spec stewardship-priority-worklist)
   getWorklist: (scope: string) => request<Worklist>(`/api/stewardship/worklist${buildQuery({ scope })}`),
-  getWorklistScopes: () => request<{ scopes: WorklistScope[] }>("/api/stewardship/worklist/scopes"),
+  getWorklistScopes: () => request<WorklistScopes>("/api/stewardship/worklist/scopes"),
   getSelection: (scope: string, cycle?: string) => request<SelectionList>(`/api/stewardship/selection${buildQuery({ scope, cycle })}`),
   changeSelection: (body: { cycle: string; scope: string; add?: string[]; remove?: string[] }) =>
     request<SelectionList>("/api/stewardship/selection", jsonBody("POST", body)),
   confirmSelection: (body: { cycle: string; scope: string }) =>
-    request<{ confirmed: number }>("/api/stewardship/selection/confirm", jsonBody("POST", body)),
-  listProgrammes: () => request<{ programmes: WorkProgramme[] }>("/api/stewardship/programmes"),
+    request<Confirmed>("/api/stewardship/selection/confirm", jsonBody("POST", body)),
+  listProgrammes: () => request<ProgrammeList>("/api/stewardship/programmes"),
   createProgramme: (name: string) => request<WorkProgramme>("/api/stewardship/programmes", jsonBody("POST", { name })),
   addProgrammeMembers: (programmeId: string, add: string[]) =>
     request<ProgrammeDetail>(`/api/stewardship/programmes/${encodeURIComponent(programmeId)}/members`, jsonBody("POST", { add })),

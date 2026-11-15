@@ -182,3 +182,9 @@ export const COMPONENT_LABEL: Record<string, string> = {
 
 export const weightsTotal = (components: { weight: number }[]) => components.reduce((s, c) => s + (Number.isFinite(c.weight) ? c.weight : 0), 0);
 export const totalText = (total: number) => (total === 100 ? "Total 100" : `Total ${total} — must be 100`);
+/** Why a set of weights cannot be saved or previewed (the server's own checks), or undefined. */
+export function weightsProblem(components: { weight: number }[]): string | undefined {
+  if (components.some((c) => !Number.isInteger(c.weight) || c.weight < 0 || c.weight > 100)) return "Each weight is a whole number from 0 to 100";
+  const total = weightsTotal(components);
+  return total === 100 ? undefined : totalText(total);
+}
