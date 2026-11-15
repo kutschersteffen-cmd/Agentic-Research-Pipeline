@@ -148,6 +148,21 @@ def test_502_names_the_superset_failure_without_its_body(superset, method, path,
     assert "s3cret" not in r.text and "Errno" not in r.text
 
 
+def test_dashboards_502_when_nothing_listens():
+    """A real refused connection: httpx raises ConnectError from httpcore's, which must still read as unreachable."""
+    import socket
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]  # closed again on exit, so nothing listens there
+    url = f"http://127.0.0.1:{port}"
+    app = _app(FakeLLM(), SupersetClient(url, "u", "p"))
+    app.app.dependency_overrides[deps.settings_dep] = lambda: Settings(portfolios_dir=Path(tempfile.mkdtemp()), superset_url=url)
+    r = app.get("/api/bi/dashboards")
+    assert r.status_code == 502
+    assert r.json()["detail"] == f"Superset is not reachable at {url}. It is not set up here or not running."
+
+
 def _with_dashboard(slug: str) -> FakeClient:
     fake = FakeClient()
     fake.dashboards[slug] = {"id": 7, "published": False, "charts": [], "position": {}}

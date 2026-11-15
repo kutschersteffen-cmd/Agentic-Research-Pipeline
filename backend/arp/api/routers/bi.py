@@ -54,7 +54,7 @@ def _bad_gateway(e: Exception, settings: Settings | None = None) -> HTTPExceptio
     logger.warning("superset error: %s body=%r", e, getattr(cause, "body", None))
     # Fixed texts only: a Superset response body never reaches the client (it may hold hosts, DSNs or secrets).
     status = cause.status_code if isinstance(cause, SupersetError) else None
-    if isinstance(cause, httpx.TransportError):
+    if isinstance(e, httpx.TransportError) or isinstance(cause, httpx.TransportError):  # a raw httpx error's cause is httpcore's
         url = (settings or get_settings()).superset_url.rstrip("/")
         detail = f"Superset is not reachable at {url}. It is not set up here or not running."
     elif status in (401, 403):
