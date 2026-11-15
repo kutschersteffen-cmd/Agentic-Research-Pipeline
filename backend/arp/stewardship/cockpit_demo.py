@@ -125,6 +125,7 @@ def step_tiers(settings: Settings, dsn: str, as_of: date) -> str:
     from arp.stewardship.tiers import TierStore
 
     values, companies = held_values(settings, as_of)
+    values = {c: v for c, v in values.items() if v > 0}  # a company held only at 0 EUR (or net short) is not held
     with transaction(dsn) as s:
         ledger = {r.company_id: r for r in s.execute(select(StwCompanyModel.company_id, StwCompanyModel.name, StwCompanyModel.sector)) if r.company_id in values}
     total = sum(values.values())  # the share of all house holdings, as universe.from_portfolio computes it

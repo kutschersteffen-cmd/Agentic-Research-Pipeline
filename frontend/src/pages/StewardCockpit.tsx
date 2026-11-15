@@ -15,6 +15,9 @@ import {
   monthLabel,
   pct,
   stepTone,
+  OTHER_THEME,
+  themeLabel,
+  themeScale,
   weekday,
 } from "../lib/cockpit";
 import type { Cockpit } from "../types";
@@ -220,7 +223,8 @@ function Cell({ e, s, max }: { e: number; s: number; max: number }) {
 
 function ThemeGrid({ data }: { data: Cockpit }) {
   const { themes, tiers, summary } = data;
-  const max = Math.max(1, summary.selected, ...themes.map((t) => t.selected));
+  const { maxOf, note } = themeScale(themes, summary.selected);
+  const max = maxOf(null);
   return (
     <Card
       title="Engaged vs selected, by theme and tier"
@@ -248,16 +252,17 @@ function ThemeGrid({ data }: { data: Cockpit }) {
             </thead>
             <tbody>
               {themes.map((row) => (
-                <tr key={row.theme}>
-                  <th scope="row">{row.theme}</th>
-                  {row.tiers.map((c) => <Cell key={c.tier} e={c.engaged} s={c.selected} max={max} />)}
-                  <Cell e={row.engaged} s={row.selected} max={max} />
+                <tr key={row.theme} className={row.theme === OTHER_THEME ? "cockpit-grid-other" : undefined}>
+                  <th scope="row">{themeLabel(row.theme)}</th>
+                  {row.tiers.map((c) => <Cell key={c.tier} e={c.engaged} s={c.selected} max={maxOf(row.theme)} />)}
+                  <Cell e={row.engaged} s={row.selected} max={maxOf(row.theme)} />
                 </tr>
               ))}
             </tbody>
           </table>
         </Scroll>
         <Legend items={[["eng", "Engaged"], ["sel", "Selected"]]} />
+        <p className="cockpit-grid-scale">{note}</p>
         </>
       )}
     </Card>
