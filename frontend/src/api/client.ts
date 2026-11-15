@@ -65,6 +65,7 @@ import type {
   SignalExperimentDetail,
   SignalExperimentSummary,
   SignalMethod,
+  BilateralPick,
 } from "../types";
 import { tagQuery } from "../lib/xbrlTags";
 import { encodeRef, factsUrl, type FactFilters } from "../pages/company/companyQuery";
@@ -827,6 +828,11 @@ export const api = {
     request(`/api/stewardship/streams/${encodeURIComponent(streamId)}/decisions`, { method: "POST", body: JSON.stringify(body) }),
   confirmTiers: (body: { issuer_ids?: string[] }) =>
     request<{ confirmed: number }>("/api/stewardship/tiers/confirm", { method: "POST", body: JSON.stringify(body) }),
+  getBilateralPicks: () => request<{ picks: BilateralPick[] }>("/api/stewardship/tiers"),
+  pickBilateral: (body: { issuer_id: string; reason: string }) =>
+    request<{ picked: string }>("/api/stewardship/tiers/bilateral", { method: "POST", body: JSON.stringify(body) }),
+  withdrawBilateral: (issuerId: string) =>
+    request<{ withdrawn: string }>(`/api/stewardship/tiers/bilateral/${encodeURIComponent(issuerId)}/withdraw`, { method: "POST" }),
   getStewardPolicy: (policyId: StewardPolicyId, stream?: string) =>
     request<StewardPolicyInfo>(`/api/stewardship/policies/${policyId}${streamQuery(stream)}`),
   getStewardPolicyVersion: (policyId: StewardPolicyId, version: number, stream?: string) =>

@@ -51,7 +51,8 @@ export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[
         </ConfirmSignedIn>
       )}
       <p className="muted">
-        Proposed by the house coverage rules (a decision table you can edit in the rule editor). A tier only counts once it is
+        Proposed by the house coverage rules (a decision table you can edit in the rule editor), or picked for bilateral by hand
+        (rule <code>manual</code>, at stage 2). A tier only counts once it is
         confirmed; every confirmation is kept, never overwritten.
       </p>
       {error && <p className="error-text" role="alert">{error}</p>}

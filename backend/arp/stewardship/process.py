@@ -33,7 +33,7 @@ from arp.stewardship.drafting import DraftStore
 from arp.stewardship.policies import PolicyStore
 from arp.stewardship.policy_graph import evaluate, generate
 from arp.stewardship.policy_review import DATA, build, decide, review
-from arp.stewardship.tiers import TIER_LABELS, TIERS, TierStore, review_tiers, tier_contexts
+from arp.stewardship.tiers import TIER_LABELS, TIERS, PickStore, TierStore, apply_picks, review_tiers, tier_contexts
 from arp.stewardship.tiers import evaluate as evaluate_tiers
 from arp.stewardship.universe import HouseUniverseSetting, from_portfolio
 from arp.storage.atomic_io import atomic_write_text
@@ -695,13 +695,18 @@ def house_escalations(root: Path, ctxs: list[dict]) -> list[dict]:
 
 def current_tiers(root: Path, sample: dict, records: list[EngagementRecord]) -> dict[str, str]:
     """The tier per issuer: the confirmed one where there is one, else the proposed one."""
-    proposals = evaluate_tiers(PolicyStore(root).active("coverage_rules"), tier_contexts(sample, records))
+    proposals = tier_proposals(root, sample, records)
     return {p["issuer_id"]: p["tier"] for p in proposals} | {i: r["tier"] for i, r in TierStore(root).latest().items()}
 
 
-def tier_review(root: Path, sample: dict, records: list[EngagementRecord]) -> dict:
+def tier_proposals(root: Path, sample: dict, records: list[EngagementRecord]) -> list[dict]:
+    """The active coverage rules' proposal per issuer, replaced by a standing bilateral pick."""
     proposals = evaluate_tiers(PolicyStore(root).active("coverage_rules"), tier_contexts(sample, records))
-    return review_tiers(proposals, TierStore(root).latest())
+    return apply_picks(proposals, PickStore(root).standing())
+
+
+def tier_review(root: Path, sample: dict, records: list[EngagementRecord]) -> dict:
+    return review_tiers(tier_proposals(root, sample, records), TierStore(root).latest())
 
 
 def confirm_tiers(root: Path, records: list[EngagementRecord], decided_by: str, issuer_ids: list[str] | None = None) -> int:

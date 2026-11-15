@@ -2,6 +2,7 @@ import { FileLink } from "../../components/FileLink";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client";
 import type {
+  BilateralPick,
   DecisionInput,
   CatalogueIssue,
   ClientEscalationPreview,
@@ -389,6 +390,90 @@ function DecisionInputs() {
   );
 }
 
+/** Companies picked by hand for bilateral (spec stewardship-three-tiers). While a pick stands it is
+ * the company's tier proposal; the tier confirm at stage 5 makes it count. */
+function BilateralPicks({ onChanged }: { onChanged: () => void }) {
+  const [companies, setCompanies] = useState<{ issuer_id: string; name: string }[]>([]);
+  const [picks, setPicks] = useState<BilateralPick[]>([]);
+  const [issuer, setIssuer] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const loadPicks = () => api.getBilateralPicks().then((t) => setPicks(t.picks), (e: Error) => setError(e.message));
+  useEffect(() => {
+    api.getCoverageInputs().then(
+      (r) => setCompanies(r.contexts.map((c) => ({ issuer_id: String(c.issuer_id), name: String(c.name) }))),
+      (e: Error) => setError(e.message),
+    );
+    loadPicks();
+  }, []);
+  const act = (call: Promise<unknown>, after?: () => void) => {
+    setBusy(true);
+    call
+      .then(() => {
+        setError(null);
+        after?.();
+        onChanged();
+        return loadPicks();
+      }, (e: Error) => setError(e.message))
+      .finally(() => setBusy(false));
+  };
+  return (
+    <>
+      <h3>Bilateral picks</h3>
+      <p className="help-text">
+        A pick makes bilateral this company&apos;s tier proposal, whatever the coverage rules say, until it is withdrawn. It
+        counts once the tier change is confirmed at stage 5.
+      </p>
+      <div className="toolbar">
+        <label className="field-label">
+          Company
+          <select value={issuer} onChange={(e) => setIssuer(e.target.value)}>
+            <option value="" disabled>
+              Choose a company…
+            </option>
+            {companies.map((c) => (
+              <option key={c.issuer_id} value={c.issuer_id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field-label">
+          Reason
+          <input value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} />
+        </label>
+        <button
+          disabled={busy || !issuer || !reason.trim()}
+          onClick={() => act(api.pickBilateral({ issuer_id: issuer, reason }), () => setReason(""))}
+        >
+          Pick for bilateral
+        </button>
+      </div>
+      {error && <p className="error-text" role="alert">{error}</p>}
+      {picks.length === 0 ? (
+        <p className="muted">No company is picked for bilateral.</p>
+      ) : (
+        <ul className="decision-changes">
+          {picks.map((p) => (
+            <li key={p.issuer_id}>
+              {p.name ?? `${p.issuer_id} (no longer in the house universe)`} — {p.reason} — {p.by}, {p.at.slice(0, 10)}{" "}
+              <button
+                className="link-button"
+                disabled={busy}
+                aria-label={`Withdraw the bilateral pick for ${p.name ?? p.issuer_id}`}
+                onClick={() => act(api.withdrawBilateral(p.issuer_id))}
+              >
+                Withdraw
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
   const draft = useRuleDraft<CoveragePreview>("coverage_rules", api.previewCoverage);
   const { info, graph, preview } = draft;
@@ -414,6 +499,7 @@ export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
       />
       <Section step="Review" title="Confirmed coverage tiers">
         <DataTable rows={stage.details.find((d) => d.label.includes("coverage"))?.rows ?? []} />
+        <BilateralPicks onChanged={onChanged} />
         <div className="toolbar">
           <button className="link-button" onClick={() => onOpen("checkpoint")}>
             Tier changes are confirmed at stage 5 →

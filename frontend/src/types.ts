@@ -2132,6 +2132,15 @@ export interface ClientExceptionItem {
   reason: string;
 }
 
+/** A standing bilateral pick from GET /api/stewardship/tiers; `name` is null once the issuer left the house universe. */
+export interface BilateralPick {
+  issuer_id: string;
+  name: string | null;
+  reason: string;
+  by: string;
+  at: string;
+}
+
 export interface TierChangeItem {
   kind: "tier_change";
   issuer_id: string;

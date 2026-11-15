@@ -2935,6 +2935,24 @@
     "title": "BestInClassCoverage",
     "type": "object"
    },
+   "BilateralPickRequest": {
+    "properties": {
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "reason": {
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "reason"
+    ],
+    "title": "BilateralPickRequest",
+    "type": "object"
+   },
    "Body_add_fact_api_transition_barrier_cells__code___region__facts_post": {
     "properties": {
      "as_of": {
@@ -44809,6 +44827,94 @@
      }
     },
     "summary": "Get Tiers",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/tiers/bilateral": {
+   "post": {
+    "description": "Picks a company for bilateral: while the pick stands it is the company's tier\nproposal, which still needs the tier confirm at stage 5 to count.",
+    "operationId": "post_bilateral_pick_api_stewardship_tiers_bilateral_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BilateralPickRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Post Bilateral Pick Api Stewardship Tiers Bilateral Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Bilateral Pick",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/tiers/bilateral/{issuer_id}/withdraw": {
+   "post": {
+    "operationId": "post_bilateral_withdraw_api_stewardship_tiers_bilateral__issuer_id__withdraw_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "issuer_id",
+      "required": true,
+      "schema": {
+       "title": "Issuer Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Post Bilateral Withdraw Api Stewardship Tiers Bilateral  Issuer Id  Withdraw Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Bilateral Withdraw",
     "tags": [
      "stewardship"
     ]
