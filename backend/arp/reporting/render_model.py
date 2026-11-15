@@ -200,3 +200,8 @@ def render_slide(slide: SlideContent, index: int, deck: Deck, tokens: Tokens, da
         return VISUALS[visual.type](visual, Box(x=0, y=0, w=tokens.canvas.width, h=tokens.canvas.height), ctx)
     slide = slide.model_copy(update={"source_line": source_line(slide, datasets)})
     return anatomy(slide, index, tokens, mode) + VISUALS[visual.type](visual, body_box(tokens), ctx)
+
+
+def decimals(values: list[float]) -> int:
+    """Decimal places the values carry; chart labels and number formats keep them."""
+    return max((len(f"{v:g}".partition(".")[2]) for v in values), default=0)
