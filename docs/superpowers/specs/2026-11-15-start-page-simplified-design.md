@@ -14,151 +14,220 @@ The approved mockup is `docs/superpowers/specs/assets/2026-11-15-start-page-mock
 Without Sidebar", version 2). Visitors are the stewardship and research team opening ARP to see where to
 go next.
 
+The waiting total ("15 decisions wait on you") leaves the start page with the headline link. Waiting
+work still shows on the start page in two places: the waiting workspace's card ("Waiting on you") and
+the Review Queue badge.
+
 ## Goals
 
-- **No sidebar on the start page.** At widths of 1025px and up, `#/home` renders without
-  `.app-sidebar`. Every other route keeps the sidebar exactly as today.
-- **A start-page top bar** (`.start-topbar`, a `banner` landmark), left to right:
-  - the ARP lockup, a link to `#/home`;
-  - a search button labelled "Search or jump to…" with a `⌘K` hint, which opens the existing command
-    palette;
-  - an **Ask ARP** button with a `⌘J` hint, shown only when Ask is available (today's `canAsk`), which
-    opens the existing Ask panel. The mockup merged Ask into the search label, but the palette has no
-    Ask entry, so Ask keeps its own button.
-  - inside a `nav` landmark labelled "Main":
-    - a **Review Queue** link to `#/review`. When the review count is above 0, it shows the count as an
-      amber badge: the same number and tooltip as today's sidebar badge.
-    - a **Reports** link to `#/reporting`.
-    - a **user menu** button showing the reviewer name.
-- **User menu.** It holds everything the sidebar carried about the person, using today's components:
-  - the "Reviewing as" name (`ReviewerField`) and the signed-in line with Sign out (`SignedInAs`);
-  - the theme switch (`ThemeSwitch`);
-  - a link to Arcade.
-- **Header.** It is the greeting alone: an `h1` of "Good morning|afternoon|evening[, name]." Nothing else
-  sits between the top bar and the cards apart from the existing runs error message, which stays.
-- **Removed from the page:**
+- **No sidebar on the start page.** At every width, `#/home` renders without `.app-sidebar`, without the
+  phone `.app-topbar` and without the "Open navigation" button. Every other route is unchanged.
+- **A start-page top bar** (`<header class="start-topbar">`, a `banner` landmark), left to right:
+  - The ARP lockup: a link named "ARP start" to `#/home`, drawn like the landing header (apex in
+    `--brand-apex`).
+  - A search button named "Search or jump to…", showing the shortcut hint (`⌘K` on Mac, `Ctrl K`
+    elsewhere, as the sidebar does today). It opens the existing command palette.
+  - An **Ask ARP** button with the `⌘J` / `Ctrl J` hint, rendered only when Ask is available (today's
+    `canAsk`). It opens the existing Ask panel. Closing the panel returns focus to this button.
+  - Inside `<nav aria-label="Main">`:
+    - A **Review Queue** link to `#/review`. When the review count is above 0, it carries the sidebar's
+      badge: same text (`N item(s)`), same `title` and `aria-label`, from the same
+      `waiting.review` number.
+    - A **Reports** link to `#/reporting`.
+    - A **user menu** button showing `useMe().name`, or "Account" when there is none.
+- **User menu.** A disclosure popover, not `role="menu"`, holding today's components:
+  - `ReviewerField` (the "Reviewing as" name);
+  - `SignedInAs` (the signed-in line, with "Sign out" when signed in with a token);
+  - `ThemeSwitch`;
+  - a link "Arcade" to `#/arcade`.
+
+  Keyboard behaviour:
+  - Opening it moves focus to its first focusable element.
+  - Esc or a click outside closes it and returns focus to the button.
+  - Tab past the last element closes it and focus moves on.
+- **Header.** It is the greeting alone: one `h1`, "Good morning|afternoon|evening[, name].". The existing
+  runs error message with Retry stays, between the header and the cards.
+- **Removed from the page and the code:**
   - the stats row (`.hub-stats`);
-  - the waiting link (`.hub-waiting`);
-  - the "What counts?" disclosure (`.hub-counts`);
-  - the dot legend (`StateLegend`);
-  - the "Now" chip row (`.hub-now`);
-  - the card footer "Open →" (`.hub-card-foot`).
-- **Cards.** The five workspace cards sit on a 6-column grid: three cards span 2 columns, then two
-  span 3. Each card is one link and holds, top to bottom:
-  - a figure area at least 200px tall, with a mono caption "Fig 0n · N process(es)" and the workspace
-    drawing;
+  - the waiting link (`.hub-waiting`, `.hub-waiting-quiet`);
+  - "What counts?" (`.hub-counts`);
+  - the dot legend (`StateLegend`, `.hub-legend`);
+  - the Now row (`.hub-now`, `.hub-chip`);
+  - the card footer (`.hub-card-foot`, `CardView.footer`);
+  - the old card icon box (`.hub-card-icon`);
+  - the functions `waitingSentence`, `waitingLink`, `waitingStat`, `waitingTarget`, and
+    `lib/useWaitingTotal.ts`.
+- **Card grid.** `.hub-cards` is `display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px`.
+  - Cards 1–3 use `grid-column: span 2`; cards 4–5 use `span 3`.
+  - From 761px to 1100px, every card spans 3.
+  - At 760px and below, it is one column.
+- **Card content.** Each card is one link and holds, top to bottom:
+  - a figure area (`.hub-card-fig`), at least 200px tall, with:
+    - a mono caption "Fig 0n · N process" or "N processes" (n = the card's position, N = its process
+      count);
+    - the workspace drawing;
   - the name;
   - the purpose;
-  - a status line: one 8px square per process, then a status word, then " · " and the process that
-    matters now (`cardView().now`) when there is one.
-- **Status word.** Derived from the card's process states, the first match wins:
-  1. "Waiting on you" (amber), if any process waits;
-  2. "Running" (`--run`), if any runs;
-  3. "Last run failed" (`--low`), if any failed;
-  4. "Up to date", if any has a finished run;
-  5. "No runs yet".
+  - a status line (`.hub-card-status`):
+    - one 8×8px square per process (`.hub-mark-<state>`);
+    - the status word;
+    - when there is a detail, " · " and the detail.
+- **Status.** `cardStatus` gives the word, its tone and the detail. The first match wins:
 
-  While runs are unknown, the word is "Status unknown".
-- **Drawings.** Each workspace gets an original isometric wireframe: thin 1px strokes, faces in the
-  panel colour, a 30° projection.
+  | Process states | Word | Tone | Detail | Word colour |
+  |---|---|---|---|---|
+  | any waits | "Waiting on you" | `wait` | the waiting process's title | `--hi-ink` |
+  | else any runs | "Running" | `now` | the running process's title | `--run` |
+  | else any failed | "Last run failed" | `failed` | the failed process's title | `--low` |
+  | else any finished | "Up to date" | `done` | "Last run … ago" (today's `cardView().now`) | `--muted` |
+  | else | "No runs yet" | `idle` | none | `--muted` |
+  | runs unknown | "Status unknown" | `unknown` | none | `--muted` |
+
+  Squares: `done` filled `--text`, `now` `--run`, `wait` `--hi`, `failed` `--low`, `idle` a 1px
+  `--muted` outline, `unknown` a 1px dashed `--muted` outline.
+- **Drawings.** Original isometric wireframes, one per workspace:
   - StewardIQ: stacked slabs.
   - Argus: a slab with rising data blocks.
   - Transition Intel: a rising fin array.
   - R&D Lab: grouped blocks of different heights.
   - Data Hub: stacked discs.
 
-  At most one element of a drawing is highlighted: amber when the card waits, `--run` when it runs,
-  none otherwise (DESIGN.md, The Icon Accent Rule).
+  Every stroke is 1px; faces fill with `--panel`; strokes are `--text` mixed to 20–30%. At most one
+  shape is accented: `--hi` when the card's tone is `wait`, `--run` when it is `now`, none otherwise.
 
 ## Non-goals
 
-- **Colour tokens.** This page uses today's tokens; the accent for "running" stays `--run`, the current
-  blue. The palette work, including the neutral "instrument" look in the mockup, is a separate spec.
-- **The typeface.** It stays Geist; the mockup's Inter is not adopted.
-- **The phone layout of other routes, and their sidebar content.**
-- **Search behaviour.** The search button only opens the existing command palette.
+- Colour tokens. The page uses today's tokens; "running" stays `--run`, the current blue. Palette work,
+  including the mockup's neutral look, is a separate spec.
+- The typeface. It stays Geist; the mockup's Inter is not adopted.
+- Any route other than `#/home`.
+- Search behaviour. The button only opens the existing palette.
 
 ## Anti-goals
 
 - A fact shown twice on the start page.
 - The reviewer name, theme switch or Sign out becoming unreachable from the start page.
 - Amber used for anything but waiting (DESIGN.md, The One Signal Rule).
-- A keyboard user who can't reach and close the user menu.
+- A keyboard user who can't open, use and close the user menu.
 
 ## Approaches
 
 1. **Start-page top bar plus sidebar elsewhere (chosen).** Smallest change; other pages stay familiar.
-2. A global top bar for all pages, replacing the sidebar everywhere. Bigger, and it touches every
-   screen. Rejected for now.
-3. Keep the sidebar but collapse it on the start page. It keeps the duplication the owner wants gone.
-   Rejected.
+2. A global top bar for all pages. Bigger, touches every screen. Rejected for now.
+3. Keep the sidebar but collapse it on the start page. Keeps the duplication. Rejected.
 
 ## Decided
 
 - **App shell.**
-  - `App.tsx` skips rendering `<aside className="app-sidebar">` and the phone top bar when the route
-    is `home`, and renders `<StartTopbar />` instead.
-  - The phone drawer button is not shown on `#/home`.
-  - Below 760px the top bar hides the search text and keeps the `⌘K` button as an icon. It also hides
-    the name in the user menu button.
-- **User menu.** A button with `aria-expanded` and `aria-controls` opens a popover. Esc or a click
-  outside closes it and returns focus to the button. The first focusable element inside gets focus on
-  open.
-- **Card status.**
-  - `cardView` drops `footer` and gains `status: { word: string; tone: "wait" | "now" | "failed" | "done" | "idle" | "unknown" }`.
-  - The card's `aria-label` stays as today: the name plus each process's state.
-- **Drawings.** They live in a new `components/WorkspaceDrawing.tsx`, one SVG per workspace id, drawn
-  with `currentColor`-free classes that read `--panel`, `--text` (strokes at 20–30% via
-  `color-mix`), `--hi` and `--run`. There are no colour literals.
-- **Count.** The Review Queue count is `App`'s existing `waiting.review`, the number today's sidebar
-  badge shows.
+  - `App.tsx` renders `<StartTopbar />` instead of the phone top bar and the sidebar when the route is
+    `home`.
+  - Below 760px the search button shows only a search icon and the hint, keeping its accessible name.
+    The user menu button shows only its avatar initial, with the name as its accessible name.
+  - Ask ARP stays visible at every width when available.
+  - `closeAsk` returns focus to the start top bar's Ask button when the route is `home`.
+- **Logic.**
+  - `lib/workspaceCard.ts` gains
+    `export function cardStatus(states: (StepState | "unknown")[] | null, titles: string[], lastLine: string): { word: string; tone: StepState | "unknown"; detail: string }`.
+    `cardView` drops `footer` and adds `status`.
+  - `lib/workspaceCard.ts` also gains
+    `export function reviewBadge(count: number): { text: string; title: string } | null`.
+    The sidebar uses it too, so both show the same text.
+- **Drawings.**
+  - `lib/workspaceDrawing.ts` exports
+    `export function drawing(id: WorkspaceId, accent: "wait" | "now" | null): { d: string; part: "face" | "top"; accent: boolean }[]`.
+    It holds the geometry only, with no colours.
+  - `components/WorkspaceDrawing.tsx` renders the shapes as SVG paths with classes. The CSS reads
+    `--panel`, `--text`, `--hi` and `--run`.
+- **Amber lines added** (for `ac13_amber_usage_unchanged`'s allow-list):
+  - `.hub-status-wait` (`color: var(--hi-ink)`);
+  - `.hub-mark-wait` (`background: var(--hi)`);
+  - `.ws-accent-wait` (`stroke: var(--hi)`).
+
+  The top bar badge reuses `.nav-count`, which is already allowed.
+- **DESIGN.md is updated in this change.**
+  - Process Card: drawing, caption, status line, no "Open →".
+  - Layout: the start page has no sidebar; it is greeting, then cards in 3 + 2.
+  - "Needs you" count: shown in the sidebar and the start top bar.
+  - Theme switch: it lives in the sidebar and in the start page's user menu.
+  - The Icon Accent Rule now reads: one element lights `--hi` when the workspace waits, or `--run` when
+    it runs.
+  - The phrase checked by `workspaceCard.test.ts` "AC-20" stays absent.
 
 ## Supersedes
 
-- In `frontend/tests/workspaceCard.test.ts`:
-  - "AC-1/2/3: every card's footer is 'Open →'" is retired, because the footer is removed.
-  - The waiting-link tests `r4_ac8`, `r4_ac8b`, `r4_nan_is_no_link`, `r4_runs_error_wins`, the loop at
-    line 92 and `r6_ac4` to `r6_ac8` are retired. `waitingLink`, `waitingSentence` and `waitingStat`
-    are removed with the headline link and stats.
-- In `frontend/tests/nightDeskTokens.test.ts`: `r4_ac10c`, `r4_ac11`, `r4_ac11b`, `r4_ac11c` and
-  `r4_waiting_link_wraps` (CSS for the removed elements) are retired. `ac13_amber_usage_unchanged`
-  drops `.hub-waiting` from its allow-list.
-- In `backend/tests/e2e/test_app_smoke.py`, `test_opening_arp_lands_on_the_landing_page`:
-  - after "Open ARP →" it expects `.start-topbar` instead of `.app-sidebar` (count 1);
-  - the Review Queue step clicks the top bar's "Review Queue" link (still inside a `navigation`
-    landmark).
-- From `2026-11-14-landing-brand-refresh`: AC-23 (".app-sidebar is present after Open ARP") becomes
-  ".start-topbar is present" (AC-16 here).
-- The night-desk start-page specs' rows for the stats row, the waiting link, the legend, "What
-  counts?", the Now row and the card footer are superseded by this page. Their tests are listed above.
+- **`2026-11-03-start-page-cards-as-navigation`:**
+  - AC-1, AC-2, AC-3, AC-16 (footer "Open →");
+  - AC-18 (stats row);
+  - AC-24 (Now row);
+  - AC-25 (legend).
+- **`2026-11-09-night-desk-start-page`:**
+  - AC-1 to AC-9, AC-8b, AC-8c (waiting sentence, link and stat);
+  - AC-10, AC-10b (`.hub-card-icon`);
+  - AC-10c (footer);
+  - AC-11, AC-11b, AC-11c;
+  - AC-13a, AC-13b, AC-13c;
+  - AC-14, AC-15.
+- **`2026-11-09-night-desk-waiting-link`:** AC-1 to AC-11 (`waitingTarget`, the link and its
+  destination).
+- **`2026-11-14-landing-brand-refresh`:** AC-23 (`.app-sidebar` after Open ARP), restated as AC-17 below.
+- **Tests retired in `frontend/tests/workspaceCard.test.ts`:**
+  - "AC-1/2/3: every card's footer is 'Open →'";
+  - `r4_ac1` to `r4_ac7`, `r4_ac8`, `r4_ac8b`, `r4_ac8c` (the loop), `r4_ac9`;
+  - `r4_runs_error_wins`, `r4_nan_is_no_link`;
+  - `r6_ac1` to `r6_ac8`.
+- **Tests in `frontend/tests/nightDeskTokens.test.ts`:**
+  - retired: `r4_ac10`, `r4_ac10b`, `r4_ac10c`, `r4_ac11`, `r4_ac11b`, `r4_ac11c`,
+    `r4_waiting_link_wraps`;
+  - `ac13_amber_usage_unchanged`: the allow-list drops `.hub-waiting` and `.hub-card-await
+    .hub-card-icon`, and adds the three selectors above.
+- **Tests edited in `backend/tests/e2e/test_app_smoke.py`:**
+  - `test_opening_arp_lands_on_the_landing_page` expects `.start-topbar` (count 1) instead of
+    `.app-sidebar` after "Open ARP →".
+  - `test_start_page_signs_in_and_loads_without_errors` opens the user menu before asserting "Signed in
+    as dev (approver)".
+  - `test_navigating_to_the_review_queue_loads_it_from_the_api` is unchanged: its link is now the top
+    bar's, still inside a `navigation` landmark.
 
 ## Acceptance
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-1 | The running app at `/#/home`, 1440×900 | The page loads | There is no `.app-sidebar` element in the DOM and exactly one `.start-topbar` with role `banner` | evaluator |
-| AC-2 | The running app at `/#/review`, 1440×900 | The page loads | `.app-sidebar` is present, as today | evaluator |
-| AC-3 | `/#/home`, 1440×900 | The page loads | Inside `.start-topbar`, the visible link and button texts in order are: the ARP lockup (`svg[aria-label=ARP]`), "Search or jump to…", "Ask ARP" (when Ask is available), "Review Queue", "Reports", and the reviewer name | evaluator |
-| AC-4 | `/#/home` with 15 reviewable items | The page loads | The Review Queue link's badge reads `15` with background `--hi`; the link's href is `#/review` | evaluator |
-| AC-5 | `/#/home` with 0 reviewable items | The page loads | The Review Queue link shows no badge | evaluator |
-| AC-6 | `/#/home` | The search button is clicked | The command palette opens (its dialog is visible) | evaluator |
-| AC-6b | `/#/home` with Ask available | "Ask ARP" is clicked | The Ask panel opens, as the sidebar's Ask button does today | evaluator |
-| AC-7 | `/#/home` | The user menu button is clicked | A menu opens holding the "Reviewing as" name field, the signed-in line with "Sign out", the theme switch and an "Arcade" link; the button has `aria-expanded="true"` | evaluator |
-| AC-8 | The user menu is open | Esc is pressed | The menu closes and focus is on the user menu button | evaluator |
-| AC-9 | `/#/home` | The page's main content is read | It holds exactly one `h1`, whose text matches `^Good (morning\|afternoon\|evening)(, .+)?\.$`, and none of `.hub-stats`, `.hub-waiting`, `.hub-counts`, `.hub-legend`, `.hub-now` or `.hub-card-foot` | evaluator |
-| AC-10 | `/#/home`, 1440×900 | The cards are measured | Cards 1–3 share one row and cards 4–5 the next; card 4's width is 1.5× card 1's (±4px) | evaluator |
-| AC-11 | `/#/home` | Each card is read | It contains a figure area at least 200px tall with an `svg`, a caption matching `^Fig 0[1-5] · \d+ process(es)?$`, the workspace name, its purpose and a status line | evaluator |
-| AC-12 | `cardStatus` (in `lib/workspaceCard.ts`) | Called with process states `[done, wait, idle]`, `[now, idle]`, `[failed, done]`, `[done, done]`, `[idle]` and unknown runs | Returns the words "Waiting on you", "Running", "Last run failed", "Up to date", "No runs yet" and "Status unknown" with tones `wait`, `now`, `failed`, `done`, `idle`, `unknown` | unit |
-| AC-13 | `WorkspaceDrawing.tsx` | Read | It contains no hex, `rgb(` or `oklch(` literal | unit |
-| AC-14 | `/#/home` with StewardIQ waiting and Argus running | The drawings are read | StewardIQ's SVG has exactly one element using `--hi`, Argus's exactly one using `--run`, and Transition Intel's none of either | evaluator |
-| AC-15 | `/#/home`, 390×844 | The page loads | No horizontal scroll; the top bar shows the lockup, a search icon button, Review Queue, Reports and the user menu button | evaluator |
-| AC-16 | The landing page | "Open ARP →" is clicked | The hash becomes `#/home` and `.start-topbar` is present (replaces landing-brand-refresh AC-23) | evaluator |
+| AC-1a | The running app at `/#/home`, 1440×900 | The page loads | There is no `.app-sidebar` element | evaluator |
+| AC-1b | The same | The page loads | There is exactly one `.start-topbar`, with role `banner` | evaluator |
+| AC-1c | `/#/home` at 1440×900 and at 390×844 | The page loads | There is no `.app-topbar` and no button named "Open navigation" | evaluator |
+| AC-2 | `/#/review`, 1440×900 | The page loads | `.app-sidebar` is present | evaluator |
+| AC-3 | `/#/home`, 1440×900, an approver user | The top bar's controls are read in DOM order | Their accessible names are: "ARP start", "Search or jump to…", "Ask ARP", "Review Queue" (plus its badge name when there is one), "Reports", and the user's name | evaluator |
+| AC-3b | `/#/home`, a viewer-role user (Ask unavailable) | The top bar is read | There is no "Ask ARP" button | evaluator |
+| AC-4 | `reviewBadge` | Called with 0, 1 and 15 | Returns `null`, `{ text: "1 item", title: "1 review item waiting on you" }` and `{ text: "15 items", title: "15 review items waiting on you" }` | unit |
+| AC-5 | `/#/home` and `/#/review` in the same seeded app | Both pages load | The top bar badge text on `#/home` equals the sidebar badge text on `#/review` (both absent when the count is 0) | evaluator |
+| AC-6 | `/#/home` | The search button is clicked | The command palette dialog is visible | evaluator |
+| AC-6b | `/#/home`, an approver user | "Ask ARP" is clicked, then the Ask panel is closed | The panel opens; after closing, focus is on the "Ask ARP" button | evaluator |
+| AC-7a | `/#/home` | The user menu button is clicked | It has `aria-expanded="true"` and the popover contains the "Reviewing as" field, the theme switch and a link "Arcade" to `#/arcade` | evaluator |
+| AC-7b | The e2e stack (dev sign-in) | The user menu is opened | The text "Signed in as dev (approver)" is visible | evaluator |
+| AC-8a | The user menu is open | Esc is pressed | The popover is hidden | evaluator |
+| AC-8b | The same | Esc is pressed | `document.activeElement` is the user menu button | evaluator |
+| AC-8c | The user menu button has focus | Enter is pressed | The popover opens and focus is on its first focusable element | evaluator |
+| AC-8d | The user menu is open | A click lands outside it | The popover is hidden and focus is on the user menu button | evaluator |
+| AC-9a | `/#/home` | The main content is read | It holds exactly one `h1`, whose text matches `^Good (morning\|afternoon\|evening)(, .+)?\.$` | evaluator |
+| AC-9b | The same | The DOM is searched | None of `.hub-stats`, `.hub-waiting`, `.hub-counts`, `.hub-legend`, `.hub-now`, `.hub-card-foot` or `.hub-card-icon` exists | evaluator |
+| AC-10 | `index.css` | Read | `.hub-cards` sets `grid-template-columns: repeat(6, minmax(0, 1fr))` and `gap: 20px`; cards 1–3 span 2 and 4–5 span 3; under `max-width: 1100px` each card spans 3; under `max-width: 760px` the grid is one column | unit |
+| AC-11a | `/#/home`, 1440×900 | Each card is read | It contains `.hub-card-fig` at least 200px tall holding an `svg`, and a caption matching `^Fig 0[1-5] · \d+ process(es)?$` with the right index and count | evaluator |
+| AC-11b | The same | Each card's `.hub-card-status` is read | It holds one 8×8px `.hub-mark-*` element per process, and text matching `^(Waiting on you\|Running\|Last run failed\|Up to date\|No runs yet\|Status unknown)( · .+)?$` | evaluator |
+| AC-12 | `cardStatus` | Called with states `[done, wait, idle]`, `[now, idle]`, `[failed, done]`, `[done, done]` (last line "Last run 2 h ago"), `[idle]`, and `null` | Returns (word, tone, detail): ("Waiting on you", `wait`, the 2nd title), ("Running", `now`, the 1st title), ("Last run failed", `failed`, the 1st title), ("Up to date", `done`, "Last run 2 h ago"), ("No runs yet", `idle`, ""), ("Status unknown", `unknown`, "") | unit |
+| AC-12b | `cardStatus`, every case in AC-12 | Its result is read | `detail` never equals `word` | unit |
+| AC-13 | `drawing` | Called for each of the five ids with accent `null`, `"wait"` and `"now"` | Exactly 0, 1 and 1 shapes have `accent: true`; the five ids give five different shape lists | unit |
+| AC-14 | `WorkspaceDrawing.tsx` and `workspaceDrawing.ts` | Read | Neither contains a hex, `rgb(`, `rgba(`, `hsl(` or `oklch(` literal, or a CSS named colour | unit |
+| AC-15 | `/#/home` with the backend stopped | The page loads | No element except the lockup's apex (which uses `--brand-apex`) has a computed colour, background, fill or stroke equal to the computed `--hi` | evaluator |
+| AC-16a | `/#/home`, 390×844 | The page loads | `document.documentElement.scrollWidth` ≤ 390 | evaluator |
+| AC-16b | The same | The top bar is read | It shows the lockup, the search button, "Ask ARP" (approver), "Review Queue", "Reports" and the user menu button | evaluator |
+| AC-17a | The landing page | "Open ARP →" is clicked | The hash becomes `#/home` | evaluator |
+| AC-17b | The same | "Open ARP →" is clicked | `.start-topbar` is present and the landing `h1` is gone | evaluator |
 
 Must not change:
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-17 | Any card on `/#/home` | It is clicked | The hash becomes that workspace's route (`#/stewardiq`, `#/argus`, `#/transitionIntel`, `#/rdLab`, `#/dataHub`) | evaluator |
-| AC-18 | Any card | Its `aria-label` is read | It equals today's `cardView().label` for the same data | unit |
-| AC-19 | `/#/home` with runs failing to load | The page loads | The existing "Runs could not be loaded…" message with Retry shows above the cards | evaluator |
-| AC-20 | `frontend/tests/` | `npm test` runs | Every test passes; the only existing tests edited or retired are those listed under Supersedes | unit |
+| AC-18 | Any card on `/#/home` | It is clicked | The hash becomes that workspace's route (`#/stewardiq`, `#/argus`, `#/transitionIntel`, `#/rdLab`, `#/dataHub`) | evaluator |
+| AC-19 | `cardView`, today's fixtures (busy, calm, down) | `label` is read | It equals today's value for every workspace (cards-as-navigation AC-14 and AC-21 unchanged) | unit |
+| AC-20 | `/#/home` with runs failing to load | The page loads | The "Runs could not be loaded…" message with Retry shows above the cards | evaluator |
+| AC-21 | The branch | `npm test` and `pytest -m e2e tests/e2e` run | Both pass; the only existing tests edited or retired are those listed under Supersedes | unit |
