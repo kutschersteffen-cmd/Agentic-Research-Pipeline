@@ -40,7 +40,8 @@ def test_opening_arp_lands_on_the_landing_page(page):
     page.get_by_role("link", name="Open ARP →").click()
     # The app sets the tab title in an effect after it mounts, so wait for it rather than for the network.
     page.wait_for_function("document.title === 'Start · ARP'", timeout=10_000)
-    assert page.locator(".app-sidebar").count() == 1
+    # The start page has its own top bar instead of the sidebar (spec 2026-11-15-start-page-simplified).
+    assert page.locator(".start-topbar").count() == 1
     assert page.console_errors == []
 
 
@@ -49,8 +50,28 @@ def test_start_page_signs_in_and_loads_without_errors(page):
     page.wait_for_load_state("networkidle")
 
     assert page.title() == "Start · ARP"
+    page.locator(".start-topbar-me").click()  # sign-in details live in the start page's user menu
     assert page.get_by_text("Signed in as dev (approver)").is_visible()  # /api/me answered
     assert page.console_errors == []
+
+
+def test_start_page_user_menu_returns_focus_after_an_outside_click(page):
+    # Spec 2026-11-15-start-page-simplified, AC-8d/AC-8e.
+    page.goto(URL + "/#/home")
+    page.wait_for_load_state("networkidle")
+    page.locator(".start-topbar-me").click()
+    page.locator(".hub-hero").click(position={"x": 2, "y": 2})  # outside the menu, on nothing focusable
+    assert not page.locator(".start-topbar-pop").is_visible()
+    # Focus returns one tick after the press (the press itself focuses the page first).
+    page.wait_for_function("() => document.activeElement.classList.contains('start-topbar-me')", timeout=2_000)
+
+
+def test_start_top_bar_never_pushes_a_narrow_phone_sideways(page):
+    # Spec 2026-11-15-start-page-simplified, AC-16a, at 360px: a Review Queue badge must not widen the page.
+    page.set_viewport_size({"width": 360, "height": 800})
+    page.goto(URL + "/#/home")
+    page.wait_for_load_state("networkidle")
+    assert page.evaluate("() => document.documentElement.scrollWidth") <= 360
 
 
 def test_navigating_to_the_review_queue_loads_it_from_the_api(page):
