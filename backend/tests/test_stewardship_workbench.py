@@ -193,6 +193,10 @@ def test_votes_of_a_company(client, pg):
         ("2026-05-01", "2", False), ("2026-05-01", "10", False), ("2025-05-01", "1", False), ("2024-05-01", "1", True)
     ]  # fmt: skip
     assert client.get("/api/stewardship/votes", params={"company_id": "SYN05"}).json() == {"votes": [], "total": 0}
+    # two meetings on one date (one per source): each meeting's items stay together, not 1, 2, 3, 10 interleaved
+    assert intake_votes([vote(5, "2026-05-01", "1"), vote(6, "2026-05-01", "3")], pg, "npx_urth_demo").rejected == []
+    same_day = [(v["item_number"], v["demo"]) for v in client.get("/api/stewardship/votes", params={"company_id": "SYN04"}).json()["votes"][:4]]
+    assert same_day in ([("2", False), ("10", False), ("1", True), ("3", True)], [("1", True), ("3", True), ("2", False), ("10", False)])
 
 
 @pytest.fixture

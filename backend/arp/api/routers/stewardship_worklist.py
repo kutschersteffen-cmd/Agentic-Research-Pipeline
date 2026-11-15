@@ -247,7 +247,7 @@ def post_note(
     principal: Principal = Depends(current_user),
 ) -> dict:
     """Adds a note on a company of the house universe; `scope` only records where it was written."""
-    sample = load_sample()
+    sample = house_universe()
     _in_scope(body.scope, sample, settings)
     if body.company_id not in {i["issuer_id"] for i in sample["issuers"]}:
         raise HTTPException(422, "unknown company")
