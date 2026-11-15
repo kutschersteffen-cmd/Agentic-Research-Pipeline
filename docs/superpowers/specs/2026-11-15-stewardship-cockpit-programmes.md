@@ -3,7 +3,7 @@
 Slug: stewardship-cockpit-programmes
 
 Risk: normal (one API field, one page panel, one demo-seed step; no stored data changes shape). Size S to M, 1 PR.
-Status: draft, owner decisions taken 15 Nov 2026 (buttons in the spec session); awaiting approval.
+Status: **approved by the owner on 15 Nov 2026** (buttons in the spec session, after the spec-critic read "Ready for approval").
 Starts after: the build branches from `main` once these are merged, because all of them change `cockpit.py`,
 `cockpit_demo.py`, `StewardCockpit.tsx` or the worklist read path:
 
@@ -230,7 +230,8 @@ means one open engagement taken in by intake (`fir_theme` as the row says, else 
 
 "The demo stack" is part 1's "Showcase setup" followed by `seed-cockpit-demo`. "The panel stack" is the demo stack
 plus `create("Water engagement programme")` with 3 held companies confirmed in it, exactly 1 of them engaged, none
-proposed, and none of them held in portfolio `DAX`.
+proposed, and none of them held in portfolio `DAX`; the evaluator creates it with the Workbench routes
+(`POST /api/stewardship/programmes`, `…/{id}/members`, `…/{id}/confirm`) as an analyst.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
