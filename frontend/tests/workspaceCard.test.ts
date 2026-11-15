@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { cardView, stepStatusLine, waitingLink, waitingSentence, waitingStat, waitingTarget, workspaceState } from "../src/lib/workspaceCard.ts";
+import { cardStatus, cardView, reviewBadge, stepStatusLine, workspaceState } from "../src/lib/workspaceCard.ts";
 import { WORKSPACES } from "../src/lib/processes.ts";
 import type { RunManifest, StewardshipFlow } from "../src/types.ts";
 
@@ -22,9 +22,7 @@ const ws = (name: string) => WORKSPACES.find((w) => w.name === name)!;
 const view = (name: string, s: { runs: RunManifest[] | null; flow: StewardshipFlow | null }) => cardView(ws(name), s.runs, s.flow, NOW);
 const down = { runs: null, flow: null };
 
-test("AC-1/2/3: every card's footer is 'Open →' in busy, calm and down", () => {
-  for (const s of [busy, calm, down]) for (const w of WORKSPACES) assert.equal(cardView(w, s.runs, s.flow, NOW).footer, "Open →", w.name);
-});
+// Start page simplified (2026-11-15) retired AC-1/2/3 (card footer "Open →").
 
 test("AC-4: busy R&D Lab first dot is failed", () => assert.equal(view("R&D Lab", busy).dots[0], "failed"));
 test("AC-5: busy Argus first dot is wait", () => assert.equal(view("Argus", busy).dots[0], "wait"));
@@ -79,28 +77,37 @@ test("r2 AC-13: runs not loaded is idle", () => assert.equal(workspaceState(ws("
 test("r2 AC-19b: workspace order unchanged", () =>
   assert.deepEqual(WORKSPACES.map((w) => w.name), ["StewardIQ", "Argus", "Transition Intelligence Platform", "R&D Lab", "Data Hub"]));
 
-// Night Desk release 4 (docs/superpowers/specs/2026-11-09-night-desk-start-page-design.md).
-test("r4_ac1", () => assert.equal(waitingSentence(false, "x", null), "Runs could not be loaded."));
-test("r4_ac2", () => assert.equal(waitingSentence(false, null, null), "Loading runs…"));
-test("r4_ac3", () => assert.equal(waitingSentence(true, null, "error"), "What waits on you could not be loaded."));
-test("r4_ac4", () => assert.equal(waitingSentence(true, null, null), "Loading what waits on you…"));
-test("r4_ac5", () => assert.equal(waitingSentence(true, null, 1), "1 decision waits on you."));
-test("r4_ac6", () => assert.equal(waitingSentence(true, null, 7), "7 decisions wait on you."));
-test("r4_ac7", () => assert.equal(waitingSentence(true, null, 0), "Nothing waits on you."));
-test("r4_ac8", () => assert.deepEqual(waitingLink(true, null, 7), { text: "7 decisions wait on you →", href: "#/review" }));
-test("r4_ac8b", () => assert.deepEqual(waitingLink(true, null, 1), { text: "1 decision waits on you →", href: "#/review" }));
-test("r4_ac8c", () => {
-  for (const [k, e, n] of [[false, "x", null], [false, null, null], [true, null, "error"], [true, null, null], [true, null, 0]] as const)
-    assert.deepEqual(waitingLink(k, e, n), { text: waitingSentence(k, e, n), href: null });
+// Night Desk release 4 and 6 (waiting sentence, link, stat and target) were retired by the
+// simplified start page (docs/superpowers/specs/2026-11-15-start-page-simplified-design.md, Supersedes).
+
+// Start page simplified (docs/superpowers/specs/2026-11-15-start-page-simplified-design.md).
+test("sp_ac4_review_badge", () => {
+  assert.equal(reviewBadge(0), null);
+  assert.deepEqual(reviewBadge(1), { text: "1 item", title: "1 review item waiting on you" });
+  assert.deepEqual(reviewBadge(15), { text: "15 items", title: "15 review items waiting on you" });
 });
-test("r4_ac9", () => assert.deepEqual([7, 0, null, "error"].map((n) => waitingStat(n as number | "error" | null)), ["7", "0", "—", "—"]));
-test("r4_runs_error_wins", () => assert.deepEqual(waitingLink(false, "x", 3), { text: "Runs could not be loaded.", href: null }));
-test("r4_nan_is_no_link", () => assert.equal(waitingLink(true, null, NaN).href, null));
-test("r6_ac1", () => assert.equal(waitingTarget(0, 15), "#/stewardiq"));
-test("r6_ac2", () => assert.equal(waitingTarget(3, 15), "#/review"));
-test("r6_ac3", () => assert.equal(waitingTarget(0, 0), "#/review"));
-test("r6_ac4", () => assert.deepEqual(waitingLink(true, null, 15, "#/stewardiq"), { text: "15 decisions wait on you →", href: "#/stewardiq" }));
-test("r6_ac5", () => assert.deepEqual(waitingLink(true, null, 0, "#/stewardiq"), { text: "Nothing waits on you.", href: null }));
-test("r6_ac6", () => assert.deepEqual(waitingLink(false, "x", 15, "#/stewardiq"), { text: "Runs could not be loaded.", href: null }));
-test("r6_ac7", () => assert.deepEqual(waitingLink(true, null, "error", "#/stewardiq"), { text: "What waits on you could not be loaded.", href: null }));
-test("r6_ac8", () => assert.deepEqual(waitingLink(true, null, 7), { text: "7 decisions wait on you →", href: "#/review" }));
+const T = ["Engage", "Vote", "Track"];
+const CASES: [Parameters<typeof cardStatus>[0], string, [string, string, string]][] = [
+  [["done", "wait", "idle"], "", ["Waiting on you", "wait", "Vote"]],
+  [["now", "idle"], "", ["Running", "now", "Engage"]],
+  [["failed", "done"], "", ["Last run failed", "failed", "Engage"]],
+  [["done", "done"], "Last run 2 h ago", ["Up to date", "done", "Last run 2 h ago"]],
+  [["idle"], "No runs yet", ["No runs yet", "idle", ""]],
+  [null, "", ["Status unknown", "unknown", ""]],
+];
+test("sp_ac12_card_status", () => {
+  for (const [states, last, [word, tone, detail]] of CASES) assert.deepEqual(cardStatus(states, T, last), { word, tone, detail }, String(states));
+});
+test("sp_ac12b_detail_never_repeats_word", () => {
+  for (const [states, last] of CASES) { const r = cardStatus(states, T, last); assert.notEqual(r.detail, r.word); }
+});
+test("sp_review_up_to_date_names_when_any_step_ran", () => {
+  // A finished Identify run (not in Argus's own runTypes) still dates the card: never "Up to date · No runs yet".
+  const s = view("Argus", { runs: [run("identity", "completed")], flow: flowWith({}) }).status;
+  assert.equal(s.word, "Up to date");
+  assert.equal(s.detail, "Last run 2 h ago");
+});
+test("sp_ac19_card_status_in_view", () => {
+  assert.equal(view("Argus", busy).status.word, "Waiting on you");
+  assert.equal(view("Argus", down).status.word, "Status unknown");
+});
