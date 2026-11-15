@@ -151,8 +151,8 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   // A response for a scope the user has already left is dropped.
   const wanted = useRef(scope);
   wanted.current = scope;
-  const load = useCallback(async (key: string, quiet = false) => {
-    if (!quiet) setLoading(true);
+  const load = useCallback(async (key: string) => {
+    setLoading(true);
     setError(null);
     try {
       const w = await api.getWorklist(key);
@@ -468,7 +468,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
         )}
       </section>
 
-      <WeightsSection onActivated={() => load(scope, true)} />
+      <WeightsSection onActivated={() => load(scope)} />
 
       {dialog === "confirm" && data && (
         <Modal title="Confirm the selection" compact noClose onClose={() => setDialog(null)}>
@@ -505,9 +505,12 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
                 else if (/already picked/.test((res.reason as Error).message)) already.push(name);
                 else failed.push(`${name} (${(res.reason as Error).message})`);
               });
+              // A standing pick is the proposal of a row with no confirmed tier (the refetch below confirms it).
+              const ids = new Set(tickedRows.filter((_, i) => results[i].status === "fulfilled").map((r) => r.issuer_id));
+              patch((rs) => rs.map((r) => (ids.has(r.issuer_id) && !r.coverage_tier_confirmed ? { ...r, coverage_tier: "bilateral" } : r)));
               setDialog(null);
               setTicked(new Set());
-              load(scope, true);
+              load(scope);
               return [
                 picked.length && `Picked for bilateral: ${picked.join(", ")}.`,
                 already.length && `Already picked, left as they are: ${already.join(", ")}.`,
