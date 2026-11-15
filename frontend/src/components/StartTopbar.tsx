@@ -29,6 +29,7 @@ export function StartTopbar({ canAsk, askOpen, askRef, reviewCount, onSearch, on
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
+  const userRef = useRef<HTMLDivElement>(null);
   const popId = useId();
 
   const close = (refocus: boolean) => {
@@ -39,29 +40,33 @@ export function StartTopbar({ canAsk, askOpen, askRef, reviewCount, onSearch, on
   useEffect(() => {
     if (!open) return;
     const pop = popRef.current;
+    const user = userRef.current;
     pop?.querySelector<HTMLElement>("input, button, a, select, [tabindex]")?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close(true);
+      // Only while focus is in the menu: Esc in the palette or the Ask panel belongs to them.
+      if (e.key === "Escape" && user?.contains(document.activeElement)) close(true);
     };
     const onDown = (e: PointerEvent) => {
       const t = e.target as Node;
       if (pop?.contains(t) || buttonRef.current?.contains(t)) return;
       setOpen(false);
-      // After the press's own focus change (mousedown focuses what was pressed), so the button keeps focus.
-      setTimeout(() => buttonRef.current?.focus());
+      // After the press's own focus change: refocus the button only if the press focused nothing else.
+      setTimeout(() => {
+        if (!document.activeElement?.matches("input, textarea, select, button, a[href], [tabindex]:not([tabindex='-1'])")) buttonRef.current?.focus();
+      });
     };
-    // Tab past the last element leaves the menu: close it and let focus move on.
+    // Tab (or Shift+Tab) out of the menu and its button: close it and let focus move on.
     const onFocusOut = (e: FocusEvent) => {
       const to = e.relatedTarget as Node | null;
-      if (to && !pop?.contains(to) && !buttonRef.current?.contains(to)) setOpen(false);
+      if (to && !user?.contains(to)) setOpen(false);
     };
     document.addEventListener("keydown", onKey);
     document.addEventListener("pointerdown", onDown);
-    pop?.addEventListener("focusout", onFocusOut);
+    user?.addEventListener("focusout", onFocusOut);
     return () => {
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("pointerdown", onDown);
-      pop?.removeEventListener("focusout", onFocusOut);
+      user?.removeEventListener("focusout", onFocusOut);
     };
   }, [open]);
 
@@ -97,7 +102,7 @@ export function StartTopbar({ canAsk, askOpen, askRef, reviewCount, onSearch, on
             )}
           </a>
           <a href="#/reporting">Reports</a>
-          <div className="start-topbar-user">
+          <div ref={userRef} className="start-topbar-user">
             <button
               ref={buttonRef}
               type="button"

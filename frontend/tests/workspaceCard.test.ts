@@ -101,6 +101,12 @@ test("sp_ac12_card_status", () => {
 test("sp_ac12b_detail_never_repeats_word", () => {
   for (const [states, last] of CASES) { const r = cardStatus(states, T, last); assert.notEqual(r.detail, r.word); }
 });
+test("sp_review_up_to_date_names_when_any_step_ran", () => {
+  // A finished Identify run (not in Argus's own runTypes) still dates the card: never "Up to date · No runs yet".
+  const s = view("Argus", { runs: [run("identity", "completed")], flow: flowWith({}) }).status;
+  assert.equal(s.word, "Up to date");
+  assert.equal(s.detail, "Last run 2 h ago");
+});
 test("sp_ac19_card_status_in_view", () => {
   assert.equal(view("Argus", busy).status.word, "Waiting on you");
   assert.equal(view("Argus", down).status.word, "Status unknown");

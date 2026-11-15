@@ -87,7 +87,9 @@ export function cardView(w: Workspace, runs: RunManifest[] | null, flow: Steward
   // The process named is the one a person should look at: a wait first, then running or failed.
   const firstWait = dots.indexOf("wait");
   const at = firstWait >= 0 ? firstWait : dots.findIndex((st) => st === "now" || st === "failed");
-  const last = runs.filter((r) => w.runTypes.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
+  // Any run behind any step dates the card, so "Up to date" never sits beside "No runs yet".
+  const types = new Set([...w.runTypes, ...w.processes.flatMap((p) => p.steps.flatMap((s) => s.runTypes ?? []))]);
+  const last = runs.filter((r) => types.has(decisionRunType(r))).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
   const line = at >= 0 ? w.processes[at].title : last ? `Last run ${ago(last.updated_at, now)}` : "No runs yet";
   // The link's label replaces its inner text for screen readers, so it carries each process's state.
   const label = `${w.name}. ${w.processes.map((p, i) => `${p.title}: ${STATE_LABEL[dots[i]]}`).join("; ")}`;

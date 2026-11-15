@@ -62,7 +62,16 @@ def test_start_page_user_menu_returns_focus_after_an_outside_click(page):
     page.locator(".start-topbar-me").click()
     page.locator(".hub-hero").click(position={"x": 2, "y": 2})  # outside the menu, on nothing focusable
     assert not page.locator(".start-topbar-pop").is_visible()
-    assert page.evaluate("() => document.activeElement.classList.contains('start-topbar-me')")
+    # Focus returns one tick after the press (the press itself focuses the page first).
+    page.wait_for_function("() => document.activeElement.classList.contains('start-topbar-me')", timeout=2_000)
+
+
+def test_start_top_bar_never_pushes_a_narrow_phone_sideways(page):
+    # Spec 2026-11-15-start-page-simplified, AC-16a, at 360px: a Review Queue badge must not widen the page.
+    page.set_viewport_size({"width": 360, "height": 800})
+    page.goto(URL + "/#/home")
+    page.wait_for_load_state("networkidle")
+    assert page.evaluate("() => document.documentElement.scrollWidth") <= 360
 
 
 def test_navigating_to_the_review_queue_loads_it_from_the_api(page):

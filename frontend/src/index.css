@@ -1726,14 +1726,14 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .ws-drawing { display: block; width: 190px; height: 148px; overflow: visible; }
 .ws-drawing path { stroke-width: 1px; stroke: color-mix(in srgb, var(--text) 25%, transparent); stroke-linejoin: round; }
 .ws-face { fill: var(--panel); }
-.ws-top { fill: var(--panel); stroke: color-mix(in srgb, var(--text) 45%, transparent); }
+.ws-top { fill: var(--panel); }
 .ws-drawing .ws-accent-wait { stroke: var(--hi); }
 .ws-drawing .ws-accent-now { stroke: var(--run); }
 .hub-card-body { display: flex; flex-direction: column; gap: var(--s-2); flex: 1; padding: 20px var(--s-6); }
 .hub-card-name { font-size: 1.25rem; font-weight: 600; line-height: 1.2; letter-spacing: -0.018em; }
 .hub-card-purpose { color: var(--muted); line-height: 1.55; }
 /* One status line: a mark per process, then the state in words. */
-.hub-card-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) 10px; margin-top: auto; padding-top: var(--s-3); font-size: var(--text-sm); }
+.hub-card-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) 10px; margin-top: auto; padding-top: var(--s-3); font-size: var(--text-sm); font-weight: 500; }
 .hub-marks { display: inline-flex; gap: 3px; }
 .hub-mark { display: inline-block; width: 8px; height: 8px; }
 .hub-mark-done { background: var(--text); }
@@ -1748,7 +1748,6 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .hub-status-done { color: var(--muted); }
 .hub-status-idle { color: var(--muted); }
 .hub-status-unknown { color: var(--muted); }
-.hub-card-status [class^="hub-status-"]:not(.hub-status-detail) { font-weight: 500; }
 .hub-status-detail { font-weight: 400; color: var(--muted); }
 
 /* Process steps as dots, on the workspace pages. The `.hub-dots li` selectors are no longer used; kept
@@ -1763,7 +1762,6 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .hub-now-label { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-right: var(--s-2); }
 .hub-chip { text-transform: none; display: inline-flex; align-items: center; gap: var(--s-2); min-height: 40px; padding: 0 var(--s-3); border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none; font-family: var(--font-mono); font-size: var(--text-sm); }
 .hub-chip:hover { border-color: var(--text); }
-.hub-chip-id { color: var(--muted); white-space: nowrap; }
 .hub-chip:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .hub-chip-wait { border-color: var(--hi); }
 
@@ -2419,8 +2417,6 @@ a.vc-box:hover { border-color: var(--text); }
 .source-excerpt-ctx:last-child { display: block; margin-top: var(--s-1); }
 .source-excerpt-page mark { background: var(--await); color: inherit; padding: 0 2px; box-shadow: inset 0 -2px var(--await-edge); }
 
-/* Night Desk release 4: the start page's waiting link sits right above the cards. */
-
 /* Night Desk release 5: the landing page. Text sits on a gradient so it reads over the dots. */
 .landing { position: fixed; inset: 0; overflow: hidden; background: var(--bg); color: var(--text); display: grid; grid-template-rows: auto 1fr auto; }
 .landing-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -2485,6 +2481,8 @@ a.vc-box:hover { border-color: var(--text); }
   .start-topbar-search { width: auto; }
   /* Icon and hint only; the label stays in the accessible name. */
   .start-topbar-search-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  /* Both rows wrap rather than push a narrow phone sideways (a Review Queue badge widens row two). */
+  .start-topbar-end, .start-topbar-nav { flex-wrap: wrap; row-gap: var(--s-1); }
   .start-topbar-end { width: 100%; justify-content: space-between; }
   /* Thumb-sized controls on a phone. */
   .start-topbar-search, .start-topbar-ask, .start-topbar-nav > a { min-height: 44px; }
