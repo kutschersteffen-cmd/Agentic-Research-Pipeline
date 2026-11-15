@@ -27,9 +27,11 @@ Checked on `main` `b53ad65`, three are still present and one is probably fixed b
 3. **The CLI dossier has no watch list.** `arp engagement dossier-draft` (`backend/arp/cli/engagement.py`) never sets
    `watch_list`; the API route does (`routers/engagement.py`, `draft_dossier_endpoint`). Talking points drafted from
    a CLI dossier say `Watch list: (none)`.
-4. **To prove:** an objective with an empty description once gave a 500 and stopped a company's watch checks. The
-   crash site is gone; nothing tests it. `stw_objectives.description` is nullable and intake requires it, so such a
-   row can only come from older data or a direct write.
+4. **To prove:** an objective with an empty description once gave a 500 and stopped a company's watch checks.
+   Nothing tests it. `stw_objectives.description` is nullable and intake requires it, so such a row can only come
+   from older data or a direct write. A NULL description still crashes on `main`: `_cols` drops NULL columns and
+   `Objective.description` is a required `str`, so `PostgresEngagementStore.get` fails for that company, and with it
+   the record page, `watch_flags`, `watch_list` and the check route.
 
 ## Goals
 
@@ -37,7 +39,8 @@ Checked on `main` `b53ad65`, three are still present and one is probably fixed b
   keeps today's silent fallback. The found-commitment card names no date when its note is unknown.
 - (2) Watch flags read the date part (first 10 characters) of a due date, the same as `triggers()`.
 - (3) The CLI dossier carries the same watch list as the API dossier.
-- (4) One regression test per path that once crashed; code changes only if a test fails.
+- (4) An objective with an empty or NULL description never breaks the record read or a watch check. Regression
+  tests first; code changes only where a test fails (the NULL case will).
 
 ## Non-goals
 
@@ -67,15 +70,18 @@ muted line, where the builder sees fit near the Commitments section.
 **(1) Found-commitment header.** With the note found: unchanged, `Argus found a commitment in the <activity type>
 of <YYYY-MM-DD>` (parent AC-77). Without it: `Argus found a commitment in a note`.
 
-**(2) Due dates.** `_iso(value)` returns `value[:10]` when that is a valid `YYYY-MM-DD` date, else None. Free-text
-due dates still count as none (parent AC-87). A flag's `target_date` and `since` hold the date part only, and its
-`message` uses it.
+**(2) Due dates.** `_iso(value)` returns `value[:10]` when that is a valid `YYYY-MM-DD` date, else None, the same
+reading as `triggers()`. A due date that starts with a valid date (`2025-12-31 (approx.)`) therefore counts as
+`2025-12-31`; one that does not (`31/12/2025`) still counts as none (parent AC-87). A flag's `target_date` and
+`since` hold the date part only, and its `message` uses it. Dossier watch list entries keep the stored
+`target_date` unchanged; only their `flag` and sort order follow the date part.
 
 **(3) CLI.** After `research_company_issue`, `dossier-draft` sets `watch_list` from
 `watch_list(store, company_id, issue_id)` with the store it already opened, before writing `--out`.
 
-**(4) Empty description.** `watch_items`, `watch_item` and the check treat an empty or null description as text
-`""`. If the tests below pass on `main`, the PR adds only the tests.
+**(4) Empty description.** The record read (`PostgresEngagementStore.get`), `watch_items`, `watch_item` and the
+check treat a NULL description as `""`; an empty one stays `""`. Where a row below already passes on `main`, the PR
+adds only its test.
 
 **Builder's calls:** where the error line sits in the panel; its style class (reuse an existing muted or error class).
 
@@ -96,23 +102,29 @@ dossier stand-in, "today" = the UTC date the test runs, user `dev`. `unit` rows 
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-1 | An engagement with an `open` commitment added through `POST /api/stewardship/tracking/commitments` with `text` `Publish a transition plan`, `target_date` `<yesterday>T10:00:00`; a document for the company; the AC-104 dossier stand-in | `POST /api/engagement/records/{company_id}/issues/{issue_id}/dossier` | The response's `dossier.watch_list` has 1 entry: `item_kind` `commitment`, `flag` `overdue` | holdout |
+| AC-1 | An engagement with an `open` commitment added through `POST /api/stewardship/tracking/commitments` with `text` `Publish a transition plan`, `target_date` `<yesterday>T10:00:00`; a document for the company; the AC-104 dossier stand-in | `POST /api/engagement/records/{company_id}/issues/{issue_id}/dossier` | The response's `dossier.watch_list` has 1 entry: `item_kind` `commitment`, `target_date` `<yesterday>T10:00:00`, `flag` `overdue` | holdout |
 | AC-2 | An open engagement with an `open` commitment, text `Publish a transition plan`, `target_date` `<yesterday>T10:00:00` | `watch_flags(store, company_id)` | One flag: `item_kind` `commitment`, `kind` `overdue`, `target_date` and `since` = `<yesterday>`, `message` `Commitment overdue: "Publish a transition plan" was due <yesterday>.` | unit |
 | AC-3 | An open engagement with an `in_progress` objective, description `Set a 2030 science-based target`, `target_date` `<yesterday>T10:00:00` | `watch_flags` | One flag: `item_kind` `objective`, `kind` `overdue`, `target_date` = `<yesterday>`, `message` `Objective overdue: "Set a 2030 science-based target" was due <yesterday>.` | unit |
 | AC-4 | An open engagement with an `open` commitment, `target_date` `<today>T00:00:00` | `watch_flags` | `[]` | unit |
-| AC-5 | AC-2's data | `triggers([record], sla_days)` and `watch_flags` | `triggers` holds one `commitment_missed` entry for that commitment and `watch_flags` one `overdue` flag for it | unit |
-| AC-6 | AC-1's Given, the company in a universe file `U` | `arp engagement dossier-draft <company_id> <issue_id> --universe U --out F` | Exit 0; `F`'s `watch_list` equals `watch_list(store, company_id, issue_id)` as JSON, with 1 entry, `flag` `overdue` | unit |
-| AC-7 | AC-6 done | `draft_talking_points` with `F`'s dossier | The `MeetingTalkingPoints` prompt in `calls.jsonl` contains `Publish a transition plan` and does not contain `Watch list:\n(none)` | unit |
-| AC-8 | An open engagement with an `in_progress` objective whose `description` is `""`, and a second whose `description` is NULL (both written directly) | `PostgresEngagementStore.watch_items(company_id)` | Both objectives are returned, each with `text` `""` | unit |
-| AC-9 | AC-8's first objective O; no documents for the company | `POST /api/stewardship/watch-items/objective/{O}/check` | Status 200, body `{"documents": 0, "suggestions": 0, "unclear": 0, "skipped": 0}` | unit |
-| AC-10 | AC-49's Given plus AC-8's two objectives on the same engagement; the stand-in says found on the commitment only | `ChangeDetector.diff_and_record` gets the document as new | One pending suggestion, `item_kind` `commitment`, with that document's `doc_id` | unit |
-| AC-11 | `GET /api/stewardship/evidence-suggestions*` stubbed with `page.route` to answer 500 `{"detail": "boom"}`; an engagement with an `open` commitment | A user opens the company's issue on `#/engagement` | The text `Suggestions unavailable: 500: boom` appears once; no `Check against documents` and no `Find commitments` button | evaluator |
-| AC-12 | `ARP_ENGAGEMENT_STORE=file`; an engagement with an `open` commitment | A user opens the issue | No text starting `Suggestions unavailable`; no `Check against documents` button (unchanged) | evaluator |
-| AC-13 | The suggestions list stubbed with `page.route`: one pending `new_commitment` suggestion on the issue, `activity_id` `act_unknown`, text `Publish a transition plan` | A user opens the issue | The card reads `Argus found a commitment in a note`, then `Publish a transition plan` | evaluator |
-| AC-14 | AC-77's Given (parent spec) | A user opens the issue | The card reads `Argus found a commitment in the meeting of 2026-10-01` (unchanged) | evaluator |
+| AC-5 | AC-2's data | `triggers([record], sla_days)` | Exactly one `commitment_missed` entry, for that commitment (unchanged) | unit |
+| AC-6 | An open engagement with an `in_progress` objective, description `Set a 2030 science-based target`, `target_date` `2025-12-31 (approx.)` | `watch_flags` | One flag: `kind` `overdue`, `target_date` `2025-12-31` | unit |
+| AC-7 | AC-1's Given, the company in a universe file `U` | `arp engagement dossier-draft <company_id> <issue_id> --universe U --out F` | Exit 0; `F`'s `watch_list` equals `watch_list(store, company_id, issue_id)` as JSON, with 1 entry, `flag` `overdue` | unit |
+| AC-8 | AC-7 done | `draft_talking_points` with `F`'s dossier | The `MeetingTalkingPoints` prompt in `calls.jsonl` contains `Publish a transition plan` and does not contain `Watch list:\n(none)` | unit |
+| AC-9 | An open engagement with an `in_progress` objective whose `description` is `""`, and a second whose `description` is NULL (both written directly) | `PostgresEngagementStore.watch_items(company_id)` | Both objectives are returned, each with `text` `""` | unit |
+| AC-10 | AC-9's data | `GET /api/engagement/records/{company_id}` | Status 200; both objectives are listed, each with `description` `""` | unit |
+| AC-11 | AC-9's second objective O (NULL description); a document for the company; the stand-in returns `unclear` for O | `POST /api/stewardship/watch-items/objective/{O}/check` | Status 200, body `{"documents": 1, "suggestions": 0, "unclear": 1, "skipped": 0}` | unit |
+| AC-12 | AC-49's Given plus AC-9's two objectives on the same engagement; the stand-in says found on the commitment only | `ChangeDetector.diff_and_record` gets the document as new | One pending suggestion, `item_kind` `commitment`, with that document's `doc_id` | unit |
+| AC-13 | `GET /api/stewardship/evidence-suggestions*` stubbed with `page.route` to answer 500 `{"detail": "boom"}`; an engagement with an `open` commitment and a `meeting` activity (intake) | A user opens the company's issue on `#/engagement` | The text `Suggestions unavailable: 500: boom` appears once; no `Check against documents` button on the commitment and no `Find commitments` button on the meeting note | evaluator |
+| AC-14 | `api.listSuggestions` rejects with `Error("409: Watch items need the Postgres engagement store.")`; an issue with an `open` commitment | The issue panel renders | No text starting `Suggestions unavailable`; no `Check against documents` button (unchanged) | unit (frontend) |
+| AC-15 | The first `api.listSuggestions` calls reject with `Error("500: boom")`, later ones resolve `{"suggestions": []}`; an issue with an `open` commitment | `reload()` runs again | No text starting `Suggestions unavailable`; the `Check against documents` button is shown | unit (frontend) |
+| AC-16 | The suggestions list stubbed with `page.route`: one pending `new_commitment` suggestion on the issue, `activity_id` `act_unknown`, text `Publish a transition plan` | A user opens the issue | The card reads `Argus found a commitment in a note`, then `Publish a transition plan` | evaluator |
+| AC-17 | AC-77's Given (parent spec) | A user opens the issue | The card reads `Argus found a commitment in the meeting of 2026-10-01` (unchanged) | evaluator |
 
 Must not change: free-text due dates give no flag (parent AC-87, unchanged); the API dossier's watch list (parent
-AC-104 to AC-107); the file store's silent fallback (AC-12); the found-commitment header with a known note (AC-14).
+AC-104 to AC-107); `triggers()` (AC-5); the file store's silent fallback (AC-14); the found-commitment header with a known note
+(AC-17).
 
-Owed while `HOLDOUT_TOKEN` is missing: none beyond AC-1; it is the only new `holdout` row. The CLI, store and
-detector rows are `unit` because holdout tests drive the app only through its API and pages.
+AC-1 is the only new `holdout` row. The CLI, store, detector and directly written rows are `unit`: holdout tests
+drive the app only through its API and pages, intake refuses an objective without a description, and the e2e stack
+always runs the Postgres store. The "must not change" line relies on the parent's AC-104 to AC-107 hidden tests
+running in the holdout regression suite; the test-writer confirms they are there.
