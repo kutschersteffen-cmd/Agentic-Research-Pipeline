@@ -229,7 +229,7 @@ jobs:
         run: |
           set -o pipefail
           if [ "$PART" = own ]; then
-            python .holdout/run.py --spec "$SPEC" ${ROWS:+--rows "$ROWS"} --no-regression --count
+            python .holdout/run.py --spec "$SPEC" ${ROWS:+--rows "$ROWS"} --count
             python .holdout/run.py --spec "$SPEC" ${ROWS:+--rows "$ROWS"} --no-regression
           else
             python .holdout/run.py --shard "$PART" | tee "$RUNNER_TEMP/out.txt"
