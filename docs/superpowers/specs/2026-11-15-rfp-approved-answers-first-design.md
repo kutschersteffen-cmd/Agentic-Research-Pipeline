@@ -1,6 +1,6 @@
 # RFP answers: approved answers first, then documents in priority order
 
-Status: draft for owner approval, 2026-11-15. Builds on the approved
+Status: approved by the owner, 2026-11-15. Builds on the approved
 [RFP agent, part 1](2026-10-21-rfp-answers-design.md) ("part 1" below) and changes none of its rules except
 where "Supersedes" says so.
 
