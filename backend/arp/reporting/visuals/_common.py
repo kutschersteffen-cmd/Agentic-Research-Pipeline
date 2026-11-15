@@ -1,11 +1,25 @@
-"""Shared helpers for the visual renderers: type steps, fonts, the strip, numbered rows."""
+"""Shared helpers for the visual renderers: type steps, fonts, the strip, numbered rows, dataset cells."""
 
 from __future__ import annotations
 
 from math import ceil
 
-from arp.reporting.render_model import S4, S12, S16, S24, S32, S40, Primitive, Rect, RenderCtx, Text, family, palette
-from arp.schemas.reporting import Box
+from arp.reporting.render_model import (
+    S4,
+    S12,
+    S16,
+    S24,
+    S32,
+    S40,
+    Primitive,
+    Rect,
+    RenderCtx,
+    Text,
+    VisualDataError,
+    family,
+    palette,
+)
+from arp.schemas.reporting import Box, QuantitativeDataset
 
 # Type size by role, indexed by ctx.type_step + 1 (step -1 is the underfill step-up).
 TYPE = {"value": (160, 144, 112, 96), "body": (32, 28, 24, 24), "title": (40, 36, 30, 30)}
@@ -69,3 +83,29 @@ def numbered_rows(texts: list[str], box: Box, ctx: RenderCtx, emphasis: int | No
                 ]
         y += h + S16
     return out
+
+
+def dataset(ctx: RenderCtx, dataset_id: str, columns: list[str]) -> QuantitativeDataset:
+    """The referenced dataset, after checking it has every named column."""
+    ds = ctx.datasets.get(dataset_id)
+    if ds is None:
+        raise VisualDataError(f"unknown dataset {dataset_id!r}")
+    missing = [c for c in columns if c not in ds.column_names()]
+    if missing:
+        raise VisualDataError(f"dataset {dataset_id!r} has no column {', '.join(map(repr, missing))}")
+    return ds
+
+
+def number(v: object) -> float:
+    """A cell as a number: ints, floats and numeric strings (`1,234`, `−1`); anything else is a VisualDataError."""
+    if isinstance(v, int | float) and not isinstance(v, bool):
+        return float(v)
+    try:
+        return float(str(v).replace(",", "").replace("−", "-"))
+    except ValueError:
+        raise VisualDataError(f"not a number: {v!r}") from None
+
+
+def signed(text: str) -> str:
+    """A number as text with a typographic minus."""
+    return "−" + text[1:] if text.startswith("-") else text

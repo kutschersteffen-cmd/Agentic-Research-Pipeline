@@ -204,6 +204,28 @@ def render_slide(slide: SlideContent, index: int, deck: Deck, tokens: Tokens, da
     return anatomy(slide, index, tokens, mode) + VISUALS[visual.type](visual, body_box(tokens), ctx)
 
 
+class VisualDataError(ValueError):
+    """A visual's data reference does not resolve: unknown dataset or column, or a non-numeric value column."""
+
+
+LINE_PAD = (S32, 240, 56)  # top, right (series labels at the line ends), bottom (category labels) inside a line chart's box
+
+
+def line_scale(p: ChartPrim) -> tuple[float, float]:
+    """A line chart's value range: min to max with 10% headroom, so a flat-ish series is not squashed against zero."""
+    values = [v for s in p.series for v in s.values]
+    lo, hi = min(values), max(values)
+    pad = (hi - lo) * 0.1 or 1
+    return lo - pad, hi + pad
+
+
+def line_point(p: ChartPrim, i: int, v: float) -> tuple[float, float]:
+    """Canvas position of category `i` at value `v` on a line chart; both writers and the callout use it."""
+    top, right, bottom = LINE_PAD
+    lo, hi = line_scale(p)
+    return p.x + (i + 0.5) * (p.w - right) / len(p.categories), p.y + top + (hi - v) / (hi - lo) * (p.h - top - bottom)
+
+
 def decimals(values: list[float]) -> int:
     """Decimal places the values carry; chart labels and number formats keep them."""
     return max((len(f"{v:g}".partition(".")[2]) for v in values), default=0)

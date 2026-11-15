@@ -8,14 +8,26 @@ from __future__ import annotations
 from lxml import etree
 from pptx.chart.data import CategoryChartData
 from pptx.dml.color import RGBColor
-from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
+from pptx.enum.chart import XL_CHART_TYPE, XL_LABEL_POSITION, XL_LEGEND_POSITION, XL_TICK_MARK
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
 from pptx.oxml.ns import qn
 from pptx.util import Emu, Pt
 
 from arp.reporting.house_style import Mode, Tokens
-from arp.reporting.render_model import ChartPrim, Line, Primitive, Rect, TablePrim, Text, decimals, family, palette
+from arp.reporting.render_model import (
+    LINE_PAD,
+    ChartPrim,
+    Line,
+    Primitive,
+    Rect,
+    TablePrim,
+    Text,
+    decimals,
+    family,
+    line_scale,
+    palette,
+)
 
 _KINDS = {"bar": XL_CHART_TYPE.BAR_CLUSTERED, "column": XL_CHART_TYPE.COLUMN_CLUSTERED,
           "stacked_column": XL_CHART_TYPE.COLUMN_STACKED, "line": XL_CHART_TYPE.LINE_MARKERS}
@@ -29,7 +41,12 @@ def _rgb(hex_color: str) -> RGBColor:
 
 def _number_format(values: list[float], unit: str) -> str:
     dec = decimals(values)
-    return ("0." + "0" * dec if dec else "0") + (f'"{unit}"' if unit else "")
+    fmt = ("0." + "0" * dec if dec else "0") + (f'"{unit}"' if unit else "")
+    return fmt if min(values, default=0) >= 0 else f'{fmt};"−"{fmt}'  # a negative section for the typographic minus
+
+
+def _fmt_value(v: float, values: list[float], unit: str) -> str:
+    return f"{v:.{decimals(values)}f}{unit}".replace("-", "−")
 
 
 class _Writer:
@@ -106,9 +123,10 @@ class _Writer:
         frame = self.slide.shapes.add_chart(_KINDS[p.kind], self.e(p.x), self.e(p.y), self.e(p.w), self.e(p.h), data)
         self.place(frame, p)
         chart = frame.chart
-        chart.font.size, chart.font.name = Pt(20 * self.pt), self.body
+        chart.font.size, chart.font.name = Pt(24 * self.pt), self.body
         chart.font.color.rgb = _rgb(self.c["muted"])
-        chart.has_legend = len(p.series) > 1
+        chart.has_title = False  # a one-series chart otherwise shows the series name as its title
+        chart.has_legend = len(p.series) > 1 and p.kind != "line"  # lines are labelled at their ends
         if chart.has_legend:
             chart.legend.position, chart.legend.include_in_layout = XL_LEGEND_POSITION.BOTTOM, False
         plot = chart.plots[0]
@@ -128,10 +146,31 @@ class _Writer:
         if p.labels:
             plot.has_data_labels = True
             dl = plot.data_labels
-            dl.number_format, dl.number_format_is_linked, dl.show_value = fmt, False, True
+            dl.number_format, dl.number_format_is_linked, dl.show_value = fmt, False, p.kind != "line"
+            dl.font.color.rgb = _rgb(self.c["ink"])
+            if p.kind == "line":  # the series name and last value at the line end, as in the HTML
+                for s, ser in zip(p.series, plot.series, strict=True):
+                    end = ser.points[len(s.values) - 1].data_label
+                    end.position = XL_LABEL_POSITION.RIGHT
+                    run = end.text_frame.paragraphs[0].add_run()
+                    run.text = f"{s.name} {_fmt_value(s.values[-1], values, p.unit)}"
+                    run.font.color.rgb = _rgb(self.c["ink"])
         va = chart.value_axis
         va.has_major_gridlines, va.visible = False, not p.labels
         va.tick_labels.number_format, va.tick_labels.number_format_is_linked = fmt, False
+        ca = chart.category_axis  # no axis line or ticks: only the category labels
+        ca.format.line.fill.background()
+        ca.major_tick_mark = ca.minor_tick_mark = XL_TICK_MARK.NONE
+        if p.kind == "line":  # the HTML's plot rect and min/max scale, so points (and the callout leader) line up
+            va.minimum_scale, va.maximum_scale = line_scale(p)
+            top, right, bottom = LINE_PAD
+            area = chart._chartSpace.chart.plotArea
+            if area.find(qn("c:layout")) is None:
+                area.insert(0, etree.Element(qn("c:layout")))  # c:layout is plotArea's first child
+            ml = etree.SubElement(area.find(qn("c:layout")), qn("c:manualLayout"))
+            for tag, val in (("layoutTarget", "inner"), ("xMode", "edge"), ("yMode", "edge"), ("x", 0), ("y", top / p.h),
+                             ("w", (p.w - right) / p.w), ("h", (p.h - top - bottom) / p.h)):
+                etree.SubElement(ml, qn(f"c:{tag}"), val=str(val))
         if p.kind == "bar":
             chart.category_axis.reverse_order = True  # first category on top, as in the HTML
 

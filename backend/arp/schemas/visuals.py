@@ -120,6 +120,8 @@ class ComparisonTable(BaseModel):
     def _size(self):
         if self.table.columns and not 2 <= len(self.table.columns) <= 6:
             raise ValueError("a table has 2 to 6 columns")
+        if "max_rows" not in self.table.model_fields_set:  # TableSpec's default (20) means "all rows, up to 8" here
+            self.table = self.table.model_copy(update={"max_rows": 8})
         if self.table.max_rows > 8:
             raise ValueError("a table shows at most 8 rows")
         return self
