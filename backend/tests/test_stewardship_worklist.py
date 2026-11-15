@@ -148,6 +148,9 @@ def test_new_high_trigger_flag(client, root):
     rows = _rows(client)
     assert rows["SYN02"]["new_high_trigger"] is True
     assert not rows["SYN04"]["new_high_trigger"] and not rows["SYN01"]["new_high_trigger"]
+    r = client.post(f"/api/stewardship/triggers/{trigger_id('SYN02', 't_x')}/transition", json={"status": "resolved", "decided_by": "tester"})
+    assert r.status_code == 200
+    assert not _rows(client)["SYN02"]["new_high_trigger"]
 
 
 def test_watch_flags_are_read_once_per_request(client, monkeypatch):

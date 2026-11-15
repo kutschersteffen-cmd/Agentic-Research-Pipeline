@@ -133,10 +133,12 @@ def indicators(
     `flags` is `watch_flags_by_company()` (once per request): overdue and broken commitments come from it."""
     by_company, flags = {r.company_id: r for r in records}, flags or {}
     counts: dict[str, Counter] = {}
-    new_high = {t.issuer_id for t in triggers if t.severity == "high" and t.is_new}
+    new_high: set[str] = set()  # the tag asks a person to act, so a resolved or dismissed trigger does not set it
     for t in triggers:
         if t.status in ("open", "acknowledged"):
             counts.setdefault(t.issuer_id, Counter())[t.severity] += 1
+            if t.severity == "high" and t.is_new:
+                new_high.add(t.issuer_id)
     issuers = sample["issuers"]
     weight = _percentile({i["issuer_id"]: v for i in issuers if (v := i.get("holding", {}).get("index_weight_pct")) is not None})
     aum = _percentile({i["issuer_id"]: v for i in issuers if (v := i.get("holding", {}).get("aum_held_eur_m")) is not None})
