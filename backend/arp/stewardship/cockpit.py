@@ -102,9 +102,9 @@ def emissions_of(
     financed: dict[str, float], uncovered: int, companies: dict[str, CompanyRef], engaged: set[str], selected: set[str], escalated: set[str]
 ) -> dict | None:
     """The `emissions` section from per-company financed tCO2e (`metrics.financed_emissions_by_company` over the
-    scope's holdings); None when the total is 0. Sums are taken unrounded, then rounded to 0.01 t."""
+    scope's holdings); None when the total rounds to 0.00 t. Sums are taken unrounded, then rounded to 0.01 t."""
     total = sum(financed.values())
-    if not total:
+    if not round(total, 2):
         return None
 
     def status(c: str) -> str:
@@ -115,7 +115,7 @@ def emissions_of(
     def name(c: str) -> str:
         return companies[c].name if c in companies else c
 
-    top = sorted(financed, key=lambda c: (-financed[c], name(c), c))[:CONTRIBUTORS]
+    top = sorted(financed, key=lambda c: (-round(financed[c], 2), name(c), c))[:CONTRIBUTORS]  # ties as the API shows them
     return {
         "total_tco2e": round(total, 2),
         "engaged_tco2e": round(sum(v for c, v in financed.items() if c in engaged), 2),
