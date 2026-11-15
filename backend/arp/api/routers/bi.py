@@ -12,7 +12,7 @@ from arp.api.deps import get_llm_client, get_portfolio_store, get_superset_clien
 from arp.bi import service
 from arp.bi.service import BIError, DashboardNotFound, DesignResult, NotAnARPDashboard
 from arp.bi.superset_client import SupersetClient, SupersetError
-from arp.config import Settings
+from arp.config import Settings, get_settings
 from arp.llm.base import LLMClient
 from arp.portfolio import qa_audit
 from arp.storage.portfolio_store import PortfolioStore
@@ -49,13 +49,14 @@ class DashboardItem(BaseModel):
     published: bool
 
 
-def _bad_gateway(e: Exception, settings: Settings) -> HTTPException:
+def _bad_gateway(e: Exception, settings: Settings | None = None) -> HTTPException:
     cause = e.__cause__ or e  # BIError wraps the SupersetError whose body operators need
     logger.warning("superset error: %s body=%r", e, getattr(cause, "body", None))
     # Fixed texts only: a Superset response body never reaches the client (it may hold hosts, DSNs or secrets).
     status = cause.status_code if isinstance(cause, SupersetError) else None
     if isinstance(cause, httpx.TransportError):
-        detail = f"Superset is not reachable at {settings.superset_url.rstrip('/')}. It is not set up here or not running."
+        url = (settings or get_settings()).superset_url.rstrip("/")
+        detail = f"Superset is not reachable at {url}. It is not set up here or not running."
     elif status in (401, 403):
         detail = f"Superset login failed (HTTP {status}): check ARP_SUPERSET_USER and ARP_SUPERSET_PASSWORD."
     elif status == 404:

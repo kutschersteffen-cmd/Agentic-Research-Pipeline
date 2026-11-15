@@ -35,7 +35,7 @@ class FakeClient:
         self.calls: list[tuple] = []
         self.fail_on_chart = fail_on_chart
         self.charts: dict[int, str] = {}
-        self.params: dict[int, dict] = {}
+        self.saved_params: dict[int, dict] = {}
         self.dashboards: dict[str, dict] = {}  # slug -> {id, published, charts, position}
         self.datasets = {d.table: i for i, d in enumerate(VIEW_DATASETS.values(), start=1)}
         self._next = 100
@@ -64,12 +64,12 @@ class FakeClient:
             raise SupersetError(422, "bad params")
         cid = self._id()
         self.charts[cid] = name
-        self.params[cid] = json.loads(json.dumps(chart_form_data(dataset_id, viz_type, params)))
+        self.saved_params[cid] = json.loads(json.dumps(chart_form_data(dataset_id, viz_type, params)))
         return cid
 
     def chart_params(self, chart_id):
         self.calls.append(("chart_params", chart_id))
-        return self.params[chart_id]
+        return self.saved_params[chart_id]
 
     def create_dashboard(self, title, slug, position_json, chart_ids, json_metadata=None):
         self.calls.append(("create_dashboard", slug))
