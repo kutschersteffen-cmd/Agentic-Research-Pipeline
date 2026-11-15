@@ -10758,6 +10758,21 @@ export interface components {
              */
             status: "resolved" | "closed";
         };
+        /** CockpitContributor */
+        CockpitContributor: {
+            /** Company */
+            company: string;
+            /** Company Id */
+            company_id: string;
+            /** Sector */
+            sector: string | null;
+            /** Share */
+            share: number;
+            /** Status */
+            status: string;
+            /** Tco2E */
+            tco2e: number;
+        };
         /** CockpitControlGap */
         CockpitControlGap: {
             /** Company */
@@ -10784,6 +10799,21 @@ export interface components {
             engagement_meetings: number;
             /** Shareholder Meetings */
             shareholder_meetings: number;
+        };
+        /** CockpitEmissions */
+        CockpitEmissions: {
+            /** Contributors */
+            contributors: components["schemas"]["CockpitContributor"][];
+            /** Engaged Tco2E */
+            engaged_tco2e: number;
+            /** Not Selected Tco2E */
+            not_selected_tco2e: number;
+            /** Selected Not Engaged Tco2E */
+            selected_not_engaged_tco2e: number;
+            /** Total Tco2E */
+            total_tco2e: number;
+            /** Uncovered Holding Count */
+            uncovered_holding_count: number;
         };
         /** CockpitEngagementMeeting */
         CockpitEngagementMeeting: {
@@ -10845,8 +10875,7 @@ export interface components {
             days: components["schemas"]["CockpitDay"][];
             /** Demo */
             demo: boolean;
-            /** Emissions */
-            emissions?: null;
+            emissions: components["schemas"]["CockpitEmissions"] | null;
             /** Engagement Meetings */
             engagement_meetings: components["schemas"]["CockpitEngagementMeeting"][];
             /** Ladder */

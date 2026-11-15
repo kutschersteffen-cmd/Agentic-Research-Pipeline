@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from arp.api.deps import get_run_store, settings_dep
 from arp.config import Settings
 from arp.db.session import require_dsn
+from arp.portfolio.climate import metrics as climate_metrics
 from arp.schemas.cockpit import CockpitResponse
 from arp.stewardship import cockpit, voting_feed
 from arp.stewardship.tiers import TierStore
@@ -37,11 +38,14 @@ def get_cockpit(
         if portfolio is None:
             raise HTTPException(404, f"Unknown portfolio {portfolio_id}")
         scope = {"portfolio_id": portfolio_id, "label": portfolio.name}
-        securities, _ = portfolio_directories(store)
-        held = {
-            sec.company_id
-            for h in store.load_holdings_as_of(as_of.isoformat(), [portfolio_id])
-            if (sec := securities.get(h.security_id)) and sec.company_id
-        }
-    body = cockpit.build(require_dsn(settings), as_of, voting_feed.items(run_store), TierStore(settings.stewardship_streams_dir).latest(), held)
+    securities, companies = portfolio_directories(store)
+    # The holdings `arp climate financed-emissions` selects for the same scope and date (spec: `emissions`).
+    holdings = store.load_holdings_as_of(as_of.isoformat(), [portfolio_id] if portfolio_id else None)
+    if portfolio_id is not None:
+        held = {sec.company_id for h in holdings if (sec := securities.get(h.security_id)) and sec.company_id}
+    per_company, uncovered = climate_metrics.financed_emissions_by_company(store, holdings, securities, as_of=as_of.isoformat())
+    body = cockpit.build(
+        require_dsn(settings), as_of, voting_feed.items(run_store), TierStore(settings.stewardship_streams_dir).latest(), held,
+        (per_company, uncovered, companies),
+    )  # fmt: skip
     return {**body, "scope": scope, "portfolios": [{"portfolio_id": p.portfolio_id, "name": p.name} for p in portfolios]}
