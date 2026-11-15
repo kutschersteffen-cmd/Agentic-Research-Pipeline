@@ -409,7 +409,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
                         <input type="checkbox" aria-label={`Tick ${r.company}`} checked={ticked.has(r.issuer_id)} onChange={(e) => tick(r.issuer_id, e.target.checked)} />
                       </td>
                       {shown.map((c) => (
-                        <td key={c.id} className={c.id === "company" ? "wb-name" : c.numeric && !c.pinned ? "num" : undefined}>
+                        <td key={c.id} className={c.id === "company" ? "wb-name" : c.numeric && !c.pinned ? "num" : undefined} title={c.id === "company" ? r.company : undefined}>
                           <Cell col={c} row={r} asOf={data.as_of} onRemove={removeSelected} />
                         </td>
                       ))}

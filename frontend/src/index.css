@@ -2502,7 +2502,8 @@ a.vc-box:hover { border-color: var(--text); }
 .wb-sortbar > select { flex: none; width: auto; }
 .wb-sortbar { align-items: center; gap: var(--s-1_5) var(--s-2); margin-top: var(--s-4); }
 .wb-sort-chip { display: inline-flex; align-items: center; gap: var(--s-1); color: var(--text); font-family: var(--font-mono); }
-.wb-sort-chip .link-button { padding: 0 var(--s-0_5); margin: 0; line-height: 1; }
+/* 24px targets (WCAG 2.5.8) for the small ✕ buttons; the glyph stays small. */
+:is(.wb-sort-chip, .wb-proposed) .link-button { display: inline-grid; place-items: center; min-width: 24px; min-height: 24px; padding: 0; margin: 0; line-height: 1; }
 .wb-counts { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-xs); }
 .wb-menu { position: relative; }
 .wb-menu > summary { cursor: pointer; list-style: none; padding: var(--s-1) var(--s-2); border: 1px solid var(--field-border); border-radius: var(--r-sm); background: var(--panel); white-space: nowrap; }
@@ -2514,8 +2515,8 @@ a.vc-box:hover { border-color: var(--text); }
 .wb-table th, .wb-table td { white-space: nowrap; }
 .wb-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .wb-table thead th { position: sticky; top: 0; z-index: 2; background: var(--panel); box-shadow: inset 0 -1px 0 var(--panel-border); padding: 0; }
-.wb-table :is(th, td).wb-tick { position: sticky; left: 0; z-index: 1; width: 2.25rem; background: var(--panel); }
-.wb-table :is(th, td).wb-name { position: sticky; left: 2.25rem; z-index: 1; background: var(--panel); box-shadow: inset -1px 0 0 var(--panel-border); max-width: 16rem; overflow: hidden; text-overflow: ellipsis; }
+.wb-table :is(th, td).wb-tick { position: sticky; left: 0; z-index: 1; box-sizing: border-box; width: 2.5rem; min-width: 2.5rem; max-width: 2.5rem; padding-inline: 0; text-align: center; background: var(--panel); }
+.wb-table :is(th, td).wb-name { position: sticky; left: 2.5rem; z-index: 1; background: var(--panel); box-shadow: inset -1px 0 0 var(--panel-border); max-width: 16rem; overflow: hidden; text-overflow: ellipsis; }
 .wb-table thead :is(.wb-tick, .wb-name) { z-index: 3; }
 .wb-table .selected-row :is(.wb-tick, .wb-name) { background: var(--accent-tint); }
 .wb-table td.wb-tick input { margin: 0; }
@@ -2535,6 +2536,7 @@ a.vc-box:hover { border-color: var(--text); }
 .wb-weights { max-width: 28rem; }
 .wb-weights td { vertical-align: middle; }
 .wb-weights input { width: 6rem; min-width: 0; }
+@media (pointer: coarse) { .wb-menu > summary { display: flex; align-items: center; min-height: 44px; } }
 @media (max-width: 760px) {
   .wb-counts { margin-left: 0; flex-basis: 100%; }
   .wb-table :is(th, td).wb-name { max-width: 9rem; }
