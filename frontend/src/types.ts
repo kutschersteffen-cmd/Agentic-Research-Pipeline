@@ -2200,7 +2200,17 @@ export interface StewardshipStream {
 }
 
 // Stage studios: versioned house policies (backend/arp/stewardship/policies.py)
-export type StewardPolicyId = "monitoring_rules" | "coverage_rules" | "escalation_rules" | "phrase_blocklist" | "house_voting";
+export type StewardPolicyId = "monitoring_rules" | "coverage_rules" | "escalation_rules" | "phrase_blocklist" | "house_voting" | "priority_weights";
+
+// The stewardship workbench (backend/arp/schemas/worklist.py)
+export type Worklist = Served<S["Worklist"]>;
+export type WorklistRow = Served<S["WorklistRow"]>;
+export type WorklistScope = Served<S["WorklistScope"]>;
+export type SelectionList = Served<S["SelectionList"]>;
+export type WorkProgramme = Served<S["Programme"]>;
+export type ProgrammeDetail = Served<S["ProgrammeDetail"]>;
+export type PriorityPreview = Served<S["PriorityPreview"]>;
+export type PortfolioGroup = Served<S["PortfolioGroup"]>;
 
 export interface PolicyVersionMeta {
   version: number;
