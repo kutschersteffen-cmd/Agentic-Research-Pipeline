@@ -1,12 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CONTRIBUTOR_STATUS, fmtMt, fmtShare } from "../src/lib/cockpit.ts";
+import { CONTRIBUTOR_STATUS, fmtShare, fmtTonnes } from "../src/lib/cockpit.ts";
 
-test("financed emissions read in Mt CO₂e with two decimals (AC-60, AC-63)", () => {
-  assert.equal(fmtMt(750_000), "0.75");
-  assert.equal(fmtMt(1_840_000), "1.84");
-  assert.equal(fmtMt(12_345_678), "12.35");
-  assert.equal(fmtMt(0), "0.00");
+test("financed emissions read in whole tonnes with thousands separators, never 0 above 0 (AC-60, AC-63)", () => {
+  assert.equal(fmtTonnes(37_936.4), "37,936");
+  assert.equal(fmtTonnes(11_716.68), "11,717");
+  assert.equal(fmtTonnes(376.65), "377");
+  assert.equal(fmtTonnes(0.01), "0.01"); // the API rounds to 0.01 t
+  assert.equal(fmtTonnes(0.04), "0.04");
+  assert.equal(fmtTonnes(0), "0");
 });
 
 test("contributor share is a whole percent, rounded half up", () => {

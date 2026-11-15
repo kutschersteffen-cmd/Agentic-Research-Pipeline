@@ -2548,6 +2548,7 @@ a.vc-box:hover { border-color: var(--text); }
 /* financed emissions: engaged fill, selected track (as in the theme grid), the rest recessed */
 .cockpit-emissions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: var(--s-4) var(--s-8); align-items: start; }
 .cockpit-emissions-bar { height: 28px; }
+.cockpit-unit { text-transform: none; } /* t CO₂e must not read T CO₂E */
 .cockpit-stack .eng { background: var(--cat-1); }
 .cockpit-stack .sel { border: 1px solid var(--field-border); box-sizing: border-box; }
 .cockpit-stack .rest, .cockpit-swatch.rest { background: var(--well); border: 1px solid var(--panel-border); box-sizing: border-box; }

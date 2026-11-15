@@ -7,9 +7,9 @@ import {
   fmtCount,
   fmtDate,
   fmtDay,
-  fmtMt,
   fmtPct,
   fmtShare,
+  fmtTonnes,
   gapText,
   isWeekend,
   monthLabel,
@@ -149,7 +149,7 @@ function KeyFigures({ data }: { data: Cockpit }) {
           label="Financed emissions covered"
           value={fmtPct(e.engaged_tco2e, e.total_tco2e)}
           bar={pct(e.engaged_tco2e, e.total_tco2e)}
-          note={`${fmtMt(e.engaged_tco2e)} of ${fmtMt(e.total_tco2e)} Mt CO₂e in engagement`}
+          note={`${fmtTonnes(e.engaged_tco2e)} of ${fmtTonnes(e.total_tco2e)} t CO₂e in engagement`}
         />
       )}
       <Figure label="Next 30 days" value={fmtCount(eng + agm)} note={<>{fmtCount(eng)} engagement meetings<br />{fmtCount(agm)} shareholder meetings</>} />
@@ -273,7 +273,7 @@ function EmissionsCard({ emissions: e }: { emissions: Emissions }) {
     ["rest", "not selected", e.not_selected_tco2e],
   ];
   return (
-    <Card title="Financed emissions in engagement" label={<span className="cockpit-label">{fmtMt(e.total_tco2e)} Mt CO₂e, scope 1+2</span>}>
+    <Card title="Financed emissions in engagement" label={<span className="cockpit-label cockpit-unit">{fmtTonnes(e.total_tco2e)} t CO₂e, scope 1+2</span>}>
       <div className="cockpit-emissions">
         <div>
           <div className="cockpit-stack cockpit-emissions-bar" role="img" aria-label={parts.map(([, l, t]) => `${fmtPct(t, e.total_tco2e)} ${l}`).join(", ")}>
@@ -285,7 +285,7 @@ function EmissionsCard({ emissions: e }: { emissions: Emissions }) {
                 <span className={`cockpit-swatch ${cls}`} aria-hidden="true" />
                 <span className="cockpit-num cockpit-emissions-pct">{fmtPct(t, e.total_tco2e)}</span>
                 <span>{l}</span>
-                <span className="cockpit-num muted">{fmtMt(t)} Mt</span>
+                <span className="cockpit-num muted">{fmtTonnes(t)} t</span>
               </li>
             ))}
           </ul>
