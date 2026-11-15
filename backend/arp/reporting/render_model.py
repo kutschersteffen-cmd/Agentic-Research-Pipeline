@@ -101,6 +101,8 @@ class TablePrim:
     highlight_col: int | None
     style: dict[str, str]
     emphasis: bool = False
+    align: list[Literal["left", "right"]] | None = None  # per column; None = all left (numbers go right)
+    mono: list[bool] | None = None  # per column: set in the mono face (number columns)
 
 
 Primitive = Rect | Text | Line | ChartPrim | TablePrim

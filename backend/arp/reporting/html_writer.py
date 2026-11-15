@@ -14,12 +14,18 @@ _LABEL = 20  # chart label size, px
 _JUSTIFY = {"top": "flex-start", "middle": "center", "bottom": "flex-end"}
 
 
+def _a(v: object) -> str:
+    """An attribute value: colours, families and styles may come from an uploaded template, so they are always escaped."""
+    return escape(str(v), quote=True)
+
+
 def _box(name: str, x: float, y: float, w: float, h: float, style: str = "", tag: str = "div") -> str:
-    return f'<{tag} data-name="{escape(name)}" style="position:absolute;left:{x}px;top:{y}px;width:{w}px;height:{h}px;{style}"'
+    return f'<{tag} data-name="{_a(name)}" style="{_a(f"position:absolute;left:{x}px;top:{y}px;width:{w}px;height:{h}px;{style}")}"'
 
 
 def _font(fam: str) -> str:
-    return f"font-family:'{fam.replace(chr(39), '')}',var(--font-body)"
+    quoted = "".join(ch for ch in fam if ch.isprintable()).replace("\\", "\\\\").replace("'", "\\'")  # a CSS string
+    return f"font-family:'{quoted}',var(--font-body)"
 
 
 def _rect(p: Rect) -> str:
@@ -47,17 +53,17 @@ def _line(p: Line) -> str:
         ux, uy, s = (bx - ax) / d, (by - ay) / d, 3 * p.width
         bx, by = bx - x0, by - y0
         tri = [(bx, by), (bx - ux * s - uy * s / 2, by - uy * s + ux * s / 2), (bx - ux * s + uy * s / 2, by - uy * s - ux * s / 2)]
-        head = f'<polygon points="{" ".join(f"{x},{y}" for x, y in tri)}" fill="{p.color}"/>'
+        head = f'<polygon points="{" ".join(f"{x},{y}" for x, y in tri)}" fill="{_a(p.color)}"/>'
     # An SVG with a zero width or height is not drawn at all; 0.1 px keeps a straight rule visible and its box at the PPTX one.
     return (_box(p.name, x0, y0, max(max(xs) - x0, 0.1), max(max(ys) - y0, 0.1), "overflow:visible;", "svg")
-            + f'><polyline points="{pts}" fill="none" stroke="{p.color}" stroke-width="{p.width}"/>{head}</svg>')
+            + f'><polyline points="{pts}" fill="none" stroke="{_a(p.color)}" stroke-width="{p.width}"/>{head}</svg>')
 
 
 def _chart(p: ChartPrim, c: dict[str, str], body: str) -> str:
     n, dec = len(p.categories), decimals([v for s in p.series for v in s.values])
     fmt = lambda v: f"{v:.{dec}f}{p.unit}"  # noqa: E731
     txt = lambda x, y, s, anchor="middle": (f'<text x="{x}" y="{y}" text-anchor="{anchor}" font-size="{_LABEL}" '  # noqa: E731
-                                            f'fill="{c["muted"]}">{escape(s)}</text>')
+                                            f'fill="{_a(c["muted"])}">{escape(s)}</text>')
     stacked = p.kind == "stacked_column"
     if stacked:
         tops = [sum(max(s.values[i], 0) for s in p.series) for i in range(n)]
@@ -76,7 +82,7 @@ def _chart(p: ChartPrim, c: dict[str, str], body: str) -> str:
             out.append(txt(0, i * band + band / 2 + _LABEL / 3, cat, "start"))
             for j, s in enumerate(p.series):
                 v, y = s.values[i], i * band + band * 0.2 + j * bh
-                out.append(f'<rect x="{min(sx(0), sx(v))}" y="{y}" width="{abs(sx(v) - sx(0))}" height="{bh}" fill="{s.colors[i]}"/>')
+                out.append(f'<rect x="{min(sx(0), sx(v))}" y="{y}" width="{abs(sx(v) - sx(0))}" height="{bh}" fill="{_a(s.colors[i])}"/>')
                 if p.labels:
                     out.append(txt(max(sx(0), sx(v)) + 8, y + bh / 2 + _LABEL / 3, fmt(v), "start"))
     else:
@@ -87,9 +93,9 @@ def _chart(p: ChartPrim, c: dict[str, str], body: str) -> str:
         if p.kind == "line":
             for s in p.series:
                 pts = [(i * band + band / 2, sy(v)) for i, v in enumerate(s.values)]
-                out.append(f'<polyline points="{" ".join(f"{x},{y}" for x, y in pts)}" fill="none" stroke="{s.colors[0]}" stroke-width="3"/>')
+                out.append(f'<polyline points="{" ".join(f"{x},{y}" for x, y in pts)}" fill="none" stroke="{_a(s.colors[0])}" stroke-width="3"/>')
                 for i, (x, y) in enumerate(pts):
-                    out.append(f'<circle cx="{x}" cy="{y}" r="6" fill="{s.colors[i]}"/>')
+                    out.append(f'<circle cx="{x}" cy="{y}" r="6" fill="{_a(s.colors[i])}"/>')
                     if p.labels:
                         out.append(txt(x, y - 14, fmt(s.values[i])))
         else:
@@ -105,10 +111,10 @@ def _chart(p: ChartPrim, c: dict[str, str], body: str) -> str:
                     else:
                         a, b, x = 0, v, i * band + band * 0.2 + j * bw
                     top, bot = sy(max(a, b)), sy(min(a, b))
-                    out.append(f'<rect x="{x}" y="{top}" width="{bw}" height="{bot - top}" fill="{s.colors[i]}"/>')
+                    out.append(f'<rect x="{x}" y="{top}" width="{bw}" height="{bot - top}" fill="{_a(s.colors[i])}"/>')
                     if p.labels:
                         out.append(txt(x + bw / 2, (top + bot) / 2 + _LABEL / 3 if stacked else top - 8, fmt(v)))
-    return (_box(p.name, p.x, p.y, p.w, p.h, "", "svg") + f' viewBox="0 0 {p.w} {p.h}" font-family="{escape(body)}">'
+    return (_box(p.name, p.x, p.y, p.w, p.h, "", "svg") + f' viewBox="0 0 {p.w} {p.h}" font-family="{_a(body)}">'
             + "".join(out) + "</svg>")
 
 
@@ -118,15 +124,18 @@ def _table(p: TablePrim, c: dict[str, str], body: str, mono: str) -> str:
     rh = p.h / len(rows)
 
     def cell(ri: int, ci: int, v: str) -> str:
-        head, total = ri == 0, p.total is not None and ri == len(rows) - 1
-        style = f"height:{rh}px;box-sizing:border-box;padding:0 12px;text-align:left;"
-        if head:
-            style += f"{_font(mono)};font-size:18px;font-weight:400;text-transform:uppercase;color:{c['muted']};border-bottom:2px solid {c['ink']};"
+        head, total, hl = ri == 0, p.total is not None and ri == len(rows) - 1, ci == p.highlight_col
+        align = p.align[ci] if p.align else "left"
+        style = f"height:{rh}px;box-sizing:border-box;padding:0 12px;text-align:{align};"
+        if head:  # the highlighted column's header is an ink block with panel text (highlight is never a text colour)
+            style += (f"{_font(mono)};font-size:18px;font-weight:400;text-transform:uppercase;color:{c['panel' if hl else 'muted']};"
+                      f"border-bottom:2px solid {c['ink']};" + (f"background:{c['ink']};" if hl else ""))
         else:
-            hl = ci == p.highlight_col
-            style += (f"{_font(body)};font-size:24px;font-weight:{600 if total or hl else 400};color:{c['highlight'] if hl else c['ink']};"
+            fam = mono if p.mono and p.mono[ci] else body
+            style += (f"{_font(fam)};font-size:24px;font-weight:{600 if total or hl else 400};color:{c['ink']};"
+                      + (f"background:{c['ground']};" if hl else "")
                       + (f"border-top:2px solid {c['ink']};" if total else f"border-bottom:1px solid {c['line']};"))
-        return f'<td style="{style}">{escape(v)}</td>'
+        return f'<td style="{_a(style)}">{escape(v)}</td>'
 
     trs = "".join("<tr>" + "".join(cell(ri, ci, v) for ci, v in enumerate(r)) + "</tr>" for ri, r in enumerate(rows))
     return (_box(p.name, p.x, p.y, p.w, p.h, "overflow:hidden;")

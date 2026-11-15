@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 from pptx import Presentation
+from pptx.enum.text import PP_ALIGN
 
 from arp.reporting import render_model
 from arp.reporting.browser import _page
@@ -50,7 +51,7 @@ def stub_points(monkeypatch):
             ChartPrim("chart:2", box.x + 860, box.y + 300, 420, 280, "line", ["Q1", "Q2", "Q3"],
                       [Series("u", [9.1, 8.4, 7.0], [c["highlight"]] * 3), Series("m", [11.5, 11.2, 11.0], [c["series_2"]] * 3)], "%", True),
             TablePrim("table", box.x, box.y + 300, 840, 280, ["Company", "Weight %"], [["Northgrid", "2.1"], ["Eastwater", "1.2"]],
-                      ["Total", "3.3"], 1, {}),
+                      ["Total", "3.3"], 1, {}, align=["left", "right"], mono=[False, True]),
         ]
 
     monkeypatch.setitem(render_model.VISUALS, "points", stub)
@@ -118,6 +119,60 @@ def test_html_chart_is_inline_svg():
     html = render_deck_html(Deck(title="D", slides=[_slide()]), [EPS])
     assert '<svg data-name="chart"' in html and "<rect" in html and ">18%<" in html
     assert '<svg data-name="chart:2"' in html and "<polyline" in html and ">9.1%<" in html
+
+
+def _table_html(html: str) -> str:
+    return html[html.index('data-name="table"'):html.index("</table>")]
+
+
+def test_table_highlight_column_is_ink_not_highlight(tmp_path):
+    """Highlight is a fill only: the highlighted column gets an ink header (panel text) and ground cells with ink text at 600."""
+    deck = Deck(title="D", slides=[_slide()])
+    tbl = {sh.name: sh for sh in Presentation(str(build_house_pptx(deck, [EPS], tmp_path / "d.pptx"))).slides[0].shapes}["table"].table
+    head, cell, total = tbl.cell(0, 1), tbl.cell(1, 1), tbl.cell(3, 1)
+    assert str(head.fill.fore_color.rgb) == "121722" and str(head.text_frame.paragraphs[0].runs[0].font.color.rgb) == "FFFFFF"
+    for c in (cell, total):
+        run = c.text_frame.paragraphs[0].runs[0]
+        assert str(c.fill.fore_color.rgb) == "F4F6F9" and str(run.font.color.rgb) == "121722" and run.font.bold
+    assert "2A78D6" not in shapes_xml(tbl)
+    html = _table_html(render_deck_html(deck, [EPS])).lower()
+    assert "#2a78d6" not in html
+    assert "background:#121722" in html and "background:#f4f6f9" in html
+
+
+def shapes_xml(tbl) -> str:
+    return "".join(tbl.cell(r, c)._tc.xml for r in range(len(tbl.rows)) for c in range(len(tbl.columns))).upper()
+
+
+def test_table_column_align_and_mono(tmp_path):
+    deck = Deck(title="D", slides=[_slide()])
+    tbl = {sh.name: sh for sh in Presentation(str(build_house_pptx(deck, [EPS], tmp_path / "d.pptx"))).slides[0].shapes}["table"].table
+    mono = render_model.family(load_tokens().fonts.mono)
+    num, txt = tbl.cell(1, 1).text_frame.paragraphs[0], tbl.cell(1, 0).text_frame.paragraphs[0]
+    assert num.alignment == PP_ALIGN.RIGHT and num.runs[0].font.name == mono
+    assert txt.alignment in (None, PP_ALIGN.LEFT) and txt.runs[0].font.name != mono
+    assert tbl.cell(0, 1).text_frame.paragraphs[0].alignment == PP_ALIGN.RIGHT  # the header follows its column
+    html = _table_html(render_deck_html(deck, [EPS]))
+    assert html.count("text-align:right") == 4 and html.count("text-align:left") == 4
+
+
+async def test_html_attributes_are_escaped(monkeypatch):
+    evil = 'Evil"><script>x()</script>'
+
+    def stub(visual, box, ctx):
+        return [Text("t", box.x, box.y, 200, 40, "hi", 20, 400, evil, "#121722"),
+                Rect("r", box.x, box.y + 50, 10, 10, '#000" onload="x()'),
+                Line("l", [(box.x, box.y + 70), (box.x + 50, box.y + 70)], '#000"><script>x()</script>', 1, arrow=True),
+                ChartPrim("c", box.x, box.y + 100, 400, 200, "column", ["a"], [Series("s", [1], ['#000"><script>x()</script>'])], '"<b>', True),
+                TablePrim("tb", box.x, box.y + 320, 400, 100, ["h"], [["v"]], None, None, {"ink": '#000"><script>x()</script>'})]
+
+    monkeypatch.setitem(render_model.VISUALS, "points", stub)
+    html = render_deck_html(Deck(title="D", slides=[_slide()]), [EPS])
+    assert "<script" not in html and 'onload="' not in html
+    async with _page(html) as page:
+        names = await page.evaluate("() => [...document.querySelectorAll('[data-name]')].map(e => e.dataset.name)")
+        assert await page.evaluate("() => document.querySelectorAll('script').length") == 0
+    assert {"t", "r", "l", "c", "tb"} <= set(names)
 
 
 @pytest.fixture

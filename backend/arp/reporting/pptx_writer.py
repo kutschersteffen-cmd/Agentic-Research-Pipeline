@@ -154,14 +154,19 @@ class _Writer:
                 cell.margin_left = cell.margin_right = self.e(12)
                 cell.margin_top = cell.margin_bottom = 0
                 cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-                run = cell.text_frame.paragraphs[0].add_run()
-                hl = not head and ci == p.highlight_col
+                para = cell.text_frame.paragraphs[0]
+                para.alignment = _ALIGN[p.align[ci]] if p.align else PP_ALIGN.LEFT
+                run = para.add_run()
+                hl = ci == p.highlight_col
+                if hl:  # an ink header block, ground cells; highlight is never a text colour
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = _rgb(c["ink" if head else "ground"])
                 if head:
                     run.text = str(v).upper()
-                    self.font(run, self.mono, 18, 400, c["muted"])
+                    self.font(run, self.mono, 18, 400, c["panel" if hl else "muted"])
                 else:
                     run.text = str(v)
-                    self.font(run, self.body, 24, 600 if total or hl else 400, c["highlight"] if hl else c["ink"])
+                    self.font(run, self.mono if p.mono and p.mono[ci] else self.body, 24, 600 if total or hl else 400, c["ink"])
                 # a:tcPr takes lnL, lnR, lnT, lnB before the fill: header and rows ruled below, the total ruled above.
                 rule = ("lnT", 2, c["ink"]) if total else ("lnB", 2 if head else 1, c["ink"] if head else c["line"])
                 tcPr = cell._tc.get_or_add_tcPr()
