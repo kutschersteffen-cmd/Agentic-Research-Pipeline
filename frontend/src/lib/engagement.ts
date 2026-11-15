@@ -72,6 +72,25 @@ export function foundLine(suggestions: number): string {
   return `Found ${plural(suggestions, "suggestion")}.`;
 }
 
+/** One load of a company's suggestions. `loaded` is null on any error; `error` is the error's text ("<status>: <detail>"),
+ * except on the file store's 409, which only means there are no suggestions there. */
+export async function loadSuggestions<T>(
+  list: (status: "pending" | "confirmed") => Promise<{ suggestions: T[] }>,
+): Promise<{ loaded: { pending: T[]; confirmed: T[] } | null; error: string | null }> {
+  try {
+    const [p, c] = await Promise.all([list("pending"), list("confirmed")]);
+    return { loaded: { pending: p.suggestions, confirmed: c.suggestions }, error: null };
+  } catch (err) {
+    const message = (err as Error).message;
+    return { loaded: null, error: message.startsWith("409:") ? null : message };
+  }
+}
+
+/** The found-commitment card's header; with the note unknown it names no date. */
+export function foundHeader(note?: { type: string; activity_type?: string | null; date: string }): string {
+  return note ? `Argus found a commitment in the ${note.activity_type ?? note.type} of ${note.date.slice(0, 10)}` : "Argus found a commitment in a note";
+}
+
 /** Record result's Save is enabled once result and outcome are set, and an influence level unless the result is abandoned. */
 export function canSaveResult(result: string, level: string, outcome: string): boolean {
   return Boolean(result && outcome.trim() && (level || result === "abandoned"));

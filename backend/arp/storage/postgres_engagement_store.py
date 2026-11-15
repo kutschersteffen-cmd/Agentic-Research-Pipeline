@@ -181,7 +181,7 @@ class PostgresEngagementStore:
                 EngagementIssue.model_validate(
                     _cols(row, issue_id="engagement_id", opened_at="started_at", data_source="source", source="trigger_source")
                     | {
-                        "objectives": [Objective.model_validate(_cols(o)) for o in objectives[row.engagement_id]],
+                        "objectives": [Objective.model_validate({"description": ""} | _cols(o)) for o in objectives[row.engagement_id]],
                         "correspondence": [_entry(a) for a in activities[row.engagement_id]],
                         "commitments": [Commitment.model_validate(_cols(c)) for c in commitments[row.engagement_id]],
                         "milestone_history": [
@@ -643,7 +643,7 @@ _TEXT = {"objective": "description", "commitment": "text", "topic": "question"}
 
 def _watch_item(kind: str, row) -> WatchItem:
     return WatchItem(
-        item_kind=kind, item_id=getattr(row, _ID[kind]), engagement_id=row.engagement_id, text=getattr(row, _TEXT[kind]),
+        item_kind=kind, item_id=getattr(row, _ID[kind]), engagement_id=row.engagement_id, text=getattr(row, _TEXT[kind]) or "",
         proof_statement=row.proof_statement, target_date=row.target_date,
     )
 

@@ -109,9 +109,11 @@ def commitments(records: list[EngagementRecord], today: date | None = None) -> l
 
 
 def _iso(value: str | None) -> str | None:
-    """`value` when it is a `YYYY-MM-DD` date, else None: intake stores free-text due dates, which count as none."""
+    """The `YYYY-MM-DD` date `value` starts with, else None: intake stores free-text due dates, which count as none,
+    and the API stores datetimes as given (the same date part `triggers()` reads)."""
+    day = (value or "")[:10]
     try:
-        return value if value and date.fromisoformat(value).isoformat() == value else None
+        return day if date.fromisoformat(day).isoformat() == day else None
     except ValueError:
         return None
 

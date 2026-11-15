@@ -3,6 +3,7 @@ watch list."""
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
@@ -27,7 +28,7 @@ from arp.schemas.engagement import (
     WatchTopic,
 )
 from arp.schemas.voting import CompanyBallot, HumanVoteDecision, Proposal, ProposalType, VotePosition, VoteRecord
-from arp.stewardship.tracking import watch_flags, watch_flags_by_company, watch_list
+from arp.stewardship.tracking import triggers, watch_flags, watch_flags_by_company, watch_list
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.postgres_engagement_store import PostgresEngagementStore
 from arp.storage.run_store import RunStore
@@ -222,3 +223,59 @@ async def test_talking_points_prompt_has_the_watch_list_ac108(store):
     llm = FakeLLMClient({"MeetingTalkingPoints": [MeetingTalkingPoints(objectives=[], points=[])]})
     await draft_talking_points("C1", EngagementIssue(theme="climate"), dossier, llm)
     assert "Watch list:" in llm.prompts[0] and SBT in llm.prompts[0] and TOPIC in llm.prompts[0]
+
+
+# --- Review fixes (spec commitment-loop-review-fixes) --------------------------------------------------
+
+
+def test_a_due_date_with_a_time_flags_on_its_date_part_ac2_ac5(store):
+    cid = _cmt(store, _issue(store), target_date=f"{YESTERDAY}T10:00:00")
+    (f,) = watch_flags(store, "C1")
+    assert (f.item_kind, f.item_id, f.kind, f.target_date, f.since) == ("commitment", cid, "overdue", YESTERDAY, YESTERDAY)
+    assert f.message == f'Commitment overdue: "Publish a transition plan" was due {YESTERDAY}.'
+    missed = [t for t in triggers([store.get("C1")], 30) if t["type"] == "commitment_missed"]
+    assert [t["reason"] for t in missed] == [f"Past its target date {YESTERDAY}, not verified: Publish a transition plan"]
+
+
+def test_an_objective_due_date_with_a_time_or_a_note_flags_ac3_ac6(store):
+    issue = _issue(store)
+    _obj(store, issue, target_date=f"{YESTERDAY}T10:00:00")
+    (f,) = watch_flags(store, "C1")
+    assert (f.item_kind, f.kind, f.target_date) == ("objective", "overdue", YESTERDAY)
+    assert f.message == f'Objective overdue: "{SBT}" was due {YESTERDAY}.'
+    other = _issue(store, "C2")
+    _obj(store, other, company_id="C2", target_date="2025-12-31 (approx.)")
+    (f,) = watch_flags(store, "C2")
+    assert (f.kind, f.target_date) == ("overdue", "2025-12-31")
+
+
+def test_due_today_with_a_time_is_not_overdue_ac4(store):
+    _cmt(store, _issue(store), target_date=f"{TODAY.isoformat()}T00:00:00")
+    assert watch_flags(store, "C1") == []
+
+
+def test_cli_dossier_carries_the_watch_list_ac7_ac8(store, monkeypatch, tmp_path):
+    from typer.testing import CliRunner
+
+    from arp.cli import app as cli
+    from arp.cli import engagement as cli_engagement
+
+    issue = _issue(store)
+    _cmt(store, issue, target_date=f"{YESTERDAY}T10:00:00")
+    draft = ResearchDossierDraft(summary="s", controversy_context="c", peer_benchmark_notes="p", confidence=0.9)
+    doc = SourceDocument(company_id="C1", doc_type=DocType.SUSTAINABILITY_REPORT, title="AR", full_text="Climate plan text.")
+    monkeypatch.setattr(cli_engagement, "build_llm_client", lambda _s: FakeLLMClient({"ResearchDossierDraft": [draft]}))
+    monkeypatch.setattr(cli_engagement, "_registry", lambda: DocumentSourceRegistry([_FixedDocSource([doc])]))
+    monkeypatch.setattr(cli_engagement, "_engagement_store", lambda: store)
+    universe, out = tmp_path / "u.csv", tmp_path / "dossier.json"
+    universe.write_text("company_id,name\nC1,Acme\n")
+
+    res = CliRunner().invoke(cli, ["engagement", "dossier-draft", "C1", issue, "--universe", str(universe), "--out", str(out)])
+
+    assert res.exit_code == 0, res.output
+    dossier = ResearchDossier.model_validate_json(out.read_text())
+    assert [e.model_dump(mode="json") for e in dossier.watch_list] == [e.model_dump(mode="json") for e in watch_list(store, "C1", issue)]
+    assert [e.flag for e in dossier.watch_list] == ["overdue"]
+    llm = FakeLLMClient({"MeetingTalkingPoints": [MeetingTalkingPoints(objectives=[], points=[])]})
+    asyncio.run(draft_talking_points("C1", EngagementIssue(theme="climate"), dossier, llm))
+    assert "Publish a transition plan" in llm.prompts[0] and "Watch list:\n(none)" not in llm.prompts[0]
