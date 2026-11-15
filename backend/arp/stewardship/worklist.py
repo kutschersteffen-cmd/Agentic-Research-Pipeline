@@ -32,14 +32,14 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from urllib.parse import quote, unquote
 
-from arp.schemas.engagement import FIR_THEME_LABELS, CommitmentStatus, EngagementRecord, EscalationStage
+from arp.schemas.engagement import FIR_THEME_LABELS, EngagementRecord, EscalationStage, WatchFlag
 from arp.showcase.schema import FIELD_IDS as SIMULATED_FIELDS
 from arp.stewardship.notes import NoteLog
 from arp.stewardship.policies import PolicyStore, component_ids, validate_weights
 from arp.stewardship.process import current_tiers
 from arp.stewardship.programmes import ProgrammeLog
 from arp.stewardship.tiers import TIERS, TierStore
-from arp.stewardship.tracking import OPEN
+from arp.stewardship.tracking import OPEN, watch_flags_by_company
 from arp.stewardship.trigger_store import TriggerStore
 from arp.stewardship.universe import company_by_security
 from arp.storage.jsonl_io import read_jsonl
@@ -127,10 +127,13 @@ def indicators(
     meetings: dict[str, date],
     observations: dict[str, dict],
     today: date,
+    flags: dict[str, list[WatchFlag]] | None = None,
 ) -> list[dict]:
-    """One row per issuer with every indicator column and `normalised`: component id -> 0..1, or None when empty."""
-    by_company = {r.company_id: r for r in records}
+    """One row per issuer with every indicator column and `normalised`: component id -> 0..1, or None when empty.
+    `flags` is `watch_flags_by_company()` (once per request): overdue and broken commitments come from it."""
+    by_company, flags = {r.company_id: r for r in records}, flags or {}
     counts: dict[str, Counter] = {}
+    new_high = {t.issuer_id for t in triggers if t.severity == "high" and t.is_new}
     for t in triggers:
         if t.status in ("open", "acknowledged"):
             counts.setdefault(t.issuer_id, Counter())[t.severity] += 1
@@ -145,11 +148,8 @@ def indicators(
         record = by_company.get(iid)
         open_issues = [i for i in record.issues if i.status in OPEN] if record else []
         escalated = sum(i.escalation_stage != EscalationStage.PRIVATE_ENGAGEMENT for i in open_issues)
-        overdue = sum(
-            c.status == CommitmentStatus.OPEN and bool(c.target_date) and date.fromisoformat(c.target_date[:10]) < today
-            for i in open_issues
-            for c in i.commitments
-        )
+        kinds = Counter(f.kind for f in flags.get(iid, ()) if f.item_kind == "commitment")
+        overdue, broken = kinds["overdue"], kinds["broken"]
         c = counts.get(iid, Counter())
         trig = {"high": c["high"], "medium": c["medium"], "low": c["low"]}
         tier, confirmed = tiers[iid]
@@ -175,9 +175,11 @@ def indicators(
                 "coverage_tier": tier,
                 "coverage_tier_confirmed": confirmed,
                 "triggers": trig,
+                "new_high_trigger": iid in new_high,
                 "open_engagements": len(open_issues),
                 "escalated": escalated,
                 "overdue_commitments": overdue,
+                "broken_commitments": broken,
                 "next_meeting": meeting,
                 "transition_grade": grade,
                 "esg_score": obs["esg_score"],
@@ -196,6 +198,7 @@ def indicators(
                     "esg_score": _clamp((10 - obs["esg_score"]["value"]) / 10) if obs["esg_score"] else None,
                     "controversy": _clamp(obs["controversy"]["value"] / 5) if obs["controversy"] else None,
                     "carbon_intensity": carbon.get(iid),
+                    "broken_commitments": min(1.0, broken / 2),
                 },
             }
         )
@@ -239,7 +242,8 @@ def house_rows(
     confirmed = TierStore(root).latest()
     tiers = {i: (t, i in confirmed) for i, t in current_tiers(root, sample, records).items()}
     rows = {"issuers": sample["issuers"] if issuers is None else issuers}
-    return indicators(rows, records, TriggerStore(root).list_triggers(), tiers, meetings, observations, today)
+    flags = watch_flags_by_company(records, today)
+    return indicators(rows, records, TriggerStore(root).list_triggers(), tiers, meetings, observations, today, flags)
 
 
 def fund_holdings(store) -> dict[str, dict]:

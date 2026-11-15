@@ -127,6 +127,37 @@ def test_overdue_commitment_counts_until_the_issue_closes(client):
     assert rows["SYN11"]["overdue_commitments"] == 0 and rows["SYN11"]["open_engagements"] == 0
 
 
+def test_broken_commitments_count_and_weigh_nothing(client):
+    # AC-30, AC-53
+    issue = _issue(client, "SYN08")
+    for text in ("Publish targets", "Split chair and CEO"):
+        r = client.post("/api/stewardship/tracking/commitments", json={"company_id": "SYN08", "issue_id": issue, "text": text})
+        assert r.status_code == 200, r.text
+        r = client.post(f"/api/stewardship/tracking/commitments/{r.json()['commitment_id']}",
+                        json={"company_id": "SYN08", "issue_id": issue, "status": "missed"})
+        assert r.status_code == 200, r.text
+    rows = _rows(client)
+    assert rows["SYN08"]["broken_commitments"] == 2 and rows["SYN08"]["overdue_commitments"] == 0
+    assert {k: _part(rows["SYN08"], "broken_commitments")[k] for k in ("weight", "normalised", "points")} == {"weight": 0, "normalised": 1.0, "points": 0.0}
+    assert rows["SYN01"]["broken_commitments"] == 0
+
+
+def test_new_high_trigger_flag(client, root):
+    # AC-31 (API side): only a high trigger that is new in the latest run sets it
+    _run(root, ("SYN02", "high", "t_x"), ("SYN04", "medium", "t_m"))
+    rows = _rows(client)
+    assert rows["SYN02"]["new_high_trigger"] is True
+    assert not rows["SYN04"]["new_high_trigger"] and not rows["SYN01"]["new_high_trigger"]
+
+
+def test_watch_flags_are_read_once_per_request(client, monkeypatch):
+    calls = []
+    real = worklist.watch_flags_by_company
+    monkeypatch.setattr(worklist, "watch_flags_by_company", lambda *a, **k: calls.append(1) or real(*a, **k))
+    _rows(client)
+    assert len(calls) == 1
+
+
 def test_escalated_issue(client):
     # AC-140, AC-141, AC-142 (they replace AC-7, AC-35, AC-36: joint_engagement is gone)
     issue = _issue(client, "SYN06")

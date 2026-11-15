@@ -27631,6 +27631,10 @@
       ],
       "title": "Aum Held Eur M"
      },
+     "broken_commitments": {
+      "title": "Broken Commitments",
+      "type": "integer"
+     },
      "carbon_intensity": {
       "anyOf": [
        {
@@ -27723,6 +27727,10 @@
       },
       "title": "Last Topics",
       "type": "array"
+     },
+     "new_high_trigger": {
+      "title": "New High Trigger",
+      "type": "boolean"
      },
      "next_meeting": {
       "anyOf": [
@@ -27834,9 +27842,11 @@
      "coverage_tier",
      "coverage_tier_confirmed",
      "triggers",
+     "new_high_trigger",
      "open_engagements",
      "escalated",
      "overdue_commitments",
+     "broken_commitments",
      "next_meeting",
      "transition_grade",
      "esg_score",

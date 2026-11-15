@@ -24,7 +24,9 @@ import {
   type SortKey,
 } from "../../lib/workbench";
 import type { PriorityPreview, SelectionList, WorkProgramme, Worklist, WorklistRow, WorklistScope } from "../../types";
+import { useRefetchOnFocus } from "../../lib/useRefetchOnFocus";
 import { DataTable, RuleEditor, Section, VersionsPanel, usePolicy, useActor } from "./common";
+import { NewHighTriggerTag } from "./NewHighTriggerTag";
 
 const Sim = () => <span className="sim-tag">Simulated</span>;
 const shortLabel = (c: Column) => c.label.replace(/ (%|\(.*\))$/, "");
@@ -69,7 +71,7 @@ function Cell({ col, row, asOf, onRemove }: { col: Column; row: WorklistRow; asO
       return tierText(row);
     case "triggers": {
       const t = row.triggers;
-      return t.high + t.medium + t.low === 0 ? "—" : `H ${t.high} · M ${t.medium} · L ${t.low}`;
+      return <><NewHighTriggerTag row={row} />{t.high + t.medium + t.low === 0 ? "—" : `H ${t.high} · M ${t.medium} · L ${t.low}`}</>;
     }
     case "open_engagements":
       return row.open_engagements;
@@ -77,6 +79,8 @@ function Cell({ col, row, asOf, onRemove }: { col: Column; row: WorklistRow; asO
       return row.escalated;
     case "overdue_commitments":
       return row.overdue_commitments;
+    case "broken_commitments":
+      return row.broken_commitments;
     case "next_meeting": {
       if (!row.next_meeting) return "—";
       const m = nextMeetingText(row.next_meeting, asOf);
@@ -170,6 +174,8 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   useEffect(() => {
     load(scope);
   }, [load, scope]);
+  // New triggers show without a reload: refetch when the tab is back in view, never on top of a running load.
+  useRefetchOnFocus(() => (loading ? undefined : load(scope)));
   // The rows come first: the rest is read once they are on screen.
   const loaded = data !== null;
   useEffect(() => {

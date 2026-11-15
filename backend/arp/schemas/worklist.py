@@ -97,9 +97,11 @@ class WorklistRow(BaseModel):
     coverage_tier: str
     coverage_tier_confirmed: bool
     triggers: TriggerCounts
+    new_high_trigger: bool
     open_engagements: int
     escalated: int
     overdue_commitments: int
+    broken_commitments: int
     next_meeting: NextMeeting | None
     transition_grade: Grade | None
     esg_score: Observed | None
