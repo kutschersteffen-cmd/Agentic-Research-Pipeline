@@ -155,7 +155,7 @@ def _points_fallback(slide: StorylineSlide) -> Points:
         words = text.split()
         chunks += [" ".join(words[k:k + 20]) for k in range(0, len(words), 20)]
     chunks = chunks[:6]
-    # shortcut: an empty row when headline, rationale and purpose give fewer than 3 points; the slide is flagged anyway
+    # Fewer than 3 chunks leaves blank rows; the caller sets needs_review on such a slide so it is seen before download.
     return Points(points=chunks + [""] * (3 - len(chunks)))
 
 
@@ -163,7 +163,12 @@ async def _fill_visual(slide: StorylineSlide, index: int, request: ReportRequest
     keep = {"headline": slide.headline, "subheading": slide.subheading, "kicker": slide.kicker, "source_refs": slide.source_refs}
 
     def fallback(rule: str, message: str) -> tuple[SlideContent, list[Finding], LLMUsage]:
-        return SlideContent(**keep, visual=_points_fallback(slide)), [Finding(slide=index, stage="data", rule=rule, message=message)], usage
+        points = _points_fallback(slide)
+        findings = [Finding(slide=index, stage="data", rule=rule, message=message)]
+        blank = "" in points.points
+        if blank:
+            findings.append(Finding(slide=index, stage="data", rule="needs_review", message="the points fallback has blank rows"))
+        return SlideContent(**keep, visual=points, needs_review=blank), findings, usage
 
     usage = LLMUsage()
     model = _visual_model(slide.visual)

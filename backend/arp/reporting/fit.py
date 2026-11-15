@@ -17,8 +17,9 @@ from arp.reporting.browser import measure
 from arp.reporting.design_checks import design_checks
 from arp.reporting.house_style import Tokens, get_variant
 from arp.reporting.html_render import render_deck_html
-from arp.reporting.lint import _numbers, lint_deck
+from arp.reporting.lint import DERIVED, _numbers, lint_deck
 from arp.reporting.slide_fill import WRITING_GUIDE, SlotRewrite, rewrite_slot
+from arp.schemas.common import new_id
 from arp.schemas.reporting import (
     ColumnKind,
     DatasetColumn,
@@ -201,7 +202,7 @@ def _switch(s: SlideContent, request: ReportRequest) -> SlideContent | None:
     v = s.visual
     if v.type == "kpi_row" and len(v.tiles) == 4:
         cols = ["Measure", "Value", *(["Change"] if any(t.delta for t in v.tiles) else [])]
-        ds = QuantitativeDataset(name=s.headline, columns=[DatasetColumn(name=c, kind=ColumnKind.CATEGORY) for c in cols],
+        ds = QuantitativeDataset(dataset_id=new_id(DERIVED.rstrip("_")), name=s.headline, columns=[DatasetColumn(name=c, kind=ColumnKind.CATEGORY) for c in cols],
                                  rows=[dict(zip(cols, (t.label, t.value, t.delta), strict=False)) for t in v.tiles])
         request.datasets.append(ds)
         return s.model_copy(update={"visual": ComparisonTable(table=TableSpec(dataset_id=ds.dataset_id, columns=cols))})

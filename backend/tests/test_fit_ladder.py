@@ -230,3 +230,50 @@ async def test_underfill_steps_up_then_flags(fake_llm):
     deck, findings = await fit_ladder(deck, _request(), fake_llm({}), load_tokens(), None)
     assert deck.slides[0].type_step == -1
     assert [f.rule for f in findings] == ["underfill"]
+
+
+# ---- Review fixes ------------------------------------------------------------------------------------------------------
+
+
+async def test_switched_tiles_stay_linted(tmp_path, fake_llm):
+    store = _store(tmp_path)
+    request = _request("Each line made 1,234.5m.", template_id=_narrow_template(store, tmp_path))
+    tiles = _tiles("1,234.5m")
+    tiles[1] = Tile.model_construct(value="9.9%", label="Item 1", delta="")
+    llm = fake_llm({"SlideContent": [SlideContent(headline="x", visual=KpiRow(tiles=tiles))], "QAResult": [QAResult(edits=[])]})
+    deck, findings = await build_house_deck("r1", request, _one("Four lines", "kpi_row"), llm, store)
+    assert deck.slides[1].visual.type == "comparison_table"
+    found = [f for f in findings if f.rule == "number_not_in_source" and f.slide == 1]
+    assert len(found) == 1 and "9.9%" in found[0].message
+
+
+async def test_blank_points_fallback_needs_review(fake_llm):
+    llm = fake_llm({})  # no answer scripted: the call fails, the fallback has only the headline
+    content, findings, _ = await fill_slide(StorylineSlide(headline="Utilities lag", purpose="", visual="kpi_row"), 1, _request(), llm)
+    assert content.visual.points == ["Utilities lag", "", ""] and content.needs_review
+    assert "needs_review" in [f.rule for f in findings]
+
+
+def test_split_table_halves_show_their_rows():
+    from arp.reporting.fit import _split
+    from arp.reporting.render_model import TablePrim, render_slide
+
+    ds = QuantitativeDataset(dataset_id="t", name="T", columns=[DatasetColumn(name="name"), DatasetColumn(name="v")],
+                             rows=[{"name": f"row{k}", "v": k} for k in range(7)])
+    request = _request("n", [ds])
+    slide = SlideContent(headline="H", visual=ComparisonTable(table=TableSpec(dataset_id="t")))
+    halves = _split(slide, request)
+    deck = Deck(title="T", slides=halves)
+    tables = [next(p for p in render_slide(s, i, deck, load_tokens(), {"t": ds}) if isinstance(p, TablePrim)) for i, s in enumerate(halves)]
+    assert [[r[0] for r in t.rows] for t in tables] == [["row0", "row1", "row2", "row3"], ["row4", "row5", "row6"]]
+
+
+@pytest.mark.parametrize("visual", [Points(points=["a", "b", "c"]), NextSteps(actions=[NextAction(text="Hold"), NextAction(text="Review")])])
+def test_step_up_keeps_rows_centred(visual):
+    from arp.reporting.render_model import BODY, Rect, render_slide
+
+    slide = SlideContent(headline="H", visual=visual, type_step=-1)
+    rows = [p for p in render_slide(slide, 0, Deck(title="T", slides=[slide]), load_tokens(), {})
+            if isinstance(p, Rect) and p.name.startswith("row:") and p.name.count(":") == 1]
+    top, bottom = rows[0].y, rows[-1].y + rows[-1].h
+    assert top - BODY.y == pytest.approx(BODY.y + BODY.h - bottom)

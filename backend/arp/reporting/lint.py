@@ -152,9 +152,25 @@ def _numbers(text: str) -> Iterator[tuple[float, int, str | None]]:
         yield float(raw) * _MULT.get(m.group(1), 1), len(raw.partition(".")[2]), m.group(1)
 
 
+DERIVED = "derived_"  # dataset_id prefix of a table the fit ladder built from a visual's own text
+
+
+def _derived_cells(slide: SlideContent, request: ReportRequest) -> Iterator[tuple[str, str]]:
+    """The cells of a derived table on this slide, as slide text."""
+    v = slide.visual
+    if v is None or v.type != "comparison_table" or not v.table.dataset_id.startswith(DERIVED):
+        return
+    ds = next((d for d in request.datasets if d.dataset_id == v.table.dataset_id), None)
+    for r, row in enumerate(ds.rows if ds else []):
+        for col, cell in row.items():
+            yield f"visual.table.{r}.{col}", str(cell)
+
+
 def _sources(request: ReportRequest) -> list[float]:
     vals = [v for v, _, _ in _numbers(request.qualitative_notes)]
     for ds in request.datasets:
+        if ds.dataset_id.startswith(DERIVED):
+            continue  # slide text moved into a table by the fit ladder: linted as text, never a source
         vals += [float(c) for r in ds.rows for c in r.values() if isinstance(c, (int, float)) and not isinstance(c, bool)]
     return vals
 
@@ -163,7 +179,7 @@ def number_not_in_source(deck: Deck, request: ReportRequest) -> list[Finding]:
     src = _sources(request)
     out = []
     for i, s in enumerate(deck.slides):
-        for slot, t in _texts(s, headline=True):
+        for slot, t in [*_texts(s, headline=True), *_derived_cells(s, request)]:
             for n, d, suffix in _numbers(t):
                 if suffix is None and (abs(n) <= 10 and n == int(n) or 1900 <= abs(n) <= 2100 and n == int(n)):
                     continue
