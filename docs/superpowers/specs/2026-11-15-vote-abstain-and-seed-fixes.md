@@ -151,7 +151,8 @@ shown as 1%.
 
 - Season bar: segments for / against / abstained or withheld (plus other, only when above 0), in that order, using
   the existing `for`, `against`, `abstain`, `other` swatch classes. Legend per segment: `<count> <label> (<p>%)`,
-  for example `17,156 for (94%)`, `99 abstained or withheld (1%)`. The bar's `aria-label` uses the same labels.
+  for example `17,156 for (94%)`, `99 abstained or withheld (1%)`. The bar's `aria-label` is exactly
+  `<p>% for, <p>% against, <p>% abstained or withheld`, followed by `, <p>% other` only when other is above 0.
 - Under it, the heading stays "Against management, by topic". Each topic row keeps its bar (against-management
   share) and reads `<p>% · <a> of <n> · <q>% abstained or withheld`. A topic with 0 votes reads
   `– · 0 of 0 · – abstained or withheld`.
@@ -201,11 +202,12 @@ The implementing PR edits these, so a test-writer updates the hidden tests in th
 - `2026-11-12-stewardship-data-foundation-design.md`
   - Line "`against_management` comes from the CSV's `for_against_management`" becomes "`against_management` follows
     the vote-intake rule (see Intake → Rules); the CSV column is not read".
-  - **AC-34 amended (Given only):** its fixture's two `AGAINST` records have management recommendation `FOR`. The
-    expected value (exactly 2 true) is unchanged. A hidden fixture that left the recommendation `NONE` or empty must
-    set it to `FOR`.
-  - **AC-38** uses the AC-34 fixture: same amendment, expected value unchanged.
-  - AC-33, AC-35, AC-36 and AC-37 keep their expected values.
+  - **AC-33 amended (Given only):** the fixture's two `AGAINST` records have management recommendation `FOR`, and
+    no other record is `FOR` with management `AGAINST`, or `AGAINST` / `WITHHOLD` with management `FOR`. A hidden
+    fixture that does otherwise must be changed to match. AC-33's own expected counts are unchanged.
+  - **AC-34** and **AC-38** use that fixture; their expected values (exactly 2 true; one `vote_against_management`
+    trigger) are unchanged once AC-33's Given is amended.
+  - AC-35, AC-36 and AC-37 keep their expected values.
 
 ## Left to the builder
 
@@ -225,7 +227,8 @@ N-PX format (`data/voting/npx_urth/README.md`) with one meeting dated 03/10/2026
 | AC-2 | Fixture CSV with 2 items: `WITHHOLD` / management `AGAINST` / `AGAINST`; `WITHHOLD` / `FOR` / `AGAINST` | `load-npx <dir>` | the first decision's `against_management` is null, the second's is true | holdout |
 | AC-3 | Fixture CSV with 3 items: `AGAINST` / `FOR` / `AGAINST`; `FOR` / `AGAINST` / `AGAINST`; `FOR` / `FOR` / `FOR` | `load-npx <dir>` | `against_management` is true, true, false (must not change) | holdout |
 | AC-4 | AC-1 and AC-2 fixtures in one directory, loaded once; then the test sets `against_management` = true on all 5 decisions by SQL | `load-npx <dir>` again | the 5 decisions read null, null, null, null, true (AC-1 order, then AC-2 order) | holdout |
-| AC-5 | as AC-4 | `load-npx <dir>` again | exit 0; stdout is exactly `meetings 0, items 0, decisions 0 created`; `vote_decisions` still has 5 rows with `source` `npx_urth_demo` | holdout |
+| AC-5 | as AC-4 | `load-npx <dir>` again | exit 0; stdout is exactly `meetings 0, items 0, decisions 0 created` (must not change) | holdout |
+| AC-29 | as AC-4 | `load-npx <dir>` again | `vote_decisions` still has exactly 5 rows with `source` `npx_urth_demo` (must not change) | holdout |
 | AC-6 | as AC-4, plus one `vote_decisions` row with `source` `api`, `vote` `abstain`, `against_management` set to true by SQL | `load-npx <dir>` again | the `api` row's `against_management` is still true | holdout |
 | AC-7 | the committed CSVs in `data/voting/npx_urth/` | `load-npx data/voting/npx_urth/` | `select count(*) from vote_decisions where source = 'npx_urth_demo' and against_management` = 1,894 | holdout |
 | AC-8 | as AC-7 | — | `select count(*) from vote_decisions where source = 'npx_urth_demo' and vote = 'abstain' and against_management is not null` = 0 | holdout |
@@ -236,20 +239,31 @@ N-PX format (`data/voting/npx_urth/README.md`) with one meeting dated 03/10/2026
 | AC-13 | as AC-12, but `R1`'s decision has `decided_at` 2026-03-09 | Cockpit | `voting` has `votes` 1, `for` 1, `against` 0, `against_management` 0 | holdout |
 | AC-14 | one item with two decisions with `run_id` `R1` and `R2`, both `decided_at` null | Cockpit | `voting.votes` is 1 | unit |
 | AC-15 | two `proxy_voting` runs for H, meeting 2026-03-12, items 1 and 2, management `for` on both, all cast; older run votes `for`, `for`; newer run `against`, `for`; no ledger rows | Cockpit | `voting` has `meetings` 1, `votes` 2, `for` 1, `against` 1, `against_management` 1 | unit |
-| AC-16 | as AC-15, but in the newer run item 2 is decided and not cast | Cockpit | `voting.votes` is 2: item 1 from the newer run, item 2 from the older | unit |
+| AC-16 | as AC-15, but in the newer run item 2 is decided `against` and not cast | Cockpit | `voting` has `votes` 2, `for` 1, `against` 1, `against_management` 1 (item 1 `against` from the newer run, item 2 `for` from the older) | unit |
 | AC-17 | the demo stack of cockpit "Showcase setup" | open `#/stewardiq/cockpit`, voting card | the legend reads, in order, `<n> for (<p>%)`, `<n> against (<p>%)`, `<n> abstained or withheld (<p>%)`, and `<n> other (<p>%)` only when other is above 0; the bar has one segment per legend entry with a count above 0, in the same order | evaluator |
 | AC-18 | the demo stack | voting card, topic rows | each of the 5 topic rows reads `<p>% · <a> of <n> · <q>% abstained or withheld`, `<q>` = the topic's `abstain` / `votes` in whole percent | evaluator |
 | AC-19 | the demo stack | voting card | the footnote reads exactly "Abstentions never count as against management. A withhold counts as against management only when management recommended for." | evaluator |
 | AC-20 | the demo stack | key figures row | "Votes cast, 2026" note reads `<m> meetings · <p>% against management` (layout A; layout B: `<m> meetings · <p>% against management · <q>% abstained or withheld`) | evaluator |
 | AC-21 | `voting.topics` has a topic with `votes` 0 | the voting card renders | that row reads `– · 0 of 0 · – abstained or withheld` | unit |
-| AC-22 | the demo stack, Graphite then Night theme | voting card | the abstained-or-withheld segment and swatch use the existing `abstain` style; no element of the card uses the signal-amber tokens | evaluator |
-| AC-23 | process view, a ballot with decided items: one `abstain`, one `against` (management `for`) | open `#/stewardiq` process view, stage 4 | metric labels in order are "Resolutions", "Expected against", "Case-by-case", "Sanction votes", "Ballot items decided", "Against management", and "Against management" reads 1 (layout of owner decision 6: recommended, no new metric) | unit |
-| AC-24 | `arp showcase load`, then `arp stewardship seed-demo --seed 7`; one `stw_watch_topics` row with `source` `app` on a `mock_voice_seed` engagement | `arp stewardship seed-demo --seed 8` | exit 1; stderr contains `stw_watch_topics: 1`; row counts of every `stw_*` table are unchanged | holdout |
-| AC-25 | as AC-24, but one `stw_evidence_suggestions` row with `source` `app` on a `mock_voice_seed` engagement instead of the watch topic | `seed-demo --seed 8` | exit 1; stderr contains `stw_evidence_suggestions: 1`; row counts of every `stw_*` table are unchanged | holdout |
+| AC-22 | the demo stack, theme switch on Light, then on Dark | voting card | the abstained-or-withheld bar segment and its legend swatch have the computed background of `var(--neutral)` | evaluator |
+| AC-30 | as AC-22 | voting card | no element in the card has a text, background or border colour equal to `--hi`, `--hi-ink`, `--await` or `--await-edge` | evaluator |
+| AC-23 | a ballot with two decided items: `abstain` (management `for`), `against` (management `for`); process option "no change" | `GET /api/stewardship/streams/{stream_id}/flow`, the stage with `id` `voting` | its `metrics` labels are exactly "Resolutions", "Expected against", "Case-by-case", "Sanction votes", "Ballot items decided", "Against management", and "Against management" has `value` 1 | unit |
+| AC-31 | as AC-23, process option "add a second number" | same | labels end with "Against management", "Abstained or withheld", with `value` 1 and 1 | unit |
+| AC-24 | `arp showcase load`, then `arp stewardship seed-demo --seed 7`; one `stw_watch_topics` row with `source` `app` on a `mock_voice_seed` engagement | `arp stewardship seed-demo --seed 8` | exit 1; stderr contains `stw_watch_topics: 1` | holdout |
+| AC-32 | as AC-24 | same | row counts of every `stw_*` table are unchanged (on `main` the database error also rolls back, so this half passes before and after; it guards the new code) | holdout |
+| AC-25 | as AC-24, but one `stw_evidence_suggestions` row with `source` `app` on a `mock_voice_seed` engagement instead of the watch topic | `seed-demo --seed 8` | exit 1; stderr contains `stw_evidence_suggestions: 1` | holdout |
+| AC-33 | as AC-25, but the suggestion's `engagement_id` is an engagement with `source` `app` on the same company, and its `activity_id` is a `mock_voice_seed` activity | same | exit 1; stderr contains `stw_evidence_suggestions: 1` | holdout |
 | AC-26 | `seed-demo --seed 7` done; nothing of another source attached | `seed-demo --seed 8` | exit 0; every `mock_voice_seed` row of `stw_engagements` has an `external_id` starting with `s8:` (must not change) | holdout |
 | AC-27 | `seed-demo --seed 7` done; the engagement intake is made to raise during `seed_demo(seed=8)` | `seed_demo(dsn, seed=8)` | the error propagates; the set of `(table, external_id)` of `mock_voice_seed` rows across all `stw_*` tables equals the set before | unit |
-| AC-28 | as AC-27, but the intake returns a report with one rejected row | `seed_demo(dsn, seed=8)` | `RuntimeError` starting `seed rows rejected:`; the `mock_voice_seed` rows equal the set before | unit |
+| AC-28 | as AC-27, but the intake returns a report with one rejected row | `seed_demo(dsn, seed=8)` | the set of `(table, external_id)` of `mock_voice_seed` rows equals the set before | unit |
+| AC-34 | as AC-28 | same | raises `RuntimeError` whose message starts `seed rows rejected:` (must not change) | unit |
 
 Must not change: cockpit AC-40, AC-41 and AC-43 (split votes without a `run_id` count once per row) keep their
 expected values and stay in the regression suite; data-foundation AC-35 and AC-36 (row counts after `load-npx`)
-too; and AC-3, AC-5, AC-6, AC-26 above.
+too; and AC-3, AC-5, AC-6, AC-26, AC-29, AC-34 above.
+
+The owner's answer to decision 6 keeps one of AC-23 and AC-31; the other is retired with ~~strikethrough~~ before
+approval is recorded. Decision 5 picks the layout A or B wording of AC-20.
+
+AC-21 needs a topic with 0 votes, which the showcase data does not have (all five topics have votes in 2026), so it
+is a `unit` row on the rendering; AC-18 is checked on the showcase.
