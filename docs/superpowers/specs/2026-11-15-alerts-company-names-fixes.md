@@ -96,7 +96,7 @@ All rows drive the app started by `backend/scripts/e2e_stack.sh up`.
 - Fixture `F` is the parent spec's fixture `F` (companies `isin_DE0005140008` `DEUTSCHE BANK AG`,
   `isin__CURRENCYUSD` `US Dollar`, `cash_eur` `Euro Cash`; portfolio `p1` named `Core Equity Europe`; rule `R`
   named `Single name > 0.5%`, concentration, `gt`, `0.005`, no portfolio ids), built the way the parent's holdout
-  tests build it.
+  tests build it. Every row starts from F with no alerts stored.
 - "Stored the old way" for scope `S`: one JSON line appended to `<ARP_PORTFOLIOS_DIR>/monitoring/S/events.jsonl` of
   the running stack (the file store the alert endpoints read; `<ARP_PORTFOLIOS_DIR>` is `ARP_PORTFOLIOS_DIR` if the
   stack sets it, else `<repo root>/portfolios`, the `portfolios_dir` default in `arp/config.py:102`):
