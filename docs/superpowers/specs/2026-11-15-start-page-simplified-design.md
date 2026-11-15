@@ -23,18 +23,23 @@ the Review Queue badge.
 - **No sidebar on the start page.** At every width, `#/home` renders without `.app-sidebar`, without the
   phone `.app-topbar` and without the "Open navigation" button. Every other route is unchanged.
 - **A start-page top bar** (`<header class="start-topbar">`, a `banner` landmark), left to right:
-  - The ARP lockup: a link named "ARP start" to `#/home`, drawn like the landing header (apex in
-    `--brand-apex`).
+  - The ARP lockup: a link named "ARP start" to `#/home`. The landing header's inline lockup is
+    extracted into `components/ArpLockup.tsx`, used by both `Landing.tsx` and the top bar. Its svg is
+    `aria-hidden` and its apex uses `--brand-apex`.
   - A search button named "Search or jump to…", showing the shortcut hint (`⌘K` on Mac, `Ctrl K`
-    elsewhere, as the sidebar does today). It opens the existing command palette.
-  - An **Ask ARP** button with the `⌘J` / `Ctrl J` hint, rendered only when Ask is available (today's
+    elsewhere, as the sidebar does today) in a `<kbd aria-hidden="true">`, so the accessible name is
+    exactly "Search or jump to…". It opens the existing command palette.
+  - An **Ask ARP** button with the `⌘J` / `Ctrl J` hint (also an
+    `aria-hidden` `kbd`; accessible name exactly "Ask ARP"), rendered only when Ask is available (today's
     `canAsk`). It opens the existing Ask panel. Closing the panel returns focus to this button.
   - Inside `<nav aria-label="Main">`:
     - A **Review Queue** link to `#/review`. When the review count is above 0, it carries the sidebar's
       badge: same text (`N item(s)`), same `title` and `aria-label`, from the same
       `waiting.review` number.
     - A **Reports** link to `#/reporting`.
-    - A **user menu** button showing `useMe().name`, or "Account" when there is none.
+    - A **user menu** button showing only an avatar initial. Its accessible name is `useMe().name`, or
+      "Account" when there is none. The name is not shown visibly a second time, since the greeting
+      already shows it.
 - **User menu.** A disclosure popover, not `role="menu"`, holding today's components:
   - `ReviewerField` (the "Reviewing as" name);
   - `SignedInAs` (the signed-in line, with "Sign out" when signed in with a token);
@@ -61,6 +66,8 @@ the Review Queue badge.
   - Cards 1–3 use `grid-column: span 2`; cards 4–5 use `span 3`.
   - From 761px to 1100px, every card spans 3.
   - At 760px and below, it is one column.
+- **Waiting card.** A card whose tone is `wait` keeps the class `.hub-card-await`. Its border becomes
+  `var(--await-edge)` (DESIGN.md, the needs-you shape on cards).
 - **Card content.** Each card is one link and holds, top to bottom:
   - a figure area (`.hub-card-fig`), at least 200px tall, with:
     - a mono caption "Fig 0n · N process" or "N processes" (n = the card's position, N = its process
@@ -141,7 +148,8 @@ the Review Queue badge.
 - **Amber lines added** (for `ac13_amber_usage_unchanged`'s allow-list):
   - `.hub-status-wait` (`color: var(--hi-ink)`);
   - `.hub-mark-wait` (`background: var(--hi)`);
-  - `.ws-accent-wait` (`stroke: var(--hi)`).
+  - `.ws-accent-wait` (`stroke: var(--hi)`);
+  - `.hub-card-await {` (`border-color: var(--await-edge)`).
 
   The top bar badge reuses `.nav-count`, which is already allowed.
 - **DESIGN.md is updated in this change.**
@@ -159,7 +167,9 @@ the Review Queue badge.
   - AC-1, AC-2, AC-3, AC-16 (footer "Open →");
   - AC-18 (stats row);
   - AC-24 (Now row);
-  - AC-25 (legend).
+  - AC-25 (legend);
+  - AC-15 (no status words inside cards): cards now carry a status word;
+  - AC-22 (restated over `.hub-mark-wait` as AC-13d below).
 - **`2026-11-09-night-desk-start-page`:**
   - AC-1 to AC-9, AC-8b, AC-8c (waiting sentence, link and stat);
   - AC-10, AC-10b (`.hub-card-icon`);
@@ -178,8 +188,8 @@ the Review Queue badge.
 - **Tests in `frontend/tests/nightDeskTokens.test.ts`:**
   - retired: `r4_ac10`, `r4_ac10b`, `r4_ac10c`, `r4_ac11`, `r4_ac11b`, `r4_ac11c`,
     `r4_waiting_link_wraps`;
-  - `ac13_amber_usage_unchanged`: the allow-list drops `.hub-waiting` and `.hub-card-await
-    .hub-card-icon`, and adds the three selectors above.
+  - `ac13_amber_usage_unchanged`: the allow-list drops `.hub-waiting`, `.hub-card-await .hub-card-icon`
+    and `.hub-card-await .hub-ico` (the old icons go), and adds the four selectors above.
 - **Tests edited in `backend/tests/e2e/test_app_smoke.py`:**
   - `test_opening_arp_lands_on_the_landing_page` expects `.start-topbar` (count 1) instead of
     `.app-sidebar` after "Open ARP →".
@@ -196,32 +206,45 @@ the Review Queue badge.
 | AC-1b | The same | The page loads | There is exactly one `.start-topbar`, with role `banner` | evaluator |
 | AC-1c | `/#/home` at 1440×900 and at 390×844 | The page loads | There is no `.app-topbar` and no button named "Open navigation" | evaluator |
 | AC-2 | `/#/review`, 1440×900 | The page loads | `.app-sidebar` is present | evaluator |
-| AC-3 | `/#/home`, 1440×900, an approver user | The top bar's controls are read in DOM order | Their accessible names are: "ARP start", "Search or jump to…", "Ask ARP", "Review Queue" (plus its badge name when there is one), "Reports", and the user's name | evaluator |
-| AC-3b | `/#/home`, a viewer-role user (Ask unavailable) | The top bar is read | There is no "Ask ARP" button | evaluator |
+| AC-3 | `/#/home`, 1440×900, the e2e stack's approver `dev` | The top bar's controls are read in DOM order | Their accessible names are "ARP start", "Search or jump to…", "Ask ARP", "Review Queue" (plus its badge's name when there is one), "Reports" and "dev" | evaluator |
+| AC-3b | `StartTopbar.tsx` | Read | The Ask ARP button is rendered only inside a `canAsk &&` condition, and `canAsk` is passed from `App.tsx`'s existing `canAsk` | unit |
 | AC-4 | `reviewBadge` | Called with 0, 1 and 15 | Returns `null`, `{ text: "1 item", title: "1 review item waiting on you" }` and `{ text: "15 items", title: "15 review items waiting on you" }` | unit |
-| AC-5 | `/#/home` and `/#/review` in the same seeded app | Both pages load | The top bar badge text on `#/home` equals the sidebar badge text on `#/review` (both absent when the count is 0) | evaluator |
+| AC-5 | `App.tsx` and `StartTopbar.tsx` | Read | Both build the Review Queue badge with `reviewBadge(` from the same `waiting.review` value | unit |
 | AC-6 | `/#/home` | The search button is clicked | The command palette dialog is visible | evaluator |
-| AC-6b | `/#/home`, an approver user | "Ask ARP" is clicked, then the Ask panel is closed | The panel opens; after closing, focus is on the "Ask ARP" button | evaluator |
-| AC-7a | `/#/home` | The user menu button is clicked | It has `aria-expanded="true"` and the popover contains the "Reviewing as" field, the theme switch and a link "Arcade" to `#/arcade` | evaluator |
-| AC-7b | The e2e stack (dev sign-in) | The user menu is opened | The text "Signed in as dev (approver)" is visible | evaluator |
+| AC-6b | `/#/home`, approver `dev` | "Ask ARP" is clicked | The Ask panel opens | evaluator |
+| AC-6c | The Ask panel opened from the top bar | The panel is closed | Focus is on the "Ask ARP" button | evaluator |
+| AC-7a | `/#/home` | The user menu button is clicked | It has `aria-expanded="true"` | evaluator |
+| AC-7b | The same | The popover is read | It contains the "Reviewing as" field, the theme switch and a link "Arcade" to `#/arcade` | evaluator |
+| AC-7c | The e2e stack (dev sign-in) | The user menu is opened | The text "Signed in as dev (approver)" is visible | evaluator |
 | AC-8a | The user menu is open | Esc is pressed | The popover is hidden | evaluator |
 | AC-8b | The same | Esc is pressed | `document.activeElement` is the user menu button | evaluator |
-| AC-8c | The user menu button has focus | Enter is pressed | The popover opens and focus is on its first focusable element | evaluator |
-| AC-8d | The user menu is open | A click lands outside it | The popover is hidden and focus is on the user menu button | evaluator |
+| AC-8c | The user menu button has focus | Enter is pressed | Focus is on the popover's first focusable element | evaluator |
+| AC-8d | The user menu is open | A click lands outside it | The popover is hidden | evaluator |
+| AC-8e | The same | A click lands outside it | Focus is on the user menu button | evaluator |
+| AC-8f | The user menu is open with focus on its last focusable element | Tab is pressed | The popover is hidden and focus is on the element after the user menu button in DOM order | evaluator |
 | AC-9a | `/#/home` | The main content is read | It holds exactly one `h1`, whose text matches `^Good (morning\|afternoon\|evening)(, .+)?\.$` | evaluator |
 | AC-9b | The same | The DOM is searched | None of `.hub-stats`, `.hub-waiting`, `.hub-counts`, `.hub-legend`, `.hub-now`, `.hub-card-foot` or `.hub-card-icon` exists | evaluator |
 | AC-10 | `index.css` | Read | `.hub-cards` sets `grid-template-columns: repeat(6, minmax(0, 1fr))` and `gap: 20px`; cards 1–3 span 2 and 4–5 span 3; under `max-width: 1100px` each card spans 3; under `max-width: 760px` the grid is one column | unit |
-| AC-11a | `/#/home`, 1440×900 | Each card is read | It contains `.hub-card-fig` at least 200px tall holding an `svg`, and a caption matching `^Fig 0[1-5] · \d+ process(es)?$` with the right index and count | evaluator |
-| AC-11b | The same | Each card's `.hub-card-status` is read | It holds one 8×8px `.hub-mark-*` element per process, and text matching `^(Waiting on you\|Running\|Last run failed\|Up to date\|No runs yet\|Status unknown)( · .+)?$` | evaluator |
+| AC-11a | `/#/home`, 1440×900 | Each card is read | Its `.hub-card-fig` is at least 200px tall and holds an `svg` | evaluator |
+| AC-11b | The same | Each card's caption is read | It matches `^Fig 0[1-5] · \d+ process(es)?$`, with the card's position and process count | evaluator |
+| AC-11c | The same | Each card's `.hub-card-status` is read | It holds one 8×8px `.hub-mark-*` element per process | evaluator |
+| AC-11d | The same | Each card's `.hub-card-status` text is read | It matches `^(Waiting on you\|Running\|Last run failed\|Up to date\|No runs yet\|Status unknown)( · .+)?$` | evaluator |
 | AC-12 | `cardStatus` | Called with states `[done, wait, idle]`, `[now, idle]`, `[failed, done]`, `[done, done]` (last line "Last run 2 h ago"), `[idle]`, and `null` | Returns (word, tone, detail): ("Waiting on you", `wait`, the 2nd title), ("Running", `now`, the 1st title), ("Last run failed", `failed`, the 1st title), ("Up to date", `done`, "Last run 2 h ago"), ("No runs yet", `idle`, ""), ("Status unknown", `unknown`, "") | unit |
 | AC-12b | `cardStatus`, every case in AC-12 | Its result is read | `detail` never equals `word` | unit |
-| AC-13 | `drawing` | Called for each of the five ids with accent `null`, `"wait"` and `"now"` | Exactly 0, 1 and 1 shapes have `accent: true`; the five ids give five different shape lists | unit |
+| AC-12c | `index.css` | Read | `.hub-status-wait` sets `color: var(--hi-ink)`; `.hub-status-now` `var(--run)`; `.hub-status-failed` `var(--low)`; `.hub-status-done`, `.hub-status-idle` and `.hub-status-unknown` `var(--muted)` | unit |
+| AC-12d | `index.css` | Read | `.hub-mark-*` are 8px squares; `.hub-mark-done` fills `var(--text)`, `-now` `var(--run)`, `-wait` `var(--hi)`, `-failed` `var(--low)`; `-idle` has a 1px solid `var(--muted)` outline and `-unknown` a 1px dashed one | unit |
+| AC-12e | `index.css` | Read | No rule whose selector contains `-now` uses `var(--hi` or `var(--await`; `.hub-mark-now` and `.ws-accent-now` use `var(--run)` | unit |
+| AC-13a | `drawing` | Called for each of the five ids with accent `null`, `"wait"` and `"now"` | Exactly 0, 1 and 1 shapes have `accent: true` | unit |
+| AC-13b | `drawing` | Called for the five ids with accent `null` | The five shape lists are pairwise different | unit |
+| AC-13c | `index.css` | Read | `.ws-drawing path` sets `stroke-width: 1px`; `.ws-face` sets `fill: var(--panel)`; the drawing stroke is a `color-mix` of `var(--text)` between 20% and 30% | unit |
+| AC-13d | `/#/home` | The cards are read | Every card holding a `.hub-mark-wait` has the class `hub-card-await`; no other card does | evaluator |
 | AC-14 | `WorkspaceDrawing.tsx` and `workspaceDrawing.ts` | Read | Neither contains a hex, `rgb(`, `rgba(`, `hsl(` or `oklch(` literal, or a CSS named colour | unit |
-| AC-15 | `/#/home` with the backend stopped | The page loads | No element except the lockup's apex (which uses `--brand-apex`) has a computed colour, background, fill or stroke equal to the computed `--hi` | evaluator |
+| AC-15 | `/#/home` with the backend stopped | The page loads | No element except the lockup's apex (which uses `--brand-apex`) has a computed colour, background, fill, stroke or border colour equal to the computed `--hi` or `--hi-ink` | evaluator |
 | AC-16a | `/#/home`, 390×844 | The page loads | `document.documentElement.scrollWidth` ≤ 390 | evaluator |
 | AC-16b | The same | The top bar is read | It shows the lockup, the search button, "Ask ARP" (approver), "Review Queue", "Reports" and the user menu button | evaluator |
 | AC-17a | The landing page | "Open ARP →" is clicked | The hash becomes `#/home` | evaluator |
-| AC-17b | The same | "Open ARP →" is clicked | `.start-topbar` is present and the landing `h1` is gone | evaluator |
+| AC-17b | The same | "Open ARP →" is clicked | `.start-topbar` is present | evaluator |
+| AC-17c | The same | "Open ARP →" is clicked | The landing `h1` is gone | evaluator |
 
 Must not change:
 
