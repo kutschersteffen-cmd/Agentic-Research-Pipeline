@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useReducer, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 import { api } from "../api/client";
 import type { RunManifest, StewardshipFlow } from "../types";
-import { ACTIVE_STATUSES, decisionRunType, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
+import { ACTIVE_STATUSES, decisionRunType, waitingCount } from "../lib/runs";
 import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { useMe } from "../lib/reviewer";
-import { useWaiting } from "../lib/useWaitingTotal";
-import { DONE, STATE_LABEL, cardView, openCount, processState, stepActivity, stepState, stepStatusLine, waitingLink, waitingStat, type Activity, type StepState } from "../lib/workspaceCard";
+import { STATE_LABEL, cardView, openCount, processState, stepActivity, stepState, stepStatusLine, type Activity } from "../lib/workspaceCard";
+import { WorkspaceDrawing } from "../components/WorkspaceDrawing";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
 
@@ -14,52 +14,6 @@ import { previousMonth } from "../lib/holdings";
 // their processes live in lib/processes.ts; this file draws them and reads
 // their live state from the runs list and the house stewardship flow.
 
-// One icon family on a 48 grid: the same stroke everywhere, and exactly one
-// element per icon in the highlight colour (.hub-ico .hi / .hi-fill).
-const ICON = { width: 52, height: 52, viewBox: "0 0 48 48", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, className: "hub-ico", "aria-hidden": true };
-
-const ICONS: Record<WorkspaceId, ReactElement> = {
-  stewardiq: (
-    <svg {...ICON}>
-      <path d="M24 5 L39 10 V23 C39 32 32.5 39.5 24 43 C15.5 39.5 9 32 9 23 V10 Z" />
-      <path className="hi" d="M16.5 24 L22 29.5 L31.5 19" />
-    </svg>
-  ),
-  argus: (
-    <svg {...ICON}>
-      <path d="M11 5 H29 L37 13 V43 H11 Z" />
-      <path d="M29 5 V13 H37 M16 20 H31 M16 34 H26" />
-      <path className="hi" d="M16 27 H44 M40 23 L44 27 L40 31" />
-    </svg>
-  ),
-  transitionIntel: (
-    <svg {...ICON}>
-      <circle cx="24" cy="24" r="18" />
-      <path d="M6 24 H42 M24 6 C17 12 17 36 24 42 M24 6 C31 12 31 36 24 42" opacity="0.55" />
-      <path className="hi" d="M12 32 L20 25 L26 29 L37 16" />
-    </svg>
-  ),
-  rdLab: (
-    <svg {...ICON}>
-      <circle cx="24" cy="24" r="19" strokeDasharray="2 4" opacity="0.55" />
-      <path d="M24 24 L12.5 14 M24 24 L35.5 14 M24 24 L24 36" />
-      <circle cx="11" cy="12.5" r="3.5" />
-      <circle cx="37" cy="12.5" r="3.5" />
-      <circle cx="24" cy="39.5" r="3.5" />
-      <circle className="hi-fill" cx="24" cy="24" r="5.5" />
-    </svg>
-  ),
-  dataHub: (
-    <svg {...ICON}>
-      <ellipse cx="24" cy="10" rx="15" ry="5" />
-      <path d="M9 10 V38 C9 41 15.7 43 24 43 C32.3 43 39 41 39 38 V10" />
-      <path d="M9 19 C9 22 15.7 24 24 24 C32.3 24 39 22 39 19" />
-      <path className="hi" d="M9 28.5 C9 31.5 15.7 33.5 24 33.5 C32.3 33.5 39 31.5 39 28.5" />
-    </svg>
-  ),
-};
-
-const WORKSPACE_OF_RUN_TYPE = new Map(WORKSPACES.flatMap((w) => w.runTypes.map((t) => [t, w] as const)));
 
 /** Runs, refreshed every 3 s while one is live, every 15 s otherwise. Null
  * until the first answer: a count nobody received is unknown, never zero. */
@@ -102,54 +56,34 @@ function useActivity(): Activity | null {
   return activity;
 }
 
-/** Where a run row goes: its review, its ballot, or its process. */
-function runHref(r: RunManifest): string {
-  if (r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type)) return `#/review/${r.run_type}/${encodeURIComponent(r.run_id)}`;
-  if (r.run_type === "proxy_voting") return `#/voting/${encodeURIComponent(r.run_id)}`;
-  const w = WORKSPACE_OF_RUN_TYPE.get(r.run_type);
-  return w ? `#/${w.id}` : "#/history";
-}
-
-const WEEK_MS = 7 * 24 * 3600 * 1000;
-const isToday = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
-const recent = (iso: string) => Date.now() - new Date(iso).getTime() < WEEK_MS;
-
-/** A workspace as a card: a way into it. Icon, purpose, one dot per process and the
- * process that matters now; the count lives in the headline. */
-function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+/** A workspace as a card: a way into it. A drawing, its purpose, one square per process and one
+ * status line naming what matters now; the label carries each process's state for screen readers. */
+function WorkspaceCard({ w, index, runs, flow }: { w: Workspace; index: number; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
   const v = cardView(w, runs, flow, new Date());
+  const { word, tone, detail } = v.status;
+  const n = w.processes.length;
   return (
-    <a className={`hub-card${v.awaits ? " hub-card-await" : ""}`} href={`#/${w.id}`} aria-label={v.label}>
-      <span className="hub-card-icon">{ICONS[w.id]}</span>
-      <span className="hub-card-text">
-        <span className="hub-card-name">{w.short ?? w.name}</span>
-        <span className="hub-card-purpose" title={w.purpose}>{w.purpose}</span>
+    <a className={`hub-card${tone === "wait" ? " hub-card-await" : ""}`} href={`#/${w.id}`} aria-label={v.label}>
+      <span className="hub-card-fig">
+        <span className="hub-card-cap">{`Fig 0${index + 1} · ${n} ${n === 1 ? "process" : "processes"}`}</span>
+        <WorkspaceDrawing id={w.id} accent={tone === "wait" ? "wait" : tone === "now" ? "now" : null} />
       </span>
-      <ol className="hub-dots">
-        {w.processes.map((p, i) => (
-          <li key={p.id} className={`hub-dot-${v.dots[i]}`} title={`${p.title}: ${v.dots[i] === "unknown" ? "status unknown" : STATE_LABEL[v.dots[i]]}`} />
-        ))}
-      </ol>
-      <span className="hub-card-now">{v.now}</span>
-      <span className="hub-card-foot">{v.footer}</span>
-    </a>
-  );
-}
-
-/** The key to the step dots on the start page's workspace cards. Workspace
- * pages mark state on the step cards themselves, so they carry no legend. */
-function StateLegend({ waiting }: { waiting: boolean }) {
-  // The signal colour only appears when something waits (One Signal Rule), so its key does too.
-  const keys: StepState[] = waiting ? ["done", "now", "wait", "failed", "idle"] : ["done", "now", "failed", "idle"];
-  return (
-    <p className="muted hub-legend">
-      {keys.map((st) => (
-        <span key={st}>
-          <span className={`hub-dot hub-dot-${st}`} aria-hidden />
-          {STATE_LABEL[st]}
+      <span className="hub-card-body">
+        <span className="hub-card-name">{w.short ?? w.name}</span>
+        <span className="hub-card-purpose">{w.purpose}</span>
+        <span className="hub-card-status">
+          <span className="hub-marks" aria-hidden="true">
+            {v.dots.map((d, i) => (
+              <span key={i} className={`hub-mark hub-mark-${d}`} />
+            ))}
+          </span>
+          <span>
+            <span className={`hub-status-${tone}`}>{word}</span>
+            {detail && <span className="hub-status-detail"> · {detail}</span>}
+          </span>
         </span>
-      ))}
-    </p>
+      </span>
+    </a>
   );
 }
 
@@ -160,49 +94,17 @@ export function StartPage() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const name = reviewer.trim();
-  // The one waiting total (null while loading, "error" if it could not load).
-  const { total: needsTotal, target } = useWaiting(runs, flow);
-
   const known = runs !== null;
-  const all = runs ?? [];
-  const active = all.filter((r) => ACTIVE_STATUSES.has(r.status));
-  const waiting = known && typeof needsTotal === "number" ? needsTotal : null;
-  const failed = all.filter((r) => r.status === "failed" && recent(r.updated_at));
-  const today = all.filter((r) => DONE.has(r.status) && isToday(r.updated_at));
-  // Failed runs count in the headline (they wait on a Resume); this row is only what is running.
-  const chips = [...active].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 6);
-  const n = (v: number) => (known ? v : "—");
-  const link = waitingLink(known, error, needsTotal, target);
 
   return (
     <div className="page hub hub-start">
       <header className="hub-hero">
-        <div>
         <h1>
           <span className="hub-hero-greet">
             {greeting}
             {name ? `, ${name}` : ""}.
           </span>
         </h1>
-        </div>
-        <dl className="hub-stats">
-          <div className="you">
-            <dt>waiting on you</dt>
-            <dd>{waitingStat(waiting)}</dd>
-          </div>
-          <div>
-            <dt>running</dt>
-            <dd>{n(active.length)}</dd>
-          </div>
-          <div className={known && failed.length > 0 ? "failed" : undefined}>
-            <dt>failed this week</dt>
-            <dd>{n(failed.length)}</dd>
-          </div>
-          <div>
-            <dt>done today</dt>
-            <dd>{n(today.length)}</dd>
-          </div>
-        </dl>
       </header>
       {error && (
         <p className="error-text" role="alert">
@@ -212,41 +114,11 @@ export function StartPage() {
           </button>
         </p>
       )}
-      {link.href ? (
-        <a className="hub-waiting" href={link.href}>
-          {link.text}
-        </a>
-      ) : (
-        <p className="hub-waiting hub-waiting-quiet">{link.text}</p>
-      )}
       <div className="hub-cards">
-        {WORKSPACES.map((w) => (
-          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} />
+        {WORKSPACES.map((w, i) => (
+          <WorkspaceCard key={w.id} w={w} index={i} runs={runs} flow={flow} />
         ))}
       </div>
-      {waiting !== null && (
-        <details className="hub-counts">
-          <summary>What counts?</summary>
-          Review items, ballots, open stewardship decisions, failed runs to resume and blocking data issues. The Review Queue and each workspace list them.
-        </details>
-      )}
-      <StateLegend waiting={!!waiting} />
-      {known && (
-      <nav className="hub-now" aria-label="Runs running">
-        <span className="hub-now-label">Now</span>
-        {chips.map((r) => {
-          const state = ACTIVE_STATUSES.has(r.status) ? "now" : "failed";
-          const pct = r.company_count > 0 ? Math.round((r.completed_count / r.company_count) * 100) : 0;
-          return (
-            <a key={r.run_id} className={`hub-chip hub-chip-${state}`} href={runHref(r)}>
-              <span className={`hub-dot hub-dot-${state}`} aria-hidden />
-              {runTypeLabel(r.run_type)} <span className="hub-chip-id">{r.run_id}</span> · {state === "now" ? `running ${pct}%` : "failed"}
-            </a>
-          );
-        })}
-        {chips.length === 0 && <span className="muted">Nothing running.</span>}
-      </nav>
-      )}
     </div>
   );
 }

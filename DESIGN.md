@@ -146,7 +146,7 @@ components:
 
 ARP is a calm instrument panel for teams that run long agent pipelines and ratify what the agents propose. It reads like a well-kept research report: white paper, deep blue ink, serif headings and figures, and every number traceable to the page it came from. One colour, amber, is reserved for one reason only: a person must act. When nothing waits on anyone, no amber appears.
 
-The system is precise and quiet. Cards lift slightly off a white page; text is set in a workhorse sans with a serif for titles and figures and a monospace for IDs and state. Density is high enough for tables of thousands of companies while staying legible on a projector. Two themes share one structure: **Arctic** (light) and **Arctic Night** (dark). The sidebar switch (System / Light / Dark) chooses between them, and every component reads its colours from the same tokens.
+The system is precise and quiet. Cards lift slightly off a white page; text is set in a workhorse sans with a serif for titles and figures and a monospace for IDs and state. Density is high enough for tables of thousands of companies while staying legible on a projector. Two themes share one structure: **Arctic** (light) and **Arctic Night** (dark). The theme switch (System / Light / Dark), in the sidebar and in the start page's user menu, chooses between them, and every component reads its colours from the same tokens.
 
 **Key Characteristics:**
 - White page, deep blue accent for controls, amber reserved for "waiting on a person".
@@ -163,7 +163,7 @@ A white-and-blue palette with one reserved signal per theme and a small set of s
 ### Primary
 - **Accent** (#0a4a8f light / #38bdf8 Night): primary buttons, the active navigation item, links, done-step dots and lineage steps that are complete. Hover deepens to **Accent Deep** (#08396f / #7dd3fc).
 - **Ink** (#082f49 / #e2f1fa): all text and structural lines.
-- **Signal Amber** (#85601a light, #d4a650 Night): the one colour for "a person must act": sidebar "Needs you" counts, the waiting count on the start page, waiting step dots and borders, proposed-not-ratified items. #85601a is text-safe on white (5.7:1); its pale wash (#f6ecd6 / amber at 14%) backs waiting tiles and pending banners.
+- **Signal Amber** (#85601a light, #d4a650 Night): the one colour for "a person must act": "Needs you" counts in the sidebar and the start page's top bar, waiting step dots and borders, proposed-not-ratified items. #85601a is text-safe on white (5.7:1); its pale wash (#f6ecd6 / amber at 14%) backs waiting tiles and pending banners.
 
 ### Secondary
 - **Status High / Mid / Low / Run / Neutral** (green, amber-brown, red, blue, grey; see frontmatter for both themes): run status pills, escalation stage, H/M/L ratings. Rating badges are pastel: a 16% tint of the status colour with a label mixed 62% status / 38% ink and a 32% tint border. Labels sit at text contrast (≥4.5:1) on every ground they appear on.
@@ -189,7 +189,7 @@ A white-and-blue palette with one reserved signal per theme and a small set of s
 
 **The Arcade Exception.** The hidden arcade games draw in their own neon palette. They sit outside the product and are the only place where neon is decoration.
 
-**The Icon Accent Rule.** Each process icon has exactly one element drawn in the signal colour, and it only lights up when that process waits on someone. Otherwise the whole icon is ink.
+**The Icon Accent Rule.** Each workspace drawing has exactly one element that can light up: in the signal colour (`--hi`) when the workspace waits on someone, in the running colour (`--run`) when it runs. Otherwise the whole drawing is a quiet wireframe.
 
 ## Typography
 
@@ -216,7 +216,7 @@ The CSS scale tokens are `--text-xs` (13px), `--text-sm` (14px), `--text-base` (
 
 ## Layout
 
-Spacing runs on a 4px base (4, 8, 12, 16, 24, 32, 48), plus two half steps for dense parts: 2px (`--s-0_5`: the nav stack, segmented bars, compact pills and row buttons) and 6px (`--s-1_5`: chip rows, icon-to-label gaps). New padding, margin and gap values read from these tokens rather than raw pixels. Groups are tight (8–12px inside), sections are generous (24–48px between). A 248px sidebar holds navigation on wide screens; below 1024px it collapses into a drawer behind a top bar (53px), so tablets get the full width for tables and diagrams. The sidebar opens with the ARP lockup at its large size (see `docs/BRAND.md`). The start page is a status line, then the five workspace cards (five columns on wide screens, three below 1400px, two below 1100px, one below 640px), then a row of run chips. Wide tables scroll inside their frame and show a shadow on any edge with more columns; tables never push the page sideways.
+Spacing runs on a 4px base (4, 8, 12, 16, 24, 32, 48), plus two half steps for dense parts: 2px (`--s-0_5`: the nav stack, segmented bars, compact pills and row buttons) and 6px (`--s-1_5`: chip rows, icon-to-label gaps). New padding, margin and gap values read from these tokens rather than raw pixels. Groups are tight (8–12px inside), sections are generous (24–48px between). A 248px sidebar holds navigation on wide screens; below 1024px it collapses into a drawer behind a top bar (53px), so tablets get the full width for tables and diagrams. The sidebar opens with the ARP lockup at its large size (see `docs/BRAND.md`). The start page has no sidebar: a top bar (lockup, search, Ask ARP, Review Queue, Reports, user menu), the greeting, then the five workspace cards in 3 + 2 on a six-column grid (two per row at 1100px and below with the fifth card full width, one at 760px and below). Wide tables scroll inside their frame and show a shadow on any edge with more columns; tables never push the page sideways.
 
 ## Elevation & Depth
 
@@ -276,8 +276,7 @@ Where a value's history matters, a four-step trail shows source → extracted �
 ### Chips and Badges
 - **Rating badge:** pastel (see Secondary colours), 2px corners.
 - **Status pill:** a square dot and the status word.
-- **"Needs you" count:** amber fill with white text (Night: dark text), square (2px), sidebar only.
-- **Run chip (start page):** hairline border, mono label, a leading square state dot; the needs-you shape marks runs waiting on you.
+- **"Needs you" count:** amber fill with white text (Night: dark text), square (2px), in the sidebar and the start page's top bar.
 
 ### Cards / Containers
 - **Corner Style:** `--r-lg` (12px).
@@ -296,7 +295,7 @@ Where a value's history matters, a four-step trail shows source → extracted �
 - **Mobile / tablet:** below 1024px the sidebar becomes a drawer behind a top bar showing the current screen's name.
 
 ### Process Card (signature component)
-The start page's five cards (StewardIQ, Argus, Transition Intelligence Platform, R&D Lab, Data Hub): an icon from one 48-grid family, the name, a one-line purpose, the workspace's processes as square dots on a line (accent = done, ring = running, signal = waiting on you, red diamond = failed, hollow = idle), one mono line naming the process that matters now, and "Open →". The card is a way in: it carries no counts, because waiting work is counted once, in the start page headline. The start page has no Needs you list: each waiting item lives in the Review Queue or its workspace.
+The start page's five cards (StewardIQ, Argus, Transition Intelligence Platform, R&D Lab, Data Hub). Each card is one link: a figure area with a mono caption ("Fig 01 · 3 processes") and an isometric wireframe drawing of the workspace, the name, a one-line purpose, and one status line: an 8px square per process (ink = done, run colour = running, signal = waiting on you, red = failed, outlined = idle, dashed = unknown), the state in words (Waiting on you, Running, Last run failed, Up to date, No runs yet, Status unknown) and, where there is one, " · " and the process it concerns. There is no "Open →": the whole card is the link. A card that waits on you takes the needs-you border. The card carries no counts; waiting work is counted in the Review Queue badge. The start page has no Needs you list: each waiting item lives in the Review Queue or its workspace.
 
 ## Do's and Don'ts
 
