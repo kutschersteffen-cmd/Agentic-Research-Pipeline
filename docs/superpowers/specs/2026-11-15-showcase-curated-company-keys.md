@@ -46,7 +46,8 @@ counts the seed's holdings of these 15 as "not engaged", because engagements are
   sector `arp showcase load` writes for that ISIN (table T).
 - G2. After both commands, in either order, each of the 15 exists once, and its row is the same in both orders.
 - G3. Everything else the seed writes stays as it is (portfolios, security ids, mock ISINs, prices, quantities,
-  FX, the unresolved note), apart from the Volkswagen to Mercedes-Benz swap.
+  FX, the unresolved note), apart from the Volkswagen to Mercedes-Benz swap and the security names, which follow
+  the company name (decision 1).
 
 ## Non-goals
 
@@ -97,11 +98,16 @@ The files give Airbus as France and Shell as the Netherlands; the seed follows t
 
 ## Design (approach 1)
 
-- `_COMPANIES` rows gain the ISIN and use the file's name, country and sector (table T). Volkswagen's row becomes
+- `_COMPANIES` rows gain the ISIN and store the file's name, country and sector (table T). Volkswagen's row becomes
   Mercedes-Benz (slug `mercedes`, currency EUR), keeping its position, so its mock ISINs are the ones Volkswagen
   had (`DE0MOCK00020`, bond `DE0MOCK0005B`).
+- The two-letter code that builds each mock ISIN stays as today (Airbus `NL`, Shell `GB`, Mercedes-Benz `DE`);
+  only the stored `country` takes the file's value.
+- Security names follow the new company name (my call, from decision 1): `TOTALENERGIES (Ordinary Shares)`,
+  `TOTALENERGIES 3.25% 2030`.
 - The mock climate generator keeps using the curated sector label (`Automobiles`, `Energy`, `Software`, …) to pick
-  its baseline, so each company's emissions keep their order of magnitude; that label is not stored. My call:
+  its baseline, so each company's emissions keep their order of magnitude; that label is not stored.
+  Mercedes-Benz uses `Automobiles`, Volkswagen's label. My call:
   the exact mock values may change, because the generator's random draws are seeded by the company key
   (`mock_esg_source._rng_for(company_id)`); no row pins them.
 - Mock news is stored under the `isin_` key with the same headlines as today.
@@ -113,9 +119,9 @@ The files give Airbus as France and Shell as the Netherlands; the seed follows t
 
 - **Two observation sources on one company.** On a database with both loads, each of the 15 carries the seed's
   `internal_api` observations (`snapshot:<date>` periods) and the showcase's `simulated` ones. Both are kept
-  (AC-12); which one a screen shows follows the existing selection rules, unchanged by this spec.
+  (AC-23, AC-24); which one a screen shows follows the existing selection rules, unchanged by this spec.
 - **Mock climate values shift** (above). Tests that pin seeded climate values are updated, never weakened.
-- **Ask panel.** The example question must resolve to one company (AC-15).
+- **Ask panel.** The example question must resolve to one company (AC-26).
 - **Old alerts/triggers** keep their slug ids on an old database. Not handled: the database is rebuilt.
 - **Tests that assert slugs** (at least `test_stewardship_universe.py`, `test_stewardship_vote_ledger_feed.py`,
   `test_mock_data.py`, `test_monthly_run.py`, `test_showcase_holdings_intake.py`) are updated to the `isin_` keys;
@@ -163,37 +169,53 @@ generator, and how the news lookup finds articles for the `isin_` key.
 
 Definitions for every row:
 
-- **Seed**: `generate_demo_dataset(store)` without `today` (fixed `SNAPSHOT_DATES`) on an empty store, the same
-  code `arp portfolio seed-demo` runs. No issuer-sector master is loaded.
-- **Load**: `arp showcase load` (`arp.showcase.load.load`) with `data/holdings/` and
-  `data/simulated/esg_simulated.csv` of the repo, on Postgres.
-- **Main**: the same command on `main` at `ed22752`, used where a row says "as on main".
-- **Companies**: `store.list_companies()` (what `GET /api/portfolio/companies` returns).
+- **Stack**: the app started by `backend/scripts/e2e_stack.sh up`, which runs `arp portfolio seed-demo` (today's
+  dates). The `holdout` rows read it through the API.
+- **Seed**: `generate_demo_dataset(store)` without `today` (fixed `SNAPSHOT_DATES`) on an empty JSON
+  `PortfolioStore` in a temporary directory, with no issuer-sector master. Used by `unit` rows.
+- **Load**: `arp.showcase.load.load` with the repo's `data/holdings/` and `data/simulated/esg_simulated.csv`.
+- **Fresh Postgres**: an empty schema on `ARP_TEST_POSTGRES_DSN`, initialised as `arp db init-postgres` does.
+- **As on main**: the value the same code gives on `main` at `ed22752`; the builder captures these values from
+  main into the test.
+- **Companies**: `store.list_companies()`, which is what `GET /api/portfolio/companies` returns.
 - **T keys**: the 15 company keys of table T. **Old slugs**: `bmw`, `volkswagen`, `siemens`, `sap`, `allianz`,
   `totalenergies`, `lvmh`, `airbus`, `iberdrola`, `novartis`, `nestle`, `asml`, `shell`, `orsted`, `enel`.
+- **Six climate fields**: `climate_scope1_tco2e`, `climate_scope2_tco2e`, `climate_scope3_tco2e`,
+  `climate_carbon_intensity`, `climate_evic_eur_m`, `climate_green_revenue_pct` (what the mock generator writes).
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-1 | an empty store | Seed | Companies holds exactly 15 companies and their `company_id`s are exactly the T keys | holdout |
-| AC-2 | an empty store | Seed | each of the 15 companies has `name`, `country` and `sector` exactly as its row in table T | holdout |
-| AC-3 | an empty store | Seed | `store.list_securities()` holds exactly 24 securities: `<slug>_eq` for the 15 slugs of T, `<slug>_bond1` for `bmw`, `totalenergies`, `shell`, `siemens`, `mercedes`, `enel`, `airbus`, `nestle`, and `unmapped_note_1` | holdout |
-| AC-4 | an empty store | Seed | every `<slug>_eq` and `<slug>_bond1` security has `company_id` equal to its slug's T key; `unmapped_note_1` has `company_id` null | holdout |
-| AC-5 | an empty store | Seed | `mercedes_eq` has ISIN `DE0MOCK00020` and `mercedes_bond1` has ISIN `DE0MOCK0005B`; every other security has the ISIN it has as on main | holdout |
-| AC-6 | an empty store | Seed | for every portfolio and snapshot date, every holding of a security other than `mercedes_eq` and `mercedes_bond1` has the same `quantity`, `price`, `market_value` and `market_value_eur` as on main | holdout |
-| AC-7 | an empty store | Seed | `multi_asset_balanced` holds `mercedes_eq` and `corporate_bond_income` holds `mercedes_bond1` on each of the 4 snapshot dates; no holding's security id starts with `volkswagen` | holdout |
-| AC-8 | an empty store | Seed | the summary has `company_count` 15, `security_count` 24, `portfolio_count` 4 and `climate_mismatch_companies` `["isin_FR0000120271", "isin_GB00BP6MXD84"]` | holdout |
-| AC-9 | an empty store | Seed | every item of `store.list_news()` has a `company_id` among the T keys, and the headlines stored for each T key equal the headlines stored for its slug as on main | holdout |
-| AC-10 | an empty store | Seed | for each T key and each climate field, `store.load_observations(key, field)` holds as many observations as main holds for its slug (Mercedes: as many as main holds for `volkswagen`), each with period `snapshot:<date>`; for every Old slug it holds none | holdout |
-| AC-11 | an empty Postgres store | Seed, then Load | Companies holds each T key exactly once with `name`, `country` and `sector` as in table T; no `company_id` is an Old slug; the number of companies equals the number after Load alone | holdout |
-| AC-12 | as AC-11 | `load_observations("isin_FR0000120271", "climate_scope1_tco2e")` | it holds observations with source `internal_api` and period `snapshot:<date>`, and observations with source `simulated` | holdout |
-| AC-13 | an empty Postgres store | Load, then Seed | the same as AC-11: each T key once with `name`, `country` and `sector` as in table T, no Old slug, as many companies as after Load alone | holdout |
-| AC-14 | an empty Postgres store | Load alone | Companies, and the observations of `isin_DE0005140008` (DEUTSCHE BANK AG, not curated), are the same as on main | holdout |
-| AC-15 | the e2e stack with Seed and Load both run | the Ask panel example "How much do we hold in TotalEnergies across all portfolios?" is asked | the answer names one company, `TOTALENERGIES` (`isin_FR0000120271`), and gives one total | evaluator |
-| AC-16 | the implementation PR | `demo/showcase/README.md` is read | it has a `## Rebuild` section with the four steps of this spec's "Rebuild", in that order | evaluator |
-| AC-17 | the e2e stack (`e2e_stack.sh up`, which runs `seed-demo`) | the existing E2E (browser) suite runs | it passes with no test removed or skipped | unit |
+| AC-1 | Stack | `GET /api/portfolio/companies` | for each T key, exactly one entry has that `company_id`, and its `name`, `country` and `sector` are as in table T | holdout |
+| AC-2 | Stack | `GET /api/portfolio/companies` | no entry's `company_id` is an Old slug | holdout |
+| AC-3 | Stack | `POST /api/portfolio/demo/seed` | the response has `company_count` 15 and `security_count` 24 | holdout |
+| AC-4 | Stack | `POST /api/portfolio/demo/seed` | the response's `climate_mismatch_companies` is `["isin_FR0000120271", "isin_GB00BP6MXD84"]` | holdout |
+| AC-5 | Seed | Companies is read | it holds exactly 15 companies, whose `company_id`s are exactly the T keys | unit |
+| AC-6 | Seed | `store.list_securities()` | its security ids are exactly: `<slug>_eq` for the 15 slugs of T; `<slug>_bond1` for `bmw`, `totalenergies`, `shell`, `siemens`, `mercedes`, `enel`, `airbus`, `nestle`; `unmapped_note_1` (24 in all) | unit |
+| AC-7 | Seed | `store.list_securities()` | each `<slug>_eq` and `<slug>_bond1` has `company_id` equal to its slug's T key; `unmapped_note_1` has `company_id` null | unit |
+| AC-8 | Seed | `store.list_securities()` | `totalenergies_eq` is named `TOTALENERGIES (Ordinary Shares)` and `totalenergies_bond1` is named `TOTALENERGIES 3.25% 2030` | unit |
+| AC-9 | Seed | `store.list_securities()` | `mercedes_eq` has ISIN `DE0MOCK00020`, `mercedes_bond1` has `DE0MOCK0005B`, and every other security has its ISIN as on main | unit |
+| AC-10 | Seed | every portfolio's snapshot on each of the 4 dates is read | every holding of a security other than `mercedes_eq` and `mercedes_bond1` has `quantity`, `price`, `market_value`, `fx_rate_to_eur` and `market_value_eur` as on main | unit |
+| AC-11 | Seed | the snapshots of the 4 dates are read | `multi_asset_balanced` holds `mercedes_eq` and `corporate_bond_income` holds `mercedes_bond1` on each date | unit |
+| AC-12 | Seed | the snapshots of the 4 dates are read | no holding's `security_id` starts with `volkswagen` | unit |
+| AC-13 | Seed | `store.list_news()` | every item's `company_id` is a T key | unit |
+| AC-14 | Seed | `store.list_news(key)` for each T key | its headlines equal the headlines stored for that key's slug as on main | unit |
+| AC-15 | Seed | `store.load_observations(key, field)` for each T key and each of the six climate fields | it holds exactly 4 observations, with periods `snapshot:2025-11-28`, `snapshot:2026-02-27`, `snapshot:2026-05-29`, `snapshot:2026-08-12` | unit |
+| AC-16 | Seed | `store.load_observations(slug, field)` for each Old slug and each of the six climate fields | it holds none | unit |
+| AC-17 | Fresh Postgres | Seed, then Load | Companies holds each T key exactly once, with `name`, `country` and `sector` as in table T | unit |
+| AC-18 | as AC-17 | Companies is read | no `company_id` is an Old slug | unit |
+| AC-19 | as AC-17 | Companies is read | it holds as many companies as after Load alone on Fresh Postgres | unit |
+| AC-20 | Fresh Postgres | Load, then Seed | Companies holds each T key exactly once, with `name`, `country` and `sector` as in table T | unit |
+| AC-21 | as AC-20 | Companies is read | no `company_id` is an Old slug | unit |
+| AC-22 | as AC-20 | Companies is read | it holds as many companies as after Load alone on Fresh Postgres | unit |
+| AC-23 | as AC-17 | `load_observations("isin_FR0000120271", "climate_scope1_tco2e")` | it holds 4 observations with source `internal_api` and a `snapshot:` period | unit |
+| AC-24 | as AC-17 | `load_observations("isin_FR0000120271", "climate_scope1_tco2e")` | its observations with source `simulated` are as many as after Load alone on Fresh Postgres | unit |
+| AC-25 | Fresh Postgres | Load alone | Companies holds as many companies as Load alone gives as on main, and `isin_DE0005140008` is named `DEUTSCHE BANK AG` | unit |
+| AC-26 | Stack, then `arp showcase load` run from `backend/` against the Stack's `ARP_POSTGRES_DSN`, with `ARP_ANTHROPIC_API_KEY` set | the Ask panel example "How much do we hold in TotalEnergies across all portfolios?" is asked | the answer names one company, `TOTALENERGIES`, and gives one EUR total | evaluator |
+| AC-27 | the implementation PR | `demo/showcase/README.md` is read | it has a `## Rebuild` section with the four steps of this spec's "Rebuild", in that order | evaluator |
+| AC-28 | Stack | CI's "E2E (browser)" job runs | it passes, with no test removed or skipped by this PR | unit |
 
 Must not change:
 
-- AC-5, AC-6: mock ISINs and every price, quantity and FX value of the seed, apart from the Mercedes-Benz swap.
-- AC-14: what `arp showcase load` writes on its own.
-- AC-17: the browser flows on a seed-only stack.
+- AC-9, AC-10: mock ISINs and every price, quantity and FX value of the seed, apart from the Mercedes-Benz swap.
+- AC-25: what `arp showcase load` writes on its own.
+- AC-28: the browser flows on a seed-only stack.
