@@ -19,12 +19,13 @@ Tables earlier versions wrote and no model defines any more (`company_records`,
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -344,6 +345,7 @@ class StwEngagementModel(Base):
     milestone_stage: Mapped[str | None] = _text()
     escalation_stage: Mapped[str | None] = _text()
     tags: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, server_default="{}")
+    planned_meeting_date: Mapped[date | None] = mapped_column(Date, nullable=True)  # spec stewardship-cockpit
 
 
 class StwObjectiveModel(Base):
