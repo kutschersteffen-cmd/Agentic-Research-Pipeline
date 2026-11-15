@@ -1,12 +1,15 @@
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import {
+  CONTRIBUTOR_STATUS,
   SHOWN_ROWS,
   ballotText,
   fmtCount,
   fmtDate,
   fmtDay,
+  fmtMt,
   fmtPct,
+  fmtShare,
   gapText,
   isWeekend,
   monthLabel,
@@ -76,6 +79,7 @@ function Body({ data }: { data: Cockpit }) {
       <KeyFigures data={data} />
       <Strip days={data.days} />
       <ThemeGrid data={data} />
+      {data.emissions && <EmissionsCard emissions={data.emissions} />}
       <div className="cockpit-row">
         <EngagementMeetings rows={data.engagement_meetings} ladder={data.ladder} />
         <ShareholderMeetings rows={data.shareholder_meetings} />
@@ -128,7 +132,7 @@ function Figure({ label, value, note, signal = false, bar }: { label: string; va
 const escalated = (ladder: Ladder) => ladder.filter((s) => s.step >= 2).flatMap((s) => s.companies);
 
 function KeyFigures({ data }: { data: Cockpit }) {
-  const { summary: s, voting: v, control_gaps: gaps, ladder } = data;
+  const { summary: s, voting: v, control_gaps: gaps, ladder, emissions: e } = data;
   const eng = data.engagement_meetings.length;
   const agm = data.shareholder_meetings.length;
   const top = [...ladder].reverse().find((st) => st.step >= 2 && st.companies.length);
@@ -140,6 +144,14 @@ function KeyFigures({ data }: { data: Cockpit }) {
         bar={pct(s.engaged_selected, s.selected)}
         note={`${fmtPct(s.engaged_selected, s.selected)} of selected companies`}
       />
+      {e && (
+        <Figure
+          label="Financed emissions covered"
+          value={fmtPct(e.engaged_tco2e, e.total_tco2e)}
+          bar={pct(e.engaged_tco2e, e.total_tco2e)}
+          note={`${fmtMt(e.engaged_tco2e)} of ${fmtMt(e.total_tco2e)} Mt CO₂e in engagement`}
+        />
+      )}
       <Figure label="Next 30 days" value={fmtCount(eng + agm)} note={<>{fmtCount(eng)} engagement meetings<br />{fmtCount(agm)} shareholder meetings</>} />
       <Figure
         label="Control gaps"
@@ -248,6 +260,64 @@ function ThemeGrid({ data }: { data: Cockpit }) {
         <Legend items={[["eng", "Engaged"], ["sel", "Selected"]]} />
         </>
       )}
+    </Card>
+  );
+}
+
+type Emissions = NonNullable<Cockpit["emissions"]>;
+
+function EmissionsCard({ emissions: e }: { emissions: Emissions }) {
+  const parts: [string, string, number][] = [
+    ["eng", "engaged", e.engaged_tco2e],
+    ["sel", "selected, not engaged", e.selected_not_engaged_tco2e],
+    ["rest", "not selected", e.not_selected_tco2e],
+  ];
+  return (
+    <Card title="Financed emissions in engagement" label={<span className="cockpit-label">{fmtMt(e.total_tco2e)} Mt CO₂e, scope 1+2</span>}>
+      <div className="cockpit-emissions">
+        <div>
+          <div className="cockpit-stack cockpit-emissions-bar" role="img" aria-label={parts.map(([, l, t]) => `${fmtPct(t, e.total_tco2e)} ${l}`).join(", ")}>
+            {parts.filter(([, , t]) => t > 0).map(([cls, , t]) => <span key={cls} className={cls} style={{ flexGrow: t }} />)}
+          </div>
+          <ul className="cockpit-emissions-legend">
+            {parts.map(([cls, l, t]) => (
+              <li key={cls}>
+                <span className={`cockpit-swatch ${cls}`} aria-hidden="true" />
+                <span className="cockpit-num cockpit-emissions-pct">{fmtPct(t, e.total_tco2e)}</span>
+                <span>{l}</span>
+                <span className="cockpit-num muted">{fmtMt(t)} Mt</span>
+              </li>
+            ))}
+          </ul>
+          {e.uncovered_holding_count > 0 && (
+            <p className="muted cockpit-foot">
+              {fmtCount(e.uncovered_holding_count)} {e.uncovered_holding_count === 1 ? "holding has" : "holdings have"} no EVIC or Scope 1/2 data and {e.uncovered_holding_count === 1 ? "is" : "are"} left out.
+            </p>
+          )}
+        </div>
+        <Scroll label="Largest contributors table">
+          <table className="cockpit-table cockpit-contributors">
+            <thead>
+              <tr><th scope="col">Largest contributors</th><th scope="col" className="num">Share</th><th scope="col">Status</th></tr>
+            </thead>
+            <tbody>
+              {e.contributors.map((c) => (
+                <tr key={c.company_id}>
+                  <td>{c.company}{c.sector && <span className="muted"> · {c.sector}</span>}</td>
+                  <td className="cockpit-num num">{fmtShare(c.share)}</td>
+                  <td>
+                    {c.status === "engaged" || c.status === "in_escalation" ? (
+                      <span className={`cockpit-step${c.status === "in_escalation" ? " tone-mid" : ""}`}>{CONTRIBUTOR_STATUS[c.status]}</span>
+                    ) : (
+                      <span className="muted">{CONTRIBUTOR_STATUS[c.status] ?? c.status}</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Scroll>
+      </div>
     </Card>
   );
 }

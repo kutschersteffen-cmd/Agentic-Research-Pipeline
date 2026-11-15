@@ -68,3 +68,17 @@ export const gapText = (gaps: string[]): string => gaps.map((g) => GAP[g] ?? g).
 export const stepTone = (step: number): "neutral" | "mid" | "low" => (step <= 1 ? "neutral" : step <= 3 ? "mid" : "low");
 
 export const SHOWN_ROWS = 6;
+
+/** tCO₂e as Mt CO₂e with two decimals: "1.84". */
+export const fmtMt = (tco2e: number): string =>
+  (tco2e / 1e6).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** A 0–1 share (4 decimals) as a whole percent, rounded half up. */
+export const fmtShare = (share: number): string => fmtPct(Math.round(share * 10000), 10000);
+
+export const CONTRIBUTOR_STATUS: Record<string, string> = {
+  in_escalation: "In escalation",
+  engaged: "Engaged",
+  selected: "Selected",
+  not_selected: "Not selected",
+};
