@@ -23,8 +23,10 @@ import {
   type Column,
   type SortKey,
 } from "../../lib/workbench";
+import { neighbour, type PanelTab } from "../../lib/workbenchPanel";
 import type { PriorityPreview, SelectionList, WorkProgramme, Worklist, WorklistRow, WorklistScope } from "../../types";
 import { DataTable, RuleEditor, Section, VersionsPanel, usePolicy, useActor } from "./common";
+import { WorkbenchPanel } from "./WorkbenchPanel";
 
 const Sim = () => <span className="sim-tag">Simulated</span>;
 const shortLabel = (c: Column) => c.label.replace(/ (%|\(.*\))$/, "");
@@ -147,6 +149,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [panel, setPanel] = useState<{ id: string; tab: PanelTab } | null>(null);
 
   // A response for a scope the user has already left is dropped.
   const wanted = useRef(scope);
@@ -204,6 +207,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
     setTicked(new Set());
     setPage(0);
     setMessage(null);
+    setPanel(null);
   }
   function tick(id: string, on: boolean) {
     setTicked((t) => {
@@ -226,6 +230,26 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
     }
   }
   const patch = (f: (rows: WorklistRow[]) => WorklistRow[]) => setData((d) => (d ? { ...d, rows: f(d.rows) } : d));
+
+  // The side panel: a row click opens it (Score ⓘ on Why), ↑/↓ step through the table's order across pages.
+  const openRow = panel ? rows.find((r) => r.issuer_id === panel.id) : undefined;
+  const open = (id: string, tab?: PanelTab) => setPanel((p) => ({ id, tab: tab ?? p?.tab ?? "Why" }));
+  const step = useCallback(
+    (by: 1 | -1) => {
+      const id = panel && neighbour(sorted, panel.id, by);
+      if (!panel || !id) return;
+      setPage(Math.floor(sorted.findIndex((r) => r.issuer_id === id) / PAGE_SIZE));
+      setPanel({ ...panel, id });
+    },
+    [panel, sorted],
+  );
+  const closePanel = useCallback(() => {
+    if (panel) requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-open-row="${CSS.escape(panel.id)}"]`)?.focus());
+    setPanel(null);
+  }, [panel]);
+  useEffect(() => {
+    if (panel) document.querySelector(`[data-open-row="${CSS.escape(panel.id)}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [panel]);
 
   const addSelected = () =>
     act(async () => {
@@ -398,13 +422,28 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
                 </thead>
                 <tbody>
                   {pageRows.map((r) => (
-                    <tr key={r.issuer_id} className={ticked.has(r.issuer_id) ? "selected-row" : undefined}>
+                    <tr
+                      key={r.issuer_id}
+                      className={[ticked.has(r.issuer_id) && "selected-row", panel?.id === r.issuer_id && "wb-open-row"].filter(Boolean).join(" ") || undefined}
+                      onClick={(e) => !(e.target as HTMLElement).closest("button, input, a, label") && open(r.issuer_id)}
+                    >
                       <td className="wb-tick">
                         <input type="checkbox" aria-label={`Tick ${r.company}`} checked={ticked.has(r.issuer_id)} onChange={(e) => tick(r.issuer_id, e.target.checked)} />
                       </td>
                       {shown.map((c) => (
                         <td key={c.id} className={c.id === "company" ? "wb-name" : c.id === "last_topics" ? "wb-topics" : c.numeric && !c.pinned ? "num" : undefined} title={c.id === "company" ? r.company : c.id === "last_topics" ? r.last_topics.join("; ") || undefined : undefined}>
-                          <Cell col={c} row={r} asOf={data.as_of} onRemove={removeSelected} />
+                          {c.id === "company" ? (
+                            <button className="wb-open" data-open-row={r.issuer_id} aria-expanded={panel?.id === r.issuer_id} onClick={() => open(r.issuer_id)}>
+                              {r.company}
+                            </button>
+                          ) : (
+                            <Cell col={c} row={r} asOf={data.as_of} onRemove={removeSelected} />
+                          )}
+                          {c.id === "score" && (
+                            <button className="link-button wb-why-button" aria-label={`Why is ${r.company} here`} title="Why is this here" onClick={() => open(r.issuer_id, "Why")}>
+                              ⓘ
+                            </button>
+                          )}
                         </td>
                       ))}
                     </tr>
@@ -469,6 +508,20 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
       </section>
 
       <WeightsSection onActivated={() => load(scope)} />
+
+      {openRow && data && (
+        <WorkbenchPanel
+          row={openRow}
+          rows={rows}
+          data={data}
+          scope={scope}
+          tab={panel!.tab}
+          onTab={(tab) => setPanel((p) => p && { ...p, tab })}
+          onStep={step}
+          onClose={closePanel}
+          onNoteAdded={(n) => patch((rs) => rs.map((r) => (r.issuer_id === n.company_id ? { ...r, notes: { count: r.notes.count + 1, latest: { text: n.text.slice(0, 120), by: n.by, at: n.at } } } : r)))}
+        />
+      )}
 
       {dialog === "confirm" && data && (
         <Modal title="Confirm the selection" compact noClose onClose={() => setDialog(null)}>

@@ -2215,6 +2215,8 @@ export type PortfolioGroup = Served<S["PortfolioGroup"]>;
 export type WorklistScopes = Served<S["WorklistScopes"]>;
 export type ProgrammeList = Served<S["ProgrammeList"]>;
 export type Confirmed = Served<S["Confirmed"]>;
+export type StewardNote = Served<S["Note"]>;
+export type VoteList = Served<S["VoteList"]>;
 
 export interface PolicyVersionMeta {
   version: number;
