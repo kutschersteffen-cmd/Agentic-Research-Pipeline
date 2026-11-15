@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import threading
 
 import httpx
@@ -18,7 +19,7 @@ from arp.bi.catalog import BI_DATABASE, VIEW_DATASETS
 from arp.bi.compiler import compile_chart, compile_dashboard, plan_hash
 from arp.bi.plan import ChartPlan, DatasetMeta
 from arp.bi.planner import plan_from_brief
-from arp.bi.superset_client import SupersetClient, SupersetError
+from arp.bi.superset_client import SupersetClient, SupersetError, chart_form_data
 from arp.config import get_settings
 from arp.llm.base import LLMClient
 
@@ -43,9 +44,7 @@ class DesignResult(BaseModel):
     slug: str | None = None
     url: str | None = None
     plan: ChartPlan | None = None
-    rejected: list[str] = []
-    # ponytail: plan_from_brief returns (None, reasons) for both a refusal and a failed
-    # repair round, so every reason lands in `rejected`; this stays None until it says which.
+    rejected: list[str] = []  # validation errors only; a question back goes in clarification_needed
     clarification_needed: str | None = None
 
 
@@ -128,17 +127,36 @@ def _build_dashboard(client: SupersetClient, plan: ChartPlan, ids: dict[str, int
     return _result(_ensure_dashboard(client, slug, plan, ids)[0], slug, plan)
 
 
+def _saved_params(client: SupersetClient, chart_id: int) -> dict | None:
+    """None when the chart's params cannot be read: reuse is only a shortcut, so the ask creates a chart instead."""
+    try:
+        return client.chart_params(chart_id)
+    except (*_ERRORS, ValueError, KeyError, AttributeError):
+        return None
+
+
 def _add_to_scratch(client: SupersetClient, plan: ChartPlan, ids: dict[str, int]) -> DesignResult:
-    title = plan.charts[0].title
+    spec = plan.charts[0]
+    title = spec.title
+    try:
+        dash = client.find_dashboard(SCRATCH_SLUG)
+        charts = {} if dash is None else client.dashboard_charts(dash)
+        same_title = [cid for cid, name in charts.items() if name == title]
+        if same_title:
+            # JSON round trip: the stored params come back as parsed JSON
+            want = json.loads(json.dumps(chart_form_data(ids[spec.dataset], spec.viz_type, compile_chart(spec, ids[spec.dataset]))))
+            if any(_saved_params(client, cid) == want for cid in same_title):
+                return _result(dash, SCRATCH_SLUG, plan)  # the same question again: its chart is already there
+    except _ERRORS as e:
+        raise BIError(f"Adding chart {title!r} to the scratch dashboard failed: {e}") from e
     created: list[int] = []
     try:
         _create_charts(client, plan, ids, created)
         try:
-            dash = client.find_dashboard(SCRATCH_SLUG)
             if dash is None:
                 dash = client.create_dashboard("Scratch", SCRATCH_SLUG, compile_dashboard(created, [title]), created)
             else:
-                charts = client.dashboard_charts(dash) | {created[0]: title}
+                charts[created[0]] = title
                 order = sorted(charts)  # chart ids grow, so this is question order
                 client.update_dashboard(dash, compile_dashboard(order, [charts[c] for c in order]), created)
         except _ERRORS as e:
@@ -152,18 +170,18 @@ def _add_to_scratch(client: SupersetClient, plan: ChartPlan, ids: dict[str, int]
 async def design_dashboard(brief: str, llm: LLMClient, client: SupersetClient) -> DesignResult:
     # The client is sync; its calls run in a thread to keep the event loop free.
     ids, metas = await asyncio.to_thread(_datasets, client)
-    plan, reasons = await plan_from_brief(brief, metas, llm)
+    plan, reasons, clarification = await plan_from_brief(brief, metas, llm)
     if plan is None:
-        return DesignResult(rejected=reasons)
+        return DesignResult(rejected=reasons, clarification_needed=clarification)
     return await asyncio.to_thread(_build_dashboard, client, plan, ids)
 
 
 async def ask_chart(question: str, llm: LLMClient, client: SupersetClient) -> DesignResult:
     """One question -> one chart, added to the shared scratch dashboard."""
     ids, metas = await asyncio.to_thread(_datasets, client)
-    plan, reasons = await plan_from_brief(f"Answer with exactly one chart: {question}", metas, llm)
+    plan, reasons, clarification = await plan_from_brief(f"Answer with exactly one chart: {question}", metas, llm)
     if plan is None:
-        return DesignResult(rejected=reasons)
+        return DesignResult(rejected=reasons, clarification_needed=clarification)
     plan = plan.model_copy(update={"charts": plan.charts[:1]})  # a question gets one chart, the planner's first
     return await asyncio.to_thread(_add_to_scratch, client, plan, ids)
 

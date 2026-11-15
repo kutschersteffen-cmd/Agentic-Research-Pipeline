@@ -49,6 +49,7 @@ export const WORKSPACES: Workspace[] = [
     purpose: "Engage companies, vote, and track what they commit to.",
     runTypes: ["proxy_voting"],
     screens: [
+      ["#/stewardiq/cockpit", "Cockpit"],
       ["#/stewardship", "Steward Workflow"],
       ["#/engagement", "Engagement"],
       ["#/voting", "Proxy Voting"],

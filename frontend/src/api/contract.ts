@@ -3,7 +3,7 @@
 // Add a line when you type a new request<...>() against an endpoint with a response model and the
 // frontend type is hand-written; a type declared as Served<S["..."]> in types.ts needs no line.
 import type { Me } from "../lib/reviewKeys";
-import type { BarrierValue, CompanyTransition, DataPointSchema, EmergingThemesScheduleConfig, IndexFieldInventory, IndexStartingUniverse, IndexStartingUniverseDetail, MechanismEnvelope, QAAnswer, RuleGraph, S, Served, SignalExperimentDetail, SignalExperimentSummary } from "../types";
+import type { BarrierValue, Cockpit, CompanyTransition, DataPointSchema, EmergingThemesScheduleConfig, IndexFieldInventory, IndexStartingUniverse, IndexStartingUniverseDetail, MechanismEnvelope, QAAnswer, RuleGraph, S, Served, SignalExperimentDetail, SignalExperimentSummary } from "../types";
 
 type Satisfies<Backend extends Frontend, Frontend> = [Backend, Frontend];
 // The backend types these fields loosely (plain dicts, a list[str]); the frontend's narrower
@@ -17,6 +17,7 @@ type TransitionServed = Omit<Served<S["TransitionOut"]>, "actions"> & {
 };
 
 export type ApiContract = [
+  Satisfies<Served<S["CockpitResponse"]>, Cockpit>,
   Satisfies<Served<S["DataPointSchema"]>, DataPointSchema>,
   Satisfies<Served<S["EmergingThemesScheduleConfig"]>, EmergingThemesScheduleConfig>,
   Satisfies<Served<S["ExperimentDetail"]>, SignalExperimentDetail>,

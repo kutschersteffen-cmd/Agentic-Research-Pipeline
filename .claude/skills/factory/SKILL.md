@@ -72,7 +72,16 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
    card with the reason and start nothing.
 1. **Spec:** *"Brainstorm and write a spec for: <feature>. Intake scope: <GO paragraph>. Follow `.claude/CLAUDE.md` (superpowers
    brainstorming, an `## Acceptance` table per `docs/superpowers/ACCEPTANCE_TEMPLATE.md`, spec-critic).
-   Ask the owner your questions in this session. Open a `risk:low` PR with only the spec file."*
+   Two readers use this spec and neither can ask you anything: a test writer who turns its rows into
+   hidden tests, and a builder who never sees those tests. Aim high before you cut: first describe
+   what the user can do afterwards that they cannot do today, then sketch three versions (safe,
+   strong, most ambitious) and specify the most ambitious one whose result you can state as exact,
+   observable rows, with numbers where 'better' or 'faster' is the point. Say in one line what the
+   next step up would need. Keep that target whole and split only the delivery: a `## Slices` section
+   orders it into PRs of size `S`, each naming its rows. 'Smallest change' is a rule for the
+   implementation, not for this spec. Ask the owner, in this session, only what would change an
+   acceptance row; decide the rest yourself and list those defaults in the spec. Start the spec with
+   the decisions the owner has to make. Open a `risk:low` PR with only the spec file."*
    Tell the owner to open that session to answer its questions, then approve and merge the spec PR.
 2. **Hidden tests** (skip if the spec has no `holdout` rows): *"Attach `kutschersteffen-cmd/holdout`
    with add_repo, then follow the test-writer skill for spec `<slug>`."* This is the only session that
@@ -89,7 +98,9 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
      optional`; never drop one. Post one PR comment headed `Code review (factory)` listing each
      finding with file:line under `blocking` (confirmed only), `unverified, optional` (not
      confirmed) or `optional` (non-blocking from the start), or 'No findings'.
-     Don't push or approve."*
+     Check the diff against each acceptance row of the spec, not only for bugs. Write findings, not
+     standing rules for the implementer. End the comment with a `Not checked:` line naming what you
+     did not run or read. Don't push or approve."*
      The implementing session fixes or answers each confirmed blocking finding (steward rules); a push that
      changes code re-runs this review once CI is green again, at most three rounds per PR.
    - **Security review**, only if the PR touches a `risk:high` path (steward table): the review prompt
@@ -103,9 +114,11 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
    - **Evaluator** (skip if no `evaluator` rows): *"Run the evaluator skill on PR #<n>."*
      A later push that changes `backend/arp/` or `frontend/src/` re-runs it once CI is green again:
      the matrix names the head it ran on, and a matrix for an older head is stale.
-   **Model by risk label** (`create_session` `model`): code and UI review `sonnet` on `risk:low`, `opus`
-   otherwise; security review always `opus`; no label counts as `risk:high`. Other stages (spec, hidden
-   tests, implement, evaluator, regression) run on `opus`.
+   **Model by stage** (`create_session` `model`): spec `fable`; implement `opus` with `effort: high`
+   (its default is `medium`; if `effort` is refused, start without it and say so once); code review
+   `sonnet` on `risk:low`, `fable` otherwise; UI review `sonnet` on `risk:low`, `opus` otherwise;
+   security review always `opus`; no label counts as `risk:high`. Hidden tests, evaluator and
+   regression run on `opus`.
 5. **Merge gate:** nothing to start. If a review comment the PR's paths require is missing, tell the
    owner `waiting: <review name>` and offer no merge button. Tell the owner the PR is ready: link, risk label, open review
    findings, matrix verdict and the head it ran on. If the PR has a `Rows:` line, also list the spec's
@@ -124,7 +137,9 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
   the card and tell the owner in one line what they need to decide. Don't start the next stage.
 - If nothing arrives, keep one `send_later` check-in about 50 minutes out, then every 4 hours: run
   `/factory` status, and re-arm. Status also reads each stage session on the card with `get_session`
-  and `list_events` (kinds `assistant`, `result`) to find a PR url it never sent you. Stop after 3 quiet check-ins and say how to resume (`/factory`).
+  and `list_events` (kinds `assistant`, `result`) to find a PR url it never sent you. If a session's
+  `external_metadata.last_served_model` is not the model its stage names (`configured_model` may be an
+  alias), say so in one line: that stage ran on a fallback model. Stop after 3 quiet check-ins and say how to resume (`/factory`).
 
 ## Rules
 
