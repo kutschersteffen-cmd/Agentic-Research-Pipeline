@@ -19,7 +19,7 @@ allowed() {
 
 check() {
   local base path rc=0
-  base=$(git merge-base HEAD origin/main)
+  base=$(git merge-base HEAD origin/main) || { echo "error: no merge base with origin/main (shallow clone?)" >&2; return 2; }
   while IFS= read -r -d '' path; do
     if ! allowed "$path"; then echo "code: $path"; return 1; fi
   done < <(git diff -z --name-only --no-renames "$base" origin/main)
