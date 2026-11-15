@@ -130,42 +130,56 @@ layout.
 ### PR 3: interactive process flows
 
 On workspace overviews (`WorkspaceOverview`: every overview except `#/argus`), each process's step cards change
-as follows.
+as follows. A process with no activity stays folded behind "Show n steps", as today. Everything below applies
+inside the fold once it is opened, and a panel opened there sits inside the fold.
 
 - **Highlight.**
-  - `.hub-step-now` (a running step) has `border-color: var(--run)` and a 3px `--run` ring at 18% opacity. Its
-    status square pulses (opacity 1 → 0.3 → 1 over 1.6s). Under `prefers-reduced-motion: reduce` there is no
-    pulse.
-  - `.hub-step-wait` has `border-color: var(--await-edge)`, written on one line for test ac13.
-  - Other states keep today's border.
-- **The track.** The existing connector between step cards is drawn:
-  - in `--text` up to and including the furthest step whose state is `done` (its `li` gets the class `reached`);
-  - in `--run` into a running step that directly follows a reached step;
-  - in `--panel-border` elsewhere.
+  - `.hub-step-now` (a running step) gets `border-color: var(--run)` and `box-shadow: 0 0 0 3px` of `--run` at
+    18%. Its status square (`.hub-step-status::before`) pulses: opacity 1 → 0.3 → 1 over 1.6s, repeating.
+    Under `prefers-reduced-motion: reduce` it has `animation: none`.
+  - Waiting steps keep today's amber rule unchanged (index.css ~1805:
+    `.hub-step-wait, .hub-step:has(.hub-step-banner), …:hover { border-color: var(--await-edge); … }`). A waiting
+    step stays amber on hover after PR 2's `.hub-step:hover` change, and test ac13 needs no change.
+- **The track.** A new pure helper, `flowTrack(states)` in `lib/workspaceCard.ts`, takes the step states and
+  returns:
+  - `reached`: the index of the last `done` step, or -1;
+  - `runInto`: for each step i, true when its state is `now` and i ≤ `reached` + 1. That is a running step
+    right after the reached part, or a running first step.
 
-  On screens ≤760px the steps stack in one column and the connector is vertical.
-- **Click to expand.** Every non-planned step card is a `<button type="button" aria-expanded aria-controls>`
-  instead of a link. Planned steps stay as they are, with no button.
-  - Clicking a step opens a details panel (`role="region"`, named "<step label> details") directly under that
-    process's flow.
+  Rendering:
+  - Items `0…reached` get the class `reached`, and the connector after a reached item is drawn in `--text`.
+  - A connector into a `runInto` step is drawn in `--run`.
+  - Other connectors keep `--panel-border`.
+  - At 900px and below the flow stacks into one column and the connector is vertical, as today's breakpoint does.
+- **Click to expand.** Every non-planned step card becomes a `<button type="button" aria-expanded aria-controls>`
+  instead of a link. Its "→" (`.hub-step-go`) is removed, because a click no longer navigates.
+  - Clicking a step opens a details panel (`role="region"`, named "<step label> details"). It is the next
+    sibling of that process's `ol.hub-flow`.
   - Clicking another step of the same process moves the panel to it. Clicking the open step again closes the
     panel. At most one panel is open per process.
-  - The open step keeps its state border and gains a 1px `--text` outline 3px outside it.
+  - The open step keeps its state border and gains `outline: 1px solid var(--text); outline-offset: 3px`. While
+    the step has keyboard focus, the existing `.hub-step:focus-visible` outline wins.
+  - What the button loses: middle-click or Ctrl-click to open the screen in a new tab. The panel's "Open" link
+    is a real link, so that still works there.
   - The panel shows:
     - "Step i of n" and the step label;
     - the step's `does` text;
-    - **Status**: the 8px square and the `STATE_LABEL` word;
-    - **Now**: the step's status line from `stepStatusLine` (e.g. "2 decisions open", "Done · 14 Nov", "Running").
-      When its tone is `wait`, it is a link: to `#/review` when the waiting count comes from runs, and to the
-      step's route when it comes from open stewardship decisions;
-    - **Latest run**: the newest matching run's id and status, when there is one;
-    - a link "Open <step label> →" to `stepHref(step)`. It records the walk exactly as clicking the card does
-      today, so `ProcessBar` shows "Step i of n" on the screen.
+    - **Status**: the 8px square and `STATE_LABEL[state]`;
+    - **Now**: the step's line from `stepStatusLine` (e.g. "2 decisions open", "Done · 14 Nov", "Running");
+    - **Latest run**: the newest matching run's id and status, when the step has `runTypes` and a run exists;
+    - a link "Open <step label> →" to `stepHref(step)`. It records the walk as clicking the card does today, so
+      `ProcessBar` shows "Step i of n" on that screen.
+  - When the **Now** line's tone is `wait`, it is a link:
+    - to `#/review` when the count comes from runs and every one of the step's `runTypes` is in
+      `REVIEWABLE_RUN_TYPES`;
+    - otherwise, to the step's route (stewardship decisions, or runs the Review Queue does not hold, such as
+      `proxy_voting`).
   - Esc with focus inside the flow or the panel closes the panel and moves focus to its step button.
 - **Live.** States, the track and an open panel's contents update on every runs poll (today 3s while a run is
   active, else 15s). An open panel stays open across those updates.
-- **Copy.** The overview's lede sentence "Open a step to work in its screen; a bar there shows the next step." becomes
+- **Copy.** In the overview's lede, "Open a step to work in its screen; a bar there shows the next step." becomes
   "Click a step for its details; open it from there." The rest of the lede is unchanged.
+- *Builder's calls, checked by the builder's own tests:* the Now link target and the Latest run line.
 
 ## Non-goals
 
@@ -218,7 +232,6 @@ For rollout, the owner chose two PRs, shell first.
 
 **PR 3:**
 - This spec's AC-18 (clicking a step card navigates) holds for PR 1 and PR 2 only. In PR 3, AC-36 replaces it.
-- `frontend/tests/nightDeskTokens.test.ts` ac13: its allow-list gains the one-line `.hub-step-wait` amber rule.
 - Any test that finds step cards as links (`a.hub-step`). The builder lists each one in the PR.
 
 **PR 2:**
@@ -268,16 +281,17 @@ For rollout, the owner chose two PRs, shell first.
 | AC-30b | `#/stewardiq`, 390×844 (PR 2) | The header is read | The `svg.ws-drawing` has computed `display: none` | evaluator |
 | AC-31 | `#/stewardiq` on the e2e seed, StewardIQ waiting on its open decisions (PR 2) | The header drawing is read | Exactly one of its shapes has the class `ws-accent-wait` | evaluator |
 | AC-32 | `#/home` (PR 1 and PR 2) | The page loads | #482's acceptance rows that still hold pass unchanged: AC-1a, AC-1c, AC-3, AC-7a–AC-8f, AC-9a, AC-11a–AC-11d, AC-16a, AC-18 | evaluator |
-| AC-33 | `#/stewardiq` on the e2e seed (PR 3) | The first process's step cards are read | Every non-planned step is a `button` with `aria-expanded="false"`, no planned step is a button, and no details region exists | evaluator |
-| AC-34 | `#/stewardiq` (PR 3) | The second step of the first process is clicked | That button has `aria-expanded="true"`, and a region named "<that step's label> details" is visible after that process's flow. It contains "Step 2 of <n>", the step's `does` text, a status word from `STATE_LABEL`, and a link "Open <label> →" whose href is the step's route | evaluator |
-| AC-35 | The panel from AC-34 | The third step of the same process is clicked | Only the third step has `aria-expanded="true"`, and exactly one details region exists in that process | evaluator |
-| AC-35b | The panel from AC-34 | The second step is clicked again | No details region exists in that process, and the button has `aria-expanded="false"` | evaluator |
-| AC-36 | The panel from AC-34 | "Open <label> →" is clicked | The hash becomes the step's route, and a `nav` named "Process progress" shows "Step 2 of <n>" | evaluator |
-| AC-37 | The panel from AC-34, focus on its "Open" link | Esc is pressed | The region is gone and focus is on the second step's button | evaluator |
-| AC-38 | `index.css` (PR 3) | Read | `.hub-step-now` sets `border-color: var(--run)`. `.hub-step-wait { border-color: var(--await-edge); }` is on one line. A `@keyframes` rule animates the running step's status square. Inside `@media (prefers-reduced-motion: reduce)`, that square has `animation: none` | unit |
-| AC-39 | `#/stewardiq` on the e2e seed (PR 3) | The flows are read | In each process, the step items with class `reached` are exactly those up to and including the last step whose status word is "Done" (none if no step is done) | evaluator |
+| AC-33 | `#/stewardiq` on the e2e seed (PR 3); P = the first process whose steps are visible without opening a fold | P's step cards are read | Every step card in P is a `button` with `aria-expanded="false"`, and the page has no region whose name ends in " details" | evaluator |
+| AC-34 | P from AC-33 | P's second step is clicked | That button has `aria-expanded="true"`. The next sibling of P's `ol.hub-flow` is a region named "<that step's label> details" containing: "Step 2 of <P's step count>"; the step's `does` text; `STATE_LABEL[state]`, where `state` is the card's `hub-step-<state>` class; and a link "Open <label> →" whose `href` equals the step's route | evaluator |
+| AC-35 | The panel from AC-34 | P's third step is clicked | Only the third step has `aria-expanded="true"` in P, and P has exactly one details region | evaluator |
+| AC-35b | The panel from AC-34 | P's second step is clicked again | P has no details region, and the button has `aria-expanded="false"` | evaluator |
+| AC-36 | The panel from AC-34 | "Open <label> →" is clicked | The hash becomes the step's route, and a `nav` named "Process progress" shows "Step 2 of <P's step count>" | evaluator |
+| AC-37 | The panel from AC-34, focus on its "Open" link | Esc is pressed | The region is gone and focus is on P's second step button | evaluator |
+| AC-38 | `index.css` (PR 3) | Read | `.hub-step-now` sets `border-color: var(--run)` and a `box-shadow` using `var(--run)`. A `@keyframes` rule is applied as `animation` to `.hub-step-now .hub-step-status::before`, which is set to `animation: none` inside `@media (prefers-reduced-motion: reduce)`. `.hub-step[aria-expanded="true"]` sets `outline: 1px solid var(--text)`. The `.hub-step-wait` rule line is unchanged from `main` | unit |
+| AC-39 | `lib/workspaceCard.ts` (PR 3) | `flowTrack` is called with `["done","idle","done","now","idle"]`, `["now","idle"]` and `["idle","wait"]` | It returns `{reached: 2, runInto: [false,false,false,true,false]}`, then `{reached: -1, runInto: [true,false]}`, then `{reached: -1, runInto: [false,false]}` | unit |
+| AC-39b | `#/stewardiq` on the e2e seed (PR 3) | Each visible flow is read | Its items with class `reached` are exactly the items up to and including the last item whose card has class `hub-step-done` (none if no card does) | evaluator |
 | AC-40 | `#/stewardiq` (PR 3) | A step's panel is opened and the page waits 20s (at least one runs poll) | The panel is still open and its step still has `aria-expanded="true"` | evaluator |
-| AC-41 | `#/stewardiq` at 390×844 (PR 3) | A step's panel is opened | All step cards share one left edge (one column), the "Open …" link is ≥ 44px tall, and `scrollWidth` ≤ 390 | evaluator |
+| AC-41 | `#/stewardiq` at 390×844 (PR 3) | A step's panel is opened | All step cards in that process share one left edge (±1px), the "Open …" link is ≥ 44px tall, and `scrollWidth` ≤ 390 | evaluator |
 | AC-42 | `#/stewardiq` (PR 3) | The lede is read | It contains "Click a step for its details; open it from there." and not "Open a step to work in its screen" | evaluator |
 
 Must not change:
