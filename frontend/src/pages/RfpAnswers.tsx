@@ -247,7 +247,9 @@ function QuestionCard({ q, projectId, act }: { q: RfpQuestion; projectId: number
   // Four-eyes: say so where the Approve button would be, instead of leaving it out silently.
   const ownEdit = me?.role === "approver" && q.status !== "approved" && q.last_editor === me.user_id;
   // The base entry's question is that of the source citing it; the comparison itself is worked out by the server.
-  const showChange = q.base_entry_id !== null && q.segments.length > 0;
+  // `?? []`: a project read from an older server (or stubbed without the field) has no segments
+  const segments = q.segments ?? [];
+  const showChange = q.base_entry_id != null && segments.length > 0;
   const baseQuestion = q.sources.find((src) => src.entry_id === q.base_entry_id)?.entry_question;
 
   return (
@@ -264,11 +266,11 @@ function QuestionCard({ q, projectId, act }: { q: RfpQuestion; projectId: number
       {showChange && (
         <div>
           <p className="help-text">
-            {q.segments.every((seg) => seg.change === "kept") ? "Approved answer, unchanged" : `${q.kept_share}% unchanged from the approved answer`}
+            {segments.every((seg) => seg.change === "kept") ? "Approved answer, unchanged" : `${q.kept_share}% unchanged from the approved answer`}
             {baseQuestion && <> · based on <strong>{baseQuestion}</strong></>}
           </p>
           <p aria-label="Changes against the approved answer">
-            {q.segments.map((seg, i) => (
+            {segments.map((seg, i) => (
               <Fragment key={i}>
                 {i > 0 && " "}
                 {seg.change === "added" ? <ins>{seg.text}</ins> : seg.change === "removed" ? <del>{seg.text}</del> : seg.text}
