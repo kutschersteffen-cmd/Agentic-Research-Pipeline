@@ -9411,6 +9411,31 @@
     "title": "EmergingThemesScheduleConfig",
     "type": "object"
    },
+   "Engaged": {
+    "properties": {
+     "last": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last"
+     },
+     "yes": {
+      "title": "Yes",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "yes",
+     "last"
+    ],
+    "title": "Engaged",
+    "type": "object"
+   },
    "EntityDecision": {
     "properties": {
      "cohort": {
@@ -12006,6 +12031,57 @@
     "title": "HTTPValidationError",
     "type": "object"
    },
+   "HeldIn": {
+    "properties": {
+     "market_value_eur_m": {
+      "title": "Market Value Eur M",
+      "type": "number"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "portfolio_id": {
+      "title": "Portfolio Id",
+      "type": "string"
+     },
+     "selection_status": {
+      "anyOf": [
+       {
+        "enum": [
+         "proposed",
+         "confirmed"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Selection Status"
+     },
+     "weight_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Weight Pct"
+     }
+    },
+    "required": [
+     "portfolio_id",
+     "name",
+     "weight_pct",
+     "market_value_eur_m",
+     "selection_status"
+    ],
+    "title": "HeldIn",
+    "type": "object"
+   },
    "HistogramBin": {
     "properties": {
      "count": {
@@ -13133,6 +13209,29 @@
      "not_in"
     ],
     "title": "LabelRule",
+    "type": "object"
+   },
+   "LatestNote": {
+    "properties": {
+     "at": {
+      "title": "At",
+      "type": "string"
+     },
+     "by": {
+      "title": "By",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text",
+     "by",
+     "at"
+    ],
+    "title": "LatestNote",
     "type": "object"
    },
    "LayerWeights": {
@@ -14340,6 +14439,44 @@
     "title": "NextMeeting",
     "type": "object"
    },
+   "Note": {
+    "properties": {
+     "at": {
+      "title": "At",
+      "type": "string"
+     },
+     "by": {
+      "title": "By",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "note_id": {
+      "title": "Note Id",
+      "type": "string"
+     },
+     "scope": {
+      "title": "Scope",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "note_id",
+     "company_id",
+     "text",
+     "by",
+     "at",
+     "scope"
+    ],
+    "title": "Note",
+    "type": "object"
+   },
    "NoteCitation": {
     "properties": {
      "page": {
@@ -14367,6 +14504,29 @@
      "quote"
     ],
     "title": "NoteCitation",
+    "type": "object"
+   },
+   "NoteCreate": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "scope": {
+      "default": "house",
+      "title": "Scope",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id",
+     "text"
+    ],
+    "title": "NoteCreate",
     "type": "object"
    },
    "NoteItem": {
@@ -14412,6 +14572,22 @@
      "citations"
     ],
     "title": "NoteItem",
+    "type": "object"
+   },
+   "NoteList": {
+    "properties": {
+     "notes": {
+      "items": {
+       "$ref": "#/components/schemas/Note"
+      },
+      "title": "Notes",
+      "type": "array"
+     }
+    },
+    "required": [
+     "notes"
+    ],
+    "title": "NoteList",
     "type": "object"
    },
    "NoteReject": {
@@ -14471,6 +14647,30 @@
      }
     },
     "title": "NoteSections",
+    "type": "object"
+   },
+   "NotesSummary": {
+    "properties": {
+     "count": {
+      "title": "Count",
+      "type": "integer"
+     },
+     "latest": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LatestNote"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "count",
+     "latest"
+    ],
+    "title": "NotesSummary",
     "type": "object"
    },
    "Objective": {
@@ -21249,6 +21449,33 @@
     "title": "SelectAll",
     "type": "object"
    },
+   "SelectedElsewhere": {
+    "properties": {
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "scope": {
+      "title": "Scope",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "proposed",
+       "confirmed"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "scope",
+     "label",
+     "status"
+    ],
+    "title": "SelectedElsewhere",
+    "type": "object"
+   },
    "Selection": {
     "properties": {
      "confirmed_at": {
@@ -21333,6 +21560,11 @@
       },
       "title": "Remove",
       "type": "array"
+     },
+     "scope": {
+      "default": "house",
+      "title": "Scope",
+      "type": "string"
      }
     },
     "title": "SelectionChange",
@@ -21350,6 +21582,11 @@
        }
       ],
       "title": "Cycle"
+     },
+     "scope": {
+      "default": "house",
+      "title": "Scope",
+      "type": "string"
      }
     },
     "title": "SelectionConfirm",
@@ -26107,6 +26344,158 @@
     "title": "VetoRule",
     "type": "object"
    },
+   "Vote": {
+    "properties": {
+     "against_management": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Against Management"
+     },
+     "demo": {
+      "title": "Demo",
+      "type": "boolean"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "item_number": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Item Number"
+     },
+     "management_recommendation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Management Recommendation"
+     },
+     "meeting_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Meeting Date"
+     },
+     "meeting_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Meeting Type"
+     },
+     "proponent": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proponent"
+     },
+     "rationale": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rationale"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "vote": {
+      "title": "Vote",
+      "type": "string"
+     },
+     "vote_label": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Vote Label"
+     }
+    },
+    "required": [
+     "meeting_date",
+     "meeting_type",
+     "item_number",
+     "description",
+     "proponent",
+     "management_recommendation",
+     "vote",
+     "vote_label",
+     "against_management",
+     "rationale",
+     "source",
+     "demo"
+    ],
+    "title": "Vote",
+    "type": "object"
+   },
+   "VoteList": {
+    "properties": {
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     },
+     "votes": {
+      "items": {
+       "$ref": "#/components/schemas/Vote"
+      },
+      "title": "Votes",
+      "type": "array"
+     }
+    },
+    "required": [
+     "votes",
+     "total"
+    ],
+    "title": "VoteList",
+    "type": "object"
+   },
    "VoteReviewDecisionRequest": {
     "description": "Voting's review decision carries extra fields (vote, co_signed_by)\nand its own validation beyond the generic shape shared by the other\nrouters -- see arp/api/review_endpoints.py's module docstring for why\nthat isn't generalized -- but still calls the same submit_review()\npersistence helper everyone else uses.",
     "properties": {
@@ -26703,9 +27092,23 @@
       "title": "Coverage Tier Confirmed",
       "type": "boolean"
      },
+     "engaged": {
+      "$ref": "#/components/schemas/Engaged"
+     },
+     "equity_held_eur_m": {
+      "title": "Equity Held Eur M",
+      "type": "number"
+     },
      "escalated": {
       "title": "Escalated",
       "type": "integer"
+     },
+     "esg_extra": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/Observed"
+      },
+      "title": "Esg Extra",
+      "type": "object"
      },
      "esg_score": {
       "anyOf": [
@@ -26716,6 +27119,13 @@
         "type": "null"
        }
       ]
+     },
+     "held_in": {
+      "items": {
+       "$ref": "#/components/schemas/HeldIn"
+      },
+      "title": "Held In",
+      "type": "array"
      },
      "holdings_weight_pct": {
       "anyOf": [
@@ -26728,9 +27138,20 @@
       ],
       "title": "Holdings Weight Pct"
      },
+     "identifier": {
+      "title": "Identifier",
+      "type": "string"
+     },
      "issuer_id": {
       "title": "Issuer Id",
       "type": "string"
+     },
+     "last_topics": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Last Topics",
+      "type": "array"
      },
      "next_meeting": {
       "anyOf": [
@@ -26742,6 +27163,19 @@
        }
       ]
      },
+     "norms_violation": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Observed"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "notes": {
+      "$ref": "#/components/schemas/NotesSummary"
+     },
      "open_engagements": {
       "title": "Open Engagements",
       "type": "integer"
@@ -26749,6 +27183,16 @@
      "overdue_commitments": {
       "title": "Overdue Commitments",
       "type": "integer"
+     },
+     "ownership_pct": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Observed"
+       },
+       {
+        "type": "null"
+       }
+      ]
      },
      "parts": {
       "items": {
@@ -26771,6 +27215,13 @@
      "sector": {
       "title": "Sector",
       "type": "string"
+     },
+     "selected_elsewhere": {
+      "items": {
+       "$ref": "#/components/schemas/SelectedElsewhere"
+      },
+      "title": "Selected Elsewhere",
+      "type": "array"
      },
      "selection": {
       "anyOf": [
@@ -26800,6 +27251,13 @@
      "issuer_id",
      "company",
      "sector",
+     "identifier",
+     "engaged",
+     "last_topics",
+     "norms_violation",
+     "esg_extra",
+     "equity_held_eur_m",
+     "ownership_pct",
      "holdings_weight_pct",
      "aum_held_eur_m",
      "coverage_tier",
@@ -26816,7 +27274,10 @@
      "score",
      "parts",
      "selection",
-     "programmes"
+     "programmes",
+     "held_in",
+     "selected_elsewhere",
+     "notes"
     ],
     "title": "WorklistRow",
     "type": "object"
@@ -26847,6 +27308,22 @@
      "companies"
     ],
     "title": "WorklistScope",
+    "type": "object"
+   },
+   "WorklistScopes": {
+    "properties": {
+     "scopes": {
+      "items": {
+       "$ref": "#/components/schemas/WorklistScope"
+      },
+      "title": "Scopes",
+      "type": "array"
+     }
+    },
+    "required": [
+     "scopes"
+    ],
+    "title": "WorklistScopes",
     "type": "object"
    },
    "XbrlRunRequest": {
@@ -43131,6 +43608,89 @@
     ]
    }
   },
+  "/api/stewardship/notes": {
+   "get": {
+    "description": "The company's notes, newest first. No route edits or deletes a note.",
+    "operationId": "get_notes_api_stewardship_notes_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/NoteList"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Notes",
+    "tags": [
+     "stewardship"
+    ]
+   },
+   "post": {
+    "description": "Adds a note on a company of the house universe; `scope` only records where it was written.",
+    "operationId": "post_note_api_stewardship_notes_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/NoteCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Note"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Note",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
   "/api/stewardship/objectives/{objective_id}/result": {
    "post": {
     "operationId": "record_objective_result_api_stewardship_objectives__objective_id__result_post",
@@ -43674,7 +44234,7 @@
   },
   "/api/stewardship/selection": {
    "get": {
-    "description": "The house engagement selection of a cycle (default: the current one), folded from its log.",
+    "description": "The engagement selection of a scope and cycle (default: the current one), folded from its log.",
     "operationId": "get_selection_api_stewardship_selection_get",
     "parameters": [
      {
@@ -43691,6 +44251,16 @@
         }
        ],
        "title": "Cycle"
+      }
+     },
+     {
+      "in": "query",
+      "name": "scope",
+      "required": false,
+      "schema": {
+       "default": "house",
+       "title": "Scope",
+       "type": "string"
       }
      }
     ],
@@ -43722,7 +44292,7 @@
     ]
    },
    "post": {
-    "description": "Adds companies as proposed and removes proposed ones; confirmed rows stay.",
+    "description": "Adds companies of the scope as proposed and removes proposed ones; confirmed rows stay.",
     "operationId": "post_selection_api_stewardship_selection_post",
     "requestBody": {
      "content": {
@@ -43764,7 +44334,7 @@
   },
   "/api/stewardship/selection/confirm": {
    "post": {
-    "description": "Every proposed row of the cycle becomes confirmed, recorded as the signed-in user.",
+    "description": "Every proposed row of the scope and cycle becomes confirmed, recorded as the signed-in user.",
     "operationId": "post_selection_confirm_api_stewardship_selection_confirm_post",
     "requestBody": {
      "content": {
@@ -45434,6 +46004,49 @@
     ]
    }
   },
+  "/api/stewardship/votes": {
+   "get": {
+    "description": "The company's vote-ledger decisions, newest meeting first (at most 500, with the total).",
+    "operationId": "get_votes_api_stewardship_votes_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/VoteList"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Votes",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
   "/api/stewardship/watch-items/{item_kind}/{item_id}/check": {
    "post": {
     "operationId": "check_watch_item_api_stewardship_watch_items__item_kind___item_id__check_post",
@@ -45709,8 +46322,20 @@
   },
   "/api/stewardship/worklist": {
    "get": {
-    "description": "One row per company of the house scope, computed from stored values on every request.",
+    "description": "One row per company of the scope (house, `portfolio:<id>` or `group:<id>`), computed from stored values on every request.",
     "operationId": "get_worklist_api_stewardship_worklist_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "scope",
+      "required": false,
+      "schema": {
+       "default": "house",
+       "title": "Scope",
+       "type": "string"
+      }
+     }
+    ],
     "responses": {
      "200": {
       "content": {
@@ -45721,9 +46346,41 @@
        }
       },
       "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
      }
     },
     "summary": "Get Worklist",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/worklist/scopes": {
+   "get": {
+    "description": "The house, every fund with company holdings at the latest snapshot, and every group of funds or companies.",
+    "operationId": "get_worklist_scopes_api_stewardship_worklist_scopes_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WorklistScopes"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Worklist Scopes",
     "tags": [
      "stewardship"
     ]
