@@ -2465,3 +2465,37 @@ a.vc-box:hover { border-color: var(--text); }
 .focus-target:focus { outline: none; }
 .page button.secondary[aria-disabled="true"] { opacity: 0.6; cursor: not-allowed; }
 .page select[aria-disabled="true"] { opacity: 0.6; cursor: progress; }
+
+/* Start page simplified (docs/superpowers/specs/2026-11-15-start-page-simplified-design.md):
+   on #/home a top bar replaces the sidebar; the lockup sits where the landing header puts it. */
+.app-shell-start { flex-direction: column; }
+.app-shell-start .app-main { width: 100%; max-width: 1248px; margin: 0 auto; padding: var(--s-12) var(--s-8) 80px; }
+.start-topbar { position: sticky; top: 0; z-index: 50; display: grid; grid-template-columns: 1fr minmax(0, 480px) 1fr; align-items: center; gap: var(--s-4); height: 76px; padding: 0 max(var(--s-8), env(safe-area-inset-right, 0px)) 0 max(var(--s-8), env(safe-area-inset-left, 0px)); background: var(--bg); border-bottom: 1px solid var(--panel-border); }
+.start-topbar-brand { display: flex; color: var(--text); justify-self: start; }
+.start-topbar-lockup { height: 28px; width: auto; display: block; }
+.start-topbar-search, .start-topbar-ask, .start-topbar-me { margin: 0; font: inherit; cursor: pointer; }
+.start-topbar-search { display: flex; align-items: center; gap: var(--s-2); width: 100%; height: 36px; padding: 0 var(--s-3); border: 1px solid var(--panel-border); border-radius: var(--r-pill); background: var(--panel); color: var(--muted); font-size: var(--text-sm); text-align: left; }
+.start-topbar-search-label { flex: 1; }
+.start-topbar-search:hover:not(:disabled), .start-topbar-ask:hover:not(:disabled) { background: var(--well); color: var(--text); }
+.start-topbar kbd { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); }
+.start-topbar-end { justify-self: end; display: flex; align-items: center; gap: var(--s-4); }
+.start-topbar-ask { display: inline-flex; align-items: center; gap: var(--s-2); height: 36px; padding: 0 var(--s-3); border: 1px solid var(--panel-border); border-radius: var(--r-pill); background: transparent; color: var(--text); font-size: var(--text-sm); font-weight: 500; }
+.start-topbar-nav { display: flex; align-items: center; gap: var(--s-4); font-size: var(--text-sm); }
+.start-topbar-nav > a { display: inline-flex; align-items: center; gap: var(--s-2); color: var(--text); text-decoration: none; white-space: nowrap; }
+.start-topbar-nav > a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.start-topbar-nav .nav-count { margin-left: 0; }
+.start-topbar-user { position: relative; }
+.start-topbar-me { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--panel-border); border-radius: var(--r-pill); background: var(--panel); color: var(--text); }
+.start-topbar-me:hover:not(:disabled) { background: var(--well); }
+.start-topbar-avatar { font-size: var(--text-sm); font-weight: 600; }
+.start-topbar-pop { position: absolute; right: 0; top: 46px; z-index: 60; display: grid; gap: var(--s-3); width: 300px; max-width: calc(100vw - 32px); padding: var(--s-4); background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-lg); box-shadow: var(--shadow-md); overflow-wrap: anywhere; }
+.start-topbar-pop[hidden] { display: none; }
+.start-topbar-pop .theme-switch { margin: 0; }
+.start-topbar-pop > a { color: var(--text); font-size: var(--text-sm); }
+@media (max-width: 760px) {
+  .start-topbar { grid-template-columns: auto 1fr; padding: 0 max(var(--s-4), env(safe-area-inset-right, 0px)) 0 max(var(--s-4), env(safe-area-inset-left, 0px)); height: 64px; }
+  .start-topbar-search { display: none; }
+  .start-topbar-ask kbd { display: none; }
+  .start-topbar-end, .start-topbar-nav { gap: var(--s-3); }
+  .app-shell-start .app-main { padding: var(--s-8) var(--s-4) 64px; }
+}
