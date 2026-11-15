@@ -5497,6 +5497,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/cockpit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Cockpit */
+        get: operations["get_cockpit_api_stewardship_cockpit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/decision-inputs": {
         parameters: {
             query?: never;
@@ -10656,6 +10673,212 @@ export interface components {
              * @enum {string}
              */
             status: "resolved" | "closed";
+        };
+        /** CockpitControlGap */
+        CockpitControlGap: {
+            /** Company */
+            company: string;
+            /** Company Id */
+            company_id: string;
+            /** Engagement Id */
+            engagement_id: string;
+            /** Gaps */
+            gaps: string[];
+            /** Open Days */
+            open_days: number | null;
+            /** Theme */
+            theme: string;
+        };
+        /** CockpitDay */
+        CockpitDay: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Engagement Meetings */
+            engagement_meetings: number;
+            /** Shareholder Meetings */
+            shareholder_meetings: number;
+        };
+        /** CockpitEngagementMeeting */
+        CockpitEngagementMeeting: {
+            /** Company */
+            company: string;
+            /** Company Id */
+            company_id: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Engagement Id */
+            engagement_id: string;
+            /** Objective */
+            objective: string | null;
+            /** Stage */
+            stage: string;
+            /** Step */
+            step: number;
+            /** Theme */
+            theme: string;
+        };
+        /** CockpitLadderCompany */
+        CockpitLadderCompany: {
+            /** Company */
+            company: string;
+            /** Company Id */
+            company_id: string;
+        };
+        /** CockpitLadderStep */
+        CockpitLadderStep: {
+            /** Companies */
+            companies: components["schemas"]["CockpitLadderCompany"][];
+            /** Label */
+            label: string;
+            /** Stage */
+            stage: string;
+            /** Step */
+            step: number;
+        };
+        /** CockpitPortfolioOption */
+        CockpitPortfolioOption: {
+            /** Name */
+            name: string;
+            /** Portfolio Id */
+            portfolio_id: string;
+        };
+        /** CockpitResponse */
+        CockpitResponse: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Control Gaps */
+            control_gaps: components["schemas"]["CockpitControlGap"][];
+            /** Days */
+            days: components["schemas"]["CockpitDay"][];
+            /** Demo */
+            demo: boolean;
+            /** Emissions */
+            emissions?: null;
+            /** Engagement Meetings */
+            engagement_meetings: components["schemas"]["CockpitEngagementMeeting"][];
+            /** Ladder */
+            ladder: components["schemas"]["CockpitLadderStep"][];
+            /** Portfolios */
+            portfolios: components["schemas"]["CockpitPortfolioOption"][];
+            scope: components["schemas"]["CockpitScope"];
+            /** Shareholder Meetings */
+            shareholder_meetings: components["schemas"]["CockpitShareholderMeeting"][];
+            summary: components["schemas"]["CockpitSummary"];
+            /** Themes */
+            themes: components["schemas"]["CockpitThemeRow"][];
+            /** Tiers */
+            tiers: components["schemas"]["CockpitTierTotal"][];
+            voting: components["schemas"]["CockpitVoting"];
+        };
+        /** CockpitScope */
+        CockpitScope: {
+            /** Label */
+            label: string;
+            /** Portfolio Id */
+            portfolio_id: string | null;
+        };
+        /** CockpitShareholderMeeting */
+        CockpitShareholderMeeting: {
+            /** Action Due */
+            action_due: boolean;
+            /** Ballot State */
+            ballot_state: string;
+            /** Company */
+            company: string;
+            /** Company Id */
+            company_id: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Days To Meeting */
+            days_to_meeting: number;
+            /** Flagged */
+            flagged: number | null;
+            /** Items */
+            items: number;
+            /** Run Id */
+            run_id: string | null;
+        };
+        /** CockpitSummary */
+        CockpitSummary: {
+            /** Engaged Outside Selection */
+            engaged_outside_selection: number;
+            /** Engaged Selected */
+            engaged_selected: number;
+            /** Selected */
+            selected: number;
+        };
+        /** CockpitThemeRow */
+        CockpitThemeRow: {
+            /** Engaged */
+            engaged: number;
+            /** Selected */
+            selected: number;
+            /** Theme */
+            theme: string;
+            /** Tiers */
+            tiers: components["schemas"]["CockpitTierCount"][];
+        };
+        /** CockpitTierCount */
+        CockpitTierCount: {
+            /** Engaged */
+            engaged: number;
+            /** Selected */
+            selected: number;
+            /** Tier */
+            tier: string;
+        };
+        /** CockpitTierTotal */
+        CockpitTierTotal: {
+            /** Engaged */
+            engaged: number;
+            /** Label */
+            label: string;
+            /** Selected */
+            selected: number;
+            /** Tier */
+            tier: string;
+        };
+        /** CockpitTopicCount */
+        CockpitTopicCount: {
+            /** Against Management */
+            against_management: number;
+            /** Topic */
+            topic: string;
+            /** Votes */
+            votes: number;
+        };
+        /** CockpitVoting */
+        CockpitVoting: {
+            /** Abstain */
+            abstain: number;
+            /** Against */
+            against: number;
+            /** Against Management */
+            against_management: number;
+            /** For */
+            for: number;
+            /** Meetings */
+            meetings: number;
+            /** Other */
+            other: number;
+            /** Season */
+            season: number;
+            /** Topics */
+            topics: components["schemas"]["CockpitTopicCount"][];
+            /** Votes */
+            votes: number;
         };
         /**
          * ColumnKind
@@ -30002,6 +30225,38 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    get_cockpit_api_stewardship_cockpit_get: {
+        parameters: {
+            query?: {
+                portfolio_id?: string | null;
+                as_of?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CockpitResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

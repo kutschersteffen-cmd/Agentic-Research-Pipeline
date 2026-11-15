@@ -5001,6 +5001,577 @@
     "title": "CloseRequest",
     "type": "object"
    },
+   "CockpitControlGap": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "engagement_id": {
+      "title": "Engagement Id",
+      "type": "string"
+     },
+     "gaps": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Gaps",
+      "type": "array"
+     },
+     "open_days": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Open Days"
+     },
+     "theme": {
+      "title": "Theme",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id",
+     "company",
+     "engagement_id",
+     "theme",
+     "open_days",
+     "gaps"
+    ],
+    "title": "CockpitControlGap",
+    "type": "object"
+   },
+   "CockpitDay": {
+    "properties": {
+     "date": {
+      "format": "date",
+      "title": "Date",
+      "type": "string"
+     },
+     "engagement_meetings": {
+      "title": "Engagement Meetings",
+      "type": "integer"
+     },
+     "shareholder_meetings": {
+      "title": "Shareholder Meetings",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "date",
+     "engagement_meetings",
+     "shareholder_meetings"
+    ],
+    "title": "CockpitDay",
+    "type": "object"
+   },
+   "CockpitEngagementMeeting": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "date": {
+      "format": "date",
+      "title": "Date",
+      "type": "string"
+     },
+     "engagement_id": {
+      "title": "Engagement Id",
+      "type": "string"
+     },
+     "objective": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Objective"
+     },
+     "stage": {
+      "title": "Stage",
+      "type": "string"
+     },
+     "step": {
+      "title": "Step",
+      "type": "integer"
+     },
+     "theme": {
+      "title": "Theme",
+      "type": "string"
+     }
+    },
+    "required": [
+     "date",
+     "company_id",
+     "company",
+     "engagement_id",
+     "theme",
+     "objective",
+     "step",
+     "stage"
+    ],
+    "title": "CockpitEngagementMeeting",
+    "type": "object"
+   },
+   "CockpitLadderCompany": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id",
+     "company"
+    ],
+    "title": "CockpitLadderCompany",
+    "type": "object"
+   },
+   "CockpitLadderStep": {
+    "properties": {
+     "companies": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitLadderCompany"
+      },
+      "title": "Companies",
+      "type": "array"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "stage": {
+      "title": "Stage",
+      "type": "string"
+     },
+     "step": {
+      "title": "Step",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "step",
+     "stage",
+     "label",
+     "companies"
+    ],
+    "title": "CockpitLadderStep",
+    "type": "object"
+   },
+   "CockpitPortfolioOption": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "portfolio_id": {
+      "title": "Portfolio Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "portfolio_id",
+     "name"
+    ],
+    "title": "CockpitPortfolioOption",
+    "type": "object"
+   },
+   "CockpitResponse": {
+    "properties": {
+     "as_of": {
+      "format": "date",
+      "title": "As Of",
+      "type": "string"
+     },
+     "control_gaps": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitControlGap"
+      },
+      "title": "Control Gaps",
+      "type": "array"
+     },
+     "days": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitDay"
+      },
+      "title": "Days",
+      "type": "array"
+     },
+     "demo": {
+      "title": "Demo",
+      "type": "boolean"
+     },
+     "emissions": {
+      "title": "Emissions",
+      "type": "null"
+     },
+     "engagement_meetings": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitEngagementMeeting"
+      },
+      "title": "Engagement Meetings",
+      "type": "array"
+     },
+     "ladder": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitLadderStep"
+      },
+      "title": "Ladder",
+      "type": "array"
+     },
+     "portfolios": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitPortfolioOption"
+      },
+      "title": "Portfolios",
+      "type": "array"
+     },
+     "scope": {
+      "$ref": "#/components/schemas/CockpitScope"
+     },
+     "shareholder_meetings": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitShareholderMeeting"
+      },
+      "title": "Shareholder Meetings",
+      "type": "array"
+     },
+     "summary": {
+      "$ref": "#/components/schemas/CockpitSummary"
+     },
+     "themes": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitThemeRow"
+      },
+      "title": "Themes",
+      "type": "array"
+     },
+     "tiers": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitTierTotal"
+      },
+      "title": "Tiers",
+      "type": "array"
+     },
+     "voting": {
+      "$ref": "#/components/schemas/CockpitVoting"
+     }
+    },
+    "required": [
+     "as_of",
+     "scope",
+     "portfolios",
+     "demo",
+     "summary",
+     "days",
+     "tiers",
+     "themes",
+     "engagement_meetings",
+     "shareholder_meetings",
+     "control_gaps",
+     "ladder",
+     "voting"
+    ],
+    "title": "CockpitResponse",
+    "type": "object"
+   },
+   "CockpitScope": {
+    "properties": {
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "portfolio_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Portfolio Id"
+     }
+    },
+    "required": [
+     "portfolio_id",
+     "label"
+    ],
+    "title": "CockpitScope",
+    "type": "object"
+   },
+   "CockpitShareholderMeeting": {
+    "properties": {
+     "action_due": {
+      "title": "Action Due",
+      "type": "boolean"
+     },
+     "ballot_state": {
+      "title": "Ballot State",
+      "type": "string"
+     },
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "date": {
+      "format": "date",
+      "title": "Date",
+      "type": "string"
+     },
+     "days_to_meeting": {
+      "title": "Days To Meeting",
+      "type": "integer"
+     },
+     "flagged": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Flagged"
+     },
+     "items": {
+      "title": "Items",
+      "type": "integer"
+     },
+     "run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Run Id"
+     }
+    },
+    "required": [
+     "date",
+     "company_id",
+     "company",
+     "items",
+     "flagged",
+     "ballot_state",
+     "action_due",
+     "days_to_meeting",
+     "run_id"
+    ],
+    "title": "CockpitShareholderMeeting",
+    "type": "object"
+   },
+   "CockpitSummary": {
+    "properties": {
+     "engaged_outside_selection": {
+      "title": "Engaged Outside Selection",
+      "type": "integer"
+     },
+     "engaged_selected": {
+      "title": "Engaged Selected",
+      "type": "integer"
+     },
+     "selected": {
+      "title": "Selected",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "selected",
+     "engaged_selected",
+     "engaged_outside_selection"
+    ],
+    "title": "CockpitSummary",
+    "type": "object"
+   },
+   "CockpitThemeRow": {
+    "properties": {
+     "engaged": {
+      "title": "Engaged",
+      "type": "integer"
+     },
+     "selected": {
+      "title": "Selected",
+      "type": "integer"
+     },
+     "theme": {
+      "title": "Theme",
+      "type": "string"
+     },
+     "tiers": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitTierCount"
+      },
+      "title": "Tiers",
+      "type": "array"
+     }
+    },
+    "required": [
+     "theme",
+     "selected",
+     "engaged",
+     "tiers"
+    ],
+    "title": "CockpitThemeRow",
+    "type": "object"
+   },
+   "CockpitTierCount": {
+    "properties": {
+     "engaged": {
+      "title": "Engaged",
+      "type": "integer"
+     },
+     "selected": {
+      "title": "Selected",
+      "type": "integer"
+     },
+     "tier": {
+      "title": "Tier",
+      "type": "string"
+     }
+    },
+    "required": [
+     "tier",
+     "selected",
+     "engaged"
+    ],
+    "title": "CockpitTierCount",
+    "type": "object"
+   },
+   "CockpitTierTotal": {
+    "properties": {
+     "engaged": {
+      "title": "Engaged",
+      "type": "integer"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "selected": {
+      "title": "Selected",
+      "type": "integer"
+     },
+     "tier": {
+      "title": "Tier",
+      "type": "string"
+     }
+    },
+    "required": [
+     "tier",
+     "selected",
+     "engaged",
+     "label"
+    ],
+    "title": "CockpitTierTotal",
+    "type": "object"
+   },
+   "CockpitTopicCount": {
+    "properties": {
+     "against_management": {
+      "title": "Against Management",
+      "type": "integer"
+     },
+     "topic": {
+      "title": "Topic",
+      "type": "string"
+     },
+     "votes": {
+      "title": "Votes",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "topic",
+     "votes",
+     "against_management"
+    ],
+    "title": "CockpitTopicCount",
+    "type": "object"
+   },
+   "CockpitVoting": {
+    "properties": {
+     "abstain": {
+      "title": "Abstain",
+      "type": "integer"
+     },
+     "against": {
+      "title": "Against",
+      "type": "integer"
+     },
+     "against_management": {
+      "title": "Against Management",
+      "type": "integer"
+     },
+     "for": {
+      "title": "For",
+      "type": "integer"
+     },
+     "meetings": {
+      "title": "Meetings",
+      "type": "integer"
+     },
+     "other": {
+      "title": "Other",
+      "type": "integer"
+     },
+     "season": {
+      "title": "Season",
+      "type": "integer"
+     },
+     "topics": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitTopicCount"
+      },
+      "title": "Topics",
+      "type": "array"
+     },
+     "votes": {
+      "title": "Votes",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "season",
+     "meetings",
+     "votes",
+     "for",
+     "against",
+     "abstain",
+     "other",
+     "against_management",
+     "topics"
+    ],
+    "title": "CockpitVoting",
+    "type": "object"
+   },
    "ColumnKind": {
     "enum": [
      "category",
@@ -42441,6 +43012,72 @@
      }
     },
     "summary": "Get Catalogue",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/cockpit": {
+   "get": {
+    "operationId": "get_cockpit_api_stewardship_cockpit_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "portfolio_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Portfolio Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "As Of"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CockpitResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Cockpit",
     "tags": [
      "stewardship"
     ]

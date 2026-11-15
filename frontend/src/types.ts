@@ -25,6 +25,7 @@ export type DocumentPassages = Served<S["DocumentPassages"]>;
 export type DocumentPassage = DocumentPassages["passages"][number];
 export type ArgusFlow = Served<S["ArgusFlowView"]>;
 export type ArgusDraft = Served<S["ArgusFlow"]>; // as GET /api/argus/flows lists it, without rows
+export type Cockpit = Served<S["CockpitResponse"]>; // GET /api/stewardship/cockpit
 export type FlowRow = Served<S["FlowRow"]>;
 export type FlowFile = Served<S["FlowFile"]>;
 export type RepeatRow = Served<S["RepeatRow"]>;
