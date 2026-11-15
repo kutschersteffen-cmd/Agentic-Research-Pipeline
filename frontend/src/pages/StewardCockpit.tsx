@@ -224,7 +224,6 @@ function Cell({ e, s, max }: { e: number; s: number; max: number }) {
 function ThemeGrid({ data }: { data: Cockpit }) {
   const { themes, tiers, summary } = data;
   const { maxOf, note } = themeScale(themes, summary.selected);
-  const max = maxOf(null);
   return (
     <Card
       title="Engaged vs selected, by theme and tier"
@@ -246,8 +245,8 @@ function ThemeGrid({ data }: { data: Cockpit }) {
               </tr>
               <tr className="cockpit-grid-total">
                 <th scope="row">All themes</th>
-                {tiers.map((t) => <Cell key={t.tier} e={t.engaged} s={t.selected} max={max} />)}
-                <Cell e={summary.engaged_selected} s={summary.selected} max={max} />
+                {tiers.map((t) => <Cell key={t.tier} e={t.engaged} s={t.selected} max={maxOf(null)} />)}
+                <Cell e={summary.engaged_selected} s={summary.selected} max={maxOf(null)} />
               </tr>
             </thead>
             <tbody>

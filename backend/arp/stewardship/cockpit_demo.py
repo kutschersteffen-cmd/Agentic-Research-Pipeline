@@ -128,7 +128,7 @@ def step_tiers(settings: Settings, dsn: str, as_of: date) -> str:
     values = {c: v for c, v in values.items() if v > 0}  # a company held only at 0 EUR (or net short) is not held
     with transaction(dsn) as s:
         ledger = {r.company_id: r for r in s.execute(select(StwCompanyModel.company_id, StwCompanyModel.name, StwCompanyModel.sector)) if r.company_id in values}
-    total = sum(values.values())  # the share of all house holdings, as universe.from_portfolio computes it
+    total = sum(values.values())  # the share of the companies kept (net short and 0 EUR positions left out)
 
     def described(c: str, attr: str) -> str | None:
         return (getattr(ledger[c], attr) if c in ledger else None) or (getattr(companies[c], attr, None) if c in companies else None)
