@@ -16959,37 +16959,60 @@ export interface components {
             answer_location: string;
             /** Assignee */
             assignee: string | null;
+            /** Base Entry Id */
+            base_entry_id: number | null;
+            /** Document Priority */
+            document_priority: number | null;
             /** Flags */
             flags: string[];
             /** Id */
             id: number;
+            /** Kept Share */
+            kept_share: number | null;
             /** Last Editor */
             last_editor: string | null;
             /** Location */
             location: string;
             /** Question */
             question: string;
+            /** Segments */
+            segments: components["schemas"]["RfpSegment"][];
             /** Sources */
             sources: components["schemas"]["RfpSourceOut"][];
             /** Status */
             status: string;
         };
+        /** RfpSegment */
+        RfpSegment: {
+            /**
+             * Change
+             * @enum {string}
+             */
+            change: "kept" | "added" | "removed";
+            /** Text */
+            text: string;
+        };
         /** RfpSourceOut */
         RfpSourceOut: {
             /** Entry Id */
-            entry_id: number;
+            entry_id?: number | null;
             /** Entry Question */
-            entry_question: string;
+            entry_question?: string | null;
             /** File */
             file: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "entry" | "document";
             /** Location */
-            location: string | null;
+            location?: string | null;
             /** Quote */
             quote: string;
             /** Source */
-            source: string;
+            source?: string | null;
             /** Written By */
-            written_by: string | null;
+            written_by?: string | null;
         };
         /**
          * RiskModelSpec

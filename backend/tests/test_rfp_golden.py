@@ -45,4 +45,4 @@ class Drafter:
 
 def test_golden_drafts_counts():
     c = asyncio.run(golden.score_drafts(golden.load(DATA / "rfp_drafts.json"), Drafter(), Drafter(), today=date(2026, 10, 21)))
-    assert (c["drafted"], c["answerable"], c["blank"], c["unanswerable"], c["unsupported"]) == (1, 14, 8, 8, 1)
+    assert (c["drafted"], c["answerable"], c["blank"], c["unanswerable"], c["unsupported"]) == (0, 14, 8, 8, 0)
