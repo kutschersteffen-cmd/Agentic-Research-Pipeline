@@ -1,5 +1,7 @@
 """Spec `stewardship-cockpit` PR 2: per-company financed emissions and the cockpit's `emissions` section."""
 
+# ruff: noqa: F811 -- the `client` fixture is imported from the PR 1 suite and taken as a test argument
+
 from __future__ import annotations
 
 import pytest

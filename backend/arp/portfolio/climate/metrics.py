@@ -101,12 +101,10 @@ def financed_emissions_by_company(
     securities: dict[str, SecurityRef],
     *,
     as_of: str,
-    portfolio_filter: list[str] | None = None,
 ) -> tuple[dict[str, float], int]:
     """`compute_financed_emissions` split per company (key: the security's `company_id`), unrounded: the same
-    formula and the same exclusions, so the values sum to its `financed_emissions_tco2e`. Returns the per-company
-    tCO2e and the uncovered holding count."""
-    portfolio_set = set(portfolio_filter or [])
+    formula and the same exclusions over the holdings given (already scoped), so the values sum to its
+    `financed_emissions_tco2e`. Returns the per-company tCO2e and the uncovered holding count."""
     company_ids = _company_ids(securities)
     evic = datapoint_mapping.resolve_field_values_for_universe(store, company_ids, FIELD_EVIC, as_of)
     scope1 = datapoint_mapping.resolve_field_values_for_universe(store, company_ids, FIELD_SCOPE1, as_of)
@@ -115,8 +113,6 @@ def financed_emissions_by_company(
     per_company: dict[str, float] = {}
     uncovered_count = 0
     for h in holdings:
-        if portfolio_set and h.portfolio_id not in portfolio_set:
-            continue
         security = securities.get(h.security_id)
         company_id = security.company_id if security else None
         evic_value = evic.get(company_id) if company_id else None
