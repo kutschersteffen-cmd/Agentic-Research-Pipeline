@@ -15,6 +15,9 @@ test("the cockpit drawing never carries the accent and differs from every worksp
 test("the start page links the cockpit outside the five workspace cards", () => {
   const src = readFileSync(new URL("../src/pages/ProcessHub.tsx", import.meta.url), "utf8");
   const start = src.slice(src.indexOf("export function StartPage"));
-  assert.match(start, /<a className="hub-entry" href="#\/stewardiq\/cockpit">/);
-  assert.doesNotMatch(start, /className="hub-card[^"]*" href="#\/stewardiq\/cockpit"/);
+  // Attribute order is free: find each link's opening tag, then read its class and href.
+  const links = [...start.matchAll(/<a\b[^>]*>/g)].map((m) => m[0]);
+  const cockpit = links.filter((tag) => tag.includes('href="#/stewardiq/cockpit"'));
+  assert.equal(cockpit.length, 1);
+  assert.match(cockpit[0], /className="hub-entry"/);
 });

@@ -123,7 +123,7 @@ export function StartPage() {
         ))}
       </div>
       {/* Not a workspace card: one StewardIQ screen with its own way in, so the cards stay five workspaces. */}
-      <a className="hub-entry" href="#/stewardiq/cockpit">
+      <a className="hub-entry" href="#/stewardiq/cockpit" aria-label="Cockpit, StewardIQ">
         <span className="hub-entry-fig">
           <Drawing shapes={COCKPIT_SHAPES} />
         </span>

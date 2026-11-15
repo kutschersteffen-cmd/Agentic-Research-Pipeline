@@ -12,7 +12,7 @@ export function Drawing({ shapes, accent = null }: { shapes: Shape[]; accent?: "
   return (
     <svg className="ws-drawing" viewBox="0 0 200 156" aria-hidden="true" focusable="false">
       {shapes.map((s, i) => (
-        <path key={i} d={s.d} className={`ws-${s.part}${s.accent ? ` ws-accent-${accent}` : ""}`} />
+        <path key={i} d={s.d} className={`ws-${s.part}${s.accent && accent ? ` ws-accent-${accent}` : ""}`} />
       ))}
     </svg>
   );
