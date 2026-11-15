@@ -207,3 +207,6 @@ def render_slide(slide: SlideContent, index: int, deck: Deck, tokens: Tokens, da
 def decimals(values: list[float]) -> int:
     """Decimal places the values carry; chart labels and number formats keep them."""
     return max((len(f"{v:g}".partition(".")[2]) for v in values), default=0)
+
+
+from arp.reporting import visuals  # noqa: E402, F401 - registers the visual renderers (they import this module)
