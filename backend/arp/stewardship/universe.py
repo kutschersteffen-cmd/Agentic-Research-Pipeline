@@ -19,6 +19,7 @@ or synthetic engagement history.
 from __future__ import annotations
 
 import json
+import threading
 from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -88,6 +89,9 @@ def _value_by_company(store: PortfolioStore, as_of: str, companies: dict[str, st
     return out
 
 
+_ONE_PASS = threading.Lock()
+
+
 def latest_observations(store: PortfolioStore, as_of: str | None = None) -> dict[str, dict[str, DataPointObservation]]:
     """company_id -> {field_id: its latest observation as of `as_of` (default: the latest holdings snapshot)}, every
     recorded (company, field) pair read once."""
@@ -95,9 +99,10 @@ def latest_observations(store: PortfolioStore, as_of: str | None = None) -> dict
     if not dates:
         return {}
     out: dict[str, dict[str, DataPointObservation]] = defaultdict(dict)
-    for company_id, field_id in store.list_observation_keys():
-        if (obs := store.latest_observation(company_id, field_id, as_of or dates[-1])) is not None:
-            out[company_id][field_id] = obs
+    with _ONE_PASS:  # a request during start-up waits for the cache warm-up instead of parsing the same files beside it
+        for company_id, field_id in store.list_observation_keys():
+            if (obs := store.latest_observation(company_id, field_id, as_of or dates[-1])) is not None:
+                out[company_id][field_id] = obs
     return dict(out)
 
 

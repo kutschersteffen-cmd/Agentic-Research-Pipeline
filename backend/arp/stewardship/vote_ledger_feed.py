@@ -76,14 +76,13 @@ def _registry_ids(s, isins: set[str], house_issuers: list[dict] | None) -> dict[
     isin, universe = m.CompanyIdentifier, aliased(m.CompanyIdentifier)
     keys = {normalise_identifier(m.IdScheme.ISIN, i) for i in isins}
     q = (
-        select(isin.value, isin.company_id, universe.value)
+        select(isin.value, universe.value)
         .outerjoin(universe, (universe.company_id == isin.company_id) & (universe.scheme == m.IdScheme.UNIVERSE) & universe.valid_to.is_(None))
         .where(isin.scheme == m.IdScheme.ISIN, isin.value.in_(keys), isin.valid_to.is_(None))
     )
-    company: dict[str, object] = {}  # the first company an ISIN names, as a single-row lookup would take
-    values: dict[str, list[str]] = {}
-    for key, company_id, value in s.execute(q):
-        if company.setdefault(key, company_id) == company_id and value:
+    values: dict[str, list[str]] = {}  # an active ISIN names one company (uq_company_identifiers_active)
+    for key, value in s.execute(q):
+        if value:
             values.setdefault(key, []).append(value)
     house: dict[str, str] = {}
     if values:  # the registry upper-cases UNIVERSE values; issuer ids keep their case

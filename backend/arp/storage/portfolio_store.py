@@ -37,9 +37,9 @@ def _sidecar_lock_path(key: str) -> Path:
     return path.parent / f".{path.name}.lock"
 
 
-# (portfolios dir, company, field) -> (file path, (mtime_ns, size, as_of), latest observation): one entry per
-# observation file (see latest_observation).
-_LATEST: dict[tuple[Path, str, str], tuple[str, tuple[int, int, str | None], DataPointObservation | None]] = {}
+# (portfolios dir, company, field) -> (file path, (inode, ctime_ns, mtime_ns, size, as_of), latest observation):
+# one entry per observation file (see latest_observation).
+_LATEST: dict[tuple[Path, str, str], tuple[str, tuple[int, int, int, int, str | None], DataPointObservation | None]] = {}
 
 
 class PortfolioStore:
@@ -327,10 +327,12 @@ class PortfolioStore:
         ]
 
     def latest_observation(self, company_id: str, field_id: str, as_of: str | None = None) -> DataPointObservation | None:
-        """The latest observation on or before `as_of`, a real one before a simulated one. Cached per file and
-        `as_of` for the life of the process, and re-read whenever the file's mtime or size differs, so an
-        appended observation shows on the next call (owner decision 15 Nov 2026: the stewardship worklist reads
-        ~81k of these files per request). Callers must not mutate the returned object: it is shared."""
+        """The latest observation on or before `as_of`, a real one before a simulated one. Cached for the life of
+        the process, one slot per file (another `as_of` re-reads it), and re-read whenever the file's inode,
+        ctime, mtime or size differs, so an appended, rewritten or replaced file shows on the next call, even one
+        restored with its old mtime (owner decision 15 Nov 2026: the stewardship worklist reads ~81k of these files
+        per request; decision/sources.py shares the cache). Callers must not mutate the returned object: it is
+        shared."""
         key = (self.portfolios_dir, company_id, field_id)
         hit = _LATEST.get(key)
         path = hit[0] if hit else str(self.observations_path(company_id, field_id))  # validated once, then kept
@@ -338,7 +340,7 @@ class PortfolioStore:
             st = os.stat(path)
         except FileNotFoundError:
             return None
-        version = (st.st_mtime_ns, st.st_size, as_of)
+        version = (st.st_ino, st.st_ctime_ns, st.st_mtime_ns, st.st_size, as_of)  # utime cannot set ctime
         if hit is not None and hit[1] == version:
             return hit[2]
         obs = [DataPointObservation.model_validate(row) for row in self._read_jsonl(Path(path))]

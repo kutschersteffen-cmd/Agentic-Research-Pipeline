@@ -232,7 +232,7 @@ class PostgresEngagementStore:
         with self._session() as session:
             ids = session.scalars(select(StwCompanyModel.company_id).order_by(StwCompanyModel.company_id.collate("C"))).all()
             records = self._read_many(session, list(ids))
-            return [records[company_id] for company_id in ids]
+            return [records[company_id] for company_id in ids if company_id in records]  # deleted in between
 
     def events(self, company_id: str) -> list[dict]:
         safe_id(company_id, label="company_id")

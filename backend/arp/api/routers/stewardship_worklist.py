@@ -39,12 +39,11 @@ from arp.stewardship.programmes import ProgrammeLog, UnknownProgramme
 from arp.stewardship.universe import HouseUniverseSetting
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.portfolio_store_factory import build_portfolio_store
-from arp.storage.postgres_portfolio_store import PostgresPortfolioStore
 
 router = APIRouter(prefix="/api/stewardship", tags=["stewardship"])
 
 
-def _load(settings: Settings) -> tuple[dict, PostgresPortfolioStore, dict]:
+def _load(settings: Settings) -> tuple[dict, object, dict]:
     """`load_sample()`, the portfolio store and the worklist's inputs. In the portfolio universe the observations
     are read once, for both the universe and the worklist columns (each read is one file per company and field)."""
     store = build_portfolio_store(settings)

@@ -2607,6 +2607,7 @@ a.vc-box:hover { border-color: var(--text); }
 .wb-sort-chip { display: inline-flex; align-items: center; gap: var(--s-1); color: var(--text); font-family: var(--font-mono); }
 /* 24px targets (WCAG 2.5.8) for the small ✕ buttons; the glyph stays small. */
 :is(.wb-sort-chip, .wb-proposed) .link-button { display: inline-grid; place-items: center; min-width: 24px; min-height: 24px; padding: 0; margin: 0; line-height: 1; }
+.wb-proposed .link-button { margin-block: -4px; } /* the 24px target must not make a proposed row taller than the others */
 .wb-counts { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-xs); }
 .wb-menu { position: relative; }
 .wb-menu > summary { cursor: pointer; list-style: none; padding: var(--s-1) var(--s-2); border: 1px solid var(--field-border); border-radius: var(--r-sm); background: var(--panel); white-space: nowrap; }
@@ -2634,7 +2635,9 @@ a.vc-box:hover { border-color: var(--text); }
 .sim-tag { display: inline-block; margin-left: var(--s-1_5); padding: 0 var(--s-1); border: 1px dashed var(--field-border); border-radius: 2px; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); vertical-align: baseline; }
 .wb-pager { justify-content: center; align-items: center; gap: var(--s-3); margin-top: var(--s-3); font-family: var(--font-mono); font-size: var(--text-xs); }
 .wb-actions { flex-wrap: wrap; gap: var(--s-2); }
-.wb-programme-menu { width: auto; }
+.wb-actions .wb-menu > summary { padding: 9px 16px; border-color: var(--panel-border); border-radius: var(--r-md); color: var(--accent); font-weight: 600; }
+.wb-menu-item { display: block; width: 100%; padding: var(--s-1_5) 0; text-align: left; white-space: nowrap; }
+.wb-table td.wb-topics { max-width: 20rem; overflow: hidden; text-overflow: ellipsis; }
 .wb-fund-list { max-height: 40vh; overflow: auto; margin: var(--s-2) 0; }
 .wb-weights { max-width: 28rem; }
 .wb-weights td { vertical-align: middle; }

@@ -403,7 +403,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
                         <input type="checkbox" aria-label={`Tick ${r.company}`} checked={ticked.has(r.issuer_id)} onChange={(e) => tick(r.issuer_id, e.target.checked)} />
                       </td>
                       {shown.map((c) => (
-                        <td key={c.id} className={c.id === "company" ? "wb-name" : c.numeric && !c.pinned ? "num" : undefined} title={c.id === "company" ? r.company : undefined}>
+                        <td key={c.id} className={c.id === "company" ? "wb-name" : c.id === "last_topics" ? "wb-topics" : c.numeric && !c.pinned ? "num" : undefined} title={c.id === "company" ? r.company : c.id === "last_topics" ? r.last_topics.join("; ") || undefined : undefined}>
                           <Cell col={c} row={r} asOf={data.as_of} onRemove={removeSelected} />
                         </td>
                       ))}
@@ -533,9 +533,9 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
           onSubmit={(name) =>
             act(async () => {
               const p = await api.createProgramme(name);
+              setProgrammes((ps) => [...ps, p]); // listed even if adding the members below fails
               const detail = await api.addProgrammeMembers(p.programme_id, [...ticked]);
               patch((r) => withProgramme(r, detail));
-              setProgrammes((ps) => [...ps, p]);
               setDialog(null);
               return `Created ${p.name} and proposed ${plural(ticked.size, "company", "companies")}.`;
             })
@@ -578,30 +578,34 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   );
 }
 
+/** A button that opens a menu: nothing is written until a programme is clicked (a select's onChange fires on an
+ * arrow key, WCAG 3.2.2). */
 function ProgrammeMenu({ programmes, disabled, onPick, onNew }: { programmes: WorkProgramme[]; disabled: boolean; onPick: (p: WorkProgramme) => void; onNew: () => void }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  if (disabled)
+    return (
+      <button className="secondary" disabled>
+        Add to programme ▾
+      </button>
+    );
+  const pick = (run: () => void) => {
+    if (ref.current) ref.current.open = false;
+    run();
+  };
   return (
-    <select
-      className="wb-programme-menu"
-      aria-label="Add to programme"
-      value=""
-      disabled={disabled}
-      onChange={(e) => {
-        const v = e.target.value;
-        if (v === "__new") onNew();
-        else {
-          const p = programmes.find((x) => x.programme_id === v);
-          if (p) onPick(p);
-        }
-      }}
-    >
-      <option value="">Add to programme ▾</option>
-      {programmes.map((p) => (
-        <option key={p.programme_id} value={p.programme_id}>
-          {programmeShort(p.name)}
-        </option>
-      ))}
-      <option value="__new">New programme…</option>
-    </select>
+    <details ref={ref} className="wb-menu wb-programme-menu">
+      <summary>Add to programme ▾</summary>
+      <div className="wb-menu-panel" role="group" aria-label="Add to programme">
+        {programmes.map((p) => (
+          <button key={p.programme_id} className="link-button wb-menu-item" onClick={() => pick(() => onPick(p))}>
+            {programmeShort(p.name)}
+          </button>
+        ))}
+        <button className="link-button wb-menu-item" onClick={() => pick(onNew)}>
+          New programme…
+        </button>
+      </div>
+    </details>
   );
 }
 
