@@ -20,6 +20,7 @@ from arp.schemas.reporting import Deck, Finding, QuantitativeDataset, ReportRequ
 from arp.schemas.visuals import FRIENDLY_NAMES, Points, Visual
 
 WRITING_GUIDE = (Path(__file__).parent / "style" / "writing.md").read_text()
+DESIGN_GUIDE = (Path(__file__).parent / "style" / "design.md").read_text()
 
 _FILLED_ELSEWHERE = {"chart": "set `chart`", "table": "set `table`", "image": "set `image_path`"}
 # There is no image upload, so any image_path the model sets is invented (and would be read from local disk):
@@ -177,7 +178,7 @@ async def _fill_visual(slide: StorylineSlide, index: int, request: ReportRequest
     system = _VISUAL_RULES.format(type=slide.visual, name=FRIENDLY_NAMES.get(slide.visual, slide.visual),
                                   schema=json.dumps(model.model_json_schema())) + "\n" + WRITING_GUIDE
     kind = slide.visual + (f" (chart kind: {slide.chart_kind})" if slide.chart_kind else "")
-    prompt = _prompt(slide, index, request) + f"\nVisual: {kind}\nWhy this visual: {slide.rationale or '(not given)'}\n"
+    prompt = _prompt(slide, index, request) + f"\nVisual: {kind}\nWhy this visual: {slide.rationale or '(not given)'}\n\nVisual guide:\n{DESIGN_GUIDE}"
     try:
         answer, usage = await llm.complete_structured(system=system, prompt=prompt, output_model=SlideContent)
         content, errors = _check_visual(answer, slide.visual, request)

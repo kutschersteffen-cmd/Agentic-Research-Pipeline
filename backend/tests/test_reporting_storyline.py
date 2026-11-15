@@ -24,7 +24,7 @@ async def test_ac15_prompt_asks_for_subheadings_with_a_template(fake_llm):
     llm = fake_llm({"Storyline": [_subheaded()]})
     request = ReportRequest(title="T", qualitative_notes="n", template_id="tpl_x", layout=LayoutInstructions(output_format=OutputFormat.HOUSE_DECK))
     storyline, _ = await draft_storyline(request, llm)
-    assert "subheading" in llm.prompts[0] and "at most 20 words" in llm.prompts[0]
+    assert "subheading" in llm.prompts[0] and "at most 16 words" in llm.prompts[0]
     assert [s.subheading for s in storyline.slides] == ["Sub one", "Sub two"]
 
 
