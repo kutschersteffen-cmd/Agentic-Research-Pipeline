@@ -156,9 +156,24 @@ async def test_ac28_split(tmp_path, fake_llm):
     assert a.kicker.endswith(" 1/2") and b.kicker.endswith(" 2/2")
     assert (a.visual.table.row_offset, a.visual.table.max_rows, b.visual.table.row_offset, b.visual.table.max_rows) == (0, 4, 4, 4)
     assert [f.rule for f in findings if f.rule == "split"] == ["split"]
+    # 40-word cells overflow even at four rows, so both halves still overflow and are flagged for review
     for i, s in ((1, a), (2, b)):
-        if any(f.slide == i and f.rule in ("overflow", "overflow_x") for f in findings):
-            assert s.needs_review
+        assert s.needs_review
+        assert _mine(findings, i).count("overflow") == 1 and _mine(findings, i).count("needs_review") == 1
+
+
+# ---- Chart category labels ------------------------------------------------------------------------------------------------
+
+
+async def test_clipped_bar_label_needs_review(fake_llm):
+    long = "Regulated networks and integrated utilities (Europe)"
+    ds = QuantitativeDataset(dataset_id="s", name="S", columns=[DatasetColumn(name="k"), DatasetColumn(name="v")],
+                             rows=[{"k": long, "v": 4}, {"k": "Tech", "v": 18}])
+    chart = Chart(data=ChartSpec(dataset_id="s", category_column="k", value_columns=["v"]), kind="bar")
+    deck = Deck(title="T", slides=[SlideContent(headline="Utilities lag", visual=chart)])
+    deck, findings = await fit_ladder(deck, _request("n", [ds]), fake_llm({}), load_tokens(), None)
+    assert deck.slides[0].needs_review
+    assert [(f.rule, f.slot) for f in findings if f.rule in ("overflow", "needs_review")] == [("overflow", "chart"), ("needs_review", None)]
 
 
 # ---- AC-31, AC-51: needs review blocks the download until approved -------------------------------------------------------

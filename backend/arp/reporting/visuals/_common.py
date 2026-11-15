@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from math import ceil
+from math import ceil, isfinite
 
 from arp.reporting.render_model import (
     S4,
@@ -97,13 +97,15 @@ def dataset(ctx: RenderCtx, dataset_id: str, columns: list[str]) -> Quantitative
 
 
 def number(v: object) -> float:
-    """A cell as a number: ints, floats and numeric strings (`1,234`, `−1`); anything else is a VisualDataError."""
-    if isinstance(v, int | float) and not isinstance(v, bool):
-        return float(v)
+    """A cell as a finite number: ints, floats and numeric strings (`1,234`, `−1`); anything else (NaN and infinity
+    included) is a VisualDataError."""
     try:
-        return float(str(v).replace(",", "").replace("−", "-"))
+        n = float(v) if isinstance(v, int | float) and not isinstance(v, bool) else float(str(v).replace(",", "").replace("−", "-"))
     except ValueError:
         raise VisualDataError(f"not a number: {v!r}") from None
+    if not isfinite(n):
+        raise VisualDataError(f"not a number: {v!r}")
+    return n
 
 
 def signed(text: str) -> str:

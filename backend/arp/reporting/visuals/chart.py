@@ -5,6 +5,7 @@ it does not show on `panel`). Over 10 bar/column categories: the top 9 by value 
 """
 
 from arp.reporting.render_model import (
+    CHART_LABEL,
     S12,
     S16,
     S24,
@@ -17,6 +18,7 @@ from arp.reporting.render_model import (
     Series,
     Text,
     VisualDataError,
+    bar_label_width,
     line_point,
     palette,
 )
@@ -61,6 +63,19 @@ def _callout(visual, chart: ChartPrim, c, body) -> list[Primitive]:
     return out
 
 
+def _clipped_label(chart: ChartPrim, ctx) -> None:
+    """An `overflow` finding when a category label is wider than its room: left of the bars (bar), or its band (column),
+    where it would be clipped or run into its neighbour. Neither shows in the page's text boxes, so it is checked here."""
+    if chart.kind not in ("bar", "column", "stacked_column"):
+        return
+    room = bar_label_width(chart) if chart.kind == "bar" else chart.w / len(chart.categories)
+    wide = [cat for cat in chart.categories if lines(cat, CHART_LABEL, room) > 1]
+    if wide:
+        ratio = max(len(cat) for cat in wide) * CHART_LABEL * 0.5 / room  # lines()'s width estimate
+        ctx.findings.append(Finding(slide=ctx.index, slot="chart", stage="fit", rule="overflow",
+                                    message=f"ratio={ratio:.2f} (category label {wide[0]!r} is wider than its {room:.0f} px)"))
+
+
 def _insight(ins, x, box, c, heading, body) -> list[Primitive]:
     ix, iw, y = x + S48, CARD_W - 2 * S48, box.y + S48
     out: list[Primitive] = [Rect("card:insight", x, box.y, CARD_W, box.h, c["ground"]),
@@ -98,6 +113,7 @@ def render(visual, box, ctx):
     label = (spec.title or ds.name) + (f", {visual.unit}" if visual.unit else "")
     top = S24 + S16
     chart = ChartPrim("chart", box.x, box.y + top, chart_w, box.h - top, visual.kind, cats, series, visual.unit, visual.data_labels)
+    _clipped_label(chart, ctx)
     out: list[Primitive] = [Text("chart:label", box.x, box.y, chart_w, S24, label.upper(), 20, 400, mono, c["muted"],
                                  fill_under=c["panel"]), chart]
     if visual.callout and visual.callout.category in cats:  # a callout on an unknown category is not drawn

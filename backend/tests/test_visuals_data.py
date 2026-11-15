@@ -168,3 +168,44 @@ def test_unknown_dataset_or_column_raises():
                          body_box(ctx.tokens), _ctx(_ds("e", "Empty", ["k", "v"], [])))
     with pytest.raises(VisualDataError):
         VISUALS["comparison_table"](ComparisonTable(table=TableSpec(dataset_id="eps", columns=["sector", "nope"])), body_box(ctx.tokens), ctx)
+
+
+LONG = "Regulated networks and integrated utilities (Europe)"
+
+
+@pytest.mark.parametrize("kind, cats", [("bar", [LONG, "Tech"]), ("column", [f"Sector {LONG} {k}" for k in range(6)])])
+def test_clipped_category_label_is_overflow(kind, cats):
+    ds = _ds("s", "S", ["k", "v"], [(c, k + 1) for k, c in enumerate(cats)])
+    ctx = _ctx(ds)
+    VISUALS["chart"](Chart(data=ChartSpec(dataset_id="s", category_column="k", value_columns=["v"]), kind=kind), body_box(ctx.tokens), ctx)
+    assert [(f.rule, f.slot, f.stage, f.slide) for f in ctx.findings] == [("overflow", "chart", "fit", 0)]
+
+
+def test_short_category_labels_are_fine():
+    ctx = _ctx(EPS)
+    VISUALS["chart"](BAR, body_box(ctx.tokens), ctx)
+    assert ctx.findings == []
+
+
+@pytest.mark.parametrize("kind", ["bar", "column"])
+def test_pptx_axes_match_html(tmp_path, kind):
+    ds = _ds("neg", "Neg", ["k", "v"], [("a", 3), ("b", -1)])
+    chart = _pptx_shapes(tmp_path, Chart(data=ChartSpec(dataset_id="neg", category_column="k", value_columns=["v"]), kind=kind), ds)["chart"].chart
+    assert (chart.value_axis.minimum_scale, chart.value_axis.maximum_scale) == (-1, 3)  # the HTML's [min(0, lo), max(0, hi)]
+    xml = chart._chartSpace.xml
+    assert re.search(r'<c:catAx>.*<c:tickLblPos val="low"/>.*</c:catAx>', xml, re.S)  # labels clear of negative bars
+    assert "<c:manualLayout>" in xml and '<c:layoutTarget val="inner"/>' in xml
+
+
+@pytest.mark.parametrize("v", ["nan", "inf", "-inf", float("nan")])
+def test_number_rejects_non_finite(v):
+    from arp.reporting.visuals._common import number
+
+    with pytest.raises(VisualDataError):
+        number(v)
+
+
+def test_unit_with_quote_gives_valid_format():
+    from arp.reporting.pptx_writer import _number_format
+
+    assert _number_format([1.5, -2.0], 'm"x') == '0.0"mx";"−"0.0"mx"'

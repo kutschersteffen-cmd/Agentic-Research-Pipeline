@@ -194,9 +194,10 @@ def anatomy(slide: SlideContent, index: int, tokens: Tokens, mode: Mode) -> list
 
 
 def render_slide(slide: SlideContent, index: int, deck: Deck, tokens: Tokens, datasets: dict[str, QuantitativeDataset],
-                 mode: Mode = "light") -> list[Primitive]:
-    """The slide's primitives: anatomy plus its visual in the body box; cover and section are full-bleed."""
-    ctx = RenderCtx(tokens, mode, deck, index, datasets, slide.type_step)
+                 mode: Mode = "light", findings: list[Finding] | None = None) -> list[Primitive]:
+    """The slide's primitives: anatomy plus its visual in the body box; cover and section are full-bleed.
+    `findings`, when given, collects what the visual renderer found (a capped chart, a clipped category label)."""
+    ctx = RenderCtx(tokens, mode, deck, index, datasets, slide.type_step, findings if findings is not None else [])
     visual = slide.visual
     if visual.type in FULL_BLEED:
         return VISUALS[visual.type](visual, Box(x=0, y=0, w=tokens.canvas.width, h=tokens.canvas.height), ctx)
@@ -206,6 +207,35 @@ def render_slide(slide: SlideContent, index: int, deck: Deck, tokens: Tokens, da
 
 class VisualDataError(ValueError):
     """A visual's data reference does not resolve: unknown dataset or column, or a non-numeric value column."""
+
+
+CHART_LABEL = 24  # chart label size, px (the PPTX chart font)
+
+
+def value_range(p: ChartPrim) -> tuple[float, float]:
+    """A bar or column chart's value axis, zero always in range (stacks by their totals); both writers use it."""
+    if p.kind == "stacked_column":
+        tops = [sum(max(s.values[i], 0) for s in p.series) for i in range(len(p.categories))]
+        lows = [sum(min(s.values[i], 0) for s in p.series) for i in range(len(p.categories))]
+    else:
+        tops = lows = [v for s in p.series for v in s.values]
+    lo, hi = min(0, *lows), max(0, *tops)
+    return lo, hi if hi > lo else lo + 1
+
+
+def bar_label_width(p: ChartPrim) -> float:
+    """Width left of a bar chart's bars for its right-aligned category labels."""
+    return min(0.3 * p.w, 240)
+
+
+def bar_plot_x(p: ChartPrim) -> tuple[float, float]:
+    """A bar chart's plot area, left and right, inside its box (value labels sit right of the bars)."""
+    return bar_label_width(p) + S16, p.w - (96 if p.labels else 0)
+
+
+def column_plot_y(p: ChartPrim) -> tuple[float, float]:
+    """A column chart's plot area, top and bottom, inside its box (value labels above, category labels below)."""
+    return (32 if p.labels else 0), p.h - 40
 
 
 LINE_PAD = (S32, 240, 56)  # top, right (series labels at the line ends), bottom (category labels) inside a line chart's box

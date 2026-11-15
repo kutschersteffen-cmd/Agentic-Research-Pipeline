@@ -8,9 +8,26 @@ from __future__ import annotations
 from html import escape
 
 from arp.reporting.house_style import Mode, Tokens
-from arp.reporting.render_model import ChartPrim, Line, Primitive, Rect, TablePrim, Text, decimals, family, line_point, palette
+from arp.reporting.render_model import (
+    CHART_LABEL as _LABEL,
+)
+from arp.reporting.render_model import (
+    ChartPrim,
+    Line,
+    Primitive,
+    Rect,
+    TablePrim,
+    Text,
+    bar_label_width,
+    bar_plot_x,
+    column_plot_y,
+    decimals,
+    family,
+    line_point,
+    palette,
+    value_range,
+)
 
-_LABEL = 24  # chart label size, px (the PPTX chart font)
 _JUSTIFY = {"top": "flex-start", "middle": "center", "bottom": "flex-end"}
 
 
@@ -66,17 +83,11 @@ def _chart(p: ChartPrim, c: dict[str, str], body: str) -> str:
     txt = lambda x, y, s, anchor="middle", color="muted": (f'<text x="{x}" y="{y}" text-anchor="{anchor}" '  # noqa: E731
                                                            f'font-size="{_LABEL}" fill="{_a(c[color])}">{escape(s)}</text>')
     stacked = p.kind == "stacked_column"
-    if stacked:
-        tops = [sum(max(s.values[i], 0) for s in p.series) for i in range(n)]
-        lows = [sum(min(s.values[i], 0) for s in p.series) for i in range(n)]
-    else:
-        tops = lows = [v for s in p.series for v in s.values]
-    lo, hi = min(0, *lows), max(0, *tops)
-    hi = hi if hi > lo else lo + 1
+    lo, hi = value_range(p)
     out = []
     if p.kind == "bar":  # horizontal: category labels right-aligned left of the bars, value labels right of the bar
-        lw, band = min(0.3 * p.w, 240), p.h / max(n, 1)
-        x0, x1 = lw + 16, p.w - (96 if p.labels else 0)
+        lw, band = bar_label_width(p), p.h / max(n, 1)
+        x0, x1 = bar_plot_x(p)
         sx = lambda v: x0 + (v - lo) / (hi - lo) * (x1 - x0)  # noqa: E731
         bh = band * 0.6 / len(p.series)
         for i, cat in enumerate(p.categories):
@@ -87,7 +98,7 @@ def _chart(p: ChartPrim, c: dict[str, str], body: str) -> str:
                 if p.labels:
                     out.append(txt(max(sx(0), sx(v)) + 8, y + bh / 2 + _LABEL / 3, fmt(v), "start", "ink"))
     else:
-        band, y0, y1 = p.w / max(n, 1), (32 if p.labels else 0), p.h - 40
+        band, (y0, y1) = p.w / max(n, 1), column_plot_y(p)
         sy = lambda v: y1 - (v - lo) / (hi - lo) * (y1 - y0)  # noqa: E731
         for i, cat in enumerate(p.categories):
             out.append(txt(line_point(p, i, 0)[0] - p.x if p.kind == "line" else i * band + band / 2, p.h - 12, cat))

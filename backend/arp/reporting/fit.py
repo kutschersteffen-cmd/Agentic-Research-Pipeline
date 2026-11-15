@@ -15,9 +15,10 @@ from pydantic import ValidationError
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.browser import measure
 from arp.reporting.design_checks import design_checks
-from arp.reporting.house_style import Tokens, get_variant
+from arp.reporting.house_style import Tokens, get_variant, load_tokens
 from arp.reporting.html_render import render_deck_html
 from arp.reporting.lint import DERIVED, _numbers, lint_deck
+from arp.reporting.render_model import render_slide
 from arp.reporting.slide_fill import WRITING_GUIDE, SlotRewrite, rewrite_slot
 from arp.schemas.common import new_id
 from arp.schemas.reporting import (
@@ -161,9 +162,19 @@ def _step(i: int, rule: str, message: str, slot: str | None = None) -> Finding:
     return Finding(slide=i, slot=slot, stage="fit", rule=rule, message=message)
 
 
-async def _overflow(deck: Deck, i: int, request: ReportRequest, tokens: Tokens | None) -> list[Finding]:
+async def _measure(deck: Deck, request: ReportRequest, tokens: Tokens | None) -> list[Finding]:
+    """The page's measurements plus the overflow the render model finds itself (a clipped chart category label)."""
     found = await measure(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme), tokens)
-    return [f for f in found if f.slide == i]
+    model: list[Finding] = []
+    by_id = {d.dataset_id: d for d in request.datasets}
+    for i, s in enumerate(deck.slides):
+        if s.visual is not None:
+            render_slide(s, i, deck, tokens or load_tokens(), by_id, request.layout.theme, model)
+    return found + [f for f in model if f.rule == "overflow"]
+
+
+async def _overflow(deck: Deck, i: int, request: ReportRequest, tokens: Tokens | None) -> list[Finding]:
+    return [f for f in await _measure(deck, request, tokens) if f.slide == i]
 
 
 async def _shorten(s: SlideContent, found: list[Finding], request: ReportRequest, llm: LLMClient, usage: LLMUsage | None) -> SlideContent | None:
@@ -307,7 +318,7 @@ async def fit_ladder(
 ) -> tuple[Deck, list[Finding]]:
     """Fit the deck's component slides (legacy slides are fit_deck's). `shift` as in fit_deck. A KPI row switched to a
     table adds a dataset to `request.datasets`: the caller saves the request when it grew."""
-    found = await measure(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme), tokens)
+    found = await _measure(deck, request, tokens)
     by_slide: dict[int, list[Finding]] = {}
     for f in found:
         if deck.slides[f.slide].visual is not None:

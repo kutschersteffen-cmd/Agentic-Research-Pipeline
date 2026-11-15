@@ -8,7 +8,7 @@ from __future__ import annotations
 from lxml import etree
 from pptx.chart.data import CategoryChartData
 from pptx.dml.color import RGBColor
-from pptx.enum.chart import XL_CHART_TYPE, XL_LABEL_POSITION, XL_LEGEND_POSITION, XL_TICK_MARK
+from pptx.enum.chart import XL_CHART_TYPE, XL_LABEL_POSITION, XL_LEGEND_POSITION, XL_TICK_LABEL_POSITION, XL_TICK_MARK
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
 from pptx.oxml.ns import qn
@@ -23,10 +23,13 @@ from arp.reporting.render_model import (
     Rect,
     TablePrim,
     Text,
+    bar_plot_x,
+    column_plot_y,
     decimals,
     family,
     line_scale,
     palette,
+    value_range,
 )
 
 _KINDS = {"bar": XL_CHART_TYPE.BAR_CLUSTERED, "column": XL_CHART_TYPE.COLUMN_CLUSTERED,
@@ -41,6 +44,7 @@ def _rgb(hex_color: str) -> RGBColor:
 
 def _number_format(values: list[float], unit: str) -> str:
     dec = decimals(values)
+    unit = unit.replace('"', "")  # a quote would end the format code's literal early
     fmt = ("0." + "0" * dec if dec else "0") + (f'"{unit}"' if unit else "")
     return fmt if min(values, default=0) >= 0 else f'{fmt};"−"{fmt}'  # a negative section for the typographic minus
 
@@ -161,16 +165,26 @@ class _Writer:
         ca = chart.category_axis  # no axis line or ticks: only the category labels
         ca.format.line.fill.background()
         ca.major_tick_mark = ca.minor_tick_mark = XL_TICK_MARK.NONE
-        if p.kind == "line":  # the HTML's plot rect and min/max scale, so points (and the callout leader) line up
-            va.minimum_scale, va.maximum_scale = line_scale(p)
+        # The HTML's plot rect and value scale, so bars and points (and the callout leader) line up with the PDF.
+        if p.kind == "line":
             top, right, bottom = LINE_PAD
-            area = chart._chartSpace.chart.plotArea
-            if area.find(qn("c:layout")) is None:
-                area.insert(0, etree.Element(qn("c:layout")))  # c:layout is plotArea's first child
-            ml = etree.SubElement(area.find(qn("c:layout")), qn("c:manualLayout"))
-            for tag, val in (("layoutTarget", "inner"), ("xMode", "edge"), ("yMode", "edge"), ("x", 0), ("y", top / p.h),
-                             ("w", (p.w - right) / p.w), ("h", (p.h - top - bottom) / p.h)):
-                etree.SubElement(ml, qn(f"c:{tag}"), val=str(val))
+            va.minimum_scale, va.maximum_scale = line_scale(p)
+            x, y, w, h = 0, top, p.w - right, p.h - top - bottom
+        else:
+            va.minimum_scale, va.maximum_scale = value_range(p)
+            ca.tick_label_position = XL_TICK_LABEL_POSITION.LOW  # at the axis end, not on the zero line over negative bars
+            if p.kind == "bar":
+                (x0, x1), (y0, y1) = bar_plot_x(p), (0, p.h)
+            else:
+                (x0, x1), (y0, y1) = (0, p.w), column_plot_y(p)
+            x, y, w, h = x0, y0, x1 - x0, y1 - y0
+        area = chart._chartSpace.chart.plotArea
+        if area.find(qn("c:layout")) is None:
+            area.insert(0, etree.Element(qn("c:layout")))  # c:layout is plotArea's first child
+        ml = etree.SubElement(area.find(qn("c:layout")), qn("c:manualLayout"))
+        for tag, val in (("layoutTarget", "inner"), ("xMode", "edge"), ("yMode", "edge"), ("x", x / p.w), ("y", y / p.h),
+                         ("w", w / p.w), ("h", h / p.h)):
+            etree.SubElement(ml, qn(f"c:{tag}"), val=str(val))
         if p.kind == "bar":
             chart.category_axis.reverse_order = True  # first category on top, as in the HTML
 
