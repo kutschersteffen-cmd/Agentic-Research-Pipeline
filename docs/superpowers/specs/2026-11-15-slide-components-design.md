@@ -110,7 +110,8 @@ The owner approved mockups of eight components on 15 Nov 2026. They are committe
 
 - **Under a company template frame:**
   - the action title, subtitle and body zones become the frame's headline, subheading and body boxes;
-  - the label line's bottom sits 16 px above the frame's headline box top, starting at its left edge;
+  - the label line keeps its house distance to the title: the strip's top sits 40 px above the frame's headline box
+    top (as 64 is to 104), starting at the box's left edge;
   - the source line keeps its zone when the frame's body box ends at or above y 928. Otherwise there is
     no source line and `source_line` is appended to the speaker notes, after a newline unless the notes
     are empty.
@@ -169,11 +170,11 @@ linted by `number_not_in_source` like any slide text.
 | `type` | Fields | Layout (body zone unless full-bleed) |
 |---|---|---|
 | `cover` | `title` (≤10 words), `context` (≤8 words), `answer` (≤30 words), `figures` (0–2 of `value` ≤8 chars + `label` ≤4 words) | Full-bleed. The left 760 px is an `ink` panel holding the strip (inverted), the context, the title (72 px) and the deck subtitle. On the right: an "The answer in one line" label, `answer` (44 px), then the figures (96 px), vertically centred. |
-| `section` | `number` (1–9), `title` (≤6 words), `summary` (≤14 words), `agenda` (filled by code with all section titles) | Full-bleed `ground`. The number is 200 px outline type, then the title (72 px) and summary (32 px), vertically centred. The agenda is bottom-right, with the current section marked by a square. |
+| `section` | `number` (1–9), `title` (≤6 words), `summary` (≤14 words), `agenda` (filled by code with all section titles) | Full-bleed `ground`. The number is 200 px outline type (2 px `line` stroke, no fill; decorative, so `low_contrast` skips it), then the title (72 px) and summary (32 px), vertically centred. The agenda is bottom-right, with the current section marked by a square. |
 | `kpi_row` | `tiles` (2–4 of `value` ≤8 chars, `label` ≤5 words, `delta` ≤6 words), `emphasis` (index or None) | Equal tiles across the full body width, 24 px gaps, full body height. Label at the top; value (144 px) and delta at the bottom; 40 px padding. |
 | `chart_insight` | `chart` (`ChartSpec`: `bar` or `column`, one value column, `unit` ≤6 chars, `data_labels` default true, `highlight` category or None), `insight` (`stat` ≤8 chars, `headline` ≤12 words, `points` 0–2 of ≤12 words) | Chart on the left, a 520 px card on the right, 48 px apart. Chart: a mono label `<value column>, <unit>`; bars in `well`, the highlighted one in `highlight`; a value label (`<value><unit>`) beside each bar; no axis or grid. Card: `ground` with a 4 px `ink` left edge, 48 px padding, the stat (96 px), the headline (30 px), points with square bullets. |
 | `step_flow` | `steps` (3–5 of `title` ≤4 words, `text` ≤16 words, `tag` ≤4 words, `when` ≤6 chars), `emphasis` (index or None; default the last step) | Equal cards 440 px tall, vertically centred in the body, 24 px gaps, joined by 24 px × 2 px `ink` connectors. Each card has 40 px padding: number square and `when` at the top, title (36 px), text (26 px), tag pill at the bottom. |
-| `comparison_table` | `table` (`TableSpec`, 2–6 columns, ≤8 rows), `highlight_column` (column name or None), `total_row` (per numeric column: `sum`, `mean` or `none`, computed by code and rounded to the column's decimals) | Full body width, 28 px text, 18 px cell padding top and bottom, 24 px left and right. Text columns are left-aligned; number columns right-aligned in mono. The header is mono uppercase over a 2 px `ink` rule. The highlighted column has an `ink` header and `ground` cells at weight 600. The total row has a 2 px `ink` rule on top and weight 600. |
+| `comparison_table` | `table` (`TableSpec`, 2–6 columns, ≤8 rows), `highlight_column` (column name or None), `total_row` (per numeric column: `sum`, `mean` or `none`, computed by code; a sum keeps the column's decimals, a mean gets one more) | Full body width, 28 px text, 18 px cell padding top and bottom, 24 px left and right. Text columns are left-aligned; number columns right-aligned in mono. The header is mono uppercase over a 2 px `ink` rule. The highlighted column has an `ink` header and `ground` cells at weight 600. The total row has a 2 px `ink` rule on top and weight 600. |
 | `two_column` | `kpis` (0–3 of `value` + `label`), `left` and `right` (`title` ≤5 words, `points` 2–4 of ≤14 words) | A KPI strip on top when there are KPIs (`ground`, 1 px `line` dividers, 32 px padding), 40 px gap, then two columns 64 px apart. Each column has a mono title over a 2 px `ink` rule, then numbered points (`01`, `02`) with 24 px padding and 1 px `line` rules. |
 | `next_steps` | `actions` (2–5 of `text` ≤12 words, `owner` ≤3 words, `when` ≤10 chars), `emphasis` (index or None; default 0) | Rows vertically centred in the body, 16 px gaps, 28 px vertical / 40 px horizontal padding. Each row: `ground` fill, number square, action text (30 px; weight 600 when emphasised), owner as a mono label, `when` pill on the right. |
 
@@ -202,7 +203,8 @@ linted by `number_not_in_source` like any slide text.
   - `build_house_pptx(deck, datasets, out, tokens=None, mode="light")` names each native shape after its
     primitive (`ChartBars` → native bar chart, `TableGrid` → native table).
   - Slides without a component go through today's legacy code in the same two functions.
-- **Fit:** `browser.measure` checks text primitives for overflow and reports `fit` findings as today.
+- **Fit:** on component slides `browser.measure` reports only `overflow` and `overflow_x` (its legacy `off_grid` and
+  `collision` rules apply to legacy slides only).
   Fit shortens text fields with one targeted rewrite, never a slot rewrite or a split. Overflow left
   after the rewrite stays as an `overflow` finding.
 
@@ -218,7 +220,7 @@ linted by `number_not_in_source` like any slide text.
 |---|---|
 | `underfill` | On a content slide, the vertical span from the topmost to the bottommost body primitive is less than 50% of the body zone height (296 px). |
 | `small_text` | Any `Text` is smaller than 18 px. |
-| `low_contrast` | A `Text` colour against the fill of the `Rect` directly under it (the slide background if none) is under 4.5:1, or 3:1 for text 48 px or larger. |
+| `low_contrast` | A filled `Text` colour against the fill of the `Rect` directly under it (the slide background if none) is under 4.5:1, or 3:1 for text 48 px or larger. |
 | `emphasis_count` | More than one primitive with `emphasis` true on a content slide. |
 
 ### Outline and deck profile
@@ -254,8 +256,9 @@ linted by `number_not_in_source` like any slide text.
 
 ### Review sheet
 
-- `arp.reporting.sheet.sheet_deck() -> tuple[Deck, list[QuantitativeDataset]]` builds the eight
-  fixture slides below.
+- `arp.reporting.sheet.sheet_deck() -> tuple[Deck, list[QuantitativeDataset], str]` builds the eight
+  fixture slides below and returns the fixture notes. The sheet deck's sources are
+  `ReportRequest(title="Utilities outlook 2026", qualitative_notes=<notes>, datasets=<datasets>)`.
 - `arp report sheet --out <dir>` writes `0-cover.png` … `7-next_steps.png` (1920×1080) and
   `sheet.png` (a 2-column contact sheet).
 - The unit test `tests/test_slide_sheet.py::test_sheet_matches_goldens` compares each PNG with
@@ -287,6 +290,7 @@ Upload rows (AC-1–AC-7, AC-19, AC-20, AC-23–AC-26) and the storyline UI rows
 
 - **`eps`** (name "EPS growth 2025"): category `sector`, value `growth_pct`. Rows: Tech 18,
   Financials 12, Market 11, Industrials 9, Energy 6, Utilities 4.
+- **Notes** (`qualitative_notes`): "Sector funding cost rose to 6.2% from 3.9%. 30% of sector debt is due by 2027. Utilities trail the market by −7 pts; the market grew 11% and utilities 4%. Two central-bank cuts lower yields 60 bp. Brightline trades below 14x earnings."
 - **`names`** (name "Utility holdings"): columns `Company`, `Weight %`, `EPS growth %`,
   `Net debt / EBITDA`, `Action`. Rows:
   - Northgrid 2.1 / 7 / 4.2 / Hold
@@ -319,7 +323,7 @@ otherwise. Positions are in canvas px; PPTX is converted at 9525 EMU/px.
 | AC-6 | slide 3 | build PPTX | a native bar chart with 6 points; the "Utilities" point fill `2a78d6`, the others `eaeef3`; data labels on with a number format ending in `%`; `card:insight` 520 px wide, fill `f4f6f9` | holdout |
 | AC-7 | slide 4 | build PPTX | `step:1`..`4` each 440 px tall with top 404 (±2 px), each 414 px wide, 24 px apart; `step:4` fill `121722`; shapes `connector:1`..`3` present | holdout |
 | AC-8 | slide 5 | build PPTX | a native table with a header, 5 body rows and a total row; the total row shows `6.5` (Weight %), `4.4` (EPS growth %), `4.9` (Net debt / EBITDA); the "Net debt / EBITDA" header cell fill `121722` | holdout |
-| AC-9 | a sheet deck where tile 2's value is `9.9%` | `lint_deck` | exactly one `number_not_in_source` finding on slide 2 | holdout |
+| AC-9 | a sheet deck where tile 2's value is `9.9%`, with the sheet deck's sources | `lint_deck` | exactly one `number_not_in_source` finding on slide 2 | holdout |
 | AC-10 | a stand-in LLM returning a valid `kpi_row` with 4 tiles and `emphasis: 7` | `fill_slide` | the slide is a `kpi_row` with `emphasis` None; one `bad_reference` finding; the stand-in was called once | holdout |
 | AC-11 | a `two_column` slide, no KPIs, two points of ≤3 words per column | `design_checks` | exactly one `underfill` finding for that slide | holdout |
 | AC-12 | the sheet deck | `design_checks` | no `underfill`, `small_text`, `low_contrast` or `emphasis_count` finding | holdout |
@@ -330,13 +334,13 @@ otherwise. Positions are in canvas px; PPTX is converted at 9525 EMU/px.
 | AC-17 | an approved storyline with 2 sections of 2 slides each and 3 closing actions | build the deck with a stand-in LLM | the slide component types, in order: cover, section, (2 content), section, (2 content), next_steps; the last slide has 3 action rows | holdout |
 | AC-18 | the repo | `arp report sheet --out d` | exits 0; `d` holds `sheet.png` and the eight named PNGs, each 1920×1080 | holdout |
 | AC-19 | the committed goldens | change `graphite.ink` to `#000000` and run `test_sheet_matches_goldens` | the test fails | unit |
-| AC-20 | the sheet deck with the template-frame fixture (`tests/fixtures/frame_template.py`, headline box 144, 72) | build PPTX (6350 EMU/px) | on slides 2–7, `title` equals the frame headline box (±1 px); `strip:1` has left 144 and bottom 56 (±1 px) | holdout |
+| AC-20 | the sheet deck with the template-frame fixture (`tests/fixtures/frame_template.py`, headline box 144, 72) | build PPTX (6350 EMU/px) | on slides 2–7, `title` equals the frame headline box (±1 px); `strip:1` has left 144 and top 32 (±1 px) | holdout |
 | AC-21 | the rendered sheet | compare with `docs/superpowers/specs/assets/slide-components/*.png` | the layout, spacing and emphasis of each component match its mockup; nothing overlaps or is clipped | evaluator |
 | AC-25 | `check_slides` on a slide with a 16 px `Text` | run | exactly one `small_text` finding | holdout |
 | AC-26 | `check_slides` on a slide with 28 px `#aab4c3` text on a `#ffffff` `Rect` | run | exactly one `low_contrast` finding | holdout |
 | AC-27 | a `kpi_row` tile label of 60 words, built with a stand-in LLM whose rewrite returns the same text | `build_house_deck` | the findings include `rule="overflow"`, stage `fit`, for that slide | holdout |
 | AC-28 | `deck_profile: executive` and a storyline of 10 content slides | build the deck | it holds 8 content slides; one finding `rule="profile_cap"` | holdout |
-| AC-30 | the sheet deck with a frame whose body box ends at y 1040 (the template-frame fixture with its body placeholder extended to the slide bottom) | build PPTX (6350 EMU/px) | no `source` shape on that slide; its notes end with `Source: EPS growth 2025` | holdout |
+| AC-30 | the sheet deck with a frame whose body box ends at y 1040 (the template-frame fixture with its body placeholder extended to the slide bottom) | build PPTX (6350 EMU/px) | slide 3 has no `source` shape and its notes end with `Source: EPS growth 2025` | holdout |
 
 Must not change:
 
