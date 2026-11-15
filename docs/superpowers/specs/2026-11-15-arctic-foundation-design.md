@@ -81,6 +81,9 @@ padding, size and weight stay.
   `var(--brand-apex)`.
 - The `app-sidebar-wordmark` span and its CSS rule go.
 
+**DESIGN.md:** in this PR, the frontmatter `status-run` changes from `#0284c7` to `#0369a1` (the
+older value fails text contrast on white and the well), so the code and DESIGN.md agree.
+
 **Badge check fixture:** the e2e seed has no screen with all three ratings, so AC-9 is checked by
 inserting `<span class="badge badge-high">High</span>`, `…badge-mid…Mid` and `…badge-low…Low` into
 `.app-main` on `#/home` from the browser console and measuring them.
@@ -135,5 +138,6 @@ Must not change:
 | AC-15 | `index.css` | Read | `--hi`, `--hi-ink`, `--await`, `--await-edge`, `--high`, `--low`, `--cat-1` to `--cat-4` and `--r-sm`, `--r-md`, `--r-lg`, `--r-pill` keep their current values in all three blocks | unit |
 | AC-16 | `frontend/tests/` | `npm test` runs | Every test passes. The only existing tests edited are those listed under Supersedes; new tests may be added | unit |
 | AC-17 | `frontend/tests/landing.test.ts` | It runs | It passes unchanged | unit |
-| AC-18 | `frontend/src` against `origin/main` | The `var(--hi\|--hi-ink\|--await\|--await-edge)` locations are listed | They equal the `origin/main` set minus the sidebar logo rect | unit |
+| AC-18 | `frontend/src` against `origin/main` | The `var(--hi\|--hi-ink\|--await\|--await-edge)` locations are listed | They equal the `origin/main` set minus the `ArpMark` apex rect (`<rect x="26" y="2" width="10" height="10" fill="var(--hi)" />`) | unit |
+| ~~AC-19~~ | | | Retired before approval: the number was skipped while drafting; no row is missing | |
 | AC-20 | The landing page, both themes, 1440×900 | Landing-brand-refresh AC-13 is re-run (captures at 2.5 s and 11 s, text set transparent) | At least 99% of `p` line-box pixels reach 4.5:1 and of `h1` line-box pixels reach 3:1 | evaluator |
