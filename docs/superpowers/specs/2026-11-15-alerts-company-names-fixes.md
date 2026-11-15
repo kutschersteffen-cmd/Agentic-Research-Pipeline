@@ -77,12 +77,13 @@ names, so neither can skip a step the other does.
 Parent design line "On read, a concentration alert ... whose rationale starts with `"{rule name}: {company_id} = "`
 gets that `company_id` replaced" is replaced by the rule above. No parent AC row is retired:
 
-- Parent AC-6, AC-7 (old rationale named on read, rule stored) still hold; AC-1 to AC-3 here extend them to a
+- Parent AC-6, AC-7 (old rationale named on read, rule stored) still hold; AC-1 to AC-4 here extend them to a
   deleted and a renamed rule.
-- Parent AC-8 (stored event log untouched) still holds; AC-9 here adds the same for a status change.
-- Parent AC-9, AC-10 (company not in the directory) still hold; AC-6 here pins them for the status-change answer.
-- Parent AC-12 (field-threshold rationale kept) still holds; AC-8 here adds the case where such a rationale
-  happens to contain `: <company_id> = `.
+- Parent AC-8 (stored event log untouched) still holds; AC-17 and AC-18 here add the same for a status change.
+- Parent AC-9, AC-10 (company not in the directory) still hold; AC-10 and AC-11 here pin them for the
+  status-change answer.
+- Parent AC-11, AC-12 (field-threshold alert: name filled, rationale kept) still hold; AC-13 and AC-14 here add the
+  case where such a rationale happens to contain `: <company_id> = `.
 
 ## Left to the builder
 
@@ -90,40 +91,58 @@ The helper's name and module, and the exact code of the swap.
 
 ## Acceptance
 
-Fixture `F` is the parent spec's fixture `F` (companies `isin_DE0005140008` `DEUTSCHE BANK AG`,
-`isin__CURRENCYUSD` `US Dollar`, `cash_eur` `Euro Cash`; portfolio `p1`; rule `R` named `Single name > 0.5%`,
-concentration, `gt`, `0.005`, no portfolio ids). "Stored the old way" means an `alert_raised` event appended
-directly to the store for scope `isin_DE0005140008`, status `open`, breach type `holdings_caused`, `company_id`
-`isin_DE0005140008`, as the parent's `_store_old` test helper does. `OLD` is
-`Single name > 0.5%: isin_DE0005140008 = 60.00% of NAV gt 0.50%`; `NEW` is
-`Single name > 0.5%: DEUTSCHE BANK AG = 60.00% of NAV gt 0.50%`. "The list" is the response of
-`GET /api/portfolio/monitoring/alerts`. "A status change" is
-`POST /api/portfolio/monitoring/alerts/{scope_id}/{alert_id}/transition` with body `{"status": "acknowledged"}`.
+All rows drive the app started by `backend/scripts/e2e_stack.sh up`.
+
+- Fixture `F` is the parent spec's fixture `F` (companies `isin_DE0005140008` `DEUTSCHE BANK AG`,
+  `isin__CURRENCYUSD` `US Dollar`, `cash_eur` `Euro Cash`; portfolio `p1` named `Core Equity Europe`; rule `R`
+  named `Single name > 0.5%`, concentration, `gt`, `0.005`, no portfolio ids), built the way the parent's holdout
+  tests build it.
+- "Stored the old way" for scope `S`: one JSON line appended to `<ARP_PORTFOLIOS_DIR>/monitoring/S/events.jsonl` of
+  the running stack (the file store the alert endpoints read; `portfolios_dir` in `arp/config.py`):
+  `{"event_type": "alert_raised", "at": "2026-11-02T00:00:00+00:00", "alert": {...}}`, where `alert` is an `Alert`
+  in JSON without a `company_name` key, `status` `open`, `category` `threshold_breach`, `scope_id` `S`, and the
+  `company_id`, `rule_id`, `breach_type` and `rationale` the row names. Unless a row says otherwise, `S` and
+  `company_id` are `isin_DE0005140008`, `rule_id` is R's and `breach_type` is `holdings_caused`.
+- `OLD` is `Single name > 0.5%: isin_DE0005140008 = 60.00% of NAV gt 0.50%`; `NEW` is
+  `Single name > 0.5%: DEUTSCHE BANK AG = 60.00% of NAV gt 0.50%`.
+- "The list" is the response of `GET /api/portfolio/monitoring/alerts`. "A status change" is
+  `POST /api/portfolio/monitoring/alerts/{scope_id}/{alert_id}/transition` with body `{"status": "acknowledged"}`;
+  "its answer" is that response.
+- "Evaluated" is `POST /api/portfolio/monitoring/evaluate-now`.
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-1 | F; an alert stored the old way with rationale `OLD` and `rule_id` `rule_gone`, which no stored rule has | the list is read | that alert's `rationale` is `NEW` and its `company_name` is `DEUTSCHE BANK AG` | holdout |
-| AC-2 | F, with R saved again under the same `rule_id` but named `Top holding cap`; an alert stored the old way under R's `rule_id` with rationale `OLD` | the list is read | that alert's `rationale` is `NEW` (the old rule name stays in it) | holdout |
-| AC-3 | F; an alert stored the old way under R's `rule_id` with rationale `isin_DE0005140008 cap: isin_DE0005140008 = 60.00% of NAV gt 0.50%` | the list is read | that alert's `rationale` is `isin_DE0005140008 cap: DEUTSCHE BANK AG = 60.00% of NAV gt 0.50%` | holdout |
-| AC-4 | F, R evaluated (`POST /api/portfolio/monitoring/evaluate-now`) | a status change on the Deutsche Bank alert | 200; `status` `acknowledged`; `company_name` `DEUTSCHE BANK AG`; `rationale` `NEW` | holdout |
-| AC-5 | F; an alert stored the old way with rationale `OLD` and `rule_id` `rule_gone` | a status change on it | 200; `company_name` `DEUTSCHE BANK AG`; `rationale` `NEW` | holdout |
-| AC-6 | F; an alert stored the old way for scope and `company_id` `isin_XX0000000000` (not in the directory) with rationale `Single name > 0.5%: isin_XX0000000000 = 7.00% of NAV gt 0.50%` | a status change on it | 200; `company_name` `null`; `rationale` `Single name > 0.5%: isin_XX0000000000 = 7.00% of NAV gt 0.50%` | holdout |
-| AC-7 | F, R evaluated, then a status change on the Deutsche Bank alert | the list is read | the alert with the same `alert_id` has the same `status`, `company_name` and `rationale` as the status-change answer | holdout |
-| AC-8 | F; an alert stored for `isin_DE0005140008` with breach type `data_caused` and rationale `Carbon cap: isin_DE0005140008 = 80 gt 50` | the list is read | that alert's `rationale` is `Carbon cap: isin_DE0005140008 = 80 gt 50`; its `company_name` is `DEUTSCHE BANK AG` | holdout |
-| AC-9 | as AC-5, after the status change | the scope's `alert_raised` event is read from the store (`list_alert_events("isin_DE0005140008")`) | its `alert.rationale` is still `OLD` and it has no `company_name` key | holdout |
-| AC-10 | F | a status change with `scope_id` `isin_DE0005140008` and `alert_id` `nope` | 404; `detail` is `No alert 'nope' in scope 'isin_DE0005140008'`, as on `main` | holdout |
-| AC-11 | the PR branch | `cd backend && python scripts/export_openapi.py` | `frontend/src/api/openapi.json` is byte-identical to `main` | unit |
-| AC-12 | as AC-8 | a status change on that alert | 200; `rationale` `Carbon cap: isin_DE0005140008 = 80 gt 50`; `company_name` `DEUTSCHE BANK AG` | holdout |
+| AC-1 | F; an alert stored the old way with rationale `OLD` and `rule_id` `rule_gone`, which no stored rule has | the list is read | that alert's `rationale` is `NEW` | holdout |
+| AC-2 | as AC-1 | the list is read | that alert's `company_name` is `DEUTSCHE BANK AG` | holdout |
+| AC-3 | F, then R posted again to `POST /api/portfolio/monitoring/rules` with the same `rule_id` and name `Top holding cap`; an alert stored the old way with rationale `OLD` | the list is read | that alert's `rationale` is `NEW` (the old rule name stays in it) | holdout |
+| AC-4 | F; an alert stored the old way with rationale `isin_DE0005140008 cap: isin_DE0005140008 = 60.00% of NAV gt 0.50%` | the list is read | that alert's `rationale` is `isin_DE0005140008 cap: DEUTSCHE BANK AG = 60.00% of NAV gt 0.50%` | holdout |
+| AC-5 | F, R evaluated | a status change on the Deutsche Bank alert | 200; its answer's `status` is `acknowledged` | holdout |
+| AC-6 | as AC-5 | a status change on the Deutsche Bank alert | its answer's `company_name` is `DEUTSCHE BANK AG` | holdout |
+| AC-7 | as AC-5 | a status change on the Deutsche Bank alert | its answer's `rationale` is `NEW` | holdout |
+| AC-8 | as AC-1 | a status change on that alert | its answer's `rationale` is `NEW` | holdout |
+| AC-9 | as AC-1 | a status change on that alert | its answer's `company_name` is `DEUTSCHE BANK AG` | holdout |
+| AC-10 | F; an alert stored the old way for `S` and `company_id` `isin_XX0000000000` (not in the directory) with rationale `Single name > 0.5%: isin_XX0000000000 = 7.00% of NAV gt 0.50%` | a status change on it | its answer's `company_name` is `null` | holdout |
+| AC-11 | as AC-10 | a status change on it | its answer's `rationale` is `Single name > 0.5%: isin_XX0000000000 = 7.00% of NAV gt 0.50%` | holdout |
+| AC-12 | F, R evaluated, then a status change on the Deutsche Bank alert | the list is read | the alert with the same `alert_id` has the same `status`, `company_name` and `rationale` as the status change's answer | holdout |
+| AC-13 | F; an alert stored the old way with `breach_type` `data_caused` and rationale `Carbon cap: isin_DE0005140008 = 80 gt 50` | the list is read | that alert's `rationale` is `Carbon cap: isin_DE0005140008 = 80 gt 50` | holdout |
+| AC-14 | as AC-13 | a status change on that alert | its answer's `rationale` is `Carbon cap: isin_DE0005140008 = 80 gt 50` | holdout |
+| AC-15 | F; an alert stored the old way for `S` `portfolio__p1`, `portfolio_id` `p1`, no `company_id`, `breach_type` `holdings_caused`, rationale `Avg carbon: p1 = 80 gt 50` | the list is read | that alert's `rationale` is `Avg carbon: p1 = 80 gt 50` | holdout |
+| AC-16 | as AC-15 | a status change on that alert | its answer's `rationale` is `Avg carbon: p1 = 80 gt 50` | holdout |
+| AC-17 | as AC-1, after a status change on that alert | the `alert_raised` line of `<ARP_PORTFOLIOS_DIR>/monitoring/isin_DE0005140008/events.jsonl` is read | its `alert.rationale` is still `OLD` | holdout |
+| AC-18 | as AC-17 | the same line is read | its `alert` has no `company_name` key | holdout |
+| AC-19 | F | a status change with `scope_id` `isin_DE0005140008` and `alert_id` `nope` | 404; `detail` is `No alert 'nope' in scope 'isin_DE0005140008'`, as on `main` | holdout |
+| AC-20 | the PR branch | `cd backend && python scripts/export_openapi.py` | `frontend/src/api/openapi.json` is byte-identical to `main` | unit |
 
 No `evaluator` rows: nothing on screen changes except the `Rationale` of an alert whose rule was deleted or renamed,
-which AC-1 and AC-2 pin through the API the page renders verbatim.
+which AC-1 and AC-3 pin through the API the page renders verbatim.
 
 Must not change:
 
-- AC-6: an alert whose company has no directory entry reads exactly as today (parent AC-9, AC-10).
-- AC-8, AC-12: field-threshold rationales (parent AC-12).
-- AC-9: the stored event log (parent AC-8).
-- AC-10: the 404 for an unknown alert.
-- AC-11: the OpenAPI document.
+- AC-10, AC-11: an alert whose company has no directory entry reads exactly as today (parent AC-9, AC-10).
+- AC-13, AC-14: field-threshold rationales (parent AC-12).
+- AC-15, AC-16: portfolio-aggregate rationales.
+- AC-17, AC-18: the stored event log (parent AC-8).
+- AC-19: the 404 for an unknown alert.
+- AC-20: the OpenAPI document.
 - The existing tests in `backend/tests/test_alert_company_names.py` and
   `backend/tests/test_portfolio_monitoring_evaluator.py` pass unchanged.

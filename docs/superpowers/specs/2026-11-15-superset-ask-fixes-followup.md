@@ -14,7 +14,7 @@ regression suite.
 
 Two findings from the review of the parent spec, on `main` (`b53ad65`):
 
-1. **Two asks at the same time lose a chart.** `_add_to_scratch` (`backend/arp/bi/service.py:138-169`) reads the
+1. **Two asks at the same time lose a chart.** `_add_to_scratch` (`backend/arp/bi/service.py:138-167`) reads the
    charts on `arp-scratch` (`dashboard_charts`), creates the new chart, then calls `update_dashboard` with the
    layout of the charts it read plus its own. Nothing stops two asks from interleaving: both read N charts, both
    write a layout of N+1, and the last write drops the other ask's chart from the layout, while that chart stays
@@ -42,9 +42,7 @@ Two findings from the review of the parent spec, on `main` (`b53ad65`):
 
 ## Anti-goals
 
-- An ask waits on the event loop: the lock is taken inside the worker thread `asyncio.to_thread` already uses, so
-  other requests are not blocked.
-- A failed ask leaves the lock held (it must be released on every exception, e.g. `with` block).
+- A failed ask leaves the lock held (it must be released on every exception, e.g. a `with` block).
 
 ## Approaches considered
 
@@ -67,7 +65,8 @@ For the error line there is one sensible way: export one strip function from `bi
   and any cleanup, i.e. around its whole body. So the reuse check (parent goal 3), the chart create and the layout
   write are one step per ask. A second ask with the same question at the same time therefore reuses the first
   ask's chart, as a sequential one does.
-- No other function takes this lock. `ask_chart` and the API router do not change.
+- No other function takes this lock. `ask_chart` and the API router do not change. `_add_to_scratch` already runs
+  in the worker thread `asyncio.to_thread` gives it, so waiting for the lock never blocks the event loop.
 
 ### Error line (`frontend/src/lib/biEmbed.ts`, `SupersetBI.tsx`)
 
@@ -81,7 +80,7 @@ For the error line there is one sensible way: export one strip function from `bi
 ## Other specs this changes
 
 - Parent non-goal "any UI work beyond the one banner line in (1)" is lifted for the ask/design error line only.
-- Parent AC-19 to AC-22 (scratch reuse, run one ask at a time) still hold unchanged. AC-1 to AC-3 here add the
+- Parent AC-19 to AC-22 (scratch reuse, run one ask at a time) still hold unchanged. AC-1 to AC-5 here add the
   concurrent case. No parent row is retired.
 
 ## Left to the builder
@@ -95,7 +94,7 @@ Superset: the fake Superset makes the first ask wait at a barrier until the seco
 Without the lock both asks meet there and the layout loses a chart every time; with the lock the barrier times
 out and the asks run one after the other.
 
-Setup for AC-1 to AC-3 (in-process, like the parent's holdout rows): one
+Setup for AC-1 to AC-5 (in-process, like the parent's holdout rows): one
 `SupersetClient("http://127.0.0.1:8088", "arp_designer", <pw>, transport=httpx.MockTransport(...))` shared by both
 asks. The fake keeps state: created charts get new ids; `PUT /api/v1/dashboard/{id}` replaces that dashboard's
 layout; `GET /api/v1/dashboard/{id}/charts` lists the charts attached to it. The model stand-in returns a valid
@@ -109,20 +108,23 @@ of the `CHART` nodes in `position_json`.
 |------|-------|------|--------------------------|------------|
 | AC-1 | `arp-scratch` exists (id 5) holding chart 1 titled `Existing`; the fake's `GET /api/v1/dashboard/5/charts` waits at the barrier | `qa` and `qb` asked at the same time | both calls return a `DesignResult` with `slug` `arp-scratch` and `dashboard_id` 5; neither raises | holdout |
 | AC-2 | as AC-1 | `qa` and `qb` asked at the same time | the chart ids in the layout of the last `PUT /api/v1/dashboard/5` are exactly chart 1 and the two charts created for `A` and `B` (three ids) | holdout |
-| AC-3 | `arp-scratch` does not exist; the fake's dashboard lookup by slug (`GET /api/v1/dashboard/?q=...`) waits at the barrier | `qa` and `qb` asked at the same time | the fake received exactly one dashboard POST; the chart ids in that dashboard's final layout are exactly the two charts created for `A` and `B` | holdout |
-| AC-4 | an ask that raises inside `_add_to_scratch` (the fake's chart POST answers 500) | a second ask with a valid plan follows | the second ask returns within 5 s with `slug` `arp-scratch` (the lock was released) | holdout |
-| AC-5 | `withoutStatusCode` | called with `502: Superset is not reachable at http://127.0.0.1:8088. It is not set up here or not running.` | returns `Superset is not reachable at http://127.0.0.1:8088. It is not set up here or not running.` | unit |
-| AC-6 | `withoutStatusCode` | called with `Superset request failed.` | returns `Superset request failed.` unchanged | unit |
-| AC-7 | `withoutStatusCode` | called with `Error 502: x` | returns `Error 502: x` unchanged (only a leading code goes) | unit |
-| AC-8 | `embedErrorText` | called with `404: gone`, then with `500: Superset request failed (HTTP 500).` | returns `This dashboard is no longer available here.`, then `Superset request failed (HTTP 500).`, as on `main` | unit |
-| AC-9 | the e2e stack started with `ARP_SUPERSET_PASSWORD` and `ARP_ANTHROPIC_API_KEY` set to any value (the ask fails at Superset before any model call) and nothing listening on `127.0.0.1:8088` | Risk Monitoring, Dashboards tab: type `exposure by sector` in the brief and click `Ask as one chart` | the error line under the brief reads exactly `Superset is not reachable at http://127.0.0.1:8088. It is not set up here or not running.` (no `502: ` in front) | evaluator |
-| AC-10 | as AC-9 | the page loads | the list banner reads exactly `The dashboard list could not be loaded. Superset is not reachable at http://127.0.0.1:8088. It is not set up here or not running.`, as on `main` | evaluator |
-| AC-11 | the PR branch | `cd backend && python scripts/export_openapi.py` | `frontend/src/api/openapi.json` is byte-identical to `main` | unit |
+| AC-3 | `arp-scratch` does not exist; the fake's dashboard lookup by slug (`GET /api/v1/dashboard/?q=...`) waits at the barrier | `qa` and `qb` asked at the same time | the fake received exactly one `POST /api/v1/dashboard/` | holdout |
+| AC-4 | as AC-3 | `qa` and `qb` asked at the same time | the chart ids in that dashboard's final layout (its last `PUT /api/v1/dashboard/{id}`, else its POST) are exactly the two charts created for `A` and `B` | holdout |
+| AC-5 | `arp-scratch` exists (id 5) holding chart 1; the fake answers the **first** chart POST with 500 and every later chart POST normally | `qa` is asked (it raises `BIError`), then `qb` is asked | `qb` returns within 5 s with `slug` `arp-scratch` and `dashboard_id` 5 (the lock was released) | holdout |
+| AC-6 | `withoutStatusCode` | called with `502: Superset is not reachable at http://127.0.0.1:8088. It is not set up here or not running.` | returns `Superset is not reachable at http://127.0.0.1:8088. It is not set up here or not running.` | unit |
+| AC-7 | `withoutStatusCode` | called with `Superset request failed.` | returns `Superset request failed.` unchanged | unit |
+| AC-8 | `withoutStatusCode` | called with `Error 502: x` | returns `Error 502: x` unchanged (only a leading code goes) | unit |
+| AC-9 | `embedErrorText` | called with `404: gone`, then with `500: Superset request failed (HTTP 500).` | returns `This dashboard is no longer available here.`, then `Superset request failed (HTTP 500).`, as on `main` | unit |
+| AC-10 | the e2e stack started with `ARP_SUPERSET_PASSWORD` and `ARP_ANTHROPIC_API_KEY` set to any value (the ask fails at Superset before any model call) and nothing listening on `127.0.0.1:8088` | Risk Monitoring, Dashboards tab: type `exposure by sector` in the brief and click `Ask as one chart` | the error line under the brief reads exactly `Superset is not reachable at http://127.0.0.1:8088. It is not set up here or not running.` (no `502: ` in front) | evaluator |
+| AC-11 | as AC-10 | the page loads | the list banner reads exactly `The dashboard list could not be loaded. Superset is not reachable at http://127.0.0.1:8088. It is not set up here or not running.`, as on `main` | evaluator |
+| AC-12 | the e2e stack started with `ARP_SUPERSET_PASSWORD` unset (its default) | Risk Monitoring, Dashboards tab loads | the warning banner reads exactly `Superset is not configured: set ARP_SUPERSET_PASSWORD.`, as on `main` | evaluator |
+| AC-13 | the PR branch | `cd backend && python scripts/export_openapi.py` | `frontend/src/api/openapi.json` is byte-identical to `main` | unit |
 
 Must not change:
 
-- AC-8: the embed error texts. AC-10: the list banner.
-- AC-11: the OpenAPI document.
+- AC-9: the embed error texts. AC-11, AC-12: the list banner, both branches.
+- AC-5: a failed ask releases the lock.
+- AC-13: the OpenAPI document.
 - Parent AC-19 to AC-22: one ask at a time on `arp-scratch` (first ask, reuse, same title with another metric, other
   title), still in the regression suite.
 - The existing tests in `frontend/tests/biEmbed.test.ts`, `backend/tests/test_bi_service.py` and
