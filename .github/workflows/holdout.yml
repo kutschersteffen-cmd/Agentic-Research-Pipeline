@@ -9,7 +9,7 @@ name: Holdout acceptance
 # - The job `Holdout acceptance` (the required check) is green only when every job this run needs is green
 #   and, for a full run, the shards reported exactly the rows of `run.py --list`.
 # - A failed nightly run, or a failed manual run on main, opens one issue; a green one closes the open ones.
-# The holdout repo's run.py prints only result lines (`AC-n pass|fail`) and `<group>: done in N s`, so the
+# The holdout repo's run.py prints only result lines (`<folder> AC-n: pass|fail|skip`) and `<group>: done in N s`, so the
 # implementing agent, which can read these logs, learns which row failed and never how it was checked. The tests
 # are fetched after the app has started and deleted when the job ends; the only artifact is each shard's result
 # lines. Needs the HOLDOUT_TOKEN secret (read-only access to the holdout repo); without it the run warns and passes.
@@ -243,7 +243,7 @@ jobs:
       - name: Keep the result lines
         if: always() && matrix.part != 'own' && env.DRILL != 'true'
         run: |
-          grep -E '^holdout shard: [0-9]+/[0-9]+[[:space:]]*$|[^[:alnum:]](pass|fail)[[:space:]]*$' "$RUNNER_TEMP/out.txt" \
+          grep -E '^holdout shard: [0-9]+/[0-9]+$|^[^ ]+ AC-[^ ]+: (pass|fail|skip)$' "$RUNNER_TEMP/out.txt" \
             >"$RUNNER_TEMP/results/out.txt" || true
 
       - uses: actions/upload-artifact@v4
@@ -380,7 +380,7 @@ jobs:
             echo
             echo "Failed result lines:"
             echo '```'
-            find "$RUNNER_TEMP/results" -name out.txt -exec cat {} + 2>/dev/null | grep -E '[^[:alnum:]]fail[[:space:]]*$' || true
+            find "$RUNNER_TEMP/results" -name out.txt -exec cat {} + 2>/dev/null | grep -E '^[^ ]+ AC-[^ ]+: fail$' || true
             echo '```'
             echo
             echo "Completeness:"
