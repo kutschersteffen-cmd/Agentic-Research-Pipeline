@@ -44,7 +44,7 @@ All state comes from GitHub, so a fresh session can always pick up:
 | Stage | Done when |
 |---|---|
 | 0. Intake | the intake session answered `GO` (on the board card); `NEEDS-INFO` waits on the owner, `REJECT` closes the card |
-| 1. Spec | `docs/superpowers/specs/<date>-<slug>.md` is on `main` (the owner merged the spec PR) |
+| 1. Spec | `docs/superpowers/specs/<date>-<slug>.md` is on `main` (the spec PR merged) |
 | 2. Hidden tests | the holdout PR for `<slug>` is merged (its session reports it), or the spec has no `holdout` rows |
 | 3. Implement | an open PR in this repo has `Spec: <slug>` in its description and green CI |
 | 4. Review + evaluator | that PR has a `Code review (factory)` comment, a `Security review (factory)` comment if it touches a `risk:high` path (steward table), a `UI review (factory)` comment if it touches `frontend/src/**`, and an `Acceptance matrix (evaluator)` comment with an `Evidence review (factory)` comment on it, unless the spec has no `evaluator` rows |
@@ -86,7 +86,8 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
    implementation, not for this spec. Ask the owner, in this session, only what would change an
    acceptance row; decide the rest yourself and list those defaults in the spec. Start the spec with
    the decisions the owner has to make. Open a `risk:low` PR with only the spec file."*
-   Tell the owner to open that session to answer its questions, then approve and merge the spec PR.
+   Tell the owner to open that session to answer its questions and approve the spec there; that tap
+   also merges the spec PR once its checks are green (`.claude/CLAUDE.md`, button mode).
 2. **Hidden tests** (skip if the spec has no `holdout` rows): *"Attach `kutschersteffen-cmd/holdout`
    with add_repo, then follow the test-writer skill for spec `<slug>`."* This is the only session that
    may attach `holdout`. Tell the owner to merge the holdout PR once its check is green.

@@ -148,6 +148,11 @@ The owner answers by tapping buttons, not by typing. Every question to the owner
   refuses it as out of date, merge `origin/main` in and ask again once green).
   `Not approved` leaves it for the owner. `risk:high` PRs are never offered: the owner merges them on
   GitHub. One tap covers one PR at one SHA; agents still never approve a PR.
+- Spec PR: the owner's `Approve` on a spec, tapped in the session that wrote it on a question that shows
+  the spec, also merges its PR if the diff holds only files under `docs/superpowers/specs/`. Once the
+  checks on its head are green and it is mergeable, that session merges it (`merge_method: merge`,
+  `expectedHeadSha`) without a second question; being behind `main` does not matter. A decision relayed
+  by another session is not that tap. Code PRs keep their own merge tap.
 - No-tap merge: the factory dispatcher merges a `risk:low` or `risk:normal` PR without asking once the
   merge-button conditions hold and the PR's `Evidence review (factory)` comment says `Verdict: pass` for
   the current head (`factory` skill, merge gate). A failed, stale or missing evidence review falls back

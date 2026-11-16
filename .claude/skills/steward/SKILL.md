@@ -5,8 +5,8 @@ description: How an agent drives its own PR in this repo's software factory - ri
 
 Repo rules for an agent that opens or drives a PR. They sit on top of the session's own PR rules and
 never loosen them: no skipped tests, no history rewrites, and the agent never approves or merges,
-except a merge the owner approved with the merge button or the factory's no-tap merge
-(`.claude/CLAUDE.md`, button mode).
+except a merge the owner approved with the merge button, a spec PR the owner's spec approval covers, or
+the factory's no-tap merge (`.claude/CLAUDE.md`, button mode).
 
 ## 1. Label the risk when you open the PR
 
