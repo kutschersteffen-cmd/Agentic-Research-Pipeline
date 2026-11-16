@@ -745,11 +745,12 @@ def tier_review(root: Path, sample: dict, records: list[EngagementRecord]) -> di
 
 def confirm_tiers(root: Path, records: list[EngagementRecord], decided_by: str, issuer_ids: list[str] | None = None) -> int:
     """Confirms the proposed tier changes (all of them, or the listed issuers)."""
-    changes = tier_review(root, load_sample(), records)["changes"]
-    wanted = [c for c in changes if issuer_ids is None or c["issuer_id"] in issuer_ids]
     store = TierStore(root)
-    for change in wanted:
-        store.confirm({k: v for k, v in change.items() if k != "current_tier"}, decided_by)
+    with store.lock():  # two simultaneous confirms would otherwise both append every open change
+        changes = tier_review(root, load_sample(), records)["changes"]
+        wanted = [c for c in changes if issuer_ids is None or c["issuer_id"] in issuer_ids]
+        for change in wanted:
+            store.confirm({k: v for k, v in change.items() if k != "current_tier"}, decided_by)
     return len(wanted)
 
 

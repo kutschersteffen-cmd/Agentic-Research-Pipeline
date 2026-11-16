@@ -136,35 +136,36 @@ def _saved_params(client: SupersetClient, chart_id: int) -> dict | None:
 
 
 def _add_to_scratch(client: SupersetClient, plan: ChartPlan, ids: dict[str, int]) -> DesignResult:
-    spec = plan.charts[0]
-    title = spec.title
-    try:
-        dash = client.find_dashboard(SCRATCH_SLUG)
-        charts = {} if dash is None else client.dashboard_charts(dash)
-        same_title = [cid for cid, name in charts.items() if name == title]
-        if same_title:
-            # JSON round trip: the stored params come back as parsed JSON
-            want = json.loads(json.dumps(chart_form_data(ids[spec.dataset], spec.viz_type, compile_chart(spec, ids[spec.dataset]))))
-            if any(_saved_params(client, cid) == want for cid in same_title):
-                return _result(dash, SCRATCH_SLUG, plan)  # the same question again: its chart is already there
-    except _ERRORS as e:
-        raise BIError(f"Adding chart {title!r} to the scratch dashboard failed: {e}") from e
-    created: list[int] = []
-    try:
-        _create_charts(client, plan, ids, created)
+    with _SCRATCH_LOCK:  # read, reuse check, create and layout write are one step per ask
+        spec = plan.charts[0]
+        title = spec.title
         try:
-            if dash is None:
-                dash = client.create_dashboard("Scratch", SCRATCH_SLUG, compile_dashboard(created, [title]), created)
-            else:
-                charts[created[0]] = title
-                order = sorted(charts)  # chart ids grow, so this is question order
-                client.update_dashboard(dash, compile_dashboard(order, [charts[c] for c in order]), created)
+            dash = client.find_dashboard(SCRATCH_SLUG)
+            charts = {} if dash is None else client.dashboard_charts(dash)
+            same_title = [cid for cid, name in charts.items() if name == title]
+            if same_title:
+                # JSON round trip: the stored params come back as parsed JSON
+                want = json.loads(json.dumps(chart_form_data(ids[spec.dataset], spec.viz_type, compile_chart(spec, ids[spec.dataset]))))
+                if any(_saved_params(client, cid) == want for cid in same_title):
+                    return _result(dash, SCRATCH_SLUG, plan)  # the same question again: its chart is already there
         except _ERRORS as e:
             raise BIError(f"Adding chart {title!r} to the scratch dashboard failed: {e}") from e
-    except Exception:  # an existing scratch dashboard keeps its charts; only the new one goes
-        _cleanup(client, created)
-        raise
-    return _result(dash, SCRATCH_SLUG, plan)
+        created: list[int] = []
+        try:
+            _create_charts(client, plan, ids, created)
+            try:
+                if dash is None:
+                    dash = client.create_dashboard("Scratch", SCRATCH_SLUG, compile_dashboard(created, [title]), created)
+                else:
+                    charts[created[0]] = title
+                    order = sorted(charts)  # chart ids grow, so this is question order
+                    client.update_dashboard(dash, compile_dashboard(order, [charts[c] for c in order]), created)
+            except _ERRORS as e:
+                raise BIError(f"Adding chart {title!r} to the scratch dashboard failed: {e}") from e
+        except Exception:  # an existing scratch dashboard keeps its charts; only the new one goes
+            _cleanup(client, created)
+            raise
+        return _result(dash, SCRATCH_SLUG, plan)
 
 
 async def design_dashboard(brief: str, llm: LLMClient, client: SupersetClient) -> DesignResult:
@@ -191,6 +192,10 @@ async def ask_chart(question: str, llm: LLMClient, client: SupersetClient) -> De
 # double effect hit this on every fresh draft).
 # ponytail: one process-wide lock; a multi-worker deploy needs a DB/advisory lock.
 _EMBED_LOCK = threading.Lock()
+
+# Two asks interleaving their read-modify-write of arp-scratch's layout drop one chart from it.
+# shortcut: one backend process only (an `arp bi ask` from the CLI still races a UI ask); several workers would need a Postgres advisory lock.
+_SCRATCH_LOCK = threading.Lock()
 
 
 def _company_rls(client: SupersetClient, company_id: str) -> list[dict]:

@@ -12623,6 +12623,60 @@
     "title": "FromSourceRequest",
     "type": "object"
    },
+   "FundOverlap": {
+    "properties": {
+     "as_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of"
+     },
+     "companies": {
+      "title": "Companies",
+      "type": "integer"
+     },
+     "cycle": {
+      "title": "Cycle",
+      "type": "string"
+     },
+     "funds": {
+      "items": {
+       "$ref": "#/components/schemas/OverlapFund"
+      },
+      "title": "Funds",
+      "type": "array"
+     },
+     "pairs": {
+      "items": {
+       "$ref": "#/components/schemas/OverlapPair"
+      },
+      "title": "Pairs",
+      "type": "array"
+     },
+     "shared_selections": {
+      "items": {
+       "$ref": "#/components/schemas/SharedSelection"
+      },
+      "title": "Shared Selections",
+      "type": "array"
+     }
+    },
+    "required": [
+     "as_of",
+     "cycle",
+     "companies",
+     "funds",
+     "pairs",
+     "shared_selections"
+    ],
+    "title": "FundOverlap",
+    "type": "object"
+   },
    "GateRule": {
     "description": "A rule evaluated *before* the score exists. A knockout is a\ndecision, not a deduction -- an excluded entity never reaches the\naverage, where a strong score elsewhere could dilute it.",
     "properties": {
@@ -13447,6 +13501,14 @@
       "exclusiveMinimum": 0.0,
       "title": "Shares Outstanding",
       "type": "number"
+     },
+     "simulated_fields": {
+      "description": "Metrics, flags and categories above whose value is simulated, not real data.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Simulated Fields",
+      "type": "array"
      }
     },
     "required": [
@@ -15979,6 +16041,192 @@
     "title": "OutreachLetterRequest",
     "type": "object"
    },
+   "OverlapFund": {
+    "properties": {
+     "companies": {
+      "title": "Companies",
+      "type": "integer"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "portfolio_id": {
+      "title": "Portfolio Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "portfolio_id",
+     "name",
+     "companies"
+    ],
+    "title": "OverlapFund",
+    "type": "object"
+   },
+   "OverlapHeldIn": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "portfolio_id": {
+      "title": "Portfolio Id",
+      "type": "string"
+     },
+     "weight_pct": {
+      "title": "Weight Pct",
+      "type": "number"
+     }
+    },
+    "required": [
+     "portfolio_id",
+     "name",
+     "weight_pct"
+    ],
+    "title": "OverlapHeldIn",
+    "type": "object"
+   },
+   "OverlapMatrix": {
+    "properties": {
+     "as_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of"
+     },
+     "basis": {
+      "enum": [
+       "top",
+       "selection"
+      ],
+      "title": "Basis",
+      "type": "string"
+     },
+     "companies": {
+      "items": {
+       "$ref": "#/components/schemas/OverlapMatrixCompany"
+      },
+      "title": "Companies",
+      "type": "array"
+     },
+     "cycle": {
+      "title": "Cycle",
+      "type": "string"
+     },
+     "funds": {
+      "items": {
+       "$ref": "#/components/schemas/OverlapFund"
+      },
+      "title": "Funds",
+      "type": "array"
+     },
+     "scope": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Scope"
+     }
+    },
+    "required": [
+     "as_of",
+     "basis",
+     "scope",
+     "cycle",
+     "funds",
+     "companies"
+    ],
+    "title": "OverlapMatrix",
+    "type": "object"
+   },
+   "OverlapMatrixCompany": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "funds": {
+      "title": "Funds",
+      "type": "integer"
+     },
+     "house_weight_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "House Weight Pct"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "weights": {
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "title": "Weights",
+      "type": "object"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "house_weight_pct",
+     "funds",
+     "weights"
+    ],
+    "title": "OverlapMatrixCompany",
+    "type": "object"
+   },
+   "OverlapPair": {
+    "properties": {
+     "a": {
+      "title": "A",
+      "type": "string"
+     },
+     "b": {
+      "title": "B",
+      "type": "string"
+     },
+     "shared_companies": {
+      "title": "Shared Companies",
+      "type": "integer"
+     },
+     "shared_weight_pct": {
+      "title": "Shared Weight Pct",
+      "type": "number"
+     }
+    },
+    "required": [
+     "a",
+     "b",
+     "shared_companies",
+     "shared_weight_pct"
+    ],
+    "title": "OverlapPair",
+    "type": "object"
+   },
    "OverlapRequest": {
     "properties": {
      "funds": {
@@ -16272,6 +16520,33 @@
      "fact_ids"
     ],
     "title": "PhaseoutOut",
+    "type": "object"
+   },
+   "PickedScope": {
+    "properties": {
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "scope": {
+      "title": "Scope",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "proposed",
+       "confirmed"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "scope",
+     "label",
+     "status"
+    ],
+    "title": "PickedScope",
     "type": "object"
    },
    "Pillar": {
@@ -22920,6 +23195,40 @@
      "fact_ids"
     ],
     "title": "ShareOut",
+    "type": "object"
+   },
+   "SharedSelection": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "held_in": {
+      "items": {
+       "$ref": "#/components/schemas/OverlapHeldIn"
+      },
+      "title": "Held In",
+      "type": "array"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "scopes": {
+      "items": {
+       "$ref": "#/components/schemas/PickedScope"
+      },
+      "title": "Scopes",
+      "type": "array"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "scopes",
+     "held_in"
+    ],
+    "title": "SharedSelection",
     "type": "object"
    },
    "ShockIndicators": {
@@ -45147,6 +45456,142 @@
      }
     },
     "summary": "Record Objective Result",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/overlap": {
+   "get": {
+    "description": "Every house fund, every fund pair's shared companies and shared weight, and the companies picked in two or\nmore scopes in `cycle` (default: the current one).",
+    "operationId": "get_overlap_api_stewardship_overlap_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "cycle",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Cycle"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FundOverlap"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Overlap",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/overlap/matrix": {
+   "get": {
+    "description": "A fund x company grid of weights: the `n` companies with the largest house weight (`basis=top`), or every\ncompany picked in `scope` in `cycle` (`basis=selection`).",
+    "operationId": "get_overlap_matrix_api_stewardship_overlap_matrix_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "basis",
+      "required": false,
+      "schema": {
+       "default": "top",
+       "title": "Basis",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "n",
+      "required": false,
+      "schema": {
+       "default": 100,
+       "title": "N",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "scope",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Scope"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cycle",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Cycle"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/OverlapMatrix"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Overlap Matrix",
     "tags": [
      "stewardship"
     ]

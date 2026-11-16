@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { clarificationText, designRequestBody, embedErrorText, embedUrlFor, pickDefaultDashboard } from "../src/lib/biEmbed.ts";
+import { clarificationText, designRequestBody, embedErrorText, embedUrlFor, pickDefaultDashboard, withoutStatusCode } from "../src/lib/biEmbed.ts";
 
 test("designRequestBody trims the brief", () => {
   assert.deepEqual(designRequestBody("  exposure by sector \n"), { brief: "exposure by sector" });
@@ -60,4 +60,24 @@ test("a rejected plan still lists its reasons", async () => {
   const page = readFileSync(new URL("../src/pages/portfolio-monitoring/SupersetBI.tsx", import.meta.url), "utf8");
   assert.ok(page.includes("No dashboard was drafted. The plan was refused for these reasons:"));
   assert.match(page, /result\.rejected\.map\(\(r\) => \(\s*<li key=\{r\}>\{r\}<\/li>/);
+});
+
+test("withoutStatusCode drops only a leading NNN: code", () => {
+  assert.equal(
+    withoutStatusCode("502: Superset is not reachable at http://127.0.0.1:8088. It is not set up here or not running."),
+    "Superset is not reachable at http://127.0.0.1:8088. It is not set up here or not running.",
+  );
+  assert.equal(withoutStatusCode("Superset request failed."), "Superset request failed.");
+  assert.equal(withoutStatusCode("Error 502: x"), "Error 502: x");
+});
+
+test("embedErrorText keeps its output", () => {
+  assert.equal(embedErrorText("404: gone"), "This dashboard is no longer available here.");
+  assert.equal(embedErrorText("500: Superset request failed (HTTP 500)."), "Superset request failed (HTTP 500).");
+});
+
+test("the ask/design error line drops the status code", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync(new URL("../src/pages/portfolio-monitoring/SupersetBI.tsx", import.meta.url), "utf8");
+  assert.match(page, /<p className="error-text" role="alert">\s*\{withoutStatusCode\(error\)\}/);
 });
