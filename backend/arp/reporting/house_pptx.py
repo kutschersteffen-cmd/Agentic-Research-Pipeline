@@ -22,6 +22,8 @@ from pptx.util import Emu, Pt
 from arp.reporting.chart_builder import build_native_chart_data, is_native, render_chart_image, style_native_chart
 from arp.reporting.house_style import Mode, Rect, Tokens, TypeStyle, footer_fits, get_variant, load_tokens, slot_rect
 from arp.reporting.html_render import HOUSE_LAYOUTS, table_view, theme_from_tokens
+from arp.reporting.pptx_writer import pptx_slide
+from arp.reporting.render_model import palette, render_slide, source_line
 from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent
 
 _ROW_PX = 46  # table row: caption line + 2x10px padding, as in the HTML
@@ -219,7 +221,18 @@ def build_house_pptx(deck: Deck, datasets: list[QuantitativeDataset], out: Path,
     b, by_id = _Builder(tokens, mode), {d.dataset_id: d for d in datasets}
     prs.slide_width, prs.slide_height = Emu(b._e(tokens.canvas.width)), Emu(b._e(tokens.canvas.height))
     for i, content in enumerate(deck.slides):
-        b.slide(prs, i, content, by_id)
+        if content.visual is None:
+            b.slide(prs, i, content, by_id)
+            continue
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        slide.background.fill.solid()
+        slide.background.fill.fore_color.rgb = _rgb(palette(tokens, mode)["panel"])
+        pptx_slide(slide, render_slide(content, i, deck, tokens, by_id, mode), tokens, mode, tokens.emu_per_px)
+        notes = content.speaker_notes
+        if not footer_fits(tokens):  # no source zone under the template's body box: the source line moves to the notes
+            notes = "\n".join(x for x in (notes, content.source_line or source_line(content, by_id)) if x)
+        if notes:
+            slide.notes_slide.notes_text_frame.text = notes
     out.parent.mkdir(parents=True, exist_ok=True)
     prs.save(out)
     return out

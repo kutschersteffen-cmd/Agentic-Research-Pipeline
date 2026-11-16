@@ -4587,6 +4587,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reports/{report_id}/slides/{n}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Slide
+         * @description Accept slide `n` (1-based) as it is: clears the fit ladder's `needs_review`, which unblocks the download.
+         */
+        post: operations["approve_slide_api_reports__report_id__slides__n__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/reports/{report_id}/storyline": {
         parameters: {
             query?: never;
@@ -12408,6 +12428,32 @@ export interface components {
             /** Tier Summary */
             tier_summary?: components["schemas"]["TierSummary"][];
         };
+        /** DeckSettings */
+        DeckSettings: {
+            /**
+             * Detail
+             * @default balanced
+             * @enum {string}
+             */
+            detail: "concise" | "balanced" | "comprehensive";
+            /**
+             * Max Slides
+             * @default 12
+             */
+            max_slides: number;
+            /**
+             * Profile
+             * @default committee
+             * @enum {string}
+             */
+            profile: "executive" | "client_pitch" | "committee" | "workshop";
+            /**
+             * Purpose
+             * @default recommendation
+             * @enum {string}
+             */
+            purpose: "recommendation" | "review" | "process" | "briefing";
+        };
         /** DecomposeRequest */
         DecomposeRequest: {
             /**
@@ -13347,6 +13393,13 @@ export interface components {
          * @enum {string}
          */
         FieldStatus: "draft" | "released" | "retired";
+        /** Figure */
+        Figure: {
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+        };
         /** FileDecision */
         FileDecision: {
             /**
@@ -14899,6 +14952,21 @@ export interface components {
              */
             source_notes: string;
             theme: components["schemas"]["ThemeDefinition"];
+        };
+        /** NextAction */
+        NextAction: {
+            /**
+             * Owner
+             * @default
+             */
+            owner: string;
+            /** Text */
+            text: string;
+            /**
+             * When
+             * @default
+             */
+            when: string;
         };
         /** NextMeeting */
         NextMeeting: {
@@ -16584,6 +16652,7 @@ export interface components {
             audience?: components["schemas"]["AudienceProfile"];
             /** Datasets */
             datasets?: components["schemas"]["QuantitativeDataset"][];
+            deck?: components["schemas"]["DeckSettings"];
             /**
              * Goal
              * @default
@@ -16620,7 +16689,7 @@ export interface components {
              * @default false
              */
             appendix: boolean;
-            chart?: components["schemas"]["arp__schemas__reporting__ChartSpec"] | null;
+            chart?: components["schemas"]["arp__schemas__chart_specs__ChartSpec"] | null;
             /** Heading */
             heading: string;
             /** @default standard */
@@ -17090,37 +17159,60 @@ export interface components {
             answer_location: string;
             /** Assignee */
             assignee: string | null;
+            /** Base Entry Id */
+            base_entry_id: number | null;
+            /** Document Priority */
+            document_priority: number | null;
             /** Flags */
             flags: string[];
             /** Id */
             id: number;
+            /** Kept Share */
+            kept_share: number | null;
             /** Last Editor */
             last_editor: string | null;
             /** Location */
             location: string;
             /** Question */
             question: string;
+            /** Segments */
+            segments: components["schemas"]["RfpSegment"][];
             /** Sources */
             sources: components["schemas"]["RfpSourceOut"][];
             /** Status */
             status: string;
         };
+        /** RfpSegment */
+        RfpSegment: {
+            /**
+             * Change
+             * @enum {string}
+             */
+            change: "kept" | "added" | "removed";
+            /** Text */
+            text: string;
+        };
         /** RfpSourceOut */
         RfpSourceOut: {
             /** Entry Id */
-            entry_id: number;
+            entry_id?: number | null;
             /** Entry Question */
-            entry_question: string;
+            entry_question?: string | null;
             /** File */
             file: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "entry" | "document";
             /** Location */
-            location: string | null;
+            location?: string | null;
             /** Quote */
             quote: string;
             /** Source */
-            source: string;
+            source?: string | null;
             /** Written By */
-            written_by: string | null;
+            written_by?: string | null;
         };
         /**
          * RiskModelSpec
@@ -17648,6 +17740,16 @@ export interface components {
          * @enum {string}
          */
         SectionLayoutHint: "standard" | "chart_focus" | "text_only" | "section_header";
+        /** SectionPlan */
+        SectionPlan: {
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /** Title */
+            title: string;
+        };
         /** SectorBenchmarksOut */
         SectorBenchmarksOut: {
             capex: components["schemas"]["BenchmarkOut"];
@@ -18347,10 +18449,21 @@ export interface components {
         /** Storyline */
         Storyline: {
             /**
+             * Answer
+             * @default
+             */
+            answer: string;
+            /**
              * Approved
              * @default false
              */
             approved: boolean;
+            /** Closing */
+            closing?: components["schemas"]["NextAction"][];
+            /** Figures */
+            figures?: components["schemas"]["Figure"][];
+            /** Sections */
+            sections?: components["schemas"]["SectionPlan"][];
             /** Slides */
             slides: components["schemas"]["StorylineSlide"][];
             /**
@@ -18363,10 +18476,24 @@ export interface components {
         };
         /** StorylineSlide */
         StorylineSlide: {
+            /** Chart Kind */
+            chart_kind?: string | null;
             /** Headline */
             headline: string;
+            /**
+             * Kicker
+             * @default
+             */
+            kicker: string;
             /** Purpose */
             purpose: string;
+            /**
+             * Rationale
+             * @default
+             */
+            rationale: string;
+            /** Section */
+            section?: number | null;
             /** Source Refs */
             source_refs?: string[];
             /**
@@ -18374,6 +18501,8 @@ export interface components {
              * @default
              */
             subheading: string;
+            /** Visual */
+            visual?: string | null;
         };
         /**
          * StrategySpec
@@ -20314,7 +20443,7 @@ export interface components {
             viz_type: string;
         };
         /** ChartSpec */
-        arp__schemas__reporting__ChartSpec: {
+        arp__schemas__chart_specs__ChartSpec: {
             /**
              * Category Column
              * @description Column used for category/x-axis labels. Required for every type except scatter/heatmap.
@@ -28999,6 +29128,40 @@ export interface operations {
             header?: never;
             path: {
                 report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_slide_api_reports__report_id__slides__n__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+                n: number;
             };
             cookie?: never;
         };
