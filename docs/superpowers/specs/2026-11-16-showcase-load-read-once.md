@@ -139,7 +139,8 @@ Words used below:
 - **A load:** `arp.showcase.load.load` on a `PostgresPortfolioStore` over an emptied test database and empty data
   folders, with `data/holdings` and `data/simulated/esg_simulated.csv`, as `showcase_load_check.py run` does it.
 - **Outputs of a load:** the lines the load echoes, every row of every Postgres table, and every file under the
-  data folders.
+  data folders except the lock files (names matching `.*.lock`, left beside each written file by the store's locks).
+  `dump.json` and `compare` leave the lock files out.
 - **Noise fields:** what two loads of the same commit already differ in, and the only fields left out of a
   comparison: `companies.id`, `companies.created_at`, `company_identifiers.id`, `company_identifiers.company_id`,
   `securities.company_uuid`, `holdings.id`, and the `at` field of each line in `governance/events.jsonl` and
@@ -150,8 +151,10 @@ Words used below:
 - **Why `unit` and no hidden tests (the builder's call, the owner can overrule it at approval):** AC-3, AC-4, AC-5
   and AC-8 are about a Python class with no route of its own, built as `ObservationsReadOnce(store)`. What a user
   can see is covered by AC-1, which compares every published value on the full showcase data, and by the existing
-  suite. `workbench-review-fixes` marks its Python-level rows `unit` the same way. The PR therefore carries no
-  `Spec:` line and the Holdout acceptance job does not run for it.
+  suite. `workbench-review-fixes` marks its Python-level rows `unit` the same way. The PR carries
+  `Spec: showcase-load-read-once` as steward §1 asks; the spec has no `holdout` rows, so the Holdout acceptance job
+  has no rows to run for it. If that job fails only because the hidden-test repo has no entry for the slug, the
+  builder says so in a PR comment and removes the `Spec:` line.
 - **`unit` with pasted output:** AC-1, AC-2, AC-6 and AC-7 compare two commits, which the app started by
   `e2e_stack.sh up` cannot do, so they are `unit` rows. For these four the builder runs the command in the row and
   pastes its full output in the PR description (for AC-2: the six `load seconds` values); a reviewer can run the
