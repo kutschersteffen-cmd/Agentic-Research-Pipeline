@@ -165,14 +165,20 @@ def test_edited_answer_shows_the_change_line_but_not_its_origin(page):  # spec Â
 
 # --- UI review on #545: the reference-documents form and Retire --------------------------------
 
-def documents_page(page):
+def documents_page(page, refuse_retire=False):
     doc = {"id": 4, "title": "Stewardship Statement 2025", "filename": "ref_stmt.docx", "document_date": "2025-12-31",
            "review_by": "2026-12-31", "priority": 1, "status": "active", "uploaded_by": "dev", "pages": None}
 
     def listing(route):
-        route.fulfill(json=[doc])
+        if route.request.method == "POST":  # every upload is refused
+            route.fulfill(status=400, json={"detail": "scan.pdf has no text layer; upload the original document."})
+        else:
+            route.fulfill(json=[doc])
 
     def retire(route):
+        if refuse_retire:
+            route.fulfill(status=404, json={"detail": "Reference document not found"})
+            return
         doc["status"] = "retired"
         route.fulfill(json=doc)
 
@@ -197,3 +203,22 @@ def test_focus_moves_to_the_heading_after_retire(page):  # WCAG 2.4.3
     page.keyboard.press("Enter")
     section.get_by_role("cell", name="retired").wait_for()
     assert page.evaluate("document.activeElement.textContent") == "Reference documents"
+
+
+def test_focus_stays_on_upload_after_a_refused_upload(page):  # UI review on #556, WCAG 2.4.3
+    section = documents_page(page)
+    page.set_input_files("#rfp-document-file", files=[{"name": "scan.pdf", "mimeType": "application/pdf", "buffer": b"%PDF"}])
+    page.fill("#rfp-document-title", "Scan")
+    page.fill("#rfp-document-date", "2025-12-31")
+    section.get_by_role("button", name="Upload document").focus()
+    page.keyboard.press("Enter")
+    section.get_by_role("alert").wait_for()
+    assert page.evaluate("document.activeElement.textContent") == "Upload document"
+
+
+def test_focus_stays_on_retire_after_a_refused_retire(page):  # UI review on #556, WCAG 2.4.3
+    section = documents_page(page, refuse_retire=True)
+    section.get_by_role("button", name="Retire").focus()
+    page.keyboard.press("Enter")
+    section.get_by_role("alert").wait_for()
+    assert page.evaluate("document.activeElement.textContent") == "Retire"

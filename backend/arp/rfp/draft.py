@@ -7,6 +7,7 @@ unanswered."""
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from typing import TYPE_CHECKING
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
 NO_SOURCE, DRAFTED, EDITED, APPROVED, LEFT_BLANK = "no source", "drafted", "edited", "approved", "left blank"
 CHECK_FIGURE, STALE_SOURCE = "check figure", "stale source"
 TOP_ENTRIES = 8
+_TAG = re.compile(r"</?passage>", re.IGNORECASE)  # passage text cannot close or open its own delimiter
 
 _SYSTEM = """You draft the answer to one question in an investor's RFP from the firm's approved answers, using ONLY the
 sources given. Each library entry is a question and an answer the firm has already approved, marked [E<id>]. Document
@@ -198,7 +200,7 @@ async def _step(question: str, shown: list[Entry], passages: list[DocumentChunk]
     if passages:
         by_doc = {d.source.doc_id: d for d in docs.values()}
         prompt += "Document passages:\n\n" + "\n\n".join(
-            f"[D{by_doc[p.doc_id].id}] {by_doc[p.doc_id].title} (priority {by_doc[p.doc_id].priority})\n<passage>\n{p.text}\n</passage>"
+            f"[D{by_doc[p.doc_id].id}] {by_doc[p.doc_id].title} (priority {by_doc[p.doc_id].priority})\n<passage>\n{_TAG.sub('', p.text)}\n</passage>"
             for p in passages) + "\n\n"
     out, _ = await llm.complete_structured(system=_SYSTEM, prompt=prompt + f"RFP question: {question}", output_model=DraftOut)
     passed = _passes(question, out, shown, passages, docs)

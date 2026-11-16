@@ -163,10 +163,13 @@ function ReferenceDocuments({ approver }: { approver: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
+  const running = useRef(false);
   const load = () => api.listRfpDocuments().then(setDocuments, (e: Error) => setError(e.message));
   useEffect(() => void load(), []);
 
   async function act(fn: () => Promise<string>) {
+    if (running.current) return; // a second click while busy does nothing
+    running.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -174,6 +177,7 @@ function ReferenceDocuments({ approver }: { approver: boolean }) {
     } catch (e) {
       setError((e as Error).message.replace(/^\d{3}: /, ""));
     } finally {
+      running.current = false;
       setBusy(false);
       await load();
     }
@@ -222,7 +226,8 @@ function ReferenceDocuments({ approver }: { approver: boolean }) {
               {active.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}
             </select>
           </label>
-          <button disabled={busy}>Upload document</button>
+          {/* aria-disabled, not disabled: a focused button that becomes disabled drops focus to <body> */}
+          <button aria-disabled={busy}>Upload document</button>
         </form>
       )}
       <div className="table-wrap">
@@ -240,7 +245,7 @@ function ReferenceDocuments({ approver }: { approver: boolean }) {
                 <td>{d.status}</td>
                 <td>
                   {approver && d.status === "active" && (
-                    <button className="secondary" disabled={busy} onClick={() => retire(d)}>Retire</button>
+                    <button className="secondary" aria-disabled={busy} onClick={() => retire(d)}>Retire</button>
                   )}
                 </td>
               </tr>
