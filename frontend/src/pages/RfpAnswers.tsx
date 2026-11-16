@@ -3,8 +3,9 @@ import { api, downloadFile } from "../api/client";
 import { ElapsedLine } from "../components/ElapsedLine";
 import { announce } from "../lib/announce";
 import { importingLine, importResultLine } from "../lib/progress";
+import { errorDetail } from "../lib/themeLayers";
 import { useMe } from "../lib/reviewer";
-import type { RfpLibraryEntry, RfpProject, RfpProjectSummary, RfpQuestion } from "../types";
+import type { RfpDocument, RfpLibraryEntry, RfpProject, RfpProjectSummary, RfpQuestion } from "../types";
 
 const STATUS_BADGE: Record<string, string> = {
   "no source": "badge badge-low",
@@ -82,8 +83,8 @@ function Overview({ onOpen }: { onOpen: (id: number) => void }) {
     <div className="page">
       <h1>RFP Answers</h1>
       <p className="help-text">
-        Upload an investor's RFP (Word or Excel). Its questions are found and drafted only from the answer library, each
-        draft showing the entries it came from. A second person approves every answer; approved answers go back into the
+        Upload an investor's RFP (Word or Excel). Its questions are drafted from the answer library first, then from the
+        reference documents in priority order, each draft showing the sources it came from. A second person approves every answer; approved answers go back into the
         investor's own file and into the library.
       </p>
       {error && <p className="error-text" role="alert">{error}</p>}
@@ -150,7 +151,111 @@ function Overview({ onOpen }: { onOpen: (id: number) => void }) {
           </table>
         </div>
       </section>
+
+      <ReferenceDocuments approver={approver} />
     </div>
+  );
+}
+
+/** Reference documents (spec §6): the table for everyone, the upload form and Retire for approvers. Its errors show
+ * here, next to the form, not in the page's alert above the fold. */
+function ReferenceDocuments({ approver }: { approver: boolean }) {
+  const [documents, setDocuments] = useState<RfpDocument[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const running = useRef(false);
+  // a failed reload never hides the error of the action before it
+  const load = () => api.listRfpDocuments().then(setDocuments, (e) => setError((prev) => prev ?? errorDetail(e)));
+  useEffect(() => void load(), []);
+
+  async function act(fn: () => Promise<string>) {
+    if (running.current) return; // a second click while busy does nothing
+    running.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      announce(await fn());
+    } catch (e) {
+      setError(errorDetail(e));
+    } finally {
+      running.current = false;
+      setBusy(false);
+      await load();
+    }
+  }
+
+  function upload(ev: React.FormEvent<HTMLFormElement>) {
+    ev.preventDefault();
+    const formEl = ev.currentTarget;
+    const form = new FormData(formEl);
+    const title = String(form.get("title"));
+    const replaces = String(form.get("replaces") ?? "");
+    void act(async () => {
+      await api.uploadRfpDocument(form.get("file") as File, title, String(form.get("document_date")),
+        Number(form.get("priority")), replaces ? Number(replaces) : null);
+      formEl.reset();
+      return `Uploaded ${title}`;
+    });
+  }
+
+  function retire(d: RfpDocument) {
+    // the button leaves with its row, so focus goes to the section heading rather than the page body
+    void act(async () => {
+      await api.retireRfpDocument(d.id);
+      heading.current?.focus();
+      return `Retired ${d.title}`;
+    });
+  }
+
+  const active = documents?.filter((d) => d.status === "active") ?? [];
+  return (
+    <section className="card rfp-documents">
+      <h2 ref={heading} tabIndex={-1}>Reference documents</h2>
+      <p className="help-text">
+        Used only where the answer library does not answer a question, priority 1 first. PDF or Word, with a text layer.
+      </p>
+      {error && <p className="error-text" role="alert">{error}</p>}
+      {approver && (
+        <form className="inline-fields" onSubmit={upload}>
+          <label className="field-label">File<input id="rfp-document-file" name="file" type="file" accept=".pdf,.docx" required /></label>
+          <label className="field-label">Title<input id="rfp-document-title" name="title" required /></label>
+          <label className="field-label">Document date<input id="rfp-document-date" name="document_date" type="date" required /></label>
+          <label className="field-label">Priority (1 = first)<input id="rfp-document-priority" name="priority" type="number" min={1} step={1} defaultValue={1} required /></label>
+          <label className="field-label">Replaces
+            <select id="rfp-document-replaces" name="replaces" defaultValue="">
+              <option value="">Nothing</option>
+              {active.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}
+            </select>
+          </label>
+          {/* aria-disabled, not disabled: a focused button that becomes disabled drops focus to <body> */}
+          <button aria-disabled={busy}>Upload document</button>
+        </form>
+      )}
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead><tr><th>Priority</th><th>Title</th><th>File</th><th>Document date</th><th>Review by</th><th>Status</th><th /></tr></thead>
+          <tbody>
+            {documents?.length === 0 && <tr><td colSpan={7} className="muted">No reference documents yet.</td></tr>}
+            {documents?.map((d) => (
+              <tr key={d.id}>
+                <td>{d.priority}</td>
+                <td>{d.title}</td>
+                <td>{d.filename}</td>
+                <td>{d.document_date}</td>
+                <td>{d.review_by}</td>
+                <td>{d.status}</td>
+                <td>
+                  {approver && d.status === "active" && (
+                    <button className="secondary" aria-disabled={busy} onClick={() => retire(d)}>Retire</button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
@@ -247,9 +352,9 @@ function QuestionCard({ q, projectId, act }: { q: RfpQuestion; projectId: number
   // Four-eyes: say so where the Approve button would be, instead of leaving it out silently.
   const ownEdit = me?.role === "approver" && q.status !== "approved" && q.last_editor === me.user_id;
   // The base entry's question is that of the source citing it; the comparison itself is worked out by the server.
-  // `?? []`: a project read from an older server (or stubbed without the field) has no segments
+  // `?? []`: the AC-145 stub in tests/e2e/test_showcase_stewardship_side.py sends no segments; keep this guard
   const segments = q.segments ?? [];
-  const showChange = q.base_entry_id != null && segments.length > 0;
+  const showChange = (q.status === "drafted" || q.status === "edited") && q.base_entry_id != null && segments.length > 0;
   const baseQuestion = q.sources.find((src) => src.entry_id === q.base_entry_id)?.entry_question;
 
   return (
@@ -262,18 +367,28 @@ function QuestionCard({ q, projectId, act }: { q: RfpQuestion; projectId: number
         <span className="chip">{q.assignee ? `assigned to ${q.assignee}` : "unassigned"}</span>
         {q.last_editor && <span className="chip">last edited by {q.last_editor}</span>}
       </div>
-      {q.document_priority === 0 && <p className="muted">From approved answers only</p>}
+      {q.status === "drafted" && q.document_priority === 0 && <p className="muted">From approved answers only</p>}
+      {q.status === "drafted" && q.document_priority != null && q.document_priority > 0 && (
+        <p className="muted">Uses documents (priority {q.document_priority})</p>
+      )}
       {showChange && (
         <div>
           <p className="help-text">
             {segments.every((seg) => seg.change === "kept") ? "Approved answer, unchanged" : `${q.kept_share}% unchanged from the approved answer`}
             {baseQuestion && <> · based on <strong>{baseQuestion}</strong></>}
           </p>
-          <p aria-label="Changes against the approved answer">
+          <p>
             {segments.map((seg, i) => (
               <Fragment key={i}>
                 {i > 0 && " "}
-                {seg.change === "added" ? <ins>{seg.text}</ins> : seg.change === "removed" ? <del>{seg.text}</del> : seg.text}
+                {/* screen readers do not announce <ins>/<del>, so each mark says what it is */}
+                {seg.change === "added" ? (
+                  <ins><span className="visually-hidden">added: </span>{seg.text}</ins>
+                ) : seg.change === "removed" ? (
+                  <del><span className="visually-hidden">removed: </span>{seg.text}</del>
+                ) : (
+                  seg.text
+                )}
               </Fragment>
             ))}
           </p>
@@ -287,7 +402,17 @@ function QuestionCard({ q, projectId, act }: { q: RfpQuestion; projectId: number
         <ul>
           {q.sources.map((s, i) => (
             <li key={i}>
-              <strong>{s.entry_question}</strong> “{s.quote}” <span className="muted">— {s.file ? `${s.file}, ${s.location}` : s.source}</span>
+              {s.kind === "document" ? (
+                <>
+                  <span className="chip">document</span> <strong>{s.title}</strong>{s.page != null && <>, p. {s.page}</>} “{s.quote}”{" "}
+                  <span className="muted">— {s.file}</span>
+                </>
+              ) : (
+                <>
+                  <span className="chip">approved answer</span> <strong>{s.entry_question}</strong> “{s.quote}”{" "}
+                  <span className="muted">— {s.file ? `${s.file}, ${s.location}` : s.source}</span>
+                </>
+              )}
             </li>
           ))}
         </ul>

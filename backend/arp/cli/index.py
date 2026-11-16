@@ -278,7 +278,8 @@ def _echo_review(result, show: str) -> None:
     if show == "trace":
         typer.echo("")
         for stage in result.trace:
-            typer.echo(f"  {stage.stage:<12s} {stage.label:<46s} {stage.candidates_in:>4d} -> {stage.candidates_out:<4d} {stage.detail}")
+            label = stage.label + (" · Simulated" if stage.detail.get("simulated") else "")
+            typer.echo(f"  {stage.stage:<12s} {label:<46s} {stage.candidates_in:>4d} -> {stage.candidates_out:<4d} {stage.detail}")
     if show == "constituents":
         typer.echo("")
         for constituent in sorted(result.constituents, key=lambda c: -c.weight):

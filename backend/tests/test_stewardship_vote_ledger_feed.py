@@ -61,7 +61,7 @@ def test_ac39_old_against_vote_raises_none(tmp_path, pg):
 def test_rows_carry_every_voting_feed_key(tmp_path, pg):
     _load(tmp_path, pg)
     keys = {"run_id", "company_id", "company", "meeting_date", "item", "type", "management", "policy", "vote", "status",
-            "decided_by", "co_signed_by", "note", "overrode_policy", "against_management"}  # fmt: skip
+            "decided_by", "co_signed_by", "note", "overrode_policy", "against_management", "demo"}  # fmt: skip
     rows = ledger_rows(pg, 365)
     assert len(rows) == 10 and all(set(r) == keys for r in rows)
     assert {r["meeting_date"] for r in rows if r["company_id"] == SOCGEN} == {"2026-05-23"}
@@ -134,3 +134,29 @@ def test_ac38_house_issuer_holding_the_isin_gets_the_trigger(tmp_path, pg, monke
     load_npx(d, pg)
     out = monitoring_triggers(Settings(), StreamStore(tmp_path / "s"), EngagementStore(tmp_path / "e"))["triggers"]
     assert [t["rule"] for t in out if t["issuer_id"] == "isin_DE0005190003" and t["type"] == "vote_outcome"] == ["vote_against_management"]
+
+
+# stewardship-decisions-round-2, area 1: a trigger raised by demo votes alone carries `demo`
+
+
+def test_trigger_from_demo_votes_alone_is_demo(tmp_path, pg):  # AC-1
+    _load(tmp_path, pg)  # npx_load writes source npx_urth_demo
+    [t] = _vote_triggers(tmp_path)
+    assert t["demo"] is True
+
+
+def test_one_real_against_vote_clears_demo(tmp_path, pg):  # AC-2
+    from arp.stewardship.intake import intake_votes
+
+    _load(tmp_path, pg)
+    row = {"external_id": "real1", "isin": "FR0000130809", "meeting_date": "2026-05-23", "item_number": "99",
+           "vote": "against", "management_recommendation": "for", "rationale": "Board independence"}
+    assert intake_votes([row], pg, "api").rejected == []
+    [t] = _vote_triggers(tmp_path)
+    assert t["demo"] is False
+    assert all(t["demo"] is False for t in _all_rule_triggers(tmp_path) if t["rule"] != "vote_against_management")
+
+
+def _all_rule_triggers(tmp_path):
+    out = monitoring_triggers(Settings(), StreamStore(tmp_path / "s"), EngagementStore(tmp_path / "e"))["triggers"]
+    return [t for t in out if "rule" in t and "engagement_id" in t]

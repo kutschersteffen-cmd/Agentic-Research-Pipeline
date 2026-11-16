@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import json
 import re
-import threading
 from datetime import UTC, datetime
 from pathlib import Path
 
 from arp.schemas.engagement import EngagementRecord
 from arp.stewardship.tracking import OPEN
-from arp.storage.jsonl_io import read_jsonl
+from arp.storage.jsonl_io import complete_rows
+from arp.storage.locks import KeyedLock
 
 BUILT_IN = {
     "climate": "Climate engagement programme",
@@ -30,7 +30,13 @@ THEMES = {
     "ai": "digital_responsibility",
     "governance": "governance_board_pay",
 }
-_LOCK = threading.Lock()  # a change reads the log, then appends: one at a time
+# a change reads the log, then appends: one at a time, across processes too
+_LOCKS = KeyedLock(lock_path=lambda key: Path(key).with_name(Path(key).name + ".lock"))
+
+
+def _needs(e: dict) -> tuple[str, ...]:
+    """The keys `_fold` reads from a line; a line without one of them is damaged."""
+    return ("event", "programme_id", "by", "at", "name" if e.get("event") == "created" else "issuer_id")
 
 
 class UnknownProgramme(KeyError):
@@ -52,7 +58,7 @@ class ProgrammeLog:
             for pid, name in BUILT_IN.items()
         }
         members: dict[str, dict[str, dict]] = {pid: {} for pid in progs}
-        for e in read_jsonl(self.path):
+        for e in complete_rows(self.path, _needs):
             pid, kind = e["programme_id"], e["event"]
             if kind == "created":
                 if pid not in progs:
@@ -115,7 +121,7 @@ class ProgrammeLog:
         pid = programme_id(name)
         if not pid:
             raise ValueError("A programme name needs a letter or a digit")
-        with _LOCK:
+        with _LOCKS.acquire(str(self.path)):
             progs, _ = self._fold()
             if any(p["name"].lower() == name.lower() for p in progs.values()):
                 raise ValueError(f"A programme named {name} exists")
@@ -128,35 +134,37 @@ class ProgrammeLog:
         self, pid: str, names: dict[str, str], add: list[str], remove: list[str], end: list[str], reason: str | None, by: str
     ) -> None:
         """Proposes `add` (house-universe companies), drops proposed `remove`, ends confirmed `end` with a reason.
-        Nothing is written when any part is refused."""
-        with _LOCK:
+        Every check runs before anything is written, in this order, and the first that fails answers; adding a
+        proposed or confirmed member writes nothing."""
+        with _LOCKS.acquire(str(self.path)):
             progs, members = self._fold()
             if pid not in progs:
                 raise UnknownProgramme(pid)
             if unknown := [i for i in dict.fromkeys(add) if i not in names]:
                 raise ValueError(f"unknown company: {', '.join(unknown)}")
+            lists = [set(add), set(remove), set(end)]
+            if twice := [i for i in dict.fromkeys(add + remove + end) if sum(i in ids for ids in lists) > 1]:
+                raise ValueError(f"A company can only be in one of add, remove and end: {', '.join(twice)}")
             state = {i: m["status"] for i, m in members[pid].items()}
             if any(state.get(i) == "confirmed" for i in remove):
                 raise ValueError("confirmed members are ended, not removed")
+            if not_proposed := [i for i in dict.fromkeys(remove) if state.get(i) != "proposed"]:
+                raise ValueError(f"not a proposed member: {', '.join(not_proposed)}")
             if end and not (reason or "").strip():
                 raise ValueError("Ending a membership needs a reason")
+            if not_confirmed := [i for i in dict.fromkeys(end) if state.get(i) != "confirmed"]:
+                raise ValueError(f"not a confirmed member: {', '.join(not_confirmed)}")
             events = [
                 {"event": "proposed", "issuer_id": i, "company": names[i]}
                 for i in dict.fromkeys(add)
                 if state.get(i) in (None, "ended")
             ]
-            events += [
-                {"event": "removed", "issuer_id": i} for i in dict.fromkeys(remove) if state.get(i) == "proposed" and i not in add
-            ]
-            events += [
-                {"event": "ended", "issuer_id": i, "reason": reason.strip()}
-                for i in dict.fromkeys(end)
-                if state.get(i) == "confirmed"
-            ]
+            events += [{"event": "removed", "issuer_id": i} for i in dict.fromkeys(remove)]
+            events += [{"event": "ended", "issuer_id": i, "reason": reason.strip()} for i in dict.fromkeys(end)]
             self._write([{**e, "programme_id": pid} for e in events], by)
 
     def confirm(self, pid: str, by: str) -> int:
-        with _LOCK:
+        with _LOCKS.acquire(str(self.path)):
             progs, members = self._fold()
             if pid not in progs:
                 raise UnknownProgramme(pid)

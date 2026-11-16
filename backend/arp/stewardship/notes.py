@@ -11,9 +11,11 @@ from pathlib import Path
 
 from arp.schemas.common import new_id
 from arp.storage.jsonl_io import read_jsonl
+from arp.storage.locks import KeyedLock
 
 MAX = 2000
 PREVIEW = 120
+_LOCKS = KeyedLock(lock_path=lambda key: Path(key).with_name(Path(key).name + ".lock"))  # one append at a time, across processes too
 
 
 class NoteLog:
@@ -26,7 +28,7 @@ class NoteLog:
             raise ValueError("A note needs 1 to 2,000 characters")
         note = {"note_id": new_id("note"), "company_id": company_id, "text": text, "by": by, "at": datetime.now(UTC).isoformat(), "scope": scope}
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.path.open("a", encoding="utf-8") as f:
+        with _LOCKS.acquire(str(self.path)), self.path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(note, ensure_ascii=False) + "\n")
         return note
 

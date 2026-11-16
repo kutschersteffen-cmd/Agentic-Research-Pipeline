@@ -127,3 +127,25 @@ def test_recorded_runs_build_the_kpi_series(stream):
     s = approve(streams.root, _save(streams, s, {}), [], 45, "Approver")
     s = record_run(record_run(s, monitor(streams.root, s, [], 45), "Analyst"), monitor(streams.root, s, [], 45), "Analyst")
     assert [r["version"] for r in s["program_runs"]] == [1, 1] and "clti_uplift" in s["program_runs"][0]["kpis"]
+
+
+def test_a_version_approved_before_the_six_step_ladder_shows_the_current_step_name(stream):
+    # stewardship-screens-polish AC-39..41: `joint_engagement` is read as `private_engagement`, never rewritten
+    from arp.api.routers.stewardship import get_program, get_program_monitor
+    from arp.config import Settings
+
+    streams, s = stream
+    s = approve(streams.root, _save(streams, s, {"max_targets": 3}), [], 45, "Approver")
+    first = s["program_versions"][0]["targets"][0]
+    first["client_step"] = "joint_engagement"
+    streams.save(s)
+    path = streams.root / f"{s['stream_id']}.json"
+    stored = path.read_bytes()
+    engagements = EngagementStore(streams.root / "e")
+
+    rows = get_program_monitor(s["stream_id"], Settings(), streams, engagements)["targets"]
+    row = next(r for r in rows if r["company"] == first["company"] and r["theme"] == first["theme"].replace("_", " "))
+    assert row["planned step"] == "private engagement"
+    versions = get_program(s["stream_id"], Settings(), streams, engagements)["versions"]
+    assert versions[0]["targets"][0]["client_step"] == "private_engagement"
+    assert path.read_bytes() == stored

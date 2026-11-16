@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import asdict
 from datetime import UTC, date, datetime
 from typing import Literal
@@ -10,6 +11,7 @@ from starlette.concurrency import run_in_threadpool
 
 from arp.api.auth import Principal, current_user, require_role
 from arp.api.deps import get_llm_client, get_portfolio_store, settings_dep
+from arp.api.routers.ask import ERROR_DETAIL as ASK_ERROR_DETAIL
 from arp.api.routers.universe import save_universe
 from arp.config import Settings
 from arp.holdings.file_source import file_ref
@@ -30,6 +32,7 @@ from arp.schemas.portfolio_monitoring import Alert, AlertRule, AlertStatus, Aler
 from arp.storage.portfolio_store import PortfolioStore, holdings_date_label, portfolio_directories
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/demo/seed")
@@ -197,7 +200,8 @@ async def ask(
         return answer
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
-        raise
+        logger.exception("portfolio ask failed")
+        raise HTTPException(502, ASK_ERROR_DETAIL) from exc
     finally:
         qa_audit.record_answer(
             settings, endpoint="portfolio.ask", principal=principal, question=req.question,
@@ -254,9 +258,7 @@ def clear_monitoring_rule_alerts(
 
 @router.get("/monitoring/alerts", response_model=list[Alert])
 def list_monitoring_alerts(status: AlertStatus | None = None, store: PortfolioStore = Depends(get_portfolio_store)) -> list[Alert]:
-    companies = {c.company_id: c for c in store.list_companies()}
-    rules = {r.rule_id: r for r in store.list_rules()}
-    return monitoring_evaluator.with_company_names(monitoring_evaluator.list_alerts(store, status=status), companies, rules)
+    return monitoring_evaluator.named_alerts(store, monitoring_evaluator.list_alerts(store, status=status))
 
 
 class AlertTransitionRequest(BaseModel):
@@ -277,11 +279,12 @@ def transition_monitoring_alert(
     engagement router's escalate-issue route exactly (see
     engagement_store.py::set_escalation_stage)."""
     try:
-        return monitoring_evaluator.transition_alert(
+        alert = monitoring_evaluator.transition_alert(
             store, scope_id, alert_id, AlertTransition(status=req.status, decided_by=principal.name, reason=req.reason, owner=req.owner)
         )
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
+    return monitoring_evaluator.named_alerts(store, [alert])[0]
 
 
 @router.post("/monitoring/evaluate-now")

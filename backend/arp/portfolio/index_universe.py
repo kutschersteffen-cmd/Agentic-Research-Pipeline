@@ -214,12 +214,16 @@ def _join_esg(universe: LoadedUniverse, dataset: Path) -> LoadedUniverse:
             joined.append(c)
             continue
         cell = {k: (row.get(k) or "").strip() for k in (*ESG_METRICS, *ESG_FLAGS, *ESG_CATEGORIES, "sector", "country")}
+        metrics = _metrics(cell, c.company_id, dataset.name)
+        flags = {k: cell[k].lower() == "true" for k in ESG_FLAGS if cell[k].lower() in ("true", "false")}
+        categories = {k: cell[k] for k in ESG_CATEGORIES if cell[k]}
         joined.append(
             c.model_copy(
                 update={
-                    "metrics": _metrics(cell, c.company_id, dataset.name),
-                    "flags": {k: cell[k].lower() == "true" for k in ESG_FLAGS if cell[k].lower() in ("true", "false")},
-                    "categories": {k: cell[k] for k in ESG_CATEGORIES if cell[k]},
+                    "metrics": metrics,
+                    "flags": flags,
+                    "categories": categories,
+                    "simulated_fields": [*metrics, *flags, *categories],
                     "sector": cell["sector"] or c.sector,
                     "country": cell["country"] or c.country,
                 }

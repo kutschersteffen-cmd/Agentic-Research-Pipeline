@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from typer.testing import CliRunner
 
 from arp.cli import app
@@ -143,3 +143,64 @@ def test_registry_match_isin_under_other_universe_id(run, pg):
     run(FIXTURE)
     by_isin = {x.isin: x.company_id for x in _all(pg, VoteMeetingModel)}
     assert by_isin == {"US0378331005": None, "JP3633400001": "toyota_jp", "FR0000130809": "socgen_fr"}
+
+
+# --- spec vote-abstain-and-seed-fixes: against_management follows the vote-intake rule ------------------------------
+
+ABSTAIN = [("ABSTAIN", "AGAINST", "AGAINST"), ("ABSTAIN", "FOR", "AGAINST"), ("ABSTAIN", "NONE", "")]
+WITHHOLD = [("WITHHOLD", "AGAINST", "AGAINST"), ("WITHHOLD", "FOR", "AGAINST")]
+
+
+def _csv(directory, name, records):
+    """One meeting dated 03/10/2026, one record per (how_voted, management_recommendation, for_against_management)."""
+    header = FIXTURE.joinpath("fixture.csv").read_text(encoding="utf-8").splitlines()[0]
+    lines = [header] + [
+        f"2026-06-30,0000000000-26-000001,Gamma SE,123456789,XS0000000001,,03/10/2026,{name} item {i},,DIRECTOR ELECTIONS,,ISSUER,"
+        f"100.000000,0,{vote},100.000000,{rec},{fam},,S000000001"
+        for i, (vote, rec, fam) in enumerate(records)
+    ]
+    directory.mkdir(exist_ok=True)
+    (directory / f"{name}.csv").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _flags(dsn):
+    with transaction(dsn) as s:
+        rows = s.execute(select(VoteDecisionModel.external_id, VoteDecisionModel.against_management).where(VoteDecisionModel.source == "npx_urth_demo"))
+        return [f for _, f in sorted(rows, key=lambda r: (r[0].split(":")[0], int(r[0].split(":")[1])))]
+
+
+@pytest.mark.parametrize(("records", "flags"), [
+    (ABSTAIN, [None, None, None]),
+    (WITHHOLD, [None, True]),
+    ([("AGAINST", "FOR", "AGAINST"), ("FOR", "AGAINST", "AGAINST"), ("FOR", "FOR", "FOR")], [True, True, False]),
+])  # fmt: skip
+def test_against_management_follows_intake_rule_vote_abstain_ac1_ac2_ac3(run, pg, tmp_path, records, flags):
+    _csv(tmp_path / "npx", "a", records)
+    assert run(tmp_path / "npx").exit_code == 0
+    assert _flags(pg) == flags
+
+
+def test_rerun_refreshes_stored_flag_of_npx_rows_only_vote_abstain_ac4_ac5_ac6_ac29(run, pg, tmp_path):
+    _csv(tmp_path / "npx", "a", ABSTAIN)
+    _csv(tmp_path / "npx", "b", WITHHOLD)
+    run(tmp_path / "npx")
+    with transaction(pg) as s:
+        item = s.scalar(select(VoteItemModel.item_id).limit(1))
+        s.add(VoteDecisionModel(decision_id="api1", source="api", external_id="api1", item_id=item, vote="abstain"))
+        s.flush()
+        s.execute(update(VoteDecisionModel).values(against_management=True))
+    res = run(tmp_path / "npx")
+    assert (res.exit_code, res.output.strip()) == (0, "meetings 0, items 0, decisions 0 created")
+    assert _flags(pg) == [None, None, None, None, True]
+    assert _counts(pg)[2] == 5
+    with transaction(pg) as s:
+        assert s.scalar(select(VoteDecisionModel.against_management).where(VoteDecisionModel.source == "api")) is True
+
+
+@pytest.mark.slow
+def test_committed_csvs_against_management_vote_abstain_ac7_ac8(run, pg):
+    assert run(COMMITTED).exit_code == 0
+    with transaction(pg) as s:
+        npx = select(func.count()).select_from(VoteDecisionModel).where(VoteDecisionModel.source == "npx_urth_demo")
+        assert s.scalar(npx.where(VoteDecisionModel.against_management.is_(True))) == 1894
+        assert s.scalar(npx.where(VoteDecisionModel.vote == "abstain", VoteDecisionModel.against_management.is_not(None))) == 0

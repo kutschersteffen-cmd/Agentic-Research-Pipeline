@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import {
+  ABSTAIN_LABEL,
   CONTRIBUTOR_STATUS,
   SHOWN_ROWS,
   ballotText,
@@ -18,6 +19,7 @@ import {
   OTHER_THEME,
   themeLabel,
   themeScale,
+  topicNote,
   weekday,
 } from "../lib/cockpit";
 import type { Cockpit } from "../types";
@@ -82,6 +84,7 @@ function Body({ data }: { data: Cockpit }) {
       <KeyFigures data={data} />
       <Strip days={data.days} />
       <ThemeGrid data={data} />
+      <ProgrammePanel data={data} />
       {data.emissions && <EmissionsCard emissions={data.emissions} />}
       <div className="cockpit-row">
         <EngagementMeetings rows={data.engagement_meetings} ladder={data.ladder} />
@@ -281,6 +284,49 @@ function ThemeGrid({ data }: { data: Cockpit }) {
   );
 }
 
+/** Spec stewardship-cockpit-programmes: one bar per programme, all on one scale (the largest `selected`). */
+function ProgrammePanel({ data }: { data: Cockpit }) {
+  const { programmes: rows, programme_totals: t } = data;
+  const max = Math.max(1, ...rows.map((r) => r.selected));
+  const workbench = "#/stewardship/workbench";
+  return (
+    <Card
+      title="Engaged vs selected, by programme"
+      label={rows.length > 0 && <span className="cockpit-label">{fmtCount(t.engaged)} / {fmtCount(t.selected)}</span>}
+    >
+      {rows.length === 0 ? (
+        <>
+          <p className="muted">No programme has members yet.</p>
+          <a href={workbench}>Open the Workbench →</a>
+        </>
+      ) : (
+        <>
+          <ul className="cockpit-programmes">
+            {rows.map((r) => (
+              <li key={r.programme_id}>
+                <span>{r.label}</span>
+                {r.selected === 0 ? (
+                  <span className="cockpit-num muted">–</span>
+                ) : (
+                  <span className="cockpit-cell-bar" aria-hidden="true">
+                    <span className="track" style={{ width: `${(r.selected / max) * 100}%` }} />
+                    <span className="fill" style={{ width: `${(r.engaged / max) * 100}%` }} />
+                  </span>
+                )}
+                <span className="cockpit-num">{r.selected > 0 && `${fmtCount(r.engaged)} / ${fmtCount(r.selected)}`}</span>
+                <span className="muted">{r.proposed > 0 && `+${fmtCount(r.proposed)} proposed`}</span>
+              </li>
+            ))}
+          </ul>
+          <Legend items={[["eng", "Engaged"], ["sel", "Selected"]]} />
+          <p className="muted cockpit-foot">Selected: confirmed programme members. Engaged: with an open engagement.</p>
+          <a href={workbench}>Manage programmes in the Workbench →</a>
+        </>
+      )}
+    </Card>
+  );
+}
+
 type Emissions = NonNullable<Cockpit["emissions"]>;
 
 function EmissionsCard({ emissions: e }: { emissions: Emissions }) {
@@ -471,7 +517,7 @@ function LadderCard({ ladder }: { ladder: Ladder }) {
 }
 
 function VotingCard({ voting: v }: { voting: Cockpit["voting"] }) {
-  const parts: [string, string, number][] = [["for", "for", v.for], ["against", "against", v.against], ["abstain", "abstain", v.abstain]];
+  const parts: [string, string, number][] = [["for", "for", v.for], ["against", "against", v.against], ["abstain", ABSTAIN_LABEL, v.abstain]];
   if (v.other > 0) parts.push(["other", "other", v.other]);
   return (
     <Card title="Voting, season to date" label={<span className="cockpit-label">{fmtCount(v.votes)} votes</span>}>
@@ -484,7 +530,7 @@ function VotingCard({ voting: v }: { voting: Cockpit["voting"] }) {
           </div>
           <div className="cockpit-stack-legend">
             {parts.map(([cls, l, n]) => (
-              <span key={cls}><span className={`cockpit-swatch ${cls}`} aria-hidden="true" /><span className="cockpit-num">{fmtCount(n)}</span> {l}</span>
+              <span key={cls}><span className={`cockpit-swatch ${cls}`} aria-hidden="true" /><span className="cockpit-num">{fmtCount(n)}</span> {l} ({fmtPct(n, v.votes)})</span>
             ))}
           </div>
         </>
@@ -495,10 +541,11 @@ function VotingCard({ voting: v }: { voting: Cockpit["voting"] }) {
           <li key={t.topic}>
             <span>{t.topic}</span>
             <span className="cockpit-topic-bar" aria-hidden="true"><span style={{ width: `${pct(t.against_management, t.votes) ?? 0}%` }} /></span>
-            <span className="cockpit-num">{fmtPct(t.against_management, t.votes)} <span className="muted">· {fmtCount(t.against_management)} of {fmtCount(t.votes)}</span></span>
+            <span className="cockpit-num">{fmtPct(t.against_management, t.votes)} <span className="muted">{topicNote(t)}</span></span>
           </li>
         ))}
       </ul>
+      <p className="muted cockpit-foot">Abstentions never count as against management. A withhold counts as against management only when management recommended for.</p>
     </Card>
   );
 }

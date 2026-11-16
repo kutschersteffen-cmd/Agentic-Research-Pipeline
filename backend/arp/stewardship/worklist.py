@@ -5,8 +5,10 @@ Everything is computed on read from what the app already stores: holdings in the
 proposed coverage tiers, stored triggers, engagement records, the vote ledger's meetings and the portfolio
 observations. No score is stored. One thing is cached (owner decision, 15 Nov 2026): the latest value of each
 portfolio observation file, per process, re-read whenever the file's modification time or size changes
-(`PortfolioStore.latest_observation`), so it is never stale. Holdings, tiers, triggers, engagements, selections,
-notes, programmes and the vote ledger are read fresh on every request.
+(`PortfolioStore.latest_observation`), so it is never stale. At start-up the cache is filled from
+`observations_latest.json`; each entry is still checked against its file's modification time and size before use.
+Holdings, tiers, triggers, engagements, selections, notes, programmes and the vote ledger are read fresh on every
+request.
 
 The score is plain arithmetic: each component's points = weight x a 0..1 normalised value, rounded to 1 decimal,
 and the score is the sum of the rounded points, so the points always add up to it. The weights are the house
@@ -26,23 +28,23 @@ from __future__ import annotations
 
 import json
 import re
-import threading
 from collections import Counter
 from datetime import UTC, date, datetime
 from pathlib import Path
 from urllib.parse import quote, unquote
 
-from arp.schemas.engagement import FIR_THEME_LABELS, CommitmentStatus, EngagementRecord, EscalationStage
+from arp.schemas.engagement import FIR_THEME_LABELS, EngagementRecord, EscalationStage
 from arp.showcase.schema import FIELD_IDS as SIMULATED_FIELDS
 from arp.stewardship.notes import NoteLog
 from arp.stewardship.policies import PolicyStore, component_ids, validate_weights
 from arp.stewardship.process import current_tiers
 from arp.stewardship.programmes import ProgrammeLog
 from arp.stewardship.tiers import TIERS, TierStore
-from arp.stewardship.tracking import OPEN
+from arp.stewardship.tracking import OPEN, watch_flags_by_company
 from arp.stewardship.trigger_store import TriggerStore
 from arp.stewardship.universe import company_by_security
-from arp.storage.jsonl_io import read_jsonl
+from arp.storage.jsonl_io import complete_rows
+from arp.storage.locks import KeyedLock
 
 POLICY = "priority_weights"
 TIER_VALUE = dict(zip(TIERS, (1.0, 0.5, 0.0), strict=True))
@@ -57,7 +59,9 @@ HOUSE = "All house holdings"
 FUND_SCOPE = "Fund scopes need the portfolio universe"
 TOP = 25
 CYCLE = re.compile(r"\d{4}-Q[1-4]")
-_LOCK = threading.Lock()  # a selection change reads the log, then appends: one at a time
+# a selection change reads the log, then appends: one at a time per log file, across processes too
+_LOCKS = KeyedLock(lock_path=lambda key: Path(key).with_name(Path(key).name + ".lock"))
+SELECTION_KEYS = ("event", "issuer_id", "by", "at", "weights_version")  # a line without one of them is damaged
 
 
 def cycle_of(today: date) -> str:
@@ -128,12 +132,16 @@ def indicators(
     observations: dict[str, dict],
     today: date,
 ) -> list[dict]:
-    """One row per issuer with every indicator column and `normalised`: component id -> 0..1, or None when empty."""
-    by_company = {r.company_id: r for r in records}
+    """One row per issuer with every indicator column and `normalised`: component id -> 0..1, or None when empty.
+    Overdue and broken commitments come from `watch_flags_by_company()`, read once for all companies."""
+    by_company, flags = {r.company_id: r for r in records}, watch_flags_by_company(records, today)
     counts: dict[str, Counter] = {}
+    new_high: set[str] = set()  # the tag asks a person to act, so a resolved or dismissed trigger does not set it
     for t in triggers:
         if t.status in ("open", "acknowledged"):
             counts.setdefault(t.issuer_id, Counter())[t.severity] += 1
+            if t.severity == "high" and t.is_new:
+                new_high.add(t.issuer_id)
     issuers = sample["issuers"]
     weight = _percentile({i["issuer_id"]: v for i in issuers if (v := i.get("holding", {}).get("index_weight_pct")) is not None})
     aum = _percentile({i["issuer_id"]: v for i in issuers if (v := i.get("holding", {}).get("aum_held_eur_m")) is not None})
@@ -145,11 +153,9 @@ def indicators(
         record = by_company.get(iid)
         open_issues = [i for i in record.issues if i.status in OPEN] if record else []
         escalated = sum(i.escalation_stage != EscalationStage.PRIVATE_ENGAGEMENT for i in open_issues)
-        overdue = sum(
-            c.status == CommitmentStatus.OPEN and bool(c.target_date) and date.fromisoformat(c.target_date[:10]) < today
-            for i in open_issues
-            for c in i.commitments
-        )
+        commitment_flags = [{"kind": f.kind, "message": f.message} for f in flags.get(iid, ()) if f.item_kind == "commitment"]
+        kinds = Counter(f["kind"] for f in commitment_flags)
+        overdue, broken = kinds["overdue"], kinds["broken"]
         c = counts.get(iid, Counter())
         trig = {"high": c["high"], "medium": c["medium"], "low": c["low"]}
         tier, confirmed = tiers[iid]
@@ -175,9 +181,12 @@ def indicators(
                 "coverage_tier": tier,
                 "coverage_tier_confirmed": confirmed,
                 "triggers": trig,
+                "new_high_trigger": iid in new_high,
                 "open_engagements": len(open_issues),
                 "escalated": escalated,
                 "overdue_commitments": overdue,
+                "broken_commitments": broken,
+                "commitment_flags": commitment_flags,
                 "next_meeting": meeting,
                 "transition_grade": grade,
                 "esg_score": obs["esg_score"],
@@ -196,6 +205,7 @@ def indicators(
                     "esg_score": _clamp((10 - obs["esg_score"]["value"]) / 10) if obs["esg_score"] else None,
                     "controversy": _clamp(obs["controversy"]["value"] / 5) if obs["controversy"] else None,
                     "carbon_intensity": carbon.get(iid),
+                    "broken_commitments": min(1.0, broken / 2),
                 },
             }
         )
@@ -473,7 +483,7 @@ class SelectionLog:
     @staticmethod
     def _fold(path: Path) -> list[dict]:
         folded: dict[str, dict] = {}
-        for e in read_jsonl(path):
+        for e in complete_rows(path, lambda e: SELECTION_KEYS):
             iid = e["issuer_id"]
             if e["event"] == "added" and iid not in folded:  # a later `added` never overwrites a row
                 folded[iid] = {
@@ -481,7 +491,7 @@ class SelectionLog:
                     "proposed_by": e["by"], "proposed_at": e["at"], "confirmed_by": None, "confirmed_at": None,
                     "weights_version": e["weights_version"],
                 }  # fmt: skip
-            elif e["event"] == "removed":
+            elif e["event"] == "removed" and folded.get(iid, {}).get("status") != "confirmed":  # confirmed rows stay
                 folded.pop(iid, None)
             elif e["event"] == "confirmed" and iid in folded:
                 folded[iid].update(status="confirmed", confirmed_by=e["by"], confirmed_at=e["at"])
@@ -504,7 +514,7 @@ class SelectionLog:
         current = cycle_of(today)
         if cycle != current:
             raise ValueError(f"only {current} can be changed")
-        with _LOCK:
+        with _LOCKS.acquire(str(self._path(cycle, scope))):
             self._change(cycle, scope, names, names.keys() if in_scope is None else in_scope, add, remove, by, weights_version)
 
     def _change(self, cycle, scope, names, in_scope, add: list[str], remove: list[str], by: str, weights_version: int) -> None:
@@ -520,14 +530,21 @@ class SelectionLog:
         events += [{"event": "removed", "issuer_id": i} for i in dict.fromkeys(remove) if state.get(i) == "proposed" and i not in add]
         self._write(cycle, scope, events, by, weights_version)
 
-    def confirm(self, cycle: str, today: date, by: str, weights_version: int, scope: str = "house") -> int:
+    def confirm(
+        self, cycle: str, today: date, by: str, weights_version: int, scope: str = "house", in_scope: set[str] | None = None
+    ) -> tuple[int, list[str]]:
+        """Confirms the proposed rows whose company is in `in_scope` (default: all) and removes the other proposed rows,
+        in one write. Returns how many were confirmed and the stored names of the removed rows, sorted."""
         current = cycle_of(today)
         if cycle != current:
             raise ValueError(f"only {current} can be changed")
-        with _LOCK:
-            proposed = [r["issuer_id"] for r in self.rows(cycle, scope) if r["status"] == "proposed"]
-            self._write(cycle, scope, [{"event": "confirmed", "issuer_id": i} for i in proposed], by, weights_version)
-        return len(proposed)
+        with _LOCKS.acquire(str(self._path(cycle, scope))):
+            proposed = [r for r in self.rows(cycle, scope) if r["status"] == "proposed"]
+            keep = [r["issuer_id"] for r in proposed if in_scope is None or r["issuer_id"] in in_scope]
+            drop = [r for r in proposed if in_scope is not None and r["issuer_id"] not in in_scope]
+            events = [{"event": "confirmed", "issuer_id": i} for i in keep] + [{"event": "removed", "issuer_id": r["issuer_id"]} for r in drop]
+            self._write(cycle, scope, events, by, weights_version)
+        return len(keep), sorted(r["company"] for r in drop)
 
     def _write(self, cycle: str, scope: str, events: list[dict], by: str, weights_version: int) -> None:
         if not by.strip():
