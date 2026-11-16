@@ -78,4 +78,4 @@ export function useMe(): Me | null {
   return me;
 }
 
-export const SIGN_IN_REQUIRED = "Enter your access token in the sidebar first: every decision is recorded against the signed-in user.";
+export const SIGN_IN_REQUIRED = "Enter your access token in the user menu (top right) first: every decision is recorded against the signed-in user.";

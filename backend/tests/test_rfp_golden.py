@@ -45,4 +45,58 @@ class Drafter:
 
 def test_golden_drafts_counts():
     c = asyncio.run(golden.score_drafts(golden.load(DATA / "rfp_drafts.json"), Drafter(), Drafter(), today=date(2026, 10, 21)))
-    assert (c["drafted"], c["answerable"], c["blank"], c["unanswerable"], c["unsupported"]) == (1, 14, 8, 8, 1)
+    assert (c["drafted"], c["answerable"], c["blank"], c["unanswerable"], c["unsupported"]) == (0, 14, 8, 8, 0)
+
+
+class Chain:
+    """Unchanged for the first question, a cited draft for the second, nothing for the third."""
+
+    async def complete_structured(self, *, prompt, output_model, **_):
+        if output_model is golden.FactCheck:
+            return golden.FactCheck(), LLMUsage()
+        question = prompt.rsplit("RFP question: ", 1)[1]
+        if question == "Please describe your firm.":
+            return DraftOut(use_entry=1), LLMUsage()
+        if question == "When was the firm founded?":
+            return DraftOut(answer="In 2011.", citations=[Cited(entry_id=1, quote="founded in 2011")]), LLMUsage()
+        return DraftOut(), LLMUsage()
+
+
+def test_golden_unchanged_counts():
+    cases = {"library": [{"question": "Describe your firm.", "answer": "Example AM, founded in 2011."}],
+             "questions": [{"question": "Please describe your firm.", "expect": "unchanged"},
+                           {"question": "When was the firm founded?", "expect": "library"},
+                           {"question": "What is your revenue?", "expect": "none"}]}
+    c = asyncio.run(golden.score_drafts(cases, Chain(), Chain(), today=date(2026, 11, 15)))
+    assert (c["unchanged"], c["unchanged_total"], c["drafted"], c["blank"]) == (1, 1, 2, 1)
+    assert (c["library_first"], c["library_first_total"]) == (2, 2)
+
+
+def test_golden_unchanged_case_file_is_well_formed():
+    cases = golden.load(DATA / "rfp_unchanged_drafts.json")
+    expects = [q["expect"] for q in cases["questions"]]
+    assert set(expects) == {"unchanged", "library", "none"}
+    assert all(expects.count(e) >= 10 for e in set(expects))
+    assert "Example AM" not in str(cases)
+
+
+def test_golden_drafts_cli_checks_min_unchanged(pg, tmp_path, monkeypatch):
+    import json
+
+    from typer.testing import CliRunner
+
+    from arp.cli import app as cli
+    from arp.cli import rfp as rfp_cli
+    from arp.llm import factory
+
+    monkeypatch.setattr(rfp_cli, "_llm", Chain)
+    monkeypatch.setattr(factory, "build_verifier_llm_client", lambda _settings: Chain())
+    path = tmp_path / "cases.json"
+    path.write_text(json.dumps({"library": [{"question": "Describe your firm.", "answer": "Example AM, founded in 2011."}],
+                                "questions": [{"question": "Please describe your firm.", "expect": "unchanged"},
+                                              {"question": "Who owns the firm?", "expect": "unchanged"}]}))
+    args = ["rfp", "golden", "drafts", "--cases", str(path), "--min-drafted", "0", "--min-blank", "0"]
+    passed = CliRunner().invoke(cli, [*args, "--min-unchanged", "0.5", "--min-library-first", "1"])
+    failed = CliRunner().invoke(cli, [*args, "--min-unchanged", "0.9"])
+    assert (passed.exit_code, failed.exit_code) == (0, 1), passed.stdout
+    assert "unchanged 0.500 (1/2)" in failed.stdout
