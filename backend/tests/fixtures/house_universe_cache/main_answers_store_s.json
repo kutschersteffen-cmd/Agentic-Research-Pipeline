@@ -1,0 +1,901 @@
+{
+ "/api/stewardship/decision-inputs": {
+  "in_scope": 2,
+  "published": []
+ },
+ "/api/stewardship/selection": {
+  "rows": []
+ },
+ "/api/stewardship/streams/house/flow": {
+  "data_note": "Companies held in the house portfolios as of 2026-10-31. CLTI scores are placeholders; weights are the share of house holdings, not an index weight. Engagement data is live.",
+  "edges": [
+   {
+    "from": "monitoring",
+    "to": "selection"
+   },
+   {
+    "from": "selection",
+    "to": "drafting"
+   },
+   {
+    "from": "drafting",
+    "to": "voting"
+   },
+   {
+    "from": "voting",
+    "to": "checkpoint"
+   },
+   {
+    "from": "checkpoint",
+    "to": "tracking"
+   },
+   {
+    "from": "tracking",
+    "label": "missed commitments, stalls",
+    "to": "monitoring"
+   },
+   {
+    "from": "monitoring",
+    "to": "client_policy"
+   },
+   {
+    "from": "checkpoint",
+    "to": "client_policy"
+   },
+   {
+    "from": "client_policy",
+    "label": "client exceptions",
+    "to": "checkpoint"
+   },
+   {
+    "from": "client_policy",
+    "to": "reporting"
+   }
+  ],
+  "stages": [
+   {
+    "decisions": [],
+    "details": [],
+    "id": "monitoring",
+    "layer": "house",
+    "metrics": [
+     {
+      "hint": null,
+      "label": "Companies monitored",
+      "source": "portfolio",
+      "tone": "neutral",
+      "value": 2
+     },
+     {
+      "hint": null,
+      "label": "Values missing",
+      "source": "portfolio",
+      "tone": "neutral",
+      "value": "0%"
+     },
+     {
+      "hint": "By the active monitoring rules, on company data",
+      "label": "Triggers raised",
+      "source": "portfolio",
+      "tone": "neutral",
+      "value": 2
+     },
+     {
+      "hint": "Missed or overdue commitments and stalled engagements (stage 6)",
+      "label": "Tracking triggers",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     },
+     {
+      "hint": "Companies with a trigger and no open engagement on its theme",
+      "label": "Without an engagement",
+      "source": "portfolio",
+      "tone": "warn",
+      "value": 2
+     },
+     {
+      "hint": "Engagements opened by the controversy screen, the SLA sweep or a monitoring rule",
+      "label": "Opened by triggers",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": "No activity for 45 days",
+      "label": "Stalled engagements",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     }
+    ],
+    "number": 1,
+    "status": "partial",
+    "summary": "Watches every in-scope holding and raises triggers.",
+    "title": "Continuous Monitoring & Detection"
+   },
+   {
+    "decisions": [],
+    "details": [
+     {
+      "label": "Confirmed coverage tiers",
+      "rows": [
+       {
+        "companies": 0,
+        "tier": "Bilateral"
+       },
+       {
+        "companies": 0,
+        "tier": "Letter"
+       },
+       {
+        "companies": 0,
+        "tier": "Monitor"
+       }
+      ]
+     }
+    ],
+    "id": "selection",
+    "layer": "house",
+    "metrics": [
+     {
+      "hint": null,
+      "label": "Open engagements",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": null,
+      "label": "Awaiting research",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": "Coverage tiers (E1) from the house coverage rules",
+      "label": "Tiers confirmed",
+      "source": "portfolio",
+      "tone": "warn",
+      "value": "0 of 2"
+     }
+    ],
+    "number": 2,
+    "status": "partial",
+    "summary": "Assigns coverage tiers and opens engagements; researches every new one.",
+    "title": "Research & Selection"
+   },
+   {
+    "decisions": [],
+    "details": [],
+    "id": "drafting",
+    "layer": "house",
+    "metrics": [
+     {
+      "hint": null,
+      "label": "Summaries to draft",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": null,
+      "label": "Awaiting response",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": null,
+      "label": "Drafts at the checkpoint",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     },
+     {
+      "hint": "Sent outreach tagged advocacy/pressure (E6)",
+      "label": "Advocacy / pressure",
+      "source": "live",
+      "tone": "neutral",
+      "value": "0 of 0"
+     },
+     {
+      "hint": "E8 phrase blocklist, on drafts not yet approved",
+      "label": "Style flags open",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     }
+    ],
+    "number": 3,
+    "status": "live",
+    "summary": "Prepares outreach and meeting summaries; tags advocacy interactions.",
+    "title": "Drafting"
+   },
+   {
+    "decisions": [],
+    "details": [
+     {
+      "label": "Most frequent reasons to vote against",
+      "rows": []
+     },
+     {
+      "label": "Votes decided in Proxy Voting",
+      "rows": []
+     }
+    ],
+    "id": "voting",
+    "layer": "house",
+    "metrics": [
+     {
+      "hint": "Evaluated with the policy graph",
+      "label": "Resolutions",
+      "source": "portfolio",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": null,
+      "label": "Expected against",
+      "source": "portfolio",
+      "tone": "neutral",
+      "value": "\u2014"
+     },
+     {
+      "hint": null,
+      "label": "Case-by-case",
+      "source": "portfolio",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": "Votes against because an engagement reached the vote step",
+      "label": "Sanction votes",
+      "source": "portfolio",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": "From Proxy Voting runs; the rest await a person",
+      "label": "Ballot items decided",
+      "source": "live",
+      "tone": "neutral",
+      "value": "1 of 1"
+     },
+     {
+      "hint": null,
+      "label": "Against management",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     }
+    ],
+    "number": 4,
+    "status": "partial",
+    "summary": "Expected votes from the policy graph; checks votes cast; feeds vote outcomes back as triggers.",
+    "title": "Link Engagement \u2194 Voting"
+   },
+   {
+    "decisions": [
+     {
+      "company": "Company C2",
+      "issuer_id": "C2",
+      "kind": "tier_change",
+      "proposed": "Bilateral",
+      "reason": "Index weight of 1% or more",
+      "rule": "top_weight"
+     },
+     {
+      "company": "Company C1",
+      "issuer_id": "C1",
+      "kind": "tier_change",
+      "proposed": "Bilateral",
+      "reason": "Index weight of 1% or more",
+      "rule": "top_weight"
+     }
+    ],
+    "details": [
+     {
+      "label": "Votes against the policy's recommendation",
+      "rows": []
+     }
+    ],
+    "id": "checkpoint",
+    "layer": "house",
+    "metrics": [
+     {
+      "hint": "Recommended by the escalation rules",
+      "label": "Escalations to decide",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     },
+     {
+      "hint": "0 at their tier's cap: promote the tier",
+      "label": "Sample recommendations",
+      "source": "portfolio",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": null,
+      "label": "Tier changes to confirm",
+      "source": "portfolio",
+      "tone": "warn",
+      "value": 2
+     },
+     {
+      "hint": "Nothing is sent before approval",
+      "label": "Outreach to approve",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     },
+     {
+      "hint": "Decided in Proxy Voting against the policy's recommendation: review the reason",
+      "label": "Votes against the policy",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     },
+     {
+      "hint": "A client's escalation rules want a higher step: adopt or decline",
+      "label": "Client escalations above the house",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     }
+    ],
+    "number": 5,
+    "status": "partial",
+    "summary": "Every escalation, sanction list, outreach and disclosure is decided by a person.",
+    "title": "Human Checkpoint"
+   },
+   {
+    "decisions": [],
+    "details": [
+     {
+      "label": "Open engagements by milestone",
+      "rows": []
+     }
+    ],
+    "id": "tracking",
+    "layer": "house",
+    "metrics": [
+     {
+      "hint": null,
+      "label": "Commitments open",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": null,
+      "label": "Commitments met",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     },
+     {
+      "hint": null,
+      "label": "Commitments missed",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": "Open commitments to verify or mark missed",
+      "label": "Past target date",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     },
+     {
+      "hint": "Closed engagements (E7)",
+      "label": "Case studies ready",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     }
+    ],
+    "number": 6,
+    "status": "live",
+    "summary": "Logs outcomes and commitments; missed dates and stalls go back to monitoring.",
+    "title": "Tracking"
+   },
+   {
+    "decisions": [],
+    "details": [],
+    "id": "client_policy",
+    "layer": "client",
+    "metrics": [
+     {
+      "hint": null,
+      "label": "Client streams",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": null,
+      "label": "Decisions open",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     }
+    ],
+    "number": 7,
+    "status": "live",
+    "summary": "Client streams apply their own policies on top of the house results.",
+    "title": "Client Policy Evaluation"
+   },
+   {
+    "decisions": [],
+    "details": [],
+    "id": "reporting",
+    "layer": "client",
+    "metrics": [
+     {
+      "hint": null,
+      "label": "Engagements",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": "Disclosure records (E2) need the voting feed.",
+      "label": "Vote disclosure",
+      "source": "not_built",
+      "tone": "neutral",
+      "value": "\u2014"
+     }
+    ],
+    "number": 8,
+    "status": "partial",
+    "summary": "Stewardship reports and public vote disclosure.",
+    "title": "Reporting & Disclosure"
+   }
+  ],
+  "stream": {
+   "mandate": null,
+   "name": "House program",
+   "stream_id": "house"
+  }
+ },
+ "/api/stewardship/studio/coverage/inputs": {
+  "contexts": [
+   {
+    "history": {
+     "escalated": false,
+     "open_engagements": 0
+    },
+    "holding": {
+     "aum_held_eur_m": 3.0,
+     "change_pct": 50.0,
+     "index_weight_pct": 60.0
+    },
+    "issuer": {
+     "portfolio": {
+      "ghg_intensity": 80.0
+     },
+     "region": "DE",
+     "score": {
+      "clti": 16
+     },
+     "sector": "Energy"
+    },
+    "issuer_id": "C2",
+    "name": "Company C2"
+   },
+   {
+    "history": {
+     "escalated": false,
+     "open_engagements": 0
+    },
+    "holding": {
+     "aum_held_eur_m": 2.0,
+     "change_pct": 100.0,
+     "index_weight_pct": 40.0
+    },
+    "issuer": {
+     "portfolio": {
+      "ghg_intensity": 120.0
+     },
+     "region": "DE",
+     "score": {
+      "clti": 30
+     },
+     "sector": "Energy",
+     "vote": {
+      "against_management": 0,
+      "decided": 1,
+      "last_meeting_date": "2026-05-01",
+      "overrode_policy": 0
+     }
+    },
+    "issuer_id": "C1",
+    "name": "Company C1"
+   }
+  ]
+ },
+ "/api/stewardship/studio/monitoring/triggers": {
+  "triggers": [
+   {
+    "company": "Company C2",
+    "engagement_id": null,
+    "issuer_id": "C2",
+    "reason": "CLTI score below 30",
+    "rule": "clti_laggard",
+    "sector": "Energy",
+    "severity": "high",
+    "theme": "climate_transition",
+    "type": "score_change"
+   },
+   {
+    "company": "Company C1",
+    "engagement_id": null,
+    "issuer_id": "C1",
+    "reason": "Position up more than 50%",
+    "rule": "position_jump",
+    "sector": "Energy",
+    "severity": "low",
+    "theme": "position_review",
+    "type": "holding_change"
+   }
+  ]
+ },
+ "/api/stewardship/tiers": {
+  "assignments": [],
+  "changes": [
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 3.0,
+      "change_pct": 50.0,
+      "index_weight_pct": 60.0
+     }
+    },
+    "issuer_id": "C2",
+    "name": "Company C2",
+    "reason": "Index weight of 1% or more",
+    "rule": "top_weight",
+    "tier": "bilateral"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 2.0,
+      "change_pct": 100.0,
+      "index_weight_pct": 40.0
+     }
+    },
+    "issuer_id": "C1",
+    "name": "Company C1",
+    "reason": "Index weight of 1% or more",
+    "rule": "top_weight",
+    "tier": "bilateral"
+   }
+  ],
+  "confirmed": 0,
+  "distribution": {},
+  "in_scope": 2,
+  "picks": [],
+  "reevaluation_due": false
+ },
+ "/api/stewardship/worklist/scopes": {
+  "scopes": [
+   {
+    "companies": 2,
+    "key": "house",
+    "kind": "house",
+    "label": "All house holdings"
+   },
+   {
+    "companies": 2,
+    "key": "portfolio:P1",
+    "kind": "portfolio",
+    "label": "Fund P1"
+   }
+  ]
+ },
+ "/api/stewardship/worklist?scope=house": {
+  "rows": [
+   {
+    "aum_held_eur_m": 3.0,
+    "carbon_intensity": {
+     "simulated": false,
+     "value": 80.0
+    },
+    "company": "Company C2",
+    "controversy": null,
+    "coverage_tier": "bilateral",
+    "coverage_tier_confirmed": false,
+    "engaged": {
+     "last": null,
+     "yes": false
+    },
+    "equity_held_eur_m": 3.0,
+    "escalated": 0,
+    "esg_extra": {},
+    "esg_score": null,
+    "held_in": [
+     {
+      "market_value_eur_m": 3.0,
+      "name": "Fund P1",
+      "portfolio_id": "P1",
+      "selection_status": null,
+      "weight_pct": 60.0
+     }
+    ],
+    "holdings_weight_pct": 60.0,
+    "identifier": "C2",
+    "issuer_id": "C2",
+    "last_topics": [],
+    "norms_violation": null,
+    "notes": {
+     "count": 0,
+     "latest": null
+    },
+    "open_engagements": 0,
+    "overdue_commitments": 0,
+    "ownership_pct": null,
+    "parts": [
+     {
+      "empty": false,
+      "id": "open_triggers",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 30
+     },
+     {
+      "empty": false,
+      "id": "holdings_weight",
+      "normalised": 1.0,
+      "points": 20.0,
+      "weight": 20
+     },
+     {
+      "empty": false,
+      "id": "overdue_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 15
+     },
+     {
+      "empty": false,
+      "id": "escalated",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "transition_grade",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": false,
+      "id": "aum_held",
+      "normalised": 1.0,
+      "points": 10.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "next_meeting",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 5
+     },
+     {
+      "empty": false,
+      "id": "coverage_tier",
+      "normalised": 1.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "open_engagements",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "esg_score",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "controversy",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "carbon_intensity",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     }
+    ],
+    "programmes": [],
+    "score": 30.0,
+    "sector": "Energy",
+    "selected_elsewhere": [],
+    "selection": null,
+    "transition_grade": null,
+    "triggers": {
+     "high": 0,
+     "low": 0,
+     "medium": 0
+    }
+   },
+   {
+    "aum_held_eur_m": 2.0,
+    "carbon_intensity": {
+     "simulated": false,
+     "value": 120.0
+    },
+    "company": "Company C1",
+    "controversy": null,
+    "coverage_tier": "bilateral",
+    "coverage_tier_confirmed": false,
+    "engaged": {
+     "last": null,
+     "yes": false
+    },
+    "equity_held_eur_m": 2.0,
+    "escalated": 0,
+    "esg_extra": {},
+    "esg_score": null,
+    "held_in": [
+     {
+      "market_value_eur_m": 2.0,
+      "name": "Fund P1",
+      "portfolio_id": "P1",
+      "selection_status": null,
+      "weight_pct": 40.0
+     }
+    ],
+    "holdings_weight_pct": 40.0,
+    "identifier": "C1",
+    "issuer_id": "C1",
+    "last_topics": [],
+    "norms_violation": null,
+    "notes": {
+     "count": 0,
+     "latest": null
+    },
+    "open_engagements": 0,
+    "overdue_commitments": 0,
+    "ownership_pct": null,
+    "parts": [
+     {
+      "empty": false,
+      "id": "open_triggers",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 30
+     },
+     {
+      "empty": false,
+      "id": "holdings_weight",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 20
+     },
+     {
+      "empty": false,
+      "id": "overdue_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 15
+     },
+     {
+      "empty": false,
+      "id": "escalated",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "transition_grade",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": false,
+      "id": "aum_held",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "next_meeting",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 5
+     },
+     {
+      "empty": false,
+      "id": "coverage_tier",
+      "normalised": 1.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "open_engagements",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "esg_score",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "controversy",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "carbon_intensity",
+      "normalised": 1.0,
+      "points": 0.0,
+      "weight": 0
+     }
+    ],
+    "programmes": [],
+    "score": 0.0,
+    "sector": "Energy",
+    "selected_elsewhere": [],
+    "selection": null,
+    "transition_grade": null,
+    "triggers": {
+     "high": 0,
+     "low": 0,
+     "medium": 0
+    }
+   }
+  ],
+  "scope": {
+   "companies": 2,
+   "key": "house",
+   "kind": "house",
+   "label": "All house holdings"
+  },
+  "universe_note": "Companies held in the house portfolios as of 2026-10-31. CLTI scores are placeholders; weights are the share of house holdings, not an index weight.",
+  "weights": {
+   "activated_at": null,
+   "activated_by": null,
+   "version": 0
+  }
+ }
+}
