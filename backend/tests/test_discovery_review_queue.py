@@ -127,8 +127,8 @@ async def test_result_row_and_items_are_written_together(tmp_path, pg, bodies):
 
 
 async def test_resume_after_stop_keeps_three_items(tmp_path, pg, bodies):
+    from arp.db.runs import RunStore
     from arp.orchestration.jobs import restart_run
-    from arp.storage.run_store import RunStore
 
     settings = settings_for(tmp_path)
     rs = RunStore(pg, settings.runs_dir)
@@ -147,7 +147,7 @@ async def test_resume_after_stop_keeps_three_items(tmp_path, pg, bodies):
 
 
 def _cli(monkeypatch, tmp_path, pg, bodies, companies):
-    from arp.storage.run_store import RunStore
+    from arp.db.runs import RunStore
 
     settings = settings_for(tmp_path)
     rs = RunStore(pg, settings.runs_dir)
@@ -177,10 +177,10 @@ def test_cli_prints_no_line_when_nothing_queued(monkeypatch, tmp_path, pg, bodie
 
 
 async def test_resume_after_crash_between_result_and_progress_keeps_three(tmp_path, pg, bodies):
+    from arp.db.runs import RunStore
     from arp.discovery.review import review_items
     from arp.orchestration.jobs import restart_run
     from arp.schemas.discovery import DiscoveryCompanyResult
-    from arp.storage.run_store import RunStore
 
     settings = settings_for(tmp_path)
     rs = RunStore(pg, settings.runs_dir)
@@ -201,7 +201,7 @@ async def test_transient_db_error_on_result_write_is_retried(tmp_path, pg, bodie
     from sqlalchemy.exc import OperationalError
 
     from arp.db import session
-    from arp.storage.run_store import RunStore
+    from arp.db.runs import RunStore
 
     monkeypatch.setattr(session, "_RETRY_BACKOFF_S", 0)
     settings = settings_for(tmp_path)

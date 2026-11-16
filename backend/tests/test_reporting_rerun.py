@@ -2,6 +2,7 @@
 import pytest
 
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.reporting import adapters
 from arp.reporting.scheduler import ReportScheduleConfig, ReportScheduler
 from arp.reporting.service import ReportingService
@@ -20,7 +21,6 @@ from arp.schemas.reporting import (
     StorylineSlide,
 )
 from arp.storage.reporting_store import ReportingStore
-from arp.storage.run_store import RunStore
 from tests.postgres_helpers import pg_dsn, replace_results
 
 pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below

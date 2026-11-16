@@ -16,8 +16,8 @@ from arp.api import deps
 from arp.api.routers import universe as universe_router
 from arp.api.routers.extraction import run_companies
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.orchestration.job_manager import JobManager
-from arp.storage.run_store import RunStore
 
 
 @pytest.fixture

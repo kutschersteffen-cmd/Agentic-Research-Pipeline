@@ -3,9 +3,9 @@
 
 import pytest
 
+from arp.db.runs import RunStore
 from arp.decision import sources
 from arp.orchestration.job_manager import JobManager
-from arp.storage.run_store import RunStore
 from tests.postgres_helpers import replace_results
 
 

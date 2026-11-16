@@ -25,6 +25,7 @@ from arp.api.deps import (
     settings_dep,
 )
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.holdings import security_master
 from arp.holdings.intake import IntakeError, previous_month_end
 from arp.llm.base import LLMClient
@@ -32,7 +33,6 @@ from arp.portfolio import feeds, issues, qa_audit
 from arp.portfolio.climate.esg_api_source import pull_esg
 from arp.portfolio.news.api_source import pull_news
 from arp.storage.identifier_map import IdentifierMapStore
-from arp.storage.run_store import RunStore
 
 router = APIRouter(prefix="/api/security-master", tags=["security-master"])
 feeds_router = APIRouter(prefix="/api/feeds", tags=["feeds"])

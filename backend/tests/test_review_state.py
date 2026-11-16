@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from arp.api.auth import Principal
+from arp.db.runs import RunStore
 from arp.orchestration.review_queue import (
     PUBLIC_KEYS,
     append_decision,
@@ -15,7 +16,6 @@ from arp.orchestration.review_queue import (
     same_value,
 )
 from arp.schemas.review import ReviewDecision, held_item_key, sector_item_key
-from arp.storage.run_store import RunStore
 
 ANA = Principal(user_id="u_ana", name="Ana", role="analyst")
 BEN = Principal(user_id="u_ben", name="Ben", role="analyst")

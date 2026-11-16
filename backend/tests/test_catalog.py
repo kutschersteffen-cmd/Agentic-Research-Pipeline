@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from arp import catalog
 from arp.api.routers.universe import save_universe
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.decision.dataset import Dataset
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef
@@ -13,7 +14,6 @@ from arp.schemas.decision import PublishedDecision
 from arp.schemas.taxonomy import DerivationMethod
 from arp.schemas.thematic import ThemeDefinition
 from arp.storage.decision_store import DecisionStore
-from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 
 

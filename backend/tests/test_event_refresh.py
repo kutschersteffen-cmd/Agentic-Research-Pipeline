@@ -13,6 +13,7 @@ import pytest
 from arp.cli._shared import _and_drain
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
+from arp.db.runs import RunStore
 from arp.discovery import refresh
 from arp.discovery.change_detector import ChangeDetector, poll_esef_filings
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
@@ -25,7 +26,6 @@ from arp.orchestration import jobs
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition, FieldStatus
 from arp.schemas.discovery import DiscoveredDocument, DocumentEvent, DocumentEventType
-from arp.storage.run_store import RunStore
 from tests.postgres_helpers import pg_dsn
 
 pytestmark = pytest.mark.usefixtures("pg")

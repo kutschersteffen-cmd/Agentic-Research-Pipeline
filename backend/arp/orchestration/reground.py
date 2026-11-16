@@ -12,12 +12,12 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from arp.db.runs import RunStore
 from arp.ingestion.local_files import parse_file_to_text_with_pages, parser_version
 from arp.orchestration.review_queue import FINAL_STATES, append_decision, item_states, queue_for_review
 from arp.publish.gate import blob_key, lineage_error, reground_match
 from arp.schemas.common import Citation
 from arp.schemas.review import DecisionReason, ReviewDecision, field_item_key, period_key
-from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
 

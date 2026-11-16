@@ -2,12 +2,12 @@
 import pytest
 
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.reporting.adapters import load_run_datasets
 from arp.schemas.common import RunManifest
 from arp.schemas.decision import PublishedDecision, PublishedRow
 from arp.schemas.reporting import ColumnKind, RunRef
 from arp.storage.decision_store import DecisionStore
-from arp.storage.run_store import RunStore
 
 pytestmark = pytest.mark.usefixtures("pg")  # the CLI/app and RunStore need Postgres
 

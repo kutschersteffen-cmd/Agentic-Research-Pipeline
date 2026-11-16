@@ -4,13 +4,13 @@ from datetime import date
 
 import pytest
 
+from arp.db.runs import RunStore
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import append_decision
 from arp.portfolio import issues
 from arp.schemas.review import ReviewDecision
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.portfolio_store import PortfolioStore
-from arp.storage.run_store import RunStore
 from tests.postgres_helpers import pg_dsn, replace_results
 
 pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below

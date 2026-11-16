@@ -11,6 +11,7 @@ from arp.checks.prior_period import open_restatement_candidates
 from arp.checks.runner import CheckContext, check_record
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry, UnreleasedFieldError
+from arp.db.runs import RunStore
 from arp.extraction.aggregator import no_evidence_field
 from arp.extraction.corrections import apply_corrections
 from arp.extraction.derived import evaluate_derived
@@ -49,7 +50,6 @@ from arp.schemas.datapoints import (
 from arp.schemas.issuer import issuer_key
 from arp.schemas.review import field_item_key, period_key
 from arp.storage.identifier_map import IdentifierMapStore
-from arp.storage.run_store import RunStore
 from arp.transition_alignment.benchmarks import load_benchmarks, sector_for_isic
 from arp.transition_alignment.plan_extraction import extract_plan, plan_evidence
 from arp.walkthrough import trace

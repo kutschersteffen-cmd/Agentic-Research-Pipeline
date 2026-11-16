@@ -1,5 +1,6 @@
 from arp.checks import runner
 from arp.checks.runner import CheckContext, check_format, check_record, run_checks
+from arp.db.runs import RunStore
 from arp.extraction.extractor_agent import ExtractionDraft
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.verifier_agent import VerifierOutput
@@ -13,7 +14,6 @@ from arp.schemas.datapoints import (
     FieldDataType,
     FieldDefinition,
 )
-from arp.storage.run_store import RunStore
 from tests.test_extraction_pipeline import _FixedDocSource, _settings
 
 

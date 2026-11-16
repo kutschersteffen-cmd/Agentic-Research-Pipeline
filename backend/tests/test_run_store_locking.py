@@ -2,11 +2,11 @@ import threading
 import time
 from unittest.mock import patch
 
+from arp.db.runs import RunStore
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.engagement import Contact
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.locks import KeyedLock
-from arp.storage.run_store import RunStore
 
 
 def test_keyed_lock_serializes_same_key():

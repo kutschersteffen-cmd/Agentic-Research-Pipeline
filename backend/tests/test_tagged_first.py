@@ -183,13 +183,13 @@ async def test_tagged_value_is_refused_by_publish_not_dropped(tmp_path, fake_llm
     no_grounded_citation. Superseded in step 7b: with a frozen companyfacts original the tagged
     value passes the gate (tests/test_xbrl_publish.py); without one (no blob store) it is still
     refused, never dropped."""
+    from arp.db.runs import RunStore
     from arp.ingestion.xbrl import freeze_company_facts
     from arp.publish.candidates import run_candidates
     from arp.publish.release import split_by_gate
     from arp.schemas.common import RunManifest
     from arp.storage.document_blob_store import LocalBlobStore
     from arp.storage.document_store import DocumentContentStore
-    from arp.storage.run_store import RunStore
 
     field = _field(["us-gaap:Revenues"])
     qualities = {(field.field_id, field.version): FieldQuality(field_id=field.field_id, version=field.version, first_audit_passed=True)}

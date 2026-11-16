@@ -7,8 +7,8 @@ from fastapi.testclient import TestClient
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store
 from arp.api.routers import extraction as extraction_router
+from arp.db.runs import RunStore
 from arp.orchestration.review_queue import effective_decisions, record_cosign, record_review_decision
-from arp.storage.run_store import RunStore
 
 ALICE = Principal(user_id="u_alice", name="Alice", role="approver")
 BOB = Principal(user_id="u_bob", name="Bob", role="approver")

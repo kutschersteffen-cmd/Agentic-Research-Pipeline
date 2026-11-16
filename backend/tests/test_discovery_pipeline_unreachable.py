@@ -70,7 +70,7 @@ async def test_execute_discovery_run_flags_unreachable_homepage_for_review(tmp_p
         discovery_state_dir=tmp_path / "state",
         runs_dir=tmp_path / "runs",
     )
-    from arp.storage.run_store import RunStore
+    from arp.db.runs import RunStore
 
     run_store = RunStore(pg, settings.runs_dir)
     companies = [CompanyRef(company_id="ACME", name="Acme Corp", website="https://acme.example/")]

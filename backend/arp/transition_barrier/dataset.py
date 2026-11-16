@@ -5,6 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from arp.config import get_settings
+from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.schemas.transition_barrier import (
     BarrierCriterion,
@@ -13,7 +14,6 @@ from arp.schemas.transition_barrier import (
     Region,
     RegistrySource,
 )
-from arp.storage.run_store import RunStore
 from arp.transition_barrier.render import rubric
 from arp.transition_barrier.rule_book import RuleBookError, load_rule_book
 from arp.transition_barrier.validation import read_and_validate

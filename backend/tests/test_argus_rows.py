@@ -9,10 +9,10 @@ from arp.argus.companies import CONFLICT, NO_IDENTIFIER
 from arp.argus.flows import ArgusFlow
 from arp.argus.rows import PriorRun, flow_rows
 from arp.db.models import Company, CompanyIdentifier
+from arp.db.runs import RunStore
 from arp.db.session import engine
 from arp.schemas.common import CompanyRef, RunManifest
 from arp.storage.identifier_map import IdentifierMapStore
-from arp.storage.run_store import RunStore
 from arp.xbrl_pipeline.store import XbrlStore
 from tests.conftest import PRINCIPAL
 

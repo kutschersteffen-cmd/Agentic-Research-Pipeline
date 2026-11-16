@@ -6,13 +6,13 @@ import os
 import pytest
 
 from arp.api.auth import Principal
+from arp.db.runs import RunStore
 from arp.orchestration.review_queue import append_decision
 from arp.publish.candidates import Skip
 from arp.publish.release import SYSTEM, publish_run, withdraw
 from arp.schemas.common import RunManifest
 from arp.schemas.review import ReviewDecision
 from arp.storage.document_blob_store import LocalBlobStore
-from arp.storage.run_store import RunStore
 from tests.postgres_helpers import reset_postgres_tables
 
 DSN = os.environ.get("ARP_TEST_POSTGRES_DSN")

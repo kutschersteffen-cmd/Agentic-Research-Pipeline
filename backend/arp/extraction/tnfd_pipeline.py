@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.extraction.pre_steps import prepare_company
 from arp.extraction.tnfd_graph import extract_company_tnfd
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -12,7 +13,6 @@ from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef
 from arp.schemas.tnfd import TNFDExtractionRecord
-from arp.storage.run_store import RunStore
 from arp.walkthrough import trace
 
 logger = logging.getLogger(__name__)

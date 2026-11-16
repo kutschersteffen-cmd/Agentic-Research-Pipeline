@@ -8,6 +8,7 @@ import typer
 
 from arp.cli._shared import _engagement_store, _registry
 from arp.config import get_settings
+from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.engagement.orchestrator import decide_next_action
 from arp.engagement.reporting_agent import compile_report
@@ -15,7 +16,6 @@ from arp.engagement.triggers import ControversySignal, StaticControversySource, 
 from arp.llm.factory import build_llm_client
 from arp.schemas.engagement import CorrespondenceEntry, EscalationStage, IssueSeverity, TriggerSource
 from arp.stewardship.tracking import watch_list
-from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 from arp.voting.pipeline import get_ballots, get_cast_votes
 

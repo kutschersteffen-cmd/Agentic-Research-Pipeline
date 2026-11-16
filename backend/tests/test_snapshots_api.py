@@ -7,13 +7,13 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import settings_dep
 from arp.api.main import app
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.snapshots import schema
 from arp.snapshots.build import build_snapshot, dataset_path, snapshot_dir
 from arp.snapshots.client import SnapshotClient, SnapshotHashMismatch
 from arp.snapshots.schema import SnapshotManifest
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.portfolio_store import PortfolioStore
-from arp.storage.run_store import RunStore
 from tests.test_snapshots_build import AS_OF, World, _ingest
 
 READER = Principal(user_id="svc_r", name="R", role="viewer", roles=["snapshot_reader"])

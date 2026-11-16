@@ -15,6 +15,7 @@ from arp.api.deps import authoritative_store_dep, get_decision_store, get_portfo
 from arp.authoritative.evaluate import check_outputs
 from arp.authoritative.source_values import SourcePick
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.decision import overrides, sources, templates
 from arp.decision.compare import compare_datasets
 from arp.decision.dataset import Dataset, build_dataset
@@ -41,7 +42,6 @@ from arp.schemas.decision import (
     check_rule_graph,
 )
 from arp.storage.decision_store import DecisionStore
-from arp.storage.run_store import RunStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_filename
 
 router = APIRouter(prefix="/api/decision", tags=["decision"])

@@ -16,8 +16,8 @@ from arp.api.routers.transition_barrier import (
     start_refresh_run,
 )
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.schemas.transition_barrier import Pillar, Region
-from arp.storage.run_store import RunStore
 from arp.transition_barrier.refresh.pipeline import (
     RefreshDisabledError,
     create_refresh_run,

@@ -14,10 +14,10 @@ from arp.storage.jsonl_io import append_jsonl, read_jsonl
 
 if TYPE_CHECKING:
     from arp.config import Settings
+    from arp.db.runs import RunStore
     from arp.ingestion.registry import DocumentSourceRegistry
     from arp.orchestration.jobs import LocalJobLauncher
     from arp.schemas.datapoints import DataPointSchema
-    from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
 
@@ -133,8 +133,8 @@ def refresh_hook(settings: Settings, run_store: RunStore | None = None, *, paren
 
     async def on_events(events: list[DocumentEvent], company: CompanyRef | None = None) -> None:
         from arp.api.deps import build_registry
+        from arp.db.runs import RunStore
         from arp.retrieval.content_store_factory import content_store_for
-        from arp.storage.run_store import RunStore
 
         registry = build_registry(settings, content_store_for(settings))
         if watch_on:

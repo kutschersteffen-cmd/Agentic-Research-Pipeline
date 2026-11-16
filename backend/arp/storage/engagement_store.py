@@ -92,7 +92,7 @@ class EngagementStore:
         return data
 
     def _log_event(self, company_id: str, event_type: str, detail: dict) -> None:
-        from arp.storage.run_store import RunStore
+        from arp.db.runs import RunStore
 
         RunStore.append_jsonl(self._events_path(company_id), {"event_type": event_type, "at": now_iso(), **detail})
 
@@ -125,7 +125,7 @@ class EngagementStore:
         return records
 
     def events(self, company_id: str) -> list[dict]:
-        from arp.storage.run_store import RunStore
+        from arp.db.runs import RunStore
 
         return RunStore.read_jsonl(self._events_path(company_id))
 

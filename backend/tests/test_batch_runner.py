@@ -2,8 +2,8 @@
 import asyncio
 import traceback
 
+from arp.db.runs import RunStore
 from arp.orchestration.batch_runner import ReviewRequired, run_batch, run_sinks
-from arp.storage.run_store import RunStore
 
 
 async def test_run_batch_writes_results_and_is_resumable(tmp_path, pg):

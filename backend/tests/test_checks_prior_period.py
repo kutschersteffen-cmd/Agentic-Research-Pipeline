@@ -1,5 +1,6 @@
 from arp.checks.prior_period import check_comparative_jump, check_last_decided, check_last_rejected, open_restatement_candidates
 from arp.checks.runner import CheckContext
+from arp.db.runs import RunStore
 from arp.extraction.history import RunHistory
 from arp.schemas.common import CompanyRef, RunManifest
 from arp.schemas.datapoints import (
@@ -9,7 +10,6 @@ from arp.schemas.datapoints import (
     ExtractionRecord,
     FieldDefinition,
 )
-from arp.storage.run_store import RunStore
 
 IK = "lei:K1"
 FY23, FY24 = "2023-12-31", "2024-12-31"

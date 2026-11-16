@@ -11,6 +11,7 @@ from arp.api.auth import current_user
 from arp.api.routers import taxonomies, themes
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
+from arp.db.runs import RunStore
 from arp.extraction.extractor_agent import ExtractionDraft
 from arp.extraction.verifier_agent import VerifierOutput
 from arp.ingestion.base import DocumentSource
@@ -23,7 +24,6 @@ from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
 from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyStatus
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
-from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from tests.conftest import PRINCIPAL
 from tests.postgres_helpers import replace_results

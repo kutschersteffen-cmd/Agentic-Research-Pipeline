@@ -15,10 +15,10 @@ from arp.api.main import app
 from arp.argus.flows import FlowStore, safe_key
 from arp.config import Settings
 from arp.db.models import Company, CompanyIdentifier
+from arp.db.runs import RunStore
 from arp.db.session import engine
 from arp.schemas.common import RunManifest
 from arp.schemas.discovery import IdentityResolutionResult, IdentitySignals
-from arp.storage.run_store import RunStore
 from tests.pdf_fixtures import FILLER, make_pdf
 
 NO_IDENTIFIER = "No identifier: add an ISIN, LEI or CIK"

@@ -12,8 +12,8 @@ from arp.api.deps import get_run_store, settings_dep
 from arp.api.main import app
 from arp.argus.repeat import classify
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.schemas.common import RunManifest
-from arp.storage.run_store import RunStore
 from tests.pdf_fixtures import FILLER, make_pdf
 
 V2 = "sch_x:v2"

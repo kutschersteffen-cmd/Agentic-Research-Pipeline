@@ -14,10 +14,10 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 
+from arp.db.runs import RunStore
 from arp.storage.decision_store import DecisionStore
 from arp.storage.index_store import IndexStore
 from arp.storage.reporting_store import ReportingStore
-from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 
 KINDS = ("universe", "run", "publication", "taxonomy", "calibration")

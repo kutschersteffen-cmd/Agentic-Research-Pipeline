@@ -7,10 +7,10 @@ from pydantic import BaseModel, field_validator
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store, get_stream_store, get_taxonomy_store
+from arp.db.runs import RunStore
 from arp.schemas.common import RunManifest
 from arp.schemas.emerging_themes import ContextBrief
 from arp.stewardship.process import StreamStore
-from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.themes.dossiers import (
     Dossier,

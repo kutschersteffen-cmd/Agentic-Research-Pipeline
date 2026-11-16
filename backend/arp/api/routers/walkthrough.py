@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from arp.api.deps import get_document_content_store, get_run_store, settings_dep
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.storage.document_store import DocumentContentStore
-from arp.storage.run_store import RunStore
 from arp.walkthrough.view import build_walkthrough
 
 router = APIRouter(prefix="/api/walkthrough", tags=["walkthrough"])

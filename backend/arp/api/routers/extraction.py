@@ -21,6 +21,7 @@ from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
 from arp.db.company_view import results_by_company
 from arp.db.fields import SchemaRegistry
+from arp.db.runs import RunStore
 from arp.db.session import transaction
 from arp.decision.templates import attach_to_run, decision_kind_for_schema
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
@@ -42,7 +43,6 @@ from arp.schemas.datapoints import DataPointSchema, FieldQuality
 from arp.schemas.review import BulkAcceptRequest
 from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
-from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/extraction", tags=["extraction"])

@@ -1,8 +1,8 @@
+from arp.db.runs import RunStore
 from arp.orchestration.job_manager import JobManager
 from arp.research.pipeline import load_theme_run_matches, rank_theme_matches
 from arp.schemas.arbitration import ArbitrationResult
 from arp.schemas.thematic import CompanyMatch, ExposureEstimate, MatchVerdict
-from arp.storage.run_store import RunStore
 
 
 def _match(company_id, activity_id, composite_score) -> CompanyMatch:

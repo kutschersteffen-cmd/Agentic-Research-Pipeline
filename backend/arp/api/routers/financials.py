@@ -16,6 +16,7 @@ from arp.api.routers.decision import template_for_run
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
 from arp.db.company_view import results_by_company
+from arp.db.runs import RunStore
 from arp.db.session import transaction
 from arp.decision.templates import attach_to_run
 from arp.extraction.financials_pipeline import create_financials_extraction_run, execute_financials_extraction_run
@@ -23,7 +24,6 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.factory import batch_settings
 from arp.schemas.common import CompanyRef
 from arp.storage.decision_store import DecisionStore
-from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/financials", tags=["financials"])

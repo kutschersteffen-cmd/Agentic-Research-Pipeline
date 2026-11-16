@@ -112,11 +112,11 @@ def test_package_zip_and_bomb_rejected():
 
 
 async def test_esef_citation_publishable(tmp_path, fake_llm, pg):
+    from arp.db.runs import RunStore
     from arp.publish.candidates import run_candidates
     from arp.publish.gate import lineage_error
     from arp.publish.release import split_by_gate
     from arp.schemas.common import RunManifest
-    from arp.storage.run_store import RunStore
 
     source, store, blobs = _local_source(tmp_path, "beispiel-2024.zip")  # the package parses the same way
     field = _field()

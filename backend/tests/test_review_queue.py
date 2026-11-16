@@ -1,5 +1,5 @@
+from arp.db.runs import RunStore
 from arp.orchestration.review_queue import decision_history, latest_decisions, queue_for_review, record_review_decision
-from arp.storage.run_store import RunStore
 
 
 def test_review_queue_roundtrip(tmp_path, pg):

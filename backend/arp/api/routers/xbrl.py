@@ -11,12 +11,12 @@ from pydantic import BaseModel, Field
 
 from arp.api.deps import settings_dep
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import NotResumable, RunBusy, check_resumable, get_job_launcher, resume_run, run_lease
 from arp.schemas.common import CompanyRef
 from arp.storage.identifier_map import IdentifierMapStore
-from arp.storage.run_store import RunStore
 from arp.storage.safe_path import UnsafeIdentifierError
 from arp.universe import load_company_universe
 from arp.universe_workbench.mapping import MasterIndex

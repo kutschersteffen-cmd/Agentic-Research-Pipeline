@@ -5,6 +5,7 @@ import random
 
 import pytest
 
+from arp.db.runs import RunStore
 from arp.replication.characteristics_data import CharacteristicPanel
 from arp.replication.price_data import PricePanel
 from arp.signal_lab.cutoffs import CutoffTable
@@ -13,7 +14,6 @@ from arp.signal_lab.methods.base import MethodInput, MethodResult, run_method, r
 from arp.signal_lab.methods.checks import lookahead_violations
 from arp.signal_lab.registry import SIGNAL_REGISTRY_RUN_ID, Registry
 from arp.signal_lab.text_store import make_record
-from arp.storage.run_store import RunStore
 from tests.test_signal_lab_registry import _evidence, _recipe
 
 

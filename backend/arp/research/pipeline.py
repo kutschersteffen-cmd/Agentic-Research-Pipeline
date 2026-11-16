@@ -6,6 +6,7 @@ from pathlib import Path
 
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
+from arp.db.runs import RunStore
 from arp.discovery.site_finder import build_web_search_client
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
@@ -28,7 +29,6 @@ from arp.schemas.revenue_exposure import ActivityCatalogueMapping
 from arp.schemas.review import sector_item_key
 from arp.schemas.thematic import CompanyMatch, ThemeDefinition
 from arp.storage.issuer_sectors import IssuerSectorStore, apply_master
-from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 
 logger = logging.getLogger(__name__)

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.discovery.pipeline import run_discovery
 from arp.orchestration.interval_scheduler import IntervalScheduler
 from arp.schemas.discovery import DiscoveryScheduleConfig
-from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 
 

@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from arp.db.runs import RunStore
 from arp.schemas.datapoints import ExtractedField, ExtractionRecord
-from arp.storage.run_store import RunStore
 from arp.xbrl_pipeline.models import RequiredRow, VerifyRow
 from arp.xbrl_pipeline.store import XbrlStore
 from arp.xbrl_pipeline.verify import CircularRunError, UnsupportedRunError, verify_run

@@ -14,7 +14,7 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store
 from arp.api.main import app
 from arp.config import Settings
-from arp.storage.run_store import RunStore
+from arp.db.runs import RunStore
 
 pytestmark = pytest.mark.usefixtures("pg")
 SCRIPT = Path(__file__).parents[1] / "scripts" / "seed_discovery_review.py"

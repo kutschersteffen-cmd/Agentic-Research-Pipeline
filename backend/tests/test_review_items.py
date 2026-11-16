@@ -7,11 +7,11 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store
 from arp.api.main import app
 from arp.checks.prior_period import RestatementCandidate
+from arp.db.runs import RunStore
 from arp.orchestration.review_queue import append_decision
 from arp.schemas.common import RunManifest
 from arp.schemas.datapoints import DataPointSchema, FieldDefinition
 from arp.schemas.review import ReviewDecision
-from arp.storage.run_store import RunStore
 
 ALICE = Principal(user_id="u_alice", name="Alice Reviewer", role="analyst")
 BOB = Principal(user_id="u_bob", name="Bob", role="analyst")

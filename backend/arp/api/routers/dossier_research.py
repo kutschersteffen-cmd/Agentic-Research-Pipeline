@@ -9,12 +9,12 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store, get_taxonomy_store, settings_dep
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.discovery.site_finder import SearchUnreachable, build_web_search_client
 from arp.llm.base import LLMClient
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import now_iso
 from arp.schemas.taxonomy import Taxonomy, TaxonomyStatus
-from arp.storage.run_store import RunStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_filename
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.themes.dossiers import Dossier, DossierStore, get_dossier_store

@@ -2,6 +2,7 @@
 import pytest
 
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.extraction.extractor_agent import ExtractionDraft
 from arp.extraction.verifier_agent import VerifierOutput
 from arp.ingestion.base import DocumentSource
@@ -16,7 +17,6 @@ from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.common import Citation, CompanyRef, DocType, JobStatus, SourceDocument
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping, CatalogueDataPoint
 from arp.schemas.thematic import ActivityDefinition, AgentOpinion, ExposureEstimate, LifecycleStage, MatchVerdict, ThemeDefinition
-from arp.storage.run_store import RunStore
 from tests.postgres_helpers import forget_companies, replace_results
 from tests.taxonomy_schema_helpers import registered_schema, released_schema
 

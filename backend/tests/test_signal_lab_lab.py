@@ -9,13 +9,13 @@ from typer.testing import CliRunner
 
 from arp.cli import app
 from arp.config import get_settings
+from arp.db.runs import RunStore
 from arp.replication.characteristics_data import CharacteristicPanel
 from arp.signal_lab.cutoffs import CutoffTable
 from arp.signal_lab.lab import UNREGISTERED, Lab, Preview, load_recipe, save_recipe
 from arp.signal_lab.methods import base
 from arp.signal_lab.methods.base import MethodInput, MethodResult
 from arp.signal_lab.registry import Recipe, Registry
-from arp.storage.run_store import RunStore
 from tests.postgres_helpers import reset_postgres_tables
 from tests.test_signal_lab_cli import _write_panel
 

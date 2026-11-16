@@ -4,12 +4,12 @@ from arp.api.deps import get_run_store
 from arp.api.main import app
 from arp.checks.plausibility import check_less_or_equal, check_part_of_whole, check_sum_to_target
 from arp.db.fields import SchemaRegistry
+from arp.db.runs import RunStore
 from arp.presets.eu_taxonomy import build_eu_taxonomy_schema
 from arp.presets.green import green_summary
 from arp.presets.registry import PRESETS, install_preset
 from arp.schemas.common import RunManifest
 from arp.schemas.datapoints import ExtractionRecord, FieldStatus
-from arp.storage.run_store import RunStore
 from tests.test_checks_plausibility import _field, _run
 
 KPIS = ("turnover", "capex", "opex")

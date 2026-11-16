@@ -46,8 +46,8 @@ def description_chunks(documents: list[SourceDocument]) -> list[DocumentChunk]:
 
 
 async def discover_missing(stocks: list[InferStock], settings: Settings) -> None:
+    from arp.db.runs import RunStore
     from arp.discovery.pipeline import run_discovery
-    from arp.storage.run_store import RunStore
 
     run_store = RunStore(require_dsn(settings), settings.runs_dir)
     await run_discovery([_ref(s) for s in stocks], settings=settings, run_store=run_store)

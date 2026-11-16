@@ -7,12 +7,12 @@ from pathlib import Path
 import httpx
 
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.discovery import crawler, downloader
 from arp.discovery.doc_check import DocCheck, check_document
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
 from arp.discovery.site_finder import WebSearchClient
 from arp.schemas.common import CompanyRef
-from arp.storage.run_store import RunStore
 from tests.pdf_fixtures import FILLER, make_pdf, p1, p2, p3, p4
 
 W = CompanyRef(company_id="w", name="Testwerke AG", lei="5299009TESTWERKE0063", isin="DE000TST0006", country="DE")

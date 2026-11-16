@@ -5,13 +5,13 @@ import pytest
 
 from arp.api.routers.identity import get_identity_results
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.discovery.identity_agents import _format_signals, gather_signals
 from arp.discovery.identity_pipeline import run_identity_resolution
 from arp.discovery.site_finder import SearchResult
 from arp.orchestration.batch_runner import run_batch, run_sinks
 from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import GleifMatch, IdentityAdjudication, IdentitySignals, IdentityVerdict
-from arp.storage.run_store import RunStore
 
 GLEIF = GleifMatch(lei="5299000ACMEPOWER1065", legal_name="Acme AG", country="DE")
 HIT = SearchResult(title="Acme IR", url="https://acme.example.com/ir", snippet="IR")

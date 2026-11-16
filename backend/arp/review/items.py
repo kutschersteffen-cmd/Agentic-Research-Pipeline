@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from arp.db.runs import RunStore
 from arp.extraction.pipeline import load_run_schema
 from arp.orchestration.review_queue import FINAL_STATES, ItemState, blind_for, item_states, public_decision
 from arp.schemas.common import RunManifest
 from arp.schemas.review import ReviewItem, ReviewItemKind, field_item_key, held_item_key, period_key
-from arp.storage.run_store import RunStore
 from arp.transition_barrier import RUN_TYPE as BARRIER_RUN_TYPE
 
 if TYPE_CHECKING:

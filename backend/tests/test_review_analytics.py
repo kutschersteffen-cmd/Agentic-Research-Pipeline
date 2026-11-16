@@ -11,10 +11,10 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store, settings_dep
 from arp.api.main import app
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.review import analytics as A
 from arp.review.analytics import ReasonTotal, ReviewAnalyticsScheduler, monthly_totals, write_month
 from arp.schemas.common import RunManifest
-from arp.storage.run_store import RunStore
 
 
 def _field(fid, period, model, doc_type):

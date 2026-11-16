@@ -16,6 +16,7 @@ from arp.api.main import app
 from arp.api.routers import extraction, runs
 from arp.cli import app as cli
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.decision import sources
 from arp.decision.indicator_list import build_framework, parse_indicator_list
 from arp.decision.mechanism import apply_mechanism
@@ -25,7 +26,6 @@ from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef
 from arp.schemas.decision import MechanismConfig
 from arp.storage.decision_store import DecisionStore
-from arp.storage.run_store import RunStore
 from arp.transition_plan.indicators import load_indicators
 
 RESUME = "Transition-plan runs can no longer be resumed: start a new transition-plan assessment."

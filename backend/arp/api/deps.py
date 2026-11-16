@@ -10,6 +10,7 @@ from arp.agents.calibration_agent import CalibrationAgentScheduler
 from arp.agents.taxonomy_researcher import TaxonomyResearcherScheduler
 from arp.bi.superset_client import SupersetClient
 from arp.config import Settings, get_settings
+from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.discovery.scheduler import DiscoveryScheduler
 from arp.discovery.site_finder import WebSearchClient, build_web_search_client
@@ -42,7 +43,6 @@ from arp.storage.opensearch_client import get_client as get_opensearch_client
 from arp.storage.portfolio_store_factory import build_portfolio_store
 from arp.storage.postgres_engagement_store import PostgresEngagementStore
 from arp.storage.reporting_store import ReportingStore
-from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
 

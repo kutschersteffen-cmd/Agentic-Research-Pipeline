@@ -7,11 +7,11 @@ adapter; add one that calls the aggregation engine when a periodic portfolio dec
 from __future__ import annotations
 
 from arp.config import Settings, get_settings
+from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.reporting.datasets import _build_dataset
 from arp.schemas.reporting import QuantitativeDataset, ReportRequest, RunRef
 from arp.storage.decision_store import DecisionStore
-from arp.storage.run_store import RunStore
 
 _SCALAR = (str, int, float, bool, type(None))
 

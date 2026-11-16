@@ -112,7 +112,7 @@ def test_empty_saved_universe_is_400(env):
 def test_availability_can_be_skipped(env, monkeypatch):
     client, _ = env
     monkeypatch.setattr(wb, "availability", lambda *a, **k: (_ for _ in ()).throw(AssertionError("scanned")))
-    from arp.storage.run_store import RunStore
+    from arp.db.runs import RunStore
 
     monkeypatch.setattr(RunStore, "read_jsonl", staticmethod(lambda p: (_ for _ in ()).throw(AssertionError(p))))
     r = client.post("/api/universe/workbench", json={"availability": False, "companies": [

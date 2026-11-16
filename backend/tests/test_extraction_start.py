@@ -8,10 +8,10 @@ from fastapi import HTTPException
 
 from arp.api.routers import extraction, financials, tnfd
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.extraction.steps import StepSettings
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema
-from arp.storage.run_store import RunStore
 from tests.postgres_helpers import replace_results
 
 

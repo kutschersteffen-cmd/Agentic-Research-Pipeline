@@ -181,11 +181,11 @@ async def test_record_lists_kept_documents(tmp_path, fake_llm):
 
 
 def _release_history(tmp_path, sub, *, extra=None, run_id="old", trial=False, decision="approve", second_required=False):
+    from arp.db.runs import RunStore
     from arp.extraction.history import RunHistory
     from arp.orchestration.review_queue import append_decision
     from arp.schemas.common import RunManifest
     from arp.schemas.review import ReviewDecision, held_item_key
-    from arp.storage.run_store import RunStore
 
     store = RunStore(pg_dsn(), tmp_path / "hist")
     store.save_manifest(RunManifest(run_id=run_id, run_type="extraction", created_at="2024-01-01", params={"trial": trial}))
@@ -222,11 +222,11 @@ def test_released_documents_ignores_unagreed_release(tmp_path):
 
 def _two_runs(tmp_path, sub, second_decision):
     """Run `old` releases the held doc; run `new` (later) holds it again and decides `second_decision`."""
+    from arp.db.runs import RunStore
     from arp.extraction.history import RunHistory
     from arp.orchestration.review_queue import append_decision
     from arp.schemas.common import RunManifest
     from arp.schemas.review import ReviewDecision, held_item_key
-    from arp.storage.run_store import RunStore
 
     store = RunStore(pg_dsn(), tmp_path / "hist2")
     for rid, created, dec in (("old", "2024-01-01", "approve"), ("new", "2024-02-01", second_decision)):

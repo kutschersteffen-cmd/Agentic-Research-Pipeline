@@ -15,9 +15,9 @@ from arp.api.auth import Principal, authorize, current_user
 from arp.api.deps import get_run_store, get_taxonomy_store, settings_dep
 from arp.api.main import app
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.schemas.taxonomy import DerivationMethod
 from arp.schemas.thematic import ThemeDefinition
-from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 
 IEA, EUROSTAT, TTX, PAPER = "https://iea.org/weo", "https://ec.europa.eu/eurostat/x", "https://ttx.org/b", "https://doi.org/10.1/x"
