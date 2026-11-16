@@ -272,6 +272,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      checks: read  # annotations: did a cancelled job hit its time limit?
       issues: write
     env:
       SETUP: ${{ needs.setup.result }}
@@ -359,13 +360,28 @@ jobs:
         if: >-
           ${{ !cancelled() && env.ON_MAIN == 'true' && env.ENABLED != 'false' && (steps.jobs.outputs.ok != 'true' ||
           (steps.jobs.outputs.complete == 'true' && steps.complete.outputs.ok != 'true')) }}
+        env:
+          COMPLETE_OK: ${{ steps.complete.outputs.ok }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs" --paginate \
-            --jq '.jobs[] | select(.name != "Holdout acceptance") | "\(.conclusion)\t\(.name)"' >"$RUNNER_TEMP/jobs.txt"
+            --jq '.jobs[] | select(.name != "Holdout acceptance") | "\(.conclusion)\t\(.name)\t\(.id)"' >"$RUNNER_TEMP/jobs.raw"
+          # A job past its timeout-minutes concludes `cancelled`, with an annotation saying so: count it as timed_out
+          # (owner decision 16 Nov 2026). `cancelled()` stays false here even after a hand cancel, because this job
+          # starts after it, so the job conclusions are what tell a run cancel from a timeout.
+          while IFS=$'\t' read -r c n id; do
+            if [ "$c" = cancelled ] && gh api "repos/$GITHUB_REPOSITORY/check-runs/$id/annotations" --jq '.[].message' |
+              grep -q 'exceeded the maximum execution time'; then c=timed_out; fi
+            printf '%s\t%s\n' "$c" "$n"
+          done <"$RUNNER_TEMP/jobs.raw" >"$RUNNER_TEMP/jobs.txt"
           cat "$RUNNER_TEMP/jobs.txt"
-          # Every path here is a failed, timed-out or cancelled job, or missing rows, so it opens the issue. A job that
-          # hits timeout-minutes concludes `cancelled`; a run cancelled as a whole (by hand) skips this step via
-          # !cancelled() (owner decision 16 Nov 2026).
+          # Failed or timed out → issue. Only other cancellations (the run cancelled by hand, or replaced by a newer
+          # run) → none, even with rows missing.
+          if ! grep -qE '^(failure|timed_out)'$'\t' "$RUNNER_TEMP/jobs.txt"; then
+            if grep -qE '^cancelled'$'\t' "$RUNNER_TEMP/jobs.txt" || [ "$COMPLETE_OK" = true ]; then
+              echo "No issue: no job failed or timed out."
+              exit 0
+            fi
+          fi
 
           since=$(date -u -d '30 days ago' +%F)
           last=$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/holdout.yml/runs" -f event=schedule -f branch=main \
@@ -391,7 +407,7 @@ jobs:
             cat "$RUNNER_TEMP/complete.txt" 2>/dev/null || echo "not checked"
             echo '```'
             echo
-            echo "Jobs that did not succeed (\`cancelled\` here: the part hit its time limit or GitHub stopped it; the run itself was not cancelled):"
+            echo "Jobs that did not succeed:"
             awk -F'\t' '$1 != "success" && $1 != "skipped" { print "- " $2 ": " $1 }' "$RUNNER_TEMP/jobs.txt"
             echo
             echo "$merges"
