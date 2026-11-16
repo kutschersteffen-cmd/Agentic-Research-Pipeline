@@ -4,7 +4,9 @@ import json
 import os
 import re
 import shutil
+import socket
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -138,3 +140,59 @@ def test_users_prints_local_env_lines(tmp_path):  # AC-15
     lines = r.stdout.splitlines()
     assert "  ARP_AUTH_MODE=local" in lines
     assert f"  ARP_USERS_FILE={copy}/config/users.json" in lines
+
+
+STUB = """import http.server, pathlib, sys
+port, me = int(sys.argv[sys.argv.index("--port") + 1]), pathlib.Path(sys.argv[1])
+class H(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200 if self.path == "/api/health" else int(me.read_text()))
+        self.end_headers()
+    def log_message(self, *a):
+        pass
+http.server.HTTPServer(("127.0.0.1", port), H).serve_forever()
+"""
+
+
+def test_up_refuses_a_live_server_that_signs_in_without_token(tmp_path):  # security review of #569
+    """`up` asks the running app: /api/me without a token must be 401, after start and when already running."""
+    copy = tmp_path / "repo"
+    for d in ("scripts", "backend", "frontend/dist", "bin"):
+        (copy / d).mkdir(parents=True)
+    shutil.copy(REPO / "scripts" / "launch_jupyter.sh", copy / "scripts")
+    (copy / "frontend" / "dist" / "index.html").write_text('<script src="./assets/x.js"></script>')
+    me = tmp_path / "me_status"
+    (tmp_path / "stub.py").write_text(STUB)
+    shim = copy / "bin" / "python3"  # stands in for the database init and uvicorn
+    shim.write_text(f'#!/bin/bash\ncase "$*" in\n  "-m arp db init-postgres") exit 0 ;;\n'
+                    f'  "-m uvicorn "*) exec {sys.executable} {tmp_path / "stub.py"} {me} "$@" ;;\nesac\n'
+                    f'exec {sys.executable} "$@"\n')
+    shim.chmod(0o755)
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    env = {k: v for k, v in os.environ.items() if not k.upper().startswith("ARP_")}
+    env.update(PATH=f"{copy / 'bin'}:{env['PATH']}", TMPDIR=str(tmp_path), ARP_LAUNCH_PORT=str(port),
+               ARP_POSTGRES_DSN="x", ARP_LLM_MODEL="m", ARP_LLM_VERIFIER_MODEL="m", ARP_AUTH_MODE="local")
+
+    def launch(cmd):
+        return subprocess.run(["bash", str(copy / "scripts" / "launch_jupyter.sh"), cmd], capture_output=True,
+                              text=True, env=env, timeout=60)
+
+    def serving():
+        with socket.socket() as s:
+            return s.connect_ex(("127.0.0.1", port)) == 0
+
+    refusal = "ARP_AUTH_MODE must be local for this launch"
+    try:
+        me.write_text("200")  # a server in dev mode, whatever .env said
+        r = launch("up")
+        assert (r.returncode, refusal in r.stderr, serving()) == (1, True, False), r
+        me.write_text("401")  # local mode
+        r = launch("up")
+        assert (r.returncode, r.stdout) == (0, f"http://localhost:{port}/\n"), r
+        me.write_text("200")  # the running server signs in without a token
+        r = launch("up")
+        assert (r.returncode, refusal in r.stderr, serving()) == (1, True, False), r
+    finally:
+        launch("down")

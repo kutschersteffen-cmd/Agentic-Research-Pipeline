@@ -30,6 +30,11 @@ running() {  # the pid file's process is alive and is this server (a reused pid 
 
 port_busy() { (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; }
 
+mode_error="ARP_AUTH_MODE must be local for this launch: run scripts/launch_jupyter.sh users, add the two lines it prints to backend/.env, then up again"
+
+# Asks the live server, so .env spellings this script's grep misses cannot leave it in dev mode.
+signs_in_without_token() { [ "$(curl -s -o /dev/null -w '%{http_code}' --noproxy '*' "http://127.0.0.1:$port/api/me")" != 401 ]; }
+
 stop() {
   if running; then
     kill "$(cat "$pidfile")" 2>/dev/null || true
@@ -50,11 +55,16 @@ case "${1:-}" in
     done
     # Dev mode here would sign in anyone reaching port 8000 (spec showcase-login-origins); unset means dev.
     if [ "$(setting ARP_AUTH_MODE)" != "local" ]; then
-      echo "ARP_AUTH_MODE must be local for this launch: run scripts/launch_jupyter.sh users, add the two lines it prints to backend/.env, then up again" >&2
+      echo "$mode_error" >&2
       missing=1
     fi
     [ "$missing" = 0 ] || exit 1
     if running; then
+      if signs_in_without_token; then
+        stop
+        echo "$mode_error" >&2
+        exit 1
+      fi
       echo "already running (pid $(cat "$pidfile"))"
       exit 0
     fi
@@ -78,6 +88,11 @@ case "${1:-}" in
     echo $! >"$pidfile"
     for _ in $(seq 1 120); do
       if curl -sf --noproxy '*' "http://127.0.0.1:$port/api/health" >/dev/null; then
+        if signs_in_without_token; then
+          stop
+          echo "$mode_error" >&2
+          exit 1
+        fi
         if [ -n "${JUPYTERHUB_SERVICE_PREFIX:-}" ]; then
           echo "${JUPYTERHUB_SERVICE_PREFIX%/}/proxy/$port/"
         else
@@ -121,7 +136,7 @@ JSON
     echo "Add to backend/.env, then run: $0 down && $0 up"
     echo "  ARP_AUTH_MODE=local"
     echo "  ARP_USERS_FILE=$file"
-    echo "Sign in by pasting a token into the box at the top left of the app:"
+    echo "Sign in: Open ARP, click the round account button at the top right, paste a token into Access token:"
     echo "  First Reviewer:  $first"
     echo "  Second Reviewer: $second"
     echo "Use a private browser window (or Sign out) to act as the second reviewer."

@@ -18,7 +18,8 @@ Holdings are public ETF holdings files (DWS constituent exports as of 2 Nov 2026
    (`ARP_AUTH_MODE=local`, `ARP_USERS_FILE=...`) to `backend/.env`; `up` refuses to start without them. Keep the
    two tokens out of any window you share on screen. The first token is yours; the second is only for a second
    review. Hand out no token: an analyst who opens the link sees the "Access token" box and nothing else.
-1. In the Jupyter terminal: `scripts/launch_jupyter.sh up`, then `scripts/launch_jupyter.sh check` (the
+1. In the Jupyter terminal: `scripts/launch_jupyter.sh down` (stops a server started with the old settings),
+   `scripts/launch_jupyter.sh up`, then `scripts/launch_jupyter.sh check` (the
    `fetch` line says whether live document search will work; the show does not need it). Open the printed
    link in the browser you present from → Open ARP → the round account button at the top right → paste the
    first token into the "Access token" box and press Enter: it shows "Signed in as <your name> (approver)".
