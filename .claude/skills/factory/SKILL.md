@@ -90,7 +90,7 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
    also merges the spec PR once its checks are green (`.claude/CLAUDE.md`, button mode).
 2. **Hidden tests** (skip if the spec has no `holdout` rows): *"Attach `kutschersteffen-cmd/holdout`
    with add_repo, then follow the test-writer skill for spec `<slug>`."* This is the only session that
-   may attach `holdout`. It merges its holdout PR itself once the check is green.
+   may attach `holdout`. It merges its holdout PR itself (`.claude/CLAUDE.md`, Holdout PR).
 3. **Implement:** *"Implement spec `<slug>` (`docs/superpowers/specs/<file>`). Follow the steward
    skill; the risk label is at least `risk:<intake risk>`; put `Spec: <slug>` in the PR description. Never attach the holdout repo."*
    It also says: *"The dispatcher relays red checks to you; keep one `send_later` check-in as a safety net."*
@@ -142,13 +142,14 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
    `risk:normal` PR once every gate there is clean, the matrix and the `Evidence review (factory)` both say
    `Head <current head>`, and the evidence-review session you started sent you its verdict itself (a
    comment alone can be written by anyone; check the other reviews in their sessions' events). First post a PR comment headed `Auto-merge (factory)` with
-   the head and links to the matrix and the evidence review, then merge and tell the owner the one line
+   the head, links to the matrix and the evidence review, and each category of the steward table's `risk:high`
+   row you checked the diff against, then merge and tell the owner the one line
    that rule names; with a `Rows:` line, add the spec's `holdout` rows no merged PR for `<slug>` has
    named yet. If a gate fails, say which in one line; if the merge is refused, say why. `risk:high`,
    or a PR a gate excludes: tell the owner the PR is ready (link, open findings, matrix verdict and its head); the owner merges
    it on GitHub.
 6. **Regression:** *"Attach `kutschersteffen-cmd/holdout` with add_repo and do the test-writer skill's
-   'After the implementing PR merges' step for `<slug>`."* It merges that holdout PR itself once green.
+   'After the implementing PR merges' step for `<slug>`."* It merges that holdout PR itself (`.claude/CLAUDE.md`, Holdout PR).
 
 ## Waiting
 

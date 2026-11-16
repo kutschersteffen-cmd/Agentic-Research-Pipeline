@@ -144,11 +144,14 @@ The owner answers by tapping buttons, not by typing. Every question to the owner
   1. no changed file is in the steward table's `risk:high` row or under `docs/superpowers/specs/`,
      whatever the label;
   2. every required check is green;
-  3. hidden rows: if its `Spec:` line (narrowed by `Rows:`) names `holdout` rows, the `Holdout
-     acceptance` log shows `holdout rows: <n>` with n ≥ 1 and no failed result line, and a `Rows:` line
-     names exactly one slice of the spec's `## Slices`; a PR with `Refs #<n>` to a `Nightly Holdout
-     failed` issue ran all 6 shards green, or, if the check skipped, its linked manual `holdout.yml` run
-     on that head is green;
+  3. hidden rows: a `Rows:` line, if present, lists exactly the rows of one slice in the spec's `## Slices`.
+     The PR owes that slice's rows, or with a `Spec:` line and no `Rows:` line all the spec's rows, or with
+     no `Spec:` line none. If the rows it owes include `holdout` rows, the `Holdout acceptance` log has a
+     result line for each of them and every result line ends in pass; if they include none and it has a
+     `Spec:` line, the log shows the own-rows run for it printing `holdout rows: 0` or `holdout: nothing to
+     run` (a skipped run does not count). A PR with
+     `Refs #<n>` to a `Nightly Holdout failed` issue ran all 6 shards green, or, if the check skipped, its
+     linked manual `holdout.yml` run on that head is green;
   4. each review its paths require is there for that head's code, posted by a session the dispatcher
      started for it (its events show the post), with no open blocking finding, no `factory:blocked`
      label and no review thread waiting on the PR's agent: `Code review (factory)`; `UI review (factory)`

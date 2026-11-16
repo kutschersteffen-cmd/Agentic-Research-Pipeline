@@ -14,9 +14,9 @@ Pick the highest tier any changed file falls in, add the label, and say why in o
 
 | Label | Files | What the owner does |
 |---|---|---|
-| `risk:low` | Only `docs/**`, `*.md` outside `.claude/`, frontend copy or styles (`*.css`, text-only `.tsx` edits) | Nothing: the dispatcher auto-merges once every gate is clean; gets one line |
-| `risk:normal` | Anything not low or high | Nothing: the dispatcher auto-merges once every gate is clean; gets one line |
-| `risk:high` | Auth, permissions, secrets; database schema or data migrations; money, portfolio weights or index maths; deleting stored data; `.github/workflows/**`, `.github/scripts/**`, `.claude/**`, `.claude-plugin/**` | Reads the acceptance matrix and the diff, then merges on GitHub |
+| `risk:low` | Only `docs/**`, `*.md` outside `.claude/`, frontend copy or styles (`*.css`, text-only `.tsx` edits) | Nothing if the dispatcher tracks it: it auto-merges once every gate is clean; else merges it on GitHub |
+| `risk:normal` | Anything not low or high | Nothing if the dispatcher tracks it: it auto-merges once every gate is clean; else merges it on GitHub |
+| `risk:high` | Auth, permissions, secrets; database schema or data migrations; money, portfolio weights or index maths; deleting stored data; `.github/workflows/**`, `.github/scripts/**`, `.gitleaksignore`; any file a session loads at start (`.claude/**`, `.claude-plugin/**`, `.mcp.json`) | Reads the acceptance matrix and the diff, then merges on GitHub |
 
 A `risk:low` or `risk:normal` PR is merged without a tap by the factory dispatcher once every gate in
 `.claude/CLAUDE.md` (auto-merge) is clean; else the owner merges it. Relabel `risk:high` if a later push
