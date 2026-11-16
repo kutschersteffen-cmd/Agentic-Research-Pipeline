@@ -631,13 +631,16 @@ details.help-text[open] > summary { margin-bottom: var(--s-1); }
 .badge-low { background: var(--low); }
 .badge-neutral { background: var(--neutral); color: var(--on-accent); }
 
+/* Run status: an 8px square in the status colour, then the word (the Pixel mark language). */
 .status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1_5);
   padding: var(--s-0_5) var(--s-2);
-  border-radius: var(--r-pill);
   font-size: var(--text-xs);
-  border: 1px solid var(--panel-border);
 }
-.status-running { color: var(--accent); border-color: var(--accent); }
+.status-pill::before { content: ""; width: 8px; height: 8px; background: currentColor; flex: none; }
+.status-running { color: var(--run); border-color: var(--run); }
 .status-completed { color: var(--high); border-color: var(--high); }
 .status-partially_completed { color: var(--mid); border-color: var(--mid); }
 .status-failed { color: var(--low); border-color: var(--low); }

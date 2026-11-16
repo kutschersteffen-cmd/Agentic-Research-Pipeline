@@ -18,3 +18,20 @@ test("pr2_ac26_css", () => {
   assert.doesNotMatch(st, /border-radius: (?!0[;\s])/);
   assert.match(rule(".hub-step:hover"), /border-color: var\(--text\)/);
 });
+
+test("pr2_ac27_status_pill", () => {
+  const pill = rule(".status-pill");
+  assert.doesNotMatch(pill, /border:\s*(?!0|none)/);
+  assert.doesNotMatch(pill, /border-radius:\s*(?!0[;\s])/);
+  const sq = rule(".status-pill::before");
+  assert.match(sq, /width: 8px/);
+  assert.match(sq, /height: 8px/);
+  assert.match(sq, /background: currentColor/);
+  assert.match(rule(".status-running"), /color: var\(--run\)/);
+});
+test("pr2_ac29_channel_chip", () => {
+  const src = readFileSync(new URL("../src/pages/ThemeResearch.tsx", import.meta.url), "utf8");
+  const line = src.split("\n").find((l) => l.includes("item.channel &&")) ?? "";
+  assert.match(line, /className="chip"/);
+  assert.doesNotMatch(line, /status-pill/);
+});
