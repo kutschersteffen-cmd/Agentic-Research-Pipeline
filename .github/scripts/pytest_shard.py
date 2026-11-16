@@ -1,7 +1,9 @@
 """pytest plugin for CI's backend shards: run part K of N of the suite and record what ran.
 
-Usage (from backend/): PYTHONPATH=../.github/scripts pytest -p pytest_shard --shard K/N --shard-report FILE
-                       [--shard-times backend_test_times.json]
+Usage (from backend/): PYTHONPATH=../.github/scripts pytest -p pytest_shard --shard=K/N --shard-report=FILE
+                       [--shard-times=backend_test_times.json]
+Write the options with `=`: a separate existing path argument moves pytest's rootdir, so node ids and the
+backend's pytest settings would change.
 
 The unit is the test file, so module fixtures and in-file test order stay as in a single run. Files go
 heaviest first to the part with the least weight so far. A file's weight is its seconds in the times
