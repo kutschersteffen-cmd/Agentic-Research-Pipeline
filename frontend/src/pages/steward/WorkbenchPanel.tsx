@@ -409,7 +409,7 @@ function TriggersTab({ id, load }: { id: string; load: () => Promise<UnifiedTrig
               <tr key={t.trigger_id}>
                 <td>{t.severity}</td>
                 <td className="mono">{t.rule}</td>
-                <td className="wb-wrap">{t.reason}</td>
+                <td className="wb-wrap">{t.reason} {t.demo && <Demo />}</td>
                 <td>{t.status}</td>
                 <td className="mono">{t.first_seen_month}</td>
               </tr>
