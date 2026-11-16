@@ -26,6 +26,7 @@
      "portfolio.ghg_intensity": 120.0,
      "score.clti": 30,
      "vote.against_management": 0,
+     "vote.against_management_non_demo": 0,
      "vote.decided": 1,
      "vote.last_meeting_date": "2026-05-01",
      "vote.overrode_policy": 0

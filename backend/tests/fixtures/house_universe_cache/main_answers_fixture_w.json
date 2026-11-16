@@ -1740,6 +1740,7 @@
   "triggers": [
    {
     "company": "Synthetic Company 04",
+    "demo": false,
     "engagement_id": null,
     "issuer_id": "SYN04",
     "reason": "Controversy severity 4 or higher",
@@ -1751,6 +1752,7 @@
    },
    {
     "company": "Synthetic Company 04",
+    "demo": false,
     "engagement_id": null,
     "issuer_id": "SYN04",
     "reason": "Position up more than 50%",
@@ -1762,6 +1764,7 @@
    },
    {
     "company": "Synthetic Company 06",
+    "demo": false,
     "engagement_id": null,
     "issuer_id": "SYN06",
     "reason": "Human rights controversy severity 4 or higher",
@@ -1773,6 +1776,7 @@
    },
    {
     "company": "Synthetic Company 08",
+    "demo": false,
     "engagement_id": null,
     "issuer_id": "SYN08",
     "reason": "Position up more than 50%",
@@ -1784,6 +1788,7 @@
    },
    {
     "company": "Synthetic Company 09",
+    "demo": false,
     "engagement_id": null,
     "issuer_id": "SYN09",
     "reason": "Pay misaligned with performance for 3+ years",
@@ -1795,6 +1800,7 @@
    },
    {
     "company": "Synthetic Company 10",
+    "demo": false,
     "engagement_id": null,
     "issuer_id": "SYN10",
     "reason": "CLTI score below 30",
@@ -1806,6 +1812,7 @@
    },
    {
     "company": "Synthetic Company 11",
+    "demo": false,
     "engagement_id": null,
     "issuer_id": "SYN11",
     "reason": "Nature score below 25 in a high-impact sector",
@@ -1817,6 +1824,7 @@
    },
    {
     "company": "Synthetic Company 11",
+    "demo": false,
     "engagement_id": null,
     "issuer_id": "SYN11",
     "reason": "Pay misaligned with performance for 3+ years",
@@ -2080,7 +2088,9 @@
   "rows": [
    {
     "aum_held_eur_m": 303.0,
+    "broken_commitments": 0,
     "carbon_intensity": null,
+    "commitment_flags": [],
     "company": "Synthetic Company 01",
     "controversy": null,
     "coverage_tier": "letter",
@@ -2098,6 +2108,7 @@
     "identifier": "SYN01",
     "issuer_id": "SYN01",
     "last_topics": [],
+    "new_high_trigger": false,
     "next_meeting": null,
     "norms_violation": null,
     "notes": {
@@ -2191,6 +2202,13 @@
       "normalised": 0.0,
       "points": 0.0,
       "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
      }
     ],
     "programmes": [],
@@ -2207,7 +2225,9 @@
    },
    {
     "aum_held_eur_m": 81.0,
+    "broken_commitments": 0,
     "carbon_intensity": null,
+    "commitment_flags": [],
     "company": "Synthetic Company 02",
     "controversy": null,
     "coverage_tier": "letter",
@@ -2225,6 +2245,7 @@
     "identifier": "SYN02",
     "issuer_id": "SYN02",
     "last_topics": [],
+    "new_high_trigger": false,
     "next_meeting": null,
     "norms_violation": null,
     "notes": {
@@ -2318,6 +2339,13 @@
       "normalised": 0.0,
       "points": 0.0,
       "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
      }
     ],
     "programmes": [],
@@ -2334,7 +2362,9 @@
    },
    {
     "aum_held_eur_m": 1547.0,
+    "broken_commitments": 0,
     "carbon_intensity": null,
+    "commitment_flags": [],
     "company": "Synthetic Company 03",
     "controversy": null,
     "coverage_tier": "bilateral",
@@ -2352,6 +2382,7 @@
     "identifier": "SYN03",
     "issuer_id": "SYN03",
     "last_topics": [],
+    "new_high_trigger": false,
     "next_meeting": null,
     "norms_violation": null,
     "notes": {
@@ -2445,6 +2476,13 @@
       "normalised": 0.0,
       "points": 0.0,
       "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
      }
     ],
     "programmes": [],
@@ -2461,7 +2499,9 @@
    },
    {
     "aum_held_eur_m": 92.0,
+    "broken_commitments": 0,
     "carbon_intensity": null,
+    "commitment_flags": [],
     "company": "Synthetic Company 04",
     "controversy": null,
     "coverage_tier": "letter",
@@ -2479,6 +2519,7 @@
     "identifier": "SYN04",
     "issuer_id": "SYN04",
     "last_topics": [],
+    "new_high_trigger": false,
     "next_meeting": null,
     "norms_violation": null,
     "notes": {
@@ -2572,6 +2613,13 @@
       "normalised": 0.0,
       "points": 0.0,
       "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
      }
     ],
     "programmes": [],
@@ -2588,7 +2636,9 @@
    },
    {
     "aum_held_eur_m": 8.0,
+    "broken_commitments": 0,
     "carbon_intensity": null,
+    "commitment_flags": [],
     "company": "Synthetic Company 05",
     "controversy": null,
     "coverage_tier": "letter",
@@ -2606,6 +2656,7 @@
     "identifier": "SYN05",
     "issuer_id": "SYN05",
     "last_topics": [],
+    "new_high_trigger": false,
     "next_meeting": null,
     "norms_violation": null,
     "notes": {
@@ -2699,6 +2750,13 @@
       "normalised": 0.0,
       "points": 0.0,
       "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
      }
     ],
     "programmes": [],
@@ -2715,7 +2773,9 @@
    },
    {
     "aum_held_eur_m": 249.0,
+    "broken_commitments": 0,
     "carbon_intensity": null,
+    "commitment_flags": [],
     "company": "Synthetic Company 06",
     "controversy": null,
     "coverage_tier": "letter",
@@ -2733,6 +2793,7 @@
     "identifier": "SYN06",
     "issuer_id": "SYN06",
     "last_topics": [],
+    "new_high_trigger": false,
     "next_meeting": null,
     "norms_violation": null,
     "notes": {
@@ -2826,6 +2887,13 @@
       "normalised": 0.0,
       "points": 0.0,
       "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
      }
     ],
     "programmes": [],
@@ -2842,7 +2910,9 @@
    },
    {
     "aum_held_eur_m": 768.0,
+    "broken_commitments": 0,
     "carbon_intensity": null,
+    "commitment_flags": [],
     "company": "Synthetic Company 07",
     "controversy": null,
     "coverage_tier": "bilateral",
@@ -2860,6 +2930,7 @@
     "identifier": "SYN07",
     "issuer_id": "SYN07",
     "last_topics": [],
+    "new_high_trigger": false,
     "next_meeting": null,
     "norms_violation": null,
     "notes": {
@@ -2953,6 +3024,13 @@
       "normalised": 0.0,
       "points": 0.0,
       "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
      }
     ],
     "programmes": [],
@@ -2969,7 +3047,9 @@
    },
    {
     "aum_held_eur_m": 270.0,
+    "broken_commitments": 0,
     "carbon_intensity": null,
+    "commitment_flags": [],
     "company": "Synthetic Company 08",
     "controversy": null,
     "coverage_tier": "letter",
@@ -2987,6 +3067,7 @@
     "identifier": "SYN08",
     "issuer_id": "SYN08",
     "last_topics": [],
+    "new_high_trigger": false,
     "next_meeting": null,
     "norms_violation": null,
     "notes": {
@@ -3080,6 +3161,13 @@
       "normalised": 0.0,
       "points": 0.0,
       "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
      }
     ],
     "programmes": [],
@@ -3096,7 +3184,9 @@
    },
    {
     "aum_held_eur_m": 17.0,
+    "broken_commitments": 0,
     "carbon_intensity": null,
+    "commitment_flags": [],
     "company": "Synthetic Company 09",
     "controversy": null,
     "coverage_tier": "letter",
@@ -3114,6 +3204,7 @@
     "identifier": "SYN09",
     "issuer_id": "SYN09",
     "last_topics": [],
+    "new_high_trigger": false,
     "next_meeting": null,
     "norms_violation": null,
     "notes": {
@@ -3207,6 +3298,13 @@
       "normalised": 0.0,
       "points": 0.0,
       "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
      }
     ],
     "programmes": [],
@@ -3223,7 +3321,9 @@
    },
    {
     "aum_held_eur_m": 6.0,
+    "broken_commitments": 0,
     "carbon_intensity": null,
+    "commitment_flags": [],
     "company": "Synthetic Company 10",
     "controversy": null,
     "coverage_tier": "letter",
@@ -3241,6 +3341,7 @@
     "identifier": "SYN10",
     "issuer_id": "SYN10",
     "last_topics": [],
+    "new_high_trigger": false,
     "next_meeting": null,
     "norms_violation": null,
     "notes": {
@@ -3334,6 +3435,13 @@
       "normalised": 0.0,
       "points": 0.0,
       "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
      }
     ],
     "programmes": [],
@@ -3350,7 +3458,9 @@
    },
    {
     "aum_held_eur_m": 20.0,
+    "broken_commitments": 0,
     "carbon_intensity": null,
+    "commitment_flags": [],
     "company": "Synthetic Company 11",
     "controversy": null,
     "coverage_tier": "letter",
@@ -3368,6 +3478,7 @@
     "identifier": "SYN11",
     "issuer_id": "SYN11",
     "last_topics": [],
+    "new_high_trigger": false,
     "next_meeting": null,
     "norms_violation": null,
     "notes": {
@@ -3461,6 +3572,13 @@
       "normalised": 0.0,
       "points": 0.0,
       "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
      }
     ],
     "programmes": [],
@@ -3477,7 +3595,9 @@
    },
    {
     "aum_held_eur_m": 49.0,
+    "broken_commitments": 0,
     "carbon_intensity": null,
+    "commitment_flags": [],
     "company": "Synthetic Company 12",
     "controversy": null,
     "coverage_tier": "letter",
@@ -3495,6 +3615,7 @@
     "identifier": "SYN12",
     "issuer_id": "SYN12",
     "last_topics": [],
+    "new_high_trigger": false,
     "next_meeting": null,
     "norms_violation": null,
     "notes": {
@@ -3585,6 +3706,13 @@
      {
       "empty": true,
       "id": "carbon_intensity",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
       "normalised": 0.0,
       "points": 0.0,
       "weight": 0

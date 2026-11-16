@@ -511,6 +511,7 @@
      "sector": "Energy",
      "vote": {
       "against_management": 0,
+      "against_management_non_demo": 0,
       "decided": 1,
       "last_meeting_date": "2026-05-01",
       "overrode_policy": 0
@@ -525,6 +526,7 @@
   "triggers": [
    {
     "company": "Company C2",
+    "demo": false,
     "engagement_id": null,
     "issuer_id": "C2",
     "reason": "CLTI score below 30",
@@ -536,6 +538,7 @@
    },
    {
     "company": "Company C1",
+    "demo": false,
     "engagement_id": null,
     "issuer_id": "C1",
     "reason": "Position up more than 50%",
@@ -615,10 +618,12 @@
   "rows": [
    {
     "aum_held_eur_m": 3.0,
+    "broken_commitments": 0,
     "carbon_intensity": {
      "simulated": false,
      "value": 80.0
     },
+    "commitment_flags": [],
     "company": "Company C2",
     "controversy": null,
     "coverage_tier": "bilateral",
@@ -644,6 +649,7 @@
     "identifier": "C2",
     "issuer_id": "C2",
     "last_topics": [],
+    "new_high_trigger": false,
     "next_meeting": null,
     "norms_violation": null,
     "notes": {
@@ -737,6 +743,13 @@
       "normalised": 0.0,
       "points": 0.0,
       "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
      }
     ],
     "programmes": [],
@@ -753,10 +766,12 @@
    },
    {
     "aum_held_eur_m": 2.0,
+    "broken_commitments": 0,
     "carbon_intensity": {
      "simulated": false,
      "value": 120.0
     },
+    "commitment_flags": [],
     "company": "Company C1",
     "controversy": null,
     "coverage_tier": "bilateral",
@@ -782,6 +797,7 @@
     "identifier": "C1",
     "issuer_id": "C1",
     "last_topics": [],
+    "new_high_trigger": false,
     "next_meeting": null,
     "norms_violation": null,
     "notes": {
@@ -873,6 +889,13 @@
       "empty": false,
       "id": "carbon_intensity",
       "normalised": 1.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
       "points": 0.0,
       "weight": 0
      }
