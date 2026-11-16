@@ -8302,6 +8302,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/waiting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Waiting */
+        get: operations["get_waiting_api_waiting_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/walkthrough/runs/{run_id}/companies/{company_id}": {
         parameters: {
             query?: never;
@@ -19629,6 +19646,17 @@ export interface components {
             policy: {
                 [key: string]: unknown;
             };
+        };
+        /** WaitingCounts */
+        WaitingCounts: {
+            /** Ballots */
+            ballots: number;
+            /** Decisions */
+            decisions: number;
+            /** Review */
+            review: number;
+            /** Total */
+            total: number;
         };
         /**
          * WalkOrTalk
@@ -35865,6 +35893,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_waiting_api_waiting_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaitingCounts"];
                 };
             };
         };
