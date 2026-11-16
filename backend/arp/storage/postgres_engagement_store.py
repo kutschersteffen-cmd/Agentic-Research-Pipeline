@@ -234,9 +234,8 @@ class PostgresEngagementStore:
 
     def list_all(self) -> list[EngagementRecord]:
         with self._session() as session:
-            ids = session.scalars(select(StwCompanyModel.company_id).order_by(StwCompanyModel.company_id.collate("C"))).all()
             records = self._read_many(session, None)
-            return [records[company_id] for company_id in ids if company_id in records]  # deleted in between
+            return [records[company_id] for company_id in sorted(records)]  # code-point order, as COLLATE "C" on UTF-8
 
     def events(self, company_id: str) -> list[dict]:
         safe_id(company_id, label="company_id")

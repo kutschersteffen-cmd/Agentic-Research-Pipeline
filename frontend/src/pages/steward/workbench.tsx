@@ -152,6 +152,8 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   const [message, setMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const selectStep = useRef<HTMLDivElement>(null);
+  const columnsMenu = useRef<HTMLDetailsElement>(null);
+  useDismiss(columnsMenu);
 
   // A response for a scope the user has already left is dropped.
   const wanted = useRef(scope);
@@ -345,7 +347,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
                 label="Add as next sort ▾"
                 items={shown.filter((c) => !sort.some((k) => k.id === c.id)).map((c) => ({ key: c.id, label: c.label, run: () => setSort(nextSort(sort, c, true)) }))}
               />
-              <details className="wb-menu">
+              <details className="wb-menu" ref={columnsMenu}>
                 <summary>Columns ▾</summary>
                 <div className="wb-menu-panel" role="group" aria-label="Columns">
                   {columns.filter((c) => !c.pinned).map((c) => (
@@ -374,17 +376,16 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
               </span>
             </div>
 
-            {ticked.size > 0 && (
-              <div className="toolbar wb-ticked" role="status">
-                <strong>{plural(ticked.size, "company", "companies")} ticked</strong>
-                <button disabled={!actor || busy} title={needName} onClick={addSelected}>
-                  Add {ticked.size} to {scopeLabel} selection {data.cycle}
-                </button>
-                <button className="link-button" onClick={() => selectStep.current?.scrollIntoView({ block: "start" })}>
-                  More in ③ Select ↓
-                </button>
-              </div>
-            )}
+            {/* Always there, so ticking a row never moves the table under the pointer. */}
+            <div className="toolbar wb-ticked">
+              <strong role="status">{ticked.size ? `${plural(ticked.size, "company", "companies")} ticked` : "Nothing ticked"}</strong>
+              <button disabled={!actor || !ticked.size || busy} title={needName} onClick={addSelected}>
+                Add {ticked.size} to {scopeLabel} selection {data.cycle}
+              </button>
+              <button className="link-button" onClick={() => selectStep.current?.scrollIntoView({ block: "start" })}>
+                More in ③ Select ↓
+              </button>
+            </div>
             <div className="table-wrap wb-table-wrap">
               <table className="data-table wb-table">
                 <thead>
@@ -518,17 +519,20 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
           onSubmit={(reason) =>
             act(async () => {
               const picked: string[] = [], already: string[] = [], failed: string[] = [];
+              const ids = new Set<string>();
               // One at a time: each pick makes the server build the house universe, so a burst would stall it for everyone.
-              const results: PromiseSettledResult<unknown>[] = [];
-              for (const r of tickedRows) results.push(await api.pickBilateral({ issuer_id: r.issuer_id, reason }).then((value) => ({ status: "fulfilled" as const, value }), (reason: unknown) => ({ status: "rejected" as const, reason })));
-              results.forEach((res, i) => {
-                const name = tickedRows[i].company;
-                if (res.status === "fulfilled") picked.push(name);
-                else if (/already picked/.test((res.reason as Error).message)) already.push(name);
-                else failed.push(`${name} (${(res.reason as Error).message})`);
-              });
+              for (const r of tickedRows) {
+                try {
+                  await api.pickBilateral({ issuer_id: r.issuer_id, reason });
+                  picked.push(r.company);
+                  ids.add(r.issuer_id);
+                } catch (e) {
+                  const msg = (e as Error).message;
+                  if (/already picked/.test(msg)) already.push(r.company);
+                  else failed.push(`${r.company} (${msg})`);
+                }
+              }
               // A standing pick is the proposal of a row with no confirmed tier (the refetch below confirms it).
-              const ids = new Set(tickedRows.filter((_, i) => results[i].status === "fulfilled").map((r) => r.issuer_id));
               patch((rs) => rs.map((r) => (ids.has(r.issuer_id) && !r.coverage_tier_confirmed ? { ...r, coverage_tier: "bilateral" } : r)));
               setDialog(null);
               setTicked(new Set());
@@ -600,10 +604,31 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   );
 }
 
+/** Closes an open `<details>` menu on Escape (focus back on its summary) or on a click outside it. */
+function useDismiss(ref: React.RefObject<HTMLDetailsElement | null>) {
+  useEffect(() => {
+    const close = (e: Event) => {
+      const menu = ref.current;
+      if (!menu?.open) return;
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !menu.contains(e.target as Node)) {
+        menu.open = false;
+        if (e instanceof KeyboardEvent) menu.querySelector("summary")?.focus();
+      }
+    };
+    document.addEventListener("keydown", close);
+    document.addEventListener("pointerdown", close);
+    return () => {
+      document.removeEventListener("keydown", close);
+      document.removeEventListener("pointerdown", close);
+    };
+  }, [ref]);
+}
+
 /** A button that opens a menu of actions: nothing happens until an item is clicked (a select's onChange fires on
  * an arrow key, WCAG 3.2.2). */
 function MenuButton({ label, disabled, items }: { label: string; disabled?: boolean; items: { key: string; label: string; run: () => void }[] }) {
   const ref = useRef<HTMLDetailsElement>(null);
+  useDismiss(ref);
   if (disabled)
     return (
       <button className="secondary" disabled>
