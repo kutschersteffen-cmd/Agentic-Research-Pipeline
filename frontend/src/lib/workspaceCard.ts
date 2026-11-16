@@ -1,5 +1,5 @@
 import type { RunManifest, StewardshipFlow, StewardshipStage } from "../types";
-import type { Process, Step, Workspace } from "./processes.ts";
+import { WORKSPACES, type Process, type Step, type Workspace } from "./processes.ts";
 import { ACTIVE_STATUSES, ago, decisionRunType, waitingCount } from "./runs.ts";
 
 /** Decisions a stage still waits on: every item except policy differences
@@ -117,3 +117,16 @@ export const workspaceState = (w: Workspace, runs: RunManifest[] | null): StepSt
   const states = w.processes.map((p) => processState(p, runs, null));
   return RANK.find((r) => states.includes(r)) ?? "idle";
 };
+
+export type MenuItem = { href: string; label: string; tone: "wait" | "now" | "failed" | null; word: string };
+/** The top bar's Workspaces menu: Start, then each workspace with its card's status when it needs a look. */
+export function workspaceMenuItems(runs: RunManifest[] | null, flow: StewardshipFlow | null, now: Date): MenuItem[] {
+  return [
+    { href: "#/home", label: "Start", tone: null, word: "" },
+    ...WORKSPACES.map((w) => {
+      const { tone, word } = cardView(w, runs, flow, now).status;
+      const loud = tone === "wait" || tone === "now" || tone === "failed";
+      return { href: `#/${w.id}`, label: w.short ?? w.name, tone: loud ? tone : null, word: loud ? word : "" };
+    }),
+  ];
+}
