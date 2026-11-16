@@ -210,7 +210,7 @@ function ReferenceDocuments({ approver }: { approver: boolean }) {
 
   const active = documents?.filter((d) => d.status === "active") ?? [];
   return (
-    <section className="card">
+    <section className="card rfp-documents">
       <h2 ref={heading} tabIndex={-1}>Reference documents</h2>
       <p className="help-text">
         Used only where the answer library does not answer a question, priority 1 first. PDF or Word, with a text layer.

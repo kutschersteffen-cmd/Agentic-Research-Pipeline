@@ -1,6 +1,7 @@
 """RFP project page against the running app, with its API stubbed by Playwright routing."""
 
 import os
+import time
 
 import pytest
 
@@ -165,12 +166,15 @@ def test_edited_answer_shows_the_change_line_but_not_its_origin(page):  # spec Â
 
 # --- UI review on #545: the reference-documents form and Retire --------------------------------
 
-def documents_page(page, refuse_retire=False):
+def documents_page(page, refuse_retire=False, posts=None):
+    posts = [] if posts is None else posts
     doc = {"id": 4, "title": "Stewardship Statement 2025", "filename": "ref_stmt.docx", "document_date": "2025-12-31",
            "review_by": "2026-12-31", "priority": 1, "status": "active", "uploaded_by": "dev", "pages": None}
 
     def listing(route):
-        if route.request.method == "POST":  # every upload is refused
+        if route.request.method == "POST":  # every upload is refused, slowly enough for a second click to land
+            posts.append(1)
+            time.sleep(0.5)
             route.fulfill(status=400, json={"detail": "scan.pdf has no text layer; upload the original document."})
         else:
             route.fulfill(json=[doc])
@@ -222,3 +226,15 @@ def test_focus_stays_on_retire_after_a_refused_retire(page):  # UI review on #55
     page.keyboard.press("Enter")
     section.get_by_role("alert").wait_for()
     assert page.evaluate("document.activeElement.textContent") == "Retire"
+
+
+def test_a_double_click_on_upload_sends_one_request(page):  # code re-review on #556: the busy guard is a ref now
+    posts = []
+    section = documents_page(page, posts=posts)
+    page.set_input_files("#rfp-document-file", files=[{"name": "scan.pdf", "mimeType": "application/pdf", "buffer": b"%PDF"}])
+    page.fill("#rfp-document-title", "Scan")
+    page.fill("#rfp-document-date", "2025-12-31")
+    section.get_by_role("button", name="Upload document").dblclick()
+    section.get_by_role("alert").wait_for()
+    page.wait_for_timeout(700)  # a second request, had one been sent, would have arrived by now
+    assert len(posts) == 1
