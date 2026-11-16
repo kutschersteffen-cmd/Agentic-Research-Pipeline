@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canSaveResult, checkLine, engagementCounts, engagementLine, evidenceText, foundHeader, foundLine, issueTopics, loadSuggestions, quoteInNote } from "../src/lib/engagement.ts";
+import { batchFlagLines, canSaveResult, checkLine, dueText, engagementCounts, engagementLine, evidenceText, fmt, foundHeader, foundLine, isDemoIssue, issueTopics, loadSuggestions, quoteInNote } from "../src/lib/engagement.ts";
 
 const issue = (status: string, escalation_stage: string) => ({ status, escalation_stage }) as never;
 
@@ -103,4 +103,34 @@ test("quoteInNote matches word for word, ignoring case, spacing and typographic 
   assert.equal(quoteInNote("“Net zero” by 2050", "\"net\u00a0zero\" by 2050"), true);
   assert.equal(quoteInNote("We will publish a transition plan by 2026.", "We shall publish a transition plan by 2026."), false);
   assert.equal(quoteInNote("  ", "anything"), false);
+});
+
+// Stewardship screens polish (spec stewardship-screens-polish, PR B).
+
+test("dueText keeps a date whole unless it is an ISO timestamp (B2)", () => {
+  assert.equal(dueText("end of FY2027"), "end of FY2027");
+  assert.equal(dueText("2026-12-31T00:00:00"), "2026-12-31");
+  assert.equal(dueText("2025-12-31 (approx.)"), "2025-12-31 (approx.)");
+});
+
+test("fmt turns codes into words (B9)", () => {
+  assert.equal(fmt("not_achieved"), "not achieved");
+  assert.equal(fmt("in_progress"), "in progress");
+});
+
+test("isDemoIssue looks at the issue and every objective (B10)", () => {
+  assert.equal(isDemoIssue({ data_source: null, objectives: [{ source: null }, { source: "mock_voice_seed" }] as never }), true);
+  assert.equal(isDemoIssue({ data_source: "npx_urth_demo", objectives: [] }), true);
+  assert.equal(isDemoIssue({ data_source: null, objectives: [{ source: null }] as never }), false);
+});
+
+test("batchFlagLines lists each flag of a company in the batch once (B11)", () => {
+  const ballots = [
+    { company_id: "A", name: "Alpha Corp", watch_flags: [{ message: "Commitment overdue." }, { message: "Objective overdue." }] },
+    { company_id: "A", name: "Alpha Corp", watch_flags: [{ message: "Commitment overdue." }] },
+    { company_id: "B", name: "Beta plc", watch_flags: [] },
+    { company_id: "C", name: "Gamma", watch_flags: [{ message: "Broken." }] },
+  ];
+  assert.deepEqual(batchFlagLines(ballots, ["A", "A", "B"]), ["Alpha Corp: Commitment overdue.", "Alpha Corp: Objective overdue."]);
+  assert.deepEqual(batchFlagLines(ballots, ["B"]), []);
 });

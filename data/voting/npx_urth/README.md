@@ -56,6 +56,8 @@ Share of rows with `for_against_management` filled that are `AGAINST`: 2024 3.83
 
 - `for_against_management` is computed here, not filed. Frequency votes (say-on-pay frequency) are
   left empty because their management recommendation is filed as FOR/AGAINST, not as a frequency.
+- `arp stewardship load-npx` ignores `for_against_management` and applies the vote-intake rule:
+  abstain is never against management; withhold only when management recommended FOR.
 - Rows with no vote record: 245 (2024), 2,020 (2025), 90 (2026). Most have `shares_voted` 0; in
   2025 many show shares but no `voteRecord`, which is how the filing reports them.
 - Number formats differ by year as filed (`508531.000000` in 2024, integers later), and frequency

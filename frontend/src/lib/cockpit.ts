@@ -24,6 +24,14 @@ export function fmtPct(part: number, whole: number): string {
 
 export const fmtCount = (n: number): string => n.toLocaleString("en-US");
 
+/** The voting card's name for the `abstain` bucket, which holds abstain and withhold votes. */
+export const ABSTAIN_LABEL = "abstained or withheld";
+
+/** What follows a topic's against-management share: `· <a> of <n> · <q>% abstained or withheld`. */
+export function topicNote(t: { votes: number; against_management: number; abstain: number }): string {
+  return `· ${fmtCount(t.against_management)} of ${fmtCount(t.votes)} · ${fmtPct(t.abstain, t.votes)} ${ABSTAIN_LABEL}`;
+}
+
 function ymd(iso: string): [number, number, number] {
   const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
   return [y, m, d];
