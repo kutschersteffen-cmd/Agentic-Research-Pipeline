@@ -200,6 +200,7 @@ def _evaluate_concentration_threshold(
     holdings = store.load_holdings_as_of(as_of, rule.portfolio_ids or None)
     if not holdings:
         return []
+
     def by_company(lines: list[Holding]) -> AggregationResult:
         return aggregation.aggregate(
             lines, securities, companies, group_by="company_id", metric="market_value_sum",
