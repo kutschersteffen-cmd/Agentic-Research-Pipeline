@@ -2215,6 +2215,9 @@ export type PortfolioGroup = Served<S["PortfolioGroup"]>;
 export type WorklistScopes = Served<S["WorklistScopes"]>;
 export type ProgrammeList = Served<S["ProgrammeList"]>;
 export type Confirmed = Served<S["Confirmed"]>;
+// The fund overlap tab (backend/arp/schemas/overlap.py)
+export type FundOverlap = Served<S["FundOverlap"]>;
+export type OverlapMatrix = Served<S["OverlapMatrix"]>;
 
 export interface PolicyVersionMeta {
   version: number;
