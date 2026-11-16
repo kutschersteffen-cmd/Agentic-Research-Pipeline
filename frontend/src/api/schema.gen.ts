@@ -14165,6 +14165,11 @@ export interface components {
             sector?: string | null;
             /** Shares Outstanding */
             shares_outstanding: number;
+            /**
+             * Simulated Fields
+             * @description Metrics, flags and categories above whose value is simulated, not real data.
+             */
+            simulated_fields?: string[];
         };
         /** IndexLevelPoint */
         IndexLevelPoint: {

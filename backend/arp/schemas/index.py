@@ -60,6 +60,7 @@ class IndexCandidate(BaseModel):
     metrics: dict[str, float] = Field(default_factory=dict, description='Numeric attributes, e.g. {"esg_score": 7.1, "ghg_intensity": 84.0}.')
     flags: dict[str, bool] = Field(default_factory=dict, description='Boolean attributes, e.g. {"norms_violation": False}.')
     categories: dict[str, str] = Field(default_factory=dict, description='Categorical attributes, e.g. {"lct_category": "solutions"}.')
+    simulated_fields: list[str] = Field(default_factory=list, description="Metrics, flags and categories above whose value is simulated, not real data.")
 
     @property
     def float_mcap(self) -> float:

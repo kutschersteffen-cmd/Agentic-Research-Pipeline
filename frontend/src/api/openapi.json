@@ -13501,6 +13501,14 @@
       "exclusiveMinimum": 0.0,
       "title": "Shares Outstanding",
       "type": "number"
+     },
+     "simulated_fields": {
+      "description": "Metrics, flags and categories above whose value is simulated, not real data.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Simulated Fields",
+      "type": "array"
      }
     },
     "required": [
