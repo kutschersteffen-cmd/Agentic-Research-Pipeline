@@ -255,12 +255,16 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
     [panel, sorted],
   );
   const closePanel = useCallback(() => {
+    // Focus goes back to the row, so its page must be the one on screen.
+    const at = panel ? sorted.findIndex((r) => r.issuer_id === panel.id) : -1;
+    if (at >= 0) setPage(Math.floor(at / PAGE_SIZE));
     if (panel) requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-open-row="${CSS.escape(panel.id)}"]`)?.focus());
     setPanel(null);
-  }, [panel]);
+  }, [panel, sorted]);
+  const openId = panel?.id;
   useEffect(() => {
-    if (panel) document.querySelector(`[data-open-row="${CSS.escape(panel.id)}"]`)?.scrollIntoView({ block: "nearest" });
-  }, [panel]);
+    if (openId) document.querySelector(`[data-open-row="${CSS.escape(openId)}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [openId]);
 
   const addSelected = () =>
     act(async () => {
@@ -435,7 +439,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
                     <tr
                       key={r.issuer_id}
                       className={[ticked.has(r.issuer_id) && "selected-row", panel?.id === r.issuer_id && "wb-open-row"].filter(Boolean).join(" ") || undefined}
-                      onClick={(e) => !(e.target as HTMLElement).closest("button, input, a, label") && open(r.issuer_id)}
+                      onClick={(e) => !(e.target as HTMLElement).closest("button, input, a, label, .wb-tick") && !window.getSelection()?.toString() && open(r.issuer_id)}
                     >
                       <td className="wb-tick">
                         <input type="checkbox" aria-label={`Tick ${r.company}`} checked={ticked.has(r.issuer_id)} onChange={(e) => tick(r.issuer_id, e.target.checked)} />

@@ -30,7 +30,8 @@ export function partValue(id: string, row: WorklistRow, rows: WorklistRow[], asO
     case "holdings_weight": {
       if (row.holdings_weight_pct === null) return plain("—");
       const rank = rankOf(rows, (r) => r.holdings_weight_pct, row);
-      return plain(`${row.holdings_weight_pct.toFixed(3)} %  (rank ${rank} of ${rows.length})`);
+      const held = rows.filter((r) => r.holdings_weight_pct !== null).length;
+      return plain(`${row.holdings_weight_pct.toFixed(3)} %  (rank ${rank} of ${held})`);
     }
     case "aum_held":
       return plain(row.aum_held_eur_m === null ? "—" : `EUR ${row.aum_held_eur_m.toFixed(1)} m`);
@@ -82,7 +83,7 @@ export function why(row: WorklistRow, rows: WorklistRow[], data: Pick<Worklist, 
     second:
       w.version === 0
         ? "Weights: priority_weights v0 (bundled default)."
-        : `Weights: priority_weights v${w.version}, activated ${day(w.activated_at)} by ${w.activated_by ?? "unknown"}.`,
+        : `Weights: priority_weights v${w.version}, activated${w.activated_at ? ` ${day(w.activated_at)}` : ""} by ${w.activated_by ?? "unknown"}.`,
     weighted: row.parts.filter((p) => p.weight > 0 && !p.empty).map(line),
     notWeighted: row.parts.filter((p) => p.weight === 0).map(line),
     noData: row.parts.filter((p) => p.weight > 0 && p.empty).map(line),

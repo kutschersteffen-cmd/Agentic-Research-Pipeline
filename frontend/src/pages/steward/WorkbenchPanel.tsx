@@ -55,21 +55,29 @@ export function WorkbenchPanel({
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || document.querySelector("dialog[open]")) return;
+      const t = e.target as HTMLElement;
+      const field = t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName);
       if (e.key === "Escape") {
         if (document.querySelector("details[open]")) return; // the open menu takes this Escape (seen first: capture phase)
+        if (field && (t as HTMLInputElement).value) return; // a half-typed note is not thrown away
         e.preventDefault();
         onClose();
         return;
       }
       if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-      const t = e.target as HTMLElement;
-      if (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) || t.closest("details[open]")) return;
+      // ↑/↓ step rows from the panel's head and tabs, the table's rows, or nowhere in particular; elsewhere they scroll.
+      const stepsHere = t === document.body || !!t.closest(".wb-panel-head, .wb-panel [role=tablist], .wb-table tbody");
+      if (field || !stepsHere) return;
       e.preventDefault();
       onStep(e.key === "ArrowDown" ? 1 : -1);
     }
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
   }, [onClose, onStep]);
+
+  // The trigger route lists every company's triggers: read once per panel, not once per company step.
+  const triggers = useRef<Promise<UnifiedTrigger[]> | null>(null);
+  const loadTriggers = () => (triggers.current ??= api.listTriggers().then((r) => r.triggers, (e) => { triggers.current = null; throw e; }));
 
   const id = row.issuer_id;
   return (
@@ -101,7 +109,7 @@ export function WorkbenchPanel({
         {tab === "Company" && <CompanyTab key={id} row={row} />}
         {tab === "Engagements" && <EngagementsTab key={id} id={id} />}
         {tab === "Votes" && <VotesTab key={id} id={id} />}
-        {tab === "Triggers" && <TriggersTab key={id} id={id} />}
+        {tab === "Triggers" && <TriggersTab key={id} id={id} load={loadTriggers} />}
         {tab === "Holdings" && <HoldingsTab row={row} cycle={data.cycle} />}
         {tab === "Notes" && <NotesTab key={id} id={id} scope={scope} onAdded={onNoteAdded} />}
       </div>
@@ -275,7 +283,7 @@ function EngagementsTab({ id }: { id: string }) {
           <h3>{words(issue.theme)}</h3>
           <p className="muted">
             Status {words(issue.status)} · Escalation {words(issue.escalation_stage)}
-            {issue.data_source && ["mock_voice_seed", "npx_urth_demo"].includes(issue.data_source) && <> · <Demo /></>}
+            {isDemo(issue, {}) && <> · <Demo /></>}
           </p>
           <h4>Objectives</h4>
           {issue.objectives.length ? (
@@ -364,8 +372,8 @@ function VotesTab({ id }: { id: string }) {
   );
 }
 
-function TriggersTab({ id }: { id: string }) {
-  const { data, error } = useLoaded(`t${id}`, () => api.listTriggers().then((r) => r.triggers.filter((t) => t.issuer_id === id)));
+function TriggersTab({ id, load }: { id: string; load: () => Promise<UnifiedTrigger[]> }) {
+  const { data, error } = useLoaded(`t${id}`, () => load().then((all) => all.filter((t) => t.issuer_id === id)));
   if (!data) return <Loading error={error} />;
   if (!data.length) return <Empty>No triggers stored for this company.</Empty>;
   const order = { high: 0, medium: 1, low: 2 };
@@ -478,7 +486,7 @@ function NotesTab({ id, scope, onAdded }: { id: string; scope: string; onAdded: 
           {notes.map((n) => (
             <li key={n.note_id}>
               <p className="wb-note-meta">
-                <strong>{n.by}</strong> <span className="mono muted">{`${day(n.at)} ${n.at.slice(11, 16)}`}</span>
+                <strong>{n.by}</strong> <span className="mono muted">{`${day(n.at)} ${n.at.slice(11, 16)} UTC`}</span>
               </p>
               <p className="wb-note-text">{n.text}</p>
             </li>

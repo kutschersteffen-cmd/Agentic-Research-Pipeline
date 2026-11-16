@@ -70,6 +70,7 @@ import type {
   BilateralPick,
   Confirmed,
   StewardNote,
+  StewardNoteList,
   VoteList,
   PortfolioGroup,
   PriorityPreview,
@@ -942,7 +943,7 @@ export const api = {
   createPortfolioGroup: (body: { name: string; kind: "portfolios" | "companies"; members: string[] }) =>
     request<PortfolioGroup>("/api/portfolio/groups", jsonBody("POST", body)),
   getSimulatedSchema: () => request<DataPointSchema>("/api/climate/simulated-schema"),
-  getNotes: (companyId: string) => request<{ notes: StewardNote[] }>(`/api/stewardship/notes${buildQuery({ company_id: companyId })}`),
+  getNotes: (companyId: string) => request<StewardNoteList>(`/api/stewardship/notes${buildQuery({ company_id: companyId })}`),
   addNote: (body: { company_id: string; text: string; scope: string }) => request<StewardNote>("/api/stewardship/notes", jsonBody("POST", body)),
   getVotes: (companyId: string) => request<VoteList>(`/api/stewardship/votes${buildQuery({ company_id: companyId })}`),
   previewCoverage: (graph: unknown) =>
