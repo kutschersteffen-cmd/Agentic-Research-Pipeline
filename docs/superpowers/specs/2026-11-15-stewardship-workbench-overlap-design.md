@@ -224,8 +224,8 @@ Shell plc    All house holdings · Confirmed;  DAX · ✎ Proposed            Eu
 Holdout and evaluator rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postgres`. Words used below:
 
 - **Showcase data:** `arp showcase load`, `arp stewardship seed-demo`, then `PUT /api/stewardship/universe`
-  `{"source": "portfolio"}` (the 7 showcase funds), with the `selection/` directory under `stewardship_streams_dir`
-  removed. **P**, **R**: the first and the second fund of `GET /api/stewardship/overlap`'s `funds`.
+  `{"source": "portfolio"}` (the 7 showcase funds, plus any other house portfolio the stack holds), with the `selection/` directory under `stewardship_streams_dir`
+  removed. **P**, **R**: the first and the second fund of `GET /api/stewardship/overlap`'s `funds`. **n**: the number of `portfolio:` keys of `GET /api/stewardship/worklist/scopes` (owner, 16 Nov 2026: count what is there).
 - **Fixture W:** as in `stewardship-priority-worklist`: house universe `sample` (`SYN01`..`SYN12`), the `selection/`
   directory removed. **Group G:** `POST /api/portfolio/groups` `{"group_id": "g", "name": "g", "kind": "companies",
   "members": ["SYN01", "SYN02"]}`.
@@ -242,9 +242,9 @@ Holdout and evaluator rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postg
 | AC-2 | Unit fixture U | the overlap of the store is computed | Pair (B, C) has `shared_companies` 1 and `shared_weight_pct` 50.0 (C's unresolved holding is not counted, so `z` is 100 % of C) | unit |
 | AC-35 | Unit fixture U | the overlap of the store is computed | Pair (A, C) has `shared_companies` 0 and `shared_weight_pct` 0.0 | unit |
 | AC-3 | Unit fixture U | the top-2 matrix is computed | `companies` lists `x` then `y` (house weights 800/2,100 = 38.095 % and 700/2,100 = 33.333 %; C's unresolved holding is not counted), and `x`'s `weights` = `{"A": 60.0, "B": 20.0, "C": null}` with `funds` 2 | unit |
-| AC-4 | Showcase data | `GET /api/stewardship/overlap` | Status 200; `funds` holds 7 entries whose `portfolio:<portfolio_id>` keys are exactly the `portfolio:` keys of `GET /api/stewardship/worklist/scopes` | holdout |
+| AC-4 | Showcase data | `GET /api/stewardship/overlap` | Status 200; `funds` holds n entries whose `portfolio:<portfolio_id>` keys are exactly the `portfolio:` keys of `GET /api/stewardship/worklist/scopes` | holdout |
 | AC-5 | AC-4 | — | Each fund's `companies` equals the `companies` of its `portfolio:` entry in `GET /worklist/scopes` | holdout |
-| AC-6 | AC-4 | — | `pairs` holds 21 entries, each unordered pair of funds once, with `a` before `b` in `funds` order | holdout |
+| AC-6 | AC-4 | — | `pairs` holds n × (n − 1) / 2 entries, each unordered pair of funds once, with `a` before `b` in `funds` order | holdout |
 | AC-7 | AC-4 | `GET /api/stewardship/worklist?scope=portfolio:P` | For every other fund F, the pair (P, F)'s `shared_companies` equals the number of rows whose `held_in` contains F | holdout |
 | AC-8 | AC-7 | — | For every other fund F, the pair (P, F)'s `shared_weight_pct` equals the sum over those rows of min(`held_in` weight in P, `held_in` weight in F) within 0.1 | holdout |
 | AC-9 | Showcase data | `GET /api/stewardship/overlap/matrix` | Status 200; `basis` `top`, `scope` `null`, 100 `companies`, `house_weight_pct` not increasing down the list | holdout |
@@ -269,7 +269,7 @@ Holdout and evaluator rows run on the e2e stack with `ARP_ENGAGEMENT_STORE=postg
 | AC-24 | AC-23 (selection files written) | `GET /api/stewardship/overlap` and `GET /overlap/matrix` | The files under `<stewardship_streams_dir>/selection/` have the same names and bytes before and after the two calls | holdout |
 | AC-25 | A unit store with 2,600 companies and 7 funds, fund i (i = 0..6) holding the first 300 + i × 383 companies at 1 EUR m each | the overlap and the top-100 matrix are computed | Each takes under 1.0 s on the CI runner | unit |
 | AC-26 | Showcase data on the e2e stack | `GET /api/stewardship/overlap` and `GET /overlap/matrix` are each called twice | The second call of each answers in under 1.0 s (time recorded in the evidence) | evaluator |
-| AC-27 | PR 2; Showcase data | A user opens `#/stewardship/overlap` | The tab **Overlap** sits right after **Workbench**; the page shows the heading `Funds side by side` with a 7 × 7 table | evaluator |
+| AC-27 | PR 2; Showcase data | A user opens `#/stewardship/overlap` | The tab **Overlap** sits right after **Workbench**; the page shows the heading `Funds side by side` with an n × n table | evaluator |
 | AC-28 | AC-27 | The user reads the cell for P (row) and R (column) | It shows `<shared_companies> · <shared_weight_pct, 1 decimal> %` from `GET /overlap`'s (P, R) pair | evaluator |
 | AC-36 | AC-27 | The user reads the cell for R (row) and P (column) | It shows the same text as the P/R cell | evaluator |
 | AC-37 | AC-27 | The user reads the diagonal cell P/P | It shows `<P's companies> companies` | evaluator |
