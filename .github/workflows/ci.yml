@@ -126,7 +126,7 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/.github/scripts
           COVERAGE_FILE: ${{ runner.temp }}/backend-shard/coverage
         run: >-
-          pytest -q -p pytest_shard --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+          pytest -q -p pytest_shard --shard=${{ matrix.shard == 2 && 1 || matrix.shard }}/${{ strategy.job-total }}
           --shard-report="$RUNNER_TEMP/backend-shard/ran.txt" --cov=arp --cov-report=
           --shard-times="$GITHUB_WORKSPACE/.github/scripts/backend_test_times.json"
 
