@@ -93,9 +93,9 @@ IE00BWT6H894,FLUTTER ENTERTAINMENT PLC,gambling,0.95,online betting group
 SE0012673267,EVOLUTION,gambling,0.95,online casino games provider
 AU000000ALL7,ARISTOCRAT LEISURE,gambling,0.90,gaming machine and online games maker
 AU0000219529,THE LOTTERY CORPORATION LTD,gambling,0.95,lottery operator
-DE000BASF111,BASF N,norms_violation,1,simulated demo flag for the Workbench Norm violation filter (owner, 16 Nov 2026); not a real finding
-DE0005140008,DEUTSCHE BANK AG,norms_violation,1,simulated demo flag for the Workbench Norm violation filter (owner, 16 Nov 2026); not a real finding
-GB0009895292,ASTRAZENECA PLC,norms_violation,1,simulated demo flag for the Workbench Norm violation filter (owner, 16 Nov 2026); not a real finding
-US9311421039,WALMART,norms_violation,1,simulated demo flag for the Workbench Norm violation filter (owner, 16 Nov 2026); not a real finding
-TW0002317005,HON HAI PRECISION INDUSTRY,norms_violation,1,simulated demo flag for the Workbench Norm violation filter (owner, 16 Nov 2026); not a real finding
-KYG017191142,ALIBABA GROUP HOLDING,norms_violation,1,simulated demo flag for the Workbench Norm violation filter (owner, 16 Nov 2026); not a real finding
+DE000BASF111,BASF N,norms_violation,1,"simulated demo flag for the Workbench Norm violation filter (owner, 16 Nov 2026); not a real finding"
+DE0005140008,DEUTSCHE BANK AG,norms_violation,1,"simulated demo flag for the Workbench Norm violation filter (owner, 16 Nov 2026); not a real finding"
+GB0009895292,ASTRAZENECA PLC,norms_violation,1,"simulated demo flag for the Workbench Norm violation filter (owner, 16 Nov 2026); not a real finding"
+US9311421039,WALMART,norms_violation,1,"simulated demo flag for the Workbench Norm violation filter (owner, 16 Nov 2026); not a real finding"
+TW0002317005,HON HAI PRECISION INDUSTRY,norms_violation,1,"simulated demo flag for the Workbench Norm violation filter (owner, 16 Nov 2026); not a real finding"
+KYG017191142,ALIBABA GROUP HOLDING,norms_violation,1,"simulated demo flag for the Workbench Norm violation filter (owner, 16 Nov 2026); not a real finding"
