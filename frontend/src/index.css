@@ -2407,10 +2407,11 @@ a.vc-box:hover { border-color: var(--text); }
 .cockpit-stack .abstain { background: var(--neutral); }
 .cockpit-stack .other { background: var(--cat-4); }
 .cockpit-topics-head { margin: var(--s-4) 0 var(--s-2); }
-.cockpit-topics { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
-.cockpit-topics li { display: grid; grid-template-columns: minmax(110px, 160px) minmax(40px, 1fr) auto; gap: var(--s-3); align-items: center; font-size: var(--text-sm); }
+.cockpit-topics { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-3); }
+.cockpit-topics li { display: grid; grid-template-columns: minmax(110px, 160px) minmax(40px, 1fr); gap: var(--s-1) var(--s-3); align-items: center; font-size: var(--text-sm); }
 .cockpit-topic-bar { height: 10px; background: var(--well); }
-.cockpit-topics li > :last-child { white-space: nowrap; }
+/* the figures get a line of their own under the bar; in the mono face the abstained share overflows the card */
+.cockpit-topics li > :last-child { grid-column: 1 / -1; font-family: var(--font-display); }
 .cockpit-topic-bar > span { display: block; height: 10px; background: var(--cat-2); }
 /* financed emissions: engaged fill, selected-not-engaged the neutral well (an empty outline read as "no data" when
    nothing was engaged), not selected hatched, so it never matches the theme grid's empty "Selected" swatch */
@@ -2432,7 +2433,7 @@ a.vc-box:hover { border-color: var(--text); }
 @media (max-width: 900px) {
   .cockpit-row > .cockpit-card { flex-basis: 100%; }
   .cockpit-emissions { grid-template-columns: minmax(0, 1fr); }
-  .cockpit-topics li { grid-template-columns: minmax(0, 1fr) auto; }
+  .cockpit-topics li { grid-template-columns: minmax(0, 1fr); }
   .cockpit-topic-bar { grid-column: 1 / -1; grid-row: 2; }
 }
 /* phone: the meeting tables fit their card, so the due ballots and the Step pills are on screen without a sideways

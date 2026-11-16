@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import {
+  ABSTAIN_LABEL,
   CONTRIBUTOR_STATUS,
   SHOWN_ROWS,
   ballotText,
@@ -18,6 +19,7 @@ import {
   OTHER_THEME,
   themeLabel,
   themeScale,
+  topicNote,
   weekday,
 } from "../lib/cockpit";
 import type { Cockpit } from "../types";
@@ -471,7 +473,7 @@ function LadderCard({ ladder }: { ladder: Ladder }) {
 }
 
 function VotingCard({ voting: v }: { voting: Cockpit["voting"] }) {
-  const parts: [string, string, number][] = [["for", "for", v.for], ["against", "against", v.against], ["abstain", "abstain", v.abstain]];
+  const parts: [string, string, number][] = [["for", "for", v.for], ["against", "against", v.against], ["abstain", ABSTAIN_LABEL, v.abstain]];
   if (v.other > 0) parts.push(["other", "other", v.other]);
   return (
     <Card title="Voting, season to date" label={<span className="cockpit-label">{fmtCount(v.votes)} votes</span>}>
@@ -484,7 +486,7 @@ function VotingCard({ voting: v }: { voting: Cockpit["voting"] }) {
           </div>
           <div className="cockpit-stack-legend">
             {parts.map(([cls, l, n]) => (
-              <span key={cls}><span className={`cockpit-swatch ${cls}`} aria-hidden="true" /><span className="cockpit-num">{fmtCount(n)}</span> {l}</span>
+              <span key={cls}><span className={`cockpit-swatch ${cls}`} aria-hidden="true" /><span className="cockpit-num">{fmtCount(n)}</span> {l} ({fmtPct(n, v.votes)})</span>
             ))}
           </div>
         </>
@@ -495,10 +497,11 @@ function VotingCard({ voting: v }: { voting: Cockpit["voting"] }) {
           <li key={t.topic}>
             <span>{t.topic}</span>
             <span className="cockpit-topic-bar" aria-hidden="true"><span style={{ width: `${pct(t.against_management, t.votes) ?? 0}%` }} /></span>
-            <span className="cockpit-num">{fmtPct(t.against_management, t.votes)} <span className="muted">· {fmtCount(t.against_management)} of {fmtCount(t.votes)}</span></span>
+            <span className="cockpit-num">{fmtPct(t.against_management, t.votes)} <span className="muted">{topicNote(t)}</span></span>
           </li>
         ))}
       </ul>
+      <p className="muted cockpit-foot">Abstentions never count as against management. A withhold counts as against management only when management recommended for.</p>
     </Card>
   );
 }
