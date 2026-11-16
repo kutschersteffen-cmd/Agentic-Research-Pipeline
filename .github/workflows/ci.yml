@@ -12,8 +12,38 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # On a PR, the jobs below skip when the PR changes nothing they read (rules: .github/scripts/ci_changes.py).
+  # A skipped job reports success under its own name, so required checks pass. Push to main runs everything.
+  # If this job fails, its outputs are empty (not 'false'), so every job runs.
+  changes:
+    name: Changed areas
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.areas.outputs.backend }}
+      frontend: ${{ steps.areas.outputs.frontend }}
+      app: ${{ steps.areas.outputs.app }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # a PR checks out its merge commit; parent 1 is the base
+
+      - name: Self-test the path rules
+        run: python3 .github/scripts/ci_changes.py --selftest
+
+      - name: Pick the jobs
+        id: areas
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            git diff --name-only HEAD^1 HEAD | python3 .github/scripts/ci_changes.py >>"$GITHUB_OUTPUT"
+          else
+            printf 'backend=true\nfrontend=true\napp=true\n' >>"$GITHUB_OUTPUT"
+          fi
+          cat "$GITHUB_OUTPUT"
+
   backend:
     name: Backend (lint + tests)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.backend != 'false' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -109,6 +139,8 @@ jobs:
 
   frontend:
     name: Frontend (build + lint)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.frontend != 'false' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -154,6 +186,8 @@ jobs:
   # The holdout acceptance tests and the evaluator agent reuse the same stack.
   e2e:
     name: E2E (browser)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.app != 'false' }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -355,6 +389,8 @@ jobs:
 
   backend-supply-chain:
     name: Backend dependency audit + SBOM
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.backend != 'false' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -394,6 +430,8 @@ jobs:
 
   frontend-supply-chain:
     name: Frontend dependency audit + SBOM
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.frontend != 'false' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -428,6 +466,8 @@ jobs:
 
   container-scan:
     name: Container image scan (Trivy)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.app != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
