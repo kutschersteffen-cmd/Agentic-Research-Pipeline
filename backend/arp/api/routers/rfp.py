@@ -143,8 +143,8 @@ async def create_project(
             created["id"] = p.id
         return run_id
 
-    async def run(run_id, llm, _verifier) -> None:
-        await store.detect_and_fill(created["id"], data, suffix, llm, settings)
+    async def run(run_id, llm, verifier) -> None:
+        await store.detect_and_fill(created["id"], data, suffix, llm, verifier, settings)
         JobManager(run_store).finish_run(run_id)
 
     schedule_llm_run(create_fn=create, run=run)
@@ -178,17 +178,17 @@ async def autofill_project(
             p.run_status, p.run_id = ("detecting" if redetect else "drafting"), run_id
             return run_id
 
-        async def run(run_id, llm, _verifier) -> None:
+        async def run(run_id, llm, verifier) -> None:
             if redetect:  # the original is fetched here, after the project row lock is released
                 try:
                     data = blobs.get(key)
                 except Exception:
                     store.set_run_status(project_id, "failed")
                     raise
-                await store.detect_and_fill(project_id, data, _suffix(filename), llm, settings)
+                await store.detect_and_fill(project_id, data, _suffix(filename), llm, verifier, settings)
             else:
                 try:
-                    await store.autofill(project_id, llm, settings)
+                    await store.autofill(project_id, llm, verifier, settings)
                     store.set_run_status(project_id, "done")
                 except Exception:
                     store.set_run_status(project_id, "failed")

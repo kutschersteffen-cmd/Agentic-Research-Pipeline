@@ -246,6 +246,17 @@ def test_resolution_round_trip_and_review_filter(store):
     assert [r.security_id for r in store.list_resolutions_needing_review()] == ["XS9999999999"]
 
 
+def test_list_resolutions_reads_every_resolution_in_one_call(store):
+    """The bulk read the house universe uses instead of one get_resolution per security (worklist load time)."""
+    resolved = SecurityResolution(
+        security_id="DE0005190003", company_id="bmw", confidence=0.99, method="isin_exact",
+        needs_review=False, resolved_at="2026-01-31T00:00:00Z",
+    )
+    assert store.list_resolutions() == {}
+    store.save_resolution(resolved)
+    assert store.list_resolutions() == {"DE0005190003": resolved}
+
+
 def test_holding_round_trip_keeps_every_field(store):
     """Both backends persist the full Holding, including the optional
     weight_pct and a non-default FX rate -- the hand-written ORM mapping

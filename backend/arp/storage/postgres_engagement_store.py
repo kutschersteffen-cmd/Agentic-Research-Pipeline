@@ -11,7 +11,7 @@ from contextlib import contextmanager
 from datetime import UTC, date, datetime
 
 from pydantic import BaseModel
-from sqlalchemy import DateTime, func, inspect, select, text
+from sqlalchemy import DateTime, func, inspect, select, text, true
 from sqlalchemy.orm import Session
 
 from arp.db.session import transaction
@@ -97,6 +97,11 @@ def _entry(row: StwActivityModel) -> CorrespondenceEntry:
     return CorrespondenceEntry.model_validate({"summary": ""} | _cols(row, entry_id="activity_id", date="occurred_at"))
 
 
+def _objective(row: StwObjectiveModel) -> Objective:
+    # intake requires a description, but an older or directly written row may have none: it reads as an empty one
+    return Objective.model_validate({"description": ""} | _cols(row))
+
+
 class PostgresEngagementStore:
     """Drop-in for EngagementStore (arp/storage/engagement_store.py) on the stw_* tables. Rows it writes
     carry source = 'app' (or the object's own source) and no external_id."""
@@ -148,40 +153,51 @@ class PostgresEngagementStore:
         self._tx.get(StwCompanyModel, company_id).updated_at = _ts(now_iso())
 
     def _read(self, session: Session, company_id: str) -> EngagementRecord | None:
-        company = session.get(StwCompanyModel, company_id)
-        if company is None:
-            return None
-        E = StwEngagementModel
-        engagement_ids = select(E.engagement_id).where(E.company_id == company_id)
+        return self._read_many(session, [company_id]).get(company_id)
 
-        def created(event_type: str, key: str, column):
+    def _read_many(self, session: Session, company_ids: list[str] | None) -> dict[str, EngagementRecord]:
+        """The records of these companies (None: every company), one query per table whatever their number."""
+
+        def within(column):
+            return true() if company_ids is None else column.in_(company_ids)
+
+        companies = session.scalars(select(StwCompanyModel).where(within(StwCompanyModel.company_id))).all()
+        if not companies:
+            return {}
+        E, Ev = StwEngagementModel, StwEventModel
+        engagement_ids = select(E.engagement_id).where(within(E.company_id))
+
+        def created(event_type: str, key: str, column, company):
             # contacts and objectives have no reliable timestamp: their creation event's id is the append order
-            seq = select(func.min(StwEventModel.event_id)).where(
-                StwEventModel.company_id == company_id,
-                StwEventModel.event_type == event_type,
-                StwEventModel.detail[key].astext == column,
+            seq = select(func.min(Ev.event_id)).where(
+                Ev.company_id == company,
+                Ev.event_type == event_type,
+                Ev.detail[key].astext == column,
             )
             return seq.scalar_subquery().asc().nulls_last()
 
-        def children(model, order):
+        def children(query, order):
             grouped = defaultdict(list)
-            for row in session.scalars(select(model).where(model.engagement_id.in_(engagement_ids)).order_by(*order)):
+            for row in session.scalars(query.order_by(*order)):
                 grouped[row.engagement_id].append(row)
             return grouped
 
         Ob, A, C, T = StwObjectiveModel, StwActivityModel, StwCommitmentModel, StwTransitionModel
-        objectives = children(Ob, [created("objective_added", "objective_id", Ob.objective_id), Ob.started_at, Ob.objective_id])
-        activities = children(A, [A.occurred_at, A.activity_id])
-        commitments = children(C, [C.made_at, C.commitment_id])
-        transitions = children(T, [T.changed_at, T.transition_id])
-        issues = []
-        for row in session.scalars(select(E).where(E.company_id == company_id).order_by(E.started_at, E.engagement_id)):
+        objectives = children(
+            select(Ob).join(E, E.engagement_id == Ob.engagement_id).where(within(E.company_id)),
+            [created("objective_added", "objective_id", Ob.objective_id, E.company_id), Ob.started_at, Ob.objective_id],
+        )
+        activities = children(select(A).where(A.engagement_id.in_(engagement_ids)), [A.occurred_at, A.activity_id])
+        commitments = children(select(C).where(C.engagement_id.in_(engagement_ids)), [C.made_at, C.commitment_id])
+        transitions = children(select(T).where(T.engagement_id.in_(engagement_ids)), [T.changed_at, T.transition_id])
+        issues = defaultdict(list)
+        for row in session.scalars(select(E).where(within(E.company_id)).order_by(E.started_at, E.engagement_id)):
             moves = transitions[row.engagement_id]
-            issues.append(
+            issues[row.company_id].append(
                 EngagementIssue.model_validate(
                     _cols(row, issue_id="engagement_id", opened_at="started_at", data_source="source", source="trigger_source")
                     | {
-                        "objectives": [Objective.model_validate(_cols(o)) for o in objectives[row.engagement_id]],
+                        "objectives": [_objective(o) for o in objectives[row.engagement_id]],
                         "correspondence": [_entry(a) for a in activities[row.engagement_id]],
                         "commitments": [Commitment.model_validate(_cols(c)) for c in commitments[row.engagement_id]],
                         "milestone_history": [
@@ -194,14 +210,17 @@ class PostgresEngagementStore:
                 )
             )
         Ct = StwContactModel
-        contacts = session.scalars(
+        contacts = defaultdict(list)
+        for c in session.scalars(
             select(Ct)
-            .where(Ct.company_id == company_id)
-            .order_by(created("contact_added", "contact_id", Ct.contact_id), Ct.contact_id)
-        )
-        return EngagementRecord.model_validate(
-            _cols(company) | {"contacts": [Contact.model_validate(_cols(c)) for c in contacts], "issues": issues}
-        )
+            .where(within(Ct.company_id))
+            .order_by(created("contact_added", "contact_id", Ct.contact_id, Ct.company_id), Ct.contact_id)
+        ):
+            contacts[c.company_id].append(Contact.model_validate(_cols(c)))
+        return {
+            c.company_id: EngagementRecord.model_validate(_cols(c) | {"contacts": contacts[c.company_id], "issues": issues[c.company_id]})
+            for c in companies
+        }
 
     def get(self, company_id: str) -> EngagementRecord | None:
         safe_id(company_id, label="company_id")
@@ -220,8 +239,8 @@ class PostgresEngagementStore:
 
     def list_all(self) -> list[EngagementRecord]:
         with self._session() as session:
-            ids = session.scalars(select(StwCompanyModel.company_id).order_by(StwCompanyModel.company_id.collate("C"))).all()
-            return [self._read(session, company_id) for company_id in ids]
+            records = self._read_many(session, None)
+            return [records[company_id] for company_id in sorted(records)]  # code-point order, as COLLATE "C" on UTF-8
 
     def events(self, company_id: str) -> list[dict]:
         safe_id(company_id, label="company_id")
@@ -430,7 +449,7 @@ class PostgresEngagementStore:
             if row.proof_statement != proof_statement:
                 row.proof_statement = proof_statement
                 self._log(company_id, "proof_statement_set", {"issue_id": issue_id, "item_kind": item_kind, "item_id": item_id})
-            return _ITEM_OUT[item_kind].model_validate(_cols(row))
+            return _objective(row) if item_kind == "objective" else _ITEM_OUT[item_kind].model_validate(_cols(row))
 
     def record_objective_result(
         self, company_id: str, issue_id: str, objective_id: str, result: str, influence_level: str | None, outcome: str
@@ -443,7 +462,7 @@ class PostgresEngagementStore:
             row.result, row.influence_level, row.outcome, row.closed_at = result, influence_level, outcome, _ts(now_iso())
             row.status = "abandoned" if result == "abandoned" else "closed"
             self._log(company_id, "objective_result_recorded", {"issue_id": issue_id, "objective_id": objective_id, "result": result})
-            return Objective.model_validate(_cols(row))
+            return _objective(row)
 
     def add_watch_topic(self, company_id: str, issue_id: str, topic: WatchTopic) -> WatchTopic:
         with self.lock(company_id):
@@ -643,7 +662,7 @@ _TEXT = {"objective": "description", "commitment": "text", "topic": "question"}
 
 def _watch_item(kind: str, row) -> WatchItem:
     return WatchItem(
-        item_kind=kind, item_id=getattr(row, _ID[kind]), engagement_id=row.engagement_id, text=getattr(row, _TEXT[kind]),
+        item_kind=kind, item_id=getattr(row, _ID[kind]), engagement_id=row.engagement_id, text=getattr(row, _TEXT[kind]) or "",
         proof_statement=row.proof_statement, target_date=row.target_date,
     )
 

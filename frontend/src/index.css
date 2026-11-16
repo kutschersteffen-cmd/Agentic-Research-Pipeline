@@ -328,7 +328,7 @@ input[type="text"]:focus, input[type="password"]:focus, input:not([type]):focus,
 /* Previously only inputs had a focus style, so every button, nav tab and
    clickable row was invisible to keyboard users. :where() keeps this at
    zero specificity so any component rule still wins on the other states. */
-:where(button, a, input, textarea, select, [tabindex], .clickable-row, .issue-row, .preview-thumb):focus-visible {
+:where(button, a, input, textarea, select, summary, [tabindex], .clickable-row, .issue-row, .preview-thumb):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: var(--r-sm);
@@ -1608,6 +1608,21 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-status-unknown { color: var(--muted); }
 .hub-status-detail { font-weight: 400; color: var(--muted); }
 
+/* The cockpit's way in under the cards: built from the card's parts, drawn sideways so it reads as one screen,
+   not a sixth workspace. */
+.hub-entry { display: grid; grid-template-columns: 260px minmax(0, 1fr); margin-top: 20px; overflow: hidden; border-radius: var(--r-lg); border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none; transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease); }
+.hub-entry:hover { border-color: var(--text); transform: translateY(-2px); }
+.hub-entry:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .hub-entry, .hub-entry:hover { transition: none; transform: none; } }
+.hub-entry-fig { display: grid; place-items: center; padding: var(--s-4); border-right: 1px solid var(--panel-border); background: var(--bg); }
+.hub-entry-fig .ws-drawing { width: 152px; height: 118px; }
+.hub-entry .hub-card-body { justify-content: center; }
+.hub-entry-cap { position: static; }
+@media (max-width: 760px) {
+  .hub-entry { grid-template-columns: minmax(0, 1fr); }
+  .hub-entry-fig { border-right: 0; border-bottom: 1px solid var(--panel-border); }
+}
+
 /* Process steps as dots, on the workspace pages. The `.hub-dots li` selectors are no longer used; kept
    verbatim so the amber lines match main (nightDeskTokens ac13). */
 .hub-dots li::after, .hub-dot { content: ""; flex-shrink: 0; width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; display: inline-block; }
@@ -2348,13 +2363,15 @@ a.vc-box:hover { border-color: var(--text); }
 .cockpit-grid thead tr:first-child th { border-top: 0; font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .cockpit-grid-total th, .cockpit-grid-total td { color: var(--muted); }
 .cockpit-grid tbody th { white-space: nowrap; }
+.cockpit-grid .cockpit-grid-other > * { border-top-width: 2px; }
+.cockpit-grid-scale { margin: var(--s-1_5) 0 0; font-size: var(--text-xs); color: var(--muted); }
 .cockpit-cell-bar { position: relative; display: block; height: 8px; margin-top: var(--s-1); }
 .cockpit-cell-bar > span { position: absolute; left: 0; top: 0; height: 8px; }
 .cockpit-cell-bar .track { border: 1px solid var(--field-border); box-sizing: border-box; }
 .cockpit-cell-bar .fill { background: var(--cat-1); }
 .cockpit-empty-cell { color: var(--muted); }
 /* tables and lists */
-.cockpit-table { width: 100%; min-width: 520px; border-collapse: collapse; }
+.cockpit-table { width: 100%; border-collapse: collapse; }
 .cockpit-table th, .cockpit-table td { text-align: left; padding: var(--s-2) var(--s-3) var(--s-2) 0; border-top: 1px solid var(--panel-border); font-size: var(--text-sm); vertical-align: top; }
 .cockpit-table thead th { border-top: 0; font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .cockpit-table .num { text-align: right; }
@@ -2388,17 +2405,18 @@ a.vc-box:hover { border-color: var(--text); }
 .cockpit-topic-bar { height: 10px; background: var(--well); }
 .cockpit-topics li > :last-child { white-space: nowrap; }
 .cockpit-topic-bar > span { display: block; height: 10px; background: var(--cat-2); }
-/* financed emissions: engaged fill, selected track (as in the theme grid), the rest recessed */
+/* financed emissions: engaged fill, selected-not-engaged the neutral well (an empty outline read as "no data" when
+   nothing was engaged), not selected hatched, so it never matches the theme grid's empty "Selected" swatch */
 .cockpit-emissions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: var(--s-4) var(--s-8); align-items: start; }
 .cockpit-emissions-bar { height: 28px; }
 .cockpit-unit { text-transform: none; } /* t CO₂e must not read T CO₂E */
 .cockpit-stack .eng { background: var(--cat-1); }
-.cockpit-stack .sel { border: 1px solid var(--field-border); box-sizing: border-box; }
-.cockpit-stack .rest, .cockpit-swatch.rest { background: var(--well); border: 1px solid var(--panel-border); box-sizing: border-box; }
+.cockpit-stack .sel, .cockpit-emissions-legend .cockpit-swatch.sel { background: var(--well); border: 1px solid var(--field-border); box-sizing: border-box; }
+.cockpit-emissions-legend .cockpit-swatch.sel { height: 10px; }
+.cockpit-stack .rest, .cockpit-swatch.rest { background: repeating-linear-gradient(135deg, var(--field-border) 0 1px, transparent 1px 4px); border: 1px solid var(--field-border); box-sizing: border-box; }
 .cockpit-emissions-legend { list-style: none; margin: var(--s-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-1_5); font-size: var(--text-sm); }
 .cockpit-emissions-legend li { display: grid; grid-template-columns: 10px 3.5ch minmax(0, 1fr) auto; gap: var(--s-2); align-items: center; }
 .cockpit-emissions-pct { text-align: right; }
-.cockpit-contributors { min-width: 0; }
 .cockpit-contributors td:first-child { white-space: normal; }
 .cockpit-contributors td:last-child, .cockpit-contributors th:last-child { white-space: nowrap; }
 /* six key figures: one row on a wide screen, two rows of three below it; five keep the auto-fit grid */
@@ -2409,6 +2427,22 @@ a.vc-box:hover { border-color: var(--text); }
   .cockpit-emissions { grid-template-columns: minmax(0, 1fr); }
   .cockpit-topics li { grid-template-columns: minmax(0, 1fr) auto; }
   .cockpit-topic-bar { grid-column: 1 / -1; grid-row: 2; }
+}
+/* phone: the meeting tables fit their card, so the due ballots and the Step pills are on screen without a sideways
+   scroll; long text wraps instead. The theme grid keeps its sideways scroll (spec: below 900 px). */
+@media (max-width: 600px) {
+  .cockpit .cockpit-card { padding-inline: var(--s-3); }
+  .cockpit-table :is(th, td) { padding-right: var(--s-2); }
+  .cockpit-table thead th { letter-spacing: 0; }
+  .cockpit-ballot { white-space: normal; }
+  .cockpit-table td { hyphens: auto; }
+  /* engagement meetings stack: date, company and step on one line, the objective under them */
+  .cockpit-meetings thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .cockpit-meetings tr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: var(--s-3); row-gap: var(--s-1); padding: var(--s-2) 0; border-top: 1px solid var(--panel-border); }
+  .cockpit-meetings tbody tr:first-child { border-top: 0; }
+  .cockpit-meetings td { padding: 0; border-top: 0; }
+  .cockpit-meetings td:nth-child(3) { grid-column: 2 / -1; grid-row: 2; hyphens: manual; }
+  .cockpit-meetings td:nth-child(2) { overflow-wrap: anywhere; } /* GLAXOSMITHKLINE must not run under the Step pill */
 }
 
 /* Start page simplified (docs/superpowers/specs/2026-11-15-start-page-simplified-design.md):
@@ -2487,4 +2521,60 @@ a.vc-box:hover { border-color: var(--text); }
   .start-topbar-ask kbd { display: none; }
   .start-topbar-end, .start-topbar-nav { gap: var(--s-3); }
   .app-shell-start .app-main { padding: var(--s-8) var(--s-4) 64px; }
+}
+
+/* Stewardship Workbench (pages/steward/workbench.tsx): one table of every company in a scope. The header row and the
+   tick and Name columns stay put while the table scrolls inside its frame. */
+.wb-steps { display: flex; flex-wrap: wrap; gap: var(--s-1_5) var(--s-4); margin: var(--s-1) 0 var(--s-2); padding: 0; list-style: none; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); }
+.wb-step { border-top: 1px solid var(--panel-border); margin-top: var(--s-4); padding-top: var(--s-3); }
+.wb-step h3 { margin: 0 0 var(--s-2); }
+.wb-scope-line { margin: var(--s-2) 0 0; }
+.wb-step .inline-fields > select { flex: 0 1 32rem; }
+.wb-sortbar > select { flex: none; width: auto; }
+.wb-sortbar { align-items: center; gap: var(--s-1_5) var(--s-2); margin-top: var(--s-4); }
+.wb-sort-chip { display: inline-flex; align-items: center; gap: var(--s-1); color: var(--text); font-family: var(--font-mono); }
+/* 24px targets (WCAG 2.5.8) for the small ✕ buttons; the glyph stays small. */
+:is(.wb-sort-chip, .wb-proposed) .link-button { display: inline-grid; place-items: center; min-width: 24px; min-height: 24px; padding: 0; margin: 0; line-height: 1; }
+.wb-proposed .link-button { margin-block: -4px; } /* the 24px target must not make a proposed row taller than the others */
+.wb-counts { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-xs); }
+.wb-menu { position: relative; }
+.wb-menu > summary { cursor: pointer; list-style: none; padding: var(--s-1) var(--s-2); border: 1px solid var(--field-border); border-radius: var(--r-sm); background: var(--panel); white-space: nowrap; }
+.wb-menu > summary::-webkit-details-marker { display: none; }
+.wb-menu-panel { position: absolute; z-index: 5; top: calc(100% + var(--s-1)); left: 0; min-width: 16rem; max-height: 60vh; overflow: auto; padding: var(--s-2) var(--s-3); background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-md); box-shadow: var(--shadow-md); }
+.wb-menu-panel .checkbox-label { margin: var(--s-1) 0; white-space: nowrap; }
+.wb-table-wrap { position: relative; max-height: min(72vh, 52rem); overflow: auto; border: 1px solid var(--panel-border); border-radius: var(--r-md); }
+.wb-table { margin-top: 0; font-size: var(--text-sm); }
+.wb-table th, .wb-table td { white-space: nowrap; }
+.wb-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.wb-table thead th { position: sticky; top: 0; z-index: 2; background: var(--panel); box-shadow: inset 0 -1px 0 var(--panel-border); padding: 0; }
+.wb-table :is(th, td).wb-tick { position: sticky; left: 0; z-index: 1; box-sizing: border-box; width: 2.5rem; min-width: 2.5rem; max-width: 2.5rem; padding-inline: 0; text-align: center; background: var(--panel); }
+.wb-table :is(th, td).wb-name { position: sticky; left: 2.5rem; z-index: 1; background: var(--panel); box-shadow: inset -1px 0 0 var(--panel-border); max-width: 16rem; overflow: hidden; text-overflow: ellipsis; }
+.wb-table thead :is(.wb-tick, .wb-name) { z-index: 3; }
+.wb-table .selected-row :is(.wb-tick, .wb-name) { background: var(--accent-tint); }
+.wb-table td.wb-tick input { margin: 0; }
+.wb-sort { all: unset; box-sizing: border-box; display: block; width: 100%; padding: var(--s-2); cursor: pointer; text-transform: inherit; letter-spacing: inherit; }
+.wb-sort:hover { color: var(--text); background: var(--well); }
+.wb-sort:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.wb-sort-mark { color: var(--accent); }
+.wb-chips { display: inline-flex; gap: var(--s-1); }
+.wb-chips .chip { color: var(--text); font-family: var(--font-mono); }
+.wb-proposed { display: inline-flex; align-items: center; gap: var(--s-1_5); }
+.wb-proposed .proposed-tag { margin: 0; }
+.sim-tag { display: inline-block; margin-left: var(--s-1_5); padding: 0 var(--s-1); border: 1px dashed var(--field-border); border-radius: 2px; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); vertical-align: baseline; }
+.wb-pager { justify-content: center; align-items: center; gap: var(--s-3); margin-top: var(--s-3); font-family: var(--font-mono); font-size: var(--text-xs); }
+.wb-actions { flex-wrap: wrap; gap: var(--s-2); }
+.rule-editor-closed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+@media (max-width: 560px) { .rule-editor-closed { flex-direction: column; align-items: flex-start; } }
+.wb-ticked { align-items: center; gap: var(--s-2) var(--s-3); padding: var(--s-2) var(--s-3); background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-md); }
+.wb-actions .wb-menu > summary { padding: 9px 16px; border-color: var(--panel-border); border-radius: var(--r-md); color: var(--accent); font-weight: 600; }
+.wb-menu-item { display: block; width: 100%; padding: var(--s-1_5) 0; text-align: left; white-space: nowrap; }
+.wb-table td.wb-topics { max-width: 20rem; overflow: hidden; text-overflow: ellipsis; }
+.wb-fund-list { max-height: 40vh; overflow: auto; margin: var(--s-2) 0; }
+.wb-weights { max-width: 28rem; }
+.wb-weights td { vertical-align: middle; }
+.wb-weights input { width: 6rem; min-width: 0; }
+@media (pointer: coarse) { .wb-menu > summary { display: flex; align-items: center; min-height: 44px; } }
+@media (max-width: 760px) {
+  .wb-counts { margin-left: 0; flex-basis: 100%; }
+  .wb-table :is(th, td).wb-name { max-width: 9rem; }
 }

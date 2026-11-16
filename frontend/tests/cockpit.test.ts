@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ballotText, cockpitPath, fmtDate, fmtPct, gapText, isWeekend, monthLabel, pct } from "../src/lib/cockpit.ts";
+import { ballotText, cockpitPath, fmtDate, fmtPct, gapText, isWeekend, monthLabel, pct, themeLabel, themeScale } from "../src/lib/cockpit.ts";
 
 // The page passes route params[1] of `#/stewardiq/cockpit/<as_of>` as `asOf` (AC-73).
 const segment = (hash: string) => hash.replace(/^#\/?/, "").split("/").filter(Boolean)[2];
@@ -40,4 +40,37 @@ test("index.css braces balance: a lost } would nest every later rule inside the 
   const { readFileSync } = await import("node:fs");
   const css = readFileSync(new URL("../src/index.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   assert.equal(css.split("{").length, css.split("}").length);
+});
+
+// spec cockpit-review-fixes: the page styles a ballot with the signal colour exactly when `action_due` is true
+test("AC-7: a declined ballot keeps its word, due or not", () => {
+  assert.equal(ballotText("declined", false, 9), "Declined");
+  assert.equal(ballotText("declined", true, 0), "Declined · decision due today");
+  assert.equal(ballotText("declined", true, 1), "Declined · decision due in 1 day");
+  assert.equal(ballotText("declined", true, 3), "Declined · decision due in 3 days");
+});
+
+const width = (s: number, max: number) => (s / max) * 100;
+
+test("AC-8: named themes on their own scale, All themes and No theme yet on the total", () => {
+  const themes = [{ theme: "Climate", selected: 120 }, { theme: "Nature", selected: 25 }, { theme: "Other", selected: 2181 }];
+  const { maxOf } = themeScale(themes, 2300);
+  assert.equal(width(120, maxOf("Climate")), 100);
+  assert.ok(Math.abs(width(25, maxOf("Nature")) - 20.8) <= 0.1);
+  assert.equal(width(2300, maxOf(null)), 100);
+  assert.ok(Math.abs(width(2181, maxOf("Other")) - 94.8) <= 0.1);
+  assert.equal(themeLabel("Other"), "No theme yet");
+  assert.equal(themeLabel("Climate"), "Climate");
+});
+
+test("AC-15, AC-16: the scale line names only the rows that exist", () => {
+  assert.equal(
+    themeScale([{ theme: "Climate", selected: 10 }, { theme: "Nature", selected: 0 }], 40).note,
+    "Theme rows: a full bar is 10 companies. All themes: a full bar is 40 companies.",
+  );
+  assert.equal(themeScale([{ theme: "Climate", selected: 0 }, { theme: "Other", selected: 40 }], 40).note, "All themes and No theme yet: a full bar is 40 companies.");
+  assert.equal(
+    themeScale([{ theme: "Climate", selected: 1200 }, { theme: "Other", selected: 2181 }], 2300).note,
+    "Theme rows: a full bar is 1,200 companies. All themes and No theme yet: a full bar is 2,300 companies.",
+  );
 });

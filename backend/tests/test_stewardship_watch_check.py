@@ -34,7 +34,7 @@ from arp.schemas.engagement import (
 from arp.stewardship import watch_check
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.postgres_engagement_store import PostgresEngagementStore
-from arp.storage.postgres_models import StwEvidenceSuggestionModel
+from arp.storage.postgres_models import StwEvidenceSuggestionModel, StwObjectiveModel
 from tests.conftest import PRINCIPAL
 
 URL = "/api/stewardship"
@@ -525,3 +525,59 @@ def test_evidence_on_an_item_closed_meanwhile_is_skipped(env, store, issue):
     store.update_commitment_status("C1", issue, c, CommitmentStatus.VERIFIED, "dev", "seen")
 
     assert store.add_suggestions("C1", [s]) == (0, 1) and store.list_suggestions("C1", "pending") == []
+
+
+# --- Review fixes (spec commitment-loop-review-fixes): an objective without a description ------------------------
+
+
+def _blank_objectives(store, issue) -> tuple[str, str]:
+    """Two in-progress objectives, one with description "" and one with NULL, written directly (intake refuses both)."""
+    empty, null = _objective(store, issue), _objective(store, issue)
+    with transaction(store.dsn) as session:
+        session.get(StwObjectiveModel, empty).description = ""
+        session.get(StwObjectiveModel, null).description = None
+    return empty, null
+
+
+def test_blank_descriptions_are_watch_items_ac9(env, store, issue):
+    empty, null = _blank_objectives(store, issue)
+    items = {i.item_id: i.text for i in store.watch_items("C1") if i.item_kind == "objective"}
+    assert items == {empty: "", null: ""}
+
+
+def test_blank_descriptions_read_as_empty_on_the_record_ac10(client, env, store, issue):
+    empty, null = _blank_objectives(store, issue)
+    r = client.get("/api/engagement/records/C1")
+    assert r.status_code == 200, r.text
+    (i,) = r.json()["issues"]
+    assert {o["objective_id"]: o["description"] for o in i["objectives"]} == {empty: "", null: ""}
+
+
+def test_check_on_an_objective_with_a_null_description_ac11(client, env, store, issue):
+    _, null = _blank_objectives(store, issue)
+    _document()
+    _verdict(env, null, "unclear", quote="")
+    r = _check(client, "objective", null)
+    assert (r.status_code, r.json()) == (200, {"documents": 1, "suggestions": 0, "unclear": 1, "skipped": 0})
+
+
+async def test_automatic_check_with_blank_descriptions_ac12(env, store, issue):
+    c = _commitment(store, issue)
+    _blank_objectives(store, issue)
+    _verdict(env, c)
+    path = _document()
+
+    await _discover(path)
+
+    (s,) = store.list_suggestions("C1", "pending")
+    (doc,) = [d for d in await get_registry().fetch_all(CompanyRef(company_id="C1", name="Acme")) if d.local_path == str(path)]
+    assert (s.item_kind, s.item_id, s.doc_id) == ("commitment", c, doc.doc_id)
+
+
+def test_proof_statement_and_result_on_an_objective_with_a_null_description(client, env, store, issue):
+    _, null = _blank_objectives(store, issue)
+    ids = {"company_id": "C1", "issue_id": issue}
+    r = client.post(f"{URL}/watch-items/objective/{null}/proof-statement", json=ids | {"proof_statement": "A target is set"})
+    assert (r.status_code, r.json()["description"], r.json()["proof_statement"]) == (200, "", "A target is set")
+    r = client.post(f"{URL}/objectives/{null}/result", json=ids | {"result": "abandoned", "outcome": "Dropped"})
+    assert (r.status_code, r.json()["description"], r.json()["status"]) == (200, "", "abandoned")

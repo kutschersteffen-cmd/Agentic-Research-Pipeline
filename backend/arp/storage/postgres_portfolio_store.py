@@ -309,6 +309,15 @@ class PostgresPortfolioStore:
             row = session.get(SecurityResolutionModel, security_id)
             return None if row is None else _resolution_from_row(row)
 
+    def list_resolutions(self) -> dict[str, SecurityResolution]:
+        """security_id -> its resolution, in one query."""
+        from sqlalchemy import select
+
+        from arp.storage.postgres_models import SecurityResolutionModel
+
+        with self._session() as session:
+            return {r.security_id: _resolution_from_row(r) for r in session.scalars(select(SecurityResolutionModel))}
+
     def list_resolutions_needing_review(self) -> list[SecurityResolution]:
         from sqlalchemy import select
 

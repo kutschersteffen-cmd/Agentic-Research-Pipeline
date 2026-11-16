@@ -55,6 +55,43 @@ def test_list_observation_keys(tmp_path):
     assert store.list_observation_keys() == [("bmw", "f1"), ("sap", "f2")]
 
 
+def test_latest_observation_is_cached_but_a_changed_file_is_read_again(tmp_path):
+    """The per-file cache (owner decision 15 Nov 2026) never serves a stale value: an appended observation shows on
+    the next read, and a rewritten file (other size) does too."""
+    store = PortfolioStore(tmp_path)
+    obs = lambda value, day: DataPointObservation(company_id="bmw", field_id="f1", field_name="F1", value=value, source="internal_api", observed_at=day)  # noqa: E731
+    store.append_observation(obs(1.0, "2026-01-01"))
+    first = store.latest_observation("bmw", "f1", "2026-12-31")
+    assert first.value == 1.0
+    assert store.latest_observation("bmw", "f1", "2026-12-31") is first  # served from the cache
+    store.append_observation(obs(2.0, "2026-02-01"))
+    assert store.latest_observation("bmw", "f1", "2026-12-31").value == 2.0
+    assert store.latest_observation("bmw", "f1", "2026-01-15").value == 1.0  # another as_of is its own reading
+    path = store.observations_path("bmw", "f1")
+    path.write_text(path.read_text().splitlines()[0] + "\n")  # a rewrite back to the first row only
+    assert store.latest_observation("bmw", "f1", "2026-12-31").value == 1.0
+    path.unlink()
+    assert store.latest_observation("bmw", "f1", "2026-12-31") is None
+
+
+def test_a_same_size_file_restored_with_its_old_mtime_is_read_again(tmp_path):
+    """`cp -p`, `rsync -a` or a backup restore can put back a file of the same size with the old mtime; the cache
+    must still not serve the old value (review round 1 on #491)."""
+    import os
+
+    store = PortfolioStore(tmp_path)
+    store.append_observation(DataPointObservation(company_id="bmw", field_id="f1", field_name="F1", value=8.0, source="internal_api", observed_at="2026-01-01"))
+    path = store.observations_path("bmw", "f1")
+    assert store.latest_observation("bmw", "f1").value == 8.0
+    before = path.stat()
+    replacement = path.with_name("replacement.tmp")
+    replacement.write_text(path.read_text().replace("8.0", "7.0"))  # same size
+    os.utime(replacement, ns=(before.st_atime_ns, before.st_mtime_ns))
+    os.replace(replacement, path)
+    assert (path.stat().st_size, path.stat().st_mtime_ns) == (before.st_size, before.st_mtime_ns)
+    assert store.latest_observation("bmw", "f1").value == 7.0
+
+
 def test_list_observation_keys_empty_when_nothing_recorded(tmp_path):
     store = PortfolioStore(tmp_path)
     assert store.list_observation_keys() == []
