@@ -9,7 +9,6 @@ from arp.api.auth import Principal, authorize, current_user
 from arp.api.deps import get_llm_client, get_run_store, get_taxonomy_store, settings_dep
 from arp.api.main import app
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.emerging_themes.pipeline import create_emerging_themes_run
 from arp.research.pipeline import create_theme_run
 from arp.research.taxonomy_sources.corpus_synthesis import _SynthesizedActivityDraft, _SynthesizedActivityDraftList
@@ -17,6 +16,7 @@ from arp.schemas.common import CompanyRef, JobStatus
 from arp.schemas.emerging_themes import EmergingThemeCandidate, MentionCitation, MentionSourceType
 from arp.schemas.taxonomy import DerivationMethod
 from arp.schemas.thematic import ThemeDefinition
+from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from tests.conftest import FakeLLMClient
 

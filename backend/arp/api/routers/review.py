@@ -9,7 +9,6 @@ from arp.api.auth import Principal, current_user, require_role
 from arp.api.deps import get_document_content_store, get_run_store, settings_dep
 from arp.checks.effectiveness import effectiveness
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.review.analytics import MONTH_PATTERN, monthly_totals
 from arp.review.context import build_context, item_source, read_snapshot
 from arp.review.decide import DecisionError, decide
@@ -17,6 +16,7 @@ from arp.review.items import list_open_items
 from arp.review.quality import reviewer_stats
 from arp.schemas.review import ItemDecisionRequest
 from arp.storage.document_store import DocumentContentStore
+from arp.storage.run_store import RunStore
 from arp.storage.safe_path import UnsafeIdentifierError
 
 router = APIRouter(prefix="/api/review", tags=["review"])

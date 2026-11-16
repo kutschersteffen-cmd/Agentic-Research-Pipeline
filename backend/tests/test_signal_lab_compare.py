@@ -9,12 +9,12 @@ from typer.testing import CliRunner
 from arp.cli import app
 from arp.cli._shared import _run_store
 from arp.config import get_settings
-from arp.db.runs import RunStore
 from arp.schemas.strategy_replication import LegPerformance
 from arp.signal_lab.compare import compare_experiments
 from arp.signal_lab.evidence import EvidenceReport, WindowEvidence
 from arp.signal_lab.registry import Recipe, Registry
 from arp.signal_lab.stats import IcSummary
+from arp.storage.run_store import RunStore
 
 
 def _months(n: int, start_year: int = 2016) -> list[str]:

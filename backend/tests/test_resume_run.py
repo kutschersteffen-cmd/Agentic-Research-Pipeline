@@ -12,7 +12,6 @@ from arp.api.main import app
 from arp.cli.extraction import extract_app
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
-from arp.db.runs import RunStore
 from arp.extraction.financials_pipeline import create_financials_extraction_run
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMUsage
@@ -24,6 +23,7 @@ from arp.research.taxonomy_schema import build_taxonomy_schema
 from arp.schemas.common import CompanyRef, JobStatus
 from arp.schemas.taxonomy import DerivationMethod
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
+from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.voting.pipeline import create_voting_run
 from tests.postgres_helpers import forget_companies, pg_dsn

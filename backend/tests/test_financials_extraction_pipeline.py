@@ -301,10 +301,10 @@ async def test_financials_batch_matches_realtime(tmp_path, pg):
     Batches give identical records, at exactly half the estimated cost."""
     from anthropic.types import Message, ToolUseBlock, Usage
 
-    from arp.db.runs import RunStore
     from arp.extraction.financials_pipeline import create_financials_extraction_run, execute_financials_extraction_run
     from arp.llm.batching_client import BatchingLLMClient
     from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
+    from arp.storage.run_store import RunStore
     from tests.fake_batches import FakeBatches
 
     doc = _doc()

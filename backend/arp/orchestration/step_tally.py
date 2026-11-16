@@ -19,8 +19,8 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any
 
-from arp.db.runs import RunStore
 from arp.llm.base import LLMUsage
+from arp.storage.run_store import RunStore
 
 
 @dataclass

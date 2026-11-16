@@ -8,7 +8,6 @@ from unittest.mock import patch
 import pytest
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.discovery.identity_pipeline import create_identity_run
 from arp.discovery.pipeline import create_discovery_run
 from arp.extraction.financials_pipeline import create_financials_extraction_run
@@ -17,6 +16,7 @@ from arp.orchestration.jobs import LocalJobLauncher, RunBusy, _mark_failed, hold
 from arp.research.pipeline import create_theme_run
 from arp.schemas.common import CompanyRef
 from arp.schemas.thematic import ThemeDefinition
+from arp.storage.run_store import RunStore
 
 COMPANIES = [CompanyRef(company_id="c1", name="One"), CompanyRef(company_id="c2", name="Two", ticker="TWO")]
 
@@ -47,7 +47,7 @@ def test_run_lease_released_when_process_killed(tmp_path, pg):
     code = (
         "import sys, time; from pathlib import Path\n"
         "from arp.orchestration.jobs import run_lease\n"
-        "from arp.db.runs import RunStore\n"
+        "from arp.storage.run_store import RunStore\n"
         "with run_lease(RunStore(sys.argv[2], Path(sys.argv[1])), 'r1'):\n"
         "    print('ready', flush=True); time.sleep(60)\n"
     )

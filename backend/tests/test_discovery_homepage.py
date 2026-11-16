@@ -8,11 +8,11 @@ import httpx
 import pytest
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.discovery import crawler, downloader, site_check, site_finder
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
 from arp.discovery.site_finder import SearchResult, WebSearchClient
 from arp.schemas.common import CompanyRef
+from arp.storage.run_store import RunStore
 
 W = CompanyRef(company_id="w", name="Testwerke AG", lei="5299009TESTWERKE0063", isin="DE000TST0006", country="DE")
 NAME_ONLY = CompanyRef(company_id="w", name="Testwerke AG")

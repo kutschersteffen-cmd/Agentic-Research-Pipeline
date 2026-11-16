@@ -12,7 +12,6 @@ from arp.api.auth import require_role
 from arp.api.deps import get_registry, get_run_store, settings_dep
 from arp.config import Settings
 from arp.db.company_view import known_companies
-from arp.db.runs import RunStore
 from arp.db.session import transaction
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.job_manager import JobManager
@@ -24,6 +23,7 @@ from arp.schemas.common import JobStatus
 from arp.schemas.review import field_item_key, period_key
 from arp.schemas.thematic import CompanyMatch
 from arp.schemas.transition_barrier import BarrierRefreshFinding
+from arp.storage.run_store import RunStore
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
 

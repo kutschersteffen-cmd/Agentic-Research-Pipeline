@@ -16,13 +16,13 @@ from pydantic import BaseModel
 from arp.api.deps import settings_dep
 from arp.api.review_endpoints import get_review_queue
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.emerging_themes.pipeline import load_candidates_with_status
 from arp.schemas.common import CompanyRef, JobStatus, RunManifest, now_iso
 from arp.schemas.emerging_themes import CandidateStatus, ContextBrief
 from arp.schemas.taxonomy import TaxonomyStatus
 from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.locks import KeyedLock
+from arp.storage.run_store import RunStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.themes.position import PositionStore, step5

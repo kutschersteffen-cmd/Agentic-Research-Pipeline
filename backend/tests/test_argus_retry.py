@@ -12,10 +12,10 @@ from arp.api.main import app
 from arp.api.routers import argus as argus_router
 from arp.argus.flows import FlowStore
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.orchestration import jobs
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef, JobStatus, RunManifest
+from arp.storage.run_store import RunStore
 from tests.pdf_fixtures import FILLER, make_pdf
 from tests.test_resume_run import COMPANIES, _resume, _settings, _theme_run
 

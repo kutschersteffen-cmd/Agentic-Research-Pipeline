@@ -9,13 +9,13 @@ from arp.api.deps import get_run_store, settings_dep
 from arp.api.main import app
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
-from arp.db.runs import RunStore
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.verifier_agent import VerifierOutput
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, FieldStatus
+from arp.storage.run_store import RunStore
 from tests.postgres_helpers import pg_dsn, replace_results
 from tests.rules_fixtures import R1, schema_f, with_rules
 from tests.test_doc_routing import _Src

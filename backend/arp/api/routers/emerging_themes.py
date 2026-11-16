@@ -16,7 +16,6 @@ from arp.api.deps import (
     settings_dep,
 )
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.emerging_themes.pipeline import (
     create_emerging_themes_run,
     disconfirm_candidate,
@@ -30,6 +29,7 @@ from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
 from arp.schemas.common import CompanyRef
 from arp.schemas.emerging_themes import EmergingThemesScheduleConfig
+from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
 from arp.themes.dossiers import DossierStore, TaxonomyTaken, get_dossier_store

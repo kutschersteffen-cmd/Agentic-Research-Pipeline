@@ -7,7 +7,6 @@ import pytest
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store
 from arp.api.main import app
-from arp.db.runs import RunStore
 from arp.holdings import load
 from arp.holdings.intake import IntakeError, holder_status, ingest, previous_month_end
 from arp.holdings.validate import RowError, Validated, validate
@@ -15,6 +14,7 @@ from arp.schemas.issuer import IdentifierMap
 from arp.schemas.portfolio import HolderConfig
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.run_store import RunStore
 from tests.conftest import PRINCIPAL
 
 ISIN, ISIN2 = "US0378331005", "DE0007164600"

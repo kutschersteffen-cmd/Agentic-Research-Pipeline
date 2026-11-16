@@ -23,7 +23,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.decision.publish import as_fields
 from arp.engagement.orchestrator import is_stalled
@@ -39,6 +38,7 @@ from arp.stewardship.tiers import evaluate as evaluate_tiers
 from arp.stewardship.universe import HouseUniverseSetting, from_portfolio, held_isins
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.decision_store import DecisionStore
+from arp.storage.run_store import RunStore
 
 SAMPLE_PATH = DATA / "examples" / "sample_meetings.json"
 HOUSE = "house"

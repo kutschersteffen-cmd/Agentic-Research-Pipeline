@@ -1,7 +1,6 @@
 from datetime import UTC, datetime
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.emerging_themes import pipeline as pipeline_module
 from arp.emerging_themes.company_role import CompanyRoleAssessment
 from arp.emerging_themes.ingestion.base import MentionSource
@@ -18,6 +17,7 @@ from arp.research.taxonomy_sources.corpus_synthesis import _SynthesizedActivityD
 from arp.schemas.common import CompanyRef
 from arp.schemas.emerging_themes import ActionType, CandidateStatus, CompanyRole, MentionSourceType, RawMention, TopicCluster
 from arp.schemas.taxonomy import TaxonomyStatus
+from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
 

@@ -7,7 +7,6 @@ from datetime import date, timedelta
 import httpx
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.db.session import retrying
 from arp.discovery.change_detector import ChangeDetector
 from arp.discovery.crawler import CrawlConfig, HomepageUnreachableError, crawl_for_documents
@@ -26,6 +25,7 @@ from arp.orchestration.jobs import hold_run
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.discovery import DiscoveredDocument, DiscoveryCompanyResult, DiscoveryRunParams
 from arp.storage.document_blob_store import blob_store_for
+from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
 

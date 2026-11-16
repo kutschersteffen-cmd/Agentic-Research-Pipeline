@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.orchestration.review_queue import latest_decisions
 from arp.schemas.transition_barrier import RefreshOutcome
+from arp.storage.run_store import RunStore
 from arp.transition_barrier import dataset
 from arp.transition_barrier.refresh import pipeline as refresh_pipeline
 from arp.transition_barrier.refresh.pipeline import RefreshDisabledError, execute_refresh_run, run_refresh

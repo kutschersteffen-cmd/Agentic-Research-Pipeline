@@ -4,11 +4,11 @@ import json
 
 from pydantic import ValidationError
 
-from arp.db.runs import RunStore
 from arp.errors import ClientInputError
 from arp.normalise.units import convert
 from arp.schemas.datapoints import ExtractionRecord
 from arp.storage.atomic_io import atomic_write_text
+from arp.storage.run_store import RunStore
 from arp.xbrl_pipeline.models import RequiredRow, VerifyRow
 from arp.xbrl_pipeline.store import XbrlStore
 

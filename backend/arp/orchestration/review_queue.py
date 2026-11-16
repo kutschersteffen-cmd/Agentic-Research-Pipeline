@@ -5,9 +5,9 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from arp.db.runs import RunStore
 from arp.schemas.common import CompanyRef, now_iso
 from arp.schemas.review import ReviewDecision
+from arp.storage.run_store import RunStore
 
 if TYPE_CHECKING:  # runtime import would cycle: api.auth -> api.deps -> research.pipeline -> here
     from arp.api.auth import Principal

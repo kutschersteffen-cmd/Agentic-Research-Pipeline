@@ -11,10 +11,10 @@ from urllib.parse import urlparse
 import httpx
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
 from arp.discovery.site_finder import SearchResult, WebSearchClient
 from arp.schemas.common import CompanyRef, DocType
+from arp.storage.run_store import RunStore
 from tests.pdf_fixtures import make_image_pdf, make_pdf
 from tests.postgres_helpers import pg_dsn
 

@@ -11,7 +11,6 @@ import pytest
 
 import arp.orchestration.reground as R
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.xbrl import XbrlFactSource, freeze_company_facts
@@ -22,6 +21,7 @@ from arp.schemas.common import Citation, RunManifest
 from arp.schemas.datapoints import ExtractedField, FieldQuality
 from arp.storage.document_blob_store import LocalBlobStore
 from arp.storage.document_store import DocumentContentStore
+from arp.storage.run_store import RunStore
 from tests.postgres_helpers import pg_dsn
 from tests.test_tagged_first import _facts, _FakeXbrl, _field, _run
 

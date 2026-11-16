@@ -13,7 +13,6 @@ from arp.cli._shared import _registry, _run_store, _taxonomy_store, _xbrl_source
 from arp.company_graph import NOT_CONFIGURED, CompanyGraphError, import_edges, open_graph, parse_edge_csv
 from arp.config import Settings, get_settings
 from arp.db.fields import SchemaRegistry
-from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.discovery.site_finder import build_web_search_client
 from arp.golden_set.exposure import ExposureSet, load_set
@@ -40,6 +39,7 @@ from arp.research.taxonomy_schema import THEME_NOT_ALLOWED, ThemeRunRefused, rel
 from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
 from arp.schemas.thematic import MatchVerdict, ThemeDefinition
+from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.universe import load_company_universe
 

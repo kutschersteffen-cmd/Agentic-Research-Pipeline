@@ -4,10 +4,10 @@ from arp.agents.calibration_agent import (
     execute_calibration_run,
     run_calibration_pass,
 )
-from arp.db.runs import RunStore
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.schemas.common import CompanyRef, DocType, JobStatus, RunManifest, SourceDocument
 from arp.schemas.thematic import CompanyMatch, ExposureEstimate, MatchVerdict
+from arp.storage.run_store import RunStore
 
 
 def _match(company_id="c1", name="Acme Corp", activity_id="a1", generated_at="2026-01-01T00:00:00+00:00") -> CompanyMatch:

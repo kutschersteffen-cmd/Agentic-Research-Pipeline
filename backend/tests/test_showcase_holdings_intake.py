@@ -8,11 +8,11 @@ from fastapi.testclient import TestClient
 
 from arp.api.deps import get_identifier_map, get_portfolio_store, get_run_store
 from arp.api.main import app
-from arp.db.runs import RunStore
 from arp.holdings.intake import previous_month_end
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.run_store import RunStore
 
 ISIN = "US0378331005"
 HEADER = "ISIN,LEI,Name,Weight (%),Quantity,Price,Market value,Currency,FX rate to EUR"

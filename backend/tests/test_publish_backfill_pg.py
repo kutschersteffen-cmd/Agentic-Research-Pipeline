@@ -6,9 +6,9 @@ import pytest
 from typer.testing import CliRunner
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.schemas.common import RunManifest
 from arp.storage.document_blob_store import LocalBlobStore
+from arp.storage.run_store import RunStore
 from tests.postgres_helpers import reset_postgres_tables
 from tests.test_publish_release_pg import HASH, ORIG, _decide, _field, _run
 

@@ -11,11 +11,11 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.holdings.intake import previous_month_end
 from arp.orchestration.interval_scheduler import IntervalScheduler
 from arp.schemas.review import field_item_key, period_key
 from arp.storage.atomic_io import atomic_write_text
+from arp.storage.run_store import RunStore
 
 MONTH_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])$"
 

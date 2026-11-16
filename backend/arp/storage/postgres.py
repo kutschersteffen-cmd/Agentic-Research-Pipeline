@@ -3,8 +3,18 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
+from arp.errors import NotConfigured
+
 if TYPE_CHECKING:
     from sqlalchemy import Engine
+
+
+class PostgresExtraNotInstalled(NotConfigured):
+    def __init__(self, exc: Exception) -> None:
+        super().__init__(
+            "sqlalchemy/psycopg/pgvector aren't installed; they are required dependencies: "
+            f"pip install -e . Original import error: {exc}"
+        )
 
 
 # Seconds to wait for a TCP connection to Postgres before giving up.
@@ -28,8 +38,10 @@ def get_engine(dsn: str) -> Engine:
     A `connect_timeout` already present in the DSN wins -- the caller was
     explicit.
     """
-    from sqlalchemy import create_engine
-
+    try:
+        from sqlalchemy import create_engine
+    except ImportError as exc:  # pragma: no cover - exercised only without the optional extra
+        raise PostgresExtraNotInstalled(exc) from exc
     from arp.config import get_settings
 
     settings = get_settings()

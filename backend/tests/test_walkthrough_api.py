@@ -15,7 +15,6 @@ from arp.api.auth import authorize, current_user
 from arp.api.deps import get_document_content_store, get_run_store, settings_dep
 from arp.api.main import app
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.extraction.pipeline import load_run_schema
 from arp.extraction.tnfd_extractor_agent import GeneralRequirementsDraft
 from arp.extraction.verifier_agent import VerifierOutput
@@ -26,6 +25,7 @@ from arp.schemas.common import RunManifest
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.review import ReviewDecision
 from arp.storage.document_store import DocumentContentStore
+from arp.storage.run_store import RunStore
 from arp.walkthrough import trace
 from tests import test_extraction_corrections_pipeline as corr
 from tests import test_walkthrough_financials_tnfd as fintnfd

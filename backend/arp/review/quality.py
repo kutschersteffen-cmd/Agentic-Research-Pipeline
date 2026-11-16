@@ -23,7 +23,6 @@ from arp.checks.numeric import candidates, parse_number
 from arp.checks.runner import CheckContext, check_record
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
-from arp.db.runs import RunStore
 from arp.extraction import extractor_agent, verifier_agent
 from arp.extraction.aggregator import build_extracted_fields
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
@@ -55,6 +54,7 @@ from arp.storage.atomic_io import atomic_write_text
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.locks import KeyedLock
+from arp.storage.run_store import RunStore
 from arp.walkthrough import trace
 
 logger = logging.getLogger(__name__)

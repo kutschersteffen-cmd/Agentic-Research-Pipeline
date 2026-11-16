@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from arp.db.runs import RunStore
 from arp.signal_lab.cutoffs import CutoffTable, ModelCutoff
 from arp.signal_lab.evidence import EvidenceReport, WindowEvidence
 from arp.signal_lab.registry import SIGNAL_REGISTRY_RUN_ID, Recipe, Registry, experiment_id_for
 from arp.signal_lab.stats import IcSummary
+from arp.storage.run_store import RunStore
 
 
 def _recipe(**kw) -> Recipe:

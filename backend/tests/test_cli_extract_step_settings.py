@@ -8,10 +8,10 @@ from typer.testing import CliRunner
 import arp.cli.extraction as cli
 from arp.cli.extraction import extract_app
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.extraction.steps import StepSettings
 from arp.llm.batching_client import BatchingLLMClient
 from arp.schemas.datapoints import DataPointSchema
+from arp.storage.run_store import RunStore
 from arp.xbrl_pipeline.verify import CircularRunError, assert_xbrl_off
 from tests.postgres_helpers import pg_dsn
 

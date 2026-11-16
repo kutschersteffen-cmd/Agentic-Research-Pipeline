@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Protocol
 
 from arp.replication.characteristics_data import CharacteristicPanel
 from arp.replication.sentiment_scoring import build_sentiment_panel
@@ -20,6 +21,10 @@ class SearchHit:
     title: str
     text: str
     published_at: str | None
+
+
+class SearchTool(Protocol):
+    def search(self, query: str, *, before: str) -> list[SearchHit]: ...
 
 
 def _published(hit: SearchHit) -> str | None:

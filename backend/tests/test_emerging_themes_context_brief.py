@@ -5,7 +5,6 @@ from datetime import datetime
 import pytest
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.emerging_themes import pipeline as pipeline_module
 from arp.emerging_themes.context_brief import _ContextBriefDraft, _pct, isic_division, isic_divisions
 from arp.emerging_themes.ingestion.base import MentionSource
@@ -24,6 +23,7 @@ from arp.schemas.emerging_themes import (
     RawMention,
     TopicCluster,
 )
+from arp.storage.run_store import RunStore
 from arp.storage.topic_store import TopicStateStore
 from arp.themes.dossiers import Dossier, context_brief
 from tests.conftest import FakeLLMClient

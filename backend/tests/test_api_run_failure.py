@@ -8,8 +8,8 @@ from fastapi.testclient import TestClient
 from arp.api.deps import get_run_store, settings_dep
 from arp.api.main import app as real_app
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.schemas.common import JobStatus, RunManifest
+from arp.storage.run_store import RunStore
 
 USERS = [
     {"token": "tv", "user_id": "u_v", "name": "V", "role": "viewer"},

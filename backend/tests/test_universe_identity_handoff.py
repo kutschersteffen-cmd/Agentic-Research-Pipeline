@@ -8,10 +8,10 @@ import pytest
 from typer.testing import CliRunner
 
 import arp.cli.identity as cli_identity
-from arp.db.runs import RunStore
 from arp.discovery.identity_pipeline import create_identity_run, enriched_universe, run_identity_resolution
 from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import IdentityResolutionResult, IdentitySignals, IdentityVerdict
+from arp.storage.run_store import RunStore
 from arp.universe import UniverseRejected, load_company_universe
 from tests.test_identity_pipeline import _FakeEdgar, _NullSearch, _settings
 from tests.test_review_decide import ALICE, BOB, decide, env  # noqa: F401 -- env is a fixture

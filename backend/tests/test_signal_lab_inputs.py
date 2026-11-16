@@ -6,11 +6,11 @@ import random
 
 import pytest
 
-from arp.db.runs import RunStore
 from arp.signal_lab.cutoffs import CutoffTable
 from arp.signal_lab.inputs import data_version_for, load_inputs
 from arp.signal_lab.methods.base import run_method, run_recipe
 from arp.signal_lab.registry import Registry
+from arp.storage.run_store import RunStore
 from tests.test_signal_lab_registry import _recipe
 from tests.test_signal_methods_base import _month_ends
 

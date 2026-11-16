@@ -15,11 +15,11 @@ from arp.api.deps import get_decision_store, get_index_store, get_portfolio_stor
 from arp.api.routers import decision as decision_router
 from arp.api.routers import index as index_router
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.stewardship.process import load_sample
 from arp.stewardship.tiers import tier_contexts
 from arp.storage.decision_store import DecisionStore
 from arp.storage.index_store import IndexStore
+from arp.storage.run_store import RunStore
 from tests.conftest import PRINCIPAL
 
 SAMPLE = Path(__file__).resolve().parents[1] / "arp" / "decision" / "sample_data" / "example_transition_universe.csv"

@@ -7,12 +7,12 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_edgar_source, get_run_store, get_web_search_client, settings_dep
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.discovery.identity_pipeline import create_identity_run, enriched_universe, execute_identity_run
 from arp.discovery.site_finder import WebSearchClient
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.llm.factory import batch_settings
 from arp.schemas.common import CompanyRef
+from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/identity", tags=["identity"])

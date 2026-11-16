@@ -21,6 +21,15 @@ def done_keys_from_rows(result_rows: Iterable[dict], error_rows: Iterable[dict] 
     return done
 
 
+def __getattr__(name: str):
+    # `RunStore` is the Postgres store now; resolved lazily because arp.db.runs imports this module.
+    if name == "RunStore":
+        from arp.db.runs import RunStore
+
+        return RunStore
+    raise AttributeError(name)
+
+
 class LegacyRunStore:
     """The pre-Postgres file store: a run's manifest, results, errors, and
     review state as JSON/JSONL files under `runs/<run_id>/`. Kept to read

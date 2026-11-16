@@ -302,7 +302,7 @@ def report(period_label: str, run_id: str | None = None, store: EngagementStore 
     """Reporting Agent: compiles a stewardship report for `period_label`.
     Pass `run_id` to include a voting run's cast votes in the same report;
     omitted, the report covers engagement activity only."""
-    from arp.db.runs import RunStore
+    from arp.storage.run_store import RunStore
 
     vote_records = []
     if run_id:

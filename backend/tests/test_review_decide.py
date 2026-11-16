@@ -11,7 +11,6 @@ from arp.api.review_endpoints import submit_review
 from arp.cli.identity import identity_app
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
-from arp.db.runs import RunStore
 from arp.extraction.history import PriorValue, RunHistory
 from arp.orchestration.review_queue import effective_decisions, item_state
 from arp.review.context import build_context
@@ -19,6 +18,7 @@ from arp.review.decide import sampled, second_review_reasons
 from arp.review.items import get_item, list_open_items
 from arp.schemas.common import RunManifest
 from arp.storage.document_store import DocumentContentStore
+from arp.storage.run_store import RunStore
 from tests.conftest import PRINCIPAL
 from tests.postgres_helpers import pg_dsn, replace_results
 from tests.test_review_context import DOC, FIELD, KEY, START, TEXT, _schema

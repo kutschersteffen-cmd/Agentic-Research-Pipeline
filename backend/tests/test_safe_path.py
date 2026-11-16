@@ -1,8 +1,8 @@
 import pytest
 
-from arp.db.runs import RunStore
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.run_store import RunStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_filename, safe_id
 
 

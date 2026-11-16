@@ -3,11 +3,11 @@ from __future__ import annotations
 import pytest
 
 from arp.api.auth import Principal
-from arp.db.runs import RunStore
 from arp.orchestration.review_queue import append_decision, record_cosign, record_review_decision
 from arp.publish.candidates import Skip, run_candidates
 from arp.schemas.common import RunManifest
 from arp.schemas.review import ReviewDecision
+from arp.storage.run_store import RunStore
 
 KEY = "ISS:f1:2024-12-31"
 OLD = "ISS:f1:2023-12-31"

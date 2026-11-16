@@ -9,12 +9,12 @@ import asyncio
 import pytest
 
 from arp.api.review_endpoints import submit_review
-from arp.db.runs import RunStore
 from arp.schemas.common import RunManifest
 from arp.schemas.voting import CompanyBallot, PolicyRecommendation, Proposal, ProposalType, VotePosition, VoteRecord
 from arp.stewardship import monitoring
 from arp.stewardship.process import HOUSE, StreamStore, flow, load_sample
 from arp.stewardship.voting_feed import issuer_fields, items
+from arp.storage.run_store import RunStore
 from arp.voting.ballot_casting import ManualInstructionBallotPlatform
 from arp.voting.pipeline import cast_approved_votes
 

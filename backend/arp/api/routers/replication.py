@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_llm_client, get_run_store, get_verifier_llm_client, settings_dep
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.discovery.academic_search import ArxivSearchClient, CompositeSearchClient, SemanticScholarSearchClient
 from arp.discovery.site_finder import build_web_search_client
 from arp.llm.base import LLMClient
@@ -24,6 +23,7 @@ from arp.replication.spec_graph import extract_strategy_spec
 from arp.replication.spec_revision import revise_spec_via_instruction
 from arp.schemas.common import JobStatus, RunManifest, new_id
 from arp.schemas.strategy_replication import StrategySpec
+from arp.storage.run_store import RunStore
 
 router = APIRouter(prefix="/api/replication", tags=["replication"])
 

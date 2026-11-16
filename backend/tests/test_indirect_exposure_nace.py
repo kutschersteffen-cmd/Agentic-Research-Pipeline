@@ -7,7 +7,6 @@ import pytest
 
 from arp.cli import app
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMUsage
 from arp.research.indirect_exposure import nace
@@ -20,6 +19,7 @@ from arp.schemas.portfolio import Holding, Portfolio, SecurityRef
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 from arp.storage.issuer_sectors import IssuerSectorStore
 from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.run_store import RunStore
 from tests.io_tier_fixture import write_fixture_v
 from tests.test_io_tier import _round, runner
 from tests.test_research_pipeline import _FixedDocSource, _settings

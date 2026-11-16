@@ -5,7 +5,6 @@ from fastapi.testclient import TestClient
 
 from arp.api.deps import get_run_store
 from arp.api.main import app
-from arp.db.runs import RunStore
 from arp.extraction.extractor_agent import ExtractionDraft
 from arp.extraction.field_graph import extract_one_field
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
@@ -14,6 +13,7 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMUsage
 from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition, FieldQuality
+from arp.storage.run_store import RunStore
 from tests.test_extraction_pipeline import _FixedDocSource, _settings
 
 TEXT = "Acme Corp report. Acme has a net zero target. Total capex was 11,887 million euros in 2025."

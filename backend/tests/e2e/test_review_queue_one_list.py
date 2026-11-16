@@ -9,8 +9,8 @@ from uuid import uuid4
 import pytest
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.schemas.common import JobStatus, RunManifest
+from arp.storage.run_store import RunStore
 
 URL = os.environ.get("ARP_E2E_URL")
 DSN = os.environ.get("ARP_POSTGRES_DSN", "postgresql+psycopg://arp:arp@localhost:5432/arp_test")  # e2e_stack.sh's default

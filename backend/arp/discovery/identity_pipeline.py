@@ -5,7 +5,6 @@ import logging
 import httpx
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.discovery.identity_graph import resolve_company_identity
 from arp.discovery.match_rules import needs_recheck
 from arp.discovery.site_finder import WebSearchClient, build_web_search_client
@@ -19,6 +18,7 @@ from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import IdentityResolutionResult, IdentityVerdict
 from arp.schemas.issuer import lei_is_valid, normalise_lei
 from arp.storage.identifier_map import IdentifierMapStore
+from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
 

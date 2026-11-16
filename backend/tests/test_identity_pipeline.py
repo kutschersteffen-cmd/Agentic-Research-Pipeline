@@ -1,7 +1,6 @@
 import pytest
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.discovery.identity_pipeline import (
     create_identity_run,
     enriched_universe,
@@ -15,6 +14,7 @@ from arp.schemas.discovery import EdgarNameMatch, IdentityAdjudication, Identity
 from arp.schemas.issuer import IdentifierMap
 from arp.schemas.review import ReviewDecision
 from arp.storage.identifier_map import IdentifierMapStore
+from arp.storage.run_store import RunStore
 from tests.postgres_helpers import pg_dsn
 
 pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below

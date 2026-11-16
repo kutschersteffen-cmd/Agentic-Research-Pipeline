@@ -19,11 +19,11 @@ from arp.api.routers.replication import (
     trigger_sanity_check,
     update_spec_draft,
 )
-from arp.db.runs import RunStore
 from arp.replication.spec_extractor_agent import StrategySpecDraft
 from arp.replication.spec_revision import _current_revision_draft
 from arp.replication.spec_verifier_agent import SpecVerifierOutput
 from arp.schemas.strategy_replication import RebalanceFrequency, ReportedPerformance, SignalType, StrategySpec, WeightingScheme
+from arp.storage.run_store import RunStore
 from tests.conftest import PRINCIPAL
 from tests.postgres_helpers import pg_dsn
 

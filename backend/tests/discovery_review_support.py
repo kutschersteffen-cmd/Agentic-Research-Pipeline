@@ -10,10 +10,10 @@ import httpx
 from reportlab.pdfgen import canvas
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
 from arp.discovery.site_finder import WebSearchClient
 from arp.schemas.common import CompanyRef, DocType
+from arp.storage.run_store import RunStore
 
 C1 = CompanyRef(company_id="C1", name="First Co", country="DE")
 C2 = CompanyRef(company_id="C2", name="Second Co", country="DE", website="https://c2.example/")

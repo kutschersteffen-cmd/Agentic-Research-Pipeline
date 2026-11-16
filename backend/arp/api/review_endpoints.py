@@ -3,9 +3,9 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict
 
 from arp.api.auth import Principal
-from arp.db.runs import RunStore
 from arp.errors import ClientInputError
 from arp.orchestration.review_queue import decision_history, latest_decisions, record_review_decision
+from arp.storage.run_store import RunStore
 from arp.transition_barrier import RUN_TYPE as BARRIER_RUN_TYPE
 
 # Shared logic behind the near-identical review-queue endpoints in
