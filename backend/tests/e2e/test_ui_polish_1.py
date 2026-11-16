@@ -134,3 +134,54 @@ def test_ac9_menu_shows_purposes(page, width, height):
     xs = page.evaluate("() => { const d = document.createElement('span'); d.style.fontSize = 'var(--text-xs)'; document.body.append(d); const s = getComputedStyle(d).fontSize; d.remove(); return s; }")
     assert size == xs
     assert abs(pop.bounding_box()["width"] - 280) <= 1 or width < 400
+
+
+# --- F2, F5, F7, F10, F11: workspace and Argus pages ---
+
+
+def test_ac2_argus_head_has_no_duplicate_links(page):
+    _open(page, "/#/argus")
+    head = page.locator(".argus-head")
+    assert head.get_by_role("link", name="Walkthrough").count() == 0
+    assert head.get_by_role("link", name="XBRL Facts").count() == 0
+    assert head.get_by_role("button", name="Start new extraction").count() == 1
+    row = page.get_by_role("navigation", name="Argus screens")
+    assert row.get_by_role("link", name="Walkthrough").count() == 1
+    assert row.get_by_role("link", name="XBRL Facts").count() == 1
+
+
+def test_ac5_process_chips_below_heading_on_phone(page):
+    _open(page, "/#/stewardiq", 390, 844)
+    for sec in page.locator(".hub-process").all():
+        h2 = sec.locator("h2").bounding_box()
+        chip = sec.locator(".hub-process-meta").bounding_box()
+        assert chip["y"] >= h2["y"] + h2["height"] - 1, (h2, chip)
+
+
+def test_ac10_captions_and_passes_on(page):
+    _open(page, "/#/home")
+    import re
+    for cap in page.locator(".hub-card-cap").all_inner_texts():
+        assert re.fullmatch(r"\d+ process(es)?", cap.strip(), re.I), cap
+    _open(page, "/#/stewardiq")
+    text = page.locator(".hub-step").all_text_contents()  # folded processes' steps too
+    assert not any("Hands on:" in t for t in text)
+    assert any("Passes on:" in t for t in text)
+
+
+def test_ac11b_failed_line_links_to_run_history(page):
+    def runs(route):
+        resp = route.fetch()
+        body = resp.json()
+        body["runs"] = [{**(body["runs"][0] if body.get("runs") else {}), "run_id": "e2e-cal-failed", "run_type": "calibration",
+                         "status": "failed", "review_count": 0, "updated_at": "2026-11-16T00:00:00Z",
+                         "created_at": "2026-11-16T00:00:00Z"}] + body.get("runs", [])
+        route.fulfill(response=resp, json=body)
+
+    page.route("**/api/runs", runs)
+    _open(page, "/#/rdLab")
+    line = page.locator(".hub-failed-line").first
+    assert line.inner_text().startswith("Last run failed: ")
+    assert line.get_by_role("link", name="Open Run history →").get_attribute("href") == "#/history"
+    low = page.evaluate("() => { const d = document.createElement('span'); d.style.color = 'var(--low)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; }")
+    assert line.evaluate("e => getComputedStyle(e).color") == low

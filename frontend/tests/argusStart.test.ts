@@ -100,3 +100,12 @@ test("a run started from a flow opens that flow's step; the flow is no longer a 
   const done = argusRows([run({ run_id: "r1", status: "completed" })], [], [f as never]);
   assert.equal(done[0].openHref, "#/argus/f1/5");
 });
+
+// UI polish 1, F7: a failed note is not amber.
+test("pol_ac7_tile_tone", () => {
+  const failed = tiles(argusRows([run({ run_id: "f1", status: "failed" }), run({ run_id: "f2", status: "failed" })], []), []);
+  assert.deepEqual([failed[3].tone, failed[3].needs], ["failed", "2 failed"]);
+  const values = tiles(argusRows([R2], []), [item("r2"), item("r2"), item("r2")]);
+  assert.equal(values[4].tone, "await");
+  assert.ok(tiles([], []).every((t) => t.tone === null));
+});

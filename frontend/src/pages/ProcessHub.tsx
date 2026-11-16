@@ -5,7 +5,7 @@ import { ACTIVE_STATUSES, decisionRunType, waitingCount } from "../lib/runs";
 import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { useMe } from "../lib/reviewer";
-import { STATE_LABEL, cardView, openCount, processState, stepActivity, stepState, stepStatusLine, type Activity } from "../lib/workspaceCard";
+import { STATE_LABEL, cardView, failedProcesses, openCount, processState, stepActivity, stepState, stepStatusLine, type Activity } from "../lib/workspaceCard";
 import { WorkspaceDrawing } from "../components/WorkspaceDrawing";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
@@ -58,14 +58,14 @@ function useActivity(): Activity | null {
 
 /** A workspace as a card: a way into it. A drawing, its purpose, one square per process and one
  * status line naming what matters now; the label carries each process's state for screen readers. */
-function WorkspaceCard({ w, index, runs, flow }: { w: Workspace; index: number; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
   const v = cardView(w, runs, flow, new Date());
   const { word, tone, detail } = v.status;
   const n = w.processes.length;
   return (
     <a className={`hub-card${tone === "wait" ? " hub-card-await" : ""}`} href={`#/${w.id}`} aria-label={v.label}>
       <span className="hub-card-fig">
-        <span className="hub-card-cap">{`Fig 0${index + 1} · ${n} ${n === 1 ? "process" : "processes"}`}</span>
+        <span className="hub-card-cap">{`${n} ${n === 1 ? "process" : "processes"}`}</span>
         <WorkspaceDrawing id={w.id} accent={tone === "wait" ? "wait" : tone === "now" ? "now" : null} />
       </span>
       <span className="hub-card-body">
@@ -115,8 +115,8 @@ export function StartPage() {
         </p>
       )}
       <div className="hub-cards">
-        {WORKSPACES.map((w, i) => (
-          <WorkspaceCard key={w.id} w={w} index={i} runs={runs} flow={flow} />
+        {WORKSPACES.map((w) => (
+          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} />
         ))}
       </div>
     </div>
@@ -303,7 +303,7 @@ function StepCard({ s, i, p, runs, flow, activity }: { s: Step; i: number; p: Pr
         )}
         {s.handsOn && i < p.steps.length - 1 && (
           <span className={s.carried ? "hub-step-handoff" : "hub-step-handoff manual"} title={s.carried ? undefined : "Not passed on automatically: type it into the next step."}>
-            Hands on: {s.handsOn}
+            Passes on: {s.handsOn}
             {!s.carried && " · re-entered by hand"}
           </span>
         )}
@@ -329,6 +329,11 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
       </p>
       {error && <p className="error-text" role="alert">Runs could not be loaded: {error}. Step states are unknown until the backend responds.</p>}
       {usesFlow && flowError && <p className="error-text" role="alert">The stewardship flow could not be loaded: {flowError}. Stage numbers are unknown.</p>}
+      {failedProcesses(w, runs, flow, activity).map((title) => (
+        <p key={title} className="hub-failed-line">
+          Last run failed: {title}. <a href="#/history">Open Run history →</a>
+        </p>
+      ))}
       {w.processes.map((p) => (
         <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} activity={activity} />
       ))}

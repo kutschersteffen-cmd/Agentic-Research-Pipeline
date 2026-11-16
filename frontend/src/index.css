@@ -1654,6 +1654,10 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-step-planned { border-style: dashed; background: transparent; opacity: 0.7; }
 .hub-step-planned .chip { margin-left: auto; }
 .hub-process-meta { display: inline-flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.hub-failed-line { margin: 0 0 var(--s-2); color: var(--low); font-size: var(--text-sm); }
+.hub-failed-line a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+/* On a phone the heading takes its own line; the state and cadence chips sit below it. */
+@media (max-width: 760px) { .hub-process .section-heading { flex-wrap: wrap; } .hub-process .section-heading h2 { flex-basis: 100%; } }
 .hub-process-state { display: inline-flex; align-items: center; gap: var(--s-1_5); font-size: var(--text-xs); color: var(--muted); }
 .hub-step-handoff-key { border-bottom: 2px dashed var(--panel-border); color: var(--mid); }
 @media (prefers-reduced-motion: reduce) { .hub-step-go { transition: none; } }
@@ -2040,6 +2044,8 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-tile[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--text); }
 .argus-tile:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
 .argus-tile-await { border-color: var(--await-edge); background: var(--await); }
+.argus-tile-failed { border-color: var(--low); }
+.argus-tile-failed .argus-tile-needs { color: var(--low); }
 .argus-tile-name { font-family: var(--font-mono); font-size: var(--text-sm); }
 .argus-tile-num { display: inline-block; min-width: 22px; line-height: 22px; text-align: center; margin-right: var(--s-1); border-radius: var(--r-sm); background: var(--well); color: var(--muted); font-weight: 600; }
 .argus-tile-empty .argus-tile-count { font-size: 1.5rem; color: var(--muted); }

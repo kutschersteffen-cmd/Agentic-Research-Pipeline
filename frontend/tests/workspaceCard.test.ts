@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { cardStatus, cardView, reviewBadge, stepStatusLine, workspaceMenuItems, workspaceState } from "../src/lib/workspaceCard.ts";
+import { cardStatus, cardView, failedProcesses, reviewBadge, stepStatusLine, workspaceMenuItems, workspaceState } from "../src/lib/workspaceCard.ts";
 import { WORKSPACES } from "../src/lib/processes.ts";
 import type { RunManifest, StewardshipFlow } from "../src/types.ts";
 
@@ -127,4 +127,20 @@ test("pol_menu_purpose", () => {
   const items = workspaceMenuItems(null, null, NOW);
   assert.equal(items[0].purpose, "Every workspace at a glance");
   assert.deepEqual(items.slice(1).map((i) => i.purpose), WORKSPACES.map((w) => w.purpose));
+});
+
+// UI polish 1, F11: titles of a workspace's failed processes.
+test("pol_ac11_failed_processes", () => {
+  const lab = ws("R&D Lab");
+  const watching = lab.processes.filter((p) => p.steps.some((s) => s.runTypes?.includes("calibration"))).map((p) => p.title);
+  assert.ok(watching.length >= 1);
+  assert.deepEqual(failedProcesses(lab, [run("calibration", "failed")], null, null), watching);
+  assert.deepEqual(failedProcesses(lab, [], null, null), []);
+  assert.deepEqual(failedProcesses(lab, null, null, null), []);
+});
+test("pol_failed_with_wait", () => {
+  // StewardIQ waits on open decisions while a proxy-voting run failed: the failed line still names it.
+  const sq = ws("StewardIQ");
+  const out = failedProcesses(sq, [run("proxy_voting", "failed")], flowWith({ drafting: 2 }), null);
+  assert.ok(out.length >= 1 && out.every((t) => sq.processes.some((p) => p.title === t)), JSON.stringify(out));
 });

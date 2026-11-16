@@ -76,7 +76,8 @@ def test_a_filtered_start_page_says_so_and_offers_show_all(page):
     table.get_by_text("Green capex v2").wait_for()
     process = page.get_by_role("region", name="Process")
     assert "Extractions at each step. Click a step to list only its extractions." in process.inner_text()  # AC-75
-    assert page.locator(".argus-head").get_by_role("link", name="Walkthrough").get_attribute("href") == "#/argusWalkthrough"  # AC-80
+    # AC-80; UI polish 1 F2 moved the link from the header to the workspace row.
+    assert page.get_by_role("navigation", name="Argus screens").get_by_role("link", name="Walkthrough").get_attribute("href") == "#/argusWalkthrough"
 
     page.get_by_label("Only mine").check()
     process.get_by_role("link").nth(2).click()  # 3 Schema: no run is there
