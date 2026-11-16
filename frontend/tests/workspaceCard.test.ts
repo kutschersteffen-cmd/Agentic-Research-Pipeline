@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { cardStatus, cardView, reviewBadge, stepStatusLine, workspaceState } from "../src/lib/workspaceCard.ts";
+import { cardStatus, cardView, reviewBadge, stepStatusLine, workspaceMenuItems, workspaceState } from "../src/lib/workspaceCard.ts";
 import { WORKSPACES } from "../src/lib/processes.ts";
 import type { RunManifest, StewardshipFlow } from "../src/types.ts";
 
@@ -110,4 +110,14 @@ test("sp_review_up_to_date_names_when_any_step_ran", () => {
 test("sp_ac19_card_status_in_view", () => {
   assert.equal(view("Argus", busy).status.word, "Waiting on you");
   assert.equal(view("Argus", down).status.word, "Status unknown");
+});
+
+// App-wide top bar, PR 1: the Workspaces menu.
+test("pr1_menu_items", () => {
+  const empty = workspaceMenuItems(null, null, NOW);
+  assert.deepEqual(empty.map((i) => i.label), ["Start", "StewardIQ", "Argus", "Transition Intel", "R&D Lab", "Data Hub"]);
+  assert.deepEqual(empty.map((i) => i.href), ["#/home", "#/stewardiq", "#/argus", "#/transitionIntel", "#/rdLab", "#/dataHub"]);
+  assert.ok(empty.every((i) => i.tone === null && i.word === ""));
+  const steward = workspaceMenuItems(busy.runs, busy.flow, NOW).find((i) => i.label === "StewardIQ")!;
+  assert.deepEqual([steward.tone, steward.word], ["wait", "Waiting on you"]);
 });

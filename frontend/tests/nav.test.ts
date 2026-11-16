@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { NAV_GROUPS, currentNavIds, navCount, redirectHash } from "../src/lib/nav.ts";
+import { navCount, redirectHash } from "../src/lib/nav.ts";
 
 test("redirectHash sends each removed screen, and any path under it, to its replacement", () => {
   assert.equal(redirectHash("#/dashboard"), "#/home");
@@ -28,19 +28,8 @@ test("redirectHash leaves every other hash alone", () => {
   assert.equal(redirectHash(""), null);
 });
 
-test("the sidebar lists exactly the approved links, in order, under the approved labels", () => {
-  assert.deepEqual(
-    NAV_GROUPS.flatMap((g) => g.ids),
-    ["home", "review", "stewardiq", "argus", "transitionIntel", "rdLab", "dataHub", "reporting", "arcade"],
-  );
-  assert.deepEqual(NAV_GROUPS.map((g) => g.label), [null, "Needs you", "Workspaces", "Output", null]);
-});
-
-test("currentNavIds marks a sidebar link only for its own screen", () => {
-  assert.deepEqual(currentNavIds("argus"), ["argus"]);
-  assert.deepEqual(currentNavIds("review"), ["review"]);
-  for (const off of ["search", "history", "argusUniverse", "transitionPlan"]) assert.deepEqual(currentNavIds(off), [], off);
-});
+// App-wide top bar (2026-11-15-app-wide-top-bar spec) retired the sidebar tests: NAV_GROUPS and currentNavIds went with
+// the sidebar. The Workspaces menu's links are checked in workspaceCard.test.ts (pr1_menu_items).
 
 test("navCount shows the review badge and nothing else", () => {
   assert.equal(navCount("review", { review: 1 }), 1);
