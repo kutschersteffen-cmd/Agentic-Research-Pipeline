@@ -16,7 +16,7 @@ Pick the highest tier any changed file falls in, add the label, and say why in o
 |---|---|---|
 | `risk:low` | Only `docs/**`, `*.md` outside `.claude/`, frontend copy or styles (`*.css`, text-only `.tsx` edits) | Merges once CI is green |
 | `risk:normal` | Anything not low or high | Reads the PR's acceptance matrix, then merges |
-| `risk:high` | Auth, permissions, secrets; database schema or data migrations; money, portfolio weights or index maths; deleting stored data; `.github/workflows/**`, `.claude/hooks/**`, `.claude/settings.json` | Reads the acceptance matrix and the diff |
+| `risk:high` | Auth, permissions, secrets; database schema or data migrations; money, portfolio weights or index maths; deleting stored data; `.github/workflows/**`, `.github/scripts/**`, `.claude/hooks/**`, `.claude/settings.json` | Reads the acceptance matrix and the diff |
 
 A `risk:low` or `risk:normal` PR whose `Evidence review (factory)` passed on its current head is merged
 by the factory, with nothing for the owner to do (`.claude/CLAUDE.md`, no-tap merge).
