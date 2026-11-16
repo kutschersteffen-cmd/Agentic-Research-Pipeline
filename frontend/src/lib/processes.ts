@@ -288,6 +288,28 @@ export const WORKSPACES: Workspace[] = [
 export const PROCESSES: Process[] = WORKSPACES.flatMap((w) => w.processes);
 export const workspaceOfProcess = (id: string | undefined) => WORKSPACES.find((w) => w.processes.some((p) => p.id === id));
 
+// Routes with their own place in the top bar never belong to a workspace.
+const OWN_PLACE = new Set(["home", "review", "reporting", "arcade"]);
+
+/** The workspace a route belongs to, for the workspace row: the longest screens href the hash equals or extends,
+ * else the workspace whose overview the tab is, else a process step's screen. */
+export function workspaceOfRoute(hash: string): WorkspaceId | null {
+  const tab = hash.replace(/^#\/?/, "").split("/")[0];
+  if (OWN_PLACE.has(tab)) return null;
+  // A listed screen wins over the tab: #/argus/new/transition_plan is Transition Intel's, though its tab is argus.
+  let best: [WorkspaceId, number] | null = null;
+  for (const w of WORKSPACES)
+    for (const [href] of w.screens)
+      if ((hash === href || hash.startsWith(href + "/")) && (!best || href.length > best[1])) best = [w.id, href.length];
+  if (best) return best[0];
+  const own = WORKSPACES.find((w) => w.id === tab);
+  if (own) return own.id;
+  return WORKSPACES.find((w) => w.processes.some((p) => p.steps.some((s) => s.tab === tab)))?.id ?? null;
+}
+
+/** The workspace row's links: the workspace itself, then its screens. */
+export const rowLinks = (w: Workspace): [href: string, label: string][] => [[`#/${w.id}`, w.short ?? w.name], ...w.screens];
+
 /** Steward Workflow stages owned by a step; their open decisions are what StewardIQ waits on. */
 export const DECISION_STAGES: string[] = [...new Set(PROCESSES.flatMap((p) => p.steps.map((s) => s.stage).filter((s): s is string => !!s)))];
 

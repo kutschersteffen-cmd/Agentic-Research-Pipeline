@@ -4,6 +4,7 @@ from them: the import, the simulated history, the simulated ESG observations and
 from __future__ import annotations
 
 import csv
+import json
 
 import pytest
 
@@ -16,7 +17,7 @@ from arp.schemas.portfolio import DataPointObservation
 from arp.showcase.load import MONTHS, load
 from arp.showcase.schema import FIELD_IDS
 from arp.showcase.simulate import FILE_ORDER, GRADES, read_holdings, simulate, write_dataset
-from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.portfolio_store import LATEST_FILE, PortfolioStore
 from tests.test_constituent_import import _xlsx
 
 pytestmark = pytest.mark.usefixtures("pg")  # run_month needs Postgres
@@ -81,6 +82,14 @@ def test_every_step_reports_ok_and_the_six_months_run(env, monkeypatch):
     for month in MONTHS:
         assert {r["portfolio_id"] for r in published[("portfolio_climate_metrics", month)]} == PORTFOLIOS
 
+
+
+def test_load_writes_the_compact_latest_observations_file(env):
+    # spec workbench-review-fixes AC-6
+    store = env[0]
+    assert _run(env)[0]
+    entries = json.loads((store.portfolios_dir / LATEST_FILE).read_text())["entries"]
+    assert sorted((e[0], e[1]) for e in entries) == store.list_observation_keys() and entries
 
 def test_history_is_five_rescaled_month_ends_labelled_simulated(env):
     store = env[0]

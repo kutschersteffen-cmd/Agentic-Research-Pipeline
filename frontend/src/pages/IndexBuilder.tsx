@@ -1540,7 +1540,10 @@ function ResultTab({
             {result.trace.map((t, i) => (
               <tr key={i}>
                 <td>{t.stage}</td>
-                <td>{t.label || t.rule_type}</td>
+                <td>
+                  {t.label || t.rule_type}{" "}
+                  {Number(t.detail.simulated) > 0 && <span className="sim-tag">Simulated</span>}
+                </td>
                 <td>{t.candidates_in}</td>
                 <td>{t.candidates_out}</td>
                 <td className="muted">

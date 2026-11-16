@@ -57,9 +57,11 @@ def step_of(stage: str | None) -> int:
 
 
 def ballot_state_of_run(statuses: list[str]) -> str:
-    if statuses and all(s == "cast" for s in statuses):
+    if "awaiting" in statuses or not statuses:
+        return "awaiting"
+    if all(s == "cast" for s in statuses):
         return "cast"
-    return "awaiting" if "awaiting" in statuses or not statuses else "decided"
+    return "declined" if "declined" in statuses else "decided"
 
 
 def ballot_state_of_ledger(items: int, decided: int) -> str:
@@ -80,7 +82,7 @@ def ledger_topic(proponent: str | None, categories: list[str] | None) -> str:
 
 def _vote_bucket(vote: str | None) -> str:
     if vote == "withhold":
-        return "against"
+        return "abstain"
     return vote if vote in ("for", "against", "abstain") else "other"
 
 
@@ -102,9 +104,9 @@ def emissions_of(
     financed: dict[str, float], uncovered: int, companies: dict[str, CompanyRef], engaged: set[str], selected: set[str], escalated: set[str]
 ) -> dict | None:
     """The `emissions` section from per-company financed tCO2e (`metrics.financed_emissions_by_company` over the
-    scope's holdings); None when the total is 0. Sums are taken unrounded, then rounded to 0.01 t."""
+    scope's holdings); None when the total rounds to 0.00 t. Sums are taken unrounded, then rounded to 0.01 t."""
     total = sum(financed.values())
-    if not total:
+    if not round(total, 2):
         return None
 
     def status(c: str) -> str:
@@ -115,7 +117,7 @@ def emissions_of(
     def name(c: str) -> str:
         return companies[c].name if c in companies else c
 
-    top = sorted(financed, key=lambda c: (-financed[c], name(c), c))[:CONTRIBUTORS]
+    top = sorted(financed, key=lambda c: (-round(financed[c], 2), name(c), c))[:CONTRIBUTORS]  # ties as the API shows them
     return {
         "total_tco2e": round(total, 2),
         "engaged_tco2e": round(sum(v for c, v in financed.items() if c in engaged), 2),
@@ -194,6 +196,7 @@ def build(
                 select(
                     VoteMeetingModel.company_id, VoteMeetingModel.issuer_name, VoteMeetingModel.meeting_date,
                     VoteItemModel.categories, VoteItemModel.proponent, VoteDecisionModel.vote, VoteDecisionModel.against_management,
+                    VoteDecisionModel.item_id, VoteDecisionModel.run_id, VoteDecisionModel.decided_at, VoteDecisionModel.decision_id,
                 )
                 .join(VoteItemModel, VoteItemModel.meeting_id == VoteMeetingModel.meeting_id)
                 .join(VoteDecisionModel, VoteDecisionModel.item_id == VoteItemModel.item_id)
@@ -281,7 +284,7 @@ def build(
         })  # fmt: skip
     for r in shareholder:
         r["days_to_meeting"] = (r["date"] - as_of).days
-        r["action_due"] = r["ballot_state"] in ("awaiting", "not_started") and r["days_to_meeting"] <= 7
+        r["action_due"] = r["ballot_state"] in ("awaiting", "not_started", "declined") and r["days_to_meeting"] <= 7
     shareholder.sort(key=lambda r: (r["date"], r["company"], r["company_id"]))
 
     gaps = []
@@ -305,26 +308,41 @@ def build(
     ]
 
     voting = {"season": as_of.year, "meetings": 0, "votes": 0, "for": 0, "against": 0, "abstain": 0, "other": 0, "against_management": 0}
-    topics = {t: [0, 0] for t in TOPICS}
+    topics = {t: [0, 0, 0] for t in TOPICS}
     voted_meetings = set()
 
     def count(company: str | None, day: date, vote: str | None, against_management: bool, topic: str) -> None:
+        bucket = _vote_bucket(vote)
         voting["votes"] += 1
-        voting[_vote_bucket(vote)] += 1
+        voting[bucket] += 1
         voting["against_management"] += against_management
         topics[topic][0] += 1
         topics[topic][1] += against_management
+        topics[topic][2] += bucket == "abstain"
         voted_meetings.add((company, day))
 
+    # a ballot item re-cast in a later run counts once, with its latest decision; rows without a run_id are filed votes
+    latest: dict[str, Row] = {}
     for r in decisions:
-        count(r.company_id or r.issuer_name, _utc_day(r.meeting_date), r.vote, bool(r.against_management), ledger_topic(r.proponent, r.categories))
-    for r in run_items:
+        if r.run_id is not None:
+            key = (r.decided_at or datetime.min.replace(tzinfo=UTC), r.decision_id)
+            cur = latest.get(r.item_id)
+            if cur is None or key > (cur.decided_at or datetime.min.replace(tzinfo=UTC), cur.decision_id):
+                latest[r.item_id] = r
+    for r in decisions:
+        if r.run_id is None or latest[r.item_id] is r:
+            count(r.company_id or r.issuer_name, _utc_day(r.meeting_date), r.vote, bool(r.against_management), ledger_topic(r.proponent, r.categories))
+    cast_items = set()
+    for r in run_items:  # newest run first: the first cast seen for a ballot item is its latest
         d = _iso_day(r["meeting_date"])
-        if r["status"] != "cast" or r["run_id"] in ledger_run_ids or d is None or not (d.year == as_of.year and d <= as_of) or not in_scope(r["company_id"]):
+        if r["status"] != "cast" or (r["company_id"], d, r["item"]) in cast_items:
+            continue
+        cast_items.add((r["company_id"], d, r["item"]))
+        if r["run_id"] in ledger_run_ids or d is None or not (d.year == as_of.year and d <= as_of) or not in_scope(r["company_id"]):
             continue
         count(r["company_id"], d, r["vote"], bool(r["against_management"]), RUN_TOPIC.get(r["type"], TOPICS[4]))
     voting["meetings"] = len(voted_meetings)
-    voting["topics"] = [{"topic": t, "votes": v, "against_management": a} for t, (v, a) in topics.items()]
+    voting["topics"] = [{"topic": t, "votes": v, "against_management": a, "abstain": b} for t, (v, a, b) in topics.items()]
 
     demo = bool(
         any(e.source in DEMO_SOURCES for e in engagements)

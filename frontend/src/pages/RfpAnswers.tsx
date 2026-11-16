@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { api, downloadFile } from "../api/client";
 import { ElapsedLine } from "../components/ElapsedLine";
 import { announce } from "../lib/announce";
 import { importingLine, importResultLine } from "../lib/progress";
 import { useMe } from "../lib/reviewer";
-import type { RfpLibraryEntry, RfpProject, RfpProjectSummary, RfpQuestion } from "../types";
+import type { RfpDocument, RfpLibraryEntry, RfpProject, RfpProjectSummary, RfpQuestion } from "../types";
 
 const STATUS_BADGE: Record<string, string> = {
   "no source": "badge badge-low",
@@ -30,6 +30,7 @@ function Overview({ onOpen }: { onOpen: (id: number) => void }) {
   const me = useMe();
   const [projects, setProjects] = useState<RfpProjectSummary[] | null>(null);
   const [library, setLibrary] = useState<RfpLibraryEntry[] | null>(null);
+  const [documents, setDocuments] = useState<RfpDocument[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   /** The number of files of a running library import; its result line stays until the next import starts. */
@@ -38,6 +39,7 @@ function Overview({ onOpen }: { onOpen: (id: number) => void }) {
   const load = () => {
     api.listRfpProjects().then(setProjects, (e: Error) => setError(e.message));
     api.listRfpLibrary().then(setLibrary, (e: Error) => setError(e.message));
+    api.listRfpDocuments().then(setDocuments, (e: Error) => setError(e.message));
   };
   useEffect(load, []);
 
@@ -77,13 +79,26 @@ function Overview({ onOpen }: { onOpen: (id: number) => void }) {
     });
   }
 
+  function uploadDocument(ev: React.FormEvent<HTMLFormElement>) {
+    ev.preventDefault();
+    const formEl = ev.currentTarget;
+    const form = new FormData(formEl);
+    const replaces = String(form.get("replaces") ?? "");
+    void act(async () => {
+      await api.uploadRfpDocument(form.get("file") as File, String(form.get("title")), String(form.get("document_date")),
+        Number(form.get("priority")), replaces ? Number(replaces) : null);
+      formEl.reset();
+    });
+  }
+
   const approver = me?.role === "approver";
+  const activeDocuments = documents?.filter((d) => d.status === "active") ?? [];
   return (
     <div className="page">
       <h1>RFP Answers</h1>
       <p className="help-text">
-        Upload an investor's RFP (Word or Excel). Its questions are found and drafted only from the answer library, each
-        draft showing the entries it came from. A second person approves every answer; approved answers go back into the
+        Upload an investor's RFP (Word or Excel). Its questions are drafted from the answer library first, then from the
+        reference documents in priority order, each draft showing the sources it came from. A second person approves every answer; approved answers go back into the
         investor's own file and into the library.
       </p>
       {error && <p className="error-text" role="alert">{error}</p>}
@@ -142,6 +157,49 @@ function Overview({ onOpen }: { onOpen: (id: number) => void }) {
                   <td>
                     {approver && e.status === "active" && (
                       <button className="secondary" disabled={busy} onClick={() => void act(() => api.retireRfpEntry(e.id))}>Retire</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>Reference documents</h2>
+        <p className="help-text">
+          Used only where the answer library does not answer a question, priority 1 first. PDF or Word, with a text layer.
+        </p>
+        {approver && (
+          <form className="inline-fields" onSubmit={uploadDocument}>
+            <input id="rfp-document-file" name="file" type="file" accept=".pdf,.docx" required aria-label="Reference document file" />
+            <input id="rfp-document-title" name="title" required placeholder="Title" aria-label="Title" />
+            <input id="rfp-document-date" name="document_date" type="date" required aria-label="Document date" />
+            <input id="rfp-document-priority" name="priority" type="number" min={1} step={1} defaultValue={1} required aria-label="Priority" />
+            <select id="rfp-document-replaces" name="replaces" defaultValue="" aria-label="Replaces">
+              <option value="">Replaces nothing</option>
+              {activeDocuments.map((d) => <option key={d.id} value={d.id}>Replaces {d.title}</option>)}
+            </select>
+            <button disabled={busy}>Upload document</button>
+          </form>
+        )}
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead><tr><th>Priority</th><th>Title</th><th>File</th><th>Document date</th><th>Review by</th><th>Status</th><th /></tr></thead>
+            <tbody>
+              {documents?.length === 0 && <tr><td colSpan={7} className="muted">No reference documents yet.</td></tr>}
+              {documents?.map((d) => (
+                <tr key={d.id}>
+                  <td>{d.priority}</td>
+                  <td>{d.title}</td>
+                  <td>{d.filename}</td>
+                  <td>{d.document_date}</td>
+                  <td>{d.review_by}</td>
+                  <td>{d.status}</td>
+                  <td>
+                    {approver && d.status === "active" && (
+                      <button className="secondary" disabled={busy} onClick={() => void act(() => api.retireRfpDocument(d.id))}>Retire</button>
                     )}
                   </td>
                 </tr>
@@ -246,6 +304,11 @@ function QuestionCard({ q, projectId, act }: { q: RfpQuestion; projectId: number
   const canApprove = me?.role === "approver" && q.status !== "approved" && q.last_editor !== me.user_id && q.answer.trim() !== "";
   // Four-eyes: say so where the Approve button would be, instead of leaving it out silently.
   const ownEdit = me?.role === "approver" && q.status !== "approved" && q.last_editor === me.user_id;
+  // The base entry's question is that of the source citing it; the comparison itself is worked out by the server.
+  // `?? []`: the AC-145 stub in tests/e2e/test_showcase_stewardship_side.py sends no segments; keep this guard
+  const segments = q.segments ?? [];
+  const showChange = (q.status === "drafted" || q.status === "edited") && q.base_entry_id != null && segments.length > 0;
+  const baseQuestion = q.sources.find((src) => src.entry_id === q.base_entry_id)?.entry_question;
 
   return (
     <section className="card" aria-label={`Question ${q.location}`}>
@@ -257,6 +320,33 @@ function QuestionCard({ q, projectId, act }: { q: RfpQuestion; projectId: number
         <span className="chip">{q.assignee ? `assigned to ${q.assignee}` : "unassigned"}</span>
         {q.last_editor && <span className="chip">last edited by {q.last_editor}</span>}
       </div>
+      {q.status === "drafted" && q.document_priority === 0 && <p className="muted">From approved answers only</p>}
+      {q.status === "drafted" && q.document_priority != null && q.document_priority > 0 && (
+        <p className="muted">Uses documents (priority {q.document_priority})</p>
+      )}
+      {showChange && (
+        <div>
+          <p className="help-text">
+            {segments.every((seg) => seg.change === "kept") ? "Approved answer, unchanged" : `${q.kept_share}% unchanged from the approved answer`}
+            {baseQuestion && <> · based on <strong>{baseQuestion}</strong></>}
+          </p>
+          <p>
+            {segments.map((seg, i) => (
+              <Fragment key={i}>
+                {i > 0 && " "}
+                {/* screen readers do not announce <ins>/<del>, so each mark says what it is */}
+                {seg.change === "added" ? (
+                  <ins><span className="visually-hidden">added: </span>{seg.text}</ins>
+                ) : seg.change === "removed" ? (
+                  <del><span className="visually-hidden">removed: </span>{seg.text}</del>
+                ) : (
+                  seg.text
+                )}
+              </Fragment>
+            ))}
+          </p>
+        </div>
+      )}
       <label className="field-label">
         Answer
         <textarea id={`rfp-answer-${q.id}`} rows={3} value={answer} readOnly={!canEdit} onChange={(e) => setAnswer(e.target.value)} />
@@ -265,7 +355,17 @@ function QuestionCard({ q, projectId, act }: { q: RfpQuestion; projectId: number
         <ul>
           {q.sources.map((s, i) => (
             <li key={i}>
-              <strong>{s.entry_question}</strong> “{s.quote}” <span className="muted">— {s.file ? `${s.file}, ${s.location}` : s.source}</span>
+              {s.kind === "document" ? (
+                <>
+                  <span className="chip">document</span> <strong>{s.title}</strong>{s.page != null && <>, p. {s.page}</>} “{s.quote}”{" "}
+                  <span className="muted">— {s.file}</span>
+                </>
+              ) : (
+                <>
+                  <span className="chip">approved answer</span> <strong>{s.entry_question}</strong> “{s.quote}”{" "}
+                  <span className="muted">— {s.file ? `${s.file}, ${s.location}` : s.source}</span>
+                </>
+              )}
             </li>
           ))}
         </ul>

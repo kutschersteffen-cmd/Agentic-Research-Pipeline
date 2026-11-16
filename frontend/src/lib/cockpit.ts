@@ -24,6 +24,14 @@ export function fmtPct(part: number, whole: number): string {
 
 export const fmtCount = (n: number): string => n.toLocaleString("en-US");
 
+/** The voting card's name for the `abstain` bucket, which holds abstain and withhold votes. */
+export const ABSTAIN_LABEL = "abstained or withheld";
+
+/** What follows a topic's against-management share: `· <a> of <n> · <q>% abstained or withheld`. */
+export function topicNote(t: { votes: number; against_management: number; abstain: number }): string {
+  return `· ${fmtCount(t.against_management)} of ${fmtCount(t.votes)} · ${fmtPct(t.abstain, t.votes)} ${ABSTAIN_LABEL}`;
+}
+
 function ymd(iso: string): [number, number, number] {
   const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
   return [y, m, d];
@@ -53,12 +61,31 @@ export function monthLabel(iso: string, first: boolean): string {
   return first || d === 1 ? MONTHS[m - 1] : "";
 }
 
-const BALLOT: Record<string, string> = { cast: "Cast", decided: "Decided, not cast", awaiting: "Awaiting decision", not_started: "Not started" };
+const BALLOT: Record<string, string> = {
+  cast: "Cast", decided: "Decided, not cast", declined: "Declined", awaiting: "Awaiting decision", not_started: "Not started",
+};
 
 export function ballotText(state: string, actionDue: boolean, days: number): string {
   if (!actionDue) return BALLOT[state] ?? state;
-  if (days <= 0) return "Decision due today";
-  return days === 1 ? "Decision due in 1 day" : `Decision due in ${days} days`;
+  const due = days <= 0 ? "Decision due today" : days === 1 ? "Decision due in 1 day" : `Decision due in ${days} days`;
+  // A declined ballot keeps its word when due (spec cockpit-review-fixes, owner decision 3).
+  return state === "declined" ? `Declined · ${due.toLowerCase()}` : due;
+}
+
+export const OTHER_THEME = "Other";
+export const themeLabel = (theme: string): string => (theme === OTHER_THEME ? "No theme yet" : theme);
+
+/** The theme grid's two bar scales (spec cockpit-review-fixes): named themes against the largest named theme,
+ * "All themes" and "No theme yet" against all selected companies; `note` says both on the page. */
+export function themeScale(themes: { theme: string; selected: number }[], selected: number) {
+  const named = Math.max(0, ...themes.filter((t) => t.theme !== OTHER_THEME).map((t) => t.selected));
+  const totals = themes.some((t) => t.theme === OTHER_THEME) ? "All themes and No theme yet" : "All themes";
+  const note = [named > 0 ? `Theme rows: a full bar is ${fmtCount(named)} companies.` : "", `${totals}: a full bar is ${fmtCount(selected)} companies.`];
+  const themeMax = Math.max(1, named);
+  const totalMax = Math.max(1, selected);
+  /** The full-bar count for a row; null is the "All themes" row. */
+  const maxOf = (theme: string | null): number => (theme === null || theme === OTHER_THEME ? totalMax : themeMax);
+  return { maxOf, note: note.filter(Boolean).join(" ") };
 }
 
 const GAP: Record<string, string> = { no_objective: "No objective", no_next_meeting: "No next meeting" };

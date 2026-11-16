@@ -60,6 +60,7 @@ import type {
   XbrlRequiredRow,
   XbrlTag,
   XbrlVerifyRow,
+  RfpDocument,
   RfpLibraryEntry,
   RfpProject,
   RfpProjectSummary,
@@ -69,6 +70,9 @@ import type {
   SignalMethod,
   BilateralPick,
   Confirmed,
+  StewardNote,
+  StewardNoteList,
+  VoteList,
   PortfolioGroup,
   PriorityPreview,
   ProgrammeList,
@@ -288,6 +292,17 @@ export const api = {
     return request<{ imported: number; dropped: string[] }>("/api/rfp/library/import", { method: "POST", body: form });
   },
   retireRfpEntry: (id: number) => request<RfpLibraryEntry>(`/api/rfp/library/${id}/retire`, { method: "POST" }),
+  listRfpDocuments: () => request<RfpDocument[]>("/api/rfp/documents"),
+  uploadRfpDocument: (file: File, title: string, documentDate: string, priority: number, replaces: number | null) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("title", title);
+    form.append("document_date", documentDate);
+    form.append("priority", String(priority));
+    if (replaces !== null) form.append("replaces", String(replaces));
+    return request<RfpDocument>("/api/rfp/documents", { method: "POST", body: form });
+  },
+  retireRfpDocument: (id: number) => request<RfpDocument>(`/api/rfp/documents/${id}/retire`, { method: "POST" }),
   listRfpProjects: () => request<RfpProjectSummary[]>("/api/rfp/projects"),
   createRfpProject: (file: File, investor: string, dueDate: string) => {
     const form = new FormData();
@@ -940,6 +955,9 @@ export const api = {
   createPortfolioGroup: (body: { name: string; kind: "portfolios" | "companies"; members: string[] }) =>
     request<PortfolioGroup>("/api/portfolio/groups", jsonBody("POST", body)),
   getSimulatedSchema: () => request<DataPointSchema>("/api/climate/simulated-schema"),
+  getNotes: (companyId: string) => request<StewardNoteList>(`/api/stewardship/notes${buildQuery({ company_id: companyId })}`),
+  addNote: (body: { company_id: string; text: string; scope: string }) => request<StewardNote>("/api/stewardship/notes", jsonBody("POST", body)),
+  getVotes: (companyId: string) => request<VoteList>(`/api/stewardship/votes${buildQuery({ company_id: companyId })}`),
   previewCoverage: (graph: unknown) =>
     request<CoveragePreview>("/api/stewardship/studio/coverage/preview", { method: "POST", body: JSON.stringify({ graph }) }),
   getMonitoringTriggers: () => request<{ triggers: MonitoringTrigger[] }>("/api/stewardship/studio/monitoring/triggers"),
@@ -1145,6 +1163,10 @@ export const api = {
     request<Storyline>(`/api/reports/${encodeURIComponent(reportId)}/storyline`, { method: "PUT", body: JSON.stringify(storyline) }),
   approveStoryline: (reportId: string) =>
     request<ReportManifest>(`/api/reports/${encodeURIComponent(reportId)}/storyline/approve`, { method: "POST" }),
+  /** Accepts slide `n` (1-based) as it is, clearing the fit ladder's needs-review flag that blocks the download. */
+  approveSlide: async (reportId: string, n: number) => {
+    await authFetch(`${API_BASE}/api/reports/${encodeURIComponent(reportId)}/slides/${n}/approve`, { method: "POST" });
+  },
   getReportFindings: (reportId: string) => request<{ findings: Finding[] }>(`/api/reports/${encodeURIComponent(reportId)}/findings`),
   reportDownloadUrl: (reportId: string, file?: string) =>
     `${API_BASE}/api/reports/${encodeURIComponent(reportId)}/download${buildQuery({ file })}`,

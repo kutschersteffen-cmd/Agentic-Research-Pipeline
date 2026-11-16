@@ -73,6 +73,12 @@ class PostgresPortfolioStore:
         """Every (company_id, field_id) with a recorded observation."""
         return self._files.list_observation_keys()
 
+    def seed_latest_observations(self) -> dict[tuple[str, str], tuple]:
+        return self._files.seed_latest_observations()
+
+    def save_latest_observations(self, keys, unchanged_from: dict | None = None) -> bool:
+        return self._files.save_latest_observations(keys, unchanged_from)
+
     def append_news(self, item: NewsItem) -> None:
         self._files.append_news(item)
 

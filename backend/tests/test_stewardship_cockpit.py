@@ -285,11 +285,22 @@ def _run(statuses, policy=("against", "against", "for", "for"), run_id="r1", day
 
 
 @pytest.mark.parametrize(("statuses", "state", "due"), [
-    (["awaiting"] * 4, "awaiting", True), (["cast", "decided", "decided", "declined"], "decided", False), (["cast"] * 4, "cast", False),
+    (["awaiting"] * 4, "awaiting", True), (["cast", "decided", "decided", "decided"], "decided", False), (["cast"] * 4, "cast", False),
 ])  # fmt: skip
 def test_run_ballot_state_ac36_to_ac38(pg, statuses, state, due):
     [row] = cockpit.build(pg, date(2026, 11, 17), _run(statuses), {}, None)["shareholder_meetings"]
     assert (row["items"], row["flagged"], row["ballot_state"], row["action_due"], row["run_id"]) == (4, 2, state, due, "r1")
+
+
+@pytest.mark.parametrize(("statuses", "day", "state", "days", "due"), [
+    (["declined", "cast", "cast", "cast"], "2026-11-19", "declined", 2, True),
+    (["declined", "cast", "cast", "cast"], "2026-11-26", "declined", 9, False),
+    (["awaiting", "declined", "cast", "cast"], "2026-11-19", "awaiting", 2, True),
+])  # fmt: skip
+def test_declined_run_ballot_is_action_due_review_fixes_ac3_to_ac5(pg, statuses, day, state, days, due):
+    # spec cockpit-review-fixes: a declined item has no vote, so the ballot is not settled
+    [row] = cockpit.build(pg, date(2026, 11, 17), _run(statuses, day=day), {}, None)["shareholder_meetings"]
+    assert (row["ballot_state"], row["days_to_meeting"], row["action_due"]) == (state, days, due)
 
 
 def test_run_row_replaces_ledger_meeting_and_latest_run_wins_ac39(pg):
@@ -331,8 +342,9 @@ def test_voting_season_and_topics_ac40_ac41(client, pg):
     ]  # fmt: skip
 
 
-def test_vote_values_ac42():
-    assert [cockpit._vote_bucket(v) for v in ("withhold", "one_year", "do_not_vote", "for")] == ["against", "other", "other", "for"]
+def test_vote_values_ac42_superseded_by_vote_abstain_ac10():
+    # spec vote-abstain-and-seed-fixes AC-10: a withhold counts with abstentions, not as `against`
+    assert [cockpit._vote_bucket(v) for v in ("withhold", "one_year", "do_not_vote", "for")] == ["abstain", "other", "other", "for"]
 
 
 def test_split_vote_counts_twice_ac43(client, pg):
@@ -352,6 +364,67 @@ def test_cast_run_vote_counts_unless_in_ledger(pg):
     with transaction(pg) as s:
         s.execute(update(VoteDecisionModel).values(run_id="r1"))
     assert cockpit.build(pg, date(2026, 11, 17), rows, {}, None)["voting"]["votes"] == 1
+
+
+# --- spec vote-abstain-and-seed-fixes ----------------------------------------------------------------------------
+
+VOTING_KEYS = ("meetings", "votes", "for", "against", "abstain", "other", "against_management")
+
+
+def test_abstain_and_withhold_bucket_and_topics_vote_abstain_ac9_ac10_ac11(client, pg):
+    _company(pg, "isin_XG", "Gamma SE")
+    d = ["DIRECTOR ELECTIONS"]
+    _decisions(pg, "2026-03-10", [
+        (d, None, "abstain", None), (d, None, "withhold", True), (d, None, "withhold", None),
+        (["SECTION 14A SAY-ON-PAY VOTES"], None, "against", True), (["AUDIT-RELATED"], None, "for", False),
+    ], "m1")  # fmt: skip
+    v = _get(client)["voting"]
+    assert {k: v[k] for k in VOTING_KEYS} == {"meetings": 1, "votes": 5, "for": 1, "against": 1, "abstain": 3, "other": 0, "against_management": 2}
+    assert [(t["topic"], t["votes"], t["against_management"], t["abstain"]) for t in v["topics"]] == [
+        ("Shareholder proposals", 0, 0, 0), ("Remuneration", 1, 1, 0), ("Director elections", 3, 1, 3), ("Auditors", 1, 0, 0), ("Capital and other", 0, 0, 0),
+    ]  # fmt: skip
+
+
+def _recast(pg, first, second):
+    """One G item decided in run R1, then again in run R2: (decided_at, vote, against_management) each."""
+    _company(pg, "isin_XG", "Gamma SE")
+    _decisions(pg, "2026-03-10", [(["X"], None, first[1], first[2])], "m1")
+    with transaction(pg) as s:
+        s.execute(update(VoteDecisionModel).values(run_id="R1", decided_at=first[0]))
+        s.add(VoteDecisionModel(decision_id="m1d9", source="test", external_id="m1d9", item_id="m1i0", run_id="R2", decided_at=second[0], vote=second[1], against_management=second[2]))  # fmt: skip
+
+
+@pytest.mark.parametrize(("r1_day", "expected"), [
+    (datetime(2026, 3, 1, tzinfo=UTC), {"votes": 1, "for": 0, "against": 1, "against_management": 1}),
+    (datetime(2026, 3, 9, tzinfo=UTC), {"votes": 1, "for": 1, "against": 0, "against_management": 0}),
+])  # fmt: skip
+def test_recast_ledger_item_counts_latest_decision_vote_abstain_ac12_ac13(client, pg, r1_day, expected):
+    _recast(pg, (r1_day, "for", False), (datetime(2026, 3, 5, tzinfo=UTC), "against", True))
+    v = _get(client)["voting"]
+    assert {k: v[k] for k in expected} == expected
+
+
+def test_recast_ledger_item_without_dates_counts_once_vote_abstain_ac14(client, pg):
+    _recast(pg, (None, "for", False), (None, "against", True))
+    v = _get(client)["voting"]
+    assert (v["votes"], v["against"]) == (1, 1)  # tie: the greater decision_id wins
+
+
+@pytest.mark.parametrize(("item2", "expected"), [
+    (("for", "cast"), {"meetings": 1, "votes": 2, "for": 1, "against": 1, "against_management": 1}),
+    (("against", "decided"), {"votes": 2, "for": 1, "against": 1, "against_management": 1}),  # item 2 from the older run
+])  # fmt: skip
+def test_recast_run_item_counts_newest_cast_vote_abstain_ac15_ac16(pg, item2, expected):
+    def run(run_id, votes, statuses):
+        return [
+            {"run_id": run_id, "company_id": "H", "company": "Hotel AG", "meeting_date": "2026-03-12", "item": str(i + 1), "type": "say_on_pay",
+             "management": "for", "policy": "for", "vote": vote, "status": st, "against_management": vote == "against"}
+            for i, (vote, st) in enumerate(zip(votes, statuses, strict=True))
+        ]  # fmt: skip
+
+    rows = run("new", ["against", item2[0]], ["cast", item2[1]]) + run("old", ["for", "for"], ["cast", "cast"])
+    v = cockpit.build(pg, date(2026, 11, 17), rows, {}, None)["voting"]
+    assert {k: v[k] for k in expected} == expected
 
 
 # --- scope and demo -----------------------------------------------------------------------------------------------
@@ -469,6 +542,19 @@ def test_seed_tiers_cover_every_held_company_by_house_share(client, pg):
     assert len(rows) == 16 and "top_weight" not in {r["rule"] for r in rows.values()}
     assert all(r["inputs"]["holding"]["index_weight_pct"] < 0.05 for r in rows.values())
     assert _get(client, as_of="2026-11-27")["summary"] == {"selected": 17, "engaged_selected": 16, "engaged_outside_selection": 0}
+
+
+def test_seed_tiers_skip_companies_held_at_zero_review_fixes_ac6(client, pg):
+    # spec cockpit-review-fixes: a company held only through 0 EUR holdings is not held, so it gets no tier
+    _demo_stack(pg)
+    store = build_portfolio_store(get_settings())
+    store.save_company(CompanyRef(company_id="isin_XZ0000000001", name="Zero"))
+    store.save_security(SecurityRef(security_id="XZ0000000001", isin="XZ0000000001", name="Zero", asset_class="equity", currency="EUR", company_id="isin_XZ0000000001"))
+    held = store.load_holdings_as_of("2026-11-01", None)
+    store.save_snapshot("D", "2026-11-01", [*held, Holding(holder_id="D", security_id="XZ0000000001", as_of_date="2026-11-01", market_value_eur=0.0)])
+    assert _seed("2026-11-27").exit_code == 0
+    issuers = {r["issuer_id"] for r in TierStore(get_settings().stewardship_streams_dir).all()}
+    assert issuers == {f"isin_XD{i:010d}" for i in range(16)}
 
 
 def test_seed_cockpit_demo_fails_without_enough_held_companies(client, pg):

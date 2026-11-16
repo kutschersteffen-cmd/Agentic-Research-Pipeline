@@ -64,6 +64,7 @@ export type RunStarted = Served<S["RunStarted"]>;
 export type PriorRun = Served<S["PriorRun"]>;
 
 export type RfpLibraryEntry = Served<S["RfpLibraryEntryOut"]>;
+export type RfpDocument = Served<S["RfpDocumentOut"]>;
 export type RfpProjectSummary = Served<S["RfpProjectSummary"]>;
 export type RfpProject = Served<S["RfpProjectOut"]>;
 export type RfpQuestion = Served<S["RfpQuestionOut"]>;
@@ -1310,7 +1311,7 @@ export const CHART_TYPES: ChartType[] = [
   "bar", "column", "stacked_column", "line", "area", "pie", "doughnut", "scatter", "radar", "waterfall", "heatmap", "table",
 ];
 
-export type ChartSpec = Served<S["arp__schemas__reporting__ChartSpec"]>;
+export type ChartSpec = Served<S["arp__schemas__chart_specs__ChartSpec"]>;
 
 export interface TableSpec {
   dataset_id: string;
@@ -2215,6 +2216,9 @@ export type PortfolioGroup = Served<S["PortfolioGroup"]>;
 export type WorklistScopes = Served<S["WorklistScopes"]>;
 export type ProgrammeList = Served<S["ProgrammeList"]>;
 export type Confirmed = Served<S["Confirmed"]>;
+export type StewardNote = Served<S["Note"]>;
+export type StewardNoteList = Served<S["NoteList"]>;
+export type VoteList = Served<S["VoteList"]>;
 
 export interface PolicyVersionMeta {
   version: number;

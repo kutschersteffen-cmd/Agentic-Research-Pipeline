@@ -1,16 +1,24 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type Ref } from "react";
 import { api } from "../api/client";
-import { OBJECTIVE_RESULTS, INFLUENCE_LEVELS, canSaveResult, checkLine, evidenceText, evidenceWhere, foundLine, isDemo, issueTopics } from "../lib/engagement";
+import { OBJECTIVE_RESULTS, INFLUENCE_LEVELS, canSaveResult, checkLine, dueText, evidenceText, evidenceWhere, fmt, foundHeader, foundLine, isDemo, issueTopics, loadSuggestions, noteAnchor, quoteInNote } from "../lib/engagement";
 import type { EngagementIssue, EvidenceSuggestion, Objective, WatchItemKind, WatchListEntry, WatchTopic } from "../types";
 
 // Watch list pieces of the issue panel (spec stewardship-commitment-loop, "What the user sees").
-// Values are shown raw, and dates as the first 10 characters of the stored ISO value.
+// Codes are shown as words (`fmt`), and due dates as stored unless they are ISO timestamps (`dueText`).
 
 interface Ctx {
   companyId: string;
   issueId: string;
   busy: boolean;
   run: (fn: () => Promise<unknown>) => Promise<unknown>;
+  /** the signed-in name; "" when signed out, which disables the write buttons */
+  actor: string;
+  /** the file engagement store, which has no proof statements */
+  fileStore: boolean;
+  /** the item whose evidence was just confirmed, for its `Evidence confirmed` line */
+  confirmedId: string | null;
+  setConfirmedId: (id: string) => void;
+  focusLater: (get: () => HTMLElement | null | undefined) => void;
 }
 
 const STORE_409 = "Watch items need the Postgres engagement store.";
@@ -29,6 +37,26 @@ function useFocusOnClose<T extends HTMLElement>(open: boolean) {
   return ref;
 }
 
+/** Focuses an element once the panel is idle again: during a run its buttons are disabled and the lists reload. */
+export function useFocusWhenIdle(busy: boolean) {
+  const [target, setTarget] = useState<(() => HTMLElement | null | undefined) | null>(null);
+  useEffect(() => {
+    if (busy || !target) return;
+    target()?.focus();
+    setTarget(null);
+  }, [busy, target]);
+  return (get: () => HTMLElement | null | undefined) => setTarget(() => get);
+}
+
+/** The polite `Evidence confirmed: <item>` line in an item's row, outside the suggestion card, which goes away. */
+export function ConfirmedStatus({ ctx, itemId, label }: { ctx: Ctx; itemId: string; label: string }) {
+  return (
+    <div className="activity-meta" role="status">
+      {ctx.confirmedId === itemId ? `Evidence confirmed: ${label}` : ""}
+    </div>
+  );
+}
+
 /** `Proof: …` under an item, or for an open item without one, an "Add proof statement" link. */
 export function ProofLine({ ctx, kind, id, label, proof, open, onSaved }: { ctx: Ctx; kind: WatchItemKind; id: string; label: string; proof?: string | null; open: boolean; onSaved: () => Promise<unknown> }) {
   const [editing, setEditing] = useState(false);
@@ -41,10 +69,10 @@ export function ProofLine({ ctx, kind, id, label, proof, open, onSaved }: { ctx:
         Proof: {proof}
       </div>
     );
-  if (!open) return null;
+  if (!open || ctx.fileStore) return null;
   if (!editing)
     return (
-      <button className="link-button" ref={ref} aria-label={`Add proof statement: ${label}`} onClick={() => setEditing(true)}>
+      <button className="link-button" ref={ref} aria-label={`Add proof statement: ${label}`} onClick={() => setEditing(true)} disabled={!ctx.actor}>
         Add proof statement
       </button>
     );
@@ -91,17 +119,18 @@ function ObjectiveRow({ ctx, objective: o, demo, suggestions, closed, onSaved, o
       <div className="activity-main">
         {o.description}
         <div className="activity-meta">
-          <span className={badge(o.status)}>{o.status}</span>
+          <span className={badge(o.status)}>{fmt(o.status)}</span>
           <span>{o.objective_type}</span>
-          {o.result && <span>result: {o.result}</span>}
-          {o.target_date && <span>due {o.target_date.slice(0, 10)}</span>}
+          {o.result && <span>result: {fmt(o.result)}</span>}
+          {o.target_date && <span>due {dueText(o.target_date)}</span>}
           {demo && <span className="chip">Demo data</span>}
         </div>
         <ProofLine ctx={ctx} kind="objective" id={o.objective_id} label={o.description} proof={o.proof_statement} open={isOpen} onSaved={onSaved} />
         <ConfirmedEvidence suggestions={suggestions} itemId={o.objective_id} />
+        <ConfirmedStatus ctx={ctx} itemId={o.objective_id} label={o.description} />
         {isOpen && !closed && suggestions.available && (
           <>
-            <PendingEvidence ctx={ctx} suggestions={suggestions} itemId={o.objective_id} onConfirmed={prefill} />
+            <PendingEvidence ctx={ctx} suggestions={suggestions} itemId={o.objective_id} label={o.description} onConfirmed={prefill} />
             <CheckButton ctx={ctx} kind="objective" id={o.objective_id} label={o.description} onChecked={suggestions.reload} />
           </>
         )}
@@ -113,7 +142,9 @@ function ObjectiveRow({ ctx, objective: o, demo, suggestions, closed, onSaved, o
                 <select autoFocus value={result} onChange={(e) => setResult(e.target.value)}>
                   <option value="">—</option>
                   {OBJECTIVE_RESULTS.map((r) => (
-                    <option key={r}>{r}</option>
+                    <option key={r} value={r}>
+                      {fmt(r)}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -143,7 +174,7 @@ function ObjectiveRow({ ctx, objective: o, demo, suggestions, closed, onSaved, o
         )}
       </div>
       {isOpen && !recording && (
-        <button ref={trigger} aria-label={`Record result: ${o.description}`} onClick={() => setRecording(true)} disabled={ctx.busy}>
+        <button ref={trigger} aria-label={`Record result: ${o.description}`} onClick={() => setRecording(true)} disabled={ctx.busy || !ctx.actor}>
           Record result
         </button>
       )}
@@ -176,6 +207,7 @@ export function WatchTopicsSection({ ctx, closed, suggestions }: { ctx: Ctx; clo
   const [due, setDue] = useState("");
   const heading = useRef<HTMLHeadingElement>(null);
   const addButton = useFocusOnClose<HTMLButtonElement>(adding);
+  const checks = useRef(new Map<string, HTMLButtonElement | null>());
 
   async function load() {
     try {
@@ -228,26 +260,42 @@ export function WatchTopicsSection({ ctx, closed, suggestions }: { ctx: Ctx; clo
             {t.question}
             <div className="activity-meta">
               <span className={badge(t.status)}>{t.status}</span>
-              {t.target_date && <span>due {t.target_date.slice(0, 10)}</span>}
+              {t.target_date && <span>due {dueText(t.target_date)}</span>}
             </div>
             <ProofLine ctx={ctx} kind="topic" id={t.topic_id} label={t.question} proof={t.proof_statement} open={t.status === "open"} onSaved={load} />
             <ConfirmedEvidence suggestions={suggestions} itemId={t.topic_id} />
+            <ConfirmedStatus ctx={ctx} itemId={t.topic_id} label={t.question} />
             {t.status === "open" && !closed && (
               <>
-                <PendingEvidence ctx={ctx} suggestions={suggestions} itemId={t.topic_id} />
-                <CheckButton ctx={ctx} kind="topic" id={t.topic_id} label={t.question} onChecked={suggestions.reload} />
+                <PendingEvidence
+                  ctx={ctx}
+                  suggestions={suggestions}
+                  itemId={t.topic_id}
+                  label={t.question}
+                  onConfirmed={() => ctx.focusLater(() => checks.current.get(t.topic_id))}
+                />
+                <CheckButton
+                  ctx={ctx}
+                  kind="topic"
+                  id={t.topic_id}
+                  label={t.question}
+                  onChecked={suggestions.reload}
+                  buttonRef={(el) => {
+                    checks.current.set(t.topic_id, el);
+                  }}
+                />
               </>
             )}
           </div>
           {t.status === "open" && (
-            <button aria-label={`Close topic: ${t.question}`} onClick={() => close(t.topic_id)} disabled={ctx.busy}>
+            <button aria-label={`Close topic: ${t.question}`} onClick={() => close(t.topic_id)} disabled={ctx.busy || !ctx.actor}>
               Close topic
             </button>
           )}
         </div>
       ))}
       {!noStore && !closed && !adding && (
-        <button ref={addButton} onClick={() => setAdding(true)} disabled={ctx.busy}>
+        <button ref={addButton} onClick={() => setAdding(true)} disabled={ctx.busy || !ctx.actor}>
           Add watch topic
         </button>
       )}
@@ -284,6 +332,10 @@ export interface Suggestions {
   confirmed: EvidenceSuggestion[];
   /** false on the file engagement store, which has no suggestions: no Check or Find buttons then */
   available: boolean;
+  /** why the last load failed, shown as "Suggestions unavailable: <error>"; null on success and on the file store's 409 */
+  error: string | null;
+  /** true once a load answered the file store's 409; false while loading and after any other error */
+  fileStore: boolean;
   reload: () => Promise<void>;
 }
 
@@ -292,28 +344,30 @@ export function useSuggestions(companyId: string): Suggestions {
   const [pending, setPending] = useState<EvidenceSuggestion[]>([]);
   const [confirmed, setConfirmed] = useState<EvidenceSuggestion[]>([]);
   const [available, setAvailable] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fileStore, setFileStore] = useState(false);
   const current = useRef(companyId);
   current.current = companyId;
   async function reload() {
-    try {
-      const [p, c] = await Promise.all([api.listSuggestions(companyId, "pending"), api.listSuggestions(companyId, "confirmed")]);
-      if (current.current !== companyId) return; // the panel moved to another company while this loaded
-      setPending(p.suggestions);
-      setConfirmed(c.suggestions);
-      setAvailable(true);
-    } catch {
-      setAvailable(false); // the file store answers 409; the panel works without suggestions
+    const { loaded, error } = await loadSuggestions((status) => api.listSuggestions(companyId, status));
+    if (current.current !== companyId) return; // the panel moved to another company while this loaded
+    if (loaded) {
+      setPending(loaded.pending);
+      setConfirmed(loaded.confirmed);
     }
+    setAvailable(loaded !== null);
+    setError(error);
+    setFileStore(loaded === null && error === null); // loadSuggestions' result for the 409 only
   }
   useEffect(() => {
     reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId]);
-  return { pending, confirmed, available, reload };
+  return { pending, confirmed, available, error, fileStore, reload };
 }
 
 /** "Check against documents" and, once it ran, the one-line result. */
-export function CheckButton({ ctx, kind, id, label, onChecked }: { ctx: Ctx; kind: WatchItemKind; id: string; label: string; onChecked: () => Promise<unknown> }) {
+export function CheckButton({ ctx, kind, id, label, onChecked, buttonRef }: { ctx: Ctx; kind: WatchItemKind; id: string; label: string; onChecked: () => Promise<unknown>; buttonRef?: Ref<HTMLButtonElement> }) {
   const [line, setLine] = useState<string | null>(null);
   const check = () =>
     ctx.run(async () => {
@@ -323,7 +377,7 @@ export function CheckButton({ ctx, kind, id, label, onChecked }: { ctx: Ctx; kin
     });
   return (
     <div className="inline-fields">
-      <button aria-label={`Check against documents: ${label}`} onClick={check} disabled={ctx.busy}>
+      <button ref={buttonRef} aria-label={`Check against documents: ${label}`} onClick={check} disabled={ctx.busy}>
         Check against documents
       </button>
       {line && <span className="activity-meta" role="status">{line}</span>}
@@ -332,13 +386,13 @@ export function CheckButton({ ctx, kind, id, label, onChecked }: { ctx: Ctx; kin
 }
 
 /** Reject with a required reason, shared by both kinds of suggestion. */
-function RejectButton({ ctx, s, onDecided }: { ctx: Ctx; s: EvidenceSuggestion; onDecided: () => Promise<unknown> }) {
+function RejectButton({ ctx, s, label, onDecided }: { ctx: Ctx; s: EvidenceSuggestion; label: string; onDecided: () => Promise<unknown> }) {
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const trigger = useFocusOnClose<HTMLButtonElement>(rejecting);
   if (!rejecting)
     return (
-      <button ref={trigger} className="link-button" onClick={() => setRejecting(true)} disabled={ctx.busy}>
+      <button ref={trigger} className="link-button" aria-label={label} onClick={() => setRejecting(true)} disabled={ctx.busy}>
         Reject
       </button>
     );
@@ -363,8 +417,8 @@ function RejectButton({ ctx, s, onDecided }: { ctx: Ctx; s: EvidenceSuggestion; 
   );
 }
 
-/** The pending evidence suggestions on one item. `onConfirmed` runs after a confirm, before the lists reload. */
-export function PendingEvidence({ ctx, suggestions, itemId, onConfirmed, onSaved }: { ctx: Ctx; suggestions: Suggestions; itemId: string; onConfirmed?: (s: EvidenceSuggestion) => void; onSaved?: () => Promise<unknown> }) {
+/** The pending evidence suggestions on one item (`label` is its text). `onConfirmed` runs after a confirm, before the lists reload. */
+export function PendingEvidence({ ctx, suggestions, itemId, label, onConfirmed, onSaved }: { ctx: Ctx; suggestions: Suggestions; itemId: string; label: string; onConfirmed?: (s: EvidenceSuggestion) => void; onSaved?: () => Promise<unknown> }) {
   const mine = suggestions.pending.filter((s) => s.kind === "evidence" && s.item_id === itemId);
   const decided = async () => {
     await suggestions.reload();
@@ -373,6 +427,7 @@ export function PendingEvidence({ ctx, suggestions, itemId, onConfirmed, onSaved
   const confirm = (s: EvidenceSuggestion) =>
     ctx.run(async () => {
       await api.confirmSuggestion(s.suggestion_id);
+      ctx.setConfirmedId(itemId);
       onConfirmed?.(s);
       await decided();
     });
@@ -385,10 +440,10 @@ export function PendingEvidence({ ctx, suggestions, itemId, onConfirmed, onSaved
           <div className="activity-meta">{evidenceWhere(s)}</div>
           {s.reason && <div className="activity-meta">{s.reason}</div>}
           <div className="toolbar">
-            <button onClick={() => confirm(s)} disabled={ctx.busy}>
+            <button aria-label={`Confirm evidence: ${label}`} onClick={() => confirm(s)} disabled={ctx.busy}>
               Confirm
             </button>
-            <RejectButton ctx={ctx} s={s} onDecided={decided} />
+            <RejectButton ctx={ctx} s={s} label={`Reject evidence: ${label}`} onDecided={decided} />
           </div>
         </div>
       ))}
@@ -439,12 +494,20 @@ function FoundCommitment({ ctx, s, issue, closed, onDecided }: { ctx: Ctx; s: Ev
     });
   return (
     <div className="suggestion">
-      <strong>
-        Argus found a commitment in the {note?.activity_type ?? note?.type ?? "note"} of {note?.date.slice(0, 10)}
-      </strong>
+      <strong>{foundHeader(note)}</strong>
       <div>{s.text}</div>
       {s.proof_statement && <div className="activity-meta">Proof: {s.proof_statement}</div>}
-      <blockquote>"{s.quote}"</blockquote>
+      {note && quoteInNote(s.quote, note.summary) ? (
+        <blockquote>"{s.quote}"</blockquote>
+      ) : (
+        note && (
+          <div>
+            <button className="link-button" onClick={() => document.getElementById(noteAnchor(note.entry_id))?.focus()}>
+              Show the note
+            </button>
+          </div>
+        )
+      )}
       <label className="field-label">
         Due date
         <input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
@@ -454,7 +517,7 @@ function FoundCommitment({ ctx, s, issue, closed, onDecided }: { ctx: Ctx; s: Ev
         <button onClick={add} disabled={ctx.busy || !due || closed}>
           Add commitment
         </button>
-        <RejectButton ctx={ctx} s={s} onDecided={onDecided} />
+        <RejectButton ctx={ctx} s={s} label={`Reject commitment: ${s.text}`} onDecided={onDecided} />
       </div>
       {closed && <span className="muted">This engagement is closed. Reopen it to add a commitment.</span>}
     </div>
@@ -490,8 +553,8 @@ export function DossierWatchList({ entries }: { entries: WatchListEntry[] }) {
           <div className="activity-main">
             {WATCH_KIND[e.item_kind]}: {e.text}
             <div className="activity-meta">
-              {e.target_date && <span>due {e.target_date.slice(0, 10)}</span>}
-              {e.flag && <span className="badge badge-low">{e.flag}</span>}
+              {e.target_date && <span>due {dueText(e.target_date)}</span>}
+              {e.flag && <span className={e.flag === "overdue" ? "badge badge-mid" : "badge badge-low"}>{e.flag}</span>}
             </div>
             {e.proof_statement && <div className="activity-meta">Proof: {e.proof_statement}</div>}
             {e.evidence.map((line) => (
