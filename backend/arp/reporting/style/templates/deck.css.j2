@@ -23,6 +23,7 @@ h1.t-headline { position: absolute; margin: 0; left: {{ t.grid.margin_x }}px; to
 /* Recurring mark: a short ink rule above the headline. The accent is not decoration (DESIGN.md's One Signal Rule). */
 .slide::after { content: ""; position: absolute; left: {{ t.grid.margin_x }}px; top: {{ t.grid.margin_top - 32 - t.grid.rule_height }}px; width: {{ t.grid.rule_width }}px; height: {{ t.grid.rule_height }}px; background: var(--ink); }
 {% endif %}
+.slide[data-visual]::after { content: none; }  /* component slides draw their own strip, not the legacy accent rule */
 .slot { position: absolute; overflow: hidden; overflow-wrap: normal; }
 /* Metric numbers are ink (DESIGN.md). Bottom-aligned so it sits on its label; the padding holds the glyph descent inside the box. */
 .k-number { color: var(--ink); white-space: nowrap; display: flex; align-items: flex-end; padding-bottom: 0.2em; font-variant-numeric: tabular-nums; }
