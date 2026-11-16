@@ -93,32 +93,6 @@ def test_invalid_users_json_raises(tmp_path):
 
 
 @pytest.fixture
-def real_client(users_file, tmp_path, pg):
-    real_app.dependency_overrides.clear()
-    real_app.dependency_overrides[settings_dep] = lambda: Settings(users_file=users_file, runs_dir=tmp_path / "runs")
-    real_app.dependency_overrides[get_run_store] = lambda: RunStore(pg, tmp_path / "runs")
-    yield TestClient(real_app)
-    real_app.dependency_overrides.clear()
-
-
-def test_voting_router_requires_sign_in(real_client):
-    assert real_client.get("/api/voting/runs/r1/review-queue").status_code == 401
-    assert real_client.get("/api/voting/runs/r1/review-queue", headers=bearer("ta")).status_code == 200
-    assert real_client.get("/api/themes/runs/r1/results").status_code == 401
-
-
-EMPTY_QUEUE = {"pending": [], "decided": []}
-NO_VOTES = {"cast_count": 0, "votes": []}
-
-
-def test_voting_viewer_reads_but_cannot_cast(real_client):  # AC-4, AC-5
-    r = real_client.get("/api/voting/runs/ac4_none/review-queue", headers=bearer("tv"))
-    assert (r.status_code, r.json()) == (200, EMPTY_QUEUE)
-    r = real_client.post("/api/voting/runs/ac5_none/cast", headers=bearer("tv"))
-    assert (r.status_code, r.json()["detail"]) == (403, "Requires role 'analyst' or higher")
-
-
-@pytest.fixture
 def real_client_at(users_file, tmp_path, pg):
     """The real app (conftest's signed-in approver removed) with these settings, called from `host`."""
 
@@ -134,13 +108,36 @@ def real_client_at(users_file, tmp_path, pg):
     real_app.dependency_overrides.clear()
 
 
+@pytest.fixture
+def real_client(real_client_at):
+    return real_client_at("testclient")
+
+
+def test_voting_router_requires_sign_in(real_client):
+    assert real_client.get("/api/voting/runs/r1/review-queue").status_code == 401
+    assert real_client.get("/api/voting/runs/r1/review-queue", headers=bearer("ta")).status_code == 200
+    assert real_client.get("/api/themes/runs/r1/results").status_code == 401
+
+
+EMPTY_QUEUE = {"pending": [], "decided": []}
+NO_VOTES = {"cast_count": 0, "votes": []}
+
+
+def test_voting_viewer_reads_but_cannot_cast(real_client_at):  # AC-4, AC-5
+    local = real_client_at("127.0.0.1", auth_mode="local")
+    r = local.get("/api/voting/runs/ac4_none/review-queue", headers=bearer("tv"))
+    assert (r.status_code, r.json()) == (200, EMPTY_QUEUE)
+    r = local.post("/api/voting/runs/ac5_none/cast", headers=bearer("tv"))
+    assert (r.status_code, r.json()["detail"]) == (403, "Requires role 'analyst' or higher")
+
+
 def test_voting_without_token_is_401_in_local_mode(real_client_at):  # AC-6
     local = real_client_at("127.0.0.1", auth_mode="local")
     assert local.get("/api/voting/runs/ac6_none/review-queue").status_code == 401
 
 
-def test_voting_analyst_can_cast(real_client):  # AC-8
-    r = real_client.post("/api/voting/runs/ac8_none/cast", headers=bearer("ta"))
+def test_voting_analyst_can_cast(real_client_at):  # AC-8
+    r = real_client_at("127.0.0.1", auth_mode="local").post("/api/voting/runs/ac8_none/cast", headers=bearer("ta"))
     assert (r.status_code, r.json()) == (200, NO_VOTES)
 
 
@@ -149,7 +146,7 @@ def test_voting_cast_open_under_showcase_dev_settings(real_client_at):  # AC-10
     r = hub.post("/api/voting/runs/ac10_none/cast", headers={"Origin": "https://hub.example"})
     assert (r.status_code, r.json()) == (200, NO_VOTES)
     # the same request with the bank settings off is refused, so the 200 above comes from dev sign-in
-    other = real_client_at("10.1.2.3", auth_mode="dev")
+    other = real_client_at("10.1.2.3", auth_mode="dev", dev_trusted_networks=[])
     assert other.post("/api/voting/runs/ac10_none/cast", headers={"Origin": "https://hub.example"}).status_code == 401
 
 
