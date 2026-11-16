@@ -2,7 +2,8 @@
 
 Slug: showcase-login-origins
 
-Risk: `risk:high` for the build (sign-in and permissions). Size S, 1 PR: run book, install guide, launch script.
+Risk: `risk:high` for the build (sign-in and permissions). Size S, 1 PR: launch script, install guide, root `README.md`, run book (`RUN_SHEET.md`,
+`demo/showcase/README.md`), and two earlier specs' rows (`voting-api-login` AC-10, `bank-jupyter-launch` AC-11a).
 
 Status: owner's choices recorded 16 Nov 2026 (buttons in the spec session); waiting for approval of this spec.
 Source: security review of PR #529 (`voting-api-login`), 16 Nov 2026, point 1; the owner chose "fix it as its own
@@ -49,8 +50,9 @@ and direct network access still is. (c) Both, plus an app-side refusal of dev mo
 
 - The showcase install signs nobody in without a token.
 - The run book says, step by step, how the presenter gets and uses a token, including for the loader script.
-- `launch_jupyter.sh up` will not start the showcase in dev mode, so a forgotten `.env` line fails loudly the day
-  before rather than silently reopening the gap.
+- `scripts/launch_jupyter.sh up` refuses to start any install unless `ARP_AUTH_MODE=local`, so a forgotten `.env`
+  line fails loudly the day before rather than silently reopening the gap. Dev mode stays possible only when the
+  API is started some other way (e2e stack, compose, plain uvicorn).
 
 ## Non-goals
 
@@ -69,10 +71,11 @@ and direct network access still is. (c) Both, plus an app-side refusal of dev mo
    `ARP_AUTH_MODE=local`, `ARP_USERS_FILE=<repo>/config/users.json` and `ARP_TRUSTED_HOSTS=["*"]`.
    `ARP_DEV_TRUSTED_NETWORKS` and `ARP_ALLOWED_ORIGINS` are gone: in local mode the page and the API share one
    origin through the proxy, so CORS plays no part. The steps become `users` → paste the two printed lines into
-   `.env` → `up`. "Sign-in behind the proxy" and "Two reviewers" are rewritten to match. One sentence says never to
-   combine `ARP_AUTH_MODE=dev` with `ARP_ALLOWED_ORIGINS=["*"]`, and why. `README.md`'s sign-in section
-   (about line 112) gets the same sentence, because its claim that another website gets no bypass is false with
-   `"*"`.
+   `.env` → `up`. "Sign-in behind the proxy" and "Two reviewers" are rewritten to match, and the section's prose
+   (outside the `ini` block) gets this sentence, verbatim: *Never combine `ARP_AUTH_MODE=dev` with
+   `ARP_ALLOWED_ORIGINS=["*"]`: `"*"` lets any website open in the same browser act as the dev approver.*
+   `README.md`'s sign-in section gets the same sentence, and its clause "so another website cannot act as you"
+   (about line 112), false with `"*"`, is reworded so it no longer says `another website cannot`.
 3. **Run book**, `demo/showcase/RUN_SHEET.md` "Day before" and `demo/showcase/README.md`: before `up`, run
    `scripts/launch_jupyter.sh users` once. Edit the first reviewer's `name` to the presenter's name, since the
    release in step 4 records it. Add the two lines to `backend/.env`. The loader step becomes
@@ -86,8 +89,11 @@ and direct network access still is. (c) Both, plus an app-side refusal of dev mo
    AC-10 pins a known gap, not a promise: a later fix that refuses this combination retires the row. The row's
    expected result stays as written, because the app code does not change. So its test
    (`test_auth.py::test_voting_cast_open_under_showcase_dev_settings`, and any hidden test written for it) keeps
-   passing. Only a name or comment that calls these "the showcase settings" is reworded. Nothing is deleted or
-   weakened.
+   passing. Its function name stays; only comments that call these "the showcase settings" are reworded.
+   Nothing is deleted, renamed or weakened.
+5. **Spec `bank-jupyter-launch`, row AC-11a** (edited in the build PR): "a valid `backend/.env`" becomes "a valid
+   `backend/.env` (with `ARP_AUTH_MODE=local` and `ARP_USERS_FILE` pointing at an existing users file, spec
+   `showcase-login-origins`)". The rows that start "After AC-11a" follow from it unchanged.
 
 **Requests without an `Origin` header.** In local mode nothing changes for them, and nothing needs to: every
 request needs a token, with or without `Origin`, from loopback too (AC-3). A cross-site attack needs the browser
@@ -108,27 +114,36 @@ The wording of the run-book and guide paragraphs, within design points 2 and 3.
 
 ## Sequencing
 
-After PR #529 merges. AC-1, AC-2 and AC-4 use `/api/voting`, which needs sign-in only from #529 on.
+After PR #529 merges. AC-1 to AC-4 and AC-11 use `/api/voting`, which needs sign-in only from #529 on.
 
 ## Acceptance
 
 Settings "Showcase-local" for every row that names them: `ARP_AUTH_MODE=local`, `ARP_USERS_FILE` pointing at a
 users file with an `approver` token `tok_presenter` (user `u_presenter`, name `Presenter`), and
-`ARP_TRUSTED_HOSTS=["*"]`. The worst case leaves the old lines in: `ARP_DEV_TRUSTED_NETWORKS=["0.0.0.0/0"]`,
-`ARP_ALLOWED_ORIGINS=["*"]`.
+`ARP_TRUSTED_HOSTS=["*"]`. The `unit` rows that send requests use the real app in process with the client address
+set, like `real_client_at` in `backend/tests/test_auth.py`; the e2e stack stays in dev mode (Non-goals).
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-1 | Showcase-local, the old `ARP_DEV_TRUSTED_NETWORKS` and `ARP_ALLOWED_ORIGINS` lines still set | `POST /api/voting/runs/ac1_none/cast` from client `10.1.2.3` with header `Origin: https://evil.example` and no `Authorization` header | Status 401, header `WWW-Authenticate: Bearer` | holdout |
-| AC-2 | AC-1's settings | `GET /api/voting/runs/ac2_none/review-queue` from client `10.1.2.3` with header `Origin: https://evil.example` and no `Authorization` header | Status 401 | holdout |
-| AC-3 | AC-1's settings | `POST /api/voting/runs/ac3_none/cast` from `127.0.0.1` with no `Origin` and no `Authorization` header | Status 401 (no dev sign-in from loopback in local mode) | holdout |
-| AC-4 | Showcase-local, `ARP_DEV_TRUSTED_NETWORKS` and `ARP_ALLOWED_ORIGINS` unset (the new guide) | `POST /api/voting/runs/ac4_none/cast` from client `10.1.2.3` with header `Origin: https://hub.example` and `Authorization: Bearer tok_presenter` | Status 200, body `{"cast_count": 0, "votes": []}` | holdout |
-| AC-5 | `ARP_POSTGRES_DSN`, `ARP_LLM_MODEL`, `ARP_LLM_VERIFIER_MODEL` set; `ARP_AUTH_MODE=dev` (and, separately, unset); no `backend/.env`; `ARP_LAUNCH_PORT=8765` | `scripts/launch_jupyter.sh up` | Exit status 1; stderr contains the line `ARP_AUTH_MODE must be local for this launch: run scripts/launch_jupyter.sh users, add the two lines it prints to backend/.env, then up again`; nothing answers on `http://127.0.0.1:8765/api/health` | holdout |
-| AC-6 | Postgres from `ensure-deps.sh postgres`, `backend/.env` with the new guide's sign-in lines and a users file from `scripts/launch_jupyter.sh users`, `JUPYTERHUB_SERVICE_PREFIX=/user/x/` | `scripts/launch_jupyter.sh up` | Stdout has exactly one line containing `/user/x/proxy/8000/`, and `GET http://localhost:8000/api/health` returns 200 (`bank-jupyter-launch` AC-11a, must not change) | evaluator |
-| AC-7 | AC-6's running app | A browser with no stored token opens `http://localhost:8000/` | The top-left shows the label `Access token` and an input with placeholder `Paste your token`. After a token from the users file is pasted and Enter pressed, it shows `Signed in as First Reviewer (approver)` and a `Sign out` button | evaluator |
-| AC-8 | The build is merged | `docs/INSTALLATION.md`, section `## Bank Jupyter (Vertex)`, is read | It contains `ARP_AUTH_MODE=local`, `ARP_USERS_FILE` and `scripts/launch_jupyter.sh users`. It does not contain `ARP_AUTH_MODE=dev`, `0.0.0.0/0` or `ARP_ALLOWED_ORIGINS=["*"]` | unit |
-| AC-9 | The build is merged | `demo/showcase/RUN_SHEET.md`, section `## Day before`, is read | `scripts/launch_jupyter.sh users` appears before the first `scripts/launch_jupyter.sh up`, and the loader command contains `ARP_SHOWCASE_TOKEN=` | unit |
+| AC-1 | Showcase-local, and the old lines left in: `ARP_DEV_TRUSTED_NETWORKS=["0.0.0.0/0"]`, `ARP_ALLOWED_ORIGINS=["*"]` | `POST /api/voting/runs/ac1_none/cast` from client `10.1.2.3` with header `Origin: https://evil.example` and no `Authorization` header | Status 401, header `WWW-Authenticate: Bearer` | unit |
+| AC-2 | AC-1's settings | `GET /api/voting/runs/ac2_none/review-queue` from client `10.1.2.3` with header `Origin: https://evil.example` and no `Authorization` header | Status 401 | unit |
+| AC-3 | AC-1's settings | `POST /api/voting/runs/ac3_none/cast` from `127.0.0.1` with no `Origin` and no `Authorization` header | Status 401 | unit |
+| AC-11 | AC-1's settings | `POST /api/voting/runs/ac11_none/cast` from client `10.1.2.3` with no `Origin` and no `Authorization` header (a direct call on the bank network) | Status 401 | unit |
+| AC-4 | Showcase-local, `ARP_DEV_TRUSTED_NETWORKS` and `ARP_ALLOWED_ORIGINS` unset (the new guide) | `POST /api/voting/runs/ac4_none/cast` from client `10.1.2.3` with header `Origin: https://hub.example` and `Authorization: Bearer tok_presenter` | Status 200, body `{"cast_count": 0, "votes": []}` | unit |
+| AC-5a | `ARP_POSTGRES_DSN`, `ARP_LLM_MODEL`, `ARP_LLM_VERIFIER_MODEL` set in the environment; `ARP_AUTH_MODE=dev` in the environment; `ARP_LAUNCH_PORT=8765` | `scripts/launch_jupyter.sh up` | Exit status 1; stderr contains the line `ARP_AUTH_MODE must be local for this launch: run scripts/launch_jupyter.sh users, add the two lines it prints to backend/.env, then up again`; nothing answers on `http://127.0.0.1:8765/api/health` | holdout |
+| AC-5b | AC-5a's settings, but `ARP_AUTH_MODE` not in the environment and no `backend/.env` | `scripts/launch_jupyter.sh up` | The same as AC-5a | holdout |
+| AC-6a | The e2e stack is down; Postgres from `ensure-deps.sh postgres`; `backend/.env` has `ARP_POSTGRES_DSN`, `ARP_LLM_MODEL`, `ARP_LLM_VERIFIER_MODEL` and the guide's three sign-in lines (`ARP_AUTH_MODE=local`, `ARP_USERS_FILE=<repo>/config/users.json`, `ARP_TRUSTED_HOSTS=["*"]`); the users file from `scripts/launch_jupyter.sh users`; `JUPYTERHUB_SERVICE_PREFIX=/user/x/` | `scripts/launch_jupyter.sh up` | Stdout has exactly one line containing `/user/x/proxy/8000/` (must not change) | evaluator |
+| AC-6b | After AC-6a | `GET http://localhost:8000/api/health` | Status 200 (must not change) | evaluator |
+| AC-7a | AC-6a's running app | A browser with no stored token opens `http://localhost:8000/` | The top left shows the label `Access token` and an input with placeholder `Paste your token` | evaluator |
+| AC-7b | After AC-7a | The First Reviewer token from the users file is pasted into that input and Enter pressed | The page shows `Signed in as First Reviewer (approver)` and a `Sign out` button | evaluator |
+| AC-8 | The build is merged | `docs/INSTALLATION.md`, section `## Bank Jupyter (Vertex)`, is read | Its `ini` block contains `ARP_AUTH_MODE=local` and `ARP_USERS_FILE`, and does not contain `ARP_AUTH_MODE=dev`, `ARP_DEV_TRUSTED_NETWORKS` or `ARP_ALLOWED_ORIGINS`; the section contains `scripts/launch_jupyter.sh users` | unit |
+| AC-12 | The build is merged | `docs/INSTALLATION.md` section `## Bank Jupyter (Vertex)` and `README.md` are read | Each contains the sentence of design point 2 verbatim; `README.md` does not contain `another website cannot` | unit |
+| AC-9 | The build is merged | `demo/showcase/RUN_SHEET.md`, section `## Day before`, is read | `scripts/launch_jupyter.sh users` appears before the first `scripts/launch_jupyter.sh up`, and every line containing `load_showcase_pack.py` also contains `ARP_SHOWCASE_TOKEN=` | unit |
+| AC-13 | The build is merged | `demo/showcase/README.md` is read | `scripts/launch_jupyter.sh users` appears before the first `scripts/launch_jupyter.sh up`, and every line containing `load_showcase_pack.py` also contains `ARP_SHOWCASE_TOKEN=` | unit |
 | AC-10 | The build is merged | `docs/superpowers/specs/2026-11-15-voting-api-login.md` is read | Row AC-10's Given contains `showcase-login-origins` and not `the bank JupyterLab settings`; the `Must not change` line does not contain `AC-10` | unit |
+| AC-14 | The build is merged | `docs/superpowers/specs/2026-11-11-bank-jupyter-launch-design.md` is read | Row AC-11a's Given contains `ARP_AUTH_MODE=local` and `showcase-login-origins` | unit |
+| AC-15 | No `config/users.json` (a temporary repo copy) | `scripts/launch_jupyter.sh users` | Exit 0; stdout contains the lines `  ARP_AUTH_MODE=local` and `  ARP_USERS_FILE=<repo>/config/users.json` (must not change) | unit |
 
-Must not change: `voting-api-login` AC-1 to AC-9 (dev mode with the e2e stack's settings: loopback dev sign-in still
-reads and casts); `launch_jupyter.sh up` with a valid local-mode `.env` (AC-6).
+Must not change: AC-6a, AC-6b, AC-15 here. The regression guard for dev mode is `voting-api-login` AC-1 to AC-9
+(loopback dev sign-in on the e2e stack still reads and casts), and for `down` and `check` it is `bank-jupyter-launch`
+AC-16 and AC-21; no new rows for those.
