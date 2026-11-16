@@ -2582,6 +2582,74 @@ a.vc-box:hover { border-color: var(--text); }
   .wb-table :is(th, td).wb-name { max-width: 9rem; }
 }
 
+/* Workbench side panel (pages/steward/WorkbenchPanel.tsx): non-modal, so the table stays usable beside it. From
+   1280px it takes over half the window; below that, the whole screen. Built like the Ask panel. */
+.wb-panel { position: fixed; inset: 0 0 0 auto; z-index: 57; display: flex; flex-direction: column; width: 100vw; background: var(--bg); border-left: 1px solid var(--panel-border); box-shadow: var(--shadow-lg); }
+@media (min-width: 1280px) { .wb-panel { width: max(52vw, 40rem); } }
+.wb-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); padding: var(--s-3) var(--s-3) var(--s-2) var(--s-4); background: var(--sidebar-bg); border-bottom: 1px solid var(--panel-border); }
+.wb-panel-head h2 { margin: 0; font: 600 var(--text-lg) var(--font-display); overflow-wrap: anywhere; }
+.wb-panel-head h2:focus { outline: none; }
+.wb-panel-head h2:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wb-panel-head p { margin: var(--s-1) 0 0; font-size: var(--text-xs); }
+.wb-panel-nav { display: flex; gap: var(--s-1); flex: none; }
+.wb-panel-nav button { display: grid; place-items: center; min-width: 44px; min-height: 44px; padding: 0; margin: 0; font-family: var(--font-mono); }
+.wb-panel > .step-tabs { margin: 0; padding: var(--s-2) var(--s-4) 0; border-bottom: 1px solid var(--panel-border); flex-wrap: nowrap; overflow-x: auto; }
+.wb-panel-body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--s-4); }
+.wb-panel-body > :first-child { margin-top: 0; }
+.wb-panel-body .table-wrap { margin-bottom: var(--s-3); }
+.wb-panel-body .data-table td.num, .wb-panel-body .data-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.wb-panel-body td.wb-wrap { white-space: normal; min-width: 12rem; }
+.wb-panel-programmes { flex-wrap: wrap; margin-bottom: var(--s-3); }
+.wb-why tfoot td { border-top: 1px solid var(--text); font-weight: 600; }
+.wb-facts { display: grid; grid-template-columns: max-content 1fr; gap: var(--s-1) var(--s-4); margin: 0 0 var(--s-3); }
+.wb-facts dt { color: var(--muted); font-size: var(--text-sm); }
+.wb-facts dd { margin: 0; overflow-wrap: anywhere; }
+.wb-issue { padding-bottom: var(--s-3); border-bottom: 1px solid var(--panel-border); margin-bottom: var(--s-3); }
+.wb-issue h3 { margin: 0; }
+.wb-issue h4 { margin: var(--s-3) 0 var(--s-1); }
+.wb-list { margin: 0; padding-left: var(--s-4); }
+.wb-list li { margin: var(--s-1) 0; }
+.wb-list .chip, .wb-issue .chip { margin-left: var(--s-1_5); }
+.wb-note-form textarea { width: 100%; }
+.wb-note-form .toolbar { align-items: center; gap: var(--s-3); }
+.wb-notes { list-style: none; margin: var(--s-4) 0 0; padding: 0; }
+.wb-notes li { padding: var(--s-2) 0; border-top: 1px solid var(--panel-border); }
+.wb-notes p { margin: 0; }
+.wb-note-text { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: var(--s-1) !important; }
+/* The open row takes the well fill (a ticked row keeps its accent tint). */
+.wb-table tbody tr { cursor: pointer; }
+.wb-table tr.wb-open-row td { background: var(--well); }
+.wb-table button.wb-open { all: unset; cursor: pointer; display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.wb-table button.wb-open:hover { text-decoration: underline; }
+.wb-table button.wb-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wb-why-button { display: inline-grid; place-items: center; min-width: 24px; min-height: 24px; margin: -4px 0 -4px var(--s-1); padding: 0; line-height: 1; }
+/* Phone: the five Why columns fit without a sideways scroll, so Points stays in view. */
+@media (max-width: 760px) {
+  .wb-panel-body { padding: var(--s-3); }
+  .data-table.wb-why :is(th, td) { padding-inline: var(--s-1); white-space: normal; }
+  .data-table.wb-why .num { white-space: nowrap; }
+  .data-table.wb-why { font-size: var(--text-sm); }
+  .data-table.wb-why th { letter-spacing: 0; }
+  .data-table.wb-why th:nth-child(3) { white-space: normal; } /* Counts as: two words, two lines */
+}
+/* Phone: every panel table fits the panel's width (no sideways scroll), and the tab strip wraps so all seven tabs show. */
+@media (max-width: 760px) {
+  .wb-panel > .step-tabs { flex-wrap: wrap; overflow-x: visible; padding-bottom: var(--s-2); }
+  .wb-panel-body .data-table { font-size: var(--text-sm); }
+  .wb-panel-body .data-table :is(th, td) { padding-inline: var(--s-1); white-space: normal; overflow-wrap: break-word; }
+  .wb-panel-body .data-table th { letter-spacing: 0; }
+  .wb-panel-body .data-table :is(.num, .wb-nowrap) { white-space: nowrap; }
+  .wb-panel-body td.wb-wrap { min-width: 0; }
+}
+/* Phone: Votes and Holdings have too many columns for 365px, so each row stacks as label · value lines. */
+@media (max-width: 760px) {
+  .wb-panel-body .data-table.wb-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .wb-panel-body .data-table.wb-stack tr { display: block; padding: var(--s-2) 0; border-bottom: 1px solid var(--panel-border); }
+  .wb-panel-body .data-table.wb-stack td { display: flex; justify-content: space-between; gap: var(--s-3); padding: var(--s-0_5) var(--s-1); border: 0; text-align: right; }
+  .wb-panel-body .data-table.wb-stack td::before { content: attr(data-label); content: attr(data-label) / ""; /* the first for browsers without the alt-text form */ /* seen, not read twice: the hidden header still names the cell */ flex: none; max-width: 45%; color: var(--muted); font-size: var(--text-xs); text-align: left; }
+  .wb-panel-body .data-table.wb-stack td:empty { display: none; }
+  .wb-panel-body .data-table.wb-stack td.wb-wrap { text-align: left; }
+}
 /* Workbench filter builder (pages/steward/workbenchFilters.tsx): Add filter ▾, one chip per filter, each chip opening
    the control its indicator's type needs. Monochrome: a filter never asks a person to act. */
 .wb-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1_5) var(--s-2); }
