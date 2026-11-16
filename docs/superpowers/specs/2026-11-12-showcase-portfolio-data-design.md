@@ -497,7 +497,7 @@ as "Key" defines it, over those rows (2,515 today). "The list" is `data/holdings
 | AC-46 | Same | the 2026-07-31 and 2026-08-31 snapshots of `portfolio_msci_world` are compared | at least one weight differs | holdout |
 | AC-47 | Same | holdings load records of `portfolio_sp500` for 2026-06 to 2026-10 are read | one per month, `ok`, detail starting `simulated history from SP500.xlsx` | holdout |
 | AC-48 | Same | ESG load records for provider `simulated` are read | one `ok` record per month 2026-06 to 2026-11 | holdout |
-| AC-49 | Same | `bi_published` `company_profile` rows for 2026-11 with `field_id` `climate_scope1_tco2e` are read | each dataset company's value equals the dataset's, source `simulated` | holdout |
+| AC-49 | Same | `bi_published` `company_profile` rows for 2026-11 with `field_id` `climate_scope1_tco2e` are read | each dataset company without an `internal_api` scope 1 value has the dataset's value, source `simulated`; the 15 curated companies (`showcase-curated-company-keys`, Table T), which carry the seed's `internal_api` value, show that value, source `internal_api`, as AC-56 requires (owner decision 1a, 16 Nov 2026) | holdout |
 | AC-50 | Same, a grade-A company with dataset scope 1 = S | its `company_profile` `climate_scope1_tco2e` row for 2026-06 is read | value = S × 1.05 within 0.1 % | holdout |
 | AC-51 | Same, a grade-F company with dataset scope 1 = S | its rows for 2026-06 and 2026-11 are read | both equal S | holdout |
 | AC-52 | Same | `bi_published` `company_profile` rows for 2026-11 with `field_id` `transition_grade` are read | one per dataset company, value equal to the dataset's grade, source `simulated` | holdout |
