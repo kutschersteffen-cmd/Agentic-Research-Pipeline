@@ -27,6 +27,8 @@ import { neighbour, type PanelTab } from "../../lib/workbenchPanel";
 import type { PriorityPreview, SelectionList, WorkProgramme, Worklist, WorklistRow, WorklistScope } from "../../types";
 import { DataTable, RuleEditor, Section, VersionsPanel, usePolicy, useActor } from "./common";
 import { WorkbenchPanel } from "./WorkbenchPanel";
+import { filterRows, type Filter } from "../../lib/workbenchFilters";
+import { FilterBuilder } from "./workbenchFilters";
 
 const Sim = () => <span className="sim-tag">Simulated</span>;
 const shortLabel = (c: Column) => c.label.replace(/ (%|\(.*\))$/, "");
@@ -139,6 +141,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sort, setSortKeys] = useState<SortKey[]>(DEFAULT_SORT);
+  const [filters, setFilters] = useState<Filter[]>([]);
   const [page, setPage] = useState(0);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
   const [visible, setVisible] = useState<Set<string>>(() => new Set(COLUMNS.filter((c) => !c.hidden).map((c) => c.id)));
@@ -189,7 +192,8 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   const columns = useMemo(() => [...COLUMNS, ...extraColumns(rows, fieldLabels)], [rows, fieldLabels]);
   const shown = columns.filter((c) => c.pinned || visible.has(c.id));
   const simulatedCols = useMemo(() => new Set(columns.filter((c) => c.simulated && rows.some(c.simulated)).map((c) => c.id)), [columns, rows]);
-  const sorted = useMemo(() => sortRows(rows, sort, columns), [rows, sort, columns]);
+  const filtered = useMemo(() => filterRows(rows, filters), [rows, filters]);
+  const sorted = useMemo(() => sortRows(filtered, sort, columns), [filtered, sort, columns]);
   const pages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const current = Math.min(page, pages - 1);
   const pageRows = sorted.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE);
@@ -344,7 +348,16 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
 
         <div className="wb-step">
           <h3>② Narrow down</h3>
-          <p className="muted">No filter set.</p>
+          <FilterBuilder
+            rows={rows}
+            columns={columns}
+            filters={filters}
+            shown={sorted.length}
+            onChange={(f) => {
+              setFilters(f);
+              setPage(0);
+            }}
+          />
         </div>
 
         {error && <p className="error-text" role="alert">{error}</p>}

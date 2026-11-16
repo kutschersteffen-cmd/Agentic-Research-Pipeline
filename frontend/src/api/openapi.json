@@ -3376,6 +3376,49 @@
     "title": "Body_upload_document_api_documents_upload_post",
     "type": "object"
    },
+   "Body_upload_document_api_rfp_documents_post": {
+    "properties": {
+     "document_date": {
+      "format": "date",
+      "title": "Document Date",
+      "type": "string"
+     },
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     },
+     "priority": {
+      "default": 1,
+      "minimum": 1.0,
+      "title": "Priority",
+      "type": "integer"
+     },
+     "replaces": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Replaces"
+     },
+     "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file",
+     "title",
+     "document_date"
+    ],
+    "title": "Body_upload_document_api_rfp_documents_post",
+    "type": "object"
+   },
    "Body_upload_esg_api_portfolio_esg_upload_post": {
     "properties": {
      "file": {
@@ -5588,6 +5631,10 @@
    },
    "CockpitTopicCount": {
     "properties": {
+     "abstain": {
+      "title": "Abstain",
+      "type": "integer"
+     },
      "against_management": {
       "title": "Against Management",
       "type": "integer"
@@ -5604,7 +5651,8 @@
     "required": [
      "topic",
      "votes",
-     "against_management"
+     "against_management",
+     "abstain"
     ],
     "title": "CockpitTopicCount",
     "type": "object"
@@ -20318,6 +20366,110 @@
     "title": "RfpAssigneeIn",
     "type": "object"
    },
+   "RfpDocumentEdit": {
+    "properties": {
+     "priority": {
+      "anyOf": [
+       {
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Priority"
+     },
+     "review_by": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Review By"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
+     }
+    },
+    "title": "RfpDocumentEdit",
+    "type": "object"
+   },
+   "RfpDocumentOut": {
+    "properties": {
+     "document_date": {
+      "format": "date",
+      "title": "Document Date",
+      "type": "string"
+     },
+     "filename": {
+      "title": "Filename",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "pages": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pages"
+     },
+     "priority": {
+      "title": "Priority",
+      "type": "integer"
+     },
+     "review_by": {
+      "format": "date",
+      "title": "Review By",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "uploaded_by": {
+      "title": "Uploaded By",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "filename",
+     "document_date",
+     "review_by",
+     "priority",
+     "status",
+     "uploaded_by",
+     "pages"
+    ],
+    "title": "RfpDocumentOut",
+    "type": "object"
+   },
    "RfpLibraryEntryEdit": {
     "properties": {
      "answer": {
@@ -20779,6 +20931,17 @@
    },
    "RfpSourceOut": {
     "properties": {
+     "document_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Document Id"
+     },
      "entry_id": {
       "anyOf": [
        {
@@ -20831,6 +20994,28 @@
       ],
       "title": "Location"
      },
+     "page": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page"
+     },
+     "priority": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Priority"
+     },
      "quote": {
       "title": "Quote",
       "type": "string"
@@ -20845,6 +21030,17 @@
        }
       ],
       "title": "Source"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
      },
      "written_by": {
       "anyOf": [
@@ -42265,6 +42461,165 @@
     "summary": "Get Snapshot",
     "tags": [
      "review"
+    ]
+   }
+  },
+  "/api/rfp/documents": {
+   "get": {
+    "operationId": "list_documents_api_rfp_documents_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RfpDocumentOut"
+         },
+         "title": "Response List Documents Api Rfp Documents Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Documents",
+    "tags": [
+     "rfp"
+    ]
+   },
+   "post": {
+    "description": "Parses and stores a .pdf or .docx as `active`; with `replaces`, retires that document in the same transaction.",
+    "operationId": "upload_document_api_rfp_documents_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_upload_document_api_rfp_documents_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpDocumentOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Upload Document",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/documents/{document_id}": {
+   "put": {
+    "operationId": "edit_document_api_rfp_documents__document_id__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "document_id",
+      "required": true,
+      "schema": {
+       "title": "Document Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RfpDocumentEdit"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpDocumentOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Edit Document",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/documents/{document_id}/retire": {
+   "post": {
+    "operationId": "retire_document_api_rfp_documents__document_id__retire_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "document_id",
+      "required": true,
+      "schema": {
+       "title": "Document Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpDocumentOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Retire Document",
+    "tags": [
+     "rfp"
     ]
    }
   },

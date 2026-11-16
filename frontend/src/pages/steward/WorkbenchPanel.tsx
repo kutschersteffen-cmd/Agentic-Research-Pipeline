@@ -57,9 +57,10 @@ export function WorkbenchPanel({
   const up = useRef<HTMLButtonElement>(null);
   const down = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    const at = document.activeElement;
-    if (!canStep.up && (at === up.current || at === document.body)) down.current?.focus();
-    else if (!canStep.down && (at === down.current || at === document.body)) up.current?.focus();
+    const at = document.activeElement; // still the button just disabled; a sort or filter elsewhere moves nothing
+    if (at !== up.current && at !== down.current) return;
+    const other = at === up.current ? down.current : up.current;
+    if ((at === up.current && !canStep.up) || (at === down.current && !canStep.down)) (other?.disabled ? title.current : other)?.focus();
   }, [canStep.up, canStep.down]);
 
   useEffect(() => {

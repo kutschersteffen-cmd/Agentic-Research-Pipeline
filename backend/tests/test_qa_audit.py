@@ -65,11 +65,30 @@ def test_every_answer_has_an_audit_row(tmp_path):
 def test_unresolvable_and_error_still_audited(tmp_path):
     c, s = _app(tmp_path, _LLM(_ParsedQuestion(resolvable=False, clarification_needed="which?"), RuntimeError("boom")))
     assert c.post("/api/portfolio/ask", json={"question": "a"}).status_code == 200
-    assert c.post("/api/portfolio/ask", json={"question": "b"}).status_code == 500  # still raised
+    assert c.post("/api/portfolio/ask", json={"question": "b"}).status_code == 502
     ok, bad = _rows(s)
     assert ok["resolvable"] is False and bad["resolvable"] is None
     assert ok["error"] is None and ok["answer_sha256"] == hashlib.sha256(b"").hexdigest()
     assert "boom" in bad["error"]
+
+
+def test_model_failure_answers_502_keeps_audit_and_logs(tmp_path, caplog):  # spec ask-portfolio-provider-error AC-2, AC-10
+    c, s = _app(tmp_path, _LLM(RuntimeError("credit balance is too low")))
+    r = c.post("/api/portfolio/ask", json={"question": "What is my largest holding?"})
+    assert (r.status_code, r.json()) == (502, {"detail": "Ask could not answer this question. Try again."})
+    [row] = _rows(s)
+    assert row["endpoint"] == "portfolio.ask" and row["question"] == "What is my largest holding?"
+    assert row["answer_sha256"] == hashlib.sha256(b"").hexdigest()
+    assert row["error"] == "RuntimeError: credit balance is too low"
+    [rec] = [r for r in caplog.records if r.getMessage() == "portfolio ask failed"]
+    assert rec.levelname == "ERROR" and rec.exc_info[0] is RuntimeError
+
+
+def test_bad_as_of_answers_422_without_audit_row(tmp_path):  # AC-6
+    c, s = _app(tmp_path, _LLM())
+    r = c.post("/api/portfolio/ask", json={"question": "x", "as_of": "01/11/2026"})
+    assert (r.status_code, r.json()) == (422, {"detail": "as_of must be YYYY-MM-DD"})
+    assert not (tmp_path / "qa_audit.jsonl").exists()
 
 
 def test_audit_write_failure_does_not_break_answer(tmp_path):

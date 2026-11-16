@@ -10,6 +10,11 @@ permissions:
   contents: read
   pull-requests: write  # to drop the override label on a new push
 
+# Push runs and label runs of a PR each cancel their own older run; a label run never cancels a push run, as it skips dropping tests-weakened-ok.
+concurrency:
+  group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number }}-${{ contains(fromJSON('["labeled", "unlabeled"]'), github.event.action) && 'labels' || 'push' }}
+  cancel-in-progress: true
+
 jobs:
   test-guard:
     name: No tests removed

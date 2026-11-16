@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
+import { fmt, isDemoIssue } from "../lib/engagement";
 import { useMe } from "../lib/reviewer";
 import { SignedInAs } from "./SignedInAs";
-import { CheckButton, DossierWatchList, FindCommitmentsButton, FoundCommitments, ObjectivesSection, PendingEvidence, ProofLine, WatchTopicsSection, useSuggestions } from "./EngagementWatch";
+import { CheckButton, ConfirmedStatus, DossierWatchList, FindCommitmentsButton, FoundCommitments, ObjectivesSection, PendingEvidence, ProofLine, WatchTopicsSection, useFocusWhenIdle, useSuggestions } from "./EngagementWatch";
 import type {
   Contact,
   EngagementIssue,
@@ -29,10 +30,6 @@ function escalationClass(stage: string): string {
   if (idx >= 3) return "stage-pill escalation-high";
   if (idx >= 1) return "stage-pill escalation-mid";
   return "stage-pill escalation-low";
-}
-
-function fmt(s: string): string {
-  return s.replace(/_/g, " ");
 }
 
 export function EngagementIssuePanel({
@@ -69,8 +66,11 @@ export function EngagementIssuePanel({
   const [verifying, setVerifying] = useState<string | null>(null);
   const [evidence, setEvidence] = useState("");
   const closed = issue.status === "resolved" || issue.status === "closed";
-  const watch = { companyId: record.company_id, issueId: issue.issue_id, busy, run };
   const suggestions = useSuggestions(record.company_id);
+  const [confirmedId, setConfirmedId] = useState<string | null>(null);
+  const focusLater = useFocusWhenIdle(busy);
+  const commitmentRows = useRef(new Map<string, HTMLDivElement | null>());
+  const watch = { companyId: record.company_id, issueId: issue.issue_id, busy, run, actor, fileStore: suggestions.fileStore, confirmedId, setConfirmedId, focusLater };
 
   useEffect(() => {
     setDossier(null);
@@ -101,6 +101,7 @@ export function EngagementIssuePanel({
   async function run<T>(fn: () => Promise<T>): Promise<T | undefined> {
     setBusy(true);
     setError(null);
+    setConfirmedId(null);
     try {
       return await fn();
     } catch (err) {
@@ -230,6 +231,7 @@ export function EngagementIssuePanel({
         <span className="chip">severity: {issue.severity}</span>
         <span className="chip">source: {fmt(issue.source)}</span>
         <span className="chip">opened {new Date(issue.opened_at).toLocaleDateString()}</span>
+        {isDemoIssue(issue) && <span className="chip">Demo data</span>}
       </div>
 
       {nextAction && (
@@ -239,6 +241,7 @@ export function EngagementIssuePanel({
       )}
 
       <SignedInAs compact />
+      {!actor && <p className="help-text">Sign in to record results, proof statements and watch topics.</p>}
       {error && <p className="error-text" role="alert">{error}</p>}
 
       <div className="panel-section">
@@ -307,7 +310,14 @@ export function EngagementIssuePanel({
         <FoundCommitments ctx={watch} issue={issue} suggestions={suggestions} closed={closed} onSaved={refreshRecord} />
         {issue.commitments.length === 0 && <p className="muted">None logged yet.</p>}
         {issue.commitments.map((c) => (
-          <div className="activity-row" key={c.commitment_id}>
+          <div
+            className="activity-row"
+            key={c.commitment_id}
+            tabIndex={-1}
+            ref={(el) => {
+              commitmentRows.current.set(c.commitment_id, el);
+            }}
+          >
             <div className="activity-main">
               {c.text}
               <div className="activity-meta">
@@ -318,9 +328,17 @@ export function EngagementIssuePanel({
                 {c.evidence && <span>evidence: {c.evidence}</span>}
               </div>
               <ProofLine ctx={watch} kind="commitment" id={c.commitment_id} label={c.text} proof={c.proof_statement} open={c.status === "open"} onSaved={refreshRecord} />
+              <ConfirmedStatus ctx={watch} itemId={c.commitment_id} label={c.text} />
               {c.status === "open" && !closed && suggestions.available && (
                 <>
-                  <PendingEvidence ctx={watch} suggestions={suggestions} itemId={c.commitment_id} onSaved={refreshRecord} />
+                  <PendingEvidence
+                    ctx={watch}
+                    suggestions={suggestions}
+                    itemId={c.commitment_id}
+                    label={c.text}
+                    onConfirmed={() => focusLater(() => commitmentRows.current.get(c.commitment_id))}
+                    onSaved={refreshRecord}
+                  />
                   <CheckButton ctx={watch} kind="commitment" id={c.commitment_id} label={c.text} onChecked={suggestions.reload} />
                 </>
               )}
