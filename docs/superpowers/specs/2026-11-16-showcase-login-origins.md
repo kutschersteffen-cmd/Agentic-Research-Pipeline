@@ -38,7 +38,7 @@ settings plus `ARP_TRUSTED_HOSTS=["*"]`.
 ## What the owner decided (16 Nov 2026)
 
 - **The showcase uses real sign-in** (`ARP_AUTH_MODE=local`). The presenter pastes a token once into the
-  "Access token" box at the top left. That box, `config/users.json` and `scripts/launch_jupyter.sh users` exist
+  "Access token" box in the account menu at the top right. That box, `config/users.json` and `scripts/launch_jupyter.sh users` exist
   today. **No change to the app's sign-in code.** Dev mode with `"*"` stays possible on other installs. The guide
   and README warn against it.
 - **Analysts who get the link can do nothing.** No token is handed out except the presenter's. Without one they
@@ -136,7 +136,7 @@ set, like `real_client_at` in `backend/tests/test_auth.py`; the e2e stack stays 
 | AC-5b | AC-5a's settings, but `ARP_AUTH_MODE` not in the environment and no `backend/.env` | `scripts/launch_jupyter.sh up` | The same as AC-5a | holdout |
 | AC-6a | The e2e stack is down; Postgres from `ensure-deps.sh postgres`; `backend/.env` has `ARP_POSTGRES_DSN`, `ARP_LLM_MODEL`, `ARP_LLM_VERIFIER_MODEL` and the guide's three sign-in lines (`ARP_AUTH_MODE=local`, `ARP_USERS_FILE=<repo>/config/users.json`, `ARP_TRUSTED_HOSTS=["*"]`); the users file from `scripts/launch_jupyter.sh users`; `JUPYTERHUB_SERVICE_PREFIX=/user/x/` | `scripts/launch_jupyter.sh up` | Stdout has exactly one line containing `/user/x/proxy/8000/` (must not change) | evaluator |
 | AC-6b | After AC-6a | `GET http://localhost:8000/api/health` | Status 200 (must not change) | evaluator |
-| AC-7a | AC-6a's running app | A browser with no stored token opens `http://localhost:8000/` | The top left shows the label `Access token` and an input with placeholder `Paste your token` | evaluator |
+| AC-7a | AC-6a's running app | A browser with no stored token opens `http://localhost:8000/`, clicks the `Open ARP →` link, then the account button at the top right (accessible name `Account`, shown as the round `A` avatar) | The menu shows the label `Access token` and an input with placeholder `Paste your token` (the menu's `Reviewing as` field, placeholder `Your name`, may also show; this spec does not change it) | evaluator |
 | AC-7b | After AC-7a | The First Reviewer token from the users file is pasted into that input and Enter pressed | The page shows `Signed in as First Reviewer (approver)` and a `Sign out` button | evaluator |
 | AC-8 | The build is merged | `docs/INSTALLATION.md`, section `## Bank Jupyter (Vertex)`, is read | Its `ini` block contains `ARP_AUTH_MODE=local` and `ARP_USERS_FILE`, and does not contain `ARP_AUTH_MODE=dev`, `ARP_DEV_TRUSTED_NETWORKS` or `ARP_ALLOWED_ORIGINS`; the section contains `scripts/launch_jupyter.sh users` | unit |
 | AC-12 | The build is merged | `docs/INSTALLATION.md` section `## Bank Jupyter (Vertex)` and `README.md` are read | Each contains, after collapsing every run of whitespace (newlines included) to one space and ignoring `*` and `_`, the text ``Never combine `ARP_AUTH_MODE=dev` with `ARP_ALLOWED_ORIGINS=["*"]`: `"*"` lets any website open in the same browser act as the dev approver.``; `README.md` does not contain `another website cannot` | unit |
