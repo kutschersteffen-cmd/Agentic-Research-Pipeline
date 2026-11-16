@@ -1,5 +1,6 @@
 import { useEffect, useId, type RefObject } from "react";
-import { reviewBadge, workspaceMenuItems } from "../lib/workspaceCard";
+import type { WaitingCounts } from "../types";
+import { waitingBadge, workspaceMenuItems } from "../lib/workspaceCard";
 import { workspaceOfRoute } from "../lib/processes";
 import { useMe, useReviewer } from "../lib/reviewer";
 import { useDisclosure } from "../lib/useDisclosure";
@@ -19,7 +20,7 @@ type Props = {
   canAsk: boolean;
   askOpen: boolean;
   askRef: RefObject<HTMLButtonElement | null>;
-  reviewCount: number;
+  waiting: WaitingCounts | null;
   onSearch: () => void;
   onAsk: () => void;
 };
@@ -46,7 +47,7 @@ function WorkspaceLinks({ current }: { current: string }) {
 
 /** The top bar on every page but the landing page. Everything the old sidebar said about the person (reviewer
  * name, sign-in, theme) is in the user menu; the workspaces are in the Workspaces menu. */
-export function AppTopbar({ active, canAsk, askOpen, askRef, reviewCount, onSearch, onAsk }: Props) {
+export function AppTopbar({ active, canAsk, askOpen, askRef, waiting, onSearch, onAsk }: Props) {
   const me = useMe();
   const name = me?.name ?? "Account";
   const [reviewer, setReviewer] = useReviewer();
@@ -54,7 +55,7 @@ export function AppTopbar({ active, canAsk, askOpen, askRef, reviewCount, onSear
   useEffect(() => {
     if (me && reviewer !== me.name) setReviewer(me.name);
   }, [me, reviewer, setReviewer]);
-  const badge = reviewBadge(reviewCount);
+  const badge = waiting && waitingBadge(waiting);
   const user = useDisclosure();
   const spaces = useDisclosure();
   const userPopId = useId();
@@ -106,9 +107,7 @@ export function AppTopbar({ active, canAsk, askOpen, askRef, reviewCount, onSear
             Review Queue
             {badge && (
               <span className="nav-count" title={badge.title} aria-label={badge.title}>
-                {/* "items" hides on a phone so the badge fits the second row; the label still says it. */}
-                {badge.text.split(" ")[0]}
-                <span className="nav-count-word"> {badge.text.split(" ").slice(1).join(" ")}</span>
+                {badge.text}
               </span>
             )}
           </a>

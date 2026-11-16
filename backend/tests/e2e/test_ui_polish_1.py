@@ -118,7 +118,7 @@ def test_ac4_closed_menus_not_tabbable(page):
 def test_ac8_badge_padding(page):
     from tests.e2e.test_app_smoke import _long_badge
 
-    page.route("**/api/runs", _long_badge)
+    page.route("**/api/waiting", _long_badge)
     _open(page, "/#/stewardiq")
     badge = page.locator(".start-topbar .nav-count")
     assert badge.evaluate("e => getComputedStyle(e).paddingTop") == "2px"

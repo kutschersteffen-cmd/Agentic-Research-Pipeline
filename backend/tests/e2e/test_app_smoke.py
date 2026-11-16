@@ -136,20 +136,11 @@ def test_top_bar_fits_tablet_widths(page, width):
 
 
 def test_top_bar_two_rows_at_360(page):
-    # AC-16, with a long Review Queue badge: one reviewable run reports 123 items.
-    def long_badge(route):
-        resp = route.fetch()
-        body = resp.json()
-        runs = body.get("runs", [])
-        for r in runs:
-            r["review_count"] = 0
-        runs.insert(0, {**(runs[0] if runs else {}), "run_id": "e2e-badge", "run_type": "extraction",
-                        "status": "completed", "review_count": 123, "updated_at": "2026-11-15T00:00:00Z"})
-        route.fulfill(response=resp, json={**body, "runs": runs})
-
-    page.route("**/api/runs", long_badge)
+    # AC-16, with a long Review Queue badge: 123 waiting for a decision.
+    page.route("**/api/waiting", _long_badge)
     _open(page, "/#/stewardiq", 360, 800)
-    assert page.locator(".start-topbar .nav-count").get_attribute("aria-label") == "123 review items waiting on you"
+    assert page.locator(".start-topbar .nav-count").get_attribute("aria-label") == (
+        "123 waiting for a decision: 100 review items, 20 stewardship decisions, 3 ballots")
     boxes = page.evaluate("""() => [...document.querySelectorAll('.start-topbar a, .start-topbar button')]
         .filter((e) => e.offsetParent !== null && !e.closest('[hidden]')).map((e) => e.getBoundingClientRect())
         .map((r) => ({top: Math.round(r.top), h: r.height}))""")
@@ -171,21 +162,13 @@ def test_overview_has_no_crumb_or_screens(page, path):
 
 
 def _long_badge(route):
-    resp = route.fetch()
-    body = resp.json()
-    runs = body.get("runs", [])
-    for r in runs:
-        r["review_count"] = 0
-    runs.insert(0, {**(runs[0] if runs else {}), "run_id": "e2e-badge", "run_type": "extraction",
-                    "status": "completed", "review_count": 123, "updated_at": "2026-11-15T00:00:00Z"})
-    route.fulfill(response=resp, json={**body, "runs": runs})
+    route.fulfill(json={"review": 100, "decisions": 20, "ballots": 3, "total": 123})
 
 
 @pytest.mark.parametrize("width", [761, 800, 900])
 def test_top_bar_controls_never_overlap_on_tablets(page, width):
     # Review fix: between 761px and ~850px the search label spilled over the Ask button.
-    page.route("**/api/runs", _long_badge)
-    # A page that does not list runs, so the made-up badge run never has to render as a full manifest.
+    page.route("**/api/waiting", _long_badge)
     _open(page, "/#/stewardiq", width, 700)
     overlaps = page.evaluate("""(SEL) => {
         const els = [...document.querySelectorAll(SEL)].map((e) => [e.className, e.getBoundingClientRect()]);

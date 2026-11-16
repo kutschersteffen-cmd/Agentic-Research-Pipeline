@@ -22,6 +22,7 @@ export type RunFailure = Served<S["RunFailure"]>;
 /** One SIMULATED value (`GET /api/companies/{ref}/simulated-esg`); never real ESG data. */
 export type SimulatedObservation = Served<S["DataPointObservation"]>;
 export type DocumentPassages = Served<S["DocumentPassages"]>;
+export type WaitingCounts = Served<S["WaitingCounts"]>;
 export type DocumentPassage = DocumentPassages["passages"][number];
 export type ArgusFlow = Served<S["ArgusFlowView"]>;
 export type ArgusDraft = Served<S["ArgusFlow"]>; // as GET /api/argus/flows lists it, without rows

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
-import type { ReviewDecision, ReviewableRunKind } from "../types";
+import type { ReviewDecision, ReviewableRunKind, WaitingCounts } from "../types";
+import { alsoWaiting } from "../lib/workspaceCard";
 import { useMe } from "../lib/reviewer";
 import { SignedInAs } from "../components/SignedInAs";
 import { useCardKeys, type CardHandlers } from "../lib/cardKeys";
@@ -22,13 +23,15 @@ const DECISION_KEYS: CardHandlers = { a: openDecision("approve"), c: openDecisio
 
 interface Props {
   pendingReview?: { kind: ReviewableRunKind; runId: string } | null;
+  /** App's /api/waiting answer; null until it answers or when it fails, so the note never shows a guess. */
+  waiting?: WaitingCounts | null;
 }
 
 /** One inbox across every run with flagged items, lowest confidence first,
  * so the reviewer starts deciding instead of picking a type and a run.
  * A run opened from elsewhere (`#/review/<kind>/<run id>`) starts filtered
  * to that run. */
-export function ReviewQueue({ pendingReview }: Props = {}) {
+export function ReviewQueue({ pendingReview, waiting = null }: Props = {}) {
   const [items, setItems] = useState<QueueItem[] | null>(null);
   const [filter, setFilter] = useState(pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "");
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +110,12 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
       {error && <p className="error-text" role="alert">{error}</p>}
       {items === null && <p className="status-text">Loading flagged items…</p>}
 
+      {waiting &&
+        alsoWaiting(waiting).map((a) => (
+          <p key={a.href} className="help-text">
+            <a href={a.href}>{a.text}</a>
+          </p>
+        ))}
       {shown.length > 0 && (
         <div className="split-review">
           <div className="split-review-main">

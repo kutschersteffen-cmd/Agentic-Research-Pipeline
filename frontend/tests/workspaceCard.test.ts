@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { cardStatus, cardView, failedProcesses, reviewBadge, stepStatusLine, workspaceMenuItems, workspaceState } from "../src/lib/workspaceCard.ts";
+import { cardStatus, cardView, failedProcesses, alsoWaiting, waitingBadge, stepStatusLine, workspaceMenuItems, workspaceState } from "../src/lib/workspaceCard.ts";
 import { WORKSPACES } from "../src/lib/processes.ts";
 import type { RunManifest, StewardshipFlow } from "../src/types.ts";
 
@@ -81,10 +81,33 @@ test("r2 AC-19b: workspace order unchanged", () =>
 // simplified start page (docs/superpowers/specs/2026-11-15-start-page-simplified-design.md, Supersedes).
 
 // Start page simplified (docs/superpowers/specs/2026-11-15-start-page-simplified-design.md).
-test("sp_ac4_review_badge", () => {
-  assert.equal(reviewBadge(0), null);
-  assert.deepEqual(reviewBadge(1), { text: "1 item", title: "1 review item waiting on you" });
-  assert.deepEqual(reviewBadge(15), { text: "15 items", title: "15 review items waiting on you" });
+const W = (review: number, decisions: number, ballots: number, total = review + decisions + ballots) => ({ review, decisions, ballots, total });
+test("wc_ac5_waiting_badge", () => {
+  assert.deepEqual(waitingBadge(W(82, 15, 3)), {
+    text: "100",
+    title: "100 waiting for a decision: 82 review items, 15 stewardship decisions, 3 ballots",
+  });
+});
+test("wc_ac6_singulars_and_zero", () => {
+  assert.deepEqual(waitingBadge(W(1, 0, 0)), { text: "1", title: "1 waiting for a decision: 1 review item" });
+  assert.deepEqual(waitingBadge(W(0, 1, 0)), { text: "1", title: "1 waiting for a decision: 1 stewardship decision" });
+  assert.deepEqual(waitingBadge(W(0, 0, 1)), { text: "1", title: "1 waiting for a decision: 1 ballot" });
+  assert.equal(waitingBadge(W(0, 0, 0)), null);
+});
+test("wc_waiting_badge_rejects_bad_input", () => {
+  assert.equal(waitingBadge(W(-1, 2, 0, 1)), null);
+  assert.equal(waitingBadge(W(1, 0, 0, NaN)), null);
+  assert.equal(waitingBadge(W(1.5, 0, 0, 1.5)), null);
+  assert.equal(waitingBadge(W(1, 1, 0, 3)), null); // total is not the sum
+});
+test("wc_also_waiting", () => {
+  assert.deepEqual(alsoWaiting(W(0, 15, 3)), [
+    { text: "15 stewardship decisions also wait, in Steward Workflow →", href: "#/stewardship" },
+    { text: "3 ballots also wait, in Proxy Voting →", href: "#/voting" },
+  ]);
+  assert.deepEqual(alsoWaiting(W(1, 1, 0)), [{ text: "1 stewardship decision also waits, in Steward Workflow →", href: "#/stewardship" }]);
+  assert.deepEqual(alsoWaiting(W(0, 0, 1)), [{ text: "1 ballot also waits, in Proxy Voting →", href: "#/voting" }]);
+  assert.deepEqual(alsoWaiting(W(5, 0, 0)), []);
 });
 const T = ["Engage", "Vote", "Track"];
 const CASES: [Parameters<typeof cardStatus>[0], string, [string, string, string]][] = [

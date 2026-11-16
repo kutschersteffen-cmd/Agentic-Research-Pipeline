@@ -154,7 +154,7 @@ import type {
   StandardsSaved,
   StandardsView,
 } from "../types";
-import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, Walkthrough } from "../types";
+import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, WaitingCounts, Walkthrough } from "../types";
 import type { DecisionInput, DocType, DocumentPassages, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
 import type { BIChartPlan, BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
@@ -324,6 +324,7 @@ export const api = {
   rfpExportUrl: (id: number) => `${API_BASE}/api/rfp/projects/${id}/export`,
   listReviewItems: (runId?: string) =>
     request<{ items: ReviewItem[] }>(`/api/review/items${runId ? `?run_id=${encodeURIComponent(runId)}` : ""}`),
+  getWaiting: () => request<WaitingCounts>("/api/waiting"),
   getItemContext: (runId: string, itemKey: string) =>
     request<ItemContext>(`/api/review/runs/${encodeURIComponent(runId)}/items/${encodeURIComponent(itemKey)}/context`),
   getWalkthrough: (runId: string, companyId: string, q: { item: string; period_end?: string; basis?: string }) =>

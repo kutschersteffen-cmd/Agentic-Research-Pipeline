@@ -28138,6 +28138,34 @@
     "title": "VotingPreviewRequest",
     "type": "object"
    },
+   "WaitingCounts": {
+    "properties": {
+     "ballots": {
+      "title": "Ballots",
+      "type": "integer"
+     },
+     "decisions": {
+      "title": "Decisions",
+      "type": "integer"
+     },
+     "review": {
+      "title": "Review",
+      "type": "integer"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "review",
+     "decisions",
+     "ballots",
+     "total"
+    ],
+    "title": "WaitingCounts",
+    "type": "object"
+   },
    "WalkOrTalk": {
     "enum": [
      "walk",
@@ -52860,6 +52888,27 @@
     "summary": "Get Voting Review Queue",
     "tags": [
      "voting"
+    ]
+   }
+  },
+  "/api/waiting": {
+   "get": {
+    "operationId": "get_waiting_api_waiting_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaitingCounts"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Waiting",
+    "tags": [
+     "review"
     ]
    }
   },
