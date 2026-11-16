@@ -40,6 +40,10 @@ holdout repo. Phase 1 only; phase 2 (merge queue) is its own feature, `holdout-m
 7. **The full hidden suite on `main` runs nightly only**, not after every merge (button, this session). A
    post-merge run per merge was offered so a failure could name its merge and open a revert PR; the owner
    chose nightly only, with an issue as the alert.
+8. **A part that runs into its time limit opens the issue: "Yes, open the issue"** (button, dispatcher session,
+   16 Nov 2026). GitHub marks such a job `cancelled`, not `timed_out` (seen on the slice-2 proof PR #516), so a
+   `cancelled` job whose check run says it exceeded its maximum execution time counts as `timed_out` and opens the
+   issue. A run cancelled by hand still opens none.
 
 ## Why
 
@@ -192,8 +196,9 @@ How the parts are balanced (stored timings, row counts) is the holdout session's
   reported rows are not exactly the `--list` rows.
 - **Issue on failure:** a nightly run, or a manual run on `main`, opens exactly one issue
   `Nightly Holdout failed <date>`, from the aggregate job, when a job's check-run conclusion (Checks API) is
-  `failure` or `timed_out`, or when the aggregate's completeness check fails. A run whose only non-success jobs
-  were `cancelled`, a manual run on another branch, and PR runs open no issue. Body: the failed result lines,
+  `failure` or `timed_out`, where a `cancelled` job whose check run says it exceeded its maximum execution time
+  counts as `timed_out` (owner decision 16 Nov 2026), or when the aggregate's completeness check fails. A run that was itself cancelled by hand, a manual run on
+  another branch, and PR runs open no issue. Body: the failed result lines,
   any completeness lines (`holdout shards: missing ...`, `holdout rows: ...`) with the shards that reported no
   result, the holdout commit, the `main` commits since the last green nightly (`<sha>..<sha>`, one line per merge with
   its PR title) and the run link. "Last green nightly" is the newest `schedule` run of `holdout.yml` on `main`
@@ -335,7 +340,7 @@ flags"). Timing rows follow the measuring rule in "Left to the builder".
 | AC-25 | Slice 2 merged | the first nightly run on `main` finishes | It has 6 jobs `Holdout shard 1/6` to `Holdout shard 6/6`, and its log has `holdout rows: <a> of <b>` with a = b | evaluator (after merge) |
 | AC-26 | Same | the first nightly run finishes | `Holdout acceptance` takes at most 45 min | evaluator (after merge) |
 | AC-27 | Slice 2 merged | a manual run on `main` with `drill_fail: true` finishes | Exactly one issue `Holdout drill failed <date>` exists for it, opened by the `Holdout acceptance` job; its body contains `drill AC-1: fail`, the holdout commit, a `<sha>..<sha>` range with one line per merge that includes its PR title (or `no green nightly in 30 days` and the last 30 merges), and the run link | evaluator (after merge) |
-| AC-28 | Slice 2 merged | a nightly run fails on a row (new behaviour; today the body is only the run link) | Exactly one issue `Nightly Holdout failed <date>` is opened, with the body content of AC-27 and the failed result lines instead of `drill AC-1: fail` | evaluator (after merge, first real failure) |
+| AC-28 | Slice 2 merged | a nightly run fails on a row, or one of its parts runs into its time limit (owner decision 16 Nov 2026) (new behaviour; today the body is only the run link) | Exactly one issue `Nightly Holdout failed <date>` is opened, with the body content of AC-27 and the failed result lines instead of `drill AC-1: fail` (for a part that ran into its time limit: that part listed as `timed_out`, and its `holdout shards: missing K/6` line or a `holdout rows: <a> of <b>` line with a < b) | evaluator (after merge, first real failure) |
 | AC-29 | Slice 2 merged; an open issue titled `Nightly Holdout failed 2000-01-01` | a manual run on `main` succeeds | The issue is closed, with a comment linking that run | evaluator (after merge) |
 | AC-30 | Slice 2 merged | a manual run on `main` is cancelled by hand | No issue is opened | evaluator (after merge) |
 | AC-31 | Slice 2 merged | a manual run on `main` is started while the nightly run is running | Neither run is cancelled; both reach a conclusion other than `cancelled` | evaluator (after merge) |
