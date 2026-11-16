@@ -40,7 +40,9 @@ def parse(name: str, data: bytes) -> tuple[str, list[int]]:
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / f"upload{suffix}"
         path.write_bytes(data)
-        if suffix == ".pdf" and not local_files._has_text_layer(path):
+        with local_files._DOCLING_LOCK:  # pdfium is not thread-safe, and this runs in a worker thread
+            scan = suffix == ".pdf" and not local_files._has_text_layer(path)
+        if scan:
             raise ClientInputError(f"{name} has no text layer; upload the original document.")
         try:
             text, page_breaks, _ = local_files.parse_file_to_text_with_pages(path)

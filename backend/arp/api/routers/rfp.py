@@ -141,10 +141,13 @@ async def upload_document(
     replaces: int | None = Form(None),
     user: Principal = Depends(_approver),
     blobs=Depends(blob_store_dep),
+    settings=Depends(settings_dep),
 ) -> RfpDocumentOut:
     """Parses and stores a .pdf or .docx as `active`; with `replaces`, retires that document in the same transaction."""
     name = PurePath(file.filename or "").name
-    data = await file.read()
+    data = await file.read(settings.max_upload_bytes + 1)  # the house upload limit, as in routers/documents.py
+    if len(data) > settings.max_upload_bytes:
+        raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
     text, page_breaks = await asyncio.to_thread(documents.parse, name, data)  # 400 on a wrong type or a scan
     with transaction() as s:
         old = _document(s, replaces, lock=True) if replaces is not None else None  # 404 stores nothing
