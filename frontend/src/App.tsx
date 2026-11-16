@@ -305,7 +305,7 @@ function App() {
         {active === "backgroundAgents" && <BackgroundAgents />}
         {active === "transitionBarrier" && <TransitionBarrierAssessment params={route.params} />}
         {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool key={route.params[0]} initialSub={route.params[0]} onSendUniverse={sendToArgus} />}
-        {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} />}
+        {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} waiting={waiting} />}
         {active === "history" && <RunHistory onOpenReview={openReview} focusRunId={route.params[0] ?? null} />}
         {active === "plans" && <Plans selectedId={route.params[0] ?? null} onSelect={(id) => navigate("plans", id)} />}
         {active === "stewardship" && <StewardWorkflow initialTab={route.params[0]} />}

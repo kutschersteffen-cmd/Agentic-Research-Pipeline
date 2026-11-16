@@ -11,7 +11,7 @@ test("sp_ac5_same_badge_source", () => {
   assert.ok(bar().includes("waitingBadge("), "AppTopbar");
   assert.ok(read("../src/App.tsx").includes("getWaiting("), "App");
 });
-test("wc_ac12_no_review_count_sum", () => {
+test("wc_badge_not_from_review_count", () => {
   assert.ok(!read("../src/App.tsx").includes("review_count"));
 });
 test("sp_kbd_hints_hidden_from_names", () => {

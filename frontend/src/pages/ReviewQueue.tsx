@@ -23,13 +23,15 @@ const DECISION_KEYS: CardHandlers = { a: openDecision("approve"), c: openDecisio
 
 interface Props {
   pendingReview?: { kind: ReviewableRunKind; runId: string } | null;
+  /** App's /api/waiting answer; null until it answers or when it fails, so the note never shows a guess. */
+  waiting?: WaitingCounts | null;
 }
 
 /** One inbox across every run with flagged items, lowest confidence first,
  * so the reviewer starts deciding instead of picking a type and a run.
  * A run opened from elsewhere (`#/review/<kind>/<run id>`) starts filtered
  * to that run. */
-export function ReviewQueue({ pendingReview }: Props = {}) {
+export function ReviewQueue({ pendingReview, waiting = null }: Props = {}) {
   const [items, setItems] = useState<QueueItem[] | null>(null);
   const [filter, setFilter] = useState(pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "");
   const [error, setError] = useState<string | null>(null);
@@ -57,12 +59,6 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
       setItems([]);
     }
   }
-
-  // What else waits on a decision, outside this queue. Nothing shows until it answers, or if it fails.
-  const [waiting, setWaiting] = useState<WaitingCounts | null>(null);
-  useEffect(() => {
-    api.getWaiting().then(setWaiting, () => {});
-  }, []);
 
   useEffect(() => {
     load();

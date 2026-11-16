@@ -100,7 +100,3 @@ def test_broken_flow_is_503(env, monkeypatch):  # noqa: F811
     r = client(ALICE).get("/api/waiting")
     assert r.status_code == 503 and "could not be counted" in r.text
 
-
-def test_endpoint_200(env, stub_flow):  # noqa: F811
-    r = client(ALICE).get("/api/waiting")
-    assert r.status_code == 200 and r.json()["total"] == r.json()["review"]

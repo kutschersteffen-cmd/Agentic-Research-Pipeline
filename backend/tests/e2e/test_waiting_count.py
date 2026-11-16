@@ -10,9 +10,9 @@ pytestmark = [
 ]
 
 
-def _waiting(page, review, decisions, ballots):
+def _waiting(pg, review, decisions, ballots):
     total = review + decisions + ballots
-    page.route("**/api/waiting", lambda r: r.fulfill(json={"review": review, "decisions": decisions, "ballots": ballots, "total": total}))
+    pg.route("**/api/waiting", lambda r: r.fulfill(json={"review": review, "decisions": decisions, "ballots": ballots, "total": total}))
 
 
 def test_badge_reads_waiting_not_runs(page):  # noqa: F811
@@ -41,12 +41,16 @@ def test_review_queue_names_other_parts(page):  # noqa: F811
 
 def test_review_queue_no_note(page):  # noqa: F811
     _waiting(page, 5, 0, 0)
-    _open(page, "/#/review")
+    with page.expect_response("**/api/waiting"):
+        _open(page, "/#/review")
+    page.wait_for_timeout(300)  # the note renders on the next tick after the answer
     assert page.get_by_text("also wait").count() == 0
 
 
 def test_failure_hides_badge_and_note(page):  # noqa: F811
     page.route("**/api/waiting", lambda r: r.fulfill(status=500, json={"detail": "boom"}))
-    _open(page, "/#/review")
+    with page.expect_response("**/api/waiting"):
+        _open(page, "/#/review")
+    page.wait_for_timeout(300)  # let the rejected promise settle before checking nothing rendered
     assert page.locator(".start-topbar .nav-count").count() == 0
     assert page.get_by_text("also wait").count() == 0
