@@ -76,3 +76,57 @@ def test_a_run_stuck_by_a_restart_can_be_started_again(page):  # PR #215 review 
     page.get_by_role("button", name="Auto-fill again").click()
     page.get_by_text("· done").wait_for()
     assert state["posted"]
+
+
+# --- rfp-approved-answers-first-design: what changed against the approved answer ------------------
+
+FIRM_Q, FIRM_A = "Describe your firm.", "Example AM is an independent manager founded in 2004."
+
+
+def drafted(answer, kept_share, segments, status="drafted"):
+    q = {"id": 7, "location": "RFP!A1", "answer_location": "RFP!B1", "question": "Please describe your firm.",
+         "answer": answer, "status": status, "flags": [], "assignee": None, "last_editor": None,
+         "sources": [{"kind": "entry", "entry_id": 3, "entry_question": FIRM_Q, "quote": FIRM_A, "source": "lib_past.xlsx",
+                      "file": "lib_past.xlsx", "location": "Responses!B2", "written_by": None}],
+         "document_priority": 0, "base_entry_id": 3, "kept_share": kept_share,
+         "segments": [{"text": t, "change": c} for t, c in segments]}
+    return project("done") | {"question_count": 1, "questions": [q]}
+
+
+def open_card(page, body):
+    page.route("**/api/rfp/projects/1", lambda route: route.fulfill(json=body))
+    page.goto(f"{URL}/#/rfp/1")
+    card = page.get_by_role("region", name="Question RFP!A1")
+    card.wait_for()
+    return card
+
+
+ASSET_SEGMENTS = [("Example AM is an independent", "kept"), ("asset", "added"), ("manager founded in 2004.", "kept")]
+
+
+def test_ac_12_changed_answer_shows_share_and_marks(page):
+    card = open_card(page, drafted("Example AM is an independent asset manager founded in 2004.", 90, ASSET_SEGMENTS))
+    for text in ("90% unchanged from the approved answer", FIRM_Q, "From approved answers only"):
+        assert card.get_by_text(text).first.is_visible(), text
+    assert card.locator("ins", has_text="asset").count() == 1
+    assert card.locator("ins", has_text="Example").count() == 0 and card.locator("del", has_text="Example").count() == 0
+
+
+def test_ac_13_unchanged_answer(page):
+    card = open_card(page, drafted(FIRM_A, 100, [(FIRM_A, "kept")]))
+    assert card.get_by_text("Approved answer, unchanged").is_visible()
+
+
+def test_ac_46_removed_word_is_struck(page):
+    segments = [("Example AM is an", "kept"), ("independent", "removed"), ("manager founded in 2004.", "kept")]
+    card = open_card(page, drafted("Example AM is an manager founded in 2004.", 89, segments, status="edited"))
+    assert card.get_by_text("89% unchanged from the approved answer").is_visible()
+    assert card.locator("del", has_text="independent").count() == 1
+    assert card.get_by_text("Approved answer, unchanged").count() == 0
+
+
+def test_ac_56_full_share_with_an_added_word_is_not_unchanged(page):
+    segments = [(" ".join(["w"] * 199), "kept"), ("new", "added")]  # 199 of 200 rounds to 100
+    card = open_card(page, drafted(" ".join(["w"] * 199) + " new", 100, segments))
+    assert card.get_by_text("100% unchanged from the approved answer").is_visible()
+    assert card.get_by_text("Approved answer, unchanged").count() == 0
