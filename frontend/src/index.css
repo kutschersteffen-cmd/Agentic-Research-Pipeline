@@ -446,7 +446,7 @@ input[type="text"]:focus, input[type="password"]:focus, input:not([type]):focus,
 /* Previously only inputs had a focus style, so every button, nav tab and
    clickable row was invisible to keyboard users. :where() keeps this at
    zero specificity so any component rule still wins on the other states. */
-:where(button, a, input, textarea, select, [tabindex], .clickable-row, .issue-row, .preview-thumb):focus-visible {
+:where(button, a, input, textarea, select, summary, [tabindex], .clickable-row, .issue-row, .preview-thumb):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: var(--r-sm);
@@ -2610,4 +2610,60 @@ a.vc-box:hover { border-color: var(--text); }
   .start-topbar-ask kbd { display: none; }
   .start-topbar-end, .start-topbar-nav { gap: var(--s-3); }
   .app-shell-start .app-main { padding: var(--s-8) var(--s-4) 64px; }
+}
+
+/* Stewardship Workbench (pages/steward/workbench.tsx): one table of every company in a scope. The header row and the
+   tick and Name columns stay put while the table scrolls inside its frame. */
+.wb-steps { display: flex; flex-wrap: wrap; gap: var(--s-1_5) var(--s-4); margin: var(--s-1) 0 var(--s-2); padding: 0; list-style: none; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); }
+.wb-step { border-top: 1px solid var(--panel-border); margin-top: var(--s-4); padding-top: var(--s-3); }
+.wb-step h3 { margin: 0 0 var(--s-2); }
+.wb-scope-line { margin: var(--s-2) 0 0; }
+.wb-step .inline-fields > select { flex: 0 1 32rem; }
+.wb-sortbar > select { flex: none; width: auto; }
+.wb-sortbar { align-items: center; gap: var(--s-1_5) var(--s-2); margin-top: var(--s-4); }
+.wb-sort-chip { display: inline-flex; align-items: center; gap: var(--s-1); color: var(--text); font-family: var(--font-mono); }
+/* 24px targets (WCAG 2.5.8) for the small ✕ buttons; the glyph stays small. */
+:is(.wb-sort-chip, .wb-proposed) .link-button { display: inline-grid; place-items: center; min-width: 24px; min-height: 24px; padding: 0; margin: 0; line-height: 1; }
+.wb-proposed .link-button { margin-block: -4px; } /* the 24px target must not make a proposed row taller than the others */
+.wb-counts { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-xs); }
+.wb-menu { position: relative; }
+.wb-menu > summary { cursor: pointer; list-style: none; padding: var(--s-1) var(--s-2); border: 1px solid var(--field-border); border-radius: var(--r-sm); background: var(--panel); white-space: nowrap; }
+.wb-menu > summary::-webkit-details-marker { display: none; }
+.wb-menu-panel { position: absolute; z-index: 5; top: calc(100% + var(--s-1)); left: 0; min-width: 16rem; max-height: 60vh; overflow: auto; padding: var(--s-2) var(--s-3); background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-md); box-shadow: var(--shadow-md); }
+.wb-menu-panel .checkbox-label { margin: var(--s-1) 0; white-space: nowrap; }
+.wb-table-wrap { position: relative; max-height: min(72vh, 52rem); overflow: auto; border: 1px solid var(--panel-border); border-radius: var(--r-md); }
+.wb-table { margin-top: 0; font-size: var(--text-sm); }
+.wb-table th, .wb-table td { white-space: nowrap; }
+.wb-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.wb-table thead th { position: sticky; top: 0; z-index: 2; background: var(--panel); box-shadow: inset 0 -1px 0 var(--panel-border); padding: 0; }
+.wb-table :is(th, td).wb-tick { position: sticky; left: 0; z-index: 1; box-sizing: border-box; width: 2.5rem; min-width: 2.5rem; max-width: 2.5rem; padding-inline: 0; text-align: center; background: var(--panel); }
+.wb-table :is(th, td).wb-name { position: sticky; left: 2.5rem; z-index: 1; background: var(--panel); box-shadow: inset -1px 0 0 var(--panel-border); max-width: 16rem; overflow: hidden; text-overflow: ellipsis; }
+.wb-table thead :is(.wb-tick, .wb-name) { z-index: 3; }
+.wb-table .selected-row :is(.wb-tick, .wb-name) { background: var(--accent-tint); }
+.wb-table td.wb-tick input { margin: 0; }
+.wb-sort { all: unset; box-sizing: border-box; display: block; width: 100%; padding: var(--s-2); cursor: pointer; text-transform: inherit; letter-spacing: inherit; }
+.wb-sort:hover { color: var(--text); background: var(--well); }
+.wb-sort:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.wb-sort-mark { color: var(--accent); }
+.wb-chips { display: inline-flex; gap: var(--s-1); }
+.wb-chips .chip { color: var(--text); font-family: var(--font-mono); }
+.wb-proposed { display: inline-flex; align-items: center; gap: var(--s-1_5); }
+.wb-proposed .proposed-tag { margin: 0; }
+.sim-tag { display: inline-block; margin-left: var(--s-1_5); padding: 0 var(--s-1); border: 1px dashed var(--field-border); border-radius: 2px; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); vertical-align: baseline; }
+.wb-pager { justify-content: center; align-items: center; gap: var(--s-3); margin-top: var(--s-3); font-family: var(--font-mono); font-size: var(--text-xs); }
+.wb-actions { flex-wrap: wrap; gap: var(--s-2); }
+.rule-editor-closed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+@media (max-width: 560px) { .rule-editor-closed { flex-direction: column; align-items: flex-start; } }
+.wb-ticked { align-items: center; gap: var(--s-2) var(--s-3); padding: var(--s-2) var(--s-3); background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-md); }
+.wb-actions .wb-menu > summary { padding: 9px 16px; border-color: var(--panel-border); border-radius: var(--r-md); color: var(--accent); font-weight: 600; }
+.wb-menu-item { display: block; width: 100%; padding: var(--s-1_5) 0; text-align: left; white-space: nowrap; }
+.wb-table td.wb-topics { max-width: 20rem; overflow: hidden; text-overflow: ellipsis; }
+.wb-fund-list { max-height: 40vh; overflow: auto; margin: var(--s-2) 0; }
+.wb-weights { max-width: 28rem; }
+.wb-weights td { vertical-align: middle; }
+.wb-weights input { width: 6rem; min-width: 0; }
+@media (pointer: coarse) { .wb-menu > summary { display: flex; align-items: center; min-height: 44px; } }
+@media (max-width: 760px) {
+  .wb-counts { margin-left: 0; flex-basis: 100%; }
+  .wb-table :is(th, td).wb-name { max-width: 9rem; }
 }
