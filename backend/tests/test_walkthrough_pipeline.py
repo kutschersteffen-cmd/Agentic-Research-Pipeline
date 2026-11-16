@@ -13,7 +13,6 @@ from fastapi.testclient import TestClient
 
 from arp.api.deps import get_run_store
 from arp.api.main import app
-from arp.db.runs import RunStore
 from arp.extraction import pipeline
 from arp.extraction.adjudicator import AdjudicatorOutput
 from arp.extraction.extractor_agent import ExtractionDraft, FieldDraft, GroupDraft, PeriodValue
@@ -35,6 +34,7 @@ from arp.schemas.datapoints import (
     FieldDataType,
     FieldDefinition,
 )
+from arp.storage.run_store import RunStore
 from tests.test_extraction_pipeline import _FixedDocSource, _schema, _settings
 from tests.test_transition_alignment_plan_extraction import _plan, _record, _script
 from tests.transition_alignment_helpers import ta_dirs  # noqa: F401 - fixture

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-from arp.db.runs import RunStore
 from arp.decision import sources
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
 from arp.decision.profiling import profile_dataset
@@ -16,6 +15,7 @@ from arp.schemas.strategy_replication import (
     ReplicationVerdict,
     ReportedPerformance,
 )
+from arp.storage.run_store import RunStore
 from tests.postgres_helpers import replace_results
 
 # The engine scores rows; nothing in it assumes a row is a company. These

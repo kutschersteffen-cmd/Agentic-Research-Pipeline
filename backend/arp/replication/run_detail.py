@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from arp.db.runs import RunStore
 from arp.replication.regime_analysis import RegimeStratifiedReport
 from arp.replication.sanity_check import SanityCheckAssessment
 from arp.schemas.strategy_replication import BacktestResult, ReplicationComparisonReport, StrategySpec
+from arp.storage.run_store import RunStore
 
 
 class ReplicationRunDetail(BaseModel):

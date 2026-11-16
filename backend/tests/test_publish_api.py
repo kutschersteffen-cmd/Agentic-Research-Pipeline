@@ -10,10 +10,10 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import blob_store_dep, get_document_content_store, get_run_store, publish_store_dep, settings_dep
 from arp.api.main import app
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.publish.facts import ConcurrentPublish, Release
 from arp.publish.release import WithdrawalError
 from arp.schemas.common import RunManifest
+from arp.storage.run_store import RunStore
 
 REL = Release(
     release_id="rel1", doc_id="d1", content_key="ck", storage_uri="file:///ck", issuer_key="ISS1",

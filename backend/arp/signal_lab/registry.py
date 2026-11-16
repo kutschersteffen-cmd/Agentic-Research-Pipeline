@@ -6,10 +6,10 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from arp.db.runs import RunStore
 from arp.schemas.common import JobStatus, RunManifest, now_iso
 from arp.signal_lab.cutoffs import CutoffTable
 from arp.signal_lab.evidence import EvidenceReport
+from arp.storage.run_store import RunStore
 
 SIGNAL_REGISTRY_RUN_ID = "signal_registry"
 MIN_POST_CUTOFF_IC_MONTHS = 12

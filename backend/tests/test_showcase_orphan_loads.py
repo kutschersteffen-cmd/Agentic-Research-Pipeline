@@ -4,7 +4,6 @@ from datetime import date
 
 import pytest
 
-from arp.db.runs import RunStore
 from arp.holdings.intake import IntakeError, ingest
 from arp.holdings.validate import RowError, Validated
 from arp.portfolio import feeds, issues
@@ -12,6 +11,7 @@ from arp.portfolio.loads import LoadRecord, record_load
 from arp.schemas.portfolio import HolderConfig, Portfolio
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.run_store import RunStore
 
 TODAY = date(2026, 11, 12)
 REJECTED = Validated([], [RowError(None, "currency", "missing required column")])

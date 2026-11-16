@@ -33,7 +33,6 @@ from arp.argus.rows import FlowRow, flow_rows
 from arp.argus.start import StartError, start_request
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
-from arp.db.runs import RunStore
 from arp.db.session import require_dsn, transaction
 from arp.discovery.identity_pipeline import enriched_universe
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
@@ -54,6 +53,7 @@ from arp.schemas.common import CompanyRef, DocType, JobStatus, now_iso
 from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
+from arp.storage.run_store import RunStore
 from arp.storage.safe_path import UnsafeIdentifierError
 from arp.universe_workbench.availability import availability
 from arp.xbrl_pipeline.store import XbrlStore

@@ -8,7 +8,6 @@ from types import SimpleNamespace
 import pytest
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.holdings.intake import ingest
 from arp.holdings.validate import validate
 from arp.publish import scheduler as S
@@ -22,6 +21,7 @@ from arp.storage.document_blob_store import LocalBlobStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.run_store import RunStore
 from tests.postgres_helpers import pg_dsn
 
 pytestmark = pytest.mark.usefixtures("pg")

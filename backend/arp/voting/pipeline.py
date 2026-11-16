@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_company_batch
@@ -13,7 +12,7 @@ from arp.orchestration.review_queue import latest_decisions
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.voting import CompanyBallot, HumanVoteDecision, VotePosition, VoteRecord
 from arp.storage.engagement_store import EngagementStore
-from arp.storage.run_store import done_keys_from_rows
+from arp.storage.run_store import RunStore, done_keys_from_rows
 from arp.voting.ballot_casting import CastVoteError, ManualInstructionBallotPlatform, cast_vote
 from arp.voting.ballot_graph import process_company_ballot
 from arp.voting.policy_agent import DEFAULT_POLICY_RULES, PolicyRule

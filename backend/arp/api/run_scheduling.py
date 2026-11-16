@@ -5,12 +5,12 @@ from collections.abc import Awaitable, Callable
 from arp.api.auth import Principal
 from arp.api.deps import get_llm_client, get_verifier_llm_client
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.llm.base import LLMClient
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import get_job_launcher
+from arp.storage.run_store import RunStore
 
 
 def mark_batch_run(run_store: RunStore, run_id: str) -> None:

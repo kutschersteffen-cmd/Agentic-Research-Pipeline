@@ -22,7 +22,6 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from arp.db.runs import RunStore
 from arp.decision import sources
 from arp.decision.dataset import Dataset
 from arp.decision.roles import slug
@@ -30,6 +29,7 @@ from arp.presets.transition_plan import SCHEMA_ID as TRANSITION_PLAN_SCHEMA_ID
 from arp.schemas.common import RunManifest, new_id, now_iso
 from arp.schemas.decision import AuditEntry, MechanismConfig
 from arp.storage.atomic_io import atomic_write_text
+from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
 

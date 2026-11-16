@@ -4,7 +4,6 @@ import logging
 from collections.abc import Callable
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.discovery.site_finder import WebSearchClient
 from arp.llm.base import LLMClient
 from arp.orchestration.batch_runner import run_batch, run_sinks
@@ -16,6 +15,7 @@ from arp.research.taxonomy_sources.discovery import discover_authority_sources, 
 from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyStatus
 from arp.schemas.taxonomy_researcher import TaxonomyResearcherScheduleConfig, TaxonomyResearchFinding
 from arp.schemas.thematic import ThemeDefinition
+from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 
 logger = logging.getLogger(__name__)

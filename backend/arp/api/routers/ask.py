@@ -24,13 +24,13 @@ from arp.api.deps import (
 )
 from arp.api.routers.security_master import datahub_lists
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.llm.base import LLMClient
 from arp.portfolio import qa_agent, qa_audit
 from arp.stewardship.benchmark import BenchmarkStore
 from arp.stewardship.process import StreamStore
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.portfolio_store import portfolio_directories
+from arp.storage.run_store import RunStore
 
 router = APIRouter(prefix="/api/ask", tags=["ask"])
 

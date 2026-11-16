@@ -1,7 +1,7 @@
-from arp.db.runs import RunStore
 from arp.llm.base import LLMUsage
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import JobStatus
+from arp.storage.run_store import RunStore
 
 
 def test_create_run_and_progress_lifecycle(tmp_path, pg):

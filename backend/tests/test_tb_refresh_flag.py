@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from arp.api.deps import get_run_store, settings_dep
 from arp.api.main import app
 from arp.config import Settings, get_settings
-from arp.db.runs import RunStore
+from arp.storage.run_store import RunStore
 from arp.transition_barrier import dataset
 from tests.transition_barrier_helpers import FIXTURES
 

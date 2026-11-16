@@ -27,7 +27,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from arp.storage.postgres import get_engine
+from arp.storage.postgres import PostgresExtraNotInstalled, get_engine
 
 if TYPE_CHECKING:
     from sqlalchemy import Connection
@@ -487,6 +487,14 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
 )
 
 
+def _sqlalchemy():
+    try:
+        import sqlalchemy
+    except ImportError as exc:  # pragma: no cover - exercised only without the optional extra
+        raise PostgresExtraNotInstalled(exc) from exc
+    return sqlalchemy
+
+
 def _ensure_migrations_table(conn: Connection) -> None:
     from sqlalchemy import text
 
@@ -567,6 +575,7 @@ def ensure_schema(dsn: str) -> dict:
     [...], "steps_applied": [...]}` -- so the CLI can report it instead of
     claiming success without detail.
     """
+    _sqlalchemy()
     from sqlalchemy import inspect, text
 
     import arp.db.models  # noqa: F401  (registers the company-foundation tables on Base)
@@ -611,6 +620,7 @@ def _gaps(conn: Connection, existing_tables: set[str]) -> tuple[list[str], list[
 def schema_gaps(dsn: str) -> tuple[list[str], list[str]]:
     """(missing tables, pending steps) as `schema_report` lists them, without its column and row scans:
     the startup check (`arp.db.session.require_cutover`)."""
+    _sqlalchemy()
     from sqlalchemy import inspect
 
     with get_engine(dsn).connect() as conn:
@@ -629,6 +639,7 @@ def schema_report(dsn: str) -> dict:
     mismatch left behind by an added column); those are for an operator to
     resolve.
     """
+    _sqlalchemy()
     from sqlalchemy import inspect, text
 
     import arp.db.models  # noqa: F401

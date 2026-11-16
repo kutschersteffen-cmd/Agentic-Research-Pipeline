@@ -13,8 +13,8 @@ import pytest
 
 from arp.argus.flows import FlowStore
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.schemas.common import CompanyRef, JobStatus, RunManifest
+from arp.storage.run_store import RunStore
 
 URL = os.environ.get("ARP_E2E_URL")
 API = os.environ.get("ARP_E2E_API_URL", "http://127.0.0.1:8000")

@@ -12,11 +12,11 @@ from arp.api.main import app
 from arp.api.routers import extraction, financials, tnfd
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
-from arp.db.runs import RunStore
 from arp.errors import NotConfigured
 from arp.ingestion.registry import KeptDocuments
 from arp.schemas.common import CompanyRef, DocType, RunManifest, SourceDocument
 from arp.schemas.datapoints import DataPointSchema
+from arp.storage.run_store import RunStore
 from tests.pdf_fixtures import FILLER, make_pdf
 
 

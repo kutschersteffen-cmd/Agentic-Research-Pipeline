@@ -19,7 +19,6 @@ from pydantic import BaseModel, Field
 
 from arp.api.deps import get_run_store, settings_dep
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.discovery.site_finder import SearchResult, SearchUnreachable, WebSearchClient
 from arp.grounding import ground_citations
 from arp.ingestion.html_text import extract_html_text
@@ -30,6 +29,7 @@ from arp.schemas.common import Citation, DocType, SourceDocument
 from arp.schemas.taxonomy import Taxonomy
 from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.locks import KeyedLock
+from arp.storage.run_store import RunStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
 logger = logging.getLogger(__name__)

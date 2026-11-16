@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from arp.api.deps import get_run_store, settings_dep
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.portfolio.climate import metrics as climate_metrics
 from arp.schemas.cockpit import CockpitResponse
@@ -17,6 +16,7 @@ from arp.stewardship.programmes import ProgrammeLog
 from arp.stewardship.tiers import TierStore
 from arp.storage.portfolio_store import portfolio_directories
 from arp.storage.portfolio_store_factory import build_portfolio_store
+from arp.storage.run_store import RunStore
 
 router = APIRouter(prefix="/api/stewardship", tags=["stewardship"])
 

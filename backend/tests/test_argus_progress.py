@@ -11,9 +11,9 @@ from arp.api.main import app
 from arp.argus.flows import FlowStore
 from arp.argus.progress import company_status, minutes_left
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.orchestration import step_tally
 from arp.schemas.common import JobStatus, RunManifest
+from arp.storage.run_store import RunStore
 
 
 @pytest.mark.parametrize("raw, run, steps, expected", [

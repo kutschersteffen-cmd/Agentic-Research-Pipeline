@@ -5,10 +5,10 @@ import json
 import pytest
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.schemas.common import CompanyRef
 from arp.schemas.issuer import IdentifierMap
 from arp.storage.identifier_map import IdentifierMapStore
+from arp.storage.run_store import RunStore
 from arp.universe_workbench.mapping import MasterIndex
 from arp.xbrl_pipeline.fetch import create_xbrl_run, execute_xbrl_run, load_routing
 from tests.test_xbrl_esef_fetch import LEI

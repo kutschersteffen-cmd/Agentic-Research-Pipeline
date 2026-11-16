@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Literal, Protocol, TypeVar
 import httpx
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.ingestion.edgar import AnnualOriginal, EdgarDocumentSource
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.orchestration.batch_runner import run_company_batch
@@ -18,6 +17,7 @@ from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import hold_run
 from arp.schemas.common import CompanyRef
 from arp.storage.atomic_io import atomic_write_text
+from arp.storage.run_store import RunStore
 from arp.storage.safe_path import safe_id
 from arp.xbrl_pipeline.flatten import build_catalog, flatten_company_facts
 from arp.xbrl_pipeline.models import CompanyStatus, Market, ReportMeta  # noqa: F401 -- Market stays importable from here

@@ -14,7 +14,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.extraction.field_graph import field_evidence
 from arp.extraction.pipeline import load_run_schema
 from arp.golden_set.export import final_decisions
@@ -31,6 +30,7 @@ from arp.retrieval.rerank import RERANK_KEYS
 from arp.schemas.common import CompanyRef, DocType, DocumentChunk, SourceDocument
 from arp.schemas.review import DecisionKind, ReviewDecision, field_item_key, period_key
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
+from arp.storage.run_store import RunStore
 
 
 @dataclass(frozen=True)

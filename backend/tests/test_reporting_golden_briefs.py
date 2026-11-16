@@ -11,7 +11,6 @@ import pytest
 from pypdf import PdfReader
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.reporting.fit import fit_deck
 from arp.reporting.lint import lint_deck
 from arp.reporting.service import ReportingService
@@ -30,6 +29,7 @@ from arp.schemas.reporting import (
 )
 from arp.storage.decision_store import DecisionStore
 from arp.storage.reporting_store import ReportingStore
+from arp.storage.run_store import RunStore
 from tests.postgres_helpers import replace_results
 
 

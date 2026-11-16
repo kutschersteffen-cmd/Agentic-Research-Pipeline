@@ -194,9 +194,9 @@ async def test_hybrid_retrieval_setting_reaches_evidence_selection(tmp_path, fak
 
 async def test_a_run_counts_the_items_through_each_step(pg, tmp_path, fake_llm):
     """End to end through run_company_batch: one company has evidence, one does not."""
-    from arp.db.runs import RunStore
     from arp.extraction.pipeline import run_extraction
     from arp.orchestration.step_tally import step_counts
+    from arp.storage.run_store import RunStore
 
     class _ByCompany(DocumentSource):
         name = "by-company"
@@ -225,9 +225,9 @@ async def test_a_run_counts_the_items_through_each_step(pg, tmp_path, fake_llm):
 
 
 async def test_pipeline_queues_one_row_per_flagged_field(pg, tmp_path, fake_llm):
-    from arp.db.runs import RunStore
     from arp.extraction.pipeline import execute_extraction_run
     from arp.schemas.issuer import issuer_key
+    from arp.storage.run_store import RunStore
 
     def _f(name, kw):
         return FieldDefinition(
@@ -276,8 +276,8 @@ async def test_pipeline_queues_one_row_per_flagged_field(pg, tmp_path, fake_llm)
 
 
 async def test_provenance_records_schema_version(pg, tmp_path, fake_llm):
-    from arp.db.runs import RunStore
     from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+    from arp.storage.run_store import RunStore
 
     doc = SourceDocument(
         company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG",
@@ -304,8 +304,8 @@ async def test_provenance_records_schema_version(pg, tmp_path, fake_llm):
 
 
 async def test_zero_and_not_found_end_to_end(pg, tmp_path, fake_llm):
-    from arp.db.runs import RunStore
     from arp.extraction.pipeline import execute_extraction_run
+    from arp.storage.run_store import RunStore
 
     def _f(name, kw):
         return FieldDefinition(
@@ -342,8 +342,8 @@ async def test_zero_and_not_found_end_to_end(pg, tmp_path, fake_llm):
 
 
 async def test_review_key_uses_period_end(pg, tmp_path, fake_llm):
-    from arp.db.runs import RunStore
     from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+    from arp.storage.run_store import RunStore
 
     schema = _schema()
     doc = SourceDocument(
@@ -426,8 +426,8 @@ def _released_run(schema, companies, settings, run_store):
 
 
 async def test_auto_accepted_not_queued_and_marked_system(pg, tmp_path, fake_llm):
-    from arp.db.runs import RunStore
     from arp.extraction.pipeline import execute_extraction_run
+    from arp.storage.run_store import RunStore
 
     doc = SourceDocument(
         company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="Acme Corp Sustainability Report",
@@ -460,8 +460,8 @@ async def test_auto_accepted_not_queued_and_marked_system(pg, tmp_path, fake_llm
 
 
 async def test_all_documents_held_fields_hold(pg, tmp_path, fake_llm):
-    from arp.db.runs import RunStore
     from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+    from arp.storage.run_store import RunStore
 
     doc = SourceDocument(
         company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="Acme Energy GmbH Sustainability Report 2025",
@@ -500,8 +500,8 @@ def _trial_run_one_field(tmp_path, fake_llm, verifier):
 
 
 async def _run_trial(tmp_path, doc, llm):
-    from arp.db.runs import RunStore
     from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+    from arp.storage.run_store import RunStore
 
     settings = _settings(tmp_path)
     run_store = RunStore(pg_dsn(), settings.runs_dir)

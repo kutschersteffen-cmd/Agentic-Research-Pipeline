@@ -7,10 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from arp.agents.calibration_agent import CalibrationAgentScheduler, create_calibration_run, execute_calibration_run
 from arp.api.deps import get_calibration_scheduler, get_registry, settings_dep
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.schemas.calibration import CalibrationScheduleConfig
+from arp.storage.run_store import RunStore
 
 router = APIRouter(prefix="/api/calibration", tags=["calibration"])
 

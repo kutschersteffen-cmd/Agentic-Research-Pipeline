@@ -19,7 +19,7 @@ from arp.api import run_scheduling
 from arp.api.deps import get_taxonomy_store, settings_dep
 from arp.api.routers import taxonomy_researcher as router_module
 from arp.config import Settings
-from arp.db.runs import RunStore
+from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 
 

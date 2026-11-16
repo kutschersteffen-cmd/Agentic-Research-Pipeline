@@ -13,11 +13,11 @@ from arp.api.auth import current_user
 from arp.api.deps import get_document_content_store, get_run_store, settings_dep
 from arp.api.main import app
 from arp.config import Settings, get_settings
-from arp.db.runs import RunStore
 from arp.errors import NotConfigured
 from arp.extraction.extractor_agent import PeriodValue
 from arp.schemas.common import Citation, DocType
 from arp.storage.document_store import DocumentContentStore
+from arp.storage.run_store import RunStore
 from arp.transition_barrier import RUN_TYPE, clock, dataset, derivation
 from arp.transition_barrier.rule_book import sign_rule_book
 from tests.postgres_helpers import pg_dsn

@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from arp.db.runs import RunStore
 from arp.decision import sources, templates
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
 from arp.decision.profiling import profile_dataset
@@ -11,6 +10,7 @@ from arp.orchestration.job_manager import JobManager
 from arp.presets.transition_plan import SCHEMA_ID, build_transition_plan_schema
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import ExtractedField, ExtractionRecord
+from arp.storage.run_store import RunStore
 from arp.transition_plan.indicators import load_indicators
 from tests.postgres_helpers import replace_results
 

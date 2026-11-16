@@ -6,10 +6,10 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from functools import cached_property
 
-from arp.db.runs import RunStore
 from arp.orchestration.review_queue import FINAL_STATES, item_states
 from arp.schemas.common import JobStatus
 from arp.schemas.transition_barrier import BarrierScore
+from arp.storage.run_store import RunStore
 from arp.transition_barrier import RUN_TYPE, store
 from arp.transition_barrier.dataset import data_dir, load_criteria, load_scores
 from arp.transition_barrier.engine import Result, cell_evidence, cell_source

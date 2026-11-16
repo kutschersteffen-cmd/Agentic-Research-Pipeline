@@ -7,10 +7,10 @@ import pytest
 from langgraph.graph import END, StateGraph
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.extraction.steps import PROFILES, SETTING_INFO, StepSettings, pipeline_shape, restart_overrides
 from arp.llm.cache import DiskLLMCache
 from arp.orchestration.step_tally import on_company, run_graph, step_counts, tally_run
+from arp.storage.run_store import RunStore
 
 
 @pytest.mark.parametrize("profile", list(PROFILES))

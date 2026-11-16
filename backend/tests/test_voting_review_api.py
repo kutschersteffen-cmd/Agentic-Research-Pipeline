@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from arp.api.deps import get_run_store
 from arp.api.routers import voting as voting_router
-from arp.db.runs import RunStore
+from arp.storage.run_store import RunStore
 
 
 @pytest.fixture

@@ -14,13 +14,13 @@ from arp.api.auth import Principal
 from arp.argus.companies import problem_of
 from arp.argus.flows import ArgusFlow
 from arp.db.models import Company, CompanyIdentifier
-from arp.db.runs import RunStore
 from arp.orchestration.review_queue import latest_decisions
 from arp.review.items import list_open_items
 from arp.schemas.common import RunManifest
 from arp.schemas.review import field_item_key, period_key
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
+from arp.storage.run_store import RunStore
 from arp.universe_workbench.availability import availability
 from arp.universe_workbench.mapping import MasterIndex, map_company
 from arp.xbrl_pipeline.store import XbrlStore

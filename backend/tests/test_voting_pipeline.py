@@ -1,10 +1,10 @@
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.ingestion.base import DocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.review_queue import record_review_decision
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
 from arp.schemas.voting import ProposalType, VotePosition
+from arp.storage.run_store import RunStore
 from arp.voting.ballot_casting import CastVoteError, ManualInstructionBallotPlatform, cast_vote
 from arp.voting.pipeline import _process_company, cast_approved_votes, create_voting_run, execute_voting_run
 from arp.voting.policy_agent import DEFAULT_POLICY_RULES

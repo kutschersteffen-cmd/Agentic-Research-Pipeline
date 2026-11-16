@@ -5,7 +5,6 @@ from collections import defaultdict
 from datetime import UTC, datetime
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.interval_scheduler import IntervalScheduler
 from arp.orchestration.job_manager import JobManager
@@ -13,6 +12,7 @@ from arp.research.pipeline import load_theme_run_matches
 from arp.schemas.calibration import CalibrationScheduleConfig, DriftFlag
 from arp.schemas.common import CompanyRef, JobStatus, SourceDocument
 from arp.schemas.thematic import CompanyMatch
+from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
 

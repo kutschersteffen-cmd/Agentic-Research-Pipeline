@@ -10,12 +10,12 @@ from __future__ import annotations
 
 from datetime import date
 
-from arp.db.runs import RunStore
 from arp.holdings import security_master
 from arp.orchestration.review_queue import effective_decisions
 from arp.portfolio import feeds
 from arp.schemas.review import field_item_key, period_key
 from arp.storage.identifier_map import IdentifierMapStore
+from arp.storage.run_store import RunStore
 
 FEED_LABEL = {"security_master": "Security master", "holdings": "Portfolio holdings", "index": "Index constituents",
               "esg": "ESG data", "news": "News"}

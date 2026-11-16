@@ -16,10 +16,10 @@ from arp.api.deps import (
 )
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.llm.base import LLMClient
 from arp.schemas.taxonomy_researcher import TaxonomyResearcherScheduleConfig
+from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 
 router = APIRouter(prefix="/api/taxonomy-researcher", tags=["taxonomy-researcher"])

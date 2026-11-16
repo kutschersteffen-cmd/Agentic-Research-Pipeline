@@ -9,7 +9,6 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
-from arp.db.runs import RunStore
 from arp.holdings.intake import ingest
 from arp.holdings.validate import validate
 from arp.publish.facts import FactCandidate, FactEvent, plan_version
@@ -29,6 +28,7 @@ from arp.snapshots.build import (
 )
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.run_store import RunStore
 
 AS_OF, MONTH = "2026-10-31", "2026-10"
 LEI = "5493001KJTIIGC8Y1R12"

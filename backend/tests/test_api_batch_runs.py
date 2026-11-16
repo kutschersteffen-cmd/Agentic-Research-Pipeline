@@ -10,12 +10,12 @@ from arp.api.auth import Principal, current_user
 from arp.api.routers import extraction, financials, identity, themes, tnfd, voting
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
-from arp.db.runs import RunStore
 from arp.llm.batching_client import BatchingLLMClient
 from arp.orchestration.job_manager import JobManager
 from arp.research.taxonomy_schema import build_taxonomy_schema
 from arp.schemas.taxonomy import DerivationMethod
 from arp.schemas.thematic import ThemeDefinition
+from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 
 COMPANIES = [{"company_id": "c1", "name": "Acme"}]

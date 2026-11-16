@@ -6,12 +6,12 @@ import pytest
 
 import arp.orchestration.reground as R
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.orchestration.reground import RegroundReport, reground_if_parser_changed, reground_runs
 from arp.publish.gate import reground_citation
 from arp.schemas.common import Citation, RunManifest
 from arp.storage.document_blob_store import LocalBlobStore
 from arp.storage.document_store import DocumentContentStore
+from arp.storage.run_store import RunStore
 from tests.postgres_helpers import edit_results, pg_dsn
 
 pytestmark = pytest.mark.usefixtures("pg")

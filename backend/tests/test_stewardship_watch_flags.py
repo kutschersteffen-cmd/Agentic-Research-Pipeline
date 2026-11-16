@@ -14,7 +14,6 @@ from arp.api.deps import get_engagement_store, get_registry, get_run_store
 from arp.api.main import app
 from arp.api.routers import engagement as engagement_router
 from arp.config import get_settings
-from arp.db.runs import RunStore
 from arp.engagement.drafting_agent import draft_talking_points
 from arp.engagement.research_agent import ResearchDossierDraft
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -33,6 +32,7 @@ from arp.stewardship import tracking
 from arp.stewardship.tracking import triggers, watch_flags, watch_flags_by_company, watch_list
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.postgres_engagement_store import PostgresEngagementStore
+from arp.storage.run_store import RunStore
 from arp.voting.ballot_casting import ManualInstructionBallotPlatform, cast_vote
 from tests.conftest import PRINCIPAL, FakeLLMClient
 from tests.test_engagement_research_agent import _FixedDocSource

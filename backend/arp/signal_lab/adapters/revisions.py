@@ -3,11 +3,18 @@ from __future__ import annotations
 import csv
 from datetime import date
 from pathlib import Path
+from typing import Protocol
 
 from arp.replication.characteristics_data import CharacteristicPanel
 from arp.signal_lab.times import month_end_time, normalise_time
 
 _REQUIRED = ("issuer_key", "event_time", "direction")
+
+
+class RevisionSource(Protocol):
+    def get_panel(
+        self, issuer_keys: list[str], period_ends: list[str], *, window_months: int = 3
+    ) -> CharacteristicPanel: ...
 
 
 def _window_start(period_end: str, window_months: int) -> str:

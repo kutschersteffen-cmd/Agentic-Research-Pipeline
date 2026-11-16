@@ -9,7 +9,6 @@ import typer
 
 from arp.cli._shared import _portfolio_store, _run_store
 from arp.config import Settings, get_settings
-from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.discovery.academic_search import ArxivSearchClient, CompositeSearchClient, SemanticScholarSearchClient
 from arp.discovery.site_finder import WebSearchClient, build_web_search_client
@@ -27,6 +26,7 @@ from arp.replication.sentiment_scoring import build_manifest_from_store, build_s
 from arp.replication.spec_graph import extract_strategy_spec
 from arp.schemas.common import DocType, SourceDocument
 from arp.schemas.strategy_replication import BacktestResult, ReplicationComparisonReport, StrategySpec
+from arp.storage.run_store import RunStore
 
 replicate_app = typer.Typer(
     help="Investment Strategy Replication: extract an academic 'outperformance' paper's methodology into an "

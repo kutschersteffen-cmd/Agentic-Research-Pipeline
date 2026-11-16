@@ -10,11 +10,11 @@ from arp.api.auth import current_user
 from arp.api.deps import get_decision_store, get_portfolio_store, get_run_store, settings_dep
 from arp.api.routers import decision as decision_router
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.decision import sources, templates
 from arp.decision.mechanism import derive_mechanism
 from arp.orchestration.job_manager import JobManager
 from arp.storage.decision_store import DecisionStore
+from arp.storage.run_store import RunStore
 from tests.conftest import PRINCIPAL
 from tests.postgres_helpers import replace_results
 

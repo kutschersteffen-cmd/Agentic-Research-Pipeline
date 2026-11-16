@@ -9,12 +9,12 @@ from arp.api.auth import current_user
 from arp.api.deps import get_document_content_store, get_run_store, settings_dep
 from arp.api.main import app
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import queue_for_review
 from arp.review.context import _state
 from arp.schemas.common import RunManifest
 from arp.storage.document_store import DocumentContentStore
+from arp.storage.run_store import RunStore
 from arp.transition_barrier import RUN_TYPE
 from tests.postgres_helpers import pg_dsn
 from tests.transition_barrier_helpers import A_ANALYST, A_APPROVER, B_ANALYST, B_APPROVER

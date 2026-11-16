@@ -11,8 +11,8 @@ from arp.api.review_endpoints import (
     get_review_queue,
     submit_review,
 )
-from arp.db.runs import RunStore
 from arp.schemas.transition_plan import TransitionPlanIndicator
+from arp.storage.run_store import RunStore
 from arp.transition_plan.indicators import load_indicators
 
 router = APIRouter(prefix="/api/transition-plan", tags=["transition-plan"])

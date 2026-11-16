@@ -12,7 +12,6 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_document_content_store, get_run_store, settings_dep
 from arp.api.main import app
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.pipeline import load_run_schema, run_extraction
 from arp.extraction.verifier_agent import VerifierOutput
@@ -27,6 +26,7 @@ from arp.review.quality import _perturb, record_confirmed_correction, reviewer_s
 from arp.schemas.common import Citation, CompanyRef, DocType, RunManifest, SourceDocument
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.review import ReviewDecision
+from arp.storage.run_store import RunStore
 from tests.test_review_context import _schema
 from tests.test_review_decide import ALICE, BOB, CAROL, CORRECT, client, ctx, decide, env  # noqa: F401 - env is a fixture
 

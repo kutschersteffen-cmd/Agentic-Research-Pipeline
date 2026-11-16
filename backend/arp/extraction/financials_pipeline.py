@@ -4,7 +4,6 @@ import logging
 import re
 
 from arp.config import Settings
-from arp.db.runs import RunStore
 from arp.extraction.financials_graph import extract_company_financials
 from arp.extraction.pre_steps import prepare_company
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -16,6 +15,7 @@ from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef
 from arp.schemas.financials import CompanyFinancialsRecord
 from arp.schemas.spend import AmountMetric
+from arp.storage.run_store import RunStore
 from arp.walkthrough import trace
 
 logger = logging.getLogger(__name__)

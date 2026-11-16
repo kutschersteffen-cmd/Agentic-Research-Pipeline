@@ -4,7 +4,6 @@ from arp.api.deps import get_run_store
 from arp.api.main import app
 from arp.checks.plausibility import check_part_of_whole, check_sum_identity, check_sum_to_target
 from arp.db.fields import SchemaRegistry
-from arp.db.runs import RunStore
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.verifier_agent import VerifierOutput
@@ -14,6 +13,7 @@ from arp.presets.green import GREEN_TABLE, build_green_schema, green_summary, lo
 from arp.presets.registry import PRESETS, install_preset
 from arp.schemas.common import CompanyRef, DocType, RunManifest, SourceDocument
 from arp.schemas.datapoints import ExtractionRecord, FieldStatus
+from arp.storage.run_store import RunStore
 from tests.test_checks_plausibility import _field, _run
 from tests.test_extraction_pipeline import _UNSETTLED, _FixedDocSource, _settings
 

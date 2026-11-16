@@ -10,10 +10,10 @@ from typer.testing import CliRunner
 
 from arp.cli import app
 from arp.config import get_settings
-from arp.db.runs import RunStore
 from arp.scale.load import simulate
 from arp.scale.report import RunReport, render_markdown, run_report
 from arp.schemas.common import JobStatus, RunManifest
+from arp.storage.run_store import RunStore
 
 pytestmark = pytest.mark.usefixtures("pg")  # the CLI/app and RunStore need Postgres
 

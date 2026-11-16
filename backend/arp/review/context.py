@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 from arp.checks.numeric import NUMERIC_TYPES
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
-from arp.db.runs import RunStore
 from arp.extraction.history import RunHistory
 from arp.extraction.pipeline import load_run_schema
 from arp.grounding import _page_for_offset
@@ -19,6 +18,7 @@ from arp.schemas.common import new_id
 from arp.schemas.datapoints import CheckResult, is_failing
 from arp.schemas.review import ReviewItem, ReviewItemKind, field_item_key, period_key
 from arp.storage.document_store import DocumentContentStore
+from arp.storage.run_store import RunStore
 
 if TYPE_CHECKING:
     from arp.api.auth import Principal
