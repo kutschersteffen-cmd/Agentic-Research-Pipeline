@@ -294,6 +294,11 @@ a.nav-tab { text-decoration: none; }
 }
 /* The intro reads in --text-2; a meta line under a title (.meta) stays muted and small. */
 :where(.page, .page-body) > h1 + :is(.help-text, .muted):not(.meta) { color: var(--text-2); font-size: var(--text-base); }
+/* Workspace overviews at 1100px and up: title left, intro right, bottoms aligned. Inline-blocks keep the page's block flow. */
+@media (min-width: 1100px) {
+  .page.hub:not(.hub-start) > h1:has(+ .help-text) { display: inline-block; width: calc(50% - var(--s-4)); margin: 0 var(--s-8) var(--s-8) 0; vertical-align: bottom; }
+  .page.hub:not(.hub-start) > h1 + .help-text { display: inline-block; width: calc(50% - var(--s-4)); margin: 0 0 var(--s-8); vertical-align: bottom; }
+}
 /* Above 760px the intro is a lead. */
 @media (min-width: 761px) {
   :where(.page, .page-body) > h1 + :is(.help-text, .muted):not(.meta) { font-size: 1.0625rem; line-height: 1.5; max-width: 62ch; text-wrap: pretty; }
@@ -2068,7 +2073,14 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-head + .help-text { margin-top: var(--s-1); }
 .argus-head-actions { display: inline-flex; align-items: center; gap: var(--s-4); }
 .argus-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-4); flex-wrap: wrap; }
-.argus-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s-3); margin: var(--s-6) 0 var(--s-8); }
+.argus-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; margin: var(--s-6) 0 var(--s-8); }
+/* One strip: neighbours share a 1px edge, the strip has the outer corners. */
+.argus-tile { position: relative; }
+.argus-tile + .argus-tile { margin-left: -1px; }
+.argus-tiles-help + .argus-tile { border-radius: var(--r-lg) 0 0 var(--r-lg); }
+.argus-tile:last-child { border-radius: 0 var(--r-lg) var(--r-lg) 0; }
+/* A coloured or focused edge draws over its neighbour's shared edge. */
+.argus-tile:is(.argus-tile-await, .argus-tile-failed, :hover, [aria-pressed="true"], :focus-visible) { z-index: 1; }
 .argus-tile { display: flex; flex-direction: column; gap: var(--s-2); padding: 18px 20px; border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none; }
 .argus-tile:hover, .argus-tile[aria-pressed="true"] { border-color: var(--text); }
 .argus-tile[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--text); }
@@ -2088,12 +2100,15 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-waiting ul { padding-left: var(--s-4); }
 @media (max-width: 1100px) { .argus-body { grid-template-columns: 1fr; } }
 @media (max-width: 640px) {
-  .argus-tiles { grid-template-columns: 1fr; gap: var(--s-2); }
+  .argus-tiles { grid-template-columns: 1fr; }
+  .argus-tile + .argus-tile { margin-left: 0; margin-top: -1px; }
+  .argus-tiles-help + .argus-tile { border-radius: var(--r-lg) var(--r-lg) 0 0; }
+  .argus-tile:last-child { border-radius: 0 0 var(--r-lg) var(--r-lg); }
   .argus-tile { flex-direction: row; justify-content: space-between; align-items: center; padding: var(--s-2) var(--s-3); }
   .argus-tile-count, .argus-tile-empty .argus-tile-count { font-size: 1.25rem; }
 }
 .argus-start .data-table a, .argus-head-actions a { display: inline-block; min-height: 24px; line-height: 24px; }
-.argus-tiles-help { grid-column: 1 / -1; margin: 0; text-wrap: pretty; }
+.argus-tiles-help { grid-column: 1 / -1; margin: 0 0 var(--s-3); text-wrap: pretty; }
 .argus-filter-line { margin: 0 0 var(--s-3); font-weight: 600; }
 /* a run is named after its schema: a long name wraps instead of pushing Open out of view */
 .argus-start .data-table td:first-child { white-space: normal; overflow-wrap: anywhere; }
