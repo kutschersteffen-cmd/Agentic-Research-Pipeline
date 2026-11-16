@@ -369,8 +369,10 @@ jobs:
           # (owner decision 16 Nov 2026). `cancelled()` stays false here even after a hand cancel, because this job
           # starts after it, so the job conclusions are what tell a run cancel from a timeout.
           while IFS=$'\t' read -r c n id; do
-            if [ "$c" = cancelled ] && gh api "repos/$GITHUB_REPOSITORY/check-runs/$id/annotations" --jq '.[].message' |
-              grep -q 'exceeded the maximum execution time'; then c=timed_out; fi
+            if [ "$c" = cancelled ]; then  # unreadable annotations count as a timeout: an extra issue beats a missed one
+              a=$(gh api "repos/$GITHUB_REPOSITORY/check-runs/$id/annotations" --jq '.[].message') || a='exceeded the maximum execution time'
+              if grep -q 'exceeded the maximum execution time' <<<"$a"; then c=timed_out; fi
+            fi
             printf '%s\t%s\n' "$c" "$n"
           done <"$RUNNER_TEMP/jobs.raw" >"$RUNNER_TEMP/jobs.txt"
           cat "$RUNNER_TEMP/jobs.txt"

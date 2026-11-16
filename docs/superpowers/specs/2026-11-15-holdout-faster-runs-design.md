@@ -42,7 +42,8 @@ holdout repo. Phase 1 only; phase 2 (merge queue) is its own feature, `holdout-m
    chose nightly only, with an issue as the alert.
 8. **A part that runs into its time limit opens the issue: "Yes, open the issue"** (button, dispatcher session,
    16 Nov 2026). GitHub marks such a job `cancelled`, not `timed_out` (seen on the slice-2 proof PR #516), so a
-   `cancelled` job opens the issue when the run itself was not cancelled. A run cancelled by hand still opens none.
+   `cancelled` job whose check run says it exceeded its maximum execution time counts as `timed_out` and opens the
+   issue. A run cancelled by hand still opens none.
 
 ## Why
 
