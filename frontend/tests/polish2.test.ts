@@ -50,3 +50,22 @@ test("p2_meta_lines_not_lead", () => {
   assert.match(src("BarrierCellDetail.tsx"), /<h1>\{cell\.code\}[^\n]*\n\s*<p className="muted meta">/);
   assert.ok(css.includes(":where(.page, .page-body) > h1 + :is(.help-text, .muted):not(.meta) {"), "intro rule skips .meta");
 });
+
+test("p2_ac17_design_md", () => {
+  const design = readFileSync(new URL("../../DESIGN.md", import.meta.url), "utf8");
+  for (const e of ["**Tile strip:**", "**Filter chips:**", "**Phone tables:**"]) assert.ok(design.includes(e), e); // DESIGN.md entries are "**Name:**"
+  const phone = design.slice(design.indexOf("**Phone tables:**"));
+  assert.match(phone.slice(0, phone.indexOf("\n")), /card/);
+});
+test("p2_ac18_no_new_important", async (t) => {
+  const { execSync } = await import("node:child_process");
+  let diff: string;
+  try {
+    diff = execSync("git diff origin/main -- src/index.css", { cwd: new URL("..", import.meta.url), encoding: "utf8" });
+  } catch {
+    t.skip("origin/main not fetched"); // reported as skipped, never as a pass
+    return;
+  }
+  const added = diff.split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++") && l.includes("!important"));
+  assert.deepEqual(added, []);
+});
