@@ -10,6 +10,7 @@ from pathlib import Path
 
 from arp.llm.base import LLMClient
 from arp.rfp.detect import detect_questions
+from arp.rfp.documents import RefDoc
 from arp.rfp.draft import (  # noqa: F401  (FactCheck: tests read golden.FactCheck)
     DRAFTED,
     NO_SOURCE,
@@ -19,6 +20,7 @@ from arp.rfp.draft import (  # noqa: F401  (FactCheck: tests read golden.FactChe
     fact_check,
 )
 from arp.rfp.locations import Layout
+from arp.schemas.common import DocType, SourceDocument
 
 
 def build_file(case: dict) -> tuple[bytes, str]:
@@ -71,10 +73,14 @@ async def score_drafts(cases: dict, llm: LLMClient, verifier: LLMClient, *, toda
     """Counts for answerable questions drafted, unanswerable ones left `no source`, drafts with unsupported facts,
     `unchanged` questions answered with an entry's answer character for character, and drafted `unchanged` or
     `library` questions with no document source. A question without `expect` is `library` when answerable, else
-    `none`."""
+    `none`. `documents` ({title, text, priority}) are the case's reference documents."""
     entries = [Entry(i + 1, e["question"], e["answer"], date.fromisoformat(e.get("review_by", "2099-12-31")))
                for i, e in enumerate(cases["library"])]
     by_id = {e.id: e for e in entries}
+    documents = [RefDoc(i + 1, d["title"], f"{d['title']}.docx", d["priority"], date(2099, 12, 31), False,
+                        SourceDocument(doc_id=f"rfpdoc-{i + 1}", company_id="rfp", doc_type=DocType.OTHER, title=d["title"],
+                                       full_text=d["text"]))
+                 for i, d in enumerate(cases.get("documents", []))]
     approved = {e.answer for e in entries}
     counts = dict(drafted=0, answerable=0, blank=0, unanswerable=0, unsupported=0, unchanged=0, unchanged_total=0,
                   library_first=0, library_first_total=0)
@@ -82,7 +88,7 @@ async def score_drafts(cases: dict, llm: LLMClient, verifier: LLMClient, *, toda
     for q in cases["questions"]:
         expect = q.get("expect", "library" if q.get("answerable") else "none")
         answerable = expect != "none"
-        d = await draft_answer(q["question"], entries, llm, verifier, today=today, settings=settings)
+        d = await draft_answer(q["question"], entries, llm, verifier, today=today, settings=settings, documents=documents)
         if answerable:
             counts["answerable"] += 1
             counts["drafted"] += d.status == DRAFTED
@@ -101,7 +107,8 @@ async def score_drafts(cases: dict, llm: LLMClient, verifier: LLMClient, *, toda
             counts["library_first"] += not any("document_id" in src for src in d.sources)
         if d.status == DRAFTED:
             # part 1 AC-44 as a second line: the same check already ran inside drafting
-            cited = [f"[E{i}] {by_id[i].answer}" for i in dict.fromkeys(s["entry_id"] for s in d.sources)]
+            cited = [f"[E{i}] {by_id[i].answer}" for i in dict.fromkeys(s["entry_id"] for s in d.sources if "entry_id" in s)]
+            cited += [f"[D{s['document_id']}] {s['quote']}" for s in d.sources if "document_id" in s]
             check = await fact_check(verifier, q["question"], cited, d.answer)
             if check.unsupported:
                 counts["unsupported"] += 1

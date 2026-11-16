@@ -39,7 +39,7 @@ from arp.stewardship.policies import PolicyStore, component_ids, validate_weight
 from arp.stewardship.process import current_tiers
 from arp.stewardship.programmes import ProgrammeLog
 from arp.stewardship.tiers import TIERS, TierStore
-from arp.stewardship.tracking import OPEN
+from arp.stewardship.tracking import OPEN, _iso
 from arp.stewardship.trigger_store import TriggerStore
 from arp.stewardship.universe import company_by_security
 from arp.storage.jsonl_io import read_jsonl
@@ -146,7 +146,7 @@ def indicators(
         open_issues = [i for i in record.issues if i.status in OPEN] if record else []
         escalated = sum(i.escalation_stage != EscalationStage.PRIVATE_ENGAGEMENT for i in open_issues)
         overdue = sum(
-            c.status == CommitmentStatus.OPEN and bool(c.target_date) and date.fromisoformat(c.target_date[:10]) < today
+            c.status == CommitmentStatus.OPEN and bool(due := _iso(c.target_date)) and date.fromisoformat(due) < today
             for i in open_issues
             for c in i.commitments
         )

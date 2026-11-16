@@ -94,6 +94,7 @@ class CockpitTopicCount(BaseModel):
     topic: str
     votes: int
     against_management: int
+    abstain: int  # abstain or withhold
 
 
 class CockpitVoting(BaseModel):
@@ -104,7 +105,7 @@ class CockpitVoting(BaseModel):
     votes: int
     for_: int = Field(alias="for")
     against: int
-    abstain: int
+    abstain: int  # abstain or withhold
     other: int
     against_management: int
     topics: list[CockpitTopicCount]

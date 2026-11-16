@@ -106,9 +106,13 @@ Taken by button in this spec session, 15 Nov 2026:
 
 ### 1. N-PX load (`npx_load.py`)
 
-- Each decision's `against_management` = `against_management(VoteValue(<vote>), <item's management_recommendation>)`
-  from `arp.schemas.vote_ledger`, with the recommendation as the loader already stores it (`for`, `against`, or
-  null for NONE/empty). `_AGAINST` and the read of `for_against_management` go.
+- Each decision's `against_management` = `against_management(VoteValue(<vote>), <the record's own management_recommendation>)`
+  from `arp.schemas.vote_ledger`, with the recommendation normalised as the loader stores it (`for`, `against`, or
+  null for NONE/empty). `_AGAINST` and the read of `for_against_management` go. *Amended by owner decision
+  16 Nov 2026:* the record's own recommendation, not the item's, which is what AC-7's 1,894 assumes. An N-PX item
+  merges the records that share a description and stores the first record's recommendation, so on the committed
+  CSVs 73 decisions carry a flag that disagrees with the recommendation stored on their item (the item's would give
+  1,941). Accepted; no screen shows the two side by side (only `GET /api/stewardship/votes`).
 - Resulting values: `abstain` → null always; `withhold` → true when management recommended `for`, false when it
   recommended `withhold`, otherwise null; `against` → true when `for`, false when `against`; `for` → true when
   `against`, false when `for`; frequency votes, `do_not_vote`, `other` → null; no recommendation → null.
