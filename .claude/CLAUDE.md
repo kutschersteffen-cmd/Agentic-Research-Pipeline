@@ -138,21 +138,33 @@ The owner answers by tapping buttons, not by typing. Every question to the owner
 - The question must stand alone: say what was found and what is being decided, since earlier chat
   may be hidden while the buttons are open.
 - A spec or plan is still shown as an artifact first; the buttons collect the verdict.
-- Auto-merge, no tap, for `risk:low` and `risk:normal`: the PR merges (`merge_pull_request`, `merge_method:
-  merge`, `expectedHeadSha` the current head), also when it is behind `main`, once all of these hold:
-  1. every required check is green on the current head;
-  2. `Holdout acceptance` ran the PR's own rows: if its `Spec:` line (narrowed by `Rows:`) names `holdout`
-     rows, `holdout rows: 0` is not a pass (the spec's hidden tests merge first);
-  3. each review comment its paths require is there for the current head's code, with no open blocking
-     finding and no `factory:blocked` label: `Code review (factory)`; `UI review (factory)` when it touches
-     `frontend/src/**`; when the spec has `evaluator` rows, an `Acceptance matrix (evaluator)` with an
-     `Evidence review (factory)` that says `Verdict: pass`;
-  4. GitHub shows it mergeable, with no conflict.
-  The factory dispatcher merges the PRs it tracks, else the session driving the PR. It then tells the owner
-  one line: PR, title, risk label, short SHA, plus `main has failing hidden tests: issue #<n>` while a
-  `Nightly Holdout failed` issue is open. If `main` goes red afterwards, the Main guard opens a revert PR.
+- Auto-merge, no tap, for `risk:low` and `risk:normal`: only the factory dispatcher merges
+  (`merge_pull_request`, `merge_method: merge`, `expectedHeadSha` the head it read every gate on; if the
+  head moved, it reads them again), also when the PR is behind `main`, once all of these hold on that head:
+  1. no changed file is in the steward table's `risk:high` row or under `docs/superpowers/specs/`,
+     whatever the label;
+  2. every required check is green;
+  3. hidden rows: if its `Spec:` line (narrowed by `Rows:`) names `holdout` rows, the `Holdout
+     acceptance` log shows `holdout rows: <n>` with n ≥ 1 and no failed result line, and a `Rows:` line
+     names exactly one slice of the spec's `## Slices`; a PR with `Refs #<n>` to a `Nightly Holdout
+     failed` issue ran all 6 shards green, or, if the check skipped, its linked manual `holdout.yml` run
+     on that head is green;
+  4. each review its paths require is there for that head's code, posted by a session the dispatcher
+     started for it (its events show the post), with no open blocking finding, no `factory:blocked`
+     label and no review thread waiting on the PR's agent: `Code review (factory)`; `UI review (factory)`
+     when it touches `frontend/src/**`; when the spec has `evaluator` rows, an `Acceptance matrix
+     (evaluator)` with an `Evidence review (factory)` that says `Verdict: pass`;
+  5. GitHub shows it mergeable, with no conflict; if it refuses the merge as out of date, the dispatcher
+     asks the builder to merge `origin/main` in and reads the gates again once green.
+  It then tells the owner one line: PR, title, risk label, short SHA, plus `main has failing hidden tests:
+  issue #<n>` while a `Nightly Holdout failed` issue is open. If `main` goes red afterwards, the Main guard
+  opens a revert PR. Any other PR is the owner's to merge on GitHub, unless a rule below covers it.
 - `risk:high`: unchanged, the owner merges it on GitHub; no agent merges it.
 - Agents never approve a PR and never lower a risk label.
+- Holdout PR: the test-writer session merges its own PR in the holdout repo, no tap, once that PR's check
+  is green (`merge_method: merge`, `expectedHeadSha` the head the check passed on), if its diff is only
+  under `specs/<slug>/` or, for the regression move, only that folder moved or copied into `regression/`.
+  Any other holdout PR is the owner's.
 - Spec PR: the owner's `Approve` on a spec, tapped in the session that wrote it on a question that shows
   the spec and the PR's head SHA and whose `Approve` description says it also merges the PR, merges that
   PR if its diff is exactly that one spec file. Once the checks on its head are green and it is mergeable,

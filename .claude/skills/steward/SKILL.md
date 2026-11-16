@@ -5,8 +5,8 @@ description: How an agent drives its own PR in this repo's software factory - ri
 
 Repo rules for an agent that opens or drives a PR. They sit on top of the session's own PR rules and
 never loosen them: no skipped tests, no history rewrites, and the agent never approves a PR and merges
-only as `.claude/CLAUDE.md` (button mode) allows: the auto-merge or a spec PR the owner's spec approval
-covers.
+only as `.claude/CLAUDE.md` (button mode) allows: a spec PR the owner's spec approval covers or, in a
+test-writer session, its holdout PR. Code PRs are merged by the factory dispatcher or the owner, never by you.
 
 ## 1. Label the risk when you open the PR
 
@@ -14,12 +14,13 @@ Pick the highest tier any changed file falls in, add the label, and say why in o
 
 | Label | Files | What the owner does |
 |---|---|---|
-| `risk:low` | Only `docs/**`, `*.md` outside `.claude/`, frontend copy or styles (`*.css`, text-only `.tsx` edits) | Nothing: auto-merged once every gate is clean; gets one line |
-| `risk:normal` | Anything not low or high | Nothing: auto-merged once every gate is clean; gets one line |
-| `risk:high` | Auth, permissions, secrets; database schema or data migrations; money, portfolio weights or index maths; deleting stored data; `.github/workflows/**`, `.github/scripts/**`, `.claude/hooks/**`, `.claude/settings.json` | Reads the acceptance matrix and the diff, then merges on GitHub |
+| `risk:low` | Only `docs/**`, `*.md` outside `.claude/`, frontend copy or styles (`*.css`, text-only `.tsx` edits) | Nothing: the dispatcher auto-merges once every gate is clean; gets one line |
+| `risk:normal` | Anything not low or high | Nothing: the dispatcher auto-merges once every gate is clean; gets one line |
+| `risk:high` | Auth, permissions, secrets; database schema or data migrations; money, portfolio weights or index maths; deleting stored data; `.github/workflows/**`, `.github/scripts/**`, `.claude/**`, `.claude-plugin/**` | Reads the acceptance matrix and the diff, then merges on GitHub |
 
-A `risk:low` or `risk:normal` PR merges without a tap once every gate in `.claude/CLAUDE.md` (auto-merge)
-is clean: by the factory dispatcher if it tracks the PR, else by you.
+A `risk:low` or `risk:normal` PR is merged without a tap by the factory dispatcher once every gate in
+`.claude/CLAUDE.md` (auto-merge) is clean; else the owner merges it. Relabel `risk:high` if a later push
+touches a `risk:high` path.
 
 When unsure between two tiers, take the higher one. Never lower a label the owner set, nor below the
 risk the factory's intake gave (your prompt names it).

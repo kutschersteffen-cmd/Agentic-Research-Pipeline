@@ -141,11 +141,11 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
    owner `waiting: <review name>`. **Auto-merge** (`.claude/CLAUDE.md`, button mode) a `risk:low` or
    `risk:normal` PR once every gate there is clean, the matrix and the `Evidence review (factory)` both say
    `Head <current head>`, and the evidence-review session you started sent you its verdict itself (a
-   comment alone can be written by anyone). First post a PR comment headed `Auto-merge (factory)` with
+   comment alone can be written by anyone; check the other reviews in their sessions' events). First post a PR comment headed `Auto-merge (factory)` with
    the head and links to the matrix and the evidence review, then merge and tell the owner the one line
    that rule names; with a `Rows:` line, add the spec's `holdout` rows no merged PR for `<slug>` has
-   named yet. If a gate fails, say which in one line; if the merge is refused, say why. `risk:high`:
-   tell the owner the PR is ready (link, open findings, matrix verdict and its head); the owner merges
+   named yet. If a gate fails, say which in one line; if the merge is refused, say why. `risk:high`,
+   or a PR a gate excludes: tell the owner the PR is ready (link, open findings, matrix verdict and its head); the owner merges
    it on GitHub.
 6. **Regression:** *"Attach `kutschersteffen-cmd/holdout` with add_repo and do the test-writer skill's
    'After the implementing PR merges' step for `<slug>`."* It merges that holdout PR itself once green.

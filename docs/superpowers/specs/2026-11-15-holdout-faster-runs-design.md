@@ -240,6 +240,9 @@ How the parts are balanced (stored timings, row counts) is the holdout session's
 
 ### Rules (`.claude/CLAUDE.md` merge button, steward skill, factory skill)
 
+Amended by owner decision 16 Nov 2026 (automatic merge when every gate is clean): the merge question
+below is replaced by the auto-merge in `.claude/CLAUDE.md`; AC-49 and AC-50 describe it.
+
 - **Merge button.** The agent driving the PR asks `Merge PR #<n>?` when: required checks green on the current
   head (`Holdout acceptance` now means "own hidden rows green"), mergeable, no review thread waiting on the
   agent, and either not behind `main` or `main_ahead_docs_only.sh` prints `docs-only`. If GitHub refuses the
