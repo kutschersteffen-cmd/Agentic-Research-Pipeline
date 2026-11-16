@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canSaveResult, checkLine, engagementCounts, engagementLine, evidenceText, foundLine, issueTopics } from "../src/lib/engagement.ts";
+import { canSaveResult, checkLine, engagementCounts, engagementLine, evidenceText, foundHeader, foundLine, issueTopics, loadSuggestions } from "../src/lib/engagement.ts";
 
 const issue = (status: string, escalation_stage: string) => ({ status, escalation_stage }) as never;
 
@@ -69,4 +69,30 @@ test("Save result needs an influence level unless the result is abandoned", () =
   assert.equal(canSaveResult("abandoned", "", "Company sold the unit"), true);
   assert.equal(canSaveResult("achieved", "3", "  "), false);
   assert.equal(canSaveResult("", "3", "x"), false);
+});
+
+// Review fixes (spec commitment-loop-review-fixes): the suggestions error and the found-commitment header.
+
+const listing = (fail: string | null) => async () => {
+  if (fail) throw new Error(fail);
+  return { suggestions: [] };
+};
+
+test("loadSuggestions keeps the file store's 409 silent (AC-14)", async () => {
+  const r = await loadSuggestions(listing("409: Watch items need the Postgres engagement store."));
+  assert.deepEqual(r, { loaded: null, error: null });
+});
+
+test("loadSuggestions reports any other error, and a later success clears it (AC-15)", async () => {
+  let calls = 0;
+  const list = async () => listing(calls++ < 2 ? "500: boom" : null)();
+  assert.deepEqual(await loadSuggestions(list), { loaded: null, error: "500: boom" });
+  assert.deepEqual(await loadSuggestions(list), { loaded: { pending: [], confirmed: [] }, error: null });
+  assert.deepEqual(await loadSuggestions(listing("Failed to fetch")), { loaded: null, error: "Failed to fetch" });
+});
+
+test("foundHeader names the note's type and date, or no date when the note is unknown (AC-16, AC-17)", () => {
+  assert.equal(foundHeader({ type: "meeting", activity_type: "meeting", date: "2026-10-01T09:00:00+00:00" }), "Argus found a commitment in the meeting of 2026-10-01");
+  assert.equal(foundHeader({ type: "email", date: "2026-10-01" }), "Argus found a commitment in the email of 2026-10-01");
+  assert.equal(foundHeader(undefined), "Argus found a commitment in a note");
 });
