@@ -146,7 +146,7 @@ components:
 
 ARP is a calm instrument panel for teams that run long agent pipelines and ratify what the agents propose. It reads like a well-kept research report: white paper, deep blue ink, serif headings and figures, and every number traceable to the page it came from. One colour, amber, is reserved for one reason only: a person must act. When nothing waits on anyone, no amber appears.
 
-The system is precise and quiet. Cards lift slightly off a white page; text is set in a workhorse sans with a serif for titles and figures and a monospace for IDs and state. Density is high enough for tables of thousands of companies while staying legible on a projector. Two themes share one structure: **Arctic** (light) and **Arctic Night** (dark). The theme switch (System / Light / Dark), in the sidebar and in the start page's user menu, chooses between them, and every component reads its colours from the same tokens.
+The system is precise and quiet. Cards lift slightly off a white page; text is set in a workhorse sans with a serif for titles and figures and a monospace for IDs and state. Density is high enough for tables of thousands of companies while staying legible on a projector. Two themes share one structure: **Arctic** (light) and **Arctic Night** (dark). The theme switch (System / Light / Dark), in the top bar's user menu, chooses between them, and every component reads its colours from the same tokens.
 
 **Key Characteristics:**
 - White page, deep blue accent for controls, amber reserved for "waiting on a person".
@@ -163,7 +163,7 @@ A white-and-blue palette with one reserved signal per theme and a small set of s
 ### Primary
 - **Accent** (#0a4a8f light / #38bdf8 Night): primary buttons, the active navigation item, links, done-step dots and lineage steps that are complete. Hover deepens to **Accent Deep** (#08396f / #7dd3fc).
 - **Ink** (#082f49 / #e2f1fa): all text and structural lines.
-- **Signal Amber** (#85601a light, #d4a650 Night): the one colour for "a person must act": "Needs you" counts in the sidebar and the start page's top bar, waiting step dots and borders, proposed-not-ratified items. #85601a is text-safe on white (5.7:1); its pale wash (#f6ecd6 / amber at 14%) backs waiting tiles and pending banners.
+- **Signal Amber** (#85601a light, #d4a650 Night): the one colour for "a person must act": the "Needs you" count in the top bar, waiting step dots and borders, proposed-not-ratified items. #85601a is text-safe on white (5.7:1); its pale wash (#f6ecd6 / amber at 14%) backs waiting tiles and pending banners.
 
 ### Secondary
 - **Status High / Mid / Low / Run / Neutral** (green, amber-brown, red, blue, grey; see frontmatter for both themes): run status pills, escalation stage, H/M/L ratings. Rating badges are pastel: a 16% tint of the status colour with a label mixed 62% status / 38% ink and a 32% tint border. Labels sit at text contrast (≥4.5:1) on every ground they appear on.
@@ -173,7 +173,7 @@ A white-and-blue palette with one reserved signal per theme and a small set of s
 - **Panel White** (#ffffff) / **Night Panel** (#0b1d29): cards, tables, inputs. On the white page a card is set off by its hairline and the card shadow.
 - **Hairline** (#d9e8f2 / #1d3a4d): every border and divider.
 - **Field Border** (#6f8a9c / #5f8399): the edge of form fields only; it clears 3:1 on the field and the page (WCAG 1.4.11), which the hairline does not.
-- **Well** (#eef6fb / #10293a) and **Sidebar** (#f1f7fc / #081822): recessed areas, disabled controls, hover rows, the navigation column.
+- **Well** (#eef6fb / #10293a) and **Sidebar** (#f1f7fc / #081822): recessed areas, disabled controls, hover rows, the Ask panel's header and form.
 - **Muted** (#3d5a6e / #94b6c9): secondary text and labels; ≥4.5:1 on ground, panel and well.
 
 ### Named Rules
@@ -216,7 +216,7 @@ The CSS scale tokens are `--text-xs` (13px), `--text-sm` (14px), `--text-base` (
 
 ## Layout
 
-Spacing runs on a 4px base (4, 8, 12, 16, 24, 32, 48), plus two half steps for dense parts: 2px (`--s-0_5`: the nav stack, segmented bars, compact pills and row buttons) and 6px (`--s-1_5`: chip rows, icon-to-label gaps). New padding, margin and gap values read from these tokens rather than raw pixels. Groups are tight (8–12px inside), sections are generous (24–48px between). A 248px sidebar holds navigation on wide screens; below 1024px it collapses into a drawer behind a top bar (53px), so tablets get the full width for tables and diagrams. The sidebar opens with the ARP lockup at its large size (see `docs/BRAND.md`). The start page has no sidebar: a top bar (lockup, search, Ask ARP, Review Queue, Reports, user menu), the greeting, then the five workspace cards in 3 + 2 on a six-column grid (two per row at 1100px and below with the fifth card full width, one at 760px and below). Wide tables scroll inside their frame and show a shadow on any edge with more columns; tables never push the page sideways.
+Spacing runs on a 4px base (4, 8, 12, 16, 24, 32, 48), plus two half steps for dense parts: 2px (`--s-0_5`: the nav stack, segmented bars, compact pills and row buttons) and 6px (`--s-1_5`: chip rows, icon-to-label gaps). New padding, margin and gap values read from these tokens rather than raw pixels. Groups are tight (8–12px inside), sections are generous (24–48px between). There is no sidebar. One top bar runs across every page but the landing page (lockup, search, Ask ARP, Workspaces, Review Queue, Reports, user menu); inside a workspace a slim workspace row sits under it, so every page gets the full width for tables and diagrams. The start page is the greeting, then the five workspace cards in 3 + 2 on a six-column grid (two per row at 1100px and below with the fifth card full width, one at 760px and below). Wide tables scroll inside their frame and show a shadow on any edge with more columns; tables never push the page sideways.
 
 ## Elevation & Depth
 
@@ -241,9 +241,7 @@ Four elements make an ARP screen recognisable. Use them as specified; don't inve
 ### Pixel Mark Language
 The Pixel A's square is the system's marker.
 - Status dots, pill dots and lineage steps are squares (radius 0), not circles.
-- Each sidebar group label starts with a 6px ink square.
 - Bar charts and progress tracks are drawn as 8px segments with 2px gaps.
-- A five-square strip sits at the foot of the sidebar; its middle square takes the signal colour.
 
 ### The Needs-You Shape
 Anything that waits on a person has a shape as well as a colour, so it reads in grayscale.
@@ -276,7 +274,7 @@ Where a value's history matters, a four-step trail shows source → extracted �
 ### Chips and Badges
 - **Rating badge:** pastel (see Secondary colours), 2px corners.
 - **Status pill:** a square dot and the status word.
-- **"Needs you" count:** amber fill with white text (Night: dark text), square (2px), in the sidebar and the start page's top bar.
+- **"Needs you" count:** amber fill with white text (Night: dark text), square (2px), on the top bar's Review Queue link.
 
 ### Cards / Containers
 - **Corner Style:** `--r-lg` (12px).
@@ -291,8 +289,8 @@ Where a value's history matters, a four-step trail shows source → extracted �
 - **Native controls:** checkboxes follow the accent; file pickers get a themed button.
 
 ### Navigation
-- **Sidebar:** the ARP lockup ("ARP" on the Pixel A grid, 32px high) first, no side bars or stripes on items, then groups by the team's day ("Needs you" first). Items are 14px sans; the active item is an accent fill with inverted text; "Needs you" items carry the square signal count.
-- **Mobile / tablet:** below 1024px the sidebar becomes a drawer behind a top bar showing the current screen's name.
+- **Top bar:** on every page but the landing page, left to right: the ARP lockup (28px high, where the landing header puts it), search (⌘K), Ask ARP (⌘J), then Workspaces (a menu of Start and the five workspaces, each with its status square and word when it waits, runs or failed), Review Queue with the square signal count, Reports, and the user menu (reviewer name, sign-in, theme, Arcade). The current Review Queue or Reports link is underlined. On a phone it is two rows: lockup, search, Ask ARP and the user menu, then Workspaces, Review Queue and Reports; every control is 44px tall.
+- **Workspace row:** inside a workspace, a 44px row under the top bar: the workspace's name, then its screens as plain links; the current one is underlined 2px in ink. It scrolls sideways inside itself on a phone and never widens the page.
 
 ### Process Card (signature component)
 The start page's five cards (StewardIQ, Argus, Transition Intelligence Platform, R&D Lab, Data Hub). Each card is one link: a figure area with a mono caption ("Fig 01 · 3 processes") and an isometric wireframe drawing of the workspace, the name, a one-line purpose, and one status line: an 8px square per process (ink = done, run colour = running, signal = waiting on you, red = failed, outlined = idle, dashed = unknown), the state in words (Waiting on you, Running, Last run failed, Up to date, No runs yet, Status unknown) and, where there is one, " · " and the process it concerns. There is no "Open →": the whole card is the link. A card that waits on you takes the needs-you border. The card carries no counts; waiting work is counted in the Review Queue badge. The start page has no Needs you list: each waiting item lives in the Review Queue or its workspace.
