@@ -18,7 +18,7 @@ import { previousMonth } from "../lib/holdings";
 
 /** Runs, refreshed every 3 s while one is live, every 15 s otherwise. Null
  * until the first answer: a count nobody received is unknown, never zero. */
-function useRuns() {
+export function useRuns() {
   const [runs, setRuns] = useState<RunManifest[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {
@@ -35,7 +35,7 @@ function useRuns() {
 
 
 /** The house stewardship flow, loaded once: its stages carry StewardIQ's numbers. */
-function useHouseFlow() {
+export function useHouseFlow() {
   const [flow, setFlow] = useState<StewardshipFlow | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -337,9 +337,6 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
 
   return (
     <div className="page hub">
-      <p className="hub-crumb">
-        <a href="#/home">Start</a> › {w.name}
-      </p>
       <h1>{w.name}</h1>
       <p className="help-text">
         {w.purpose} Open a step to work in its screen; a bar there shows the next step. A dashed <span className="hub-step-handoff-key">re-entered by hand</span> line means that output is typed into the next step, not passed on.
@@ -349,14 +346,6 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
       {w.processes.map((p) => (
         <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} activity={activity} />
       ))}
-      <nav className="hub-screens" aria-label={`${w.name} screens`}>
-        <span className="hub-now-label">Screens</span>
-        {w.screens.map(([href, label]) => (
-          <a key={href} className="hub-chip" href={href}>
-            {label}
-          </a>
-        ))}
-      </nav>
     </div>
   );
 }
