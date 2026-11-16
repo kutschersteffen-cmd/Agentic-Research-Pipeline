@@ -1,6 +1,8 @@
 """rfp-approved-answers-first-design §4: the word comparison of an answer with its base entry's answer."""
 
-import time
+import subprocess
+import sys
+from pathlib import Path
 
 from arp.rfp.compare import compare
 
@@ -40,7 +42,12 @@ def test_empty_answer_is_all_removed():
 
 
 def test_compare_two_thousand_words_under_half_a_second():
-    a, b = " ".join(f"w{i}" for i in range(2000)), " ".join(f"w{i}" for i in range(0, 2000, 2))
-    start = time.perf_counter()
-    compare(a, b)
-    assert time.perf_counter() - start < 0.5
+    # timed in a fresh interpreter: coverage tracing in the test process slows pure-Python difflib 3-4x
+    code = (
+        "import time; from arp.rfp.compare import compare\n"
+        "a, b = ' '.join(f'w{i}' for i in range(2000)), ' '.join(f'w{i}' for i in range(0, 2000, 2))\n"
+        "start = time.perf_counter(); compare(a, b); print(time.perf_counter() - start)"
+    )
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True,
+                         cwd=Path(__file__).parents[1])
+    assert float(out.stdout) < 0.5
