@@ -107,8 +107,8 @@ def test_no_flags_ac87_ac89(store):
     closed = _issue(store)
     _cmt(store, closed, target_date=YESTERDAY)
     store.set_issue_status("C1", closed, IssueStatus.CLOSED)
-    assert watch_flags(store, "C1") == []
-    assert watch_flags(store, "NOBODY") == []
+    assert watch_flags(store, "C1", TODAY) == []  # TODAY, not the clock: a run that crosses midnight UTC
+    assert watch_flags(store, "NOBODY", TODAY) == []
 
 
 def test_order_ac88(store):
@@ -251,7 +251,7 @@ def test_an_objective_due_date_with_a_time_or_a_note_flags_ac3_ac6(store):
 
 def test_due_today_with_a_time_is_not_overdue_ac4(store):
     _cmt(store, _issue(store), target_date=f"{TODAY.isoformat()}T00:00:00")
-    assert watch_flags(store, "C1") == []
+    assert watch_flags(store, "C1", TODAY) == []
 
 
 def test_cli_dossier_carries_the_watch_list_ac7_ac8(store, monkeypatch, tmp_path):
