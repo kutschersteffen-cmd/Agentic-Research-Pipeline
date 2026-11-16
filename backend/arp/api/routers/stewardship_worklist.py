@@ -34,7 +34,7 @@ from arp.schemas.worklist import (
 from arp.stewardship import universe, worklist
 from arp.stewardship.notes import NoteLog
 from arp.stewardship.policies import PolicyStore, validate_weights
-from arp.stewardship.process import StreamStore, house_universe, load_sample
+from arp.stewardship.process import StreamStore, house_universe, load_sample, vote_items
 from arp.stewardship.programmes import ProgrammeLog, UnknownProgramme
 from arp.stewardship.universe import HouseUniverseSetting
 from arp.storage.engagement_store import EngagementStore
@@ -43,17 +43,20 @@ from arp.storage.portfolio_store_factory import build_portfolio_store
 router = APIRouter(prefix="/api/stewardship", tags=["stewardship"])
 
 
-def _load(settings: Settings) -> tuple[dict, object, dict]:
-    """`load_sample()`, the portfolio store and the worklist's inputs. In the portfolio universe the observations
-    are read once, for both the universe and the worklist columns (each read is one file per company and field)."""
+def _load(settings: Settings) -> tuple[dict, object, dict, dict]:
+    """`load_sample()`, the portfolio store, the worklist's inputs and the fund holdings. In the portfolio universe the
+    observations are read once, for both the universe and the worklist columns (each read is one file per company
+    and field), and the latest holdings, securities and resolutions once, for the universe and the fund scopes."""
     store = build_portfolio_store(settings)
     if HouseUniverseSetting(settings.stewardship_streams_dir).get()["source"] == "portfolio":
-        observations = universe.latest_observations(store)
-        sample = load_sample(observations=observations)
+        observations, held, reads = universe.latest_observations(store), {}, {}
+        base = universe.from_portfolio(store, observations=observations, held_isins_out=held, reads_out=reads)
+        sample = load_sample(base=base, votes=vote_items(house_issuers=base["issuers"], held=held))
+        funds = worklist.fund_holdings(store, **reads) if reads else worklist.fund_holdings(store)
     else:
-        sample = load_sample()
+        sample, funds = load_sample(), {}
         observations = worklist.latest_observations(store, [i["issuer_id"] for i in sample["issuers"]])
-    return sample, store, {"meetings": worklist.last_meetings(require_dsn(settings)), "observations": observations}
+    return sample, store, {"meetings": worklist.last_meetings(require_dsn(settings)), "observations": observations}, funds
 
 
 def _scope(key: str, sample: dict, store) -> dict:
@@ -85,10 +88,10 @@ def get_worklist(
     engagements: EngagementStore = Depends(get_engagement_store),
 ) -> dict:
     """One row per company of the scope (house, `portfolio:<id>` or `group:<id>`), computed from stored values on every request."""
-    sample, store, inputs = _load(settings)
+    sample, store, inputs, funds = _load(settings)
     resolved = _scope(scope, sample, store)
     return worklist.build(
-        streams.root, sample, engagements.list_all(), scope=resolved, funds=_funds(sample, store),
+        streams.root, sample, engagements.list_all(), scope=resolved, funds=funds,
         labels=worklist.scope_labels(store), **inputs,
     )  # fmt: skip
 
@@ -112,7 +115,7 @@ def post_priority_preview(
         validate_weights(body.content)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
-    (sample, _, inputs), records = _load(settings), engagements.list_all()
+    (sample, _, inputs, _), records = _load(settings), engagements.list_all()
     rows = worklist.house_rows(streams.root, sample, records, today=datetime.now(UTC).date(), **inputs)
     return worklist.preview(body.content, PolicyStore(streams.root).active(worklist.POLICY), rows)
 

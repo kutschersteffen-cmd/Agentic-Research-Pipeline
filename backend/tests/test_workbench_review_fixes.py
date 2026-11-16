@@ -254,3 +254,20 @@ def test_csv_export_content_is_the_same_compressed(tmp_path, pg):
 def test_the_compact_file_sits_outside_datapoints(files):
     fill_observation_cache(files)
     assert Path(files.portfolios_dir / LATEST_FILE).exists() and len(files.list_observation_keys()) == len(COMPANIES) * len(FIELDS)
+
+
+def test_one_worklist_request_reads_the_latest_holdings_once(house, monkeypatch):
+    # AC-1 follow-up: the universe and the fund scopes share the latest holdings, securities and resolutions
+    from arp.stewardship import worklist
+    from arp.storage.postgres_portfolio_store import PostgresPortfolioStore
+
+    store = build_portfolio_store(house)
+    reads: dict = {}
+    universe.from_portfolio(store, reads_out=reads)
+    assert worklist.fund_holdings(store, **reads) == worklist.fund_holdings(store) != {}
+    expected, _ = _worklist()
+    calls = []
+    real = PostgresPortfolioStore.load_holdings_as_of
+    monkeypatch.setattr(PostgresPortfolioStore, "load_holdings_as_of", lambda self, d, *a: calls.append(d) or real(self, d, *a))
+    body, _ = _worklist()
+    assert body == expected and calls.count(SNAPSHOT) == 1, calls

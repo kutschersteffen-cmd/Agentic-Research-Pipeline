@@ -156,11 +156,16 @@ def latest_observations(store: PortfolioStore, as_of: str | None = None) -> dict
 
 
 def from_portfolio(
-    store: PortfolioStore, as_of: str | None = None, observations: dict | None = None, held_isins_out: dict | None = None
+    store: PortfolioStore,
+    as_of: str | None = None,
+    observations: dict | None = None,
+    held_isins_out: dict | None = None,
+    reads_out: dict | None = None,
 ) -> dict:
     """The held companies in the shape of the synthetic sample. `as_of` dates the observation lookups (default: the
     latest holdings snapshot); `observations`: `latest_observations(store, as_of)` when the caller already read them;
-    `held_isins_out`: filled with `held_isins(store)`, from the reads made here (the vote ledger needs it too)."""
+    `held_isins_out`: filled with `held_isins(store)`, from the reads made here (the vote ledger needs it too);
+    `reads_out`: filled with the latest `holdings`, `securities` and `resolutions` read here (the fund scopes need them)."""
     dates = store.all_snapshot_dates()
     if not dates:
         return {"source": "portfolio", "note": "No portfolio holdings loaded.", "issuers": [], "engagements": [], "meetings": []}
@@ -173,6 +178,8 @@ def from_portfolio(
     before = _value_by_company(store.load_holdings_as_of(dates[-2]), held) if len(dates) > 1 else {}
     if held_isins_out is not None:
         held_isins_out.update(held_isins(store, latest, securities, resolutions))
+    if reads_out is not None:
+        reads_out.update(holdings=latest, securities=securities, resolutions=resolutions)
     total = sum(now.values())
     observed: dict[str, dict] = defaultdict(dict)
     simulated: set[str] = set()

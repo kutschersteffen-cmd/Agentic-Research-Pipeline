@@ -165,7 +165,8 @@ app.add_middleware(
     expose_headers=["Content-Disposition", "X-RFP-Unapproved"],
 )
 # The 8 MB stewardship worklist goes compressed when the browser accepts it; event streams are left as they are.
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+# Level 6, not Starlette's 9: half the time on the worklist (0.09 s vs 0.18 s) for 13 % more bytes.
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=6)
 
 app.include_router(themes.router, dependencies=[Depends(authorize)])
 app.include_router(companies.router, dependencies=[Depends(authorize)])

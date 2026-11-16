@@ -244,18 +244,22 @@ def house_rows(
     return indicators(rows, records, TriggerStore(root).list_triggers(), tiers, meetings, observations, today)
 
 
-def fund_holdings(store) -> dict[str, dict]:
+def fund_holdings(store, holdings=None, securities=None, resolutions=None) -> dict[str, dict]:
     """portfolio_id -> {"name", "companies": {company_id: [market value EUR, of which equity]}} at the global latest
     snapshot (each portfolio's newest snapshot on or before it), counting only holdings that resolve to a company,
-    as `from_portfolio` does. Portfolios with no such holding are left out."""
-    dates = store.all_snapshot_dates()
-    if not dates:
-        return {}
+    as `from_portfolio` does. Portfolios with no such holding are left out. `holdings` (of the latest snapshot),
+    `securities` (id -> security) and `resolutions`: when already read, as `from_portfolio(reads_out=...)` gives them."""
+    if holdings is None:
+        dates = store.all_snapshot_dates()
+        if not dates:
+            return {}
+        holdings = store.load_holdings_as_of(dates[-1])
+    securities = {s.security_id: s for s in store.list_securities()} if securities is None else securities
     names = {p.portfolio_id: p.name for p in store.list_portfolios()}
-    asset_class = {s.security_id: s.asset_class for s in store.list_securities()}
-    companies = company_by_security(store)
+    asset_class = {sid: s.asset_class for sid, s in securities.items()}
+    companies = company_by_security(store, securities.values(), resolutions)
     out: dict[str, dict] = {}
-    for h in store.load_holdings_as_of(dates[-1]):
+    for h in holdings:
         if not (cid := companies.get(h.security_id)):
             continue
         fund = out.setdefault(h.holder_id, {"name": names.get(h.holder_id, h.holder_id), "companies": {}})
