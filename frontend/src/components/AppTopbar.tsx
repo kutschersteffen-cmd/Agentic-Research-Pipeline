@@ -30,7 +30,10 @@ function WorkspaceLinks({ current }: { current: string }) {
   const { flow } = useHouseFlow();
   return workspaceMenuItems(runs, flow, new Date()).map((i) => (
     <a key={i.href} href={i.href} aria-current={i.href === current ? "page" : undefined}>
-      {i.label}
+      <span className="start-topbar-place">
+        {i.label}
+        <span className="start-topbar-purpose">{i.purpose}</span>
+      </span>
       {i.tone && (
         <span className="start-topbar-tag">
           <span className={`hub-mark hub-mark-${i.tone}`} aria-hidden="true" />

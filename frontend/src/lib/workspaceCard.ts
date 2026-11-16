@@ -118,15 +118,15 @@ export const workspaceState = (w: Workspace, runs: RunManifest[] | null): StepSt
   return RANK.find((r) => states.includes(r)) ?? "idle";
 };
 
-export type MenuItem = { href: string; label: string; tone: "wait" | "now" | "failed" | null; word: string };
+export type MenuItem = { href: string; label: string; purpose: string; tone: "wait" | "now" | "failed" | null; word: string };
 /** The top bar's Workspaces menu: Start, then each workspace with its card's status when it needs a look. */
 export function workspaceMenuItems(runs: RunManifest[] | null, flow: StewardshipFlow | null, now: Date): MenuItem[] {
   return [
-    { href: "#/home", label: "Start", tone: null, word: "" },
+    { href: "#/home", label: "Start", purpose: "Every workspace at a glance", tone: null, word: "" },
     ...WORKSPACES.map((w) => {
       const { tone, word } = cardView(w, runs, flow, now).status;
       const loud = tone === "wait" || tone === "now" || tone === "failed";
-      return { href: `#/${w.id}`, label: w.short ?? w.name, tone: loud ? tone : null, word: loud ? word : "" };
+      return { href: `#/${w.id}`, label: w.short ?? w.name, purpose: w.purpose, tone: loud ? tone : null, word: loud ? word : "" };
     }),
   ];
 }

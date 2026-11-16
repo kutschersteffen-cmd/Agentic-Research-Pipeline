@@ -84,3 +84,53 @@ def test_reviewer_field_returns_after_sign_out(page):
     page.reload()
     page.wait_for_load_state("networkidle")
     assert _user_menu(page).get_by_label("Reviewing as").input_value() == "dev"
+
+
+# --- F3, F4, F8, F9: the shell ---
+
+
+@pytest.mark.parametrize("width", [1440, 900])
+def test_ac3_row_aligns_with_content(page, width):
+    _open(page, "/#/argus", width, 900)
+    row = page.get_by_role("navigation", name="Argus screens").get_by_role("link").first.bounding_box()
+    h1 = page.locator("main h1").first.bounding_box()
+    assert abs(row["x"] - h1["x"]) <= 1, (row, h1)
+
+
+def test_ac3b_row_gutter_phone(page):
+    _open(page, "/#/argus", 390, 844)
+    row = page.get_by_role("navigation", name="Argus screens").get_by_role("link").first.bounding_box()
+    assert abs(row["x"] - 16) <= 1, row
+
+
+def test_ac4_closed_menus_not_tabbable(page):
+    _open(page, "/#/stewardiq")
+    page.get_by_role("link", name="ARP start").focus()
+    for _ in range(12):
+        page.keyboard.press("Tab")
+        assert not page.evaluate("() => !!document.activeElement.closest('.start-topbar-pop')")
+
+
+def test_ac8_badge_padding(page):
+    from tests.e2e.test_app_smoke import _long_badge
+
+    page.route("**/api/runs", _long_badge)
+    _open(page, "/#/stewardiq")
+    badge = page.locator(".start-topbar .nav-count")
+    assert badge.evaluate("e => getComputedStyle(e).paddingTop") == "2px"
+    assert badge.bounding_box()["height"] <= 24
+
+
+@pytest.mark.parametrize("width,height", [(1440, 900), (390, 844)])
+def test_ac9_menu_shows_purposes(page, width, height):
+    _open(page, "/#/history", width, height)
+    page.get_by_role("button", name="Workspaces").click()
+    pop = page.locator(".start-topbar-spaces-pop")
+    pop.get_by_role("link").first.wait_for()
+    assert "Every workspace at a glance" in pop.get_by_role("link", name="Start").inner_text()
+    argus = pop.get_by_role("link", name="Argus")
+    assert "Extract cited data points from disclosures and score them." in argus.inner_text()
+    size = argus.locator(".start-topbar-purpose").evaluate("e => getComputedStyle(e).fontSize")
+    xs = page.evaluate("() => { const d = document.createElement('span'); d.style.fontSize = 'var(--text-xs)'; document.body.append(d); const s = getComputedStyle(d).fontSize; d.remove(); return s; }")
+    assert size == xs
+    assert abs(pop.bounding_box()["width"] - 280) <= 1 or width < 400

@@ -121,3 +121,10 @@ test("pr1_menu_items", () => {
   const steward = workspaceMenuItems(busy.runs, busy.flow, NOW).find((i) => i.label === "StewardIQ")!;
   assert.deepEqual([steward.tone, steward.word], ["wait", "Waiting on you"]);
 });
+
+// UI polish 1, F9: each workspace's purpose under its name in the Workspaces menu.
+test("pol_menu_purpose", () => {
+  const items = workspaceMenuItems(null, null, NOW);
+  assert.equal(items[0].purpose, "Every workspace at a glance");
+  assert.deepEqual(items.slice(1).map((i) => i.purpose), WORKSPACES.map((w) => w.purpose));
+});
