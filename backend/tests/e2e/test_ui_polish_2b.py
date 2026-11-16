@@ -10,7 +10,7 @@ pytestmark = [
 ]
 
 
-def _runs_stub(pg, runs):
+def _runs_stub(pg, runs, pattern="**/api/runs"):
     """Prepend these manifests to the real /api/runs answer, each filled out from the first real one (or bare)."""
     def handle(route):
         resp = route.fetch()
@@ -20,7 +20,7 @@ def _runs_stub(pg, runs):
         body["runs"] = [{**base, "updated_at": "2026-11-16T00:00:00Z", "created_at": "2026-11-16T00:00:00Z", **r} for r in runs] + real
         route.fulfill(response=resp, json=body)
 
-    pg.route("**/api/runs", handle)
+    pg.route(pattern, handle)
 
 
 def _box(loc):
@@ -151,3 +151,123 @@ def test_chips_keyboard(page):  # noqa: F811
     page.keyboard.press("Space")
     assert mine.get_attribute("aria-pressed") == "true"
     assert _style(mine, "outlineStyle") != "none"
+
+
+def _row_frame(pg, row):
+    assert _style(row, "borderTopStyle") == "solid" and _style(row, "borderTopWidth") == "1px"
+    assert _style(row, "borderTopLeftRadius") == "8px"
+    assert _style(row, "backgroundColor") == _probe(pg, "--panel", "backgroundColor")
+
+
+def test_ac14_argus_card_frame(page):  # noqa: F811
+    _three_runs(page)
+    _open(page, "/#/argus", 390, 844)
+    rows = page.get_by_role("table", name="Runs").locator("tbody tr")
+    first, second = rows.nth(0), rows.nth(1)
+    _row_frame(page, first)
+    assert _style(first, "borderTopColor") == page.evaluate(
+        "() => { const d = document.createElement('div'); d.style.border = '1px solid var(--panel-border)'; document.body.append(d); const c = getComputedStyle(d).borderTopColor; d.remove(); return c; }")
+    assert _box(second)["y"] >= _box(first)["y"] + _box(first)["height"] + 8 - 0.5
+
+
+def test_ac14b_voting_card_frame(page):  # noqa: F811
+    _runs_stub(page, [{"run_id": "e2e-vote-1", "run_type": "proxy_voting", "status": "completed", "company_count": 3, "completed_count": 3}], "**/api/runs*")
+    _open(page, "/#/voting", 390, 844)
+    row = page.locator("table.stack-on-phone tbody tr").first
+    row.wait_for()
+    _row_frame(page, row)
+    label = row.locator("td[data-label]").first.evaluate("e => getComputedStyle(e, '::before').content")
+    assert label not in ("none", "normal", '""'), label
+
+
+def test_ac15_argus_compact_card(page):  # noqa: F811
+    _three_runs(page)
+    _open(page, "/#/argus", 390, 844)
+    card = page.locator('tr[data-row="e2e-mine-0"]')
+    run, comp, step = (card.locator(f'td[data-label="{x}"]') for x in ("Run", "Companies", "Step"))
+    assert _box(run)["y"] < _box(comp)["y"], "the name line is first"
+    # "N companies · step" reads as one line; the separator is generated content, which innerText never returns.
+    assert abs(_box(comp)["y"] - _box(step)["y"]) <= 1
+    import re
+    line = f'{comp.inner_text()}{comp.evaluate("e => getComputedStyle(e, `::after`).content").strip(chr(34))} {step.inner_text()}'
+    assert re.fullmatch(r"\d+ compan(y|ies) · \d \w+", line), line
+    pill, box = _box(card.locator('td[data-label="Status"]')), _box(card)
+    assert pill["x"] + pill["width"] >= box["x"] + box["width"] * 0.75 and pill["y"] <= box["y"] + box["height"] / 2
+    labels = card.locator("td").evaluate_all("tds => tds.map(e => getComputedStyle(e, '::before').content)")
+    assert not any(c.strip('"') in ("Run", "Companies", "Step", "Status") for c in labels), labels
+
+
+def _six_statuses(pg):
+    runs = [
+        {"run_id": f"e2e-st-{name}", "run_type": "extraction", "status": status, "params": {"label": f"Status {name}"}}
+        for name, status in [("running", "running"), ("stopped", "cancelled"), ("failed", "failed"), ("finished", "completed"), ("needs", "completed")]
+    ]
+    _runs_stub(pg, runs)
+
+    def items(route):
+        resp = route.fetch()
+        body = resp.json()
+        base = (body.get("items") or [{}])[0]
+        body["items"] = [{**base, "run_id": "e2e-st-needs", "item_key": "e2e-st-needs:1"}] + body.get("items", [])
+        route.fulfill(response=resp, json=body)
+
+    def flows(route):
+        resp = route.fetch()
+        body = resp.json()
+        base = (body.get("flows") or [{}])[0]
+        draft = {**base, "flow_id": "e2e-st-draft", "run_id": None, "step": 2, "created_at": "2026-11-16T00:00:01Z",
+                 "started_by": "dev", "started_by_name": "dev", "companies": [{**((base.get("companies") or [{}])[0]), "name": "Acme"}]}
+        body["flows"] = [draft] + body.get("flows", [])
+        route.fulfill(response=resp, json=body)
+
+    pg.route("**/api/review/items*", items)
+    pg.route("**/api/argus/flows", flows)
+
+
+def test_ac15b_status_dots(page):  # noqa: F811
+    _six_statuses(page)
+    _open(page, "/#/argus", 390, 844)
+    want = {"running": "--run", "needs-you": "--hi", "failed": "--low", "finished": "--text", "stopped": "--muted"}
+    for status, token in want.items():
+        cell = page.locator(f'td[data-status="{status}"]').first
+        cell.wait_for()
+        dot = cell.evaluate("e => { const s = getComputedStyle(e, '::before'); return [s.width, s.height, s.borderRadius, s.backgroundColor]; }")
+        assert dot[:3] == ["6px", "6px", "0px"], (status, dot)
+        assert dot[3] == _probe(page, token, "backgroundColor"), (status, dot, token)
+    draft = page.locator('td[data-status="draft"]').first.evaluate("e => { const s = getComputedStyle(e, '::before'); return [s.backgroundColor, s.boxShadow]; }")
+    assert draft[0] == "rgba(0, 0, 0, 0)" and "inset" in draft[1], draft
+
+
+def test_ac16_desktop_table_unchanged(page):  # noqa: F811
+    _three_runs(page)
+    _open(page, "/#/argus")
+    table = page.get_by_role("table", name="Runs")
+    assert table.locator("thead").is_visible()
+    assert _style(table.locator("tbody tr").first, "borderTopWidth") == "0px"
+
+
+def test_long_name_clears_pill(page):  # noqa: F811
+    long = "A very long extraction run name that keeps going past the pill on a phone"
+    _runs_stub(page, [{"run_id": "e2e-long", "run_type": "extraction", "status": "running", "params": {"label": long}}])
+    _open(page, "/#/argus", 390, 844)
+    card = page.locator('tr[data-row="e2e-long"]')
+    pill = _box(card.locator('td[data-label="Status"]'))
+    rects = card.locator('td[data-label="Run"] > div').evaluate("e => [...e.getClientRects()].map(r => [r.x, r.y, r.width, r.height])")
+    text_rects = card.locator('td[data-label="Run"] > div').evaluate(
+        "e => { const r = document.createRange(); r.selectNodeContents(e.firstChild); return [...r.getClientRects()].map(x => [x.x, x.y, x.width, x.height]); }")
+    for x, y, w, h in text_rects:
+        overlap = x < pill["x"] + pill["width"] and pill["x"] < x + w and y < pill["y"] + pill["height"] and pill["y"] < y + h
+        assert not overlap, (x, y, w, h, pill, rects)
+
+
+def test_empty_row_card(page):  # noqa: F811
+    page.route("**/api/runs", lambda r: r.fulfill(json={"runs": []}))
+    page.route("**/api/argus/flows", lambda r: r.fulfill(json={"flows": []}))
+    _open(page, "/#/argus", 390, 844)
+    row = page.get_by_role("table", name="Runs").locator("tbody tr").first
+    cell = row.locator("td").first
+    assert "No runs yet" in cell.inner_text()
+    rb, cb = _box(row), _box(cell)
+    assert cb["x"] >= rb["x"] - 0.5 and cb["x"] + cb["width"] <= rb["x"] + rb["width"] + 0.5
+    assert _style(cell, "borderTopWidth") == "0px"
+    assert row.get_by_role("button", name="Start one").is_enabled()

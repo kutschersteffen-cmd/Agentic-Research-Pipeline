@@ -484,10 +484,38 @@ details.help-text[open] > summary { margin-bottom: var(--s-1); }
 @media (max-width: 560px) {
   .data-table.stack-on-phone thead { display: none; }
   .data-table.stack-on-phone, .data-table.stack-on-phone tbody, .data-table.stack-on-phone tr { display: block; width: 100%; }
-  .data-table.stack-on-phone tr { border-bottom: 1px solid var(--panel-border); padding: var(--s-2) 0; }
+  /* Each row is a card; the table's own frame steps back so cards don't sit inside a card. */
+  .data-table.stack-on-phone tbody { display: grid; gap: var(--s-2); }
+  .data-table.stack-on-phone tr { padding: var(--s-3); border: 1px solid var(--panel-border); border-radius: var(--r-md); background: var(--panel); }
+  .table-wrap:has(> .data-table.stack-on-phone) { overflow: visible; padding: 0; border: 0; background: none; }
   .data-table.stack-on-phone td { display: flex; justify-content: space-between; gap: var(--s-3); border: none; padding: var(--s-0_5) 0; white-space: normal !important; }
   .data-table.stack-on-phone td[data-label]::before { content: attr(data-label); color: var(--muted); font-size: var(--text-sm); overflow-wrap: normal; }
   .data-table.stack-on-phone td:empty { display: none; }
+  /* Argus runs: a compact card. Name and status pill on top, "N companies · step" under it, actions last; no labels. */
+  .argus-start .data-table.stack-on-phone tr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--s-1); align-items: center; }
+  .argus-start .data-table.stack-on-phone td { display: block; padding: 0; }
+  .argus-start .data-table.stack-on-phone td[data-label]::before { content: none; }
+  .argus-start td[data-label="Run"] { grid-row: 1; grid-column: 1 / -1; font-weight: 500; }
+  /* keeps a long name clear of the pill that sits over the top-right corner */
+  .argus-start td[data-label="Run"] > div::before { content: ""; float: right; width: 104px; height: 20px; }
+  .argus-start td[data-label="Run"] .muted { font-weight: 400; margin-top: 2px; }
+  .argus-start td[data-label="Companies"] { grid-row: 2; grid-column: 1; }
+  .argus-start td[data-label="Step"] { grid-row: 2; grid-column: 2; }
+  .argus-start td:is([data-label="Companies"], [data-label="Step"]) { color: var(--muted); font-size: var(--text-sm); }
+  .argus-start td[data-label="Companies"]::after { content: " ·"; }
+  .argus-start .data-table.stack-on-phone td[data-label="Status"] {
+    grid-row: 1; grid-column: 3; align-self: start; justify-self: end; display: inline-flex; align-items: center; gap: 6px;
+    padding: 2px var(--s-2); border: 1px solid var(--panel-border); border-radius: var(--r-pill); font-size: var(--text-xs); white-space: nowrap;
+  }
+  .argus-start .data-table.stack-on-phone td[data-label="Status"]::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 0; background: var(--muted); }
+  .argus-start .data-table.stack-on-phone td[data-status="running"]::before { background: var(--run); }
+  .argus-start .data-table.stack-on-phone td[data-status="needs-you"]::before { background: var(--hi); }
+  .argus-start .data-table.stack-on-phone td[data-status="failed"]::before { background: var(--low); }
+  .argus-start .data-table.stack-on-phone td[data-status="finished"]::before { background: var(--text); }
+  .argus-start .data-table.stack-on-phone td[data-status="draft"]::before { background: transparent; box-shadow: inset 0 0 0 1px var(--muted); }
+  .argus-start .data-table.stack-on-phone td:last-child { grid-row: 3; grid-column: 1 / -1; margin-top: var(--s-1); padding-top: var(--s-2); border-top: 1px solid var(--panel-border); }
+  .argus-start .data-table.stack-on-phone td[colspan] { grid-row: auto; margin: 0; padding: 0; border-top: 0; }
+  .argus-start td:last-child .row-actions { justify-content: flex-start; gap: var(--s-4); }
 }
 .muted { color: var(--muted); font-size: var(--text-sm); }
 

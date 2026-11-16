@@ -375,7 +375,8 @@ def test_phone_labels_stay_on_one_line(page):
     page.goto(URL + "/#/argus")
     cell = page.get_by_role("table", name="Runs").locator('td[data-label="Run"]').first
     cell.wait_for()
-    assert cell.evaluate(one_line)  # not "Ru / n"
+    # UI polish 2 (L9, AC-15) supersedes the runs half: the Argus phone card shows no field labels at all.
+    assert cell.evaluate("td => getComputedStyle(td, '::before').content") == "none"
     page.goto(f"{URL}/#/argus/{fid}/1")
     cell = page.get_by_role("table", name="Companies").locator('td[data-label="Company"]').first
     cell.wait_for()

@@ -281,6 +281,9 @@ Where a value's history matters, a four-step trail shows source → extracted �
 - **Rating badge:** pastel (see Secondary colours), 2px corners.
 - **Status pill:** a square dot and the status word.
 - **"Needs you" count:** amber fill with white text (Night: dark text), square (2px), on the top bar's Review Queue link. One number for everything waiting on a decision: open review items, open stewardship decisions and undecided ballots (`GET /api/waiting`); the label names each part. Hidden at 0 and when the count fails.
+- **Tile strip:** related tiles (the Argus steps) sit in one bordered strip. Neighbours share a 1px edge, only the strip's outer corners are rounded, and a waiting, failed or focused tile draws its edge over its neighbours'. At 640px and below the strip stacks into one column.
+- **Filter chips:** a list filter is a group of pill buttons with `aria-pressed` ("All", "Only mine"), exactly one pressed. The pressed chip has an `--accent-tint` fill and ink label, the others a muted label. 32px tall, 44px at 1024px and below.
+- **Phone tables:** at 560px and below a stacked table's rows become cards (hairline, 8px corners, panel fill, 8px apart), each cell still labelled. The Argus runs card is compact: name and a status pill with a square dot on top, "N companies · step" under it, actions last.
 
 ### Cards / Containers
 - **Corner Style:** `--r-lg` (12px).

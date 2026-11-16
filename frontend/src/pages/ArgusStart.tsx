@@ -225,7 +225,9 @@ export function ArgusStart() {
                     <td data-label="Step">
                       {r.step} {STEPS[r.step - 1]}
                     </td>
-                    <td data-label="Status" className={r.status === "Needs you" ? "await-text" : undefined}>{r.status}</td>
+                    <td data-label="Status" data-status={r.status.toLowerCase().replace(" ", "-")} className={r.status === "Needs you" ? "await-text" : undefined}>
+                      {r.status}
+                    </td>
                     <td>
                       <span className="row-actions">
                         <a href={r.openHref}>Open</a>
