@@ -2,8 +2,8 @@
 
 import os
 import re
-from random import randint
-from uuid import uuid4
+from random import choices, randint
+from string import ascii_lowercase
 
 import pytest
 
@@ -17,7 +17,9 @@ pytestmark = [
     pytest.mark.skipif(not URL, reason="ARP_E2E_URL not set -- start backend/scripts/e2e_stack.sh"),
 ]
 
-TAG = uuid4().hex[:6]  # names and ids of this run, so what earlier runs left behind never matches
+# Names and ids of this run, so what earlier runs left behind never matches. Letters only: a hex tag such as
+# 7b2097 puts a year in a company's name, the upload check then reads that file as "Year 2097" and does not keep it.
+TAG = "".join(choices(ascii_lowercase, k=6))
 
 
 @pytest.fixture
@@ -529,8 +531,9 @@ def test_release_asks_first(page, tmp_path):
     fid = _flow(api, "name\n" + "\n".join(names) + "\n", reporting_year=2025, step=3)
     for i, c in enumerate(_ok(api.get(f"{API}/api/argus/flows/{fid}"))["companies"]):
         pdf = make_pdf(tmp_path / f"r{i}.pdf", [f"{c['name']} Annual Report 2025", FILLER], n_pages=2).read_bytes()
-        _ok(api.post(f"{API}/api/argus/flows/{fid}/documents/upload", multipart={
-            "company_id": c["company_id"], "doc_type": "10-K", "file": {"name": f"r{i}.pdf", "mimeType": "application/pdf", "buffer": pdf}}))
+        files = _ok(api.post(f"{API}/api/argus/flows/{fid}/documents/upload", multipart={
+            "company_id": c["company_id"], "doc_type": "10-K", "file": {"name": f"r{i}.pdf", "mimeType": "application/pdf", "buffer": pdf}}))["files"]
+    assert [(f["check"], f["state"]) for f in files] == [(f"✓ {n}, 2025", "kept") for n in names]  # the dialog counts companies with a kept file
     s = f"Release {TAG}"
     _schema(api, "rel", s, _fields("r", 2))
     page.goto(f"{URL}/#/argus/{fid}/3")
