@@ -53,9 +53,9 @@ Two throwaway trials, both reverted, both with outputs identical to `main`:
 ## Anti-goals
 
 - A computed value that differs from `main` (AC-1).
-- A slower or larger API server outside a running "Run now" request (AC-6: the files the server's read path lives
-  in are not edited). During such a request the server holds the parsed files, about 110 MB on the showcase data,
-  and releases them when the request ends.
+- A slower or larger API server outside a running monthly run, which in the server is "Run now" or the monitoring
+  scheduler's run (AC-6: the files the server's read path lives in are not edited). During such a run the server
+  holds the parsed files, about 110 MB on the showcase data, and releases them when the run ends.
 - A collision with the Workbench speed PR of `workbench-review-fixes`, which is being built and edits
   `portfolio_store.py`, `universe.py`, `api/main.py`, `process.py` and `showcase/load.py` (AC-6).
 - A weakened or deleted test (AC-7).
@@ -98,21 +98,25 @@ instead, see "If the owner picks A" at the end.
 3. `showcase.load.load` wraps its store once, just before the six monthly runs (after the `esg` and `scores` steps
    have written the observations).
 4. A script `backend/scripts/showcase_load_check.py` that the builder and any reviewer use for AC-1 and AC-2:
-   - `run <outdir>`: refuses to start unless `ARP_TEST_POSTGRES_DSN` is set. Before it imports the settings it sets
+   - `run <outdir>`: exits with an error if `<outdir>` exists and is not empty, and refuses to start unless
+     `ARP_TEST_POSTGRES_DSN` is set. Before it imports the settings it sets
      `ARP_POSTGRES_DSN` to that test DSN and `ARP_BLOB_STORE_DIR` to `<outdir>/blobs`, as the `pg` fixture in
      `backend/tests/conftest.py` does, so the load's company registration also goes to the test database. It
      empties that database's tables, runs one load the way the `pg_store` fixture of
      `test_demo_seed_curated_keys.py` does with its data folders under `<outdir>/data`, prints
      `load seconds: <n>` (timed around the `load()` call only, not the emptying or the dump), and writes every
      output to `<outdir>/dump.json`.
-   - `compare <outdirA> <outdirB>`: prints one line per table and file and a last line `RESULT: IDENTICAL` or
-     `RESULT: DIFFERENT`; exit code 0 or 1.
+   - `compare <outdirA> <outdirB>`: prints one line per Postgres table, one line `observations` for all observation
+     files together, one line per other file and one line `echoed lines`, each as
+     `<name>: <n> equal, <m> different`; then at most 20 differing items; then a last line `RESULT: IDENTICAL` or
+     `RESULT: DIFFERENT`. Exit code 0 or 1.
 
 Callers that are not changed and get the faster run through `run_month`: `POST /api/portfolio/monthly-run`,
 `arp portfolio` monthly run, the monitoring scheduler.
 
 Cost: the load process peaks at about 896 MB instead of 788 MB while it runs. The API server holds the wrapper, and
-with it about 110 MB of parsed files on the showcase data, only while a "Run now" request is running.
+with it about 110 MB of parsed files on the showcase data, only while a monthly run is going ("Run now" or the
+monitoring scheduler's run).
 
 ## Order with the Workbench speed PR
 
@@ -130,6 +134,8 @@ are in different places of the function.
 
 Words used below:
 
+- **`main`:** in AC-1 and AC-2, the PR's merge base with `origin/main` (`git merge-base origin/main HEAD`), the
+  same commit AC-6 and AC-7 compare against.
 - **A load:** `arp.showcase.load.load` on a `PostgresPortfolioStore` over an emptied test database and empty data
   folders, with `data/holdings` and `data/simulated/esg_simulated.csv`, as `showcase_load_check.py run` does it.
 - **Outputs of a load:** the lines the load echoes, every row of every Postgres table, and every file under the
@@ -141,6 +147,11 @@ Words used below:
   three loads of `main` at `db0fe3b`; `holdings.company_id` is empty in a showcase load and is compared.
 - **Demo store:** the `store` and `settings` fixtures of `backend/tests/test_monthly_run.py` (the seeded demo
   dataset on a file `PortfolioStore`), with the holdings loads and the `default` ESG load of `2026-09` recorded `ok`.
+- **Why `unit` and no hidden tests (the builder's call, the owner can overrule it at approval):** AC-3, AC-4, AC-5
+  and AC-8 are about a Python class with no route of its own, built as `ObservationsReadOnce(store)`. What a user
+  can see is covered by AC-1, which compares every published value on the full showcase data, and by the existing
+  suite. `workbench-review-fixes` marks its Python-level rows `unit` the same way. The PR therefore carries no
+  `Spec:` line and the Holdout acceptance job does not run for it.
 - **`unit` with pasted output:** AC-1, AC-2, AC-6 and AC-7 compare two commits, which the app started by
   `e2e_stack.sh up` cannot do, so they are `unit` rows. For these four the builder runs the command in the row and
   pastes its full output in the PR description (for AC-2: the six `load seconds` values); a reviewer can run the
@@ -148,10 +159,10 @@ Words used below:
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-1 | One load on `main` and one on the PR head, same machine, each with `showcase_load_check.py run` (the script file copied from the PR head for the `main` run) | `showcase_load_check.py compare <main outdir> <PR outdir>` | Last line `RESULT: IDENTICAL`, exit code 0: all 81,216 observation files are byte-equal, the 174,492 `bi_published` rows are equal, and every other table, file and echoed line is equal outside the noise fields | unit |
+| AC-1 | One load on `main` (the merge base) and one on the PR head, same machine, each with `showcase_load_check.py run` (the script file copied from the PR head for the `main` run) | `showcase_load_check.py compare <main outdir> <PR outdir>` | Exit code 0 and the output holds the lines `observations: 81216 equal, 0 different`, `bi_published: 174492 equal, 0 different` and, last, `RESULT: IDENTICAL`; every other line ends in `0 different` (compared outside the noise fields) | unit |
 | AC-2 | Three loads on `main`, then three on the PR head, same machine, one after the other, nothing else running | The six `load seconds` values printed by `showcase_load_check.py run` are compared | The smallest of the PR's three is at most 70 % of the smallest of `main`'s three | unit |
 | AC-3 | Demo store; `run_month` for `2026-09` has run once | For one seeded company X an observation of `climate_carbon_intensity` with `source` `internal_api`, `value` `987654.5`, `observed_at` `2026-09-30T23:59:59+00:00` is appended with `store.append_observation`; then `run_month` for `2026-09` runs again in the same process | The `rows` the second run passes to `publish_rows("company_profile", "2026-09", rows)`, captured as `_spy` in `test_monthly_run.py` does, hold `value` `987654.5` in the row for X and `climate_carbon_intensity` | unit |
-| AC-4 | A file `PortfolioStore` and an `ObservationsReadOnce` over it; five observation files: (a) only simulated rows, (b) a real row followed by a later simulated row, (c) two real rows, (d) one row dated after the `as_of` asked for, (e) no file | `latest_observation` is called on both for each file, once with `as_of` `2026-09-30` and once with no `as_of` | The two return equal observations in all ten calls (`None` for (e), and for (d) with the `as_of`) | unit |
+| AC-4 | A file `PortfolioStore` and an `ObservationsReadOnce` over it; six observation files. (a) to (c) hold rows observed on or before `2026-09-30`: (a) only simulated rows, (b) a real row followed by a later simulated row, (c) two real rows. (d) one row observed on `2026-10-01`, (e) no file, (f) one real row observed at `2026-09-30T12:00:00+00:00` | `latest_observation` is called on both for each file, once with `as_of` `2026-09-30` and once with no `as_of` | The two return equal observations in all twelve calls: `None` for (e) in both calls and for (d) with the `as_of`; the real row for (b) and for (f) in both calls | unit |
 | AC-5 | An `ObservationsReadOnce` over a file `PortfolioStore`; `load_observations` for (X, F) has returned one observation | A second observation for (X, F) is appended through the `ObservationsReadOnce`; then `load_observations` for (X, F) is called on it | It returns two observations, the appended one last | unit |
 | AC-6 | The PR's diff against `main` | `git diff --stat origin/main...HEAD -- backend/arp/storage backend/arp/stewardship backend/arp/api backend/arp/bi backend/arp/portfolio/datapoint_mapping.py backend/arp/portfolio/climate` | No output: none of these paths is changed | unit |
 | AC-7 | The PR's diff against `main` | `git diff --numstat origin/main...HEAD -- backend/tests` | The deletions column (the second number) is 0 on every line | unit |
