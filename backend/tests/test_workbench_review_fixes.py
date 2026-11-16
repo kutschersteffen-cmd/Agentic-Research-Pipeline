@@ -53,8 +53,9 @@ def _fill_store(store) -> None:
 
 
 def _forget_cache() -> None:
-    """What a new server process starts with."""
+    """What a new server process starts with: no cached observations and no kept house build."""
     portfolio_store._LATEST.clear()
+    universe.clear_kept_build()
 
 
 def _entries(store: PortfolioStore) -> list:

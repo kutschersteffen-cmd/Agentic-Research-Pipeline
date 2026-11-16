@@ -148,3 +148,315 @@ def test_record_main_monthly_run(store_s, monkeypatch):
     result = monthly_run.run_month(store_s, get_settings(), MONTH, portfolio_ids=["P1"])
     assert result.status == "ran", result
     _record("main_monthly_run.json", {"universe": without_now(seen["universe"]), "held_isins": seen.get("held_isins")})
+
+
+# --- the unit rows ---
+
+import logging  # noqa: E402
+import shutil  # noqa: E402
+import threading  # noqa: E402
+import time  # noqa: E402
+
+from sqlalchemy import text  # noqa: E402
+
+from arp.db.session import transaction  # noqa: E402
+from arp.stewardship import process, universe  # noqa: E402
+
+LOGGER = "arp.stewardship.universe"
+BUILT, CHECKED = "House universe built:", "Input check:"
+
+
+@pytest.fixture(autouse=True)
+def _no_kept_build():
+    universe.clear_kept_build()
+    yield
+    universe.clear_kept_build()
+
+
+@pytest.fixture
+def logs(caplog):
+    caplog.set_level(logging.DEBUG, logger=LOGGER)
+    return lambda prefix: [r for r in caplog.records if r.name == LOGGER and r.getMessage().startswith(prefix)]
+
+
+def _ghg(result: dict, cid: str = "C1"):
+    return next(i for i in result["issuers"] if i["issuer_id"] == cid)["fields"].get("portfolio.ghg_intensity")
+
+
+def _append(store, value: float, cid: str = "C1") -> None:
+    store.append_observation(DataPointObservation(company_id=cid, field_id="ghg_intensity", field_name="ghg_intensity", value=value, source="internal_api", observed_at="2026-10-01"))
+
+
+def _slow(monkeypatch, *, before: float = 0.0, after: float = 0.0, fail_first: bool = False) -> None:
+    """The build (`from_portfolio` inside it) waits `before` s, then builds, then waits `after` s; `fail_first`: the
+    first build raises RuntimeError("boom") after its wait."""
+    real, calls = process.from_portfolio, []
+
+    def build(*args, **kwargs):
+        calls.append(1)
+        time.sleep(before)
+        if fail_first and len(calls) == 1:
+            raise RuntimeError("boom")
+        result = real(*args, **kwargs)
+        time.sleep(after)
+        return result
+
+    monkeypatch.setattr(process, "from_portfolio", build)
+
+
+def _in_threads(n: int, fn) -> list:
+    out: list = [None] * n
+
+    def run(k):
+        try:
+            out[k] = fn()
+        except Exception as exc:  # noqa: BLE001 -- the result under test
+            out[k] = exc
+
+    threads = [threading.Thread(target=run, args=(k,)) for k in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    return out
+
+
+def test_an_unchanged_input_builds_once(store_s, logs):
+    # AC-20
+    first = process.house_universe()
+    assert process.house_universe() == first and len(first["issuers"]) == 2
+    assert len(logs(BUILT)) == 1
+
+
+def test_parallel_calls_share_one_build(store_s, logs, monkeypatch):
+    # AC-21
+    _slow(monkeypatch, before=1)
+    results = _in_threads(8, process.house_universe)
+    assert len(logs(BUILT)) == 1 and all(r == results[0] for r in results) and len(results[0]["issuers"]) == 2
+
+
+def test_a_failed_build_is_not_kept(store_s, logs, monkeypatch):
+    # AC-22
+    _slow(monkeypatch, before=1, fail_first=True)
+    results = _in_threads(4, process.house_universe)
+    assert all(isinstance(r, RuntimeError) and str(r) == "boom" for r in results), results
+    assert len(process.house_universe()["issuers"]) == 2 and len(logs(BUILT)) == 1
+
+
+def test_a_change_during_a_running_check_is_seen(store_s, monkeypatch):
+    # AC-23, with a kept build in place, so a check that started before the change would return it unchanged
+    process.house_universe()
+    real = universe._observation_files
+    monkeypatch.setattr(universe, "_observation_files", lambda d: (real(d), time.sleep(1))[0])
+    results: dict = {}
+    a = threading.Thread(target=lambda: results.setdefault("a", process.house_universe()))
+    a.start()
+    time.sleep(0.5)
+    _append(store_s, 333.0)
+    results["b"] = process.house_universe()
+    a.join()
+    assert _ghg(results["b"]) == 333.0
+
+
+def test_parallel_calls_share_the_check(store_s, logs):
+    # AC-24
+    process.house_universe()
+    before = len(logs(CHECKED))
+    _in_threads(6, process.house_universe)
+    assert len(logs(CHECKED)) - before <= 2
+
+
+def test_a_caller_never_changes_another_callers_universe(store_s):
+    # AC-25
+    process.house_universe()["issuers"][0]["fields"]["probe"] = 1
+    assert "probe" not in process.house_universe()["issuers"][0]["fields"]
+
+
+def test_the_sample_is_copied_too(fixture_w):
+    # AC-40
+    process.house_universe()["issuers"][0]["fields"]["probe"] = 1
+    assert "probe" not in process.house_universe()["issuers"][0]["fields"]
+
+
+@pytest.mark.parametrize("data", ["store_s", "fixture_w"])
+def test_a_kept_answer_equals_a_fresh_one(data, request):
+    # AC-26
+    request.getfixturevalue(data)
+    with TestClient(app) as client:
+        for url in ENDPOINTS:
+            universe.clear_kept_build()
+            fresh = client.get(url)
+            kept = client.get(url)
+            assert fresh.status_code == kept.status_code == 200, (url, fresh.text)
+            assert fresh.json() == kept.json(), url
+
+
+@pytest.mark.parametrize(("data", "fixture"), [("store_s", "main_answers_store_s.json"), ("fixture_w", "main_answers_fixture_w.json")])
+def test_every_answer_equals_main(data, fixture, request):
+    # AC-38
+    request.getfixturevalue(data)
+    assert answers() == json.loads((FIXTURES / fixture).read_text())
+
+
+def test_a_published_decision_reaches_load_sample(store_s):
+    # AC-27
+    from arp.schemas.decision import PublishedDecision, PublishedRow
+    from arp.storage.decision_store import DecisionStore
+
+    process.house_universe()
+    DecisionStore(get_settings().frameworks_dir).save_published(PublishedDecision(
+        framework_id="fw", framework_version=1, framework_name="F", dataset_id="d", dataset_name="D", id_column="id",
+        published_by="A", rows=[PublishedRow(entity_id="C1", name="Company C1", score=72.5, tier=1)],
+    ))  # fmt: skip
+    c1 = next(i for i in process.load_sample()["issuers"] if i["issuer_id"] == "C1")
+    assert c1["fields"]["decision.fw.tier"] == 1
+
+
+def test_one_check_per_request(store_s, logs):
+    # AC-28
+    process.house_universe()
+    with TestClient(app) as client:
+        for url in ENDPOINTS:
+            before = len(logs(CHECKED))
+            assert client.get(url).status_code == 200, url
+            assert len(logs(CHECKED)) - before == 1, url
+
+
+def test_a_read_through_the_observation_cache_does_not_hide_a_change(store_s):
+    # AC-30
+    process.house_universe()
+    _append(store_s, 444.0)
+    assert store_s.latest_observation("C1", "ghg_intensity", DATES[-1]).value == 444.0
+    assert _ghg(process.house_universe()) == 444.0
+
+
+def test_every_input_change_rebuilds(store_s, logs):
+    # AC-31
+    settings = get_settings()
+    process.house_universe()
+    datapoints = settings.portfolios_dir / "datapoints"
+
+    def fresh() -> dict:
+        universe.clear_kept_build()
+        return process.house_universe()
+
+    changes = [
+        lambda: _sql("UPDATE securities SET name = 'Changed' WHERE security_id = 'C1-EQ'"),
+        lambda: _sql("UPDATE security_resolutions SET confidence = 0.5 WHERE security_id = 'C2-EQ'"),
+        lambda: _sql("UPDATE portfolios SET name = 'Fund P1 renamed' WHERE portfolio_id = 'P1'"),
+        lambda: store_s.append_observation(DataPointObservation(company_id="C2", field_id="esg_score", field_name="esg_score", value=5.0, source="internal_api", observed_at="2026-10-01")),
+        lambda: (datapoints / "C2" / "esg_score.jsonl").unlink(),
+    ]  # fmt: skip
+    for change in changes:
+        builds = len(logs(BUILT))
+        change()
+        result = process.house_universe()
+        assert len(logs(BUILT)) == builds + 1
+        assert result == fresh()
+
+
+def _sql(statement: str) -> None:
+    with transaction(get_settings().postgres_dsn) as s:
+        assert s.execute(text(statement)).rowcount == 1, statement
+
+
+def test_a_changed_sample_file_rebuilds(fixture_w, tmp_path, monkeypatch):
+    # AC-32
+    sample = tmp_path / "sample_meetings.json"
+    shutil.copy(process.SAMPLE_PATH, sample)
+    monkeypatch.setattr(process, "SAMPLE_PATH", sample)
+    first = process.house_universe()
+    data = json.loads(sample.read_text())
+    data["issuers"] = data["issuers"][1:]
+    (tmp_path / "next.json").write_text(json.dumps(data))
+    os.replace(tmp_path / "next.json", sample)
+    assert len(process.house_universe()["issuers"]) == len(first["issuers"]) - 1
+
+
+def _tree(*roots: Path) -> dict:
+    return {p: p.stat().st_mtime_ns for root in roots if root.exists() for p in root.rglob("*")}
+
+
+def test_nothing_is_stored(store_s):
+    # AC-33: the calls themselves create or change no file (the test's own change excepted)
+    settings = get_settings()
+    roots = (settings.portfolios_dir, settings.stewardship_streams_dir, settings.identifier_map_path.parent)
+    before = _tree(*roots)
+    process.house_universe()
+    assert _tree(*roots) == before
+    _append(store_s, 555.0)
+    changed = _tree(*roots)
+    process.house_universe()  # a rebuild
+    assert _tree(*roots) == changed
+
+
+def test_a_change_during_a_build_rebuilds_on_the_next_call(store_s, logs, monkeypatch):
+    # AC-36
+    _slow(monkeypatch, before=1)
+    first = threading.Thread(target=process.house_universe)
+    first.start()
+    time.sleep(0.5)
+    _append(store_s, 666.0)
+    first.join()
+    assert _ghg(process.house_universe()) == 666.0 and len(logs(BUILT)) == 2
+
+
+def test_new_folders_rebuild(store_s, logs, monkeypatch, tmp_path):
+    # AC-37
+    settings = get_settings()
+    process.house_universe()
+    new = tmp_path / "moved"
+    shutil.copytree(settings.portfolios_dir / "datapoints", new / "portfolios" / "datapoints")
+    (new / "map").mkdir()
+    (new / "map" / "issuer_sectors.json").write_text(json.dumps({"C1": {"sector": "S2 Sector"}}))
+    monkeypatch.setenv("ARP_PORTFOLIOS_DIR", str(new / "portfolios"))
+    monkeypatch.setenv("ARP_STEWARDSHIP_STREAMS_DIR", str(new / "streams"))
+    monkeypatch.setenv("ARP_IDENTIFIER_MAP_PATH", str(new / "map" / "identifier_map.jsonl"))
+    get_settings.cache_clear()
+    HouseUniverseSetting(get_settings().stewardship_streams_dir).set("portfolio", "tests")
+    c1 = next(i for i in process.house_universe()["issuers"] if i["issuer_id"] == "C1")
+    assert c1["sector"] == "S2 Sector" and len(logs(BUILT)) == 2
+
+
+def test_the_compact_file_written_before_the_build_stays_valid(store_s):
+    # AC-39
+    from arp.stewardship.universe import fill_observation_cache
+
+    fill_observation_cache(store_s)
+    path = get_settings().portfolios_dir / portfolio_store.LATEST_FILE
+    data = json.loads(path.read_text())
+    assert data["format"] == json.loads((FIXTURES / "main_latest_format.json").read_text())["format"]
+    content, mtime = path.read_bytes(), path.stat().st_mtime_ns
+    portfolio_store._LATEST.clear()
+    with TestClient(app):  # start-up waits for the fill
+        pass
+    assert path.read_bytes() == content and path.stat().st_mtime_ns == mtime
+
+
+def test_the_monthly_run_is_unchanged(store_s, monkeypatch):
+    # AC-41
+    from arp.portfolio import monthly_run
+
+    process.house_universe()  # a kept build of the latest date exists
+    seen: dict = {}
+    real_load_sample, real_house_isins = monthly_run.load_sample, process.house_isins
+    monkeypatch.setattr(monthly_run, "load_sample", lambda *a, **k: seen.setdefault("universe", a[3]) and real_load_sample(*a, **k))
+    monkeypatch.setattr(process, "house_isins", lambda: seen.setdefault("held_isins", real_house_isins()))
+    assert monthly_run.run_month(store_s, get_settings(), MONTH, portfolio_ids=["P1"]).status == "ran"
+    recorded = json.loads((FIXTURES / "main_monthly_run.json").read_text())
+    assert json.loads(json.dumps({"universe": without_now(seen["universe"]), "held_isins": seen.get("held_isins")}, default=str)) == recorded
+
+
+def test_a_change_during_a_builds_pause_is_seen_by_the_next_caller(store_s, monkeypatch):
+    # AC-42
+    process.house_universe()
+    _slow(monkeypatch, after=1)
+    _append(store_s, 701.0)
+    results: dict = {}
+    a = threading.Thread(target=lambda: results.setdefault("a", process.house_universe()))
+    a.start()
+    time.sleep(0.5)
+    _append(store_s, 702.0)
+    results["b"] = process.house_universe()
+    a.join()
+    assert _ghg(results["b"]) == 702.0

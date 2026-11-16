@@ -31,12 +31,11 @@ from arp.schemas.worklist import (
     Worklist,
     WorklistScopes,
 )
-from arp.stewardship import universe, worklist
+from arp.stewardship import worklist
 from arp.stewardship.notes import NoteLog
 from arp.stewardship.policies import PolicyStore, validate_weights
-from arp.stewardship.process import StreamStore, house_universe, load_sample
+from arp.stewardship.process import StreamStore, house_build, house_universe, load_sample
 from arp.stewardship.programmes import ProgrammeLog, UnknownProgramme
-from arp.stewardship.universe import HouseUniverseSetting
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.portfolio_store_factory import build_portfolio_store
 
@@ -45,13 +44,10 @@ router = APIRouter(prefix="/api/stewardship", tags=["stewardship"])
 
 def _load(settings: Settings) -> tuple[dict, object, dict]:
     """`load_sample()`, the portfolio store and the worklist's inputs. In the portfolio universe the observations
-    are read once, for both the universe and the worklist columns (each read is one file per company and field)."""
-    store = build_portfolio_store(settings)
-    if HouseUniverseSetting(settings.stewardship_streams_dir).get()["source"] == "portfolio":
-        observations = universe.latest_observations(store)
-        sample = load_sample(observations=observations)
-    else:
-        sample = load_sample()
+    come with the house build, read once for both the universe and the worklist columns."""
+    store, build = build_portfolio_store(settings), house_build()
+    sample = load_sample(build=build)
+    if (observations := build.observations) is None:  # the sample universe
         observations = worklist.latest_observations(store, [i["issuer_id"] for i in sample["issuers"]])
     return sample, store, {"meetings": worklist.last_meetings(require_dsn(settings)), "observations": observations}
 

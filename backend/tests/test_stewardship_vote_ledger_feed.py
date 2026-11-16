@@ -27,8 +27,8 @@ SOCGEN = "isin_FR0000130809"  # in the house universe, no stw_companies row
 def universe(pg, sample_house_universe, monkeypatch):
     issuer = copy.deepcopy(json.loads(SAMPLE_PATH.read_text())["issuers"][0])
     issuer.update(issuer_id=SOCGEN, name="Societe Generale", fields={})
-    monkeypatch.setattr(process, "house_universe", lambda: {"issuers": [copy.deepcopy(issuer)]})
-    monkeypatch.setattr(process, "house_isins", lambda: {})  # the sample-like universe above holds no securities
+    # house_universe() and house_isins() both read house_build(); the sample-like universe above holds no securities
+    monkeypatch.setattr(process, "house_build", lambda: process.HouseBuild({"issuers": [copy.deepcopy(issuer)]}, {}, None))
 
 
 def _load(tmp_path, pg, dates=None, lines=None):
@@ -126,8 +126,7 @@ def test_ac38_house_issuer_holding_the_isin_gets_the_trigger(tmp_path, pg, monke
     isin = next(i for i, c in held_isins(store).items() if c == "isin_DE0005190003")
     # an unheld security-master row on the same ISIN, naming another company: the held issuer still wins
     store.save_security(SecurityRef(security_id="BMW_GY", isin=isin, name="BMW", asset_class="equity", currency="EUR", company_id="bmw_legacy"))
-    monkeypatch.setattr(process, "house_universe", lambda: from_portfolio(store))
-    monkeypatch.setattr(process, "house_isins", lambda: held_isins(store))
+    monkeypatch.setattr(process, "house_build", lambda: process.HouseBuild(from_portfolio(store), held_isins(store), None))
     d = tmp_path / "npx"
     d.mkdir()
     (d / "f.csv").write_text(FIXTURE.read_text().replace("FR0000130809", isin).replace("/2024,", "/2026,"))

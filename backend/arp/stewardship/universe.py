@@ -21,9 +21,12 @@ from __future__ import annotations
 import gc
 import json
 import logging
+import os
 import threading
 import time
 from collections import defaultdict
+from concurrent.futures import Future
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -210,3 +213,176 @@ def from_portfolio(
         "engagements": [],
         "meetings": [],
     }
+
+
+# --- the kept house build (spec stewardship-house-universe-cache) ---
+#
+# Per process, the last house build is kept and handed out as a copy while its inputs are unchanged. Every call
+# works out the inputs' version first (the shared check below); nothing is stored, nothing is read from another
+# process. Owner decision 16 Nov 2026: build once, rebuild when a holdings, data or settings input changes.
+
+_VERSION_TABLES = ("holdings", "securities", "legacy_companies", "security_resolutions", "portfolios")
+_VERSION_SQL = "SELECT " + ", ".join(
+    f"(SELECT count(*) FROM {t}), (SELECT coalesce(sum(hashtextextended(r::text, 0)), 0) FROM {t} r)" for t in _VERSION_TABLES
+)
+
+
+@dataclass(frozen=True)
+class HouseBuild:
+    """The house universe with what was read to build it: `held` maps a held ISIN to its issuer (empty for the
+    sample), `observations` is `latest_observations(store)` (None for the sample)."""
+
+    universe: dict
+    held: dict[str, str]
+    observations: dict | None
+
+
+def _identity(path: Path) -> tuple | None:
+    """The identity #491 compares: inode, ctime, mtime and size; None for a missing file."""
+    try:
+        st = os.stat(path)
+    except FileNotFoundError:
+        return None
+    return (st.st_ino, st.st_ctime_ns, st.st_mtime_ns, st.st_size)
+
+
+def _observation_files(portfolios_dir: Path) -> dict[tuple[str, str], tuple]:
+    """(company folder, file name) -> identity of every observation file (`*.jsonl`, as list_observation_keys)."""
+    out: dict[tuple[str, str], tuple] = {}
+    try:
+        companies = os.scandir(portfolios_dir / "datapoints")
+    except FileNotFoundError:
+        return out
+    with companies:
+        for company in companies:
+            if company.is_dir():
+                with os.scandir(company.path) as files:
+                    for f in files:
+                        if f.name.endswith(".jsonl") and f.is_file():
+                            st = f.stat()
+                            out[(company.name, f.name)] = (st.st_ino, st.st_ctime_ns, st.st_mtime_ns, st.st_size)
+    return out
+
+
+def input_version(settings) -> tuple:
+    """Everything the house build reads, in a form that compares equal exactly when the build would be the same."""
+    start = time.perf_counter()
+    setting = HouseUniverseSetting(settings.stewardship_streams_dir)
+    source = setting.get()["source"]
+    paths = (settings.portfolios_dir, settings.stewardship_streams_dir, settings.identifier_map_path, settings.postgres_dsn)
+    version: tuple = (paths, source, _identity(setting.path), _identity(settings.identifier_map_path.with_name("issuer_sectors.json")))
+    files: dict = {}
+    if source == "sample":
+        from arp.stewardship.process import SAMPLE_PATH
+
+        version += (_identity(SAMPLE_PATH),)
+    else:
+        from sqlalchemy import text
+
+        from arp.db.session import transaction
+
+        with transaction(settings.postgres_dsn) as s:
+            version += (tuple(s.execute(text(_VERSION_SQL)).one()),)
+        files = _observation_files(settings.portfolios_dir)
+    logger.debug("Input check: %d observation files in %.2f s", len(files), time.perf_counter() - start)
+    return (*version, files)
+
+
+class _SharedCheck:
+    """One check at a time. A caller waits for a check that starts after it arrived (the running one may have read
+    the inputs before its change) and every caller waiting for that check takes its result, so a burst of parallel
+    requests costs at most two checks and a change finished before a request arrived is always seen."""
+
+    def __init__(self) -> None:
+        self._cv = threading.Condition()
+        self._running = False
+        self._started = self._done = 0
+        self._result: tuple = (False, None)
+
+    def __call__(self, fn):
+        with self._cv:
+            need = self._started + 1
+            while self._done < need:
+                if not self._running:
+                    self._running, self._started = True, self._started + 1
+                    mine = self._started
+                    break
+                self._cv.wait()
+            else:
+                return self._unwrap(self._result)
+        try:
+            result = (True, fn())
+        except BaseException as exc:  # noqa: BLE001 -- handed to every waiter, then re-raised
+            result = (False, exc)
+        with self._cv:
+            self._running, self._done, self._result = False, mine, result
+            self._cv.notify_all()
+        return self._unwrap(result)
+
+    @staticmethod
+    def _unwrap(result: tuple):
+        ok, value = result
+        if not ok:
+            raise value
+        return value
+
+
+_check = _SharedCheck()
+_lock = threading.Lock()
+_kept: tuple | None = None  # (version, HouseBuild)
+_building: tuple | None = None  # (version, Future) of the build running now
+
+
+def kept_build(settings, build) -> HouseBuild:
+    """The kept build if `input_version` is unchanged, else `build()` (one at a time: a caller with the version being
+    built waits for it; one with another version waits for it to end, then builds its own). A build that raises is
+    not kept and every caller waiting for it gets its error. Callers must copy the result before changing it."""
+    global _kept, _building
+    version = _check(lambda: input_version(settings))
+    while True:
+        with _lock:
+            if _kept is not None and _kept[0] == version:
+                return _kept[1]
+            if _building is None:
+                future: Future = Future()
+                _building, mine = (version, future), True
+            else:
+                future, mine = _building[1], None if _building[0] != version else False
+        if mine is None:  # another version is being built: wait for it to end, whatever its outcome
+            future.exception()
+            continue
+        if mine is False:
+            return future.result()
+        try:
+            start = time.perf_counter()
+            result = build()
+            logger.info("House universe built: %d companies in %.2f s", len(result.universe["issuers"]), time.perf_counter() - start)
+        except BaseException as exc:
+            with _lock:
+                _building = None
+            future.set_exception(exc)
+            raise
+        with _lock:
+            _kept, _building = (version, result), None
+        future.set_result(result)
+        return result
+
+
+def clear_kept_build() -> None:
+    """Drops the kept build, so the next call builds (tests)."""
+    global _kept
+    with _lock:
+        _kept = None
+
+
+def _copy(value):
+    """A copy of nested dicts and lists, so no caller changes the kept build (other values are immutable or shared)."""
+    if isinstance(value, dict):
+        return {k: _copy(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_copy(v) for v in value]
+    return value
+
+
+def copy_build(build: HouseBuild) -> HouseBuild:
+    return HouseBuild(_copy(build.universe), dict(build.held), build.observations)
