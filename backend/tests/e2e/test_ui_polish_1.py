@@ -71,7 +71,11 @@ def test_ac1d_vote_records_the_signed_in_name(page):
         route.fulfill(json={"status": "recorded"})
 
     open_voting(page, [_vote(3)], on_review=review)
+    page.wait_for_function("() => localStorage.getItem('arp.reviewer') === 'dev'")  # /api/me has answered
     page.get_by_role("button", name="Approve 1 routine…").click()
+    dialog = page.get_by_role("dialog")
+    assert "not verified by a login" not in dialog.inner_text()
+    assert "Recorded against your sign-in: dev" in dialog.inner_text()
     page.get_by_role("button", name="Approve 1", exact=True).click()
     page.wait_for_timeout(500)
     assert [p["reviewer"] for p in posted] == ["dev"]
@@ -173,15 +177,16 @@ def test_ac11b_failed_line_links_to_run_history(page):
     def runs(route):
         resp = route.fetch()
         body = resp.json()
-        body["runs"] = [{**(body["runs"][0] if body.get("runs") else {}), "run_id": "e2e-cal-failed", "run_type": "calibration",
+        body["runs"] = [{**(body["runs"][0] if body.get("runs") else {}), "run_id": "e2e-spot-failed", "run_type": "emerging_themes",
                          "status": "failed", "review_count": 0, "updated_at": "2026-11-16T00:00:00Z",
                          "created_at": "2026-11-16T00:00:00Z"}] + body.get("runs", [])
         route.fulfill(response=resp, json=body)
 
     page.route("**/api/runs", runs)
     _open(page, "/#/rdLab")
-    line = page.locator(".hub-failed-line").first
-    assert line.inner_text().startswith("Last run failed: ")
+    line = page.locator(".hub-failed-line")
+    assert line.count() == 1  # only "Launch a thematic product" watches emerging_themes
+    assert line.inner_text().startswith("Last run failed: Launch a thematic product.")
     assert line.get_by_role("link", name="Open Run history →").get_attribute("href") == "#/history"
     low = page.evaluate("() => { const d = document.createElement('span'); d.style.color = 'var(--low)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; }")
     assert line.evaluate("e => getComputedStyle(e).color") == low

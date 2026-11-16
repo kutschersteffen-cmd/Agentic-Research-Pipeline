@@ -58,7 +58,7 @@ export const processState = (p: Process, runs: RunManifest[] | null, flow: Stewa
 
 /** Titles of a workspace's processes whose state is failed, for the overview's "Last run failed" lines. */
 export const failedProcesses = (w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null, activity: Activity | null): string[] =>
-  runs ? w.processes.filter((p) => p.steps.some((s) => stepState(s, runs, flow, activity) === "failed")).map((p) => p.title) : [];
+  w.processes.filter((p) => p.steps.some((s) => stepState(s, runs, flow, activity) === "failed")).map((p) => p.title);
 
 export type CardStatus = { word: string; tone: StepState | "unknown"; detail: string };
 export type CardView = { dots: (StepState | "unknown")[]; now: string; status: CardStatus; label: string; awaits: boolean };

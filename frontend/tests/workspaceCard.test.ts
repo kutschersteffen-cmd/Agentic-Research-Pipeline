@@ -135,6 +135,7 @@ test("pol_ac11_failed_processes", () => {
   const watching = lab.processes.filter((p) => p.steps.some((s) => s.runTypes?.includes("calibration"))).map((p) => p.title);
   assert.ok(watching.length >= 1);
   assert.deepEqual(failedProcesses(lab, [run("calibration", "failed")], null, null), watching);
+  assert.deepEqual(failedProcesses(lab, [run("emerging_themes", "failed")], null, null), ["Launch a thematic product"]);
   assert.deepEqual(failedProcesses(lab, [], null, null), []);
   assert.deepEqual(failedProcesses(lab, null, null, null), []);
 });
@@ -142,5 +143,7 @@ test("pol_failed_with_wait", () => {
   // StewardIQ waits on open decisions while a proxy-voting run failed: the failed line still names it.
   const sq = ws("StewardIQ");
   const out = failedProcesses(sq, [run("proxy_voting", "failed")], flowWith({ drafting: 2 }), null);
-  assert.ok(out.length >= 1 && out.every((t) => sq.processes.some((p) => p.title === t)), JSON.stringify(out));
+  const voting = sq.processes.filter((p) => p.steps.some((s) => s.runTypes?.includes("proxy_voting"))).map((p) => p.title);
+  assert.deepEqual(out, voting);
+  assert.deepEqual(voting, ["Proxy season"]);
 });
