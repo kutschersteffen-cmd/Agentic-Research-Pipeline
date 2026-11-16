@@ -150,6 +150,9 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   const [message, setMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [panel, setPanel] = useState<{ id: string; tab: PanelTab } | null>(null);
+  const selectStep = useRef<HTMLDivElement>(null);
+  const columnsMenu = useRef<HTMLDetailsElement>(null);
+  useDismiss(columnsMenu);
 
   // A response for a scope the user has already left is dropped.
   const wanted = useRef(scope);
@@ -195,6 +198,14 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   const tickedRows = rows.filter((r) => ticked.has(r.issuer_id));
   const needName = actor ? undefined : "Sign in first";
   const gone = selection?.rows.filter((r) => !r.in_scope) ?? [];
+  // The server's universe note describes the house; a fund or subgroup gets its own count of simulated values.
+  const simulatedRows = useMemo(() => rows.filter((r) => columns.some((c) => c.simulated?.(r))).length, [rows, columns]);
+  const scopeNote =
+    data?.scope.kind === "house"
+      ? data.universe_note
+      : simulatedRows
+        ? `Simulated: ${simulatedRows} of these ${rows.length} companies carry simulated ESG values, not real data.`
+        : null;
 
   function setSort(keys: SortKey[]) {
     setSortKeys(keys);
@@ -324,7 +335,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
                 : ` (activated ${day(data.weights.activated_at)}${data.weights.activated_by ? ` by ${data.weights.activated_by}` : ""})`}
             </p>
           )}
-          {data?.universe_note && <p className="muted">{data.universe_note}</p>}
+          {data && scopeNote && <p className="help-text">{scopeNote}</p>}
         </div>
 
         <div className="wb-step">
@@ -350,22 +361,11 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
                 );
               })}
               {sort.length === 0 && <span className="muted">nothing</span>}
-              <select
-                aria-label="Add as next sort"
-                value=""
-                onChange={(e) => {
-                  const col = columns.find((c) => c.id === e.target.value);
-                  if (col) setSort(nextSort(sort, col, true));
-                }}
-              >
-                <option value="">Add as next sort…</option>
-                {shown.filter((c) => !sort.some((k) => k.id === c.id)).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-              <details className="wb-menu">
+              <MenuButton
+                label="Add as next sort ▾"
+                items={shown.filter((c) => !sort.some((k) => k.id === c.id)).map((c) => ({ key: c.id, label: c.label, run: () => setSort(nextSort(sort, c, true)) }))}
+              />
+              <details className="wb-menu" ref={columnsMenu}>
                 <summary>Columns ▾</summary>
                 <div className="wb-menu-panel" role="group" aria-label="Columns">
                   {columns.filter((c) => !c.pinned).map((c) => (
@@ -394,6 +394,16 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
               </span>
             </div>
 
+            {/* Always there, so ticking a row never moves the table under the pointer. */}
+            <div className="toolbar wb-ticked">
+              <strong role="status">{ticked.size ? `${plural(ticked.size, "company", "companies")} ticked` : "Nothing ticked"}</strong>
+              <button disabled={!actor || !ticked.size || busy} title={needName} onClick={addSelected}>
+                Add {ticked.size} to {scopeLabel} selection {data.cycle}
+              </button>
+              <button className="link-button" onClick={() => selectStep.current?.scrollIntoView({ block: "start" })}>
+                More in ③ Select ↓
+              </button>
+            </div>
             <div className="table-wrap wb-table-wrap">
               <table className="data-table wb-table">
                 <thead>
@@ -463,7 +473,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
               </button>
             </nav>
 
-            <div className="wb-step">
+            <div className="wb-step" ref={selectStep}>
               <h3>③ Select</h3>
               <p className="muted">
                 {ticked.size ? `${plural(ticked.size, "company", "companies")} ticked.` : "Tick rows by hand on any page; nothing is ticked for you."}
@@ -478,17 +488,22 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
                 <button className="secondary" disabled={!actor || !ticked.size || busy} title={needName} onClick={() => setDialog("bilateral")}>
                   Pick for bilateral
                 </button>
-                <ProgrammeMenu
-                  programmes={programmes}
+                <MenuButton
+                  label="Add to programme ▾"
                   disabled={!actor || !ticked.size || busy}
-                  onPick={(p) =>
-                    act(async () => {
-                      const detail = await api.addProgrammeMembers(p.programme_id, [...ticked]);
-                      patch((r) => withProgramme(r, detail));
-                      return `Proposed ${plural(ticked.size, "company", "companies")} for the ${detail.name}.`;
-                    })
-                  }
-                  onNew={() => setDialog("programme")}
+                  items={[
+                    ...programmes.map((p) => ({
+                      key: p.programme_id,
+                      label: programmeShort(p.name),
+                      run: () =>
+                        act(async () => {
+                          const detail = await api.addProgrammeMembers(p.programme_id, [...ticked]);
+                          patch((r) => withProgramme(r, detail));
+                          return `Proposed ${plural(ticked.size, "company", "companies")} for the ${detail.name}.`;
+                        }),
+                    })),
+                    { key: "__new", label: "New programme…", run: () => setDialog("programme") },
+                  ]}
                 />
                 <button className="secondary" disabled={!actor || !ticked.size || busy} title={needName} onClick={() => setDialog("subgroup")}>
                   Save ticked as subgroup
@@ -551,15 +566,20 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
           onSubmit={(reason) =>
             act(async () => {
               const picked: string[] = [], already: string[] = [], failed: string[] = [];
-              const results = await Promise.allSettled(tickedRows.map((r) => api.pickBilateral({ issuer_id: r.issuer_id, reason })));
-              results.forEach((res, i) => {
-                const name = tickedRows[i].company;
-                if (res.status === "fulfilled") picked.push(name);
-                else if (/already picked/.test((res.reason as Error).message)) already.push(name);
-                else failed.push(`${name} (${(res.reason as Error).message})`);
-              });
+              const ids = new Set<string>();
+              // One at a time: each pick makes the server build the house universe, so a burst would stall it for everyone.
+              for (const r of tickedRows) {
+                try {
+                  await api.pickBilateral({ issuer_id: r.issuer_id, reason });
+                  picked.push(r.company);
+                  ids.add(r.issuer_id);
+                } catch (e) {
+                  const msg = (e as Error).message;
+                  if (/already picked/.test(msg)) already.push(r.company);
+                  else failed.push(`${r.company} (${msg})`);
+                }
+              }
               // A standing pick is the proposal of a row with no confirmed tier (the refetch below confirms it).
-              const ids = new Set(tickedRows.filter((_, i) => results[i].status === "fulfilled").map((r) => r.issuer_id));
               patch((rs) => rs.map((r) => (ids.has(r.issuer_id) && !r.coverage_tier_confirmed ? { ...r, coverage_tier: "bilateral" } : r)));
               setDialog(null);
               setTicked(new Set());
@@ -631,32 +651,53 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   );
 }
 
-/** A button that opens a menu: nothing is written until a programme is clicked (a select's onChange fires on an
- * arrow key, WCAG 3.2.2). */
-function ProgrammeMenu({ programmes, disabled, onPick, onNew }: { programmes: WorkProgramme[]; disabled: boolean; onPick: (p: WorkProgramme) => void; onNew: () => void }) {
+/** Closes an open `<details>` menu on Escape (focus back on its summary) or on a click outside it. */
+function useDismiss(ref: React.RefObject<HTMLDetailsElement | null>) {
+  useEffect(() => {
+    const close = (e: Event) => {
+      const menu = ref.current;
+      if (!menu?.open) return;
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !menu.contains(e.target as Node)) {
+        menu.open = false;
+        if (e instanceof KeyboardEvent) menu.querySelector("summary")?.focus();
+      }
+    };
+    document.addEventListener("keydown", close);
+    document.addEventListener("pointerdown", close);
+    return () => {
+      document.removeEventListener("keydown", close);
+      document.removeEventListener("pointerdown", close);
+    };
+  }, [ref]);
+}
+
+/** A button that opens a menu of actions: nothing happens until an item is clicked (a select's onChange fires on
+ * an arrow key, WCAG 3.2.2). */
+function MenuButton({ label, disabled, items }: { label: string; disabled?: boolean; items: { key: string; label: string; run: () => void }[] }) {
   const ref = useRef<HTMLDetailsElement>(null);
+  useDismiss(ref);
   if (disabled)
     return (
       <button className="secondary" disabled>
-        Add to programme ▾
+        {label}
       </button>
     );
-  const pick = (run: () => void) => {
-    if (ref.current) ref.current.open = false;
-    run();
-  };
   return (
-    <details ref={ref} className="wb-menu wb-programme-menu">
-      <summary>Add to programme ▾</summary>
-      <div className="wb-menu-panel" role="group" aria-label="Add to programme">
-        {programmes.map((p) => (
-          <button key={p.programme_id} className="link-button wb-menu-item" onClick={() => pick(() => onPick(p))}>
-            {programmeShort(p.name)}
+    <details ref={ref} className="wb-menu wb-menu-button">
+      <summary>{label}</summary>
+      <div className="wb-menu-panel" role="group" aria-label={label.replace(/[ ▾…]+$/, "")}>
+        {items.map((it) => (
+          <button
+            key={it.key}
+            className="link-button wb-menu-item"
+            onClick={() => {
+              if (ref.current) ref.current.open = false;
+              it.run();
+            }}
+          >
+            {it.label}
           </button>
         ))}
-        <button className="link-button wb-menu-item" onClick={() => pick(onNew)}>
-          New programme…
-        </button>
       </div>
     </details>
   );

@@ -68,3 +68,17 @@ export const gapText = (gaps: string[]): string => gaps.map((g) => GAP[g] ?? g).
 export const stepTone = (step: number): "neutral" | "mid" | "low" => (step <= 1 ? "neutral" : step <= 3 ? "mid" : "low");
 
 export const SHOWN_ROWS = 6;
+
+/** tCO₂e as whole tonnes with thousands separators ("37,936"); above 0 and below 1 t keeps two decimals, so no amount reads 0. */
+export const fmtTonnes = (tco2e: number): string =>
+  tco2e.toLocaleString("en-US", { maximumFractionDigits: tco2e > 0 && tco2e < 1 ? 2 : 0 });
+
+/** A 0–1 share (4 decimals) as a whole percent, rounded half up. */
+export const fmtShare = (share: number): string => fmtPct(Math.round(share * 10000), 10000);
+
+export const CONTRIBUTOR_STATUS: Record<string, string> = {
+  in_escalation: "In escalation",
+  engaged: "Engaged",
+  selected: "Selected",
+  not_selected: "Not selected",
+};

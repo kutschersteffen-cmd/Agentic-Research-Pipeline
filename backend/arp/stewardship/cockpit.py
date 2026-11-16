@@ -11,6 +11,7 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy import Row, func, select
 
 from arp.db.session import transaction
+from arp.schemas.common import CompanyRef
 from arp.schemas.engagement import ESCALATION_ORDER, OLD_STAGES
 from arp.stewardship.tiers import TIER_LABELS, TIERS
 from arp.storage.postgres_models import (
@@ -94,9 +95,53 @@ def _iso_day(value: str | None) -> date | None:
         return None
 
 
-def build(dsn: str, as_of: date, run_items: list[dict], confirmed: dict[str, dict], held: set[str] | None) -> dict:
-    """Every section but `scope`, `portfolios` and `emissions`. `held` is the scope's company keys, None for all
-    portfolios; `confirmed` is `TierStore.latest()`; `run_items` is `voting_feed.items()` (runs newest first)."""
+CONTRIBUTORS = 6
+
+
+def emissions_of(
+    financed: dict[str, float], uncovered: int, companies: dict[str, CompanyRef], engaged: set[str], selected: set[str], escalated: set[str]
+) -> dict | None:
+    """The `emissions` section from per-company financed tCO2e (`metrics.financed_emissions_by_company` over the
+    scope's holdings); None when the total is 0. Sums are taken unrounded, then rounded to 0.01 t."""
+    total = sum(financed.values())
+    if not total:
+        return None
+
+    def status(c: str) -> str:
+        if c in escalated:
+            return "in_escalation"
+        return "engaged" if c in engaged else "selected" if c in selected else "not_selected"
+
+    def name(c: str) -> str:
+        return companies[c].name if c in companies else c
+
+    top = sorted(financed, key=lambda c: (-financed[c], name(c), c))[:CONTRIBUTORS]
+    return {
+        "total_tco2e": round(total, 2),
+        "engaged_tco2e": round(sum(v for c, v in financed.items() if c in engaged), 2),
+        "selected_not_engaged_tco2e": round(sum(v for c, v in financed.items() if c in selected and c not in engaged), 2),
+        "not_selected_tco2e": round(sum(v for c, v in financed.items() if c not in engaged and c not in selected), 2),
+        "uncovered_holding_count": uncovered,
+        "contributors": [
+            {"company_id": c, "company": name(c), "sector": companies[c].sector if c in companies else None,
+             "tco2e": round(financed[c], 2), "share": round(financed[c] / total, 4), "status": status(c)}  # fmt: skip
+            for c in top
+        ],
+    }
+
+
+def build(
+    dsn: str,
+    as_of: date,
+    run_items: list[dict],
+    confirmed: dict[str, dict],
+    held: set[str] | None,
+    financed: tuple[dict[str, float], int, dict[str, CompanyRef]] | None = None,
+) -> dict:
+    """Every section but `scope` and `portfolios`. `held` is the scope's company keys, None for all portfolios;
+    `confirmed` is `TierStore.latest()`; `run_items` is `voting_feed.items()` (runs newest first); `financed` is
+    the scope's per-company financed tCO2e, uncovered holding count and the portfolio companies, None for no
+    `emissions`."""
     window = [as_of + timedelta(days=i) for i in range(WINDOW)]
     end = window[-1]
 
@@ -305,5 +350,5 @@ def build(dsn: str, as_of: date, run_items: list[dict], confirmed: dict[str, dic
         "control_gaps": gaps,
         "ladder": ladder,
         "voting": voting,
-        "emissions": None,
+        "emissions": emissions_of(*financed, engaged, selected, {c for c, n in step.items() if n >= 2}) if financed else None,
     }

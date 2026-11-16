@@ -56,6 +56,7 @@ export function WorkbenchPanel({
     function onKey(e: KeyboardEvent) {
       if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || document.querySelector("dialog[open]")) return;
       if (e.key === "Escape") {
+        if (document.querySelector("details[open]")) return; // the open menu takes this Escape (seen first: capture phase)
         e.preventDefault();
         onClose();
         return;
@@ -66,8 +67,8 @@ export function WorkbenchPanel({
       e.preventDefault();
       onStep(e.key === "ArrowDown" ? 1 : -1);
     }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
   }, [onClose, onStep]);
 
   const id = row.issuer_id;

@@ -281,7 +281,9 @@ export function VersionsPanel({
               <th>Note</th>
               <th>Created</th>
               <th>Status</th>
-              <th />
+              <th>
+                <span className="visually-hidden">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody>
