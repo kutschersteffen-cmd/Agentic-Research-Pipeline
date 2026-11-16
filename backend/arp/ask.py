@@ -5,6 +5,7 @@ figure shown. Spec: docs/superpowers/specs/2026-10-24-ask-arp-panel-design.md.
 
 from __future__ import annotations
 
+import os  # THROWAWAY: unused import, ruff F401 (AC-45)
 import json
 import logging
 import unicodedata
