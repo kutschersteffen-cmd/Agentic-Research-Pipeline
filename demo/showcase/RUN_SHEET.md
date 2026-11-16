@@ -92,6 +92,9 @@ R3 (live, 4 minutes). Index Construction → Starting universe "DAX.xlsx" (40 co
 2026-11-02, simulated ESG fields matched) → Start from a preset "eu_pab" → add a screen on the simulated
 `transition_grade` (leave out F) and on controversial revenue (`coal_revenue_pct` above 5) → Preview:
 constituents, weights, and the notes "Starting universe: DAX.xlsx ..." and "Simulated ESG data: matched ...".
+Say it: the Preview drops BASF N under "Norms-based exclusion (UNGC / OECD)" (35 of 40 kept). That flag is a
+simulated demo flag (`data/simulated/activity_overrides.csv`), not a finding about BASF, and the exclusion row
+itself shows no `Simulated` mark.
 Depends on index-starting-universe PR 2 (the starting-universe card); its backend is on `main`.
 Fallback R3: without that PR, Index Construction runs on the built-in demo universe: say it is synthetic (60
 invented companies), load the preset "eu_pab" and Preview.
