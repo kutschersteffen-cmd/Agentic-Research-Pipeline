@@ -18,6 +18,25 @@ import type { WorklistRow } from "../../types";
 
 const Sim = () => <span className="sim-tag">Simulated</span>;
 
+/** While open, Escape or a click outside `ref` closes it, as the screen's other menus do. */
+function useDismiss(ref: React.RefObject<HTMLElement | null>, isOpen: () => boolean, close: (byKey: boolean) => void) {
+  const latest = useRef({ isOpen, close });
+  latest.current = { isOpen, close };
+  useEffect(() => {
+    const handle = (e: Event) => {
+      if (!latest.current.isOpen()) return;
+      const key = e instanceof KeyboardEvent;
+      if (key ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) latest.current.close(key);
+    };
+    document.addEventListener("keydown", handle);
+    document.addEventListener("pointerdown", handle);
+    return () => {
+      document.removeEventListener("keydown", handle);
+      document.removeEventListener("pointerdown", handle);
+    };
+  }, [ref]);
+}
+
 /** Step ② of the Workbench: Add filter ▾, one chip per indicator with the control its type needs, Clear filters. The
  * filters live in the screen (they stay when the scope changes); this only edits them. */
 export function FilterBuilder({ rows, columns, filters, onChange }: { rows: WorklistRow[]; columns: Column[]; filters: Filter[]; onChange: (f: Filter[]) => void }) {
@@ -66,6 +85,10 @@ function AddFilterMenu({ indicators: list, onPick }: { indicators: Indicator[]; 
   const ref = useRef<HTMLDetailsElement>(null);
   const search = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
+  useDismiss(ref, () => !!ref.current?.open, (byKey) => {
+    ref.current!.open = false;
+    if (byKey) ref.current!.querySelector("summary")?.focus();
+  });
   const q = query.trim().toLocaleLowerCase();
   const shown = q ? list.filter((i) => i.label.toLocaleLowerCase().includes(q)) : list;
   return (
@@ -107,12 +130,14 @@ function FilterChip({
 }) {
   const text = chipText(f, rows);
   const chip = useRef<HTMLButtonElement>(null);
-  const close = () => {
+  const box = useRef<HTMLSpanElement>(null);
+  const close = (focus = true) => {
     onClose();
-    chip.current?.focus();
+    if (focus) chip.current?.focus();
   };
+  useDismiss(box, () => open, (byKey) => close(byKey));
   return (
-    <span className="wb-filter" onKeyDown={(e) => e.key === "Escape" && open && close()}>
+    <span ref={box} className="wb-filter">
       <span className="chip wb-sort-chip wb-filter-chip">
         <button ref={chip} className="link-button wb-filter-text" aria-expanded={open} title={text} onClick={onToggle}>
           {text}
@@ -129,7 +154,7 @@ function FilterChip({
               <input type="checkbox" checked={f.includeEmpty} onChange={(e) => onChange({ includeEmpty: e.target.checked })} />
               Include empty
             </label>
-            <button className="secondary" onClick={close}>
+            <button className="secondary" onClick={() => close()}>
               Done
             </button>
           </div>
