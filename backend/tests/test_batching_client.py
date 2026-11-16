@@ -5,10 +5,10 @@ import httpx
 from anthropic import APIConnectionError
 from pydantic import BaseModel
 
+from arp.db.runs import RunStore
 from arp.llm.batching_client import CUSTOM_ID_LEN, BatchingLLMClient, BatchRequestFailed, custom_id
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.step_tally import tally_run
-from arp.storage.run_store import RunStore
 from tests.fake_batches import FakeBatches
 from tests.postgres_helpers import pg_dsn
 

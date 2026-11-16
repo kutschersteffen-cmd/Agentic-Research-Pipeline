@@ -7,10 +7,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from arp.api.auth import Principal, require_role
 from arp.api.deps import blob_store_dep, get_document_content_store, get_run_store, publish_store_dep
+from arp.db.runs import RunStore
 from arp.publish.facts import ConcurrentPublish, PublishStore, public_release, ts_now
 from arp.publish.reader import as_of_bound, facts_as_of, read_events
 from arp.publish.release import AlreadyWithdrawn, WithdrawalError, publish_run, withdraw
-from arp.storage.run_store import RunStore
 
 router = APIRouter(prefix="/api/publish", tags=["publish"])
 _approver = require_role("approver")

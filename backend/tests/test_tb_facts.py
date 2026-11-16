@@ -10,7 +10,7 @@ from arp.api.auth import current_user
 from arp.api.deps import get_run_store
 from arp.api.main import app
 from arp.config import get_settings
-from arp.storage.run_store import RunStore
+from arp.db.runs import RunStore
 from arp.transition_barrier import dataset, store
 from arp.transition_barrier.facts import pdf_pages
 from arp.transition_barrier.rule_book import load_rule_book

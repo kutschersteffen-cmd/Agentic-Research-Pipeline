@@ -4,6 +4,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.emerging_themes.action_evidence import check_company_action_evidence
 from arp.emerging_themes.clustering import cluster_tags
 from arp.emerging_themes.company_exposure import compute_company_evidence_quality, compute_company_risk, tags_by_company
@@ -33,7 +34,7 @@ from arp.schemas.emerging_themes import (
 from arp.schemas.taxonomy import DerivationMethod
 from arp.schemas.taxonomy_sources import CorpusSnippet, CorpusSourceType
 from arp.schemas.thematic import ThemeDefinition
-from arp.storage.run_store import RunStore, done_keys_from_rows
+from arp.storage.run_store import done_keys_from_rows
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
 

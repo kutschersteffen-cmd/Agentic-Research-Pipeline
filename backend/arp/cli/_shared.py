@@ -6,6 +6,7 @@ import typer
 
 from arp.api.auth import Principal, load_users
 from arp.config import Settings, get_settings
+from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.esef import EsefDocumentSource
@@ -22,7 +23,6 @@ from arp.storage.portfolio_store import portfolio_directories
 from arp.storage.portfolio_store_factory import build_portfolio_store
 from arp.storage.postgres_engagement_store import PostgresEngagementStore
 from arp.storage.reporting_store import ReportingStore
-from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
 from arp.voting.ballot_casting import ManualInstructionBallotPlatform

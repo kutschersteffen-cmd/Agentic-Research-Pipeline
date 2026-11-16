@@ -80,8 +80,8 @@ def test_csv_export_has_value_state_columns(tmp_path, pg):
 
     from arp.api.deps import get_run_store
     from arp.api.routers import runs
+    from arp.db.runs import RunStore
     from arp.schemas.common import RunManifest
-    from arp.storage.run_store import RunStore
 
     store = RunStore(pg, tmp_path)
     store.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
@@ -110,9 +110,9 @@ def test_barrier_refresh_csv_needs_review_follows_the_finding_rule(tmp_path, pg)
 
     from arp.api.deps import get_run_store
     from arp.api.routers import runs
+    from arp.db.runs import RunStore
     from arp.schemas.common import RunManifest
     from arp.schemas.transition_barrier import BarrierRefreshFinding, Rating, RefreshOutcome, Region
-    from arp.storage.run_store import RunStore
 
     store = RunStore(pg, tmp_path)
     store.save_manifest(RunManifest(run_id="r1", run_type="transition_barrier_refresh"))
@@ -141,8 +141,8 @@ def test_csv_export_leaves_out_values_that_still_wait_for_review(tmp_path, pg, m
 
     from arp.api.deps import get_run_store
     from arp.api.routers import runs
+    from arp.db.runs import RunStore
     from arp.schemas.common import RunManifest
-    from arp.storage.run_store import RunStore
 
     store = RunStore(pg, tmp_path)
     store.save_manifest(RunManifest(run_id="r1", run_type="extraction"))

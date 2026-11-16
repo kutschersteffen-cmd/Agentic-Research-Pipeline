@@ -23,6 +23,7 @@ from arp.api.deps import settings_dep
 from arp.api.review_endpoints import get_review_queue
 from arp.config import Settings
 from arp.db import models as m
+from arp.db.runs import RunStore
 from arp.db.session import transaction
 from arp.schemas.common import CompanyRef, JobStatus, RunManifest, now_iso
 from arp.schemas.datapoints import DataPointSchema, FieldDefinition, FieldStatus
@@ -30,7 +31,6 @@ from arp.stewardship.policies import PolicyStore
 from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.jsonl_io import append_jsonl
 from arp.storage.locks import KeyedLock
-from arp.storage.run_store import RunStore
 from arp.storage.safe_path import safe_id
 from arp.themes.research import ResearchRecord
 

@@ -10,7 +10,7 @@ from arp.api.auth import GRANTS, Principal, authorize, load_users, require_grant
 from arp.api.deps import get_run_store, settings_dep
 from arp.api.main import app as real_app
 from arp.config import Settings
-from arp.storage.run_store import RunStore
+from arp.db.runs import RunStore
 
 USERS = [
     {"token": "tv", "user_id": "u_v", "name": "V", "role": "viewer"},

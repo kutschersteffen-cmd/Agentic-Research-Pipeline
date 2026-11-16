@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from arp.api.auth import Principal, current_user
 from arp.api.deps import blob_store_dep, get_run_store, settings_dep
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.schemas.transition_barrier import (
     BarrierCriterion,
     BarrierScore,
@@ -18,7 +19,6 @@ from arp.schemas.transition_barrier import (
     RegistrySource,
     StalenessReport,
 )
-from arp.storage.run_store import RunStore
 from arp.transition_barrier import store
 from arp.transition_barrier.dataset import (
     build_matrix,

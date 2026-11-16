@@ -13,12 +13,12 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.pool import NullPool
 
+from arp.db.runs import RunStore
 from arp.errors import ClientInputError, NotConfigured
 from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import JobStatus, RunManifest, now_iso
 from arp.storage.postgres import _CONNECT_TIMEOUT_SECONDS
-from arp.storage.run_store import RunStore
 
 if TYPE_CHECKING:
     from arp.config import Settings

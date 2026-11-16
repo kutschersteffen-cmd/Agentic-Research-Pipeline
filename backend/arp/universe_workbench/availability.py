@@ -5,9 +5,9 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from arp.db.runs import RunStore
 from arp.schemas.common import CompanyRef
 from arp.storage.document_store import DocumentContentStore, files_on_disk
-from arp.storage.run_store import RunStore
 from arp.xbrl_pipeline.store import XbrlStore
 
 EXTRACTION_RUN_TYPES = ("extraction", "financials", "tnfd", "transition_plan")

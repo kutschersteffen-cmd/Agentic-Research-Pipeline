@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 
+from arp.db.runs import RunStore
 from arp.llm.base import LLMUsage
 from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef, JobStatus
-from arp.storage.run_store import RunStore
 
 
 @dataclass

@@ -13,11 +13,11 @@ from arp.api import deps
 from arp.api.auth import current_user
 from arp.api.routers import xbrl as xbrl_router
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import get_job_launcher, run_lease
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import ExtractedField, ExtractionRecord
-from arp.storage.run_store import RunStore
 from arp.xbrl_pipeline.fetch import create_xbrl_run
 from arp.xbrl_pipeline.flatten import build_catalog, flatten_company_facts
 from arp.xbrl_pipeline.models import ReportMeta, RequiredRow

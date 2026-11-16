@@ -10,13 +10,13 @@ from fastapi.testclient import TestClient
 
 from arp.api.deps import get_run_store
 from arp.api.main import app
+from arp.db.runs import RunStore
 from arp.extraction import financials_pipeline, tnfd_pipeline
 from arp.extraction.financials_pipeline import create_financials_extraction_run, execute_financials_extraction_run
 from arp.extraction.tnfd_extractor_agent import DisclosureDraft, TNFDExtractionDraft
 from arp.extraction.tnfd_pipeline import create_tnfd_extraction_run, execute_tnfd_extraction_run
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
-from arp.storage.run_store import RunStore
 from tests import test_financials_extraction_pipeline as fin
 from tests import test_tnfd_extraction_pipeline as tnfd
 

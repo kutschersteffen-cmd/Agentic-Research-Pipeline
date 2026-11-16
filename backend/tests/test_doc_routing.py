@@ -2,6 +2,7 @@ import pytest
 
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
+from arp.db.runs import RunStore
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.verifier_agent import VerifierOutput
@@ -10,7 +11,6 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.planning.doc_routing import route_documents, section_filter
 from arp.schemas.common import Citation, CompanyRef, DocType, DocumentChunk, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, DocumentRouting, FieldDataType, FieldDefinition, FieldStatus
-from arp.storage.run_store import RunStore
 from tests.postgres_helpers import pg_dsn, replace_results
 
 pytestmark = pytest.mark.usefixtures("pg")

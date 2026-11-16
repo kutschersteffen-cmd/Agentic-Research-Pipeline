@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.emerging_themes.ingestion.base import MentionSource
 from arp.emerging_themes.ingestion.edgar_fts import EdgarFullTextSearchSource
 from arp.emerging_themes.ingestion.gdelt import GdeltSource
@@ -14,7 +15,6 @@ from arp.llm.base import LLMClient
 from arp.orchestration.interval_scheduler import IntervalScheduler
 from arp.retrieval.content_store_factory import content_store_for
 from arp.schemas.emerging_themes import EmergingThemesScheduleConfig
-from arp.storage.run_store import RunStore
 from arp.storage.topic_store import TopicStateStore
 from arp.universe import load_company_universe
 

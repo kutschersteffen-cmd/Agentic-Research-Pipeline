@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import pytest
 
+from arp.db.runs import RunStore
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.pipeline import _extract_company, create_extraction_run, execute_extraction_run
 from arp.extraction.verifier_agent import VerifierOutput
@@ -13,7 +14,6 @@ from arp.presets.transition_capex import SCHEMA_ID as CAPEX_ID
 from arp.presets.transition_capex import build_transition_capex_schema
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
-from arp.storage.run_store import RunStore
 from tests.test_extraction_pipeline import _FixedDocSource, _released_run, _settings
 
 pytestmark = pytest.mark.usefixtures("pg")

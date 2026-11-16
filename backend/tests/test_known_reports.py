@@ -12,6 +12,7 @@ import httpx
 import pytest
 
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.discovery import crawler, downloader
 from arp.discovery.crawler import CandidateDocumentLink
 from arp.discovery.downloader import CAPTURE_LOG, download_documents
@@ -21,7 +22,6 @@ from arp.ingestion.indexing_config import IndexingConfig
 from arp.schemas.common import CompanyRef, DocType
 from arp.storage.document_blob_store import blob_store_for
 from arp.storage.jsonl_io import read_jsonl
-from arp.storage.run_store import RunStore
 from tests.pdf_fixtures import p1, p2
 
 W_SITE = CompanyRef(

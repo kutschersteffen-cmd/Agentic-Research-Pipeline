@@ -11,9 +11,9 @@ from arp.api.review_endpoints import submit_review
 from arp.api.routers import stewardship as stewardship_router
 from arp.cli._shared import cli_principal
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.orchestration.review_queue import latest_decisions, record_review_decision
 from arp.stewardship.process import StreamStore
-from arp.storage.run_store import RunStore
 from tests.conftest import PRINCIPAL
 
 

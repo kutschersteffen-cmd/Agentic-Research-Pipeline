@@ -9,13 +9,13 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_document_content_store, get_run_store, settings_dep
 from arp.api.main import app
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.orchestration.review_queue import append_decision
 from arp.review.context import build_context, page_of, page_window, write_snapshot
 from arp.schemas.common import CompanyRef, RunManifest
 from arp.schemas.datapoints import DataPointSchema, FieldDefinition
 from arp.schemas.review import ReviewDecision
 from arp.storage.document_store import DocumentContentStore
-from arp.storage.run_store import RunStore
 from tests.postgres_helpers import pg_dsn
 
 pytestmark = pytest.mark.usefixtures("pg")

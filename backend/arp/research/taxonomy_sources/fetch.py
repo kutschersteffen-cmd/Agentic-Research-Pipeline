@@ -135,7 +135,3 @@ def extract_pdf_pages(content: bytes) -> tuple[str | None, list[int]]:
     for t in pages[:-1]:
         breaks.append(breaks[-1] + len(t) + 2)
     return "\n\n".join(pages), breaks
-
-
-def extract_pdf_text(content: bytes) -> str | None:
-    return extract_pdf_pages(content)[0]

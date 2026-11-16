@@ -9,11 +9,11 @@ from pydantic import BaseModel
 
 from arp.api.deps import get_document_content_store, get_identifier_map, settings_dep
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.schemas.common import CompanyRef
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
-from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 from arp.universe_workbench.availability import availability
 from arp.universe_workbench.mapping import MasterIndex, map_company

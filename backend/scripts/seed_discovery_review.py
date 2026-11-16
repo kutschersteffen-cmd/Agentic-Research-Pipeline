@@ -12,12 +12,12 @@ import hashlib
 
 from arp.cli._shared import _run_store
 from arp.config import Settings, get_settings
+from arp.db.runs import RunStore
 from arp.discovery.change_detector import ChangeDetector
 from arp.discovery.review import review_items
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.discovery import DiscoveredDocument, DiscoveryCompanyResult, DiscoveryRunParams
-from arp.storage.run_store import RunStore
 
 C1 = CompanyRef(company_id="C1", name="First Co", country="DE")
 C2 = CompanyRef(company_id="C2", name="Second Co", country="DE")

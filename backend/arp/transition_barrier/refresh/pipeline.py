@@ -3,11 +3,11 @@ from __future__ import annotations
 import logging
 
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.errors import NotConfigured
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import queue_for_review
 from arp.schemas.transition_barrier import BarrierRefreshFinding
-from arp.storage.run_store import RunStore
 from arp.transition_barrier.dataset import current_scores
 from arp.transition_barrier.refresh.eurlex import build_client, fetch_version
 from arp.transition_barrier.refresh.reconciler import is_auto_applicable, reconcile

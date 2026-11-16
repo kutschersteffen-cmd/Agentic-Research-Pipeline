@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.discovery import crawler, downloader, identity_graph
 from arp.discovery.crawler import CandidateDocumentLink
 from arp.extraction.pre_steps import PreStepFailed, prepare_company
@@ -14,7 +15,6 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.step_tally import on_company, step_counts, tally_run
 from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.schemas.discovery import DiscoveredDocument, IdentityVerdict
-from arp.storage.run_store import RunStore
 from tests.postgres_helpers import pg_dsn
 
 pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below

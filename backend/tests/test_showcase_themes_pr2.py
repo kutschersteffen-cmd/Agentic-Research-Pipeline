@@ -7,12 +7,12 @@ from arp.api import deps
 from arp.api.auth import Principal, authorize, current_user
 from arp.api.main import app
 from arp.api.routers import emerging_themes as emerging_router
+from arp.db.runs import RunStore
 from arp.emerging_themes import pipeline as pipeline_module
 from arp.emerging_themes.pipeline import create_emerging_themes_run, execute_emerging_themes_run
 from arp.llm.base import LLMUsage
 from arp.schemas.common import CompanyRef, JobStatus
 from arp.schemas.taxonomy import DerivationMethod
-from arp.storage.run_store import RunStore
 from arp.storage.topic_store import TopicStateStore
 from tests.conftest import FakeLLMClient
 from tests.test_api_authority_taxonomy import BASE, _start, client  # noqa: F401 - client is a fixture

@@ -38,12 +38,12 @@ from pathlib import Path
 
 import pytest
 
+from arp.db.runs import RunStore
 from arp.schemas.common import JobStatus, RunManifest
 from arp.schemas.decision import MechanismConfig
 from arp.storage.atomic_io import atomic_write_text, read_text_utf8, write_text_exclusive
 from arp.storage.decision_store import DecisionStore
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
-from arp.storage.run_store import RunStore
 
 # A German issuer name plus a comparison operator: the two things most
 # likely to reach a real framework label on a Western-European machine.

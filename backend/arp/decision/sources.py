@@ -4,11 +4,11 @@ import datetime
 import re
 from collections import Counter, defaultdict
 
+from arp.db.runs import RunStore
 from arp.decision.dataset import Dataset, build_dataset
 from arp.presets.transition_plan import SCHEMA_ID as TRANSITION_PLAN_SCHEMA_ID
 from arp.schemas.common import RunManifest
 from arp.storage.portfolio_store import holdings_date_label, portfolio_directories
-from arp.storage.run_store import RunStore
 
 # Column names deliberately follow the conventions the role/direction
 # dictionaries already recognise (`*_Coverage_pct`, `*_Intensity_*`,

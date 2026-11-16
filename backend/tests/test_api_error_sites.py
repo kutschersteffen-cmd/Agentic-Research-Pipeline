@@ -8,9 +8,9 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store
 from arp.api.main import app
 from arp.api.routers.signals import APP_RUNNABLE
+from arp.db.runs import RunStore
 from arp.schemas.common import RunManifest
 from arp.signal_lab.methods.base import method_names
-from arp.storage.run_store import RunStore
 from tests.test_api_signals import _post_run, _recipe_file, client, prices_csv  # noqa: F401
 
 pytestmark = pytest.mark.usefixtures("pg")

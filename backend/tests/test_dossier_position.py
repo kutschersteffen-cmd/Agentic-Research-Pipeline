@@ -25,6 +25,7 @@ from arp.config import Settings
 from arp.db import fields as fields_module
 from arp.db import models as m
 from arp.db.fields import SchemaRegistry, retire_field
+from arp.db.runs import RunStore
 from arp.db.session import engine
 from arp.orchestration.job_manager import JobManager
 from arp.research.pipeline import create_theme_run
@@ -36,7 +37,6 @@ from arp.stewardship.policies import PolicyStore
 from arp.stewardship.process import StreamStore
 from arp.stewardship.trigger_store import TriggerStore
 from arp.storage.engagement_store import EngagementStore
-from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.themes.position import PositionDraft, PositionParagraph, PositionStore, schema_id_for
 from arp.themes.research import NoteItem, NoteSections, ResearchNote, ResearchRound, ResearchStore

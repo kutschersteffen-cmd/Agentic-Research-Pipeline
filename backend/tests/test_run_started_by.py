@@ -8,8 +8,8 @@ from arp.api import deps, run_scheduling
 from arp.api.auth import Principal, current_user
 from arp.api.routers import extraction, financials
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.orchestration.job_manager import JobManager
-from arp.storage.run_store import RunStore
 
 
 def test_set_started_by_writes_params(pg, tmp_path):

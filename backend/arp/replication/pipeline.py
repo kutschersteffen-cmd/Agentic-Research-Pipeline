@@ -3,13 +3,13 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 
+from arp.db.runs import RunStore
 from arp.orchestration.job_manager import JobManager
 from arp.replication.backtest_engine import required_characteristic_names, run_backtest
 from arp.replication.characteristics_data import CharacteristicPanel, CsvCharacteristicSource
 from arp.replication.compare import build_comparison_report
 from arp.replication.price_data import PriceDataSource
 from arp.schemas.strategy_replication import ReplicationComparisonReport, SignalType, StrategySpec
-from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
 

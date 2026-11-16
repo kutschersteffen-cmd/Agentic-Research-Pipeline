@@ -1,11 +1,11 @@
 import csv
 
+from arp.db.runs import RunStore
 from arp.replication.characteristics_data import CsvCharacteristicSource
 from arp.replication.pipeline import run_replication
 from arp.replication.price_data import CsvPriceSource
 from arp.schemas.common import JobStatus
 from arp.schemas.strategy_replication import RebalanceFrequency, SignalType, StrategySpec, WeightingScheme
-from arp.storage.run_store import RunStore
 
 _BENCH_CYCLE = [1.01, 0.995, 1.02, 0.99, 1.005, 1.0]  # varying, not constant -- a degenerate zero-variance
 # benchmark makes beta/alpha genuinely unidentifiable (no regressor variance to fit against), which is a

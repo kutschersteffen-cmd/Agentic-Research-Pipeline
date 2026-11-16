@@ -92,8 +92,8 @@ def _theme_run() -> str:
     from datetime import UTC, datetime
     from uuid import uuid4
 
+    from arp.db.runs import RunStore
     from arp.schemas.common import JobStatus, RunManifest
-    from arp.storage.run_store import RunStore
 
     store = RunStore(DSN, Settings().runs_dir)
     run_id = f"theme_e2e{uuid4().hex[:8]}"
@@ -216,8 +216,8 @@ OLD_RUNS = [  # run type, results, review items
 def old_runs():
     from uuid import uuid4
 
+    from arp.db.runs import RunStore
     from arp.schemas.common import JobStatus, RunManifest
-    from arp.storage.run_store import RunStore
 
     store = RunStore(DSN, Settings().runs_dir)
     made = []

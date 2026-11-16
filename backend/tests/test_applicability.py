@@ -1,11 +1,11 @@
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.ingestion.base import DocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.planning.applicability import not_applicable_reason, plan_fields
 from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.schemas.datapoints import ApplicabilityRules, DataPointSchema, FieldDataType, FieldDefinition
-from arp.storage.run_store import RunStore
 
 MANUFACTURING = ApplicabilityRules(sector_codes=[str(n) for n in range(10, 34)])
 

@@ -2,11 +2,11 @@ from fastapi.testclient import TestClient
 
 from arp.api.deps import get_run_store
 from arp.api.main import app
+from arp.db.runs import RunStore
 from arp.presets.registry import PRESETS
 from arp.presets.remuneration import build_remuneration_schema, remuneration_summary
 from arp.schemas.common import DocType, RunManifest
 from arp.schemas.datapoints import ExtractionRecord
-from arp.storage.run_store import RunStore
 from tests.test_checks_plausibility import _field, _run
 
 

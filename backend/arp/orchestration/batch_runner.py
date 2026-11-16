@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TypeVar
 
+from arp.db.runs import RunStore
 from arp.db.session import retrying
 from arp.db.to_observations import to_observations
 from arp.llm.batching_client import BatchRequestFailed
@@ -14,7 +15,6 @@ from arp.orchestration.jobs import hold_run, traceback_tail
 from arp.orchestration.review_queue import queue_for_review
 from arp.orchestration.step_tally import on_company, settle_cost, tally_run
 from arp.schemas.common import CompanyRef
-from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
 

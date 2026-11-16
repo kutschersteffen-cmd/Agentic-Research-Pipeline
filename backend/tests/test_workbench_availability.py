@@ -1,10 +1,10 @@
 
 import pytest
 
+from arp.db.runs import RunStore
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
-from arp.storage.run_store import RunStore
 from arp.universe_workbench.availability import availability
 from arp.xbrl_pipeline.store import XbrlStore
 from tests.postgres_helpers import pg_dsn

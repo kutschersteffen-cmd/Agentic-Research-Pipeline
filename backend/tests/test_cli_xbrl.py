@@ -8,7 +8,7 @@ from typer.testing import CliRunner
 
 from arp.cli import app
 from arp.config import get_settings
-from arp.storage.run_store import RunStore
+from arp.db.runs import RunStore
 from arp.xbrl_pipeline.models import CatalogEntry, ReportMeta
 from arp.xbrl_pipeline.store import XbrlStore
 from tests.postgres_helpers import pg_dsn

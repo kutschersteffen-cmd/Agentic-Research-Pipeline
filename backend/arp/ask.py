@@ -15,6 +15,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from arp.api.auth import Principal
+from arp.db.runs import RunStore
 from arp.decision.sources import from_transition_plan_run, is_transition_plan_preset_run
 from arp.portfolio.qa_agent import QAAnswer
 from arp.review.items import list_open_items
@@ -22,7 +23,6 @@ from arp.schemas.common import JobStatus
 from arp.smart_search import SearchAnswer
 from arp.stewardship.benchmark import BenchmarkStore
 from arp.stewardship.process import SAMPLE_PATH
-from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
 

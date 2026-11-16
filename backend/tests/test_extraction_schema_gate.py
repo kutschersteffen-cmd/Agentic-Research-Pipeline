@@ -11,10 +11,10 @@ from arp.api.deps import get_registry, get_run_store, settings_dep
 from arp.api.routers import extraction as extraction_router
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
+from arp.db.runs import RunStore
 from arp.extraction.pipeline import UnreleasedFieldError, create_extraction_run
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition, FieldStatus
-from arp.storage.run_store import RunStore
 
 ACME = CompanyRef(company_id="c1", name="Acme")
 

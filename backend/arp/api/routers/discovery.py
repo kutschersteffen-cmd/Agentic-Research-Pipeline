@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_scheduler, settings_dep
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.discovery.change_detector import ChangeDetector
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
@@ -15,7 +16,6 @@ from arp.discovery.scheduler import DiscoveryScheduler
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.discovery import DiscoveryScheduleConfig
-from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/discovery", tags=["discovery"])

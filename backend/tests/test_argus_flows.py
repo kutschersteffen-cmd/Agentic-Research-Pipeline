@@ -69,8 +69,8 @@ def test_only_an_empty_unstarted_draft_can_be_deleted(client, tmp_path):
 
 def test_the_flow_reports_how_its_identity_run_ended(client, pg, tmp_path):
     """Step 1 kept saying "Identity run started." after the run had failed, with no way to try again."""
+    from arp.db.runs import RunStore
     from arp.schemas.common import RunManifest
-    from arp.storage.run_store import RunStore
 
     run_store = RunStore(pg, tmp_path / "runs")
 

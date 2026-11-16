@@ -15,6 +15,7 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_portfolio_store, get_run_store, settings_dep
 from arp.api.main import app
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.holdings import load
 from arp.holdings.api_source import pull_holder
 from arp.holdings.intake import IntakeError, holder_status
@@ -23,7 +24,6 @@ from arp.snapshots.client import SnapshotClient
 from arp.snapshots.schema import DatasetEntry, SnapshotManifest
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.portfolio_store import PortfolioStore
-from arp.storage.run_store import RunStore
 from tests.conftest import PRINCIPAL
 
 ISIN, ISIN2 = "US0378331005", "DE0007164600"

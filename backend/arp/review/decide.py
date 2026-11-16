@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from arp.api.auth import ROLE_RANK
 from arp.checks.numeric import NUMERIC_TYPES, candidates, parse_number
 from arp.config import Settings
+from arp.db.runs import RunStore
 from arp.discovery.review import apply_decision
 from arp.extraction.history import PriorValue, RunHistory
 from arp.grounding import ground_citations
@@ -22,7 +23,6 @@ from arp.schemas.common import Citation, SourceDocument
 from arp.schemas.issuer import lei_is_valid, normalise_lei
 from arp.schemas.review import BulkAcceptRequest, BulkItem, DecisionReason, ItemDecisionRequest, ReviewDecision
 from arp.storage.document_store import DocumentContentStore
-from arp.storage.run_store import RunStore
 from arp.transition_barrier import RUN_TYPE as BARRIER_RUN_TYPE
 from arp.transition_barrier.ratings import current_cell
 

@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from arp.checks.plausibility import numeric_of
 from arp.checks.runner import threshold_ref
+from arp.db.runs import RunStore
 from arp.extraction.history import PriorValue, RunHistory
 from arp.schemas.common import new_id, now_iso
 from arp.schemas.datapoints import (
@@ -20,7 +21,6 @@ from arp.schemas.datapoints import (
     Severity,
 )
 from arp.schemas.review import field_item_key, period_key
-from arp.storage.run_store import RunStore
 
 _NA = CheckOutcome.NOT_APPLICABLE
 _LAST_DECIDED = "prior.last_decided"

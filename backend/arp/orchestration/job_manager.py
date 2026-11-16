@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from arp.db.runs import RunStore
 from arp.llm.base import LLMUsage
 from arp.schemas.common import CompanyRef, JobStatus, RunManifest, new_id
-from arp.storage.run_store import RunStore
 
 
 class JobManager:
