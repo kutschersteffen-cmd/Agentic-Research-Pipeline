@@ -272,6 +272,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      checks: read  # annotations: did a cancelled job hit its time limit?
       issues: write
     env:
       SETUP: ${{ needs.setup.result }}
@@ -363,9 +364,20 @@ jobs:
           COMPLETE_OK: ${{ steps.complete.outputs.ok }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs" --paginate \
-            --jq '.jobs[] | select(.name != "Holdout acceptance") | "\(.conclusion)\t\(.name)"' >"$RUNNER_TEMP/jobs.txt"
+            --jq '.jobs[] | select(.name != "Holdout acceptance") | "\(.conclusion)\t\(.name)\t\(.id)"' >"$RUNNER_TEMP/jobs.raw"
+          # A job past its timeout-minutes concludes `cancelled`, with an annotation saying so: count it as timed_out
+          # (owner decision 16 Nov 2026). `cancelled()` stays false here even after a hand cancel, because this job
+          # starts after it, so the job conclusions are what tell a run cancel from a timeout.
+          while IFS=$'\t' read -r c n id; do
+            if [ "$c" = cancelled ]; then  # unreadable annotations count as a timeout: an extra issue beats a missed one
+              a=$(gh api "repos/$GITHUB_REPOSITORY/check-runs/$id/annotations" --jq '.[].message') || a='exceeded the maximum execution time'
+              if grep -q 'exceeded the maximum execution time' <<<"$a"; then c=timed_out; fi
+            fi
+            printf '%s\t%s\n' "$c" "$n"
+          done <"$RUNNER_TEMP/jobs.raw" >"$RUNNER_TEMP/jobs.txt"
           cat "$RUNNER_TEMP/jobs.txt"
-          # Failed or timed out → issue. Only cancellations (e.g. cancelled by hand) → none, even with rows missing.
+          # Failed or timed out → issue. Only other cancellations (the run cancelled by hand, or replaced by a newer
+          # run) → none, even with rows missing.
           if ! grep -qE '^(failure|timed_out)'$'\t' "$RUNNER_TEMP/jobs.txt"; then
             if grep -qE '^cancelled'$'\t' "$RUNNER_TEMP/jobs.txt" || [ "$COMPLETE_OK" = true ]; then
               echo "No issue: no job failed or timed out."

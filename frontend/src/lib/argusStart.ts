@@ -110,13 +110,14 @@ export function waiting(rows: ArgusRow[], items: ReviewItem[]): { total: number;
 }
 
 /** The five Process tiles: runs per step, and what waits there. */
-export function tiles(rows: ArgusRow[], items: ReviewItem[]): { step: number; label: string; count: number; needs: string | null }[] {
+export function tiles(rows: ArgusRow[], items: ReviewItem[]): { step: number; label: string; count: number; needs: string | null; tone: "await" | "failed" | null }[] {
   return STEPS.map((name, i) => {
     const step = i + 1;
     const here = rows.filter((r) => r.step === step);
     const values = step === 5 ? ownItems(here, items).length : 0;
     const failed = step === 4 ? here.filter((r) => r.status === "Failed").length : 0;
     const needs = values ? `${values} values need you` : failed ? `${failed} failed` : null;
-    return { step, label: name, count: here.length, needs };
+    // Values wait on a person (amber); failures are status, shown in the failed colour.
+    return { step, label: name, count: here.length, needs, tone: values ? "await" : failed ? "failed" : null };
   });
 }

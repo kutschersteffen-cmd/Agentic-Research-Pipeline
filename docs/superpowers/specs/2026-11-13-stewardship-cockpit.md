@@ -191,7 +191,7 @@ shareholder_meetings: [{date, company_id, company, items: int, flagged: int|null
 control_gaps: [{company_id, company, engagement_id, theme, open_days: int|null, gaps: [str]}]
 ladder: [{step: int, stage, label, companies: [{company_id, company}]}]       # one per ESCALATION_ORDER step: 6, steps 1..6
 voting: {season: int, meetings: int, votes: int, for: int, against: int, abstain: int, other: int,
-         against_management: int, topics: [{topic, votes: int, against_management: int}]}
+         against_management: int, topics: [{topic, votes: int, against_management: int, abstain: int}]}
 emissions: null | {...}                               # PR 2, below; null in PR 1
 ```
 
@@ -231,8 +231,12 @@ Rules:
   statement. (`stewardship-three-tiers` removed the step "Joint engagement", 14 Nov 2026.)
 - `voting` (season, in scope). The unit is one vote:
   - Votes counted: each `vote_decisions` row (a split vote counts once per decision row), plus each run item with
-    status `cast` that has no ledger decision with the same `run_id`.
-  - `for` / `against` / `abstain` come from the vote value; `withhold` counts as `against`. Every other value
+    status `cast` that has no ledger decision with the same `run_id`. A ballot item counts once, with its latest
+    decision (`vote-abstain-and-seed-fixes`): of run items, per (company, meeting date, item number) only the newest
+    `proxy_voting` run in which the item is `cast`; of ledger decisions with a `run_id`, per `vote_items` row only the
+    one with the latest `decided_at` (null is oldest; a tie keeps the greatest `decision_id`). Ledger decisions
+    without a `run_id` are filed votes and each counts.
+  - `for` / `against` / `abstain` come from the vote value; `withhold` counts as `abstain`. Every other value
     (`do_not_vote`, `one_year`, `two_years`, `three_years`, `other`) is `other`.
   - `against_management`: the decision's `against_management` is true, or the run feed's `against_management`.
   - `meetings` = distinct (company or issuer, meeting date) among the counted votes.
@@ -318,11 +322,13 @@ showing it. Layout and copy follow the mockup:
   - With no gaps it reads "No control gaps." and uses no signal colour.
 - **Escalation ladder:** 6 rows, each with the step number, label, count and company names. Step 1 shows only the
   count.
-- **Voting, season to date:** one stacked bar for / against / abstain (plus other, only when it is above 0) with
-  counts. Under it, "Against management, by topic": one bar per topic, "<rate>% · <a> of <n>".
+- **Voting, season to date:** one stacked bar for / against / abstained or withheld (plus other, only when it is
+  above 0), legend `<count> <label> (<p>%)`. Under it, "Against management, by topic": one bar per topic,
+  "<rate>% · <a> of <n> · <q>% abstained or withheld"; a footnote says abstentions never count as against
+  management and a withhold only when management recommended for (`vote-abstain-and-seed-fixes` section 3).
 - **Zero cases:** `selected` 0 shows `0 / 0` and "– of selected companies"; `voting.votes` 0 shows "0 meetings · –
   against management"; no company in escalation shows `0` and "Highest step: –"; a topic with 0 votes shows
-  "– · 0 of 0".
+  "– · 0 of 0 · – abstained or withheld".
 - **Numbers:** percentages are whole numbers, rounded half up. Emissions are t CO₂e in whole tonnes with thousands
   separators; an amount above 0 and below 1 t keeps two decimals, so none reads 0 (owner decision 15 Nov 2026,
   replacing Mt with two decimals). Counts use thousands separators.
@@ -482,7 +488,7 @@ company `isin_XA0000000001` ("Alpha AG", its `stw_companies` row inserted first)
 | AC-39 | AC-36 plus a ledger meeting for H on 2026-11-19 | same | exactly one row for H on that date, with the run's `run_id` | unit |
 | AC-40 | ledger, company G: a 2026-03-10 meeting with four decisions: categories `{DIRECTOR ELECTIONS}` `for` (`against_management` false); `{SECTION 14A SAY-ON-PAY VOTES}` `against` (true); `{AUDIT-RELATED}` `abstain` (null); proponent `shareholder`, categories `{OTHER SOCIAL MATTERS}`, `for` (true). Also a 2025-12-01 meeting with one decision and a 2026-11-20 meeting with one decision | Cockpit `?as_of=2026-11-17` | `voting` is `{season: 2026, meetings: 1, votes: 4, for: 2, against: 1, abstain: 1, other: 0, against_management: 2, …}` | holdout |
 | AC-41 | AC-40 | same | `voting.topics` as `{topic, votes, against_management}` is exactly `[{Shareholder proposals,1,1},{Remuneration,1,1},{Director elections,1,0},{Auditors,1,0},{Capital and other,0,0}]` | holdout |
-| AC-42 | ledger only: a 2026-03-10 meeting for G with three decisions `withhold`, `one_year`, `do_not_vote` | same | `voting` has `votes` 3, `for` 0, `against` 1, `abstain` 0, `other` 2 | holdout |
+| ~~AC-42~~ | Superseded by AC-90 (`vote-abstain-and-seed-fixes` AC-10) (`withhold` counts as `abstain`) | — | ~~ledger only: a 2026-03-10 meeting for G with three decisions `withhold`, `one_year`, `do_not_vote`; same; `voting` has `votes` 3, `for` 0, `against` 1, `abstain` 0, `other` 2; holdout~~ | retired |
 | AC-43 | a 2026-03-10 ledger meeting for G, one item with two decisions (a split vote), both `for` | Cockpit `?as_of=2026-11-17` | `voting.votes` is 2 and `voting.meetings` is 1 | holdout |
 | AC-44 | portfolio P holds company A only; A and B are both engaged and selected, each with a planned meeting in the window, one `no_objective` gap and a ledger meeting in the window | Cockpit `?portfolio_id=P&as_of=2026-11-17` | `engagement_meetings`, `shareholder_meetings`, `control_gaps` and every `ladder[].companies` hold only A; `summary.selected` is 1; `scope` is `{portfolio_id: P, label: <P's name>}` | holdout |
 | AC-45 | the stack's portfolios plus 3 saved by the test; N = the number of portfolios in the store | Cockpit `?as_of=2026-11-17` | `scope` is `{portfolio_id: null, label: "All portfolios (N)"}`; `portfolios` has N entries sorted by `name` | holdout |
@@ -530,6 +536,7 @@ company `isin_XA0000000001` ("Alpha AG", its `stw_companies` row inserted first)
 | AC-87 | `stewardship-three-tiers` PR B and cockpit PR 1 merged; as cockpit AC-24, but the two engagements escalated to `written_escalation_to_board` and `escalation_to_chair` | as cockpit AC-24 | `ladder[2].companies` is `[{company_id: "isin_XA0000000001", company: "Alpha AG"}]`, and A is in no other ladder step | holdout |
 | AC-88 | `stewardship-three-tiers` PR B and cockpit PR 1 merged; as cockpit AC-55, but A's engagement escalated to `written_escalation_to_board` | as cockpit AC-55 | A's contributor `status` is `in_escalation` | holdout |
 | AC-89 | `stewardship-three-tiers` PR B and cockpit PR 1 merged; as cockpit AC-25 | as cockpit AC-25 | A is listed only in `ladder[3]` | holdout |
+| AC-90 | `vote-abstain-and-seed-fixes` merged; ledger only: a 2026-03-10 meeting for G with three decisions `withhold`, `one_year`, `do_not_vote` | same | `voting` has `votes` 3, `for` 0, `against` 0, `abstain` 1, `other` 2 | holdout |
 
 PR slices: PR 1 delivers AC-1 to AC-52 and AC-62 to AC-84, except the emissions parts of AC-62 and AC-63, which
 come with PR 2. PR 2 delivers AC-53 to AC-61. PR 1's `Rows:` line lists AC-1 to AC-52, AC-73 to AC-78, AC-82 and AC-83; the

@@ -136,3 +136,61 @@ def rfp_para_empty_docx() -> bytes:
         doc.add_paragraph("Next.", style="Normal")
 
     return _docx(build)
+
+
+# --- rfp-approved-answers-first-design: reference documents ---------------------------------------
+
+STMT = ["Stewardship Statement 2025", "We engage with investee companies on climate, governance and human rights.",
+        "In 2025 we held 512 engagement meetings with 340 companies.", "We vote at all meetings where we hold shares."]
+POLICY = ["Voting Policy 2025", "We vote against the re-election of directors where board independence falls below one half."]
+
+
+def _heading_docx(paras: list[str]) -> bytes:
+    def build(doc):
+        doc.add_paragraph(paras[0], style="Heading 1")
+        for p in paras[1:]:
+            doc.add_paragraph(p)
+
+    return _docx(build)
+
+
+def ref_stmt_docx() -> bytes:
+    return _heading_docx(STMT)
+
+
+def ref_policy_docx() -> bytes:
+    return _heading_docx(POLICY)
+
+
+def ref_stmt_pdf() -> bytes:
+    """P0 and P1 on page 1, P2 and P3 on page 2 (each page well over the text-layer check's 50 characters)."""
+    from reportlab.pdfgen import canvas
+
+    out = io.BytesIO()
+    c = canvas.Canvas(out)
+    for page in (STMT[:2], STMT[2:]):
+        for i, line in enumerate(page):
+            c.drawString(72, 760 - 20 * i, line)
+        c.showPage()
+    c.save()
+    return out.getvalue()
+
+
+def ref_scan_pdf() -> bytes:
+    """One page holding only an image, no text."""
+    from PIL import Image as PILImage
+    from reportlab.lib.utils import ImageReader
+    from reportlab.pdfgen import canvas
+
+    png = io.BytesIO()
+    PILImage.new("RGB", (40, 40), "gray").save(png, format="PNG")
+    out = io.BytesIO()
+    c = canvas.Canvas(out)
+    c.drawImage(ImageReader(io.BytesIO(png.getvalue())), 72, 600, 200, 200)
+    c.showPage()
+    c.save()
+    return out.getvalue()
+
+
+def empty_docx() -> bytes:
+    return _docx(lambda doc: None)

@@ -36,7 +36,8 @@ FIRM, AUM = fx.LIB_ANSWERS[0][1], fx.LIB_ANSWERS[1][1]
 
 
 class Standin:
-    """The model, replaced by fixed structured output. `drafts` maps an RFP question to its draft."""
+    """The model, replaced by fixed structured output. `drafts` maps an RFP question to its draft, or to a list of
+    drafts, one per drafting call."""
 
     def __init__(self, pairs=fx.LIB_ANSWERS, questions=QUESTIONS, drafts=None):
         self.pairs, self.questions, self.drafts = pairs, questions, drafts or {}
@@ -54,6 +55,8 @@ class Standin:
         else:
             self.shown.append(prompt)
             out = self.drafts.get(prompt.rsplit("RFP question: ", 1)[1], DraftOut())
+            if isinstance(out, list):  # one draft per step of the chain, in order
+                out = out.pop(0) if out else DraftOut()
         return out, LLMUsage()
 
 

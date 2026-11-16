@@ -37,6 +37,27 @@ export function isDemo(issue: Pick<EngagementIssue, "data_source">, objective: {
   return DEMO_SOURCES.includes(issue.data_source ?? "") || DEMO_SOURCES.includes(objective.source ?? "");
 }
 
+/** The issue header's `Demo data` chip: the issue, or any of its objectives, came from a demo seed. */
+export function isDemoIssue(issue: Pick<EngagementIssue, "data_source" | "objectives">): boolean {
+  return isDemo(issue, {}) || issue.objectives.some((o) => isDemo(issue, o));
+}
+
+/** A code as words: `in_progress` -> `in progress`. */
+export function fmt(s: string): string {
+  return s.replace(/_/g, " ");
+}
+
+/** A due date as stored, or only its date when it is an ISO timestamp (`2026-12-31T00:00:00` -> `2026-12-31`). */
+export function dueText(date: string): string {
+  return /^\d{4}-\d{2}-\d{2}T/.test(date) ? date.slice(0, 10) : date;
+}
+
+/** The "Approve N routine" dialog's flag list: `<company>: <message>` for each watch flag of a company in the batch, once. */
+export function batchFlagLines(ballots: { company_id: string; name: string; watch_flags?: { message: string }[] }[], companyIds: string[]): string[] {
+  const lines = ballots.filter((b) => companyIds.includes(b.company_id)).flatMap((b) => (b.watch_flags ?? []).map((f) => `${b.name}: ${f.message}`));
+  return [...new Set(lines)];
+}
+
 // VOICE lists, as the API takes them (spec stewardship-commitment-loop, "Record result").
 export const OBJECTIVE_RESULTS = ["achieved", "partially_achieved", "not_achieved", "deterioration", "abandoned"] as const satisfies readonly S["ObjectiveResult"][];
 export const INFLUENCE_LEVELS = ["1", "2", "3", "4A", "4B", "5"] as const satisfies readonly S["InfluenceLevel"][];
@@ -71,6 +92,19 @@ export function checkLine(r: { documents: number; suggestions: number; unclear: 
 export function foundLine(suggestions: number): string {
   return `Found ${plural(suggestions, "suggestion")}.`;
 }
+
+/** Spacing, case and typographic quotes and dashes, as PDF-to-text changes them, removed before comparing a quote. */
+const normalise = (t: string) =>
+  t.replace(/[‘’]/g, "'").replace(/[“”„]/g, '"').replace(/[–—‑−]/g, "-").replace(/\s+/g, " ").toLowerCase();
+
+/** Whether a found commitment's quote is word for word in its note (spec stewardship-decisions-round-2, area 2). */
+export function quoteInNote(quote: string, summary: string): boolean {
+  const q = normalise(quote).trim();
+  return q !== "" && normalise(summary).includes(q);
+}
+
+/** The id of a correspondence entry's `<li>` in the issue panel, so a found commitment can move focus to its note. */
+export const noteAnchor = (entryId: string) => `note-${entryId}`;
 
 /** One load of a company's suggestions. `loaded` is null on any error; `error` is the error's text ("<status>: <detail>"),
  * except on the file store's 409, which only means there are no suggestions there. */

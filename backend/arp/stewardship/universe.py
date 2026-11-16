@@ -18,7 +18,11 @@ or synthetic engagement history.
 
 from __future__ import annotations
 
+import gc
 import json
+import logging
+import threading
+import time
 from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -29,6 +33,11 @@ from arp.storage.atomic_io import atomic_write_text
 from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
 
 SOURCES = ("sample", "portfolio")
+FILL_WAIT_S = 60  # start-up and requests wait at most this long for the observation fill, then read the files themselves
+logger = logging.getLogger(__name__)
+_filled = threading.Event()
+_filled.set()  # set: no start-up fill running
+_fill_started = 0.0
 
 
 class HouseUniverseSetting:
@@ -93,9 +102,49 @@ def _value_by_company(holdings, companies: dict[str, str]) -> dict[str, float]:
     return out
 
 
+def fill_observation_cache(store: PortfolioStore) -> None:
+    """Fills the per-file observation cache: from `observations_latest.json` first, then every entry is checked
+    against its file and the changed ones read. If any file had to be read (compact file missing, damaged or out of
+    date), the compact file is written again. One thread: on the showcase house 8 threads made the check 3x and a
+    cold read 5x slower (the GIL)."""
+    seeded = store.seed_latest_observations()
+    dates = store.all_snapshot_dates()
+    if not dates:
+        return
+    keys = store.list_observation_keys()
+    for company_id, field_id in keys:
+        store.latest_observation(company_id, field_id, dates[-1])
+    store.save_latest_observations(keys, unchanged_from=seeded)
+
+
+def start_fill(store: PortfolioStore) -> None:
+    """`fill_observation_cache` in a background thread; start-up and `latest_observations` wait for it (`wait_for_fill`)
+    instead of reading the same files at the same time. Best effort: a failure only leaves the cache cold."""
+    global _fill_started
+
+    def run() -> None:
+        try:
+            fill_observation_cache(store)
+            gc.freeze()  # the ~81k cached observations live as long as the process: spare them every collector pass
+        except Exception:  # noqa: BLE001 -- a cold cache is only slower, never wrong
+            logger.warning("Could not fill the observation cache", exc_info=True)
+        finally:
+            _filled.set()
+
+    _filled.clear()
+    _fill_started = time.monotonic()
+    threading.Thread(target=run, name="observation-fill", daemon=True).start()
+
+
+def wait_for_fill() -> None:
+    """Returns once the start-up fill is done, or FILL_WAIT_S after it started, whichever comes first."""
+    _filled.wait(max(0.0, _fill_started + FILL_WAIT_S - time.monotonic()))
+
+
 def latest_observations(store: PortfolioStore, as_of: str | None = None) -> dict[str, dict[str, DataPointObservation]]:
     """company_id -> {field_id: its latest observation as of `as_of` (default: the latest holdings snapshot)}, every
     recorded (company, field) pair read once."""
+    wait_for_fill()
     dates = store.all_snapshot_dates()
     if not dates:
         return {}

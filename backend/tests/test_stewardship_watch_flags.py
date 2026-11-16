@@ -4,7 +4,7 @@ watch list."""
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -28,6 +28,7 @@ from arp.schemas.engagement import (
     WatchTopic,
 )
 from arp.schemas.voting import CompanyBallot, HumanVoteDecision, Proposal, ProposalType, VotePosition, VoteRecord
+from arp.stewardship import tracking
 from arp.stewardship.tracking import triggers, watch_flags, watch_flags_by_company, watch_list
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.postgres_engagement_store import PostgresEngagementStore
@@ -37,11 +38,23 @@ from tests.conftest import PRINCIPAL, FakeLLMClient
 from tests.test_engagement_research_agent import _FixedDocSource
 from tests.test_stewardship_watch import _suggest
 
-TODAY = datetime.now(UTC).date()
+TODAY = date(2026, 11, 15)  # fixed, never the clock: a run that crossed midnight UTC failed (PR #484)
 YESTERDAY = (TODAY - timedelta(days=1)).isoformat()
 TOMORROW = (TODAY + timedelta(days=1)).isoformat()
 SBT = "Set a 2030 science-based target"
 TOPIC = "Has the company named a board climate committee?"
+
+
+@pytest.fixture(autouse=True)
+def _frozen_clock(monkeypatch):
+    """Every path under test (direct calls, API, CLI) reads "today" through `tracking.datetime.now`."""
+
+    class Frozen(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(TODAY.year, TODAY.month, TODAY.day, 12, tzinfo=tz)
+
+    monkeypatch.setattr(tracking, "datetime", Frozen)
 
 
 @pytest.fixture

@@ -37,7 +37,8 @@ def test_argus_start_page_shows_flow_runs_and_waiting(page):
     assert page.get_by_role("table", name="Runs").is_visible()
     assert page.get_by_role("complementary", name="Waiting for you").is_visible()
     assert not page.get_by_label("Only mine").is_checked()
-    assert page.locator(".argus-head").get_by_role("link", name="XBRL Facts").get_attribute("href") == "#/xbrl"
+    # UI polish 1 F2: the header no longer repeats it; the workspace row has it.
+    assert page.get_by_role("navigation", name="Argus screens").get_by_role("link", name="XBRL Facts").get_attribute("href") == "#/xbrl"
     assert page.console_errors == []
 
 

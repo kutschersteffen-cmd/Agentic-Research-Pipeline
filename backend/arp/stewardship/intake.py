@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from datetime import date
 
 from pydantic import BaseModel, Field
 from sqlalchemy import select, text
+from sqlalchemy.orm import Session
 
 from arp.db.company_view import resolve_ref
 from arp.db.session import transaction
@@ -181,14 +183,15 @@ def _safe(key: str) -> bool:
     return True
 
 
-def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str, excel_rows: bool = False) -> IntakeReport:
-    """`excel_rows`: rows carry `_row` (set by read_workbook); never true for JSON, whose rows are numbered by index."""
+def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str, excel_rows: bool = False, session: Session | None = None) -> IntakeReport:
+    """`excel_rows`: rows carry `_row` (set by read_workbook); never true for JSON, whose rows are numbered by index.
+    `session`: write inside the caller's transaction instead of a new one."""
     report = IntakeReport()
     bad = report.rejected
     bad.extend(Rejection(sheet=k, row=0, field="", reason="unknown sheet") for k in batch.keys() - _TABLES.keys())
     if bad:
         return report
-    with transaction(dsn) as s:
+    with nullcontext(session) if session is not None else transaction(dsn) as s:
         num = {sheet: [r["_row"] if excel_rows else i for i, r in enumerate(batch.get(sheet) or [], 1)] for sheet in _TABLES}
         rows = {sheet: [_clean(sheet, n, r, bad) for n, r in zip(num[sheet], batch.get(sheet) or [], strict=True)] for sheet in _TABLES}
         # Resolve and lock the companies first: ids and company_of are read after the locks, so a batch that
@@ -310,11 +313,12 @@ _DECISION = ["vote", "vote_label", "against_management", "shares_voted", "ration
 
 
 def meeting_key(company_id: str | None, isin: str | None, cusip: str | None) -> str:
-    """The company part of a vote meeting's key: the row's own ids, one namespace per source. A company keyed
-    `isin_<ISIN>` shares the `isin:` namespace with ISIN-only rows, so both reach one meeting."""
-    if company_id and company_id.startswith("isin_"):
-        return f"isin:{company_id[5:].upper()}"
-    return next(f"{ns}:{v}" for ns, v in (("cid", company_id), ("isin", isin), ("cusip", cusip)) if v)
+    """The listing part of a vote meeting's key: `isin`, else `cusip`, else the company id, one namespace each, so two
+    listings of one company (share and ADR) are two meetings (owner, 15 Nov 2026). A company keyed `isin_<ISIN>`
+    shares the `isin:` namespace with ISIN-only rows, so both reach one meeting."""
+    if not isin and company_id and company_id.startswith("isin_"):
+        isin = company_id[5:].upper()
+    return next(f"{ns}:{v}" for ns, v in (("isin", isin), ("cusip", cusip), ("cid", company_id)) if v)
 
 
 def _clean_vote(n: int, raw: dict, source: str, bad: list[Rejection]) -> dict:
@@ -383,9 +387,9 @@ def intake_votes(rows: list[dict], dsn: str, source: str, excel_rows: bool = Fal
             # key only on an id that resolved: an unknown company_id beside an ISIN/CUSIP must not name the meeting
             known = row["company_id"] if row["company_id"] and _company(s, row["company_id"], None) else None
             key = meeting_key(known, row["isin"], row["cusip"])
-            # the meeting's company comes from the id that names it, never from another id on the row
-            own = known if known else (f"isin_{row['isin']}" if row["isin"] else None)
-            company = own if own and _safe(own) and s.get(StwCompanyModel, own) else None
+            # the meeting's company: the row's company_id, else isin_<ISIN>, whichever has a stw_companies row first
+            owns = (row["company_id"], f"isin_{row['isin']}" if row["isin"] else None)
+            company = next((c for c in owns if c and _safe(c) and s.get(StwCompanyModel, c)), None)
             if row["external_id"] in seen:
                 bad.append(Rejection(sheet="votes", row=n, field="external_id", reason="duplicate in batch"))
             seen.add(row["external_id"])
