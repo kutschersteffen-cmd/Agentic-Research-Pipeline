@@ -390,3 +390,18 @@ def test_second_model_sees_the_matched_document_span(env):
     env.as_("alice").post("/api/rfp/projects", data={"investor": "P"}, files={"file": ("rfp_one.xlsx", fx.rfp_one_xlsx(Q_TOPICS))})
     env.run_jobs()
     assert prompts == [f"Question: {Q_TOPICS}\n\nSources:\n\n[D{d['id']}] climate, governance and human rights\n\nDraft: {TOPICS}"]
+
+
+def test_document_retired_during_the_run_flags_the_draft(env, monkeypatch):
+    from arp.rfp import store
+
+    d = docs.doc(env)
+    real = store.draft_answer
+
+    async def retire_then_draft(*args, **kw):
+        env.as_("bob").post(f"/api/rfp/documents/{d['id']}/retire")  # retired after the run read the documents
+        return await real(*args, **kw)
+
+    monkeypatch.setattr(store, "draft_answer", retire_then_draft)
+    q = one_question(env, Q_TOPICS, t_quote(d["id"]))
+    assert (q["status"], q["flags"]) == ("drafted", ["stale source"])

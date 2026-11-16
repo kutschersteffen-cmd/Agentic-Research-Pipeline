@@ -102,7 +102,9 @@ async def autofill(project_id: int, llm: LLMClient, verifier: LLMClient, setting
         for (qid, _), d in zip(todo, drafts, strict=True):
             # WHERE status: a colleague may have edited the question while its draft was being written
             s.execute(update(m.RfpQuestion).where(m.RfpQuestion.id == qid, m.RfpQuestion.status == NO_SOURCE)
-                      .values(status=d.status, answer=d.answer, sources=d.sources, flags=d.flags,
+                      # flags again here: a cited document may have been retired while the draft was written
+                      .values(status=d.status, answer=d.answer, sources=d.sources,
+                              flags=source_flags(s, d.sources, d.answer) if d.sources else d.flags,
                               base_entry_id=d.base_entry_id, document_priority=d.document_priority))
 
 

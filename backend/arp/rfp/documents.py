@@ -42,7 +42,10 @@ def parse(name: str, data: bytes) -> tuple[str, list[int]]:
         path.write_bytes(data)
         if suffix == ".pdf" and not local_files._has_text_layer(path):
             raise ClientInputError(f"{name} has no text layer; upload the original document.")
-        text, page_breaks, _ = local_files.parse_file_to_text_with_pages(path)
+        try:
+            text, page_breaks, _ = local_files.parse_file_to_text_with_pages(path)
+        except Exception:  # a damaged or renamed file is the uploader's to fix, not a server error
+            raise ClientInputError(f"{name} could not be read; upload the original document.") from None
     return text, page_breaks
 
 

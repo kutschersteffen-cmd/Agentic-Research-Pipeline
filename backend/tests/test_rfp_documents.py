@@ -153,3 +153,9 @@ def test_suffix_case_is_ignored(env):
     r = upload(env, "STATEMENT.DOCX")
     assert r.status_code == 200, r.text
     assert r.json()["filename"] == "STATEMENT.DOCX"
+
+
+def test_unreadable_docx_is_a_400(env):
+    r = upload(env, "broken.docx", b"not a zip")
+    assert (r.status_code, r.json()["detail"]) == (400, "broken.docx could not be read; upload the original document.")
+    assert listed(env) == []
