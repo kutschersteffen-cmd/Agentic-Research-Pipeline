@@ -93,6 +93,7 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
    may attach `holdout`. Tell the owner to merge the holdout PR once its check is green.
 3. **Implement:** *"Implement spec `<slug>` (`docs/superpowers/specs/<file>`). Follow the steward
    skill; the risk label is at least `risk:<intake risk>`; put `Spec: <slug>` in the PR description. Never attach the holdout repo."*
+   It also says: *"The dispatcher relays red checks to you; keep one `send_later` check-in as a safety net."*
 4. **Review and evaluator**, two sessions started together once that PR's CI is green:
    - **Review:** *"Review PR #<n> against spec `<slug>`. You did not write it. Run `/code-review` on the
      PR, then `/ponytail:ponytail-review`. Give every blocking finding a `Proof:` line: a failing test
@@ -159,7 +160,9 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
 - When a session messages you with a PR url, `subscribe_pr_activity` to it. A merge event moves the
   feature to the next stage: start it at once. A merged slice (`Rows:` line) starts stage 3 for the
   rows still owed, never stage 6: regression would run the unbuilt rows on every PR. Green CI on the
-  implementing PR starts the review and the evaluator.
+  implementing PR starts the review and the evaluator. The subscription takes the PR's events away from
+  its builder, so relay every red check to the builder session with `send_message`: check name and
+  failing test.
 - A `blocked:` message, a `factory:blocked` label or a `Blocked: fix limit` comment: put the reason on
   the card and tell the owner in one line what they need to decide. Don't start the next stage.
 - If nothing arrives, keep one `send_later` check-in about 50 minutes out, then every 4 hours: run

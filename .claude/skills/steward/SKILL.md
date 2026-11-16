@@ -80,6 +80,9 @@ Don't fold an unrelated fix in, open its own PR or suggest it as a task.
 
 Merge `main` into the branch (a merge commit, never a rebase of someone else's branch) so hidden
 acceptance tests and the evaluator see the code as it would land.
+Once the PR is green, don't merge `main` in again just because `main` moved: that re-runs every check.
+Merge it only for a real conflict, for the merge button (`.claude/CLAUDE.md`), or when the owner or the
+dispatcher asks.
 
 ## 6. Review findings
 
