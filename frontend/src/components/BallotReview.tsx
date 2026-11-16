@@ -10,6 +10,7 @@ import { REVIEWER_REQUIRED, useReviewer } from "../lib/reviewer";
 import { ReviewerField } from "./ReviewerField";
 import { ProposedTag } from "./ProposedTag";
 import { announce } from "../lib/announce";
+import { batchFlagLines } from "../lib/engagement";
 import { focusNextCard, useCardKeys } from "../lib/cardKeys";
 import { CommentField } from "./CommentField";
 import {
@@ -40,7 +41,7 @@ function WatchFlagBanners({ ballot }: { ballot: CompanyBallot }) {
   return (
     <>
       {(ballot.watch_flags ?? []).map((f) => (
-        <div className="banner banner-warning" key={f.item_id}>
+        <div className={f.kind === "overdue" ? "banner banner-warning" : "banner banner-danger"} key={f.item_id}>
           {f.message}
         </div>
       ))}
@@ -142,6 +143,7 @@ function ProposalReview({
         : null;
     return (
       <div className="proposal-card proposal-compact" tabIndex={-1} ref={cardRef}>
+        <WatchFlagBanners ballot={ballot} />
         <strong className="proposal-num">#{vote.proposal.proposal_number}</strong>
         <span className="proposal-clip" title={vote.proposal.resolution_text}>
           {vote.proposal.resolution_text}
@@ -160,7 +162,6 @@ function ProposalReview({
           {settled && !alreadyCast ? "Change" : "Details"}
         </button>
         {error && <p className="error-text" role="alert">{error}</p>}
-        <WatchFlagBanners ballot={ballot} />
       </div>
     );
   }
@@ -385,9 +386,10 @@ export function BallotReview({ runId }: { runId: string }) {
   const routine = ballots.flatMap((b) =>
     b.votes
       .filter((v) => isRoutine(v))
-      .map((v) => ({ key: itemKey(b.company_id, v.proposal.proposal_number), company: b.name, number: v.proposal.proposal_number, vote: v.policy_recommendation!.vote, rule: v.policy_recommendation!.policy_rule_id }))
+      .map((v) => ({ key: itemKey(b.company_id, v.proposal.proposal_number), companyId: b.company_id, company: b.name, number: v.proposal.proposal_number, vote: v.policy_recommendation!.vote, rule: v.policy_recommendation!.policy_rule_id }))
       .filter((r) => !decisions[r.key] && castByKey[r.key] === undefined),
   );
+  const routineFlags = batchFlagLines(ballots, routine.map((r) => r.companyId));
   const totalProposals = ballots.reduce((sum, b) => sum + b.votes.length, 0);
   const totalCast = Object.keys(castByKey).length;
   // Soonest meeting first: that is the order the deadlines arrive in.
@@ -452,6 +454,16 @@ export function BallotReview({ runId }: { runId: string }) {
             Each is approved at the policy&apos;s recommended vote and recorded as your decision. Flagged proposals are not included:
             they still need their own decision and a co-sign. Nothing is cast until you press Cast.
           </p>
+          {routineFlags.length > 0 && (
+            <>
+              <p>These companies have an overdue or broken commitment or objective:</p>
+              <ul>
+                {routineFlags.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </>
+          )}
           <div className="table-wrap">
           <table className="data-table cast-list">
             <caption className="visually-hidden">Proposals that will be approved</caption>
