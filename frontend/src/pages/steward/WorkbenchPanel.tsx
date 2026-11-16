@@ -133,8 +133,8 @@ const valueCell = (l: WhyLine) => (
   <>
     {l.value.text}
     {l.value.simulated && <> <Sim /></>}
-    {l.messages.map((m) => (
-      <span key={m} className="wb-flag-msg">
+    {l.messages.map((m, i) => (
+      <span key={i} className="wb-flag-msg">
         {m}
       </span>
     ))}
