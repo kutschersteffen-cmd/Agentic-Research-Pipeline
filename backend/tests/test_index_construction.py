@@ -110,6 +110,25 @@ def test_an_exclusion_on_a_real_value_is_not_marked_simulated():
     assert "simulated" not in traces[0].detail
 
 
+@pytest.mark.parametrize(("simulated_fields", "mark"), [(["norms_violation"], " · Simulated"), ([], "")])
+def test_the_cli_trace_marks_an_exclusion_on_a_simulated_value(tmp_path, simulated_fields, mark):
+    from typer.testing import CliRunner
+
+    from arp.cli.index import index_app
+
+    universe = [_candidate("a", norms_violation=False), _candidate("b", norms_violation=True)]
+    universe = [c.model_copy(update={"simulated_fields": simulated_fields}).model_dump() for c in universe]
+    (tmp_path / "universe.json").write_text(json.dumps(universe))
+    (tmp_path / "spec.json").write_text(ConstructionSpec(screens=[NORMS]).model_dump_json())
+    args = ["preview", "--review-date", "2026-11-16", "--show", "trace"]
+    args += ["--spec-file", str(tmp_path / "spec.json"), "--universe-file", str(tmp_path / "universe.json")]
+    result = CliRunner().invoke(index_app, args)
+    assert result.exit_code == 0, result.output
+    norms = next(line for line in result.output.splitlines() if "Norms-based exclusion" in line)
+    assert f"Norms-based exclusion (UNGC / OECD){mark}  " in norms  # the label column is padded with spaces
+    assert ("Simulated" in result.output) == bool(mark)
+
+
 def test_missing_value_blocks_the_run_by_default():
     candidates = [_candidate("a", esg_score=8.0), _candidate("b")]
     with pytest.raises(DataQualityBlock, match="missing value"):
