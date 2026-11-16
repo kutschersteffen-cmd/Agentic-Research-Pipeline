@@ -12,7 +12,7 @@ env:
 jobs:
   # The backend suite runs in BACKEND_SHARDS parts; `Backend (lint + tests)` (the required check)
   # passes only when every part passed and together they ran exactly the collected tests.
-  # shortcut: the parts are balanced by backend_test_times.json (seconds per file, 16 Nov 2026); when
+  # shortcut: the parts are balanced by backend_test_times.json (seconds per test, 16 Nov 2026); when
   # one shard runs much longer than the others, refresh it with `backend_shards.py --times`.
   backend-shard:
     name: Backend shard ${{ matrix.shard }}/${{ strategy.job-total }}

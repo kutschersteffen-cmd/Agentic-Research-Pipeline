@@ -5,18 +5,19 @@ Usage (from backend/): PYTHONPATH=../.github/scripts pytest -p pytest_shard --sh
 Write the options with `=`: a separate existing path argument moves pytest's rootdir, so node ids and the
 backend's pytest settings would change.
 
-The unit is the test file, so module fixtures and in-file test order stay as in a single run. Files go
-heaviest first to the part with the least weight so far. A file's weight is its seconds in the times
-file, or, for a file not in it, its test count times the mean seconds per test of the files that are.
-The split is the same on every run of the same commit, and a new file lands in some part on its own.
+The unit is the test (node id). Tests stay in collection order and are cut into N blocks of about equal
+weight. Only a file that straddles a block end (at most N-1 files) is split, and only its module fixtures
+run twice. A test's weight is its seconds in the times file, or, for a test not in it, the
+mean seconds per test of the tests that are. The split is the same on every run of the same commit, and a
+new test lands in some part on its own.
 
 FILE gets `backend shard: K/N`, then one node id per test that entered setup (passed, failed, errored
-or skipped); `times.json` next to it gets this part's seconds per file. The CI job
+or skipped); `times.json` next to it gets this part's seconds per test. The CI job
 `Backend (lint + tests)` checks the FILEs with backend_shards.py.
 """
 
 import json
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
 
 import pytest
@@ -38,22 +39,18 @@ def parse_shard(value: str) -> tuple[int, int]:
     return k, n
 
 
-def assign(counts: Counter, n: int, times: dict[str, float]) -> dict[str, int]:
-    """Map each file to a part 1..n: heaviest file first, into the part with the least weight so far."""
-    timed = [path for path in counts if path in times]
-    per_test = sum(times[p] for p in timed) / sum(counts[p] for p in timed) if timed else 1.0
-    weight = {path: times.get(path, count * per_test) for path, count in counts.items()}
-    load = [0.0] * n
-    part = {}
-    for path in sorted(weight, key=lambda p: (-weight[p], p)):
-        i = load.index(min(load))
-        part[path] = i + 1
-        load[i] += weight[path]
-    return part
-
-
-def _file(nodeid: str) -> str:
-    return nodeid.split("::")[0]
+def assign(nodeids: list[str], n: int, times: dict[str, float]) -> list[int]:
+    """Part 1..n for each test: cut the tests, in order, into n blocks of about equal weight."""
+    timed = [t for t in nodeids if t in times]
+    mean = sum(times[t] for t in timed) / len(timed) if timed else 0.0
+    weight = [times.get(t, mean) for t in nodeids]
+    if not sum(weight):  # nothing timed or all 0 s: count tests instead
+        weight = [1.0] * len(nodeids)
+    total, done, parts = sum(weight), 0.0, []
+    for w in weight:
+        parts.append(min(n, int((done + w / 2) * n / total) + 1))  # the block holding this test's midpoint
+        done += w
+    return parts
 
 
 def pytest_configure(config):
@@ -68,9 +65,9 @@ def pytest_collection_modifyitems(config, items):
     k, n = config._shard
     times_path = config.getoption("--shard-times")
     times = json.loads(Path(times_path).read_text()) if times_path else {}
-    part = assign(Counter(_file(item.nodeid) for item in items), n, times)
-    keep = [item for item in items if part[_file(item.nodeid)] == k]
-    drop = [item for item in items if part[_file(item.nodeid)] != k]
+    parts = assign([item.nodeid for item in items], n, times)
+    keep = [item for item, p in zip(items, parts) if p == k]
+    drop = [item for item, p in zip(items, parts) if p != k]
     if drop:
         config.hook.pytest_deselected(items=drop)
     items[:] = keep
@@ -83,7 +80,7 @@ _SECONDS: defaultdict[str, float] = defaultdict(float)
 def pytest_runtest_logreport(report):
     if report.when == "setup":
         _RAN.append(report.nodeid)
-    _SECONDS[_file(report.nodeid)] += report.duration
+    _SECONDS[report.nodeid] += report.duration
 
 
 def pytest_sessionfinish(session):
@@ -100,8 +97,9 @@ def pytest_sessionfinish(session):
 
 
 if __name__ == "__main__":  # self-check of the split
-    c = Counter({"a.py": 10, "b.py": 10, "c.py": 1, "d.py": 1})
-    assert assign(c, 2, {}) == {"a.py": 1, "b.py": 2, "c.py": 1, "d.py": 2}
-    # b.py is untimed: 10 tests x 10 s/test (mean of a.py and c.py) = 100, as heavy as c.py
-    assert assign(c, 2, {"c.py": 100.0, "a.py": 10.0}) == {"b.py": 1, "c.py": 2, "a.py": 1, "d.py": 2}
+    ids = ["a::1", "a::2", "b::1", "b::2"]
+    assert assign(ids, 2, {}) == [1, 1, 2, 2]
+    assert assign(ids, 2, {"a::1": 9.0, "b::2": 1.0}) == [1, 2, 2, 2]  # untimed a::2, b::1 weigh the mean, 5 s
+    assert assign(ids, 4, {t: 0.0 for t in ids}) == [1, 2, 3, 4]
+    assert assign(ids[:1], 4, {}) == [3]  # fewer tests than parts: the rest stay empty (pytest exits 5)
     print("selftest ok")
