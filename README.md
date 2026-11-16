@@ -109,11 +109,13 @@ The bypass trusts the socket address: never run dev mode behind a proxy on the
 same host (every proxied request would arrive from loopback) and never publish
 the port on a LAN-reachable address. Requests from anywhere else still need a
 token. Dev mode also refuses browser requests from foreign origins (an `Origin`
-header not in `ARP_ALLOWED_ORIGINS` gets no bypass, so another website cannot
-act as you), and the API only answers the host names in `ARP_TRUSTED_HOSTS`
+header not in `ARP_ALLOWED_ORIGINS` gets no bypass, so only the origins listed
+there can act as you), and the API only answers the host names in `ARP_TRUSTED_HOSTS`
 (default `localhost`, `127.0.0.1`, `[::1]`, `backend`), which blocks DNS
 rebinding; this host check applies to every route, voting included. Dev mode has a single user, so four-eyes
-steps (calibration approval, co-sign) need local mode.
+steps (calibration approval, co-sign) need local mode. Never combine
+`ARP_AUTH_MODE=dev` with `ARP_ALLOWED_ORIGINS=["*"]`: `"*"` lets any website
+open in the same browser act as the dev approver.
 
 **Switching to local mode** (real per-person sign-in):
 
