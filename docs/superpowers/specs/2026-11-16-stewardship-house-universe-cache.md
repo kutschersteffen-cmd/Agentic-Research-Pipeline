@@ -70,7 +70,8 @@ this spec does not touch.
    the next request shows the new data (AC-11 to AC-19, AC-23, AC-30 to AC-32, AC-36, AC-37).
 3. Requests that need the list at the same time wait for one build; a failed build is not kept; one request checks once (AC-20 to AC-22, AC-24, AC-28).
 4. The anti-goals hold: no request sees another's changes (AC-25), nothing is stored (AC-33), #544's compact file stays valid
-   (AC-39), answers are unchanged (AC-26, AC-38).
+   (AC-39), answers are unchanged (AC-26, AC-38),
+   the sample source is copied too (AC-40), the monthly run is unchanged (AC-41).
 
 ## Non-goals
 
@@ -221,6 +222,7 @@ Words used below:
 - **Restart answer:** the same request made after `bash backend/scripts/e2e_stack.sh restart-api`, once the answer
   under test has been recorded.
 - **Another process:** a process other than the API server, for example the test itself.
+- Each holdout row puts back what it changed (files, rows, settings) when it ends, so rows run in any order.
 - **Build line:** the INFO log line `House universe built: <n> companies in <t> s`. **Check line:** the DEBUG log line
   `Input check: <n> observation files in <t> s`.
 - **Store S:** a portfolio store with 2 held companies and 2 observation files, source `portfolio`, for unit rows.
@@ -269,13 +271,16 @@ Out of scope for the speed rows: `#/stewardship/program` (Client program, a clie
 | AC-33 | Store S | `house_universe()`, then a change to one observation file, then `house_universe()` (a rebuild) | No file under `<portfolios_dir>`, `<stewardship_streams_dir>` or the folder of `identifier_map_path` was created or changed by the two calls (modification times and listing compared before and after, the observation file the test changed excepted) | unit |
 | AC-34 | Showcase data; `arp showcase load` run with the build installed | A restart (`e2e_stack.sh restart-api`), then `#/stewardship/workbench` is opened; done 3 times (`workbench-review-fixes` AC-2) | The median time until the first data row is visible is under 5 s | evaluator |
 | AC-35 | Showcase data; warm | `#/stewardship/workbench` is opened 5 times, each a full reload (`workbench-review-fixes` AC-1) | The median time until the first data row is visible is under 3.5 s, and each time the page shows 100 rows and page controls | evaluator |
-| AC-36 | Store S; one call done; the build stubbed to pause 1 s after the check | An observation is appended to one file during that pause; a second change-free call follows | The second call builds again (one more build line) and shows the appended value | unit |
-| AC-37 | Store S built; a second store S2 in other folders with other companies | The app settings are pointed at S2; then `house_universe()` | One more build line; the result has S2's issuers | unit |
+| AC-36 | Store S, nothing built yet; the build stubbed to pause 1 s after the check | Call 1 builds; during its pause an observation with a new value is appended to one file; after call 1 returns, call 2 runs with no further change | Call 2 logs one more build line (2 in all), and its result shows the appended value | unit |
+| AC-37 | Store S built | `portfolios_dir`, `stewardship_streams_dir` and `identifier_map_path` are pointed at new folders (database unchanged; S's observation files copied there), the new `issuer_sectors.json` giving one of S's companies `{"sector": "S2 Sector"}`; then `house_universe()` | One more build line; that company's `sector` is `S2 Sector` | unit |
 | AC-38 | Store S (source `portfolio`) and Fixture W (source `sample`) | Each of the eight endpoints is called once, with the build installed | Each answer equals the `main` answer | unit |
-| AC-39 | A compact file `observations_latest.json` written by `main` (with #544) for Store S | The server starts with the build installed | When the start-up fill has finished, `observations_latest.json` has the same content and mtime as before the start (the fill took it as valid and did not write it again) | unit |
+| AC-39 | Store S; `observations_latest.json` written in the test by `save_latest_observations` after Store S's files exist; its `format` field set to the value `main`'s (with #544) `_latest_format()` returns, recorded as a fixture before the build starts | The server starts with the build installed | When the start-up fill has finished, `observations_latest.json` has the same content and mtime as before the start (the fill took it as valid and did not write it again) | unit |
+| AC-40 | Store S with source `sample`; one `house_universe()` call done | A caller sets `fields["probe"] = 1` on the first issuer of its result; then `house_universe()` again | The new result's first issuer has no `probe` key | unit |
+| AC-41 | Store S with two holdings snapshot dates; `house_universe()` called once (a kept build of the latest date exists) | The monthly run (`portfolio/monthly_run.py`) for the earlier month | The universe and held ISIN map it uses equal the `main` answers for that month | unit |
 
 Must not change: `workbench-review-fixes` AC-1 to AC-10 (Workbench speed and the observation cache's freshness): its
-hidden rows run through `Holdout: full`, its unit rows in CI, its warm row as AC-35 and its restart row as AC-34; every answer equal to `main`'s (AC-38) and the hit equal to the miss (AC-26); overlays read fresh (AC-27); the monthly
-run's universe, built for its own month, which the existing `monthly_run` tests check.
+hidden rows run through `Holdout: full`, its unit rows in CI, its warm row is AC-35 here and its restart row AC-34.
+Every answer equals `main`'s (AC-38) and a reused answer equals a fresh one (AC-26); overlays stay read fresh (AC-27);
+the monthly run is unchanged (AC-41).
 
 Delivered by one PR, `stewardship-house-universe-cache` (no `Rows:` line).
