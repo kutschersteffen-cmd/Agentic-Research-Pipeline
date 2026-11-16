@@ -76,7 +76,7 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
 
       - name: Install backend package (dev extras)
-        run: pip install -e ".[dev,opensearch,emerging_themes,object_storage]"
+        run: pip install -e ".[dev,postgres,opensearch,emerging_themes,object_storage]"
 
       - name: Private NLTK data (nltk >= 3.10.4 refuses shared dirs)
         run: . "$GITHUB_WORKSPACE/.github/scripts/private_nltk_data.sh"
@@ -202,7 +202,7 @@ jobs:
 
       - name: Install backend, frontend and Chromium
         run: |
-          (cd backend && pip install -e ".[dev,opensearch,emerging_themes,object_storage]")
+          (cd backend && pip install -e ".[dev,postgres,opensearch,emerging_themes,object_storage]")
           . .github/scripts/private_nltk_data.sh
           (cd frontend && npm ci)
           python -m playwright install --with-deps chromium
@@ -295,7 +295,7 @@ jobs:
 
       - name: Install backend package
         run: |
-          pip install -e .
+          pip install -e ".[postgres]"
           # pyproject only has ranges: key the cache on what resolved, since parses and embeddings depend on it
           pip show docling docling-core docling-ibm-models fastembed onnxruntime tokenizers \
             | grep -E '^(Name|Version):' >.retrieval-cache-deps.txt
@@ -370,7 +370,7 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
 
       - name: Install backend package
-        run: pip install -e ".[opensearch,object_storage,emerging_themes]"
+        run: pip install -e ".[postgres,opensearch,object_storage,emerging_themes]"
 
       # Non-blocking for now: flips to a required check once the existing
       # dependency set has been triaged (see CORPORATE_READINESS_PLAN.md
