@@ -98,7 +98,8 @@ Where this repo deviates from the blueprint, and why:
 
 1. A PR push gets `Holdout acceptance` from its own rows only: median of the first 3 such PRs at most 15 min,
    none over 20 min, for a spec of up to 60 rows.
-2. `Backend (lint + tests)` on 4 machines: median of the first 3 PRs at most 12 min, none over 16 min, with
+2. `Backend (lint + tests)` on 4 machines: median of the first 3 PRs at most 16 min, none over 20 min (owner
+   decision 16 Nov 2026, see AC-39), with
    the same tests, lint, API contract check and diff-coverage rule as today.
 3. Every hidden row still runs nightly and on demand, split over 6 machines, in at most 45 min.
 4. A failed nightly run opens exactly one issue that names the failing rows and the merges since the last
@@ -122,7 +123,7 @@ Anti-goals (a failure even if everything is faster):
   dispatcher queuing PRs automatically (decision 4), the new merge-button flow.
 - A full hidden run after every merge, and automatic revert PRs for hidden-test failures (decision 7).
   `main-guard.yml` is unchanged.
-- Making the per-commit check faster than about 12 min; splitting E2E, Trivy, golden-set or mutation jobs.
+- Making the per-commit check faster than about 16 min; splitting E2E, Trivy, golden-set or mutation jobs.
 - Selecting tests by changed files.
 - Changing which hidden rows exist, the 600 s per-test timeout or the runner's output lines.
 
@@ -343,7 +344,7 @@ flags"). Timing rows follow the measuring rule in "Left to the builder".
 | AC-36 | Slice 2: an open PR | a label is added to or removed from it | No Holdout run starts and none is cancelled | evaluator (PR, throwaway) |
 | AC-37 | Slice 2 | `bash .github/scripts/main_ahead_docs_only.sh --selftest` runs (also in the `PR guards` workflow) | It prints `selftest ok` after checking: nothing ahead → `docs-only`, exit 0; only allowlisted files ahead → `docs-only`, exit 0; `backend/x.py` ahead → `code: backend/x.py`, exit 1; `docs/decision-studio/example-framework/x.csv` ahead → `code: docs/decision-studio/example-framework/x.csv`, exit 1; `docs/transition_barrier/RULE_BOOK.md` ahead → `code: docs/transition_barrier/RULE_BOOK.md`, exit 1; a conflicting allowlisted change → `conflict`, exit 1; `backend/y.py` ahead and a conflict → `code: backend/y.py`, exit 1; `backend/z.py` renamed to `docs/superpowers/z.md` on main → `code: backend/z.py`, exit 1 | unit |
 | AC-38 | Slice 3: a PR changing backend code | its CI run finishes | It has 4 jobs `Backend shard 1/4` to `Backend shard 4/4` and one `Backend (lint + tests)`, which is green only when all 4 are | evaluator (PR) |
-| AC-39 | Slice 3 merged; the first 3 PRs changing backend code | their runs finish | `Backend (lint + tests)` takes at most 12 min (median) and none over 16 min | evaluator (after merge) |
+| AC-39 | Slice 3 merged; the first 3 PRs changing backend code | their runs finish | `Backend (lint + tests)` takes at most 16 minutes (median) and none over 20 minutes, measured from the first part's start to `Backend (lint + tests)` completing, queue time left out (owner decision 16 Nov 2026: 4 machines cannot reach 12 min; a separate PR speeds up the two slow tests, a later spec can tighten the target) | evaluator (after merge) |
 | AC-40 | Slice 3: a green PR run | the `Backend (lint + tests)` log is read | It contains `backend tests: <a> of <b>` with a = b | evaluator (PR) |
 | AC-41 | Slice 3: a throwaway PR where the shard-2 job runs part 1 | the run finishes | `Backend (lint + tests)` concludes `failure` and its log contains `backend shards: missing 2/4` | evaluator (PR, throwaway) |
 | AC-42 | Slice 3: a throwaway PR with one failing test that runs in shard 2 | the run finishes | `Backend shard 2/4` is red and `Backend (lint + tests)` concludes `failure` | evaluator (PR, throwaway) |
