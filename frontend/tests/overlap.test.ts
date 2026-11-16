@@ -26,6 +26,7 @@ test("tint steps: 0 % none, then one step per 20 %", () => {
 test("names, counts and grid weights", () => {
   assert.equal(shortName(dax.name), "DAX");
   assert.equal(shortName("Plain fund"), "Plain fund");
+  assert.equal(shortName("MSCI World (EUR) Hedged (public ETF holdings, 2026-11-02)"), "MSCI World (EUR) Hedged");
   assert.equal(count(2581), "2,581");
   assert.equal(weight(4.213), "4.21");
   assert.equal(weight(null), "—");

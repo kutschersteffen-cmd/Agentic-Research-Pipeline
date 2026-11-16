@@ -8,7 +8,7 @@ type Pair = FundOverlap["pairs"][number];
 export const count = (n: number) => n.toLocaleString("en-US");
 
 /** A fund's name without the bracketed source note: "DAX (public ETF holdings, …)" → "DAX". */
-export const shortName = (name: string) => name.replace(/\s*\(.*\)\s*$/, "") || name;
+export const shortName = (name: string) => name.replace(/\s*\([^()]*\)\s*$/, "") || name;
 
 /** A grid weight: 2 decimals, no % sign (the header says %); "—" when the fund does not hold the company. */
 export const weight = (v: number | null | undefined) => (v === null || v === undefined ? "—" : v.toFixed(2));

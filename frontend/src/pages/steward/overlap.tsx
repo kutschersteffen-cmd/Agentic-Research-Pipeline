@@ -11,16 +11,20 @@ const TOP = [25, 50, 100, 200];
  * It only reads; picking stays in the Workbench. */
 export function OverlapStudio() {
   const [data, setData] = useState<FundOverlap | null>(null);
-  const [sample, setSample] = useState(false);
+  const [sample, setSample] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api
       .getFundOverlap()
-      .then(async (d) => {
-        // No funds: either the sample universe (say how to switch) or no holdings loaded.
-        if (d.funds.length === 0) setSample((await api.getHouseUniverse()).source === "sample");
+      .then((d) => {
         setData(d);
+        // No funds: either the sample universe (say how to switch) or no holdings loaded. A failed lookup keeps the picks shown.
+        if (d.funds.length === 0)
+          api
+            .getHouseUniverse()
+            .then((u) => setSample(u.source === "sample"))
+            .catch(() => setSample(false));
       })
       .catch((e: Error) => setError(e.message));
   }, []);
@@ -44,7 +48,7 @@ export function OverlapStudio() {
         </p>
         {error && <p className="error-text" role="alert">{error}</p>}
         {!data && !error && <p className="status-text">Loading the fund holdings…</p>}
-        {data && data.funds.length === 0 && (
+        {data && data.funds.length === 0 && sample !== null && (
           <p className="muted">
             {sample
               ? "Fund overlap needs the portfolio universe. Switch the house universe to portfolio holdings in Selection."
@@ -125,6 +129,7 @@ function CompanyGrid({ cycle }: { cycle: string }) {
   useEffect(() => {
     let live = true;
     setError(null);
+    setGrid(null); // no old rows under a new choice
     api
       .getOverlapMatrix(basis, n, basis === "selection" ? scope : undefined)
       .then((g) => live && setGrid(g))
@@ -135,7 +140,6 @@ function CompanyGrid({ cycle }: { cycle: string }) {
   }, [basis, n, scope]);
 
   const label = scopes.find((s) => s.key === scope)?.label ?? scope;
-  const shown = grid && grid.basis === basis && (basis === "top" || grid.scope === scope) ? grid : null;
   return (
     <section className="card">
       <div className="section-heading ov-grid-head">
@@ -169,9 +173,9 @@ function CompanyGrid({ cycle }: { cycle: string }) {
         </fieldset>
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
-      {!shown && !error && <p className="status-text">Loading…</p>}
-      {shown && shown.companies.length === 0 && <p className="muted">{`No company is picked in ${label} in ${cycle}.`}</p>}
-      {shown && shown.companies.length > 0 && (
+      {!grid && !error && <p className="status-text">Loading…</p>}
+      {grid && grid.companies.length === 0 && basis === "selection" && <p className="muted">{`No company is picked in ${label} in ${cycle}.`}</p>}
+      {grid && grid.companies.length > 0 && (
         <div className="ov-frame ov-scroll">
           <table className="data-table ov-table">
             <thead>
@@ -185,7 +189,7 @@ function CompanyGrid({ cycle }: { cycle: string }) {
                 <th className="num" scope="col">
                   Funds
                 </th>
-                {shown.funds.map((f) => (
+                {grid.funds.map((f) => (
                   <th key={f.portfolio_id} className="num" scope="col" title={`${f.name}, weight %`}>
                     {shortName(f.name)}
                   </th>
@@ -193,14 +197,14 @@ function CompanyGrid({ cycle }: { cycle: string }) {
               </tr>
             </thead>
             <tbody>
-              {shown.companies.map((c) => (
+              {grid.companies.map((c) => (
                 <tr key={c.issuer_id}>
                   <th scope="row" className="ov-pin" title={c.company}>
                     {c.company}
                   </th>
                   <td className="num">{weight(c.house_weight_pct)}</td>
                   <td className="num">{c.funds}</td>
-                  {shown.funds.map((f) => (
+                  {grid.funds.map((f) => (
                     <td key={f.portfolio_id} className={c.weights[f.portfolio_id] == null ? "num muted" : "num"}>
                       {weight(c.weights[f.portfolio_id])}
                     </td>
