@@ -66,6 +66,7 @@ from arp.api.routers import (
     stewardship,
     stewardship_cockpit,
     stewardship_intake,
+    stewardship_overlap,
     stewardship_watch,
     stewardship_worklist,
     taxonomies,
@@ -182,6 +183,7 @@ app.include_router(xbrl.router, dependencies=[Depends(authorize)])
 app.include_router(stewardship.router, dependencies=[Depends(authorize)])
 app.include_router(stewardship_cockpit.router, dependencies=[Depends(authorize)])
 app.include_router(stewardship_intake.router, dependencies=[Depends(authorize)])
+app.include_router(stewardship_overlap.router, dependencies=[Depends(authorize)])
 app.include_router(stewardship_watch.router, dependencies=[Depends(authorize)])
 app.include_router(stewardship_worklist.router, dependencies=[Depends(authorize)])
 app.include_router(financials.router, dependencies=[Depends(authorize)])
