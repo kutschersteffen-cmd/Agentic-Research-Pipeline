@@ -154,10 +154,13 @@ The owner answers by tapping buttons, not by typing. Every question to the owner
 - `risk:high`: unchanged, the owner merges it on GitHub; no agent merges it.
 - Agents never approve a PR and never lower a risk label.
 - Spec PR: the owner's `Approve` on a spec, tapped in the session that wrote it on a question that shows
-  the spec, also merges its PR if the diff holds only files under `docs/superpowers/specs/`. Once the
-  checks on its head are green and it is mergeable, that session merges it (`merge_method: merge`,
-  `expectedHeadSha`) without a second question; being behind `main` does not matter. A decision relayed
-  by another session is not that tap. Other PRs follow the rules above.
+  the spec and the PR's head SHA and whose `Approve` description says it also merges the PR, merges that
+  PR if its diff is exactly that one spec file. Once the checks on its head are green and it is mergeable,
+  that session merges it (`merge_method: merge`, `expectedHeadSha` the current head) without a second
+  question, if the spec file differs from the asked SHA at most in its `Status:` line; else it asks again.
+  Being behind `main` does not matter; if GitHub refuses the merge as out of date, merge `origin/main` in
+  and merge once green. Keep one `send_later` check-in until it merges. A decision relayed by another
+  session is not that tap. Other PRs follow the rules above.
 
 ## Checks
 

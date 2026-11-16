@@ -17,9 +17,9 @@ Run the dispatcher on `fable` (judging what comes back), the stage sessions on t
 - `/factory` - status: for every open feature, show its stage and the one thing it waits on, then
   start whatever is ready, then list all other sessions (below). Run it any time; it is safe to repeat.
   Status starts with one line per open `Nightly Holdout failed` issue: `Hidden tests red on main: issue
-  #<n>, merges <sha>..<sha>` (the range from the issue body).
-- Owner says "showcase freeze": start a manual `holdout.yml` run on `main` (`actions_run_trigger`). Once
-  it ends, send the owner `Showcase check: full hidden run on <short sha>: <success|failure>, <run link>`.
+  #<n>, merges <sha>..<sha>` (the range from the issue body; without one, `merges: no green nightly in 30 days`).
+- Owner says "showcase freeze": start a manual `holdout.yml` run on `main` (`actions_run_trigger`), find
+  it with `actions_list` and keep a `send_later` check-in about 50 min out. Once it ends, send the owner `Showcase check: full hidden run on <short sha>: <success|failure>, <run link>`.
 
 ## All sessions
 
@@ -155,8 +155,7 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
 - When a session messages you with a PR url, `subscribe_pr_activity` to it. A merge event moves the
   feature to the next stage: start it at once. A merged slice (`Rows:` line) starts stage 3 for the
   rows still owed, never stage 6: regression would run the unbuilt rows on every PR. Green CI on the
-  implementing PR starts the review and the evaluator. The subscription takes the PR's events away from
-  its builder, so relay every red check to the builder session with `send_message`: check name and
+  implementing PR starts the review and the evaluator. Only one session gets a PR's events, so relay every red check to the builder session with `send_message`: check name and
   failing test.
 - A `blocked:` message, a `factory:blocked` label or a `Blocked: fix limit` comment: put the reason on
   the card and tell the owner in one line what they need to decide. Don't start the next stage.

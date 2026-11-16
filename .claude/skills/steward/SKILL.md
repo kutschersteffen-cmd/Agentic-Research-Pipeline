@@ -31,7 +31,9 @@ When the PR builds one slice of a spec, add a `Rows: AC-1, AC-4` line under it n
 slice delivers, so hidden tests for later slices don't run yet. The last slice drops the line.
 A PR that fixes a nightly failure puts `Holdout: full` and `Refs #<issue>` (the nightly issue) each on its
 own line, so the full hidden suite runs before it merges. Its fix-round count starts at 0. The issue closes
-on the next green full run on `main`, not by the PR.
+on the next green full run on `main`, not by the PR. If `Holdout acceptance` skips because no app code
+changed, start a manual `holdout.yml` run on the PR branch and link it in the PR; it must be green before
+the merge.
 
 ## 2. Stop after three failed fix rounds
 
