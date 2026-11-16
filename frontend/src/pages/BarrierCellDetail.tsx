@@ -114,7 +114,7 @@ export function BarrierCellDetail({ code, region }: { code: string; region: stri
     <div className="page">
       <p><a href="#/transitionBarrier">Transition Barriers</a></p>
       <h1>{cell.code} — {cell.region}</h1>
-      <p className="muted">{cell.sector} / {cell.category} · {cell.criterion}</p>
+      <p className="muted meta">{cell.sector} / {cell.category} · {cell.criterion}</p>
 
       <div className="card">
         <h2>Current rating</h2>

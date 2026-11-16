@@ -34,3 +34,19 @@ test("p2_ac10_design_md", () => {
   const design = readFileSync(new URL("../../DESIGN.md", import.meta.url), "utf8");
   for (const t of ["--text-2", "--track-display", "--dur-fast", "--dur-slow", "--ease-out"]) assert.ok(design.includes(t), t);
 });
+
+// Final review: titles under 20px keep the 600 weight they had through `.card h2`.
+test("p2_small_card_titles_keep_600", () => {
+  for (const sel of [".decision-kpis h2", ".argus-schema-pick h2, .argus-schema-fields h2, .argus-run-list h2", ".cockpit-card-head h2"]) {
+    const i = css.indexOf(`${sel} {`);
+    assert.ok(i >= 0, sel);
+    assert.match(css.slice(i, css.indexOf("}", i)), /font-weight: 600/, sel);
+  }
+});
+// Final review: a meta line under a title is not the page intro, so it stays muted, not a lead.
+test("p2_meta_lines_not_lead", () => {
+  const src = (f: string) => readFileSync(new URL(`../src/pages/${f}`, import.meta.url), "utf8");
+  assert.match(src("ThemeDossiers.tsx"), /<h1>\{dossier\.name\}<\/h1>\s*<p className="muted meta">/);
+  assert.match(src("BarrierCellDetail.tsx"), /<h1>\{cell\.code\}[^\n]*\n\s*<p className="muted meta">/);
+  assert.ok(css.includes(":where(.page, .page-body) > h1 + :is(.help-text, .muted):not(.meta) {"), "intro rule skips .meta");
+});

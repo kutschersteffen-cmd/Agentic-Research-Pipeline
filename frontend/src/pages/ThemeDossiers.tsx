@@ -170,7 +170,7 @@ function DossierPage({ id, onFindCompanies }: { id: string; onFindCompanies: (ta
     <div className="page">
       <p><a href="#/themes">All theme dossiers</a></p>
       <h1>{dossier.name}</h1>
-      <p className="muted">
+      <p className="muted meta">
         {dossier.origin === "candidate" ? "Promoted from Emerging Themes" : "Started from a topic"} · <span className="mono">{dossier.dossier_id}</span>
       </p>
       {banner && (

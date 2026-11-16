@@ -291,12 +291,12 @@ a.nav-tab { text-decoration: none; }
   max-width: 72ch;
   line-height: 1.55;
   margin: 0 0 var(--s-8);
-  color: var(--text-2);
-  font-size: var(--text-base);
 }
+/* The intro reads in --text-2; a meta line under a title (.meta) stays muted and small. */
+:where(.page, .page-body) > h1 + :is(.help-text, .muted):not(.meta) { color: var(--text-2); font-size: var(--text-base); }
 /* Above 760px the intro is a lead. */
 @media (min-width: 761px) {
-  :where(.page, .page-body) > h1 + :is(.help-text, .muted) { font-size: 1.0625rem; line-height: 1.5; max-width: 62ch; text-wrap: pretty; }
+  :where(.page, .page-body) > h1 + :is(.help-text, .muted):not(.meta) { font-size: 1.0625rem; line-height: 1.5; max-width: 62ch; text-wrap: pretty; }
 }
 :where(.page, .page-body) > h1 + :is(.help-text, .muted) .hub-step-handoff-key { white-space: nowrap; }
 :where(.page, .page-body) > h1 + :is(.help-text, .muted):has(+ :is(.sub-nav, .view-toggle)) {
@@ -1102,7 +1102,7 @@ h2 .chip-not-built { margin-left: var(--s-2); }
   margin-bottom: var(--s-3);
 }
 .decision-kpis .card { margin-bottom: 0; }
-.decision-kpis h2 { margin: var(--s-0_5) 0; font-size: var(--text-md); }
+.decision-kpis h2 { margin: var(--s-0_5) 0; font-size: var(--text-md); font-weight: 600; }
 .decision-kpi-value { font-size: var(--text-xl); margin: var(--s-1) 0 0; font-variant-numeric: tabular-nums; }
 
 /* A guess this layer is not confident in is surfaced, never quietly
@@ -2181,7 +2181,7 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-schema-cols { display: grid; grid-template-columns: minmax(12rem, 1fr) minmax(0, 4fr); gap: var(--s-6); align-items: start; margin-bottom: var(--s-6); }
 .argus-schema-pick { display: grid; gap: var(--s-3); min-width: 0; }
 .argus-schema-pick > * { min-width: 0; }
-.argus-schema-pick h2, .argus-schema-fields h2, .argus-run-list h2 { font-size: var(--text-md); margin: 0; overflow-wrap: anywhere; }
+.argus-schema-pick h2, .argus-schema-fields h2, .argus-run-list h2 { font-size: var(--text-md); font-weight: 600; margin: 0; overflow-wrap: anywhere; }
 .argus-schema-pick :is(p, .field-label) { margin: 0; }
 .argus-schema-pick select { width: 100%; max-width: 100%; }
 .argus-schema-fields { display: grid; gap: var(--s-3); min-width: 0; }
@@ -2356,7 +2356,7 @@ a.vc-box:hover { border-color: var(--text); }
 .cockpit-meter { display: block; height: 4px; background: var(--well); }
 .cockpit-meter > span { display: block; height: 4px; background: var(--cat-1); }
 .cockpit-card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--s-2) var(--s-3); margin-bottom: var(--s-3); }
-.cockpit-card-head h2 { margin: 0; font-size: var(--text-md); }
+.cockpit-card-head h2 { margin: 0; font-size: var(--text-md); font-weight: 600; }
 .cockpit-row { display: flex; flex-wrap: wrap; gap: var(--s-4); }
 .cockpit-row > .cockpit-card { flex: 1 1 480px; min-width: 0; }
 .cockpit-row-3 > .cockpit-card { flex-basis: 340px; }

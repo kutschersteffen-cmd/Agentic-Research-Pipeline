@@ -186,3 +186,11 @@ def test_ac9c_badge_solid(page, scheme):
     bg = _style(badge, "backgroundColor")
     assert _rgb(page, bg)[3] == 1
     assert _contrast(page, _style(badge, "color"), bg) >= 4.5
+
+
+def test_small_card_title_keeps_600(page):
+    # Final review: `.card h2` went to 500, but 16px card titles keep 600.
+    _open(page, "/#/stewardiq/cockpit")
+    h2 = page.locator(".cockpit-card-head h2").first
+    h2.wait_for()
+    assert float(_style(h2, "fontSize")[:-2]) < 20 and _style(h2, "fontWeight") == "600"
