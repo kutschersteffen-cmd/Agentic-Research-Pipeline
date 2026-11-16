@@ -37,6 +37,8 @@ export function partValue(id: string, row: WorklistRow, rows: WorklistRow[], asO
       return plain(row.aum_held_eur_m === null ? "—" : `EUR ${row.aum_held_eur_m.toFixed(1)} m`);
     case "overdue_commitments":
       return plain(String(row.overdue_commitments));
+    case "broken_commitments":
+      return plain(String(row.broken_commitments));
     case "escalated":
       return plain(plural(row.escalated, "engagement"));
     case "open_engagements":
@@ -62,7 +64,12 @@ export function partValue(id: string, row: WorklistRow, rows: WorklistRow[], asO
   }
 }
 
-export type WhyLine = { id: string; label: string; value: { text: string; simulated: boolean }; normalised: number; weight: number; points: number };
+export type WhyLine = {
+  id: string; label: string; value: { text: string; simulated: boolean }; messages: string[]; normalised: number; weight: number; points: number;
+};
+
+// Score parts whose Value carries the commitment loop's flag messages underneath.
+const FLAG_KIND: Record<string, "overdue" | "broken"> = { overdue_commitments: "overdue", broken_commitments: "broken" };
 
 /** The Why tab, worded as the spec fixes it. */
 export function why(row: WorklistRow, rows: WorklistRow[], data: Pick<Worklist, "as_of" | "weights">) {
@@ -70,6 +77,7 @@ export function why(row: WorklistRow, rows: WorklistRow[], data: Pick<Worklist, 
     id: p.id,
     label: COMPONENT_LABEL[p.id] ?? p.id,
     value: partValue(p.id, row, rows, data.as_of),
+    messages: row.commitment_flags.filter((f) => f.kind === FLAG_KIND[p.id]).map((f) => f.message),
     normalised: p.normalised,
     weight: p.weight,
     points: p.points,
