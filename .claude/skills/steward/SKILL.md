@@ -4,9 +4,9 @@ description: How an agent drives its own PR in this repo's software factory - ri
 ---
 
 Repo rules for an agent that opens or drives a PR. They sit on top of the session's own PR rules and
-never loosen them: no skipped tests, no history rewrites, and the agent never approves or merges,
-except a merge the owner approved with the merge button, a spec PR the owner's spec approval covers, or
-the factory's no-tap merge (`.claude/CLAUDE.md`, button mode).
+never loosen them: no skipped tests, no history rewrites, and the agent never approves a PR and merges
+only as `.claude/CLAUDE.md` (button mode) allows: the auto-merge or a spec PR the owner's spec approval
+covers.
 
 ## 1. Label the risk when you open the PR
 
@@ -14,12 +14,12 @@ Pick the highest tier any changed file falls in, add the label, and say why in o
 
 | Label | Files | What the owner does |
 |---|---|---|
-| `risk:low` | Only `docs/**`, `*.md` outside `.claude/`, frontend copy or styles (`*.css`, text-only `.tsx` edits) | Merges once CI is green |
-| `risk:normal` | Anything not low or high | Reads the PR's acceptance matrix, then merges |
-| `risk:high` | Auth, permissions, secrets; database schema or data migrations; money, portfolio weights or index maths; deleting stored data; `.github/workflows/**`, `.github/scripts/**`, `.claude/hooks/**`, `.claude/settings.json` | Reads the acceptance matrix and the diff |
+| `risk:low` | Only `docs/**`, `*.md` outside `.claude/`, frontend copy or styles (`*.css`, text-only `.tsx` edits) | Nothing: auto-merged once every gate is clean; gets one line |
+| `risk:normal` | Anything not low or high | Nothing: auto-merged once every gate is clean; gets one line |
+| `risk:high` | Auth, permissions, secrets; database schema or data migrations; money, portfolio weights or index maths; deleting stored data; `.github/workflows/**`, `.github/scripts/**`, `.claude/hooks/**`, `.claude/settings.json` | Reads the acceptance matrix and the diff, then merges on GitHub |
 
-A `risk:low` or `risk:normal` PR whose `Evidence review (factory)` passed on its current head is merged
-by the factory, with nothing for the owner to do (`.claude/CLAUDE.md`, no-tap merge).
+A `risk:low` or `risk:normal` PR merges without a tap once every gate in `.claude/CLAUDE.md` (auto-merge)
+is clean: by the factory dispatcher if it tracks the PR, else by you.
 
 When unsure between two tiers, take the higher one. Never lower a label the owner set, nor below the
 risk the factory's intake gave (your prompt names it).
@@ -81,8 +81,7 @@ Don't fold an unrelated fix in, open its own PR or suggest it as a task.
 Merge `main` into the branch (a merge commit, never a rebase of someone else's branch) so hidden
 acceptance tests and the evaluator see the code as it would land.
 Once the PR is green, don't merge `main` in again just because `main` moved: that re-runs every check.
-Merge it only for a real conflict, for the merge button (`.claude/CLAUDE.md`), or when the owner or the
-dispatcher asks.
+Merge it only for a real conflict, or when the owner or the dispatcher asks.
 
 ## 6. Review findings
 

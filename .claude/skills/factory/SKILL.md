@@ -6,7 +6,7 @@ description: Run one feature through the whole software factory end to end - spe
 You are the factory's dispatcher. You never write the spec, the tests or the code yourself: each
 stage runs in its own fresh cloud session, so no session sees more than its stage needs. You start
 those sessions, notice when a stage is done, start the next one, and keep the owner and the board
-informed. You never approve, and merge only through the merge button or the no-tap merge (stage 5).
+informed. You never approve, and merge only by the auto-merge (stage 5).
 
 Run the dispatcher on `fable` (judging what comes back), the stage sessions on the models below
 (doing the work). If this session is not on `fable`, say so once in the first status line and carry on.
@@ -48,7 +48,7 @@ All state comes from GitHub, so a fresh session can always pick up:
 | 2. Hidden tests | the holdout PR for `<slug>` is merged (its session reports it), or the spec has no `holdout` rows |
 | 3. Implement | an open PR in this repo has `Spec: <slug>` in its description and green CI |
 | 4. Review + evaluator | that PR has a `Code review (factory)` comment, a `Security review (factory)` comment if it touches a `risk:high` path (steward table), a `UI review (factory)` comment if it touches `frontend/src/**`, and an `Acceptance matrix (evaluator)` comment with an `Evidence review (factory)` comment on it, unless the spec has no `evaluator` rows |
-| 5. Merge gate | the PR is merged, by the owner or by the no-tap merge; with a `Rows:` line that is one slice, and the feature goes back to stage 3 |
+| 5. Merge gate | the PR is merged, by the auto-merge or, for `risk:high`, by the owner; with a `Rows:` line that is one slice, and the feature goes back to stage 3 |
 | 6. Regression | the holdout PR moving `specs/<slug>/` into `regression/` is merged |
 
 `<slug>` is the spec file name without the date and `.md`. Keep one board card per feature
@@ -138,20 +138,15 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
    security review always `opus`; evidence review always `fable`; no label counts as `risk:high`. Hidden tests, evaluator and
    regression run on `opus`.
 5. **Merge gate:** nothing to start. If a review comment the PR's paths require is missing, tell the
-   owner `waiting: <review name>` and offer no merge button. Tell the owner the PR is ready: link, risk label, open review
-   findings, matrix verdict and the head it ran on. If the PR has a `Rows:` line, also list the spec's
-   `holdout` rows that no merged PR for `<slug>` has named yet. For `risk:low` or `risk:normal` with
-   no open findings, offer the merge button (`.claude/CLAUDE.md`, button mode).
-   **No-tap merge:** skip the button and merge (`merge_pull_request`, `merge_method: merge`,
-   `expectedHeadSha` the current head) when all of these hold: the label is `risk:low` or
-   `risk:normal`; every review comment its paths require is there, with no open
-   blocking finding and no `factory:blocked` label; every merge-button
-   condition in `.claude/CLAUDE.md` holds; the matrix and the `Evidence review (factory)` comment both
-   say `Head <current head>`; the evidence review says `Verdict: pass`, and the session you started for
-   it sent you that verdict itself (a comment alone can be written by anyone). First post a PR comment
-   headed `Auto-merge (factory)` with the head and links to the matrix and the evidence review, then
-   merge and tell the owner in one line. If any condition fails or the merge is refused, offer the
-   merge button instead.
+   owner `waiting: <review name>`. **Auto-merge** (`.claude/CLAUDE.md`, button mode) a `risk:low` or
+   `risk:normal` PR once every gate there is clean, the matrix and the `Evidence review (factory)` both say
+   `Head <current head>`, and the evidence-review session you started sent you its verdict itself (a
+   comment alone can be written by anyone). First post a PR comment headed `Auto-merge (factory)` with
+   the head and links to the matrix and the evidence review, then merge and tell the owner the one line
+   that rule names; with a `Rows:` line, add the spec's `holdout` rows no merged PR for `<slug>` has
+   named yet. If a gate fails, say which in one line; if the merge is refused, say why. `risk:high`:
+   tell the owner the PR is ready (link, open findings, matrix verdict and its head); the owner merges
+   it on GitHub.
 6. **Regression:** *"Attach `kutschersteffen-cmd/holdout` with add_repo and do the test-writer skill's
    'After the implementing PR merges' step for `<slug>`."* It merges that holdout PR itself once green.
 
@@ -174,8 +169,8 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
 ## Rules
 
 - This session never attaches `holdout` and never reads hidden tests; it only starts the sessions that do.
-- Never approve or lower a risk label. Merge only after the owner tapped `Approve` on the merge
-  button, or by the no-tap merge (stage 5); otherwise the owner merges. Never merge `risk:high`.
+- Never approve or lower a risk label. Merge only by the auto-merge (stage 5). Never merge
+  `risk:high`: the owner merges it on GitHub.
 - One feature, one board card, one line per update to the owner: stage, what happened, what is next.
 - If `create_session` is unavailable, print the stage prompt and tell the owner to start that session
   by hand, then carry on tracking.

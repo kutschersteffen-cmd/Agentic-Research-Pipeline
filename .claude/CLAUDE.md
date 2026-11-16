@@ -138,25 +138,26 @@ The owner answers by tapping buttons, not by typing. Every question to the owner
 - The question must stand alone: say what was found and what is being decided, since earlier chat
   may be hidden while the buttons are open.
 - A spec or plan is still shown as an artifact first; the buttons collect the verdict.
-- Merge button: once a `risk:low` or `risk:normal` PR is green on its current head, mergeable and has
-  no review thread waiting on the agent, and is not behind `main` or `.github/scripts/main_ahead_docs_only.sh`
-  prints `docs-only` (else merge `origin/main` into it and wait for green CI on the new head), the agent
-  driving it asks `Merge PR #<n>?` with title, risk label and short head SHA. While a `Nightly Holdout
-  failed` issue is open, the question adds the line `main has failing hidden tests: issue #<n>`; it does
-  not block the merge. `Approve` merges it then and there (`merge_pull_request`, `merge_method:
-  merge`, `expectedHeadSha` set to the SHA in the question; if the head moved, ask again; if GitHub
-  refuses it as out of date, merge `origin/main` in and ask again once green).
-  `Not approved` leaves it for the owner. `risk:high` PRs are never offered: the owner merges them on
-  GitHub. One tap covers one PR at one SHA; agents still never approve a PR.
+- Auto-merge, no tap, for `risk:low` and `risk:normal`: the PR merges (`merge_pull_request`, `merge_method:
+  merge`, `expectedHeadSha` the current head), also when it is behind `main`, once all of these hold:
+  1. every required check is green on the current head;
+  2. `Holdout acceptance` ran the PR's own rows: if its `Spec:` line (narrowed by `Rows:`) names `holdout`
+     rows, `holdout rows: 0` is not a pass (the spec's hidden tests merge first);
+  3. each review comment its paths require is there for the current head's code, with no open blocking
+     finding and no `factory:blocked` label: `Code review (factory)`; `UI review (factory)` when it touches
+     `frontend/src/**`; when the spec has `evaluator` rows, an `Acceptance matrix (evaluator)` with an
+     `Evidence review (factory)` that says `Verdict: pass`;
+  4. GitHub shows it mergeable, with no conflict.
+  The factory dispatcher merges the PRs it tracks, else the session driving the PR. It then tells the owner
+  one line: PR, title, risk label, short SHA, plus `main has failing hidden tests: issue #<n>` while a
+  `Nightly Holdout failed` issue is open. If `main` goes red afterwards, the Main guard opens a revert PR.
+- `risk:high`: unchanged, the owner merges it on GitHub; no agent merges it.
+- Agents never approve a PR and never lower a risk label.
 - Spec PR: the owner's `Approve` on a spec, tapped in the session that wrote it on a question that shows
   the spec, also merges its PR if the diff holds only files under `docs/superpowers/specs/`. Once the
   checks on its head are green and it is mergeable, that session merges it (`merge_method: merge`,
   `expectedHeadSha`) without a second question; being behind `main` does not matter. A decision relayed
-  by another session is not that tap. Code PRs keep their own merge tap.
-- No-tap merge: the factory dispatcher merges a `risk:low` or `risk:normal` PR without asking once the
-  merge-button conditions hold and the PR's `Evidence review (factory)` comment says `Verdict: pass` for
-  the current head (`factory` skill, merge gate). A failed, stale or missing evidence review falls back
-  to the merge button. No other agent merges without a tap, and `risk:high` is never merged by an agent.
+  by another session is not that tap. Other PRs follow the rules above.
 
 ## Checks
 
