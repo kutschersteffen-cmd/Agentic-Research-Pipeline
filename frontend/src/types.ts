@@ -207,7 +207,6 @@ export interface CompanyMatch {
 
 // --- Revenue/CapEx exposure resolution ---
 
-export type RevenueCapexMetric = "revenue" | "capex";
 export type ExposureDataSource = "catalogue" | "extracted" | "qualitative" | "unresolved";
 
 export type ActivityCatalogueMapping = Served<S["ActivityCatalogueMapping"]>;
@@ -482,48 +481,6 @@ export type Verdict = "YES" | "NO" | "NA";
 
 export type TransitionPlanIndicatorDef = Served<S["TransitionPlanIndicator"]>;
 
-export interface IndicatorAssessment {
-  number: number;
-  identifier: string;
-  category: IndicatorCategory;
-  walk_or_talk: WalkOrTalk;
-  question: string;
-  verdict: Verdict;
-  answer: string;
-  citations: Citation[];
-  grounded: boolean;
-  confidence: number;
-  needs_review: boolean;
-  verifier_notes?: string | null;
-  assessment_error: boolean;
-}
-
-export interface CategoryBreakdown {
-  category: IndicatorCategory;
-  disclosed_count: number;
-  total_count: number;
-}
-
-export interface TransitionPlanAssessmentRecord {
-  company_id: string;
-  ticker?: string | null;
-  name: string;
-  run_id: string;
-  company_sector?: string | null;
-  company_location?: string | null;
-  report_year?: string | null;
-  indicators: IndicatorAssessment[];
-  disclosed_count: number;
-  walk_disclosed_count: number;
-  walk_total_count: number;
-  talk_disclosed_count: number;
-  talk_total_count: number;
-  by_category: CategoryBreakdown[];
-  overall_confidence: number;
-  needs_review: boolean;
-  generated_at: string;
-}
-
 // --- Review decisions (per-item audit trail; item_key granularity is
 // caller-defined, e.g. "{company_id}:{activity_id}" or "{company_id}:{field_id}") ---
 
@@ -667,40 +624,6 @@ export interface DocumentEvent {
   company_name?: string | null;
   document: DiscoveredDocument;
   created_at: string;
-}
-
-// --- Identity resolution ---
-
-export type IdentityVerdict = "resolved" | "uncertain" | "unresolved";
-
-export interface EdgarNameMatch {
-  ticker: string;
-  cik: string;
-  title: string;
-}
-
-export interface WebSearchHit {
-  title: string;
-  url: string;
-  snippet: string;
-}
-
-export interface IdentitySignals {
-  edgar_matches: EdgarNameMatch[];
-  search_results: WebSearchHit[];
-}
-
-export interface IdentityResolutionResult {
-  company_id: string;
-  input_name: string;
-  verdict: IdentityVerdict;
-  confidence: number;
-  resolved_website?: string | null;
-  resolved_cik?: string | null;
-  signals: IdentitySignals;
-  rationale: string;
-  flagged_for_review: boolean;
-  generated_at: string;
 }
 
 export type DiscoveryScheduleConfig = Served<S["DiscoveryScheduleConfig"]>;
@@ -1651,16 +1574,13 @@ export interface BarrierRefreshCoverage {
 
 // --- Decision Mechanism (scoring, ranking, tiering) ---
 
-export type ColumnType = "numeric" | "ordinal" | "boolean" | "categorical" | "identifier" | "text";
 export type ColumnRole = "label" | "reference" | "size" | "gate" | "criterion" | "segment" | "excluded";
 export type Direction = "higher" | "lower";
 export type NormMethod = "percentile" | "minmax" | "zscore";
 export type MissingPolicy = "renormalise" | "neutral" | "mean" | "penalise";
 export type WeightPreset = "balanced" | "equal" | "entropy" | "manual";
 export type CutMode = "quantile" | "breaks" | "absolute";
-export type GateOp = "is" | "isnot" | "lt" | "gt" | "eq";
 export type GateOutcome = "exclude" | "demote" | "flag";
-export type EntityStatus = "scored" | "excluded" | "insufficient";
 
 export const COLUMN_ROLES: ColumnRole[] = ["label", "reference", "size", "gate", "criterion", "segment", "excluded"];
 
@@ -1928,8 +1848,6 @@ export interface ConstructionSpec {
 export type IndexCalibration = Served<S["IndexCalibration"]>;
 
 export type StageTrace = Served<S["StageTrace"]>;
-
-export type IndexConstituent = Served<S["Constituent"]>;
 
 export interface IndexState {
   index_id: string;
@@ -2577,7 +2495,6 @@ export interface RunCompany {
 
 /** Superset BI designer (/api/bi). A plan that fails validation is a 200 with `rejected` reasons and no dashboard;
  * a question back from the model is a 200 with `clarification_needed`. */
-export type BIChartSpec = Served<S["ChartSpec-Output"]>;
 
 export type BIChartPlan = Served<S["ChartPlan"]>;
 
@@ -2770,11 +2687,7 @@ export interface WorkbenchResponse {
 // One-company view (backend arp/db/company_view.py)
 export type CompanyFactStatus = "auto_accepted" | "approved" | "edited" | "pending_review" | "held";
 
-export type CompanyIdentifier = Served<S["IdentifierOut"]>;
-
 export type CompanySearchHit = Served<S["CompanySearchHit"]>;
-
-export type CompanyHolder = Served<S["HolderOut"]>;
 
 export type CompanySummary = Served<S["CompanySummary"]>;
 
@@ -2799,26 +2712,13 @@ export interface CompanyFactRow {
 // `company_id`: For the raw-file route, in the document registry's original case.
 export type FactCitation = Served<S["CitationOut"]>;
 
-export type FactLoad = Served<S["LoadOut"]>;
-
-export type FactDecision = Served<S["DecisionOut"]>;
-
-export type FactObservation = Served<S["ObservationOut"]>;
-
 export type FactVersion = Served<S["FactVersion"]>;
 
 export type FactTrail = Served<S["FactTrail"]>;
 
 /** GET /api/companies/{ref}/transition (backend arp/schemas/transition_alignment.py). */
-export type TransitionBenchmark = Served<S["BenchmarkOut"]>;
 
 export type TransitionShare = Served<S["ShareOut"]>;
-
-export type TransitionAmount = Served<S["AmountOut"]>;
-
-export type TransitionRndResult = Served<S["RndResultOut"]>;
-
-export type TransitionRedline = Served<S["RedlineOut"]>;
 
 export type TransitionCapex = Served<S["CapexOut"]>;
 
@@ -2987,7 +2887,6 @@ export type VcTree = Served<S["ValueChainTree"]>;
 export type VcFootprint = Served<S["ValueChainFootprint"]>;
 export type VcQuantityShock = Served<S["ValueChainQuantityShock"]>;
 export type VcPriceShock = Served<S["ValueChainPriceShock"]>;
-export type VcMaterial = Served<S["ValueChainMaterial"]>;
 export type VcMaterialFootprint = Served<S["ValueChainMaterialFootprint"]>;
 export type VcMaterialTree = Served<S["ValueChainMaterialTree"]>;
 export type VcMaterialTreeNode = Served<S["ValueChainMaterialTreeNode"]>;
