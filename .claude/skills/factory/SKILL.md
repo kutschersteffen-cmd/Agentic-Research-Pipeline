@@ -16,6 +16,10 @@ Run the dispatcher on `fable` (judging what comes back), the stage sessions on t
 - `/factory <feature in plain words>` - start a new feature at stage 1.
 - `/factory` - status: for every open feature, show its stage and the one thing it waits on, then
   start whatever is ready, then list all other sessions (below). Run it any time; it is safe to repeat.
+  Status starts with one line per open `Nightly Holdout failed` issue: `Hidden tests red on main: issue
+  #<n>, merges <sha>..<sha>` (the range from the issue body).
+- Owner says "showcase freeze": start a manual `holdout.yml` run on `main` (`actions_run_trigger`). Once
+  it ends, send the owner `Showcase check: full hidden run on <short sha>: <success|failure>, <run link>`.
 
 ## All sessions
 

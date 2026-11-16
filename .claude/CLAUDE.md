@@ -139,10 +139,13 @@ The owner answers by tapping buttons, not by typing. Every question to the owner
   may be hidden while the buttons are open.
 - A spec or plan is still shown as an artifact first; the buttons collect the verdict.
 - Merge button: once a `risk:low` or `risk:normal` PR is green on its current head, mergeable and has
-  no review thread waiting on the agent, and is not behind `main` (else merge `origin/main` into it and
-  wait for green CI on the new head), the agent driving it asks `Merge PR #<n>?` with title, risk
-  label and short head SHA. `Approve` merges it then and there (`merge_pull_request`, `merge_method:
-  merge`, `expectedHeadSha` set to the SHA in the question; if the head moved, ask again).
+  no review thread waiting on the agent, and is not behind `main` or `.github/scripts/main_ahead_docs_only.sh`
+  prints `docs-only` (else merge `origin/main` into it and wait for green CI on the new head), the agent
+  driving it asks `Merge PR #<n>?` with title, risk label and short head SHA. While a `Nightly Holdout
+  failed` issue is open, the question adds the line `main has failing hidden tests: issue #<n>`; it does
+  not block the merge. `Approve` merges it then and there (`merge_pull_request`, `merge_method:
+  merge`, `expectedHeadSha` set to the SHA in the question; if the head moved, ask again; if GitHub
+  refuses it as out of date, merge `origin/main` in and ask again once green).
   `Not approved` leaves it for the owner. `risk:high` PRs are never offered: the owner merges them on
   GitHub. One tap covers one PR at one SHA; agents still never approve a PR.
 - No-tap merge: the factory dispatcher merges a `risk:low` or `risk:normal` PR without asking once the

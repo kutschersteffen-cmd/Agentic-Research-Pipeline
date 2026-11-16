@@ -29,6 +29,9 @@ name without date and `.md`), so the Holdout acceptance job runs that spec's hid
 see those tests: a failure reads `<slug> AC-n: fail`; fix the behaviour the row describes.
 When the PR builds one slice of a spec, add a `Rows: AC-1, AC-4` line under it naming the rows that
 slice delivers, so hidden tests for later slices don't run yet. The last slice drops the line.
+A PR that fixes a nightly failure puts `Holdout: full` and `Refs #<issue>` (the nightly issue) each on its
+own line, so the full hidden suite runs before it merges. Its fix-round count starts at 0. The issue closes
+on the next green full run on `main`, not by the PR.
 
 ## 2. Stop after three failed fix rounds
 
