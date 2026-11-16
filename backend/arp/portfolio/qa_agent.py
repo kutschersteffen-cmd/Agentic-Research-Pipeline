@@ -25,7 +25,7 @@ Valid metrics: "market_value_sum" (a plain EUR exposure figure),
 the supplied data point directory; WACI, the weighted average carbon
 intensity, is this metric on the carbon intensity field), "count".
 security_filter is a dict of dimension_name -> exact value to filter
-holdings to, e.g. {{"company_id": "bmw", "asset_class": "equity"}}.
+holdings to, e.g. {{"company_id": "isin_DE0005190003", "asset_class": "equity"}}.
 portfolio_filter is a list of portfolio_ids from the supplied portfolio
 directory to restrict to; empty means all portfolios.
 scale is "units" (plain EUR, the default) or "millions": choose "millions"

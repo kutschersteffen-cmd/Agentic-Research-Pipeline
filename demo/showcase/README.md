@@ -23,3 +23,13 @@ Source: etf_dax.csv is data/holdings/DAX.xlsx, public ETF holdings (DAX index fu
 Source: etf_euro_stoxx_50.csv is data/holdings/EURO_STOXX_50.xlsx, public ETF holdings (EURO STOXX 50 index fund, DWS constituent export) as of 2026-11-02.
 Source: etf_ai_big_data.csv is data/holdings/AI_Big_Data.xlsx, public ETF holdings (AI & Big Data index fund, ISIN IE00BGV5VN51) as of 2026-11-12.
 Simulated: ESG values, controversial revenue shares, A-F transition grades and the June to October 2026 holdings history come from data/simulated/esg_simulated.csv, loaded by `arp showcase load`; none of it is real data.
+
+## Rebuild
+
+Before the showcase, rebuild the database rather than cleaning it in place: a database where the older demo seed
+ran holds the 15 seeded companies twice (spec `showcase-curated-company-keys`).
+
+1. Start from an empty Postgres database (a new database, or drop and recreate the existing one).
+2. `scripts/launch_jupyter.sh up`
+3. From `backend/`: `python scripts/load_showcase_pack.py` (runs `arp showcase load`).
+4. Optional, only if the seeded demo portfolios are wanted: `arp portfolio seed-demo`.
