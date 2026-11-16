@@ -3,7 +3,7 @@
 Slug: showcase-login-origins
 
 Risk: `risk:high` for the build (sign-in and permissions). Size S, 1 PR: launch script, install guide, root `README.md`, run book (`RUN_SHEET.md`,
-`demo/showcase/README.md`), and two earlier specs' rows (`voting-api-login` AC-10, `bank-jupyter-launch` AC-11a).
+`demo/showcase/README.md`), and two earlier specs' rows (`voting-api-login` AC-10, `bank-jupyter-launch` AC-11a, AC-18, AC-31).
 
 Status: owner's choices recorded 16 Nov 2026 (buttons in the spec session); waiting for approval of this spec.
 Source: security review of PR #529 (`voting-api-login`), 16 Nov 2026, point 1; the owner chose "fix it as its own
@@ -93,7 +93,8 @@ and direct network access still is. (c) Both, plus an app-side refusal of dev mo
    Nothing is deleted, renamed or weakened.
 5. **Spec `bank-jupyter-launch`, row AC-11a** (edited in the build PR): "a valid `backend/.env`" becomes "a valid
    `backend/.env` (with `ARP_AUTH_MODE=local` and `ARP_USERS_FILE` pointing at an existing users file, spec
-   `showcase-login-origins`)". The rows that start "After AC-11a" follow from it unchanged.
+   `showcase-login-origins`)". Rows AC-18 and AC-31 (they run `up` too) gain "a valid `backend/.env` as in
+   AC-11a" in their Given. The rows that start "After AC-11a" follow from it unchanged.
 
 **Requests without an `Origin` header.** In local mode nothing changes for them, and nothing needs to: every
 request needs a token, with or without `Origin`, from loopback too (AC-3). A cross-site attack needs the browser
@@ -137,11 +138,11 @@ set, like `real_client_at` in `backend/tests/test_auth.py`; the e2e stack stays 
 | AC-7a | AC-6a's running app | A browser with no stored token opens `http://localhost:8000/` | The top left shows the label `Access token` and an input with placeholder `Paste your token` | evaluator |
 | AC-7b | After AC-7a | The First Reviewer token from the users file is pasted into that input and Enter pressed | The page shows `Signed in as First Reviewer (approver)` and a `Sign out` button | evaluator |
 | AC-8 | The build is merged | `docs/INSTALLATION.md`, section `## Bank Jupyter (Vertex)`, is read | Its `ini` block contains `ARP_AUTH_MODE=local` and `ARP_USERS_FILE`, and does not contain `ARP_AUTH_MODE=dev`, `ARP_DEV_TRUSTED_NETWORKS` or `ARP_ALLOWED_ORIGINS`; the section contains `scripts/launch_jupyter.sh users` | unit |
-| AC-12 | The build is merged | `docs/INSTALLATION.md` section `## Bank Jupyter (Vertex)` and `README.md` are read | Each contains the sentence of design point 2 verbatim; `README.md` does not contain `another website cannot` | unit |
+| AC-12 | The build is merged | `docs/INSTALLATION.md` section `## Bank Jupyter (Vertex)` and `README.md` are read | Each contains, after collapsing every run of whitespace (newlines included) to one space and ignoring `*` and `_`, the text ``Never combine `ARP_AUTH_MODE=dev` with `ARP_ALLOWED_ORIGINS=["*"]`: `"*"` lets any website open in the same browser act as the dev approver.``; `README.md` does not contain `another website cannot` | unit |
 | AC-9 | The build is merged | `demo/showcase/RUN_SHEET.md`, section `## Day before`, is read | `scripts/launch_jupyter.sh users` appears before the first `scripts/launch_jupyter.sh up`, and every line containing `load_showcase_pack.py` also contains `ARP_SHOWCASE_TOKEN=` | unit |
 | AC-13 | The build is merged | `demo/showcase/README.md` is read | `scripts/launch_jupyter.sh users` appears before the first `scripts/launch_jupyter.sh up`, and every line containing `load_showcase_pack.py` also contains `ARP_SHOWCASE_TOKEN=` | unit |
 | AC-10 | The build is merged | `docs/superpowers/specs/2026-11-15-voting-api-login.md` is read | Row AC-10's Given contains `showcase-login-origins` and not `the bank JupyterLab settings`; the `Must not change` line does not contain `AC-10` | unit |
-| AC-14 | The build is merged | `docs/superpowers/specs/2026-11-11-bank-jupyter-launch-design.md` is read | Row AC-11a's Given contains `ARP_AUTH_MODE=local` and `showcase-login-origins` | unit |
+| AC-14 | The build is merged | `docs/superpowers/specs/2026-11-11-bank-jupyter-launch-design.md` is read | Row AC-11a's Given contains `ARP_AUTH_MODE=local` and `showcase-login-origins`; rows AC-18 and AC-31 each contain `AC-11a` in their Given | unit |
 | AC-15 | No `config/users.json` (a temporary repo copy) | `scripts/launch_jupyter.sh users` | Exit 0; stdout contains the lines `  ARP_AUTH_MODE=local` and `  ARP_USERS_FILE=<repo>/config/users.json` (must not change) | unit |
 
 Must not change: AC-6a, AC-6b, AC-15 here. The regression guard for dev mode is `voting-api-login` AC-1 to AC-9
