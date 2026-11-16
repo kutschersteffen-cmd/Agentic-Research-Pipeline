@@ -205,7 +205,8 @@ The owner answers by tapping buttons, not by typing. Every question to the owner
   installs everything in the background.
 
 The Stop hook (`.claude/hooks/check.sh`) runs these on the code you changed and blocks finishing
-on failure; CI runs the full suites.
+on failure; CI runs the full suites on `main`. On a PR it skips the jobs whose files the PR does not touch
+(rules: `.github/scripts/ci_changes.py`).
 
 ## Codebase context
 

@@ -14,10 +14,12 @@ concurrency:
 jobs:
   # On a PR, the jobs below skip when the PR changes nothing they read (rules: .github/scripts/ci_changes.py).
   # A skipped job reports success under its own name, so required checks pass. Push to main runs everything.
-  # If this job fails, its outputs are empty (not 'false'), so every job runs.
+  # If this job is skipped or fails, its outputs are empty (not 'false'), so every job runs.
   changes:
     name: Changed areas
+    if: github.event_name == 'pull_request'  # skipped on push: empty outputs, so every job runs
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       backend: ${{ steps.areas.outputs.backend }}
       frontend: ${{ steps.areas.outputs.frontend }}
@@ -33,11 +35,7 @@ jobs:
       - name: Pick the jobs
         id: areas
         run: |
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            git diff --name-only HEAD^1 HEAD | python3 .github/scripts/ci_changes.py >>"$GITHUB_OUTPUT"
-          else
-            printf 'backend=true\nfrontend=true\napp=true\n' >>"$GITHUB_OUTPUT"
-          fi
+          python3 .github/scripts/ci_changes.py >>"$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"
 
   backend:
