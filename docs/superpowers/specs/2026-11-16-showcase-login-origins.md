@@ -5,7 +5,8 @@ Slug: showcase-login-origins
 Risk: `risk:high` for the build (sign-in and permissions). Size S, 1 PR: launch script, install guide, root `README.md`, run book (`RUN_SHEET.md`,
 `demo/showcase/README.md`), and two earlier specs' rows (`voting-api-login` AC-10, `bank-jupyter-launch` AC-11a, AC-18, AC-31).
 
-Status: owner's choices recorded 16 Nov 2026 (buttons in the spec session); waiting for approval of this spec.
+Status: **approved by the owner on 16 Nov 2026** (buttons in the spec session, after two spec-critic rounds). The
+owner's choices were recorded the same day.
 Source: security review of PR #529 (`voting-api-login`), 16 Nov 2026, point 1; the owner chose "fix it as its own
 item". Checked against `origin/main` `bb70169` and PR #529 head `279f4a4`.
 
