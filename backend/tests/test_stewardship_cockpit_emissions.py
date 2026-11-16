@@ -96,3 +96,19 @@ def test_emissions_of_top_six_ties_and_buckets_ac58():
     assert e["engaged_tco2e"] + e["selected_not_engaged_tco2e"] + e["not_selected_tco2e"] == pytest.approx(e["total_tco2e"], abs=0.1)
     assert (e["engaged_tco2e"], e["selected_not_engaged_tco2e"], e["uncovered_holding_count"]) == (10.0, 2.0, 2)
     assert emissions_of({}, 3, {}, set(), set(), set()) is None
+
+
+def test_emissions_null_when_total_rounds_to_zero_review_fixes():
+    # spec cockpit-review-fixes (finding 5): 0.004 t reads 0.00 t, so the panel hides instead of showing "0 of 0 t"
+    assert emissions_of({"a": 0.004}, 0, {}, set(), set(), set()) is None
+    assert emissions_of({"a": 0.005}, 0, {}, set(), set(), set())["total_tco2e"] == 0.01
+
+
+def test_contributor_ties_on_rounded_tonnes_by_name_then_key_review_fixes_ac10_ac11():
+    # AC-10: 10.001 and 10.004 t both read 10.0, so name orders them; AC-11: equal names fall back to the key
+    companies = {"A": CompanyRef(company_id="A", name="Alpha AG"), "C": CompanyRef(company_id="C", name="Beta SE")}
+    e = emissions_of({"C": 10.004, "A": 10.001}, 0, companies, set(), set(), set())
+    assert [(c["company_id"], c["tco2e"]) for c in e["contributors"]] == [("A", 10.0), ("C", 10.0)]
+    same = {k: CompanyRef(company_id=k, name="Same") for k in ("k1", "k2")}
+    e = emissions_of({"k2": 5.004, "k1": 5.001}, 0, same, set(), set(), set())
+    assert [c["company_id"] for c in e["contributors"]] == ["k1", "k2"]
