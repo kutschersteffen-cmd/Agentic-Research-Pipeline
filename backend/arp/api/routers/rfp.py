@@ -82,11 +82,15 @@ def list_library() -> list[RfpLibraryEntryOut]:
 
 
 @router.post("/library/import", response_model=RfpLibraryImportOut, dependencies=[Depends(_approver)])
-async def import_library(files: list[UploadFile] = File(...), llm=Depends(get_llm_client)) -> RfpLibraryImportOut:
+async def import_library(files: list[UploadFile] = File(...), llm=Depends(get_llm_client),
+                         settings=Depends(settings_dep)) -> RfpLibraryImportOut:
     loaded = []
     for f in files:
         _suffix(f.filename)
-        loaded.append((PurePath(f.filename).name, await f.read()))
+        data = await f.read(settings.max_upload_bytes + 1)
+        if len(data) > settings.max_upload_bytes:
+            raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
+        loaded.append((PurePath(f.filename).name, data))
     imported, dropped = await store.import_library(loaded, llm)
     return RfpLibraryImportOut(imported=imported, dropped=dropped)
 
@@ -202,7 +206,9 @@ async def create_project(
 ) -> RfpProjectOut:
     """Stores the investor's file unchanged and starts finding and auto-filling its questions in the background."""
     suffix = _suffix(file.filename)
-    data = await file.read()
+    data = await file.read(settings.max_upload_bytes + 1)
+    if len(data) > settings.max_upload_bytes:
+        raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
     key = hashlib.sha256(data).hexdigest()
     upload_or_fail(blobs, key, data)
     created: dict[str, int] = {}
