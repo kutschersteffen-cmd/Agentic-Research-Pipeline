@@ -11,3 +11,11 @@ test("pr1_ac24_design_md", () => {
   assert.ok(!design.includes("**Sidebar:**"), "no Sidebar entry");
   assert.ok(!design.includes("**Mobile / tablet:**"), "no Mobile / tablet entry");
 });
+
+// One waiting count, AC-13: the badge's entry names all three parts.
+test("wc_ac13_design_md", () => {
+  const up = ["../../", "../../../", "../../../../"].map((p) => new URL(`${p}DESIGN.md`, import.meta.url));
+  const design = readFileSync(up.find((u) => existsSync(u)) ?? up[0], "utf8");
+  const entry = design.split("\n").find((l) => l.startsWith('- **"Needs you" count:**')) ?? "";
+  assert.ok(entry.includes("open review items, open stewardship decisions and undecided ballots"), entry);
+});

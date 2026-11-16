@@ -274,7 +274,7 @@ Where a value's history matters, a four-step trail shows source â†’ extracted â†
 ### Chips and Badges
 - **Rating badge:** pastel (see Secondary colours), 2px corners.
 - **Status pill:** a square dot and the status word.
-- **"Needs you" count:** amber fill with white text (Night: dark text), square (2px), on the top bar's Review Queue link.
+- **"Needs you" count:** amber fill with white text (Night: dark text), square (2px), on the top bar's Review Queue link. One number for everything waiting on a decision: open review items, open stewardship decisions and undecided ballots (`GET /api/waiting`); the label names each part. Hidden at 0 and when the count fails.
 
 ### Cards / Containers
 - **Corner Style:** `--r-lg` (12px).
