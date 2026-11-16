@@ -4,16 +4,11 @@ import csv
 import hashlib
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Protocol
 
 from arp.signal_lab.text_store import TextRecord, make_record
 from arp.signal_lab.times import normalise_time
 
 _REQUIRED = ("issuer_key", "event_time", "title", "text")
-
-
-class TranscriptSource(Protocol):
-    def records(self) -> list[TextRecord]: ...
 
 
 class CsvTranscriptSource:

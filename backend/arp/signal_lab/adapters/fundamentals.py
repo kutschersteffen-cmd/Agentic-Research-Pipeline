@@ -3,16 +3,11 @@ from __future__ import annotations
 import csv
 import math
 from pathlib import Path
-from typing import Protocol
 
 from arp.replication.characteristics_data import CharacteristicPanel
 from arp.signal_lab.times import month_end_time, normalise_time
 
 _REQUIRED = ("issuer_key", "metric", "fiscal_period_end", "available_time", "value")
-
-
-class FundamentalSource(Protocol):
-    def get_panel(self, metric: str, issuer_keys: list[str], period_ends: list[str]) -> CharacteristicPanel: ...
 
 
 class CsvFundamentalSource:
