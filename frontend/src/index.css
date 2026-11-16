@@ -909,6 +909,7 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 
 .timeline { list-style: none; padding: 0; margin: var(--s-1_5) 0 0; font-size: var(--text-sm); }
 .timeline li { padding: var(--s-1_5) 0 var(--s-1_5) var(--s-3); border-left: 2px solid var(--panel-border); position: relative; }
+.timeline li:focus { outline: 2px solid var(--accent); outline-offset: 2px; } /* a note focused by "Show the note" */
 .timeline li::before {
   content: "";
   position: absolute;

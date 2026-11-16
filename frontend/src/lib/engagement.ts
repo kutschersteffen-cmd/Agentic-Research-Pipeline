@@ -93,6 +93,19 @@ export function foundLine(suggestions: number): string {
   return `Found ${plural(suggestions, "suggestion")}.`;
 }
 
+/** Spacing, case and typographic quotes and dashes, as PDF-to-text changes them, removed before comparing a quote. */
+const normalise = (t: string) =>
+  t.replace(/[‘’]/g, "'").replace(/[“”„]/g, '"').replace(/[–—‑−]/g, "-").replace(/\s+/g, " ").toLowerCase();
+
+/** Whether a found commitment's quote is word for word in its note (spec stewardship-decisions-round-2, area 2). */
+export function quoteInNote(quote: string, summary: string): boolean {
+  const q = normalise(quote).trim();
+  return q !== "" && normalise(summary).includes(q);
+}
+
+/** The id of a correspondence entry's `<li>` in the issue panel, so a found commitment can move focus to its note. */
+export const noteAnchor = (entryId: string) => `note-${entryId}`;
+
 /** One load of a company's suggestions. `loaded` is null on any error; `error` is the error's text ("<status>: <detail>"),
  * except on the file store's 409, which only means there are no suggestions there. */
 export async function loadSuggestions<T>(

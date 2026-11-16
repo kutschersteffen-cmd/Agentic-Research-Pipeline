@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { batchFlagLines, canSaveResult, checkLine, dueText, engagementCounts, engagementLine, evidenceText, fmt, foundHeader, foundLine, isDemoIssue, issueTopics, loadSuggestions } from "../src/lib/engagement.ts";
+import { batchFlagLines, canSaveResult, checkLine, dueText, engagementCounts, engagementLine, evidenceText, fmt, foundHeader, foundLine, isDemoIssue, issueTopics, loadSuggestions, quoteInNote } from "../src/lib/engagement.ts";
 
 const issue = (status: string, escalation_stage: string) => ({ status, escalation_stage }) as never;
 
@@ -95,6 +95,14 @@ test("foundHeader names the note's type and date, or no date when the note is un
   assert.equal(foundHeader({ type: "meeting", activity_type: "meeting", date: "2026-10-01T09:00:00+00:00" }), "Argus found a commitment in the meeting of 2026-10-01");
   assert.equal(foundHeader({ type: "email", date: "2026-10-01" }), "Argus found a commitment in the email of 2026-10-01");
   assert.equal(foundHeader(undefined), "Argus found a commitment in a note");
+});
+
+test("quoteInNote matches word for word, ignoring case, spacing and typographic quotes and dashes", () => {
+  assert.equal(quoteInNote("We will publish a transition plan by 2026.", "Call: we will  publish a transition plan by 2026. Thanks"), true);
+  assert.equal(quoteInNote("We’ll publish – by 2026", "they said we'll publish - by 2026"), true);
+  assert.equal(quoteInNote("“Net zero” by 2050", "\"net\u00a0zero\" by 2050"), true);
+  assert.equal(quoteInNote("We will publish a transition plan by 2026.", "We shall publish a transition plan by 2026."), false);
+  assert.equal(quoteInNote("  ", "anything"), false);
 });
 
 // Stewardship screens polish (spec stewardship-screens-polish, PR B).
