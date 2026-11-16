@@ -68,6 +68,14 @@ def rfp_in_xlsx() -> bytes:
     return _save(rfp_in_workbook())
 
 
+def rfp_one_xlsx(question: str) -> bytes:
+    """One sheet `RFP`: `A1` the question, `B1` empty."""
+    wb = Workbook()
+    wb.active.title = "RFP"
+    wb.active["A1"] = question
+    return _save(wb)
+
+
 def rfp_image_xlsx() -> bytes:
     from openpyxl.drawing.image import Image
     from PIL import Image as PILImage
