@@ -37,6 +37,27 @@ export function isDemo(issue: Pick<EngagementIssue, "data_source">, objective: {
   return DEMO_SOURCES.includes(issue.data_source ?? "") || DEMO_SOURCES.includes(objective.source ?? "");
 }
 
+/** The issue header's `Demo data` chip: the issue, or any of its objectives, came from a demo seed. */
+export function isDemoIssue(issue: Pick<EngagementIssue, "data_source" | "objectives">): boolean {
+  return isDemo(issue, {}) || issue.objectives.some((o) => isDemo(issue, o));
+}
+
+/** A code as words: `in_progress` -> `in progress`. */
+export function fmt(s: string): string {
+  return s.replace(/_/g, " ");
+}
+
+/** A due date as stored, or only its date when it is an ISO timestamp (`2026-12-31T00:00:00` -> `2026-12-31`). */
+export function dueText(date: string): string {
+  return /^\d{4}-\d{2}-\d{2}T/.test(date) ? date.slice(0, 10) : date;
+}
+
+/** The "Approve N routine" dialog's flag list: `<company>: <message>` for each watch flag of a company in the batch, once. */
+export function batchFlagLines(ballots: { company_id: string; name: string; watch_flags?: { message: string }[] }[], companyIds: string[]): string[] {
+  const lines = ballots.filter((b) => companyIds.includes(b.company_id)).flatMap((b) => (b.watch_flags ?? []).map((f) => `${b.name}: ${f.message}`));
+  return [...new Set(lines)];
+}
+
 // VOICE lists, as the API takes them (spec stewardship-commitment-loop, "Record result").
 export const OBJECTIVE_RESULTS = ["achieved", "partially_achieved", "not_achieved", "deterioration", "abandoned"] as const satisfies readonly S["ObjectiveResult"][];
 export const INFLUENCE_LEVELS = ["1", "2", "3", "4A", "4B", "5"] as const satisfies readonly S["InfluenceLevel"][];

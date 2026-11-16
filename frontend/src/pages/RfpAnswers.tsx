@@ -247,9 +247,9 @@ function QuestionCard({ q, projectId, act }: { q: RfpQuestion; projectId: number
   // Four-eyes: say so where the Approve button would be, instead of leaving it out silently.
   const ownEdit = me?.role === "approver" && q.status !== "approved" && q.last_editor === me.user_id;
   // The base entry's question is that of the source citing it; the comparison itself is worked out by the server.
-  // `?? []`: a project read from an older server (or stubbed without the field) has no segments
+  // `?? []`: the AC-145 stub in tests/e2e/test_showcase_stewardship_side.py sends no segments; keep this guard
   const segments = q.segments ?? [];
-  const showChange = q.base_entry_id != null && segments.length > 0;
+  const showChange = (q.status === "drafted" || q.status === "edited") && q.base_entry_id != null && segments.length > 0;
   const baseQuestion = q.sources.find((src) => src.entry_id === q.base_entry_id)?.entry_question;
 
   return (
@@ -262,18 +262,25 @@ function QuestionCard({ q, projectId, act }: { q: RfpQuestion; projectId: number
         <span className="chip">{q.assignee ? `assigned to ${q.assignee}` : "unassigned"}</span>
         {q.last_editor && <span className="chip">last edited by {q.last_editor}</span>}
       </div>
-      {q.document_priority === 0 && <p className="muted">From approved answers only</p>}
+      {q.status === "drafted" && q.document_priority === 0 && <p className="muted">From approved answers only</p>}
       {showChange && (
         <div>
           <p className="help-text">
             {segments.every((seg) => seg.change === "kept") ? "Approved answer, unchanged" : `${q.kept_share}% unchanged from the approved answer`}
             {baseQuestion && <> · based on <strong>{baseQuestion}</strong></>}
           </p>
-          <p aria-label="Changes against the approved answer">
+          <p>
             {segments.map((seg, i) => (
               <Fragment key={i}>
                 {i > 0 && " "}
-                {seg.change === "added" ? <ins>{seg.text}</ins> : seg.change === "removed" ? <del>{seg.text}</del> : seg.text}
+                {/* screen readers do not announce <ins>/<del>, so each mark says what it is */}
+                {seg.change === "added" ? (
+                  <ins><span className="visually-hidden">added: </span>{seg.text}</ins>
+                ) : seg.change === "removed" ? (
+                  <del><span className="visually-hidden">removed: </span>{seg.text}</del>
+                ) : (
+                  seg.text
+                )}
               </Fragment>
             ))}
           </p>
