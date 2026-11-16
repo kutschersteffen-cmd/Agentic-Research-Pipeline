@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -35,13 +36,19 @@ class RfpLibraryImportOut(BaseModel):
 
 
 class RfpSourceOut(BaseModel):
-    entry_id: int
-    entry_question: str
+    kind: Literal["entry", "document"]  # a source stored before kinds existed is an entry
+    entry_id: int | None = None
+    entry_question: str | None = None
     quote: str
-    source: str
+    source: str | None = None
     file: str | None
-    location: str | None
-    written_by: str | None
+    location: str | None = None
+    written_by: str | None = None
+
+
+class RfpSegment(BaseModel):
+    text: str
+    change: Literal["kept", "added", "removed"]
 
 
 class RfpQuestionOut(BaseModel):
@@ -55,6 +62,10 @@ class RfpQuestionOut(BaseModel):
     assignee: str | None
     last_editor: str | None
     sources: list[RfpSourceOut]
+    document_priority: int | None  # 0: drafted from approved answers only; null: nothing drafted
+    base_entry_id: int | None
+    kept_share: int | None  # kept words as a whole percentage of kept, added and removed words
+    segments: list[RfpSegment]  # the answer compared with the base entry's answer; empty without a base entry
 
 
 class RfpProjectSummary(BaseModel):

@@ -722,6 +722,9 @@ class RfpQuestion(Base):
     sources: Mapped[list] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))  # {entry_id, quote}
     assignee: Mapped[str | None] = mapped_column(Text)
     last_editor: Mapped[str | None] = mapped_column(Text)
+    # set at drafting; the base entry stays when that entry is retired, so no foreign key
+    base_entry_id: Mapped[int | None] = mapped_column(BigInteger)
+    document_priority: Mapped[int | None] = mapped_column(Integer)  # 0: no document source; null: nothing drafted
 
 import arp.authoritative.models  # noqa: E402,F401  (registers the authoritative layer tables on Base)
 import arp.orchestration.plan_models  # noqa: E402,F401  (registers the research plan tables on Base)
