@@ -3,6 +3,7 @@ import { api, downloadFile } from "../api/client";
 import { ElapsedLine } from "../components/ElapsedLine";
 import { announce } from "../lib/announce";
 import { importingLine, importResultLine } from "../lib/progress";
+import { errorDetail } from "../lib/themeLayers";
 import { useMe } from "../lib/reviewer";
 import type { RfpDocument, RfpLibraryEntry, RfpProject, RfpProjectSummary, RfpQuestion } from "../types";
 
@@ -164,7 +165,8 @@ function ReferenceDocuments({ approver }: { approver: boolean }) {
   const [busy, setBusy] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const running = useRef(false);
-  const load = () => api.listRfpDocuments().then(setDocuments, (e: Error) => setError(e.message));
+  // a failed reload never hides the error of the action before it
+  const load = () => api.listRfpDocuments().then(setDocuments, (e) => setError((prev) => prev ?? errorDetail(e)));
   useEffect(() => void load(), []);
 
   async function act(fn: () => Promise<string>) {
@@ -175,7 +177,7 @@ function ReferenceDocuments({ approver }: { approver: boolean }) {
     try {
       announce(await fn());
     } catch (e) {
-      setError((e as Error).message.replace(/^\d{3}: /, ""));
+      setError(errorDetail(e));
     } finally {
       running.current = false;
       setBusy(false);
