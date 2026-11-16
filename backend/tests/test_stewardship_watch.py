@@ -342,3 +342,9 @@ def test_viewer_cannot_confirm_ac14(tmp_path, pg):
     finally:
         app.dependency_overrides.clear()
     assert r.status_code == 403
+
+
+def test_throwaway_covered_runs_in_shard_4():  # THROWAWAY (AC-43)
+    from arp._throwaway_covered import covered
+
+    assert covered(0) == 15
