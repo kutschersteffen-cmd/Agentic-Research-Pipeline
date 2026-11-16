@@ -292,7 +292,8 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
       patch((r) => withSelection(r, list));
       setSelection(list);
       setDialog(null);
-      return `Confirmed ${plural(res.confirmed, "company", "companies")} for the ${data!.cycle} engagement selection.`;
+      const dropped = res.dropped.length ? ` Not confirmed, no longer held: ${res.dropped.join(", ")}.` : "";
+      return `Confirmed ${res.confirmed}.${dropped}`;
     });
 
   return (
@@ -526,7 +527,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
                   Save ticked as subgroup
                 </button>
               </div>
-              {message && <p className="status-text">{message}</p>}
+              {message && <p className="status-text" role="status">{message}</p>}
               {actionError && <p className="error-text" role="alert">{actionError}</p>}
               {gone.length > 0 && (
                 <>

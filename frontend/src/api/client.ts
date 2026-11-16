@@ -69,7 +69,7 @@ import type {
   SignalExperimentSummary,
   SignalMethod,
   BilateralPick,
-  Confirmed,
+  SelectionConfirmed,
   StewardNote,
   StewardNoteList,
   VoteList,
@@ -951,7 +951,7 @@ export const api = {
   changeSelection: (body: { cycle: string; scope: string; add?: string[]; remove?: string[] }) =>
     request<SelectionList>("/api/stewardship/selection", jsonBody("POST", body)),
   confirmSelection: (body: { cycle: string; scope: string }) =>
-    request<Confirmed>("/api/stewardship/selection/confirm", jsonBody("POST", body)),
+    request<SelectionConfirmed>("/api/stewardship/selection/confirm", jsonBody("POST", body)),
   listProgrammes: () => request<ProgrammeList>("/api/stewardship/programmes"),
   createProgramme: (name: string) => request<WorkProgramme>("/api/stewardship/programmes", jsonBody("POST", { name })),
   addProgrammeMembers: (programmeId: string, add: string[]) =>

@@ -132,7 +132,8 @@ def test_selection_per_scope(client):
     assert syn01["selection"] is None
     assert _rows(client, f"group:{g}")["SYN01"]["selection"]["status"] == "proposed"
     assert client.post("/api/stewardship/selection", json={"cycle": Q, "scope": "house", "add": ["SYN02"]}).status_code == 200
-    assert client.post("/api/stewardship/selection/confirm", json={"cycle": Q, "scope": "house"}).json() == {"confirmed": 1}
+    # stewardship-decisions-round-2 supersedes AC-75's body: `dropped` lists rows whose company left the scope
+    assert client.post("/api/stewardship/selection/confirm", json={"cycle": Q, "scope": "house"}).json() == {"confirmed": 1, "dropped": []}
     rows = client.get("/api/stewardship/selection", params={"cycle": Q, "scope": f"group:{g}"}).json()["rows"]
     assert [(r["issuer_id"], r["status"], r["in_scope"]) for r in rows] == [("SYN01", "proposed", True)]
     assert _rows(client, f"group:{g}")["SYN02"]["selected_elsewhere"] == [{"scope": "house", "label": "All house holdings", "status": "confirmed"}]

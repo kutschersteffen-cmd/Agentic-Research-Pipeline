@@ -26,6 +26,7 @@ from arp.schemas.worklist import (
     ProgrammeSuggestions,
     SelectionChange,
     SelectionConfirm,
+    SelectionConfirmed,
     SelectionList,
     VoteList,
     Worklist,
@@ -162,21 +163,24 @@ def post_selection(
     return _selection(cycle, body.scope, in_scope, streams)
 
 
-@router.post("/selection/confirm", response_model=Confirmed)
+@router.post("/selection/confirm", response_model=SelectionConfirmed)
 def post_selection_confirm(
     body: SelectionConfirm,
     settings: Settings = Depends(settings_dep),
     streams: StreamStore = Depends(get_stream_store),
     principal: Principal = Depends(current_user),
 ) -> dict:
-    """Every proposed row of the scope and cycle becomes confirmed, recorded as the signed-in user."""
-    _in_scope(body.scope, house_universe(), settings)  # 404 or 422 like the worklist
+    """Every proposed row of the scope and cycle whose company is still in the scope becomes confirmed, recorded as the
+    signed-in user; proposed rows whose company left the scope are removed and named in `dropped`."""
+    in_scope = _in_scope(body.scope, house_universe(), settings)  # 404 or 422 like the worklist
     version = PolicyStore(streams.root).active_version(worklist.POLICY)
     try:
-        n = worklist.SelectionLog(streams.root).confirm(_cycle(body.cycle), datetime.now(UTC).date(), principal.name, version, body.scope)
+        n, dropped = worklist.SelectionLog(streams.root).confirm(
+            _cycle(body.cycle), datetime.now(UTC).date(), principal.name, version, body.scope, in_scope
+        )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
-    return {"confirmed": n}
+    return {"confirmed": n, "dropped": dropped}
 
 
 def _names() -> dict[str, str]:

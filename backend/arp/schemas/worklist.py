@@ -168,6 +168,14 @@ class Confirmed(BaseModel):
     confirmed: int
 
 
+class SelectionConfirmed(BaseModel):
+    """The selection confirm: how many rows were confirmed, and the stored names of proposed rows dropped because their
+    company is no longer in the scope (sorted)."""
+
+    confirmed: int
+    dropped: list[str]
+
+
 class PriorityPreviewRequest(BaseModel):
     content: dict
 

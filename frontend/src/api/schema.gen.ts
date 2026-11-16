@@ -6132,7 +6132,8 @@ export interface paths {
         put?: never;
         /**
          * Post Selection Confirm
-         * @description Every proposed row of the scope and cycle becomes confirmed, recorded as the signed-in user.
+         * @description Every proposed row of the scope and cycle whose company is still in the scope becomes confirmed, recorded as the
+         *     signed-in user; proposed rows whose company left the scope are removed and named in `dropped`.
          */
         post: operations["post_selection_confirm_api_stewardship_selection_confirm_post"];
         delete?: never;
@@ -18020,6 +18021,17 @@ export interface components {
              * @default house
              */
             scope: string;
+        };
+        /**
+         * SelectionConfirmed
+         * @description The selection confirm: how many rows were confirmed, and the stored names of proposed rows dropped because their
+         *     company is no longer in the scope (sorted).
+         */
+        SelectionConfirmed: {
+            /** Confirmed */
+            confirmed: number;
+            /** Dropped */
+            dropped: string[];
         };
         /** SelectionList */
         SelectionList: {
@@ -32148,7 +32160,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Confirmed"];
+                    "application/json": components["schemas"]["SelectionConfirmed"];
                 };
             };
             /** @description Validation Error */
