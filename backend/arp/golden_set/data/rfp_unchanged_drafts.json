@@ -1,0 +1,175 @@
+{
+  "_comment": "Fictitious firm and questions for `arp rfp golden drafts` (rfp-approved-answers-first-design §7, AC-36): `unchanged` questions an entry answers as it is, `library` questions the entries answer after a change, `none` questions the library cannot answer.",
+  "library": [
+    {
+      "question": "Describe your firm.",
+      "answer": "Larchmere Investment Partners is an independent, partner-owned asset manager founded in 2011 and based in Bristol."
+    },
+    {
+      "question": "What are your total assets under management?",
+      "answer": "Larchmere managed GBP 8.6bn as of 30 June 2026."
+    },
+    {
+      "question": "How many investment professionals do you employ?",
+      "answer": "Our investment team has 34 professionals, 11 of them portfolio managers."
+    },
+    {
+      "question": "Are you a signatory to the UN Principles for Responsible Investment?",
+      "answer": "Yes, Larchmere has been a PRI signatory since 2014."
+    },
+    {
+      "question": "Who is your custodian?",
+      "answer": "Our custodian for segregated mandates is Fenwick Trust Bank."
+    },
+    {
+      "question": "Who audits your firm?",
+      "answer": "Our financial statements are audited by Halden & Rowe LLP."
+    },
+    {
+      "question": "Describe your engagement approach.",
+      "answer": "We engage with investee companies through meetings with boards and management, focusing on climate, board quality and capital allocation."
+    },
+    {
+      "question": "What is your voting policy?",
+      "answer": "We vote at every shareholder meeting of companies we hold, following our published voting policy, and do not use a proxy adviser's recommendations automatically."
+    },
+    {
+      "question": "Do you lend securities?",
+      "answer": "Larchmere does not lend securities from any fund it manages."
+    },
+    {
+      "question": "Describe your fee structure for segregated mandates.",
+      "answer": "Segregated mandates pay a flat annual management fee agreed per client; we charge no performance fee."
+    },
+    {
+      "question": "What is your business continuity arrangement?",
+      "answer": "We test our business continuity plan twice a year, and staff can work fully from a secondary site in Bath."
+    },
+    {
+      "question": "Are you regulated?",
+      "answer": "Larchmere is authorised and regulated by the Financial Conduct Authority."
+    }
+  ],
+  "questions": [
+    {
+      "question": "Please describe your firm.",
+      "expect": "unchanged"
+    },
+    {
+      "question": "What is your total AUM?",
+      "expect": "unchanged"
+    },
+    {
+      "question": "How many investment professionals does your firm employ?",
+      "expect": "unchanged"
+    },
+    {
+      "question": "Are you a signatory to the PRI?",
+      "expect": "unchanged"
+    },
+    {
+      "question": "Who is your custodian for segregated mandates?",
+      "expect": "unchanged"
+    },
+    {
+      "question": "Who is your auditor?",
+      "expect": "unchanged"
+    },
+    {
+      "question": "Please describe your approach to engagement.",
+      "expect": "unchanged"
+    },
+    {
+      "question": "What is your proxy voting policy?",
+      "expect": "unchanged"
+    },
+    {
+      "question": "Do you engage in securities lending?",
+      "expect": "unchanged"
+    },
+    {
+      "question": "Which regulator authorises your firm?",
+      "expect": "unchanged"
+    },
+    {
+      "question": "In which year was your firm founded?",
+      "expect": "library"
+    },
+    {
+      "question": "Where is your firm headquartered?",
+      "expect": "library"
+    },
+    {
+      "question": "How many portfolio managers do you employ?",
+      "expect": "library"
+    },
+    {
+      "question": "Since when have you been a PRI signatory?",
+      "expect": "library"
+    },
+    {
+      "question": "Which topics do you focus on in your engagement with companies?",
+      "expect": "library"
+    },
+    {
+      "question": "Do you follow proxy adviser recommendations automatically?",
+      "expect": "library"
+    },
+    {
+      "question": "Do you charge performance fees on segregated mandates?",
+      "expect": "library"
+    },
+    {
+      "question": "How often do you test your business continuity plan?",
+      "expect": "library"
+    },
+    {
+      "question": "Where is your secondary business continuity site?",
+      "expect": "library"
+    },
+    {
+      "question": "What were your assets under management as of 30 June 2026, and who owns the firm?",
+      "expect": "library"
+    },
+    {
+      "question": "What was your firm's revenue in 2025?",
+      "expect": "none"
+    },
+    {
+      "question": "How many clients do you serve?",
+      "expect": "none"
+    },
+    {
+      "question": "What is your staff turnover rate?",
+      "expect": "none"
+    },
+    {
+      "question": "Describe your cybersecurity certifications.",
+      "expect": "none"
+    },
+    {
+      "question": "What is the carbon footprint of your flagship equity fund?",
+      "expect": "none"
+    },
+    {
+      "question": "List your three largest client relationships.",
+      "expect": "none"
+    },
+    {
+      "question": "What is your policy on investing in tobacco?",
+      "expect": "none"
+    },
+    {
+      "question": "How many engagement meetings did you hold in 2025?",
+      "expect": "none"
+    },
+    {
+      "question": "What is your diversity target for senior leadership?",
+      "expect": "none"
+    },
+    {
+      "question": "Describe any regulatory sanctions in the past five years.",
+      "expect": "none"
+    }
+  ]
+}
