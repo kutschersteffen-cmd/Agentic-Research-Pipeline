@@ -23,8 +23,12 @@ import {
   type Column,
   type SortKey,
 } from "../../lib/workbench";
+import { neighbour, type PanelTab } from "../../lib/workbenchPanel";
 import type { PriorityPreview, SelectionList, WorkProgramme, Worklist, WorklistRow, WorklistScope } from "../../types";
 import { DataTable, RuleEditor, Section, VersionsPanel, usePolicy, useActor } from "./common";
+import { WorkbenchPanel } from "./WorkbenchPanel";
+import { filterRows, type Filter } from "../../lib/workbenchFilters";
+import { FilterBuilder } from "./workbenchFilters";
 
 const Sim = () => <span className="sim-tag">Simulated</span>;
 const shortLabel = (c: Column) => c.label.replace(/ (%|\(.*\))$/, "");
@@ -137,6 +141,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sort, setSortKeys] = useState<SortKey[]>(DEFAULT_SORT);
+  const [filters, setFilters] = useState<Filter[]>([]);
   const [page, setPage] = useState(0);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
   const [visible, setVisible] = useState<Set<string>>(() => new Set(COLUMNS.filter((c) => !c.hidden).map((c) => c.id)));
@@ -147,6 +152,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [panel, setPanel] = useState<{ id: string; tab: PanelTab } | null>(null);
   const selectStep = useRef<HTMLDivElement>(null);
   const columnsMenu = useRef<HTMLDetailsElement>(null);
   useDismiss(columnsMenu);
@@ -186,7 +192,8 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   const columns = useMemo(() => [...COLUMNS, ...extraColumns(rows, fieldLabels)], [rows, fieldLabels]);
   const shown = columns.filter((c) => c.pinned || visible.has(c.id));
   const simulatedCols = useMemo(() => new Set(columns.filter((c) => c.simulated && rows.some(c.simulated)).map((c) => c.id)), [columns, rows]);
-  const sorted = useMemo(() => sortRows(rows, sort, columns), [rows, sort, columns]);
+  const filtered = useMemo(() => filterRows(rows, filters), [rows, filters]);
+  const sorted = useMemo(() => sortRows(filtered, sort, columns), [filtered, sort, columns]);
   const pages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const current = Math.min(page, pages - 1);
   const pageRows = sorted.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE);
@@ -215,6 +222,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
     setTicked(new Set());
     setPage(0);
     setMessage(null);
+    setPanel(null);
   }
   function tick(id: string, on: boolean) {
     setTicked((t) => {
@@ -237,6 +245,30 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
     }
   }
   const patch = (f: (rows: WorklistRow[]) => WorklistRow[]) => setData((d) => (d ? { ...d, rows: f(d.rows) } : d));
+
+  // The side panel: a row click opens it (Score ⓘ on Why), ↑/↓ step through the table's order across pages.
+  const openRow = panel ? rows.find((r) => r.issuer_id === panel.id) : undefined;
+  const open = (id: string, tab?: PanelTab) => setPanel((p) => ({ id, tab: tab ?? p?.tab ?? "Why" }));
+  const step = useCallback(
+    (by: 1 | -1) => {
+      const id = panel && neighbour(sorted, panel.id, by);
+      if (!panel || !id) return;
+      setPage(Math.floor(sorted.findIndex((r) => r.issuer_id === id) / PAGE_SIZE));
+      setPanel({ ...panel, id });
+    },
+    [panel, sorted],
+  );
+  const closePanel = useCallback(() => {
+    // Focus goes back to the row, so its page must be the one on screen.
+    const at = panel ? sorted.findIndex((r) => r.issuer_id === panel.id) : -1;
+    if (at >= 0) setPage(Math.floor(at / PAGE_SIZE));
+    if (panel) requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-open-row="${CSS.escape(panel.id)}"]`)?.focus());
+    setPanel(null);
+  }, [panel, sorted]);
+  const openId = panel?.id;
+  useEffect(() => {
+    if (openId) document.querySelector(`[data-open-row="${CSS.escape(openId)}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [openId]);
 
   const addSelected = () =>
     act(async () => {
@@ -316,7 +348,16 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
 
         <div className="wb-step">
           <h3>② Narrow down</h3>
-          <p className="muted">No filter set.</p>
+          <FilterBuilder
+            rows={rows}
+            columns={columns}
+            filters={filters}
+            shown={sorted.length}
+            onChange={(f) => {
+              setFilters(f);
+              setPage(0);
+            }}
+          />
         </div>
 
         {error && <p className="error-text" role="alert">{error}</p>}
@@ -408,13 +449,28 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
                 </thead>
                 <tbody>
                   {pageRows.map((r) => (
-                    <tr key={r.issuer_id} className={ticked.has(r.issuer_id) ? "selected-row" : undefined}>
+                    <tr
+                      key={r.issuer_id}
+                      className={[ticked.has(r.issuer_id) && "selected-row", panel?.id === r.issuer_id && "wb-open-row"].filter(Boolean).join(" ") || undefined}
+                      onClick={(e) => !(e.target as HTMLElement).closest("button, input, a, label, .wb-tick") && !window.getSelection()?.toString() && open(r.issuer_id)}
+                    >
                       <td className="wb-tick">
                         <input type="checkbox" aria-label={`Tick ${r.company}`} checked={ticked.has(r.issuer_id)} onChange={(e) => tick(r.issuer_id, e.target.checked)} />
                       </td>
                       {shown.map((c) => (
                         <td key={c.id} className={c.id === "company" ? "wb-name" : c.id === "last_topics" ? "wb-topics" : c.numeric && !c.pinned ? "num" : undefined} title={c.id === "company" ? r.company : c.id === "last_topics" ? r.last_topics.join("; ") || undefined : undefined}>
-                          <Cell col={c} row={r} asOf={data.as_of} onRemove={removeSelected} />
+                          {c.id === "company" ? (
+                            <button className="link-button wb-open" data-open-row={r.issuer_id} aria-expanded={panel?.id === r.issuer_id} onClick={() => open(r.issuer_id)}>
+                              {r.company}
+                            </button>
+                          ) : (
+                            <Cell col={c} row={r} asOf={data.as_of} onRemove={removeSelected} />
+                          )}
+                          {c.id === "score" && (
+                            <button className="link-button wb-why-button" aria-label={`Why is ${r.company} here`} title="Why is this here" onClick={() => open(r.issuer_id, "Why")}>
+                              ⓘ
+                            </button>
+                          )}
                         </td>
                       ))}
                     </tr>
@@ -484,6 +540,21 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
       </section>
 
       <WeightsSection onActivated={() => load(scope)} />
+
+      {openRow && data && (
+        <WorkbenchPanel
+          row={openRow}
+          rows={rows}
+          data={data}
+          scope={scope}
+          tab={panel!.tab}
+          onTab={(tab) => setPanel((p) => p && { ...p, tab })}
+          onStep={step}
+          canStep={{ up: !!neighbour(sorted, openRow.issuer_id, -1), down: !!neighbour(sorted, openRow.issuer_id, 1) }}
+          onClose={closePanel}
+          onNoteAdded={(n) => patch((rs) => rs.map((r) => (r.issuer_id === n.company_id ? { ...r, notes: { count: r.notes.count + 1, latest: { text: n.text.slice(0, 120), by: n.by, at: n.at } } } : r)))}
+        />
+      )}
 
       {dialog === "confirm" && data && (
         <Modal title="Confirm the selection" compact noClose onClose={() => setDialog(null)}>

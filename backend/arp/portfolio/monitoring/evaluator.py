@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from arp.portfolio import aggregation, datapoint_mapping
 from arp.schemas.common import CompanyRef
-from arp.schemas.portfolio import SecurityRef
+from arp.schemas.portfolio import AggregationResult, Holding, SecurityRef
 from arp.schemas.portfolio_monitoring import Alert, AlertCategory, AlertRule, AlertStatus, AlertTransition, BreachType
 from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
 
@@ -54,9 +54,10 @@ def list_alerts(store: PortfolioStore, *, status: AlertStatus | None = None) -> 
     return [a for a in alerts if status is None or a.status == status]
 
 
-def with_company_names(alerts: list[Alert], companies: dict[str, CompanyRef], rules: dict[str, AlertRule]) -> list[Alert]:
-    """Read-time fill for the API: `company_name` from the directory, and the company id in an old
-    concentration rationale swapped for that name. The stored event log is never touched."""
+def with_company_names(alerts: list[Alert], companies: dict[str, CompanyRef]) -> list[Alert]:
+    """Read-time fill for the API: `company_name` from the directory, and the company id in a concentration
+    rationale (`<rule name>: <company_id> = ...`) swapped for that name, whether or not the rule still exists
+    under that name. The stored event log is never touched."""
     named: list[Alert] = []
     for alert in alerts:
         company = companies.get(alert.company_id) if alert.company_id else None
@@ -64,12 +65,15 @@ def with_company_names(alerts: list[Alert], companies: dict[str, CompanyRef], ru
             named.append(alert)
             continue
         update: dict = {"company_name": company.name}
-        rule = rules.get(alert.rule_id) if alert.rule_id else None
-        old_prefix = f"{rule.name}: {alert.company_id} = " if rule else None
-        if alert.breach_type == BreachType.HOLDINGS_CAUSED and old_prefix and alert.rationale.startswith(old_prefix):
-            update["rationale"] = f"{rule.name}: {company.name} = " + alert.rationale[len(old_prefix):]
+        if alert.breach_type == BreachType.HOLDINGS_CAUSED:
+            update["rationale"] = alert.rationale.replace(f": {alert.company_id} = ", f": {company.name} = ", 1)
         named.append(alert.model_copy(update=update))
     return named
+
+
+def named_alerts(store: PortfolioStore, alerts: list[Alert]) -> list[Alert]:
+    """The one way the API returns alerts, so the list and the status-change answer read the same."""
+    return with_company_names(alerts, {c.company_id: c for c in store.list_companies()})
 
 
 def _has_open_alert(store: PortfolioStore, scope_id: str, rule_id: str) -> bool:
@@ -200,24 +204,25 @@ def _evaluate_concentration_threshold(
     holdings = store.load_holdings_as_of(as_of, rule.portfolio_ids or None)
     if not holdings:
         return []
-    result = aggregation.aggregate(
-        holdings, securities, companies, group_by="company_id", metric="market_value_sum",
-        as_of=as_of, portfolio_filter=rule.portfolio_ids, spec_name=rule.name,
-    )
-    if not result.total_market_value_eur:
+
+    def by_company(lines: list[Holding]) -> AggregationResult:
+        return aggregation.aggregate(
+            lines, securities, companies, group_by="company_id", metric="market_value_sum",
+            as_of=as_of, portfolio_filter=rule.portfolio_ids, spec_name=rule.name,
+        )
+
+    nav = by_company(holdings).total_market_value_eur
+    if not nav:
         return []
-    # A company held only through cash/currency lines never alerts; the total above still includes them.
-    non_cash = {
-        securities[h.security_id].company_id
-        for h in holdings
-        if h.security_id in securities and not _is_cash(securities[h.security_id])
-    }
+    # A company's weight sums only its non-cash lines over a NAV of all lines, so a company held only through
+    # cash/currency lines never alerts (owner, 15 Nov 2026: "Only non-cash lines").
+    result = by_company([h for h in holdings if not (h.security_id in securities and _is_cash(securities[h.security_id]))])
     raised: list[Alert] = []
     for row in result.rows:
         company_id = row.group_value
-        if row.market_value_eur is None or company_id == "(unresolved)" or company_id not in non_cash:
+        if row.market_value_eur is None or company_id == "(unresolved)":
             continue
-        weight = row.market_value_eur / result.total_market_value_eur
+        weight = row.market_value_eur / nav
         if not _breaches(weight, rule):
             continue
         if _has_open_alert(store, company_id, rule.rule_id):

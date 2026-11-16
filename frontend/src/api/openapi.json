@@ -3376,6 +3376,49 @@
     "title": "Body_upload_document_api_documents_upload_post",
     "type": "object"
    },
+   "Body_upload_document_api_rfp_documents_post": {
+    "properties": {
+     "document_date": {
+      "format": "date",
+      "title": "Document Date",
+      "type": "string"
+     },
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     },
+     "priority": {
+      "default": 1,
+      "minimum": 1.0,
+      "title": "Priority",
+      "type": "integer"
+     },
+     "replaces": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Replaces"
+     },
+     "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file",
+     "title",
+     "document_date"
+    ],
+    "title": "Body_upload_document_api_rfp_documents_post",
+    "type": "object"
+   },
    "Body_upload_esg_api_portfolio_esg_upload_post": {
     "properties": {
      "file": {
@@ -5588,6 +5631,10 @@
    },
    "CockpitTopicCount": {
     "properties": {
+     "abstain": {
+      "title": "Abstain",
+      "type": "integer"
+     },
      "against_management": {
       "title": "Against Management",
       "type": "integer"
@@ -5604,7 +5651,8 @@
     "required": [
      "topic",
      "votes",
-     "against_management"
+     "against_management",
+     "abstain"
     ],
     "title": "CockpitTopicCount",
     "type": "object"
@@ -8982,6 +9030,51 @@
     "title": "DecisionResult",
     "type": "object"
    },
+   "DeckSettings": {
+    "properties": {
+     "detail": {
+      "default": "balanced",
+      "enum": [
+       "concise",
+       "balanced",
+       "comprehensive"
+      ],
+      "title": "Detail",
+      "type": "string"
+     },
+     "max_slides": {
+      "default": 12,
+      "maximum": 25.0,
+      "minimum": 3.0,
+      "title": "Max Slides",
+      "type": "integer"
+     },
+     "profile": {
+      "default": "committee",
+      "enum": [
+       "executive",
+       "client_pitch",
+       "committee",
+       "workshop"
+      ],
+      "title": "Profile",
+      "type": "string"
+     },
+     "purpose": {
+      "default": "recommendation",
+      "enum": [
+       "recommendation",
+       "review",
+       "process",
+       "briefing"
+      ],
+      "title": "Purpose",
+      "type": "string"
+     }
+    },
+    "title": "DeckSettings",
+    "type": "object"
+   },
    "DecomposeRequest": {
     "properties": {
      "description": {
@@ -11693,6 +11786,24 @@
     "title": "FieldStatus",
     "type": "string"
    },
+   "Figure": {
+    "properties": {
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "value": {
+      "title": "Value",
+      "type": "string"
+     }
+    },
+    "required": [
+     "value",
+     "label"
+    ],
+    "title": "Figure",
+    "type": "object"
+   },
    "FileDecision": {
     "properties": {
      "all": {
@@ -13390,6 +13501,14 @@
       "exclusiveMinimum": 0.0,
       "title": "Shares Outstanding",
       "type": "number"
+     },
+     "simulated_fields": {
+      "description": "Metrics, flags and categories above whose value is simulated, not real data.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Simulated Fields",
+      "type": "array"
      }
     },
     "required": [
@@ -15132,6 +15251,29 @@
      "theme"
     ],
     "title": "NewVersionRequest",
+    "type": "object"
+   },
+   "NextAction": {
+    "properties": {
+     "owner": {
+      "default": "",
+      "title": "Owner",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     },
+     "when": {
+      "default": "",
+      "title": "When",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "title": "NextAction",
     "type": "object"
    },
    "NextMeeting": {
@@ -19459,6 +19601,9 @@
       "title": "Datasets",
       "type": "array"
      },
+     "deck": {
+      "$ref": "#/components/schemas/DeckSettings"
+     },
      "goal": {
       "default": "",
       "title": "Goal",
@@ -19515,7 +19660,7 @@
      "chart": {
       "anyOf": [
        {
-        "$ref": "#/components/schemas/arp__schemas__reporting__ChartSpec"
+        "$ref": "#/components/schemas/arp__schemas__chart_specs__ChartSpec"
        },
        {
         "type": "null"
@@ -20496,6 +20641,110 @@
     "title": "RfpAssigneeIn",
     "type": "object"
    },
+   "RfpDocumentEdit": {
+    "properties": {
+     "priority": {
+      "anyOf": [
+       {
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Priority"
+     },
+     "review_by": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Review By"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
+     }
+    },
+    "title": "RfpDocumentEdit",
+    "type": "object"
+   },
+   "RfpDocumentOut": {
+    "properties": {
+     "document_date": {
+      "format": "date",
+      "title": "Document Date",
+      "type": "string"
+     },
+     "filename": {
+      "title": "Filename",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "pages": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pages"
+     },
+     "priority": {
+      "title": "Priority",
+      "type": "integer"
+     },
+     "review_by": {
+      "format": "date",
+      "title": "Review By",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "uploaded_by": {
+      "title": "Uploaded By",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "filename",
+     "document_date",
+     "review_by",
+     "priority",
+     "status",
+     "uploaded_by",
+     "pages"
+    ],
+    "title": "RfpDocumentOut",
+    "type": "object"
+   },
    "RfpLibraryEntryEdit": {
     "properties": {
      "answer": {
@@ -20831,6 +21080,28 @@
       ],
       "title": "Assignee"
      },
+     "base_entry_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Base Entry Id"
+     },
+     "document_priority": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Document Priority"
+     },
      "flags": {
       "items": {
        "type": "string"
@@ -20841,6 +21112,17 @@
      "id": {
       "title": "Id",
       "type": "integer"
+     },
+     "kept_share": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kept Share"
      },
      "last_editor": {
       "anyOf": [
@@ -20860,6 +21142,13 @@
      "question": {
       "title": "Question",
       "type": "string"
+     },
+     "segments": {
+      "items": {
+       "$ref": "#/components/schemas/RfpSegment"
+      },
+      "title": "Segments",
+      "type": "array"
      },
      "sources": {
       "items": {
@@ -20883,20 +21172,72 @@
      "flags",
      "assignee",
      "last_editor",
-     "sources"
+     "sources",
+     "document_priority",
+     "base_entry_id",
+     "kept_share",
+     "segments"
     ],
     "title": "RfpQuestionOut",
     "type": "object"
    },
+   "RfpSegment": {
+    "properties": {
+     "change": {
+      "enum": [
+       "kept",
+       "added",
+       "removed"
+      ],
+      "title": "Change",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text",
+     "change"
+    ],
+    "title": "RfpSegment",
+    "type": "object"
+   },
    "RfpSourceOut": {
     "properties": {
+     "document_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Document Id"
+     },
      "entry_id": {
-      "title": "Entry Id",
-      "type": "integer"
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Entry Id"
      },
      "entry_question": {
-      "title": "Entry Question",
-      "type": "string"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Entry Question"
      },
      "file": {
       "anyOf": [
@@ -20909,6 +21250,14 @@
       ],
       "title": "File"
      },
+     "kind": {
+      "enum": [
+       "entry",
+       "document"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
      "location": {
       "anyOf": [
        {
@@ -20920,13 +21269,53 @@
       ],
       "title": "Location"
      },
+     "page": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page"
+     },
+     "priority": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Priority"
+     },
      "quote": {
       "title": "Quote",
       "type": "string"
      },
      "source": {
-      "title": "Source",
-      "type": "string"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
      },
      "written_by": {
       "anyOf": [
@@ -20941,13 +21330,9 @@
      }
     },
     "required": [
-     "entry_id",
-     "entry_question",
+     "kind",
      "quote",
-     "source",
-     "file",
-     "location",
-     "written_by"
+     "file"
     ],
     "title": "RfpSourceOut",
     "type": "object"
@@ -22249,6 +22634,24 @@
     ],
     "title": "SectionLayoutHint",
     "type": "string"
+   },
+   "SectionPlan": {
+    "properties": {
+     "summary": {
+      "default": "",
+      "title": "Summary",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title"
+    ],
+    "title": "SectionPlan",
+    "type": "object"
    },
    "SectorBenchmarksOut": {
     "properties": {
@@ -24034,10 +24437,38 @@
    },
    "Storyline": {
     "properties": {
+     "answer": {
+      "default": "",
+      "title": "Answer",
+      "type": "string"
+     },
      "approved": {
       "default": false,
       "title": "Approved",
       "type": "boolean"
+     },
+     "closing": {
+      "items": {
+       "$ref": "#/components/schemas/NextAction"
+      },
+      "maxItems": 5,
+      "title": "Closing",
+      "type": "array"
+     },
+     "figures": {
+      "items": {
+       "$ref": "#/components/schemas/Figure"
+      },
+      "maxItems": 2,
+      "title": "Figures",
+      "type": "array"
+     },
+     "sections": {
+      "items": {
+       "$ref": "#/components/schemas/SectionPlan"
+      },
+      "title": "Sections",
+      "type": "array"
      },
      "slides": {
       "items": {
@@ -24065,13 +24496,45 @@
    },
    "StorylineSlide": {
     "properties": {
+     "chart_kind": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Chart Kind"
+     },
      "headline": {
       "title": "Headline",
+      "type": "string"
+     },
+     "kicker": {
+      "default": "",
+      "title": "Kicker",
       "type": "string"
      },
      "purpose": {
       "title": "Purpose",
       "type": "string"
+     },
+     "rationale": {
+      "default": "",
+      "title": "Rationale",
+      "type": "string"
+     },
+     "section": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Section"
      },
      "source_refs": {
       "items": {
@@ -24084,6 +24547,17 @@
       "default": "",
       "title": "Subheading",
       "type": "string"
+     },
+     "visual": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Visual"
      }
     },
     "required": [
@@ -29098,7 +29572,7 @@
     "title": "ChartSpec",
     "type": "object"
    },
-   "arp__schemas__reporting__ChartSpec": {
+   "arp__schemas__chart_specs__ChartSpec": {
     "properties": {
      "category_column": {
       "anyOf": [
@@ -41683,6 +42157,60 @@
     ]
    }
   },
+  "/api/reports/{report_id}/slides/{n}/approve": {
+   "post": {
+    "description": "Accept slide `n` (1-based) as it is: clears the fit ladder's `needs_review`, which unblocks the download.",
+    "operationId": "approve_slide_api_reports__report_id__slides__n__approve_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "n",
+      "required": true,
+      "schema": {
+       "title": "N",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Approve Slide Api Reports  Report Id  Slides  N  Approve Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Approve Slide",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
   "/api/reports/{report_id}/storyline": {
    "get": {
     "operationId": "get_storyline_api_reports__report_id__storyline_get",
@@ -42242,6 +42770,165 @@
     "summary": "Get Snapshot",
     "tags": [
      "review"
+    ]
+   }
+  },
+  "/api/rfp/documents": {
+   "get": {
+    "operationId": "list_documents_api_rfp_documents_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RfpDocumentOut"
+         },
+         "title": "Response List Documents Api Rfp Documents Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Documents",
+    "tags": [
+     "rfp"
+    ]
+   },
+   "post": {
+    "description": "Parses and stores a .pdf or .docx as `active`; with `replaces`, retires that document in the same transaction.",
+    "operationId": "upload_document_api_rfp_documents_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_upload_document_api_rfp_documents_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpDocumentOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Upload Document",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/documents/{document_id}": {
+   "put": {
+    "operationId": "edit_document_api_rfp_documents__document_id__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "document_id",
+      "required": true,
+      "schema": {
+       "title": "Document Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RfpDocumentEdit"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpDocumentOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Edit Document",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/documents/{document_id}/retire": {
+   "post": {
+    "operationId": "retire_document_api_rfp_documents__document_id__retire_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "document_id",
+      "required": true,
+      "schema": {
+       "title": "Document Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpDocumentOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Retire Document",
+    "tags": [
+     "rfp"
     ]
    }
   },

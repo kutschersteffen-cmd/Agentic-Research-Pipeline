@@ -5,8 +5,9 @@ import { ACTIVE_STATUSES, decisionRunType, waitingCount } from "../lib/runs";
 import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { useMe } from "../lib/reviewer";
-import { STATE_LABEL, cardView, openCount, processState, stepActivity, stepState, stepStatusLine, type Activity } from "../lib/workspaceCard";
-import { WorkspaceDrawing } from "../components/WorkspaceDrawing";
+import { STATE_LABEL, cardView, failedProcesses, openCount, processState, stepActivity, stepState, stepStatusLine, type Activity } from "../lib/workspaceCard";
+import { Drawing, WorkspaceDrawing } from "../components/WorkspaceDrawing";
+import { cockpitDrawing } from "../lib/workspaceDrawing";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
 
@@ -17,7 +18,7 @@ import { previousMonth } from "../lib/holdings";
 
 /** Runs, refreshed every 3 s while one is live, every 15 s otherwise. Null
  * until the first answer: a count nobody received is unknown, never zero. */
-function useRuns() {
+export function useRuns() {
   const [runs, setRuns] = useState<RunManifest[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {
@@ -34,7 +35,7 @@ function useRuns() {
 
 
 /** The house stewardship flow, loaded once: its stages carry StewardIQ's numbers. */
-function useHouseFlow() {
+export function useHouseFlow() {
   const [flow, setFlow] = useState<StewardshipFlow | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -58,14 +59,14 @@ function useActivity(): Activity | null {
 
 /** A workspace as a card: a way into it. A drawing, its purpose, one square per process and one
  * status line naming what matters now; the label carries each process's state for screen readers. */
-function WorkspaceCard({ w, index, runs, flow }: { w: Workspace; index: number; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
   const v = cardView(w, runs, flow, new Date());
   const { word, tone, detail } = v.status;
   const n = w.processes.length;
   return (
     <a className={`hub-card${tone === "wait" ? " hub-card-await" : ""}`} href={`#/${w.id}`} aria-label={v.label}>
       <span className="hub-card-fig">
-        <span className="hub-card-cap">{`Fig 0${index + 1} · ${n} ${n === 1 ? "process" : "processes"}`}</span>
+        <span className="hub-card-cap">{`${n} ${n === 1 ? "process" : "processes"}`}</span>
         <WorkspaceDrawing id={w.id} accent={tone === "wait" ? "wait" : tone === "now" ? "now" : null} />
       </span>
       <span className="hub-card-body">
@@ -86,6 +87,8 @@ function WorkspaceCard({ w, index, runs, flow }: { w: Workspace; index: number; 
     </a>
   );
 }
+
+const COCKPIT_SHAPES = cockpitDrawing();
 
 export function StartPage() {
   const { runs, error, retry } = useRuns();
@@ -115,10 +118,21 @@ export function StartPage() {
         </p>
       )}
       <div className="hub-cards">
-        {WORKSPACES.map((w, i) => (
-          <WorkspaceCard key={w.id} w={w} index={i} runs={runs} flow={flow} />
+        {WORKSPACES.map((w) => (
+          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} />
         ))}
       </div>
+      {/* Not a workspace card: one StewardIQ screen with its own way in, so the cards stay five workspaces. */}
+      <a className="hub-entry" href="#/stewardiq/cockpit" aria-label="Cockpit, StewardIQ" aria-describedby="hub-entry-cockpit-purpose">
+        <span className="hub-entry-fig">
+          <Drawing shapes={COCKPIT_SHAPES} />
+        </span>
+        <span className="hub-card-body">
+          <span className="hub-card-cap hub-entry-cap">StewardIQ</span>
+          <span className="hub-card-name">Cockpit</span>
+          <span className="hub-card-purpose" id="hub-entry-cockpit-purpose">Engagement coverage, upcoming meetings, control gaps, escalation and votes on one page.</span>
+        </span>
+      </a>
     </div>
   );
 }
@@ -303,7 +317,7 @@ function StepCard({ s, i, p, runs, flow, activity }: { s: Step; i: number; p: Pr
         )}
         {s.handsOn && i < p.steps.length - 1 && (
           <span className={s.carried ? "hub-step-handoff" : "hub-step-handoff manual"} title={s.carried ? undefined : "Not passed on automatically: type it into the next step."}>
-            Hands on: {s.handsOn}
+            Passes on: {s.handsOn}
             {!s.carried && " · re-entered by hand"}
           </span>
         )}
@@ -323,26 +337,20 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
 
   return (
     <div className="page hub">
-      <p className="hub-crumb">
-        <a href="#/home">Start</a> › {w.name}
-      </p>
       <h1>{w.name}</h1>
       <p className="help-text">
         {w.purpose} Open a step to work in its screen; a bar there shows the next step. A dashed <span className="hub-step-handoff-key">re-entered by hand</span> line means that output is typed into the next step, not passed on.
       </p>
       {error && <p className="error-text" role="alert">Runs could not be loaded: {error}. Step states are unknown until the backend responds.</p>}
       {usesFlow && flowError && <p className="error-text" role="alert">The stewardship flow could not be loaded: {flowError}. Stage numbers are unknown.</p>}
+      {failedProcesses(w, runs, flow, activity).map((title) => (
+        <p key={title} className="hub-failed-line">
+          Last run failed: {title}. <a href="#/history">Open Run history →</a>
+        </p>
+      ))}
       {w.processes.map((p) => (
         <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} activity={activity} />
       ))}
-      <nav className="hub-screens" aria-label={`${w.name} screens`}>
-        <span className="hub-now-label">Screens</span>
-        {w.screens.map(([href, label]) => (
-          <a key={href} className="hub-chip" href={href}>
-            {label}
-          </a>
-        ))}
-      </nav>
     </div>
   );
 }

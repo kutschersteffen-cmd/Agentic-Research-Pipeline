@@ -68,3 +68,14 @@ test("sp_ac13c_drawing_look", () => {
   const stroke = bodies(css, ".ws-drawing path").match(/stroke:\s*color-mix\(in srgb, var\(--text\) (\d+)%, transparent\)/);
   assert.ok(stroke && +stroke[1] >= 20 && +stroke[1] <= 30, "stroke mix 20–30%");
 });
+
+// UI polish 1, F7: the failed tile uses the failed colour, never amber.
+test("pol_ac7b_failed_tile_css", () => {
+  const r = bodies(css, ".argus-tile-failed");
+  assert.match(r, /var\(--low\)/);
+  assert.doesNotMatch(r, /var\(--(hi|hi-ink|await|await-edge)\)/);
+});
+
+test("pol_ac6c_no_hidden_hub_h1", () => {
+  assert.doesNotMatch(css, /\.hub-nav\s*~\s*\.page\s*>\s*h1/);
+});

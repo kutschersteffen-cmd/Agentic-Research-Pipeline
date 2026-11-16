@@ -307,3 +307,12 @@ def reporting_show(report_id: str) -> None:
         typer.echo("Not found", err=True)
         raise typer.Exit(1)
     typer.echo(json.dumps(manifest.model_dump(mode="json"), indent=2))
+
+
+@reporting_app.command("sheet")
+def reporting_sheet(out: Path = typer.Option(..., help="Directory for the review sheet PNGs.")) -> None:
+    """Renders the slide-component review sheet: one 1920×1080 PNG per fixture slide, named like the mockups, plus sheet.png."""
+    from arp.reporting.sheet import write_sheet
+
+    paths = write_sheet(out)
+    typer.echo(f"Wrote {len(paths)} PNGs to {out}")

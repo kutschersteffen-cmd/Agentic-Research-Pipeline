@@ -23,7 +23,7 @@ from arp.errors import NotConfigured
 from arp.llm.base import LLMUsage
 from arp.rfp import store
 from arp.rfp.detect import DetectedQuestions, ReportedQuestion
-from arp.rfp.draft import Cited, DraftOut
+from arp.rfp.draft import Cited, DraftOut, FactCheck
 from arp.rfp.library import QuotedPair, QuotedPairs
 from tests import rfp_fixtures as fx
 
@@ -36,11 +36,13 @@ FIRM, AUM = fx.LIB_ANSWERS[0][1], fx.LIB_ANSWERS[1][1]
 
 
 class Standin:
-    """The model, replaced by fixed structured output. `drafts` maps an RFP question to its draft."""
+    """The model, replaced by fixed structured output. `drafts` maps an RFP question to its draft, or to a list of
+    drafts, one per drafting call."""
 
     def __init__(self, pairs=fx.LIB_ANSWERS, questions=QUESTIONS, drafts=None):
         self.pairs, self.questions, self.drafts = pairs, questions, drafts or {}
         self.shown: list[str] = []  # every drafting prompt
+        self.check = FactCheck()  # the second model's answer
 
     async def complete_structured(self, *, system, prompt, output_model, **_):
         if output_model is QuotedPairs:
@@ -48,9 +50,13 @@ class Standin:
         elif output_model is DetectedQuestions:
             out = DetectedQuestions(questions=[ReportedQuestion(location=loc, question=q, answer_location=a)
                                                for loc, q, a in self.questions])
+        elif output_model is FactCheck:
+            out = self.check
         else:
             self.shown.append(prompt)
             out = self.drafts.get(prompt.rsplit("RFP question: ", 1)[1], DraftOut())
+            if isinstance(out, list):  # one draft per step of the chain, in order
+                out = out.pop(0) if out else DraftOut()
         return out, LLMUsage()
 
 

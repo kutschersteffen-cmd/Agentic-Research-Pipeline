@@ -131,14 +131,9 @@ export function ArgusStart() {
 
   return (
     <div className="page hub argus-start">
-      <p className="hub-crumb">
-        <a href="#/home">Start</a> › Argus
-      </p>
       <div className="argus-head">
         <h1>Argus</h1>
         <span className="argus-head-actions">
-          <a href="#/argusWalkthrough">Walkthrough</a>
-          <a href="#/xbrl">XBRL Facts</a>
           <button disabled={starting} onClick={() => void start()}>
             Start new extraction
           </button>
@@ -155,7 +150,7 @@ export function ArgusStart() {
           <a
             key={t.step}
             href="#/argus"
-            className={`argus-tile${t.needs ? " argus-tile-await" : ""}${t.count === 0 ? " argus-tile-empty" : ""}`}
+            className={`argus-tile${t.tone ? ` argus-tile-${t.tone}` : ""}${t.count === 0 ? " argus-tile-empty" : ""}`}
             aria-pressed={step === t.step}
             onClick={(e) => {
               e.preventDefault();
