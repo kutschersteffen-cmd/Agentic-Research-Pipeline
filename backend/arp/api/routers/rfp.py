@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 from datetime import date
 from pathlib import PurePath
@@ -16,8 +17,8 @@ from arp.db import models as m
 from arp.db.session import transaction
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import run_alive
-from arp.rfp import store
-from arp.rfp.draft import APPROVED, DRAFTED, EDITED, LEFT_BLANK, flags_for
+from arp.rfp import documents, store
+from arp.rfp.draft import APPROVED, DRAFTED, EDITED, LEFT_BLANK
 from arp.rfp.fill import FillRefused, fill
 from arp.rfp.locations import SUFFIXES
 from arp.rfp.text import has_figures, plus_12_months
@@ -25,6 +26,8 @@ from arp.schemas.rfp import (
     RfpAnswerIn,
     RfpApproveIn,
     RfpAssigneeIn,
+    RfpDocumentEdit,
+    RfpDocumentOut,
     RfpLibraryEntryEdit,
     RfpLibraryEntryOut,
     RfpLibraryImportOut,
@@ -105,6 +108,74 @@ def retire_library_entry(entry_id: int) -> RfpLibraryEntryOut:
         e = _entry(s, entry_id)
         e.status = "retired"
         return store.entry_out(e)
+
+
+# --- reference documents ------------------------------------------------------------------------
+
+
+def _document(s, document_id: int, lock: bool = False) -> m.RfpReferenceDocument:
+    d = s.get(m.RfpReferenceDocument, document_id, with_for_update=lock)
+    if d is None:
+        raise HTTPException(404, "Reference document not found")
+    return d
+
+
+def _retire(s, d: m.RfpReferenceDocument) -> None:
+    d.status = "retired"
+    documents.flag_stale(s, d.id)
+
+
+@router.get("/documents", response_model=list[RfpDocumentOut])
+def list_documents() -> list[RfpDocumentOut]:
+    with transaction() as s:
+        return [documents.doc_out(d) for d in s.scalars(
+            select(m.RfpReferenceDocument).order_by(m.RfpReferenceDocument.priority, m.RfpReferenceDocument.id))]
+
+
+@router.post("/documents", response_model=RfpDocumentOut)
+async def upload_document(
+    file: UploadFile = File(...),
+    title: str = Form(..., min_length=1),
+    document_date: date = Form(...),
+    priority: int = Form(1, ge=1),
+    replaces: int | None = Form(None),
+    user: Principal = Depends(_approver),
+    blobs=Depends(blob_store_dep),
+) -> RfpDocumentOut:
+    """Parses and stores a .pdf or .docx as `active`; with `replaces`, retires that document in the same transaction."""
+    name = PurePath(file.filename or "").name
+    data = await file.read()
+    text, page_breaks = await asyncio.to_thread(documents.parse, name, data)  # 400 on a wrong type or a scan
+    with transaction() as s:
+        old = _document(s, replaces, lock=True) if replaces is not None else None  # 404 stores nothing
+        key = hashlib.sha256(data).hexdigest()
+        upload_or_fail(blobs, key, data)
+        d = m.RfpReferenceDocument(title=title, filename=name, content_key=key, full_text=text, page_breaks=page_breaks,
+                                   document_date=document_date, review_by=plus_12_months(document_date),
+                                   priority=priority, status="active", uploaded_by=user.user_id)
+        s.add(d)
+        if old is not None:
+            _retire(s, old)
+        s.flush()
+        return documents.doc_out(d)
+
+
+@router.put("/documents/{document_id}", response_model=RfpDocumentOut, dependencies=[Depends(_approver)])
+def edit_document(document_id: int, body: RfpDocumentEdit) -> RfpDocumentOut:
+    with transaction() as s:
+        d = _document(s, document_id)
+        for name, value in body.model_dump(exclude_unset=True).items():
+            if value is not None:  # a field left out (or null) stays as it is
+                setattr(d, name, value)
+        return documents.doc_out(d)
+
+
+@router.post("/documents/{document_id}/retire", response_model=RfpDocumentOut, dependencies=[Depends(_approver)])
+def retire_document(document_id: int) -> RfpDocumentOut:
+    with transaction() as s:
+        d = _document(s, document_id)
+        _retire(s, d)
+        return documents.doc_out(d)
 
 
 # --- projects ----------------------------------------------------------------------------------
@@ -204,10 +275,8 @@ def edit_answer(project_id: int, qid: int, body: RfpAnswerIn, user: Principal = 
     """Edits a draft or writes an answer by hand, on any status; the sources stay as they are."""
     with transaction() as s:
         q = _question(s, project_id, qid)
-        ids = [src["entry_id"] for src in q.sources]
-        review_bys = list(s.scalars(select(m.RfpLibraryEntry.review_by).where(m.RfpLibraryEntry.id.in_(ids)))) if ids else []
         q.answer, q.status, q.last_editor = body.answer, EDITED, user.user_id
-        q.flags = flags_for(body.answer, review_bys, store.today())
+        q.flags = store.source_flags(s, q.sources, body.answer)
         return store.project_out(s, _project(s, project_id))
 
 

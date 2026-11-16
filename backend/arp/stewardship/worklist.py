@@ -5,8 +5,10 @@ Everything is computed on read from what the app already stores: holdings in the
 proposed coverage tiers, stored triggers, engagement records, the vote ledger's meetings and the portfolio
 observations. No score is stored. One thing is cached (owner decision, 15 Nov 2026): the latest value of each
 portfolio observation file, per process, re-read whenever the file's modification time or size changes
-(`PortfolioStore.latest_observation`), so it is never stale. Holdings, tiers, triggers, engagements, selections,
-notes, programmes and the vote ledger are read fresh on every request.
+(`PortfolioStore.latest_observation`), so it is never stale. At start-up the cache is filled from
+`observations_latest.json`; each entry is still checked against its file's modification time and size before use.
+Holdings, tiers, triggers, engagements, selections, notes, programmes and the vote ledger are read fresh on every
+request.
 
 The score is plain arithmetic: each component's points = weight x a 0..1 normalised value, rounded to 1 decimal,
 and the score is the sum of the rounded points, so the points always add up to it. The weights are the house
@@ -39,7 +41,7 @@ from arp.stewardship.policies import PolicyStore, component_ids, validate_weight
 from arp.stewardship.process import current_tiers
 from arp.stewardship.programmes import ProgrammeLog
 from arp.stewardship.tiers import TIERS, TierStore
-from arp.stewardship.tracking import OPEN
+from arp.stewardship.tracking import OPEN, _iso
 from arp.stewardship.trigger_store import TriggerStore
 from arp.stewardship.universe import company_by_security
 from arp.storage.jsonl_io import read_jsonl
@@ -146,7 +148,7 @@ def indicators(
         open_issues = [i for i in record.issues if i.status in OPEN] if record else []
         escalated = sum(i.escalation_stage != EscalationStage.PRIVATE_ENGAGEMENT for i in open_issues)
         overdue = sum(
-            c.status == CommitmentStatus.OPEN and bool(c.target_date) and date.fromisoformat(c.target_date[:10]) < today
+            c.status == CommitmentStatus.OPEN and bool(due := _iso(c.target_date)) and date.fromisoformat(due) < today
             for i in open_issues
             for c in i.commitments
         )

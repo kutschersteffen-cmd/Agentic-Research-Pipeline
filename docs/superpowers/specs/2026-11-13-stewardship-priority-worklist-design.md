@@ -121,7 +121,8 @@ tool records the pick the same way.
 - Stale numbers. A trigger or overdue commitment stored a second ago shows on the next request (AC-13). One cache
   only (owner decision, 15 Nov 2026, for AC-44 on the 2,581-company showcase house): the latest value of each
   portfolio observation file, kept per server process and re-read whenever the file's modification time or size
-  changes, so it is never stale. Holdings, tiers, triggers, engagements, selections, notes, programmes and the vote
+  changes, so it is never stale. At start-up the cache is filled from `observations_latest.json`; each entry is
+  still checked against its file's modification time and size before use. Holdings, tiers, triggers, engagements, selections, notes, programmes and the vote
   ledger are read fresh on every request; no score is stored.
 
 ## Constraints

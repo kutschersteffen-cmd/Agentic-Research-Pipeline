@@ -3376,6 +3376,49 @@
     "title": "Body_upload_document_api_documents_upload_post",
     "type": "object"
    },
+   "Body_upload_document_api_rfp_documents_post": {
+    "properties": {
+     "document_date": {
+      "format": "date",
+      "title": "Document Date",
+      "type": "string"
+     },
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     },
+     "priority": {
+      "default": 1,
+      "minimum": 1.0,
+      "title": "Priority",
+      "type": "integer"
+     },
+     "replaces": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Replaces"
+     },
+     "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file",
+     "title",
+     "document_date"
+    ],
+    "title": "Body_upload_document_api_rfp_documents_post",
+    "type": "object"
+   },
    "Body_upload_esg_api_portfolio_esg_upload_post": {
     "properties": {
      "file": {
@@ -5588,6 +5631,10 @@
    },
    "CockpitTopicCount": {
     "properties": {
+     "abstain": {
+      "title": "Abstain",
+      "type": "integer"
+     },
      "against_management": {
       "title": "Against Management",
       "type": "integer"
@@ -5604,7 +5651,8 @@
     "required": [
      "topic",
      "votes",
-     "against_management"
+     "against_management",
+     "abstain"
     ],
     "title": "CockpitTopicCount",
     "type": "object"
@@ -12575,6 +12623,60 @@
     "title": "FromSourceRequest",
     "type": "object"
    },
+   "FundOverlap": {
+    "properties": {
+     "as_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of"
+     },
+     "companies": {
+      "title": "Companies",
+      "type": "integer"
+     },
+     "cycle": {
+      "title": "Cycle",
+      "type": "string"
+     },
+     "funds": {
+      "items": {
+       "$ref": "#/components/schemas/OverlapFund"
+      },
+      "title": "Funds",
+      "type": "array"
+     },
+     "pairs": {
+      "items": {
+       "$ref": "#/components/schemas/OverlapPair"
+      },
+      "title": "Pairs",
+      "type": "array"
+     },
+     "shared_selections": {
+      "items": {
+       "$ref": "#/components/schemas/SharedSelection"
+      },
+      "title": "Shared Selections",
+      "type": "array"
+     }
+    },
+    "required": [
+     "as_of",
+     "cycle",
+     "companies",
+     "funds",
+     "pairs",
+     "shared_selections"
+    ],
+    "title": "FundOverlap",
+    "type": "object"
+   },
    "GateRule": {
     "description": "A rule evaluated *before* the score exists. A knockout is a\ndecision, not a deduction -- an excluded entity never reaches the\naverage, where a strong score elsewhere could dilute it.",
     "properties": {
@@ -15931,6 +16033,192 @@
     "title": "OutreachLetterRequest",
     "type": "object"
    },
+   "OverlapFund": {
+    "properties": {
+     "companies": {
+      "title": "Companies",
+      "type": "integer"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "portfolio_id": {
+      "title": "Portfolio Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "portfolio_id",
+     "name",
+     "companies"
+    ],
+    "title": "OverlapFund",
+    "type": "object"
+   },
+   "OverlapHeldIn": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "portfolio_id": {
+      "title": "Portfolio Id",
+      "type": "string"
+     },
+     "weight_pct": {
+      "title": "Weight Pct",
+      "type": "number"
+     }
+    },
+    "required": [
+     "portfolio_id",
+     "name",
+     "weight_pct"
+    ],
+    "title": "OverlapHeldIn",
+    "type": "object"
+   },
+   "OverlapMatrix": {
+    "properties": {
+     "as_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of"
+     },
+     "basis": {
+      "enum": [
+       "top",
+       "selection"
+      ],
+      "title": "Basis",
+      "type": "string"
+     },
+     "companies": {
+      "items": {
+       "$ref": "#/components/schemas/OverlapMatrixCompany"
+      },
+      "title": "Companies",
+      "type": "array"
+     },
+     "cycle": {
+      "title": "Cycle",
+      "type": "string"
+     },
+     "funds": {
+      "items": {
+       "$ref": "#/components/schemas/OverlapFund"
+      },
+      "title": "Funds",
+      "type": "array"
+     },
+     "scope": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Scope"
+     }
+    },
+    "required": [
+     "as_of",
+     "basis",
+     "scope",
+     "cycle",
+     "funds",
+     "companies"
+    ],
+    "title": "OverlapMatrix",
+    "type": "object"
+   },
+   "OverlapMatrixCompany": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "funds": {
+      "title": "Funds",
+      "type": "integer"
+     },
+     "house_weight_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "House Weight Pct"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "weights": {
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "title": "Weights",
+      "type": "object"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "house_weight_pct",
+     "funds",
+     "weights"
+    ],
+    "title": "OverlapMatrixCompany",
+    "type": "object"
+   },
+   "OverlapPair": {
+    "properties": {
+     "a": {
+      "title": "A",
+      "type": "string"
+     },
+     "b": {
+      "title": "B",
+      "type": "string"
+     },
+     "shared_companies": {
+      "title": "Shared Companies",
+      "type": "integer"
+     },
+     "shared_weight_pct": {
+      "title": "Shared Weight Pct",
+      "type": "number"
+     }
+    },
+    "required": [
+     "a",
+     "b",
+     "shared_companies",
+     "shared_weight_pct"
+    ],
+    "title": "OverlapPair",
+    "type": "object"
+   },
    "OverlapRequest": {
     "properties": {
      "funds": {
@@ -16224,6 +16512,33 @@
      "fact_ids"
     ],
     "title": "PhaseoutOut",
+    "type": "object"
+   },
+   "PickedScope": {
+    "properties": {
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "scope": {
+      "title": "Scope",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "proposed",
+       "confirmed"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "scope",
+     "label",
+     "status"
+    ],
+    "title": "PickedScope",
     "type": "object"
    },
    "Pillar": {
@@ -20318,6 +20633,110 @@
     "title": "RfpAssigneeIn",
     "type": "object"
    },
+   "RfpDocumentEdit": {
+    "properties": {
+     "priority": {
+      "anyOf": [
+       {
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Priority"
+     },
+     "review_by": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Review By"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
+     }
+    },
+    "title": "RfpDocumentEdit",
+    "type": "object"
+   },
+   "RfpDocumentOut": {
+    "properties": {
+     "document_date": {
+      "format": "date",
+      "title": "Document Date",
+      "type": "string"
+     },
+     "filename": {
+      "title": "Filename",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "pages": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pages"
+     },
+     "priority": {
+      "title": "Priority",
+      "type": "integer"
+     },
+     "review_by": {
+      "format": "date",
+      "title": "Review By",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "uploaded_by": {
+      "title": "Uploaded By",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "filename",
+     "document_date",
+     "review_by",
+     "priority",
+     "status",
+     "uploaded_by",
+     "pages"
+    ],
+    "title": "RfpDocumentOut",
+    "type": "object"
+   },
    "RfpLibraryEntryEdit": {
     "properties": {
      "answer": {
@@ -20779,6 +21198,17 @@
    },
    "RfpSourceOut": {
     "properties": {
+     "document_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Document Id"
+     },
      "entry_id": {
       "anyOf": [
        {
@@ -20831,6 +21261,28 @@
       ],
       "title": "Location"
      },
+     "page": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page"
+     },
+     "priority": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Priority"
+     },
      "quote": {
       "title": "Quote",
       "type": "string"
@@ -20845,6 +21297,17 @@
        }
       ],
       "title": "Source"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
      },
      "written_by": {
       "anyOf": [
@@ -22724,6 +23187,40 @@
      "fact_ids"
     ],
     "title": "ShareOut",
+    "type": "object"
+   },
+   "SharedSelection": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "held_in": {
+      "items": {
+       "$ref": "#/components/schemas/OverlapHeldIn"
+      },
+      "title": "Held In",
+      "type": "array"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "scopes": {
+      "items": {
+       "$ref": "#/components/schemas/PickedScope"
+      },
+      "title": "Scopes",
+      "type": "array"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "scopes",
+     "held_in"
+    ],
+    "title": "SharedSelection",
     "type": "object"
    },
    "ShockIndicators": {
@@ -42296,6 +42793,165 @@
     ]
    }
   },
+  "/api/rfp/documents": {
+   "get": {
+    "operationId": "list_documents_api_rfp_documents_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RfpDocumentOut"
+         },
+         "title": "Response List Documents Api Rfp Documents Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Documents",
+    "tags": [
+     "rfp"
+    ]
+   },
+   "post": {
+    "description": "Parses and stores a .pdf or .docx as `active`; with `replaces`, retires that document in the same transaction.",
+    "operationId": "upload_document_api_rfp_documents_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_upload_document_api_rfp_documents_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpDocumentOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Upload Document",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/documents/{document_id}": {
+   "put": {
+    "operationId": "edit_document_api_rfp_documents__document_id__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "document_id",
+      "required": true,
+      "schema": {
+       "title": "Document Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RfpDocumentEdit"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpDocumentOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Edit Document",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/documents/{document_id}/retire": {
+   "post": {
+    "operationId": "retire_document_api_rfp_documents__document_id__retire_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "document_id",
+      "required": true,
+      "schema": {
+       "title": "Document Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpDocumentOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Retire Document",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
   "/api/rfp/library": {
    "get": {
     "operationId": "list_library_api_rfp_library_get",
@@ -44820,6 +45476,142 @@
      }
     },
     "summary": "Record Objective Result",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/overlap": {
+   "get": {
+    "description": "Every house fund, every fund pair's shared companies and shared weight, and the companies picked in two or\nmore scopes in `cycle` (default: the current one).",
+    "operationId": "get_overlap_api_stewardship_overlap_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "cycle",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Cycle"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FundOverlap"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Overlap",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/overlap/matrix": {
+   "get": {
+    "description": "A fund x company grid of weights: the `n` companies with the largest house weight (`basis=top`), or every\ncompany picked in `scope` in `cycle` (`basis=selection`).",
+    "operationId": "get_overlap_matrix_api_stewardship_overlap_matrix_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "basis",
+      "required": false,
+      "schema": {
+       "default": "top",
+       "title": "Basis",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "n",
+      "required": false,
+      "schema": {
+       "default": 100,
+       "title": "N",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "scope",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Scope"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cycle",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Cycle"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/OverlapMatrix"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Overlap Matrix",
     "tags": [
      "stewardship"
     ]

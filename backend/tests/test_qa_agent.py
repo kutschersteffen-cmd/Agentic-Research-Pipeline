@@ -31,6 +31,15 @@ async def test_answer_question_resolvable_computes_real_number(tmp_path, fake_ll
     assert answer.spec.security_filter == {"company_id": "bmw"}
 
 
+async def test_answer_text_names_the_company_of_a_company_id_filter(tmp_path, fake_llm):
+    store, securities, companies = _setup(tmp_path)
+    parsed = _ParsedQuestion(resolvable=True, security_filter={"company_id": "bmw"}, group_by="portfolio_id", metric="market_value_sum")
+
+    answer, _usage = await qa_agent.answer_question("How much BMW?", fake_llm({"_ParsedQuestion": [parsed]}), store, securities, companies)
+
+    assert "company_id=bmw (BMW AG)" in answer.answer_text
+
+
 async def test_answer_question_unresolvable_asks_for_clarification(tmp_path, fake_llm):
     store, securities, companies = _setup(tmp_path)
     parsed = _ParsedQuestion(resolvable=False, clarification_needed="Which company do you mean?")

@@ -29,6 +29,7 @@ the person who saved that version (four-eyes).
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -50,19 +51,44 @@ from arp.storage.jsonl_io import append_jsonl
 ESCALATION_RULES_FORMAT = "three_tiers_6_steps"
 
 
+_QUOTED_OLD_TIER = re.compile(r"""(['"])(""" + "|".join(OLD_TIERS) + r")\1")
+
+
+def _texts(value: object) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    items = value.values() if isinstance(value, dict) else value if isinstance(value, list) else []
+    return [t for v in items for t in _texts(v)]
+
+
+def _old_tier_key(graph: dict) -> str | None:
+    """The first old tier key a graph names, read from the text, not the evaluation, so a rule that never fires
+    is caught too: a `tier` output cell that is the key (quoted or not), or the key quoted ('systemic' or
+    "systemic") in any other text of any node. Other decision-table output columns (rule names, reasons) are
+    not tiers and are skipped."""
+    for node in graph["nodes"]:
+        if not isinstance(node, dict):
+            continue
+        content = node.get("content")
+        if isinstance(content, dict) and isinstance(content.get("rules"), list):
+            fields = {o.get("id"): o.get("field") for o in content.get("outputs") or [] if isinstance(o, dict)}
+            rules = [r for r in content["rules"] if isinstance(r, dict)]
+            for cell in (r.get(i) for r in rules for i, f in fields.items() if f == "tier"):
+                if isinstance(cell, str) and (key := cell.strip().strip("'\"")) in OLD_TIERS:
+                    return key
+            names = {i for i, f in fields.items() if f != "tier"}
+            node = {**node, "content": {**content, "rules": [{k: v for k, v in r.items() if k not in names} for r in rules]}}
+        for text in _texts(node):
+            if m := _QUOTED_OLD_TIER.search(text):
+                return m.group(2)
+    return None
+
+
 def _validate_coverage(graph: dict, sample: dict) -> None:
     if not isinstance(graph, dict) or not graph.get("nodes"):
         raise ValueError("A coverage policy is a rule graph with nodes and edges")
-    # Read every rule's tier cell, not the evaluation: an old key in a rule that never fires is caught too.
-    for node in graph["nodes"]:
-        content = node.get("content") if isinstance(node, dict) else None
-        if not isinstance(content, dict):
-            continue
-        tier_ids = {o.get("id") for o in content.get("outputs") or [] if isinstance(o, dict) and o.get("field") == "tier"}
-        for rule in content.get("rules") or []:
-            for cell in (rule.get(i) for i in tier_ids if isinstance(rule, dict)):
-                if isinstance(cell, str) and (key := cell.strip().strip("'\"")) in OLD_TIERS:
-                    raise ValueError(f"Coverage rules may only propose bilateral, letter or monitor (found {key})")
+    if key := _old_tier_key(graph):
+        raise ValueError(f"Coverage rules may only propose bilateral, letter or monitor (found {key})")
     try:
         evaluate_tiers(graph, tier_contexts(sample, []))
     except RuntimeError as exc:
@@ -78,9 +104,15 @@ def _validate_monitoring(graph: dict, sample: dict) -> None:
         raise ValueError(f"The monitoring rules do not run: {exc}") from exc
 
 
-def _validate_escalation(graph: dict, sample: dict) -> None:
+def _no_old_tier_in_escalation(graph: dict) -> None:
     if not isinstance(graph, dict) or not graph.get("nodes"):
         raise ValueError("An escalation policy is a rule graph with nodes and edges")
+    if key := _old_tier_key(graph):
+        raise ValueError(f"Escalation rules may only name bilateral, letter or monitor (found {key})")
+
+
+def _validate_escalation(graph: dict, sample: dict) -> None:
+    _no_old_tier_in_escalation(graph)
     # every engagement under every tier, and under no tier, must get a valid cap and recommendation
     ctxs = [{**c, "tier": {"tier": t}} for c in escalation.contexts(sample, [], {}, [], sla_days=30) for t in [*TIERS, None]]
     try:
@@ -90,8 +122,7 @@ def _validate_escalation(graph: dict, sample: dict) -> None:
 
 
 def _validate_client_escalation(graph: dict, sample: dict) -> None:
-    if not isinstance(graph, dict) or not graph.get("nodes"):
-        raise ValueError("An escalation policy is a rule graph with nodes and edges")
+    _no_old_tier_in_escalation(graph)
     base = escalation.contexts(sample, [], {}, [], sla_days=30)
     ctxs = [{**c, "tier": {"tier": t}} for c in base for t in [*TIERS, None]]
     try:
@@ -160,8 +191,10 @@ def _validate_theme_standards(content: dict, sample: dict) -> None:
         if kind not in _NUMERIC and op != "==":
             raise ValueError(f"standard '{sid}': operator '{op}' does not fit {kind}")
         fits = (
-            isinstance(value, (int, float)) and not isinstance(value, bool) if kind in _NUMERIC
-            else isinstance(value, bool) if kind == "boolean"
+            isinstance(value, (int, float)) and not isinstance(value, bool)
+            if kind in _NUMERIC
+            else isinstance(value, bool)
+            if kind == "boolean"
             else isinstance(value, str) and value in (field.get("allowed_values") or [])
         )
         if not fits:
@@ -258,7 +291,9 @@ class PolicyStore:
         """A saved escalation_rules version written for the old tiers or the 7-step ladder (its caps no longer fit)."""
         if policy_id != "escalation_rules" or version == 0:
             return False
-        meta = next((v for v in self.versions(policy_id) if v["version"] == version), {})
+        meta = next((v for v in self.versions(policy_id) if v["version"] == version), None)
+        if meta is None:  # an activation pointing at a missing file fails loudly, like content()
+            raise KeyError(f"{policy_id} v{version}")
         return meta.get("rules_format") != ESCALATION_RULES_FORMAT
 
     def active_version(self, policy_id: str) -> int:

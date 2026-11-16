@@ -60,6 +60,7 @@ import type {
   XbrlRequiredRow,
   XbrlTag,
   XbrlVerifyRow,
+  RfpDocument,
   RfpLibraryEntry,
   RfpProject,
   RfpProjectSummary,
@@ -288,6 +289,17 @@ export const api = {
     return request<{ imported: number; dropped: string[] }>("/api/rfp/library/import", { method: "POST", body: form });
   },
   retireRfpEntry: (id: number) => request<RfpLibraryEntry>(`/api/rfp/library/${id}/retire`, { method: "POST" }),
+  listRfpDocuments: () => request<RfpDocument[]>("/api/rfp/documents"),
+  uploadRfpDocument: (file: File, title: string, documentDate: string, priority: number, replaces: number | null) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("title", title);
+    form.append("document_date", documentDate);
+    form.append("priority", String(priority));
+    if (replaces !== null) form.append("replaces", String(replaces));
+    return request<RfpDocument>("/api/rfp/documents", { method: "POST", body: form });
+  },
+  retireRfpDocument: (id: number) => request<RfpDocument>(`/api/rfp/documents/${id}/retire`, { method: "POST" }),
   listRfpProjects: () => request<RfpProjectSummary[]>("/api/rfp/projects"),
   createRfpProject: (file: File, investor: string, dueDate: string) => {
     const form = new FormData();

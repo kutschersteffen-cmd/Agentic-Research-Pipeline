@@ -28,11 +28,16 @@ export function pickDefaultDashboard(items: DashboardItem[], preferredSlug = "ar
   return items.find((d) => d.slug === preferredSlug) ?? items[0] ?? null;
 }
 
+/** A client error without its leading "NNN: " status code; nothing else changes. */
+export function withoutStatusCode(error: string): string {
+  return error.replace(/^\d{3}:\s*/, "");
+}
+
 /** The embed error for people: a dashboard that vanished or lost its `arp-` slug (403/404)
  * is "no longer available"; anything else loses its "NNN: " status prefix. */
 export function embedErrorText(error: string): string {
   if (/^40[34]:/.test(error)) return "This dashboard is no longer available here.";
-  return error.replace(/^\d{3}:\s*/, "");
+  return withoutStatusCode(error);
 }
 
 /** What the Company Profile adds to the embed-token request. The server checks the id
