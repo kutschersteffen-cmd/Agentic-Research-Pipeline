@@ -305,6 +305,35 @@ def _vote_meeting_key_repair(conn: Connection) -> None:
         logging.getLogger(__name__).warning("vote_meeting_key_repair: %d meeting(s) left under their old key; their new key is taken", skipped)
 
 
+def _vote_meeting_listing_key(conn: Connection) -> None:
+    """Re-key `cid:` vote meetings that carry an ISIN or CUSIP to the listing key `meeting_key` now gives them
+    (`isin:`, else `cusip:`), and their items the same way, so re-sending an old file updates instead of duplicating."""
+    import logging
+
+    from sqlalchemy import text
+
+    from arp.stewardship.intake import meeting_key
+
+    rows = conn.execute(text(
+        "SELECT meeting_id, source, external_id, isin, cusip FROM vote_meetings WHERE source IN ('api', 'excel')"
+        " AND external_id LIKE 'cid:%' AND (isin IS NOT NULL OR cusip IS NOT NULL)"
+    )).all()
+    skipped = []
+    for meeting_id, source, ext, isin, cusip in rows:
+        new = f"{meeting_key(None, isin, cusip)}:{ext.rpartition(':')[2]}"
+        if conn.execute(text("SELECT 1 FROM vote_meetings WHERE source = :s AND external_id = :e"), {"s": source, "e": new}).first():
+            skipped.append(f"{source}/{ext}")  # a meeting already holds that key; leave both for a person to merge
+            continue
+        conn.execute(text("UPDATE vote_meetings SET external_id = :new WHERE meeting_id = :id"), {"new": new, "id": meeting_id})
+        conn.execute(text(
+            "UPDATE vote_items SET external_id = :new || substr(external_id, length(:old) + 1)"
+            " WHERE meeting_id = :id AND starts_with(external_id, :old || ':')"
+        ), {"new": new, "old": ext, "id": meeting_id})
+    if skipped:
+        logging.getLogger(__name__).warning(
+            "vote_meeting_listing_key: %d meeting(s) left under their old key; their new key is taken: %s", len(skipped), ", ".join(skipped))
+
+
 def rekey_company_ids(conn: Connection) -> None:
     """Sets the registry company on every legacy-keyed row that has none yet (rules:
     `arp.db.companies.company_for`). Rows that match nothing keep NULL; `schema_report` counts them.
@@ -449,6 +478,11 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         name="vote_meeting_key_repair",
         description="cid: vote meetings whose company_id resolves to nothing re-keyed by their isin/cusip, as intake keys them",
         apply=_vote_meeting_key_repair,
+    ),
+    SchemaStep(
+        name="vote_meeting_listing_key",
+        description="cid: vote meetings with an isin/cusip re-keyed by that listing, so each listing is its own meeting",
+        apply=_vote_meeting_listing_key,
     ),
 )
 
