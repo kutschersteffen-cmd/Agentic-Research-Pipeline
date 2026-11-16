@@ -262,6 +262,17 @@ def test_isin_company_id_suffix_upper_cased():
     assert meeting_key("isin_us0378331005", None, None) == meeting_key(None, "US0378331005", None) == "isin:US0378331005"
 
 
+def test_isin_company_id_with_cusip_stays_on_its_isin_listing(pg):  # #552 code review B1
+    PostgresEngagementStore(pg).get_or_create("isin_US0378331005", "Apple")
+    assert meeting_key("isin_US0378331005", None, "037833100") == "isin:US0378331005"
+    day = {"company_id": "isin_US0378331005", "isin": None, "item_number": "1"}
+    report = intake_votes([_row(1, external_id="a", **day), _row(1, external_id="b", cusip="037833100", **day)], pg, "api")
+    assert report.rejected == []
+    with transaction(pg) as s:
+        m = s.scalars(select(VoteMeetingModel)).one()
+        assert (m.external_id, m.company_id, m.cusip) == ("isin:US0378331005:2026-05-01", "isin_US0378331005", "037833100")
+
+
 def _set_meeting_key(pg, new):
     with transaction(pg) as s:
         m = s.scalars(select(VoteMeetingModel)).one()
@@ -362,7 +373,7 @@ def test_listing_key_step_rekeys_cid_meeting_so_resend_updates(pg, caplog):  # A
     _set_meeting_key_of(pg, "US0000000009", "cid:SYN01:2026-05-01", isin="US0000000001")  # its target key is taken
     _run_steps(pg, _vote_meeting_listing_key)
     assert ("cid:SYN01:2026-05-01", "SYN01") in _keys(pg)
-    assert "vote_meeting_listing_key: 1 meeting(s) left under their old key" in caplog.text
+    assert "vote_meeting_listing_key: 1 meeting(s) left under their old key; their new key is taken: api/cid:SYN01:2026-05-01" in caplog.text
 
 
 def _set_meeting_key_of(pg, stored_isin, new, **values):

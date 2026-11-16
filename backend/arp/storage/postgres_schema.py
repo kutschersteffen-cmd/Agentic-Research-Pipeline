@@ -318,11 +318,11 @@ def _vote_meeting_listing_key(conn: Connection) -> None:
         "SELECT meeting_id, source, external_id, isin, cusip FROM vote_meetings WHERE source IN ('api', 'excel')"
         " AND external_id LIKE 'cid:%' AND (isin IS NOT NULL OR cusip IS NOT NULL)"
     )).all()
-    skipped = 0
+    skipped = []
     for meeting_id, source, ext, isin, cusip in rows:
         new = f"{meeting_key(None, isin, cusip)}:{ext.rpartition(':')[2]}"
         if conn.execute(text("SELECT 1 FROM vote_meetings WHERE source = :s AND external_id = :e"), {"s": source, "e": new}).first():
-            skipped += 1  # a meeting already holds that key; leave both for a person to merge
+            skipped.append(f"{source}/{ext}")  # a meeting already holds that key; leave both for a person to merge
             continue
         conn.execute(text("UPDATE vote_meetings SET external_id = :new WHERE meeting_id = :id"), {"new": new, "id": meeting_id})
         conn.execute(text(
@@ -330,7 +330,8 @@ def _vote_meeting_listing_key(conn: Connection) -> None:
             " WHERE meeting_id = :id AND starts_with(external_id, :old || ':')"
         ), {"new": new, "old": ext, "id": meeting_id})
     if skipped:
-        logging.getLogger(__name__).warning("vote_meeting_listing_key: %d meeting(s) left under their old key; their new key is taken", skipped)
+        logging.getLogger(__name__).warning(
+            "vote_meeting_listing_key: %d meeting(s) left under their old key; their new key is taken: %s", len(skipped), ", ".join(skipped))
 
 
 def rekey_company_ids(conn: Connection) -> None:

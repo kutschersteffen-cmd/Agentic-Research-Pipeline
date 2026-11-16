@@ -313,8 +313,8 @@ def meeting_key(company_id: str | None, isin: str | None, cusip: str | None) -> 
     """The listing part of a vote meeting's key: `isin`, else `cusip`, else the company id, one namespace each, so two
     listings of one company (share and ADR) are two meetings (owner, 15 Nov 2026). A company keyed `isin_<ISIN>`
     shares the `isin:` namespace with ISIN-only rows, so both reach one meeting."""
-    if not isin and not cusip and company_id and company_id.startswith("isin_"):
-        return f"isin:{company_id[5:].upper()}"
+    if not isin and company_id and company_id.startswith("isin_"):
+        isin = company_id[5:].upper()
     return next(f"{ns}:{v}" for ns, v in (("isin", isin), ("cusip", cusip), ("cid", company_id)) if v)
 
 
