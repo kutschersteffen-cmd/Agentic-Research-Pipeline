@@ -148,7 +148,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Agentic Research Pipeline", version="0.1.0", lifespan=lifespan)
 
-# Host check for every route (voting included): a host check, not auth. Stops
+# Host check for every route: a host check, not auth. Stops
 # DNS rebinding from turning a foreign site into a loopback "dev" caller.
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings_dep().trusted_hosts)
 
@@ -177,7 +177,7 @@ app.include_router(authority_taxonomy.router, dependencies=[Depends(authorize)])
 app.include_router(overlap.router, dependencies=[Depends(authorize)])
 app.include_router(revenue_catalogue.router, dependencies=[Depends(authorize)])
 app.include_router(engagement.router, dependencies=[Depends(authorize)])
-app.include_router(voting.router)
+app.include_router(voting.router, dependencies=[Depends(authorize)])
 app.include_router(xbrl.router, dependencies=[Depends(authorize)])
 app.include_router(stewardship.router, dependencies=[Depends(authorize)])
 app.include_router(stewardship_cockpit.router, dependencies=[Depends(authorize)])
