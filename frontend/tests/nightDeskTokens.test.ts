@@ -40,7 +40,7 @@ const LIGHT: Record<string, string> = {
   "--hi": "#85601a", "--hi-ink": "#85601a", "--on-hi": "#ffffff", "--high": "#13804f", "--low": "#c8323f",
 };
 const DARK: Record<string, string> = {
-  "--bg": "#0d1015", "--panel": "#141921", "--panel-border": "#2c3644", "--field-border": "#6d7889",
+  "--bg": "#0d1015", "--panel": "#141921", "--panel-border": "rgb(232 235 240 / 0.12)", "--field-border": "#6d7889",
   "--well": "#1b222d", "--text": "#e8ebf0", "--muted": "#a3acbb", "--accent": "#e8ebf0",
   "--sidebar-bg": "#10141a", "--on-accent": "#0d1015", "--await": "rgb(212 166 80 / 0.14)",
   "--await-edge": "#d4a650", "--hi": "#d4a650", "--hi-ink": "#d4a650", "--on-hi": "#0d1015",

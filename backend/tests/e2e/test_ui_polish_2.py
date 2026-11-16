@@ -134,3 +134,55 @@ def test_ac5b_small_h2_stays_600(page):
     h2 = page.locator(".section-heading h2").first
     # Ruling: the spec says "stay at 600", but this h2 has no weight rule and renders at the browser's 700; it stays unchanged.
     assert float(_style(h2, "fontSize")[:-2]) < 20 and _style(h2, "fontWeight") == "700"
+
+
+
+
+def test_ac6_dark_hairline(page):
+    _open(page, "/#/argus")
+    assert _style(page.locator(".argus-waiting"), "borderTopColor") == "rgba(232, 235, 240, 0.12)"
+    page.keyboard.press("Control+k")
+    field = page.locator(".palette-input")
+    field.wait_for()
+    field.evaluate("e => e.blur()")  # it opens focused; the rule is about the resting edge
+    c = _style(field, "borderTopColor")
+    assert c == _probe(page, "--field-border") and _rgb(page, c)[3] == 1
+
+
+def test_ac6b_light_hairline(page):
+    _open(page, "/#/argus", scheme="light")
+    assert _style(page.locator(".argus-waiting"), "borderTopColor") == "rgb(216, 222, 231)"
+
+
+def test_ac7b_button_duration(page):
+    _open(page, "/#/stewardiq")
+    assert "0.1s" in _style(page.locator(".start-topbar button").first, "transitionDuration")
+
+
+@pytest.mark.parametrize("scheme", ["dark", "light"])
+def test_ac9_bar_translucent(page, scheme):
+    _open(page, "/#/stewardiq", scheme=scheme)
+    bar = page.locator(".start-topbar")
+    assert _style(bar, "backdropFilter") == "blur(20px)"
+    # Painted over black the alpha shows: 80% of --bg plus 20% black.
+    got = page.evaluate("""(c) => { const x = document.createElement('canvas').getContext('2d'); x.fillStyle = '#000'; x.fillRect(0,0,1,1);
+        x.fillStyle = c; x.fillRect(0,0,1,1); return [...x.getImageData(0,0,1,1).data].slice(0,3).map(v => v/255); }""", _style(bar, "backgroundColor"))
+    bg = _rgb(page, _probe(page, "--bg", "backgroundColor"))
+    assert all(abs(g - 0.8 * b) <= 0.01 for g, b in zip(got, bg[:3], strict=True)), (got, bg)
+
+
+def test_ac9b_phone_bar_opaque(page):
+    _open(page, "/#/stewardiq", 390, 844)
+    bar = page.locator(".start-topbar")
+    assert _style(bar, "backdropFilter") == "none"
+    assert _rgb(page, _style(bar, "backgroundColor"))[3] == 1
+
+
+@pytest.mark.parametrize("scheme", ["dark", "light"])
+def test_ac9c_badge_solid(page, scheme):
+    page.route("**/api/waiting", lambda r: r.fulfill(json={"review": 100, "decisions": 20, "ballots": 3, "total": 123}))
+    _open(page, "/#/stewardiq", scheme=scheme)
+    badge = page.locator(".start-topbar .nav-count")
+    bg = _style(badge, "backgroundColor")
+    assert _rgb(page, bg)[3] == 1
+    assert _contrast(page, _style(badge, "color"), bg) >= 4.5

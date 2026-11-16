@@ -87,6 +87,10 @@
   --track-display: -0.025em;
   --track-title: -0.015em;
   --track-body: -0.008em;
+  /* Motion: colour hovers fast, panels and bars slower, decelerating. --dur and --ease stay for state changes. */
+  --dur-fast: 100ms;
+  --dur-slow: 240ms;
+  --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
 
   --font-display: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
@@ -112,7 +116,7 @@
   :root:not([data-theme="light"]) {
     --bg: #0d1015;
     --panel: #141921;
-    --panel-border: #2c3644;
+    --panel-border: rgb(232 235 240 / 0.12);
     --field-border: #6d7889;
     --well: #1b222d;
     --text: #e8ebf0;
@@ -153,7 +157,7 @@
 :root[data-theme="dark"] {
   --bg: #0d1015;
   --panel: #141921;
-  --panel-border: #2c3644;
+  --panel-border: rgb(232 235 240 / 0.12);
   --field-border: #6d7889;
   --well: #1b222d;
   --text: #e8ebf0;
@@ -202,6 +206,14 @@ body {
   caret-color: var(--accent);
 }
 kbd, code { letter-spacing: normal; }
+/* Balanced headings and no one-word last lines, everywhere; zero specificity so components still decide. */
+:where(h1, h2, h3, h4) { text-wrap: balance; }
+:where(p, li, dd, figcaption) { text-wrap: pretty; }
+/* Light text on dark reads thinner with greyscale antialiasing (macOS only; elsewhere a no-op). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+}
+:root[data-theme="dark"] body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 ::selection { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--text); }
 /* The browser default placeholder grey measured 4.47:1 on --panel. */
 ::placeholder { color: var(--muted); opacity: 1; }
@@ -350,7 +362,7 @@ input[type="text"]:focus, input[type="password"]:focus, input:not([type]):focus,
 }
 
 :where(button, .nav-tab, .clickable-row, .issue-row, .source-card, .preview-thumb, .view-toggle button) {
-  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 
 /* `button` carries a default margin-top for stacked form layouts, which
@@ -603,7 +615,7 @@ details.help-text[open] > summary { margin-bottom: var(--s-1); }
 
 .progress-bar { background: var(--well); border-radius: var(--r-pill); height: 8px; overflow: hidden; margin: var(--s-2) 0; }
 /* Scaled, not resized: the fill animates on the compositor as polls land. */
-.progress-bar-fill { background: var(--accent); height: 100%; transform-origin: left; transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+.progress-bar-fill { background: var(--accent); height: 100%; transform-origin: left; transition: transform var(--dur-slow) var(--ease-out); }
 
 .run-progress-header { display: flex; justify-content: space-between; align-items: center; }
 .run-progress-stats { display: flex; gap: var(--s-4); flex-wrap: wrap; color: var(--muted); font-size: var(--text-sm); }
@@ -1255,7 +1267,7 @@ h2 .chip-not-built { margin-left: var(--s-2); }
   border-radius: var(--r-md);
   cursor: pointer;
   font: inherit;
-  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 .flow-node:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
 .flow-node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -1667,7 +1679,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-flow-item + .hub-flow-item::before { content: ""; position: absolute; left: -18px; top: 50%; width: 14px; height: 2px; background: var(--panel-border); }
 .hub-step { flex: 1; display: flex; flex-direction: column; gap: var(--s-1_5); padding: var(--s-2) var(--s-3); border: 1px solid var(--panel-border); border-radius: var(--r-md); background: var(--panel); color: inherit; text-decoration: none; font-size: var(--text-xs); }
 .hub-step:hover { border-color: var(--accent); }
-.hub-step-go { margin-left: auto; color: var(--muted); transition: transform 0.15s; }
+.hub-step-go { margin-left: auto; color: var(--muted); transition: transform var(--dur-fast) var(--ease-out); }
 .hub-step:hover .hub-step-go { color: var(--accent); transform: translateX(2px); }
 .hub-step-planned { border-style: dashed; background: transparent; opacity: 0.7; }
 .hub-step-planned .chip { margin-left: auto; }
@@ -2465,6 +2477,10 @@ a.vc-box:hover { border-color: var(--text); }
 .app-shell-start { flex-direction: column; }
 .app-shell-start .app-main { width: 100%; max-width: 1248px; margin: 0 auto; padding: var(--s-12) var(--s-8) 80px; }
 .start-topbar { position: sticky; top: 0; z-index: 50; display: grid; grid-template-columns: 1fr minmax(0, 480px) 1fr; align-items: center; gap: var(--s-4); height: 76px; padding: 0 max(var(--s-8), env(safe-area-inset-right, 0px)) 0 max(var(--s-8), env(safe-area-inset-left, 0px)); background: var(--bg); border-bottom: 1px solid var(--panel-border); }
+/* Desktop only: the sticky bar lets the page show through, blurred. The phone bar scrolls away and stays opaque. */
+@media (min-width: 761px) {
+  .start-topbar { background: color-mix(in srgb, var(--bg) 80%, transparent); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+}
 .start-topbar-brand { display: flex; color: var(--text); justify-self: start; }
 .start-topbar-lockup { height: 28px; width: auto; display: block; }
 .start-topbar-search, .start-topbar-ask, .start-topbar-me { margin: 0; font: inherit; cursor: pointer; }
