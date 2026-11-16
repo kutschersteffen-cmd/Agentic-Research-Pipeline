@@ -96,3 +96,6 @@ jobs:
 
       - name: Self-test the Holdout completeness check
         run: python3 .github/scripts/holdout_complete.py --selftest
+
+      - name: Self-test the nightly Holdout issue rule
+        run: bash .github/scripts/holdout_issue_needed.sh --selftest
