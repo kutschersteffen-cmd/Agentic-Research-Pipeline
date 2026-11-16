@@ -17,7 +17,9 @@ confirmed it (stage 5), and tiers are due for re-evaluation every quarter.
 from __future__ import annotations
 
 import json
+import logging
 from collections import Counter
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -27,6 +29,9 @@ from arp.schemas.engagement import EngagementRecord, EscalationStage
 from arp.stewardship.backtest import _nest
 from arp.stewardship.policy_review import load
 from arp.stewardship.tracking import OPEN
+from arp.storage.locks import KeyedLock
+
+logger = logging.getLogger(__name__)
 
 TIERS = ["bilateral", "letter", "monitor"]
 TIER_LABELS = {"bilateral": "Bilateral", "letter": "Letter", "monitor": "Monitor"}
@@ -35,11 +40,37 @@ TIER_LABELS = {"bilateral": "Bilateral", "letter": "Letter", "monitor": "Monitor
 RETIRED_TIER = "thematic_collaborative"
 OLD_TIERS = {"priority_bilateral": "bilateral", "scaled_baseline": "letter", "systemic": "monitor", RETIRED_TIER: "letter"}
 REEVALUATE_AFTER = timedelta(days=91)  # quarterly minimum (E1)
+# One lock per log file, held across processes, around every check-then-append.
+_LOCKS = KeyedLock(lock_path=lambda p: Path(p + ".lock"))
 
 
-def map_tier(tier: str | None) -> str | None:
-    """A tier key as read from a coverage-rule output or an approved programme version."""
-    return OLD_TIERS.get(tier, tier) if tier else tier
+def map_tier(tier: object) -> object:
+    """A tier key as read from a coverage-rule output or an approved programme version; only text is mapped."""
+    return OLD_TIERS.get(tier, tier) if isinstance(tier, str) else tier
+
+
+def _read_log(path: Path, required: Callable[[dict], tuple[str, ...]]) -> Iterator[dict]:
+    """The log's rows. A damaged line (not UTF-8, not a JSON object, or missing a required field) is skipped
+    with a warning; the file is never rewritten."""
+    if not path.exists():
+        return
+    for n, raw in enumerate(path.read_bytes().splitlines(), 1):
+        if not raw.strip():
+            continue
+        try:
+            row = json.loads(raw.decode("utf-8"))
+        except ValueError:  # UnicodeDecodeError and JSONDecodeError
+            row = None
+        if isinstance(row, dict) and all(k in row for k in required(row)):
+            yield row
+        else:
+            logger.warning("Skipping damaged line %d in %s", n, path)
+
+
+def _append(path: Path, row: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
 def load_graph() -> dict:
@@ -98,10 +129,12 @@ class TierStore:
 
     def all(self) -> list[dict]:
         """Every row with its tier mapped to the current keys; a retired thematic row reads as tier None."""
-        if not self.path.exists():
-            return []
-        rows = [json.loads(line) for line in self.path.read_text().splitlines() if line.strip()]
+        rows = _read_log(self.path, lambda _r: ("issuer_id", "tier", "assigned_at"))
         return [{**r, "tier": None if r["tier"] == RETIRED_TIER else map_tier(r["tier"])} for r in rows]
+
+    def lock(self):
+        """Hold it across reading the open changes and confirming them."""
+        return _LOCKS.acquire(str(self.path))
 
     def latest(self) -> dict[str, dict]:
         """The confirmed tier per issuer. An issuer whose latest row is retired has none."""
@@ -114,9 +147,8 @@ class TierStore:
         if not decided_by.strip():
             raise ValueError("A tier confirmation needs decided_by")
         row = {**proposal, "confirmed_by": decided_by, "assigned_at": datetime.now(UTC).isoformat()}
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.path.open("a") as f:
-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+        with self.lock():
+            _append(self.path, row)
         return row
 
 
@@ -130,21 +162,15 @@ class PickStore:
     def standing(self) -> list[dict]:
         """The standing picks, oldest first."""
         picks: dict[str, dict] = {}
-        if self.path.exists():
-            for line in self.path.read_text().splitlines():
-                if not line.strip():
-                    continue
-                event = json.loads(line)
-                if event["event"] == "picked":
-                    picks[event["issuer_id"]] = {k: event[k] for k in ("issuer_id", "reason", "by", "at")}
-                else:
-                    picks.pop(event["issuer_id"], None)
+        for event in _read_log(self.path, _pick_fields):
+            if event["event"] == "picked":
+                picks[event["issuer_id"]] = {k: event[k] for k in ("issuer_id", "reason", "by", "at")}
+            else:
+                picks.pop(event["issuer_id"], None)
         return list(picks.values())
 
     def _append(self, event: dict) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.path.open("a") as f:
-            f.write(json.dumps({**event, "at": datetime.now(UTC).isoformat()}, ensure_ascii=False) + "\n")
+        _append(self.path, {**event, "at": datetime.now(UTC).isoformat()})
 
     def pick(self, issuer_id: str, reason: str, by: str, universe: set[str]) -> None:
         reason = reason.strip()
@@ -154,14 +180,20 @@ class PickStore:
             raise ValueError("A bilateral pick reason has at most 500 characters")
         if issuer_id not in universe:
             raise ValueError(f"Not in the house universe: {issuer_id}")
-        if any(p["issuer_id"] == issuer_id for p in self.standing()):
-            raise ValueError(f"{issuer_id} is already picked for bilateral")
-        self._append({"issuer_id": issuer_id, "event": "picked", "reason": reason, "by": by})
+        with _LOCKS.acquire(str(self.path)):
+            if any(p["issuer_id"] == issuer_id for p in self.standing()):
+                raise ValueError(f"{issuer_id} is already picked for bilateral")
+            self._append({"issuer_id": issuer_id, "event": "picked", "reason": reason, "by": by})
 
     def withdraw(self, issuer_id: str, by: str) -> None:
-        if not any(p["issuer_id"] == issuer_id for p in self.standing()):
-            raise ValueError(f"{issuer_id} has no bilateral pick")
-        self._append({"issuer_id": issuer_id, "event": "withdrawn", "by": by})
+        with _LOCKS.acquire(str(self.path)):
+            if not any(p["issuer_id"] == issuer_id for p in self.standing()):
+                raise ValueError(f"{issuer_id} has no bilateral pick")
+            self._append({"issuer_id": issuer_id, "event": "withdrawn", "by": by})
+
+
+def _pick_fields(event: dict) -> tuple[str, ...]:
+    return ("issuer_id", "event", "reason", "by", "at") if event.get("event") == "picked" else ("issuer_id", "event")
 
 
 def apply_picks(proposals: list[dict], picks: list[dict]) -> list[dict]:
