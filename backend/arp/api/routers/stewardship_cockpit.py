@@ -12,6 +12,7 @@ from arp.db.session import require_dsn
 from arp.portfolio.climate import metrics as climate_metrics
 from arp.schemas.cockpit import CockpitResponse
 from arp.stewardship import cockpit, voting_feed
+from arp.stewardship.programmes import ProgrammeLog
 from arp.stewardship.tiers import TierStore
 from arp.storage.portfolio_store import portfolio_directories
 from arp.storage.portfolio_store_factory import build_portfolio_store
@@ -46,6 +47,6 @@ def get_cockpit(
     per_company, uncovered = climate_metrics.financed_emissions_by_company(store, holdings, securities, as_of=as_of.isoformat())
     body = cockpit.build(
         require_dsn(settings), as_of, voting_feed.items(run_store), TierStore(settings.stewardship_streams_dir).latest(), held,
-        (per_company, uncovered, companies),
+        (per_company, uncovered, companies), ProgrammeLog(settings.stewardship_streams_dir)._fold(),
     )  # fmt: skip
     return {**body, "scope": scope, "portfolios": [{"portfolio_id": p.portfolio_id, "name": p.name} for p in portfolios]}

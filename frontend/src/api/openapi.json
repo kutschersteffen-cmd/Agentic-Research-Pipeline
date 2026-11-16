@@ -5325,6 +5325,62 @@
     "title": "CockpitPortfolioOption",
     "type": "object"
    },
+   "CockpitProgrammeRow": {
+    "properties": {
+     "engaged": {
+      "title": "Engaged",
+      "type": "integer"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "programme_id": {
+      "title": "Programme Id",
+      "type": "string"
+     },
+     "proposed": {
+      "title": "Proposed",
+      "type": "integer"
+     },
+     "selected": {
+      "title": "Selected",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "programme_id",
+     "name",
+     "label",
+     "selected",
+     "engaged",
+     "proposed"
+    ],
+    "title": "CockpitProgrammeRow",
+    "type": "object"
+   },
+   "CockpitProgrammeTotals": {
+    "properties": {
+     "engaged": {
+      "title": "Engaged",
+      "type": "integer"
+     },
+     "selected": {
+      "title": "Selected",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "selected",
+     "engaged"
+    ],
+    "title": "CockpitProgrammeTotals",
+    "type": "object"
+   },
    "CockpitResponse": {
     "properties": {
      "as_of": {
@@ -5381,6 +5437,16 @@
       "title": "Portfolios",
       "type": "array"
      },
+     "programme_totals": {
+      "$ref": "#/components/schemas/CockpitProgrammeTotals"
+     },
+     "programmes": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitProgrammeRow"
+      },
+      "title": "Programmes",
+      "type": "array"
+     },
      "scope": {
       "$ref": "#/components/schemas/CockpitScope"
      },
@@ -5421,6 +5487,8 @@
      "days",
      "tiers",
      "themes",
+     "programmes",
+     "programme_totals",
      "engagement_meetings",
      "shareholder_meetings",
      "control_gaps",

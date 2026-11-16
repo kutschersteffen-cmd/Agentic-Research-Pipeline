@@ -5,7 +5,9 @@ Every rule (control gap, escalation step, ballot state, vote topic) lives here; 
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import Row, func, select
@@ -132,6 +134,27 @@ def emissions_of(
     }
 
 
+def programmes_of(log: tuple[dict[str, dict], dict[str, dict[str, dict]]], in_scope: Callable[[str], bool], engaged: set[str]) -> tuple[list[dict], set[str], bool]:
+    """(programme rows, companies programme-selected in any programme, any in-scope demo member) from one
+    `ProgrammeLog` fold (spec `stewardship-cockpit-programmes`). Rows: programmes with a confirmed or proposed
+    member anywhere in the log, in programme order."""
+    progs, members = log
+    rows, selected, demo = [], set(), False
+    for pid, prog in progs.items():
+        live = [m for m in members.get(pid, {}).values() if m["status"] != "ended"]
+        if not live:
+            continue
+        mine = [m for m in live if in_scope(m["issuer_id"])]
+        sel = {m["issuer_id"] for m in mine if m["status"] == "confirmed"}
+        selected |= sel
+        demo = demo or any(m["confirmed_by" if m["status"] == "confirmed" else "proposed_by"] == DEMO_CONFIRMER for m in mine)
+        rows.append({
+            "programme_id": pid, "name": prog["name"], "label": re.sub(r" engagement programme$", "", prog["name"], flags=re.IGNORECASE),
+            "selected": len(sel), "engaged": len(sel & engaged), "proposed": sum(m["status"] == "proposed" for m in mine),
+        })  # fmt: skip
+    return rows, selected, demo
+
+
 def build(
     dsn: str,
     as_of: date,
@@ -139,11 +162,12 @@ def build(
     confirmed: dict[str, dict],
     held: set[str] | None,
     financed: tuple[dict[str, float], int, dict[str, CompanyRef]] | None = None,
+    programme_log: tuple[dict[str, dict], dict[str, dict[str, dict]]] | None = None,
 ) -> dict:
     """Every section but `scope` and `portfolios`. `held` is the scope's company keys, None for all portfolios;
     `confirmed` is `TierStore.latest()`; `run_items` is `voting_feed.items()` (runs newest first); `financed` is
     the scope's per-company financed tCO2e, uncovered holding count and the portfolio companies, None for no
-    `emissions`."""
+    `emissions`; `programme_log` is one `ProgrammeLog` fold (programmes, members), None for no programmes."""
     window = [as_of + timedelta(days=i) for i in range(WINDOW)]
     end = window[-1]
 
@@ -344,8 +368,10 @@ def build(
     voting["meetings"] = len(voted_meetings)
     voting["topics"] = [{"topic": t, "votes": v, "against_management": a, "abstain": b} for t, (v, a, b) in topics.items()]
 
+    programmes, programme_selected, demo_member = programmes_of(programme_log or ({}, {}), in_scope, engaged)
     demo = bool(
-        any(e.source in DEMO_SOURCES for e in engagements)
+        demo_member
+        or any(e.source in DEMO_SOURCES for e in engagements)
         or demo_meeting
         or demo_decision
         or any(r.get("confirmed_by") == DEMO_CONFIRMER for c, r in confirmed.items() if c in tier_of)
@@ -363,6 +389,8 @@ def build(
             for t in TIERS
         ],
         "themes": themes,
+        "programmes": programmes,
+        "programme_totals": {"selected": len(programme_selected), "engaged": len(programme_selected & engaged)},
         "engagement_meetings": engagement_meetings,
         "shareholder_meetings": shareholder,
         "control_gaps": gaps,

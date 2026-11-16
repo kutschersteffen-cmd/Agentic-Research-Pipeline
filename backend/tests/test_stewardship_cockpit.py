@@ -23,6 +23,7 @@ from arp.schemas.common import CompanyRef  # noqa: E402
 from arp.schemas.portfolio import Holding, Portfolio, SecurityRef  # noqa: E402
 from arp.stewardship import cockpit  # noqa: E402
 from arp.stewardship.cockpit_demo import OFFSETS, planned_date  # noqa: E402
+from arp.stewardship.programmes import ProgrammeLog  # noqa: E402
 from arp.stewardship.tiers import TIERS, TierStore  # noqa: E402
 from arp.storage.portfolio_store_factory import build_portfolio_store  # noqa: E402
 from arp.storage.postgres_models import (  # noqa: E402
@@ -505,8 +506,10 @@ def test_seed_cockpit_demo_ac47_to_ac51_ac76_to_ac78(client, pg):
     result = _seed("2026-11-27")
     lines = result.stdout.splitlines()
     assert result.exit_code == 0, result.stdout
-    assert len(lines) == 4 and lines[0] == "ok planned: 40 engagements" and lines[3] == "ok meetings: 14 upcoming"
-    assert [line.split(":")[0] for line in lines] == ["ok planned", "ok escalation", "ok tiers", "ok meetings"]
+    # stewardship-cockpit-programmes AC-12 supersedes AC-47's "exactly four lines": step 5 adds the fifth
+    assert len(lines) == 5 and lines[0] == "ok planned: 40 engagements" and lines[3] == "ok meetings: 14 upcoming"
+    assert [line.split(":")[0] for line in lines] == ["ok planned", "ok escalation", "ok tiers", "ok meetings", "ok programmes"]
+    assert lines[4] == "ok programmes: 56 confirmed, 8 proposed"
     body = _get(client, as_of="2026-11-27")
     rows = body["shareholder_meetings"]
     assert [r["days_to_meeting"] for r in rows] == OFFSETS and {r["ballot_state"] for r in rows} == {"not_started"}
@@ -561,3 +564,126 @@ def test_seed_cockpit_demo_fails_without_enough_held_companies(client, pg):
     result = _seed("2026-11-27")
     assert result.exit_code == 1
     assert result.stdout.splitlines()[-1].startswith("FAIL meetings:")
+
+
+# --- programmes (spec stewardship-cockpit-programmes) ----------------------------------------------------------------
+
+
+def _log():
+    return ProgrammeLog(get_settings().stewardship_streams_dir)
+
+
+def _member(pid, *companies, confirm=True, by="tester"):
+    _log().change(pid, {c: c for c in companies}, list(companies), [], [], None, by)
+    if confirm:
+        _log().confirm(pid, by)
+
+
+def _rows(body, *keys):
+    return [{k: r[k] for k in keys} for r in body["programmes"]]
+
+
+B, C, D, E = (f"isin_X{x}0000000001" for x in "BCDE")
+
+
+def test_programmes_empty_log_ac1(client):
+    body = _get(client)
+    assert body["programmes"] == [] and body["programme_totals"] == {"selected": 0, "engaged": 0}
+
+
+@pytest.mark.parametrize(("status", "engaged"), [("open", 1), ("stalled", 1), ("resolved", 0)])
+def test_programme_row_counts_and_log_untouched_ac2_to_ac4_ac26(client, pg, status, engaged):
+    _member("climate", B, C, E)
+    _log().change("climate", {}, [], [], [E], "done", "tester")
+    _member("climate", D, confirm=False)
+    _engagement(client, pg, company_id=B, name="Beta AG", fir_theme="natural_capital", status=status)
+    before = _log().path.read_bytes()
+    assert _get(client)["programmes"] == [
+        {"programme_id": "climate", "name": "Climate engagement programme", "label": "Climate", "selected": 2, "engaged": engaged, "proposed": 1}
+    ]
+    assert _log().path.read_bytes() == before
+
+
+def test_programme_order_labels_and_distinct_totals_ac5_ac6_ac8(client, pg):
+    water = _log().create("Water engagement programme", "tester")["programme_id"]
+    bio = _log().create("Biodiversity ENGAGEMENT PROGRAMME", "tester")["programme_id"]
+    _log().create("Water stewardship", "tester")
+    _member(water, E)
+    _member(bio, E)
+    _member("nature", B, C)
+    _member("climate", B)
+    _engagement(client, pg, company_id=B, name="Beta AG")
+    body = _get(client)
+    assert _rows(body, "programme_id", "label", "selected", "engaged") == [
+        {"programme_id": "climate", "label": "Climate", "selected": 1, "engaged": 1},
+        {"programme_id": "nature", "label": "Nature", "selected": 2, "engaged": 1},
+        {"programme_id": water, "label": "Water", "selected": 1, "engaged": 0},
+        {"programme_id": bio, "label": "Biodiversity", "selected": 1, "engaged": 0},
+    ]
+    assert body["programme_totals"] == {"selected": 3, "engaged": 1}
+    # programmes change no part-1 count (AC-11)
+    assert body["summary"] == {"selected": 0, "engaged_selected": 0, "engaged_outside_selection": 1}
+    assert all(t["selected"] == t["engaged"] == 0 for t in body["tiers"])
+
+
+def test_programme_portfolio_scope_ac7(client, pg):
+    store = build_portfolio_store(get_settings())
+    store.save_portfolio(Portfolio(portfolio_id="P", name="P"))
+    store.save_company(CompanyRef(company_id=B, name="Beta AG"))
+    store.save_security(SecurityRef(security_id="XB0000000001", isin="XB0000000001", name="Beta", asset_class="equity", currency="EUR", company_id=B))
+    store.save_snapshot("P", "2026-11-01", [Holding(holder_id="P", security_id="XB0000000001", as_of_date="2026-11-01", market_value_eur=1.0)])
+    _member("climate", B, C)
+    _member("nature", C)
+    _member("climate", D, confirm=False)
+    for c, ext in ((B, "B"), (C, "C")):
+        _engagement(client, pg, company_id=c, name=ext, ext=ext)
+    body = _get(client, portfolio_id="P")
+    assert _rows(body, "programme_id", "selected", "engaged", "proposed") == [
+        {"programme_id": "climate", "selected": 1, "engaged": 1, "proposed": 0},
+        {"programme_id": "nature", "selected": 0, "engaged": 0, "proposed": 0},
+    ]
+    assert body["programme_totals"] == {"selected": 1, "engaged": 1}
+
+
+@pytest.mark.parametrize(("by", "demo"), [("showcase demo", True), ("tester", False)])
+def test_programme_demo_member_ac9_ac10(client, by, demo):
+    _member("climate", B, by=by)
+    assert _get(client)["demo"] is demo
+
+
+def test_seed_programmes_ac13_to_ac16(client, pg):
+    _demo_stack(pg, n_companies=24, n_engagements=24)
+    with transaction(pg) as s:  # 3 held companies with an open nature engagement (AC-16)
+        for i in (21, 22, 23):
+            s.get(StwEngagementModel, f"iss_demo{i}").fir_theme = "natural_capital"
+    _member("climate", "isin_XD0000000005")
+    lines = _seed("2026-11-27").stdout.splitlines()
+    assert lines[-1] == "ok programmes: 54 confirmed, 6 proposed", lines
+    nature = {m["issuer_id"] for m in _log().programme("nature")["members"]}
+    assert {f"isin_XD{i:010d}" for i in (21, 22, 23)} <= nature and len(nature) == 20
+    assert [m["issuer_id"] for m in _log().programme("climate")["members"]] == ["isin_XD0000000005"]
+    body = _get(client, as_of="2026-11-27")
+    assert [(r["programme_id"], r["selected"], r["proposed"]) for r in body["programmes"]] == [
+        ("climate", 1, 0), ("nature", 18, 2), ("ai", 18, 2), ("governance", 18, 2)
+    ]
+    size = _log().path.read_bytes()
+    assert _seed("2026-11-27").stdout.splitlines()[-1] == "ok programmes: 0 confirmed, 0 proposed"
+    assert _log().path.read_bytes() == size
+
+
+def test_programmes_cost_ac29(tmp_path):
+    # the panel's extra cost per request: one fold of a 5,000-event log over 10 programmes, then set lookups
+    import json
+    import time
+
+    log = ProgrammeLog(tmp_path)
+    log.path.parent.mkdir(parents=True)
+    events = [{"event": "created", "programme_id": f"p{p}", "name": f"P{p}", "by": "t", "at": "x"} for p in range(10)]
+    events += [{"event": e, "programme_id": f"p{i % 10}", "issuer_id": f"c{i // 10}", "by": "t", "at": "x"}
+               for i in range(2495) for e in ("proposed", "confirmed")]  # fmt: skip
+    log.path.write_text("".join(json.dumps(e) + "\n" for e in events))
+    held, engaged = {f"c{i}" for i in range(500)}, {f"c{i}" for i in range(300)}
+    start = time.perf_counter()
+    rows, selected, _ = cockpit.programmes_of(log._fold(), held.__contains__, engaged)
+    assert time.perf_counter() - start < 0.2
+    assert len(rows) == 10 and len(selected) == 250

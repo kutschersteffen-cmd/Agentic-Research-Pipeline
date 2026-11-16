@@ -10978,6 +10978,28 @@ export interface components {
             /** Portfolio Id */
             portfolio_id: string;
         };
+        /** CockpitProgrammeRow */
+        CockpitProgrammeRow: {
+            /** Engaged */
+            engaged: number;
+            /** Label */
+            label: string;
+            /** Name */
+            name: string;
+            /** Programme Id */
+            programme_id: string;
+            /** Proposed */
+            proposed: number;
+            /** Selected */
+            selected: number;
+        };
+        /** CockpitProgrammeTotals */
+        CockpitProgrammeTotals: {
+            /** Engaged */
+            engaged: number;
+            /** Selected */
+            selected: number;
+        };
         /** CockpitResponse */
         CockpitResponse: {
             /**
@@ -10998,6 +11020,9 @@ export interface components {
             ladder: components["schemas"]["CockpitLadderStep"][];
             /** Portfolios */
             portfolios: components["schemas"]["CockpitPortfolioOption"][];
+            programme_totals: components["schemas"]["CockpitProgrammeTotals"];
+            /** Programmes */
+            programmes: components["schemas"]["CockpitProgrammeRow"][];
             scope: components["schemas"]["CockpitScope"];
             /** Shareholder Meetings */
             shareholder_meetings: components["schemas"]["CockpitShareholderMeeting"][];
