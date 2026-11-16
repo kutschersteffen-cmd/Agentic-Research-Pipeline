@@ -153,7 +153,8 @@ test("ac12b_palette_untouched", (t) => {
 test("ac13_amber_usage_unchanged", (t) => {
   // Amber may only be added by the rules that release 2 and 3 approved; everything else must match main.
   // The ARP logo's highlight square (sidebar and landing page) is the brand mark, not a status.
-  const allowed = /\.source-excerpt-page mark|\.hub-status-wait|\.hub-mark-wait|\.ws-accent-wait|\.hub-card-await \{|<rect x="26" y="2" width="10" height="10" fill="var\(--hi\)" \/>/;
+  // UI polish 2 L9: the Argus phone card's "Needs you" status dot is a waiting state.
+  const allowed = /\.source-excerpt-page mark|\.hub-status-wait|\.hub-mark-wait|\.ws-accent-wait|\.hub-card-await \{|td\[data-status="needs-you"\]::before|<rect x="26" y="2" width="10" height="10" fill="var\(--hi\)" \/>/;
   const cmd = (ref: string) => `git grep -h -E "var\\(--(hi|hi-ink|await|await-edge)\\)" ${ref} -- src`;
   const main = onMain(t, cmd("origin/main"));
   const head = onMain(t, cmd("HEAD"));
