@@ -63,10 +63,13 @@ this spec does not touch.
 
 ## Goals
 
-1. The stage pages and the cockpit meet the targets above (AC-1 to AC-10), without memory growing per request (AC-29).
+1. The stage pages and the cockpit meet the targets above (AC-1 to AC-10), without memory growing per request (AC-29) and without
+   slowing the Workbench after a restart (AC-34, AC-35).
 2. Nothing stale is ever shown: after a change to any input of the list, made by this server or by another process,
-   the next request shows the new data (AC-11 to AC-19, AC-23).
-3. Requests that need the list at the same time wait for one build; a failed build is not kept (AC-20 to AC-22, AC-24, AC-28).
+   the next request shows the new data (AC-11 to AC-19, AC-23, AC-30 to AC-32).
+3. Requests that need the list at the same time wait for one build; a failed build is not kept; one request checks once (AC-20 to AC-22, AC-24, AC-28).
+4. The anti-goals hold: no request sees another's changes (AC-25), nothing is stored (AC-33), answers are unchanged
+   (AC-26).
 
 ## Non-goals
 
@@ -119,7 +122,12 @@ Each call gets its own copy: new issuer dicts with their own `fields` and `holdi
 never reaches another request. The builder checks every caller for other in-place changes and copies deeper if one
 exists. The observations are shared, not copied: they are already shared read-only objects of the observation cache.
 
-The build logs one INFO line: `House universe built: <n> companies in <t> s`.
+Source `sample`: the version is the setting file and the sample file only (no database query, no observation
+check); the kept build is the sample's universe, with no held-ISIN or observations part, and `_load` keeps its
+current sample path for the Workbench columns.
+
+The build logs one INFO line when it succeeds: `House universe built: <n> companies in <t> s`. A build that raises
+logs none.
 
 ### The inputs and how each is checked
 
@@ -132,7 +140,7 @@ Different: build again, keep it, return a copy.
 | Sample file (source `sample` only) | `arp/stewardship/data/examples/sample_meetings.json` | as above | under 1 ms |
 | Holdings, securities, companies, resolutions, portfolios | Postgres tables `holdings`, `securities`, `legacy_companies`, `security_resolutions`, `portfolios` | one read-only query: per table, `count(*)` and `sum(hashtextextended(t::text, 0))` over its rows | 64 ms |
 | Sector master | `issuer_sectors.json` beside `identifier_map_path` | as the setting file | under 1 ms |
-| Observation files | `<portfolios_dir>/datapoints/**` | the observation cache's own check (#491): the folder listing plus each file's inode, ctime, mtime and size; the version changes when the listing changes or any file had to be read again | 0.41 s |
+| Observation files | `<portfolios_dir>/datapoints/**` | the observation cache's own check (#491), run over every file: the folder listing, plus a counter that `latest_observation` raises each time it reads a file, **whoever the caller** (the Workbench columns and `decision/sources.py` read the same cache). The kept build stores the listing and the counter value it was built at; either differing means a rebuild | 0.41 s |
 
 **The check is shared.** One check runs at a time. A request that arrives while one runs waits for the next one, which
 starts when the running one ends; every request waiting for it uses its result. So a change finished before a request
@@ -176,10 +184,17 @@ steward table's `risk:high` row is touched. This spec PR is `risk:low` (docs onl
 
 - Where the check and the kept build live (`process.py` or `universe.py`), and how the observation check reports "a
   file was read again" (for example a counter that `latest_observation` raises when it reads a file).
-- The thread primitives for "one check at a time" and "one build at a time".
+- The thread primitives for "one check at a time" and "one build at a time", and how the kept build is cleared for
+  tests (AC-26, AC-31).
 - Whether the observation check walks the folders in one pass, comparing each file's inode, ctime, mtime and size with
   the observation cache's entry and asking the cache only for files that differ (0.25 s instead of 0.41 s measured),
-  as long as when a file is read again stays as it is.
+  as long as when a file is read again stays as it is and the read counter above still decides the version.
+
+## The build PR
+
+Its description carries `Spec: stewardship-house-universe-cache` and a line `Holdout: full`, so the hidden tests of
+`workbench-review-fixes` (AC-3, AC-7, AC-10) and the other specs run on it too. Their unit rows (AC-4, AC-5, AC-8)
+stay in the repo's own tests, which CI runs on every PR.
 
 ## Acceptance
 
@@ -187,7 +202,7 @@ Words used below:
 
 - **Showcase data:** `arp showcase load`, `arp stewardship seed-demo`, `arp stewardship load-npx data/voting/npx_urth/`,
   then `PUT /api/stewardship/universe` `{"source": "portfolio"}` (as in `workbench-review-fixes`). The house then
-  holds 2,566 companies.
+  holds about 2,570 companies (2,566 in this spec's measurements); rows count relative to the first answer.
 - **Page time:** with Playwright at 1440 × 900, the time from starting navigation (or the click) until the last
   `/api/` request the page started has answered, once no new `/api/` request has started for 1 s. The server is one
   uvicorn process started by `backend/scripts/e2e_stack.sh up`, on the same machine as the browser. **Best of three.**
@@ -196,14 +211,20 @@ Words used below:
 - **After the Workbench:** `#/stewardship/workbench` is opened, its first data row appears, 2 s pass, then the named
   stage tab is clicked (for the cockpit: `#/stewardiq/cockpit` is opened in the same tab); page time counts from the
   click.
-- **X:** a house company of the showcase data with a numeric observation field F that appears in
-  `GET /api/stewardship/studio/coverage/inputs` as `issuer.portfolio.F`; the test picks both.
-- **Fresh server:** a second uvicorn process started after the change, on the same data. "What a fresh server shows"
-  is its answer to the same request.
+- **X:** a house company of the showcase data with `aum_held_eur_m` of at least 1.0 in `GET /worklist?scope=house`,
+  and a numeric observation field F that appears in `GET /api/stewardship/studio/coverage/inputs` as
+  `issuer.portfolio.F`, whose current value comes from a non-`simulated` observation; the test picks both.
+- **Restart answer:** the same request made after `bash backend/scripts/e2e_stack.sh restart-api`, once the answer
+  under test has been recorded.
 - **Another process:** a process other than the API server, for example the test itself.
 - **Build line:** the INFO log line `House universe built: <n> companies in <t> s`. **Check line:** the DEBUG log line
   `Input check: <n> observation files in <t> s`.
 - **Store S:** a portfolio store with 2 held companies and 2 observation files, source `portfolio`, for unit rows.
+- **Cleared:** the kept build is dropped, so the next call builds (the builder adds the means, for tests only).
+- **The eight endpoints:** `GET /api/stewardship/worklist?scope=house`, `/worklist/scopes`, `/selection`, `/tiers`,
+  `/decision-inputs`, `/studio/coverage/inputs`, `/studio/monitoring/triggers` and `/streams/house/flow`.
+
+Out of scope for the speed rows: `#/stewardship/program` (Client program, a client stream's page; not measured).
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
@@ -217,28 +238,34 @@ Words used below:
 | AC-8 | Showcase data; warm | Selection is clicked after the Workbench | Page time under 3.5 s | evaluator |
 | AC-9 | Showcase data; warm | Monitoring is clicked after the Workbench | Page time under 4 s | evaluator |
 | AC-10 | Showcase data; warm | The cockpit is opened after the Workbench | Page time under 2 s | evaluator |
-| AC-11 | Showcase data; `GET /api/stewardship/studio/coverage/inputs` called once | Another process appends an observation of F for X with a value different from the current one, dated the latest holdings snapshot date (`PortfolioStore.append_observation`); then the same GET | X's `issuer.portfolio.F` equals the appended value | holdout |
-| AC-12 | As AC-11 | Another process writes a copy of X's F file with a different value of the same length, gives it the old file's mtime with `os.utime`, and moves it over the old file with `os.replace`; then the same GET | X's `issuer.portfolio.F` equals the value in the new file | holdout |
-| AC-13 | Showcase data; `GET /api/stewardship/universe` called once | Another process saves a holdings snapshot dated one day after the latest, equal to the latest plus one holding of a company C not held before (`PostgresPortfolioStore.save_snapshot`); then `GET /universe` | `issuers` is 2,567 | holdout |
+| AC-11 | Showcase data; `GET /api/stewardship/studio/coverage/inputs` called once | Another process appends an observation of F for X with a different value, the same `source` as X's current F observation, dated the latest holdings snapshot date (`PortfolioStore.append_observation`); then the same GET | X's `issuer.portfolio.F` equals the appended value | holdout |
+| AC-12 | As AC-11, before the append | Another process writes a copy of X's F file in which the `value` of the observation that is current today is changed to a different value of the same length, gives the copy the old file's mtime with `os.utime`, and moves it over the old file with `os.replace`; then the same GET | X's `issuer.portfolio.F` equals the changed value | holdout |
+| AC-13 | Showcase data; `GET /api/stewardship/universe` called once | Another process takes one portfolio P's latest snapshot, adds one holding (`market_value_eur` 1,000,000) of a security whose `company_id` is C, a `legacy_companies` company not held before, and saves it for P dated one day after P's latest date (`PostgresPortfolioStore.save_snapshot`); then `GET /universe` | `issuers` is the first answer's `issuers` plus 1 | holdout |
 | AC-14 | As AC-13 | The same change; then `GET /api/stewardship/worklist?scope=house` | One row has `issuer_id` C | holdout |
-| AC-15 | Showcase data; `GET /api/stewardship/worklist?scope=house` called once | Another process doubles `market_value_eur` of X's rows in the latest snapshot with SQL `UPDATE holdings`; then the same GET | X's `aum_held_eur_m` equals what a fresh server shows, and differs from the first answer | holdout |
+| AC-15 | Showcase data; `GET /api/stewardship/worklist?scope=house` called once | Another process doubles `market_value_eur` of every `holdings` row of X's securities in each portfolio's latest snapshot, with SQL `UPDATE`; then the same GET | X's `aum_held_eur_m` differs from the first answer and equals the restart answer | holdout |
 | AC-16 | As AC-15 | Another process sets X's `name` in `legacy_companies` to `Renamed Test Co` with SQL `UPDATE`; then the same GET | X's `company` is `Renamed Test Co` | holdout |
-| AC-17 | Showcase data; `GET /api/stewardship/studio/coverage/inputs` called once | Another process gives X a different sector code in `issuer_sectors.json` (written to a temporary file, then `os.replace`); then the same GET | X's `issuer.sector` equals what a fresh server shows, and differs from the first answer | holdout |
+| AC-17 | Showcase data; `GET /api/stewardship/studio/coverage/inputs` called once | Another process gives X a sector code in `issuer_sectors.json` different from its current one (written to a temporary file, then `os.replace`); then the same GET | X's `issuer.sector` differs from the first answer and equals the restart answer | holdout |
 | AC-18 | Showcase data; `GET /api/stewardship/universe` called once | Another process replaces `<stewardship_streams_dir>/house/universe.json` with `{"source": "sample", "set_by": "test", "set_at": null}` (`os.replace`); then `GET /universe` | `source` is `sample`, and `issuers` equals the number of issuers in `sample_meetings.json` | holdout |
 | AC-19 | Showcase data; `GET /api/stewardship/universe` called once | `PUT /api/stewardship/universe` `{"source": "sample"}`; then `GET /universe` | `issuers` equals the number of issuers in `sample_meetings.json` | holdout |
 | AC-20 | Store S; one `house_universe()` call done | `house_universe()` again, nothing changed | Exactly one build line in the log over both calls | unit |
 | AC-21 | Store S, nothing built yet; the build slowed by 1 s with a stub | 8 threads call `house_universe()` at once | Exactly one build line; the 8 results are equal | unit |
-| AC-22 | Store S; the build stubbed to raise `RuntimeError("boom")` the first time | 4 threads call `house_universe()` at once; after they return, one more call | Each of the 4 calls raises `RuntimeError("boom")`; the later call returns 2 issuers; exactly one build line | unit |
-| AC-23 | Store S; the observation check slowed by 1 s with a stub | Thread A calls `house_universe()`; 0.5 s later, while A's check runs, an observation with a new value is appended to one file, then thread B calls `house_universe()` | B's result shows the appended value | unit |
+| AC-22 | Store S; the build slowed by 1 s with a stub and made to raise `RuntimeError("boom")` the first time | 4 threads call `house_universe()` at once; after they return, one more call | Each of the 4 calls raises `RuntimeError("boom")`; the later call returns 2 issuers; exactly one build line | unit |
+| AC-23 | Store S; the observation check stubbed to wait 1 s after it has read every file's stat, before it returns | Thread A calls `house_universe()`; 0.5 s later, while A's check waits, an observation with a new value is appended to one file, then thread B calls `house_universe()` | B's result shows the appended value | unit |
 | AC-24 | Store S; one call done | 6 threads call `house_universe()` at once, nothing changed | At most 2 check lines are logged during the 6 calls | unit |
 | AC-25 | Store S | A caller sets `fields["probe"] = 1` on the first issuer of its result; then `house_universe()` again | The new result's first issuer has no `probe` key | unit |
-| AC-26 | Fixture W of the parent spec `2026-11-13-stewardship-priority-worklist-design.md`, source `portfolio` | `GET /worklist`, `/worklist/scopes`, `/selection`, `/tiers`, `/decision-inputs`, `/studio/coverage/inputs`, `/studio/monitoring/triggers` and `/streams/house/flow`, each once with the kept build and once with it bypassed | Each pair of answers is equal (same rows, same order, same values) | unit |
+| AC-26 | Store S (source `portfolio`); then, separately, Fixture W of the parent spec `2026-11-13-stewardship-priority-worklist-design.md` (source `sample`) | Each of the eight endpoints is called once right after the kept build is cleared, then once more with nothing changed | Each pair of answers is equal (same rows, same order, same values) | unit |
 | AC-27 | Store S; `house_universe()` called once | A decision snapshot covering issuer I is published to the decision store; then `load_sample()` | I's `fields` has that snapshot's `decision.<framework_id>.tier` | unit |
-| AC-28 | Store S; one `house_universe()` call done | One `GET /api/stewardship/decision-inputs` | Exactly one check line is logged for the request | unit |
-| AC-29 | Showcase data; warm | Every stage page and the cockpit are opened 3 times each, in order | The API process's `VmRSS` (from `/proc/<pid>/status`) after the third round is at most 50 MB above its value after the first round | evaluator |
+| AC-28 | Store S; one `house_universe()` call done | Each of the eight endpoints is called once, one after the other | Exactly one check line is logged per request | unit |
+| AC-29 | Showcase data; warm | `#/stewardship/monitoring`, `selection`, `checkpoint`, `drafting`, `voting`, `tracking`, `client_policy`, `reporting`, `workbench` and `#/stewardiq/cockpit` are opened in that order, 3 rounds | The API process's `VmRSS` (from `/proc/<pid>/status`) after the third round is at most 50 MB above its value after the first round | evaluator |
+| AC-30 | Store S; `house_universe()` called once | An observation with a new value is appended to one file; `store.latest_observation` is called for that file directly (as the Workbench columns do); then `house_universe()` | The result shows the appended value | unit |
+| AC-31 | Store S; `house_universe()` called once | Another process changes one row of each in turn of `securities`, `security_resolutions` and `portfolios`; adds an observation file; removes one; each followed by `house_universe()` | After each change: one more build line, and the result equals a build made after the kept build is cleared | unit |
+| AC-32 | Store S with source `sample`; `house_universe()` called once | Another process rewrites the sample file with one issuer fewer (`os.replace`), then `house_universe()` | The result has one issuer fewer than the first | unit |
+| AC-33 | Store S | `house_universe()`, then a change to one observation file, then `house_universe()` (a rebuild) | No file under `<portfolios_dir>`, `<stewardship_streams_dir>` or the folder of `identifier_map_path` was created or changed by the two calls (modification times and listing compared before and after, the observation file the test changed excepted) | unit |
+| AC-34 | Showcase data; `arp showcase load` run with the build installed | A restart (`e2e_stack.sh restart-api`), then `#/stewardship/workbench` is opened; done 3 times (`workbench-review-fixes` AC-2) | The median time until the first data row is visible is under 5 s | evaluator |
+| AC-35 | Showcase data; warm | `#/stewardship/workbench` is opened 5 times, each a full reload (`workbench-review-fixes` AC-1) | The median time until the first data row is visible is under 3.5 s, and each time the page shows 100 rows and page controls | evaluator |
 
-Must not change: `workbench-review-fixes` AC-1 to AC-10 (Workbench speed, the observation cache's freshness); every
-answer equal to today's (AC-26); overlays read fresh (AC-27); the monthly run's universe, built for its own month,
-which the existing `monthly_run` tests check.
+Must not change: `workbench-review-fixes` AC-1 to AC-10 (Workbench speed and the observation cache's freshness): its
+hidden rows run through `Holdout: full`, its unit rows in CI, its warm row as AC-35 and its restart row as AC-34; every answer equal to today's (AC-26); overlays read fresh (AC-27); the monthly
+run's universe, built for its own month, which the existing `monthly_run` tests check.
 
 Delivered by one PR, `stewardship-house-universe-cache` (no `Rows:` line).
