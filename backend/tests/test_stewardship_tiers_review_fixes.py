@@ -99,6 +99,18 @@ def test_tiers_line_without_assigned_at_is_skipped(tmp_path, caplog):
     assert len(_warnings(caplog)) == 1
 
 
+def test_a_write_after_a_torn_last_line_is_kept(tmp_path):
+    # review finding: the torn tail is closed with a newline, so the next pick is not glued onto it and lost
+    path = tmp_path / "bilateral_picks.jsonl"
+    path.write_text(_pick("SYN01", "CEO change") + "\n" + TORN)
+    store = PickStore(tmp_path)
+    store.pick("SYN02", "Board change", "A", {"SYN02"})
+    assert [p["issuer_id"] for p in store.standing()] == ["SYN01", "SYN02"]
+    with pytest.raises(ValueError, match="^SYN02 is already picked for bilateral$"):
+        store.pick("SYN02", "again", "A", {"SYN02"})
+    assert path.read_bytes().startswith((_pick("SYN01", "CEO change") + "\n" + TORN + "\n").encode())
+
+
 def _slow_race(root: str, action: str, barrier, results) -> None:
     """One OS process: widens the gap between the check and the append, so an unlocked store loses the race."""
     standing = PickStore.standing
@@ -241,6 +253,8 @@ def test_simultaneous_requests_append_once(client):
     assert len((client.root / "bilateral_picks.jsonl").read_text().splitlines()) == 1
 
     with ThreadPoolExecutor(2) as pool:
-        list(pool.map(lambda _: client.post(f"{url}/confirm", json={}), range(2)))
+        confirms = list(pool.map(lambda _: client.post(f"{url}/confirm", json={}), range(2)))
+    assert [r.status_code for r in confirms] == [200, 200]
+    assert sorted(r.json()["confirmed"] for r in confirms)[0] == 0  # the second sees nothing left to confirm
     lines = (client.root / "tier_assignments.jsonl").read_text().splitlines()
-    assert len(lines) == len({json.loads(line)["issuer_id"] for line in lines})
+    assert len(lines) == len({json.loads(line)["issuer_id"] for line in lines}) == client.get(url).json()["in_scope"]

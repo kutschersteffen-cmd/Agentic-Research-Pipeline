@@ -68,9 +68,14 @@ def _read_log(path: Path, required: Callable[[dict], tuple[str, ...]]) -> Iterat
 
 
 def _append(path: Path, row: dict) -> None:
+    """Call under the log's lock. A torn last line is closed first, so the new row is never glued onto it."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    with path.open("ab+") as f:  # opened at the end; writes always append
+        if f.tell():
+            f.seek(-1, 2)
+            if f.read(1) != b"\n":
+                f.write(b"\n")
+        f.write((json.dumps(row, ensure_ascii=False) + "\n").encode("utf-8"))
 
 
 def load_graph() -> dict:
@@ -169,6 +174,10 @@ class PickStore:
                 picks.pop(event["issuer_id"], None)
         return list(picks.values())
 
+    def lock(self):
+        """Hold it across checking the standing picks and appending."""
+        return _LOCKS.acquire(str(self.path))
+
     def _append(self, event: dict) -> None:
         _append(self.path, {**event, "at": datetime.now(UTC).isoformat()})
 
@@ -180,13 +189,13 @@ class PickStore:
             raise ValueError("A bilateral pick reason has at most 500 characters")
         if issuer_id not in universe:
             raise ValueError(f"Not in the house universe: {issuer_id}")
-        with _LOCKS.acquire(str(self.path)):
+        with self.lock():
             if any(p["issuer_id"] == issuer_id for p in self.standing()):
                 raise ValueError(f"{issuer_id} is already picked for bilateral")
             self._append({"issuer_id": issuer_id, "event": "picked", "reason": reason, "by": by})
 
     def withdraw(self, issuer_id: str, by: str) -> None:
-        with _LOCKS.acquire(str(self.path)):
+        with self.lock():
             if not any(p["issuer_id"] == issuer_id for p in self.standing()):
                 raise ValueError(f"{issuer_id} has no bilateral pick")
             self._append({"issuer_id": issuer_id, "event": "withdrawn", "by": by})
