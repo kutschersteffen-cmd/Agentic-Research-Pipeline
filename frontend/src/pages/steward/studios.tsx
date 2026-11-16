@@ -29,6 +29,7 @@ import type {
 import { ActorField, DataTable, Planned, RuleEditor, SampleChip, Section, StudioHeader, VersionsPanel, useActor, usePolicy, words } from "./common";
 import { ClientExceptionDecisions, EscalationDecisions, PolicyDifference, TierDecisions } from "./decisions";
 import { OutreachDecisions } from "./drafting";
+import { errorDetail } from "../../lib/themeLayers";
 
 const LazyPolicyCanvas = lazy(() => import("./PolicyCanvas"));
 
@@ -399,6 +400,7 @@ function BilateralPicks({ onChanged }: { onChanged: () => void }) {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState("");
   const loadPicks = () => api.getBilateralPicks().then((t) => setPicks(t.picks), (e: Error) => setError(e.message));
   useEffect(() => {
     api.getCoverageInputs().then(
@@ -407,16 +409,26 @@ function BilateralPicks({ onChanged }: { onChanged: () => void }) {
     );
     loadPicks();
   }, []);
-  const act = (call: Promise<unknown>, after?: () => void) => {
+  // The server's refusal names the issuer id; show the company's name instead, without the status code.
+  const act = (call: () => Promise<unknown>, issuerId: string, name: string, done: string, after?: () => void) => {
     setBusy(true);
-    call
+    setError(null);
+    setStatus("");
+    call()
       .then(() => {
-        setError(null);
         after?.();
+        setStatus(done);
         onChanged();
         return loadPicks();
-      }, (e: Error) => setError(e.message))
+      }, (e: unknown) => setError(errorDetail(e).replaceAll(issuerId, name)))
       .finally(() => setBusy(false));
+  };
+  const pick = () => {
+    const name = companies.find((c) => c.issuer_id === issuer)?.name ?? issuer;
+    act(() => api.pickBilateral({ issuer_id: issuer, reason }), issuer, name, `${name} is picked for bilateral.`, () => {
+      setIssuer("");
+      setReason("");
+    });
   };
   return (
     <>
@@ -445,12 +457,15 @@ function BilateralPicks({ onChanged }: { onChanged: () => void }) {
         </label>
         <button
           disabled={busy || !issuer || !reason.trim()}
-          onClick={() => act(api.pickBilateral({ issuer_id: issuer, reason }), () => setReason(""))}
+          onClick={pick}
         >
           Pick for bilateral
         </button>
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
+      <p className="status-text" role="status">
+        {status}
+      </p>
       {picks.length === 0 ? (
         <p className="muted">No company is picked for bilateral.</p>
       ) : (
@@ -462,7 +477,10 @@ function BilateralPicks({ onChanged }: { onChanged: () => void }) {
                 className="link-button"
                 disabled={busy}
                 aria-label={`Withdraw the bilateral pick for ${p.name ?? p.issuer_id}`}
-                onClick={() => act(api.withdrawBilateral(p.issuer_id))}
+                onClick={() => {
+                  const name = p.name ?? p.issuer_id;
+                  act(() => api.withdrawBilateral(p.issuer_id), p.issuer_id, name, `The bilateral pick for ${name} is withdrawn.`);
+                }}
               >
                 Withdraw
               </button>
@@ -988,11 +1006,11 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
               company: r.company,
               theme: r.theme,
               data: r.source === "live" ? "live" : "sample",
-              tier: r.tier ?? "none",
+              tier: r.tier ?? "No tier yet",
               "step now": r.current,
               recommended: r.escalate ? r.recommended : "hold",
               "highest step for tier": r.max_step + (r.promote_tier ? " · promote the tier" : ""),
-              why: `${r.reason} (${r.rule})`,
+              why: r.reason,
             }))}
             empty="No open engagements."
           />
