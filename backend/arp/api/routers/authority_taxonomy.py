@@ -44,6 +44,7 @@ _UPLOAD_SUFFIXES = {".pdf", ".txt", ".md"}
 
 class AcceptResponse(BaseModel):
     taxonomy_id: str
+    throwaway_note: str = ""  # THROWAWAY: openapi.json not regenerated (AC-46)
 
 
 def _state(run_id: str, run_store) -> run.RunState:
