@@ -81,6 +81,12 @@
 
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --dur: 140ms;
+  /* Secondary text: intros and descriptions, between --text and --muted (meta lines keep --muted). */
+  --text-2: color-mix(in oklch, var(--text) 80%, var(--muted));
+  /* Tracking by size band: display titles, card and section titles, 15px body. */
+  --track-display: -0.025em;
+  --track-title: -0.015em;
+  --track-body: -0.008em;
 
   --font-display: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
@@ -192,8 +198,10 @@ body {
   background: var(--bg);
   color: var(--text);
   font-size: var(--text-base);
+  letter-spacing: var(--track-body);
   caret-color: var(--accent);
 }
+kbd, code { letter-spacing: normal; }
 ::selection { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--text); }
 /* The browser default placeholder grey measured 4.47:1 on --panel. */
 ::placeholder { color: var(--muted); opacity: 1; }
@@ -261,7 +269,7 @@ a.nav-tab { text-decoration: none; }
 :where(h2) { font-size: 1.17em; margin-block: 1em; }
 :where(h3) { font-size: 1em; margin-block: 1.33em; }
 /* Page titles use the start page's display voice, one step down from its hero. */
-.page h1 { margin-top: 0; font-family: var(--font-display); font-size: clamp(1.75rem, 1.25rem + 1.4vw, 2.5rem); font-weight: 600; line-height: 1.05; letter-spacing: -0.03em; text-wrap: balance; }
+.page h1 { margin-top: 0; font-family: var(--font-display); font-size: clamp(1.75rem, 1.25rem + 1.4vw, 2.5rem); font-weight: 500; line-height: 1.05; letter-spacing: var(--track-display); text-wrap: balance; }
 
 /* Page header: title, lede and page-level tabs read as one tight group, with
    a wide gap before the working area. The lede is capped at a readable
@@ -271,7 +279,14 @@ a.nav-tab { text-decoration: none; }
   max-width: 72ch;
   line-height: 1.55;
   margin: 0 0 var(--s-8);
+  color: var(--text-2);
+  font-size: var(--text-base);
 }
+/* Above 760px the intro is a lead. */
+@media (min-width: 761px) {
+  :where(.page, .page-body) > h1 + :is(.help-text, .muted) { font-size: 1.0625rem; line-height: 1.5; max-width: 62ch; text-wrap: pretty; }
+}
+:where(.page, .page-body) > h1 + :is(.help-text, .muted) .hub-step-handoff-key { white-space: nowrap; }
 :where(.page, .page-body) > h1 + :is(.help-text, .muted):has(+ :is(.sub-nav, .view-toggle)) {
   margin-bottom: var(--s-4);
 }
@@ -298,7 +313,7 @@ a.nav-tab { text-decoration: none; }
   padding: 18px 20px;
   margin-bottom: 18px;
 }
-.card h2 { margin-top: 0; font-family: var(--font-display); font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
+.card h2 { margin-top: 0; font-family: var(--font-display); font-size: 1.25rem; font-weight: 500; letter-spacing: var(--track-title); }
 
 .field-label {
   display: block;
@@ -888,7 +903,7 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   justify-content: space-between;
   margin-bottom: var(--s-1);
 }
-.section-heading h2 { margin: 0; }
+.section-heading h2 { margin: 0; letter-spacing: var(--track-title); }
 
 /* --- Engagement --- */
 
@@ -1563,7 +1578,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
    one row of run chips below; the highlight colour (--hi) only ever marks
    what waits on a person. */
 .hub-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-6) var(--s-8); flex-wrap: wrap; margin: var(--s-4) 0 var(--s-8); }
-.hub-start .hub-hero h1 { margin: 0; max-width: 24ch; font-size: clamp(2rem, 1.2rem + 2.4vw, 3.25rem); line-height: 1.02; font-weight: 600; letter-spacing: -0.035em; text-wrap: balance; }
+.hub-start .hub-hero h1 { margin: 0; max-width: 24ch; font-size: clamp(2rem, 1.2rem + 2.4vw, 3.25rem); line-height: 1.02; font-weight: 500; letter-spacing: var(--track-display); text-wrap: balance; }
 .hub-hero-greet { display: block; color: var(--muted); }
 .hub-cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px; }
 .hub-card {
@@ -1588,8 +1603,8 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .ws-drawing .ws-accent-wait { stroke: var(--hi); }
 .ws-drawing .ws-accent-now { stroke: var(--run); }
 .hub-card-body { display: flex; flex-direction: column; gap: var(--s-2); flex: 1; padding: 20px var(--s-6); }
-.hub-card-name { font-size: 1.25rem; font-weight: 600; line-height: 1.2; letter-spacing: -0.018em; }
-.hub-card-purpose { color: var(--muted); line-height: 1.55; }
+.hub-card-name { font-size: 1.25rem; font-weight: 500; line-height: 1.2; letter-spacing: var(--track-title); }
+.hub-card-purpose { color: var(--text-2); line-height: 1.55; }
 /* One status line: a mark per process, then the state in words. */
 .hub-card-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) 10px; margin-top: auto; padding-top: var(--s-3); font-size: var(--text-sm); font-weight: 500; }
 .hub-marks { display: inline-flex; gap: 3px; }
@@ -1684,7 +1699,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-process { margin-top: var(--s-4); }
 .hub-process-fold > summary { cursor: pointer; width: fit-content; min-height: 24px; margin-top: var(--s-2); color: var(--accent); font-size: var(--text-sm); }
 .hub-process-fold[open] > summary { margin-bottom: var(--s-1); }
-.hub-process .help-text { margin: 0; }
+.hub-process .help-text { margin: 0; color: var(--text-2); }
 
 @media (max-width: 900px) {
   .hub-flow { flex-direction: column; }
