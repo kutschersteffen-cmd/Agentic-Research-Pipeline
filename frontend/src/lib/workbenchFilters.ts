@@ -167,12 +167,10 @@ export function bounds(ind: Indicator, rows: WorklistRow[]): Bounds | null {
 
 const clamp = (v: number, b: Bounds) => Math.min(b.max, Math.max(b.min, v));
 
-/** A range chip's ends in this scope, clamped to its bounds; null on a side that is at its bound (filters nothing). */
+/** A range chip's ends in this scope, clamped to its bounds (a value set in another scope reads as the nearest bound
+ * here); null on a side the user left at its bound (filters nothing). */
 export function effectiveRange(f: Filter, b: Bounds | null): { lo: number | null; hi: number | null } {
-  if (!b) return { lo: f.lo, hi: f.hi };
-  const lo = f.lo === null ? null : clamp(f.lo, b);
-  const hi = f.hi === null ? null : clamp(f.hi, b);
-  return { lo: lo !== null && lo > b.min ? lo : null, hi: hi !== null && hi < b.max ? hi : null };
+  return { lo: f.lo === null || !b ? f.lo : clamp(f.lo, b), hi: f.hi === null || !b ? f.hi : clamp(f.hi, b) };
 }
 
 /** The count or days slider's value in this scope, clamped to its bounds. */

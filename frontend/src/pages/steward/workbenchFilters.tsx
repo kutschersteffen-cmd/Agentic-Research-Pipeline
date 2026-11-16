@@ -40,8 +40,13 @@ function useDismiss(ref: React.RefObject<HTMLElement | null>, isOpen: () => bool
 
 /** Step ② of the Workbench: Add filter ▾, one chip per indicator with the control its type needs, Clear filters. The
  * filters live in the screen (they stay when the scope changes); this only edits them. */
-export function FilterBuilder({ rows, columns, filters, onChange }: { rows: WorklistRow[]; columns: Column[]; filters: Filter[]; onChange: (f: Filter[]) => void }) {
+export function FilterBuilder({
+  rows, columns, filters, shown, onChange,
+}: { rows: WorklistRow[]; columns: Column[]; filters: Filter[]; shown: number; onChange: (f: Filter[]) => void }) {
   const [schema, setSchema] = useState<SchemaField[]>([]);
+  const wrap = useRef<HTMLDivElement>(null);
+  // After a chip goes, focus moves to Add filter ▾ rather than falling back to the page.
+  const focusAdd = () => wrap.current?.querySelector("summary")?.focus();
   const [open, setOpen] = useState<string | null>(null);
   // The schema is read once the rows are on screen, as the screen does with its other side reads.
   const haveRows = rows.length > 0;
@@ -57,28 +62,40 @@ export function FilterBuilder({ rows, columns, filters, onChange }: { rows: Work
   const update = (id: string, change: Partial<Filter>) => onChange(filters.map((f) => (f.ind.id === id ? { ...f, ...change } : f)));
 
   return (
-    <div className="wb-filters">
-      <AddFilterMenu indicators={list} onPick={pick} />
-      {filters.map((f) => (
-        <FilterChip
-          key={f.ind.id}
-          filter={f}
-          rows={rows}
-          open={open === f.ind.id}
-          onToggle={() => setOpen(open === f.ind.id ? null : f.ind.id)}
-          onClose={() => setOpen(null)}
-          onChange={(c) => update(f.ind.id, c)}
-          onRemove={() => onChange(filters.filter((x) => x !== f))}
-        />
-      ))}
-      {filters.length > 0 ? (
-        <button className="link-button wb-clear" onClick={() => onChange([])}>
-          Clear filters
-        </button>
-      ) : (
-        <span className="muted">No filter set.</span>
-      )}
-    </div>
+    <>
+      <div ref={wrap} className="wb-filters">
+        <AddFilterMenu indicators={list} onPick={pick} />
+        {filters.map((f) => (
+          <FilterChip
+            key={f.ind.id}
+            filter={f}
+            rows={rows}
+            open={open === f.ind.id}
+            onToggle={() => setOpen(open === f.ind.id ? null : f.ind.id)}
+            onClose={() => setOpen(null)}
+            onChange={(c) => update(f.ind.id, c)}
+            onRemove={() => {
+              onChange(filters.filter((x) => x !== f));
+              focusAdd();
+            }}
+          />
+        ))}
+        {filters.length > 0 ? (
+          <button
+            className="link-button wb-clear"
+            onClick={() => {
+              onChange([]);
+              focusAdd();
+            }}
+          >
+            Clear filters
+          </button>
+        ) : (
+          <span className="muted">No filter set.</span>
+        )}
+      </div>
+      {filters.length > 0 && rows.length > 0 && shown === 0 && <p className="status-text">No company in this scope matches these filters.</p>}
+    </>
   );
 }
 
@@ -132,6 +149,11 @@ function FilterChip({
   const text = chipText(f, rows);
   const chip = useRef<HTMLButtonElement>(null);
   const box = useRef<HTMLSpanElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  // A chip opened from the menu takes the focus into its control (WCAG 2.4.3).
+  useEffect(() => {
+    if (open && !panel.current?.contains(document.activeElement)) panel.current?.querySelector<HTMLElement>("input, button")?.focus();
+  }, [open]);
   const close = (focus = true) => {
     onClose();
     if (focus) chip.current?.focus();
@@ -148,7 +170,7 @@ function FilterChip({
         </button>
       </span>
       {open && (
-        <div className="wb-menu-panel wb-filter-panel" role="group" aria-label={`Filter: ${f.ind.label}`}>
+        <div ref={panel} className="wb-menu-panel wb-filter-panel" role="group" aria-label={`Filter: ${f.ind.label}`}>
           <FilterControl filter={f} rows={rows} onChange={onChange} />
           <div className="wb-filter-foot">
             <label className="checkbox-label">

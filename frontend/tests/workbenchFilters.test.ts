@@ -96,7 +96,8 @@ test("AC-134: in a narrower scope the bounds follow its rows, a handle outside t
   const f = withF("ownership", { lo: 0.02, hi: 0.035 });
   assert.equal(chipText(f, rows), "Ownership share 0.0200 – 0.0350 %");
   assert.deepEqual(bounds(ind("ownership"), fund), { min: 0.031, max: 0.039 });
-  assert.equal(chipText(f, fund), "Ownership share ≤ 0.0350 %"); // the lower end is clamped to the fund's minimum
+  assert.equal(chipText(f, fund), "Ownership share 0.0310 – 0.0350 %"); // the lower end is clamped to the fund's minimum
+  assert.equal(chipText(withF("ownership", { lo: 0.02 }), []), "Ownership share ≥ 0.0200 %"); // while the new rows load
   assert.ok(filterRows(fund, [f]).every((r) => (r.ownership_pct?.value as number) <= 0.035));
 });
 

@@ -324,6 +324,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
             rows={rows}
             columns={columns}
             filters={filters}
+            shown={sorted.length}
             onChange={(f) => {
               setFilters(f);
               setPage(0);
