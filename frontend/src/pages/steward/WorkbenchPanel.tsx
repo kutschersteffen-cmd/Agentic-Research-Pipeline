@@ -53,6 +53,14 @@ export function WorkbenchPanel({
 }) {
   const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => title.current?.focus(), []); // focus moves into the panel once, when it opens
+  // A step to the first or last row disables the button just pressed; focus goes to the other one, not to the page.
+  const up = useRef<HTMLButtonElement>(null);
+  const down = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const at = document.activeElement;
+    if (!canStep.up && (at === up.current || at === document.body)) down.current?.focus();
+    else if (!canStep.down && (at === down.current || at === document.body)) up.current?.focus();
+  }, [canStep.up, canStep.down]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -95,10 +103,10 @@ export function WorkbenchPanel({
           </p>
         </div>
         <div className="wb-panel-nav">
-          <button className="secondary" aria-label="Previous company" title="Previous company (↑)" disabled={!canStep.up} onClick={() => onStep(-1)}>
+          <button ref={up} className="secondary" aria-label="Previous company" title="Previous company (↑)" disabled={!canStep.up} onClick={() => onStep(-1)}>
             ↑
           </button>
-          <button className="secondary" aria-label="Next company" title="Next company (↓)" disabled={!canStep.down} onClick={() => onStep(1)}>
+          <button ref={down} className="secondary" aria-label="Next company" title="Next company (↓)" disabled={!canStep.down} onClick={() => onStep(1)}>
             ↓
           </button>
           <button className="secondary" aria-label="Close the panel" title="Close (Esc)" onClick={onClose}>
@@ -260,7 +268,7 @@ function CompanyTab({ row }: { row: WorklistRow }) {
                     {f.value}
                     {f.simulated && <> <Sim /></>}
                   </td>
-                  <td>{f.period}</td>
+                  <td className="wb-nowrap">{f.period}</td>
                   <td>{f.source}</td>
                 </tr>
               ))}
