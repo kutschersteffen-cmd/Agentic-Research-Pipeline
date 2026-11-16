@@ -5,7 +5,9 @@ Every rule (control gap, escalation step, ballot state, vote topic) lives here; 
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import Row, func, select
@@ -82,7 +84,7 @@ def ledger_topic(proponent: str | None, categories: list[str] | None) -> str:
 
 def _vote_bucket(vote: str | None) -> str:
     if vote == "withhold":
-        return "against"
+        return "abstain"
     return vote if vote in ("for", "against", "abstain") else "other"
 
 
@@ -132,6 +134,27 @@ def emissions_of(
     }
 
 
+def programmes_of(log: tuple[dict[str, dict], dict[str, dict[str, dict]]], in_scope: Callable[[str], bool], engaged: set[str]) -> tuple[list[dict], set[str], bool]:
+    """(programme rows, companies programme-selected in any programme, any in-scope demo member) from one
+    `ProgrammeLog` fold (spec `stewardship-cockpit-programmes`). Rows: programmes with a confirmed or proposed
+    member anywhere in the log, in programme order."""
+    progs, members = log
+    rows, selected, demo = [], set(), False
+    for pid, prog in progs.items():
+        live = [m for m in members.get(pid, {}).values() if m["status"] != "ended"]
+        if not live:
+            continue
+        mine = [m for m in live if in_scope(m["issuer_id"])]
+        sel = {m["issuer_id"] for m in mine if m["status"] == "confirmed"}
+        selected |= sel
+        demo = demo or any(m["confirmed_by" if m["status"] == "confirmed" else "proposed_by"] == DEMO_CONFIRMER for m in mine)
+        rows.append({
+            "programme_id": pid, "name": prog["name"], "label": re.sub(r" engagement programme$", "", prog["name"], flags=re.IGNORECASE),
+            "selected": len(sel), "engaged": len(sel & engaged), "proposed": sum(m["status"] == "proposed" for m in mine),
+        })  # fmt: skip
+    return rows, selected, demo
+
+
 def build(
     dsn: str,
     as_of: date,
@@ -139,11 +162,12 @@ def build(
     confirmed: dict[str, dict],
     held: set[str] | None,
     financed: tuple[dict[str, float], int, dict[str, CompanyRef]] | None = None,
+    programme_log: tuple[dict[str, dict], dict[str, dict[str, dict]]] | None = None,
 ) -> dict:
     """Every section but `scope` and `portfolios`. `held` is the scope's company keys, None for all portfolios;
     `confirmed` is `TierStore.latest()`; `run_items` is `voting_feed.items()` (runs newest first); `financed` is
     the scope's per-company financed tCO2e, uncovered holding count and the portfolio companies, None for no
-    `emissions`."""
+    `emissions`; `programme_log` is one `ProgrammeLog` fold (programmes, members), None for no programmes."""
     window = [as_of + timedelta(days=i) for i in range(WINDOW)]
     end = window[-1]
 
@@ -196,6 +220,7 @@ def build(
                 select(
                     VoteMeetingModel.company_id, VoteMeetingModel.issuer_name, VoteMeetingModel.meeting_date,
                     VoteItemModel.categories, VoteItemModel.proponent, VoteDecisionModel.vote, VoteDecisionModel.against_management,
+                    VoteDecisionModel.item_id, VoteDecisionModel.run_id, VoteDecisionModel.decided_at, VoteDecisionModel.decision_id,
                 )
                 .join(VoteItemModel, VoteItemModel.meeting_id == VoteMeetingModel.meeting_id)
                 .join(VoteDecisionModel, VoteDecisionModel.item_id == VoteItemModel.item_id)
@@ -307,29 +332,46 @@ def build(
     ]
 
     voting = {"season": as_of.year, "meetings": 0, "votes": 0, "for": 0, "against": 0, "abstain": 0, "other": 0, "against_management": 0}
-    topics = {t: [0, 0] for t in TOPICS}
+    topics = {t: [0, 0, 0] for t in TOPICS}
     voted_meetings = set()
 
     def count(company: str | None, day: date, vote: str | None, against_management: bool, topic: str) -> None:
+        bucket = _vote_bucket(vote)
         voting["votes"] += 1
-        voting[_vote_bucket(vote)] += 1
+        voting[bucket] += 1
         voting["against_management"] += against_management
         topics[topic][0] += 1
         topics[topic][1] += against_management
+        topics[topic][2] += bucket == "abstain"
         voted_meetings.add((company, day))
 
+    # a ballot item re-cast in a later run counts once, with its latest decision; rows without a run_id are filed votes
+    latest: dict[str, Row] = {}
     for r in decisions:
-        count(r.company_id or r.issuer_name, _utc_day(r.meeting_date), r.vote, bool(r.against_management), ledger_topic(r.proponent, r.categories))
-    for r in run_items:
+        if r.run_id is not None:
+            key = (r.decided_at or datetime.min.replace(tzinfo=UTC), r.decision_id)
+            cur = latest.get(r.item_id)
+            if cur is None or key > (cur.decided_at or datetime.min.replace(tzinfo=UTC), cur.decision_id):
+                latest[r.item_id] = r
+    for r in decisions:
+        if r.run_id is None or latest[r.item_id] is r:
+            count(r.company_id or r.issuer_name, _utc_day(r.meeting_date), r.vote, bool(r.against_management), ledger_topic(r.proponent, r.categories))
+    cast_items = set()
+    for r in run_items:  # newest run first: the first cast seen for a ballot item is its latest
         d = _iso_day(r["meeting_date"])
-        if r["status"] != "cast" or r["run_id"] in ledger_run_ids or d is None or not (d.year == as_of.year and d <= as_of) or not in_scope(r["company_id"]):
+        if r["status"] != "cast" or (r["company_id"], d, r["item"]) in cast_items:
+            continue
+        cast_items.add((r["company_id"], d, r["item"]))
+        if r["run_id"] in ledger_run_ids or d is None or not (d.year == as_of.year and d <= as_of) or not in_scope(r["company_id"]):
             continue
         count(r["company_id"], d, r["vote"], bool(r["against_management"]), RUN_TOPIC.get(r["type"], TOPICS[4]))
     voting["meetings"] = len(voted_meetings)
-    voting["topics"] = [{"topic": t, "votes": v, "against_management": a} for t, (v, a) in topics.items()]
+    voting["topics"] = [{"topic": t, "votes": v, "against_management": a, "abstain": b} for t, (v, a, b) in topics.items()]
 
+    programmes, programme_selected, demo_member = programmes_of(programme_log or ({}, {}), in_scope, engaged)
     demo = bool(
-        any(e.source in DEMO_SOURCES for e in engagements)
+        demo_member
+        or any(e.source in DEMO_SOURCES for e in engagements)
         or demo_meeting
         or demo_decision
         or any(r.get("confirmed_by") == DEMO_CONFIRMER for c, r in confirmed.items() if c in tier_of)
@@ -347,6 +389,8 @@ def build(
             for t in TIERS
         ],
         "themes": themes,
+        "programmes": programmes,
+        "programme_totals": {"selected": len(programme_selected), "engaged": len(programme_selected & engaged)},
         "engagement_meetings": engagement_meetings,
         "shareholder_meetings": shareholder,
         "control_gaps": gaps,

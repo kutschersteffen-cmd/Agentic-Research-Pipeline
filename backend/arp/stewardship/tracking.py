@@ -72,7 +72,7 @@ def triggers(records: list[EngagementRecord], sla_days: int, today: date | None 
             for c in i.commitments:
                 if c.status == CommitmentStatus.MISSED:
                     raise_("commitment_missed", "high", "commitment_missed", f"Commitment missed: {c.text}")
-                elif c.status == CommitmentStatus.OPEN and c.target_date and date.fromisoformat(c.target_date[:10]) < today:
+                elif c.status == CommitmentStatus.OPEN and (due := _iso(c.target_date)) and date.fromisoformat(due) < today:
                     raise_(
                         "commitment_missed",
                         "medium",
@@ -98,8 +98,8 @@ def commitments(records: list[EngagementRecord], today: date | None = None) -> l
             "target_date": c.target_date,
             "status": c.status.value,
             "overdue": c.status == CommitmentStatus.OPEN
-            and bool(c.target_date)
-            and date.fromisoformat(c.target_date[:10]) < today,
+            and bool(due := _iso(c.target_date))
+            and date.fromisoformat(due) < today,
             "validated_by": c.validated_by,
         }
         for r in records

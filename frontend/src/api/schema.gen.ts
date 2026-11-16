@@ -4805,6 +4805,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/rfp/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Documents */
+        get: operations["list_documents_api_rfp_documents_get"];
+        put?: never;
+        /**
+         * Upload Document
+         * @description Parses and stores a .pdf or .docx as `active`; with `replaces`, retires that document in the same transaction.
+         */
+        post: operations["upload_document_api_rfp_documents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit Document */
+        put: operations["edit_document_api_rfp_documents__document_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/documents/{document_id}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retire Document */
+        post: operations["retire_document_api_rfp_documents__document_id__retire_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/rfp/library": {
         parameters: {
             query?: never;
@@ -5828,6 +5883,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/overlap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Overlap
+         * @description Every house fund, every fund pair's shared companies and shared weight, and the companies picked in two or
+         *     more scopes in `cycle` (default: the current one).
+         */
+        get: operations["get_overlap_api_stewardship_overlap_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/overlap/matrix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Overlap Matrix
+         * @description A fund x company grid of weights: the `n` companies with the largest house weight (`basis=top`), or every
+         *     company picked in `scope` in `cycle` (`basis=selection`).
+         */
+        get: operations["get_overlap_matrix_api_stewardship_overlap_matrix_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/policies/{policy_id}": {
         parameters: {
             query?: never;
@@ -6035,7 +6132,8 @@ export interface paths {
         put?: never;
         /**
          * Post Selection Confirm
-         * @description Every proposed row of the scope and cycle becomes confirmed, recorded as the signed-in user.
+         * @description Every proposed row of the scope and cycle whose company is still in the scope becomes confirmed, recorded as the
+         *     signed-in user; proposed rows whose company left the scope are removed and named in `dropped`.
          */
         post: operations["post_selection_confirm_api_stewardship_selection_confirm_post"];
         delete?: never;
@@ -10120,6 +10218,25 @@ export interface components {
             /** File */
             file?: string;
         };
+        /** Body_upload_document_api_rfp_documents_post */
+        Body_upload_document_api_rfp_documents_post: {
+            /**
+             * Document Date
+             * Format: date
+             */
+            document_date: string;
+            /** File */
+            file: string;
+            /**
+             * Priority
+             * @default 1
+             */
+            priority: number;
+            /** Replaces */
+            replaces?: number | null;
+            /** Title */
+            title: string;
+        };
         /** Body_upload_esg_api_portfolio_esg_upload_post */
         Body_upload_esg_api_portfolio_esg_upload_post: {
             /** File */
@@ -10879,6 +10996,28 @@ export interface components {
             /** Portfolio Id */
             portfolio_id: string;
         };
+        /** CockpitProgrammeRow */
+        CockpitProgrammeRow: {
+            /** Engaged */
+            engaged: number;
+            /** Label */
+            label: string;
+            /** Name */
+            name: string;
+            /** Programme Id */
+            programme_id: string;
+            /** Proposed */
+            proposed: number;
+            /** Selected */
+            selected: number;
+        };
+        /** CockpitProgrammeTotals */
+        CockpitProgrammeTotals: {
+            /** Engaged */
+            engaged: number;
+            /** Selected */
+            selected: number;
+        };
         /** CockpitResponse */
         CockpitResponse: {
             /**
@@ -10899,6 +11038,9 @@ export interface components {
             ladder: components["schemas"]["CockpitLadderStep"][];
             /** Portfolios */
             portfolios: components["schemas"]["CockpitPortfolioOption"][];
+            programme_totals: components["schemas"]["CockpitProgrammeTotals"];
+            /** Programmes */
+            programmes: components["schemas"]["CockpitProgrammeRow"][];
             scope: components["schemas"]["CockpitScope"];
             /** Shareholder Meetings */
             shareholder_meetings: components["schemas"]["CockpitShareholderMeeting"][];
@@ -10982,6 +11124,8 @@ export interface components {
         };
         /** CockpitTopicCount */
         CockpitTopicCount: {
+            /** Abstain */
+            abstain: number;
             /** Against Management */
             against_management: number;
             /** Topic */
@@ -11112,6 +11256,16 @@ export interface components {
             validated_at?: string | null;
             /** Validated By */
             validated_by?: string | null;
+        };
+        /** CommitmentFlag */
+        CommitmentFlag: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "overdue" | "broken";
+            /** Message */
+            message: string;
         };
         /** CommitmentRequest */
         CommitmentRequest: {
@@ -13651,6 +13805,21 @@ export interface components {
              */
             source: string;
         };
+        /** FundOverlap */
+        FundOverlap: {
+            /** As Of */
+            as_of: string | null;
+            /** Companies */
+            companies: number;
+            /** Cycle */
+            cycle: string;
+            /** Funds */
+            funds: components["schemas"]["OverlapFund"][];
+            /** Pairs */
+            pairs: components["schemas"]["OverlapPair"][];
+            /** Shared Selections */
+            shared_selections: components["schemas"]["SharedSelection"][];
+        };
         /**
          * GateRule
          * @description A rule evaluated *before* the score exists. A knockout is a
@@ -14049,6 +14218,11 @@ export interface components {
             sector?: string | null;
             /** Shares Outstanding */
             shares_outstanding: number;
+            /**
+             * Simulated Fields
+             * @description Metrics, flags and categories above whose value is simulated, not real data.
+             */
+            simulated_fields?: string[];
         };
         /** IndexLevelPoint */
         IndexLevelPoint: {
@@ -15199,6 +15373,68 @@ export interface components {
             /** Recipient */
             recipient: string;
         };
+        /** OverlapFund */
+        OverlapFund: {
+            /** Companies */
+            companies: number;
+            /** Name */
+            name: string;
+            /** Portfolio Id */
+            portfolio_id: string;
+        };
+        /** OverlapHeldIn */
+        OverlapHeldIn: {
+            /** Name */
+            name: string;
+            /** Portfolio Id */
+            portfolio_id: string;
+            /** Weight Pct */
+            weight_pct: number;
+        };
+        /** OverlapMatrix */
+        OverlapMatrix: {
+            /** As Of */
+            as_of: string | null;
+            /**
+             * Basis
+             * @enum {string}
+             */
+            basis: "top" | "selection";
+            /** Companies */
+            companies: components["schemas"]["OverlapMatrixCompany"][];
+            /** Cycle */
+            cycle: string;
+            /** Funds */
+            funds: components["schemas"]["OverlapFund"][];
+            /** Scope */
+            scope: string | null;
+        };
+        /** OverlapMatrixCompany */
+        OverlapMatrixCompany: {
+            /** Company */
+            company: string;
+            /** Funds */
+            funds: number;
+            /** House Weight Pct */
+            house_weight_pct: number | null;
+            /** Issuer Id */
+            issuer_id: string;
+            /** Weights */
+            weights: {
+                [key: string]: number | null;
+            };
+        };
+        /** OverlapPair */
+        OverlapPair: {
+            /** A */
+            a: string;
+            /** B */
+            b: string;
+            /** Shared Companies */
+            shared_companies: number;
+            /** Shared Weight Pct */
+            shared_weight_pct: number;
+        };
         /** OverlapRequest */
         OverlapRequest: {
             /**
@@ -15276,6 +15512,18 @@ export interface components {
             timeline_text: string;
             /** Year */
             year: number | null;
+        };
+        /** PickedScope */
+        PickedScope: {
+            /** Label */
+            label: string;
+            /** Scope */
+            scope: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "proposed" | "confirmed";
         };
         /**
          * Pillar
@@ -16942,6 +17190,42 @@ export interface components {
             /** User Id */
             user_id: string | null;
         };
+        /** RfpDocumentEdit */
+        RfpDocumentEdit: {
+            /** Priority */
+            priority?: number | null;
+            /** Review By */
+            review_by?: string | null;
+            /** Title */
+            title?: string | null;
+        };
+        /** RfpDocumentOut */
+        RfpDocumentOut: {
+            /**
+             * Document Date
+             * Format: date
+             */
+            document_date: string;
+            /** Filename */
+            filename: string;
+            /** Id */
+            id: number;
+            /** Pages */
+            pages: number | null;
+            /** Priority */
+            priority: number;
+            /**
+             * Review By
+             * Format: date
+             */
+            review_by: string;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+            /** Uploaded By */
+            uploaded_by: string;
+        };
         /** RfpLibraryEntryEdit */
         RfpLibraryEntryEdit: {
             /** Answer */
@@ -17080,6 +17364,8 @@ export interface components {
         };
         /** RfpSourceOut */
         RfpSourceOut: {
+            /** Document Id */
+            document_id?: number | null;
             /** Entry Id */
             entry_id?: number | null;
             /** Entry Question */
@@ -17093,10 +17379,16 @@ export interface components {
             kind: "entry" | "document";
             /** Location */
             location?: string | null;
+            /** Page */
+            page?: number | null;
+            /** Priority */
+            priority?: number | null;
             /** Quote */
             quote: string;
             /** Source */
             source?: string | null;
+            /** Title */
+            title?: string | null;
             /** Written By */
             written_by?: string | null;
         };
@@ -17757,6 +18049,17 @@ export interface components {
              */
             scope: string;
         };
+        /**
+         * SelectionConfirmed
+         * @description The selection confirm: how many rows were confirmed, and the stored names of proposed rows dropped because their
+         *     company is no longer in the scope (sorted).
+         */
+        SelectionConfirmed: {
+            /** Confirmed */
+            confirmed: number;
+            /** Dropped */
+            dropped: string[];
+        };
         /** SelectionList */
         SelectionList: {
             /** Current */
@@ -17850,6 +18153,17 @@ export interface components {
             source: "disclosed" | "computed from amounts";
             /** Value */
             value: number;
+        };
+        /** SharedSelection */
+        SharedSelection: {
+            /** Company */
+            company: string;
+            /** Held In */
+            held_in: components["schemas"]["OverlapHeldIn"][];
+            /** Issuer Id */
+            issuer_id: string;
+            /** Scopes */
+            scopes: components["schemas"]["PickedScope"][];
         };
         /** ShockIndicators */
         ShockIndicators: {
@@ -19941,7 +20255,11 @@ export interface components {
         WorklistRow: {
             /** Aum Held Eur M */
             aum_held_eur_m: number | null;
+            /** Broken Commitments */
+            broken_commitments: number;
             carbon_intensity: components["schemas"]["Observed"] | null;
+            /** Commitment Flags */
+            commitment_flags: components["schemas"]["CommitmentFlag"][];
             /** Company */
             company: string;
             controversy: components["schemas"]["Observed"] | null;
@@ -19969,6 +20287,8 @@ export interface components {
             issuer_id: string;
             /** Last Topics */
             last_topics: string[];
+            /** New High Trigger */
+            new_high_trigger: boolean;
             next_meeting: components["schemas"]["NextMeeting"] | null;
             norms_violation: components["schemas"]["Observed"] | null;
             notes: components["schemas"]["NotesSummary"];
@@ -29462,6 +29782,125 @@ export interface operations {
             };
         };
     };
+    list_documents_api_rfp_documents_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpDocumentOut"][];
+                };
+            };
+        };
+    };
+    upload_document_api_rfp_documents_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_document_api_rfp_documents_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpDocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_document_api_rfp_documents__document_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RfpDocumentEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpDocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retire_document_api_rfp_documents__document_id__retire_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpDocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_library_api_rfp_library_get: {
         parameters: {
             query?: never;
@@ -31286,6 +31725,71 @@ export interface operations {
             };
         };
     };
+    get_overlap_api_stewardship_overlap_get: {
+        parameters: {
+            query?: {
+                cycle?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FundOverlap"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_overlap_matrix_api_stewardship_overlap_matrix_get: {
+        parameters: {
+            query?: {
+                basis?: string;
+                n?: number;
+                scope?: string | null;
+                cycle?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverlapMatrix"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_policy_api_stewardship_policies__policy_id__get: {
         parameters: {
             query?: {
@@ -31700,7 +32204,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Confirmed"];
+                    "application/json": components["schemas"]["SelectionConfirmed"];
                 };
             };
             /** @description Validation Error */

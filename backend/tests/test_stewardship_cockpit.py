@@ -23,6 +23,7 @@ from arp.schemas.common import CompanyRef  # noqa: E402
 from arp.schemas.portfolio import Holding, Portfolio, SecurityRef  # noqa: E402
 from arp.stewardship import cockpit  # noqa: E402
 from arp.stewardship.cockpit_demo import OFFSETS, planned_date  # noqa: E402
+from arp.stewardship.programmes import ProgrammeLog  # noqa: E402
 from arp.stewardship.tiers import TIERS, TierStore  # noqa: E402
 from arp.storage.portfolio_store_factory import build_portfolio_store  # noqa: E402
 from arp.storage.postgres_models import (  # noqa: E402
@@ -342,8 +343,9 @@ def test_voting_season_and_topics_ac40_ac41(client, pg):
     ]  # fmt: skip
 
 
-def test_vote_values_ac42():
-    assert [cockpit._vote_bucket(v) for v in ("withhold", "one_year", "do_not_vote", "for")] == ["against", "other", "other", "for"]
+def test_vote_values_ac42_superseded_by_vote_abstain_ac10():
+    # spec vote-abstain-and-seed-fixes AC-10: a withhold counts with abstentions, not as `against`
+    assert [cockpit._vote_bucket(v) for v in ("withhold", "one_year", "do_not_vote", "for")] == ["abstain", "other", "other", "for"]
 
 
 def test_split_vote_counts_twice_ac43(client, pg):
@@ -363,6 +365,67 @@ def test_cast_run_vote_counts_unless_in_ledger(pg):
     with transaction(pg) as s:
         s.execute(update(VoteDecisionModel).values(run_id="r1"))
     assert cockpit.build(pg, date(2026, 11, 17), rows, {}, None)["voting"]["votes"] == 1
+
+
+# --- spec vote-abstain-and-seed-fixes ----------------------------------------------------------------------------
+
+VOTING_KEYS = ("meetings", "votes", "for", "against", "abstain", "other", "against_management")
+
+
+def test_abstain_and_withhold_bucket_and_topics_vote_abstain_ac9_ac10_ac11(client, pg):
+    _company(pg, "isin_XG", "Gamma SE")
+    d = ["DIRECTOR ELECTIONS"]
+    _decisions(pg, "2026-03-10", [
+        (d, None, "abstain", None), (d, None, "withhold", True), (d, None, "withhold", None),
+        (["SECTION 14A SAY-ON-PAY VOTES"], None, "against", True), (["AUDIT-RELATED"], None, "for", False),
+    ], "m1")  # fmt: skip
+    v = _get(client)["voting"]
+    assert {k: v[k] for k in VOTING_KEYS} == {"meetings": 1, "votes": 5, "for": 1, "against": 1, "abstain": 3, "other": 0, "against_management": 2}
+    assert [(t["topic"], t["votes"], t["against_management"], t["abstain"]) for t in v["topics"]] == [
+        ("Shareholder proposals", 0, 0, 0), ("Remuneration", 1, 1, 0), ("Director elections", 3, 1, 3), ("Auditors", 1, 0, 0), ("Capital and other", 0, 0, 0),
+    ]  # fmt: skip
+
+
+def _recast(pg, first, second):
+    """One G item decided in run R1, then again in run R2: (decided_at, vote, against_management) each."""
+    _company(pg, "isin_XG", "Gamma SE")
+    _decisions(pg, "2026-03-10", [(["X"], None, first[1], first[2])], "m1")
+    with transaction(pg) as s:
+        s.execute(update(VoteDecisionModel).values(run_id="R1", decided_at=first[0]))
+        s.add(VoteDecisionModel(decision_id="m1d9", source="test", external_id="m1d9", item_id="m1i0", run_id="R2", decided_at=second[0], vote=second[1], against_management=second[2]))  # fmt: skip
+
+
+@pytest.mark.parametrize(("r1_day", "expected"), [
+    (datetime(2026, 3, 1, tzinfo=UTC), {"votes": 1, "for": 0, "against": 1, "against_management": 1}),
+    (datetime(2026, 3, 9, tzinfo=UTC), {"votes": 1, "for": 1, "against": 0, "against_management": 0}),
+])  # fmt: skip
+def test_recast_ledger_item_counts_latest_decision_vote_abstain_ac12_ac13(client, pg, r1_day, expected):
+    _recast(pg, (r1_day, "for", False), (datetime(2026, 3, 5, tzinfo=UTC), "against", True))
+    v = _get(client)["voting"]
+    assert {k: v[k] for k in expected} == expected
+
+
+def test_recast_ledger_item_without_dates_counts_once_vote_abstain_ac14(client, pg):
+    _recast(pg, (None, "for", False), (None, "against", True))
+    v = _get(client)["voting"]
+    assert (v["votes"], v["against"]) == (1, 1)  # tie: the greater decision_id wins
+
+
+@pytest.mark.parametrize(("item2", "expected"), [
+    (("for", "cast"), {"meetings": 1, "votes": 2, "for": 1, "against": 1, "against_management": 1}),
+    (("against", "decided"), {"votes": 2, "for": 1, "against": 1, "against_management": 1}),  # item 2 from the older run
+])  # fmt: skip
+def test_recast_run_item_counts_newest_cast_vote_abstain_ac15_ac16(pg, item2, expected):
+    def run(run_id, votes, statuses):
+        return [
+            {"run_id": run_id, "company_id": "H", "company": "Hotel AG", "meeting_date": "2026-03-12", "item": str(i + 1), "type": "say_on_pay",
+             "management": "for", "policy": "for", "vote": vote, "status": st, "against_management": vote == "against"}
+            for i, (vote, st) in enumerate(zip(votes, statuses, strict=True))
+        ]  # fmt: skip
+
+    rows = run("new", ["against", item2[0]], ["cast", item2[1]]) + run("old", ["for", "for"], ["cast", "cast"])
+    v = cockpit.build(pg, date(2026, 11, 17), rows, {}, None)["voting"]
+    assert {k: v[k] for k in expected} == expected
 
 
 # --- scope and demo -----------------------------------------------------------------------------------------------
@@ -443,8 +506,10 @@ def test_seed_cockpit_demo_ac47_to_ac51_ac76_to_ac78(client, pg):
     result = _seed("2026-11-27")
     lines = result.stdout.splitlines()
     assert result.exit_code == 0, result.stdout
-    assert len(lines) == 4 and lines[0] == "ok planned: 40 engagements" and lines[3] == "ok meetings: 14 upcoming"
-    assert [line.split(":")[0] for line in lines] == ["ok planned", "ok escalation", "ok tiers", "ok meetings"]
+    # stewardship-cockpit-programmes AC-12 supersedes AC-47's "exactly four lines": step 5 adds the fifth
+    assert len(lines) == 5 and lines[0] == "ok planned: 40 engagements" and lines[3] == "ok meetings: 14 upcoming"
+    assert [line.split(":")[0] for line in lines] == ["ok planned", "ok escalation", "ok tiers", "ok meetings", "ok programmes"]
+    assert lines[4] == "ok programmes: 56 confirmed, 8 proposed"
     body = _get(client, as_of="2026-11-27")
     rows = body["shareholder_meetings"]
     assert [r["days_to_meeting"] for r in rows] == OFFSETS and {r["ballot_state"] for r in rows} == {"not_started"}
@@ -499,3 +564,126 @@ def test_seed_cockpit_demo_fails_without_enough_held_companies(client, pg):
     result = _seed("2026-11-27")
     assert result.exit_code == 1
     assert result.stdout.splitlines()[-1].startswith("FAIL meetings:")
+
+
+# --- programmes (spec stewardship-cockpit-programmes) ----------------------------------------------------------------
+
+
+def _log():
+    return ProgrammeLog(get_settings().stewardship_streams_dir)
+
+
+def _member(pid, *companies, confirm=True, by="tester"):
+    _log().change(pid, {c: c for c in companies}, list(companies), [], [], None, by)
+    if confirm:
+        _log().confirm(pid, by)
+
+
+def _rows(body, *keys):
+    return [{k: r[k] for k in keys} for r in body["programmes"]]
+
+
+B, C, D, E = (f"isin_X{x}0000000001" for x in "BCDE")
+
+
+def test_programmes_empty_log_ac1(client):
+    body = _get(client)
+    assert body["programmes"] == [] and body["programme_totals"] == {"selected": 0, "engaged": 0}
+
+
+@pytest.mark.parametrize(("status", "engaged"), [("open", 1), ("stalled", 1), ("resolved", 0)])
+def test_programme_row_counts_and_log_untouched_ac2_to_ac4_ac26(client, pg, status, engaged):
+    _member("climate", B, C, E)
+    _log().change("climate", {}, [], [], [E], "done", "tester")
+    _member("climate", D, confirm=False)
+    _engagement(client, pg, company_id=B, name="Beta AG", fir_theme="natural_capital", status=status)
+    before = _log().path.read_bytes()
+    assert _get(client)["programmes"] == [
+        {"programme_id": "climate", "name": "Climate engagement programme", "label": "Climate", "selected": 2, "engaged": engaged, "proposed": 1}
+    ]
+    assert _log().path.read_bytes() == before
+
+
+def test_programme_order_labels_and_distinct_totals_ac5_ac6_ac8(client, pg):
+    water = _log().create("Water engagement programme", "tester")["programme_id"]
+    bio = _log().create("Biodiversity ENGAGEMENT PROGRAMME", "tester")["programme_id"]
+    _log().create("Water stewardship", "tester")
+    _member(water, E)
+    _member(bio, E)
+    _member("nature", B, C)
+    _member("climate", B)
+    _engagement(client, pg, company_id=B, name="Beta AG")
+    body = _get(client)
+    assert _rows(body, "programme_id", "label", "selected", "engaged") == [
+        {"programme_id": "climate", "label": "Climate", "selected": 1, "engaged": 1},
+        {"programme_id": "nature", "label": "Nature", "selected": 2, "engaged": 1},
+        {"programme_id": water, "label": "Water", "selected": 1, "engaged": 0},
+        {"programme_id": bio, "label": "Biodiversity", "selected": 1, "engaged": 0},
+    ]
+    assert body["programme_totals"] == {"selected": 3, "engaged": 1}
+    # programmes change no part-1 count (AC-11)
+    assert body["summary"] == {"selected": 0, "engaged_selected": 0, "engaged_outside_selection": 1}
+    assert all(t["selected"] == t["engaged"] == 0 for t in body["tiers"])
+
+
+def test_programme_portfolio_scope_ac7(client, pg):
+    store = build_portfolio_store(get_settings())
+    store.save_portfolio(Portfolio(portfolio_id="P", name="P"))
+    store.save_company(CompanyRef(company_id=B, name="Beta AG"))
+    store.save_security(SecurityRef(security_id="XB0000000001", isin="XB0000000001", name="Beta", asset_class="equity", currency="EUR", company_id=B))
+    store.save_snapshot("P", "2026-11-01", [Holding(holder_id="P", security_id="XB0000000001", as_of_date="2026-11-01", market_value_eur=1.0)])
+    _member("climate", B, C)
+    _member("nature", C)
+    _member("climate", D, confirm=False)
+    for c, ext in ((B, "B"), (C, "C")):
+        _engagement(client, pg, company_id=c, name=ext, ext=ext)
+    body = _get(client, portfolio_id="P")
+    assert _rows(body, "programme_id", "selected", "engaged", "proposed") == [
+        {"programme_id": "climate", "selected": 1, "engaged": 1, "proposed": 0},
+        {"programme_id": "nature", "selected": 0, "engaged": 0, "proposed": 0},
+    ]
+    assert body["programme_totals"] == {"selected": 1, "engaged": 1}
+
+
+@pytest.mark.parametrize(("by", "demo"), [("showcase demo", True), ("tester", False)])
+def test_programme_demo_member_ac9_ac10(client, by, demo):
+    _member("climate", B, by=by)
+    assert _get(client)["demo"] is demo
+
+
+def test_seed_programmes_ac13_to_ac16(client, pg):
+    _demo_stack(pg, n_companies=24, n_engagements=24)
+    with transaction(pg) as s:  # 3 held companies with an open nature engagement (AC-16)
+        for i in (21, 22, 23):
+            s.get(StwEngagementModel, f"iss_demo{i}").fir_theme = "natural_capital"
+    _member("climate", "isin_XD0000000005")
+    lines = _seed("2026-11-27").stdout.splitlines()
+    assert lines[-1] == "ok programmes: 54 confirmed, 6 proposed", lines
+    nature = {m["issuer_id"] for m in _log().programme("nature")["members"]}
+    assert {f"isin_XD{i:010d}" for i in (21, 22, 23)} <= nature and len(nature) == 20
+    assert [m["issuer_id"] for m in _log().programme("climate")["members"]] == ["isin_XD0000000005"]
+    body = _get(client, as_of="2026-11-27")
+    assert [(r["programme_id"], r["selected"], r["proposed"]) for r in body["programmes"]] == [
+        ("climate", 1, 0), ("nature", 18, 2), ("ai", 18, 2), ("governance", 18, 2)
+    ]
+    size = _log().path.read_bytes()
+    assert _seed("2026-11-27").stdout.splitlines()[-1] == "ok programmes: 0 confirmed, 0 proposed"
+    assert _log().path.read_bytes() == size
+
+
+def test_programmes_cost_ac29(tmp_path):
+    # the panel's extra cost per request: one fold of a 5,000-event log over 10 programmes, then set lookups
+    import json
+    import time
+
+    log = ProgrammeLog(tmp_path)
+    log.path.parent.mkdir(parents=True)
+    events = [{"event": "created", "programme_id": f"p{p}", "name": f"P{p}", "by": "t", "at": "x"} for p in range(10)]
+    events += [{"event": e, "programme_id": f"p{i % 10}", "issuer_id": f"c{i // 10}", "by": "t", "at": "x"}
+               for i in range(2495) for e in ("proposed", "confirmed")]  # fmt: skip
+    log.path.write_text("".join(json.dumps(e) + "\n" for e in events))
+    held, engaged = {f"c{i}" for i in range(500)}, {f"c{i}" for i in range(300)}
+    start = time.perf_counter()
+    rows, selected, _ = cockpit.programmes_of(log._fold(), held.__contains__, engaged)
+    assert time.perf_counter() - start < 0.2
+    assert len(rows) == 10 and len(selected) == 250

@@ -11,6 +11,7 @@ from sqlalchemy.orm import aliased
 from arp.db import models as m
 from arp.db.companies import normalise_identifier
 from arp.db.session import transaction
+from arp.stewardship.cockpit import DEMO_SOURCES
 from arp.storage.postgres_models import VoteDecisionModel, VoteItemModel, VoteMeetingModel
 
 
@@ -27,6 +28,7 @@ def ledger_rows(dsn: str, window_days: int, house_issuers: list[dict] | None = N
             select(
                 M.isin, M.company_id, M.issuer_name, M.meeting_date, VoteItemModel.item_number,
                 VoteItemModel.management_recommendation, D.run_id, D.vote, D.decided_by, D.against_management,
+                M.source.label("meeting_source"), D.source.label("decision_source"),
             )  # fmt: skip
             .join(VoteItemModel, VoteItemModel.meeting_id == VoteMeetingModel.meeting_id)
             .join(VoteDecisionModel, VoteDecisionModel.item_id == VoteItemModel.item_id)
@@ -63,6 +65,7 @@ def ledger_rows(dsn: str, window_days: int, house_issuers: list[dict] | None = N
                     "note": None,
                     "overrode_policy": False,
                     "against_management": bool(r.against_management),
+                    "demo": r.meeting_source in DEMO_SOURCES or r.decision_source in DEMO_SOURCES,
                 }
             )
         return rows

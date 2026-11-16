@@ -16,6 +16,11 @@ class Grade(Observed):
     label: str
 
 
+class CommitmentFlag(BaseModel):
+    kind: Literal["overdue", "broken"]
+    message: str
+
+
 class TriggerCounts(BaseModel):
     high: int
     medium: int
@@ -97,9 +102,12 @@ class WorklistRow(BaseModel):
     coverage_tier: str
     coverage_tier_confirmed: bool
     triggers: TriggerCounts
+    new_high_trigger: bool
     open_engagements: int
     escalated: int
     overdue_commitments: int
+    broken_commitments: int
+    commitment_flags: list[CommitmentFlag]
     next_meeting: NextMeeting | None
     transition_grade: Grade | None
     esg_score: Observed | None
@@ -166,6 +174,14 @@ class SelectionConfirm(BaseModel):
 
 class Confirmed(BaseModel):
     confirmed: int
+
+
+class SelectionConfirmed(BaseModel):
+    """The selection confirm: how many rows were confirmed, and the stored names of proposed rows dropped because their
+    company is no longer in the scope (sorted)."""
+
+    confirmed: int
+    dropped: list[str]
 
 
 class PriorityPreviewRequest(BaseModel):

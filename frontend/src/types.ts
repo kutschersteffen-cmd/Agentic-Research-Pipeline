@@ -65,6 +65,7 @@ export type RunStarted = Served<S["RunStarted"]>;
 export type PriorRun = Served<S["PriorRun"]>;
 
 export type RfpLibraryEntry = Served<S["RfpLibraryEntryOut"]>;
+export type RfpDocument = Served<S["RfpDocumentOut"]>;
 export type RfpProjectSummary = Served<S["RfpProjectSummary"]>;
 export type RfpProject = Served<S["RfpProjectOut"]>;
 export type RfpQuestion = Served<S["RfpQuestionOut"]>;
@@ -2215,7 +2216,13 @@ export type PriorityPreview = Served<S["PriorityPreview"]>;
 export type PortfolioGroup = Served<S["PortfolioGroup"]>;
 export type WorklistScopes = Served<S["WorklistScopes"]>;
 export type ProgrammeList = Served<S["ProgrammeList"]>;
-export type Confirmed = Served<S["Confirmed"]>;
+export type SelectionConfirmed = Served<S["SelectionConfirmed"]>;
+export type StewardNote = Served<S["Note"]>;
+export type StewardNoteList = Served<S["NoteList"]>;
+export type VoteList = Served<S["VoteList"]>;
+// The fund overlap tab (backend/arp/schemas/overlap.py)
+export type FundOverlap = Served<S["FundOverlap"]>;
+export type OverlapMatrix = Served<S["OverlapMatrix"]>;
 
 export interface PolicyVersionMeta {
   version: number;
@@ -2298,6 +2305,7 @@ export interface MonitoringTrigger {
   rule: string;
   reason: string;
   engagement_id: string | null;
+  demo?: boolean; // raised by demo votes alone; tracking triggers carry none
 }
 
 export interface MonitoringPreview {
@@ -2635,6 +2643,7 @@ export interface UnifiedTrigger {
   first_seen_month: string;
   is_new: boolean;
   rule: string;
+  demo: boolean; // raised by demo votes alone, as the last monthly run said
   company: string;
 }
 

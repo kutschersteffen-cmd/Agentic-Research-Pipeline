@@ -35,6 +35,24 @@ class RfpLibraryImportOut(BaseModel):
     dropped: list[str]
 
 
+class RfpDocumentOut(BaseModel):
+    id: int
+    title: str
+    filename: str
+    document_date: date
+    review_by: date
+    priority: int
+    status: str
+    uploaded_by: str
+    pages: int | None  # page count of a PDF; null for Word
+
+
+class RfpDocumentEdit(BaseModel):
+    title: str | None = Field(default=None, min_length=1)
+    review_by: date | None = None
+    priority: int | None = Field(default=None, ge=1)
+
+
 class RfpSourceOut(BaseModel):
     kind: Literal["entry", "document"]  # a source stored before kinds existed is an entry
     entry_id: int | None = None
@@ -44,6 +62,10 @@ class RfpSourceOut(BaseModel):
     file: str | None
     location: str | None = None
     written_by: str | None = None
+    document_id: int | None = None
+    title: str | None = None
+    priority: int | None = None
+    page: int | None = None  # where a document quote starts; null for Word
 
 
 class RfpSegment(BaseModel):

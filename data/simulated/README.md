@@ -7,7 +7,7 @@ real company's real figure, and the ranges below are illustrative, not sourced. 
 | File | What it is |
 |---|---|
 | `esg_simulated.csv` | The dataset: one row per ISIN of the equity lines in `data/holdings/*.xlsx`, sorted by ISIN. Written by the command; do not edit by hand. |
-| `activity_overrides.csv` | Hand-kept input (`isin,name,activity,share,reason`): companies whose business is a controversial activity. `isin` and `name` are copied from a holdings file. |
+| `activity_overrides.csv` | Hand-kept input (`isin,name,activity,share,reason`): companies whose business is a controversial activity. `isin` and `name` are copied from a holdings file. The `norms_violation` rows are demo flags, not findings: their `reason` starts `simulated demo flag` (owner, 16 Nov 2026). |
 
 Regenerate (from the repo root or from `backend/`; the same input always gives the same bytes):
 

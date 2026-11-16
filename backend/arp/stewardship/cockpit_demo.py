@@ -189,6 +189,40 @@ def step_meetings(settings: Settings, dsn: str, as_of: date) -> str:
     return f"{len(OFFSETS)} upcoming"
 
 
+PROGRAMME_GROUPS = {"climate": "Climate", "nature": "Nature", "ai": "AI and digital", "governance": "Corporate governance"}
+PROGRAMME_SIZE, PROGRAMME_THEMED, PROGRAMME_PROPOSED = 20, 8, 2
+
+
+def step_programmes(settings: Settings, dsn: str, as_of: date) -> str:
+    """Spec `stewardship-cockpit-programmes`, step 5: each built-in programme with no member at all gets up to 20 held
+    companies, first up to 8 with an open engagement in its theme group, all but the last 2 confirmed."""
+    from arp.stewardship.cockpit import OPEN, theme_of
+    from arp.stewardship.programmes import ProgrammeLog
+
+    values, companies = held_values(settings, as_of)
+    held = [c for c, v in values.items() if v > 0]
+    groups: dict[str, set[str]] = defaultdict(set)
+    with transaction(dsn) as s:
+        for r in s.execute(select(StwEngagementModel.company_id, StwEngagementModel.fir_theme).where(StwEngagementModel.status.in_(OPEN))):
+            groups[r.company_id].add(theme_of(r.fir_theme))
+    names = {c: getattr(companies.get(c), "name", None) or c for c in held}
+    log = ProgrammeLog(settings.stewardship_streams_dir)
+    confirmed = proposed = 0
+    for pid, group in PROGRAMME_GROUPS.items():
+        if log.programme(pid)["members"]:
+            continue
+        ranked = sorted(held, key=lambda c: (h(f"{pid}:{c}"), c))
+        themed = [c for c in ranked if group in groups[c]][:PROGRAMME_THEMED]
+        n = min(PROGRAMME_SIZE, len(held))
+        chosen = (themed + [c for c in ranked if c not in themed])[:n]
+        later = chosen[n - PROGRAMME_PROPOSED :] if n >= 3 else []
+        log.change(pid, names, chosen[: n - len(later)], [], [], None, DECIDED_BY)
+        confirmed += log.confirm(pid, DECIDED_BY)
+        log.change(pid, names, later, [], [], None, DECIDED_BY)
+        proposed += len(later)
+    return f"{confirmed} confirmed, {proposed} proposed"
+
+
 def seed_cockpit_demo(settings: Settings, dsn: str, as_of: date, echo: Callable[[str], None]) -> bool:
     """Prints `ok|FAIL <step>: <detail>` per step; stops at the first FAIL and returns False."""
     steps = [
@@ -196,6 +230,7 @@ def seed_cockpit_demo(settings: Settings, dsn: str, as_of: date, echo: Callable[
         ("escalation", lambda: step_escalation(dsn)),
         ("tiers", lambda: step_tiers(settings, dsn, as_of)),
         ("meetings", lambda: step_meetings(settings, dsn, as_of)),
+        ("programmes", lambda: step_programmes(settings, dsn, as_of)),
     ]
     for name, run in steps:
         try:

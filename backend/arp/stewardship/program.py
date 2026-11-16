@@ -33,7 +33,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from arp.engagement.orchestrator import is_stalled
 from arp.index.weighting import apply_tilts, normalise
-from arp.schemas.engagement import EngagementRecord
+from arp.schemas.engagement import OLD_STAGES, EngagementRecord
 from arp.schemas.index import IndexCandidate, MetricTilt
 from arp.schemas.reporting import (
     ChartSpec,
@@ -547,7 +547,7 @@ def monitor(root: Path, stream: dict, records: list[EngagementRecord], sla_days:
                 "theme": _w(t["theme"]),
                 "engagement": state,
                 "step now": _w(issue.escalation_stage.value) if issue else "—",
-                "planned step": _w(t["client_step"]),
+                "planned step": _w(OLD_STAGES.get(t["client_step"], t["client_step"])),  # read-time, never rewritten
                 "waiting on house": "yes" if k in waiting else "",
                 "still qualifies": "yes" if k in current else "no",
             }

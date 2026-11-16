@@ -58,7 +58,7 @@ def seed_demo_cmd(
 
 @stewardship_app.command("seed-cockpit-demo")
 def seed_cockpit_demo_cmd(as_of: str = typer.Option(None, "--as-of", help="YYYY-MM-DD; default today UTC.")) -> None:
-    """Planned meetings, escalations, tiers and 14 upcoming shareholder meetings for the cockpit; run after seed-demo and load-npx."""
+    """Planned meetings, escalations, tiers, 14 upcoming shareholder meetings and programme members for the cockpit; run after seed-demo and load-npx."""
     from datetime import UTC, date, datetime
 
     from arp.stewardship.cockpit_demo import seed_cockpit_demo

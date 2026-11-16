@@ -123,7 +123,7 @@ token, and no production code path skips authentication. "Stand-ins": model, com
 | AC-8 | `VITE_API_BASE` unset | `npm run build` | A file in `frontend/dist/assets/*.js` contains `http://localhost:8000`, and every `src`/`href` in `frontend/dist/index.html` that points at a build asset starts with `/assets/` (unchanged behaviour) | unit |
 | AC-9 | Server running, both compute URLs set, stand-ins that all succeed | The pre-flight check runs | Exactly 7 lines in this order, each starting `ok`: `postgres`, `model <ARP_LLM_MODEL>`, `verifier <ARP_LLM_VERIFIER_MODEL>`, `compute models`, `compute parse`, `frontend`, `fetch`; exit code 0 | unit |
 | AC-10 | `ARP_LLM_MODEL=nope`, a stand-in that raises `model not found` for it, and a second usable provider key set | The pre-flight check runs | The model line is `FAIL model nope: model not found`, no other model is called for that line, exit code 1 | unit |
-| AC-11a | The e2e stack is down, Postgres from `ensure-deps.sh postgres`, a valid `backend/.env`, `JUPYTERHUB_SERVICE_PREFIX=/user/x/` | `scripts/launch_jupyter.sh up` | Stdout has exactly one line containing `/user/x/proxy/8000/`, and `GET http://localhost:8000/api/health` returns 200 | evaluator |
+| AC-11a | The e2e stack is down, Postgres from `ensure-deps.sh postgres`, a valid `backend/.env` (with `ARP_AUTH_MODE=local` and `ARP_USERS_FILE` pointing at an existing users file, spec `showcase-login-origins`), `JUPYTERHUB_SERVICE_PREFIX=/user/x/` | `scripts/launch_jupyter.sh up` | Stdout has exactly one line containing `/user/x/proxy/8000/`, and `GET http://localhost:8000/api/health` returns 200 | evaluator |
 | AC-11b | Same, and no `frontend/dist` before | Same | `frontend/dist/index.html` exists afterwards | evaluator |
 | AC-11c | After AC-11a | `up` a second time | It prints a line starting `already running`, exits 0, and exactly one process listens on port 8000 | evaluator |
 | AC-11d | As AC-11a but `JUPYTERHUB_SERVICE_PREFIX` unset | `up` | Stdout has exactly one line containing `http://localhost:8000/` | evaluator |
@@ -133,7 +133,7 @@ token, and no production code path skips authentication. "Stand-ins": model, com
 | AC-15 | As AC-10 but for `ARP_LLM_VERIFIER_MODEL=nope` | The pre-flight check runs | The verifier line is `FAIL verifier nope: model not found`, exit code 1 | unit |
 | AC-16 | After AC-11a | `scripts/launch_jupyter.sh down`, then `down` again | Nothing listens on port 8000; both calls exit 0 | evaluator |
 | AC-17 | `ARP_POSTGRES_DSN` unset everywhere | `up` | It prints a line containing `ARP_POSTGRES_DSN`, exits 1, and nothing listens on port 8000 | evaluator |
-| AC-18 | `frontend/dist/index.html` older than a file in `frontend/src` | `up` | `frontend/dist/index.html` has a newer modification time afterwards | evaluator |
+| AC-18 | A valid `backend/.env` as in AC-11a; `frontend/dist/index.html` older than a file in `frontend/src` | `up` | `frontend/dist/index.html` has a newer modification time afterwards | evaluator |
 | AC-19 | `ARP_COMPUTE_MODELS_URL` unset, otherwise as AC-9 | The pre-flight check runs | The `compute models` line starts with `skip`; exit code 0 | unit |
 
 | AC-20 | After AC-11a | `GET http://localhost:8000/` | Status 200, the body contains `<div id="root"`, and no `src`/`href` in it starts with `/assets/` | evaluator |
@@ -147,7 +147,7 @@ token, and no production code path skips authentication. "Stand-ins": model, com
 | AC-28 | `ARP_FRONTEND_DIST=` (empty) | `GET /` on the API | Status 404 (as unset) | unit |
 | AC-29 | Frontend built with `VITE_API_BASE=.` | The build output is read | No file in `frontend/dist` contains `http://localhost:8000`, and every build-asset `src`/`href` in `index.html` starts with `./assets/` | unit |
 | AC-30 | As AC-1, plus `ARP_LLM_VERIFIER_MODEL=gemini-3.6-flash` and `ARP_GCP_LOCATION` unset | The verifier client makes one call | As AC-1: Vertex host, path contains `projects/p/locations/global`, no API key | unit |
-| AC-31 | Server down, `frontend/dist` newer than every file in `frontend/src` | `up` | The modification time of `frontend/dist/index.html` is unchanged | evaluator |
+| AC-31 | A valid `backend/.env` as in AC-11a; server down, `frontend/dist` newer than every file in `frontend/src` | `up` | The modification time of `frontend/dist/index.html` is unchanged | evaluator |
 | AC-32 | `ARP_POSTGRES_DSN` points at a closed port | `up` | Exits non-zero within 120 s and nothing listens on port 8000 | evaluator |
 | AC-33 | The change is merged | `docs/INSTALLATION.md` is read | It has a heading `Bank Jupyter (Vertex)` whose section contains `ARP_GEMINI_USE_VERTEX`, `ARP_GCP_PROJECT` and `scripts/launch_jupyter.sh up` | unit |
 | AC-34 | `ARP_FRONTEND_DIST` set as in AC-4 | `GET /docs` and `GET /openapi.json` | Same status codes as with `ARP_FRONTEND_DIST` unset | unit |

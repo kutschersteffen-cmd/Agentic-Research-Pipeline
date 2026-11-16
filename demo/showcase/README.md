@@ -4,9 +4,10 @@ Data and a run sheet for the 60-minute ARP showcase on 17 Nov 2026 (Argus, Trans
 R&D Lab, StewardIQ). The spec is `docs/superpowers/specs/2026-11-12-showcase-demo-pack-design.md`;
 the presenter reads `RUN_SHEET.md`.
 
-Load it the day before, after `scripts/launch_jupyter.sh up`, from `backend/`:
+Load it the day before. First `scripts/launch_jupyter.sh users` once (it prints two tokens and two lines to
+add to `backend/.env`), then `scripts/launch_jupyter.sh up`, then from `backend/`, with the first token:
 
-    python scripts/load_showcase_pack.py
+    ARP_SHOWCASE_TOKEN=<first token> python scripts/load_showcase_pack.py
 
 Safe to run twice. `--only <step>` runs one step; `--again` starts the prepared runs a second time.
 
@@ -30,6 +31,6 @@ Before the showcase, rebuild the database rather than cleaning it in place: a da
 ran holds the 15 seeded companies twice (spec `showcase-curated-company-keys`).
 
 1. Start from an empty Postgres database (a new database, or drop and recreate the existing one).
-2. `scripts/launch_jupyter.sh up`
-3. From `backend/`: `python scripts/load_showcase_pack.py` (runs `arp showcase load`).
+2. `scripts/launch_jupyter.sh up` (keep `config/users.json` and its two lines in `backend/.env`)
+3. From `backend/`: `ARP_SHOWCASE_TOKEN=<first token> python scripts/load_showcase_pack.py` (runs `arp showcase load`).
 4. Optional, only if the seeded demo portfolios are wanted: `arp portfolio seed-demo`.

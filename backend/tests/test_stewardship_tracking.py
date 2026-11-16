@@ -14,8 +14,16 @@ from arp.api.routers.stewardship import (
     get_case_study,
     set_commitment_status,
 )
-from arp.schemas.engagement import CorrespondenceEntry, EscalationStage, InteractionType, IssueStatus
-from arp.stewardship import tracking
+from arp.schemas.engagement import (
+    Commitment,
+    CorrespondenceEntry,
+    EngagementIssue,
+    EngagementRecord,
+    EscalationStage,
+    InteractionType,
+    IssueStatus,
+)
+from arp.stewardship import tracking, worklist
 from arp.stewardship.process import HOUSE, StreamStore, flow
 from arp.storage.engagement_store import EngagementStore
 from tests.conftest import PRINCIPAL
@@ -57,6 +65,20 @@ def test_overdue_and_missed_commitments_and_stalls_become_triggers(world):
     assert "engagement_stalled" in {t["rule"] for t in tracking.triggers(engagements.list_all(), sla_days=-1, today=TODAY)}
     [due] = [c for c in tracking.commitments(engagements.list_all(), TODAY) if c["overdue"]]
     assert due["text"] == "Publish interim targets"
+
+
+@pytest.mark.parametrize("due", ["end of 2026", "31/12/2025"])
+def test_a_free_text_due_date_counts_as_no_due_date(due):
+    # intake stores due dates as typed: the same rule as watch_flags (tracking._iso)
+    issue = EngagementIssue(theme="t", commitments=[Commitment(text="x", target_date=due)])
+    records = [EngagementRecord(company_id="C", name="C", issues=[issue])]
+    assert tracking.watch_flags_by_company(records, TODAY) == {}
+    assert tracking.triggers(records, sla_days=365, today=TODAY) == []
+    [c] = tracking.commitments(records, TODAY)
+    assert c["overdue"] is False and c["target_date"] == due
+    sample = {"issuers": [{"issuer_id": "C", "name": "C", "sector": "x", "holding": {}}]}
+    [row] = worklist.indicators(sample, records, [], {"C": ("monitor", False)}, {}, {}, TODAY)
+    assert row["overdue_commitments"] == 0
 
 
 def test_stage_1_and_6_show_the_tracking_loop(world):

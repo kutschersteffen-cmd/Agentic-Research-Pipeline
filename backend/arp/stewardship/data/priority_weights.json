@@ -13,6 +13,7 @@
     {"id": "open_engagements", "weight": 0},
     {"id": "esg_score", "weight": 0},
     {"id": "controversy", "weight": 0},
-    {"id": "carbon_intensity", "weight": 0}
+    {"id": "carbon_intensity", "weight": 0},
+    {"id": "broken_commitments", "weight": 0}
   ]
 }

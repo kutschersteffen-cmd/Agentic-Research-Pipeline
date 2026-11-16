@@ -76,8 +76,11 @@ now answers 401 there, which still satisfies `!= 400`; only its comment `(not au
 | AC-6 | AC-4's settings | `GET /api/voting/runs/ac6_none/review-queue` with no `Authorization` header | Status 401 | unit |
 | AC-7 | AC-1's app | A user opens `#/voting/ac7_none` in the browser (this route loads the ballots, review queue and cast votes) | The page shows the heading `Proxy Voting` and no text on the page contains `401` or `Missing or invalid bearer token` (must not change) | evaluator |
 | AC-8 | AC-4's settings | `POST /api/voting/runs/ac8_none/cast` with `Authorization: Bearer <analyst token>` | Status 200, body `{"cast_count": 0, "votes": []}` | unit |
-| AC-10 | `ARP_AUTH_MODE=dev`, `ARP_DEV_TRUSTED_NETWORKS=["0.0.0.0/0"]`, `ARP_ALLOWED_ORIGINS=["*"]` (the bank JupyterLab settings) | `POST /api/voting/runs/ac10_none/cast` from client `10.1.2.3` with header `Origin: https://hub.example` and no `Authorization` header | Status 200, body `{"cast_count": 0, "votes": []}` (must not change) | unit |
+| AC-10 | `ARP_AUTH_MODE=dev`, `ARP_DEV_TRUSTED_NETWORKS=["0.0.0.0/0"]`, `ARP_ALLOWED_ORIGINS=["*"]` (the showcase settings before spec `showcase-login-origins`; no install guide uses them now) | `POST /api/voting/runs/ac10_none/cast` from client `10.1.2.3` with header `Origin: https://hub.example` and no `Authorization` header | Status 200, body `{"cast_count": 0, "votes": []}` (must not change) | unit |
 | AC-9 | AC-1's app | `POST http://127.0.0.1:8000/api/voting/runs/ac9_none/cast` from `127.0.0.1` with no `Origin` and no `Authorization` header (dev sign-in) | Status 200, body `{"cast_count": 0, "votes": []}` (must not change) | holdout |
 
-Must not change: dev sign-in reads and writes on `/api/voting` (AC-3, AC-9), also under the showcase settings (AC-10); the voting page loads under dev
+AC-10 pins a known gap, not a promise: dev mode with `ARP_ALLOWED_ORIGINS=["*"]` lets any origin act as the dev
+approver (spec `showcase-login-origins`). A later fix that refuses this combination retires the row.
+
+Must not change: dev sign-in reads and writes on `/api/voting` (AC-3, AC-9); the voting page loads under dev
 sign-in (AC-7).

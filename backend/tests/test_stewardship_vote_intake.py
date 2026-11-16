@@ -136,10 +136,15 @@ def test_upsert_never_clears_meeting_ids(pg):
     PostgresEngagementStore(pg).get_or_create("acme", "Acme")
     row = {"external_id": "d1", "company_id": "acme", "cusip": "037833100", "meeting_date": "2026-05-01", "item_number": "1", "vote": "for"}
     intake_votes([row], pg, "api")
-    report = intake_votes([{**row, "cusip": None}], pg, "api")  # same meeting key (cid:acme), cusip now empty
+    report = intake_votes([{**row, "company_id": None}], pg, "api")  # same meeting key (cusip:), company_id now empty
     assert (report.updated, report.unchanged) == (0, 3)
     with transaction(pg) as s:
-        assert s.scalars(select(VoteMeetingModel)).one().cusip == "037833100"
+        assert s.scalars(select(VoteMeetingModel)).one().company_id == "acme"
+    # stewardship-decisions-round-2: a company-only row names its own cid: meeting beside the cusip: one
+    intake_votes([{**row, "external_id": "d2", "cusip": None}], pg, "api")
+    with transaction(pg) as s:
+        assert {(m.external_id, m.cusip) for m in s.scalars(select(VoteMeetingModel))} == {
+            ("cusip:037833100:2026-05-01", "037833100"), ("cid:acme:2026-05-01", None)}
 
 
 def test_isin_company_id_and_isin_only_row_share_a_meeting(pg):
@@ -230,12 +235,14 @@ def test_meeting_company_never_pinned_by_another_id(pg):
     PostgresEngagementStore(pg).get_or_create("isin_US5949181045", "Other")
     first = intake_votes([{**_row(), "company_id": "C9", "isin": "US5949181045"}], pg, "api")
     assert first.rejected == []
+    # stewardship-decisions-round-2: each listing is its own meeting, so C9's second ISIN no longer conflicts
     report = intake_votes([{**_row(2), "company_id": "C9", "isin": "US0378331005"}], pg, "api")
-    assert [(r.field, r.reason) for r in report.rejected] == [("isin", "isin differs from the meeting's US5949181045")]
+    assert report.rejected == []
     with transaction(pg) as s:
-        m = s.scalars(select(VoteMeetingModel)).one()
-        assert (m.external_id, m.company_id) == ("cid:C9:2026-05-01", None)  # never the other company
-        assert _count(pg, VoteDecisionModel) == 1
+        meetings = {(m.external_id, m.company_id) for m in s.scalars(select(VoteMeetingModel))}
+    # C9 has no stw_companies row, so it is never a meeting's company; a listing's company is its isin_ row or none
+    assert meetings == {("isin:US5949181045:2026-05-01", "isin_US5949181045"), ("isin:US0378331005:2026-05-01", None)}
+    assert _count(pg, VoteDecisionModel) == 2
 
 
 def test_conflicting_ids_in_one_batch_rejected(pg):
@@ -253,6 +260,17 @@ def test_item_number_with_colon_rejected(pg):
 
 def test_isin_company_id_suffix_upper_cased():
     assert meeting_key("isin_us0378331005", None, None) == meeting_key(None, "US0378331005", None) == "isin:US0378331005"
+
+
+def test_isin_company_id_with_cusip_stays_on_its_isin_listing(pg):  # #552 code review B1
+    PostgresEngagementStore(pg).get_or_create("isin_US0378331005", "Apple")
+    assert meeting_key("isin_US0378331005", None, "037833100") == "isin:US0378331005"
+    day = {"company_id": "isin_US0378331005", "isin": None, "item_number": "1"}
+    report = intake_votes([_row(1, external_id="a", **day), _row(1, external_id="b", cusip="037833100", **day)], pg, "api")
+    assert report.rejected == []
+    with transaction(pg) as s:
+        m = s.scalars(select(VoteMeetingModel)).one()
+        assert (m.external_id, m.company_id, m.cusip) == ("isin:US0378331005:2026-05-01", "isin_US0378331005", "037833100")
 
 
 def _set_meeting_key(pg, new):
@@ -288,7 +306,8 @@ def test_repair_step_keeps_resolved_cid_and_skips_taken_key(pg, caplog):
 
     with transaction(pg) as s:
         ensure_universe_company(s, "C9", name="Nine")
-    intake_votes([{**_row(), "company_id": "C9"}], pg, "api")  # registry id: stays cid:C9
+    intake_votes([{**_row(), "company_id": "C9"}], pg, "api")
+    _set_meeting_key(pg, "cid:C9:2026-05-01")  # a registry id, keyed cid:C9 as main wrote it before listing keys
     intake_votes([{**_row(2), "meeting_date": "2026-06-01"}], pg, "api")  # isin:US0378331005:2026-06-01
     intake_votes([{**_row(3), "isin": "US5949181045", "meeting_date": "2026-06-01"}], pg, "api")
     with transaction(pg) as s:  # turn the second meeting into a mis-keyed cid:NOPE one whose isin target is taken
@@ -304,12 +323,88 @@ def test_repair_step_keeps_resolved_cid_and_skips_taken_key(pg, caplog):
 def test_ids_filled_in_by_a_later_row_are_written(pg):
     # #470 post-merge code review B1: the check accepted x2's ISIN for the meeting but the write used only x1's values,
     # so [x1, x2] then [x3] stored no ISIN and accepted x3's conflicting one; one batch rejected x3
+    # stewardship-decisions-round-2: rows meet on their listing (ISIN), so the later row fills in the CUSIP
     PostgresEngagementStore(pg).get_or_create("acme", "Acme")
-    x1 = {**_row(1), "company_id": "acme", "isin": None}
-    x2 = {**_row(2), "company_id": "acme", "isin": "US0378331005"}
-    x3 = {**_row(3), "company_id": "acme", "isin": "US5949181045"}
+    x1 = {**_row(1), "company_id": "acme"}
+    x2 = {**_row(2), "company_id": "acme", "cusip": "037833100"}
+    x3 = {**_row(3), "company_id": "acme", "cusip": "999999999"}
     assert intake_votes([x1, x2], pg, "api").rejected == []
     with transaction(pg) as s:
-        assert s.scalars(select(VoteMeetingModel)).one().isin == "US0378331005"
+        assert s.scalars(select(VoteMeetingModel)).one().cusip == "037833100"
     report = intake_votes([x3], pg, "api")
-    assert [(r.field, r.reason) for r in report.rejected] == [("isin", "isin differs from the meeting's US0378331005")]
+    assert [(r.field, r.reason) for r in report.rejected] == [("cusip", "cusip differs from the meeting's 037833100")]
+
+
+# stewardship-decisions-round-2, area 5: one meeting per listing
+
+
+def _syn(pg):
+    PostgresEngagementStore(pg).get_or_create("SYN01", "Synthetic One")
+
+
+def _keys(pg):
+    with transaction(pg) as s:
+        return {(m.external_id, m.company_id) for m in s.scalars(select(VoteMeetingModel))}
+
+
+def test_two_listings_of_one_company_are_two_meetings(pg):  # AC-24
+    _syn(pg)
+    rows = [{**_row(1, external_id="a", isin="US0000000001"), "company_id": "SYN01", "item_number": "1"},
+            {**_row(1, external_id="b", isin="US0000000002"), "company_id": "SYN01", "item_number": "1"}]
+    report = intake_votes(rows, pg, "api")
+    assert (report.rejected, report.created) == ([], 6)
+    assert _keys(pg) == {("isin:US0000000001:2026-05-01", "SYN01"), ("isin:US0000000002:2026-05-01", "SYN01")}
+
+
+def test_listing_key_step_rekeys_cid_meeting_so_resend_updates(pg, caplog):  # AC-25
+    from arp.storage.postgres_schema import _vote_meeting_listing_key
+
+    _syn(pg)
+    row = {**_row(1, isin="US0000000001"), "company_id": "SYN01"}
+    intake_votes([row], pg, "api")
+    _set_meeting_key(pg, "cid:SYN01:2026-05-01")  # as main keyed it before this change
+    _run_steps(pg, _vote_meeting_listing_key, _vote_meeting_listing_key)  # idempotent
+    report = intake_votes([row], pg, "api")
+    assert (report.created, report.unchanged, report.rejected) == (0, 3, [])
+    with transaction(pg) as s:
+        assert [i.external_id for i in s.scalars(select(VoteItemModel))] == ["isin:US0000000001:2026-05-01:1"]
+    assert _keys(pg) == {("isin:US0000000001:2026-05-01", "SYN01")}
+    intake_votes([{**row, "external_id": "d9", "isin": "US0000000009", "item_number": "9"}], pg, "api")
+    _set_meeting_key_of(pg, "US0000000009", "cid:SYN01:2026-05-01", isin="US0000000001")  # its target key is taken
+    _run_steps(pg, _vote_meeting_listing_key)
+    assert ("cid:SYN01:2026-05-01", "SYN01") in _keys(pg)
+    assert "vote_meeting_listing_key: 1 meeting(s) left under their old key; their new key is taken: api/cid:SYN01:2026-05-01" in caplog.text
+
+
+def _set_meeting_key_of(pg, stored_isin, new, **values):
+    with transaction(pg) as s:
+        m = s.scalars(select(VoteMeetingModel).where(VoteMeetingModel.isin == stored_isin)).one()
+        m.external_id = new
+        for k, v in values.items():
+            setattr(m, k, v)
+
+
+def test_conflicting_cusip_on_one_listing_still_rejected(pg):  # AC-26
+    _syn(pg)
+    rows = [{**_row(1, external_id="a", isin="US0000000001", cusip="000000001"), "company_id": "SYN01"},
+            {**_row(2, external_id="b", isin="US0000000001", cusip="000000002"), "company_id": "SYN01"}]
+    report = intake_votes(rows, pg, "api")
+    assert [(r.row, r.field) for r in report.rejected] == [(2, "cusip")]
+
+
+def test_company_only_row_keeps_cid_key(pg):  # AC-27
+    _syn(pg)
+    row = {**_row(1, isin=None, meeting_date="2026-06-01"), "company_id": "SYN01"}
+    intake_votes([row], pg, "api")
+    again = intake_votes([row], pg, "api")
+    assert (again.created, again.unchanged) == (0, 3)
+    assert _keys(pg) == {("cid:SYN01:2026-06-01", "SYN01")}
+
+
+def test_company_only_and_listing_row_are_two_meetings(pg):  # AC-28
+    _syn(pg)
+    day = {"meeting_date": "2026-07-01", "company_id": "SYN01", "item_number": "1"}
+    report = intake_votes([{**_row(1, external_id="a", isin=None), **day},
+                           {**_row(1, external_id="b", isin="US0000000001"), **day}], pg, "api")
+    assert report.rejected == []
+    assert _keys(pg) == {("cid:SYN01:2026-07-01", "SYN01"), ("isin:US0000000001:2026-07-01", "SYN01")}
