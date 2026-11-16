@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import { OBJECTIVE_RESULTS, INFLUENCE_LEVELS, canSaveResult, checkLine, evidenceText, evidenceWhere, foundHeader, foundLine, isDemo, issueTopics, loadSuggestions } from "../lib/engagement";
+import { OBJECTIVE_RESULTS, INFLUENCE_LEVELS, canSaveResult, checkLine, evidenceText, evidenceWhere, foundHeader, foundLine, isDemo, issueTopics, loadSuggestions, noteAnchor, quoteInNote } from "../lib/engagement";
 import type { EngagementIssue, EvidenceSuggestion, Objective, WatchItemKind, WatchListEntry, WatchTopic } from "../types";
 
 // Watch list pieces of the issue panel (spec stewardship-commitment-loop, "What the user sees").
@@ -444,7 +444,17 @@ function FoundCommitment({ ctx, s, issue, closed, onDecided }: { ctx: Ctx; s: Ev
       <strong>{foundHeader(note)}</strong>
       <div>{s.text}</div>
       {s.proof_statement && <div className="activity-meta">Proof: {s.proof_statement}</div>}
-      <blockquote>"{s.quote}"</blockquote>
+      {note && quoteInNote(s.quote, note.summary) ? (
+        <blockquote>"{s.quote}"</blockquote>
+      ) : (
+        note && (
+          <div>
+            <button className="link-button" onClick={() => document.getElementById(noteAnchor(note.entry_id))?.focus()}>
+              Show the note
+            </button>
+          </div>
+        )
+      )}
       <label className="field-label">
         Due date
         <input type="date" value={due} onChange={(e) => setDue(e.target.value)} />

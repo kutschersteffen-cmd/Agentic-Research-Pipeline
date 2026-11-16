@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useMe } from "../lib/reviewer";
 import { SignedInAs } from "./SignedInAs";
+import { noteAnchor } from "../lib/engagement";
 import { CheckButton, DossierWatchList, FindCommitmentsButton, FoundCommitments, ObjectivesSection, PendingEvidence, ProofLine, WatchTopicsSection, useSuggestions } from "./EngagementWatch";
 import type {
   Contact,
@@ -286,7 +287,7 @@ export function EngagementIssuePanel({
         {issue.correspondence.length === 0 && <p className="muted">None logged yet.</p>}
         <ul className="timeline">
           {issue.correspondence.map((c) => (
-            <li key={c.entry_id}>
+            <li key={c.entry_id} id={noteAnchor(c.entry_id)} tabIndex={-1}>
               [{c.type}] {c.summary}
               <div className="timeline-meta">
                 {new Date(c.date).toLocaleString()} {c.logged_by ? `-- logged by ${c.logged_by}` : ""}
