@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from arp.portfolio import aggregation, datapoint_mapping
 from arp.schemas.common import CompanyRef
-from arp.schemas.portfolio import SecurityRef
+from arp.schemas.portfolio import AggregationResult, Holding, SecurityRef
 from arp.schemas.portfolio_monitoring import Alert, AlertCategory, AlertRule, AlertStatus, AlertTransition, BreachType
 from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
 
@@ -200,24 +200,24 @@ def _evaluate_concentration_threshold(
     holdings = store.load_holdings_as_of(as_of, rule.portfolio_ids or None)
     if not holdings:
         return []
-    result = aggregation.aggregate(
-        holdings, securities, companies, group_by="company_id", metric="market_value_sum",
-        as_of=as_of, portfolio_filter=rule.portfolio_ids, spec_name=rule.name,
-    )
-    if not result.total_market_value_eur:
+    def by_company(lines: list[Holding]) -> AggregationResult:
+        return aggregation.aggregate(
+            lines, securities, companies, group_by="company_id", metric="market_value_sum",
+            as_of=as_of, portfolio_filter=rule.portfolio_ids, spec_name=rule.name,
+        )
+
+    nav = by_company(holdings).total_market_value_eur
+    if not nav:
         return []
-    # A company held only through cash/currency lines never alerts; the total above still includes them.
-    non_cash = {
-        securities[h.security_id].company_id
-        for h in holdings
-        if h.security_id in securities and not _is_cash(securities[h.security_id])
-    }
+    # A company's weight sums only its non-cash lines over a NAV of all lines, so a company held only through
+    # cash/currency lines never alerts (owner, 15 Nov 2026: "Only non-cash lines").
+    result = by_company([h for h in holdings if not (h.security_id in securities and _is_cash(securities[h.security_id]))])
     raised: list[Alert] = []
     for row in result.rows:
         company_id = row.group_value
-        if row.market_value_eur is None or company_id == "(unresolved)" or company_id not in non_cash:
+        if row.market_value_eur is None or company_id == "(unresolved)":
             continue
-        weight = row.market_value_eur / result.total_market_value_eur
+        weight = row.market_value_eur / nav
         if not _breaches(weight, rule):
             continue
         if _has_open_alert(store, company_id, rule.rule_id):
