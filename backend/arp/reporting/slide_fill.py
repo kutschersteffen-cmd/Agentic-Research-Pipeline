@@ -8,15 +8,19 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import get_args
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.content_planner import _datasets_context
-from arp.reporting.house_style import SlotSpec, get_variant, load_layouts
-from arp.schemas.reporting import Finding, QuantitativeDataset, ReportRequest, SlideContent, StorylineSlide
+from arp.reporting.house_style import SlotSpec, get_variant, load_layouts, load_tokens
+from arp.reporting.render_model import VisualDataError, render_slide
+from arp.schemas.reporting import Deck, Finding, QuantitativeDataset, ReportRequest, SlideContent, StorylineSlide
+from arp.schemas.visuals import FRIENDLY_NAMES, Points, Visual
 
 WRITING_GUIDE = (Path(__file__).parent / "style" / "writing.md").read_text()
+DESIGN_GUIDE = (Path(__file__).parent / "style" / "design.md").read_text()
 
 _FILLED_ELSEWHERE = {"chart": "set `chart`", "table": "set `table`", "image": "set `image_path`"}
 # There is no image upload, so any image_path the model sets is invented (and would be read from local disk):
@@ -104,7 +108,101 @@ def _prompt(slide: StorylineSlide, index: int, request: ReportRequest) -> str:
     )
 
 
+_VISUAL_RULES = """\
+You build one slide of an investment-research deck as a typed visual. The headline is fixed.
+
+Rules:
+- Set `visual` to a `{type}` visual and nothing else: leave `layout`, `variant` and `slots` empty.
+- Respect every field limit in the schema below (words, characters, item counts).
+- `emphasis`, where the visual has one, is the 0-based index of the single item to stress, or null.
+- Chart and table data come only from a dataset: a real dataset_id and real column names.
+- `subheading`, if you set one, is at most 16 words.
+- Use only facts and numbers from the notes and datasets. Never invent any.
+
+`{type}` ({name}) schema:
+{schema}
+"""
+
+_ITEMS = {"kpi_row": "tiles", "points": "points", "next_steps": "actions"}  # the list `emphasis` indexes
+
+
+def _visual_model(kind: str) -> type[BaseModel] | None:
+    return next((m for m in get_args(get_args(Visual)[0]) if m.model_fields["type"].default == kind), None)
+
+
+def _check_visual(content: object, kind: str, request: ReportRequest) -> tuple[SlideContent | None, list[str]]:
+    """The AI's answer re-validated (field limits included), plus the errors that send it back; a data error found by
+    rendering counts too."""
+    try:
+        raw = content.model_dump(warnings=False) if isinstance(content, BaseModel) else content
+        content = SlideContent.model_validate(raw)
+    except ValidationError as e:
+        return None, [f"{'.'.join(map(str, err['loc']))}: {err['msg']}" for err in e.errors()]
+    if content.visual is None or content.visual.type != kind:
+        return None, [f"set `visual` to a {kind} visual"]
+    if len(content.subheading.split()) > 16:
+        return None, ["subheading: at most 16 words"]
+    try:
+        render_slide(content, 1, Deck(title=request.title, slides=[content]), load_tokens(), {d.dataset_id: d for d in request.datasets})
+    except VisualDataError as e:
+        return None, [str(e)]
+    return content, []
+
+
+def _points_fallback(slide: StorylineSlide) -> Points:
+    """The headline, then the rationale (and purpose), in chunks of at most 20 words; padded to the 3 points `points` needs."""
+    chunks = []
+    for text in (slide.headline, slide.rationale, slide.purpose):
+        words = text.split()
+        chunks += [" ".join(words[k:k + 20]) for k in range(0, len(words), 20)]
+    chunks = chunks[:6]
+    # Fewer than 3 chunks leaves blank rows; the caller sets needs_review on such a slide so it is seen before download.
+    return Points(points=chunks + [""] * (3 - len(chunks)))
+
+
+async def _fill_visual(slide: StorylineSlide, index: int, request: ReportRequest, llm: LLMClient) -> tuple[SlideContent, list[Finding], LLMUsage]:
+    keep = {"headline": slide.headline, "subheading": slide.subheading, "kicker": slide.kicker, "source_refs": slide.source_refs}
+
+    def fallback(rule: str, message: str) -> tuple[SlideContent, list[Finding], LLMUsage]:
+        points = _points_fallback(slide)
+        findings = [Finding(slide=index, stage="data", rule=rule, message=message)]
+        blank = "" in points.points
+        if blank:
+            findings.append(Finding(slide=index, stage="data", rule="needs_review", message="the points fallback has blank rows"))
+        return SlideContent(**keep, visual=points, needs_review=blank), findings, usage
+
+    usage = LLMUsage()
+    model = _visual_model(slide.visual)
+    if model is None:
+        return fallback("bad_reference", f"unknown visual {slide.visual!r}")
+    system = _VISUAL_RULES.format(type=slide.visual, name=FRIENDLY_NAMES.get(slide.visual, slide.visual),
+                                  schema=json.dumps(model.model_json_schema())) + "\n" + WRITING_GUIDE
+    kind = slide.visual + (f" (chart kind: {slide.chart_kind})" if slide.chart_kind else "")
+    prompt = _prompt(slide, index, request) + f"\nVisual: {kind}\nWhy this visual: {slide.rationale or '(not given)'}\n\nVisual guide:\n{DESIGN_GUIDE}"
+    try:
+        answer, usage = await llm.complete_structured(system=system, prompt=prompt, output_model=SlideContent)
+        content, errors = _check_visual(answer, slide.visual, request)
+        if errors:
+            retry = prompt + "\nYour previous answer had these errors; fix them:\n- " + "\n- ".join(errors) + "\n"
+            answer, u2 = await llm.complete_structured(system=system, prompt=retry, output_model=SlideContent)
+            usage = add_usage(usage, u2)
+            content, errors = _check_visual(answer, slide.visual, request)
+    except Exception as exc:  # noqa: BLE001 -- the client retried already; one slide must not fail the deck
+        return fallback("llm_failed", str(exc))
+    if errors:
+        return fallback("bad_reference", "; ".join(errors))
+    findings = []
+    v = content.visual
+    if (items := _ITEMS.get(v.type)) and v.emphasis is not None and not 0 <= v.emphasis < len(getattr(v, items)):
+        findings.append(Finding(slide=index, stage="data", rule="bad_reference",
+                                message=f"emphasis {v.emphasis} is outside the {len(getattr(v, items))} {items}; dropped"))
+        v = v.model_copy(update={"emphasis": None})
+    return SlideContent(**keep, visual=v), findings, usage
+
+
 async def fill_slide(slide: StorylineSlide, index: int, request: ReportRequest, llm: LLMClient) -> tuple[SlideContent, list[Finding], LLMUsage]:
+    if slide.visual:
+        return await _fill_visual(slide, index, request, llm)
     placeholder = SlideContent(headline=slide.headline, layout="bullets", variant="three", slots={"items": []}, source_refs=slide.source_refs)
     prompt = _prompt(slide, index, request)
     usage = LLMUsage()

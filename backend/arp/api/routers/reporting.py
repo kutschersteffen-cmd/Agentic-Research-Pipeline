@@ -12,6 +12,7 @@ from arp.reporting.browser import write_pngs
 from arp.reporting.datasets import parse_tabular_upload
 from arp.reporting.preview import ensure_preview_images
 from arp.reporting.service import ReportingService
+from arp.reporting.storyline import _errors as storyline_errors
 from arp.reporting.style_profile import ingest_template
 from arp.reporting.template_frame import TemplateFrameError, font_family_of, frame_preview_html
 from arp.schemas.reporting import ReportManifest, ReportPlan, ReportRequest, ReportStatus, Storyline
@@ -209,6 +210,8 @@ def update_storyline(report_id: str, storyline: Storyline, store: ReportingStore
     _unapproved_storyline(store, report_id)
     if not storyline.slides or any(not s.headline.strip() for s in storyline.slides):
         raise HTTPException(422, "Storyline needs at least one slide and no blank headlines")
+    if errors := storyline_errors(storyline):  # the deck build would fail on them after approval
+        raise HTTPException(422, "Storyline: " + "; ".join(errors))
     storyline.approved = False  # only POST .../approve approves
     store.save_storyline(report_id, storyline)
     return storyline.model_dump(mode="json")
@@ -253,6 +256,10 @@ def download_report(report_id: str, file: str | None = None, store: ReportingSto
     manifest = _get_manifest_or_404(store, report_id)
     if manifest.output_filename is None:
         raise HTTPException(409, "Report has not been rendered yet")
+    deck = store.load_deck(report_id)
+    flagged = next((n for n, s in enumerate(deck.slides, 1) if s.needs_review), None) if deck else None
+    if flagged is not None:
+        raise HTTPException(409, f"Slide {flagged} needs review")
     if file is not None and file not in manifest.output_files:
         raise HTTPException(404, "No such output file for this report")
     filename = file or manifest.output_filename
@@ -265,6 +272,18 @@ def download_report(report_id: str, file: str | None = None, store: ReportingSto
         filename=f"{manifest.title or report_id}.{ext}",
         media_type=_CONTENT_TYPES.get(ext, "application/octet-stream"),
     )
+
+
+@router.post("/{report_id}/slides/{n}/approve")
+def approve_slide(report_id: str, n: int, store: ReportingStore = Depends(get_reporting_store)) -> dict:
+    """Accept slide `n` (1-based) as it is: clears the fit ladder's `needs_review`, which unblocks the download."""
+    _get_manifest_or_404(store, report_id)
+    deck = store.load_deck(report_id)
+    if deck is None or not 1 <= n <= len(deck.slides):
+        raise HTTPException(404, "Slide not found")
+    deck.slides[n - 1].needs_review = False
+    store.save_deck(report_id, deck)
+    return deck.slides[n - 1].model_dump(mode="json")
 
 
 # ---- Preview (page/slide thumbnails, rendered in-browser) -------------------
