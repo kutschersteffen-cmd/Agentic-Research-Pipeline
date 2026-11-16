@@ -1,0 +1,160 @@
+"""Typed visual calls for house-deck slides. Limits are what the AI may return; overflow within them is the fit ladder's job."""
+
+from __future__ import annotations
+
+from typing import Annotated, Literal
+
+from pydantic import AfterValidator, BaseModel, Field, model_validator
+
+from arp.schemas.chart_specs import ChartSpec, TableSpec
+
+
+def _words(n: int):
+    def check(v: str) -> str:
+        if len(v.split()) > n:
+            raise ValueError(f"at most {n} words")
+        return v
+    return AfterValidator(check)
+
+
+def _chars(n: int):
+    def check(v: str) -> str:
+        if len(v) > n:
+            raise ValueError(f"at most {n} characters")
+        return v
+    return AfterValidator(check)
+
+
+def Words(n: int):  # noqa: N802 - reads like a type
+    return Annotated[str, _words(n)]
+
+
+def Chars(n: int):  # noqa: N802
+    return Annotated[str, _chars(n)]
+
+
+class Figure(BaseModel):
+    value: Chars(8)
+    label: Words(4)
+
+
+class Tile(BaseModel):
+    value: Chars(8)
+    label: Words(5)
+    delta: Words(6) = ""
+
+
+class Callout(BaseModel):
+    category: str
+    text: Words(8)
+
+
+class Insight(BaseModel):
+    stat: Chars(8)
+    headline: Words(12)
+    points: list[str] = Field(default_factory=list, max_length=2)
+
+
+class SectionPlan(BaseModel):
+    title: Words(6)
+    summary: Words(14) = ""
+
+
+class NextAction(BaseModel):
+    text: Words(12)
+    owner: Words(3) = ""
+    when: Chars(10) = ""
+
+
+class Column(BaseModel):
+    title: Words(5)
+    points: list[Words(14)] = Field(min_length=2, max_length=4)
+
+
+class Cover(BaseModel):
+    type: Literal["cover"] = "cover"
+    title: Words(10)
+    context: Words(8) = ""
+    answer: Words(30) = ""
+    figures: list[Figure] = Field(default_factory=list, max_length=2)
+
+
+class Section(BaseModel):
+    type: Literal["section"] = "section"
+    number: int
+    title: Words(6)
+    summary: Words(14) = ""
+    agenda: list[str] = Field(default_factory=list, description="Filled by code.")
+
+
+class KpiRow(BaseModel):
+    type: Literal["kpi_row"] = "kpi_row"
+    tiles: list[Tile] = Field(min_length=2, max_length=4)
+    emphasis: int | None = None  # out of range is dropped later with a finding, not rejected here
+
+
+class Chart(BaseModel):
+    type: Literal["chart"] = "chart"
+    data: ChartSpec
+    kind: Literal["bar", "column", "stacked_column", "line"]
+    unit: Chars(6) = ""
+    data_labels: bool = True
+    highlight: str | None = None
+    callout: Callout | None = None
+    insight: Insight | None = None
+
+    @model_validator(mode="after")
+    def _series(self):
+        if not 1 <= len(self.data.value_columns) <= 3:
+            raise ValueError("a chart plots 1 to 3 value columns")
+        return self
+
+
+class ComparisonTable(BaseModel):
+    type: Literal["comparison_table"] = "comparison_table"
+    table: TableSpec
+    highlight_column: str | None = None
+    total_row: dict[str, Literal["sum", "mean", "none"]] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _size(self):
+        if self.table.columns and not 2 <= len(self.table.columns) <= 6:
+            raise ValueError("a table has 2 to 6 columns")
+        if "max_rows" not in self.table.model_fields_set:  # TableSpec's default (20) means "all rows, up to 8" here
+            self.table = self.table.model_copy(update={"max_rows": 8})
+        if self.table.max_rows > 8:
+            raise ValueError("a table shows at most 8 rows")
+        return self
+
+
+class TwoColumn(BaseModel):
+    type: Literal["two_column"] = "two_column"
+    kpis: list[Tile] = Field(default_factory=list, max_length=3)
+    left: Column
+    right: Column
+
+
+class Points(BaseModel):
+    type: Literal["points"] = "points"
+    points: list[Words(20)] = Field(min_length=3, max_length=6)
+    emphasis: int | None = None
+
+
+class NextSteps(BaseModel):
+    type: Literal["next_steps"] = "next_steps"
+    actions: list[NextAction] = Field(min_length=2, max_length=5)
+    emphasis: int | None = 0
+
+
+Visual = Annotated[Cover | Section | KpiRow | Chart | ComparisonTable | TwoColumn | Points | NextSteps, Field(discriminator="type")]
+
+FRIENDLY_NAMES: dict[str, str] = {
+    "cover": "Cover",
+    "section": "Section divider",
+    "kpi_row": "KPI row",
+    "chart": "Chart",
+    "comparison_table": "Comparison table",
+    "two_column": "Two columns",
+    "points": "Key points",
+    "next_steps": "Next steps",
+}

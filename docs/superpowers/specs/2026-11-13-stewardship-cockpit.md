@@ -211,14 +211,15 @@ Rules:
 - `shareholder_meetings`: meetings in the window, sorted by date, one row per company and meeting date.
   - **From runs:** the latest `proxy_voting` run with a ballot for that company and date
     (`voting_feed.items()`). `items` = its ballot items. `flagged` = items where the policy recommends `against` or
-    `withhold` and management recommends `for`. `ballot_state` = `cast` when every item is cast, `decided` when
-    no item is `awaiting` but not every item is cast, else `awaiting`.
+    `withhold` and management recommends `for`. `ballot_state`, the first that applies: `awaiting` when the
+    ballot has no items or any item is `awaiting`; `cast` when every item is cast; `declined` when any item is
+    `declined`; else `decided` (amended by `cockpit-review-fixes`, 15 Nov 2026).
   - **From the ledger,** only when no run row exists for that company and date. Meeting date = UTC date part of
     `meeting_date`; meetings with null `company_id` are skipped. `items` = its `vote_items`; `flagged` = null.
     `ballot_state` = `cast` when every item has a decision, `awaiting` when some do, `not_started` when none do.
     `run_id` is null.
-  - `days_to_meeting` = meeting date − `as_of` in days. `action_due` = `ballot_state` is `awaiting` or
-    `not_started` and `days_to_meeting` ≤ 7.
+  - `days_to_meeting` = meeting date − `as_of` in days. `action_due` = `ballot_state` is `awaiting`,
+    `not_started` or `declined` and `days_to_meeting` ≤ 7 (amended by `cockpit-review-fixes`, 15 Nov 2026).
 - `days[i].engagement_meetings` / `shareholder_meetings` = rows of the two lists above on that date.
 - `control_gaps`: one row per open engagement with a gap. `gaps` ⊆ `["no_objective", "no_next_meeting"]`, in that
   order. `open_days` = `as_of` − the date part of `started_at`, or null when `started_at` is null. Sorted by
@@ -262,10 +263,10 @@ emissions: {total_tco2e: float, engaged_tco2e: float, selected_not_engaged_tco2e
 - Holdings: `store.load_holdings_as_of(as_of, <portfolio ids in scope, or None for all>)`, exactly as
   `arp climate financed-emissions` selects them.
 - Buckets: engaged companies, selected but not engaged, and the rest. The three sum to `total_tco2e` (±0.1 t).
-- `contributors`: the 6 largest companies by `tco2e`, ties by name. `share` = `tco2e / total_tco2e`, 0 to 1, 4
+- `contributors`: the 6 largest companies by `tco2e` rounded to 0.01 t, ties by name, then `company_id` (amended by `cockpit-review-fixes`, 15 Nov 2026). `share` = `tco2e / total_tco2e`, 0 to 1, 4
   decimals. `status` is the first that applies: `in_escalation`, `engaged`, `selected`, `not_selected`. `company` and `sector` come
   from the security's company.
-- `emissions` is `null` when no holdings are in scope or `total_tco2e` is 0.
+- `emissions` is `null` when no holdings are in scope or `total_tco2e`, rounded to 0.01 t, is 0 (amended by `cockpit-review-fixes`, 15 Nov 2026).
 
 ## The page (`#/stewardiq/cockpit`)
 
@@ -291,16 +292,21 @@ showing it. Layout and copy follow the mockup:
 - **Engaged vs selected, by theme and tier** (owner decision 6): a grid with one row per `themes` entry, one
   column per `tiers` entry (header: the tier `label`) and a Total column. A header row shows each tier's totals
   from `tiers`. Each cell shows "<e> / <s>" over a small bar: the selected track with the engaged fill. A cell with
-  `selected` 0 shows `–` and no bar. Below 900 px the grid scrolls sideways inside its card. Feature B swaps the
+  `selected` 0 shows `–` and no bar. Two bar scales (amended by `cockpit-review-fixes`, 15 Nov 2026): named-theme rows against the largest named-theme
+  `selected`, the "All themes" row and the `Other` row against `summary.selected`. The `Other` row is labelled
+  `No theme yet`, stays last under a 2 px rule, and one muted line under the legend reads `Theme rows: a full bar
+  is <n> companies. All themes and No theme yet: a full bar is <N> companies.` (the first sentence left out when no
+  named theme has `selected` above 0; ` and No theme yet` left out without an `Other` row). Below 900 px the grid scrolls sideways inside its card. Feature B swaps the
   theme rows for named programmes; nothing else on the page changes.
 - **Financed emissions in engagement** (PR 2): one stacked bar (engaged / selected not engaged / not selected) and
   the contributors table (Company · sector, Share, Status).
 - **Upcoming engagement meetings:** Date, Company + theme, Objective (or "No objective"), Step. Up to 6 rows, then
   a button `All <n>` that shows the rest in place.
 - **Upcoming shareholder meetings:** Date, Company, Items, Flagged (`–` when null), Ballot.
-  - Ballot text is `Cast`, `Decided, not cast`, `Awaiting decision` or `Not started`.
+  - Ballot text is `Cast`, `Decided, not cast`, `Declined`, `Awaiting decision` or `Not started`.
   - When `action_due`, the text is exactly `Decision due today` (0 days), `Decision due in 1 day` (1) or
-    `Decision due in <n> days` (2–7), in the signal style.
+    `Decision due in <n> days` (2–7), in the signal style. A `declined` ballot keeps its word: `Declined · decision
+    due today`, `Declined · decision due in 1 day` or `Declined · decision due in <n> days` (amended by `cockpit-review-fixes`, 15 Nov 2026).
   - A row with a `run_id` links to `#/voting/<run_id>`.
   - Up to 6 rows, then `All <n>`.
   - Footnote: "Flagged: items where the voting policy recommends a vote against management."
@@ -352,7 +358,8 @@ removes a row. Let `h(x)` = `int(hashlib.sha256(x.encode("utf-8")).hexdigest(), 
    4). Each move writes `escalation_stage` plus one `stw_transitions` row (`kind` `escalation`, `decided_by`
    `showcase demo`, `source` `cockpit_demo`). Prints `ok escalation: <n> engagements`.
 3. `tiers` (owner decisions, 15 Nov 2026, PR #481): for every held company (the company key of any holding in
-   `load_holdings_as_of(as_of, None)`, with or without a `stw_companies` row), it proposes a tier with the active
+   `load_holdings_as_of(as_of, None)`, with or without a `stw_companies` row, whose summed `market_value_eur` there is
+   above 0 (amended by `cockpit-review-fixes`, 15 Nov 2026)), it proposes a tier with the active
    coverage rules (`tier_contexts` + `evaluate`, with the company's share of all house holdings and its ledger
    engagements as inputs) and confirms every proposal whose company has no confirmed tier yet, under that company
    key, with `decided_by` `showcase demo`. So engaged companies sit among all selected ones, and small positions fill

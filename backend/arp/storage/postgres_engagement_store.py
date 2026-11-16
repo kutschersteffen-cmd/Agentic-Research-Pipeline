@@ -97,6 +97,11 @@ def _entry(row: StwActivityModel) -> CorrespondenceEntry:
     return CorrespondenceEntry.model_validate({"summary": ""} | _cols(row, entry_id="activity_id", date="occurred_at"))
 
 
+def _objective(row: StwObjectiveModel) -> Objective:
+    # intake requires a description, but an older or directly written row may have none: it reads as an empty one
+    return Objective.model_validate({"description": ""} | _cols(row))
+
+
 class PostgresEngagementStore:
     """Drop-in for EngagementStore (arp/storage/engagement_store.py) on the stw_* tables. Rows it writes
     carry source = 'app' (or the object's own source) and no external_id."""
@@ -192,7 +197,7 @@ class PostgresEngagementStore:
                 EngagementIssue.model_validate(
                     _cols(row, issue_id="engagement_id", opened_at="started_at", data_source="source", source="trigger_source")
                     | {
-                        "objectives": [Objective.model_validate(_cols(o)) for o in objectives[row.engagement_id]],
+                        "objectives": [_objective(o) for o in objectives[row.engagement_id]],
                         "correspondence": [_entry(a) for a in activities[row.engagement_id]],
                         "commitments": [Commitment.model_validate(_cols(c)) for c in commitments[row.engagement_id]],
                         "milestone_history": [
@@ -444,7 +449,7 @@ class PostgresEngagementStore:
             if row.proof_statement != proof_statement:
                 row.proof_statement = proof_statement
                 self._log(company_id, "proof_statement_set", {"issue_id": issue_id, "item_kind": item_kind, "item_id": item_id})
-            return _ITEM_OUT[item_kind].model_validate(_cols(row))
+            return _objective(row) if item_kind == "objective" else _ITEM_OUT[item_kind].model_validate(_cols(row))
 
     def record_objective_result(
         self, company_id: str, issue_id: str, objective_id: str, result: str, influence_level: str | None, outcome: str
@@ -457,7 +462,7 @@ class PostgresEngagementStore:
             row.result, row.influence_level, row.outcome, row.closed_at = result, influence_level, outcome, _ts(now_iso())
             row.status = "abandoned" if result == "abandoned" else "closed"
             self._log(company_id, "objective_result_recorded", {"issue_id": issue_id, "objective_id": objective_id, "result": result})
-            return Objective.model_validate(_cols(row))
+            return _objective(row)
 
     def add_watch_topic(self, company_id: str, issue_id: str, topic: WatchTopic) -> WatchTopic:
         with self.lock(company_id):
@@ -657,7 +662,7 @@ _TEXT = {"objective": "description", "commitment": "text", "topic": "question"}
 
 def _watch_item(kind: str, row) -> WatchItem:
     return WatchItem(
-        item_kind=kind, item_id=getattr(row, _ID[kind]), engagement_id=row.engagement_id, text=getattr(row, _TEXT[kind]),
+        item_kind=kind, item_id=getattr(row, _ID[kind]), engagement_id=row.engagement_id, text=getattr(row, _TEXT[kind]) or "",
         proof_statement=row.proof_statement, target_date=row.target_date,
     )
 

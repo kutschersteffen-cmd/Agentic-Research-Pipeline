@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import {
   CONTRIBUTOR_STATUS,
@@ -15,6 +15,9 @@ import {
   monthLabel,
   pct,
   stepTone,
+  OTHER_THEME,
+  themeLabel,
+  themeScale,
   weekday,
 } from "../lib/cockpit";
 import type { Cockpit } from "../types";
@@ -93,10 +96,23 @@ function Body({ data }: { data: Cockpit }) {
   );
 }
 
-/** A box that scrolls sideways when its table is wider: focusable, so the keyboard reaches its hidden columns. */
+/** A box that scrolls sideways when its table is wider. Only while it overflows is it a focusable region, so the
+ * keyboard reaches the hidden columns and a box that fits is no extra tab stop. */
 function Scroll({ label, children }: { label: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setOverflows(el.scrollWidth > el.clientWidth);
+    check();
+    const watch = new ResizeObserver(check);
+    watch.observe(el);
+    if (el.firstElementChild) watch.observe(el.firstElementChild);
+    return () => watch.disconnect();
+  }, []);
   return (
-    <div className="cockpit-scroll" tabIndex={0} role="region" aria-label={label}>
+    <div ref={ref} className="cockpit-scroll" {...(overflows ? { tabIndex: 0, role: "region", "aria-label": label } : {})}>
       {children}
     </div>
   );
@@ -220,7 +236,7 @@ function Cell({ e, s, max }: { e: number; s: number; max: number }) {
 
 function ThemeGrid({ data }: { data: Cockpit }) {
   const { themes, tiers, summary } = data;
-  const max = Math.max(1, summary.selected, ...themes.map((t) => t.selected));
+  const { maxOf, note } = themeScale(themes, summary.selected);
   return (
     <Card
       title="Engaged vs selected, by theme and tier"
@@ -242,22 +258,23 @@ function ThemeGrid({ data }: { data: Cockpit }) {
               </tr>
               <tr className="cockpit-grid-total">
                 <th scope="row">All themes</th>
-                {tiers.map((t) => <Cell key={t.tier} e={t.engaged} s={t.selected} max={max} />)}
-                <Cell e={summary.engaged_selected} s={summary.selected} max={max} />
+                {tiers.map((t) => <Cell key={t.tier} e={t.engaged} s={t.selected} max={maxOf(null)} />)}
+                <Cell e={summary.engaged_selected} s={summary.selected} max={maxOf(null)} />
               </tr>
             </thead>
             <tbody>
               {themes.map((row) => (
-                <tr key={row.theme}>
-                  <th scope="row">{row.theme}</th>
-                  {row.tiers.map((c) => <Cell key={c.tier} e={c.engaged} s={c.selected} max={max} />)}
-                  <Cell e={row.engaged} s={row.selected} max={max} />
+                <tr key={row.theme} className={row.theme === OTHER_THEME ? "cockpit-grid-other" : undefined}>
+                  <th scope="row">{themeLabel(row.theme)}</th>
+                  {row.tiers.map((c) => <Cell key={c.tier} e={c.engaged} s={c.selected} max={maxOf(row.theme)} />)}
+                  <Cell e={row.engaged} s={row.selected} max={maxOf(row.theme)} />
                 </tr>
               ))}
             </tbody>
           </table>
         </Scroll>
         <Legend items={[["eng", "Engaged"], ["sel", "Selected"]]} />
+        <p className="cockpit-grid-scale">{note}</p>
         </>
       )}
     </Card>
@@ -291,7 +308,7 @@ function EmissionsCard({ emissions: e }: { emissions: Emissions }) {
           </ul>
           {e.uncovered_holding_count > 0 && (
             <p className="muted cockpit-foot">
-              {fmtCount(e.uncovered_holding_count)} {e.uncovered_holding_count === 1 ? "holding has" : "holdings have"} no EVIC or Scope 1/2 data and {e.uncovered_holding_count === 1 ? "is" : "are"} left out.
+              {fmtCount(e.uncovered_holding_count)} {e.uncovered_holding_count === 1 ? "holding is" : "holdings are"} left out: no company mapped, no EVIC or an EVIC of 0, or no Scope 1 or 2 figure.
             </p>
           )}
         </div>
@@ -303,7 +320,7 @@ function EmissionsCard({ emissions: e }: { emissions: Emissions }) {
             <tbody>
               {e.contributors.map((c) => (
                 <tr key={c.company_id}>
-                  <td>{c.company}{c.sector && <span className="muted"> · {c.sector}</span>}</td>
+                  <td>{c.company}{c.sector && <><span className="visually-hidden"> · </span><br /><span className="muted">{c.sector}</span></>}</td>
                   <td className="cockpit-num num">{fmtShare(c.share)}</td>
                   <td>
                     {c.status === "engaged" || c.status === "in_escalation" ? (
@@ -339,17 +356,18 @@ function EngagementMeetings({ rows, ladder }: { rows: Cockpit["engagement_meetin
         <p className="muted">No engagement meetings in the next 30 days.</p>
       ) : (
         <Scroll label="Upcoming engagement meetings table">
-          <table className="cockpit-table">
-            <thead>
-              <tr><th scope="col">Date</th><th scope="col">Company</th><th scope="col">Objective</th><th scope="col">Step</th></tr>
+          {/* Explicit roles: on a phone the rows are laid out as grids, which drops implicit table semantics in some browsers. */}
+          <table className="cockpit-table cockpit-meetings" role="table">
+            <thead role="rowgroup">
+              <tr role="row"><th scope="col" role="columnheader">Date</th><th scope="col" role="columnheader">Company</th><th scope="col" role="columnheader">Objective</th><th scope="col" role="columnheader">Step</th></tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {shown.map((m) => (
-                <tr key={m.engagement_id}>
-                  <td className="cockpit-num">{fmtDay(m.date)}</td>
-                  <td>{m.company}<br /><span className="muted">{m.theme}</span></td>
-                  <td>{m.objective ?? <span className="muted">No objective</span>}</td>
-                  <td><span className={`cockpit-step tone-${stepTone(m.step)}`}>{m.step} {ladder[m.step - 1]?.label}</span></td>
+                <tr key={m.engagement_id} role="row">
+                  <td className="cockpit-num" role="cell">{fmtDay(m.date)}</td>
+                  <td role="cell">{m.company}<br /><span className="muted">{m.theme}</span></td>
+                  <td role="cell">{m.objective ?? <span className="muted">No objective</span>}</td>
+                  <td role="cell"><span className={`cockpit-step tone-${stepTone(m.step)}`}>{m.step} {ladder[m.step - 1]?.label}</span></td>
                 </tr>
               ))}
             </tbody>
