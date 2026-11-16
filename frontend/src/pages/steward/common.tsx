@@ -21,6 +21,7 @@ export const STAGE_TABS = [
   { id: "monitoring", n: 1, label: "Monitoring" },
   { id: "selection", n: 2, label: "Selection" },
   { id: "workbench", n: null, label: "Workbench" },
+  { id: "overlap", n: null, label: "Overlap" },
   { id: "drafting", n: 3, label: "Drafting" },
   { id: "voting", n: 4, label: "Voting" },
   { id: "checkpoint", n: 5, label: "Checkpoint" },

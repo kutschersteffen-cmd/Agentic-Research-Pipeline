@@ -81,6 +81,8 @@ import type {
   WorkProgramme,
   Worklist,
   WorklistScopes,
+  FundOverlap,
+  OverlapMatrix,
 } from "../types";
 import { tagQuery } from "../lib/xbrlTags";
 import { encodeRef, factsUrl, type FactFilters } from "../pages/company/companyQuery";
@@ -941,6 +943,10 @@ export const api = {
   // The stewardship workbench (spec stewardship-priority-worklist)
   getWorklist: (scope: string) => request<Worklist>(`/api/stewardship/worklist${buildQuery({ scope })}`),
   getWorklistScopes: () => request<WorklistScopes>("/api/stewardship/worklist/scopes"),
+  getFundOverlap: () => request<FundOverlap>("/api/stewardship/overlap"),
+  // `n` counts for basis top, `scope` for basis selection; the server ignores the other one.
+  getOverlapMatrix: (basis: "top" | "selection", n: number, scope?: string) =>
+    request<OverlapMatrix>(`/api/stewardship/overlap/matrix${buildQuery({ basis, n: String(n), scope })}`),
   getSelection: (scope: string, cycle?: string) => request<SelectionList>(`/api/stewardship/selection${buildQuery({ scope, cycle })}`),
   changeSelection: (body: { cycle: string; scope: string; add?: string[]; remove?: string[] }) =>
     request<SelectionList>("/api/stewardship/selection", jsonBody("POST", body)),
