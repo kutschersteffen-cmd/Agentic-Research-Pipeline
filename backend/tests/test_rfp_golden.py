@@ -100,3 +100,35 @@ def test_golden_drafts_cli_checks_min_unchanged(pg, tmp_path, monkeypatch):
     failed = CliRunner().invoke(cli, [*args, "--min-unchanged", "0.9"])
     assert (passed.exit_code, failed.exit_code) == (0, 1), passed.stdout
     assert "unchanged 0.500 (1/2)" in failed.stdout
+
+
+class Library:
+    """Cites the entry for the first question and the document for the second."""
+
+    async def complete_structured(self, *, prompt, output_model, **_):
+        if output_model is golden.FactCheck:
+            return golden.FactCheck(), LLMUsage()
+        question = prompt.rsplit("RFP question: ", 1)[1]
+        if question == "When was the firm founded?":
+            return DraftOut(answer="In 2011.", citations=[Cited(entry_id=1, quote="founded in 2011")]), LLMUsage()
+        if question == "How many meetings did you hold?" and "[D1]" in prompt:
+            return DraftOut(answer="We held 214 meetings.", citations=[Cited(document_id=1, quote="214 meetings")]), LLMUsage()
+        return DraftOut(), LLMUsage()
+
+
+def test_golden_library_first_counts():
+    cases = {"library": [{"question": "Describe your firm.", "answer": "Example AM, founded in 2011."}],
+             "documents": [{"title": "Report", "priority": 1, "text": "In 2025 we held 214 meetings with companies."}],
+             "questions": [{"question": "When was the firm founded?", "expect": "library"},
+                           {"question": "How many meetings did you hold?", "expect": "documents"}]}
+    c = asyncio.run(golden.score_drafts(cases, Library(), Library(), today=date(2026, 11, 15)))
+    assert (c["library_first"], c["library_first_total"], c["drafted"]) == (1, 1, 2)
+
+
+def test_golden_chain_case_file_is_well_formed():
+    cases = golden.load(DATA / "rfp_chain_drafts.json")
+    expects = [q["expect"] for q in cases["questions"]]
+    assert set(expects) == {"unchanged", "library", "documents", "none"}
+    assert all(expects.count(e) >= 10 for e in set(expects))
+    assert sorted(d["priority"] for d in cases["documents"]) == [1, 2]
+    assert "Example AM" not in str(cases)

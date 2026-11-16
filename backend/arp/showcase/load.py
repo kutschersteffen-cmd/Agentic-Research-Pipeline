@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import logging
 from collections.abc import Callable
 from pathlib import Path
 
@@ -188,4 +189,10 @@ def load(store, settings: Settings, holdings_dir: Path, dataset: Path, echo: Cal
             echo(f"FAIL run {month}: {'; '.join(result.blocked_reasons)}")
             return False
         echo(f"ok run {month}: {result.alerts} alerts, {result.triggers} triggers")
+    from arp.stewardship.universe import fill_observation_cache
+
+    try:  # writes observations_latest.json, so the first Workbench load after a restart is fast; best effort
+        fill_observation_cache(store)
+    except Exception:  # noqa: BLE001 -- the data is loaded; without the file the next start-up reads the files itself
+        logging.getLogger(__name__).warning("Could not write the observation cache file", exc_info=True)
     return True

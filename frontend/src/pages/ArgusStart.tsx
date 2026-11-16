@@ -131,9 +131,6 @@ export function ArgusStart() {
 
   return (
     <div className="page hub argus-start">
-      <p className="hub-crumb">
-        <a href="#/home">Start</a> › Argus
-      </p>
       <div className="argus-head">
         <h1>Argus</h1>
         <span className="argus-head-actions">

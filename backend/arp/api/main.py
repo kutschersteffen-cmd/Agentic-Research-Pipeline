@@ -9,6 +9,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -84,6 +85,7 @@ from arp.api.routers import (
 )
 from arp.db.session import require_cutover, require_postgres
 from arp.errors import ClientInputError, NotConfigured
+from arp.stewardship.universe import wait_for_fill
 from arp.transition_alignment.benchmarks import check_benchmarks
 from arp.transition_barrier.dataset import check_rule_book
 
@@ -91,17 +93,18 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def _warm_observations(settings) -> None:
-    """Reads every portfolio observation once into the per-file cache (PortfolioStore.latest_observation) before the
-    server answers, so the first Workbench request after a restart does not pay for it (owner decisions 15 Nov 2026:
-    AC-44 holds after a restart too). Best effort: a failure only leaves the cache cold."""
-    from arp.stewardship.universe import latest_observations
+def _fill_observations(settings) -> None:
+    """Starts filling the per-file observation cache (PortfolioStore.latest_observation) from
+    `observations_latest.json` in a thread; start-up waits for it, at most `universe.FILL_WAIT_S`, so the first
+    Workbench request after a restart is a warm one (spec workbench-review-fixes). Best effort: a failure only leaves
+    the cache cold."""
+    from arp.stewardship.universe import start_fill
     from arp.storage.portfolio_store_factory import build_portfolio_store
 
     try:
-        latest_observations(build_portfolio_store(settings))
+        start_fill(build_portfolio_store(settings))
     except Exception:  # noqa: BLE001 -- a cold cache is only slower, never wrong
-        logger.warning("Could not warm the observation cache", exc_info=True)
+        logger.warning("Could not fill the observation cache", exc_info=True)
 
 
 @asynccontextmanager
@@ -124,7 +127,8 @@ async def lifespan(app: FastAPI):
     report_scheduler = get_report_scheduler()
     publishing_scheduler = get_publishing_scheduler()
     review_analytics_scheduler = get_review_analytics_scheduler()
-    await asyncio.to_thread(_warm_observations, settings)  # ~4 s on the 2,581-company showcase house
+    _fill_observations(settings)
+    await asyncio.to_thread(wait_for_fill)  # ~2 s on the 2,581-company showcase house, with the compact file
     scheduler.start()
     taxonomy_researcher_scheduler.start()
     calibration_scheduler.start()
@@ -148,7 +152,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Agentic Research Pipeline", version="0.1.0", lifespan=lifespan)
 
-# Host check for every route (voting included): a host check, not auth. Stops
+# Host check for every route: a host check, not auth. Stops
 # DNS rebinding from turning a foreign site into a loopback "dev" caller.
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings_dep().trusted_hosts)
 
@@ -160,6 +164,8 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Content-Disposition", "X-RFP-Unapproved"],
 )
+# The 8 MB stewardship worklist goes compressed when the browser accepts it; event streams are left as they are.
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.include_router(themes.router, dependencies=[Depends(authorize)])
 app.include_router(companies.router, dependencies=[Depends(authorize)])
@@ -177,7 +183,7 @@ app.include_router(authority_taxonomy.router, dependencies=[Depends(authorize)])
 app.include_router(overlap.router, dependencies=[Depends(authorize)])
 app.include_router(revenue_catalogue.router, dependencies=[Depends(authorize)])
 app.include_router(engagement.router, dependencies=[Depends(authorize)])
-app.include_router(voting.router)
+app.include_router(voting.router, dependencies=[Depends(authorize)])
 app.include_router(xbrl.router, dependencies=[Depends(authorize)])
 app.include_router(stewardship.router, dependencies=[Depends(authorize)])
 app.include_router(stewardship_cockpit.router, dependencies=[Depends(authorize)])

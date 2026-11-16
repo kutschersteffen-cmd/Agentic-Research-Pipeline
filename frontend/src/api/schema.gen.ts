@@ -4805,6 +4805,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/rfp/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Documents */
+        get: operations["list_documents_api_rfp_documents_get"];
+        put?: never;
+        /**
+         * Upload Document
+         * @description Parses and stores a .pdf or .docx as `active`; with `replaces`, retires that document in the same transaction.
+         */
+        post: operations["upload_document_api_rfp_documents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit Document */
+        put: operations["edit_document_api_rfp_documents__document_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/documents/{document_id}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retire Document */
+        post: operations["retire_document_api_rfp_documents__document_id__retire_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/rfp/library": {
         parameters: {
             query?: never;
@@ -10103,6 +10158,25 @@ export interface components {
             /** File */
             file?: string;
         };
+        /** Body_upload_document_api_rfp_documents_post */
+        Body_upload_document_api_rfp_documents_post: {
+            /**
+             * Document Date
+             * Format: date
+             */
+            document_date: string;
+            /** File */
+            file: string;
+            /**
+             * Priority
+             * @default 1
+             */
+            priority: number;
+            /** Replaces */
+            replaces?: number | null;
+            /** Title */
+            title: string;
+        };
         /** Body_upload_esg_api_portfolio_esg_upload_post */
         Body_upload_esg_api_portfolio_esg_upload_post: {
             /** File */
@@ -10965,6 +11039,8 @@ export interface components {
         };
         /** CockpitTopicCount */
         CockpitTopicCount: {
+            /** Abstain */
+            abstain: number;
             /** Against Management */
             against_management: number;
             /** Topic */
@@ -16925,6 +17001,42 @@ export interface components {
             /** User Id */
             user_id: string | null;
         };
+        /** RfpDocumentEdit */
+        RfpDocumentEdit: {
+            /** Priority */
+            priority?: number | null;
+            /** Review By */
+            review_by?: string | null;
+            /** Title */
+            title?: string | null;
+        };
+        /** RfpDocumentOut */
+        RfpDocumentOut: {
+            /**
+             * Document Date
+             * Format: date
+             */
+            document_date: string;
+            /** Filename */
+            filename: string;
+            /** Id */
+            id: number;
+            /** Pages */
+            pages: number | null;
+            /** Priority */
+            priority: number;
+            /**
+             * Review By
+             * Format: date
+             */
+            review_by: string;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+            /** Uploaded By */
+            uploaded_by: string;
+        };
         /** RfpLibraryEntryEdit */
         RfpLibraryEntryEdit: {
             /** Answer */
@@ -17063,6 +17175,8 @@ export interface components {
         };
         /** RfpSourceOut */
         RfpSourceOut: {
+            /** Document Id */
+            document_id?: number | null;
             /** Entry Id */
             entry_id?: number | null;
             /** Entry Question */
@@ -17076,10 +17190,16 @@ export interface components {
             kind: "entry" | "document";
             /** Location */
             location?: string | null;
+            /** Page */
+            page?: number | null;
+            /** Priority */
+            priority?: number | null;
             /** Quote */
             quote: string;
             /** Source */
             source?: string | null;
+            /** Title */
+            title?: string | null;
             /** Written By */
             written_by?: string | null;
         };
@@ -29421,6 +29541,125 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_documents_api_rfp_documents_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpDocumentOut"][];
+                };
+            };
+        };
+    };
+    upload_document_api_rfp_documents_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_document_api_rfp_documents_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpDocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_document_api_rfp_documents__document_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RfpDocumentEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpDocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retire_document_api_rfp_documents__document_id__retire_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpDocumentOut"];
                 };
             };
             /** @description Validation Error */

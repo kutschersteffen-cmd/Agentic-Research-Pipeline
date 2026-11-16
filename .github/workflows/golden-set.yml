@@ -159,6 +159,7 @@ jobs:
           arp rfp golden questions --cases arp/golden_set/data/rfp_questions.json --min-recall 0.95 | tee -a "$GITHUB_STEP_SUMMARY"
           arp rfp golden drafts --cases arp/golden_set/data/rfp_drafts.json --min-drafted 0.90 --min-blank 0.95 | tee -a "$GITHUB_STEP_SUMMARY"
           arp rfp golden drafts --cases arp/golden_set/data/rfp_unchanged_drafts.json --min-drafted 0.90 --min-blank 0.95 --min-unchanged 0.90 | tee -a "$GITHUB_STEP_SUMMARY"
+          arp rfp golden drafts --cases arp/golden_set/data/rfp_chain_drafts.json --min-drafted 0.90 --min-blank 0.95 --min-unchanged 0.90 --min-library-first 0.95 | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Run the authority-taxonomy golden case
         # runs even when an earlier golden step failed, so its own result is always reported
