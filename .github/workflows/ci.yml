@@ -17,6 +17,7 @@ jobs:
   backend-shard:
     name: Backend shard ${{ matrix.shard }}/${{ strategy.job-total }}
     runs-on: ubuntu-latest
+    timeout-minutes: ${{ matrix.shard == 3 && 1 || 360 }}  # THROWAWAY: shard 3 times out
     strategy:
       fail-fast: false
       matrix:
