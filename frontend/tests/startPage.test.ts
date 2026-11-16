@@ -75,3 +75,7 @@ test("pol_ac7b_failed_tile_css", () => {
   assert.match(r, /var\(--low\)/);
   assert.doesNotMatch(r, /var\(--(hi|hi-ink|await|await-edge)\)/);
 });
+
+test("pol_ac6c_no_hidden_hub_h1", () => {
+  assert.doesNotMatch(css, /\.hub-nav\s*~\s*\.page\s*>\s*h1/);
+});

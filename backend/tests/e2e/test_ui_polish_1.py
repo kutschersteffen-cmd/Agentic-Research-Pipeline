@@ -185,3 +185,14 @@ def test_ac11b_failed_line_links_to_run_history(page):
     assert line.get_by_role("link", name="Open Run history →").get_attribute("href") == "#/history"
     low = page.evaluate("() => { const d = document.createElement('span'); d.style.color = 'var(--low)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; }")
     assert line.evaluate("e => getComputedStyle(e).color") == low
+
+
+@pytest.mark.parametrize("path,title", [("/#/history", "Run History"), ("/#/library", "Data Library")])
+def test_ac6_hub_title_shows_and_links_are_tabs(page, path, title):
+    _open(page, path)
+    h1 = page.locator("main h1").first
+    assert h1.inner_text() == title
+    box = h1.bounding_box()
+    assert box and box["width"] > 1 and box["height"] > 1, "the page's h1 is visible"
+    sizes = page.locator(".hub-nav .nav-tab").evaluate_all("els => els.map(e => getComputedStyle(e).fontSize)")
+    assert sizes and set(sizes) == {"14px"}, sizes
