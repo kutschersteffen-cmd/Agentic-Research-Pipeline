@@ -57,11 +57,8 @@ export function partValue(id: string, row: WorklistRow, rows: WorklistRow[], asO
       return row.carbon_intensity
         ? { text: `${Number(row.carbon_intensity.value).toFixed(0)} tCO2e/EUR m`, simulated: sim(row.carbon_intensity) }
         : plain("—");
-    default: {
-      // A component added later (PR 7's broken_commitments) reads as the row's number of that name.
-      const v = (row as unknown as Record<string, unknown>)[id];
-      return plain(typeof v === "number" ? String(v) : "—");
-    }
+    default:
+      return plain("—");
   }
 }
 

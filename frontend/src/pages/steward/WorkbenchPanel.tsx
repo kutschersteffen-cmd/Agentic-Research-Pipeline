@@ -57,9 +57,10 @@ export function WorkbenchPanel({
       if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || document.querySelector("dialog[open]")) return;
       const t = e.target as HTMLElement;
       const field = t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName);
+      const typing = t.tagName === "TEXTAREA" || (t.tagName === "INPUT" && ["text", "search"].includes((t as HTMLInputElement).type));
       if (e.key === "Escape") {
         if (document.querySelector("details[open]")) return; // the open menu takes this Escape (seen first: capture phase)
-        if (field && (t as HTMLInputElement).value) return; // a half-typed note is not thrown away
+        if (typing && (t as HTMLInputElement).value) return; // a half-typed note is not thrown away
         e.preventDefault();
         onClose();
         return;
@@ -104,7 +105,7 @@ export function WorkbenchPanel({
         </div>
       </header>
       <StepTabs label="Company details" tabs={PANEL_TABS.map((t) => ({ id: t, label: t }))} active={tab} onSelect={(t) => onTab(t as PanelTab)} />
-      <div className="wb-panel-body" role="tabpanel" aria-label={tab}>
+      <div className="wb-panel-body" role="tabpanel" aria-label={tab} tabIndex={-1 /* a click in the body focuses it, so ↑/↓ scroll here */}>
         {tab === "Why" && <WhyTab row={row} rows={rows} data={data} />}
         {tab === "Company" && <CompanyTab key={id} row={row} />}
         {tab === "Engagements" && <EngagementsTab key={id} id={id} />}
@@ -201,13 +202,12 @@ const factValue = (f: CompanyFactRow) => (f.canonical_value !== null ? withUnit(
 
 function CompanyTab({ row }: { row: WorklistRow }) {
   const ref = universeRef(row.issuer_id);
-  // A company outside the central registry (404) still shows what the row knows.
+  // The row's name, ISIN and sector show whatever the reads return; a 404 (not in the central registry) is no error.
   const soft = <T,>(p: Promise<T>, empty: T) => p.catch((e) => (notFound(e) ? empty : Promise.reject(e)));
   const { data, error } = useLoaded(ref, () =>
     Promise.all([soft<CompanySummary | null>(api.getCompany(ref), null), soft<CompanyFactRow[]>(api.getCompanyFacts(ref, { limit: 100 }), []), soft<SimulatedObservation[]>(api.getSimulatedEsg(ref), [])]),
   );
-  if (!data) return <Loading error={error} />;
-  const [summary, facts, simulated] = data;
+  const [summary, facts, simulated] = data ?? [null, [], []];
   const rowsShown: Fact[] = [
     ...facts.map((f) => ({ key: `f${f.fact_id}`, field: words(f.field_id), value: factValue(f), period: f.period_end ?? "—", source: f.source_label, simulated: false })),
     ...simulated.map((o) => ({
@@ -237,7 +237,9 @@ function CompanyTab({ row }: { row: WorklistRow }) {
         </p>
       )}
       <h3>Facts</h3>
-      {rowsShown.length ? (
+      {!data ? (
+        <Loading error={error} />
+      ) : rowsShown.length ? (
         <div className="table-wrap">
           <table className="data-table">
             <thead>
@@ -346,7 +348,7 @@ function VotesTab({ id }: { id: string }) {
             <tr>
               <th>Date</th>
               <th>Item</th>
-              <th>Management</th>
+              <th>Management recommendation</th>
               <th>Vote</th>
               <th>Against management</th>
               <th>
