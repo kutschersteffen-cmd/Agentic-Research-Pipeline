@@ -175,6 +175,7 @@ A white-and-blue palette with one reserved signal per theme and a small set of s
 - **Field Border** (#6f8a9c / #5f8399): the edge of form fields only; it clears 3:1 on the field and the page (WCAG 1.4.11), which the hairline does not.
 - **Well** (#eef6fb / #10293a) and **Sidebar** (#f1f7fc / #081822): recessed areas, disabled controls, hover rows, the Ask panel's header and form.
 - **Muted** (#3d5a6e / #94b6c9): secondary text and labels; ≥4.5:1 on ground, panel and well.
+- **Secondary text** (`--text-2`: 80% ink, 20% muted, in both themes): page intros, process descriptions and start-card purposes. Meta lines and captions stay muted.
 
 ### Named Rules
 **The One Signal Rule.** Amber means one thing only: a person must act. Never use it for branding, decoration, hover, focus of a normal control, or "running". When nothing waits, no amber appears anywhere on the screen. Keyboard focus is an accent outline. A proposed item's box is neutral; only its "Proposed" tag and the needs-you shape carry the signal, so a queue never turns into a wall of amber. The flagged vote that needs a second person takes the signal border.
@@ -213,6 +214,11 @@ The CSS scale tokens are `--text-xs` (13px), `--text-sm` (14px), `--text-base` (
 **The Serif Means Document Rule.** Serif is for titles, figures and anything quoted from a source. Buttons, navigation, table body text and form labels stay in the sans.
 
 **The Mono Means Data Rule.** Mono is for IDs, labels and state. Never set a sentence of prose in mono for a "technical" feel.
+
+- **Tracking by size band:** `--track-display` (−0.025em) for page titles and the start greeting, `--track-title` (−0.015em) for card and section titles, `--track-body` (−0.008em) for body text. `kbd` and `code` keep normal tracking.
+- **Heading weight:** headings of 20px and up are 500; smaller ones keep their weight.
+- **Page intro:** above 760px the paragraph under a page title is a 17px lead in `--text-2`, capped at 62ch.
+- **Motion:** `--dur-fast` (100ms) for colour hovers, `--dur` (140ms) with `--ease` for state changes, `--dur-slow` (240ms) with `--ease-out` for bars and panels.
 
 ## Layout
 
