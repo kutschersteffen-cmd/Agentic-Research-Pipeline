@@ -5,7 +5,7 @@ Slug: stewardship-house-universe-cache
 Risk of the build: `risk:normal` (see "Risk"). Size S, 1 PR. The build starts from `main` after #544 (speed) and
 #548 (robustness) of `workbench-review-fixes` have merged.
 
-Status: draft, for the owner's approval.
+Status: **approved by the owner on 16 Nov 2026** (button in the spec session, after four spec-critic passes whose findings were all fixed).
 
 ## Owner decision
 
