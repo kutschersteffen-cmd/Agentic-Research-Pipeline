@@ -23016,6 +23016,28 @@
     "title": "SelectionConfirm",
     "type": "object"
    },
+   "SelectionConfirmed": {
+    "description": "The selection confirm: how many rows were confirmed, and the stored names of proposed rows dropped because their\ncompany is no longer in the scope (sorted).",
+    "properties": {
+     "confirmed": {
+      "title": "Confirmed",
+      "type": "integer"
+     },
+     "dropped": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Dropped",
+      "type": "array"
+     }
+    },
+    "required": [
+     "confirmed",
+     "dropped"
+    ],
+    "title": "SelectionConfirmed",
+    "type": "object"
+   },
    "SelectionList": {
     "properties": {
      "current": {
@@ -46296,7 +46318,7 @@
   },
   "/api/stewardship/selection/confirm": {
    "post": {
-    "description": "Every proposed row of the scope and cycle becomes confirmed, recorded as the signed-in user.",
+    "description": "Every proposed row of the scope and cycle whose company is still in the scope becomes confirmed, recorded as the\nsigned-in user; proposed rows whose company left the scope are removed and named in `dropped`.",
     "operationId": "post_selection_confirm_api_stewardship_selection_confirm_post",
     "requestBody": {
      "content": {
@@ -46313,7 +46335,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "$ref": "#/components/schemas/Confirmed"
+         "$ref": "#/components/schemas/SelectionConfirmed"
         }
        }
       },

@@ -530,14 +530,21 @@ class SelectionLog:
         events += [{"event": "removed", "issuer_id": i} for i in dict.fromkeys(remove) if state.get(i) == "proposed" and i not in add]
         self._write(cycle, scope, events, by, weights_version)
 
-    def confirm(self, cycle: str, today: date, by: str, weights_version: int, scope: str = "house") -> int:
+    def confirm(
+        self, cycle: str, today: date, by: str, weights_version: int, scope: str = "house", in_scope: set[str] | None = None
+    ) -> tuple[int, list[str]]:
+        """Confirms the proposed rows whose company is in `in_scope` (default: all) and removes the other proposed rows,
+        in one write. Returns how many were confirmed and the stored names of the removed rows, sorted."""
         current = cycle_of(today)
         if cycle != current:
             raise ValueError(f"only {current} can be changed")
         with _LOCKS.acquire(str(self._path(cycle, scope))):
-            proposed = [r["issuer_id"] for r in self.rows(cycle, scope) if r["status"] == "proposed"]
-            self._write(cycle, scope, [{"event": "confirmed", "issuer_id": i} for i in proposed], by, weights_version)
-        return len(proposed)
+            proposed = [r for r in self.rows(cycle, scope) if r["status"] == "proposed"]
+            keep = [r["issuer_id"] for r in proposed if in_scope is None or r["issuer_id"] in in_scope]
+            drop = [r for r in proposed if in_scope is not None and r["issuer_id"] not in in_scope]
+            events = [{"event": "confirmed", "issuer_id": i} for i in keep] + [{"event": "removed", "issuer_id": r["issuer_id"]} for r in drop]
+            self._write(cycle, scope, events, by, weights_version)
+        return len(keep), sorted(r["company"] for r in drop)
 
     def _write(self, cycle: str, scope: str, events: list[dict], by: str, weights_version: int) -> None:
         if not by.strip():

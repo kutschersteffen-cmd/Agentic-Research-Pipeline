@@ -266,7 +266,8 @@ def test_selection_propose_confirm_and_rules(client):
     assert {i for i, row in rows.items() if row["selection"]} == {"SYN02", "SYN09"}
     assert rows["SYN02"]["selection"]["status"] == "proposed" and rows["SYN02"]["selection"]["proposed_by"] == "Test"
     assert all((rows[i]["score"], rows[i]["parts"]) == (before[i]["score"], before[i]["parts"]) for i in rows)
-    assert client.post("/api/stewardship/selection/confirm", json={"cycle": q}).json() == {"confirmed": 2}
+    # stewardship-decisions-round-2 AC-17 supersedes AC-16's body: `dropped` lists rows whose company left the scope
+    assert client.post("/api/stewardship/selection/confirm", json={"cycle": q}).json() == {"confirmed": 2, "dropped": []}
     sel = client.get("/api/stewardship/selection", params={"cycle": q}).json()
     assert [(s["issuer_id"], s["status"], s["confirmed_by"], s["in_scope"]) for s in sel["rows"]] == [
         ("SYN02", "confirmed", "Test", True), ("SYN09", "confirmed", "Test", True)
@@ -537,3 +538,40 @@ def test_preview_validates_before_building_rows_and_reads_ids_once(client, monke
     assert len(calls) == 1
     worklist.build(get_settings().stewardship_streams_dir, _sample(), [])
     assert len(calls) == 2
+
+
+# stewardship-decisions-round-2, area 3: Confirm drops proposed companies no longer held
+
+
+def test_confirm_drops_companies_that_left_the_universe(client, monkeypatch):  # AC-15, AC-16
+    from arp.api.routers import stewardship_worklist as route
+
+    q = _quarter(datetime.now(UTC).date())
+    assert client.post("/api/stewardship/selection", json={"cycle": q, "add": ["SYN01", "SYN02"]}).status_code == 200
+    stored = {r["issuer_id"]: r["company"] for r in client.get("/api/stewardship/selection", params={"cycle": q}).json()["rows"]}
+    universe = route.house_universe()
+    monkeypatch.setattr(route, "house_universe", lambda: {**universe, "issuers": [i for i in universe["issuers"] if i["issuer_id"] != "SYN02"]})
+    r = client.post("/api/stewardship/selection/confirm", json={"cycle": q})
+    assert (r.status_code, r.json()) == (200, {"confirmed": 1, "dropped": [stored["SYN02"]]})
+    rows = client.get("/api/stewardship/selection", params={"cycle": q}).json()["rows"]
+    assert [(s["issuer_id"], s["status"]) for s in rows] == [("SYN01", "confirmed")]
+
+
+def test_confirm_with_every_company_still_held_drops_none(client):  # AC-17
+    q = _quarter(datetime.now(UTC).date())
+    assert client.post("/api/stewardship/selection", json={"cycle": q, "add": ["SYN01"]}).status_code == 200
+    r = client.post("/api/stewardship/selection/confirm", json={"cycle": q})
+    assert (r.status_code, r.json()) == (200, {"confirmed": 1, "dropped": []})
+
+
+def test_confirm_with_an_empty_house_universe_changes_nothing(client, monkeypatch):  # #568 security review B1
+    from arp.api.routers import stewardship_worklist as route
+
+    q = _quarter(datetime.now(UTC).date())
+    assert client.post("/api/stewardship/selection", json={"cycle": q, "add": ["SYN01", "SYN02"]}).status_code == 200
+    universe = route.house_universe()
+    monkeypatch.setattr(route, "house_universe", lambda: {**universe, "issuers": []})
+    r = client.post("/api/stewardship/selection/confirm", json={"cycle": q})
+    assert (r.status_code, r.json()["detail"]) == (409, "No holdings are loaded for this scope, so nothing was confirmed.")
+    rows = client.get("/api/stewardship/selection", params={"cycle": q}).json()["rows"]
+    assert [(s["issuer_id"], s["status"]) for s in rows] == [("SYN01", "proposed"), ("SYN02", "proposed")]
