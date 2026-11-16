@@ -65,6 +65,24 @@ def test_report_of_a_new_stream_says_what_is_still_in_review(tmp_path):
     assert sum(t["companies"] for t in report["tiers"]) == 12
 
 
+def test_report_tiers_count_only_house_issuers_review_fixes_ac1_ac2(tmp_path):
+    # spec cockpit-review-fixes: a confirmed tier outside the house universe does not count; a house issuer's
+    # confirmed tier replaces its proposal
+    from arp.stewardship.process import load_sample, tier_proposals
+    from arp.stewardship.tiers import TIER_LABELS, TierStore
+
+    streams, stream = _stream(tmp_path, built=False)
+    before = client_report(streams.root, stream, [], sla_days=45)["tiers"]
+    TierStore(streams.root).confirm({"issuer_id": "isin_ZZ0000000099", "tier": "monitor", "rule": "top_weight"}, "test")
+    assert client_report(streams.root, stream, [], sla_days=45)["tiers"] == before
+    issuer = next(p for p in tier_proposals(streams.root, load_sample(), []) if p["tier"] != "bilateral")
+    TierStore(streams.root).confirm({**issuer, "tier": "bilateral"}, "test")
+    after = {t["tier"]: t["companies"] for t in client_report(streams.root, stream, [], sla_days=45)["tiers"]}
+    counts = {t["tier"]: t["companies"] for t in before}
+    assert after[TIER_LABELS["bilateral"]] == counts[TIER_LABELS["bilateral"]] + 1
+    assert after[TIER_LABELS[issuer["tier"]]] == counts[TIER_LABELS[issuer["tier"]]] - 1
+
+
 def test_built_stream_report_renders_every_section_as_a_deck(tmp_path):
     streams, stream = _stream(tmp_path, built=True)
     stream = streams.save(
