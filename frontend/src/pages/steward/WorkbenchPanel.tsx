@@ -345,7 +345,7 @@ function VotesTab({ id }: { id: string }) {
     <>
       {data.total > data.votes.length && <p className="muted">{`Showing ${data.votes.length} of ${data.total}`}</p>}
       <div className="table-wrap">
-        <table className="data-table">
+        <table className="data-table wb-stack">
           <thead>
             <tr>
               <th>Date</th>
@@ -361,12 +361,12 @@ function VotesTab({ id }: { id: string }) {
           <tbody>
             {data.votes.map((v, i) => (
               <tr key={`${v.meeting_date}-${v.item_number}-${i}`}>
-                <td className="mono">{day(v.meeting_date) || "—"}</td>
-                <td className="wb-wrap">{[v.item_number, v.description].filter(Boolean).join(" ") || "—"}</td>
-                <td>{v.management_recommendation ? words(v.management_recommendation).toUpperCase() : "—"}</td>
-                <td>{v.vote_label ?? words(v.vote)}</td>
-                <td>{v.against_management === null ? "—" : v.against_management ? "Yes" : "No"}</td>
-                <td>{v.demo && <Demo />}</td>
+                <td className="mono" data-label="Date">{day(v.meeting_date) || "—"}</td>
+                <td className="wb-wrap" data-label="Item">{[v.item_number, v.description].filter(Boolean).join(" ") || "—"}</td>
+                <td data-label="Management recommendation">{v.management_recommendation ? words(v.management_recommendation).toUpperCase() : "—"}</td>
+                <td data-label="Vote">{v.vote_label ?? words(v.vote)}</td>
+                <td data-label="Against management">{v.against_management === null ? "—" : v.against_management ? "Yes" : "No"}</td>
+                <td data-label="">{v.demo && <Demo />}</td>
               </tr>
             ))}
           </tbody>
@@ -415,7 +415,7 @@ function HoldingsTab({ row, cycle }: { row: WorklistRow; cycle: string }) {
   if (!row.held_in.length) return <Empty>No house fund holds this company.</Empty>;
   return (
     <div className="table-wrap">
-      <table className="data-table">
+      <table className="data-table wb-stack">
         <thead>
           <tr>
             <th>Fund</th>
@@ -427,10 +427,10 @@ function HoldingsTab({ row, cycle }: { row: WorklistRow; cycle: string }) {
         <tbody>
           {row.held_in.map((h) => (
             <tr key={h.portfolio_id}>
-              <td className="wb-wrap">{h.name}</td>
-              <td className="num">{h.weight_pct === null ? "—" : h.weight_pct.toFixed(3)}</td>
-              <td className="num">{h.market_value_eur_m.toFixed(1)}</td>
-              <td>{h.selection_status === "confirmed" ? "Confirmed" : h.selection_status === "proposed" ? "Proposed" : "—"}</td>
+              <td className="wb-wrap" data-label="Fund">{h.name}</td>
+              <td className="num" data-label="Weight in fund %">{h.weight_pct === null ? "—" : h.weight_pct.toFixed(3)}</td>
+              <td className="num" data-label="Market value (EUR m)">{h.market_value_eur_m.toFixed(1)}</td>
+              <td data-label={`Selection ${cycle}`}>{h.selection_status === "confirmed" ? "Confirmed" : h.selection_status === "proposed" ? "Proposed" : "—"}</td>
             </tr>
           ))}
         </tbody>

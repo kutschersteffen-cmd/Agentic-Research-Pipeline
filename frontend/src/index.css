@@ -2761,3 +2761,12 @@ a.vc-box:hover { border-color: var(--text); }
   .wb-panel-body .data-table .num { white-space: nowrap; }
   .wb-panel-body td.wb-wrap { min-width: 0; }
 }
+/* Phone: Votes and Holdings have too many columns for 365px, so each row stacks as label · value lines. */
+@media (max-width: 760px) {
+  .wb-panel-body .data-table.wb-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .wb-panel-body .data-table.wb-stack tr { display: block; padding: var(--s-2) 0; border-bottom: 1px solid var(--panel-border); }
+  .wb-panel-body .data-table.wb-stack td { display: flex; justify-content: space-between; gap: var(--s-3); padding: var(--s-0_5) var(--s-1); border: 0; text-align: right; }
+  .wb-panel-body .data-table.wb-stack td::before { content: attr(data-label); flex: none; max-width: 45%; color: var(--muted); font-size: var(--text-xs); text-align: left; }
+  .wb-panel-body .data-table.wb-stack td:empty { display: none; }
+  .wb-panel-body .data-table.wb-stack td.wb-wrap { text-align: left; }
+}
