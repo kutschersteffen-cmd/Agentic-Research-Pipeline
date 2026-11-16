@@ -141,3 +141,23 @@ def test_ac_40_document_source_and_priority(page):
     card = open_card(page, body)
     for text in ("Uses documents (priority 2)", "Stewardship Statement 2025", "p. 2", "512 engagement meetings"):
         assert card.get_by_text(text).first.is_visible(), text
+
+
+def test_screen_readers_hear_which_words_were_added_and_removed(page):  # UI review on #505, WCAG 1.3.1
+    segments = [("Example AM is an", "kept"), ("independent", "removed"), ("asset", "added"), ("manager founded in 2004.", "kept")]
+    card = open_card(page, drafted("Example AM is an asset manager founded in 2004.", 80, segments))
+    assert card.locator("del").text_content() == "removed: independent"
+    assert card.locator("ins").text_content() == "added: asset"
+    assert card.get_by_text("removed:").evaluate("e => getComputedStyle(e).position") == "absolute"  # not shown on screen
+
+
+def test_approved_answer_shows_no_change_line(page):  # spec §6: drafted or edited answers only
+    card = open_card(page, drafted(FIRM_A, 100, [(FIRM_A, "kept")], status="approved"))
+    assert card.get_by_text("Approved answer, unchanged").count() == 0
+    assert card.get_by_text("From approved answers only").count() == 0
+
+
+def test_edited_answer_shows_the_change_line_but_not_its_origin(page):  # spec §6: origin on drafted answers only
+    card = open_card(page, drafted(FIRM_A, 100, [(FIRM_A, "kept")], status="edited"))
+    assert card.get_by_text("Approved answer, unchanged").is_visible()
+    assert card.get_by_text("From approved answers only").count() == 0
