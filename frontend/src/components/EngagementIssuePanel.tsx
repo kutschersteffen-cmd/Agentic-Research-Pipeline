@@ -224,7 +224,7 @@ export function EngagementIssuePanel({
       </div>
 
       <div className="chip-row">
-        <span className={`status-pill status-${issue.status === "stalled" ? "failed" : issue.status === "resolved" || issue.status === "closed" ? "completed" : "running"}`}>
+        <span className={`status-pill status-${issue.status === "stalled" ? "failed" : issue.status === "resolved" || issue.status === "closed" ? "completed" : "pending"}`}>
           {issue.status}
         </span>
         <span className="stage-pill">{fmt(issue.milestone_stage)}</span>

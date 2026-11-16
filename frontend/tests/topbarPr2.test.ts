@@ -41,3 +41,18 @@ test("pr2_design_md", () => {
   assert.match(design, /\*\*Status pill:\*\* [^\n]*square[^\n]*word/);
   assert.match(design, /Workspace overview header/);
 });
+
+// Final review: the square must say the same thing as the start page's Pixel marks.
+test("pr2_review_marks", () => {
+  const pending = rule(".status-pending::before");
+  assert.match(pending, /background: transparent/);
+  assert.match(pending, /inset 0 0 0 1px currentColor/); // idle: an outlined square
+  assert.match(rule(".status-stalled::before, .dossier-not-built::before"), /dashed/); // the dashed frame survives as a dashed square
+  const panel = readFileSync(new URL("../src/components/EngagementIssuePanel.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(panel, /: "running"\}`/, "an open issue is not running work");
+});
+// Final review: no width where neither header rule applies (browser zoom gives fractional widths).
+test("pr2_review_breakpoint_gap", () => {
+  assert.match(css, /\.page\.hub:not\(\.hub-start\) > \.ws-drawing \{ display: none; \}/); // hidden unless a range shows it
+  assert.match(css, /@media \(min-width: 761px\) and \(max-width: 1099\.98px\)/);
+});
