@@ -258,9 +258,7 @@ def clear_monitoring_rule_alerts(
 
 @router.get("/monitoring/alerts", response_model=list[Alert])
 def list_monitoring_alerts(status: AlertStatus | None = None, store: PortfolioStore = Depends(get_portfolio_store)) -> list[Alert]:
-    companies = {c.company_id: c for c in store.list_companies()}
-    rules = {r.rule_id: r for r in store.list_rules()}
-    return monitoring_evaluator.with_company_names(monitoring_evaluator.list_alerts(store, status=status), companies, rules)
+    return monitoring_evaluator.named_alerts(store, monitoring_evaluator.list_alerts(store, status=status))
 
 
 class AlertTransitionRequest(BaseModel):
@@ -281,11 +279,12 @@ def transition_monitoring_alert(
     engagement router's escalate-issue route exactly (see
     engagement_store.py::set_escalation_stage)."""
     try:
-        return monitoring_evaluator.transition_alert(
+        alert = monitoring_evaluator.transition_alert(
             store, scope_id, alert_id, AlertTransition(status=req.status, decided_by=principal.name, reason=req.reason, owner=req.owner)
         )
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
+    return monitoring_evaluator.named_alerts(store, [alert])[0]
 
 
 @router.post("/monitoring/evaluate-now")
