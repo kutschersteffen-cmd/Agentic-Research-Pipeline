@@ -54,6 +54,10 @@ case "${1:-up}" in
       kill "$pid" 2>/dev/null || true
       while kill -0 "$pid" 2>/dev/null; do sleep 0.1; done
     fi
+    if curl -sf http://127.0.0.1:8000/api/health >/dev/null; then  # else the new API cannot bind and health answers from the old one
+      echo "An API this script did not start ($state/api.pid) still answers on :8000; stop it first" >&2
+      exit 1
+    fi
     cd "$root/backend"
     start_api
     for _ in $(seq 1 1200); do curl -sf http://127.0.0.1:8000/api/health >/dev/null && exit 0; sleep 0.1; done

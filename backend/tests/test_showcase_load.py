@@ -88,7 +88,7 @@ def test_load_writes_the_compact_latest_observations_file(env):
     # spec workbench-review-fixes AC-6
     store = env[0]
     assert _run(env)[0]
-    entries = json.loads((store.portfolios_dir / LATEST_FILE).read_text())
+    entries = json.loads((store.portfolios_dir / LATEST_FILE).read_text())["entries"]
     assert sorted((e[0], e[1]) for e in entries) == store.list_observation_keys() and entries
 
 def test_history_is_five_rescaled_month_ends_labelled_simulated(env):

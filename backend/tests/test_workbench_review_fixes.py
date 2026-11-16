@@ -58,7 +58,7 @@ def _forget_cache() -> None:
 
 
 def _entries(store: PortfolioStore) -> list:
-    return json.loads((store.portfolios_dir / LATEST_FILE).read_text())
+    return json.loads((store.portfolios_dir / LATEST_FILE).read_text())["entries"]
 
 
 @pytest.fixture
@@ -104,6 +104,22 @@ def test_a_seeded_entry_whose_file_is_unchanged_is_not_read_again(files, monkeyp
     files.seed_latest_observations()
     monkeypatch.setattr(PortfolioStore, "_read_jsonl", lambda path: pytest.fail(f"read {path}"))
     assert files.latest_observation("C1", "esg_score", SNAPSHOT).value == 2.0
+
+
+def test_a_compact_file_written_by_other_code_is_ignored(files):
+    # review B1: an entry holds a pick, not the file; a pick by another pick rule or schema must not be served
+    fill_observation_cache(files)
+    path = files.portfolios_dir / LATEST_FILE
+    written = json.loads(path.read_text())
+    for entry in written["entries"]:
+        if entry[:2] == ["C1", "esg_score"]:
+            entry[-1]["value"] = 99.0  # what older code might have picked, file metadata unchanged
+    path.write_text(json.dumps({**written, "format": "older-code"}))
+    _forget_cache()
+    assert files.seed_latest_observations() == {}
+    assert files.latest_observation("C1", "esg_score", SNAPSHOT).value == 2.0
+    fill_observation_cache(files)
+    assert json.loads(path.read_text())["format"] == written["format"]  # written again by this code
 
 
 def test_the_compact_file_entry_for_another_as_of_is_read_again(files):
