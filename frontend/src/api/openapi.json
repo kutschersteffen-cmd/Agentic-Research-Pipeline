@@ -20653,6 +20653,28 @@
       ],
       "title": "Assignee"
      },
+     "base_entry_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Base Entry Id"
+     },
+     "document_priority": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Document Priority"
+     },
      "flags": {
       "items": {
        "type": "string"
@@ -20663,6 +20685,17 @@
      "id": {
       "title": "Id",
       "type": "integer"
+     },
+     "kept_share": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kept Share"
      },
      "last_editor": {
       "anyOf": [
@@ -20682,6 +20715,13 @@
      "question": {
       "title": "Question",
       "type": "string"
+     },
+     "segments": {
+      "items": {
+       "$ref": "#/components/schemas/RfpSegment"
+      },
+      "title": "Segments",
+      "type": "array"
      },
      "sources": {
       "items": {
@@ -20705,20 +20745,61 @@
      "flags",
      "assignee",
      "last_editor",
-     "sources"
+     "sources",
+     "document_priority",
+     "base_entry_id",
+     "kept_share",
+     "segments"
     ],
     "title": "RfpQuestionOut",
+    "type": "object"
+   },
+   "RfpSegment": {
+    "properties": {
+     "change": {
+      "enum": [
+       "kept",
+       "added",
+       "removed"
+      ],
+      "title": "Change",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text",
+     "change"
+    ],
+    "title": "RfpSegment",
     "type": "object"
    },
    "RfpSourceOut": {
     "properties": {
      "entry_id": {
-      "title": "Entry Id",
-      "type": "integer"
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Entry Id"
      },
      "entry_question": {
-      "title": "Entry Question",
-      "type": "string"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Entry Question"
      },
      "file": {
       "anyOf": [
@@ -20730,6 +20811,14 @@
        }
       ],
       "title": "File"
+     },
+     "kind": {
+      "enum": [
+       "entry",
+       "document"
+      ],
+      "title": "Kind",
+      "type": "string"
      },
      "location": {
       "anyOf": [
@@ -20747,8 +20836,15 @@
       "type": "string"
      },
      "source": {
-      "title": "Source",
-      "type": "string"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source"
      },
      "written_by": {
       "anyOf": [
@@ -20763,13 +20859,9 @@
      }
     },
     "required": [
-     "entry_id",
-     "entry_question",
+     "kind",
      "quote",
-     "source",
-     "file",
-     "location",
-     "written_by"
+     "file"
     ],
     "title": "RfpSourceOut",
     "type": "object"
