@@ -225,3 +225,19 @@ def test_programme_log_skips_damaged_lines(client, root):
     assert client.get("/api/stewardship/programmes").status_code == 200
     assert _members(client) == [("SYN03", "proposed")]
     assert client.get("/api/stewardship/worklist").status_code == 200
+
+
+def test_a_line_with_a_wrong_typed_key_is_damaged(tmp_path, caplog):
+    # review #548 optional 1: such a line made the fold raise (unhashable id, `None.lower()` on the next create)
+    selection, programmes = worklist.SelectionLog(tmp_path), ProgrammeLog(tmp_path)
+    for path, lines in (
+        (selection._path(Q), [{"event": "added", "issuer_id": ["x"], "by": "u", "at": "t", "weights_version": 0}]),
+        (programmes.path, [{"event": "proposed", "programme_id": {"x": 1}, "by": "u", "at": "t", "issuer_id": "S"},
+                           {"event": "created", "programme_id": "p", "name": None, "by": "u", "at": "t"}]),
+    ):  # fmt: skip
+        path.parent.mkdir(parents=True)
+        path.write_text("".join(json.dumps(line) + "\n" for line in lines))
+    with caplog.at_level(logging.WARNING):
+        assert selection.rows(Q) == []
+        assert programmes.create("New", "u")["name"] == "New"
+    assert len([r for r in caplog.records if r.getMessage().startswith("Skipped damaged line")]) == 3

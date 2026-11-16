@@ -63,10 +63,11 @@ def read_jsonl_numbered(path: Path) -> Iterator[tuple[int, object]]:
 
 
 def complete_rows(path: Path, needs) -> Iterator[dict]:
-    """The JSON objects of `path` that have every key `needs(row)` names. Any other decodable line is damaged: it is
-    skipped with one WARNING `Skipped damaged line <n> in <path>` per (path, line) and process."""
+    """The JSON objects of `path` that have every key `needs(row)` names, each a string or a number (a list, object
+    or null there would break the fold). Any other decodable line is damaged: it is skipped with one WARNING
+    `Skipped damaged line <n> in <path>` per (path, line) and process."""
     for n, row in read_jsonl_numbered(path):
-        if isinstance(row, dict) and all(k in row for k in needs(row)):
+        if isinstance(row, dict) and all(isinstance(row.get(k), str | int) for k in needs(row)):
             yield row
         elif (str(path), n) not in _WARNED:
             _WARNED.add((str(path), n))
