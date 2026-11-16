@@ -53,7 +53,7 @@ def test_a_portfolio_alert_reaches_stewardship_on_held_companies(universe, tmp_p
 
 
 def test_the_flow_runs_and_labels_portfolio_figures(universe, tmp_path, monkeypatch, pg):
-    monkeypatch.setattr(process, "house_universe", lambda: json.loads(json.dumps(universe)))
+    monkeypatch.setattr(process, "house_build", lambda: process.HouseBuild(json.loads(json.dumps(universe)), {}, None))
     stages = process.flow(process.HOUSE, process.StreamStore(tmp_path / "s"), [], 45, votes=[])["stages"]
     sources = {m["source"] for s in stages for m in s["metrics"]}
     assert "sample" not in sources and "portfolio" in sources
