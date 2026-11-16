@@ -298,10 +298,13 @@ def test_2500_companies_build_in_under_a_second(tmp_path):
         EngagementRecord(company_id=f"C{n}", name=f"C{n}", issues=[EngagementIssue(theme="t", commitments=[Commitment(text="x", target_date=past)])])
         for n in range(500)
     ]
-    start = time.perf_counter()
-    built = worklist.build(tmp_path, {"issuers": issuers, "note": None}, records)
-    elapsed = time.perf_counter() - start
-    assert len(built["rows"]) == 2500 and elapsed < 1.0, elapsed
+    timings = []
+    for _ in range(3):  # best of three (owner decision, 16 Nov 2026): one slow run on a busy CI machine is noise
+        start = time.perf_counter()
+        built = worklist.build(tmp_path, {"issuers": issuers, "note": None}, records)
+        timings.append(time.perf_counter() - start)
+        assert len(built["rows"]) == 2500
+    assert min(timings) < 1.0, timings
 
 
 def test_existing_responses_unchanged(client):
