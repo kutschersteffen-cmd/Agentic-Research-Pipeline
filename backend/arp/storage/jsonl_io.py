@@ -17,7 +17,12 @@ thousands of intact records in front of it.
 from __future__ import annotations
 
 import json
+import logging
+from collections.abc import Iterator
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+_WARNED: set[tuple[str, int]] = set()  # (path, line) already reported as damaged, once per process
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -41,6 +46,31 @@ def read_jsonl(path: Path) -> list[dict]:
             except json.JSONDecodeError:
                 continue
     return rows
+
+
+def read_jsonl_numbered(path: Path) -> Iterator[tuple[int, object]]:
+    """(1-based line number, decoded value) for every decodable line, as read_jsonl skips; the numbers count every
+    line of the file, blank and undecodable ones included. The value can be any JSON value, not only an object."""
+    if not path.exists():
+        return
+    with path.open(encoding="utf-8") as f:
+        for n, line in enumerate(f, 1):
+            if line := line.strip():
+                try:
+                    yield n, json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+
+def complete_rows(path: Path, needs) -> Iterator[dict]:
+    """The JSON objects of `path` that have every key `needs(row)` names. Any other decodable line is damaged: it is
+    skipped with one WARNING `Skipped damaged line <n> in <path>` per (path, line) and process."""
+    for n, row in read_jsonl_numbered(path):
+        if isinstance(row, dict) and all(k in row for k in needs(row)):
+            yield row
+        elif (str(path), n) not in _WARNED:
+            _WARNED.add((str(path), n))
+            logger.warning("Skipped damaged line %d in %s", n, path)
 
 
 def append_jsonl(path: Path, row: dict) -> None:

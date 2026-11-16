@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import json
 import re
-import threading
 from collections import Counter
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -42,7 +41,8 @@ from arp.stewardship.tiers import TIERS, TierStore
 from arp.stewardship.tracking import OPEN
 from arp.stewardship.trigger_store import TriggerStore
 from arp.stewardship.universe import company_by_security
-from arp.storage.jsonl_io import read_jsonl
+from arp.storage.jsonl_io import complete_rows
+from arp.storage.locks import KeyedLock
 
 POLICY = "priority_weights"
 TIER_VALUE = dict(zip(TIERS, (1.0, 0.5, 0.0), strict=True))
@@ -57,7 +57,9 @@ HOUSE = "All house holdings"
 FUND_SCOPE = "Fund scopes need the portfolio universe"
 TOP = 25
 CYCLE = re.compile(r"\d{4}-Q[1-4]")
-_LOCK = threading.Lock()  # a selection change reads the log, then appends: one at a time
+# a selection change reads the log, then appends: one at a time per log file, across processes too
+_LOCKS = KeyedLock(lock_path=lambda key: Path(key).with_name(Path(key).name + ".lock"))
+SELECTION_KEYS = ("event", "issuer_id", "by", "at", "weights_version")  # a line without one of them is damaged
 
 
 def cycle_of(today: date) -> str:
@@ -473,7 +475,7 @@ class SelectionLog:
     @staticmethod
     def _fold(path: Path) -> list[dict]:
         folded: dict[str, dict] = {}
-        for e in read_jsonl(path):
+        for e in complete_rows(path, lambda e: SELECTION_KEYS):
             iid = e["issuer_id"]
             if e["event"] == "added" and iid not in folded:  # a later `added` never overwrites a row
                 folded[iid] = {
@@ -481,7 +483,7 @@ class SelectionLog:
                     "proposed_by": e["by"], "proposed_at": e["at"], "confirmed_by": None, "confirmed_at": None,
                     "weights_version": e["weights_version"],
                 }  # fmt: skip
-            elif e["event"] == "removed":
+            elif e["event"] == "removed" and folded.get(iid, {}).get("status") != "confirmed":  # confirmed rows stay
                 folded.pop(iid, None)
             elif e["event"] == "confirmed" and iid in folded:
                 folded[iid].update(status="confirmed", confirmed_by=e["by"], confirmed_at=e["at"])
@@ -504,7 +506,7 @@ class SelectionLog:
         current = cycle_of(today)
         if cycle != current:
             raise ValueError(f"only {current} can be changed")
-        with _LOCK:
+        with _LOCKS.acquire(str(self._path(cycle, scope))):
             self._change(cycle, scope, names, names.keys() if in_scope is None else in_scope, add, remove, by, weights_version)
 
     def _change(self, cycle, scope, names, in_scope, add: list[str], remove: list[str], by: str, weights_version: int) -> None:
@@ -524,7 +526,7 @@ class SelectionLog:
         current = cycle_of(today)
         if cycle != current:
             raise ValueError(f"only {current} can be changed")
-        with _LOCK:
+        with _LOCKS.acquire(str(self._path(cycle, scope))):
             proposed = [r["issuer_id"] for r in self.rows(cycle, scope) if r["status"] == "proposed"]
             self._write(cycle, scope, [{"event": "confirmed", "issuer_id": i} for i in proposed], by, weights_version)
         return len(proposed)

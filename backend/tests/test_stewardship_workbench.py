@@ -278,5 +278,5 @@ def test_selection_file_of_an_odd_group_id_stays_in_the_cycle(tmp_path):
     log = worklist.SelectionLog(tmp_path)
     today = date(2026, 11, 15)
     log.change("2026-Q4", today, {"C": "C"}, ["C"], [], "u", 0, scope="group:../../x")
-    assert [p.name for p in (tmp_path / "selection" / "2026-Q4").iterdir()] == ["group__..%2F..%2Fx.jsonl"]
+    assert sorted(p.name for p in (tmp_path / "selection" / "2026-Q4").iterdir()) == ["group__..%2F..%2Fx.jsonl", "group__..%2F..%2Fx.jsonl.lock"]
     assert list(log.all_rows("2026-Q4")) == ["group:../../x"]
