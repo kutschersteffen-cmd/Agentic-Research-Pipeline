@@ -359,18 +359,13 @@ jobs:
         if: >-
           ${{ !cancelled() && env.ON_MAIN == 'true' && env.ENABLED != 'false' && (steps.jobs.outputs.ok != 'true' ||
           (steps.jobs.outputs.complete == 'true' && steps.complete.outputs.ok != 'true')) }}
-        env:
-          COMPLETE_OK: ${{ steps.complete.outputs.ok }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs" --paginate \
             --jq '.jobs[] | select(.name != "Holdout acceptance") | "\(.conclusion)\t\(.name)"' >"$RUNNER_TEMP/jobs.txt"
           cat "$RUNNER_TEMP/jobs.txt"
-          # A failed, timed-out or cancelled job (timeout-minutes reads as cancelled), or missing rows → issue.
-          # A hand cancel never gets here: this step is skipped when the run is cancelled.
-          if ! bash .github/scripts/holdout_issue_needed.sh "$RUNNER_TEMP/jobs.txt" "$COMPLETE_OK"; then
-            echo "No issue: every job succeeded and every row ran."
-            exit 0
-          fi
+          # Every path here is a failed, timed-out or cancelled job, or missing rows, so it opens the issue. A job that
+          # hits timeout-minutes concludes `cancelled`; a run cancelled as a whole (by hand) skips this step via
+          # !cancelled() (owner decision 16 Nov 2026).
 
           since=$(date -u -d '30 days ago' +%F)
           last=$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/holdout.yml/runs" -f event=schedule -f branch=main \
@@ -396,7 +391,7 @@ jobs:
             cat "$RUNNER_TEMP/complete.txt" 2>/dev/null || echo "not checked"
             echo '```'
             echo
-            echo "Jobs that did not succeed:"
+            echo "Jobs that did not succeed (\`cancelled\` here: the part hit its time limit or GitHub stopped it; the run itself was not cancelled):"
             awk -F'\t' '$1 != "success" && $1 != "skipped" { print "- " $2 ": " $1 }' "$RUNNER_TEMP/jobs.txt"
             echo
             echo "$merges"
