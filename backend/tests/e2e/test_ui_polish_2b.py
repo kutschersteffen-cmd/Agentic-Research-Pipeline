@@ -17,6 +17,7 @@ def _runs_stub(pg, runs, pattern="**/api/runs"):
         body = resp.json()
         real = body.get("runs", [])
         base = real[0] if real else {"status": "completed", "review_count": 0, "params": {}}
+        base = {**base, "company_count": 1, "completed_count": 1}  # not every real manifest has these
         body["runs"] = [{**base, "updated_at": "2026-11-16T00:00:00Z", "created_at": "2026-11-16T00:00:00Z", **r} for r in runs] + real
         route.fulfill(response=resp, json=body)
 
@@ -289,17 +290,21 @@ def test_focus_ring_over_highlighted_neighbour(page):  # noqa: F811
 
 
 def test_unbreakable_name_stays_inside_the_card(page):  # noqa: F811
-    # Final review: a long unbreakable value must not widen the card past the phone and get clipped.
-    _runs_stub(page, [{"run_id": "e2e-wide", "run_type": "extraction", "status": "running",
-                       "params": {"started_by": "Supercalifragilistic" * 3}}])
-    _open(page, "/#/argus", 390, 844)
-    card = page.locator('tr[data-row="e2e-wide"]')
-    assert _box(card)["x"] + _box(card)["width"] <= 390 - 16 + 0.5
-
+    # Final review: content that cannot wrap (like the nowrap file-name buttons of ArgusDocuments) must not
+    # widen a stacked table's cards past the phone, where the page clips them.
+    _runs_stub(page, [{"run_id": "e2e-vote-wide", "run_type": "proxy_voting", "status": "completed", "company_count": 3, "completed_count": 3}], "**/api/runs*")
+    _open(page, "/#/voting", 390, 844)
+    row = page.locator("table.stack-on-phone tbody tr").first
+    row.wait_for()
+    row.locator("td").first.evaluate(
+        "td => { const s = document.createElement('span'); s.style.whiteSpace = 'nowrap'; s.textContent = 'Unilever_Annual_Report_and_Accounts_2025_final_v2.pdf'; td.append(s); }")
+    wrap = page.locator(".table-wrap:has(> table.stack-on-phone)").first
+    assert _box(row)["x"] + _box(row)["width"] <= _box(wrap)["x"] + _box(wrap)["width"] + 0.5
+    assert page.evaluate("() => document.documentElement.scrollWidth") <= 390
 
 def test_long_name_clears_pill_at_large_text(page):  # noqa: F811
     # Final review: with a larger browser font the pill grows; the name must still clear it.
-    page.add_init_script("document.addEventListener('DOMContentLoaded', () => document.documentElement.style.fontSize = '22px')")
+    page.add_init_script("document.addEventListener('DOMContentLoaded', () => document.documentElement.style.fontSize = '30px')")
     _name_clears_pill(page)
 
 
