@@ -1,0 +1,301 @@
+<title>App-wide Top Bar</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: mockup controls, then one framed "screen" at a time: the app's top bar on every page, a workspace row
+   inside workspaces, page content centred below. Tokens are the app's own (frontend/src/index.css), unchanged. */
+:root {
+  --bg: #f4f6f9; --panel: #ffffff; --panel-border: #d8dee7; --well: #eaeef3;
+  --text: #121722; --muted: #4f5a6b; --run: #2563c9; --hi: #85601a; --hi-ink: #85601a; --on-hi: #ffffff;
+  --high: #13804f; --low: #c8323f; --apex: #ea4c14; --frame: #e3e8ef;
+  --sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d1015; --panel: #141921; --panel-border: #2c3644; --well: #1b222d;
+  --text: #e8ebf0; --muted: #a3acbb; --run: #6cb4ff; --hi: #d4a650; --hi-ink: #d4a650; --on-hi: #0d1015;
+  --high: #4fd69c; --low: #ff6b7a; --apex: #ff6a2b; --frame: #07090c; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0d1015; --panel: #141921; --panel-border: #2c3644; --well: #1b222d;
+  --text: #e8ebf0; --muted: #a3acbb; --run: #6cb4ff; --hi: #d4a650; --hi-ink: #d4a650; --on-hi: #0d1015;
+  --high: #4fd69c; --low: #ff6b7a; --apex: #ff6a2b; --frame: #07090c; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--frame); color: var(--text); font: 400 15px/1.5 var(--sans); }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+/* Mockup controls (not part of the design) */
+.controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); font-size: 13px; color: var(--muted); }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.seg button { height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--panel-border); background: transparent; cursor: pointer; font-size: 13px; }
+.seg button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.stage { padding-block: 0 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.screen { margin: 0 auto; max-width: 1440px; background: var(--bg); border: 1px solid var(--panel-border); border-radius: 12px; overflow: hidden; }
+.screen.phone { max-width: 390px; }
+
+/* Top bar (as on #/home since #482) */
+.top { display: grid; grid-template-columns: 1fr minmax(0, 420px) 1fr; align-items: center; gap: 16px; height: 76px; padding: 0 32px; background: var(--bg); border-bottom: 1px solid var(--panel-border); }
+.brand { display: flex; color: var(--text); justify-self: start; }
+.brand svg { height: 28px; width: auto; display: block; }
+.search { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 12px; border: 1px solid var(--panel-border); border-radius: 999px; background: var(--panel); color: var(--muted); font-size: 13px; text-align: left; cursor: pointer; }
+.search span { flex: 1; }
+kbd { font: 400 11px var(--mono); color: var(--muted); white-space: nowrap; }
+.end { justify-self: end; display: flex; align-items: center; gap: 16px; font-size: 13px; }
+.ask { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid var(--panel-border); border-radius: 999px; background: transparent; font-weight: 500; white-space: nowrap; cursor: pointer; }
+.nav { display: flex; align-items: center; gap: 16px; position: relative; }
+.nav > a, .ws-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; white-space: nowrap; }
+.nav > a[aria-current="page"] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; }
+.ws-btn { border: 0; background: none; padding: 0; cursor: pointer; }
+.ws-btn svg { width: 10px; height: 10px; }
+.count { min-width: 22px; padding: 0 6px; border-radius: 2px; background: var(--hi); color: var(--on-hi); font: 500 11px/18px var(--sans); text-align: center; }
+.me { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--panel-border); border-radius: 999px; background: var(--panel); font-weight: 600; font-size: 13px; cursor: pointer; }
+.pop { position: absolute; top: 46px; left: -8px; z-index: 5; display: grid; gap: 2px; width: 240px; padding: 6px; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; box-shadow: 0 8px 32px rgb(0 0 0 / 0.18); }
+.pop a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; font-size: 13px; }
+.pop a:hover { background: var(--well); }
+.pop a[aria-current="page"] { background: var(--well); font-weight: 500; }
+.pop .rule { height: 1px; background: var(--panel-border); margin: 4px 6px; }
+.pop .tag { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; }
+
+/* Workspace row: where you are and the workspace's screens */
+.ws-row { display: flex; align-items: stretch; gap: 24px; height: 44px; padding: 0 32px; border-bottom: 1px solid var(--panel-border); background: var(--bg); font-size: 13px; overflow-x: auto; scrollbar-width: none; }
+.ws-row a { display: inline-flex; align-items: center; color: var(--muted); white-space: nowrap; border-bottom: 2px solid transparent; }
+.ws-row a:hover { color: var(--text); }
+.ws-row a[aria-current="page"] { color: var(--text); border-bottom-color: var(--text); }
+.ws-row .ws-name { color: var(--text); font-weight: 600; gap: 8px; }
+.ws-row .sep { align-self: center; width: 1px; height: 16px; background: var(--panel-border); flex: none; }
+
+/* Page */
+.main { max-width: 1248px; margin: 0 auto; padding: 48px 32px 72px; }
+.head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: end; margin-bottom: 40px; }
+h1 { margin: 0 0 8px; font-size: clamp(1.75rem, 1.25rem + 1.4vw, 2.5rem); font-weight: 600; line-height: 1.05; letter-spacing: -0.03em; }
+.lede { margin: 0; color: var(--muted); max-width: 60ch; }
+.ws-drawing { width: 120px; height: 94px; overflow: visible; display: block; }
+.w { fill: var(--panel); stroke: color-mix(in srgb, var(--text) 25%, transparent); stroke-width: 1; stroke-linejoin: round; }
+.w.acc-now { stroke: var(--run); }
+.w.acc-wait { stroke: var(--hi); }
+
+.process { margin-top: 32px; }
+.p-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin-bottom: 4px; }
+.p-head h2 { margin: 0; font-size: 1.17rem; font-weight: 600; letter-spacing: -0.015em; }
+.state { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; }
+.chip { font-size: 12px; color: var(--muted); border: 1px solid var(--panel-border); border-radius: 999px; padding: 1px 8px; }
+.done-when { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+/* Process flow (PR 3): a track joins the steps and fills to the furthest finished step; the running step
+   has a blue edge and a pulsing square, the waiting one the amber edge. A click opens the step's panel. */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; position: relative; }
+.steps li { position: relative; display: flex; }
+.steps li + li::before { content: ""; position: absolute; left: -12px; top: 22px; width: 12px; height: 2px; background: var(--panel-border); }
+.steps li.reached + li::before { background: var(--text); }
+.steps li.reached + li.on-now::before { background: var(--run); }
+.step { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--panel-border); border-radius: 8px; background: var(--panel); font: inherit; font-size: 12px; text-align: left; min-height: 96px; cursor: pointer; transition: border-color .15s, transform .15s, box-shadow .15s; }
+.step:hover { border-color: var(--text); transform: translateY(-1px); }
+.step.s-now { border-color: var(--run); box-shadow: 0 0 0 3px color-mix(in srgb, var(--run) 18%, transparent); }
+.step.s-wait { border-color: var(--hi); }
+/* The open step keeps its state edge and gains an outer ring. */
+.step[aria-expanded="true"] { outline: 1px solid var(--text); outline-offset: 3px; }
+.step b { font-size: 13px; font-weight: 500; display: flex; gap: 8px; }
+.step b i { font-style: normal; color: var(--muted); font-family: var(--mono); font-weight: 400; }
+.step p { margin: 0; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.step .st { margin-top: auto; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+@keyframes pulse { 50% { opacity: .3; } }
+.s-now .mark { animation: pulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .s-now .mark { animation: none; } .step { transition: none; } .step:hover { transform: none; } }
+.detail { margin-top: 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 24px; align-items: start; padding: 16px 20px; border: 1px solid var(--panel-border); border-radius: 12px; background: var(--panel); }
+.detail h3 { margin: 0; font-size: 15px; font-weight: 600; display: flex; gap: 10px; align-items: baseline; }
+.detail h3 i { font-style: normal; font-family: var(--mono); font-weight: 400; color: var(--muted); font-size: 13px; }
+.detail p { margin: 0; color: var(--muted); font-size: 13px; max-width: 70ch; }
+.detail dl { margin: 4px 0 0; display: flex; flex-wrap: wrap; gap: 4px 24px; font-size: 13px; }
+.detail dt { color: var(--muted); } .detail dd { margin: 0 0 0 6px; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+.detail dl div { display: flex; }
+.detail .go { grid-row: 1 / span 3; grid-column: 2; align-self: center; display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 999px; background: var(--text); color: var(--bg); font-size: 13px; font-weight: 500; white-space: nowrap; }
+.detail .waitlink { color: var(--hi-ink); text-decoration: underline; text-underline-offset: 3px; }
+
+.mark { display: inline-block; width: 8px; height: 8px; flex: none; }
+.m-done { background: var(--text); } .m-now { background: var(--run); } .m-wait { background: var(--hi); } .m-failed { background: var(--low); }
+.m-idle { box-shadow: inset 0 0 0 1px var(--muted); }
+.t-done, .t-idle { color: var(--muted); } .t-now { color: var(--run); } .t-wait { color: var(--hi-ink); } .t-failed { color: var(--low); } .t-ok { color: var(--high); }
+
+/* Run history */
+.tabs { display: flex; gap: 4px; margin: 0 0 24px; flex-wrap: wrap; }
+.tabs span { padding: 6px 12px; border-radius: 999px; font-size: 13px; border: 1px solid var(--panel-border); }
+.tabs span.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+.table-wrap { overflow-x: auto; border: 1px solid var(--panel-border); border-radius: 12px; background: var(--panel); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--panel-border); white-space: nowrap; }
+th { font-weight: 500; color: var(--muted); font-size: 12px; }
+tr:last-child td { border-bottom: 0; }
+td.id { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+td.num { font-variant-numeric: tabular-nums; }
+.pill { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; }
+.pill::before { content: ""; width: 8px; height: 8px; background: currentColor; }
+.was { margin-top: 32px; padding: 16px; border: 1px dashed var(--panel-border); border-radius: 12px; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+.old-pill { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--text); color: var(--text); font-size: 12px; }
+
+/* Phone frame: row 1 lockup, search, Ask ARP, user menu; row 2 Workspaces, Review Queue, Reports. */
+.pop[hidden] { display: none; }
+.phone .top { position: relative; display: flex; flex-wrap: wrap; align-items: center; height: auto; gap: 8px 12px; padding: 12px 16px; }
+.phone .end, .phone .nav { display: contents; }
+.phone .brand { order: 0; margin-right: auto; }
+.phone .search { order: 1; width: 44px; height: 44px; padding: 0; justify-content: center; }
+.phone .search span, .phone .search kbd { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.phone .ask { order: 2; min-height: 44px; }
+.phone .ask kbd { display: none; }
+.phone .me { order: 3; width: 44px; height: 44px; }
+.phone .top::after { content: ""; order: 4; flex-basis: 100%; height: 0; }
+.phone .ws-btn { order: 5; min-height: 44px; }
+.phone .nav > a { order: 6; min-height: 44px; }
+.phone .pop { top: 128px; left: 16px; right: 16px; width: auto; }
+.phone .ws-row { padding: 0 16px; gap: 20px; }
+.phone .main { padding: 32px 16px 56px; }
+.phone .head { grid-template-columns: 1fr; }
+.phone .ws-drawing { display: none; }
+.phone .steps { grid-template-columns: 1fr; gap: 10px; }
+.phone .steps li + li::before { left: 22px; top: -10px; width: 2px; height: 10px; }
+.phone .step { min-height: 0; }
+.phone .detail { grid-template-columns: 1fr; }
+.phone .detail .go { grid-row: auto; grid-column: auto; justify-self: start; min-height: 44px; }
+
+.notes { max-width: 1440px; margin: 20px auto 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px 24px; font-size: 13px; color: var(--muted); }
+.notes h3 { margin: 0 0 6px; font-size: 13px; color: var(--text); font-weight: 600; }
+.notes ul { margin: 0; padding-left: 16px; }
+@media (max-width: 900px) {
+  .screen:not(.phone) .top { grid-template-columns: auto minmax(0, 1fr) auto; padding: 0 16px; }
+  .screen:not(.phone) .search span { display: none; }
+  .screen:not(.phone) .main { padding: 32px 16px 56px; }
+  .screen:not(.phone) .ws-row { padding: 0 16px; }
+  .screen:not(.phone) .head { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) { .screen:not(.phone) .ask kbd, .screen:not(.phone) .search kbd { display: none; } .screen:not(.phone) .top { display: flex; flex-wrap: wrap; height: auto; padding: 12px 16px; row-gap: 12px; } .screen:not(.phone) .end { width: 100%; justify-content: space-between; flex-wrap: wrap; } .screen:not(.phone) .brand { margin-right: auto; } .screen:not(.phone) .search { width: auto; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="controls" role="region" aria-label="Mockup controls">
+  <span>App-wide top bar (mockup) · seeded data · click "Workspaces" for the menu, or a step for its details</span>
+  <span class="seg" role="group" aria-label="View">
+    <button type="button" data-view="argus" aria-pressed="true">Workspace page</button>
+    <button type="button" data-view="history" aria-pressed="false">Run history</button>
+    <button type="button" data-view="phone" aria-pressed="false">Phone</button>
+  </span>
+  <span class="seg" role="group" aria-label="Theme">
+    <button type="button" data-th="light" aria-pressed="false">Light</button>
+    <button type="button" data-th="dark" aria-pressed="false">Dark</button>
+  </span>
+</div>
+
+<div class="stage"><div class="screen" id="screen"></div>
+<div class="notes">
+  <div><h3>Top bar on every page</h3><ul><li>The same bar as the start page, plus "Workspaces".</li><li>No sidebar, drawer or phone bar anywhere.</li><li>Review Queue, Reports: underlined when you are on them.</li></ul></div>
+  <div><h3>Workspace row</h3><ul><li>Only inside a workspace: its name, then its screens.</li><li>The current screen is underlined; the row scrolls sideways on a phone.</li><li>Replaces the "Start › StewardIQ" breadcrumb and the Screens chips.</li></ul></div>
+  <div><h3>Shared parts (PR 2)</h3><ul><li>Process state: 8px square + word, as on the cards.</li><li>Run status: square + word instead of an outlined pill; running is blue.</li><li>Workspace header carries its drawing.</li></ul></div>
+  <div><h3>Process flows (PR 3)</h3><ul><li>A track fills up to the last finished step.</li><li>Running step: blue edge, pulsing square. Waiting: amber edge.</li><li>Click a step: its details and an "Open" button. Esc closes.</li></ul></div>
+</div></div>
+
+<script>
+const A = [".X.X.", "X...X", "XXXXX", "X...X", "X...X"], R = ["XXXX.", "X...X", "XXXX.", "X..X.", "X...X"], P = ["XXXX.", "X...X", "XXXX.", "X....", "X...."];
+let LK = "";
+[[0, A], [6, R], [12, P]].forEach(([o, L]) => L.forEach((row, y) => [...row].forEach((c, x) => { if (c === "X") LK += `M${2 + 12 * (o + x)} ${2 + 12 * y}h10v10h-10z`; })));
+const lockup = `<svg viewBox="0 0 206 62" aria-hidden="true"><path fill="currentColor" d="${LK}"/><rect x="26" y="2" width="10" height="10" fill="var(--apex)"/></svg>`;
+
+// Isometric wireframe (same primitives as the start page's drawings).
+const C = Math.cos(Math.PI / 6), pt = (x, y, z) => [100 + (x - y) * C, 112 + (x + y) * 0.5 - z];
+const poly = (p, c) => `<polygon class="w ${c}" points="${p.map((q) => q.map((v) => v.toFixed(1)).join(",")).join(" ")}"/>`;
+const box = (x, y, z, w, d, h, acc = "") => poly([pt(x, y + d, z), pt(x + w, y + d, z), pt(x + w, y + d, z + h), pt(x, y + d, z + h)], "") + poly([pt(x + w, y, z), pt(x + w, y + d, z), pt(x + w, y + d, z + h), pt(x + w, y, z + h)], "") + poly([pt(x, y, z + h), pt(x + w, y, z + h), pt(x + w, y + d, z + h), pt(x, y + d, z + h)], acc);
+const steward = (acc) => { let t = ""; for (let i = 0; i < 7; i++) t += box(-46, -30, i * 9, 92, 60, 4); return t + box(-46, -30, 66, 92, 60, 4, acc); };
+
+const ARR = `<svg viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M1 3h8L5 7.5z"/></svg>`;
+const WS = [["Start", "#/home"], ["StewardIQ", "#/stewardiq", "wait"], ["Argus", "#/argus", "now"], ["Transition Intel", "#/transitionIntel"], ["R&D Lab", "#/rdLab", "now"], ["Data Hub", "#/dataHub"]];
+let menuOpen = false;
+const topBar = (cur, phone) => `
+<header class="top" role="banner">
+  <a class="brand" href="#" aria-label="ARP start">${lockup}</a>
+  <button class="search" type="button"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14" stroke-linecap="round"/></svg><span>Search or jump to…</span><kbd>⌘K</kbd></button>
+  <div class="end">
+    <button class="ask" type="button">Ask ARP <kbd>⌘J</kbd></button>
+    <nav class="nav" aria-label="Main">
+      <button class="ws-btn" type="button" id="wsBtn" aria-expanded="${menuOpen}" aria-controls="wsPop">Workspaces ${ARR}</button>
+      <div class="pop" id="wsPop" ${menuOpen ? "" : "hidden"}>
+        ${WS.map(([n, h, t], i) => `${i === 1 ? '<span class="rule"></span>' : ""}<a href="#" ${h === cur ? 'aria-current="page"' : ""}>${n}${t ? `<span class="tag t-${t}"><span class="mark m-${t}"></span> ${LABEL[t]}</span>` : ""}</a>`).join("")}
+      </div>
+      <a href="#" ${cur === "#/review" ? 'aria-current="page"' : ""}>Review Queue <span class="count">7 items</span></a>
+      <a href="#" ${cur === "#/reporting" ? 'aria-current="page"' : ""}>Reports</a>
+      <button class="me" type="button" aria-label="dev">D</button>
+    </nav>
+  </div>
+</header>`;
+const row = (cur) => `<nav class="ws-row" aria-label="StewardIQ screens">
+  <a class="ws-name" href="#" ${cur === "#/stewardiq" ? 'aria-current="page"' : ""}>StewardIQ</a><span class="sep"></span>
+  ${[["#/stewardship", "Steward Workflow"], ["#/engagement", "Engagement"], ["#/voting", "Proxy Voting"], ["#/rfp", "RFP Answers"]].map(([h, l]) => `<a href="#" ${h === cur ? 'aria-current="page"' : ""}>${l}</a>`).join("")}
+</nav>`;
+const LABEL = { done: "Done", now: "Running", wait: "Waiting on you", failed: "Last run failed", idle: "No runs yet" };
+// Seeded example state for the three StewardIQ processes.
+const PROCS = [
+  { id: "engage", title: "Engage and escalate", state: "wait", cadence: "Continuous", outcome: "Every issue has an owner, a next step and a documented escalation path.", steps: [
+    ["Monitoring", "Triggers on holdings (incl. Risk Monitoring alerts and votes against management), checked against house policy.", "done", "Done · 14 Nov", "Last activity 14 Nov, 09:12"],
+    ["Selection", "Coverage rules, reading published tiers, decide who is engaged this cycle.", "done", "Done · 14 Nov", "42 companies selected this cycle"],
+    ["Engagement", "Issue record: contacts, severity, milestone and escalation stage.", "done", "Done · 15 Nov", "18 open issues, 3 at stage 2"],
+    ["Drafting", "Dossier, outreach letter and talking points; a person approves before sending.", "wait", "2 decisions open", "2 outreach letters wait for approval"],
+    ["Tracking", "Commitments verified or missed; missed ones escalate and loop back to monitoring.", "idle", "No runs yet", "No commitments due this week"]] },
+  { id: "proxy", title: "Proxy season", state: "now", cadence: "Per meeting, peaks March–June", outcome: "Voting intentions published, votes cast checked against policy, outcomes fed into engagement.", steps: [
+    ["Proxy Voting", "Start a run from meeting agendas; the policy drafts a vote per resolution, a person decides.", "now", "Running", "run_8f1c · 31 of 48 meetings drafted"],
+    ["Steward · Voting", "Decided ballots next to the house policy behind them.", "idle", "No runs yet", "Nothing decided yet this season"],
+    ["Checkpoint", "Review every vote decided against the policy's recommendation, with its reason.", "idle", "No runs yet", "Opens when ballots are decided"],
+    ["Engagement", "A vote against management raises a vote_outcome trigger; open the engagement from Monitoring.", "idle", "No runs yet", "No triggers raised"]] },
+  { id: "client", title: "Client reporting", state: "done", cadence: "Quarterly", outcome: "A client report showing house activity plus only where the client's policy differed.", steps: [
+    ["Client program", "Calibrate the client's program on its benchmark; approve it.", "done", "Done · 30 Sep", "Approved 30 Sep by dev"],
+    ["Client policy", "Decide each exception where the client policy differs from the house.", "done", "Done · 2 Oct", "6 exceptions decided"],
+    ["Reporting", "Client report assembled from house truth plus exceptions; export pptx.", "done", "Done · 3 Oct", "Q3 report exported"],
+    ["Presentations & Reports", "Restyle into the client's template if needed.", "done", "Done · 3 Oct", "Restyled into the client template"]] },
+];
+let open = { engage: 3 }; // the waiting Drafting step starts open, to show the panel
+const flow = (pr) => {
+  const lastDone = pr.steps.reduce((m, st, i) => (st[2] === "done" ? i : m), -1);
+  const items = pr.steps.map(([t, about, st, line], i) => `<li class="${i <= lastDone ? "reached" : ""} on-${st}"><button type="button" class="step s-${st}" data-p="${pr.id}" data-i="${i}" aria-expanded="${open[pr.id] === i}" aria-controls="d-${pr.id}"><b><i>${i + 1}</i>${t}</b><p>${about}</p><span class="st t-${st}"><span class="mark m-${st}"></span>${line}</span></button></li>`).join("");
+  const k = open[pr.id], d = k === undefined ? null : pr.steps[k];
+  const panel = d ? `<div class="detail" id="d-${pr.id}" role="region" aria-label="${d[0]} details"><h3><i>Step ${k + 1} of ${pr.steps.length}</i>${d[0]}</h3><p>${d[1]}</p>
+    <dl><div><dt>Status</dt><dd class="t-${d[2]}"><span class="mark m-${d[2]}"></span>${LABEL[d[2]]}</dd></div><div><dt>Now</dt><dd>${d[2] === "wait" ? `<a class="waitlink" href="#">${d[4]}</a>` : d[4]}</dd></div></dl>
+    <a class="go" href="#">Open ${d[0]} →</a></div>` : "";
+  return `<section class="process"><div class="p-head"><h2>${pr.title}</h2><span class="state t-${pr.state}"><span class="mark m-${pr.state}"></span>${LABEL[pr.state]}</span><span class="chip">${pr.cadence}</span></div>
+    <p class="done-when"><strong>Done when:</strong> ${pr.outcome}</p><ol class="steps">${items}</ol>${panel}</section>`;
+};
+const argusPage = (phone) => `${topBar("#/stewardiq", phone)}${row("#/stewardiq")}
+<main class="main">
+  <div class="head"><div><h1>StewardIQ</h1><p class="lede">Engage companies, vote, and track what they commit to. Click a step for its details; open it from there.</p></div>
+    <svg class="ws-drawing" viewBox="0 0 200 156" aria-hidden="true">${steward("acc-wait")}</svg></div>
+  ${PROCS.map(flow).join("")}
+</main>`;
+const RUNS = [["run_8f21", "Extraction", "S&P Europe 350", "running", "Running", "212 / 350", "2 min ago"], ["run_8f1c", "Proxy voting", "Engagement list Q4", "completed", "Completed", "48 / 48", "1 h ago"], ["run_8e90", "Identity", "S&P Europe 350", "completed", "Completed", "350 / 350", "Yesterday"], ["run_8e71", "Theme", "Water scarcity", "failed", "Failed", "61 / 140", "Yesterday"], ["run_8e02", "Discovery", "S&P Europe 350", "completed", "Completed", "350 / 350", "12 Nov"]];
+const historyPage = () => `${topBar("#/history")}
+<main class="main">
+  <h1>Run history</h1><p class="lede" style="margin-bottom:24px">Every run, newest first. Open one to see its companies and values.</p>
+  <div class="tabs" aria-hidden="true"><span class="on">Run history</span><span>Research plans</span><span>Standing agents</span></div>
+  <div class="table-wrap"><table><thead><tr><th>Run</th><th>Type</th><th>Universe</th><th>Status</th><th>Companies</th><th>Updated</th></tr></thead><tbody>
+  ${RUNS.map(([id, t, u, s, w, c, d]) => `<tr><td class="id">${id}</td><td>${t}</td><td>${u}</td><td><span class="pill ${s === "running" ? "t-now" : s === "failed" ? "t-failed" : "t-ok"}">${w}</span></td><td class="num">${c}</td><td>${d}</td></tr>`).join("")}
+  </tbody></table></div>
+  <div class="was"><span>Today: <span class="old-pill">running</span> outlined pill, running in ink.</span><span>New: <span class="pill t-now">Running</span> square and word, running in blue.</span><span>No workspace row: Run history belongs to no workspace.</span></div>
+</main>`;
+
+const screen = document.getElementById("screen");
+let view = "argus";
+function render() {
+  screen.className = "screen" + (view === "phone" ? " phone" : "");
+  screen.innerHTML = view === "history" ? historyPage() : argusPage(view === "phone");
+  document.getElementById("wsBtn").onclick = () => { menuOpen = !menuOpen; render(); document.getElementById("wsBtn").focus(); };
+  screen.querySelectorAll(".step").forEach((b) => b.onclick = () => { const p = b.dataset.p, i = +b.dataset.i; open[p] = open[p] === i ? undefined : i; render(); screen.querySelector(`.step[data-p="${p}"][data-i="${i}"]`).focus(); });
+}
+document.querySelectorAll("[data-view]").forEach((b) => b.onclick = () => { view = b.dataset.view; menuOpen = false; document.querySelectorAll("[data-view]").forEach((x) => x.setAttribute("aria-pressed", x === b)); render(); });
+const themeBtns = document.querySelectorAll("[data-th]");
+function setTheme(t) { document.documentElement.setAttribute("data-theme", t); themeBtns.forEach((x) => x.setAttribute("aria-pressed", x.dataset.th === t)); }
+themeBtns.forEach((b) => b.onclick = () => setTheme(b.dataset.th));
+setTheme(matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (menuOpen) { menuOpen = false; render(); document.getElementById("wsBtn").focus(); return; }
+  const inPanel = document.activeElement?.closest(".detail, .steps");
+  const sec = inPanel?.closest(".process"); if (!sec) return;
+  const btn = sec.querySelector('.step[aria-expanded="true"]'); if (!btn) return;
+  const p = btn.dataset.p, i = btn.dataset.i; open[p] = undefined; render(); screen.querySelector(`.step[data-p="${p}"][data-i="${i}"]`).focus();
+});
+render();
+</script>
