@@ -57,13 +57,14 @@ test("p2_ac17_design_md", () => {
   const phone = design.slice(design.indexOf("**Phone tables:**"));
   assert.match(phone.slice(0, phone.indexOf("\n")), /card/);
 });
-test("p2_ac18_no_new_important", async () => {
+test("p2_ac18_no_new_important", async (t) => {
   const { execSync } = await import("node:child_process");
   let diff: string;
   try {
     diff = execSync("git diff origin/main -- src/index.css", { cwd: new URL("..", import.meta.url), encoding: "utf8" });
   } catch {
-    return; // no origin/main here (e.g. a shallow checkout); CI's diff check is the PR itself
+    t.skip("origin/main not fetched"); // reported as skipped, never as a pass
+    return;
   }
   const added = diff.split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++") && l.includes("!important"));
   assert.deepEqual(added, []);

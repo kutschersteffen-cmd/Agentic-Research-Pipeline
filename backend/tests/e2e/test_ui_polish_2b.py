@@ -247,10 +247,14 @@ def test_ac16_desktop_table_unchanged(page):  # noqa: F811
 
 
 def test_long_name_clears_pill(page):  # noqa: F811
+    _name_clears_pill(page)
+
+
+def _name_clears_pill(pg):
     long = "A very long extraction run name that keeps going past the pill on a phone"
-    _runs_stub(page, [{"run_id": "e2e-long", "run_type": "extraction", "status": "running", "params": {"label": long}}])
-    _open(page, "/#/argus", 390, 844)
-    card = page.locator('tr[data-row="e2e-long"]')
+    _runs_stub(pg, [{"run_id": "e2e-long", "run_type": "extraction", "status": "running", "params": {"label": long}}])
+    _open(pg, "/#/argus", 390, 844)
+    card = pg.locator('tr[data-row="e2e-long"]')
     pill = _box(card.locator('td[data-label="Status"]'))
     rects = card.locator('td[data-label="Run"] > div').evaluate("e => [...e.getClientRects()].map(r => [r.x, r.y, r.width, r.height])")
     text_rects = card.locator('td[data-label="Run"] > div').evaluate(
@@ -271,3 +275,41 @@ def test_empty_row_card(page):  # noqa: F811
     assert cb["x"] >= rb["x"] - 0.5 and cb["x"] + cb["width"] <= rb["x"] + rb["width"] + 0.5
     assert _style(cell, "borderTopWidth") == "0px"
     assert row.get_by_role("button", name="Start one").is_enabled()
+
+
+def test_focus_ring_over_highlighted_neighbour(page):  # noqa: F811
+    # Final review: a focused tile must also sit above a waiting/failed/pressed neighbour.
+    _open(page, "/#/argus")
+    tiles = page.locator(".argus-tile")
+    tiles.nth(2).click()  # pressed: z-index 1
+    tiles.nth(1).focus()
+    page.keyboard.press("Shift+Tab")
+    page.keyboard.press("Tab")
+    assert int(_style(tiles.nth(1), "zIndex")) > int(_style(tiles.nth(2), "zIndex"))
+
+
+def test_unbreakable_name_stays_inside_the_card(page):  # noqa: F811
+    # Final review: a long unbreakable value must not widen the card past the phone and get clipped.
+    _runs_stub(page, [{"run_id": "e2e-wide", "run_type": "extraction", "status": "running",
+                       "params": {"started_by": "Supercalifragilistic" * 3}}])
+    _open(page, "/#/argus", 390, 844)
+    card = page.locator('tr[data-row="e2e-wide"]')
+    assert _box(card)["x"] + _box(card)["width"] <= 390 - 16 + 0.5
+
+
+def test_long_name_clears_pill_at_large_text(page):  # noqa: F811
+    # Final review: with a larger browser font the pill grows; the name must still clear it.
+    page.add_init_script("document.addEventListener('DOMContentLoaded', () => document.documentElement.style.fontSize = '22px')")
+    _name_clears_pill(page)
+
+
+def test_disabled_chip_readable(page):  # noqa: F811
+    page.route("**/api/me", lambda r: r.fulfill(status=401, json={"detail": "Not signed in"}))
+    _open(page, "/#/argus")
+    mine = page.get_by_role("group", name="Show runs").get_by_role("button", name="Only mine")
+    from tests.e2e.test_ui_polish_2 import _contrast
+    bg = _style(mine, "backgroundColor")
+    if bg == "rgba(0, 0, 0, 0)":
+        bg = _probe(page, "--bg", "backgroundColor")
+    assert _style(mine, "opacity") == "1"
+    assert _contrast(page, _style(mine, "color"), bg) >= 4.5
