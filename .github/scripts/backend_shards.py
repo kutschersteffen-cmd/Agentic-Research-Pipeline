@@ -22,7 +22,7 @@ from collections import Counter
 from pathlib import Path
 
 HEADER = re.compile(r"backend shard: (\d+)/(\d+)")
-COLLECTED = re.compile(r"(\d+) tests? collected")
+COLLECTED = re.compile(r"(\d+)(?:/\d+)? tests? collected")  # "N collected" or, with -m/-k, "N/total collected"
 NODE_ID = re.compile(r"[^\s:]+\.py::")
 
 
@@ -60,7 +60,10 @@ def check(n: int, reports: list[str], collected: list[str]) -> tuple[list[str], 
 
     out += [f"backend shards: missing {k}/{n}" for k in range(1, n + 1) if k not in parts]
     out += [f"backend shards: unexpected {k}/{n}" for k in sorted(parts) if not 1 <= k <= n]
-    out += [f"backend tests: duplicate {nodeid}" for nodeid, c in Counter(ran).items() if c > 1]
+    dups = [nodeid for nodeid, c in Counter(ran).items() if c > 1]
+    out += [f"backend tests: duplicate {nodeid}" for nodeid in dups[:20]]
+    if len(dups) > 20:
+        out.append(f"backend tests: {len(dups) - 20} more duplicates")
     exact = bool(want) and Counter(ran) == Counter(want)
     summary = f"backend tests: {len(ran)} of {len(want)}"
     if not exact:
@@ -103,6 +106,7 @@ def selftest() -> None:
     assert not ok and "backend tests: shards collected different lists" in lines, lines
     lines, ok = run(["backend shard: 1/2\n" + a + "\n" + b, "backend shard: 2/2\n" + c], (f"{a}\n{b}\n\n3 tests collected\n",))
     assert not ok and any("but says 3 tests collected" in line for line in lines), lines
+    assert parse_collected("tests/t.py::a\n\n1/3 tests collected (2 deselected) in 1s\n") == ["tests/t.py::a"]
     assert parse_collected("warn\n\ntests/t.py::a[x y]\n\n== warnings ==\ntests/t.py:3\n  w.py:1: W\n1 test collected in 1s\n") == [
         "tests/t.py::a[x y]"]
 

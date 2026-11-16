@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  BACKEND_SHARDS: 4  # also the length of backend-shard's matrix below
+  BACKEND_SHARDS: 4  # must equal the length of backend-shard's matrix; a mismatch fails the check loudly
 
 jobs:
   # The backend suite runs in BACKEND_SHARDS parts; `Backend (lint + tests)` (the required check)
@@ -15,7 +15,7 @@ jobs:
   # shortcut: the parts are balanced by backend_test_times.json (seconds per file, 15 Nov 2026); when
   # one shard runs much longer than the others, refresh it with `backend_shards.py --times`.
   backend-shard:
-    name: Backend shard ${{ matrix.shard }}/4
+    name: Backend shard ${{ matrix.shard }}/${{ strategy.job-total }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -121,12 +121,12 @@ jobs:
           mkdir -p "$RUNNER_TEMP/backend-shard"
           pytest --collect-only -q > "$RUNNER_TEMP/backend-shard/collected.txt"
 
-      - name: Pytest (part ${{ matrix.shard }} of 4)
+      - name: Pytest (part ${{ matrix.shard }} of ${{ strategy.job-total }})
         env:
           PYTHONPATH: ${{ github.workspace }}/.github/scripts
           COVERAGE_FILE: ${{ runner.temp }}/backend-shard/coverage
         run: >-
-          pytest -q -p pytest_shard --shard=${{ matrix.shard }}/${{ env.BACKEND_SHARDS }}
+          pytest -q -p pytest_shard --shard=${{ matrix.shard }}/${{ strategy.job-total }}
           --shard-report="$RUNNER_TEMP/backend-shard/ran.txt" --cov=arp --cov-report=
           --shard-times="$GITHUB_WORKSPACE/.github/scripts/backend_test_times.json"
 
@@ -137,6 +137,7 @@ jobs:
           name: backend-shard-${{ matrix.shard }}
           path: ${{ runner.temp }}/backend-shard/
           retention-days: 3
+          overwrite: true  # "Re-run failed jobs" uploads the same name again
 
   backend:
     name: Backend (lint + tests)
@@ -155,6 +156,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Install pytest, coverage and diff-cover
+        run: pip install "pytest>=8.2,<10.0" "coverage>=7.5,<8.0" "diff-cover>=10.0,<11.0"
 
       - name: Self-test the shard split and check
         run: |
@@ -178,8 +182,8 @@ jobs:
           test "${{ needs.backend-shard.result }}" = success
 
       - name: Combine coverage
+        if: github.event_name == 'pull_request'
         run: |
-          pip install "coverage>=7.5,<8.0" "diff-cover>=10.0,<11.0"
           coverage combine "$RUNNER_TEMP"/shards/*/coverage
           coverage xml -o coverage.xml
 
