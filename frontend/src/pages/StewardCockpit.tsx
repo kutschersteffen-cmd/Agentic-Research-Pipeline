@@ -84,6 +84,7 @@ function Body({ data }: { data: Cockpit }) {
       <KeyFigures data={data} />
       <Strip days={data.days} />
       <ThemeGrid data={data} />
+      <ProgrammePanel data={data} />
       {data.emissions && <EmissionsCard emissions={data.emissions} />}
       <div className="cockpit-row">
         <EngagementMeetings rows={data.engagement_meetings} ladder={data.ladder} />
@@ -277,6 +278,49 @@ function ThemeGrid({ data }: { data: Cockpit }) {
         </Scroll>
         <Legend items={[["eng", "Engaged"], ["sel", "Selected"]]} />
         <p className="cockpit-grid-scale">{note}</p>
+        </>
+      )}
+    </Card>
+  );
+}
+
+/** Spec stewardship-cockpit-programmes: one bar per programme, all on one scale (the largest `selected`). */
+function ProgrammePanel({ data }: { data: Cockpit }) {
+  const { programmes: rows, programme_totals: t } = data;
+  const max = Math.max(1, ...rows.map((r) => r.selected));
+  const workbench = "#/stewardship/workbench";
+  return (
+    <Card
+      title="Engaged vs selected, by programme"
+      label={rows.length > 0 && <span className="cockpit-label">{fmtCount(t.engaged)} / {fmtCount(t.selected)}</span>}
+    >
+      {rows.length === 0 ? (
+        <>
+          <p className="muted">No programme has members yet.</p>
+          <a href={workbench}>Open the Workbench →</a>
+        </>
+      ) : (
+        <>
+          <ul className="cockpit-programmes">
+            {rows.map((r) => (
+              <li key={r.programme_id}>
+                <span>{r.label}</span>
+                {r.selected === 0 ? (
+                  <span className="cockpit-num muted">–</span>
+                ) : (
+                  <span className="cockpit-cell-bar" aria-hidden="true">
+                    <span className="track" style={{ width: `${(r.selected / max) * 100}%` }} />
+                    <span className="fill" style={{ width: `${(r.engaged / max) * 100}%` }} />
+                  </span>
+                )}
+                <span className="cockpit-num">{r.selected > 0 && `${fmtCount(r.engaged)} / ${fmtCount(r.selected)}`}</span>
+                <span className="muted">{r.proposed > 0 && `+${fmtCount(r.proposed)} proposed`}</span>
+              </li>
+            ))}
+          </ul>
+          <Legend items={[["eng", "Engaged"], ["sel", "Selected"]]} />
+          <p className="muted cockpit-foot">Selected: confirmed programme members. Engaged: with an open engagement.</p>
+          <a href={workbench}>Manage programmes in the Workbench →</a>
         </>
       )}
     </Card>

@@ -46,6 +46,20 @@ class CockpitThemeRow(BaseModel):
     tiers: list[CockpitTierCount]
 
 
+class CockpitProgrammeRow(BaseModel):
+    programme_id: str
+    name: str
+    label: str  # name without a trailing " engagement programme"
+    selected: int  # confirmed members in scope
+    engaged: int  # of them, with an open engagement
+    proposed: int  # proposed members in scope
+
+
+class CockpitProgrammeTotals(BaseModel):
+    selected: int  # distinct companies
+    engaged: int
+
+
 class CockpitEngagementMeeting(BaseModel):
     date: date
     company_id: str
@@ -138,6 +152,8 @@ class CockpitResponse(BaseModel):
     days: list[CockpitDay]
     tiers: list[CockpitTierTotal]
     themes: list[CockpitThemeRow]
+    programmes: list[CockpitProgrammeRow]
+    programme_totals: CockpitProgrammeTotals
     engagement_meetings: list[CockpitEngagementMeeting]
     shareholder_meetings: list[CockpitShareholderMeeting]
     control_gaps: list[CockpitControlGap]
