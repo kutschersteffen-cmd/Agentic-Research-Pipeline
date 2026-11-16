@@ -2301,6 +2301,7 @@ export interface MonitoringTrigger {
   rule: string;
   reason: string;
   engagement_id: string | null;
+  demo?: boolean; // raised by demo votes alone; tracking triggers carry none
 }
 
 export interface MonitoringPreview {
@@ -2638,6 +2639,7 @@ export interface UnifiedTrigger {
   first_seen_month: string;
   is_new: boolean;
   rule: string;
+  demo: boolean; // raised by demo votes alone, as the last monthly run said
   company: string;
 }
 

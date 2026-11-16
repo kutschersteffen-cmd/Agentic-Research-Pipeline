@@ -110,7 +110,7 @@ export function ProfileActionStrip({ companyId, onCompany }: { companyId: string
                     <tr key={t.trigger_id}>
                       <td>{t.type} {t.is_new && <span className="badge badge-mid">New since last run</span>}</td>
                       <td>{t.severity}</td>
-                      <td>{t.reason}</td>
+                      <td>{t.reason} {t.demo && <span className="chip">Demo data</span>}</td>
                       <td>{t.status}</td>
                       <td className="toolbar">
                         {t.status === "open" && (

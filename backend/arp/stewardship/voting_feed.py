@@ -67,7 +67,8 @@ def items(run_store: RunStore) -> list[dict]:
 def issuer_fields(rows: list[dict]) -> dict[str, dict]:
     """issuer id -> `vote.*` company fields, over decided and cast items only."""
     fields: dict[str, dict] = defaultdict(
-        lambda: {"vote.decided": 0, "vote.against_management": 0, "vote.overrode_policy": 0, "vote.last_meeting_date": None}
+        lambda: {"vote.decided": 0, "vote.against_management": 0, "vote.against_management_non_demo": 0, "vote.overrode_policy": 0,
+                 "vote.last_meeting_date": None}
     )
     for r in rows:
         if r["vote"] is None:
@@ -75,6 +76,7 @@ def issuer_fields(rows: list[dict]) -> dict[str, dict]:
         f = fields[r["company_id"]]
         f["vote.decided"] += 1
         f["vote.against_management"] += r["against_management"]
+        f["vote.against_management_non_demo"] += r["against_management"] and not r.get("demo")  # run rows are never demo
         f["vote.overrode_policy"] += r["overrode_policy"]
         f["vote.last_meeting_date"] = max(filter(None, [f["vote.last_meeting_date"], r["meeting_date"]]), default=None)
     return dict(fields)
