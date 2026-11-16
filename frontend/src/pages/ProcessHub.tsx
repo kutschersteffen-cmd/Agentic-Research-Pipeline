@@ -177,8 +177,8 @@ function ProcessFlow({ p, runs, flow, activity }: { p: Process; runs: RunManifes
         <span className="hub-process-meta">
           {state && (
             <span className="hub-process-state">
-              <span className={`hub-dot hub-dot-${state}`} aria-hidden />
-              {STATE_LABEL[state]}
+              <span className={`hub-mark hub-mark-${state}`} aria-hidden />
+              <span className={`hub-status-${state}`}>{STATE_LABEL[state]}</span>
             </span>
           )}
           <span className="chip">{p.cadence}</span>
