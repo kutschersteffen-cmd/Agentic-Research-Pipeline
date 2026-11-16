@@ -247,8 +247,8 @@ def _identity(path: Path) -> tuple | None:
 
 
 def _observation_files(portfolios_dir: Path) -> dict[tuple[str, str], tuple]:
-    """(company folder, file name) -> identity of every observation file (`*.jsonl`, as list_observation_keys). Each
-    folder is opened once and its files stat'ed relative to it: 15 % faster than a stat by path on the showcase."""
+    """(company folder, file name) -> identity of every observation file (`*.jsonl`, as list_observation_keys),
+    following links as latest_observation does. A folder or file removed while the walk lists it counts as gone."""
     out: dict[tuple[str, str], tuple] = {}
     try:
         companies = os.scandir(portfolios_dir / "datapoints")
@@ -258,17 +258,18 @@ def _observation_files(portfolios_dir: Path) -> dict[tuple[str, str], tuple]:
         for company in companies:
             if not company.is_dir():
                 continue
-            fd = os.open(company.path, os.O_RDONLY | os.O_DIRECTORY)
             try:
-                for name in os.listdir(fd):
-                    if name.endswith(".jsonl"):
+                files = os.scandir(company.path)
+            except FileNotFoundError:
+                continue
+            with files:
+                for f in files:
+                    if f.name.endswith(".jsonl"):
                         try:
-                            st = os.stat(name, dir_fd=fd, follow_symlinks=False)
-                        except FileNotFoundError:  # removed while listed: gone
+                            st = f.stat()
+                        except FileNotFoundError:
                             continue
-                        out[(company.name, name)] = (st.st_ino, st.st_ctime_ns, st.st_mtime_ns, st.st_size)
-            finally:
-                os.close(fd)
+                        out[(company.name, f.name)] = (st.st_ino, st.st_ctime_ns, st.st_mtime_ns, st.st_size)
     return out
 
 

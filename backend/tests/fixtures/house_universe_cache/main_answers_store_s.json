@@ -4,6 +4,7 @@
   "published": []
  },
  "/api/stewardship/selection": {
+  "current": true,
   "rows": []
  },
  "/api/stewardship/streams/house/flow": {
@@ -279,6 +280,7 @@
     "decisions": [
      {
       "company": "Company C2",
+      "current": "none",
       "issuer_id": "C2",
       "kind": "tier_change",
       "proposed": "Bilateral",
@@ -287,6 +289,7 @@
      },
      {
       "company": "Company C1",
+      "current": "none",
       "issuer_id": "C1",
       "kind": "tier_change",
       "proposed": "Bilateral",
@@ -641,6 +644,7 @@
     "identifier": "C2",
     "issuer_id": "C2",
     "last_topics": [],
+    "next_meeting": null,
     "norms_violation": null,
     "notes": {
      "count": 0,
@@ -778,6 +782,7 @@
     "identifier": "C1",
     "issuer_id": "C1",
     "last_topics": [],
+    "next_meeting": null,
     "norms_violation": null,
     "notes": {
      "count": 0,

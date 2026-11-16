@@ -37,8 +37,6 @@ ENDPOINTS = (
     "/api/stewardship/tiers", "/api/stewardship/decision-inputs", "/api/stewardship/studio/coverage/inputs",
     "/api/stewardship/studio/monitoring/triggers", "/api/stewardship/streams/house/flow",
 )  # fmt: skip
-# keys whose value is the current time or date, left out of every comparison with a recorded answer
-NOW_KEYS = {"cycle", "current", "today", "generated_at", "as_of_now", "next_meeting"}
 
 
 def fill_store_s(store) -> None:
@@ -94,15 +92,6 @@ def fixture_w(sample_house_universe, pg, monkeypatch, tmp_path):
     app.dependency_overrides.pop(get_stream_store, None)
 
 
-def without_now(value):
-    """`value` with every NOW_KEYS entry removed, at any depth."""
-    if isinstance(value, dict):
-        return {k: without_now(v) for k, v in value.items() if k not in NOW_KEYS}
-    if isinstance(value, list):
-        return [without_now(v) for v in value]
-    return value
-
-
 def answers() -> dict:
     with TestClient(app) as client:
         out = {}
@@ -110,9 +99,10 @@ def answers() -> dict:
             r = client.get(url)
             assert r.status_code == 200, (url, r.text)
             body = r.json()
+            body.pop("cycle", None)  # the current quarter (worklist, selection)
             if url.startswith("/api/stewardship/worklist?"):
                 body.pop("as_of")  # today's date
-            out[url] = without_now(body)
+            out[url] = body
     return out
 
 
@@ -147,7 +137,7 @@ def test_record_main_monthly_run(store_s, monkeypatch):
     monkeypatch.setattr(process, "house_isins", lambda: seen.setdefault("held_isins", real_house_isins()))
     result = monthly_run.run_month(store_s, get_settings(), MONTH, portfolio_ids=["P1"])
     assert result.status == "ran", result
-    _record("main_monthly_run.json", {"universe": without_now(seen["universe"]), "held_isins": seen.get("held_isins")})
+    _record("main_monthly_run.json", {"universe": seen["universe"], "held_isins": seen.get("held_isins")})
 
 
 # --- the unit rows ---
@@ -444,7 +434,7 @@ def test_the_monthly_run_is_unchanged(store_s, monkeypatch):
     monkeypatch.setattr(process, "house_isins", lambda: seen.setdefault("held_isins", real_house_isins()))
     assert monthly_run.run_month(store_s, get_settings(), MONTH, portfolio_ids=["P1"]).status == "ran"
     recorded = json.loads((FIXTURES / "main_monthly_run.json").read_text())
-    assert json.loads(json.dumps({"universe": without_now(seen["universe"]), "held_isins": seen.get("held_isins")}, default=str)) == recorded
+    assert json.loads(json.dumps({"universe": seen["universe"], "held_isins": seen.get("held_isins")}, default=str)) == recorded
 
 
 def test_a_change_during_a_builds_pause_is_seen_by_the_next_caller(store_s, monkeypatch):
@@ -460,3 +450,22 @@ def test_a_change_during_a_builds_pause_is_seen_by_the_next_caller(store_s, monk
     results["b"] = process.house_universe()
     a.join()
     assert _ghg(results["b"]) == 702.0
+
+
+def test_a_symlinked_observation_file_is_never_stale(store_s):
+    # code review B2: the check follows a link to its target, as latest_observation does
+    path = get_settings().portfolios_dir / "datapoints" / "C1" / "ghg_intensity.jsonl"
+    target = path.with_name("target.data")
+    path.rename(target)
+    path.symlink_to(target)
+    assert _ghg(process.house_universe()) == 120.0
+    with target.open("a") as f:
+        f.write(json.dumps({"company_id": "C1", "field_id": "ghg_intensity", "field_name": "ghg_intensity", "value": 999.0,
+                            "source": "internal_api", "observed_at": "2026-10-01"}) + "\n")  # fmt: skip
+    assert _ghg(process.house_universe()) == 999.0
+
+
+def test_the_walk_needs_nothing_posix_only(store_s, monkeypatch):
+    # code review B1: no O_DIRECTORY or dir_fd, so the check runs where they do not exist (Windows)
+    monkeypatch.delattr(os, "O_DIRECTORY")
+    assert len(process.house_universe()["issuers"]) == 2
