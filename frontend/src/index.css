@@ -294,11 +294,20 @@ a.nav-tab { text-decoration: none; }
 }
 /* The intro reads in --text-2; a meta line under a title (.meta) stays muted and small. */
 :where(.page, .page-body) > h1 + :is(.help-text, .muted):not(.meta) { color: var(--text-2); font-size: var(--text-base); }
-/* Workspace overviews at 1100px and up: title left, intro right, bottoms aligned. Inline-blocks keep the page's block flow. */
+/* Workspace overviews at 1100px and up: title | intro | drawing, bottoms aligned. Inline-blocks keep the page's
+   block flow; the 1px keeps rounding from wrapping the third column. */
 @media (min-width: 1100px) {
-  .page.hub:not(.hub-start) > h1:has(+ .help-text) { display: inline-block; width: calc(50% - var(--s-4)); margin: 0 var(--s-8) var(--s-8) 0; vertical-align: bottom; }
-  .page.hub:not(.hub-start) > h1 + .help-text { display: inline-block; width: calc(50% - var(--s-4)); margin: 0 0 var(--s-8); vertical-align: bottom; }
+  .page.hub:not(.hub-start) > h1:has(+ .help-text) { display: inline-block; width: calc((100% - 120px - 2 * var(--s-8) - 1px) / 2); margin: 0 var(--s-8) var(--s-8) 0; vertical-align: bottom; }
+  .page.hub:not(.hub-start) > h1 + .help-text { display: inline-block; width: calc((100% - 120px - 2 * var(--s-8) - 1px) / 2); margin: 0 var(--s-8) var(--s-8) 0; vertical-align: bottom; }
+  .page.hub:not(.hub-start) > .ws-drawing { display: inline-block; width: 120px; height: auto; margin-bottom: var(--s-8); vertical-align: bottom; }
 }
+/* Tablets: the title and intro stack; the drawing sits at the head's top right, and the text keeps clear of it. */
+@media (min-width: 761px) and (max-width: 1099px) {
+  .page.hub:not(.hub-start) { position: relative; }
+  .page.hub:not(.hub-start) > .ws-drawing { position: absolute; top: 0; right: 0; width: 120px; height: auto; }
+  .page.hub:not(.hub-start) > h1, .page.hub:not(.hub-start) > h1 + .help-text { max-width: min(62ch, calc(100% - 120px - var(--s-8))); }
+}
+@media (max-width: 760px) { .page.hub:not(.hub-start) > .ws-drawing { display: none; } }
 /* Above 760px the intro is a lead. */
 @media (min-width: 761px) {
   :where(.page, .page-body) > h1 + :is(.help-text, .muted):not(.meta) { font-size: 1.0625rem; line-height: 1.5; max-width: 62ch; text-wrap: pretty; }

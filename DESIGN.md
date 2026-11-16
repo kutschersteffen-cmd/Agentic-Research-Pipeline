@@ -285,7 +285,7 @@ Where a value's history matters, a four-step trail shows source → extracted �
 
 ### Chips and Badges
 - **Rating badge:** pastel (see Secondary colours), 2px corners.
-- **Status pill:** a square dot and the status word.
+- **Status pill:** an 8px square in the status colour, then the status word; no border (running is `--run` blue).
 - **"Needs you" count:** amber fill with white text (Night: dark text), square (2px), on the top bar's Review Queue link. One number for everything waiting on a decision: open review items, open stewardship decisions and undecided ballots (`GET /api/waiting`); the label names each part. Hidden at 0 and when the count fails.
 - **Tile strip:** related tiles (the Argus steps) sit in one bordered strip. Neighbours share a 1px edge, only the strip's outer corners are rounded, and a waiting, failed or focused tile draws its edge over its neighbours'. At 640px and below the strip stacks into one column.
 - **Filter chips:** a list filter is a group of pill buttons with `aria-pressed` ("All", "Only mine"), exactly one pressed. The pressed chip has an `--accent-tint` fill and ink label, the others a muted label. 32px tall, 44px at 1024px and below.
@@ -306,6 +306,7 @@ Where a value's history matters, a four-step trail shows source → extracted �
 ### Navigation
 - **Top bar:** on every page but the landing page, left to right: the ARP lockup (28px high, where the landing header puts it), search (⌘K), Ask ARP (⌘J), then Workspaces (a menu of Start and the five workspaces, each with its status square and word when it waits, runs or failed), Review Queue with the square signal count, Reports, and the user menu (reviewer name, sign-in, theme, Arcade). The current Review Queue or Reports link is underlined. On a phone it is two rows: lockup, search, Ask ARP and the user menu, then Workspaces, Review Queue and Reports; every control is 44px tall.
 - **Workspace row:** inside a workspace, a 44px row under the top bar: the workspace's name, then its screens as plain links; the current one is underlined 2px in ink. It scrolls sideways inside itself on a phone and never widens the page.
+- **Workspace overview header:** title, intro and the workspace drawing (120px) in three columns at 1100px and up, bottoms aligned; between 761 and 1099px the drawing sits top right of the stacked title and intro; hidden on phones. The drawing lights up like the workspace's start-page card (waiting amber, running blue).
 
 ### Process Card (signature component)
 The start page's five cards (StewardIQ, Argus, Transition Intelligence Platform, R&D Lab, Data Hub). Each card is one link: a figure area with a mono caption ("3 processes") and an isometric wireframe drawing of the workspace, the name, a one-line purpose, and one status line: an 8px square per process (ink = done, run colour = running, signal = waiting on you, red = failed, outlined = idle, dashed = unknown), the state in words (Waiting on you, Running, Last run failed, Up to date, No runs yet, Status unknown) and, where there is one, " · " and the process it concerns. There is no "Open →": the whole card is the link. A card that waits on you takes the waiting edge. The card carries no counts; waiting work is counted in the Review Queue badge. The start page has no Needs you list: each waiting item lives in the Review Queue or its workspace.

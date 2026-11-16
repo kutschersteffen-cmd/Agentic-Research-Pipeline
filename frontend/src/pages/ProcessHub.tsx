@@ -334,6 +334,8 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
   const { flow, error: flowError } = useHouseFlow();
   const usesFlow = w.processes.some((p) => p.steps.some((s) => s.stage));
   const activity = useActivity();
+  // The header drawing lights up like the workspace's start-page card: waiting, running, or not at all.
+  const tone = cardView(w, runs, flow, new Date()).status.tone;
 
   return (
     <div className="page hub">
@@ -341,6 +343,7 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
       <p className="help-text">
         {w.purpose} Open a step to work in its screen; a bar there shows the next step. A dashed <span className="hub-step-handoff-key">re-entered by hand</span> line means that output is typed into the next step, not passed on.
       </p>
+      <WorkspaceDrawing id={w.id} accent={tone === "wait" ? "wait" : tone === "now" ? "now" : null} />
       {error && <p className="error-text" role="alert">Runs could not be loaded: {error}. Step states are unknown until the backend responds.</p>}
       {usesFlow && flowError && <p className="error-text" role="alert">The stewardship flow could not be loaded: {flowError}. Stage numbers are unknown.</p>}
       {failedProcesses(w, runs, flow, activity).map((title) => (

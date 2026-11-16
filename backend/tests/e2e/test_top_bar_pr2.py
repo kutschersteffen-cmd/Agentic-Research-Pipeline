@@ -69,3 +69,52 @@ def test_status_pill_in_phone_card(page):  # noqa: F811
     pill, card = _box(row.locator(".status-pill").first), _box(row)
     assert pill["x"] + pill["width"] <= card["x"] + card["width"] + 0.5
     assert page.evaluate("() => document.documentElement.scrollWidth") <= 390
+
+
+HEAD_DRAWING = ".page.hub > svg.ws-drawing"
+
+
+def test_ac30_drawing_right_of_title(page):  # noqa: F811
+    _open(page, "/#/stewardiq")
+    assert page.locator(".page svg.ws-drawing").count() == 1
+    d, h1 = _box(page.locator(HEAD_DRAWING)), _box(page.locator(".page > h1"))
+    assert abs(d["width"] - 120) <= 1, d
+    assert d["x"] >= h1["x"] + h1["width"] - 0.5, (d, h1)
+
+
+def test_ac30b_drawing_hidden_on_phone(page):  # noqa: F811
+    _open(page, "/#/stewardiq", 390, 844)
+    assert _style(page.locator(HEAD_DRAWING), "display") == "none"
+
+
+def test_ac31_wait_accent(page):  # noqa: F811
+    _open(page, "/#/stewardiq")
+    assert page.locator(f"{HEAD_DRAWING} .ws-accent-wait").count() == 1
+
+
+def test_drawing_now_accent(page):  # noqa: F811
+    _runs_stub(page, [{"run_id": "e2e-cal-now", "run_type": "calibration", "status": "running"}])
+    _open(page, "/#/rdLab")
+    page.locator(f"{HEAD_DRAWING} .ws-accent-now").first.wait_for()
+    assert page.locator(f"{HEAD_DRAWING} .ws-accent-now").count() == 1
+    assert page.locator(f"{HEAD_DRAWING} .ws-accent-wait").count() == 0
+
+
+def _overlap(a, b):
+    return a["x"] < b["x"] + b["width"] - 0.5 and b["x"] < a["x"] + a["width"] - 0.5 and a["y"] < b["y"] + b["height"] - 0.5 and b["y"] < a["y"] + a["height"] - 0.5
+
+
+@pytest.mark.parametrize("width", [1100, 1280, 1440])
+def test_drawing_clears_intro(page, width):  # noqa: F811
+    _open(page, "/#/stewardiq", width, 900)
+    d, intro = _box(page.locator(HEAD_DRAWING)), _box(page.locator(".page > h1 + p"))
+    assert intro["x"] + intro["width"] <= d["x"] + 0.5, (intro, d)
+
+
+@pytest.mark.parametrize("width", [900, 1024])
+def test_drawing_clears_head_tablet(page, width):  # noqa: F811
+    _open(page, "/#/stewardiq", width, 900)
+    d = _box(page.locator(HEAD_DRAWING))
+    assert d and abs(d["width"] - 120) <= 1
+    for sel in (".page > h1", ".page > h1 + p"):
+        assert not _overlap(_box(page.locator(sel)), d), sel

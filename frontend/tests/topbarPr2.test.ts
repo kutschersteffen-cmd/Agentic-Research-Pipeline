@@ -35,3 +35,9 @@ test("pr2_ac29_channel_chip", () => {
   assert.match(line, /className="chip"/);
   assert.doesNotMatch(line, /status-pill/);
 });
+
+test("pr2_design_md", () => {
+  const design = readFileSync(new URL("../../DESIGN.md", import.meta.url), "utf8");
+  assert.match(design, /\*\*Status pill:\*\* [^\n]*square[^\n]*word/);
+  assert.match(design, /Workspace overview header/);
+});
