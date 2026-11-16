@@ -188,4 +188,7 @@ def load(store, settings: Settings, holdings_dir: Path, dataset: Path, echo: Cal
             echo(f"FAIL run {month}: {'; '.join(result.blocked_reasons)}")
             return False
         echo(f"ok run {month}: {result.alerts} alerts, {result.triggers} triggers")
+    from arp.stewardship.universe import fill_observation_cache
+
+    fill_observation_cache(store)  # writes observations_latest.json, so the first Workbench load after a restart is fast
     return True

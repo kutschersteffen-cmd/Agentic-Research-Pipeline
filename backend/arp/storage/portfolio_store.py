@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
+
+from pydantic import TypeAdapter
 
 from arp.schemas.common import CompanyRef, now_iso
 from arp.schemas.portfolio import (
@@ -40,6 +43,11 @@ def _sidecar_lock_path(key: str) -> Path:
 # (portfolios dir, company, field) -> (file path, (inode, ctime_ns, mtime_ns, size, as_of), latest observation):
 # one entry per observation file (see latest_observation).
 _LATEST: dict[tuple[Path, str, str], tuple[str, tuple[int, int, int, int, str | None], DataPointObservation | None]] = {}
+# <portfolios_dir>/observations_latest.json: [company, field, inode, ctime_ns, mtime_ns, size, as_of, observation] per
+# observation file, so a new process fills _LATEST from one file instead of ~81k (spec workbench-review-fixes).
+LATEST_FILE = "observations_latest.json"
+_LATEST_ENTRIES = TypeAdapter(list[tuple[str, str, int, int, int, int, str | None, DataPointObservation | None]])
+logger = logging.getLogger(__name__)
 
 
 class PortfolioStore:
@@ -350,6 +358,33 @@ class PortfolioStore:
         latest = (real or obs)[-1] if obs else None
         _LATEST[key] = (path, version, latest)
         return latest
+
+    def seed_latest_observations(self) -> dict[tuple[str, str], tuple]:
+        """Fills the latest_observation cache from `observations_latest.json`; returns (company, field) -> the file
+        version each entry was written for. latest_observation still checks every entry against its file before
+        use, so a missing or damaged compact file only costs speed: missing is silent, damaged logs one warning."""
+        path = self.portfolios_dir / LATEST_FILE
+        seeded: dict[tuple[str, str], tuple] = {}
+        try:
+            for company_id, field_id, *version, obs in _LATEST_ENTRIES.validate_json(path.read_bytes()):
+                file = str(self.observations_path(company_id, field_id))  # safe_id: a bad id is a damaged file
+                seeded[(company_id, field_id)] = tuple(version)
+                _LATEST[(self.portfolios_dir, company_id, field_id)] = (file, tuple(version), obs)
+        except FileNotFoundError:
+            pass
+        except (OSError, ValueError):  # pydantic's ValidationError is a ValueError
+            logger.warning("Ignored the damaged observation cache file %s", path, exc_info=True)
+        return seeded
+
+    def save_latest_observations(self, keys: Iterable[tuple[str, str]], unchanged_from: dict | None = None) -> bool:
+        """Writes `observations_latest.json` from the cache for `keys` (the files latest_observation has read),
+        unless every entry equals `unchanged_from` (what seed_latest_observations returned). True when written."""
+        entries = [(c, f, *hit[1], hit[2]) for c, f in keys if (hit := _LATEST.get((self.portfolios_dir, c, f)))]
+        if unchanged_from is not None and {(c, f): tuple(v) for c, f, *v, _ in entries} == unchanged_from:
+            return False
+        self.portfolios_dir.mkdir(parents=True, exist_ok=True)
+        atomic_write_text(self.portfolios_dir / LATEST_FILE, _LATEST_ENTRIES.dump_json(entries).decode())
+        return True
 
     def list_observation_keys(self) -> list[tuple[str, str]]:
         """Every (company_id, field_id) pair with at least one recorded
