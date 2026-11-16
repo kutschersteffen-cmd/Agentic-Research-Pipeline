@@ -10965,6 +10965,8 @@ export interface components {
         };
         /** CockpitTopicCount */
         CockpitTopicCount: {
+            /** Abstain */
+            abstain: number;
             /** Against Management */
             against_management: number;
             /** Topic */

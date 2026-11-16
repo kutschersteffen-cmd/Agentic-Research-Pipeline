@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from datetime import date
 
 from pydantic import BaseModel, Field
 from sqlalchemy import select, text
+from sqlalchemy.orm import Session
 
 from arp.db.company_view import resolve_ref
 from arp.db.session import transaction
@@ -181,14 +183,15 @@ def _safe(key: str) -> bool:
     return True
 
 
-def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str, excel_rows: bool = False) -> IntakeReport:
-    """`excel_rows`: rows carry `_row` (set by read_workbook); never true for JSON, whose rows are numbered by index."""
+def intake_engagements(batch: dict[str, list[dict]], dsn: str, source: str, excel_rows: bool = False, session: Session | None = None) -> IntakeReport:
+    """`excel_rows`: rows carry `_row` (set by read_workbook); never true for JSON, whose rows are numbered by index.
+    `session`: write inside the caller's transaction instead of a new one."""
     report = IntakeReport()
     bad = report.rejected
     bad.extend(Rejection(sheet=k, row=0, field="", reason="unknown sheet") for k in batch.keys() - _TABLES.keys())
     if bad:
         return report
-    with transaction(dsn) as s:
+    with nullcontext(session) if session is not None else transaction(dsn) as s:
         num = {sheet: [r["_row"] if excel_rows else i for i, r in enumerate(batch.get(sheet) or [], 1)] for sheet in _TABLES}
         rows = {sheet: [_clean(sheet, n, r, bad) for n, r in zip(num[sheet], batch.get(sheet) or [], strict=True)] for sheet in _TABLES}
         # Resolve and lock the companies first: ids and company_of are read after the locks, so a batch that

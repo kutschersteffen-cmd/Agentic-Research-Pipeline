@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ballotText, cockpitPath, fmtDate, fmtPct, gapText, isWeekend, monthLabel, pct, themeLabel, themeScale } from "../src/lib/cockpit.ts";
+import { ballotText, cockpitPath, fmtDate, fmtPct, gapText, isWeekend, monthLabel, pct, themeLabel, themeScale, topicNote } from "../src/lib/cockpit.ts";
 
 // The page passes route params[1] of `#/stewardiq/cockpit/<as_of>` as `asOf` (AC-73).
 const segment = (hash: string) => hash.replace(/^#\/?/, "").split("/").filter(Boolean)[2];
@@ -73,4 +73,11 @@ test("AC-15, AC-16: the scale line names only the rows that exist", () => {
     themeScale([{ theme: "Climate", selected: 1200 }, { theme: "Other", selected: 2181 }], 2300).note,
     "Theme rows: a full bar is 1,200 companies. All themes and No theme yet: a full bar is 2,300 companies.",
   );
+});
+
+test("topic row with and without votes (spec vote-abstain-and-seed-fixes AC-18, AC-21)", () => {
+  const row = (t: { votes: number; against_management: number; abstain: number }) => `${fmtPct(t.against_management, t.votes)} ${topicNote(t)}`;
+  assert.equal(row({ votes: 0, against_management: 0, abstain: 0 }), "– · 0 of 0 · – abstained or withheld");
+  assert.equal(row({ votes: 3, against_management: 1, abstain: 3 }), "33% · 1 of 3 · 100% abstained or withheld");
+  assert.equal(row({ votes: 1200, against_management: 30, abstain: 6 }), "3% · 30 of 1,200 · 1% abstained or withheld");
 });

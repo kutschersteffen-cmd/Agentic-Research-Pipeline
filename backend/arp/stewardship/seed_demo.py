@@ -23,8 +23,10 @@ from arp.storage.postgres_models import (
     StwContactModel,
     StwEngagementModel,
     StwEventModel,
+    StwEvidenceSuggestionModel,
     StwObjectiveModel,
     StwTransitionModel,
+    StwWatchTopicModel,
     VoteMeetingModel,
 )
 
@@ -188,10 +190,13 @@ def _purge(s, prefix: str) -> None:
     demo_eng = select(StwEngagementModel.engagement_id).where(StwEngagementModel.source == SOURCE)
     demo_obj = select(StwObjectiveModel.objective_id).where(StwObjectiveModel.source == SOURCE)
     foreign = {}  # rows of other sources attached to demo engagements or objectives would break the FKs
-    for model in (StwObjectiveModel, StwActivityModel, StwCommitmentModel, StwTransitionModel):
+    demo_act = select(StwActivityModel.activity_id).where(StwActivityModel.source == SOURCE)
+    for model in (StwObjectiveModel, StwActivityModel, StwCommitmentModel, StwTransitionModel, StwWatchTopicModel, StwEvidenceSuggestionModel):
         attached = model.engagement_id.in_(demo_eng)
         if hasattr(model, "objective_id"):
             attached = attached | model.objective_id.in_(demo_obj)
+        if model is StwEvidenceSuggestionModel:
+            attached = attached | model.activity_id.in_(demo_act)
         n = s.scalar(select(func.count()).select_from(model).where(model.source != SOURCE, attached))
         if n:
             foreign[model.__tablename__] = n
@@ -222,9 +227,9 @@ def seed_demo(dsn: str, n: int = 400, seed: int = 7, xlsx: Path = MSCI_WORLD) ->
     batch: dict[str, list[dict]] = {"engagements": [], "objectives": [], "activities": []}
     for isin, name, sector in picked:
         _company_batch(rng, seed, isin, name, sector, batch)
-    with transaction(dsn) as s:
+    with transaction(dsn) as s:  # one transaction: a failed intake keeps the old seed
         _purge(s, f"s{seed}:")
-    report = intake_engagements(batch, dsn, SOURCE)
-    if report.rejected:  # a bug in this module, not in the user's input
-        raise RuntimeError(f"seed rows rejected: {report.rejected[:3]}")
+        report = intake_engagements(batch, dsn, SOURCE, session=s)
+        if report.rejected:  # a bug in this module, not in the user's input
+            raise RuntimeError(f"seed rows rejected: {report.rejected[:3]}")
     return {k: len(v) for k, v in batch.items()} | {"created": report.created, "updated": report.updated, "unchanged": report.unchanged}

@@ -1,6 +1,7 @@
 """Load the committed N-PX vote CSVs (data/voting/npx_urth/) into vote_meetings, vote_items and vote_decisions
 with source `npx_urth_demo` (spec "Demo data" step 4). Writes the tables directly, not through intake_votes:
-N-PX rows keep the filed vote text, the CSV's for_against_management, and items without a decision."""
+N-PX rows keep the filed vote text and items without a decision. `against_management` follows the vote-intake rule;
+the CSV's for_against_management is not read (it calls every ABSTAIN against management)."""
 
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ from arp.db.company_view import resolve_ref
 from arp.db.session import transaction
 from arp.errors import ClientInputError
 from arp.schemas.common import new_id
-from arp.schemas.vote_ledger import VoteValue
+from arp.schemas.vote_ledger import VoteValue, against_management
 from arp.storage.postgres_models import StwCompanyModel, VoteDecisionModel, VoteItemModel, VoteMeetingModel
 
 SOURCE = "npx_urth_demo"
@@ -27,7 +28,6 @@ _VOTE = {
     "3 YEARS": VoteValue.THREE_YEARS,
 }  # fmt: skip
 _PROPONENT = {"ISSUER": "issuer", "SECURITY HOLDER": "shareholder"}
-_AGAINST = {"AGAINST": True, "FOR": False}
 
 
 def _cusip(value: str) -> str | None:
@@ -84,7 +84,7 @@ class _Companies:
 
 def load_npx(directory: Path, dsn: str) -> dict[str, int]:
     """Create the meetings, items and decisions not stored yet; re-running creates nothing and only refreshes a
-    meeting's company match. Returns the created counts per table."""
+    meeting's company match and a stored decision's `against_management`. Returns the created counts per table."""
     files = sorted(Path(directory).glob("*.csv"))
     if not files:
         raise ClientInputError(f"no .csv files in {directory}")
@@ -104,19 +104,21 @@ def load_npx(directory: Path, dsn: str) -> dict[str, int]:
             desc = r["vote_description"]
             # descriptions run to several KB, too long for the (source, external_id) btree index
             ikey = f"{mkey}:{hashlib.sha1(desc.encode()).hexdigest()[:16]}"
+            rec = r["management_recommendation"].strip().lower()
+            rec = None if rec in ("", "none") else rec
             if ikey not in items:
                 order = descriptions.setdefault(mkey, {})
                 order.setdefault(desc, len(order) + 1)
-                rec = r["management_recommendation"].strip().lower()
                 items[ikey] = {
                     "meeting": mkey, "item_number": str(order[desc]), "description": desc,
                     "categories": [c.strip() for c in r["vote_categories"].split(";") if c.strip()],
-                    "proponent": _PROPONENT.get(r["vote_source"]), "management_recommendation": None if rec in ("", "none") else rec,
+                    "proponent": _PROPONENT.get(r["vote_source"]), "management_recommendation": rec,
                 }  # fmt: skip
             if r["how_voted"]:  # an empty vote leaves the item without a decision
+                vote = _VOTE.get(r["how_voted"], VoteValue.OTHER)
                 decisions[f"{path.name}:{line}"] = {
-                    "item": ikey, "vote": _VOTE.get(r["how_voted"], VoteValue.OTHER).value, "vote_label": r["how_voted"],
-                    "against_management": _AGAINST.get(r["for_against_management"]), "shares_voted": _number(r["record_shares_voted"]),
+                    "item": ikey, "vote": vote.value, "vote_label": r["how_voted"], "shares_voted": _number(r["record_shares_voted"]),
+                    "against_management": against_management(vote, rec),  # the record's own recommendation
                 }  # fmt: skip
 
     created = {"meetings": 0, "items": 0, "decisions": 0}
@@ -155,7 +157,19 @@ def load_npx(directory: Path, dsn: str) -> dict[str, int]:
                 )
         created["items"] = _insert(s, VoteItemModel, new)
 
-        known = set(s.scalars(select(VoteDecisionModel.external_id).where(VoteDecisionModel.source == SOURCE)))
+        known = dict(
+            s.execute(select(VoteDecisionModel.external_id, VoteDecisionModel.against_management).where(VoteDecisionModel.source == SOURCE)).all()
+        )
+        stale: dict[bool | None, list[str]] = {}  # rows loaded before the flag followed the intake rule
+        for ext, v in decisions.items():
+            if ext in known and known[ext] != v["against_management"]:
+                stale.setdefault(v["against_management"], []).append(ext)
+        for flag, exts in stale.items():
+            s.execute(
+                update(VoteDecisionModel)
+                .where(VoteDecisionModel.source == SOURCE, VoteDecisionModel.external_id.in_(exts))
+                .values(against_management=flag)
+            )
         new = [
             {"decision_id": new_id("vote"), "source": SOURCE, "external_id": ext, "item_id": item_ids[v.pop("item")], **v}
             for ext, v in decisions.items()

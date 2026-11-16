@@ -5588,6 +5588,10 @@
    },
    "CockpitTopicCount": {
     "properties": {
+     "abstain": {
+      "title": "Abstain",
+      "type": "integer"
+     },
      "against_management": {
       "title": "Against Management",
       "type": "integer"
@@ -5604,7 +5608,8 @@
     "required": [
      "topic",
      "votes",
-     "against_management"
+     "against_management",
+     "abstain"
     ],
     "title": "CockpitTopicCount",
     "type": "object"
