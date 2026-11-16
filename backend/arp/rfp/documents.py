@@ -24,10 +24,8 @@ SUFFIXES = (".pdf", ".docx")
 class RefDoc:
     id: int
     title: str
-    file: str
     priority: int
     review_by: date
-    retired: bool
     source: SourceDocument  # doc_id `rfpdoc-<id>`, with full_text and page_breaks
 
 
@@ -40,7 +38,9 @@ def parse(name: str, data: bytes) -> tuple[str, list[int]]:
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / f"upload{suffix}"
         path.write_bytes(data)
-        if suffix == ".pdf" and not local_files._has_text_layer(path):
+        with local_files._DOCLING_LOCK:  # pdfium is not thread-safe, and this runs in a worker thread
+            scan = suffix == ".pdf" and not local_files._has_text_layer(path)
+        if scan:
             raise ClientInputError(f"{name} has no text layer; upload the original document.")
         try:
             text, page_breaks, _ = local_files.parse_file_to_text_with_pages(path)
@@ -58,7 +58,7 @@ def doc_out(d: m.RfpReferenceDocument) -> RfpDocumentOut:
 def ref_doc(d: m.RfpReferenceDocument) -> RefDoc:
     source = SourceDocument(doc_id=f"rfpdoc-{d.id}", company_id="rfp", doc_type=DocType.OTHER, title=d.title,
                             full_text=d.full_text, page_breaks=d.page_breaks)
-    return RefDoc(d.id, d.title, d.filename, d.priority, d.review_by, d.status == "retired", source)
+    return RefDoc(d.id, d.title, d.priority, d.review_by, source)
 
 
 def active(s) -> list[RefDoc]:
