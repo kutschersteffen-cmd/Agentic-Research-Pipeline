@@ -318,3 +318,10 @@ def test_disabled_chip_readable(page):  # noqa: F811
         bg = _probe(page, "--bg", "backgroundColor")
     assert _style(mine, "opacity") == "1"
     assert _contrast(page, _style(mine, "color"), bg) >= 4.5
+
+
+def test_filter_chips_leave_other_chips_alone(page):  # noqa: F811
+    # Final check: the filter chips must not restyle the app's existing `.chip` tags (cadence chips on workspace pages).
+    _open(page, "/#/stewardiq")
+    cadence = page.locator(".hub-process .chip").first
+    assert _style(cadence, "cursor") != "pointer" and _box(cadence)["height"] < 32

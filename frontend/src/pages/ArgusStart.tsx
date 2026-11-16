@@ -168,10 +168,10 @@ export function ArgusStart() {
       <div className="argus-body">
         <div>
           <div role="group" aria-label="Show runs" className="filter-chips">
-            <button type="button" className="chip" aria-pressed={!onlyMine} onClick={() => setOnlyMine(false)}>
+            <button type="button" className="filter-chip" aria-pressed={!onlyMine} onClick={() => setOnlyMine(false)}>
               All
             </button>
-            <button type="button" className="chip" aria-pressed={onlyMine} disabled={me === null} onClick={() => setOnlyMine(true)}>
+            <button type="button" className="filter-chip" aria-pressed={onlyMine} disabled={me === null} onClick={() => setOnlyMine(true)}>
               Only mine
             </button>
           </div>
