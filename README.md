@@ -140,7 +140,7 @@ the reporting tests render through headless Chromium and a few storage tests
 need the optional backends. For the full suite, as CI installs it:
 
 ```bash
-pip install -e ".[dev,postgres,opensearch,object_storage,emerging_themes]"
+pip install -e ".[dev,opensearch,object_storage,emerging_themes]"
 python -m playwright install chromium
 ```
 

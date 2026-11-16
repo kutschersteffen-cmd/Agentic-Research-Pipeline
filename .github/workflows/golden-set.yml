@@ -100,7 +100,7 @@ jobs:
 
       - name: Install backend package
         if: steps.key.outputs.present == 'true'
-        run: pip install -e ".[postgres]"
+        run: pip install -e .
 
       - name: Private NLTK data (nltk >= 3.10.4 refuses shared dirs)
         if: steps.key.outputs.present == 'true'

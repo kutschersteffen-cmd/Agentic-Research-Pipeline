@@ -89,9 +89,6 @@ optimize = [
     # disjunctions rather than bounds. Apache-2.0 since SCIP 9.
     "pyscipopt>=5.0",
 ]
-# Empty: Postgres is required now and its packages are in `dependencies`.
-# Kept so existing `pip install -e ".[postgres,...]"` lines keep working.
-postgres = []
 # Opt-in OpenSearch client (arp/storage/opensearch_client.py): user-facing
 # search plus an alternate BM25 retrieval backend for select_evidence.py.
 # Not required for the file/BM25-in-memory default path -- see

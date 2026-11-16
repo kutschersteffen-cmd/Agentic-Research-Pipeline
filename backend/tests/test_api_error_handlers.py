@@ -196,7 +196,6 @@ _503 = [
 _EXTRA = [
     ("arp.storage.opensearch_client", "OpenSearchExtraNotInstalled", 503),
     ("arp.storage.taxonomy_store", "TaxonomyVersionConflict", 503),
-    ("arp.storage.postgres", "PostgresExtraNotInstalled", 503),
     ("arp.storage.document_blob_store", "CaptureStoreError", 503),
     ("arp.storage.object_store_client", "ObjectStoreExtraNotInstalled", 503),
     ("arp.xbrl_pipeline.verify", "CircularRunError", 400),

@@ -198,7 +198,7 @@ jobs:
         id: install
         if: env.DRILL != 'true'
         run: |
-          (cd backend && pip install -e ".[dev,postgres,opensearch,emerging_themes,object_storage]")
+          (cd backend && pip install -e ".[dev,opensearch,emerging_themes,object_storage]")
           (cd frontend && npm ci)
           echo "playwright=$(python -m playwright --version | awk '{print $2}')" >>"$GITHUB_OUTPUT"
 
@@ -339,7 +339,7 @@ jobs:
           echo "holdout commit: $COMMIT"
           # run.py --list starts no app; install the test packages only if collecting rows needs them.
           if ! python .holdout/run.py --list >"$RUNNER_TEMP/list.txt" 2>/dev/null; then
-            (cd backend && pip install -q -e ".[dev,postgres,opensearch,emerging_themes,object_storage]")
+            (cd backend && pip install -q -e ".[dev,opensearch,emerging_themes,object_storage]")
             python .holdout/run.py --list >"$RUNNER_TEMP/list.txt"
           fi
           rm -rf .holdout
