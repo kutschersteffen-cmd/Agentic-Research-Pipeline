@@ -267,10 +267,10 @@ emissions: {total_tco2e: float, engaged_tco2e: float, selected_not_engaged_tco2e
 - Holdings: `store.load_holdings_as_of(as_of, <portfolio ids in scope, or None for all>)`, exactly as
   `arp climate financed-emissions` selects them.
 - Buckets: engaged companies, selected but not engaged, and the rest. The three sum to `total_tco2e` (±0.1 t).
-- `contributors`: the 6 largest companies by `tco2e`, ties by name. `share` = `tco2e / total_tco2e`, 0 to 1, 4
+- `contributors`: the 6 largest companies by `tco2e` rounded to 0.01 t, ties by name, then `company_id` (amended by `cockpit-review-fixes`, 15 Nov 2026). `share` = `tco2e / total_tco2e`, 0 to 1, 4
   decimals. `status` is the first that applies: `in_escalation`, `engaged`, `selected`, `not_selected`. `company` and `sector` come
   from the security's company.
-- `emissions` is `null` when no holdings are in scope or `total_tco2e` is 0.
+- `emissions` is `null` when no holdings are in scope or `total_tco2e`, rounded to 0.01 t, is 0 (amended by `cockpit-review-fixes`, 15 Nov 2026).
 
 ## The page (`#/stewardiq/cockpit`)
 

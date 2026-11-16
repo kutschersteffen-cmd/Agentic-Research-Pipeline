@@ -61,7 +61,7 @@ def test_start_page_user_menu_returns_focus_after_an_outside_click(page):
     page.wait_for_load_state("networkidle")
     page.locator(".start-topbar-me").click()
     page.locator(".hub-hero").click(position={"x": 2, "y": 2})  # outside the menu, on nothing focusable
-    assert not page.locator(".start-topbar-pop").is_visible()
+    assert not page.locator(".start-topbar-user .start-topbar-pop").is_visible()
     # Focus returns one tick after the press (the press itself focuses the page first).
     page.wait_for_function("() => document.activeElement.classList.contains('start-topbar-me')", timeout=2_000)
 
@@ -88,12 +88,113 @@ def test_navigating_to_the_review_queue_loads_it_from_the_api(page):
     assert page.console_errors == []
 
 
-def test_phone_drawer_takes_focus_on_a_screen_without_a_sidebar_link(page):
-    # Most screens have no sidebar entry since the sidebar was cut to nine links;
-    # opening the drawer must still move keyboard focus into it.
-    page.set_viewport_size({"width": 390, "height": 844})
-    page.goto(URL + "/#/argusWalkthrough")  # no sidebar link
+# App-wide top bar (spec 2026-11-15-app-wide-top-bar): the phone drawer is gone, so
+# test_phone_drawer_takes_focus_on_a_screen_without_a_sidebar_link is retired.
+
+ROUTES = ["/#/home", "/#/review", "/#/stewardiq", "/#/argus", "/#/history", "/#/library", "/#/arcade"]
+
+
+def _open(page, path, width=1440, height=900):
+    page.set_viewport_size({"width": width, "height": height})
+    page.goto(URL + path)
     page.wait_for_load_state("networkidle")
-    page.get_by_role("button", name="Open navigation").click()
-    page.wait_for_function("() => document.activeElement?.closest('#app-sidebar') !== null")
-    assert page.evaluate("() => document.activeElement.classList.contains('nav-tab')")
+
+
+@pytest.mark.parametrize("width,height", [(1440, 900), (390, 844)])
+def test_every_route_has_one_banner_and_no_sidebar(page, width, height):
+    # AC-1, AC-1b.
+    for path in ROUTES:
+        _open(page, path, width, height)
+        assert page.get_by_role("banner").count() == 1, path
+        assert page.get_by_role("banner").get_by_role("link", name="ARP start").count() == 1, path
+        assert page.locator(".app-sidebar, .app-topbar").count() == 0, path
+        assert page.get_by_role("button", name="Open navigation").count() == 0, path
+
+
+def test_workspace_row_on_argus(page):
+    # AC-11.
+    _open(page, "/#/argus")
+    row = page.get_by_role("navigation", name="Argus screens")
+    assert row.count() == 1
+    links = row.get_by_role("link")
+    got = [(links.nth(i).inner_text().strip(), links.nth(i).get_attribute("href")) for i in range(links.count())]
+    assert got == [("Argus", "#/argus"), ("New extraction", "#/argus/new"), ("Walkthrough", "#/argusWalkthrough"),
+                   ("XBRL Facts", "#/xbrl"), ("Review Queue", "#/review")]
+    assert links.nth(0).get_attribute("aria-current") == "page"
+
+
+def test_no_row_on_review_detail(page):
+    _open(page, "/#/review/extraction/x")
+    assert page.locator(".ws-row").count() == 0
+
+
+@pytest.mark.parametrize("width", [800, 1024])
+def test_top_bar_fits_tablet_widths(page, width):
+    for path in ["/#/stewardiq", "/#/history"]:
+        _open(page, path, width, 900)
+        assert page.evaluate("() => document.documentElement.scrollWidth") <= width, path
+
+
+def test_top_bar_two_rows_at_360(page):
+    # AC-16, with a long Review Queue badge: one reviewable run reports 123 items.
+    def long_badge(route):
+        resp = route.fetch()
+        body = resp.json()
+        runs = body.get("runs", [])
+        for r in runs:
+            r["review_count"] = 0
+        runs.insert(0, {**(runs[0] if runs else {}), "run_id": "e2e-badge", "run_type": "extraction",
+                        "status": "completed", "review_count": 123, "updated_at": "2026-11-15T00:00:00Z"})
+        route.fulfill(response=resp, json={**body, "runs": runs})
+
+    page.route("**/api/runs", long_badge)
+    _open(page, "/#/stewardiq", 360, 800)
+    assert page.locator(".start-topbar .nav-count").get_attribute("aria-label") == "123 review items waiting on you"
+    boxes = page.evaluate("""() => [...document.querySelectorAll('.start-topbar a, .start-topbar button')]
+        .filter((e) => e.offsetParent !== null && !e.closest('[hidden]')).map((e) => e.getBoundingClientRect())
+        .map((r) => ({top: Math.round(r.top), h: r.height}))""")
+    assert all(b["h"] >= 44 for b in boxes), boxes
+    tops = sorted({b["top"] for b in boxes})
+    rows = [t for i, t in enumerate(tops) if i == 0 or t - tops[i - 1] > 2]
+    assert len(rows) == 2, boxes
+    assert page.evaluate("() => document.documentElement.scrollWidth") <= 360
+
+
+@pytest.mark.parametrize("path", ["/#/stewardiq", "/#/argus"])
+def test_overview_has_no_crumb_or_screens(page, path):
+    # AC-14: the workspace row replaces the breadcrumb and the Screens chips.
+    _open(page, path)
+    assert page.locator(".hub-crumb").count() == 0
+    assert page.locator("nav.hub-screens").count() == 0
+    assert page.get_by_text("Start ›").count() == 0
+
+
+
+def _long_badge(route):
+    resp = route.fetch()
+    body = resp.json()
+    runs = body.get("runs", [])
+    for r in runs:
+        r["review_count"] = 0
+    runs.insert(0, {**(runs[0] if runs else {}), "run_id": "e2e-badge", "run_type": "extraction",
+                    "status": "completed", "review_count": 123, "updated_at": "2026-11-15T00:00:00Z"})
+    route.fulfill(response=resp, json={**body, "runs": runs})
+
+
+@pytest.mark.parametrize("width", [761, 800, 900])
+def test_top_bar_controls_never_overlap_on_tablets(page, width):
+    # Review fix: between 761px and ~850px the search label spilled over the Ask button.
+    page.route("**/api/runs", _long_badge)
+    # A page that does not list runs, so the made-up badge run never has to render as a full manifest.
+    _open(page, "/#/stewardiq", width, 700)
+    overlaps = page.evaluate("""(SEL) => {
+        const els = [...document.querySelectorAll(SEL)].map((e) => [e.className, e.getBoundingClientRect()]);
+        const bad = [];
+        for (let i = 0; i < els.length; i++) for (let j = i + 1; j < els.length; j++) {
+            const [a, c] = [els[i][1], els[j][1]];
+            if (a.left < c.right - 1 && c.left < a.right - 1 && a.top < c.bottom - 1 && c.top < a.bottom - 1) bad.push(els[i][0] + ' x ' + els[j][0]);
+        }
+        return bad; }""", ".start-topbar-brand, .start-topbar-search, .start-topbar-ask, .start-topbar-spaces-btn, "
+        ".start-topbar-nav > a, .start-topbar-me")
+    assert overlaps == []
+    assert page.evaluate("() => { const s = document.querySelector('.start-topbar-search'); return s.scrollWidth <= s.clientWidth + 1; }")
