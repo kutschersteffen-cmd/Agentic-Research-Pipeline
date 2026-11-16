@@ -167,9 +167,14 @@ export function ArgusStart() {
       </section>
       <div className="argus-body">
         <div>
-          <label className="argus-mine">
-            <input type="checkbox" id="argus-only-mine" checked={onlyMine} disabled={me === null} onChange={(e) => setOnlyMine(e.target.checked)} /> Only mine
-          </label>
+          <div role="group" aria-label="Show runs" className="filter-chips">
+            <button type="button" className="chip" aria-pressed={!onlyMine} onClick={() => setOnlyMine(false)}>
+              All
+            </button>
+            <button type="button" className="chip" aria-pressed={onlyMine} disabled={me === null} onClick={() => setOnlyMine(true)}>
+              Only mine
+            </button>
+          </div>
           {filterLine(step) && <p className="argus-filter-line" role="status">{filterLine(step)}</p>}
           <div className="table-wrap">
             <table ref={runsTable} tabIndex={-1} className="data-table stack-on-phone" aria-label="Runs">

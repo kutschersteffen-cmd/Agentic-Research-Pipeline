@@ -2095,6 +2095,12 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-tile-needs { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--hi-ink); font-weight: 600; }
 .argus-body { display: grid; grid-template-columns: minmax(0, 1fr) 18rem; gap: var(--s-6); align-items: start; }
 .argus-mine { min-height: 24px; display: inline-flex; align-items: center; gap: var(--s-1_5); margin-bottom: var(--s-3); }
+.filter-chips { display: flex; flex-wrap: wrap; gap: var(--s-1_5); margin-bottom: var(--s-3); }
+.chip { height: 32px; min-height: 0; margin: 0; padding: 0 var(--s-3); border: 1px solid var(--panel-border); border-radius: var(--r-pill); background: transparent; color: var(--muted); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+.chip:hover:not(:disabled, [aria-pressed="true"]) { color: var(--text); background: var(--well); }
+.chip[aria-pressed="true"], .chip[aria-pressed="true"]:hover { background: var(--accent-tint); border-color: color-mix(in srgb, var(--text) 28%, transparent); color: var(--text); }
+.chip:disabled { opacity: 0.55; cursor: not-allowed; }
+@media (max-width: 1024px) { .chip { height: 44px; } }
 .argus-waiting h2 { margin-top: 0; }
 .argus-waiting-total { font-size: 2.5rem; font-weight: 500; line-height: 1; margin: 0 0 var(--s-3); font-variant-numeric: tabular-nums; }
 .argus-waiting ul { padding-left: var(--s-4); }

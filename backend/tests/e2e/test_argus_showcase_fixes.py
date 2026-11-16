@@ -79,13 +79,13 @@ def test_a_filtered_start_page_says_so_and_offers_show_all(page):
     # AC-80; UI polish 1 F2 moved the link from the header to the workspace row.
     assert page.get_by_role("navigation", name="Argus screens").get_by_role("link", name="Walkthrough").get_attribute("href") == "#/argusWalkthrough"
 
-    page.get_by_label("Only mine").check()
+    page.get_by_role("button", name="Only mine").click()  # UI polish 2 L8: chips, not a checkbox
     process.get_by_role("link").nth(2).click()  # 3 Schema: no run is there
     page.get_by_text("Showing step 3 Schema only.").wait_for()  # AC-76
     assert "No run matches this filter." in table.inner_text() and "No runs yet" not in table.inner_text()  # AC-72
     table.get_by_role("button", name="Show all").click()  # AC-73
     table.get_by_text("Green capex v2").wait_for()
-    assert not page.get_by_label("Only mine").is_checked()
+    assert page.get_by_role("button", name="Only mine").get_attribute("aria-pressed") == "false"
     assert process.locator('[aria-pressed="true"]').count() == 0 and page.get_by_text("Showing step").count() == 0
 
     runs.clear()  # AC-74: nothing at all still reads as before
