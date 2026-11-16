@@ -1,7 +1,7 @@
-import { useId, type RefObject } from "react";
+import { useEffect, useId, type RefObject } from "react";
 import { reviewBadge, workspaceMenuItems } from "../lib/workspaceCard";
 import { workspaceOfRoute } from "../lib/processes";
-import { useMe } from "../lib/reviewer";
+import { useMe, useReviewer } from "../lib/reviewer";
 import { useDisclosure } from "../lib/useDisclosure";
 import { useHouseFlow, useRuns } from "../pages/ProcessHub";
 import { ReviewerField } from "./ReviewerField";
@@ -30,7 +30,10 @@ function WorkspaceLinks({ current }: { current: string }) {
   const { flow } = useHouseFlow();
   return workspaceMenuItems(runs, flow, new Date()).map((i) => (
     <a key={i.href} href={i.href} aria-current={i.href === current ? "page" : undefined}>
-      {i.label}
+      <span className="start-topbar-place">
+        {i.label}
+        <span className="start-topbar-purpose">{i.purpose}</span>
+      </span>
       {i.tone && (
         <span className="start-topbar-tag">
           <span className={`hub-mark hub-mark-${i.tone}`} aria-hidden="true" />
@@ -46,6 +49,11 @@ function WorkspaceLinks({ current }: { current: string }) {
 export function AppTopbar({ active, canAsk, askOpen, askRef, reviewCount, onSearch, onAsk }: Props) {
   const me = useMe();
   const name = me?.name ?? "Account";
+  const [reviewer, setReviewer] = useReviewer();
+  // Signed in, the verified name is the reviewer: flows that still send the typed name (voting) record it.
+  useEffect(() => {
+    if (me && reviewer !== me.name) setReviewer(me.name);
+  }, [me, reviewer, setReviewer]);
   const badge = reviewBadge(reviewCount);
   const user = useDisclosure();
   const spaces = useDisclosure();
@@ -122,7 +130,7 @@ export function AppTopbar({ active, canAsk, askOpen, askRef, reviewCount, onSear
               </span>
             </button>
             <div ref={user.popRef} id={userPopId} className="start-topbar-pop" hidden={!user.open}>
-              <ReviewerField hint={false} />
+              {!me && <ReviewerField hint={false} />}
               <SignedInAs />
               <ThemeSwitch />
               <a href="#/arcade" onClick={() => user.setOpen(false)}>
