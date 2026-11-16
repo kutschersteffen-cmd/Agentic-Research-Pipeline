@@ -67,7 +67,7 @@ this spec does not touch.
 1. The stage pages and the cockpit meet the targets above (AC-1 to AC-10), without memory growing per request (AC-29) and without
    slowing the Workbench after a restart (AC-34, AC-35).
 2. Nothing stale is ever shown: after a change to any input of the list, made by this server or by another process,
-   the next request shows the new data (AC-11 to AC-19, AC-23, AC-30 to AC-32, AC-36, AC-37).
+   the next request shows the new data (AC-11 to AC-19, AC-23, AC-30 to AC-32, AC-36, AC-37, AC-42).
 3. Requests that need the list at the same time wait for one build; a failed build is not kept; one request checks once (AC-20 to AC-22, AC-24, AC-28).
 4. The anti-goals hold: no request sees another's changes (AC-25), nothing is stored (AC-33), #544's compact file stays valid
    (AC-39), answers are unchanged (AC-26, AC-38),
@@ -159,7 +159,8 @@ the check compares (as #491 does). A database change is caught by the row hashes
 
 ### Builds
 
-One build at a time: a request that needs the build being made waits for it. A build that raises is not kept; every
+One build at a time. A request whose check gives the version being built waits for that build and gets its result or
+error. A request whose check gives another version waits for that build to end, then builds its own. A build that raises is not kept; every
 request waiting for it gets the same error (status 500, as today), and the next request builds again.
 
 ### Memory
@@ -274,9 +275,10 @@ Out of scope for the speed rows: `#/stewardship/program` (Client program, a clie
 | AC-36 | Store S, nothing built yet; the build stubbed to pause 1 s after the check | Call 1 builds; during its pause an observation with a new value is appended to one file; after call 1 returns, call 2 runs with no further change | Call 2 logs one more build line (2 in all), and its result shows the appended value | unit |
 | AC-37 | Store S built | `portfolios_dir`, `stewardship_streams_dir` and `identifier_map_path` are pointed at new folders (database unchanged; S's observation files copied there), the new `issuer_sectors.json` giving one of S's companies `{"sector": "S2 Sector"}`; then `house_universe()` | One more build line; that company's `sector` is `S2 Sector` | unit |
 | AC-38 | Store S (source `portfolio`) and Fixture W (source `sample`) | Each of the eight endpoints is called once, with the build installed | Each answer equals the `main` answer | unit |
-| AC-39 | Store S; `observations_latest.json` written in the test by `save_latest_observations` after Store S's files exist; its `format` field set to the value `main`'s (with #544) `_latest_format()` returns, recorded as a fixture before the build starts | The server starts with the build installed | When the start-up fill has finished, `observations_latest.json` has the same content and mtime as before the start (the fill took it as valid and did not write it again) | unit |
+| AC-39 | Store S; `observations_latest.json` written in the test by `universe.fill_observation_cache(store)` (#544) after Store S's files exist, so every entry carries `as_of` = the latest holdings snapshot date; its `format` field set to the value `main`'s (with #544) `_latest_format()` returns, recorded as a fixture before the build starts | The server starts with the build installed | When the start-up fill has finished, `observations_latest.json` has the same content and mtime as before the start (the fill took it as valid and did not write it again) | unit |
 | AC-40 | Store S with source `sample`; one `house_universe()` call done | A caller sets `fields["probe"] = 1` on the first issuer of its result; then `house_universe()` again | The new result's first issuer has no `probe` key | unit |
 | AC-41 | Store S with two holdings snapshot dates; `house_universe()` called once (a kept build of the latest date exists) | The monthly run (`portfolio/monthly_run.py`) for the earlier month | The universe and held ISIN map it uses equal the `main` answers for that month | unit |
+| AC-42 | Store S built; the build stubbed to pause 1 s after it has read every input, before it returns | An observation with value V1 is appended to one file, then thread A calls `house_universe()`; during A's pause an observation with value V2 is appended to the same file, then thread B calls `house_universe()` | B's result shows V2 | unit |
 
 Must not change: `workbench-review-fixes` AC-1 to AC-10 (Workbench speed and the observation cache's freshness): its
 hidden rows run through `Holdout: full`, its unit rows in CI, its warm row is AC-35 here and its restart row AC-34.
