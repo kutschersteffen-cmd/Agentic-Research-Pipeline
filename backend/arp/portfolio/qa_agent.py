@@ -155,7 +155,7 @@ async def answer_question(
         note = next((n for p in reversed(trend) if (n := _simulated_note(store, securities, companies, spec, p.as_of))), "")
         return QAAnswer(
             question=question, resolvable=True, spec=spec, trend=trend, snapshot_dates=[p.as_of for p in trend],
-            answer_text=_template_trend(spec, trend, parsed.scale) + note, vintage={"date_range": list(date_range)},
+            answer_text=_template_trend(spec, trend, parsed.scale, companies) + note, vintage={"date_range": list(date_range)},
             scale=parsed.scale, unit=unit), usage
 
     vintage: dict = {"holdings_as_of": result.as_of}
@@ -171,7 +171,7 @@ async def answer_question(
     used = sorted({max(d for d in ds if d <= result.as_of) for ds in dates_of.values() if ds and ds[0] <= result.as_of})
     return QAAnswer(
         question=question, resolvable=True, spec=spec, result=result, vintage=vintage, snapshot_dates=used,
-        answer_text=_template_answer(spec, result, parsed.scale) + _simulated_note(store, securities, companies, spec, result.as_of),
+        answer_text=_template_answer(spec, result, parsed.scale, companies) + _simulated_note(store, securities, companies, spec, result.as_of),
         scale=parsed.scale, unit=unit), usage
 
 
@@ -192,13 +192,16 @@ def _eur(value: float, scale: str) -> str:
     return f"EUR {value / 1e6:,.2f} million" if scale == "millions" else f"EUR {value:,.0f}"
 
 
-def _scope_and_filter(spec: AnalyticSpec) -> tuple[str, str]:
-    filter_desc = ", ".join(f"{k}={v}" for k, v in spec.security_filter.items()) or "no filter"
+def _scope_and_filter(spec: AnalyticSpec, companies: dict[str, CompanyRef]) -> tuple[str, str]:
+    def term(k: str, v: str) -> str:
+        company = companies.get(v) if k == "company_id" else None
+        return f"{k}={v} ({company.name})" if company else f"{k}={v}"
+    filter_desc = ", ".join(term(k, v) for k, v in spec.security_filter.items()) or "no filter"
     return (f"portfolios={spec.portfolio_filter}" if spec.portfolio_filter else "all portfolios"), filter_desc
 
 
-def _template_trend(spec: AnalyticSpec, trend: list[TrendPoint], scale: str) -> str:
-    scope, filter_desc = _scope_and_filter(spec)
+def _template_trend(spec: AnalyticSpec, trend: list[TrendPoint], scale: str, companies: dict[str, CompanyRef]) -> str:
+    scope, filter_desc = _scope_and_filter(spec, companies)
     start, end = spec.date_range
     lines = [f"Trend from {start} to {end}, {len(trend)} snapshots ({scope}, {filter_desc}, grouped by {spec.group_by}):"]
     for point in trend:
@@ -214,8 +217,8 @@ def _template_trend(spec: AnalyticSpec, trend: list[TrendPoint], scale: str) -> 
     return "\n".join(lines)
 
 
-def _template_answer(spec: AnalyticSpec, result: AggregationResult, scale: str = "units") -> str:
-    scope, filter_desc = _scope_and_filter(spec)
+def _template_answer(spec: AnalyticSpec, result: AggregationResult, scale: str, companies: dict[str, CompanyRef]) -> str:
+    scope, filter_desc = _scope_and_filter(spec, companies)
 
     if spec.metric == "market_value_sum":
         lines = [f"Total: {_eur(result.total_market_value_eur, scale)} ({scope}, {filter_desc}, grouped by {spec.group_by}, as of {result.as_of})."]
