@@ -24,6 +24,8 @@ check what the spec says, not what the implementation happens to do.
   implementation. List any test that fails this in the PR description. Never delete or weaken one.
 - Open the PR in the holdout repo, not in the app repo, and tell the owner the spec slug. The
   implementing PR names the same slug in its description as `Spec: <slug>`.
+- Once its check is green, merge your holdout PR yourself (`merge_method: merge`, `expectedHeadSha`), with
+  no tap, and tell the dispatcher. The same goes for the regression-move PR below.
 - Never paste test code, assertions or expected values into the app repo, its PRs or comments.
 
 ## After the implementing PR merges

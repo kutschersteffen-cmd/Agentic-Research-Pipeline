@@ -90,7 +90,7 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
    also merges the spec PR once its checks are green (`.claude/CLAUDE.md`, button mode).
 2. **Hidden tests** (skip if the spec has no `holdout` rows): *"Attach `kutschersteffen-cmd/holdout`
    with add_repo, then follow the test-writer skill for spec `<slug>`."* This is the only session that
-   may attach `holdout`. Tell the owner to merge the holdout PR once its check is green.
+   may attach `holdout`. It merges its holdout PR itself once the check is green.
 3. **Implement:** *"Implement spec `<slug>` (`docs/superpowers/specs/<file>`). Follow the steward
    skill; the risk label is at least `risk:<intake risk>`; put `Spec: <slug>` in the PR description. Never attach the holdout repo."*
    It also says: *"The dispatcher relays red checks to you; keep one `send_later` check-in as a safety net."*
@@ -153,7 +153,7 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
    merge and tell the owner in one line. If any condition fails or the merge is refused, offer the
    merge button instead.
 6. **Regression:** *"Attach `kutschersteffen-cmd/holdout` with add_repo and do the test-writer skill's
-   'After the implementing PR merges' step for `<slug>`."*
+   'After the implementing PR merges' step for `<slug>`."* It merges that holdout PR itself once green.
 
 ## Waiting
 
