@@ -2752,3 +2752,12 @@ a.vc-box:hover { border-color: var(--text); }
   .data-table.wb-why th { letter-spacing: 0; }
   .data-table.wb-why th:nth-child(3) { white-space: normal; } /* Counts as: two words, two lines */
 }
+/* Phone: every panel table fits the panel's width (no sideways scroll), and the tab strip wraps so all seven tabs show. */
+@media (max-width: 760px) {
+  .wb-panel > .step-tabs { flex-wrap: wrap; overflow-x: visible; padding-bottom: var(--s-2); }
+  .wb-panel-body .data-table { font-size: var(--text-sm); }
+  .wb-panel-body .data-table :is(th, td) { padding-inline: var(--s-1); white-space: normal; overflow-wrap: break-word; }
+  .wb-panel-body .data-table th { letter-spacing: 0; }
+  .wb-panel-body .data-table .num { white-space: nowrap; }
+  .wb-panel-body td.wb-wrap { min-width: 0; }
+}

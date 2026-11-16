@@ -537,6 +537,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
           tab={panel!.tab}
           onTab={(tab) => setPanel((p) => p && { ...p, tab })}
           onStep={step}
+          canStep={{ up: !!neighbour(sorted, openRow.issuer_id, -1), down: !!neighbour(sorted, openRow.issuer_id, 1) }}
           onClose={closePanel}
           onNoteAdded={(n) => patch((rs) => rs.map((r) => (r.issuer_id === n.company_id ? { ...r, notes: { count: r.notes.count + 1, latest: { text: n.text.slice(0, 120), by: n.by, at: n.at } } } : r)))}
         />

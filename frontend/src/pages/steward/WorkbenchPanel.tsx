@@ -37,7 +37,7 @@ function Loading({ error }: { error?: string }) {
 /** The Workbench row's side panel: seven tabs on one company, ↑/↓ to the next row, Esc to close. Non-modal: the
  * table stays usable beside it. Reads only per-company routes; the worklist itself is never re-requested. */
 export function WorkbenchPanel({
-  row, rows, data, scope, tab, onTab, onStep, onClose, onNoteAdded,
+  row, rows, data, scope, tab, onTab, onStep, canStep, onClose, onNoteAdded,
 }: {
   row: WorklistRow;
   rows: WorklistRow[];
@@ -46,6 +46,8 @@ export function WorkbenchPanel({
   tab: PanelTab;
   onTab: (t: PanelTab) => void;
   onStep: (step: 1 | -1) => void;
+  /** Whether a row exists above and below this one in the table's order. */
+  canStep: { up: boolean; down: boolean };
   onClose: () => void;
   onNoteAdded: (n: StewardNote) => void;
 }) {
@@ -82,7 +84,7 @@ export function WorkbenchPanel({
 
   const id = row.issuer_id;
   return (
-    <aside className="wb-panel" role="dialog" aria-modal="false" aria-labelledby="wb-panel-title">
+    <aside className="wb-panel" aria-labelledby="wb-panel-title">
       <header className="wb-panel-head">
         <div>
           <h2 id="wb-panel-title" ref={title} tabIndex={-1}>
@@ -93,10 +95,10 @@ export function WorkbenchPanel({
           </p>
         </div>
         <div className="wb-panel-nav">
-          <button className="secondary" aria-label="Previous company" title="Previous company (↑)" onClick={() => onStep(-1)}>
+          <button className="secondary" aria-label="Previous company" title="Previous company (↑)" disabled={!canStep.up} onClick={() => onStep(-1)}>
             ↑
           </button>
-          <button className="secondary" aria-label="Next company" title="Next company (↓)" onClick={() => onStep(1)}>
+          <button className="secondary" aria-label="Next company" title="Next company (↓)" disabled={!canStep.down} onClick={() => onStep(1)}>
             ↓
           </button>
           <button className="secondary" aria-label="Close the panel" title="Close (Esc)" onClick={onClose}>
@@ -105,7 +107,7 @@ export function WorkbenchPanel({
         </div>
       </header>
       <StepTabs label="Company details" tabs={PANEL_TABS.map((t) => ({ id: t, label: t }))} active={tab} onSelect={(t) => onTab(t as PanelTab)} />
-      <div className="wb-panel-body" role="tabpanel" aria-label={tab} tabIndex={-1 /* a click in the body focuses it, so ↑/↓ scroll here */}>
+      <div className="wb-panel-body" role="tabpanel" aria-label={tab} tabIndex={0 /* Tab reaches it and ↑/↓ scroll it, also when a tab has nothing focusable (WCAG 2.1.1) */}>
         {tab === "Why" && <WhyTab row={row} rows={rows} data={data} />}
         {tab === "Company" && <CompanyTab key={id} row={row} />}
         {tab === "Engagements" && <EngagementsTab key={id} id={id} />}
@@ -361,7 +363,7 @@ function VotesTab({ id }: { id: string }) {
               <tr key={`${v.meeting_date}-${v.item_number}-${i}`}>
                 <td className="mono">{day(v.meeting_date) || "—"}</td>
                 <td className="wb-wrap">{[v.item_number, v.description].filter(Boolean).join(" ") || "—"}</td>
-                <td>{v.management_recommendation ? words(v.management_recommendation) : "—"}</td>
+                <td>{v.management_recommendation ? words(v.management_recommendation).toUpperCase() : "—"}</td>
                 <td>{v.vote_label ?? words(v.vote)}</td>
                 <td>{v.against_management === null ? "—" : v.against_management ? "Yes" : "No"}</td>
                 <td>{v.demo && <Demo />}</td>
@@ -453,7 +455,7 @@ function NotesTab({ id, scope, onAdded }: { id: string; scope: string; onAdded: 
       setText("");
       onAdded(n);
     } catch (e) {
-      setError((e as Error).message);
+      setError(`The note was not saved (${(e as Error).message}). Your text is kept; try again.`);
     } finally {
       setBusy(false);
     }
@@ -471,7 +473,7 @@ function NotesTab({ id, scope, onAdded }: { id: string; scope: string; onAdded: 
       >
         <label className="field-label">
           Add note
-          <textarea rows={3} maxLength={2000} value={text} onChange={(e) => setText(e.target.value)} placeholder="A comment or remark on this company" />
+          <textarea rows={3} maxLength={2000} value={text} readOnly={busy} onChange={(e) => setText(e.target.value)} placeholder="A comment or remark on this company" />
         </label>
         <div className="toolbar">
           <button type="submit" disabled={!actor || !text.trim() || busy} title={actor ? undefined : "Sign in first"}>
