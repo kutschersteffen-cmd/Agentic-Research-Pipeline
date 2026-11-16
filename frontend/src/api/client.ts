@@ -68,6 +68,15 @@ import type {
   SignalExperimentSummary,
   SignalMethod,
   BilateralPick,
+  Confirmed,
+  PortfolioGroup,
+  PriorityPreview,
+  ProgrammeList,
+  ProgrammeDetail,
+  SelectionList,
+  WorkProgramme,
+  Worklist,
+  WorklistScopes,
 } from "../types";
 import { tagQuery } from "../lib/xbrlTags";
 import { encodeRef, factsUrl, type FactFilters } from "../pages/company/companyQuery";
@@ -915,6 +924,23 @@ export const api = {
   ) => request(`/api/stewardship/streams/${encodeURIComponent(streamId)}/exceptions`, { method: "POST", body: JSON.stringify(body) }),
   getIssueCatalogue: () => request<IssueCatalogue>("/api/stewardship/catalogue"),
   getCoverageInputs: () => request<{ contexts: Record<string, unknown>[] }>("/api/stewardship/studio/coverage/inputs"),
+  // The stewardship workbench (spec stewardship-priority-worklist)
+  getWorklist: (scope: string) => request<Worklist>(`/api/stewardship/worklist${buildQuery({ scope })}`),
+  getWorklistScopes: () => request<WorklistScopes>("/api/stewardship/worklist/scopes"),
+  getSelection: (scope: string, cycle?: string) => request<SelectionList>(`/api/stewardship/selection${buildQuery({ scope, cycle })}`),
+  changeSelection: (body: { cycle: string; scope: string; add?: string[]; remove?: string[] }) =>
+    request<SelectionList>("/api/stewardship/selection", jsonBody("POST", body)),
+  confirmSelection: (body: { cycle: string; scope: string }) =>
+    request<Confirmed>("/api/stewardship/selection/confirm", jsonBody("POST", body)),
+  listProgrammes: () => request<ProgrammeList>("/api/stewardship/programmes"),
+  createProgramme: (name: string) => request<WorkProgramme>("/api/stewardship/programmes", jsonBody("POST", { name })),
+  addProgrammeMembers: (programmeId: string, add: string[]) =>
+    request<ProgrammeDetail>(`/api/stewardship/programmes/${encodeURIComponent(programmeId)}/members`, jsonBody("POST", { add })),
+  previewPriority: (content: unknown) =>
+    request<PriorityPreview>("/api/stewardship/studio/priority/preview", jsonBody("POST", { content })),
+  createPortfolioGroup: (body: { name: string; kind: "portfolios" | "companies"; members: string[] }) =>
+    request<PortfolioGroup>("/api/portfolio/groups", jsonBody("POST", body)),
+  getSimulatedSchema: () => request<DataPointSchema>("/api/climate/simulated-schema"),
   previewCoverage: (graph: unknown) =>
     request<CoveragePreview>("/api/stewardship/studio/coverage/preview", { method: "POST", body: JSON.stringify({ graph }) }),
   getMonitoringTriggers: () => request<{ triggers: MonitoringTrigger[] }>("/api/stewardship/studio/monitoring/triggers"),
@@ -1120,6 +1146,10 @@ export const api = {
     request<Storyline>(`/api/reports/${encodeURIComponent(reportId)}/storyline`, { method: "PUT", body: JSON.stringify(storyline) }),
   approveStoryline: (reportId: string) =>
     request<ReportManifest>(`/api/reports/${encodeURIComponent(reportId)}/storyline/approve`, { method: "POST" }),
+  /** Accepts slide `n` (1-based) as it is, clearing the fit ladder's needs-review flag that blocks the download. */
+  approveSlide: async (reportId: string, n: number) => {
+    await authFetch(`${API_BASE}/api/reports/${encodeURIComponent(reportId)}/slides/${n}/approve`, { method: "POST" });
+  },
   getReportFindings: (reportId: string) => request<{ findings: Finding[] }>(`/api/reports/${encodeURIComponent(reportId)}/findings`),
   reportDownloadUrl: (reportId: string, file?: string) =>
     `${API_BASE}/api/reports/${encodeURIComponent(reportId)}/download${buildQuery({ file })}`,

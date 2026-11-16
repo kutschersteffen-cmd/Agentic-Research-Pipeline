@@ -58,7 +58,8 @@ def client_report(root: Path, stream: dict, records: list[EngagementRecord], sla
     house_policy = house_store.active("house_voting")
     names = {i["issuer_id"]: i["name"] for i in sample["issuers"]} | {r.company_id: r.name for r in records}
 
-    tiers = Counter(current_tiers(root, sample, records).values())
+    held = {i["issuer_id"] for i in sample["issuers"]}
+    tiers = Counter(t for i, t in current_tiers(root, sample, records).items() if i in held)
     ctxs = escalation_contexts(root, sample, records, sla_days)
     house = house_escalations(root, ctxs)
     engagements = client_escalations(root, stream["stream_id"], ctxs, house)

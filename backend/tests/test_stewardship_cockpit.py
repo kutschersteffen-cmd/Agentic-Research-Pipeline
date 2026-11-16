@@ -285,11 +285,22 @@ def _run(statuses, policy=("against", "against", "for", "for"), run_id="r1", day
 
 
 @pytest.mark.parametrize(("statuses", "state", "due"), [
-    (["awaiting"] * 4, "awaiting", True), (["cast", "decided", "decided", "declined"], "decided", False), (["cast"] * 4, "cast", False),
+    (["awaiting"] * 4, "awaiting", True), (["cast", "decided", "decided", "decided"], "decided", False), (["cast"] * 4, "cast", False),
 ])  # fmt: skip
 def test_run_ballot_state_ac36_to_ac38(pg, statuses, state, due):
     [row] = cockpit.build(pg, date(2026, 11, 17), _run(statuses), {}, None)["shareholder_meetings"]
     assert (row["items"], row["flagged"], row["ballot_state"], row["action_due"], row["run_id"]) == (4, 2, state, due, "r1")
+
+
+@pytest.mark.parametrize(("statuses", "day", "state", "days", "due"), [
+    (["declined", "cast", "cast", "cast"], "2026-11-19", "declined", 2, True),
+    (["declined", "cast", "cast", "cast"], "2026-11-26", "declined", 9, False),
+    (["awaiting", "declined", "cast", "cast"], "2026-11-19", "awaiting", 2, True),
+])  # fmt: skip
+def test_declined_run_ballot_is_action_due_review_fixes_ac3_to_ac5(pg, statuses, day, state, days, due):
+    # spec cockpit-review-fixes: a declined item has no vote, so the ballot is not settled
+    [row] = cockpit.build(pg, date(2026, 11, 17), _run(statuses, day=day), {}, None)["shareholder_meetings"]
+    assert (row["ballot_state"], row["days_to_meeting"], row["action_due"]) == (state, days, due)
 
 
 def test_run_row_replaces_ledger_meeting_and_latest_run_wins_ac39(pg):
@@ -469,6 +480,19 @@ def test_seed_tiers_cover_every_held_company_by_house_share(client, pg):
     assert len(rows) == 16 and "top_weight" not in {r["rule"] for r in rows.values()}
     assert all(r["inputs"]["holding"]["index_weight_pct"] < 0.05 for r in rows.values())
     assert _get(client, as_of="2026-11-27")["summary"] == {"selected": 17, "engaged_selected": 16, "engaged_outside_selection": 0}
+
+
+def test_seed_tiers_skip_companies_held_at_zero_review_fixes_ac6(client, pg):
+    # spec cockpit-review-fixes: a company held only through 0 EUR holdings is not held, so it gets no tier
+    _demo_stack(pg)
+    store = build_portfolio_store(get_settings())
+    store.save_company(CompanyRef(company_id="isin_XZ0000000001", name="Zero"))
+    store.save_security(SecurityRef(security_id="XZ0000000001", isin="XZ0000000001", name="Zero", asset_class="equity", currency="EUR", company_id="isin_XZ0000000001"))
+    held = store.load_holdings_as_of("2026-11-01", None)
+    store.save_snapshot("D", "2026-11-01", [*held, Holding(holder_id="D", security_id="XZ0000000001", as_of_date="2026-11-01", market_value_eur=0.0)])
+    assert _seed("2026-11-27").exit_code == 0
+    issuers = {r["issuer_id"] for r in TierStore(get_settings().stewardship_streams_dir).all()}
+    assert issuers == {f"isin_XD{i:010d}" for i in range(16)}
 
 
 def test_seed_cockpit_demo_fails_without_enough_held_companies(client, pg):

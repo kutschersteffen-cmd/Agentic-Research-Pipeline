@@ -1311,7 +1311,7 @@ export const CHART_TYPES: ChartType[] = [
   "bar", "column", "stacked_column", "line", "area", "pie", "doughnut", "scatter", "radar", "waterfall", "heatmap", "table",
 ];
 
-export type ChartSpec = Served<S["arp__schemas__reporting__ChartSpec"]>;
+export type ChartSpec = Served<S["arp__schemas__chart_specs__ChartSpec"]>;
 
 export interface TableSpec {
   dataset_id: string;
@@ -2202,7 +2202,20 @@ export interface StewardshipStream {
 }
 
 // Stage studios: versioned house policies (backend/arp/stewardship/policies.py)
-export type StewardPolicyId = "monitoring_rules" | "coverage_rules" | "escalation_rules" | "phrase_blocklist" | "house_voting";
+export type StewardPolicyId = "monitoring_rules" | "coverage_rules" | "escalation_rules" | "phrase_blocklist" | "house_voting" | "priority_weights";
+
+// The stewardship workbench (backend/arp/schemas/worklist.py)
+export type Worklist = Served<S["Worklist"]>;
+export type WorklistRow = Served<S["WorklistRow"]>;
+export type WorklistScope = Served<S["WorklistScope"]>;
+export type SelectionList = Served<S["SelectionList"]>;
+export type WorkProgramme = Served<S["Programme"]>;
+export type ProgrammeDetail = Served<S["ProgrammeDetail"]>;
+export type PriorityPreview = Served<S["PriorityPreview"]>;
+export type PortfolioGroup = Served<S["PortfolioGroup"]>;
+export type WorklistScopes = Served<S["WorklistScopes"]>;
+export type ProgrammeList = Served<S["ProgrammeList"]>;
+export type Confirmed = Served<S["Confirmed"]>;
 
 export interface PolicyVersionMeta {
   version: number;

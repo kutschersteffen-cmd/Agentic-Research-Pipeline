@@ -6,7 +6,8 @@ import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { useMe } from "../lib/reviewer";
 import { STATE_LABEL, cardView, failedProcesses, openCount, processState, stepActivity, stepState, stepStatusLine, type Activity } from "../lib/workspaceCard";
-import { WorkspaceDrawing } from "../components/WorkspaceDrawing";
+import { Drawing, WorkspaceDrawing } from "../components/WorkspaceDrawing";
+import { cockpitDrawing } from "../lib/workspaceDrawing";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
 
@@ -87,6 +88,8 @@ function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | 
   );
 }
 
+const COCKPIT_SHAPES = cockpitDrawing();
+
 export function StartPage() {
   const { runs, error, retry } = useRuns();
   const { flow } = useHouseFlow();
@@ -119,6 +122,17 @@ export function StartPage() {
           <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} />
         ))}
       </div>
+      {/* Not a workspace card: one StewardIQ screen with its own way in, so the cards stay five workspaces. */}
+      <a className="hub-entry" href="#/stewardiq/cockpit" aria-label="Cockpit, StewardIQ" aria-describedby="hub-entry-cockpit-purpose">
+        <span className="hub-entry-fig">
+          <Drawing shapes={COCKPIT_SHAPES} />
+        </span>
+        <span className="hub-card-body">
+          <span className="hub-card-cap hub-entry-cap">StewardIQ</span>
+          <span className="hub-card-name">Cockpit</span>
+          <span className="hub-card-purpose" id="hub-entry-cockpit-purpose">Engagement coverage, upcoming meetings, control gaps, escalation and votes on one page.</span>
+        </span>
+      </a>
     </div>
   );
 }

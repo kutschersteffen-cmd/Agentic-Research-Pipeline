@@ -12,7 +12,7 @@ import pytest
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.schemas.portfolio_monitoring import Alert, AlertCategory
 from arp.stewardship import monitoring, process
-from arp.stewardship.universe import HouseUniverseSetting, from_portfolio
+from arp.stewardship.universe import HouseUniverseSetting, from_portfolio, held_isins, latest_observations
 from arp.storage.portfolio_store import PortfolioStore
 
 
@@ -31,6 +31,18 @@ def test_held_companies_in_the_sample_shape(universe):
     assert sum(weights) == pytest.approx(100, abs=0.1)
     assert all("score.clti" in i["fields"] for i in universe["issuers"])  # placeholder, labelled in the note
     assert "placeholders" in universe["note"]
+
+
+def test_observations_read_once_by_the_caller_give_the_same_universe(tmp_path):
+    """The worklist reads the observations once and hands them in; the universe must not change."""
+    store = PortfolioStore(tmp_path)
+    asyncio.run(generate_demo_dataset(store))
+    observations = latest_observations(store)
+    assert observations, "the demo dataset has observations"
+    assert from_portfolio(store, observations=observations) == from_portfolio(store)
+    held: dict = {}
+    from_portfolio(store, observations=observations, held_isins_out=held)
+    assert held == held_isins(store)  # the vote ledger's ISIN map, built from the same reads
 
 
 def test_a_portfolio_alert_reaches_stewardship_on_held_companies(universe, tmp_path):

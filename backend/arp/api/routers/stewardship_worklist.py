@@ -31,23 +31,29 @@ from arp.schemas.worklist import (
     Worklist,
     WorklistScopes,
 )
-from arp.stewardship import worklist
+from arp.stewardship import universe, worklist
 from arp.stewardship.notes import NoteLog
 from arp.stewardship.policies import PolicyStore, validate_weights
 from arp.stewardship.process import StreamStore, house_universe, load_sample
 from arp.stewardship.programmes import ProgrammeLog, UnknownProgramme
+from arp.stewardship.universe import HouseUniverseSetting
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.portfolio_store_factory import build_portfolio_store
 
 router = APIRouter(prefix="/api/stewardship", tags=["stewardship"])
 
 
-def _inputs(settings: Settings, sample: dict, store=None) -> dict:
-    ids = [i["issuer_id"] for i in sample["issuers"]]
-    return {
-        "meetings": worklist.last_meetings(require_dsn(settings)),
-        "observations": worklist.latest_observations(store or build_portfolio_store(settings), ids),
-    }
+def _load(settings: Settings) -> tuple[dict, object, dict]:
+    """`load_sample()`, the portfolio store and the worklist's inputs. In the portfolio universe the observations
+    are read once, for both the universe and the worklist columns (each read is one file per company and field)."""
+    store = build_portfolio_store(settings)
+    if HouseUniverseSetting(settings.stewardship_streams_dir).get()["source"] == "portfolio":
+        observations = universe.latest_observations(store)
+        sample = load_sample(observations=observations)
+    else:
+        sample = load_sample()
+        observations = worklist.latest_observations(store, [i["issuer_id"] for i in sample["issuers"]])
+    return sample, store, {"meetings": worklist.last_meetings(require_dsn(settings)), "observations": observations}
 
 
 def _scope(key: str, sample: dict, store) -> dict:
@@ -79,11 +85,11 @@ def get_worklist(
     engagements: EngagementStore = Depends(get_engagement_store),
 ) -> dict:
     """One row per company of the scope (house, `portfolio:<id>` or `group:<id>`), computed from stored values on every request."""
-    sample, store = load_sample(), build_portfolio_store(settings)
+    sample, store, inputs = _load(settings)
     resolved = _scope(scope, sample, store)
     return worklist.build(
         streams.root, sample, engagements.list_all(), scope=resolved, funds=_funds(sample, store),
-        labels=worklist.scope_labels(store), **_inputs(settings, sample, store),
+        labels=worklist.scope_labels(store), **inputs,
     )  # fmt: skip
 
 
@@ -106,8 +112,8 @@ def post_priority_preview(
         validate_weights(body.content)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
-    sample, records = load_sample(), engagements.list_all()
-    rows = worklist.house_rows(streams.root, sample, records, today=datetime.now(UTC).date(), **_inputs(settings, sample))
+    (sample, _, inputs), records = _load(settings), engagements.list_all()
+    rows = worklist.house_rows(streams.root, sample, records, today=datetime.now(UTC).date(), **inputs)
     return worklist.preview(body.content, PolicyStore(streams.root).active(worklist.POLICY), rows)
 
 

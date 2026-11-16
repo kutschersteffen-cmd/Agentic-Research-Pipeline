@@ -165,7 +165,7 @@ def test_ac5_process_chips_below_heading_on_phone(page):
 def test_ac10_captions_and_passes_on(page):
     _open(page, "/#/home")
     import re
-    for cap in page.locator(".hub-card-cap").all_inner_texts():
+    for cap in page.locator(".hub-cards .hub-card-cap").all_inner_texts():  # the Cockpit entry below the cards is not a workspace card
         assert re.fullmatch(r"\d+ process(es)?", cap.strip(), re.I), cap
     _open(page, "/#/stewardiq")
     text = page.locator(".hub-step").all_text_contents()  # folded processes' steps too

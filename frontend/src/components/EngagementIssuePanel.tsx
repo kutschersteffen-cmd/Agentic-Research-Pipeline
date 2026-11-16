@@ -303,6 +303,7 @@ export function EngagementIssuePanel({
 
       <div className="panel-section">
         <h3>Commitments</h3>
+        {suggestions.error && <p className="muted">Suggestions unavailable: {suggestions.error}</p>}
         <FoundCommitments ctx={watch} issue={issue} suggestions={suggestions} closed={closed} onSaved={refreshRecord} />
         {issue.commitments.length === 0 && <p className="muted">None logged yet.</p>}
         {issue.commitments.map((c) => (

@@ -81,6 +81,23 @@ def test_parity_ignoring_ids(pg, tmp_path):
     ]
 
 
+def test_list_all_reads_many_companies_like_get_reads_one(pg):
+    """list_all reads every company in one query per table (worklist load time); each record must equal get()."""
+    store = PostgresEngagementStore(pg)
+    _script(store)
+    store.get_or_create("C2", "Beta AG")
+    store.add_contact("C2", Contact(name="Zed", role="IR"))
+    store.add_contact("C2", Contact(name="Amy", role="CFO"))  # contacts keep their append order, not name order
+    for theme in ("water", "board"):
+        _, issue = store.open_issue("C2", "Beta AG", theme=theme, severity=IssueSeverity.LOW, source=TriggerSource.CONTROVERSY_SCREEN)
+        for text in ("Second objective first", "Then this one"):
+            store.add_objective("C2", issue.issue_id, Objective(description=text, objective_type=list(ObjectiveType)[0]))
+    records = store.list_all()
+    assert [r.company_id for r in records] == ["C1", "C2"]
+    assert records == [store.get("C1"), store.get("C2")]
+    assert [c.name for c in records[1].contacts] == ["Zed", "Amy"]
+
+
 def test_children_round_trip_exactly(pg):
     store = PostgresEngagementStore(pg)
     _, issue = store.open_issue("C1", "Acme Corp", theme="climate")

@@ -8982,6 +8982,51 @@
     "title": "DecisionResult",
     "type": "object"
    },
+   "DeckSettings": {
+    "properties": {
+     "detail": {
+      "default": "balanced",
+      "enum": [
+       "concise",
+       "balanced",
+       "comprehensive"
+      ],
+      "title": "Detail",
+      "type": "string"
+     },
+     "max_slides": {
+      "default": 12,
+      "maximum": 25.0,
+      "minimum": 3.0,
+      "title": "Max Slides",
+      "type": "integer"
+     },
+     "profile": {
+      "default": "committee",
+      "enum": [
+       "executive",
+       "client_pitch",
+       "committee",
+       "workshop"
+      ],
+      "title": "Profile",
+      "type": "string"
+     },
+     "purpose": {
+      "default": "recommendation",
+      "enum": [
+       "recommendation",
+       "review",
+       "process",
+       "briefing"
+      ],
+      "title": "Purpose",
+      "type": "string"
+     }
+    },
+    "title": "DeckSettings",
+    "type": "object"
+   },
    "DecomposeRequest": {
     "properties": {
      "description": {
@@ -11692,6 +11737,24 @@
     ],
     "title": "FieldStatus",
     "type": "string"
+   },
+   "Figure": {
+    "properties": {
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "value": {
+      "title": "Value",
+      "type": "string"
+     }
+    },
+    "required": [
+     "value",
+     "label"
+    ],
+    "title": "Figure",
+    "type": "object"
    },
    "FileDecision": {
     "properties": {
@@ -15078,6 +15141,29 @@
      "theme"
     ],
     "title": "NewVersionRequest",
+    "type": "object"
+   },
+   "NextAction": {
+    "properties": {
+     "owner": {
+      "default": "",
+      "title": "Owner",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     },
+     "when": {
+      "default": "",
+      "title": "When",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "title": "NextAction",
     "type": "object"
    },
    "NextMeeting": {
@@ -19192,6 +19278,9 @@
       "title": "Datasets",
       "type": "array"
      },
+     "deck": {
+      "$ref": "#/components/schemas/DeckSettings"
+     },
      "goal": {
       "default": "",
       "title": "Goal",
@@ -19248,7 +19337,7 @@
      "chart": {
       "anyOf": [
        {
-        "$ref": "#/components/schemas/arp__schemas__reporting__ChartSpec"
+        "$ref": "#/components/schemas/arp__schemas__chart_specs__ChartSpec"
        },
        {
         "type": "null"
@@ -20564,6 +20653,28 @@
       ],
       "title": "Assignee"
      },
+     "base_entry_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Base Entry Id"
+     },
+     "document_priority": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Document Priority"
+     },
      "flags": {
       "items": {
        "type": "string"
@@ -20574,6 +20685,17 @@
      "id": {
       "title": "Id",
       "type": "integer"
+     },
+     "kept_share": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kept Share"
      },
      "last_editor": {
       "anyOf": [
@@ -20593,6 +20715,13 @@
      "question": {
       "title": "Question",
       "type": "string"
+     },
+     "segments": {
+      "items": {
+       "$ref": "#/components/schemas/RfpSegment"
+      },
+      "title": "Segments",
+      "type": "array"
      },
      "sources": {
       "items": {
@@ -20616,20 +20745,61 @@
      "flags",
      "assignee",
      "last_editor",
-     "sources"
+     "sources",
+     "document_priority",
+     "base_entry_id",
+     "kept_share",
+     "segments"
     ],
     "title": "RfpQuestionOut",
+    "type": "object"
+   },
+   "RfpSegment": {
+    "properties": {
+     "change": {
+      "enum": [
+       "kept",
+       "added",
+       "removed"
+      ],
+      "title": "Change",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text",
+     "change"
+    ],
+    "title": "RfpSegment",
     "type": "object"
    },
    "RfpSourceOut": {
     "properties": {
      "entry_id": {
-      "title": "Entry Id",
-      "type": "integer"
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Entry Id"
      },
      "entry_question": {
-      "title": "Entry Question",
-      "type": "string"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Entry Question"
      },
      "file": {
       "anyOf": [
@@ -20641,6 +20811,14 @@
        }
       ],
       "title": "File"
+     },
+     "kind": {
+      "enum": [
+       "entry",
+       "document"
+      ],
+      "title": "Kind",
+      "type": "string"
      },
      "location": {
       "anyOf": [
@@ -20658,8 +20836,15 @@
       "type": "string"
      },
      "source": {
-      "title": "Source",
-      "type": "string"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source"
      },
      "written_by": {
       "anyOf": [
@@ -20674,13 +20859,9 @@
      }
     },
     "required": [
-     "entry_id",
-     "entry_question",
+     "kind",
      "quote",
-     "source",
-     "file",
-     "location",
-     "written_by"
+     "file"
     ],
     "title": "RfpSourceOut",
     "type": "object"
@@ -21982,6 +22163,24 @@
     ],
     "title": "SectionLayoutHint",
     "type": "string"
+   },
+   "SectionPlan": {
+    "properties": {
+     "summary": {
+      "default": "",
+      "title": "Summary",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title"
+    ],
+    "title": "SectionPlan",
+    "type": "object"
    },
    "SectorBenchmarksOut": {
     "properties": {
@@ -23733,10 +23932,38 @@
    },
    "Storyline": {
     "properties": {
+     "answer": {
+      "default": "",
+      "title": "Answer",
+      "type": "string"
+     },
      "approved": {
       "default": false,
       "title": "Approved",
       "type": "boolean"
+     },
+     "closing": {
+      "items": {
+       "$ref": "#/components/schemas/NextAction"
+      },
+      "maxItems": 5,
+      "title": "Closing",
+      "type": "array"
+     },
+     "figures": {
+      "items": {
+       "$ref": "#/components/schemas/Figure"
+      },
+      "maxItems": 2,
+      "title": "Figures",
+      "type": "array"
+     },
+     "sections": {
+      "items": {
+       "$ref": "#/components/schemas/SectionPlan"
+      },
+      "title": "Sections",
+      "type": "array"
      },
      "slides": {
       "items": {
@@ -23764,13 +23991,45 @@
    },
    "StorylineSlide": {
     "properties": {
+     "chart_kind": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Chart Kind"
+     },
      "headline": {
       "title": "Headline",
+      "type": "string"
+     },
+     "kicker": {
+      "default": "",
+      "title": "Kicker",
       "type": "string"
      },
      "purpose": {
       "title": "Purpose",
       "type": "string"
+     },
+     "rationale": {
+      "default": "",
+      "title": "Rationale",
+      "type": "string"
+     },
+     "section": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Section"
      },
      "source_refs": {
       "items": {
@@ -23783,6 +24042,17 @@
       "default": "",
       "title": "Subheading",
       "type": "string"
+     },
+     "visual": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Visual"
      }
     },
     "required": [
@@ -28825,7 +29095,7 @@
     "title": "ChartSpec",
     "type": "object"
    },
-   "arp__schemas__reporting__ChartSpec": {
+   "arp__schemas__chart_specs__ChartSpec": {
     "properties": {
      "category_column": {
       "anyOf": [
@@ -41405,6 +41675,60 @@
      }
     },
     "summary": "Render Report",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
+  "/api/reports/{report_id}/slides/{n}/approve": {
+   "post": {
+    "description": "Accept slide `n` (1-based) as it is: clears the fit ladder's `needs_review`, which unblocks the download.",
+    "operationId": "approve_slide_api_reports__report_id__slides__n__approve_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "n",
+      "required": true,
+      "schema": {
+       "title": "N",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Approve Slide Api Reports  Report Id  Slides  N  Approve Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Approve Slide",
     "tags": [
      "reporting"
     ]
