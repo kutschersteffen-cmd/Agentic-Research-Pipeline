@@ -103,7 +103,7 @@ def test_only_the_id_before_equals_is_swapped(env):  # AC-4
     assert alert["rationale"] == f"{DB} cap: DEUTSCHE BANK AG = 60.00% of NAV gt 0.50%"
 
 
-def test_status_change_answer_matches_list_and_store_untouched(env):  # AC-5..AC-9, AC-12, AC-17, AC-18
+def test_status_change_answer_matches_list_and_store_untouched(env):  # AC-8, AC-9, AC-12 (old-way alert), AC-17, AC-18
     _store_old(env["store"], env["rule"], DB, OLD, rule_id="rule_gone")
     [listed] = env["client"].get(ALERTS).json()
     response = _transition(env, DB, listed["alert_id"])
