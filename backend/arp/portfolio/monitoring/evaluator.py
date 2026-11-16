@@ -54,9 +54,10 @@ def list_alerts(store: PortfolioStore, *, status: AlertStatus | None = None) -> 
     return [a for a in alerts if status is None or a.status == status]
 
 
-def with_company_names(alerts: list[Alert], companies: dict[str, CompanyRef], rules: dict[str, AlertRule]) -> list[Alert]:
-    """Read-time fill for the API: `company_name` from the directory, and the company id in an old
-    concentration rationale swapped for that name. The stored event log is never touched."""
+def with_company_names(alerts: list[Alert], companies: dict[str, CompanyRef]) -> list[Alert]:
+    """Read-time fill for the API: `company_name` from the directory, and the company id in a concentration
+    rationale (`<rule name>: <company_id> = ...`) swapped for that name, whether or not the rule still exists
+    under that name. The stored event log is never touched."""
     named: list[Alert] = []
     for alert in alerts:
         company = companies.get(alert.company_id) if alert.company_id else None
@@ -64,12 +65,15 @@ def with_company_names(alerts: list[Alert], companies: dict[str, CompanyRef], ru
             named.append(alert)
             continue
         update: dict = {"company_name": company.name}
-        rule = rules.get(alert.rule_id) if alert.rule_id else None
-        old_prefix = f"{rule.name}: {alert.company_id} = " if rule else None
-        if alert.breach_type == BreachType.HOLDINGS_CAUSED and old_prefix and alert.rationale.startswith(old_prefix):
-            update["rationale"] = f"{rule.name}: {company.name} = " + alert.rationale[len(old_prefix):]
+        if alert.breach_type == BreachType.HOLDINGS_CAUSED:
+            update["rationale"] = alert.rationale.replace(f": {alert.company_id} = ", f": {company.name} = ", 1)
         named.append(alert.model_copy(update=update))
     return named
+
+
+def named_alerts(store: PortfolioStore, alerts: list[Alert]) -> list[Alert]:
+    """The one way the API returns alerts, so the list and the status-change answer read the same."""
+    return with_company_names(alerts, {c.company_id: c for c in store.list_companies()})
 
 
 def _has_open_alert(store: PortfolioStore, scope_id: str, rule_id: str) -> bool:

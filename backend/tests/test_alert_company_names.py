@@ -77,3 +77,58 @@ def test_company_with_cash_and_equity_lines_still_alerts(env):
         Holding(portfolio_id="p1", security_id=sid, as_of_date="2026-11-03", quantity=1, price=mv, market_value=mv, market_value_eur=mv)
         for sid, mv in (("DE0005140008", 10), ("DBCASH", 10), ("CASHEUR", 80))])
     assert [a.company_id for a in evaluate_threshold_rules(store, as_of="2026-11-03")] == [DB]
+
+
+# alerts-company-names-fixes: deleted or renamed rules, and the status-change answer.
+def _transition(env, scope_id, alert_id):
+    return env["client"].post(f"{ALERTS}/{scope_id}/{alert_id}/transition", json={"status": "acknowledged"})
+
+
+def test_deleted_rule_rationale_is_named(env):  # AC-1, AC-2
+    _store_old(env["store"], env["rule"], DB, OLD, rule_id="rule_gone")
+    [alert] = env["client"].get(ALERTS).json()
+    assert (alert["company_name"], alert["rationale"]) == ("DEUTSCHE BANK AG", NEW)
+
+
+def test_renamed_rule_keeps_old_name_and_names_company(env):  # AC-3
+    env["store"].save_rule(env["rule"].model_copy(update={"name": "Top holding cap"}))
+    _store_old(env["store"], env["rule"], DB, OLD)
+    [alert] = env["client"].get(ALERTS).json()
+    assert alert["rationale"] == NEW
+
+
+def test_only_the_id_before_equals_is_swapped(env):  # AC-4
+    _store_old(env["store"], env["rule"], DB, f"{DB} cap: {DB} = 60.00% of NAV gt 0.50%")
+    [alert] = env["client"].get(ALERTS).json()
+    assert alert["rationale"] == f"{DB} cap: DEUTSCHE BANK AG = 60.00% of NAV gt 0.50%"
+
+
+def test_status_change_answer_matches_list_and_store_untouched(env):  # AC-5..AC-9, AC-12, AC-17, AC-18
+    _store_old(env["store"], env["rule"], DB, OLD, rule_id="rule_gone")
+    [listed] = env["client"].get(ALERTS).json()
+    response = _transition(env, DB, listed["alert_id"])
+    assert response.status_code == 200
+    answer = response.json()
+    assert (answer["status"], answer["company_name"], answer["rationale"]) == ("acknowledged", "DEUTSCHE BANK AG", NEW)
+    [after] = env["client"].get(ALERTS).json()
+    assert {k: after[k] for k in ("status", "company_name", "rationale")} == {k: answer[k] for k in ("status", "company_name", "rationale")}
+    raised = env["store"].list_alert_events(DB)[0]["alert"]
+    assert raised["rationale"] == OLD and "company_name" not in raised
+
+
+def test_status_change_unknown_company_and_field_threshold_unchanged(env):  # AC-10, AC-11, AC-13, AC-14
+    unknown = "Single name > 0.5%: isin_XX0000000000 = 7.00% of NAV gt 0.50%"
+    _store_old(env["store"], env["rule"], "isin_XX0000000000", unknown)
+    [alert] = env["client"].get(ALERTS).json()
+    answer = _transition(env, "isin_XX0000000000", alert["alert_id"]).json()
+    assert (answer["company_name"], answer["rationale"]) == (None, unknown)
+    carbon = f"Carbon cap: {DB} = 80 gt 50"
+    _store_old(env["store"], env["rule"], DB, carbon, BreachType.DATA_CAUSED)
+    assert [a["rationale"] for a in env["client"].get(ALERTS).json() if a["company_id"] == DB] == [carbon]
+    carbon_id = next(a["alert_id"] for a in env["client"].get(ALERTS).json() if a["company_id"] == DB)
+    assert _transition(env, DB, carbon_id).json()["rationale"] == carbon
+
+
+def test_status_change_unknown_alert_is_404(env):  # AC-19
+    response = _transition(env, DB, "nope")
+    assert (response.status_code, response.json()["detail"]) == (404, f"No alert 'nope' in scope '{DB}'")
