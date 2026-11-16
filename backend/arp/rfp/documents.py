@@ -24,10 +24,8 @@ SUFFIXES = (".pdf", ".docx")
 class RefDoc:
     id: int
     title: str
-    file: str
     priority: int
     review_by: date
-    retired: bool
     source: SourceDocument  # doc_id `rfpdoc-<id>`, with full_text and page_breaks
 
 
@@ -60,7 +58,7 @@ def doc_out(d: m.RfpReferenceDocument) -> RfpDocumentOut:
 def ref_doc(d: m.RfpReferenceDocument) -> RefDoc:
     source = SourceDocument(doc_id=f"rfpdoc-{d.id}", company_id="rfp", doc_type=DocType.OTHER, title=d.title,
                             full_text=d.full_text, page_breaks=d.page_breaks)
-    return RefDoc(d.id, d.title, d.filename, d.priority, d.review_by, d.status == "retired", source)
+    return RefDoc(d.id, d.title, d.priority, d.review_by, source)
 
 
 def active(s) -> list[RefDoc]:

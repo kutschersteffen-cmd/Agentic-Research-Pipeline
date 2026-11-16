@@ -161,3 +161,39 @@ def test_edited_answer_shows_the_change_line_but_not_its_origin(page):  # spec Â
     card = open_card(page, drafted(FIRM_A, 100, [(FIRM_A, "kept")], status="edited"))
     assert card.get_by_text("Approved answer, unchanged").is_visible()
     assert card.get_by_text("From approved answers only").count() == 0
+
+
+# --- UI review on #545: the reference-documents form and Retire --------------------------------
+
+def documents_page(page):
+    doc = {"id": 4, "title": "Stewardship Statement 2025", "filename": "ref_stmt.docx", "document_date": "2025-12-31",
+           "review_by": "2026-12-31", "priority": 1, "status": "active", "uploaded_by": "dev", "pages": None}
+
+    def listing(route):
+        route.fulfill(json=[doc])
+
+    def retire(route):
+        doc["status"] = "retired"
+        route.fulfill(json=doc)
+
+    page.route("**/api/rfp/documents", listing)
+    page.route("**/api/rfp/documents/4/retire", retire)
+    page.goto(f"{URL}/#/rfp")
+    section = page.locator("section", has=page.get_by_role("heading", name="Reference documents"))
+    section.get_by_role("cell", name="Stewardship Statement 2025").wait_for()
+    return section
+
+
+def test_upload_form_has_visible_labels(page):  # WCAG 3.3.2
+    section = documents_page(page)
+    for label in ("File", "Title", "Document date", "Priority (1 = first)", "Replaces"):
+        assert section.get_by_label(label).first.is_visible(), label
+        assert section.locator("label", has_text=label).first.is_visible(), label
+
+
+def test_focus_moves_to_the_heading_after_retire(page):  # WCAG 2.4.3
+    section = documents_page(page)
+    section.get_by_role("button", name="Retire").focus()
+    page.keyboard.press("Enter")
+    section.get_by_role("cell", name="retired").wait_for()
+    assert page.evaluate("document.activeElement.textContent") == "Reference documents"

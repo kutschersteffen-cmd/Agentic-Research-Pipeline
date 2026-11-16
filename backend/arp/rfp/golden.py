@@ -77,7 +77,7 @@ async def score_drafts(cases: dict, llm: LLMClient, verifier: LLMClient, *, toda
     entries = [Entry(i + 1, e["question"], e["answer"], date.fromisoformat(e.get("review_by", "2099-12-31")))
                for i, e in enumerate(cases["library"])]
     by_id = {e.id: e for e in entries}
-    documents = [RefDoc(i + 1, d["title"], f"{d['title']}.docx", d["priority"], date(2099, 12, 31), False,
+    documents = [RefDoc(i + 1, d["title"], d["priority"], date(2099, 12, 31),
                         SourceDocument(doc_id=f"rfpdoc-{i + 1}", company_id="rfp", doc_type=DocType.OTHER, title=d["title"],
                                        full_text=d["text"]))
                  for i, d in enumerate(cases.get("documents", []))]
