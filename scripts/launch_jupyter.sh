@@ -48,6 +48,11 @@ case "${1:-}" in
     for name in $required; do
       [ -n "$(setting "$name")" ] || { echo "$name is not set (environment or backend/.env)" >&2; missing=1; }
     done
+    # Dev mode here would sign in anyone reaching port 8000 (spec showcase-login-origins); unset means dev.
+    if [ "$(setting ARP_AUTH_MODE)" != "local" ]; then
+      echo "ARP_AUTH_MODE must be local for this launch: run scripts/launch_jupyter.sh users, add the two lines it prints to backend/.env, then up again" >&2
+      missing=1
+    fi
     [ "$missing" = 0 ] || exit 1
     if running; then
       echo "already running (pid $(cat "$pidfile"))"

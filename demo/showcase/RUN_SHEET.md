@@ -13,11 +13,19 @@ Holdings are public ETF holdings files (DWS constituent exports as of 2 Nov 2026
 
 ## Day before
 
+0. Sign-in, once. In the Jupyter terminal: `scripts/launch_jupyter.sh users`. In `config/users.json`, change
+   the first reviewer's `name` to your own name (the release in step 4 records it). Add the two lines it printed
+   (`ARP_AUTH_MODE=local`, `ARP_USERS_FILE=...`) to `backend/.env`; `up` refuses to start without them. Keep the
+   two tokens out of any window you share on screen. The first token is yours; the second is only for a second
+   review. Hand out no token: an analyst who opens the link sees the "Access token" box and nothing else.
 1. In the Jupyter terminal: `scripts/launch_jupyter.sh up`, then `scripts/launch_jupyter.sh check` (the
-   `fetch` line says whether live document search will work; the show does not need it).
+   `fetch` line says whether live document search will work; the show does not need it). Open the printed
+   link in the browser you present from → Open ARP → the round account button at the top right → paste the
+   first token into the "Access token" box and press Enter: it shows "Signed in as <your name> (approver)".
 2. Save the 14 PDFs listed in `demo/showcase/documents.csv` into `demo/showcase/documents/` under their
    `file_name`. Each annual report needs a text layer with the company name on its first pages.
-3. Load the pack, from `backend/`: `python scripts/load_showcase_pack.py`. It takes about 5 minutes
+3. Load the pack, from `backend/`: `ARP_SHOWCASE_TOKEN=<first token> python scripts/load_showcase_pack.py`
+   (its voting run is created as you). It takes about 5 minutes
    (`arp showcase load` alone about 3). Every line must read `ok`; a `skip portfolios` line means #434 is not
    merged yet (T1 and R3 then fall back, see below). Run it again whenever you like: nothing doubles.
 4. Taxonomy for R2: Taxonomy Library → New taxonomy → method "LLM draft (freeform)", theme "Energy transition" →
@@ -142,5 +150,5 @@ No scene of its own has a fallback here: if the A1 run is not finished, show its
 
 There is no reset command. In the bank Jupyter: `scripts/launch_jupyter.sh down`; ask for the Postgres
 database to be dropped and created again (or point `ARP_POSTGRES_DSN` at a fresh one); move `runs/` and
-`data/documents/` aside; `scripts/launch_jupyter.sh up` (it migrates the new database); then the day-before
-list from step 3.
+`data/documents/` aside; keep `config/users.json` and the two sign-in lines in `backend/.env`;
+`scripts/launch_jupyter.sh up` (it migrates the new database); then the day-before list from step 3.

@@ -145,7 +145,7 @@ def test_voting_cast_open_under_showcase_dev_settings(real_client_at):  # AC-10
     hub = real_client_at("10.1.2.3", auth_mode="dev", dev_trusted_networks=["0.0.0.0/0"], allowed_origins=["*"])
     r = hub.post("/api/voting/runs/ac10_none/cast", headers={"Origin": "https://hub.example"})
     assert (r.status_code, r.json()) == (200, NO_VOTES)
-    # the same request with the bank settings off is refused, so the 200 above comes from dev sign-in
+    # the same request with the old showcase settings off is refused, so the 200 above comes from dev sign-in
     other = real_client_at("10.1.2.3", auth_mode="dev", dev_trusted_networks=[])
     assert other.post("/api/voting/runs/ac10_none/cast", headers={"Origin": "https://hub.example"}).status_code == 401
 
