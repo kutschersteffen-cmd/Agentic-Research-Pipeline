@@ -3,6 +3,7 @@ import { api, downloadFile } from "../api/client";
 import { ElapsedLine } from "../components/ElapsedLine";
 import { announce } from "../lib/announce";
 import { importingLine, importResultLine } from "../lib/progress";
+import { errorDetail } from "../lib/themeLayers";
 import { useMe } from "../lib/reviewer";
 import type { RfpDocument, RfpLibraryEntry, RfpProject, RfpProjectSummary, RfpQuestion } from "../types";
 
@@ -30,7 +31,6 @@ function Overview({ onOpen }: { onOpen: (id: number) => void }) {
   const me = useMe();
   const [projects, setProjects] = useState<RfpProjectSummary[] | null>(null);
   const [library, setLibrary] = useState<RfpLibraryEntry[] | null>(null);
-  const [documents, setDocuments] = useState<RfpDocument[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   /** The number of files of a running library import; its result line stays until the next import starts. */
@@ -39,7 +39,6 @@ function Overview({ onOpen }: { onOpen: (id: number) => void }) {
   const load = () => {
     api.listRfpProjects().then(setProjects, (e: Error) => setError(e.message));
     api.listRfpLibrary().then(setLibrary, (e: Error) => setError(e.message));
-    api.listRfpDocuments().then(setDocuments, (e: Error) => setError(e.message));
   };
   useEffect(load, []);
 
@@ -79,20 +78,7 @@ function Overview({ onOpen }: { onOpen: (id: number) => void }) {
     });
   }
 
-  function uploadDocument(ev: React.FormEvent<HTMLFormElement>) {
-    ev.preventDefault();
-    const formEl = ev.currentTarget;
-    const form = new FormData(formEl);
-    const replaces = String(form.get("replaces") ?? "");
-    void act(async () => {
-      await api.uploadRfpDocument(form.get("file") as File, String(form.get("title")), String(form.get("document_date")),
-        Number(form.get("priority")), replaces ? Number(replaces) : null);
-      formEl.reset();
-    });
-  }
-
   const approver = me?.role === "approver";
-  const activeDocuments = documents?.filter((d) => d.status === "active") ?? [];
   return (
     <div className="page">
       <h1>RFP Answers</h1>
@@ -166,49 +152,110 @@ function Overview({ onOpen }: { onOpen: (id: number) => void }) {
         </div>
       </section>
 
-      <section className="card">
-        <h2>Reference documents</h2>
-        <p className="help-text">
-          Used only where the answer library does not answer a question, priority 1 first. PDF or Word, with a text layer.
-        </p>
-        {approver && (
-          <form className="inline-fields" onSubmit={uploadDocument}>
-            <input id="rfp-document-file" name="file" type="file" accept=".pdf,.docx" required aria-label="Reference document file" />
-            <input id="rfp-document-title" name="title" required placeholder="Title" aria-label="Title" />
-            <input id="rfp-document-date" name="document_date" type="date" required aria-label="Document date" />
-            <input id="rfp-document-priority" name="priority" type="number" min={1} step={1} defaultValue={1} required aria-label="Priority" />
-            <select id="rfp-document-replaces" name="replaces" defaultValue="" aria-label="Replaces">
-              <option value="">Replaces nothing</option>
-              {activeDocuments.map((d) => <option key={d.id} value={d.id}>Replaces {d.title}</option>)}
-            </select>
-            <button disabled={busy}>Upload document</button>
-          </form>
-        )}
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead><tr><th>Priority</th><th>Title</th><th>File</th><th>Document date</th><th>Review by</th><th>Status</th><th /></tr></thead>
-            <tbody>
-              {documents?.length === 0 && <tr><td colSpan={7} className="muted">No reference documents yet.</td></tr>}
-              {documents?.map((d) => (
-                <tr key={d.id}>
-                  <td>{d.priority}</td>
-                  <td>{d.title}</td>
-                  <td>{d.filename}</td>
-                  <td>{d.document_date}</td>
-                  <td>{d.review_by}</td>
-                  <td>{d.status}</td>
-                  <td>
-                    {approver && d.status === "active" && (
-                      <button className="secondary" disabled={busy} onClick={() => void act(() => api.retireRfpDocument(d.id))}>Retire</button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <ReferenceDocuments approver={approver} />
     </div>
+  );
+}
+
+/** Reference documents (spec §6): the table for everyone, the upload form and Retire for approvers. Its errors show
+ * here, next to the form, not in the page's alert above the fold. */
+function ReferenceDocuments({ approver }: { approver: boolean }) {
+  const [documents, setDocuments] = useState<RfpDocument[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const running = useRef(false);
+  // a failed reload never hides the error of the action before it
+  const load = () => api.listRfpDocuments().then(setDocuments, (e) => setError((prev) => prev ?? errorDetail(e)));
+  useEffect(() => void load(), []);
+
+  async function act(fn: () => Promise<string>) {
+    if (running.current) return; // a second click while busy does nothing
+    running.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      announce(await fn());
+    } catch (e) {
+      setError(errorDetail(e));
+    } finally {
+      running.current = false;
+      setBusy(false);
+      await load();
+    }
+  }
+
+  function upload(ev: React.FormEvent<HTMLFormElement>) {
+    ev.preventDefault();
+    const formEl = ev.currentTarget;
+    const form = new FormData(formEl);
+    const title = String(form.get("title"));
+    const replaces = String(form.get("replaces") ?? "");
+    void act(async () => {
+      await api.uploadRfpDocument(form.get("file") as File, title, String(form.get("document_date")),
+        Number(form.get("priority")), replaces ? Number(replaces) : null);
+      formEl.reset();
+      return `Uploaded ${title}`;
+    });
+  }
+
+  function retire(d: RfpDocument) {
+    // the button leaves with its row, so focus goes to the section heading rather than the page body
+    void act(async () => {
+      await api.retireRfpDocument(d.id);
+      heading.current?.focus();
+      return `Retired ${d.title}`;
+    });
+  }
+
+  const active = documents?.filter((d) => d.status === "active") ?? [];
+  return (
+    <section className="card rfp-documents">
+      <h2 ref={heading} tabIndex={-1}>Reference documents</h2>
+      <p className="help-text">
+        Used only where the answer library does not answer a question, priority 1 first. PDF or Word, with a text layer.
+      </p>
+      {error && <p className="error-text" role="alert">{error}</p>}
+      {approver && (
+        <form className="inline-fields" onSubmit={upload}>
+          <label className="field-label">File<input id="rfp-document-file" name="file" type="file" accept=".pdf,.docx" required /></label>
+          <label className="field-label">Title<input id="rfp-document-title" name="title" required /></label>
+          <label className="field-label">Document date<input id="rfp-document-date" name="document_date" type="date" required /></label>
+          <label className="field-label">Priority (1 = first)<input id="rfp-document-priority" name="priority" type="number" min={1} step={1} defaultValue={1} required /></label>
+          <label className="field-label">Replaces
+            <select id="rfp-document-replaces" name="replaces" defaultValue="">
+              <option value="">Nothing</option>
+              {active.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}
+            </select>
+          </label>
+          {/* aria-disabled, not disabled: a focused button that becomes disabled drops focus to <body> */}
+          <button aria-disabled={busy}>Upload document</button>
+        </form>
+      )}
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead><tr><th>Priority</th><th>Title</th><th>File</th><th>Document date</th><th>Review by</th><th>Status</th><th /></tr></thead>
+          <tbody>
+            {documents?.length === 0 && <tr><td colSpan={7} className="muted">No reference documents yet.</td></tr>}
+            {documents?.map((d) => (
+              <tr key={d.id}>
+                <td>{d.priority}</td>
+                <td>{d.title}</td>
+                <td>{d.filename}</td>
+                <td>{d.document_date}</td>
+                <td>{d.review_by}</td>
+                <td>{d.status}</td>
+                <td>
+                  {approver && d.status === "active" && (
+                    <button className="secondary" aria-disabled={busy} onClick={() => retire(d)}>Retire</button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 

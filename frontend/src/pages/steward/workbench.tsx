@@ -25,7 +25,9 @@ import {
 } from "../../lib/workbench";
 import { neighbour, type PanelTab } from "../../lib/workbenchPanel";
 import type { PriorityPreview, SelectionList, WorkProgramme, Worklist, WorklistRow, WorklistScope } from "../../types";
+import { useRefetchOnFocus } from "../../lib/useRefetchOnFocus";
 import { DataTable, RuleEditor, Section, VersionsPanel, usePolicy, useActor } from "./common";
+import { NewHighTriggerTag } from "./NewHighTriggerTag";
 import { WorkbenchPanel } from "./WorkbenchPanel";
 import { filterRows, type Filter } from "../../lib/workbenchFilters";
 import { FilterBuilder } from "./workbenchFilters";
@@ -73,7 +75,7 @@ function Cell({ col, row, asOf, onRemove }: { col: Column; row: WorklistRow; asO
       return tierText(row);
     case "triggers": {
       const t = row.triggers;
-      return t.high + t.medium + t.low === 0 ? "—" : `H ${t.high} · M ${t.medium} · L ${t.low}`;
+      return <><NewHighTriggerTag row={row} />{t.high + t.medium + t.low === 0 ? "—" : `H ${t.high} · M ${t.medium} · L ${t.low}`}</>;
     }
     case "open_engagements":
       return row.open_engagements;
@@ -81,6 +83,8 @@ function Cell({ col, row, asOf, onRemove }: { col: Column; row: WorklistRow; asO
       return row.escalated;
     case "overdue_commitments":
       return row.overdue_commitments;
+    case "broken_commitments":
+      return row.broken_commitments;
     case "next_meeting": {
       if (!row.next_meeting) return "—";
       const m = nextMeetingText(row.next_meeting, asOf);
@@ -160,16 +164,21 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   // A response for a scope the user has already left is dropped.
   const wanted = useRef(scope);
   wanted.current = scope;
-  const load = useCallback(async (key: string) => {
+  // A refetch response older than a local change (selection, programme, note, pick) would undo it on screen: it is dropped.
+  const changes = useRef(0);
+  const load = useCallback(async (key: string, background = false) => {
     setLoading(true);
-    setError(null);
+    if (!background) setError(null);
+    const seen = changes.current;
     try {
       const w = await api.getWorklist(key);
-      if (wanted.current !== key) return;
+      if (wanted.current !== key || (background && changes.current !== seen)) return;
       setData(w);
+      setError(null);
       api.getSelection(key, w.cycle).then((s) => wanted.current === key && setSelection(s), () => undefined);
     } catch (e) {
-      if (wanted.current === key) setError((e as Error).message);
+      // A failed refetch on focus keeps the rows on screen without an error banner; the next one tries again.
+      if (wanted.current === key && !background) setError((e as Error).message);
     } finally {
       if (wanted.current === key) setLoading(false);
       onRowsShown?.();
@@ -179,6 +188,8 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   useEffect(() => {
     load(scope);
   }, [load, scope]);
+  // New triggers show without a reload: refetch when the tab is back in view, never on top of a running load.
+  useRefetchOnFocus(() => (loading ? undefined : load(scope, true)));
   // The rows come first: the rest is read once they are on screen.
   const loaded = data !== null;
   useEffect(() => {
@@ -244,7 +255,10 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
       setBusy(false);
     }
   }
-  const patch = (f: (rows: WorklistRow[]) => WorklistRow[]) => setData((d) => (d ? { ...d, rows: f(d.rows) } : d));
+  const patch = (f: (rows: WorklistRow[]) => WorklistRow[]) => {
+    changes.current += 1;
+    setData((d) => (d ? { ...d, rows: f(d.rows) } : d));
+  };
 
   // The side panel: a row click opens it (Score ⓘ on Why), ↑/↓ step through the table's order across pages.
   const openRow = panel ? rows.find((r) => r.issuer_id === panel.id) : undefined;
@@ -292,7 +306,8 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
       patch((r) => withSelection(r, list));
       setSelection(list);
       setDialog(null);
-      return `Confirmed ${plural(res.confirmed, "company", "companies")} for the ${data!.cycle} engagement selection.`;
+      const dropped = res.dropped.length ? ` Not confirmed, no longer held: ${res.dropped.join(", ")}.` : "";
+      return `Confirmed ${res.confirmed}.${dropped}`;
     });
 
   return (
@@ -526,7 +541,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
                   Save ticked as subgroup
                 </button>
               </div>
-              {message && <p className="status-text">{message}</p>}
+              {message && <p className="status-text" role="status">{message}</p>}
               {actionError && <p className="error-text" role="alert">{actionError}</p>}
               {gone.length > 0 && (
                 <>

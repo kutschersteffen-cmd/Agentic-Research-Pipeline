@@ -12,6 +12,7 @@ function row(id: string, score: number, over: Partial<WorklistRow> = {}): Workli
     equity_held_eur_m: 1, ownership_pct: null, holdings_weight_pct: 1, aum_held_eur_m: 1,
     coverage_tier: "letter", coverage_tier_confirmed: true,
     triggers: { high: 0, medium: 0, low: 0 }, open_engagements: 0, escalated: 0, overdue_commitments: 0,
+    broken_commitments: 0, commitment_flags: [], new_high_trigger: false,
     next_meeting: null, transition_grade: null, esg_score: null, controversy: null, carbon_intensity: null, esg_extra: {},
     score, parts: [], selection: null, held_in: [], selected_elsewhere: [], notes: { count: 0, latest: null },
     ...over,
@@ -59,4 +60,18 @@ test("AC-95: ↓ and ↑ step through the table's order and stop at either end",
   assert.equal(neighbour(order, "C", 1), null);
   assert.equal(neighbour(order, "A", -1), null);
   assert.equal(neighbour(order, "Z", 1), null);
+});
+
+test("PR 7: each commitment flag's message shows under the Value of its row", () => {
+  const r = row("X", 7.5, {
+    overdue_commitments: 1, broken_commitments: 1,
+    commitment_flags: [
+      { kind: "broken", message: 'Commitment broken: "Split chair" was marked not met on 2026-10-01.' },
+      { kind: "overdue", message: 'Commitment overdue: "Publish targets" was due 2026-10-15.' },
+    ],
+    parts: [part("overdue_commitments", 15, 0.5), part("broken_commitments", 0, 0.5)],
+  });
+  const w = why(r, [r], { as_of: "2026-11-16", weights: { version: 0, activated_by: null, activated_at: null } });
+  assert.deepEqual(w.weighted.map((l) => [l.value.text, l.messages]), [["1", ['Commitment overdue: "Publish targets" was due 2026-10-15.']]]);
+  assert.deepEqual(w.notWeighted.map((l) => [l.label, l.value.text, l.messages]), [["Broken commitments", "1", ['Commitment broken: "Split chair" was marked not met on 2026-10-01.']]]);
 });

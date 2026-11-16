@@ -11,6 +11,7 @@ function row(i: number, over: Partial<WorklistRow> = {}): WorklistRow {
     equity_held_eur_m: 1, ownership_pct: i % 5 ? { value: (i % 50) / 1000, simulated: true } : null, holdings_weight_pct: (i % 97) / 10,
     aum_held_eur_m: i % 13, coverage_tier: ["bilateral", "letter", "monitor"][i % 3], coverage_tier_confirmed: true,
     triggers: { high: i % 2, medium: i % 3, low: 0 }, open_engagements: 0, escalated: 0, overdue_commitments: 0,
+    broken_commitments: i % 4, commitment_flags: [], new_high_trigger: i % 7 === 0,
     next_meeting: null, transition_grade: null, esg_score: null, controversy: null, carbon_intensity: null, esg_extra: {},
     score: Math.round((i * 7919) % 1000) / 10, parts: [], selection: null, held_in: [], selected_elsewhere: [],
     notes: { count: 0, latest: null },
@@ -116,4 +117,14 @@ test("AC-128: a Lowest handle pushed to the top end lies above Highest, so it ca
   const b = { min: 0, max: 10 };
   assert.equal(lowOnTop(10, b), true);
   assert.equal(lowOnTop(2, b), false); // at the bottom end Highest stays on top and can be dragged up
+});
+
+test("PR 7: the trigger filter offers new high trigger, and Broken commitments is an at-least count", () => {
+  const f = withF("new_high_trigger");
+  assert.equal(ind("new_high_trigger").kind, "yesno");
+  const out = filterRows(rows, [f]);
+  assert.ok(out.length > 0 && out.every((r) => r.new_high_trigger));
+  assert.equal(chipText(f, rows), "Open triggers – new high trigger: Yes");
+  assert.equal(ind("broken_commitments").kind, "count");
+  assert.ok(filterRows(rows, [withF("broken_commitments")]).every((r) => r.broken_commitments >= 1));
 });

@@ -82,11 +82,15 @@ def list_library() -> list[RfpLibraryEntryOut]:
 
 
 @router.post("/library/import", response_model=RfpLibraryImportOut, dependencies=[Depends(_approver)])
-async def import_library(files: list[UploadFile] = File(...), llm=Depends(get_llm_client)) -> RfpLibraryImportOut:
+async def import_library(files: list[UploadFile] = File(...), llm=Depends(get_llm_client),
+                         settings=Depends(settings_dep)) -> RfpLibraryImportOut:
     loaded = []
     for f in files:
         _suffix(f.filename)
-        loaded.append((PurePath(f.filename).name, await f.read()))
+        data = await f.read(settings.max_upload_bytes + 1)
+        if len(data) > settings.max_upload_bytes:
+            raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
+        loaded.append((PurePath(f.filename).name, data))
     imported, dropped = await store.import_library(loaded, llm)
     return RfpLibraryImportOut(imported=imported, dropped=dropped)
 
@@ -141,10 +145,13 @@ async def upload_document(
     replaces: int | None = Form(None),
     user: Principal = Depends(_approver),
     blobs=Depends(blob_store_dep),
+    settings=Depends(settings_dep),
 ) -> RfpDocumentOut:
     """Parses and stores a .pdf or .docx as `active`; with `replaces`, retires that document in the same transaction."""
     name = PurePath(file.filename or "").name
-    data = await file.read()
+    data = await file.read(settings.max_upload_bytes + 1)  # the house upload limit, as in routers/documents.py
+    if len(data) > settings.max_upload_bytes:
+        raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
     text, page_breaks = await asyncio.to_thread(documents.parse, name, data)  # 400 on a wrong type or a scan
     with transaction() as s:
         old = _document(s, replaces, lock=True) if replaces is not None else None  # 404 stores nothing
@@ -199,7 +206,9 @@ async def create_project(
 ) -> RfpProjectOut:
     """Stores the investor's file unchanged and starts finding and auto-filling its questions in the background."""
     suffix = _suffix(file.filename)
-    data = await file.read()
+    data = await file.read(settings.max_upload_bytes + 1)
+    if len(data) > settings.max_upload_bytes:
+        raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
     key = hashlib.sha256(data).hexdigest()
     upload_or_fail(blobs, key, data)
     created: dict[str, int] = {}

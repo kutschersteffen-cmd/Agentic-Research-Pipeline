@@ -69,7 +69,7 @@ import type {
   SignalExperimentSummary,
   SignalMethod,
   BilateralPick,
-  Confirmed,
+  SelectionConfirmed,
   StewardNote,
   StewardNoteList,
   VoteList,
@@ -81,6 +81,8 @@ import type {
   WorkProgramme,
   Worklist,
   WorklistScopes,
+  FundOverlap,
+  OverlapMatrix,
 } from "../types";
 import { tagQuery } from "../lib/xbrlTags";
 import { encodeRef, factsUrl, type FactFilters } from "../pages/company/companyQuery";
@@ -152,7 +154,7 @@ import type {
   StandardsSaved,
   StandardsView,
 } from "../types";
-import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, Walkthrough } from "../types";
+import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, WaitingCounts, Walkthrough } from "../types";
 import type { DecisionInput, DocType, DocumentPassages, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
 import type { BIChartPlan, BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
@@ -322,6 +324,7 @@ export const api = {
   rfpExportUrl: (id: number) => `${API_BASE}/api/rfp/projects/${id}/export`,
   listReviewItems: (runId?: string) =>
     request<{ items: ReviewItem[] }>(`/api/review/items${runId ? `?run_id=${encodeURIComponent(runId)}` : ""}`),
+  getWaiting: () => request<WaitingCounts>("/api/waiting"),
   getItemContext: (runId: string, itemKey: string) =>
     request<ItemContext>(`/api/review/runs/${encodeURIComponent(runId)}/items/${encodeURIComponent(itemKey)}/context`),
   getWalkthrough: (runId: string, companyId: string, q: { item: string; period_end?: string; basis?: string }) =>
@@ -941,11 +944,15 @@ export const api = {
   // The stewardship workbench (spec stewardship-priority-worklist)
   getWorklist: (scope: string) => request<Worklist>(`/api/stewardship/worklist${buildQuery({ scope })}`),
   getWorklistScopes: () => request<WorklistScopes>("/api/stewardship/worklist/scopes"),
+  getFundOverlap: () => request<FundOverlap>("/api/stewardship/overlap"),
+  // `n` counts for basis top, `scope` for basis selection; the server ignores the other one.
+  getOverlapMatrix: (basis: "top" | "selection", n: number, scope?: string) =>
+    request<OverlapMatrix>(`/api/stewardship/overlap/matrix${buildQuery({ basis, n: String(n), scope })}`),
   getSelection: (scope: string, cycle?: string) => request<SelectionList>(`/api/stewardship/selection${buildQuery({ scope, cycle })}`),
   changeSelection: (body: { cycle: string; scope: string; add?: string[]; remove?: string[] }) =>
     request<SelectionList>("/api/stewardship/selection", jsonBody("POST", body)),
   confirmSelection: (body: { cycle: string; scope: string }) =>
-    request<Confirmed>("/api/stewardship/selection/confirm", jsonBody("POST", body)),
+    request<SelectionConfirmed>("/api/stewardship/selection/confirm", jsonBody("POST", body)),
   listProgrammes: () => request<ProgrammeList>("/api/stewardship/programmes"),
   createProgramme: (name: string) => request<WorkProgramme>("/api/stewardship/programmes", jsonBody("POST", { name })),
   addProgrammeMembers: (programmeId: string, add: string[]) =>

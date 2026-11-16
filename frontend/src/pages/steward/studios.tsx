@@ -198,6 +198,7 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
                     <td>{words(t.theme)}</td>
                     <td>
                       {/CLTI score/.test(t.reason) && <SampleChip />} {t.reason} <span className="muted">({t.rule})</span>
+                      {t.demo && <> <span className="chip">Demo data</span></>}
                     </td>
                     <td>
                       {t.engagement_id ? (

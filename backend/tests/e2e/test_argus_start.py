@@ -36,7 +36,7 @@ def test_argus_start_page_shows_flow_runs_and_waiting(page):
     assert [t.inner_text().split("\n")[0] for t in tiles.all()] == ["1 Companies", "2 Documents", "3 Schema", "4 Extract", "5 Results"]
     assert page.get_by_role("table", name="Runs").is_visible()
     assert page.get_by_role("complementary", name="Waiting for you").is_visible()
-    assert not page.get_by_label("Only mine").is_checked()
+    assert page.get_by_role("button", name="Only mine").get_attribute("aria-pressed") == "false"  # UI polish 2 L8: chips, not a checkbox
     # UI polish 1 F2: the header no longer repeats it; the workspace row has it.
     assert page.get_by_role("navigation", name="Argus screens").get_by_role("link", name="XBRL Facts").get_attribute("href") == "#/xbrl"
     assert page.console_errors == []
@@ -84,7 +84,7 @@ def test_runs_filter_by_step_and_only_mine(page):
     tiles.nth(3).click()
     assert listed() == ["Green capex v3", "Green capex v2"]
 
-    page.get_by_label("Only mine").check()
+    page.get_by_role("button", name="Only mine").click()
     assert listed() == ["Green capex v2"]
     assert "Values to review" not in waiting.inner_text()
     assert page.console_errors == []

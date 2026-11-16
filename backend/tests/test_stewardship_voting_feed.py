@@ -60,6 +60,7 @@ def test_decided_ballots_reach_stage_4_the_checkpoint_and_monitoring(tmp_path, p
     assert issuer_fields(rows)["SYN01"] == {
         "vote.decided": 2,
         "vote.against_management": 1,
+        "vote.against_management_non_demo": 1,  # Proxy Voting run rows are never demo (decisions round 2, area 1)
         "vote.overrode_policy": 1,
         "vote.last_meeting_date": "2026-05-15",
     }

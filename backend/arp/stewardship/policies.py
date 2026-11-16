@@ -279,7 +279,11 @@ class PolicyStore:
         path = self._dir(policy_id) / f"v{version}.json"
         if not path.exists():
             raise KeyError(f"{policy_id} v{version}")
-        return json.loads(path.read_text())["content"]
+        content = json.loads(path.read_text())["content"]
+        if policy_id == "priority_weights":  # a component bundled after the version was saved reads as weight 0 (spec)
+            have = {c["id"] for c in content["components"]}
+            content = {**content, "components": [*content["components"], *({"id": i, "weight": 0} for i in component_ids() if i not in have)]}
+        return content
 
     def activations(self, policy_id: str) -> list[dict]:
         # Strict on purpose (not read_jsonl, which skips torn lines): a damaged

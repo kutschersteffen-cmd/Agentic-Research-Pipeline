@@ -140,3 +140,26 @@ def test_triggers_route_rejects_bogus_status(tmp_path):
         assert TestClient(app).get("/api/stewardship/triggers?status=bogus").status_code == 422
     finally:
         app.dependency_overrides.pop(get_stream_store, None)
+
+
+# stewardship-decisions-round-2, area 1: the `demo` flag of the last run that lists a trigger
+
+
+def test_demo_flag_follows_the_last_run(store):  # AC-3, AC-4
+    store.record_run("2026-05", [{**_t("SYN01", "vote_against_management"), "demo": True}])
+    [t] = store.list_triggers()
+    assert t.demo is True and t.model_dump()["demo"] is True
+    store.record_run("2026-06", [{**_t("SYN01", "vote_against_management"), "demo": False}])
+    [t] = store.list_triggers()
+    assert t.demo is False
+
+
+def test_standards_event_never_changes_demo(store):
+    store.record_run("2026-05", [{**_t(), "demo": True}])
+    store.record_standards("d1", "2026-05-20T00:00:00", [{**_t(), "demo": False}])
+    assert store.list_triggers()[0].demo is True
+
+
+def test_row_written_before_the_flag_reads_not_demo(store):  # AC-5
+    store.record_run("2026-05", [_t()])  # no demo key, as stored before this change
+    assert store.list_triggers()[0].demo is False

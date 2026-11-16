@@ -429,10 +429,9 @@ ARP_GEMINI_FALLBACK_VERIFIER_MODEL=gemini-3.6-flash
 
 ARP_POSTGRES_DSN=postgresql+psycopg://<user>:<password>@<host>:5432/arp
 
-# Everyone who can open the proxy URL is signed in as the dev approver.
-ARP_AUTH_MODE=dev
-ARP_DEV_TRUSTED_NETWORKS=["0.0.0.0/0"]
-ARP_ALLOWED_ORIGINS=["*"]
+# Real sign-in: the two lines `scripts/launch_jupyter.sh users` prints. `up` refuses to start without them.
+ARP_AUTH_MODE=local
+ARP_USERS_FILE=<repo>/config/users.json
 ARP_TRUSTED_HOSTS=["*"]
 
 # Optional GPU services for parsing, embeddings and rerank.
@@ -445,9 +444,11 @@ Packages come from your Artifactory: point pip and npm at it once
 `npm config set registry <artifactory-npm-url>`), then
 `pip install -e backend` and `npm ci` in `frontend/`.
 
-Start, check, stop:
+Create the sign-in tokens once, add the two lines the command prints to
+`backend/.env` (as in the block above), then start, check, stop:
 
 ```bash
+scripts/launch_jupyter.sh users   # writes config/users.json: two approvers, prints their tokens
 scripts/launch_jupyter.sh up      # migrates the database, builds the frontend if it is stale, prints the URL
 scripts/launch_jupyter.sh check   # 7 lines; each should start with "ok" (or "skip" for an unset GPU service)
 scripts/launch_jupyter.sh down
@@ -469,18 +470,20 @@ model. **Cheap** and **Max** name `gemini-3.8-flash` and `gemini-4-argon`
 directly (`backend/arp/extraction/steps.py`); `check` does not test those, so
 use them only if your Vertex project offers both.
 
-**Sign-in behind the proxy.** The browser sends the Jupyter host as `Origin`
-on every save or start. `ARP_ALLOWED_ORIGINS=["*"]` accepts it; to be
-stricter, list the exact origin instead, e.g. `["https://<your-jupyter-host>"]`.
+**Sign-in behind the proxy.** Open ARP, click the round account button at the
+top right and paste a token into the "Access token" box; the browser keeps it
+until you sign out. Without a
+token every API call but the health check answers 401, from the bank network
+and from the Jupyter machine itself, so someone who only has the link sees the token box and
+nothing else. The page and the API share one origin through the proxy, so
+`ARP_ALLOWED_ORIGINS` is not needed. Never combine `ARP_AUTH_MODE=dev` with
+`ARP_ALLOWED_ORIGINS=["*"]`: `"*"` lets any website open in the same browser
+act as the dev approver.
 
-**Two reviewers.** With `ARP_AUTH_MODE=dev` everyone is the same person, so a
-value that needs a second review can never be completed: the second reviewer
-must be someone else. `scripts/launch_jupyter.sh users` writes
-`config/users.json` with two approvers and prints their tokens and the two
-`.env` lines for real sign-in (`ARP_AUTH_MODE=local`, `ARP_USERS_FILE`).
-Paste a token into the box at the top left of the app; use a private browser
-window, or Sign out, to act as the second reviewer. Remove
-`ARP_DEV_TRUSTED_NETWORKS` when you switch.
+**Two reviewers.** `config/users.json` holds two approvers, and a value that
+needs a second review must be completed by the other one. Use a private
+browser window, or Sign out, to act as the second reviewer. Names and roles
+can be edited in the file; restart with `down` and `up` afterwards.
 
 To update: `git pull`, then `scripts/launch_jupyter.sh down` and `up`.
 

@@ -7,7 +7,7 @@ from datetime import date
 import pytest
 
 from arp.ingestion import local_files
-from arp.rfp import store
+from arp.rfp import documents, store
 from tests import rfp_fixtures as fx
 from tests import test_rfp_api as api
 
@@ -159,3 +159,20 @@ def test_unreadable_docx_is_a_400(env):
     r = upload(env, "broken.docx", b"not a zip")
     assert (r.status_code, r.json()["detail"]) == (400, "broken.docx could not be read; upload the original document.")
     assert listed(env) == []
+
+
+def test_upload_over_the_size_limit_is_a_413(env, monkeypatch):  # security review on #545: the house upload rule
+    from arp.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "max_upload_bytes", 10)
+    r = upload(env, data=fx.ref_stmt_docx())
+    assert r.status_code == 413
+    assert listed(env) == []
+
+
+def test_text_layer_check_runs_under_the_parse_lock(monkeypatch):  # security review on #545: pdfium is not thread-safe
+    held = []
+    monkeypatch.setattr(local_files, "_has_text_layer", lambda path: held.append(local_files._DOCLING_LOCK.locked()) or False)
+    with pytest.raises(Exception, match="no text layer"):
+        documents.parse("scan.pdf", b"%PDF")
+    assert held == [True]

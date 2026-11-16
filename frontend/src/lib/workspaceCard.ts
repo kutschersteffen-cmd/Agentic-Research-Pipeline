@@ -76,10 +76,32 @@ export function cardStatus(states: (StepState | "unknown")[] | null, titles: str
   return { word: "No runs yet", tone: "idle", detail: "" };
 }
 
-/** The Review Queue badge, shared by the sidebar and the start top bar: "items", so the number never
- * reads as a total of decisions. */
-export const reviewBadge = (count: number): { text: string; title: string } | null =>
-  count > 0 ? { text: `${count} ${count === 1 ? "item" : "items"}`, title: `${count} ${count === 1 ? "review item" : "review items"} waiting on you` } : null;
+type Waiting = { review: number; decisions: number; ballots: number; total: number };
+const PARTS = [
+  ["review", "review item", "review items"],
+  ["decisions", "stewardship decision", "stewardship decisions"],
+  ["ballots", "ballot", "ballots"],
+] as const;
+const counted = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const sane = (w: Waiting) =>
+  [w.review, w.decisions, w.ballots, w.total].every((n) => Number.isInteger(n) && n >= 0) && w.total === w.review + w.decisions + w.ballots;
+
+/** The Review Queue badge: everything waiting on a decision, its parts named in the label. Hidden at 0 or on bad input. */
+export const waitingBadge = (w: Waiting): { text: string; title: string } | null =>
+  sane(w) && w.total > 0
+    ? { text: String(w.total), title: `${w.total} waiting for a decision: ${PARTS.filter(([k]) => w[k] > 0).map(([k, one, many]) => counted(w[k], one, many)).join(", ")}` }
+    : null;
+
+/** The Review Queue's note on what waits elsewhere: stewardship decisions and ballots. */
+export const alsoWaiting = (w: Waiting): { text: string; href: string }[] =>
+  sane(w)
+    ? [
+        { n: w.decisions, one: "stewardship decision", many: "stewardship decisions", place: "Steward Workflow", href: "#/stewardship" },
+        { n: w.ballots, one: "ballot", many: "ballots", place: "Proxy Voting", href: "#/voting" },
+      ]
+        .filter((p) => p.n > 0)
+        .map((p) => ({ text: `${counted(p.n, p.one, p.many)} also ${p.n === 1 ? "waits" : "wait"}, in ${p.place} →`, href: p.href }))
+    : [];
 
 /** What a start-page workspace card shows: the way in, each process's state, and one status line. */
 export function cardView(w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null, now: Date): CardView {

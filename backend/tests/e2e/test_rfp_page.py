@@ -1,6 +1,7 @@
 """RFP project page against the running app, with its API stubbed by Playwright routing."""
 
 import os
+import time
 
 import pytest
 
@@ -161,3 +162,79 @@ def test_edited_answer_shows_the_change_line_but_not_its_origin(page):  # spec Â
     card = open_card(page, drafted(FIRM_A, 100, [(FIRM_A, "kept")], status="edited"))
     assert card.get_by_text("Approved answer, unchanged").is_visible()
     assert card.get_by_text("From approved answers only").count() == 0
+
+
+# --- UI review on #545: the reference-documents form and Retire --------------------------------
+
+def documents_page(page, refuse_retire=False, posts=None):
+    posts = [] if posts is None else posts
+    doc = {"id": 4, "title": "Stewardship Statement 2025", "filename": "ref_stmt.docx", "document_date": "2025-12-31",
+           "review_by": "2026-12-31", "priority": 1, "status": "active", "uploaded_by": "dev", "pages": None}
+
+    def listing(route):
+        if route.request.method == "POST":  # every upload is refused, slowly enough for a second click to land
+            posts.append(1)
+            time.sleep(0.5)
+            route.fulfill(status=400, json={"detail": "scan.pdf has no text layer; upload the original document."})
+        else:
+            route.fulfill(json=[doc])
+
+    def retire(route):
+        if refuse_retire:
+            route.fulfill(status=404, json={"detail": "Reference document not found"})
+            return
+        doc["status"] = "retired"
+        route.fulfill(json=doc)
+
+    page.route("**/api/rfp/documents", listing)
+    page.route("**/api/rfp/documents/4/retire", retire)
+    page.goto(f"{URL}/#/rfp")
+    section = page.locator("section", has=page.get_by_role("heading", name="Reference documents"))
+    section.get_by_role("cell", name="Stewardship Statement 2025").wait_for()
+    return section
+
+
+def test_upload_form_has_visible_labels(page):  # WCAG 3.3.2
+    section = documents_page(page)
+    for label in ("File", "Title", "Document date", "Priority (1 = first)", "Replaces"):
+        assert section.get_by_label(label).first.is_visible(), label
+        assert section.locator("label", has_text=label).first.is_visible(), label
+
+
+def test_focus_moves_to_the_heading_after_retire(page):  # WCAG 2.4.3
+    section = documents_page(page)
+    section.get_by_role("button", name="Retire").focus()
+    page.keyboard.press("Enter")
+    section.get_by_role("cell", name="retired").wait_for()
+    assert page.evaluate("document.activeElement.textContent") == "Reference documents"
+
+
+def test_focus_stays_on_upload_after_a_refused_upload(page):  # UI review on #556, WCAG 2.4.3
+    section = documents_page(page)
+    page.set_input_files("#rfp-document-file", files=[{"name": "scan.pdf", "mimeType": "application/pdf", "buffer": b"%PDF"}])
+    page.fill("#rfp-document-title", "Scan")
+    page.fill("#rfp-document-date", "2025-12-31")
+    section.get_by_role("button", name="Upload document").focus()
+    page.keyboard.press("Enter")
+    section.get_by_role("alert").wait_for()
+    assert page.evaluate("document.activeElement.textContent") == "Upload document"
+
+
+def test_focus_stays_on_retire_after_a_refused_retire(page):  # UI review on #556, WCAG 2.4.3
+    section = documents_page(page, refuse_retire=True)
+    section.get_by_role("button", name="Retire").focus()
+    page.keyboard.press("Enter")
+    section.get_by_role("alert").wait_for()
+    assert page.evaluate("document.activeElement.textContent") == "Retire"
+
+
+def test_a_double_click_on_upload_sends_one_request(page):  # code re-review on #556: the busy guard is a ref now
+    posts = []
+    section = documents_page(page, posts=posts)
+    page.set_input_files("#rfp-document-file", files=[{"name": "scan.pdf", "mimeType": "application/pdf", "buffer": b"%PDF"}])
+    page.fill("#rfp-document-title", "Scan")
+    page.fill("#rfp-document-date", "2025-12-31")
+    section.get_by_role("button", name="Upload document").dblclick()
+    section.get_by_role("alert").wait_for()
+    page.wait_for_timeout(700)  # a second request, had one been sent, would have arrived by now
+    assert len(posts) == 1

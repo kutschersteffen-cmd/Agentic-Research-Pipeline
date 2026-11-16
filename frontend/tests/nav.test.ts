@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { navCount, redirectHash } from "../src/lib/nav.ts";
+import { redirectHash } from "../src/lib/nav.ts";
 
 test("redirectHash sends each removed screen, and any path under it, to its replacement", () => {
   assert.equal(redirectHash("#/dashboard"), "#/home");
@@ -31,8 +31,3 @@ test("redirectHash leaves every other hash alone", () => {
 // App-wide top bar (2026-11-15-app-wide-top-bar spec) retired the sidebar tests: NAV_GROUPS and currentNavIds went with
 // the sidebar. The Workspaces menu's links are checked in workspaceCard.test.ts (pr1_menu_items).
 
-test("navCount shows the review badge and nothing else", () => {
-  assert.equal(navCount("review", { review: 1 }), 1);
-  assert.equal(navCount("argus", { review: 1 }), 0);
-  assert.equal(navCount("review", null), 0);
-});

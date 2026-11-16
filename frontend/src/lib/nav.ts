@@ -28,10 +28,6 @@ export function redirectHash(hash: string): string | null {
   return hit ? hit[1] : null;
 }
 
-/** The waiting-count badge on the top bar's Review Queue link. */
-export const navCount = (id: string, waiting: { review: number } | null): number =>
-  id === "review" ? (waiting?.review ?? 0) : 0;
-
 /** Opening ARP with no page in the address (or #/welcome) lands on the landing page;
  * every other hash routes as before, so direct links keep working. */
 export const entryTab = (hash: string): "welcome" | null =>

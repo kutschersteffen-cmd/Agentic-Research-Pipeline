@@ -48,6 +48,7 @@ const NUMERIC: Record<string, Control> = {
   open_engagements: { label: "Open engagements", kind: "count" },
   escalated: { label: "Escalated", kind: "count" },
   overdue_commitments: { label: "Overdue commitments", kind: "count" },
+  broken_commitments: { label: "Broken commitments", kind: "count" },
   next_meeting: { label: "Next meeting", kind: "days" },
   esg_score: { label: "ESG score", kind: "range", decimals: 1 },
   controversy: { label: "Controversy", kind: "range", decimals: 0 },
@@ -79,6 +80,7 @@ const BY_COLUMN: Record<string, Indicator[]> = {
   triggers: [
     count("triggers_any", "Open triggers – any", (r) => r.triggers.high + r.triggers.medium + r.triggers.low),
     count("triggers_high", "Open triggers – high", (r) => r.triggers.high),
+    { id: "new_high_trigger", label: "Open triggers – new high trigger", kind: "yesno", value: (r) => r.new_high_trigger },
   ],
   transition_grade: [
     {

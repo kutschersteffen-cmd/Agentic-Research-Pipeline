@@ -6074,6 +6074,28 @@
     "title": "Commitment",
     "type": "object"
    },
+   "CommitmentFlag": {
+    "properties": {
+     "kind": {
+      "enum": [
+       "overdue",
+       "broken"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "message": {
+      "title": "Message",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "message"
+    ],
+    "title": "CommitmentFlag",
+    "type": "object"
+   },
    "CommitmentRequest": {
     "properties": {
      "company_id": {
@@ -22994,6 +23016,28 @@
     "title": "SelectionConfirm",
     "type": "object"
    },
+   "SelectionConfirmed": {
+    "description": "The selection confirm: how many rows were confirmed, and the stored names of proposed rows dropped because their\ncompany is no longer in the scope (sorted).",
+    "properties": {
+     "confirmed": {
+      "title": "Confirmed",
+      "type": "integer"
+     },
+     "dropped": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Dropped",
+      "type": "array"
+     }
+    },
+    "required": [
+     "confirmed",
+     "dropped"
+    ],
+    "title": "SelectionConfirmed",
+    "type": "object"
+   },
    "SelectionList": {
     "properties": {
      "current": {
@@ -28094,6 +28138,34 @@
     "title": "VotingPreviewRequest",
     "type": "object"
    },
+   "WaitingCounts": {
+    "properties": {
+     "ballots": {
+      "title": "Ballots",
+      "type": "integer"
+     },
+     "decisions": {
+      "title": "Decisions",
+      "type": "integer"
+     },
+     "review": {
+      "title": "Review",
+      "type": "integer"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "review",
+     "decisions",
+     "ballots",
+     "total"
+    ],
+    "title": "WaitingCounts",
+    "type": "object"
+   },
    "WalkOrTalk": {
     "enum": [
      "walk",
@@ -28567,6 +28639,10 @@
       ],
       "title": "Aum Held Eur M"
      },
+     "broken_commitments": {
+      "title": "Broken Commitments",
+      "type": "integer"
+     },
      "carbon_intensity": {
       "anyOf": [
        {
@@ -28576,6 +28652,13 @@
         "type": "null"
        }
       ]
+     },
+     "commitment_flags": {
+      "items": {
+       "$ref": "#/components/schemas/CommitmentFlag"
+      },
+      "title": "Commitment Flags",
+      "type": "array"
      },
      "company": {
       "title": "Company",
@@ -28659,6 +28742,10 @@
       },
       "title": "Last Topics",
       "type": "array"
+     },
+     "new_high_trigger": {
+      "title": "New High Trigger",
+      "type": "boolean"
      },
      "next_meeting": {
       "anyOf": [
@@ -28770,9 +28857,12 @@
      "coverage_tier",
      "coverage_tier_confirmed",
      "triggers",
+     "new_high_trigger",
      "open_engagements",
      "escalated",
      "overdue_commitments",
+     "broken_commitments",
+     "commitment_flags",
      "next_meeting",
      "transition_grade",
      "esg_score",
@@ -46256,7 +46346,7 @@
   },
   "/api/stewardship/selection/confirm": {
    "post": {
-    "description": "Every proposed row of the scope and cycle becomes confirmed, recorded as the signed-in user.",
+    "description": "Every proposed row of the scope and cycle whose company is still in the scope becomes confirmed, recorded as the\nsigned-in user; proposed rows whose company left the scope are removed and named in `dropped`.",
     "operationId": "post_selection_confirm_api_stewardship_selection_confirm_post",
     "requestBody": {
      "content": {
@@ -46273,7 +46363,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "$ref": "#/components/schemas/Confirmed"
+         "$ref": "#/components/schemas/SelectionConfirmed"
         }
        }
       },
@@ -52798,6 +52888,27 @@
     "summary": "Get Voting Review Queue",
     "tags": [
      "voting"
+    ]
+   }
+  },
+  "/api/waiting": {
+   "get": {
+    "operationId": "get_waiting_api_waiting_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaitingCounts"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Waiting",
+    "tags": [
+     "review"
     ]
    }
   },
