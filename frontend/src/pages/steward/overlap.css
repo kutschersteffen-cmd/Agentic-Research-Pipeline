@@ -24,3 +24,4 @@
 .ov-scopes { margin: 0; padding: 0; list-style: none; }
 .ov-scopes li + li { margin-top: var(--s-1); }
 .ov-scopes .proposed-tag { margin: 0; }
+.ov .section-heading { flex-wrap: wrap; row-gap: var(--s-1); }
