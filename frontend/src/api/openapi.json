@@ -6074,6 +6074,28 @@
     "title": "Commitment",
     "type": "object"
    },
+   "CommitmentFlag": {
+    "properties": {
+     "kind": {
+      "enum": [
+       "overdue",
+       "broken"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "message": {
+      "title": "Message",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "message"
+    ],
+    "title": "CommitmentFlag",
+    "type": "object"
+   },
    "CommitmentRequest": {
     "properties": {
      "company_id": {
@@ -28567,6 +28589,10 @@
       ],
       "title": "Aum Held Eur M"
      },
+     "broken_commitments": {
+      "title": "Broken Commitments",
+      "type": "integer"
+     },
      "carbon_intensity": {
       "anyOf": [
        {
@@ -28576,6 +28602,13 @@
         "type": "null"
        }
       ]
+     },
+     "commitment_flags": {
+      "items": {
+       "$ref": "#/components/schemas/CommitmentFlag"
+      },
+      "title": "Commitment Flags",
+      "type": "array"
      },
      "company": {
       "title": "Company",
@@ -28659,6 +28692,10 @@
       },
       "title": "Last Topics",
       "type": "array"
+     },
+     "new_high_trigger": {
+      "title": "New High Trigger",
+      "type": "boolean"
      },
      "next_meeting": {
       "anyOf": [
@@ -28770,9 +28807,12 @@
      "coverage_tier",
      "coverage_tier_confirmed",
      "triggers",
+     "new_high_trigger",
      "open_engagements",
      "escalated",
      "overdue_commitments",
+     "broken_commitments",
+     "commitment_flags",
      "next_meeting",
      "transition_grade",
      "esg_score",

@@ -124,7 +124,45 @@ def test_overdue_commitment_counts_until_the_issue_closes(client):
             assert r.status_code == 200, r.text
     rows = _rows(client)
     assert rows["SYN05"]["overdue_commitments"] == 1 and _part(rows["SYN05"], "overdue_commitments")["points"] == 7.5
+    assert rows["SYN05"]["commitment_flags"] == [{"kind": "overdue", "message": f'Commitment overdue: "Publish targets" was due {past}.'}]
     assert rows["SYN11"]["overdue_commitments"] == 0 and rows["SYN11"]["open_engagements"] == 0
+
+
+def test_broken_commitments_count_and_weigh_nothing(client):
+    # AC-30, AC-53
+    issue = _issue(client, "SYN08")
+    for text in ("Publish targets", "Split chair and CEO"):
+        r = client.post("/api/stewardship/tracking/commitments", json={"company_id": "SYN08", "issue_id": issue, "text": text})
+        assert r.status_code == 200, r.text
+        r = client.post(f"/api/stewardship/tracking/commitments/{r.json()['commitment_id']}",
+                        json={"company_id": "SYN08", "issue_id": issue, "status": "missed"})
+        assert r.status_code == 200, r.text
+    rows = _rows(client)
+    assert rows["SYN08"]["broken_commitments"] == 2 and rows["SYN08"]["overdue_commitments"] == 0
+    assert {k: _part(rows["SYN08"], "broken_commitments")[k] for k in ("weight", "normalised", "points")} == {"weight": 0, "normalised": 1.0, "points": 0.0}
+    assert rows["SYN01"]["broken_commitments"] == 0 and rows["SYN01"]["commitment_flags"] == []
+    flags = rows["SYN08"]["commitment_flags"]
+    assert [f["kind"] for f in flags] == ["broken", "broken"]
+    assert all(f["message"].startswith("Commitment broken: ") for f in flags)
+
+
+def test_new_high_trigger_flag(client, root):
+    # AC-31 (API side): only a high trigger that is new in the latest run sets it
+    _run(root, ("SYN02", "high", "t_x"), ("SYN04", "medium", "t_m"))
+    rows = _rows(client)
+    assert rows["SYN02"]["new_high_trigger"] is True
+    assert not rows["SYN04"]["new_high_trigger"] and not rows["SYN01"]["new_high_trigger"]
+    r = client.post(f"/api/stewardship/triggers/{trigger_id('SYN02', 't_x')}/transition", json={"status": "resolved", "decided_by": "tester"})
+    assert r.status_code == 200
+    assert not _rows(client)["SYN02"]["new_high_trigger"]
+
+
+def test_watch_flags_are_read_once_per_request(client, monkeypatch):
+    calls = []
+    real = worklist.watch_flags_by_company
+    monkeypatch.setattr(worklist, "watch_flags_by_company", lambda *a, **k: calls.append(1) or real(*a, **k))
+    _rows(client)
+    assert len(calls) == 1
 
 
 def test_escalated_issue(client):
@@ -173,6 +211,24 @@ def test_saved_weights_apply_after_four_eyes_activation(root):
     built = worklist.build(root, _sample(), [])
     assert built["weights"]["version"] == 1 and built["weights"]["activated_by"] == "user_b"
     assert all(_part(r, "open_triggers")["weight"] == 0 for r in built["rows"])
+
+
+def test_a_version_saved_before_broken_commitments_reads_it_as_weight_0(client, root, monkeypatch):
+    # Spec "The policy": a version saved earlier lacks broken_commitments and reads it as weight 0, so the Weights
+    # section can still preview and save it (code review of PR 7, finding 1).
+    from arp.stewardship import policies
+
+    old = [i for i in BUNDLED if i != "broken_commitments"]
+    store = PolicyStore(root)
+    with monkeypatch.context() as m:
+        m.setattr(policies, "component_ids", lambda: old)
+        v1 = store.save(worklist.POLICY, {**_v0_with(), "components": [c for c in _v0_with()["components"] if c["id"] != "broken_commitments"]}, "", "user_a", {})
+    store.activate(worklist.POLICY, v1, "user_b")
+    active = client.get("/api/stewardship/policies/priority_weights").json()["active"]
+    assert [c["id"] for c in active["components"]] == BUNDLED and active["components"][-1] == {"id": "broken_commitments", "weight": 0}
+    r = client.post("/api/stewardship/studio/priority/preview", json={"content": active})
+    assert r.status_code == 200, r.text
+    assert client.get(f"/api/stewardship/policies/priority_weights/versions/{v1}").json()["components"] == active["components"]
 
 
 def _sample() -> dict:

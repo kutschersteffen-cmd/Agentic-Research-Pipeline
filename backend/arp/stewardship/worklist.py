@@ -33,14 +33,14 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from urllib.parse import quote, unquote
 
-from arp.schemas.engagement import FIR_THEME_LABELS, CommitmentStatus, EngagementRecord, EscalationStage
+from arp.schemas.engagement import FIR_THEME_LABELS, EngagementRecord, EscalationStage
 from arp.showcase.schema import FIELD_IDS as SIMULATED_FIELDS
 from arp.stewardship.notes import NoteLog
 from arp.stewardship.policies import PolicyStore, component_ids, validate_weights
 from arp.stewardship.process import current_tiers
 from arp.stewardship.programmes import ProgrammeLog
 from arp.stewardship.tiers import TIERS, TierStore
-from arp.stewardship.tracking import OPEN, _iso
+from arp.stewardship.tracking import OPEN, watch_flags_by_company
 from arp.stewardship.trigger_store import TriggerStore
 from arp.stewardship.universe import company_by_security
 from arp.storage.jsonl_io import complete_rows
@@ -132,12 +132,16 @@ def indicators(
     observations: dict[str, dict],
     today: date,
 ) -> list[dict]:
-    """One row per issuer with every indicator column and `normalised`: component id -> 0..1, or None when empty."""
-    by_company = {r.company_id: r for r in records}
+    """One row per issuer with every indicator column and `normalised`: component id -> 0..1, or None when empty.
+    Overdue and broken commitments come from `watch_flags_by_company()`, read once for all companies."""
+    by_company, flags = {r.company_id: r for r in records}, watch_flags_by_company(records, today)
     counts: dict[str, Counter] = {}
+    new_high: set[str] = set()  # the tag asks a person to act, so a resolved or dismissed trigger does not set it
     for t in triggers:
         if t.status in ("open", "acknowledged"):
             counts.setdefault(t.issuer_id, Counter())[t.severity] += 1
+            if t.severity == "high" and t.is_new:
+                new_high.add(t.issuer_id)
     issuers = sample["issuers"]
     weight = _percentile({i["issuer_id"]: v for i in issuers if (v := i.get("holding", {}).get("index_weight_pct")) is not None})
     aum = _percentile({i["issuer_id"]: v for i in issuers if (v := i.get("holding", {}).get("aum_held_eur_m")) is not None})
@@ -149,11 +153,9 @@ def indicators(
         record = by_company.get(iid)
         open_issues = [i for i in record.issues if i.status in OPEN] if record else []
         escalated = sum(i.escalation_stage != EscalationStage.PRIVATE_ENGAGEMENT for i in open_issues)
-        overdue = sum(
-            c.status == CommitmentStatus.OPEN and bool(due := _iso(c.target_date)) and date.fromisoformat(due) < today
-            for i in open_issues
-            for c in i.commitments
-        )
+        commitment_flags = [{"kind": f.kind, "message": f.message} for f in flags.get(iid, ()) if f.item_kind == "commitment"]
+        kinds = Counter(f["kind"] for f in commitment_flags)
+        overdue, broken = kinds["overdue"], kinds["broken"]
         c = counts.get(iid, Counter())
         trig = {"high": c["high"], "medium": c["medium"], "low": c["low"]}
         tier, confirmed = tiers[iid]
@@ -179,9 +181,12 @@ def indicators(
                 "coverage_tier": tier,
                 "coverage_tier_confirmed": confirmed,
                 "triggers": trig,
+                "new_high_trigger": iid in new_high,
                 "open_engagements": len(open_issues),
                 "escalated": escalated,
                 "overdue_commitments": overdue,
+                "broken_commitments": broken,
+                "commitment_flags": commitment_flags,
                 "next_meeting": meeting,
                 "transition_grade": grade,
                 "esg_score": obs["esg_score"],
@@ -200,6 +205,7 @@ def indicators(
                     "esg_score": _clamp((10 - obs["esg_score"]["value"]) / 10) if obs["esg_score"] else None,
                     "controversy": _clamp(obs["controversy"]["value"] / 5) if obs["controversy"] else None,
                     "carbon_intensity": carbon.get(iid),
+                    "broken_commitments": min(1.0, broken / 2),
                 },
             }
         )

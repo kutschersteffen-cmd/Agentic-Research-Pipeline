@@ -11239,6 +11239,16 @@ export interface components {
             /** Validated By */
             validated_by?: string | null;
         };
+        /** CommitmentFlag */
+        CommitmentFlag: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "overdue" | "broken";
+            /** Message */
+            message: string;
+        };
         /** CommitmentRequest */
         CommitmentRequest: {
             /** Company Id */
@@ -20205,7 +20215,11 @@ export interface components {
         WorklistRow: {
             /** Aum Held Eur M */
             aum_held_eur_m: number | null;
+            /** Broken Commitments */
+            broken_commitments: number;
             carbon_intensity: components["schemas"]["Observed"] | null;
+            /** Commitment Flags */
+            commitment_flags: components["schemas"]["CommitmentFlag"][];
             /** Company */
             company: string;
             controversy: components["schemas"]["Observed"] | null;
@@ -20233,6 +20247,8 @@ export interface components {
             issuer_id: string;
             /** Last Topics */
             last_topics: string[];
+            /** New High Trigger */
+            new_high_trigger: boolean;
             next_meeting: components["schemas"]["NextMeeting"] | null;
             norms_violation: components["schemas"]["Observed"] | null;
             notes: components["schemas"]["NotesSummary"];

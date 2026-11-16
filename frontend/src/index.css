@@ -620,6 +620,10 @@ details.help-text[open] > summary { margin-bottom: var(--s-1); }
   font-weight: 600;
 }
 .proposed > .proposed-tag { display: table; }
+.wb-new-trigger.proposed-tag { margin: 0 var(--s-1_5) 0 0; white-space: nowrap; }
+/* Phone: the cell shows only ~130px beside the pinned Name, so the tag sits above the counts, not beside them. */
+@media (max-width: 560px) { .wb-new-trigger.proposed-tag { display: block; width: max-content; margin: 0 0 var(--s-1) auto; } }
+.wb-flag-msg { display: block; color: var(--muted); font-size: var(--text-xs); }
 .review-json { white-space: pre-wrap; word-break: break-word; background: var(--well); padding: var(--s-2); border-radius: var(--r-sm); font-size: var(--text-xs); max-height: 260px; overflow: auto; }
 .review-json-edit { font-family: var(--font-mono); font-size: var(--text-xs); }
 .level-condition { font-family: var(--font-mono); font-size: var(--text-sm); width: 100%; }

@@ -63,6 +63,7 @@ export const COLUMNS: Column[] = [
   { id: "open_engagements", label: "Open engagements", numeric: true, value: (r) => r.open_engagements },
   { id: "escalated", label: "Escalated", numeric: true, value: (r) => r.escalated },
   { id: "overdue_commitments", label: "Overdue commitments", numeric: true, value: (r) => r.overdue_commitments },
+  { id: "broken_commitments", label: "Broken commitments", numeric: true, title: "Commitments marked not met, on open engagements", value: (r) => r.broken_commitments },
   { id: "next_meeting", label: "Next meeting", numeric: true, value: (r) => r.next_meeting?.days ?? null },
   { id: "transition_grade", label: "Grade", value: (r) => (r.transition_grade ? String(r.transition_grade.value) : null), simulated: (r) => !!r.transition_grade?.simulated },
   { id: "esg_score", label: "ESG score", numeric: true, value: (r) => num(r.esg_score?.value), simulated: (r) => !!r.esg_score?.simulated },
