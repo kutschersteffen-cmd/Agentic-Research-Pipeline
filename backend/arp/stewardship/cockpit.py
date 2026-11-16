@@ -57,9 +57,11 @@ def step_of(stage: str | None) -> int:
 
 
 def ballot_state_of_run(statuses: list[str]) -> str:
-    if statuses and all(s == "cast" for s in statuses):
+    if "awaiting" in statuses or not statuses:
+        return "awaiting"
+    if all(s == "cast" for s in statuses):
         return "cast"
-    return "awaiting" if "awaiting" in statuses or not statuses else "decided"
+    return "declined" if "declined" in statuses else "decided"
 
 
 def ballot_state_of_ledger(items: int, decided: int) -> str:
@@ -281,7 +283,7 @@ def build(
         })  # fmt: skip
     for r in shareholder:
         r["days_to_meeting"] = (r["date"] - as_of).days
-        r["action_due"] = r["ballot_state"] in ("awaiting", "not_started") and r["days_to_meeting"] <= 7
+        r["action_due"] = r["ballot_state"] in ("awaiting", "not_started", "declined") and r["days_to_meeting"] <= 7
     shareholder.sort(key=lambda r: (r["date"], r["company"], r["company_id"]))
 
     gaps = []

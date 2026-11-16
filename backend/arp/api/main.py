@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from contextlib import asynccontextmanager
@@ -90,6 +91,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def _warm_observations(settings) -> None:
+    """Reads every portfolio observation once into the per-file cache (PortfolioStore.latest_observation) before the
+    server answers, so the first Workbench request after a restart does not pay for it (owner decisions 15 Nov 2026:
+    AC-44 holds after a restart too). Best effort: a failure only leaves the cache cold."""
+    from arp.stewardship.universe import latest_observations
+    from arp.storage.portfolio_store_factory import build_portfolio_store
+
+    try:
+        latest_observations(build_portfolio_store(settings))
+    except Exception:  # noqa: BLE001 -- a cold cache is only slower, never wrong
+        logger.warning("Could not warm the observation cache", exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = settings_dep()
@@ -110,6 +124,7 @@ async def lifespan(app: FastAPI):
     report_scheduler = get_report_scheduler()
     publishing_scheduler = get_publishing_scheduler()
     review_analytics_scheduler = get_review_analytics_scheduler()
+    await asyncio.to_thread(_warm_observations, settings)  # ~4 s on the 2,581-company showcase house
     scheduler.start()
     taxonomy_researcher_scheduler.start()
     calibration_scheduler.start()

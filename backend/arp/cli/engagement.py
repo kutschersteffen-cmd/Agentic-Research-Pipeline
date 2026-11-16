@@ -14,6 +14,7 @@ from arp.engagement.reporting_agent import compile_report
 from arp.engagement.triggers import ControversySignal, StaticControversySource, run_trigger_screen, scan_for_stalled_issues
 from arp.llm.factory import build_llm_client
 from arp.schemas.engagement import CorrespondenceEntry, EscalationStage, IssueSeverity, TriggerSource
+from arp.stewardship.tracking import watch_list
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 from arp.voting.pipeline import get_ballots, get_cast_votes
@@ -145,6 +146,7 @@ def engagement_dossier_draft(
     except NoDocuments as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
+    dossier = dossier.model_copy(update={"watch_list": watch_list(store, company_id, issue_id)})
     out.write_text(dossier.model_dump_json(indent=2))
     typer.echo(f"Wrote dossier to {out} (needs_review={needs_review})")
 

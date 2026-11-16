@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import { OBJECTIVE_RESULTS, INFLUENCE_LEVELS, canSaveResult, checkLine, evidenceText, evidenceWhere, foundLine, isDemo, issueTopics } from "../lib/engagement";
+import { OBJECTIVE_RESULTS, INFLUENCE_LEVELS, canSaveResult, checkLine, evidenceText, evidenceWhere, foundHeader, foundLine, isDemo, issueTopics, loadSuggestions } from "../lib/engagement";
 import type { EngagementIssue, EvidenceSuggestion, Objective, WatchItemKind, WatchListEntry, WatchTopic } from "../types";
 
 // Watch list pieces of the issue panel (spec stewardship-commitment-loop, "What the user sees").
@@ -284,6 +284,8 @@ export interface Suggestions {
   confirmed: EvidenceSuggestion[];
   /** false on the file engagement store, which has no suggestions: no Check or Find buttons then */
   available: boolean;
+  /** why the last load failed, shown as "Suggestions unavailable: <error>"; null on success and on the file store's 409 */
+  error: string | null;
   reload: () => Promise<void>;
 }
 
@@ -292,24 +294,24 @@ export function useSuggestions(companyId: string): Suggestions {
   const [pending, setPending] = useState<EvidenceSuggestion[]>([]);
   const [confirmed, setConfirmed] = useState<EvidenceSuggestion[]>([]);
   const [available, setAvailable] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const current = useRef(companyId);
   current.current = companyId;
   async function reload() {
-    try {
-      const [p, c] = await Promise.all([api.listSuggestions(companyId, "pending"), api.listSuggestions(companyId, "confirmed")]);
-      if (current.current !== companyId) return; // the panel moved to another company while this loaded
-      setPending(p.suggestions);
-      setConfirmed(c.suggestions);
-      setAvailable(true);
-    } catch {
-      setAvailable(false); // the file store answers 409; the panel works without suggestions
+    const { loaded, error } = await loadSuggestions((status) => api.listSuggestions(companyId, status));
+    if (current.current !== companyId) return; // the panel moved to another company while this loaded
+    if (loaded) {
+      setPending(loaded.pending);
+      setConfirmed(loaded.confirmed);
     }
+    setAvailable(loaded !== null);
+    setError(error);
   }
   useEffect(() => {
     reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId]);
-  return { pending, confirmed, available, reload };
+  return { pending, confirmed, available, error, reload };
 }
 
 /** "Check against documents" and, once it ran, the one-line result. */
@@ -439,9 +441,7 @@ function FoundCommitment({ ctx, s, issue, closed, onDecided }: { ctx: Ctx; s: Ev
     });
   return (
     <div className="suggestion">
-      <strong>
-        Argus found a commitment in the {note?.activity_type ?? note?.type ?? "note"} of {note?.date.slice(0, 10)}
-      </strong>
+      <strong>{foundHeader(note)}</strong>
       <div>{s.text}</div>
       {s.proof_statement && <div className="activity-meta">Proof: {s.proof_statement}</div>}
       <blockquote>"{s.quote}"</blockquote>
