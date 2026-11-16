@@ -30,7 +30,7 @@ class Barrier(FakeClient):
 
     def _meet(self):
         with contextlib.suppress(threading.BrokenBarrierError):
-            self.barrier.wait(timeout=0.5)
+            self.barrier.wait(timeout=2)
 
     def dashboard_charts(self, dashboard_id):
         read = super().dashboard_charts(dashboard_id)  # read first, so both asks see the same charts

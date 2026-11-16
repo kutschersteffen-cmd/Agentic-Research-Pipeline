@@ -194,7 +194,7 @@ async def ask_chart(question: str, llm: LLMClient, client: SupersetClient) -> De
 _EMBED_LOCK = threading.Lock()
 
 # Two asks interleaving their read-modify-write of arp-scratch's layout drop one chart from it.
-# shortcut: one backend process only; several workers would need a Postgres advisory lock.
+# shortcut: one backend process only (an `arp bi ask` from the CLI still races a UI ask); several workers would need a Postgres advisory lock.
 _SCRATCH_LOCK = threading.Lock()
 
 
