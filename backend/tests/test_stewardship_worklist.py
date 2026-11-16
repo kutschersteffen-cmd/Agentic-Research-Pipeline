@@ -213,6 +213,24 @@ def test_saved_weights_apply_after_four_eyes_activation(root):
     assert all(_part(r, "open_triggers")["weight"] == 0 for r in built["rows"])
 
 
+def test_a_version_saved_before_broken_commitments_reads_it_as_weight_0(client, root, monkeypatch):
+    # Spec "The policy": a version saved earlier lacks broken_commitments and reads it as weight 0, so the Weights
+    # section can still preview and save it (code review of PR 7, finding 1).
+    from arp.stewardship import policies
+
+    old = [i for i in BUNDLED if i != "broken_commitments"]
+    monkeypatch.setattr(policies, "component_ids", lambda: old)
+    store = PolicyStore(root)
+    v1 = store.save(worklist.POLICY, {**_v0_with(), "components": [c for c in _v0_with()["components"] if c["id"] != "broken_commitments"]}, "", "user_a", {})
+    store.activate(worklist.POLICY, v1, "user_b")
+    monkeypatch.undo()
+    active = client.get("/api/stewardship/policies/priority_weights").json()["active"]
+    assert [c["id"] for c in active["components"]] == BUNDLED and active["components"][-1] == {"id": "broken_commitments", "weight": 0}
+    r = client.post("/api/stewardship/studio/priority/preview", json={"content": active})
+    assert r.status_code == 200, r.text
+    assert client.get(f"/api/stewardship/policies/priority_weights/versions/{v1}").json()["components"] == active["components"]
+
+
 def _sample() -> dict:
     from arp.stewardship.process import load_sample
 

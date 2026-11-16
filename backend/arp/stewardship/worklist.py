@@ -34,7 +34,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from urllib.parse import quote, unquote
 
-from arp.schemas.engagement import FIR_THEME_LABELS, EngagementRecord, EscalationStage, WatchFlag
+from arp.schemas.engagement import FIR_THEME_LABELS, EngagementRecord, EscalationStage
 from arp.showcase.schema import FIELD_IDS as SIMULATED_FIELDS
 from arp.stewardship.notes import NoteLog
 from arp.stewardship.policies import PolicyStore, component_ids, validate_weights
@@ -129,11 +129,10 @@ def indicators(
     meetings: dict[str, date],
     observations: dict[str, dict],
     today: date,
-    flags: dict[str, list[WatchFlag]] | None = None,
 ) -> list[dict]:
     """One row per issuer with every indicator column and `normalised`: component id -> 0..1, or None when empty.
-    `flags` is `watch_flags_by_company()` (once per request): overdue and broken commitments come from it."""
-    by_company, flags = {r.company_id: r for r in records}, flags or {}
+    Overdue and broken commitments come from `watch_flags_by_company()`, read once for all companies."""
+    by_company, flags = {r.company_id: r for r in records}, watch_flags_by_company(records, today)
     counts: dict[str, Counter] = {}
     new_high: set[str] = set()  # the tag asks a person to act, so a resolved or dismissed trigger does not set it
     for t in triggers:
@@ -248,8 +247,7 @@ def house_rows(
     confirmed = TierStore(root).latest()
     tiers = {i: (t, i in confirmed) for i, t in current_tiers(root, sample, records).items()}
     rows = {"issuers": sample["issuers"] if issuers is None else issuers}
-    flags = watch_flags_by_company(records, today)
-    return indicators(rows, records, TriggerStore(root).list_triggers(), tiers, meetings, observations, today, flags)
+    return indicators(rows, records, TriggerStore(root).list_triggers(), tiers, meetings, observations, today)
 
 
 def fund_holdings(store) -> dict[str, dict]:

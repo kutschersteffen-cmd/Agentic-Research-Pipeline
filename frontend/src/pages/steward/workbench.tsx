@@ -164,16 +164,21 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   // A response for a scope the user has already left is dropped.
   const wanted = useRef(scope);
   wanted.current = scope;
-  const load = useCallback(async (key: string) => {
+  // A response older than a local change (selection, programme, note, pick) would undo it on screen: it is dropped.
+  const changes = useRef(0);
+  const load = useCallback(async (key: string, background = false) => {
     setLoading(true);
-    setError(null);
+    if (!background) setError(null);
+    const seen = changes.current;
     try {
       const w = await api.getWorklist(key);
-      if (wanted.current !== key) return;
+      if (wanted.current !== key || changes.current !== seen) return;
       setData(w);
+      setError(null);
       api.getSelection(key, w.cycle).then((s) => wanted.current === key && setSelection(s), () => undefined);
     } catch (e) {
-      if (wanted.current === key) setError((e as Error).message);
+      // A failed refetch on focus keeps the rows on screen without an error banner; the next one tries again.
+      if (wanted.current === key && !background) setError((e as Error).message);
     } finally {
       if (wanted.current === key) setLoading(false);
       onRowsShown?.();
@@ -184,7 +189,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
     load(scope);
   }, [load, scope]);
   // New triggers show without a reload: refetch when the tab is back in view, never on top of a running load.
-  useRefetchOnFocus(() => (loading ? undefined : load(scope)));
+  useRefetchOnFocus(() => (loading ? undefined : load(scope, true)));
   // The rows come first: the rest is read once they are on screen.
   const loaded = data !== null;
   useEffect(() => {
@@ -250,7 +255,10 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
       setBusy(false);
     }
   }
-  const patch = (f: (rows: WorklistRow[]) => WorklistRow[]) => setData((d) => (d ? { ...d, rows: f(d.rows) } : d));
+  const patch = (f: (rows: WorklistRow[]) => WorklistRow[]) => {
+    changes.current += 1;
+    setData((d) => (d ? { ...d, rows: f(d.rows) } : d));
+  };
 
   // The side panel: a row click opens it (Score ⓘ on Why), ↑/↓ step through the table's order across pages.
   const openRow = panel ? rows.find((r) => r.issuer_id === panel.id) : undefined;
