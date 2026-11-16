@@ -281,3 +281,15 @@ def test_selection_file_of_an_odd_group_id_stays_in_the_cycle(tmp_path):
     log.change("2026-Q4", today, {"C": "C"}, ["C"], [], "u", 0, scope="group:../../x")
     assert sorted(p.name for p in (tmp_path / "selection" / "2026-Q4").iterdir()) == ["group__..%2F..%2Fx.jsonl", "group__..%2F..%2Fx.jsonl.lock"]
     assert list(log.all_rows("2026-Q4")) == ["group:../../x"]
+
+
+def test_confirm_in_a_scope_with_no_holdings_changes_nothing(client, monkeypatch):  # #568 code review B1
+    from arp.api.routers import stewardship_worklist as route
+
+    g = _group(client, "companies", ["SYN01", "SYN02"])
+    assert client.post("/api/stewardship/selection", json={"cycle": Q, "scope": f"group:{g}", "add": ["SYN01"]}).status_code == 200
+    monkeypatch.setattr(route.worklist, "scope_issuers", lambda *_a, **_k: [])  # the group's funds hold nothing right now
+    r = client.post("/api/stewardship/selection/confirm", json={"cycle": Q, "scope": f"group:{g}"})
+    assert (r.status_code, r.json()["detail"]) == (409, "No holdings are loaded for this scope, so nothing was confirmed.")
+    rows = client.get("/api/stewardship/selection", params={"cycle": Q, "scope": f"group:{g}"}).json()["rows"]
+    assert [(s["issuer_id"], s["status"]) for s in rows] == [("SYN01", "proposed")]

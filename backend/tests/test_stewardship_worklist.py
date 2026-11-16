@@ -506,3 +506,16 @@ def test_confirm_with_every_company_still_held_drops_none(client):  # AC-17
     assert client.post("/api/stewardship/selection", json={"cycle": q, "add": ["SYN01"]}).status_code == 200
     r = client.post("/api/stewardship/selection/confirm", json={"cycle": q})
     assert (r.status_code, r.json()) == (200, {"confirmed": 1, "dropped": []})
+
+
+def test_confirm_with_an_empty_house_universe_changes_nothing(client, monkeypatch):  # #568 security review B1
+    from arp.api.routers import stewardship_worklist as route
+
+    q = _quarter(datetime.now(UTC).date())
+    assert client.post("/api/stewardship/selection", json={"cycle": q, "add": ["SYN01", "SYN02"]}).status_code == 200
+    universe = route.house_universe()
+    monkeypatch.setattr(route, "house_universe", lambda: {**universe, "issuers": []})
+    r = client.post("/api/stewardship/selection/confirm", json={"cycle": q})
+    assert (r.status_code, r.json()["detail"]) == (409, "No holdings are loaded for this scope, so nothing was confirmed.")
+    rows = client.get("/api/stewardship/selection", params={"cycle": q}).json()["rows"]
+    assert [(s["issuer_id"], s["status"]) for s in rows] == [("SYN01", "proposed"), ("SYN02", "proposed")]

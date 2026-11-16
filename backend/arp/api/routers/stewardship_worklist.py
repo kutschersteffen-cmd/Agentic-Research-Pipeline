@@ -173,6 +173,8 @@ def post_selection_confirm(
     """Every proposed row of the scope and cycle whose company is still in the scope becomes confirmed, recorded as the
     signed-in user; proposed rows whose company left the scope are removed and named in `dropped`."""
     in_scope = _in_scope(body.scope, house_universe(), settings)  # 404 or 422 like the worklist
+    if not in_scope:  # e.g. no holdings loaded yet: dropping every proposed row would be wrong (#568 review)
+        raise HTTPException(409, "No holdings are loaded for this scope, so nothing was confirmed.")
     version = PolicyStore(streams.root).active_version(worklist.POLICY)
     try:
         n, dropped = worklist.SelectionLog(streams.root).confirm(
