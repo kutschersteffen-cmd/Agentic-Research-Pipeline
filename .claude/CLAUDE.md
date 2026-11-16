@@ -235,7 +235,7 @@ Keep that edit when re-copying from upstream.
 
 ## Mods
 
-Three mods live in `.claude/mods/`. The repo root is a plugin marketplace
+Four mods live in `.claude/mods/`. The repo root is a plugin marketplace
 (`.claude-plugin/marketplace.json`, name `arp-mods`), and `install-plugins.sh` installs the mods
 from it like the plugins above, so they are live from the session after the one that installed
 them. They are read straight from `.claude/mods/`: after editing one, run `/reload-plugins`. By hand:
@@ -245,6 +245,7 @@ claude plugin marketplace add .
 claude plugin install runs-pane@arp-mods
 claude plugin install test-guard@arp-mods
 claude plugin install token-usage@arp-mods
+claude plugin install pr-band@arp-mods
 ```
 
 Keep them out of `.claude/skills/`: a trusted workspace would load them from there a second time.
@@ -257,6 +258,9 @@ Keep them out of `.claude/skills/`: a trusted workspace would load them from the
   (`ctx 45k/200k (23%) · $1.23 · 5h 42%`). When the current pace would use up a limit before it
   resets, it adds `⚠ 5h out in ~40m` and shows a toast once per limit window: start fewer parallel
   sessions or jobs until it clears. There is no cap on agent PRs in flight; this warning replaces it.
+- `pr-band` — row above the prompt for this branch's open PR: `PR #548 · risk:normal · ✓ CI green · <title>`.
+  Refreshes every 60 s and after each turn, through the GitHub MCP server. Hidden when the branch has no
+  open PR; shows the error dimmed when GitHub can't be reached.
 
 Check one with `claude plugin validate .claude/mods/<mod>` and `claude plugin test .claude/mods/<mod>`.
 

@@ -46,7 +46,7 @@ installed=()
 for spec in ponytail@ponytail ui-ux-pro-max@ui-ux-pro-max-skill impeccable@impeccable \
             i-have-adhd@i-have-adhd andrej-karpathy-skills@karpathy-skills humanizer@humanizer \
             superpowers@superpowers-marketplace \
-            runs-pane@arp-mods test-guard@arp-mods token-usage@arp-mods; do
+            runs-pane@arp-mods test-guard@arp-mods token-usage@arp-mods pr-band@arp-mods; do
   name=$(install_plugin "$spec") && [ -n "$name" ] && installed+=("$name")
 done
 

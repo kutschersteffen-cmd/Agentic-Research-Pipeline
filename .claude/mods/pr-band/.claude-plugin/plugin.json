@@ -1,0 +1,1 @@
+{ "name": "pr-band", "version": "0.1.0", "description": "Row above the prompt: this branch's open PR, its risk label and CI state", "types": "./types/index.d.ts" }
