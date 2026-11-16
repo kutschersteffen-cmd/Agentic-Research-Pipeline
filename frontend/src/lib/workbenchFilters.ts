@@ -39,7 +39,27 @@ const lower = (s: string) => s.toLocaleLowerCase();
 const range = (id: string, label: string, decimals: number, value: Indicator["value"], unit?: string): Indicator => ({ id, label, kind: "range", decimals, unit, value });
 const count = (id: string, label: string, value: Indicator["value"]): Indicator => ({ id, label, kind: "count", value });
 
-/** The filters each table column offers, by column id (the spec's type table). */
+type Control = Pick<Indicator, "label" | "kind" | "decimals" | "unit">;
+/** Numeric columns: the filter reads the column's own value (lib/workbench.ts COLUMNS); only its control is set here. */
+const NUMERIC: Record<string, Control> = {
+  funds: { label: "Funds", kind: "count" },
+  holdings_weight: { label: "Holdings weight", kind: "range", decimals: 3, unit: "%" },
+  aum_held: { label: "AUM held", kind: "range", decimals: 1, unit: "EUR m" },
+  open_engagements: { label: "Open engagements", kind: "count" },
+  escalated: { label: "Escalated", kind: "count" },
+  overdue_commitments: { label: "Overdue commitments", kind: "count" },
+  next_meeting: { label: "Next meeting", kind: "days" },
+  esg_score: { label: "ESG score", kind: "range", decimals: 1 },
+  controversy: { label: "Controversy", kind: "range", decimals: 0 },
+  carbon_intensity: { label: "Carbon intensity", kind: "range", decimals: 0, unit: "tCO2e / EUR m" },
+  equity_held: { label: "Equity held", kind: "range", decimals: 1, unit: "EUR m" },
+  ownership: { label: "Ownership share", kind: "range", decimals: 4, unit: "%" },
+  selected_elsewhere: { label: "Also selected in", kind: "count" },
+  notes: { label: "Notes", kind: "count" },
+  score: { label: "Priority score", kind: "range", decimals: 1 },
+};
+
+/** The other filters a table column offers, by column id (the spec's type table). */
 const BY_COLUMN: Record<string, Indicator[]> = {
   company: [{ id: "company", label: "Name", kind: "text", value: (r) => r.company }],
   sector: [{ id: "sector", label: "Sector", kind: "category", value: (r) => (r.sector === "unknown" ? "Unknown" : r.sector) }],
@@ -53,9 +73,6 @@ const BY_COLUMN: Record<string, Indicator[]> = {
     },
   ],
   norms_violation: [{ id: "norms_violation", label: "Norm violation", kind: "yesno", value: (r) => r.norms_violation?.value ?? null }],
-  funds: [count("funds", "Funds", (r) => r.held_in.length)],
-  holdings_weight: [range("holdings_weight", "Holdings weight", 3, (r) => r.holdings_weight_pct, "%")],
-  aum_held: [range("aum_held", "AUM held", 1, (r) => r.aum_held_eur_m, "EUR m")],
   coverage_tier: [
     { id: "coverage_tier", label: "Coverage tier", kind: "category", options: Object.values(TIER_LABEL), value: (r) => TIER_LABEL[r.coverage_tier] ?? r.coverage_tier },
   ],
@@ -63,24 +80,13 @@ const BY_COLUMN: Record<string, Indicator[]> = {
     count("triggers_any", "Open triggers – any", (r) => r.triggers.high + r.triggers.medium + r.triggers.low),
     count("triggers_high", "Open triggers – high", (r) => r.triggers.high),
   ],
-  open_engagements: [count("open_engagements", "Open engagements", (r) => r.open_engagements)],
-  escalated: [count("escalated", "Escalated", (r) => r.escalated)],
-  overdue_commitments: [count("overdue_commitments", "Overdue commitments", (r) => r.overdue_commitments)],
-  next_meeting: [{ id: "next_meeting", label: "Next meeting", kind: "days", value: (r) => r.next_meeting?.days ?? null }],
   transition_grade: [
     {
       id: "transition_grade", label: "Transition grade", kind: "category", options: ["A", "B", "C", "D", "E", "F"],
       value: (r) => (r.transition_grade ? String(r.transition_grade.value) : null),
     },
   ],
-  esg_score: [range("esg_score", "ESG score", 1, (r) => num(r.esg_score?.value))],
-  controversy: [range("controversy", "Controversy", 0, (r) => num(r.controversy?.value))],
-  carbon_intensity: [range("carbon_intensity", "Carbon intensity", 0, (r) => num(r.carbon_intensity?.value), "tCO2e / EUR m")],
-  equity_held: [range("equity_held", "Equity held", 1, (r) => r.equity_held_eur_m, "EUR m")],
-  ownership: [range("ownership", "Ownership share", 4, (r) => num(r.ownership_pct?.value), "%")],
-  selected_elsewhere: [count("selected_elsewhere", "Also selected in", (r) => r.selected_elsewhere.length)],
-  notes: [count("notes", "Notes", (r) => r.notes.count), { id: "has_notes", label: "Has notes", kind: "yesno", value: (r) => r.notes.count > 0 }],
-  score: [range("score", "Priority score", 1, (r) => r.score)],
+  notes: [{ id: "has_notes", label: "Has notes", kind: "yesno", value: (r) => r.notes.count > 0 }],
   selection: [
     {
       id: "selection", label: "Selected", kind: "category", options: ["Confirmed", "Proposed"],
@@ -112,8 +118,10 @@ export function indicators(columns: Column[], schema: SchemaField[], rows: Workl
     if (c.id.startsWith("esg:")) {
       const f = fields.get(c.id.slice(4));
       out.push(esgIndicator(c.id.slice(4), f?.name ?? c.label, f?.data_type, rows, f?.allowed_values));
-    } else if (BY_COLUMN[c.id]) out.push(...BY_COLUMN[c.id]);
-    else
+    } else if (NUMERIC[c.id] || BY_COLUMN[c.id]) {
+      if (NUMERIC[c.id]) out.push({ id: c.id, ...NUMERIC[c.id], value: (r) => num(c.value(r)) });
+      out.push(...(BY_COLUMN[c.id] ?? []));
+    } else
       out.push(
         c.numeric
           ? range(c.id, c.label, 2, (r) => num(c.value(r)))
@@ -128,6 +136,10 @@ export function indicators(columns: Column[], schema: SchemaField[], rows: Workl
     .map((f) => esgIndicator(f.field_id, f.name, f.data_type, rows, f.allowed_values));
   return [...out, ...extra.sort((a, b) => a.label.localeCompare(b.label))];
 }
+
+/** Where the two range handles overlap, the one on top takes the pointer: Lowest once it is in the upper half, so a
+ * handle pushed to the top end can still be dragged back. */
+export const lowOnTop = (lo: number, b: Bounds) => lo > (b.min + b.max) / 2;
 
 /** A new chip with the spec's default: full range, at least 1, at most 90 days, `Yes`, nothing ticked, empty. */
 export const newFilter = (ind: Indicator): Filter => ({ ind, includeEmpty: false, lo: null, hi: null, n: ind.kind === "days" ? 90 : 1, yes: true, no: false, values: [], text: "" });

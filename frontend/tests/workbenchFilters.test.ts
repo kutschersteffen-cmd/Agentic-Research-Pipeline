@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { COLUMNS, PAGE_SIZE, extraColumns, sortRows } from "../src/lib/workbench.ts";
-import { bounds, categoryOptions, chipText, filterRows, indicators, newFilter, type Filter } from "../src/lib/workbenchFilters.ts";
+import { bounds, categoryOptions, chipText, filterRows, indicators, lowOnTop, newFilter, type Filter } from "../src/lib/workbenchFilters.ts";
 import type { WorklistRow } from "../src/types.ts";
 
 function row(i: number, over: Partial<WorklistRow> = {}): WorklistRow {
@@ -109,4 +109,10 @@ test("AC-139: with 2,500 rows, a Holdings weight range filter and the sort redra
     assert.ok(page.length > 0 && page.every((r) => (r.holdings_weight_pct ?? 0) >= lo));
     assert.ok(ms < 200, `lo=${lo}: ${ms.toFixed(1)} ms`);
   }
+});
+
+test("AC-128: a Lowest handle pushed to the top end lies above Highest, so it can be dragged back", () => {
+  const b = { min: 0, max: 10 };
+  assert.equal(lowOnTop(10, b), true);
+  assert.equal(lowOnTop(2, b), false); // at the bottom end Highest stays on top and can be dragged up
 });

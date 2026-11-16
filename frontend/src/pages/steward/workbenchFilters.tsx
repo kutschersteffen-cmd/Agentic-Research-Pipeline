@@ -9,6 +9,7 @@ import {
   effectiveN,
   effectiveRange,
   indicators,
+  lowOnTop,
   newFilter,
   type Filter,
   type Indicator,
@@ -182,7 +183,7 @@ function FilterControl({ filter: f, rows, onChange }: { filter: Filter; rows: Wo
       return (
         <>
           <div className="wb-range">
-            <input type="range" aria-label={`Lowest ${ind.label}`} aria-valuetext={amount(lo, ind)} min={b.min} max={b.max} step={step} value={lo} onChange={(e) => setLo(Number(e.target.value))} />
+            <input type="range" aria-label={`Lowest ${ind.label}`} aria-valuetext={amount(lo, ind)} style={lowOnTop(lo, b) ? { zIndex: 1 } : undefined} min={b.min} max={b.max} step={step} value={lo} onChange={(e) => setLo(Number(e.target.value))} />
             <input type="range" aria-label={`Highest ${ind.label}`} aria-valuetext={amount(hi, ind)} min={b.min} max={b.max} step={step} value={hi} onChange={(e) => setHi(Number(e.target.value))} />
           </div>
           <div className="wb-range-boxes">
