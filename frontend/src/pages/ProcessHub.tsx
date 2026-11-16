@@ -6,7 +6,8 @@ import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { useMe } from "../lib/reviewer";
 import { STATE_LABEL, cardView, openCount, processState, stepActivity, stepState, stepStatusLine, type Activity } from "../lib/workspaceCard";
-import { WorkspaceDrawing } from "../components/WorkspaceDrawing";
+import { Drawing, WorkspaceDrawing } from "../components/WorkspaceDrawing";
+import { cockpitDrawing } from "../lib/workspaceDrawing";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
 
@@ -17,7 +18,7 @@ import { previousMonth } from "../lib/holdings";
 
 /** Runs, refreshed every 3 s while one is live, every 15 s otherwise. Null
  * until the first answer: a count nobody received is unknown, never zero. */
-function useRuns() {
+export function useRuns() {
   const [runs, setRuns] = useState<RunManifest[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {
@@ -34,7 +35,7 @@ function useRuns() {
 
 
 /** The house stewardship flow, loaded once: its stages carry StewardIQ's numbers. */
-function useHouseFlow() {
+export function useHouseFlow() {
   const [flow, setFlow] = useState<StewardshipFlow | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -87,6 +88,8 @@ function WorkspaceCard({ w, index, runs, flow }: { w: Workspace; index: number; 
   );
 }
 
+const COCKPIT_SHAPES = cockpitDrawing();
+
 export function StartPage() {
   const { runs, error, retry } = useRuns();
   const { flow } = useHouseFlow();
@@ -119,6 +122,17 @@ export function StartPage() {
           <WorkspaceCard key={w.id} w={w} index={i} runs={runs} flow={flow} />
         ))}
       </div>
+      {/* Not a workspace card: one StewardIQ screen with its own way in, so the cards stay five workspaces. */}
+      <a className="hub-entry" href="#/stewardiq/cockpit" aria-label="Cockpit, StewardIQ" aria-describedby="hub-entry-cockpit-purpose">
+        <span className="hub-entry-fig">
+          <Drawing shapes={COCKPIT_SHAPES} />
+        </span>
+        <span className="hub-card-body">
+          <span className="hub-card-cap hub-entry-cap">StewardIQ</span>
+          <span className="hub-card-name">Cockpit</span>
+          <span className="hub-card-purpose" id="hub-entry-cockpit-purpose">Engagement coverage, upcoming meetings, control gaps, escalation and votes on one page.</span>
+        </span>
+      </a>
     </div>
   );
 }
@@ -323,9 +337,6 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
 
   return (
     <div className="page hub">
-      <p className="hub-crumb">
-        <a href="#/home">Start</a> › {w.name}
-      </p>
       <h1>{w.name}</h1>
       <p className="help-text">
         {w.purpose} Open a step to work in its screen; a bar there shows the next step. A dashed <span className="hub-step-handoff-key">re-entered by hand</span> line means that output is typed into the next step, not passed on.
@@ -335,14 +346,6 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
       {w.processes.map((p) => (
         <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} activity={activity} />
       ))}
-      <nav className="hub-screens" aria-label={`${w.name} screens`}>
-        <span className="hub-now-label">Screens</span>
-        {w.screens.map(([href, label]) => (
-          <a key={href} className="hub-chip" href={href}>
-            {label}
-          </a>
-        ))}
-      </nav>
     </div>
   );
 }

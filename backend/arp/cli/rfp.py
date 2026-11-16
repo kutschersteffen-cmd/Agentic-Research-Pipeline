@@ -84,8 +84,13 @@ def golden_drafts(
     cases: Path = typer.Option(..., exists=True, dir_okay=False, help="Library and labelled questions (JSON)."),
     min_drafted: float = typer.Option(..., "--min-drafted", help="Exit 1 below this share of answerable drafted."),
     min_blank: float = typer.Option(..., "--min-blank", help="Exit 1 below this share of unanswerable left no source."),
+    min_unchanged: float | None = typer.Option(
+        None, "--min-unchanged", help="Exit 1 below this share of `unchanged` questions answered with an entry's answer."),
+    min_library_first: float | None = typer.Option(
+        None, "--min-library-first", help="Exit 1 below this share of drafted `unchanged`/`library` questions with no document."),
 ) -> None:
-    """Drafted and blank shares; also exits 1 when the verifier model finds any draft stating an uncited fact."""
+    """Drafted and blank shares; also exits 1 when the verifier model finds any draft stating an uncited fact. Each
+    of the two optional thresholds is checked only when the case file has a question it applies to."""
     from datetime import date
 
     from arp.llm.factory import build_verifier_llm_client
@@ -100,5 +105,11 @@ def golden_drafts(
     blank = c["blank"] / c["unanswerable"] if c["unanswerable"] else 0.0
     typer.echo(f"drafted {drafted:.3f} ({c['drafted']}/{c['answerable']}), no source {blank:.3f} "
                f"({c['blank']}/{c['unanswerable']}), drafts with unsupported facts {c['unsupported']}")
-    if drafted < min_drafted or blank < min_blank or c["unsupported"]:
+    failed = drafted < min_drafted or blank < min_blank or c["unsupported"]
+    for name, minimum in (("unchanged", min_unchanged), ("library_first", min_library_first)):
+        if minimum is not None and c[f"{name}_total"]:
+            share = c[name] / c[f"{name}_total"]
+            typer.echo(f"{name.replace('_', '-')} {share:.3f} ({c[name]}/{c[f'{name}_total']})")
+            failed = failed or share < minimum
+    if failed:
         raise typer.Exit(1)
