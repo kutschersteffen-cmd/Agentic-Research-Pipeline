@@ -61,7 +61,7 @@ def env(tmp_path: Path):
     return TestClient(app), settings, portfolios, decisions, tmp_path
 
 
-def _use_fixture_dataset(settings: Settings, tmp_path: Path) -> None:
+def _use_fixture_dataset(settings: Settings, tmp_path: Path, **overrides: str) -> None:
     row = {c: "1" for c in DATASET_HEADER}
     row.update(
         isin="DE0007164600", company_id=SAP, name="SAP SE", country="Germany", files="DAX", data_status="simulated",
@@ -69,6 +69,7 @@ def _use_fixture_dataset(settings: Settings, tmp_path: Path) -> None:
         severe_controversy="false", lct_category="neutral", transition_grade="B",
         transition_grade_label="Credible", sector="Information Technology",
     )  # fmt: skip
+    row.update(overrides)
     path = tmp_path / "esg_simulated.csv"
     with path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=DATASET_HEADER)
@@ -341,6 +342,23 @@ def test_ac32_a_category_screen_on_the_grade(env):
     spec = {"screens": [{"type": "category_screen", "field": "transition_grade", "allow": ["B"], "missing": "fail"}]}
     result = _run(client, 32, universe="file:DAX", spec=spec).json()
     assert [c["company_id"] for c in result["constituents"]] == [SAP]
+
+
+def test_a_run_marks_the_norms_exclusion_simulated_and_the_size_exclusion_not(env):
+    client, settings, _, _, tmp_path = env
+    _use_fixture_dataset(settings, tmp_path, norms_violation="true")
+    spec = {
+        "screens": [
+            {"type": "metric_threshold", "label": "Minimum free-float market cap", "field": "float_mcap", "min_value": 1_000_000},
+            {"type": "flag_exclusion", "label": "Norms-based exclusion (UNGC / OECD)", "field": "norms_violation", "missing": "pass"},
+        ]
+    }
+    result = _run(client, 43, universe="file:DAX", spec=spec).json()
+    size, norms = result["trace"][1:3]
+    assert (norms["label"], norms["dropped_sample"]) == ("Norms-based exclusion (UNGC / OECD)", [SAP])
+    assert norms["detail"] == {"field": "norms_violation", "dropped": 1, "simulated": 1}
+    # Size comes from the holdings file's weights, not the simulated dataset: no mark.
+    assert size["detail"]["dropped"] > 0 and "simulated" not in size["detail"]
 
 
 def test_ac33_without_the_dataset_an_esg_rule_blocks(env):

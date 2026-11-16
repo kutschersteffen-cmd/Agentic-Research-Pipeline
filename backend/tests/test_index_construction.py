@@ -89,6 +89,27 @@ def test_flag_and_category_screens_compose_in_order():
     assert [t.candidates_out for t in traces] == [2, 1]
 
 
+NORMS = FlagExclusionScreen(label="Norms-based exclusion (UNGC / OECD)", field="norms_violation")
+
+
+def test_an_exclusion_on_a_simulated_value_is_marked_simulated():
+    real = [_candidate("a", norms_violation=False), _candidate("b", norms_violation=True)]
+    simulated = [c.model_copy(update={"simulated_fields": ["norms_violation"]}) for c in real]
+    kept, traces = apply_screens(simulated, [NORMS])
+    assert traces[0].detail["simulated"] == 1
+    # The mark only labels the reason: the same companies survive with and without it.
+    assert [c.company_id for c in kept] == [c.company_id for c in apply_screens(real, [NORMS])[0]] == ["a"]
+
+
+def test_an_exclusion_on_a_real_value_is_not_marked_simulated():
+    # `b` carries simulated values, but not the one this rule excludes on.
+    candidates = [_candidate("a", norms_violation=False), _candidate("b", norms_violation=True, esg_score=5.0)]
+    candidates[1] = candidates[1].model_copy(update={"simulated_fields": ["esg_score"]})
+    kept, traces = apply_screens(candidates, [NORMS])
+    assert [c.company_id for c in kept] == ["a"]
+    assert "simulated" not in traces[0].detail
+
+
 def test_missing_value_blocks_the_run_by_default():
     candidates = [_candidate("a", esg_score=8.0), _candidate("b")]
     with pytest.raises(DataQualityBlock, match="missing value"):

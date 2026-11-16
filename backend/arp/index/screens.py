@@ -76,6 +76,10 @@ def apply_screens(candidates: list[IndexCandidate], screens: list[ScreenRule]) -
         kept, dropped = [], []
         for candidate in surviving:
             (kept if keep_fn(rule, candidate) else dropped).append(candidate)
+        detail = {"field": rule.field, "dropped": len(dropped)}
+        # Label only, read after the keep/drop decision: how many were dropped on a simulated value.
+        if simulated := sum(rule.field in c.simulated_fields for c in dropped):
+            detail["simulated"] = simulated
         traces.append(
             StageTrace(
                 stage="screen",
@@ -84,7 +88,7 @@ def apply_screens(candidates: list[IndexCandidate], screens: list[ScreenRule]) -
                 candidates_in=len(surviving),
                 candidates_out=len(kept),
                 dropped_sample=[c.company_id for c in dropped[:10]],
-                detail={"field": rule.field, "dropped": len(dropped)},
+                detail=detail,
             )
         )
         surviving = kept
