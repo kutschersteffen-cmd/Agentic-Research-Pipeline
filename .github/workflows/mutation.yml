@@ -13,6 +13,11 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, labeled]
 
+# The newest PR run (latest commit and labels) cancels the older one; nightly and manual runs get their own group and always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   mutation:
     name: Mutation check (backend)

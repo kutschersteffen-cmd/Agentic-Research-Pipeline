@@ -283,7 +283,8 @@ World companies and puts them in the house portfolios, so `house_universe()` inc
      item key (split votes, or repeated agenda text) share one item and each keep their own decision.
    - Decision `external_id`: `<csv file name>:<line number>`, so fully identical rows stay separate decisions.
    - A row with an empty `how_voted` creates its item and no decision.
-   - `against_management` comes from the CSV's `for_against_management` (`AGAINST`→true, `FOR`→false, empty→null).
+   - `against_management` follows the vote-intake rule (see Intake → Rules); the CSV column is not read
+     (`vote-abstain-and-seed-fixes`).
      That column was derived by the fetch script, not filed by SEC; see `data/voting/npx_urth/README.md`.
    - Numbers are normalised (`508531.000000`→`508531`); labels are kept as filed in `vote_label`.
    - Companies are matched by `isin`, else by `cusip` through the registry; the rest stay unmatched.
@@ -360,7 +361,7 @@ and `vote_*` tables first, unless the row says otherwise.
 | AC-30 | Seeded data on the e2e stack | A user opens `#/engagement` and a seeded company's issue | Each objective shows description, type and status, its result when one is set, and the label `Demo data` (amended 14 Nov 2026 by the owner: result only when set, as the `stewardship-commitment-loop` objectives list shows it) | evaluator |
 | AC-31 | Showcase companies not loaded | `seed-demo` runs | Exit code 1; stderr is `run arp showcase load first` | unit |
 | AC-32 | AC-31 | — | 0 rows with `source` `mock_voice_seed` exist | unit |
-| AC-33 | A fixture CSV: 3 meetings, 10 distinct items; 8 items with one vote record (2 of them `AGAINST` with `for_against_management` `AGAINST`), 1 item with 2 records (`FOR`/`FOR`, management `FOR`), 1 item with an empty vote | `arp stewardship load-npx <dir>` runs | `vote_meetings` holds 3 rows, `vote_items` 10, `vote_decisions` 10 | holdout |
+| AC-33 | A fixture CSV: 3 meetings, 10 distinct items; 8 items with one vote record (2 of them `AGAINST` with `for_against_management` `AGAINST` and management recommendation `FOR`; no other record is `FOR` with management `AGAINST`, or `AGAINST` / `WITHHOLD` with management `FOR`; amended by `vote-abstain-and-seed-fixes`), 1 item with 2 records (`FOR`/`FOR`, management `FOR`), 1 item with an empty vote | `arp stewardship load-npx <dir>` runs | `vote_meetings` holds 3 rows, `vote_items` 10, `vote_decisions` 10 | holdout |
 | AC-34 | AC-33 done | `vote_decisions` is read | Exactly 2 rows have `against_management` true, and the empty-vote item has no decision | holdout |
 | AC-35 | The committed CSVs in `data/voting/npx_urth/` | `load-npx` runs | `select count(*) from vote_decisions where source = 'npx_urth_demo'` = 59,786 and `vote_items` = 61,964 | holdout |
 | AC-36 | AC-35 done | `load-npx` runs again | Both counts are unchanged | holdout |

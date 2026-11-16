@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# A push to a PR cancels that PR's older CI run; every push to main gets its own group and always finishes (Main guard needs it).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   backend:
     name: Backend (lint + tests)

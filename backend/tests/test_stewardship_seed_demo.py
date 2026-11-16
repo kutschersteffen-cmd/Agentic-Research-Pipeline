@@ -7,6 +7,8 @@ from sqlalchemy import func, select
 from arp.db.companies import resolve_company
 from arp.db.session import transaction
 from arp.schemas.common import CompanyRef
+from arp.stewardship import seed_demo as seed_demo_module
+from arp.stewardship.intake import IntakeReport, Rejection
 from arp.stewardship.seed_demo import MSCI_WORLD, seed_demo, select_companies
 from arp.stewardship.style import check, load_blocklist
 from arp.storage.postgres_models import (
@@ -14,8 +16,10 @@ from arp.storage.postgres_models import (
     StwCompanyModel,
     StwEngagementModel,
     StwEventModel,
+    StwEvidenceSuggestionModel,
     StwObjectiveModel,
     StwTransitionModel,
+    StwWatchTopicModel,
     VoteMeetingModel,
 )
 
@@ -168,9 +172,62 @@ def test_other_seed_refuses_when_other_source_rows_hang_on_demo_engagements(seed
     with transaction(seeded) as s:
         eng = s.scalars(select(StwEngagementModel.engagement_id).limit(1)).one()
         s.add(StwTransitionModel(transition_id="t_app_1", source="app", engagement_id=eng, kind="milestone"))
+        # spec vote-abstain-and-seed-fixes AC-24, AC-25, AC-32: the watch tables are checked too
+        s.add(StwWatchTopicModel(topic_id="w_app_1", source="app", engagement_id=eng, question="Coal exit date?"))
+        s.add(_suggestion(s, eng, eng))
     before = _counts(seeded)
     with pytest.raises(SystemExit) as e:
         seed_demo(seeded, n=20, seed=8)
     assert e.value.code == 1
-    assert "stw_transitions: 1" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "stw_transitions: 1" in err
+    assert "stw_watch_topics: 1" in err
+    assert "stw_evidence_suggestions: 1" in err
     assert _counts(seeded) == before
+
+
+def _suggestion(s, engagement_id, demo_engagement_id):
+    company = s.get(StwEngagementModel, demo_engagement_id).company_id
+    activity = s.scalars(select(StwActivityModel.activity_id).where(StwActivityModel.engagement_id == demo_engagement_id).limit(1)).one()
+    return StwEvidenceSuggestionModel(suggestion_id="es_app_1", source="app", kind="evidence", company_id=company,
+                                      engagement_id=engagement_id, activity_id=activity, quote="We exit coal by 2030.")  # fmt: skip
+
+
+def test_other_seed_refuses_on_suggestion_with_demo_activity_vote_abstain_ac33(seeded, capsys):
+    with transaction(seeded) as s:
+        demo = s.scalars(select(StwEngagementModel).limit(1)).one()
+        s.add(StwEngagementModel(engagement_id="e_app_1", source="app", company_id=demo.company_id))
+        s.flush()
+        s.add(_suggestion(s, "e_app_1", demo.engagement_id))
+    with pytest.raises(SystemExit) as e:
+        seed_demo(seeded, n=20, seed=8)
+    assert e.value.code == 1
+    assert "stw_evidence_suggestions: 1" in capsys.readouterr().err
+
+
+def _seed_rows(dsn):
+    models = (StwEngagementModel, StwObjectiveModel, StwActivityModel, StwCompanyModel, StwEventModel, StwTransitionModel)
+    with transaction(dsn) as s:
+        return {(m.__tablename__, e) for m in models for e in s.scalars(select(m.external_id).where(m.source == "mock_voice_seed"))}
+
+
+def test_failed_intake_keeps_old_seed_vote_abstain_ac27(seeded, monkeypatch):
+    before = _seed_rows(seeded)
+    assert any(e.startswith("s7:") for _, e in before if e)
+
+    def boom(*args, **kwargs):
+        raise ValueError("intake failed")
+
+    monkeypatch.setattr(seed_demo_module, "intake_engagements", boom)
+    with pytest.raises(ValueError, match="intake failed"):
+        seed_demo(seeded, n=20, seed=8)
+    assert _seed_rows(seeded) == before
+
+
+def test_rejected_seed_row_keeps_old_seed_vote_abstain_ac28_ac34(seeded, monkeypatch):
+    before = _seed_rows(seeded)
+    rejected = IntakeReport(rejected=[Rejection(sheet="engagements", row=1, field="company_id", reason="unknown company")])
+    monkeypatch.setattr(seed_demo_module, "intake_engagements", lambda *a, **k: rejected)
+    with pytest.raises(RuntimeError, match="^seed rows rejected:"):
+        seed_demo(seeded, n=20, seed=8)
+    assert _seed_rows(seeded) == before
