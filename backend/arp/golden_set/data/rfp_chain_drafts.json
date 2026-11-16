@@ -1,0 +1,227 @@
+{
+  "_comment": "Fictitious firm, library and reference documents for `arp rfp golden drafts` (rfp-approved-answers-first-design §7, AC-37): `unchanged` and `library` questions the library answers (as it is, or after a change), `documents` questions only a reference document answers, `none` questions no source answers. The priority 2 policy is reached only when the priority 1 report does not answer.",
+  "library": [
+    {
+      "question": "Describe your firm.",
+      "answer": "Larchmere Investment Partners is an independent, partner-owned asset manager founded in 2011 and based in Bristol."
+    },
+    {
+      "question": "What are your total assets under management?",
+      "answer": "Larchmere managed GBP 8.6bn as of 30 June 2026."
+    },
+    {
+      "question": "How many investment professionals do you employ?",
+      "answer": "Our investment team has 34 professionals, 11 of them portfolio managers."
+    },
+    {
+      "question": "Are you a signatory to the UN Principles for Responsible Investment?",
+      "answer": "Yes, Larchmere has been a PRI signatory since 2014."
+    },
+    {
+      "question": "Who is your custodian?",
+      "answer": "Our custodian for segregated mandates is Fenwick Trust Bank."
+    },
+    {
+      "question": "Who audits your firm?",
+      "answer": "Our financial statements are audited by Halden & Rowe LLP."
+    },
+    {
+      "question": "Describe your engagement approach.",
+      "answer": "We engage with investee companies through meetings with boards and management, focusing on climate, board quality and capital allocation."
+    },
+    {
+      "question": "What is your voting policy?",
+      "answer": "We vote at every shareholder meeting of companies we hold, following our published voting policy, and do not use a proxy adviser's recommendations automatically."
+    },
+    {
+      "question": "Do you lend securities?",
+      "answer": "Larchmere does not lend securities from any fund it manages."
+    },
+    {
+      "question": "Describe your fee structure for segregated mandates.",
+      "answer": "Segregated mandates pay a flat annual management fee agreed per client; we charge no performance fee."
+    },
+    {
+      "question": "What is your business continuity arrangement?",
+      "answer": "We test our business continuity plan twice a year, and staff can work fully from a secondary site in Bath."
+    },
+    {
+      "question": "Are you regulated?",
+      "answer": "Larchmere is authorised and regulated by the Financial Conduct Authority."
+    }
+  ],
+  "documents": [
+    {
+      "title": "Larchmere Stewardship Report 2025",
+      "priority": 1,
+      "text": "Larchmere Stewardship Report 2025\n\nEngagement in numbers. In 2025 Larchmere held 214 engagement meetings with 96 investee companies. 61 of these meetings were with board chairs or independent directors.\n\nEscalation. When an engagement makes no progress within 18 months, we escalate in this order: a letter to the chair, a public statement at the annual meeting, a vote against the chair's re-election, and finally a reduction of our holding.\n\nCollaborative engagement. Larchmere is a member of Climate Action 100+ and leads the collaborative engagement with two of its focus companies.\n\nVoting record. In 2025 we voted at 1,180 shareholder meetings and voted against management on at least one resolution at 22% of them.\n\nStewardship Code. Larchmere has been a signatory to the UK Stewardship Code since 2021."
+    },
+    {
+      "title": "Larchmere Responsible Investment Policy",
+      "priority": 2,
+      "text": "Larchmere Responsible Investment Policy\n\nExclusions. Our funds do not invest in companies that make cluster munitions or anti-personnel mines, or that derive more than 10% of their revenue from thermal coal mining.\n\nClimate commitment. Larchmere is a member of the Net Zero Asset Managers initiative and has committed to net zero emissions across its assets under management by 2050.\n\nBoard diversity. We vote against the chair of the nomination committee at UK companies whose board is less than 40% women.\n\nExecutive pay. We vote against remuneration reports where the chief executive's bonus is not linked to measurable targets.\n\nPolicy review. This policy is reviewed by the Larchmere investment committee every year."
+    }
+  ],
+  "questions": [
+    {
+      "question": "Please describe your firm.",
+      "expect": "unchanged"
+    },
+    {
+      "question": "What is your total AUM?",
+      "expect": "unchanged"
+    },
+    {
+      "question": "How many investment professionals does your firm employ?",
+      "expect": "unchanged"
+    },
+    {
+      "question": "Are you a signatory to the PRI?",
+      "expect": "unchanged"
+    },
+    {
+      "question": "Who is your custodian for segregated mandates?",
+      "expect": "unchanged"
+    },
+    {
+      "question": "Who is your auditor?",
+      "expect": "unchanged"
+    },
+    {
+      "question": "Please describe your approach to engagement.",
+      "expect": "unchanged"
+    },
+    {
+      "question": "What is your proxy voting policy?",
+      "expect": "unchanged"
+    },
+    {
+      "question": "Do you engage in securities lending?",
+      "expect": "unchanged"
+    },
+    {
+      "question": "Which regulator authorises your firm?",
+      "expect": "unchanged"
+    },
+    {
+      "question": "In which year was your firm founded?",
+      "expect": "library"
+    },
+    {
+      "question": "Where is your firm headquartered?",
+      "expect": "library"
+    },
+    {
+      "question": "How many portfolio managers do you employ?",
+      "expect": "library"
+    },
+    {
+      "question": "Since when have you been a PRI signatory?",
+      "expect": "library"
+    },
+    {
+      "question": "Which topics do you focus on in your engagement with companies?",
+      "expect": "library"
+    },
+    {
+      "question": "Do you follow proxy adviser recommendations automatically?",
+      "expect": "library"
+    },
+    {
+      "question": "Do you charge performance fees on segregated mandates?",
+      "expect": "library"
+    },
+    {
+      "question": "How often do you test your business continuity plan?",
+      "expect": "library"
+    },
+    {
+      "question": "Where is your secondary business continuity site?",
+      "expect": "library"
+    },
+    {
+      "question": "What were your assets under management as of 30 June 2026, and who owns the firm?",
+      "expect": "library"
+    },
+    {
+      "question": "How many engagement meetings did you hold in 2025?",
+      "expect": "documents"
+    },
+    {
+      "question": "How do you escalate an engagement that makes no progress?",
+      "expect": "documents"
+    },
+    {
+      "question": "Do you take part in collaborative engagement initiatives?",
+      "expect": "documents"
+    },
+    {
+      "question": "At how many shareholder meetings did you vote in 2025?",
+      "expect": "documents"
+    },
+    {
+      "question": "Are you a signatory to the UK Stewardship Code?",
+      "expect": "documents"
+    },
+    {
+      "question": "Which companies or sectors do your funds exclude?",
+      "expect": "documents"
+    },
+    {
+      "question": "Have you made a net zero commitment?",
+      "expect": "documents"
+    },
+    {
+      "question": "How do you vote on board gender diversity?",
+      "expect": "documents"
+    },
+    {
+      "question": "How do you vote on executive remuneration?",
+      "expect": "documents"
+    },
+    {
+      "question": "How often is your responsible investment policy reviewed?",
+      "expect": "documents"
+    },
+    {
+      "question": "What was your firm's revenue in 2025?",
+      "expect": "none"
+    },
+    {
+      "question": "How many clients do you serve?",
+      "expect": "none"
+    },
+    {
+      "question": "What is your staff turnover rate?",
+      "expect": "none"
+    },
+    {
+      "question": "Describe your cybersecurity certifications.",
+      "expect": "none"
+    },
+    {
+      "question": "What is the carbon footprint of your flagship equity fund?",
+      "expect": "none"
+    },
+    {
+      "question": "List your three largest client relationships.",
+      "expect": "none"
+    },
+    {
+      "question": "What is your policy on investing in tobacco?",
+      "expect": "none"
+    },
+    {
+      "question": "What is your diversity target for senior leadership?",
+      "expect": "none"
+    },
+    {
+      "question": "Describe any regulatory sanctions in the past five years.",
+      "expect": "none"
+    },
+    {
+      "question": "What is your employee headcount outside the investment team?",
+      "expect": "none"
+    }
+  ]
+}

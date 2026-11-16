@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import asdict
 from datetime import UTC, date, datetime
 from typing import Literal
@@ -10,6 +11,7 @@ from starlette.concurrency import run_in_threadpool
 
 from arp.api.auth import Principal, current_user, require_role
 from arp.api.deps import get_llm_client, get_portfolio_store, settings_dep
+from arp.api.routers.ask import ERROR_DETAIL as ASK_ERROR_DETAIL
 from arp.api.routers.universe import save_universe
 from arp.config import Settings
 from arp.holdings.file_source import file_ref
@@ -30,6 +32,7 @@ from arp.schemas.portfolio_monitoring import Alert, AlertRule, AlertStatus, Aler
 from arp.storage.portfolio_store import PortfolioStore, holdings_date_label, portfolio_directories
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/demo/seed")
@@ -197,7 +200,8 @@ async def ask(
         return answer
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
-        raise
+        logger.exception("portfolio ask failed")
+        raise HTTPException(502, ASK_ERROR_DETAIL) from exc
     finally:
         qa_audit.record_answer(
             settings, endpoint="portfolio.ask", principal=principal, question=req.question,

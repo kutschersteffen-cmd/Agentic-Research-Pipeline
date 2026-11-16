@@ -132,6 +132,17 @@ def test_ac_56_full_share_with_an_added_word_is_not_unchanged(page):
     assert card.get_by_text("Approved answer, unchanged").count() == 0
 
 
+def test_ac_40_document_source_and_priority(page):
+    body = drafted("We held 512 engagement meetings in 2025.", None, [])
+    q = body["questions"][0]
+    q.update(base_entry_id=None, document_priority=2, sources=[
+        {"kind": "document", "document_id": 4, "title": "Stewardship Statement 2025", "file": "ref_stmt.pdf", "priority": 2,
+         "page": 2, "quote": "512 engagement meetings"}])
+    card = open_card(page, body)
+    for text in ("Uses documents (priority 2)", "Stewardship Statement 2025", "p. 2", "512 engagement meetings"):
+        assert card.get_by_text(text).first.is_visible(), text
+
+
 def test_screen_readers_hear_which_words_were_added_and_removed(page):  # UI review on #505, WCAG 1.3.1
     segments = [("Example AM is an", "kept"), ("independent", "removed"), ("asset", "added"), ("manager founded in 2004.", "kept")]
     card = open_card(page, drafted("Example AM is an asset manager founded in 2004.", 80, segments))
