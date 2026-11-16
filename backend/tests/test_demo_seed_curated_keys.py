@@ -152,7 +152,7 @@ def test_load_then_seed_keeps_one_row_per_company(pg_store):  # AC-20, AC-21, AC
         assert len(store.load_observations(DEUTSCHE_BANK[0], field)) == LOAD_ALONE_OBSERVATIONS_PER_FIELD
     asyncio.run(generate_demo_dataset(store))
     _assert_t_once(store)
-    assert len(store.list_companies()) == LOAD_ALONE_COMPANIES
+    assert len(store.list_companies()) == -1  # THROWAWAY: fails on purpose in shard 2 (AC-42)
 
 
 @pytest.mark.slow
