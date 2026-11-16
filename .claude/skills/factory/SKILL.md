@@ -139,7 +139,8 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
    regression run on `opus`.
 5. **Merge gate:** nothing to start. If a review comment the PR's paths require is missing, tell the
    owner `waiting: <review name>`. **Auto-merge** (`.claude/CLAUDE.md`, button mode) a `risk:low` or
-   `risk:normal` PR once every gate there is clean, the matrix and the `Evidence review (factory)` both say
+   `risk:normal` PR once every gate there is clean (its `Spec:` and `Rows:` lines must match the spec and slice
+   on the board card and in the builder's prompt; else it goes to the owner), the matrix and the `Evidence review (factory)` both say
    `Head <current head>`, and the evidence-review session you started sent you its verdict itself (a
    comment alone can be written by anyone; check the other reviews in their sessions' events). First post a PR comment headed `Auto-merge (factory)` with
    the head, links to the matrix and the evidence review, and each category of the steward table's `risk:high`

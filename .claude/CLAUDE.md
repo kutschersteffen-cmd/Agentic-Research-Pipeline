@@ -144,7 +144,9 @@ The owner answers by tapping buttons, not by typing. Every question to the owner
   1. no changed file is in the steward table's `risk:high` row or under `docs/superpowers/specs/`,
      whatever the label;
   2. every required check is green;
-  3. hidden rows: a `Rows:` line, if present, lists exactly the rows of one slice in the spec's `## Slices`.
+  3. hidden rows: the PR's `Spec:` and `Rows:` lines match the spec and slice the dispatcher started its
+     builder for (its board card and that session's prompt are the record); if not, this gate fails.
+     A `Rows:` line, if present, lists exactly the rows of one slice in the spec's `## Slices`.
      The PR owes that slice's rows, or with a `Spec:` line and no `Rows:` line all the spec's rows, or with
      no `Spec:` line none. If the rows it owes include `holdout` rows, the `Holdout acceptance` log has a
      result line for each of them and every result line ends in pass; if they include none and it has a
