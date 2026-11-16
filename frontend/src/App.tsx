@@ -13,10 +13,11 @@ import { clearTurns, loadTurns, saveTurns, type AskTurn } from "./lib/askHistory
 import { useMe } from "./lib/reviewer";
 import { AppTopbar } from "./components/AppTopbar";
 import { WorkspaceRow } from "./components/WorkspaceRow";
-import type { ReviewableRunKind, RunManifest } from "./types";
+import type { ReviewableRunKind, RunManifest, WaitingCounts } from "./types";
 import { REVIEWABLE_RUN_TYPES, runTypeLabel } from "./lib/runs";
+import { api } from "./api/client";
 import { listAllRuns } from "./lib/poll";
-import { HUBS, entryTab, navCount, redirectHash } from "./lib/nav";
+import { HUBS, entryTab, redirectHash } from "./lib/nav";
 import { Landing } from "./pages/Landing";
 
 // Pages load on demand so the first screen does not ship every page and its editors.
@@ -142,7 +143,7 @@ function navigate(tab: TabId, ...params: string[]) {
 function App() {
   const [route, setRoute] = useState(readRoute);
   const active = route.tab;
-  const [waiting, setWaiting] = useState<{ review: number } | null>(null);
+  const [waiting, setWaiting] = useState<WaitingCounts | null>(null);
   const [recentRuns, setRecentRuns] = useState<RunManifest[]>([]);
   const [pendingTaxonomyId, setPendingTaxonomyId] = useState<string | null>(null);
 
@@ -182,13 +183,10 @@ function App() {
   // Counts on the "Needs you" items, refreshed on every navigation and after
   // every decision. Failure leaves them off rather than showing a zero nobody measured.
   useEffect(() => {
+    api.getWaiting().then(setWaiting, () => setWaiting(null));
     listAllRuns()
-      .then((runs) => {
-        const sum = (keep: (r: RunManifest) => boolean) => runs.filter(keep).reduce((n, r) => n + r.review_count, 0);
-        setWaiting({ review: sum((r) => REVIEWABLE_RUN_TYPES.has(r.run_type)) });
-        setRecentRuns([...runs].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 50));
-      })
-      .catch(() => setWaiting(null));
+      .then((runs) => setRecentRuns([...runs].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 50)))
+      .catch(() => {});
   }, [route, decidedAt]);
 
   const hub = hubOf(active);
@@ -266,7 +264,7 @@ function App() {
         canAsk={canAsk}
         askOpen={askOpen}
         askRef={askRef}
-        reviewCount={navCount("review", waiting)}
+        waiting={waiting}
         onSearch={() => setPaletteOpen(true)}
         onAsk={() => setAskOpen(true)}
       />

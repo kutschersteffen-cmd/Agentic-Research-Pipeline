@@ -7,9 +7,12 @@ const read = (p: string) => readFileSync(new URL(p, import.meta.url), "utf8");
 const bar = () => read("../src/components/AppTopbar.tsx");
 test("sp_ac3b_ask_only_when_available", () => assert.match(bar(), /\{canAsk && \(\s*<button[^>]*className="start-topbar-ask"/));
 test("sp_ac5_same_badge_source", () => {
-  // One badge now: the top bar's, fed the same review count the sidebar used.
-  assert.ok(bar().includes("reviewBadge("), "AppTopbar");
-  assert.ok(read("../src/App.tsx").includes('reviewCount={navCount("review", waiting)}'), "App");
+  // One badge: the top bar's, fed by /api/waiting.
+  assert.ok(bar().includes("waitingBadge("), "AppTopbar");
+  assert.ok(read("../src/App.tsx").includes("getWaiting("), "App");
+});
+test("wc_ac12_no_review_count_sum", () => {
+  assert.ok(!read("../src/App.tsx").includes("review_count"));
 });
 test("sp_kbd_hints_hidden_from_names", () => {
   const kbds = bar().match(/<kbd[^>]*>/g) ?? [];

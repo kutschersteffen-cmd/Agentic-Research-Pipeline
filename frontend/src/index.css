@@ -2472,7 +2472,6 @@ a.vc-box:hover { border-color: var(--text); }
   /* A keyboard hint means nothing on a touch screen: the search button is its icon, 44px square. */
   .start-topbar-search { order: 1; width: 44px; padding: 0; justify-content: center; }
   .start-topbar-search kbd { display: none; }
-  .nav-count-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .start-topbar-ask { order: 2; }
   .start-topbar-user { order: 3; }
   .start-topbar::after { content: ""; order: 4; flex-basis: 100%; height: 0; }

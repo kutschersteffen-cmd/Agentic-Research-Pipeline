@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
-import type { ReviewDecision, ReviewableRunKind } from "../types";
+import type { ReviewDecision, ReviewableRunKind, WaitingCounts } from "../types";
+import { alsoWaiting } from "../lib/workspaceCard";
 import { useMe } from "../lib/reviewer";
 import { SignedInAs } from "../components/SignedInAs";
 import { useCardKeys, type CardHandlers } from "../lib/cardKeys";
@@ -57,6 +58,12 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
     }
   }
 
+  // What else waits on a decision, outside this queue. Nothing shows until it answers, or if it fails.
+  const [waiting, setWaiting] = useState<WaitingCounts | null>(null);
+  useEffect(() => {
+    api.getWaiting().then(setWaiting, () => {});
+  }, []);
+
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,6 +114,12 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
       {error && <p className="error-text" role="alert">{error}</p>}
       {items === null && <p className="status-text">Loading flagged items…</p>}
 
+      {waiting &&
+        alsoWaiting(waiting).map((a) => (
+          <p key={a.href} className="help-text">
+            <a href={a.href}>{a.text}</a>
+          </p>
+        ))}
       {shown.length > 0 && (
         <div className="split-review">
           <div className="split-review-main">
