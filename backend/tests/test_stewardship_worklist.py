@@ -219,11 +219,11 @@ def test_a_version_saved_before_broken_commitments_reads_it_as_weight_0(client, 
     from arp.stewardship import policies
 
     old = [i for i in BUNDLED if i != "broken_commitments"]
-    monkeypatch.setattr(policies, "component_ids", lambda: old)
     store = PolicyStore(root)
-    v1 = store.save(worklist.POLICY, {**_v0_with(), "components": [c for c in _v0_with()["components"] if c["id"] != "broken_commitments"]}, "", "user_a", {})
+    with monkeypatch.context() as m:
+        m.setattr(policies, "component_ids", lambda: old)
+        v1 = store.save(worklist.POLICY, {**_v0_with(), "components": [c for c in _v0_with()["components"] if c["id"] != "broken_commitments"]}, "", "user_a", {})
     store.activate(worklist.POLICY, v1, "user_b")
-    monkeypatch.undo()
     active = client.get("/api/stewardship/policies/priority_weights").json()["active"]
     assert [c["id"] for c in active["components"]] == BUNDLED and active["components"][-1] == {"id": "broken_commitments", "weight": 0}
     r = client.post("/api/stewardship/studio/priority/preview", json={"content": active})

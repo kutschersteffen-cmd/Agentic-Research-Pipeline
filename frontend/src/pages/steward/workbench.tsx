@@ -164,7 +164,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
   // A response for a scope the user has already left is dropped.
   const wanted = useRef(scope);
   wanted.current = scope;
-  // A response older than a local change (selection, programme, note, pick) would undo it on screen: it is dropped.
+  // A refetch response older than a local change (selection, programme, note, pick) would undo it on screen: it is dropped.
   const changes = useRef(0);
   const load = useCallback(async (key: string, background = false) => {
     setLoading(true);
@@ -172,7 +172,7 @@ export function WorkbenchStudio({ onRowsShown }: { onRowsShown?: () => void }) {
     const seen = changes.current;
     try {
       const w = await api.getWorklist(key);
-      if (wanted.current !== key || changes.current !== seen) return;
+      if (wanted.current !== key || (background && changes.current !== seen)) return;
       setData(w);
       setError(null);
       api.getSelection(key, w.cycle).then((s) => wanted.current === key && setSelection(s), () => undefined);
