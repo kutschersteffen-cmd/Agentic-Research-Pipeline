@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 from arp.api.deps import get_run_store, settings_dep
 from arp.api.main import app as real_app
 from arp.config import Settings
-from arp.storage.run_store import RunStore
+from arp.db.runs import RunStore
 
 REPO = Path(__file__).resolve().parents[2]
 SPECS = REPO / "docs" / "superpowers" / "specs"
