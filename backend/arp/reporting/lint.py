@@ -25,6 +25,25 @@ def _texts(slide: SlideContent, headline: bool = False) -> Iterator[tuple[str, s
     for slot, v in slide.slots.items():
         for t in [v] if isinstance(v, str) else v:
             yield slot, t
+    if slide.visual is not None:
+        yield from _visual_texts(slide.visual.model_dump(), "visual")
+
+
+# Visual fields that hold references or settings, not slide text.
+_NOT_TEXT = {"type", "data", "table", "kind", "unit", "highlight", "highlight_column", "total_row", "category", "agenda"}
+
+
+def _visual_texts(v: object, path: str) -> Iterator[tuple[str, str]]:
+    """(dotted path, text) for every text field of a visual, e.g. `visual.tiles.1.value`."""
+    if isinstance(v, str):
+        yield path, v
+    elif isinstance(v, dict):
+        for k, x in v.items():
+            if k not in _NOT_TEXT:
+                yield from _visual_texts(x, f"{path}.{k}")
+    elif isinstance(v, list):
+        for n, x in enumerate(v):
+            yield from _visual_texts(x, f"{path}.{n}")
 
 
 def _find(i: int, slot: str, rule: str, message: str) -> Finding:
@@ -101,7 +120,7 @@ _LABEL = re.compile(r"^\s*(?:\*\*[^*:]+:\*\*|[A-Za-z][\w ]{0,30}:(?!\d))")
 def bold_label(deck: Deck, request: ReportRequest) -> list[Finding]:
     out = []
     for i, s in enumerate(deck.slides):
-        hits = [(slot, t) for slot, t in _texts(s) if isinstance(s.slots[slot], list) and _LABEL.match(t)]
+        hits = [(slot, t) for slot, t in _texts(s) if isinstance(s.slots.get(slot), list) and _LABEL.match(t)]
         if len(hits) >= 2:
             out += [_find(i, slot, "bold_label", "Drop the 'Label:' prefixes; write each item as a sentence.") for slot in dict.fromkeys(sl for sl, _ in hits)]
     return out
@@ -113,7 +132,8 @@ def _opener(t: str) -> str | None:
 
 
 def repeated_opener(deck: Deck, request: ReportRequest) -> list[Finding]:
-    slots = [(i, slot, _opener(t)) for i, s in enumerate(deck.slides) for slot, t in _texts(s)]
+    # Slot sentences only: a visual's short texts (values, labels, callouts) share a subject by design.
+    slots = [(i, slot, _opener(t)) for i, s in enumerate(deck.slides) for slot, t in _texts(s) if not slot.startswith("visual.")]
     counts = Counter(o for *_, o in slots if o)
     return [
         _find(i, slot, "repeated_opener", f"Start this differently; '{o}' opens {counts[o]} slots in the deck.")
@@ -132,9 +152,25 @@ def _numbers(text: str) -> Iterator[tuple[float, int, str | None]]:
         yield float(raw) * _MULT.get(m.group(1), 1), len(raw.partition(".")[2]), m.group(1)
 
 
+DERIVED = "derived_"  # dataset_id prefix of a table the fit ladder built from a visual's own text
+
+
+def _derived_cells(slide: SlideContent, request: ReportRequest) -> Iterator[tuple[str, str]]:
+    """The cells of a derived table on this slide, as slide text."""
+    v = slide.visual
+    if v is None or v.type != "comparison_table" or not v.table.dataset_id.startswith(DERIVED):
+        return
+    ds = next((d for d in request.datasets if d.dataset_id == v.table.dataset_id), None)
+    for r, row in enumerate(ds.rows if ds else []):
+        for col, cell in row.items():
+            yield f"visual.table.{r}.{col}", str(cell)
+
+
 def _sources(request: ReportRequest) -> list[float]:
     vals = [v for v, _, _ in _numbers(request.qualitative_notes)]
     for ds in request.datasets:
+        if ds.dataset_id.startswith(DERIVED):
+            continue  # slide text moved into a table by the fit ladder: linted as text, never a source
         vals += [float(c) for r in ds.rows for c in r.values() if isinstance(c, (int, float)) and not isinstance(c, bool)]
     return vals
 
@@ -143,7 +179,7 @@ def number_not_in_source(deck: Deck, request: ReportRequest) -> list[Finding]:
     src = _sources(request)
     out = []
     for i, s in enumerate(deck.slides):
-        for slot, t in _texts(s, headline=True):
+        for slot, t in [*_texts(s, headline=True), *_derived_cells(s, request)]:
             for n, d, suffix in _numbers(t):
                 if suffix is None and (abs(n) <= 10 and n == int(n) or 1900 <= abs(n) <= 2100 and n == int(n)):
                     continue

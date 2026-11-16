@@ -1151,6 +1151,10 @@ export const api = {
     request<Storyline>(`/api/reports/${encodeURIComponent(reportId)}/storyline`, { method: "PUT", body: JSON.stringify(storyline) }),
   approveStoryline: (reportId: string) =>
     request<ReportManifest>(`/api/reports/${encodeURIComponent(reportId)}/storyline/approve`, { method: "POST" }),
+  /** Accepts slide `n` (1-based) as it is, clearing the fit ladder's needs-review flag that blocks the download. */
+  approveSlide: async (reportId: string, n: number) => {
+    await authFetch(`${API_BASE}/api/reports/${encodeURIComponent(reportId)}/slides/${n}/approve`, { method: "POST" });
+  },
   getReportFindings: (reportId: string) => request<{ findings: Finding[] }>(`/api/reports/${encodeURIComponent(reportId)}/findings`),
   reportDownloadUrl: (reportId: string, file?: string) =>
     `${API_BASE}/api/reports/${encodeURIComponent(reportId)}/download${buildQuery({ file })}`,

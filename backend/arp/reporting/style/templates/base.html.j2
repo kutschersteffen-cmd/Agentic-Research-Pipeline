@@ -9,10 +9,16 @@
 </head>
 <body>
 {% for slide in slides %}
+{% if slide.visual %}
+<section class="slide" data-slide="{{ slide.index }}" data-visual="{{ slide.visual }}" style="background: {{ panel }}">
+{{ slide.html|safe }}
+</section>
+{% else %}
 <section class="slide" data-slide="{{ slide.index }}" data-layout="{{ slide.layout }}">
 {% include slide.layout ~ ".html.j2" %}
 {% if footer %}<footer><span>{{ slide.refs }}</span><span>{{ slide.index + 1 }}</span></footer>{% endif %}
 </section>
+{% endif %}
 {% endfor %}
 </body>
 </html>
