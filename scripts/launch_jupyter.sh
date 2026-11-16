@@ -54,7 +54,9 @@ case "${1:-}" in
       [ -n "$(setting "$name")" ] || { echo "$name is not set (environment or backend/.env)" >&2; missing=1; }
     done
     # Dev mode here would sign in anyone reaching port 8000 (spec showcase-login-origins); unset means dev.
-    if [ "$(setting ARP_AUTH_MODE)" != "local" ]; then
+    # Read as the app reads it (environment, then backend/.env, any spelling pydantic-settings accepts).
+    auth_mode=$(cd "$root/backend" && python3 -c "from arp.config import Settings; print(Settings().auth_mode)") || true
+    if [ "$auth_mode" != "local" ]; then
       echo "$mode_error" >&2
       missing=1
     fi

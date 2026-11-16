@@ -8,6 +8,7 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -52,9 +53,9 @@ def test_foreign_origin_cannot_read(showcase_local):  # AC-2
     assert r.status_code == 401
 
 
-@pytest.mark.parametrize("host", ["127.0.0.1", "10.1.2.3"])  # AC-3 loopback, AC-11 direct on the bank network
-def test_no_token_no_origin_cannot_cast(showcase_local, host):
-    assert showcase_local(host, **OLD_LINES).post("/api/voting/runs/ac3_none/cast").status_code == 401
+@pytest.mark.parametrize(("host", "run"), [("127.0.0.1", "ac3_none"), ("10.1.2.3", "ac11_none")])  # AC-3, AC-11
+def test_no_token_no_origin_cannot_cast(showcase_local, host, run):
+    assert showcase_local(host, **OLD_LINES).post(f"/api/voting/runs/{run}/cast").status_code == 401
 
 
 def test_presenter_token_casts_from_the_hub(showcase_local):  # AC-4
@@ -154,14 +155,16 @@ http.server.HTTPServer(("127.0.0.1", port), H).serve_forever()
 """
 
 
-def test_up_refuses_a_live_server_that_signs_in_without_token(tmp_path):  # security review of #569
-    """`up` asks the running app: /api/me without a token must be 401, after start and when already running."""
+@pytest.fixture
+def launcher(tmp_path):
+    """A repo copy whose `up` runs a stub server instead of uvicorn; `me` holds its /api/me status."""
     copy = tmp_path / "repo"
     for d in ("scripts", "backend", "frontend/dist", "bin"):
         (copy / d).mkdir(parents=True)
     shutil.copy(REPO / "scripts" / "launch_jupyter.sh", copy / "scripts")
     (copy / "frontend" / "dist" / "index.html").write_text('<script src="./assets/x.js"></script>')
     me = tmp_path / "me_status"
+    me.write_text("401")
     (tmp_path / "stub.py").write_text(STUB)
     shim = copy / "bin" / "python3"  # stands in for the database init and uvicorn
     shim.write_text(f'#!/bin/bash\ncase "$*" in\n  "-m arp db init-postgres") exit 0 ;;\n'
@@ -173,26 +176,48 @@ def test_up_refuses_a_live_server_that_signs_in_without_token(tmp_path):  # secu
         port = s.getsockname()[1]
     env = {k: v for k, v in os.environ.items() if not k.upper().startswith("ARP_")}
     env.update(PATH=f"{copy / 'bin'}:{env['PATH']}", TMPDIR=str(tmp_path), ARP_LAUNCH_PORT=str(port),
-               ARP_POSTGRES_DSN="x", ARP_LLM_MODEL="m", ARP_LLM_VERIFIER_MODEL="m", ARP_AUTH_MODE="local")
+               ARP_POSTGRES_DSN="x", ARP_LLM_MODEL="m", ARP_LLM_VERIFIER_MODEL="m")
 
-    def launch(cmd):
+    def launch(cmd, **extra):
         return subprocess.run(["bash", str(copy / "scripts" / "launch_jupyter.sh"), cmd], capture_output=True,
-                              text=True, env=env, timeout=60)
+                              text=True, env={**env, **extra}, timeout=60)
 
     def serving():
         with socket.socket() as s:
             return s.connect_ex(("127.0.0.1", port)) == 0
 
-    refusal = "ARP_AUTH_MODE must be local for this launch"
-    try:
-        me.write_text("200")  # a server in dev mode, whatever .env said
-        r = launch("up")
-        assert (r.returncode, refusal in r.stderr, serving()) == (1, True, False), r
-        me.write_text("401")  # local mode
-        r = launch("up")
-        assert (r.returncode, r.stdout) == (0, f"http://localhost:{port}/\n"), r
-        me.write_text("200")  # the running server signs in without a token
-        r = launch("up")
-        assert (r.returncode, refusal in r.stderr, serving()) == (1, True, False), r
-    finally:
-        launch("down")
+    yield SimpleNamespace(launch=launch, serving=serving, me=me, env_file=copy / "backend" / ".env", port=port)
+    launch("down")
+
+
+REFUSAL = "ARP_AUTH_MODE must be local for this launch"
+
+
+def test_up_refuses_a_live_server_that_signs_in_without_token(launcher):  # code + security review of #569
+    """`up` asks the running app: /api/me without a token must be 401, after start and when already running."""
+    local = {"ARP_AUTH_MODE": "local"}
+    launcher.me.write_text("200")  # a server in dev mode, whatever the settings said
+    r = launcher.launch("up", **local)
+    assert (r.returncode, REFUSAL in r.stderr, launcher.serving()) == (1, True, False), r
+    launcher.me.write_text("401")  # local mode
+    r = launcher.launch("up", **local)
+    assert (r.returncode, r.stdout) == (0, f"http://localhost:{launcher.port}/\n"), r
+    launcher.me.write_text("200")  # the running server signs in without a token
+    r = launcher.launch("up", **local)
+    assert (r.returncode, REFUSAL in r.stderr, launcher.serving()) == (1, True, False), r
+
+
+@pytest.mark.parametrize(("env_file", "environ", "starts"), [
+    ("ARP_AUTH_MODE=local\nexport ARP_AUTH_MODE=dev\n", {}, False),
+    ("ARP_AUTH_MODE=local\nARP_AUTH_MODE = dev\n", {}, False),
+    ("ARP_AUTH_MODE=local\n ARP_AUTH_MODE=dev\n", {}, False),
+    ("ARP_AUTH_MODE=local\narp_auth_mode=dev\n", {}, False),
+    ("ARP_AUTH_MODE=local\n", {"arp_auth_mode": "dev"}, False),
+    ("ARP_AUTH_MODE=local # comment\n", {}, True),
+    ("export ARP_AUTH_MODE=local\r\n", {}, True),
+    ("ARP_AUTH_MODE=dev\nARP_AUTH_MODE=local\n", {}, True),
+])
+def test_up_reads_auth_mode_as_the_app_does(launcher, env_file, environ, starts):  # code + security review of #569
+    launcher.env_file.write_text(env_file)
+    r = launcher.launch("up", **environ)
+    assert (r.returncode == 0, REFUSAL in r.stderr) == (starts, not starts), r

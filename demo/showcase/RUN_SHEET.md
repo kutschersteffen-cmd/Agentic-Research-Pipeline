@@ -15,7 +15,8 @@ Holdings are public ETF holdings files (DWS constituent exports as of 2 Nov 2026
 
 0. Sign-in, once. In the Jupyter terminal: `scripts/launch_jupyter.sh users`. In `config/users.json`, change
    the first reviewer's `name` to your own name (the release in step 4 records it). Add the two lines it printed
-   (`ARP_AUTH_MODE=local`, `ARP_USERS_FILE=...`) to `backend/.env`; `up` refuses to start without them. Keep the
+   (`ARP_AUTH_MODE=local`, `ARP_USERS_FILE=...`) to `backend/.env` and delete any older `ARP_AUTH_MODE`,
+   `ARP_DEV_TRUSTED_NETWORKS` and `ARP_ALLOWED_ORIGINS` lines there; `up` refuses to start in dev mode. Keep the
    two tokens out of any window you share on screen. The first token is yours; the second is only for a second
    review. Hand out no token: an analyst who opens the link sees the "Access token" box and nothing else.
 1. In the Jupyter terminal: `scripts/launch_jupyter.sh down` (stops a server started with the old settings),
