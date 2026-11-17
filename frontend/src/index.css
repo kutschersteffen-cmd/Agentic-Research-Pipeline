@@ -1728,10 +1728,14 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-flow-item { flex: 1 1 0; min-width: 0; position: relative; display: flex; }
 /* The arrow into each step after the first, as on the extraction pipeline. */
 .hub-flow-item + .hub-flow-item::before { content: ""; position: absolute; left: -18px; top: 50%; width: 14px; height: 2px; background: var(--panel-border); }
+/* The track: ink after a reached (done) step, the running colour into the step being run. */
+.hub-flow-item.reached + .hub-flow-item::before { background: var(--text); }
+.hub-flow-item + .hub-flow-item.run-into::before { background: var(--run); }
 .hub-step { flex: 1; display: flex; flex-direction: column; gap: var(--s-1_5); padding: var(--s-2) var(--s-3); border: 1px solid var(--panel-border); border-radius: var(--r-md); background: var(--panel); color: inherit; text-decoration: none; font-size: var(--text-xs); }
+/* A step is a button that opens its details panel: undo the global button look. */
+button.hub-step { width: 100%; margin: 0; text-align: left; font-family: inherit; font-weight: 400; cursor: pointer; }
+button.hub-step:hover:not(:disabled) { background: var(--panel); }
 .hub-step:hover { border-color: var(--text); }
-.hub-step-go { margin-left: auto; color: var(--muted); transition: transform var(--dur-fast) var(--ease-out); }
-.hub-step:hover .hub-step-go { color: var(--accent); transform: translateX(2px); }
 .hub-step-planned { border-style: dashed; background: transparent; opacity: 0.7; }
 .hub-step-planned .chip { margin-left: auto; }
 .hub-process-meta { display: inline-flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
@@ -1741,9 +1745,9 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 @media (max-width: 760px) { .hub-process .section-heading { flex-wrap: wrap; } .hub-process .section-heading h2 { flex-basis: 100%; } }
 .hub-process-state { display: inline-flex; align-items: center; gap: var(--s-1_5); font-size: var(--text-xs); color: var(--muted); }
 .hub-step-handoff-key { border-bottom: 2px dashed var(--panel-border); color: var(--mid); }
-@media (prefers-reduced-motion: reduce) { .hub-step-go { transition: none; } }
+.hub-step[aria-expanded="true"] { outline: 1px solid var(--text); outline-offset: 3px; }
 .hub-step:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.hub-step-now { border-color: var(--text); }
+.hub-step-now, .hub-step-now:hover { border-color: var(--run); box-shadow: 0 0 0 3px color-mix(in srgb, var(--run) 18%, transparent); }
 .hub-step-wait, .hub-step:has(.hub-step-banner), .hub-step-wait:hover, .hub-step:has(.hub-step-banner):hover { border-color: var(--await-edge); box-shadow: inset 0 0 0 1px var(--await-edge); }
 .hub-step-failed { border-color: var(--low); }
 .hub-step-head { display: flex; align-items: center; gap: var(--s-2); }
@@ -1763,11 +1767,18 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-process-fold > summary { cursor: pointer; width: fit-content; min-height: 24px; margin-top: var(--s-2); color: var(--accent); font-size: var(--text-sm); }
 .hub-process-fold[open] > summary { margin-bottom: var(--s-1); }
 .hub-process .help-text { margin: 0; color: var(--text-2); }
+.hub-step-panel { margin-top: var(--s-3); padding: var(--s-3) var(--s-4); border: 1px solid var(--panel-border); border-radius: var(--r-md); background: var(--panel); }
+.hub-step-panel h3 { margin: var(--s-1) 0; }
+.hub-step-panel p { margin: 0 0 var(--s-2); }
+.hub-step-panel dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--s-1) var(--s-4); margin: 0 0 var(--s-3); }
+.hub-step-panel dt { color: var(--muted); }
+.hub-step-panel dd { margin: 0; display: flex; align-items: center; gap: var(--s-1_5); min-width: 0; overflow-wrap: anywhere; }
 
 @media (max-width: 900px) {
   .hub-flow { flex-direction: column; }
   .hub-flow-item + .hub-flow-item::before { left: 50%; top: -16px; width: 2px; height: 14px; }
 }
+@media (max-width: 760px) { .hub-step-panel .button-link { min-height: 44px; display: inline-flex; align-items: center; } }
 
 /* Sidebar colour-theme switch: System / Light / Dark. */
 .theme-switch { display: flex; margin: auto var(--s-2) 0; padding: var(--s-0_5); gap: var(--s-0_5); border: 1px solid var(--panel-border); border-radius: var(--r-sm); background: var(--well); }
@@ -2350,6 +2361,10 @@ a.vc-box:hover { border-color: var(--text); }
    Amber stays for waiting on a person; running is --run. */
 .hub-step-status { display: flex; align-items: center; gap: var(--s-1_5); font-weight: 600; }
 .hub-step-status::before { content: ""; width: 8px; height: 8px; border-radius: 0; background: currentColor; flex: none; }
+/* The running step's square pulses; it holds still under reduced motion. */
+@keyframes hub-pulse { 50% { opacity: 0.3; } }
+.hub-step-now .hub-step-status::before { animation: hub-pulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .hub-step-now .hub-step-status::before { animation: none; } }
 .hub-step-status.hub-step-banner { justify-content: center; }
 .hub-step-status-now { color: var(--run); }
 .hub-step-status-failed { color: var(--low); }
