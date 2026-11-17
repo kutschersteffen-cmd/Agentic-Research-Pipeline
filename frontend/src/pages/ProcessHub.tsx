@@ -164,6 +164,13 @@ function writeWalk(walk: Walk | null) {
 function ProcessFlow({ p, runs, flow, activity }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null; activity: Activity | null }) {
   const state = runs ? processState(p, runs, flow, activity) : null;
   const [open, setOpen] = useState<number | null>(null);
+  // While a panel is open the flow keeps the fold it had when the panel opened, so a poll never folds it away under the reader.
+  const [openFolded, setOpenFolded] = useState(false);
+  const folded = open !== null ? openFolded : state === "idle";
+  const toggle = (i: number) => {
+    setOpenFolded(folded);
+    setOpen(open === i ? null : i);
+  };
   const views = p.steps.map((s) => stepView(s, runs, flow, activity));
   const { reached, runInto } = flowTrack(views.map((v) => v.state));
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -177,7 +184,7 @@ function ProcessFlow({ p, runs, flow, activity }: { p: Process; runs: RunManifes
       <ol className="hub-flow">
         {p.steps.map((s, i) => (
           <li key={`${s.tab}-${s.sub ?? ""}-${i}`} className={`hub-flow-item${i <= reached ? " reached" : ""}${runInto[i] ? " run-into" : ""}`}>
-            <StepCard s={s} i={i} p={p} view={views[i]} open={open === i} onToggle={() => setOpen(open === i ? null : i)} />
+            <StepCard s={s} i={i} p={p} view={views[i]} open={open === i} onToggle={() => toggle(i)} />
           </li>
         ))}
       </ol>
@@ -203,7 +210,7 @@ function ProcessFlow({ p, runs, flow, activity }: { p: Process; runs: RunManifes
       </p>
       {p.run && <RunProcess p={p} />}
       {/* A process nobody has run is folded away so the ones with activity stand out; one click opens it. */}
-      {state === "idle" ? (
+      {folded ? (
         <details className="hub-process-fold">
           <summary>Show {p.steps.length} steps</summary>
           {steps}

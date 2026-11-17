@@ -297,3 +297,23 @@ def test_step_card_keeps_body_tracking(page):  # noqa: F811
     _open(page, "/#/stewardiq")
     btn = _steps(_first_open_process(page)).first
     assert _style(btn, "letterSpacing") == page.evaluate("getComputedStyle(document.body).letterSpacing")
+
+
+def test_panel_opened_before_first_poll_stays_open(page):  # noqa: F811
+    """A panel opened while runs are still loading stays open (and keeps focus) when the process turns out idle."""
+    held = []
+    page.route("**/api/runs*", lambda route: held.append(route))  # hold the runs answer until the panel is open
+    page.emulate_media(color_scheme="dark")
+    page.goto(URL + "/#/stewardiq")
+    sec = page.locator("section.hub-process", has=page.get_by_role("heading", name="Engage and escalate"))
+    btn = sec.locator("button.hub-step").nth(1)
+    btn.click()
+    assert btn.get_attribute("aria-expanded") == "true"
+    for r in held:
+        r.continue_()
+    page.unroute("**/api/runs*")
+    page.wait_for_selector("section.hub-process .hub-process-state")  # the first runs answer has landed
+    assert sec.locator(".hub-process-state .hub-mark-idle").count() == 1  # the seed has no runs for this process
+    assert _panel(sec).is_visible()  # not hidden inside a fold that closed under it
+    assert sec.locator("button.hub-step").nth(1).get_attribute("aria-expanded") == "true"
+    assert sec.locator("button.hub-step").nth(1).evaluate("e => e === document.activeElement")
