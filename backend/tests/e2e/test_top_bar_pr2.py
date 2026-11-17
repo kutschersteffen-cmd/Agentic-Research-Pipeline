@@ -31,7 +31,7 @@ def test_ac25_process_state_square(page):  # noqa: F811
 
 def test_step_focus_visible(page):  # noqa: F811
     _open(page, "/#/stewardiq")
-    step = page.locator("a.hub-step:visible").first  # the first process is folded
+    step = page.locator("button.hub-step:visible").first  # the first process is folded; steps are buttons (top bar PR 3)
     step.focus()
     page.keyboard.press("Shift+Tab")
     page.keyboard.press("Tab")
