@@ -56,6 +56,13 @@ export const processState = (p: Process, runs: RunManifest[] | null, flow: Stewa
   return RANK.find((r) => states.includes(r)) ?? "idle";
 };
 
+/** A process's track: `reached` is the last done step (-1 if none); `runInto[i]` marks a running step right after
+ * the reached part (or a running first step), whose incoming connector is drawn in the running colour. */
+export function flowTrack(states: StepState[]): { reached: number; runInto: boolean[] } {
+  const reached = states.lastIndexOf("done");
+  return { reached, runInto: states.map((s, i) => s === "now" && i <= reached + 1) };
+}
+
 /** Titles of a workspace's processes whose state is failed, for the overview's "Last run failed" lines. */
 export const failedProcesses = (w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null, activity: Activity | null): string[] =>
   w.processes.filter((p) => p.steps.some((s) => stepState(s, runs, flow, activity) === "failed")).map((p) => p.title);
