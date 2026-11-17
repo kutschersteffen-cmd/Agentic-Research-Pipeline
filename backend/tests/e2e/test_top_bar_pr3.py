@@ -2,6 +2,7 @@
 AC-33..AC-42) against the running app."""
 
 import re
+from pathlib import Path
 
 import pytest
 
@@ -35,6 +36,15 @@ def _label(btn):
 
 def _state(btn):
     return re.search(r"hub-step-(done|now|wait|failed|idle)\b", btn.get_attribute("class")).group(1)
+
+
+def _route_of(label):
+    """The step's route as `stepHref` builds it, read from the step's own line in lib/processes.ts."""
+    src = (Path(__file__).resolve().parents[3] / "frontend/src/lib/processes.ts").read_text()
+    line = next(ln for ln in src.splitlines() if f'label: "{label}"' in ln)
+    tab = re.search(r'tab: "([^"]+)"', line).group(1)
+    sub = re.search(r'sub: "([^"]+)"', line)
+    return f"#/{tab}/{sub.group(1)}" if sub else f"#/{tab}"
 
 
 def _panel(sec):
@@ -74,7 +84,7 @@ def test_ac34_panel_contents(page):  # noqa: F811
     assert STATE_LABEL[state] in text
     link = panel.get_by_role("link", name=f"Open {label} →")
     assert link.count() == 1
-    assert link.get_attribute("href").startswith("#/")
+    assert link.get_attribute("href") == _route_of(label)
 
 
 def test_ac35_moves_panel(page):  # noqa: F811
