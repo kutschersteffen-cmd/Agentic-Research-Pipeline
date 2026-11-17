@@ -2,7 +2,6 @@
 AC-33..AC-42) against the running app."""
 
 import re
-import time
 
 import pytest
 
@@ -167,7 +166,7 @@ def _proxy(pg):
 
 
 def test_running_step_blue(page):  # noqa: F811
-    _runs_stub(page, [{"run_id": "e2e-pr3-run", "run_type": "proxy_voting", "status": "running"}], "**/api/runs*")
+    _runs_stub(page, [{"run_id": "e2e-pr3-run", "run_type": "proxy_voting", "status": "running", "review_count": 0}], "**/api/runs*")
     _open(page, "/#/stewardiq")
     btn = _steps(_proxy(page)).first
     assert _state(btn) == "now"
@@ -179,12 +178,13 @@ def test_running_step_blue(page):  # noqa: F811
 
 
 def test_pulse_off_under_reduced_motion(page):  # noqa: F811
-    _runs_stub(page, [{"run_id": "e2e-pr3-still", "run_type": "proxy_voting", "status": "running"}], "**/api/runs*")
+    _runs_stub(page, [{"run_id": "e2e-pr3-still", "run_type": "proxy_voting", "status": "running", "review_count": 0}], "**/api/runs*")
     page.emulate_media(reduced_motion="reduce")
     page.set_viewport_size({"width": 1440, "height": 900})
     page.goto(URL + "/#/stewardiq")
     page.wait_for_load_state("networkidle")
     btn = _steps(_proxy(page)).first
+    assert _state(btn) == "now"  # else every square reads "none" and this proves nothing
     assert btn.locator(".hub-step-status").evaluate("e => getComputedStyle(e, '::before').animationName") == "none"
 
 
@@ -203,15 +203,15 @@ def test_panel_inside_fold(page):  # noqa: F811
 
 
 def test_panel_follows_state(page):  # noqa: F811
-    t0 = time.monotonic()
+    flip = {"done": False}  # the test flips the run, not the clock, so a slow first load cannot skip "running"
 
     def handle(route):
         resp = route.fetch()
         body = resp.json()
         real = body.get("runs", [])
         base = {**(real[0] if real else {"review_count": 0, "params": {}, "estimated_cost_usd": 0.0}), "company_count": 1, "completed_count": 0}
-        status = "running" if time.monotonic() - t0 < 4 else "completed"
-        body["runs"] = [{**base, "run_id": "e2e-pr3-flip", "run_type": "proxy_voting", "status": status, "updated_at": "2026-11-16T00:00:00Z", "created_at": "2026-11-16T00:00:00Z"}] + real
+        status = "completed" if flip["done"] else "running"
+        body["runs"] = [{**base, "review_count": 0, "run_id": "e2e-pr3-flip", "run_type": "proxy_voting", "status": status, "updated_at": "2026-11-16T00:00:00Z", "created_at": "2026-11-16T00:00:00Z"}] + real
         route.fulfill(response=resp, json=body)
 
     page.route("**/api/runs*", handle)
@@ -221,6 +221,7 @@ def test_panel_follows_state(page):  # noqa: F811
     btn.click()
     panel = _panel(sec)
     assert STATE_LABEL["now"] in panel.inner_text()
+    flip["done"] = True
     page.wait_for_function("() => document.querySelector('#step-panel-proxy')?.innerText.includes('has a finished run')", timeout=20_000)
     assert btn.get_attribute("aria-expanded") == "true"
     assert "e2e-pr3-flip" in panel.inner_text()
@@ -263,3 +264,26 @@ def test_panels_per_process(page):  # noqa: F811
     assert page.get_by_role("region", name=DETAILS).count() == 2
     ids = page.locator("[role=region][id^=step-panel-]").evaluate_all("els => els.map(e => e.id)")
     assert len(set(ids)) == 2, ids
+
+
+# Final review fixes.
+
+
+def test_esc_leaves_ask_panel_open(page):  # noqa: F811
+    _open(page, "/#/stewardiq")
+    ask = page.locator("button.start-topbar-ask")
+    ask.click()
+    assert ask.get_attribute("aria-expanded") == "true"
+    p = _first_open_process(page)
+    btn = _steps(p).nth(1)
+    btn.click()
+    btn.focus()
+    page.keyboard.press("Escape")
+    assert _panel(p).count() == 0
+    assert ask.get_attribute("aria-expanded") == "true"  # Esc closed the step panel only
+
+
+def test_step_card_keeps_body_tracking(page):  # noqa: F811
+    _open(page, "/#/stewardiq")
+    btn = _steps(_first_open_process(page)).first
+    assert _style(btn, "letterSpacing") == page.evaluate("getComputedStyle(document.body).letterSpacing")
