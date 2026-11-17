@@ -306,7 +306,7 @@ a.nav-tab { text-decoration: none; }
 }
 /* Tablets: the title and intro stack; the drawing sits at the head's top right, and the text keeps clear of it. */
 @media (min-width: 761px) and (max-width: 1099.98px) {
-  .page.hub:not(.hub-start) { position: relative; }
+  .page.hub:not(.hub-start, .argus-start) { position: relative; }
   .page.hub:not(.hub-start) > .ws-drawing { display: block; position: absolute; top: 0; right: 0; width: 120px; height: auto; }
   .page.hub:not(.hub-start) > h1, .page.hub:not(.hub-start) > h1 + .help-text { max-width: min(62ch, calc(100% - 120px - var(--s-8))); }
 }
@@ -507,6 +507,10 @@ details.help-text[open] > summary { margin-bottom: var(--s-1); }
   .data-table.stack-on-phone td { display: flex; justify-content: space-between; gap: var(--s-3); border: none; padding: var(--s-0_5) 0; white-space: normal !important; }
   .data-table.stack-on-phone td[data-label]::before { content: attr(data-label); color: var(--muted); font-size: var(--text-sm); overflow-wrap: normal; }
   .data-table.stack-on-phone td:empty { display: none; }
+  /* A selected or waiting row tints its whole card, not the cells inside it. */
+  .data-table.stack-on-phone tr:is([aria-current], .selected-row) { background: var(--accent-tint); }
+  .data-table.stack-on-phone tr.argus-row-await { background: color-mix(in srgb, var(--await) 60%, transparent); }
+  .data-table.stack-on-phone tr:is([aria-current], .selected-row, .argus-row-await) > :is(td, th) { background: transparent; }
   /* Argus runs: a compact card. Name and status pill on top, "N companies · step" under it, actions last; no labels. */
   .argus-start .data-table.stack-on-phone tr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--s-1); align-items: center; }
   .argus-start .data-table.stack-on-phone td { display: block; padding: 0; }
@@ -902,6 +906,7 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
   background: var(--panel-border);
+  background-clip: padding-box; /* the translucent dark border would otherwise sit over the same translucent fill */
   border: 1px solid var(--panel-border);
   border-radius: var(--r-lg);
   overflow: hidden;
@@ -2061,6 +2066,7 @@ th[aria-sort="ascending"] .xbrl-sort, th[aria-sort="descending"] .xbrl-sort { co
 /* Long field ids (prov:msci_esg:carbon_intensity) wrap here, so the table keeps its share beside the trail. */
 .company-facts td:first-child, .company-facts .link-button { white-space: normal; overflow-wrap: anywhere; text-align: left; }
 .company-page .split-review-main > .table-wrap { border: 1px solid var(--panel-border); padding: 0 var(--s-2); }
+@media (max-width: 560px) { .company-page .split-review-main > .table-wrap:has(> .data-table.stack-on-phone) { padding: 0; border: 0; } }
 .company-page .trail-panel { flex-basis: min(38%, 440px); height: auto; max-height: calc(100vh - 24px); }
 
 /* Schema screen Rules list: a waiting suggestion is a proposed item (dashed, neutral box; only its
@@ -2236,10 +2242,9 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-progress button:is(.secondary, .danger-outline)[aria-disabled="true"] { background: transparent; color: var(--muted); border-color: var(--panel-border); border-style: dashed; cursor: not-allowed; }
 .argus-results td.argus-period { white-space: nowrap; }
 @media (max-width: 560px) {
-  /* the walkthrough link gets a line of its own under the review controls, and values keep off the card's edge */
+  /* the walkthrough link gets a line of its own under the review controls */
   .argus-results td[data-label="Decision"] { flex-wrap: wrap; }
   .argus-results td[data-label="Decision"] > .walkthrough-link { flex-basis: 100%; margin: 0; }
-  .argus-results .data-table.stack-on-phone td, .argus-progress .data-table.stack-on-phone td { padding-inline: var(--s-3); }
 }
 .argus-results .review-controls { min-width: 16rem; }
 .argus-docs-open { display: flex; gap: var(--s-6); align-items: flex-start; }
