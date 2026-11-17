@@ -282,7 +282,7 @@ function Note({ round, note }: { round: ResearchRound; note: ResearchNote }) {
             <article key={item.item_id}>
               <h4>
                 {item.title}
-                {item.channel && <span className="status-pill status-pending"> {item.channel === "economic" ? "Economic" : "Financial"}</span>}
+                {item.channel && <> <span className="chip">{item.channel === "economic" ? "Economic" : "Financial"}</span></>}
               </h4>
               <p>
                 {item.text}

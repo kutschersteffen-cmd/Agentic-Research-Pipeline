@@ -294,10 +294,21 @@ a.nav-tab { text-decoration: none; }
 }
 /* The intro reads in --text-2; a meta line under a title (.meta) stays muted and small. */
 :where(.page, .page-body) > h1 + :is(.help-text, .muted):not(.meta) { color: var(--text-2); font-size: var(--text-base); }
-/* Workspace overviews at 1100px and up: title left, intro right, bottoms aligned. Inline-blocks keep the page's block flow. */
+/* The overview's header drawing is hidden unless a width range below shows it, so a fractional width (browser zoom)
+   never drops a full-size drawing into the page. */
+.page.hub:not(.hub-start) > .ws-drawing { display: none; }
+/* Workspace overviews at 1100px and up: title | intro | drawing, bottoms aligned. Inline-blocks keep the page's
+   block flow; the 1px keeps rounding from wrapping the third column. */
 @media (min-width: 1100px) {
-  .page.hub:not(.hub-start) > h1:has(+ .help-text) { display: inline-block; width: calc(50% - var(--s-4)); margin: 0 var(--s-8) var(--s-8) 0; vertical-align: bottom; }
-  .page.hub:not(.hub-start) > h1 + .help-text { display: inline-block; width: calc(50% - var(--s-4)); margin: 0 0 var(--s-8); vertical-align: bottom; }
+  .page.hub:not(.hub-start) > h1:has(+ .help-text) { display: inline-block; width: calc((100% - 120px - 2 * var(--s-8) - 1px) / 2); margin: 0 var(--s-8) var(--s-8) 0; vertical-align: bottom; }
+  .page.hub:not(.hub-start) > h1 + .help-text { display: inline-block; width: calc((100% - 120px - 2 * var(--s-8) - 1px) / 2); margin: 0 var(--s-8) var(--s-8) 0; vertical-align: bottom; }
+  .page.hub:not(.hub-start) > .ws-drawing { display: inline-block; width: 120px; height: auto; margin-bottom: var(--s-8); vertical-align: bottom; }
+}
+/* Tablets: the title and intro stack; the drawing sits at the head's top right, and the text keeps clear of it. */
+@media (min-width: 761px) and (max-width: 1099.98px) {
+  .page.hub:not(.hub-start) { position: relative; }
+  .page.hub:not(.hub-start) > .ws-drawing { display: block; position: absolute; top: 0; right: 0; width: 120px; height: auto; }
+  .page.hub:not(.hub-start) > h1, .page.hub:not(.hub-start) > h1 + .help-text { max-width: min(62ch, calc(100% - 120px - var(--s-8))); }
 }
 /* Above 760px the intro is a lead. */
 @media (min-width: 761px) {
@@ -631,13 +642,19 @@ details.help-text[open] > summary { margin-bottom: var(--s-1); }
 .badge-low { background: var(--low); }
 .badge-neutral { background: var(--neutral); color: var(--on-accent); }
 
+/* Run status: an 8px square in the status colour, then the word (the Pixel mark language). */
 .status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1_5);
   padding: var(--s-0_5) var(--s-2);
-  border-radius: var(--r-pill);
   font-size: var(--text-xs);
-  border: 1px solid var(--panel-border);
 }
-.status-running { color: var(--accent); border-color: var(--accent); }
+.status-pill::before { content: ""; width: 8px; height: 8px; background: currentColor; flex: none; }
+/* The square says what the start page's marks say: pending is idle (outlined), stalled and not built are dashed. */
+.status-pending::before { background: transparent; box-shadow: inset 0 0 0 1px currentColor; }
+.status-stalled::before, .dossier-not-built::before { background: transparent; box-shadow: none; outline: 1px dashed currentColor; outline-offset: -1px; }
+.status-running { color: var(--run); border-color: var(--run); }
 .status-completed { color: var(--high); border-color: var(--high); }
 .status-partially_completed { color: var(--mid); border-color: var(--mid); }
 .status-failed { color: var(--low); border-color: var(--low); }
@@ -1692,14 +1709,6 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
   .hub-entry-fig { border-right: 0; border-bottom: 1px solid var(--panel-border); }
 }
 
-/* Process steps as dots, on the workspace pages. The `.hub-dots li` selectors are no longer used; kept
-   verbatim so the amber lines match main (nightDeskTokens ac13). */
-.hub-dots li::after, .hub-dot { content: ""; flex-shrink: 0; width: 12px; height: 12px; border-radius: 50%; box-sizing: border-box; display: inline-block; }
-.hub-dots li.hub-dot-done::after, .hub-dot.hub-dot-done { background: var(--text); }
-.hub-dots li.hub-dot-now::after, .hub-dot.hub-dot-now { border: 3px solid var(--text); }
-.hub-dots li.hub-dot-wait::after, .hub-dot.hub-dot-wait { background: var(--hi); box-shadow: 0 0 0 5px color-mix(in srgb, var(--hi) 22%, transparent); }
-.hub-dots li.hub-dot-failed::after, .hub-dot.hub-dot-failed { background: var(--low); border-radius: var(--r-sm); transform: rotate(45deg); width: 11px; height: 11px; }
-.hub-dots li.hub-dot-idle::after, .hub-dot.hub-dot-idle { border: 2px solid var(--panel-border); }
 
 @media (max-width: 1100px) {
   .hub-card, .hub-card:nth-child(n+4) { grid-column: span 3; }
@@ -1720,7 +1729,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 /* The arrow into each step after the first, as on the extraction pipeline. */
 .hub-flow-item + .hub-flow-item::before { content: ""; position: absolute; left: -18px; top: 50%; width: 14px; height: 2px; background: var(--panel-border); }
 .hub-step { flex: 1; display: flex; flex-direction: column; gap: var(--s-1_5); padding: var(--s-2) var(--s-3); border: 1px solid var(--panel-border); border-radius: var(--r-md); background: var(--panel); color: inherit; text-decoration: none; font-size: var(--text-xs); }
-.hub-step:hover { border-color: var(--accent); }
+.hub-step:hover { border-color: var(--text); }
 .hub-step-go { margin-left: auto; color: var(--muted); transition: transform var(--dur-fast) var(--ease-out); }
 .hub-step:hover .hub-step-go { color: var(--accent); transform: translateX(2px); }
 .hub-step-planned { border-style: dashed; background: transparent; opacity: 0.7; }
@@ -2340,7 +2349,7 @@ a.vc-box:hover { border-color: var(--text); }
 /* Night Desk release 2: one status line per step, one dot per workspace in the sidebar.
    Amber stays for waiting on a person; running is --run. */
 .hub-step-status { display: flex; align-items: center; gap: var(--s-1_5); font-weight: 600; }
-.hub-step-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+.hub-step-status::before { content: ""; width: 8px; height: 8px; border-radius: 0; background: currentColor; flex: none; }
 .hub-step-status.hub-step-banner { justify-content: center; }
 .hub-step-status-now { color: var(--run); }
 .hub-step-status-failed { color: var(--low); }
