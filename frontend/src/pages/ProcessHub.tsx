@@ -168,6 +168,7 @@ function ProcessFlow({ p, runs, flow, activity }: { p: Process; runs: RunManifes
   const { reached, runInto } = flowTrack(views.map((v) => v.state));
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== "Escape" || open === null) return;
+    e.stopPropagation(); // Esc closes this panel only, not the Ask ARP panel listening on window
     setOpen(null);
     document.getElementById(`step-${p.id}-${open}`)?.focus();
   };
