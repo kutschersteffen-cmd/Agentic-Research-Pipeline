@@ -145,7 +145,7 @@ def test_bar_negative_values():
     html = render_deck_html(_deck(Chart(data=ChartSpec(dataset_id="neg", category_column="k", value_columns=["v"]), kind="bar")), [ds])
     svg = html[html.index('data-name="chart"'):]
     svg = svg[:svg.index("</svg>")]
-    (ax, aw), (bx, bw) = [(float(x), float(w)) for x, w in re.findall(r'<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)"', svg)]
+    (ax, aw), (bx, bw) = [(float(x), float(w)) for x, w in re.findall(r'aria-label="[^"]*"[^>]* d="M([\d.]+),[\d.]+h([\d.]+)v', svg)]
     assert bx + bw == pytest.approx(ax)  # the negative bar ends at the zero line, where the positive one starts
     assert bx < ax
     assert ">−1<" in svg
