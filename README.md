@@ -311,6 +311,7 @@ arp decision score --source transition_barrier --region "European Union"  # enti
 arp decision score --dataset <dataset_id> --framework <fw_id>
 arp report run --title "Electrification Review" --notes notes.txt --format pptx --out review.pptx
 arp report plan --title "Q3 Review" --notes notes.txt --format house_deck --out storyline.json   # drafts headlines, no slides yet
+arp report plan ... --format house_deck --max-slides 20 --profile workshop --detail comprehensive   # deck length and style (default: 12, committee, balanced)
 arp report approve <report_id>      # builds output.pdf + output.pptx and findings; later: arp report rerun <report_id>
 arp discover run --universe companies.csv
 arp xbrl fetch --universe companies.csv     # market auto (default): SEC companyfacts or ESEF per company, files only; also: arp xbrl screen (routing preview) | arp xbrl taxonomy update | tags | select | files | verify
