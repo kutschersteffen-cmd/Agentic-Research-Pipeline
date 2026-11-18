@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DECISION_STAGES, PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, workspaceOfRoute } from "../src/lib/processes.ts";
+import { DECISION_STAGES, PROCESSES, WORKSPACES, stepHref, workspaceOfProcess } from "../src/lib/processes.ts";
 
 test("five workspaces, each with at least one process, and process ids unique", () => {
   assert.deepEqual(WORKSPACES.map((w) => w.id), ["stewardiq", "argus", "transitionIntel", "rdLab", "dataHub"]);
@@ -66,11 +66,4 @@ test("R&D Lab lists the Value Chain Explorer right after the Signals workbench",
 test("StewardIQ links RFP Answers, which no other page links", () => {
   const stewardiq = WORKSPACES.find((w) => w.id === "stewardiq")!;
   assert.ok(stewardiq.screens.some(([h, l]) => h === "#/rfp" && l === "RFP Answers"));
-});
-
-test("StewardIQ's row links Refine right after RFP Answers, and #/refine shows that row (refine-chat AC-36)", () => {
-  const screens = WORKSPACES.find((w) => w.id === "stewardiq")!.screens;
-  const at = screens.findIndex(([h]) => h === "#/rfp");
-  assert.deepEqual(screens[at + 1], ["#/refine", "Refine"]);
-  assert.equal(workspaceOfRoute("#/refine"), "stewardiq");
 });

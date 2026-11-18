@@ -54,7 +54,6 @@ export const WORKSPACES: Workspace[] = [
       ["#/engagement", "Engagement"],
       ["#/voting", "Proxy Voting"],
       ["#/rfp", "RFP Answers"],
-      ["#/refine", "Refine"],
     ],
     processes: [
       {
