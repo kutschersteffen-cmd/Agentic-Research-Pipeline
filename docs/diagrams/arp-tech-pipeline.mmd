@@ -1,0 +1,28 @@
+%%{init: {'flowchart': {'wrappingWidth': 330, 'nodeSpacing': 40, 'rankSpacing': 50}}}%%
+flowchart TB
+  classDef src fill:#E8F0FE,stroke:#3B6FD4,color:#12306B
+  classDef llm fill:#FFF4DB,stroke:#D49A1A,color:#5A3B00
+  classDef det fill:#E6F6EC,stroke:#2E9F5B,color:#0F4D2A
+  classDef human fill:#FDE8EC,stroke:#D43B5C,color:#6B1228
+  classDef store fill:#EFEAFB,stroke:#7B5CD4,color:#321A6B
+
+  subgraph A["1  Ingest"]
+    direction LR
+    A1["<b>Start a run</b><br/>POST /api/extraction/start<br/><i>FastAPI, Pydantic</i>"]:::src --> A2["<b>Build LLM clients</b><br/>schedule_llm_run<br/><i>Anthropic, Gemini</i>"]:::llm
+    A2 --> A3["<b>Fetch documents</b><br/>DocumentSourceRegistry<br/><i>asyncio.gather, httpx</i>"]:::det
+    A3 --> A4["<b>Parse and archive</b><br/>dedupe by text hash<br/><i>Docling, LlamaIndex, S3/MinIO</i>"]:::det
+  end
+  subgraph B["2  Extract, per company"]
+    direction LR
+    B1["<b>Batch runner</b><br/>run_company_batch<br/><i>asyncio, shared semaphore</i>"]:::det --> B2["<b>Plan and reuse</b><br/>entity check, periods, input hash<br/><i>plain Python</i>"]:::det
+    B2 --> B3["<b>Per-field graph</b><br/>extract, verify, ground<br/><i>LangGraph, Claude</i>"]:::llm
+    B3 --> B4["<b>Record checks</b><br/>numeric, cross-source<br/><i>plain Python</i>"]:::det
+    B4 --> B5["<b>Route</b><br/>auto_accept, review, hold<br/><i>rules only</i>"]:::det
+  end
+  subgraph C["3  Persist, review, publish, serve"]
+    direction LR
+    C1[("<b>One transaction per company</b><br/>record_company_result<br/><i>SQLAlchemy 2, psycopg 3, Postgres</i>")]:::store --> C2["<b>Human review</b><br/>decision, append-only<br/><i>FastAPI, review_decisions</i>"]:::human
+    C2 --> C3["<b>Publish</b><br/>publish_run, approver only<br/><i>releases, fact_events outbox</i>"]:::human
+    C3 --> C4["<b>Read back</b><br/>facts API to the UI<br/><i>React 19, Vite, TS</i>"]:::src
+  end
+  A --> B --> C

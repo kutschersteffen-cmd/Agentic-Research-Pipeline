@@ -1,0 +1,22 @@
+%%{init: {'flowchart': {'wrappingWidth': 330, 'nodeSpacing': 40, 'rankSpacing': 50}}}%%
+flowchart TB
+  classDef llm fill:#FFF4DB,stroke:#D49A1A,color:#5A3B00
+  classDef det fill:#E6F6EC,stroke:#2E9F5B,color:#0F4D2A
+  classDef out fill:#EFEAFB,stroke:#7B5CD4,color:#321A6B
+
+  subgraph S1["1  Get evidence"]
+    direction LR
+    T1["<b>try_tagged</b><br/>filer's own XBRL fact, no model call<br/><i>SEC companyfacts, ESEF, httpx</i>"]:::det --> T2["<b>gather_evidence</b><br/>route sections, chunk, rank<br/><i>LlamaIndex, BM25</i>"]:::det
+  end
+  subgraph S2["2  Models"]
+    direction LR
+    M1["<b>extract</b><br/>value and verbatim quotes<br/><i>Claude, LangChain, Anthropic SDK</i>"]:::llm --> M2["<b>verify</b><br/>separate verifier model<br/><i>blind re-extract, code compares</i>"]:::llm
+    M2 --> M3["<b>adjudicate</b><br/>only on typed disagreement<br/><i>verifier client</i>"]:::llm
+  end
+  subgraph S3["3  Ground and route"]
+    direction LR
+    G1["<b>aggregate</b><br/>one ExtractedField per period<br/><i>Pydantic, provenance</i>"]:::det --> G2["<b>ground</b><br/>quote must occur in source text<br/><i>grounding.py, difflib, 0.92</i>"]:::det
+    G2 --> G3["<b>vision fallback</b><br/>re-check on rendered page<br/><i>optional</i>"]:::llm
+    G3 --> G4["<b>checks and route</b><br/>auto_accept, review, hold<br/><i>plain Python rules</i>"]:::out
+  end
+  S1 --> S2 --> S3
