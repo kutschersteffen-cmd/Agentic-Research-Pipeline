@@ -14,7 +14,7 @@ from arp.reporting.fit import fit_deck, fit_ladder
 from arp.reporting.house_pptx import build_house_pptx
 from arp.reporting.html_render import render_deck_html
 from arp.reporting.lint import lint_and_rewrite, lint_deck
-from arp.reporting.slide_fill import fill_slide
+from arp.reporting.slide_fill import duplicate_data, fill_slide
 from arp.reporting.storyline import content_cap
 from arp.reporting.template_frame import house_tokens
 from arp.reporting.visual_qa import visual_qa
@@ -78,7 +78,7 @@ async def build_house_deck(
 
     filled = await asyncio.gather(*(build(s, i) for i, s in enumerate(plan)))
     deck = Deck(title=storyline.title, subtitle=storyline.subtitle, slides=[content for content, _, _ in filled])
-    findings += [f for _, fs, _ in filled for f in fs]
+    findings += [f for _, fs, _ in filled for f in fs] + duplicate_data(deck)
     if usage is not None:
         for _, _, u in filled:
             usage.input_tokens += u.input_tokens
