@@ -1,3 +1,6 @@
+import re
+
+import click
 from typer.testing import CliRunner
 
 from arp.cli import reporting as cli
@@ -63,7 +66,8 @@ def test_plan_rejects_a_target_length_above_the_slide_cap_before_any_llm_call(tm
         result = CliRunner().invoke(cli.reporting_app, [
             "plan", "--title", "T", "--notes", str(notes), "--out", str(tmp_path / "s.json"), "--format", "house_deck", *extra,
         ])
-        assert result.exit_code == 2 and "--target-length" in result.output
+        flat = re.sub(r"[^a-z0-9]", "", click.unstyle(result.output).lower())  # rich adds colours and wraps the error box
+        assert result.exit_code == 2 and "morethanthedeckkeeps" in flat
     assert llm.calls == [] and store.list_reports() == []
 
 
