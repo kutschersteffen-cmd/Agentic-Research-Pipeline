@@ -317,3 +317,13 @@ def test_panel_opened_before_first_poll_stays_open(page):  # noqa: F811
     assert _panel(sec).is_visible()  # not hidden inside a fold that closed under it
     assert sec.locator("button.hub-step").nth(1).get_attribute("aria-expanded") == "true"
     assert sec.locator("button.hub-step").nth(1).evaluate("e => e === document.activeElement")
+
+
+def test_malformed_deep_link_keeps_navigation_available(page):  # noqa: F811
+    _open(page, "/#/review/extraction/%ZZ")
+    page.locator("#main").wait_for()
+    page.evaluate("window.location.hash = '/stewardiq'")
+    page.locator("section.hub-process").first.wait_for()
+    page.evaluate("window.location.hash = '/stewardiq/%E0%A4'")
+    page.locator("section.hub-process").first.wait_for(state="detached")
+    page.locator("#main").wait_for()
