@@ -95,7 +95,7 @@ class _Writer:
         tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
         for i, line in enumerate(p.text.split("\n")):
             para = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-            para.alignment, para.line_spacing = _ALIGN[p.align], Pt(p.size * 1.2 * self.pt)
+            para.alignment, para.line_spacing = _ALIGN[p.align], Pt(p.size * p.leading * self.pt)
             run = para.add_run()
             run.text = line
             self.font(run, p.family, p.size, p.weight, p.color)

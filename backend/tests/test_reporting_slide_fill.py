@@ -2,16 +2,19 @@ import pytest
 
 from arp.reporting import slide_fill
 from arp.reporting.house_style import load_layouts
-from arp.reporting.slide_fill import SlotRewrite, fill_slide, rewrite_slot
+from arp.reporting.slide_fill import SlotRewrite, duplicate_data, fill_slide, rewrite_slot
 from arp.schemas.reporting import (
     ChartSpec,
     ColumnKind,
     DatasetColumn,
+    Deck,
     QuantitativeDataset,
     ReportRequest,
     SlideContent,
     StorylineSlide,
+    TableSpec,
 )
+from arp.schemas.visuals import ComparisonTable
 
 _DS = QuantitativeDataset(
     dataset_id="ds_w", name="Weights",
@@ -106,3 +109,53 @@ async def test_fill_slide_llm_failure_is_flagged_placeholder(fake_llm):
     slide, findings, _ = await fill_slide(_STORY, 2, _REQ, fake_llm({}))  # nothing scripted: the call raises
     assert slide.layout == "bullets" and slide.headline == _STORY.headline
     assert [(f.slide, f.stage, f.rule) for f in findings] == [(2, "data", "llm_failed")]
+
+
+_FUNCS = QuantitativeDataset(
+    dataset_id="functions", name="Functions",
+    columns=[DatasetColumn(name="function", kind=ColumnKind.CATEGORY), DatasetColumn(name="control", kind=ColumnKind.CATEGORY)],
+    rows=[{"function": "Extraction", "control": "Verifier"}],
+)
+_TABLE_REQ = ReportRequest(title="T", qualitative_notes="notes", datasets=[_DS, _FUNCS])
+
+
+def _table_answer(dataset_id: str) -> SlideContent:
+    return SlideContent(headline="h", visual=ComparisonTable(table=TableSpec(dataset_id=dataset_id)))
+
+
+async def test_typed_table_must_use_a_dataset_the_storyline_slide_names(fake_llm):
+    story = StorylineSlide(headline="Every function has a built-in control.", purpose="p", visual="comparison_table", source_refs=["functions", "README"])
+    llm = fake_llm({"SlideContent": [_table_answer("ds_w"), _table_answer("functions")]})
+    slide, findings, _ = await fill_slide(story, 1, _TABLE_REQ, llm)
+    assert llm.calls == ["SlideContent", "SlideContent"] and "use one of this slide's datasets ['functions']" in llm.prompts[1]
+    assert findings == [] and slide.visual.table.dataset_id == "functions"
+
+
+async def test_typed_table_off_source_twice_falls_back_with_a_finding(fake_llm):
+    story = StorylineSlide(headline="Every function has a built-in control.", purpose="p", visual="comparison_table", source_refs=["functions"])
+    llm = fake_llm({"SlideContent": [_table_answer("ds_w"), _table_answer("ds_w")]})
+    slide, findings, _ = await fill_slide(story, 1, _TABLE_REQ, llm)
+    assert findings[0].rule == "bad_reference" and slide.visual.type == "points"
+
+
+async def test_typed_table_may_use_any_dataset_when_the_slide_names_none(fake_llm):
+    story = StorylineSlide(headline="Every function has a built-in control.", purpose="p", visual="comparison_table", source_refs=["README"])
+    llm = fake_llm({"SlideContent": [_table_answer("ds_w")]})
+    slide, findings, _ = await fill_slide(story, 1, _TABLE_REQ, llm)
+    assert findings == [] and slide.visual.table.dataset_id == "ds_w"
+
+
+def test_duplicate_data_flags_a_later_slide_with_the_same_dataset_and_columns():
+    deck = Deck(title="T", slides=[_table_answer("functions"), _table_answer("ds_w"), _table_answer("functions"), _chart_slide("weight")])
+    [f] = duplicate_data(deck)
+    assert (f.slide, f.rule, f.stage) == (2, "duplicate_data", "data") and "slide 1" in f.message
+
+
+def test_duplicate_data_allows_the_same_dataset_with_other_columns():
+    deck = Deck(title="T", slides=[
+        SlideContent(headline="a", visual=ComparisonTable(table=TableSpec(dataset_id="functions", columns=["function", "control"]))),
+        SlideContent(headline="b", visual=ComparisonTable(table=TableSpec(dataset_id="functions", columns=["control", "function"]))),
+    ])
+    assert len(duplicate_data(deck)) == 1  # same columns in another order is the same data
+    deck.slides[1] = SlideContent(headline="b", visual=ComparisonTable(table=TableSpec(dataset_id="ds_w", columns=["sector", "weight"])))
+    assert duplicate_data(deck) == []
