@@ -96,7 +96,7 @@ class KpiRow(BaseModel):
 class Chart(BaseModel):
     type: Literal["chart"] = "chart"
     data: ChartSpec
-    kind: Literal["bar", "column", "stacked_column", "line"]
+    kind: Literal["bar", "column", "stacked_column", "line", "waterfall"]
     unit: Chars(6) = ""
     data_labels: bool = True
     highlight: str | None = None
@@ -107,6 +107,8 @@ class Chart(BaseModel):
     def _series(self):
         if not 1 <= len(self.data.value_columns) <= 3:
             raise ValueError("a chart plots 1 to 3 value columns")
+        if self.kind == "waterfall" and len(self.data.value_columns) != 1:
+            raise ValueError("a waterfall plots 1 value column")
         return self
 
 

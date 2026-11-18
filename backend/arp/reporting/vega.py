@@ -31,6 +31,7 @@ from arp.reporting.render_model import (
     line_scale,
     palette,
     value_range,
+    waterfall_bars,
 )
 from arp.schemas.chart_specs import ChartSpec, ChartType
 from arp.schemas.reporting import QuantitativeDataset
@@ -116,6 +117,8 @@ def chart_spec(p: ChartPrim, tokens: Tokens, mode: Mode, highlight: bool = True)
             ends = [{"x": n - 0.5, "y": s.values[-1], "t": f"{s.name} {fmt(s.values[-1])}"} for s in p.series]
             layers.append(_text(ends, _q("x", xs), _q("y", ys), "left", 16, lab, "data-label"))
         return _spec(p, layers, tokens, mode)
+    if p.kind == "waterfall":
+        return _spec(p, _bridge(p), tokens, mode)
     lo, hi = value_range(p)
     stacked = p.kind == "stacked_column"
     f = 0.6 / (1 if stacked else len(p.series))
@@ -321,6 +324,29 @@ def _waterfall(p: ChartPrim) -> list[dict]:
         _text([{"m": i + 0.5, "t": c} for i, c in enumerate(p.categories)], _q("m", bs), {"value": p.h - 12}, "center", 0, 0,
               "category-label", p.w / n),
     ]
+
+
+def _bridge(p: ChartPrim) -> list[dict]:
+    """A component waterfall: start and end totals from 0, each change floating between the running totals around it
+    (`waterfall_bars`); labels above the bars, changes signed, totals plain; the column geometry."""
+    s, n, last = p.series[0], len(p.categories), len(p.categories) - 1
+    plain, signed = _fmt(s.values, p.unit), _fmt(s.values, p.unit, sign=True)
+    rows = []
+    for i, ((a, b), v) in enumerate(zip(waterfall_bars(p), s.values, strict=True)):
+        t = plain(v) if i in (0, last) else signed(v)
+        rows.append({"a": a, "b": b, "o": i + 0.2, "o2": i + 0.8, "m": i + 0.5, "top": max(a, b), "fill": s.colors[i], "t": t,
+                     "d": f"{p.categories[i]} | {s.name} | {t}"})
+    y0, y1 = column_plot_y(p)
+    vs, bs = _lin(value_range(p), (y1, y0)), _lin((0, n), (0, p.w))
+    layers = [
+        _layer(rows, {"type": "rect"}, {"x": _q("o", bs), "x2": {"field": "o2"}, "y": _q("a", vs), "y2": {"field": "b"},
+                                        "fill": _FILL, "description": {"field": "d"}}),
+        _text([{"m": i + 0.5, "t": c} for i, c in enumerate(p.categories)], _q("m", bs), {"value": p.h - 12}, "center", 0, 0,
+              "category-label", p.w / n),
+    ]
+    if p.labels:
+        layers.append(_text(rows, _q("m", bs), _q("top", vs), "center", 0, -8, "data-label"))
+    return layers
 
 
 def _frame(w: float, h: float, layers: list[dict], tokens: Tokens, mode: Mode) -> dict:
