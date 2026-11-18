@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from arp.api.deps import get_llm_client, get_reporting_store
 from arp.reporting.browser import write_pngs
@@ -16,6 +16,7 @@ from arp.reporting.storyline import _errors as storyline_errors
 from arp.reporting.style_profile import ingest_template
 from arp.reporting.template_frame import TemplateFrameError, font_family_of, frame_preview_html
 from arp.schemas.reporting import ReportManifest, ReportPlan, ReportRequest, ReportStatus, Storyline
+from arp.storage.report_images import ImageError, ImageTooLarge
 from arp.storage.reporting_store import ReportingStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
@@ -107,6 +108,21 @@ async def upload_dataset(file: UploadFile, name: str | None = None) -> dict:
     return dataset.model_dump(mode="json")
 
 
+# ---- Images (house deck) -----------------------------------------------------
+
+
+@router.post("/images")
+async def upload_image(file: UploadFile, store: ReportingStore = Depends(get_reporting_store)) -> dict:
+    """Stages a PNG or JPEG; a POST /api/reports request then names it by `image_id`."""
+    try:
+        staged = store.stage_image(await file.read(), Path(file.filename or "image").name)
+    except ImageTooLarge as exc:
+        raise HTTPException(413, str(exc)) from exc
+    except ImageError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return staged.model_dump(mode="json")
+
+
 # ---- Report generation -------------------------------------------------------
 
 
@@ -124,7 +140,7 @@ async def create_report(
     service = ReportingService(store)
     try:
         manifest = await service.create_and_plan(request, llm)
-    except TemplateFrameError as exc:
+    except (TemplateFrameError, ImageError) as exc:
         raise HTTPException(422, str(exc)) from exc
     if render and manifest.status == ReportStatus.PLAN_READY:  # a house deck waits for storyline approval instead
         manifest = await service.render_from_plan(manifest.report_id)
@@ -161,6 +177,22 @@ def discard_report(report_id: str, store: ReportingStore = Depends(get_reporting
         # a failed re-render sets a finished report to `failed` and keeps its output: that file was delivered
         raise HTTPException(409, f"Only an unfinished report can be discarded (status: {manifest.status.value}, with a finished output).")
     shutil.rmtree(folder)
+
+
+@router.get("/{report_id}/images/{name}")
+def get_report_image(report_id: str, name: str, store: ReportingStore = Depends(get_reporting_store)) -> Response:
+    """A stored report image, as registered (EXIF-rotated JPEGs upright)."""
+    try:
+        if not (store.reports_dir / safe_id(report_id, label="report_id") / "manifest.json").exists():  # load_manifest would create the dir
+            raise HTTPException(404, "Report not found")
+        request = store.load_request(report_id)
+        entry = next((e for e in (request.images if request else []) if e.name == name), None)
+        path = store.report_image_path(report_id, name) if entry is not None else None
+    except (UnsafeIdentifierError, ImageError) as exc:
+        raise HTTPException(404, "Image not found") from exc
+    if path is None or not path.exists():
+        raise HTTPException(404, "Image not found")
+    return Response(path.read_bytes(), media_type=entry.media_type)
 
 
 @router.get("/{report_id}/plan")

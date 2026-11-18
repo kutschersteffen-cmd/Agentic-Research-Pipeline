@@ -4405,6 +4405,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reports/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Image
+         * @description Stages a PNG or JPEG; a POST /api/reports request then names it by `image_id`.
+         */
+        post: operations["upload_image_api_reports_images_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/reports/templates": {
         parameters: {
             query?: never;
@@ -4498,6 +4518,26 @@ export interface paths {
         };
         /** Get Findings */
         get: operations["get_findings_api_reports__report_id__findings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reports/{report_id}/images/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Report Image
+         * @description A stored report image, as registered (EXIF-rotated JPEGs upright).
+         */
+        get: operations["get_report_image_api_reports__report_id__images__name__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10257,6 +10297,11 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_upload_image_api_reports_images_post */
+        Body_upload_image_api_reports_images_post: {
+            /** File */
+            file: string;
+        };
         /** Body_upload_price_dataset_api_replication_specs__spec_run_id__datasets_prices_post */
         Body_upload_price_dataset_api_replication_specs__spec_run_id__datasets_prices_post: {
             /** File */
@@ -12559,6 +12604,11 @@ export interface components {
         };
         /** DeckSettings */
         DeckSettings: {
+            /**
+             * Cover Image
+             * @description House deck: a registered image name drawn behind the cover.
+             */
+            cover_image?: string | null;
             /**
              * Detail
              * @default balanced
@@ -16763,6 +16813,55 @@ export interface components {
          */
         ReplicationVerdict: "replicated" | "partially_replicated" | "not_replicated" | "decayed_out_of_sample" | "insufficient_data";
         /**
+         * ReportImage
+         * @description An image stored with a report under `reports/<id>/images/<name>.<ext>`.
+         */
+        ReportImage: {
+            /**
+             * Alt
+             * @default
+             */
+            alt: string;
+            /**
+             * Focus
+             * @description [x, y], each 0 to 1; None is the centre.
+             */
+            focus?: number[] | null;
+            /** Height */
+            height: number;
+            /** Image Id */
+            image_id?: string | null;
+            /**
+             * Media Type
+             * @enum {string}
+             */
+            media_type: "image/png" | "image/jpeg";
+            /** Name */
+            name: string;
+            /** Sha256 */
+            sha256: string;
+            /** Width */
+            width: number;
+        };
+        /**
+         * ReportImageIn
+         * @description An image a request names: a staged upload, under the name the deck uses for it.
+         *     The name, focus and limits are checked by ReportingService (arp.reporting.images), not here.
+         */
+        ReportImageIn: {
+            /**
+             * Alt
+             * @default
+             */
+            alt: string;
+            /** Focus */
+            focus?: number[] | null;
+            /** Image Id */
+            image_id: string;
+            /** Name */
+            name: string;
+        };
+        /**
          * ReportPlan
          * @description The Content Planner's full structured output -- deliberately the
          *     *only* LLM-authored artifact in this pipeline. Every subsequent step
@@ -16792,6 +16891,11 @@ export interface components {
              * @default
              */
             goal: string;
+            /**
+             * Images
+             * @description House deck: images the deck may show.
+             */
+            images?: (components["schemas"]["ReportImage"] | components["schemas"]["ReportImageIn"])[];
             layout?: components["schemas"]["LayoutInstructions"];
             /**
              * Qualitative Notes
@@ -28977,6 +29081,41 @@ export interface operations {
             };
         };
     };
+    upload_image_api_reports_images_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_image_api_reports_images_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_templates_api_reports_templates_get: {
         parameters: {
             query?: never;
@@ -29180,6 +29319,38 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_report_image_api_reports__report_id__images__name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

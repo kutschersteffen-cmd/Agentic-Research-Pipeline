@@ -273,7 +273,7 @@ def get_stream_store() -> StreamStore:
 @lru_cache
 def get_reporting_store() -> ReportingStore:
     settings = get_settings()
-    return ReportingStore(settings.reports_dir, settings.report_templates_dir)
+    return ReportingStore(settings.reports_dir, settings.report_templates_dir, settings.report_images_dir)
 
 
 def resolve(request: Request, dep: Callable):

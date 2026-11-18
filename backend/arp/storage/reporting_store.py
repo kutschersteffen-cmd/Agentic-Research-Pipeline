@@ -1,24 +1,38 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
-from arp.schemas.common import now_iso
-from arp.schemas.reporting import Deck, Finding, ReportManifest, ReportPlan, ReportRequest, Storyline, TemplateStyleProfile
-from arp.storage.atomic_io import atomic_write_text, read_text_utf8
-from arp.storage.safe_path import safe_id
+from arp.schemas.common import new_id, now_iso
+from arp.schemas.reporting import (
+    Deck,
+    Finding,
+    ReportImage,
+    ReportManifest,
+    ReportPlan,
+    ReportRequest,
+    StagedImage,
+    Storyline,
+    TemplateStyleProfile,
+)
+from arp.storage.atomic_io import atomic_write_bytes, atomic_write_text, read_text_utf8
+from arp.storage.report_images import ImageError, LoadedImage, check_focus, check_name, decode_image
+from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
 
 class ReportingStore:
     """File-based persistence for report generation -- one directory per
     report under `reports/<report_id>/`, and one per ingested template
-    style under `report_templates/<template_id>/`. Same write-then-rename
+    style under `report_templates/<template_id>/`, and one per staged image
+    upload under `report_images/<image_id>/`. Same write-then-rename
     atomicity convention as RunStore/TaxonomyStore; no database.
     """
 
-    def __init__(self, reports_dir: Path, templates_dir: Path) -> None:
+    def __init__(self, reports_dir: Path, templates_dir: Path, images_dir: Path | None = None) -> None:
         self.reports_dir = reports_dir
         self.templates_dir = templates_dir
+        self.images_dir = images_dir or templates_dir.parent / "report_images"
 
     # ---- reports ----
 
@@ -107,6 +121,63 @@ class ReportingStore:
                 continue
         # newest first; the folder name is a random id and says nothing about age
         return sorted(manifests, key=lambda m: (m.created_at, m.report_id), reverse=True)
+
+    # ---- images (house deck) ----
+
+    def stage_image(self, data: bytes, filename: str) -> StagedImage:
+        """Checks an upload and keeps it until a request names it by `image_id`."""
+        img = decode_image(data, filename)
+        staged = StagedImage(image_id=new_id("img"), media_type=img.media_type, width=img.width, height=img.height, sha256=img.sha256)
+        d = self.images_dir / staged.image_id
+        d.mkdir(parents=True, exist_ok=True)
+        atomic_write_bytes(d / f"image.{img.ext}", img.data)
+        atomic_write_text(d / "meta.json", staged.model_dump_json(indent=2))
+        return staged
+
+    def load_staged_image(self, image_id: str) -> tuple[StagedImage, bytes] | None:
+        try:
+            d = self.images_dir / safe_id(image_id, label="image_id")
+        except UnsafeIdentifierError:
+            return None
+        meta = d / "meta.json"
+        if not meta.exists():
+            return None
+        staged = StagedImage.model_validate_json(read_text_utf8(meta))
+        ext = "png" if staged.media_type == "image/png" else "jpg"
+        return staged, (d / f"image.{ext}").read_bytes()
+
+    def save_report_image(self, report_id: str, name: str, data: bytes, alt: str = "", focus: list[float] | None = None) -> ReportImage:
+        check_name(name)
+        img = decode_image(data, name)
+        entry = ReportImage(
+            name=name, alt=alt, focus=check_focus(name, focus),
+            media_type=img.media_type, width=img.width, height=img.height, sha256=img.sha256,
+        )
+        d = self.report_dir(report_id) / "images"
+        d.mkdir(exist_ok=True)
+        atomic_write_bytes(d / f"{name}.{img.ext}", img.data)
+        return entry
+
+    def report_image_path(self, report_id: str, name: str) -> Path:
+        """The stored file of image `name`; raises ImageError for a name that can't be one."""
+        check_name(name)
+        d = self.report_dir(report_id) / "images"
+        jpg = d / f"{name}.jpg"
+        return jpg if jpg.exists() else d / f"{name}.png"
+
+    def load_report_images(self, report_id: str, request: ReportRequest) -> dict[str, LoadedImage]:
+        out: dict[str, LoadedImage] = {}
+        for entry in request.images:
+            if not isinstance(entry, ReportImage):
+                raise ImageError(f"image '{entry.name}' was never stored with report {report_id!r}")
+            out[entry.name] = LoadedImage(entry=entry, data=self.report_image_path(report_id, entry.name).read_bytes())
+        return out
+
+    def copy_report_images(self, source_id: str, target_id: str) -> None:
+        """A re-run renders on its own: it gets a copy of the source's images."""
+        src = self.report_dir(source_id) / "images"
+        if src.is_dir():
+            shutil.copytree(src, self.report_dir(target_id) / "images")
 
     # ---- template styles ----
 

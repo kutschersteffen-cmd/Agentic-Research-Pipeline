@@ -29,7 +29,7 @@ class ReportScheduler(IntervalScheduler):
 
     def __init__(self, settings: Settings, llm_factory: Callable[[], LLMClient]) -> None:
         super().__init__(settings.reports_dir / "_schedule")
-        self.service = ReportingService(ReportingStore(settings.reports_dir, settings.report_templates_dir), settings)
+        self.service = ReportingService(ReportingStore(settings.reports_dir, settings.report_templates_dir, settings.report_images_dir), settings)
         self._llm_factory = llm_factory  # deferred so a missing API key only errors when a run fires
 
     def _default_config(self) -> ReportScheduleConfig:
