@@ -1,0 +1,25 @@
+flowchart LR
+  classDef src fill:#E8F0FE,stroke:#3B6FD4,color:#12306B
+  classDef llm fill:#FFF4DB,stroke:#D49A1A,color:#5A3B00
+  classDef det fill:#E6F6EC,stroke:#2E9F5B,color:#0F4D2A
+  classDef human fill:#FDE8EC,stroke:#D43B5C,color:#6B1228
+  classDef store fill:#EFEAFB,stroke:#7B5CD4,color:#321A6B
+
+  D["Documents<br/>local, EDGAR, ESEF"]:::src --> R["DocumentSourceRegistry<br/>fetch, parse, dedupe"]:::det
+  API["POST /api/extraction/start"]:::src --> S["schedule_llm_run<br/>build LLM clients first"]:::det
+  S --> E["execute_extraction_run"]:::det
+  R --> E
+  E --> B["run_company_batch<br/>per company"]:::det
+  B --> F["Per-field graph<br/>extract, verify, ground"]:::llm
+  F --> RT{"Route"}:::det
+  RT -->|"auto_accept"| T
+  RT -->|"review"| T
+  RT -->|"hold"| T
+  T[("RunStore.record_company_result<br/>ONE transaction per company")]:::store
+  T --> Q["Review queue"]:::human
+  Q -->|"decision"| CF[("company_facts<br/>current facts")]:::store
+  T --> CF
+  CF --> P["publish_run<br/>approver only"]:::human
+  P --> PF[("releases and published_facts")]:::store
+  PF --> UI["API reads to React UI"]:::src
+  CF --> UI

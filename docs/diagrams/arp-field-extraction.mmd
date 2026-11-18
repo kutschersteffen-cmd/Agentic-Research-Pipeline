@@ -1,0 +1,20 @@
+flowchart TD
+  classDef llm fill:#FFF4DB,stroke:#D49A1A,color:#5A3B00
+  classDef det fill:#E6F6EC,stroke:#2E9F5B,color:#0F4D2A
+  classDef end1 fill:#EFEAFB,stroke:#7B5CD4,color:#321A6B
+
+  A["Field to extract"]:::det --> X{"Tagged XBRL<br/>value?"}:::det
+  X -->|"yes"| G
+  X -->|"no"| EV["Gather evidence<br/>from parsed documents"]:::det
+  EV --> EX["Extractor LLM<br/>proposes value and citation"]:::llm
+  EX --> VF["Verifier LLM<br/>different model"]:::llm
+  VF --> AG{"Agree?"}:::det
+  AG -->|"no"| AD["Adjudicator LLM"]:::llm
+  AG -->|"yes"| G
+  AD --> G
+  G["Aggregate and ground<br/>grounding.py re-checks every citation<br/>against the source text"]:::det
+  G --> CK["Record checks<br/>derived fields last"]:::det
+  CK --> RO{"Route"}:::det
+  RO --> O1["auto_accept"]:::end1
+  RO --> O2["review"]:::end1
+  RO --> O3["hold"]:::end1
