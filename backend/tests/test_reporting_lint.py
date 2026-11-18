@@ -35,7 +35,7 @@ def _bullets(*items):
 def test_every_rule_is_registered():
     assert set(RULES) == {
         "over_word_limit", "stock_ai_word", "not_x_but_y", "triad_repeat", "dash_overuse",
-        "bold_label", "exclamation", "repeated_opener", "number_not_in_source",
+        "bold_label", "exclamation", "repeated_opener", "number_not_in_source", "chart_picture",
     }
 
 
@@ -147,6 +147,18 @@ async def test_headline_findings_never_rewritten(fake_llm):
     out, findings = await lint_and_rewrite(_deck(_slide(headline="Leverage drives returns", left="ok")), _req(), llm)
     assert llm.calls == []
     assert [(f.slide, f.slot, f.rule) for f in findings] == [(1, "headline", "stock_ai_word")]
+
+
+async def test_ac28_chart_picture_never_rewritten(fake_llm):
+    from arp.schemas.chart_specs import ChartSpec
+
+    ds = QuantitativeDataset(dataset_id="w", name="w", columns=[DatasetColumn(name="step", kind=ColumnKind.CATEGORY), DatasetColumn(name="v")],
+                             rows=[{"step": "North", "v": 12}])
+    slide = SlideContent(headline="Sales by region", layout="chart_takeaway", variant="full", slots={"takeaway": "North sells most"},
+                         chart=ChartSpec(dataset_id="w", chart_type="waterfall", category_column="step", value_columns=["v"]))
+    llm = fake_llm({})
+    _, findings = await lint_and_rewrite(_deck(slide), _req(datasets=[ds]), llm)
+    assert llm.calls == [] and [(f.slide, f.rule) for f in findings] == [(1, "chart_picture")]
 
 
 def test_stock_ai_word_flags_inflections():
