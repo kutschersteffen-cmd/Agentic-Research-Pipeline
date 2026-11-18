@@ -90,9 +90,12 @@ LINE3_ERRORS = [
     ("a --o c", "arrow --o is not supported; use -->"),
     ("a --x c", "arrow --x is not supported; use -->"),
     ("a ~~~ c", "arrow ~~~ is not supported; use -->"),
+    ("a ---> c", "arrow ---> is not supported; use -->"),
+    ("a ===> c", "arrow ===> is not supported; use -->"),
     ("a & c --> d", "& is not supported; write one arrow per pair"),
     ('c["One<br>Two<br>Three"]', "step c has more than one <br>; write the label, then one tech tag"),
     ("?? what", 'cannot read "?? what"'),
+    ('c["<br>Postgres"]', 'cannot read "c[\"<br>Postgres\"]"'),
 ]
 
 

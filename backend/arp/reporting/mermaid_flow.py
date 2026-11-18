@@ -22,6 +22,7 @@ _CLASS = re.compile(r"class\s+([A-Za-z]\w*(?:\s*,\s*[A-Za-z]\w*)*)\s+([A-Za-z_][
 _SHAPES = (("[(", ")]", "data"), ("([", "])", "step"), ("[", "]", "step"), ("(", ")", "step"), ("{", "}", "decision"))
 _BAD_SHAPES = ("((", "{{", "[/", "[\\", "[[", "@{", ">")
 _BAD_ARROWS = ("<-->", "-.->", "---", "==>", "--o", "--x", "~~~")
+_ARROW_RUN = re.compile(r"[-=.~<>]+")
 
 
 class MermaidError(ValueError):
@@ -111,6 +112,8 @@ class _Parser:
             ln.fail(f"step {nid} is defined twice")
         if len(_BR.findall(text)) > 1:
             ln.fail(f"step {nid} has more than one <br>; write the label, then one tech tag")
+        if not _BR.split(text)[0].strip():  # a tag with no label
+            ln.unreadable()
         self.text[nid], self.kind[nid] = text, kind
 
     def arrow(self, ln: _Line) -> str | None:
@@ -121,7 +124,8 @@ class _Parser:
             ln.fail("& is not supported; write one arrow per pair")
         for bad in _BAD_ARROWS:
             if ln.at(bad) and (bad[-1] not in "ox" or ln.i + 3 >= len(ln.s) or ln.s[ln.i + 3].isspace()):
-                ln.fail(f"arrow {bad} is not supported; use -->")
+                token = bad if bad[-1] in "ox" else _ARROW_RUN.match(ln.s, ln.i).group()
+                ln.fail(f"arrow {token} is not supported; use -->")
         if ln.at("-->"):
             ln.i += 3
             ln.skip()
@@ -138,7 +142,7 @@ class _Parser:
                 ln.unreadable()
             label, ln.i = ln.s[ln.i + 3:end], end + 3
             return label.strip().strip('"').strip()
-        m = re.compile(r"[-=.~<>]+").match(ln.s, ln.i)
+        m = _ARROW_RUN.match(ln.s, ln.i)
         if m:
             ln.fail(f"arrow {m.group()} is not supported; use -->")
         ln.unreadable()
