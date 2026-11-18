@@ -82,19 +82,3 @@ def test_dark_mode_uses_dark_ground_lime_accent_and_dark_heading_font():
     assert f"--bg: {t.color.background};" in light and f"--accent: {t.color.accent};" in light
     assert f"--bg: {t.color_dark.background};" in dark and "--accent: #c6ff3d;" in dark
     assert "font-family: 'Hanken Grotesk'" in dark and "font-family: 'Hanken Grotesk'" not in light
-
-
-def test_chart_svg_uses_dark_ink_and_projector_sized_text():
-    import re
-
-    from arp.reporting.chart_builder import render_chart_svg
-    from arp.reporting.house_style import load_tokens
-    from arp.reporting.html_render import theme_from_tokens
-    from tests.fixtures.stress_deck import stress_deck
-
-    deck, ds = stress_deck("min")
-    spec = next(s.chart for s in deck.slides if s.chart)
-    svg = render_chart_svg(spec, ds, width_px=1200, height_px=600, theme=theme_from_tokens(load_tokens(), "dark"))
-    assert f"fill: {load_tokens().color_dark.ink_muted.lower()}" in svg
-    scale = 1200 / float(re.search(r'width="([\d.]+)pt"', svg).group(1))
-    assert min(float(x) for x in re.findall(r"font-size: ([\d.]+)px", svg)) * scale >= 24

@@ -7,6 +7,7 @@ is re-fitted here. Fonts are named, not embedded (python-pptx cannot embed them)
 
 from __future__ import annotations
 
+import io
 import tempfile
 from pathlib import Path
 
@@ -24,6 +25,8 @@ from arp.reporting.house_style import Mode, Rect, Tokens, TypeStyle, footer_fits
 from arp.reporting.html_render import HOUSE_LAYOUTS, table_view, theme_from_tokens
 from arp.reporting.pptx_writer import pptx_slide
 from arp.reporting.render_model import palette, render_slide, source_line
+from arp.reporting.vega import layout_spec, to_png
+from arp.schemas.chart_specs import ChartType
 from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent
 
 _ROW_PX = 46  # table row: caption line + 2x10px padding, as in the HTML
@@ -159,6 +162,10 @@ class _Builder:
                 frame = slide.shapes.add_chart(kind, self._e(r.x), self._e(r.y), self._e(r.w), self._e(r.h), data)
                 frame.name = name
                 style_native_chart(frame.chart, content.chart, self.theme, min_pt=round(24 * self.pt))  # 24px floor on the 1920px canvas
+            elif content.chart.chart_type in (ChartType.WATERFALL, ChartType.HEATMAP):  # the PNG of the HTML's Vega-Lite spec
+                png = to_png(layout_spec(content.chart, list(datasets.values()), r.w, r.h, self.theme, self.t, self.mode), self.t)
+                pic = slide.shapes.add_picture(io.BytesIO(png), self._e(r.x), self._e(r.y), self._e(r.w), self._e(r.h))
+                pic.name = name
             else:
                 with tempfile.TemporaryDirectory() as tmp:
                     img = render_chart_image(content.chart, list(datasets.values()), Path(tmp) / "c.png", width_in=r.w / 96, height_in=r.h / 96, theme=self.theme)

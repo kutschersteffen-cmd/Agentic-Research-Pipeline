@@ -3,11 +3,6 @@ from __future__ import annotations
 from io import StringIO
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")  # headless: this module never opens a display, only writes PNG files
-import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
 from pptx.chart.data import CategoryChartData, XyChartData
 from pptx.dml.color import RGBColor
 from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
@@ -59,6 +54,17 @@ def _column(ds: QuantitativeDataset, name: str | None, *, label: str) -> str:
 
 def is_native(spec: ChartSpec) -> bool:
     return spec.chart_type in _XL_CHART_TYPE
+
+
+def _plt():
+    """matplotlib, imported only by the drawers that still use it (radar and table SVG, the Word report's PNGs),
+    so the house deck's HTML and PowerPoint paths run without it."""
+    import matplotlib
+
+    matplotlib.use("Agg")  # headless: this module never opens a display, only writes PNG files
+    import matplotlib.pyplot as plt
+
+    return plt
 
 
 def _hex01(hex_color: str) -> tuple[float, float, float]:
@@ -204,6 +210,7 @@ def render_chart_image(
     for the still-editable path used for pptx output whenever the chart
     type supports it.
     """
+    plt = _plt()
     fig = _draw_chart(spec, datasets, theme or DesignTheme(), width_in, height_in)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, facecolor=fig.get_facecolor())
@@ -219,6 +226,7 @@ def render_chart_svg(
     applies; the figure is sized at 1/2.4 of the slot's pixels in points so
     the 10pt chart type renders at 24px on the 1920px canvas (projector floor).
     """
+    plt = _plt()
     with plt.rc_context({"svg.fonttype": "none"}):
         fig = _draw_chart(spec, datasets, theme, width_px / 172.8, height_px / 172.8)
         buf = StringIO()
@@ -230,6 +238,7 @@ def render_chart_svg(
 
 def _draw_chart(spec: ChartSpec, datasets: list[QuantitativeDataset], theme: DesignTheme, width_in: float, height_in: float):
     ds = _dataset_by_id(datasets, spec.dataset_id)
+    plt = _plt()
     plt.rcParams["font.family"] = "sans-serif"
     fig, ax = plt.subplots(figsize=(width_in, height_in), dpi=150)
     fig.patch.set_facecolor(f"#{theme.surface}")
@@ -318,6 +327,8 @@ def _apply_legend(ax, theme: DesignTheme) -> None:
 
 
 def _sequential_cmap(theme: DesignTheme):
+    from matplotlib.colors import LinearSegmentedColormap
+
     return LinearSegmentedColormap.from_list("arp_sequential", [f"#{c}" for c in theme.sequential])
 
 
@@ -363,7 +374,7 @@ def _render_waterfall(ax, spec: ChartSpec, ds: QuantitativeDataset, theme: Desig
         running += v
     ax.bar(categories, heights, bottom=bottoms, color=colors, width=0.6)
     ax.axhline(0, color=f"#{theme.ink_muted}", linewidth=0.8)
-    plt.setp(ax.get_xticklabels(), rotation=30, ha="right")
+    _plt().setp(ax.get_xticklabels(), rotation=30, ha="right")
 
 
 def render_table_image(columns: list[str], rows: list[dict], out_path: Path, *, width_in: float = 9.0) -> Path:
@@ -373,6 +384,7 @@ def render_table_image(columns: list[str], rows: list[dict], out_path: Path, *, 
     primitives too -- this function exists purely as a fallback for a
     caller that wants a table as a flat image."""
     height_in = 0.35 * (len(rows) + 1) + 0.3
+    plt = _plt()
     fig, ax = plt.subplots(figsize=(width_in, height_in), dpi=150)
     ax.axis("off")
     cell_text = [[str(row.get(c, "")) for c in columns] for row in rows]
