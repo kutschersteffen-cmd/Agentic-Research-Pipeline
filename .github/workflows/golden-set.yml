@@ -79,13 +79,14 @@ jobs:
         env:
           KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
         run: |
-          # With an ARP_GEMINI_API_KEY secret, every golden step runs on Gemini instead of Anthropic.
-          if [ -n "$ARP_GEMINI_API_KEY" ]; then
+          # Anthropic first. Only without ARP_ANTHROPIC_API_KEY does every golden step run on Gemini.
+          if [ -n "$KEY" ]; then echo "present=true" >>"$GITHUB_OUTPUT"
+          elif [ -n "$ARP_GEMINI_API_KEY" ]; then
             { echo "ARP_LLM_MODEL=gemini-3.8-flash"; echo "ARP_LLM_VERIFIER_MODEL=gemini-3.8-flash"
               echo "ARP_EVIDENCE_GATE_MODEL=gemini-3.8-flash"; echo "ARP_TREE_SUMMARY_MODEL=gemini-3.8-flash"; } >>"$GITHUB_ENV"
-            echo "::notice title=Golden set on Gemini::ARP_GEMINI_API_KEY is set, so the golden set runs on gemini-3.8-flash."
+            echo "::notice title=Golden set on Gemini::No ARP_ANTHROPIC_API_KEY secret, so the golden set runs on gemini-3.8-flash."
             echo "present=true" >>"$GITHUB_OUTPUT"
-          elif [ -n "$KEY" ]; then echo "present=true" >>"$GITHUB_OUTPUT"; else
+          else
             echo "present=false" >>"$GITHUB_OUTPUT"
             echo "::warning title=Golden set not run::Add the ARP_ANTHROPIC_API_KEY repository secret so AI changes are checked against the golden set."
           fi
