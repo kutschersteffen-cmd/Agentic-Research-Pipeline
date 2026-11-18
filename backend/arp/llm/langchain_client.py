@@ -117,6 +117,12 @@ def _format_validation_errors(exc: ValidationError) -> str:
     return "\n".join(lines)
 
 
+def _takes_cache_marker(block: dict) -> bool:
+    if block.get("type") in ("thinking", "redacted_thinking"):
+        return False
+    return not (block.get("type") == "text" and not block.get("text"))
+
+
 class LangChainAnthropicClient(LLMClient):
     """LLMClient backed by the `anthropic` SDK's AsyncAnthropic.
 
@@ -239,10 +245,14 @@ class LangChainAnthropicClient(LLMClient):
                 # moving breakpoint on the newest block-list turn lets the next
                 # retry read it from cache; copied so only that turn carries it
                 # (max 4 breakpoints per request). Plain-string turns stay strings.
-                i = next((i for i in range(len(messages) - 1, -1, -1) if isinstance(messages[i]["content"], list) and messages[i]["content"]), None)
-                if i is not None:
+                # The API refuses cache_control on thinking blocks and on empty text blocks (a 400 that a
+                # thinking-only prose answer used to trigger), so the marker goes on the newest block that takes one.
+                at = next(((i, j) for i in range(len(messages) - 1, -1, -1) if isinstance(messages[i]["content"], list)
+                           for j in range(len(messages[i]["content"]) - 1, -1, -1) if _takes_cache_marker(messages[i]["content"][j])), None)
+                if at is not None:
+                    i, j = at
                     blocks = messages[i]["content"]
-                    marked = {**messages[i], "content": [*blocks[:-1], {**blocks[-1], "cache_control": _CACHE_CONTROL}]}
+                    marked = {**messages[i], "content": [*blocks[:j], {**blocks[j], "cache_control": _CACHE_CONTROL}, *blocks[j + 1 :]]}
                     sent = [*messages[:i], marked, *messages[i + 1 :]]
             response = await self._send(
                 {

@@ -410,3 +410,26 @@ async def test_retry_caches_only_the_newest_turn(tmp_path):
         marked = [b for m in call["messages"] if isinstance(m["content"], list) for b in m["content"] if "cache_control" in b]
         assert len(marked) == 1
         assert call["messages"][-1]["content"][-1]["cache_control"] == {"type": "ephemeral"}
+
+
+async def test_retry_never_marks_a_thinking_or_empty_text_block(tmp_path):
+    """A prose answer that holds only thinking (or empty text) used to get the moving cache marker on that block,
+    which the API refuses with a 400. The marker skips such blocks and lands on the newest block that takes one."""
+    from anthropic.types import TextBlock, ThinkingBlock
+
+    for content in ([ThinkingBlock(type="thinking", thinking="hmm", signature="sig")],
+                    [TextBlock(type="text", text="")],
+                    [TextBlock(type="text", text="I think"), ThinkingBlock(type="thinking", thinking="hmm", signature="sig")]):
+        first = _message("tu_1", {"value": 1})
+        first.content = content
+        client, fake = _client_with_responses(tmp_path, [first, _message("tu_2", {"value": 7})])
+
+        instance, _ = await client.complete_structured(system="sys", prompt="prompt", output_model=_Target)
+
+        assert instance.value == 7
+        retry = fake.messages.calls[1]["messages"]
+        marked = [b for m in retry if isinstance(m["content"], list) for b in m["content"] if "cache_control" in b]
+        assert all(b["type"] not in ("thinking", "redacted_thinking") and not (b["type"] == "text" and not b["text"]) for b in marked)
+        assert len(marked) <= 1
+        if content[0].type == "text" and content[0].text:
+            assert marked == [{"type": "text", "text": "I think", "cache_control": {"type": "ephemeral"}}]
