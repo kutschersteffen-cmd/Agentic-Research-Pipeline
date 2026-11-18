@@ -5,6 +5,10 @@ Status: approved by the owner, 2026-11-14 (description and acceptance table)
 Owner decisions on 2026-11-14:
 
 - AC-35 changed after approval: the waterfall uses 3 series so negative running totals draw correctly.
+- 2026-11-18, after `main` added a second-model fact-check to every RFP draft (`FactCheck`): RFP rows also stand in
+  `FactCheck` returning `{}` (nothing unsupported, nothing unanswered).
+- 2026-11-18: Refine is reached from the command palette and from links on RFP Answers and Report Builder, not
+  from the top bar or a workspace row (a top-bar link broke `main`'s phone layout). Goal 1 and AC-36 reworded.
 
 - One chat page, not the Plans page and not a drawer in the existing pages.
 - Split view with an instant in-browser slide preview.
@@ -31,7 +35,7 @@ checks grounding and stores them.** The model never writes to the database direc
 
 ## Goals
 
-1. One page, `Refine`, in the main navigation, that edits an RFP project's answers or a house deck's slides
+1. One page, `Refine`, reachable from the command palette and from links on RFP Answers and Report Builder, that edits an RFP project's answers or a house deck's slides
    through chat.
 2. Bulk edits: one instruction may change many answers or slides in one turn.
 3. Style instructions ("more formal", "shorter", "lead with the number", "make slide 3 a bar chart").
@@ -89,7 +93,8 @@ request.
 └─────────────────────────────┴──────────────────────────────────────────────┘
 ```
 
-- Navigation entry `Refine`. The picker lists RFP projects and reports whose manifest has `has_deck: true`
+- Command palette entry `Refine`; an RFP project on RFP Answers links to `#/refine?rfp=<id>` and a report with a
+  deck on Report Builder links to `#/refine?report=<id>`. The picker lists RFP projects and reports whose manifest has `has_deck: true`
   (new manifest field, true once `deck.json` exists). The URL
   carries the choice: `/refine?rfp=<project_id>` or `/refine?report=<report_id>`.
 - The agent's reply text comes from the model. Under it the page lists, from the turn's result:
@@ -244,7 +249,8 @@ request.
 ## Acceptance
 
 Holdout and unit rows use the stand-in client: `RefineOps` returns the ops given in "When"; RFP rows also
-stand in `DraftOut`. Fixture: RFP project P with Q1, Q2 status `drafted` (answers `A1`, `A2`), Q3 `approved`,
+stand in `DraftOut`, and `FactCheck` returning `{}` (the second-model fact-check `main` added; owner amendment
+2026-11-18). Fixture: RFP project P with Q1, Q2 status `drafted` (answers `A1`, `A2`), Q3 `approved`,
 Q4 `no source`; library entry E1 whose answer contains `We screen all holdings quarterly.`. A grounded draft
 is `DraftOut {answer: "We screen holdings quarterly.", citations: [{entry_id: E1, quote: "We screen all
 holdings quarterly."}]}`. Report R has a deck whose slide 2 uses a layout with slots `text` and `chart` (e.g. `two_column`/`text_chart` in `style/layouts.json`),
@@ -287,7 +293,7 @@ no slot `sidebar`, and whose findings, datasets and slide 2 text contain no `73`
 | AC-33 | after AC-32 | download `output.pptx`, open with python-pptx | slide 2 has a text frame containing `Net zero by 2040` | holdout |
 | AC-34 | after AC-24 and a render | open `output.pptx` slide 2 | its chart slot is a native chart of type column; `deck/html` slide 2 chart slot holds an SVG | holdout |
 | AC-35 | a deck with one waterfall slide and one heatmap slide, rendered | open `output.pptx` | no picture shape on either chart slot; the waterfall slot is a native stacked-column chart with 3 series, the first with no fill (owner change 2026-11-14, was 2 series); the heatmap slot is a native table | holdout |
-| AC-36 | the app with stand-ins | open the navigation | it has `Refine`; `/refine?report=R` opens with R selected; the picker lists no report without a deck | evaluator |
+| AC-36 | the app with stand-ins | open the command palette | it lists `Refine`; `/refine?report=R` opens with R selected; the picker lists no report without a deck | evaluator |
 | AC-37 | Refine on R; `RefineOps` returns `set_chart_type(3, "column")` | owner types `make slide 3 a column chart` | slide 3 in the right pane shows a column chart within 1 s of the reply appearing | evaluator |
 | AC-38 | as AC-37 | — | slide 3's thumbnail carries the label `changed` | evaluator |
 | AC-39 | Refine on a deck whose slide 2 `text` holds 400 words | — | that slot has a red outline | evaluator |
