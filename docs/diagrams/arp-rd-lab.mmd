@@ -1,0 +1,33 @@
+flowchart LR
+  classDef run fill:#E6F6EC,stroke:#2E9F5B,color:#0F4D2A
+  classDef human fill:#FDE8EC,stroke:#D43B5C,color:#6B1228
+  classDef out fill:#EFEAFB,stroke:#7B5CD4,color:#321A6B
+
+  subgraph P4["Research a signal"]
+    direction LR
+    D1["Run<br/>recipe and prices"]:::run --> D2["Evidence<br/>IC per window"]:::run
+    D2 --> D3["Compare<br/>two signals"]:::run
+    D3 --> D4["Decide<br/>graduate or shelve"]:::human
+  end
+  subgraph P3["Research a strategy"]
+    direction LR
+    C1["Replicate<br/>backtest, deflated Sharpe"]:::run --> C2["Compare<br/>Decision Studio"]:::human
+    C2 --> C3["Construct<br/>capping, calibration"]:::run
+    C3 --> C4["Report<br/>committee deck"]:::out
+  end
+  subgraph P2["Research a theme"]
+    direction LR
+    B1["Spot<br/>promote or start"]:::run --> B2["Define<br/>ratify taxonomy"]:::human
+    B2 --> B3["Research<br/>approved sources"]:::run
+    B3 --> B4["Find companies<br/>reviewed universe"]:::run
+    B4 --> B5["Position<br/>and standards"]:::out
+  end
+  subgraph P1["Launch a thematic product"]
+    direction LR
+    A1["Spot<br/>filings and news"]:::run --> A2["Define<br/>ratify taxonomy"]:::human
+    A2 --> A3["Match<br/>companies and exposure"]:::run
+    A3 --> A4["Review<br/>contested calls"]:::human
+    A4 --> A5["Score<br/>Decision Studio"]:::human
+    A5 --> A6["Construct<br/>index calibration"]:::run
+    A6 --> A7["Report<br/>committee deck"]:::out
+  end

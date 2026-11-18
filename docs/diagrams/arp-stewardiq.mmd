@@ -1,0 +1,24 @@
+flowchart LR
+  classDef run fill:#E6F6EC,stroke:#2E9F5B,color:#0F4D2A
+  classDef human fill:#FDE8EC,stroke:#D43B5C,color:#6B1228
+  classDef out fill:#EFEAFB,stroke:#7B5CD4,color:#321A6B
+
+  subgraph P3["Client reporting  (quarterly)"]
+    direction LR
+    G["Client program<br/>calibrate, approve"]:::human --> PO["Client policy<br/>decide exceptions"]:::human
+    PO --> R["Reporting<br/>house truth + exceptions"]:::run
+    R --> X["Presentations<br/>pptx export"]:::out
+  end
+  subgraph P2["Proxy season  (per meeting)"]
+    direction LR
+    V["Proxy Voting<br/>policy drafts, person decides"]:::human --> C["Checkpoint<br/>votes against policy"]:::human
+    C --> E2["Engagement<br/>vote_outcome trigger"]:::run
+  end
+  subgraph P1["Engage and escalate  (continuous)"]
+    direction LR
+    M["Monitoring<br/>triggers on holdings"]:::run --> S["Selection<br/>who is engaged"]:::run
+    S --> E["Engagement<br/>issue record"]:::run
+    E --> D["Drafting<br/>a person approves"]:::human
+    D --> T["Tracking<br/>commitments"]:::run
+    T -.->|"missed: escalate"| M
+  end
