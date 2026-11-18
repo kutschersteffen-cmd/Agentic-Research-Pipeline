@@ -1,0 +1,27 @@
+flowchart LR
+  classDef src fill:#E8F0FE,stroke:#3B6FD4,color:#12306B
+  classDef llm fill:#FFF4DB,stroke:#D49A1A,color:#5A3B00
+  classDef det fill:#E6F6EC,stroke:#2E9F5B,color:#0F4D2A
+  classDef human fill:#FDE8EC,stroke:#D43B5C,color:#6B1228
+  classDef store fill:#EFEAFB,stroke:#7B5CD4,color:#321A6B
+
+  subgraph A["1  Ingest"]
+    direction TB
+    API["POST /api/extraction/start"]:::src --> S["schedule_llm_run<br/>LLM clients first"]:::det
+    D["Documents<br/>local, EDGAR, ESEF"]:::src --> R["DocumentSourceRegistry<br/>fetch, parse, dedupe"]:::det
+  end
+  subgraph B["2  Extract, per company"]
+    direction TB
+    E["execute_extraction_run"]:::det --> BA["run_company_batch"]:::det
+    BA --> F["Per-field graph<br/>extract, verify, ground"]:::llm
+    F --> RT{"Route"}:::det
+    RT --> T[("record_company_result<br/>ONE transaction")]:::store
+  end
+  subgraph C["3  Review, publish, read"]
+    direction TB
+    Q["Review queue"]:::human --> CF[("company_facts")]:::store
+    CF --> P["publish_run<br/>approver only"]:::human
+    P --> PF[("published_facts")]:::store
+    PF --> UI["React UI"]:::src
+  end
+  A --> B --> C

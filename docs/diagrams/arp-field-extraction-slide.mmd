@@ -1,0 +1,26 @@
+flowchart LR
+  classDef llm fill:#FFF4DB,stroke:#D49A1A,color:#5A3B00
+  classDef det fill:#E6F6EC,stroke:#2E9F5B,color:#0F4D2A
+  classDef out fill:#EFEAFB,stroke:#7B5CD4,color:#321A6B
+
+  subgraph S1["1  Source"]
+    direction TB
+    A["Field to extract"]:::det --> X{"Tagged XBRL<br/>value?"}:::det
+    X -->|"yes"| SK["Use XBRL value<br/>skip the models"]:::det
+    X -->|"no"| EV["Gather evidence<br/>from documents"]:::det
+  end
+  subgraph S2["2  Models"]
+    direction TB
+    EX["Extractor LLM"]:::llm --> VF["Verifier LLM<br/>different model"]:::llm
+    VF --> AG{"Agree?"}:::det
+    AG -->|"no"| AD["Adjudicator LLM"]:::llm
+  end
+  subgraph S3["3  Ground and route"]
+    direction TB
+    GR["Ground<br/>grounding.py re-checks<br/>every citation"]:::det --> CK["Record checks"]:::det
+    CK --> RO{"Route"}:::det
+    RO --> O1["auto_accept"]:::out
+    RO --> O2["review"]:::out
+    RO --> O3["hold"]:::out
+  end
+  S1 --> S2 --> S3
