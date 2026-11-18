@@ -146,7 +146,78 @@ class NextSteps(BaseModel):
     emphasis: int | None = 0
 
 
-Visual = Annotated[Cover | Section | KpiRow | Chart | ComparisonTable | TwoColumn | Points | NextSteps, Field(discriminator="type")]
+class FlowStep(BaseModel):
+    id: Annotated[str, Field(pattern=r"^[A-Za-z][A-Za-z0-9_]{0,31}$")]
+    label: Annotated[Words(5), Field(pattern=r"\S")]
+    tag: Chars(24) = ""
+    kind: Literal["step", "decision", "data"] = "step"
+    actor: str | None = None
+    stored: bool = False
+
+
+class FlowArrow(BaseModel):
+    source: str
+    target: str
+    label: Words(3) = ""
+
+
+class FlowLayout(BaseModel):
+    """Filled by code (`layout_flows`), never by the model."""
+
+    type_step: Literal[0, 1] = 0
+    wrapped: bool = False
+    too_big: bool = False
+    width: float = 0
+    height: float = 0
+
+
+class Flow(BaseModel):
+    type: Literal["flow"] = "flow"
+    mermaid: str = ""
+    direction: Literal["LR", "TB"] = "LR"
+    steps: list[FlowStep] = Field(min_length=2, max_length=12)
+    actors: list[str] = Field(default_factory=list, max_length=4)
+    arrows: list[FlowArrow] = Field(default_factory=list, max_length=20)
+    emphasis: str | None = None
+    layout: FlowLayout | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _parse_mermaid(cls, data):
+        if isinstance(data, dict) and isinstance(data.get("mermaid"), str) and data["mermaid"].strip():
+            from arp.reporting.mermaid_flow import MermaidError, parse_mermaid
+
+            try:
+                parsed = parse_mermaid(data["mermaid"])
+            except MermaidError as e:
+                raise ValueError(str(e)) from None
+            data = {**data, **parsed.model_dump(include={"direction", "steps", "actors", "arrows", "emphasis"})}
+        return data
+
+    @model_validator(mode="after")
+    def _consistent(self):
+        ids = [s.id for s in self.steps]
+        if len(set(ids)) != len(ids):
+            raise ValueError("step ids must be unique")
+        pairs = [(a.source, a.target) for a in self.arrows]
+        for a in self.arrows:
+            if a.source not in ids or a.target not in ids:
+                raise ValueError(f"arrow {a.source}→{a.target} names an unknown step")
+            if a.source == a.target:
+                raise ValueError(f"arrow {a.source}→{a.target}: a step cannot point to itself")
+        if len(set(pairs)) != len(pairs):
+            raise ValueError("an arrow appears twice")
+        for s in self.steps:
+            if s.actor is not None and s.actor not in self.actors:
+                raise ValueError(f"step {s.id}: actor {s.actor} is not in actors")
+            if self.actors and s.actor is None:
+                raise ValueError(f"step {s.id} has no actor; give every step an actor or none")
+        if self.emphasis is not None and self.emphasis not in ids:
+            raise ValueError(f"emphasis {self.emphasis} is not a step id")
+        return self
+
+
+Visual = Annotated[Cover | Section | KpiRow | Chart | ComparisonTable | TwoColumn | Points | NextSteps | Flow, Field(discriminator="type")]
 
 FRIENDLY_NAMES: dict[str, str] = {
     "cover": "Cover",
@@ -157,4 +228,5 @@ FRIENDLY_NAMES: dict[str, str] = {
     "two_column": "Two columns",
     "points": "Key points",
     "next_steps": "Next steps",
+    "flow": "Flowchart",
 }
