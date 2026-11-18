@@ -5,6 +5,7 @@ from arp.config import Settings
 from arp.reporting.browser import BrowserUnavailable, measure, write_pdf, write_pngs
 from arp.reporting.html_render import render_deck_html
 from arp.schemas.reporting import ColumnKind, DatasetColumn, Deck, QuantitativeDataset, SlideContent, TableSpec
+from arp.schemas.visuals import Points
 from tests.fixtures.stress_deck import stress_deck
 
 
@@ -76,3 +77,17 @@ async def test_big_numbers_are_ink_and_labels_and_table_headers_mono(mode):
     rgb = f"rgb({int(ink[:2], 16)}, {int(ink[2:4], 16)}, {int(ink[4:], 16)})"
     assert colours == [rgb] * 3
     assert mono[0][0].startswith('"Geist Mono"') and mono[1] == [mono[0][0], "uppercase"]
+
+
+async def test_two_line_headline_fits_the_headline_band():
+    # 18 words wrap to two lines at 56 px; a line height of 1.2 made every such headline measure 1.07 over its 128 px box.
+    h = "Each figure passes two different models and then code re-checks every single citation against the filing"
+    deck = Deck(title="T", slides=[SlideContent(headline=h, visual=Points(points=["one two", "three four", "five six"]))])
+    assert [f for f in await measure(render_deck_html(deck, [])) if f.slot == "title"] == []
+
+
+async def test_three_line_headline_still_overflows():
+    h = "Each figure passes two different models and then code re-checks every single citation against the filing it came from today again"
+    deck = Deck(title="T", slides=[SlideContent(headline=h, visual=Points(points=["one two", "three four", "five six"]))])
+    assert [f.rule for f in await measure(render_deck_html(deck, [])) if f.slot == "title"] == ["overflow"]
+

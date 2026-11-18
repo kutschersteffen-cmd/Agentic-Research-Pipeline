@@ -52,7 +52,7 @@ def _rect(p: Rect) -> str:
 
 def _text(p: Text) -> str:
     style = (f"box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;justify-content:{_JUSTIFY[p.anchor]};"
-             f"text-align:{p.align};white-space:pre-line;{_font(p.family)};font-size:{p.size}px;font-weight:{p.weight};line-height:1.2;")
+             f"text-align:{p.align};white-space:pre-line;{_font(p.family)};font-size:{p.size}px;font-weight:{p.weight};line-height:{p.leading};")
     style += f"color:transparent;-webkit-text-stroke:2px {p.color};" if p.outline else f"color:{p.color};"
     if p.fill_under:
         style += f"background:{p.fill_under};"

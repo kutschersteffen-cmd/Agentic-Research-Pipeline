@@ -89,7 +89,8 @@
     "anchor": "top",
     "fill_under": "#121722",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -107,7 +108,8 @@
     "anchor": "top",
     "fill_under": "#121722",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -125,7 +127,8 @@
     "anchor": "top",
     "fill_under": "#121722",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -143,7 +146,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -161,7 +165,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -179,7 +184,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -197,7 +203,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -215,7 +222,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -233,7 +241,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    }
   ],
   [
@@ -325,7 +334,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": true,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -343,7 +353,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -361,7 +372,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -379,7 +391,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -397,7 +410,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -415,7 +429,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -433,7 +448,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    }
   ],
   [
@@ -513,7 +529,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -531,7 +548,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.1
    },
    {
     "type": "Text",
@@ -549,7 +567,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -585,7 +604,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -603,7 +623,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -633,7 +654,8 @@
     "anchor": "top",
     "fill_under": "#121722",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -651,7 +673,8 @@
     "anchor": "bottom",
     "fill_under": "#121722",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -669,7 +692,8 @@
     "anchor": "bottom",
     "fill_under": "#121722",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -699,7 +723,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -717,7 +742,8 @@
     "anchor": "bottom",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -735,7 +761,8 @@
     "anchor": "bottom",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -765,7 +792,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -783,7 +811,8 @@
     "anchor": "bottom",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -801,7 +830,8 @@
     "anchor": "bottom",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -831,7 +861,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -849,7 +880,8 @@
     "anchor": "bottom",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -867,7 +899,8 @@
     "anchor": "bottom",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    }
   ],
   [
@@ -947,7 +980,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -965,7 +999,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.1
    },
    {
     "type": "Text",
@@ -983,7 +1018,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -1019,7 +1055,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -1037,7 +1074,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -1055,7 +1093,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "ChartPrim",
@@ -1138,7 +1177,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -1156,7 +1196,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -1174,7 +1215,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -1192,7 +1234,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    }
   ],
   [
@@ -1272,7 +1315,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -1290,7 +1334,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.1
    },
    {
     "type": "Text",
@@ -1308,7 +1353,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -1344,7 +1390,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -1362,7 +1409,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -1404,7 +1452,8 @@
     "anchor": "middle",
     "fill_under": "#121722",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -1422,7 +1471,8 @@
     "anchor": "middle",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -1464,7 +1514,8 @@
     "anchor": "middle",
     "fill_under": "#121722",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -1482,7 +1533,8 @@
     "anchor": "middle",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -1524,7 +1576,8 @@
     "anchor": "middle",
     "fill_under": "#121722",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -1542,7 +1595,8 @@
     "anchor": "middle",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -1584,7 +1638,8 @@
     "anchor": "middle",
     "fill_under": "#121722",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -1602,7 +1657,8 @@
     "anchor": "middle",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    }
   ],
   [
@@ -1682,7 +1738,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -1700,7 +1757,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.1
    },
    {
     "type": "Text",
@@ -1718,7 +1776,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -1754,7 +1813,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -1772,7 +1832,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "TablePrim",
@@ -1928,7 +1989,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -1946,7 +2008,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.1
    },
    {
     "type": "Text",
@@ -1964,7 +2027,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -2000,7 +2064,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2018,7 +2083,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -2048,7 +2114,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2066,7 +2133,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -2102,7 +2170,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2120,7 +2189,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -2156,7 +2226,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2174,7 +2245,8 @@
     "anchor": "top",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2192,7 +2264,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -2228,7 +2301,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2246,7 +2320,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -2282,7 +2357,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2300,7 +2376,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -2336,7 +2413,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2354,7 +2432,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -2390,7 +2469,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -2426,7 +2506,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2444,7 +2525,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -2480,7 +2562,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2498,7 +2581,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -2534,7 +2618,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2552,7 +2637,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -2650,7 +2736,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2668,7 +2755,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.1
    },
    {
     "type": "Text",
@@ -2686,7 +2774,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -2722,7 +2811,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2740,7 +2830,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -2782,7 +2873,8 @@
     "anchor": "middle",
     "fill_under": "#121722",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2800,7 +2892,8 @@
     "anchor": "middle",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2818,7 +2911,8 @@
     "anchor": "middle",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -2848,7 +2942,8 @@
     "anchor": "middle",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -2890,7 +2985,8 @@
     "anchor": "middle",
     "fill_under": "#121722",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2908,7 +3004,8 @@
     "anchor": "middle",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -2926,7 +3023,8 @@
     "anchor": "middle",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -2956,7 +3054,8 @@
     "anchor": "middle",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -2998,7 +3097,8 @@
     "anchor": "middle",
     "fill_under": "#121722",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3016,7 +3116,8 @@
     "anchor": "middle",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3034,7 +3135,8 @@
     "anchor": "middle",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -3064,7 +3166,8 @@
     "anchor": "middle",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -3106,7 +3209,8 @@
     "anchor": "middle",
     "fill_under": "#121722",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3124,7 +3228,8 @@
     "anchor": "middle",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3142,7 +3247,8 @@
     "anchor": "middle",
     "fill_under": "#f4f6f9",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -3172,7 +3278,8 @@
     "anchor": "middle",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    }
   ],
   [
@@ -3252,7 +3359,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3270,7 +3378,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.1
    },
    {
     "type": "Text",
@@ -3288,7 +3397,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -3324,7 +3434,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3342,7 +3453,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3360,7 +3472,8 @@
     "anchor": "top",
     "fill_under": "#ffffff",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "ChartPrim",
@@ -3460,7 +3573,8 @@
     "anchor": "top",
     "fill_under": "#121722",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -3572,7 +3686,8 @@
     "anchor": "top",
     "fill_under": "#e8ebf0",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3590,7 +3705,8 @@
     "anchor": "top",
     "fill_under": "#e8ebf0",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3608,7 +3724,8 @@
     "anchor": "top",
     "fill_under": "#e8ebf0",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3626,7 +3743,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3644,7 +3762,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3662,7 +3781,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3680,7 +3800,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3698,7 +3819,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3716,7 +3838,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    }
   ],
   [
@@ -3808,7 +3931,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": true,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3826,7 +3950,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3844,7 +3969,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3862,7 +3988,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3880,7 +4007,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3898,7 +4026,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -3916,7 +4045,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    }
   ],
   [
@@ -3996,7 +4126,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4014,7 +4145,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.1
    },
    {
     "type": "Text",
@@ -4032,7 +4164,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -4068,7 +4201,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4086,7 +4220,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -4116,7 +4251,8 @@
     "anchor": "top",
     "fill_under": "#e8ebf0",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4134,7 +4270,8 @@
     "anchor": "bottom",
     "fill_under": "#e8ebf0",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4152,7 +4289,8 @@
     "anchor": "bottom",
     "fill_under": "#e8ebf0",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -4182,7 +4320,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4200,7 +4339,8 @@
     "anchor": "bottom",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4218,7 +4358,8 @@
     "anchor": "bottom",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -4248,7 +4389,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4266,7 +4408,8 @@
     "anchor": "bottom",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4284,7 +4427,8 @@
     "anchor": "bottom",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -4314,7 +4458,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4332,7 +4477,8 @@
     "anchor": "bottom",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4350,7 +4496,8 @@
     "anchor": "bottom",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    }
   ],
   [
@@ -4430,7 +4577,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4448,7 +4596,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.1
    },
    {
     "type": "Text",
@@ -4466,7 +4615,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -4502,7 +4652,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4520,7 +4671,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4538,7 +4690,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "ChartPrim",
@@ -4621,7 +4774,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4639,7 +4793,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4657,7 +4812,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4675,7 +4831,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    }
   ],
   [
@@ -4755,7 +4912,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4773,7 +4931,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.1
    },
    {
     "type": "Text",
@@ -4791,7 +4950,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -4827,7 +4987,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4845,7 +5006,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -4887,7 +5049,8 @@
     "anchor": "middle",
     "fill_under": "#e8ebf0",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4905,7 +5068,8 @@
     "anchor": "middle",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -4947,7 +5111,8 @@
     "anchor": "middle",
     "fill_under": "#e8ebf0",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -4965,7 +5130,8 @@
     "anchor": "middle",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -5007,7 +5173,8 @@
     "anchor": "middle",
     "fill_under": "#e8ebf0",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -5025,7 +5192,8 @@
     "anchor": "middle",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -5067,7 +5235,8 @@
     "anchor": "middle",
     "fill_under": "#e8ebf0",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -5085,7 +5254,8 @@
     "anchor": "middle",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    }
   ],
   [
@@ -5165,7 +5335,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -5183,7 +5354,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.1
    },
    {
     "type": "Text",
@@ -5201,7 +5373,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -5237,7 +5410,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -5255,7 +5429,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "TablePrim",
@@ -5411,7 +5586,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -5429,7 +5605,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.1
    },
    {
     "type": "Text",
@@ -5447,7 +5624,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -5483,7 +5661,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -5501,7 +5680,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -5531,7 +5711,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -5549,7 +5730,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -5585,7 +5767,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -5603,7 +5786,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -5639,7 +5823,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -5657,7 +5842,8 @@
     "anchor": "top",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -5675,7 +5861,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -5711,7 +5898,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -5729,7 +5917,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -5765,7 +5954,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -5783,7 +5973,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -5819,7 +6010,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -5837,7 +6029,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -5873,7 +6066,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -5909,7 +6103,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -5927,7 +6122,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -5963,7 +6159,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -5981,7 +6178,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -6017,7 +6215,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -6035,7 +6234,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -6133,7 +6333,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -6151,7 +6352,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.1
    },
    {
     "type": "Text",
@@ -6169,7 +6371,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -6205,7 +6408,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -6223,7 +6427,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -6265,7 +6470,8 @@
     "anchor": "middle",
     "fill_under": "#e8ebf0",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -6283,7 +6489,8 @@
     "anchor": "middle",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -6301,7 +6508,8 @@
     "anchor": "middle",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -6331,7 +6539,8 @@
     "anchor": "middle",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -6373,7 +6582,8 @@
     "anchor": "middle",
     "fill_under": "#e8ebf0",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -6391,7 +6601,8 @@
     "anchor": "middle",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -6409,7 +6620,8 @@
     "anchor": "middle",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -6439,7 +6651,8 @@
     "anchor": "middle",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -6481,7 +6694,8 @@
     "anchor": "middle",
     "fill_under": "#e8ebf0",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -6499,7 +6713,8 @@
     "anchor": "middle",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -6517,7 +6732,8 @@
     "anchor": "middle",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -6547,7 +6763,8 @@
     "anchor": "middle",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -6589,7 +6806,8 @@
     "anchor": "middle",
     "fill_under": "#e8ebf0",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -6607,7 +6825,8 @@
     "anchor": "middle",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -6625,7 +6844,8 @@
     "anchor": "middle",
     "fill_under": "#0d1015",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Rect",
@@ -6655,7 +6875,8 @@
     "anchor": "middle",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    }
   ],
   [
@@ -6735,7 +6956,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -6753,7 +6975,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.1
    },
    {
     "type": "Text",
@@ -6771,7 +6994,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",
@@ -6807,7 +7031,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -6825,7 +7050,8 @@
     "anchor": "top",
     "fill_under": null,
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Text",
@@ -6843,7 +7069,8 @@
     "anchor": "top",
     "fill_under": "#141921",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "ChartPrim",
@@ -6943,7 +7170,8 @@
     "anchor": "top",
     "fill_under": "#e8ebf0",
     "outline": false,
-    "emphasis": false
+    "emphasis": false,
+    "leading": 1.2
    },
    {
     "type": "Line",

@@ -54,6 +54,7 @@ class Text:
     fill_under: str | None = None
     outline: bool = False
     emphasis: bool = False
+    leading: float = 1.2  # line height as a multiple of size
 
 
 @dataclass(frozen=True)
@@ -164,7 +165,8 @@ def anatomy(slide: SlideContent, index: int, tokens: Tokens, mode: Mode) -> list
     body = family(tokens.fonts.body)
     mono = family(tokens.fonts.mono or tokens.fonts.body)
     if f is None:
-        title = Text("title", MARGIN, 104, CONTENT_W, 128, slide.headline, 56, 600, heading, c["ink"])
+        title = Text("title", MARGIN, 104, CONTENT_W, 128, slide.headline, 56, 600, heading, c["ink"],
+                     leading=tokens.type["headline"].line_height)  # 1.12: two lines fit the 128 px band, 1.2 did not
         subtitle = Text("subtitle", MARGIN, 248, CONTENT_W, 40, slide.subheading, 28, 400, body, c["muted"])
     else:
         h, s = f.headline, f.subheading
