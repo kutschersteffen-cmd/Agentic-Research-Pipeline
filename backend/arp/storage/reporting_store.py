@@ -165,6 +165,11 @@ class ReportingStore:
         jpg = d / f"{name}.jpg"
         return jpg if jpg.exists() else d / f"{name}.png"
 
+    def read_report_image(self, report_id: str, name: str) -> bytes | None:
+        """The stored bytes of image `name`, or None when there is none."""
+        path = self.report_image_path(report_id, name)
+        return path.read_bytes() if path.exists() else None
+
     def load_report_images(self, report_id: str, request: ReportRequest) -> dict[str, LoadedImage]:
         out: dict[str, LoadedImage] = {}
         for entry in request.images:

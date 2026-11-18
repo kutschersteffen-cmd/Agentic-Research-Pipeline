@@ -187,12 +187,12 @@ def get_report_image(report_id: str, name: str, store: ReportingStore = Depends(
             raise HTTPException(404, "Report not found")
         request = store.load_request(report_id)
         entry = next((e for e in (request.images if request else []) if e.name == name), None)
-        path = store.report_image_path(report_id, name) if entry is not None else None
+        data = store.read_report_image(report_id, name) if entry is not None else None
     except (UnsafeIdentifierError, ImageError) as exc:
         raise HTTPException(404, "Image not found") from exc
-    if path is None or not path.exists():
+    if data is None:
         raise HTTPException(404, "Image not found")
-    return Response(path.read_bytes(), media_type=entry.media_type)
+    return Response(data, media_type=entry.media_type)
 
 
 @router.get("/{report_id}/plan")
