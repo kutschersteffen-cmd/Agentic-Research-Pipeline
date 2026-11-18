@@ -47,7 +47,7 @@ def test_plan_passes_deck_settings_to_the_request(tmp_path, monkeypatch, fake_ll
     assert result.exit_code == 0, result.output
     [m] = store.list_reports()
     request = store.load_request(m.report_id)
-    assert request.deck.model_dump() == {"profile": "workshop", "purpose": "review", "detail": "comprehensive", "max_slides": 22}
+    assert request.deck.model_dump() == {"profile": "workshop", "purpose": "review", "detail": "comprehensive", "max_slides": 22, "cover_image": None}
     assert request.layout.target_length == 20
 
 
