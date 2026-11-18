@@ -174,7 +174,7 @@ _400 = [
     ("arp.universe", "UniverseRejected"), ("arp.storage.safe_path", "UnsafeIdentifierError"),
     ("arp.net_safety", "UnsafeURLError"), ("arp.projects.store", "ProjectError"),
     ("arp.research.value_chain.model", "ShockError"), ("arp.research.value_chain.model", "UnknownMaterial"),
-    ("arp.research.value_chain.revenue", "RecipeError"),
+    ("arp.research.value_chain.links", "LinkError"), ("arp.research.value_chain.revenue", "RecipeError"),
     ("arp.research.taxonomy_schema", "ThemeRunRefused"), ("arp.research.exposure_layers", "LayerSettingsError"),
     ("arp.orchestration.jobs", "NotResumable"), ("arp.orchestration.plan_interp", "PlanScriptError"),
     ("arp.orchestration.plan_planner", "PlanRejected"), ("arp.snapshots.client", "SnapshotInvalid"),
@@ -212,8 +212,6 @@ _EXTRA = [
     ("arp.index.risk", "RiskModelError", 400),
     ("arp.authoritative.store", "StalePublish", 400),
     ("arp.company_graph", "CompanyGraphError", 503),
-    # Spec 2026-11-04: a stored or sent link rule the API refuses is a 422.
-    ("arp.research.value_chain.links", "LinkError", 422),
 ]
 
 

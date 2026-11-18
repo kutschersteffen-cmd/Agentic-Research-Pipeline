@@ -87,7 +87,6 @@ from arp.api.routers import (
 )
 from arp.db.session import require_cutover, require_postgres
 from arp.errors import ClientInputError, NotConfigured
-from arp.research.value_chain.links import LinkError
 from arp.schemas.thematic import OLD_FORMAT_MESSAGE
 from arp.stewardship.universe import wait_for_fill
 from arp.transition_alignment.benchmarks import check_benchmarks
@@ -241,8 +240,7 @@ async def runtime_error_handler(request: Request, exc: NotConfigured) -> JSONRes
 
 @app.exception_handler(ClientInputError)
 async def client_input_error_handler(request: Request, exc: ClientInputError) -> JSONResponse:
-    # A LinkError is a stored or sent link rule the API answers with 422.
-    return JSONResponse(status_code=422 if isinstance(exc, LinkError) else 400, content={"detail": str(exc)})
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
 @app.exception_handler(ValueError)
