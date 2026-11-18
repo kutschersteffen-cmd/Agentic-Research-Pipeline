@@ -20,6 +20,8 @@ from arp.reporting.house_style import _STYLE_DIR, Mode, Tokens, footer_fits, get
 from arp.reporting.html_writer import html_slide
 from arp.reporting.render_model import Text, palette, render_slide
 from arp.reporting.template_frame import font_family_of
+from arp.reporting.vega import layout_spec, to_svg
+from arp.schemas.chart_specs import ChartType
 from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent, TableSpec
 
 HOUSE_LAYOUTS = ("title", "section")  # keep the house geometry inside a template frame
@@ -75,14 +77,17 @@ def table_view(spec: TableSpec, ds: QuantitativeDataset) -> tuple[list[str], lis
     return columns, [[row.get(c, "") for c in columns] for row in ds.rows[spec.row_offset : end]], max(0, len(ds.rows) - end)
 
 
-def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict[str, QuantitativeDataset], theme: DesignTheme) -> dict:
+def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict[str, QuantitativeDataset], theme: DesignTheme,
+               mode: Mode) -> dict:
     r = slot_rect(tokens, spec, house=slide.layout in HOUSE_LAYOUTS)
     v = {"slide": i, "name": spec.name, "kind": spec.kind, "role": spec.type_role, "x": r.x, "y": r.y, "w": r.w, "h": r.h}
     value = slide.slots.get(spec.name)
     if spec.kind == "list":
         v["items"] = value if isinstance(value, list) else ([value] if value else [])
-    elif spec.kind == "chart" and slide.chart:
+    elif spec.kind == "chart" and slide.chart and slide.chart.chart_type in (ChartType.RADAR, ChartType.TABLE):  # still matplotlib
         v["svg"] = render_chart_svg(slide.chart, list(datasets.values()), width_px=int(r.w), height_px=int(r.h), theme=theme)
+    elif spec.kind == "chart" and slide.chart:
+        v["svg"] = to_svg(layout_spec(slide.chart, list(datasets.values()), r.w, r.h, theme, tokens, mode), tokens)
     elif spec.kind == "table" and slide.table and slide.table.dataset_id in datasets:
         v["columns"], v["rows"], v["more"] = table_view(slide.table, datasets[slide.table.dataset_id])
     elif spec.kind == "image":
@@ -106,7 +111,7 @@ def render_deck_html(deck: Deck, datasets: list[QuantitativeDataset], tokens: To
         slides.append({
             "index": i, "layout": s.layout, "headline": s.headline, "subheading": s.subheading, "framed": tokens.frame is not None,
             "refs": " · ".join(s.source_refs),
-            "slots": [_slot_view(i, s, sp, tokens, by_id, theme) for sp in get_variant(s.layout, s.variant).slots],
+            "slots": [_slot_view(i, s, sp, tokens, by_id, theme, mode) for sp in get_variant(s.layout, s.variant).slots],
         })
     fonts = {"heading": tokens.heading_font(mode), "body": tokens.fonts.body, "mono": tokens.fonts.mono or tokens.fonts.body}
     stacks = [*fonts.values(), *([tokens.frame.subheading_font.family] if tokens.frame else []), *sorted(families)]
