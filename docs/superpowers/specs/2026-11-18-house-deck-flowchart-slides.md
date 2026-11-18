@@ -4,7 +4,7 @@ Slug: house-deck-flowchart-slides
 
 Risk: `risk:normal` for the build. Size M, delivered as 5 PRs of size S (see `## Slices`). This spec PR is `risk:low`.
 
-Status: draft, waiting for the owner's approval.
+Status: **approved by the owner on 18 Nov 2026** (button in the spec session, after two spec-critic rounds; decisions D1–D4 as recommended).
 Source: house-deck builder plan, PR 5 (https://claude.ai/artifact/HrvD3WdtCD3e15cMGPjesm); prototype and findings in the
 project folder `deck-tools-samples/` (`source/lay.js`, `source/draw.py`, `flow-factory.png`). Checked against `origin/main`
 `99267cb`.
