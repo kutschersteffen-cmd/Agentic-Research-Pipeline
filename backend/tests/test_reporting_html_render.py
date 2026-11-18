@@ -82,3 +82,17 @@ def test_dark_mode_uses_dark_ground_lime_accent_and_dark_heading_font():
     assert f"--bg: {t.color.background};" in light and f"--accent: {t.color.accent};" in light
     assert f"--bg: {t.color_dark.background};" in dark and "--accent: #c6ff3d;" in dark
     assert "font-family: 'Hanken Grotesk'" in dark and "font-family: 'Hanken Grotesk'" not in light
+
+
+def test_ac21_ac21b_layout_chart_dark_text_size_and_label_colour():
+    """Replaces test_chart_svg_uses_dark_ink_and_projector_sized_text: layout charts are Vega-Lite now (AC-21, AC-21b)."""
+    import re
+
+    from tests.test_reporting_vega_layout import L, chart_svg
+
+    svg = chart_svg(L("bar"), "dark")
+    texts = re.findall(r"<text[^>]*>([^<]*)</text>", svg)
+    assert texts
+    assert len(re.findall(r'<text[^>]* font-size="24px"', svg)) == len(texts)
+    fills = {t: f for f, t in re.findall(r'<text[^>]* fill="([^"]*)"[^>]*>([^<]*)</text>', svg)}
+    assert {fills[c].lower() for c in ("North", "South", "West")} == {"#a3acbb"}

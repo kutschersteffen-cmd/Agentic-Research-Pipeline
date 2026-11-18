@@ -53,15 +53,6 @@ def test_ac20b_ac20c_ac20d_scatter_waterfall_heatmap():
     assert marks(chart_svg(L("heatmap", **HEAT))) == ["North | 5 | 12", "South | 3 | 8", "West | 9 | 15"]
 
 
-def test_ac21_ac21b_dark_text_size_and_label_colour():
-    """Replaces test_chart_svg_uses_dark_ink_and_projector_sized_text (matplotlib SVG format)."""
-    svg = chart_svg(L("bar"), "dark")
-    tags = re.findall(r"<text[^>]*>([^<]*)</text>", svg)
-    assert tags and len(re.findall(r'<text[^>]* font-size="24px"', svg)) == len(tags)
-    fills = {t: f for f, t in re.findall(r'<text[^>]* fill="([^"]*)"[^>]*>([^<]*)</text>', svg)}
-    assert {fills[c].lower() for c in ("North", "South", "West")} == {"#a3acbb"}
-
-
 def test_ac22_radar_keeps_matplotlib():
     html = render_deck_html(L("radar"), [DS], T)
     slot = html[html.index('data-slot="chart"') :]
