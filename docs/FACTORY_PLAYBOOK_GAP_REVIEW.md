@@ -28,16 +28,20 @@ Severity scale used below:
 
 ## Summary: the six gaps that matter most
 
-1. **Merge can deploy to production without approval B (Critical).** `deploy-compute.yml` builds and
+1. **Merge can deploy to production without approval B (Critical, latent).** `deploy-compute.yml` builds and
    deploys the Cloud Run services on every push to `main` that touches ingestion, compute, retrieval
    embedding/rerank, `schemas/common.py`, `pyproject.toml` or `scripts/gcp/**`. The dispatcher may
    auto-merge `risk:normal` PRs, and most of those paths are `risk:normal`. So an agent merge is a
    production deploy, with no release packet, no GitHub environment approval and no smoke check.
+   Today the workflow is dormant: its runs on 13, 15 and 18 Nov skipped "Build and deploy" because the
+   GCP repository variables are not set (`deploy-compute.yml:47`). The gap goes live as soon as
+   `scripts/gcp/setup_compute.sh` is run and the variables are added.
 2. **Hidden-test isolation is not a security boundary (Critical).** In `holdout.yml`'s test job, the
    PR's own code is installed and started first (`e2e_stack.sh up` leaves `uvicorn` and `vite` running
    with `nohup`), and only then are the private tests checked out into `.holdout/` with
    `HOLDOUT_TOKEN`, in the same job and as the same OS user. Untrusted PR code can therefore read the
-   hidden tests (and plausibly the checkout step's token from `/proc`). The playbook (§5) says separate
+   hidden tests. The checkout uses `persist-credentials: false`, so the token is not left in
+   `.git/config`; token exposure is limited to the checkout step itself. The `.holdout/` read exposure stands. The playbook (§5) says separate
    sessions and log redaction alone are not a boundary and asks for exactly this audit.
 3. **"Missing" or narrowed rows report as "pass" in the holdout gate (Critical).** `Holdout acceptance` is green when
    `HOLDOUT_TOKEN` is absent (warn and skip), when the PR has no `Spec:` line, when `Rows:` names rows
@@ -46,8 +50,10 @@ Severity scale used below:
    dispatcher's manual gate 3 compares it to the spec, and owner-merged PRs get no such comparison.
    The `Rows:` parser also narrows silently: `sed 's/^Rows: *\([AC0-9, -]*\).*/\1/'` stops at the
    first character outside that class, so `Rows: AC-1 to AC-19` becomes `AC-1`, and
-   `Rows: AC-1, AC-4, AC-7b, AC-8` becomes `AC-1,AC-4,AC-7` (reproduced locally). On PR #591 today,
-   which carries `Rows: AC-1 to AC-19`, the own-rows run is reported to have run only AC-1 and passed.
+   `Rows: AC-1, AC-4, AC-7b, AC-8` becomes `AC-1,AC-4,AC-7` (reproduced locally). PR #591's body lists
+   23 explicit IDs; the parser stopped at `AC-7b`, and the last own-rows run printed `holdout rows: 7`
+   (AC-1 to AC-7 pass). Holdout has tests for 20 of the 23 IDs, so 13 hidden tests had not run when
+   #591 was merged at 20:56 UTC. #590 ran 4 of its 9 rows. Parser fix: PR #594.
 4. **Builders started before hidden tests merged (High, seen today).** App PRs #590 (16:51 UTC),
    #591 (17:13) and #592 (17:43) were opened before their holdout PRs #148–#150 merged (20:39–20:42).
    The factory skill's table says stage 3 starts after stage 2 is done, but nothing enforces it, and
@@ -165,6 +171,17 @@ Severity scale used below:
 | Per-job timeouts | 5 min setup, 45/60 min holdout, 20 min acceptance, 30 min per mutation module, 30 min evaluator stop. | Ceilings far above the total budget. | High | Measure first (pilot), then lower ceilings; a per-job `timeout-minutes: 15` alone does not satisfy the rule. |
 | Feasibility | One holdout own-row job installs the full backend + frontend + Playwright from scratch each run. | 15 minutes end to end is not plausible today for features of the size run today (spec + tests + build + 4 reviews). | High | Pilot one small confirmed defect (playbook §7.4) and record actual times before changing anything else. |
 
+### Critical user journeys and UI checks
+
+| Topic | Factory today | Gap | Sev. | Smallest change |
+|---|---|---|---|---|
+| Journey list | None. `backend/tests/e2e/` has 36 files / 329 tests, named by feature or PR. | No list of critical user journeys, so no way to say which paths a release must exercise (playbook §5 "critical paths"). | High | Change 12. |
+| When journeys run | E2E runs on PRs only (demo seed, stand-ins). | Never on a release candidate, after a deploy or on a schedule. | High | Tag journey tests `cuj` and run them on the release candidate (stage 7). |
+| Accessibility | UI review runs `/impeccable:impeccable audit`. | No axe-core, no WCAG 2.2 AA target. | Medium | Change 13. |
+| Visual regression | `visual_qa.py` covers the deck only. | No screenshot comparison for app pages. | Low | Change 14. |
+| Load | None. | No load tests. | Low | Not proposed yet. |
+| API contract | `export_openapi.py --check` + `gen:api` + `contract.ts`. | Matches. | – | – |
+
 ### §6 Defects, incidents, escalation
 
 | Topic | Factory today | Gap | Sev. | Smallest change |
@@ -189,8 +206,9 @@ Severity scale used below:
 - Three features ran with one dispatcher thread each. Spec PRs #587–#589 merged 16:33–16:39 UTC after owner taps (approval A: matches).
 - Builders opened #590, #591, #592 at 16:51, 17:13, 17:43 UTC. Hidden-test PRs holdout #148–#150 opened 16:54–17:17 and merged 20:39–20:42. Stage 3 overlapped stage 2 by about four hours. Playbook §3 stage 4 (independent acceptance coverage ready before implementation) was not met.
 - `HOLDOUT_TOKEN` (app repo) returned 404 from about 16:45 UTC; `APP_TOKEN` (holdout repo) was empty. Both made checks fail red, which is correct; but with the secret *absent* rather than invalid, `Holdout acceptance` would have gone green.
-- PR #591's `Rows: AC-1 to AC-19` was parsed as `AC-1` only, so the own-rows run checked one of 19 owed rows and could pass. The builder prompt asked for "the exact row list as the spec's `## Slices` table writes it", which was a range.
-- No PR of the three reached a release; none touches a deploy-compute path.
+- PR #591 listed 23 row IDs; the `Rows:` parser stopped at `AC-7b`, so its last own-rows run checked 7 rows (`holdout rows: 7`) and passed. Holdout has tests for 20 of the 23 IDs: 13 hidden tests had not run when #591 merged at 20:56 UTC. #590 ran 4 of its 9 rows. Parser fix: PR #594.
+- #591 added `vl-convert-python` to `backend/pyproject.toml`, a deploy-compute path. Its merge started `Deploy compute` at 20:56 UTC, which skipped the deploy only because the GCP variables are unset.
+- No PR of the three reached a release.
 
 ## Proposed changes, in order
 
@@ -209,8 +227,19 @@ Each is one PR. Most touch `.github/**` or `.claude/**`, so they are `risk:high`
 | 9 | Spec template: approval-A packet headings, V1–V8 applicability, oracle source | Packet, V-controls | `docs/superpowers/ACCEPTANCE_TEMPLATE.md` | low |
 | 10 | Board card fields: first-work time, execution used, waiting by cause | Budget visibility | `.claude/skills/factory/SKILL.md` | high |
 | 11 | Pilot one confirmed defect end to end and record times (playbook §7.4) | Budget evidence | none (a run) | – |
+| 12 | Journey list (`docs/journeys.md`) and 5–10 E2E tests tagged `cuj`, each checking the saved result, one error-recovery path and a keyboard walk | No critical user journeys | `docs/`, `backend/tests/e2e/` | low |
+| 13 | axe-core in the `cuj` tests (fail on serious/critical); WCAG 2.2 AA named as target in the spec template | No accessibility check | `backend/tests/e2e/`, `ACCEPTANCE_TEMPLATE.md` | low |
+| 14 | Screenshot comparison and colour-blind emulation on `cuj` and chart pages | No visual regression check | `backend/tests/e2e/` | low |
+| 15 | One acceptance manifest per PR head from the spec's `## Slices`; a missing result blocks merge (V5, extends change 4) | Missing rows still merge | `holdout.yml`, factory/evaluator skills | high |
+| 16 | spec-critic as its own session with a counterexamples step and dispositions table (V1); optional `property` and failure-injection rows (V2, V4) in the template | Weak spec challenge | spec-critic skill, `ACCEPTANCE_TEMPLATE.md` | high |
+| 17 | Known-answer row with source and tolerance required for money/index specs (V3) | No reference checks for calculations | `ACCEPTANCE_TEMPLATE.md`, steward skill | high |
+| 18 | Vale on UI strings with `GLOSSARY.md` terms; UI review scores pages against Nielsen's 10 heuristics | No clarity/usability check | `.github/workflows/`, UI review prompt | high |
 
-Changes 1, 3 and 4 are the smallest that remove a silent bypass; 2 and 5 need owner decisions
+Not proposed yet: Lighthouse CI and production verification (need a deployed target); Accessibility
+Insights, SUS/SEQ and task metrics (V8 sessions with people); Maze (no users or live site).
+
+Recommended order: merge #594 (the `Rows:` parser fix), then changes 4 and 15, then 12. Change 1
+comes after those, since the deploy gap cannot fire while the GCP variables are unset. 2 and 5 need owner decisions
 (GitHub Environment setup, runner design). Staging, release packet and V6 depend on a deployment target
 for the main app, which this review did not find.
 
