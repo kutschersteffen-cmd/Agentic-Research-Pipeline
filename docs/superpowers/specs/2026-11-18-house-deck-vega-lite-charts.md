@@ -5,7 +5,7 @@ Slug: house-deck-vega-lite-charts
 Risk of the build: `risk:normal`. Four slices of size S (see `## Slices`). Plan PR 6 of
 [Improve the house-deck builder](https://claude.ai/artifact/HrvD3WdtCD3e15cMGPjesm).
 
-Status: draft, waiting for the owner's approval (spec-critic: three passes, all findings fixed).
+Status: **approved by the owner on 18 Nov 2026** (button in the spec session, with waterfall and heatmap; spec-critic: three passes, all findings fixed).
 
 ## Decisions for the owner
 
