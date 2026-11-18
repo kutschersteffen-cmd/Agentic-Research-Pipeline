@@ -26,7 +26,7 @@ from arp.decision.templates import attach_to_run, decision_kind_for_schema
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.schema_builder import RuleSuggestions, draft_schema, suggest_rules
 from arp.extraction.steps import MODES, ExtractionProfile, StepSettings, pipeline_shape, restart_overrides
-from arp.ingestion.registry import DocumentSourceRegistry
+from arp.ingestion.registry import ONLY_DOCUMENTS, DocumentSourceRegistry, for_run
 from arp.llm.factory import batch_settings
 from arp.orchestration.review_queue import effective_decisions, item_states, public_decision, record_cosign
 from arp.orchestration.step_tally import step_counts
@@ -324,21 +324,26 @@ def get_run_companies(run_id: str, run_store: RunStore = Depends(get_run_store))
     review (a step before extraction stopped it, with an error report in
     the review queue), or still waiting (queued or in flight)."""
     _manifest_or_404(run_store, run_id)
+    return {"companies": run_companies(run_store, run_id, run_store.read_results(run_id), run_store.read_errors(run_id))}
+
+
+def run_companies(run_store: RunStore, run_id: str, results: list[dict], errors: list[dict]) -> list[dict]:
+    """`get_run_companies`' rows from results and errors the caller already read."""
     saved = _saved(run_store, run_id, "start_request.json")
-    done = {r.get("company_id") for r in run_store.read_results(run_id)}
-    errors = run_store.read_errors(run_id)
+    done = {r.get("company_id") for r in results}
     review = {r.get("key") for r in errors if r.get("review")} - done
     failed = {r.get("key") for r in errors} - done - review
     if saved:
         companies = StartRequest.model_validate_json(saved).companies or []
-        rows = [{"company_id": c.company_id, "name": c.name} for c in companies]
+        # entity_id: the central id the company was matched to, so its company link opens that record
+        rows = [{"company_id": c.company_id, "name": c.name, "entity_id": str(c.entity_id) if c.entity_id else None} for c in companies]
     else:  # a run started before /start saved its companies: only those with an outcome
-        rows = [{"company_id": r.get("company_id"), "name": r.get("name")} for r in run_store.read_results(run_id)]
+        rows = [{"company_id": r.get("company_id"), "name": r.get("name")} for r in results]
         rows += [{"company_id": k, "name": k} for k in failed | review]
     for row in rows:
         cid = row["company_id"]
         row["status"] = "done" if cid in done else "review" if cid in review else "failed" if cid in failed else "waiting"
-    return {"companies": rows}
+    return rows
 
 
 class RestartRequest(BaseModel):
@@ -396,9 +401,12 @@ async def restart_run(
         from arp.storage.document_store import DocumentContentStore
 
         registry = build_registry(run_settings, DocumentContentStore(run_settings.document_store_dir, enabled=False, dsn=require_dsn(run_settings)))
+    old_dir = run_store.run_dir(run_id)
     started = await _dispatch(
-        original.model_copy(update={"companies": companies}), run_settings, run_store, registry, decision_store, xbrl_source, principal
+        original.model_copy(update={"companies": companies}), run_settings, run_store, for_run(registry, old_dir), decision_store, xbrl_source, principal
     )
+    if (old_dir / ONLY_DOCUMENTS).is_file():  # an Argus run's kept files carry over to the restarted run
+        (run_store.run_dir(started["run_id"]) / ONLY_DOCUMENTS).write_bytes((old_dir / ONLY_DOCUMENTS).read_bytes())
     (run_store.run_dir(started["run_id"]) / "restarted_from.json").write_text(
         json.dumps({"run_id": run_id, "step": req.from_step, "company_count": len(companies)})
     )

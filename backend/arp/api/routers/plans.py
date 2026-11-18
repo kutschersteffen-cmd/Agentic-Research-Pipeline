@@ -51,9 +51,18 @@ def _context() -> str:
     from arp.api.deps import get_decision_store, get_index_store
     from arp.orchestration.plan_planner import planner_context
     from arp.storage.taxonomy_store import TaxonomyStore
+    from arp.universe import saved_universes
 
     return planner_context(TaxonomyStore(get_settings().taxonomies_dir).list_all(),
-                           get_decision_store().list_frameworks(), get_index_store().list_calibrations())
+                           get_decision_store().list_frameworks(), get_index_store().list_calibrations(),
+                           saved_universes(get_settings().runs_dir))
+
+
+def _check_sources(steps: list[dict]) -> list[str]:
+    """A drafted or re-planned script may only name a saved universe or an existing universe file."""
+    from arp.universe import universe_source_errors
+
+    return universe_source_errors(get_settings().runs_dir, steps)
 
 
 @router.post("")
@@ -61,7 +70,8 @@ async def create_plan(req: DraftRequest, store: PlanStore = Depends(plan_store))
     from arp.api.deps import get_llm_client
 
     try:
-        plan_id = await draft_plan(req.brief, get_llm_client(), store, await asyncio.to_thread(_context))
+        plan_id = await draft_plan(req.brief, get_llm_client(), store, await asyncio.to_thread(_context),
+                                 check=_check_sources)
     except PlanRejected as exc:
         raise HTTPException(422, str(exc)) from exc
     return _get(store, plan_id)
@@ -107,7 +117,7 @@ async def replan(plan_id: str, store: PlanStore = Depends(plan_store),
         raise HTTPException(409, "only a failed plan can be re-planned")
     try:
         await replan_plan(plan_id, get_llm_client(), store, await asyncio.to_thread(_context),
-                          principal.user_id)
+                          principal.user_id, check=_check_sources)
     except PlanNotReplannable as exc:
         raise HTTPException(409, str(exc)) from exc
     except PlanRejected as exc:
@@ -123,10 +133,36 @@ async def start_plan(plan_id: str, store: PlanStore = Depends(plan_store)) -> di
     except PlanNotRunnable as exc:
         raise HTTPException(409, str(exc)) from exc
     steps, reviewed = build_runtime(get_settings())
-    task = asyncio.create_task(asyncio.to_thread(run_plan, plan_id, store, steps, reviewed))
+    task = asyncio.create_task(_drive(plan_id, store, steps, reviewed))
     _running.add(task)
     task.add_done_callback(_done)
     return {"plan_id": plan_id, "status": "running"}
+
+
+REVIEW_POLL_SECONDS = 5.0
+
+
+async def _drive(plan_id: str, store: PlanStore, steps, reviewed) -> None:
+    """Run the plan in a worker thread. At a review gate the worker returns and this task polls `reviewed`
+    without holding a thread, then starts the worker again; it ends when the plan is no longer waiting."""
+    while True:
+        try:
+            status = await asyncio.to_thread(run_plan, plan_id, store, steps, reviewed, return_at_gate=True)
+        except PlanNotRunnable:
+            return  # cancelled meanwhile, or another worker took it over
+        if status != "awaiting_review":
+            return
+        while True:
+            await asyncio.sleep(REVIEW_POLL_SECONDS)
+            if (await asyncio.to_thread(store.get, plan_id))["status"] != "awaiting_review":
+                return  # cancelled
+            waiting = [c for c in await asyncio.to_thread(store.calls, plan_id) if c["status"] == "awaiting_review"]
+            if not waiting or await asyncio.to_thread(reviewed, waiting[0]):
+                break
+        try:
+            await asyncio.to_thread(claim_plan, store, plan_id)
+        except PlanNotRunnable:
+            return
 
 
 def _done(task: asyncio.Task) -> None:

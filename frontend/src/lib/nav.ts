@@ -3,14 +3,6 @@
 
 /** The sidebar, top to bottom. Every other screen is reached from a workspace
  * page, a hub tab, Start or the command palette. */
-export const NAV_GROUPS: { label: string | null; ids: readonly string[] }[] = [
-  { label: null, ids: ["home"] },
-  { label: "Needs you", ids: ["review"] },
-  { label: "Workspaces", ids: ["stewardiq", "argus", "transitionIntel", "rdLab", "dataHub"] },
-  { label: "Output", ids: ["reporting"] },
-  { label: null, ids: ["arcade"] },
-];
-
 /** Screens that share a tab strip above the page. Every id keeps its own
  * route, so deep links and Processes steps still land. */
 export const HUBS: { label: string; tabs: [string, string][] }[] = [
@@ -22,8 +14,12 @@ export const HUBS: { label: string; tabs: [string, string][] }[] = [
 const RETIRED: [string, string][] = [
   ["dashboard", "#/home"],
   ["tape", "#/review"],
-  ["identity", "#/extraction/identify"],
-  ["discovery", "#/extraction/documents"],
+  // The old Extraction screens: the Argus flow does their job (#/argus/new opens step 1 of a new flow).
+  ["extraction", "#/argus"],
+  ["argusUniverse", "#/argus/new"],
+  ["identity", "#/argus/new"],
+  ["discovery", "#/argus/new"],
+  ["transitionPlan", "#/argus/new/transition_plan"],
 ];
 
 /** Where an old link to a removed screen (or any path under it) lands, else null. */
@@ -32,14 +28,7 @@ export function redirectHash(hash: string): string | null {
   return hit ? hit[1] : null;
 }
 
-/** The sidebar ids marked current while `active` is open: the link itself, or
- * the sidebar entry of the hub that holds it. */
-export function currentNavIds(active: string): string[] {
-  return NAV_GROUPS.flatMap((g) => g.ids).filter(
-    (id) => id === active || HUBS.some((h) => h.tabs[0][0] === id && h.tabs.some(([t]) => t === active)),
-  );
-}
-
-/** The waiting-count badge on a sidebar link. */
-export const navCount = (id: string, waiting: { review: number } | null): number =>
-  id === "review" ? (waiting?.review ?? 0) : 0;
+/** Opening ARP with no page in the address (or #/welcome) lands on the landing page;
+ * every other hash routes as before, so direct links keep working. */
+export const entryTab = (hash: string): "welcome" | null =>
+  ["", "#", "#/", "#/welcome"].includes(hash) ? "welcome" : null;

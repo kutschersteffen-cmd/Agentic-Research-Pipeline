@@ -27,15 +27,18 @@ export function FailureDetails({ runId }: { runId: string }) {
   return (
     <div className="failure-details">
       {failure.error && <p className="error-text">{failure.error}</p>}
-      {failure.traceback === null ? (
-        <p className="muted">No traceback was recorded for this run.</p>
-      ) : (
+      {failure.traceback !== null ? (
         <pre>{failure.traceback}</pre>
+      ) : (
+        !failure.company_errors.some((c) => c.traceback) && <p className="muted">No traceback was recorded for this run.</p>
       )}
       {shown.length > 0 && (
         <ul>
           {shown.map((c) => (
-            <li key={c.key}>{c.key}: {c.error}</li>
+            <li key={c.key}>
+              {c.key}: {c.error}
+              {c.traceback && <pre>{c.traceback}</pre>}
+            </li>
           ))}
         </ul>
       )}

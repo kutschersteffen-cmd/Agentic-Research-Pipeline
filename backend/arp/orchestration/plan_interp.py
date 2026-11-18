@@ -11,6 +11,7 @@ import builtins
 from collections.abc import Callable
 from typing import Any
 
+from arp.errors import ClientInputError, NotConfigured
 from arp.orchestration.plan_api import BUILTINS, STEPS
 from arp.orchestration.plan_check import check_script, placeholder
 
@@ -19,11 +20,11 @@ MAX_OPS = 100_000  # statements and loop iterations: bounds scripts that never c
 MAX_RANGE = 10_000
 
 
-class StepLimitExceeded(RuntimeError):
+class StepLimitExceeded(NotConfigured):
     pass
 
 
-class PlanScriptError(ValueError):
+class PlanScriptError(ClientInputError):
     pass
 
 

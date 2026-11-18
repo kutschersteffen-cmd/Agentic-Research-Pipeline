@@ -31,6 +31,8 @@ class DiscoveredDocument(BaseModel):
     reporting_year: int | None = None
     # URL already in the manifest with the same sha256 (change_detector alias); no event is raised for it.
     alias_of: str | None = None
+    # A reviewer's verdict on a flagged PDF (arp/discovery/review.py); kept while the URL serves the same bytes.
+    review: Literal["approved", "rejected"] | None = None
 
 
 class CaptureRecord(BaseModel):
@@ -143,6 +145,7 @@ class IdentitySignals(BaseModel):
     edgar_matches: list[EdgarNameMatch] = Field(default_factory=list)
     search_results: list[WebSearchHit] = Field(default_factory=list)
     gleif_matches: list[GleifMatch] = Field(default_factory=list)
+    lookup_errors: list[str] = Field(default_factory=list, description="Lookups that failed, e.g. 'web search: ConnectTimeout'.")
 
 
 class IdentityAdjudication(BaseModel):

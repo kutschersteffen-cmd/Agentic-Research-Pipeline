@@ -7,6 +7,7 @@ from collections import Counter, defaultdict
 from arp.decision.dataset import Dataset, build_dataset
 from arp.presets.transition_plan import SCHEMA_ID as TRANSITION_PLAN_SCHEMA_ID
 from arp.schemas.common import RunManifest
+from arp.storage.portfolio_store import holdings_date_label, portfolio_directories
 from arp.storage.run_store import RunStore
 
 # Column names deliberately follow the conventions the role/direction
@@ -400,8 +401,7 @@ def from_portfolio_snapshot(store, as_of: str | None = None, portfolio_ids: list
     if not holdings:
         raise ValueError(f"No holdings as of {resolved}.")
 
-    securities = {s.security_id: s for s in store.list_securities()}
-    companies = {c.company_id: c for c in store.list_companies()}
+    securities, companies = portfolio_directories(store)
 
     exposure: dict[str, float] = defaultdict(float)
     for holding in holdings:
@@ -414,11 +414,13 @@ def from_portfolio_snapshot(store, as_of: str | None = None, portfolio_ids: list
 
     fields = [f for f in build_climate_schema().fields if not field_ids or f.field_id in field_ids]
     observations: dict[str, dict[str, float]] = defaultdict(dict)
+    simulated = False
     for company_id in exposure:
         for field in fields:
             observation = store.latest_observation(company_id, field.field_id, as_of=resolved)
             if observation is not None and isinstance(observation.value, (int, float)):
                 observations[company_id][field.field_id] = float(observation.value)
+                simulated = simulated or observation.source == "simulated"
 
     used_fields = [f for f in fields if any(f.field_id in values for values in observations.values())]
     columns = ["Company", "Company_Id", "Sector", "Country", "Portfolio_Market_Value_EUR", *[_field_column(f) for f in used_fields]]
@@ -437,12 +439,13 @@ def from_portfolio_snapshot(store, as_of: str | None = None, portfolio_ids: list
             row.append("" if value is None else f"{value:g}")
         rows.append(row)
 
+    label, newest = holdings_date_label(holdings)
     return build_dataset(
-        f"Portfolio holdings as of {resolved}",
+        f"Portfolio holdings as of {label}" + (" (includes simulated ESG values)" if simulated else ""),
         _matrix(columns, rows),
         source="portfolio_snapshot",
         source_ref=",".join(portfolio_ids) if portfolio_ids else "all",
-        as_of=resolved,
+        as_of=newest,
     )
 
 

@@ -28,6 +28,7 @@ from arp.portfolio.climate import schemas
 from arp.portfolio.loads import LoadRecord, latest_load
 from arp.portfolio.loads import record_load as record_file_load
 from arp.schemas.portfolio import DataPointObservation
+from arp.storage.portfolio_store import portfolio_directories
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +178,9 @@ def ingest_esg_bytes(store, data: bytes, filename: str, *, provider: str, month:
         record_file_load(store, LoadRecord(kind="esg", source_id=provider, month=month, status="failed", content_hash="",
                                            detail=str(exc)[:200]))
         raise
-    known = {c.company_id for c in store.list_companies()}
+    # registry companies, plus the issuers of uploaded holdings: those exist only as their security's resolution
+    securities, companies = portfolio_directories(store)
+    known = set(companies) | {s.company_id for s in securities.values() if s.company_id}
     validated = validate_esg(raw, month=month, known_company_ids=known, decimal=mapping.decimal)
     return ingest_esg(store, validated, provider=provider, month=month, source_ref=source_ref)
 

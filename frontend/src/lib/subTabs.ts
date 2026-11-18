@@ -15,3 +15,9 @@ export const SUB_TABS = [
   { id: "ask", label: "Ask the Portfolio" },
   { id: "holdings", label: "Holdings Intake" },
 ] as const;
+
+/** The sub-tab Risk Monitoring opens on. A route with no sub-tab opens Monitoring & Alerts, which works on a
+ * server without Superset; a named, legacy or unknown id goes where resolveSubTab sends it. */
+export function openingSubTab(initialSub: string | undefined): (typeof SUB_TABS)[number]["id"] {
+  return initialSub ? resolveSubTab(initialSub, SUB_TABS) : "monitoring";
+}

@@ -128,3 +128,7 @@ export const canRetryFetch = (
   m: { status: string; failed_count: number; completed_count: number; company_count: number } | null,
   stalled: boolean,
 ): boolean => m !== null && (stalled || (m.status !== "pending" && m.status !== "running")) && !fetchRunDone(m);
+
+/** The picked universe's size; a saved universe listed without a count is not called empty. */
+export const usingText = (count: number | null) =>
+  count === null ? "Using the saved universe." : `Using ${count} ${count === 1 ? "company" : "companies"}.`;

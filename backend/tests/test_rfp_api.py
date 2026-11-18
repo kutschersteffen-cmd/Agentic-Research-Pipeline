@@ -14,15 +14,18 @@ from typer.testing import CliRunner
 
 from arp.api import run_scheduling
 from arp.api.auth import Principal, authorize, current_user
+from arp.api.deps import blob_store_dep, get_llm_client, settings_dep
 from arp.api.main import app
 from arp.cli import app as cli
 from arp.cli import rfp as rfp_cli
+from arp.config import get_settings
 from arp.db import models as m
 from arp.db.session import transaction
+from arp.errors import NotConfigured
 from arp.llm.base import LLMUsage
 from arp.rfp import store
 from arp.rfp.detect import DetectedQuestions, ReportedQuestion
-from arp.rfp.draft import Cited, DraftOut
+from arp.rfp.draft import Cited, DraftOut, FactCheck
 from arp.rfp.library import QuotedPair, QuotedPairs
 from tests import rfp_fixtures as fx
 
@@ -35,11 +38,13 @@ FIRM, AUM = fx.LIB_ANSWERS[0][1], fx.LIB_ANSWERS[1][1]
 
 
 class Standin:
-    """The model, replaced by fixed structured output. `drafts` maps an RFP question to its draft."""
+    """The model, replaced by fixed structured output. `drafts` maps an RFP question to its draft, or to a list of
+    drafts, one per drafting call."""
 
     def __init__(self, pairs=fx.LIB_ANSWERS, questions=QUESTIONS, drafts=None):
         self.pairs, self.questions, self.drafts = pairs, questions, drafts or {}
         self.shown: list[str] = []  # every drafting prompt
+        self.check = FactCheck()  # the second model's answer
 
     async def complete_structured(self, *, system, prompt, output_model, **_):
         if output_model is QuotedPairs:
@@ -47,9 +52,13 @@ class Standin:
         elif output_model is DetectedQuestions:
             out = DetectedQuestions(questions=[ReportedQuestion(location=loc, question=q, answer_location=a)
                                                for loc, q, a in self.questions])
+        elif output_model is FactCheck:
+            out = self.check
         else:
             self.shown.append(prompt)
             out = self.drafts.get(prompt.rsplit("RFP question: ", 1)[1], DraftOut())
+            if isinstance(out, list):  # one draft per step of the chain, in order
+                out = out.pop(0) if out else DraftOut()
         return out, LLMUsage()
 
 
@@ -359,7 +368,7 @@ def test_export(env, tmp_path):  # AC-38, AC-51
 
 def test_missing_api_key_leaves_no_project(env, monkeypatch):
     def no_key():
-        raise RuntimeError("ARP_ANTHROPIC_API_KEY is not set.")
+        raise NotConfigured("ARP_ANTHROPIC_API_KEY is not set.")
 
     monkeypatch.setattr(run_scheduling, "get_llm_client", no_key)
     r = env.as_("alice").post("/api/rfp/projects", data={"investor": "Pension Fund"}, files={"file": ("rfp_in.xlsx", fx.rfp_in_xlsx())})
@@ -467,3 +476,46 @@ def test_two_quick_autofills_start_one_run(env):  # PR #215 review item B2
     assert env.as_("alice").post(f"/api/rfp/projects/{pid}/autofill").status_code == 409
     env.run_jobs()
     assert len(env.as_("alice").get(f"/api/rfp/projects/{pid}").json()["questions"]) == 3
+
+
+# --- upload size limit (Security review (factory) on PR #556, optional 3) -------------------------
+
+
+class _NoBlobs:
+    """A blob store that records any use; an upload over the limit must not touch it."""
+
+    def __init__(self):
+        self.used = []
+
+    def __getattr__(self, name):
+        self.used.append(name)
+        raise AssertionError(f"blob store used: {name}")
+
+
+def _limit(monkeypatch, n):
+    monkeypatch.setitem(app.dependency_overrides, settings_dep, lambda: get_settings().model_copy(update={"max_upload_bytes": n}))
+
+
+def test_create_project_over_the_upload_limit(env, monkeypatch):
+    data, blobs = fx.rfp_in_xlsx(), _NoBlobs()
+    _limit(monkeypatch, len(data) - 1)
+    monkeypatch.setitem(app.dependency_overrides, blob_store_dep, lambda: blobs)
+    r = env.as_("alice").post("/api/rfp/projects", data={"investor": "Pension Fund"}, files={"file": ("rfp_in.xlsx", data)})
+    assert r.status_code == 413, r.text
+    assert blobs.used == [] and env.as_("alice").get("/api/rfp/projects").json() == []
+    monkeypatch.delitem(app.dependency_overrides, blob_store_dep)
+    _limit(monkeypatch, len(data))  # exactly at the limit still works
+    assert len(_project(env, data=data)["questions"]) == 3
+
+
+def test_library_import_over_the_upload_limit(env, monkeypatch):
+    data = fx.lib_past_xlsx()
+    monkeypatch.setitem(app.dependency_overrides, get_llm_client, lambda: env.llm)
+    _limit(monkeypatch, len(data))
+    files = [("files", ("lib_past.xlsx", data)), ("files", ("lib_big.xlsx", data + b"\0"))]  # one file a byte over
+    r = env.as_("bob").post("/api/rfp/library/import", files=files)
+    assert r.status_code == 413, r.text
+    assert _entries() == []
+    r = env.as_("bob").post("/api/rfp/library/import", files=[("files", ("lib_past.xlsx", data))])  # exactly at the limit
+    assert r.status_code == 200, r.text
+    assert len(_entries()) == 3

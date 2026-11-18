@@ -8,12 +8,19 @@ import json
 from datetime import date
 from pathlib import Path
 
-from pydantic import BaseModel, Field
-
 from arp.llm.base import LLMClient
 from arp.rfp.detect import detect_questions
-from arp.rfp.draft import DRAFTED, NO_SOURCE, Entry, draft_answer
+from arp.rfp.documents import RefDoc
+from arp.rfp.draft import (  # noqa: F401  (FactCheck: tests read golden.FactCheck)
+    DRAFTED,
+    NO_SOURCE,
+    Entry,
+    FactCheck,
+    draft_answer,
+    fact_check,
+)
 from arp.rfp.locations import Layout
+from arp.schemas.common import DocType, SourceDocument
 
 
 def build_file(case: dict) -> tuple[bytes, str]:
@@ -62,37 +69,47 @@ async def score_questions(cases: list[dict], llm: LLMClient) -> tuple[int, int, 
     return hit, total, misses
 
 
-class FactCheck(BaseModel):
-    unsupported: list[str] = Field(default_factory=list, description="Each fact in the draft that no cited entry states.")
-
-
-_VERIFY = """You check a drafted RFP answer against the library entries it cites. List every fact, figure, date or name
-in the draft that the cited entries' answers do not state. Rewording, shortening and combining are fine. Return an empty
-list when everything in the draft is stated in the entries."""
-
-
 async def score_drafts(cases: dict, llm: LLMClient, verifier: LLMClient, *, today: date, settings=None) -> dict:
-    """Counts for answerable questions drafted, unanswerable ones left `no source`, and drafts with unsupported facts."""
+    """Counts for answerable questions drafted, unanswerable ones left `no source`, drafts with unsupported facts,
+    `unchanged` questions answered with an entry's answer character for character, and drafted `unchanged` or
+    `library` questions with no document source. A question without `expect` is `library` when answerable, else
+    `none`. `documents` ({title, text, priority}) are the case's reference documents."""
     entries = [Entry(i + 1, e["question"], e["answer"], date.fromisoformat(e.get("review_by", "2099-12-31")))
                for i, e in enumerate(cases["library"])]
     by_id = {e.id: e for e in entries}
-    counts = dict(drafted=0, answerable=0, blank=0, unanswerable=0, unsupported=0)
+    documents = [RefDoc(i + 1, d["title"], d["priority"], date(2099, 12, 31),
+                        SourceDocument(doc_id=f"rfpdoc-{i + 1}", company_id="rfp", doc_type=DocType.OTHER, title=d["title"],
+                                       full_text=d["text"]))
+                 for i, d in enumerate(cases.get("documents", []))]
+    approved = {e.answer for e in entries}
+    counts = dict(drafted=0, answerable=0, blank=0, unanswerable=0, unsupported=0, unchanged=0, unchanged_total=0,
+                  library_first=0, library_first_total=0)
     notes = []
     for q in cases["questions"]:
-        d = await draft_answer(q["question"], entries, llm, today=today, settings=settings)
-        if q["answerable"]:
+        expect = q.get("expect", "library" if q.get("answerable") else "none")
+        answerable = expect != "none"
+        d = await draft_answer(q["question"], entries, llm, verifier, today=today, settings=settings, documents=documents)
+        if answerable:
             counts["answerable"] += 1
             counts["drafted"] += d.status == DRAFTED
         else:
             counts["unanswerable"] += 1
             counts["blank"] += d.status == NO_SOURCE
-        if d.status != (DRAFTED if q["answerable"] else NO_SOURCE):
+        if d.status != (DRAFTED if answerable else NO_SOURCE):
             notes.append(f"{d.status}: {q['question']}")
+        if expect == "unchanged":
+            counts["unchanged_total"] += 1
+            counts["unchanged"] += d.status == DRAFTED and d.answer in approved
+            if d.status == DRAFTED and d.answer not in approved:
+                notes.append(f"changed: {q['question']}")
+        if expect in ("unchanged", "library") and d.status == DRAFTED:
+            counts["library_first_total"] += 1
+            counts["library_first"] += not any("document_id" in src for src in d.sources)
         if d.status == DRAFTED:
-            cited = "\n\n".join(f"[E{i}] {by_id[i].answer}" for i in dict.fromkeys(s["entry_id"] for s in d.sources))
-            check, _ = await verifier.complete_structured(
-                system=_VERIFY, prompt=f"Cited entries:\n\n{cited}\n\nDraft: {d.answer}", output_model=FactCheck
-            )
+            # part 1 AC-44 as a second line: the same check already ran inside drafting
+            cited = [f"[E{i}] {by_id[i].answer}" for i in dict.fromkeys(s["entry_id"] for s in d.sources if "entry_id" in s)]
+            cited += [f"[D{s['document_id']}] {s['quote']}" for s in d.sources if "document_id" in s]
+            check = await fact_check(verifier, q["question"], cited, d.answer)
             if check.unsupported:
                 counts["unsupported"] += 1
                 notes.append(f"unsupported in '{d.answer}': {'; '.join(check.unsupported)}")

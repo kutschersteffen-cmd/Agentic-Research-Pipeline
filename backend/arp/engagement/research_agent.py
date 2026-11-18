@@ -89,6 +89,14 @@ def build_dossier(
     return dossier, needs_review
 
 
+class NoDocuments(ValueError):
+    def __init__(self, company: CompanyRef) -> None:
+        super().__init__(
+            f"No documents are loaded for {company.name} ({company.company_id}). "
+            "Upload them in Data Library, then draft the dossier."
+        )
+
+
 async def research_company_issue(
     company: CompanyRef,
     issue: EngagementIssue,
@@ -99,12 +107,16 @@ async def research_company_issue(
     fuzzy_threshold: float,
     confidence_review_threshold: float,
     max_chunks: int = 12,
+    documents: list | None = None,
 ) -> tuple[ResearchDossier, bool, LLMUsage]:
     """Fetches the company's available disclosures, prefilters evidence by
     the issue's theme, and drafts a grounded dossier -- the Research Agent
     step of the engagement data flow, run before the human dossier-accuracy
     checkpoint that gates handoff to the Drafting Agent."""
-    documents = await registry.fetch_all(company)
+    if documents is None:
+        documents = await registry.fetch_all(company)
+    if not documents:  # no evidence to ground on: say so instead of asking the model
+        raise NoDocuments(company)
     documents_by_id = {d.doc_id: d for d in documents}
     keywords = [issue.theme.replace("_", " ")]
     all_chunks: list[DocumentChunk] = []

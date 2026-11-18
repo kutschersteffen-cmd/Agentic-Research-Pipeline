@@ -95,6 +95,36 @@ def compute_financed_emissions(
     }
 
 
+def financed_emissions_by_company(
+    store: PortfolioStore,
+    holdings: list[Holding],
+    securities: dict[str, SecurityRef],
+    *,
+    as_of: str,
+) -> tuple[dict[str, float], int]:
+    """`compute_financed_emissions` split per company (key: the security's `company_id`), unrounded: the same
+    formula and the same exclusions over the holdings given (already scoped), so the values sum to its
+    `financed_emissions_tco2e`. Returns the per-company tCO2e and the uncovered holding count."""
+    company_ids = _company_ids(securities)
+    evic = datapoint_mapping.resolve_field_values_for_universe(store, company_ids, FIELD_EVIC, as_of)
+    scope1 = datapoint_mapping.resolve_field_values_for_universe(store, company_ids, FIELD_SCOPE1, as_of)
+    scope2 = datapoint_mapping.resolve_field_values_for_universe(store, company_ids, FIELD_SCOPE2, as_of)
+
+    per_company: dict[str, float] = {}
+    uncovered_count = 0
+    for h in holdings:
+        security = securities.get(h.security_id)
+        company_id = security.company_id if security else None
+        evic_value = evic.get(company_id) if company_id else None
+        s1 = scope1.get(company_id) if company_id else None
+        s2 = scope2.get(company_id) if company_id else None
+        if not company_id or not evic_value or s1 is None or s2 is None:
+            uncovered_count += 1
+            continue
+        per_company[company_id] = per_company.get(company_id, 0.0) + (h.market_value_eur / 1_000_000) / evic_value * (s1 + s2)
+    return per_company, uncovered_count
+
+
 def coverage_report(
     store: PortfolioStore, securities: dict[str, SecurityRef], field_id: str, as_of: str | None = None
 ) -> dict[str, int]:

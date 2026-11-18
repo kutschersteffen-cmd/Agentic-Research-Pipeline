@@ -403,6 +403,19 @@
       "title": "Citations",
       "type": "array"
      },
+     "contextual_keywords": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Contextual Keywords",
+      "type": "array"
+     },
+     "contextual_window_words": {
+      "default": 50,
+      "title": "Contextual Window Words",
+      "type": "integer"
+     },
      "contrast_statements": {
       "description": "Extra negative statements for the theme funnel's NLI step (next to out_of_scope_description), e.g. 'The company buys or operates electrolysers made by another company'.",
       "items": {
@@ -431,6 +444,14 @@
       "description": "Set when this activity represents a scarce or geopolitically concentrated input whose importance a pure input-output linkage-strength ranking would understate (e.g. a USGS/IEA-flagged critical mineral). Populated by the criticality overlay, not by hand.",
       "title": "Criticality Flag",
       "type": "boolean"
+     },
+     "exclusion_keywords": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Exclusion Keywords",
+      "type": "array"
      },
      "human_approved": {
       "default": false,
@@ -790,6 +811,18 @@
        }
       ],
       "title": "Company Id"
+     },
+     "company_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Directory name of company_id, filled on read by the alerts endpoint; never stored.",
+      "title": "Company Name"
      },
      "data_point_values": {
       "anyOf": [
@@ -1246,9 +1279,43 @@
       "title": "Created At",
       "type": "string"
      },
+     "decisions": {
+      "additionalProperties": {
+       "enum": [
+        "kept",
+        "removed"
+       ],
+       "type": "string"
+      },
+      "default": {},
+      "title": "Decisions",
+      "type": "object"
+     },
+     "discovery_run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Discovery Run Id"
+     },
      "flow_id": {
       "title": "Flow Id",
       "type": "string"
+     },
+     "identity_applied": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Identity Applied"
      },
      "identity_run_id": {
       "anyOf": [
@@ -1261,6 +1328,90 @@
       ],
       "title": "Identity Run Id"
      },
+     "problems": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "default": {},
+      "title": "Problems",
+      "type": "object"
+     },
+     "repeat": {
+      "additionalProperties": {
+       "enum": [
+        "skip",
+        "run"
+       ],
+       "type": "string"
+      },
+      "default": {},
+      "title": "Repeat",
+      "type": "object"
+     },
+     "reporting_year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reporting Year"
+     },
+     "run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Run Id"
+     },
+     "schema_choice": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SchemaChoice"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "settings": {
+      "$ref": "#/components/schemas/FlowSettings",
+      "default": {
+       "batch": false,
+       "mode": "normal"
+      }
+     },
+     "skipped_uploads": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/SkippedUpload"
+      },
+      "title": "Skipped Uploads",
+      "type": "array"
+     },
+     "source": {
+      "anyOf": [
+       {
+        "enum": [
+         "upload",
+         "import",
+         "filings",
+         "filings_web"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source"
+     },
      "started_by": {
       "title": "Started By",
       "type": "string"
@@ -1268,6 +1419,22 @@
      "started_by_name": {
       "title": "Started By Name",
       "type": "string"
+     },
+     "starting": {
+      "default": false,
+      "title": "Starting",
+      "type": "boolean"
+     },
+     "starting_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Starting At"
      },
      "step": {
       "default": 1,
@@ -1303,9 +1470,71 @@
       "title": "Created At",
       "type": "string"
      },
+     "decisions": {
+      "additionalProperties": {
+       "enum": [
+        "kept",
+        "removed"
+       ],
+       "type": "string"
+      },
+      "default": {},
+      "title": "Decisions",
+      "type": "object"
+     },
+     "discovery": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DiscoveryStatus"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "discovery_run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Discovery Run Id"
+     },
+     "files": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/FlowFile"
+      },
+      "title": "Files",
+      "type": "array"
+     },
      "flow_id": {
       "title": "Flow Id",
       "type": "string"
+     },
+     "identity": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DiscoveryStatus"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "identity_applied": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Identity Applied"
      },
      "identity_run_id": {
       "anyOf": [
@@ -1318,6 +1547,45 @@
       ],
       "title": "Identity Run Id"
      },
+     "problems": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "default": {},
+      "title": "Problems",
+      "type": "object"
+     },
+     "repeat": {
+      "additionalProperties": {
+       "enum": [
+        "skip",
+        "run"
+       ],
+       "type": "string"
+      },
+      "default": {},
+      "title": "Repeat",
+      "type": "object"
+     },
+     "repeat_rows": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/RepeatRow"
+      },
+      "title": "Repeat Rows",
+      "type": "array"
+     },
+     "reporting_year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reporting Year"
+     },
      "rows": {
       "default": [],
       "items": {
@@ -1326,6 +1594,59 @@
       "title": "Rows",
       "type": "array"
      },
+     "run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Run Id"
+     },
+     "schema_choice": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SchemaChoice"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "settings": {
+      "$ref": "#/components/schemas/FlowSettings",
+      "default": {
+       "batch": false,
+       "mode": "normal"
+      }
+     },
+     "skipped_uploads": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/SkippedUpload"
+      },
+      "title": "Skipped Uploads",
+      "type": "array"
+     },
+     "source": {
+      "anyOf": [
+       {
+        "enum": [
+         "upload",
+         "import",
+         "filings",
+         "filings_web"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source"
+     },
      "started_by": {
       "title": "Started By",
       "type": "string"
@@ -1333,6 +1654,22 @@
      "started_by_name": {
       "title": "Started By Name",
       "type": "string"
+     },
+     "starting": {
+      "default": false,
+      "title": "Starting",
+      "type": "boolean"
+     },
+     "starting_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Starting At"
      },
      "step": {
       "default": 1,
@@ -2610,6 +2947,24 @@
     "title": "BestInClassCoverage",
     "type": "object"
    },
+   "BilateralPickRequest": {
+    "properties": {
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "reason": {
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "reason"
+    ],
+    "title": "BilateralPickRequest",
+    "type": "object"
+   },
    "Body_add_fact_api_transition_barrier_cells__code___region__facts_post": {
     "properties": {
      "as_of": {
@@ -2759,6 +3114,34 @@
     "title": "Body_mechanism_from_indicators_api_decision_mechanisms_from_indicators_post",
     "type": "object"
    },
+   "Body_post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post": {
+    "properties": {
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file"
+    ],
+    "title": "Body_post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post",
+    "type": "object"
+   },
+   "Body_post_votes_xlsx_api_stewardship_intake_votes_xlsx_post": {
+    "properties": {
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file"
+    ],
+    "title": "Body_post_votes_xlsx_api_stewardship_intake_votes_xlsx_post",
+    "type": "object"
+   },
    "Body_raw_upload_api_universe_raw_upload_post": {
     "properties": {
      "file": {
@@ -2787,11 +3170,41 @@
     "title": "Body_universe_from_holdings_api_universe_from_holdings_post",
     "type": "object"
    },
+   "Body_upload_api_authority_taxonomy_uploads_post": {
+    "properties": {
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file"
+    ],
+    "title": "Body_upload_api_authority_taxonomy_uploads_post",
+    "type": "object"
+   },
    "Body_upload_api_holdings_upload_post": {
     "properties": {
      "as_of": {
       "title": "As Of",
       "type": "string"
+     },
+     "decimal": {
+      "anyOf": [
+       {
+        "enum": [
+         ".",
+         ","
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Overrides the provider mapping's decimal separator.",
+      "title": "Decimal"
      },
      "file": {
       "contentMediaType": "application/octet-stream",
@@ -2825,6 +3238,22 @@
       "default": "default",
       "title": "Provider",
       "type": "string"
+     },
+     "weight_unit": {
+      "anyOf": [
+       {
+        "enum": [
+         "percent",
+         "fraction"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Overrides the provider mapping's weight unit.",
+      "title": "Weight Unit"
      }
     },
     "required": [
@@ -2947,6 +3376,49 @@
     "title": "Body_upload_document_api_documents_upload_post",
     "type": "object"
    },
+   "Body_upload_document_api_rfp_documents_post": {
+    "properties": {
+     "document_date": {
+      "format": "date",
+      "title": "Document Date",
+      "type": "string"
+     },
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     },
+     "priority": {
+      "default": 1,
+      "minimum": 1.0,
+      "title": "Priority",
+      "type": "integer"
+     },
+     "replaces": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Replaces"
+     },
+     "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file",
+     "title",
+     "document_date"
+    ],
+    "title": "Body_upload_document_api_rfp_documents_post",
+    "type": "object"
+   },
    "Body_upload_esg_api_portfolio_esg_upload_post": {
     "properties": {
      "file": {
@@ -2969,6 +3441,29 @@
      "month"
     ],
     "title": "Body_upload_esg_api_portfolio_esg_upload_post",
+    "type": "object"
+   },
+   "Body_upload_flow_document_api_argus_flows__flow_id__documents_upload_post": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "doc_type": {
+      "$ref": "#/components/schemas/DocType"
+     },
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file",
+     "company_id",
+     "doc_type"
+    ],
+    "title": "Body_upload_flow_document_api_argus_flows__flow_id__documents_upload_post",
     "type": "object"
    },
    "Body_upload_price_dataset_api_replication_specs__spec_run_id__datasets_prices_post": {
@@ -3005,6 +3500,26 @@
       "contentMediaType": "application/octet-stream",
       "title": "File",
       "type": "string"
+     },
+     "fonts": {
+      "default": [],
+      "items": {
+       "contentMediaType": "application/octet-stream",
+       "type": "string"
+      },
+      "title": "Fonts",
+      "type": "array"
+     },
+     "layout_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Layout Name"
      }
     },
     "required": [
@@ -4301,6 +4816,18 @@
       "description": "On-disk filename, resolved by grounding.",
       "title": "Source Filename"
      },
+     "source_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The document's web address when it has no local file, resolved by grounding.",
+      "title": "Source Url"
+     },
      "span_text": {
       "anyOf": [
        {
@@ -4463,6 +4990,28 @@
     "title": "CitationRole",
     "type": "string"
    },
+   "ClearAlertsRequest": {
+    "properties": {
+     "reason": {
+      "default": "",
+      "title": "Reason",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "resolved",
+       "false_positive"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "status"
+    ],
+    "title": "ClearAlertsRequest",
+    "type": "object"
+   },
    "CloseRequest": {
     "properties": {
      "company_id": {
@@ -4493,6 +5042,743 @@
      "outcome"
     ],
     "title": "CloseRequest",
+    "type": "object"
+   },
+   "CockpitContributor": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "sector": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sector"
+     },
+     "share": {
+      "title": "Share",
+      "type": "number"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "tco2e": {
+      "title": "Tco2E",
+      "type": "number"
+     }
+    },
+    "required": [
+     "company_id",
+     "company",
+     "sector",
+     "tco2e",
+     "share",
+     "status"
+    ],
+    "title": "CockpitContributor",
+    "type": "object"
+   },
+   "CockpitControlGap": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "engagement_id": {
+      "title": "Engagement Id",
+      "type": "string"
+     },
+     "gaps": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Gaps",
+      "type": "array"
+     },
+     "open_days": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Open Days"
+     },
+     "theme": {
+      "title": "Theme",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id",
+     "company",
+     "engagement_id",
+     "theme",
+     "open_days",
+     "gaps"
+    ],
+    "title": "CockpitControlGap",
+    "type": "object"
+   },
+   "CockpitDay": {
+    "properties": {
+     "date": {
+      "format": "date",
+      "title": "Date",
+      "type": "string"
+     },
+     "engagement_meetings": {
+      "title": "Engagement Meetings",
+      "type": "integer"
+     },
+     "shareholder_meetings": {
+      "title": "Shareholder Meetings",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "date",
+     "engagement_meetings",
+     "shareholder_meetings"
+    ],
+    "title": "CockpitDay",
+    "type": "object"
+   },
+   "CockpitEmissions": {
+    "properties": {
+     "contributors": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitContributor"
+      },
+      "title": "Contributors",
+      "type": "array"
+     },
+     "engaged_tco2e": {
+      "title": "Engaged Tco2E",
+      "type": "number"
+     },
+     "not_selected_tco2e": {
+      "title": "Not Selected Tco2E",
+      "type": "number"
+     },
+     "selected_not_engaged_tco2e": {
+      "title": "Selected Not Engaged Tco2E",
+      "type": "number"
+     },
+     "total_tco2e": {
+      "title": "Total Tco2E",
+      "type": "number"
+     },
+     "uncovered_holding_count": {
+      "title": "Uncovered Holding Count",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "total_tco2e",
+     "engaged_tco2e",
+     "selected_not_engaged_tco2e",
+     "not_selected_tco2e",
+     "uncovered_holding_count",
+     "contributors"
+    ],
+    "title": "CockpitEmissions",
+    "type": "object"
+   },
+   "CockpitEngagementMeeting": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "date": {
+      "format": "date",
+      "title": "Date",
+      "type": "string"
+     },
+     "engagement_id": {
+      "title": "Engagement Id",
+      "type": "string"
+     },
+     "objective": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Objective"
+     },
+     "stage": {
+      "title": "Stage",
+      "type": "string"
+     },
+     "step": {
+      "title": "Step",
+      "type": "integer"
+     },
+     "theme": {
+      "title": "Theme",
+      "type": "string"
+     }
+    },
+    "required": [
+     "date",
+     "company_id",
+     "company",
+     "engagement_id",
+     "theme",
+     "objective",
+     "step",
+     "stage"
+    ],
+    "title": "CockpitEngagementMeeting",
+    "type": "object"
+   },
+   "CockpitLadderCompany": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id",
+     "company"
+    ],
+    "title": "CockpitLadderCompany",
+    "type": "object"
+   },
+   "CockpitLadderStep": {
+    "properties": {
+     "companies": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitLadderCompany"
+      },
+      "title": "Companies",
+      "type": "array"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "stage": {
+      "title": "Stage",
+      "type": "string"
+     },
+     "step": {
+      "title": "Step",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "step",
+     "stage",
+     "label",
+     "companies"
+    ],
+    "title": "CockpitLadderStep",
+    "type": "object"
+   },
+   "CockpitPortfolioOption": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "portfolio_id": {
+      "title": "Portfolio Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "portfolio_id",
+     "name"
+    ],
+    "title": "CockpitPortfolioOption",
+    "type": "object"
+   },
+   "CockpitProgrammeRow": {
+    "properties": {
+     "engaged": {
+      "title": "Engaged",
+      "type": "integer"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "programme_id": {
+      "title": "Programme Id",
+      "type": "string"
+     },
+     "proposed": {
+      "title": "Proposed",
+      "type": "integer"
+     },
+     "selected": {
+      "title": "Selected",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "programme_id",
+     "name",
+     "label",
+     "selected",
+     "engaged",
+     "proposed"
+    ],
+    "title": "CockpitProgrammeRow",
+    "type": "object"
+   },
+   "CockpitProgrammeTotals": {
+    "properties": {
+     "engaged": {
+      "title": "Engaged",
+      "type": "integer"
+     },
+     "selected": {
+      "title": "Selected",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "selected",
+     "engaged"
+    ],
+    "title": "CockpitProgrammeTotals",
+    "type": "object"
+   },
+   "CockpitResponse": {
+    "properties": {
+     "as_of": {
+      "format": "date",
+      "title": "As Of",
+      "type": "string"
+     },
+     "control_gaps": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitControlGap"
+      },
+      "title": "Control Gaps",
+      "type": "array"
+     },
+     "days": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitDay"
+      },
+      "title": "Days",
+      "type": "array"
+     },
+     "demo": {
+      "title": "Demo",
+      "type": "boolean"
+     },
+     "emissions": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/CockpitEmissions"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "engagement_meetings": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitEngagementMeeting"
+      },
+      "title": "Engagement Meetings",
+      "type": "array"
+     },
+     "ladder": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitLadderStep"
+      },
+      "title": "Ladder",
+      "type": "array"
+     },
+     "portfolios": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitPortfolioOption"
+      },
+      "title": "Portfolios",
+      "type": "array"
+     },
+     "programme_totals": {
+      "$ref": "#/components/schemas/CockpitProgrammeTotals"
+     },
+     "programmes": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitProgrammeRow"
+      },
+      "title": "Programmes",
+      "type": "array"
+     },
+     "scope": {
+      "$ref": "#/components/schemas/CockpitScope"
+     },
+     "shareholder_meetings": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitShareholderMeeting"
+      },
+      "title": "Shareholder Meetings",
+      "type": "array"
+     },
+     "summary": {
+      "$ref": "#/components/schemas/CockpitSummary"
+     },
+     "themes": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitThemeRow"
+      },
+      "title": "Themes",
+      "type": "array"
+     },
+     "tiers": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitTierTotal"
+      },
+      "title": "Tiers",
+      "type": "array"
+     },
+     "voting": {
+      "$ref": "#/components/schemas/CockpitVoting"
+     }
+    },
+    "required": [
+     "as_of",
+     "scope",
+     "portfolios",
+     "demo",
+     "summary",
+     "days",
+     "tiers",
+     "themes",
+     "programmes",
+     "programme_totals",
+     "engagement_meetings",
+     "shareholder_meetings",
+     "control_gaps",
+     "ladder",
+     "voting",
+     "emissions"
+    ],
+    "title": "CockpitResponse",
+    "type": "object"
+   },
+   "CockpitScope": {
+    "properties": {
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "portfolio_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Portfolio Id"
+     }
+    },
+    "required": [
+     "portfolio_id",
+     "label"
+    ],
+    "title": "CockpitScope",
+    "type": "object"
+   },
+   "CockpitShareholderMeeting": {
+    "properties": {
+     "action_due": {
+      "title": "Action Due",
+      "type": "boolean"
+     },
+     "ballot_state": {
+      "title": "Ballot State",
+      "type": "string"
+     },
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "date": {
+      "format": "date",
+      "title": "Date",
+      "type": "string"
+     },
+     "days_to_meeting": {
+      "title": "Days To Meeting",
+      "type": "integer"
+     },
+     "flagged": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Flagged"
+     },
+     "items": {
+      "title": "Items",
+      "type": "integer"
+     },
+     "run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Run Id"
+     }
+    },
+    "required": [
+     "date",
+     "company_id",
+     "company",
+     "items",
+     "flagged",
+     "ballot_state",
+     "action_due",
+     "days_to_meeting",
+     "run_id"
+    ],
+    "title": "CockpitShareholderMeeting",
+    "type": "object"
+   },
+   "CockpitSummary": {
+    "properties": {
+     "engaged_outside_selection": {
+      "title": "Engaged Outside Selection",
+      "type": "integer"
+     },
+     "engaged_selected": {
+      "title": "Engaged Selected",
+      "type": "integer"
+     },
+     "selected": {
+      "title": "Selected",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "selected",
+     "engaged_selected",
+     "engaged_outside_selection"
+    ],
+    "title": "CockpitSummary",
+    "type": "object"
+   },
+   "CockpitThemeRow": {
+    "properties": {
+     "engaged": {
+      "title": "Engaged",
+      "type": "integer"
+     },
+     "selected": {
+      "title": "Selected",
+      "type": "integer"
+     },
+     "theme": {
+      "title": "Theme",
+      "type": "string"
+     },
+     "tiers": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitTierCount"
+      },
+      "title": "Tiers",
+      "type": "array"
+     }
+    },
+    "required": [
+     "theme",
+     "selected",
+     "engaged",
+     "tiers"
+    ],
+    "title": "CockpitThemeRow",
+    "type": "object"
+   },
+   "CockpitTierCount": {
+    "properties": {
+     "engaged": {
+      "title": "Engaged",
+      "type": "integer"
+     },
+     "selected": {
+      "title": "Selected",
+      "type": "integer"
+     },
+     "tier": {
+      "title": "Tier",
+      "type": "string"
+     }
+    },
+    "required": [
+     "tier",
+     "selected",
+     "engaged"
+    ],
+    "title": "CockpitTierCount",
+    "type": "object"
+   },
+   "CockpitTierTotal": {
+    "properties": {
+     "engaged": {
+      "title": "Engaged",
+      "type": "integer"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "selected": {
+      "title": "Selected",
+      "type": "integer"
+     },
+     "tier": {
+      "title": "Tier",
+      "type": "string"
+     }
+    },
+    "required": [
+     "tier",
+     "selected",
+     "engaged",
+     "label"
+    ],
+    "title": "CockpitTierTotal",
+    "type": "object"
+   },
+   "CockpitTopicCount": {
+    "properties": {
+     "abstain": {
+      "title": "Abstain",
+      "type": "integer"
+     },
+     "against_management": {
+      "title": "Against Management",
+      "type": "integer"
+     },
+     "topic": {
+      "title": "Topic",
+      "type": "string"
+     },
+     "votes": {
+      "title": "Votes",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "topic",
+     "votes",
+     "against_management",
+     "abstain"
+    ],
+    "title": "CockpitTopicCount",
+    "type": "object"
+   },
+   "CockpitVoting": {
+    "properties": {
+     "abstain": {
+      "title": "Abstain",
+      "type": "integer"
+     },
+     "against": {
+      "title": "Against",
+      "type": "integer"
+     },
+     "against_management": {
+      "title": "Against Management",
+      "type": "integer"
+     },
+     "for": {
+      "title": "For",
+      "type": "integer"
+     },
+     "meetings": {
+      "title": "Meetings",
+      "type": "integer"
+     },
+     "other": {
+      "title": "Other",
+      "type": "integer"
+     },
+     "season": {
+      "title": "Season",
+      "type": "integer"
+     },
+     "topics": {
+      "items": {
+       "$ref": "#/components/schemas/CockpitTopicCount"
+      },
+      "title": "Topics",
+      "type": "array"
+     },
+     "votes": {
+      "title": "Votes",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "season",
+     "meetings",
+     "votes",
+     "for",
+     "against",
+     "abstain",
+     "other",
+     "against_management",
+     "topics"
+    ],
+    "title": "CockpitVoting",
     "type": "object"
    },
    "ColumnKind": {
@@ -4697,6 +5983,119 @@
     "title": "ColumnStats",
     "type": "object"
    },
+   "Commitment": {
+    "properties": {
+     "commitment_id": {
+      "title": "Commitment Id",
+      "type": "string"
+     },
+     "evidence": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence"
+     },
+     "made_at": {
+      "title": "Made At",
+      "type": "string"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "recorded_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Recorded By"
+     },
+     "status": {
+      "$ref": "#/components/schemas/CommitmentStatus",
+      "default": "open"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     },
+     "validated_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Validated At"
+     },
+     "validated_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Validated By"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "title": "Commitment",
+    "type": "object"
+   },
+   "CommitmentFlag": {
+    "properties": {
+     "kind": {
+      "enum": [
+       "overdue",
+       "broken"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "message": {
+      "title": "Message",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "message"
+    ],
+    "title": "CommitmentFlag",
+    "type": "object"
+   },
    "CommitmentRequest": {
     "properties": {
      "company_id": {
@@ -4706,6 +6105,17 @@
      "issue_id": {
       "title": "Issue Id",
       "type": "string"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
      },
      "target_date": {
       "anyOf": [
@@ -4731,11 +6141,31 @@
     "title": "CommitmentRequest",
     "type": "object"
    },
+   "CommitmentStatus": {
+    "enum": [
+     "open",
+     "verified",
+     "missed"
+    ],
+    "title": "CommitmentStatus",
+    "type": "string"
+   },
    "CommitmentStatusRequest": {
     "properties": {
      "company_id": {
       "title": "Company Id",
       "type": "string"
+     },
+     "evidence": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence"
      },
      "issue_id": {
       "title": "Issue Id",
@@ -5020,6 +6450,60 @@
      "name"
     ],
     "title": "CompanyInput",
+    "type": "object"
+   },
+   "CompanyProgress": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "document_problem": {
+      "default": false,
+      "title": "Document Problem",
+      "type": "boolean"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "needs_you": {
+      "default": 0,
+      "title": "Needs You",
+      "type": "integer"
+     },
+     "percent": {
+      "title": "Percent",
+      "type": "integer"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "retryable": {
+      "default": false,
+      "title": "Retryable",
+      "type": "boolean"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id",
+     "name",
+     "status",
+     "percent"
+    ],
+    "title": "CompanyProgress",
     "type": "object"
    },
    "CompanyRef": {
@@ -5627,6 +7111,46 @@
     "title": "Confidence",
     "type": "string"
    },
+   "ConfirmRequest": {
+    "description": "Only read for a `new_commitment` suggestion: each field overrides what Argus worded.",
+    "properties": {
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     },
+     "text": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Text"
+     }
+    },
+    "title": "ConfirmRequest",
+    "type": "object"
+   },
    "ConfirmTiersRequest": {
     "properties": {
      "issuer_ids": {
@@ -5645,6 +7169,19 @@
      }
     },
     "title": "ConfirmTiersRequest",
+    "type": "object"
+   },
+   "Confirmed": {
+    "properties": {
+     "confirmed": {
+      "title": "Confirmed",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "confirmed"
+    ],
+    "title": "Confirmed",
     "type": "object"
    },
    "Constituent": {
@@ -6788,6 +8325,120 @@
     "title": "DashboardItem",
     "type": "object"
    },
+   "DataPointObservation": {
+    "description": "One resolved value of one data-point field for one company, at one\npoint in time. Append-only: a later correction is a new observation\nwith a later `observed_at`, never an edit to a prior one, so a trend\nquery reflects what was actually known at each point in time.",
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "conflicting_source_label": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Conflicting Source Label"
+     },
+     "conflicting_sources": {
+      "default": false,
+      "description": "True if an independent extraction pass disagreed with this value beyond tolerance.",
+      "title": "Conflicting Sources",
+      "type": "boolean"
+     },
+     "conflicting_value": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Conflicting Value"
+     },
+     "field_id": {
+      "title": "Field Id",
+      "type": "string"
+     },
+     "field_name": {
+      "title": "Field Name",
+      "type": "string"
+     },
+     "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+     },
+     "observed_at": {
+      "title": "Observed At",
+      "type": "string"
+     },
+     "period": {
+      "default": "",
+      "description": "Fiscal period the value applies to, e.g. \"FY2025\".",
+      "title": "Period",
+      "type": "string"
+     },
+     "source": {
+      "enum": [
+       "internal_api",
+       "extracted",
+       "catalogue",
+       "estimated_proxy",
+       "simulated"
+      ],
+      "title": "Source",
+      "type": "string"
+     },
+     "unit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value"
+     }
+    },
+    "required": [
+     "company_id",
+     "field_id",
+     "field_name",
+     "value",
+     "source"
+    ],
+    "title": "DataPointObservation",
+    "type": "object"
+   },
    "DataPointSchema": {
     "properties": {
      "created_at": {
@@ -6960,6 +8611,11 @@
       "title": "Columns",
       "type": "array"
      },
+     "created_at": {
+      "description": "When the dataset was added: tells two uploads of the same file apart.",
+      "title": "Created At",
+      "type": "string"
+     },
      "dataset_id": {
       "title": "Dataset Id",
       "type": "string"
@@ -7037,6 +8693,7 @@
      "dataset_id",
      "name",
      "source",
+     "created_at",
      "row_count",
      "columns",
      "preview",
@@ -7463,6 +9120,51 @@
     "title": "DecisionResult",
     "type": "object"
    },
+   "DeckSettings": {
+    "properties": {
+     "detail": {
+      "default": "balanced",
+      "enum": [
+       "concise",
+       "balanced",
+       "comprehensive"
+      ],
+      "title": "Detail",
+      "type": "string"
+     },
+     "max_slides": {
+      "default": 12,
+      "maximum": 25.0,
+      "minimum": 3.0,
+      "title": "Max Slides",
+      "type": "integer"
+     },
+     "profile": {
+      "default": "committee",
+      "enum": [
+       "executive",
+       "client_pitch",
+       "committee",
+       "workshop"
+      ],
+      "title": "Profile",
+      "type": "string"
+     },
+     "purpose": {
+      "default": "recommendation",
+      "enum": [
+       "recommendation",
+       "review",
+       "process",
+       "briefing"
+      ],
+      "title": "Purpose",
+      "type": "string"
+     }
+    },
+    "title": "DeckSettings",
+    "type": "object"
+   },
    "DecomposeRequest": {
     "properties": {
      "description": {
@@ -7609,6 +9311,7 @@
      "empirical",
      "emerging_signal_discovery",
      "merged",
+     "stock_inference",
      "manual"
     ],
     "title": "DerivationMethod",
@@ -7818,6 +9521,11 @@
       "title": "Authority Sources",
       "type": "array"
      },
+     "search_unreachable": {
+      "default": false,
+      "title": "Search Unreachable",
+      "type": "boolean"
+     },
      "thematic_funds": {
       "items": {
        "$ref": "#/components/schemas/SourceCandidate"
@@ -7932,6 +9640,24 @@
      }
     },
     "title": "DiscoveryScheduleConfig",
+    "type": "object"
+   },
+   "DiscoveryStatus": {
+    "properties": {
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "run_id",
+     "status"
+    ],
+    "title": "DiscoveryStatus",
     "type": "object"
    },
    "DocType": {
@@ -8143,7 +9869,10 @@
      "status": {
       "anyOf": [
        {
-        "const": "shelved",
+        "enum": [
+         "shelved",
+         "active"
+        ],
         "type": "string"
        },
        {
@@ -8527,6 +10256,31 @@
      }
     },
     "title": "EmergingThemesScheduleConfig",
+    "type": "object"
+   },
+   "Engaged": {
+    "properties": {
+     "last": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last"
+     },
+     "yes": {
+      "title": "Yes",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "yes",
+     "last"
+    ],
+    "title": "Engaged",
     "type": "object"
    },
    "EntityDecision": {
@@ -8994,10 +10748,9 @@
     "type": "object"
    },
    "EscalationStage": {
-    "description": "Illustrative 7-step escalation ladder. Stage 5+ overlaps with the\nvoting module: a decision to reach PRIVATE_ENGAGEMENT..ESCALATION_TO_CHAIR\nstays inside the engagement workflow, but VOTE_AGAINST_MANAGEMENT and\nbeyond are the same decision the voting module's Policy Application\nAgent checks for alignment against (see arp.voting.policy_agent).",
+    "description": "Illustrative 6-step escalation ladder. Stage 4+ overlaps with the\nvoting module: a decision to reach PRIVATE_ENGAGEMENT..ESCALATION_TO_CHAIR\nstays inside the engagement workflow, but VOTE_AGAINST_MANAGEMENT and\nbeyond are the same decision the voting module's Policy Application\nAgent checks for alignment against (see arp.voting.policy_agent).",
     "enum": [
      "private_engagement",
-     "joint_engagement",
      "written_escalation_to_board",
      "escalation_to_chair",
      "vote_against_management",
@@ -9053,6 +10806,258 @@
      "n_trials"
     ],
     "title": "EvidenceReport",
+    "type": "object"
+   },
+   "EvidenceSuggestion": {
+    "description": "A pending answer from Argus that a person confirms or rejects (`stw_evidence_suggestions`).",
+    "properties": {
+     "activity_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Activity Id"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "created_commitment_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created Commitment Id"
+     },
+     "decided_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decided At"
+     },
+     "decided_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decided By"
+     },
+     "doc_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Doc Id"
+     },
+     "doc_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Doc Title"
+     },
+     "doc_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Doc Type"
+     },
+     "engagement_id": {
+      "title": "Engagement Id",
+      "type": "string"
+     },
+     "external_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "External Id"
+     },
+     "item_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Item Id"
+     },
+     "item_kind": {
+      "anyOf": [
+       {
+        "enum": [
+         "objective",
+         "commitment",
+         "topic"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Item Kind"
+     },
+     "kind": {
+      "enum": [
+       "evidence",
+       "new_commitment"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "page": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "quote": {
+      "title": "Quote",
+      "type": "string"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "reject_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reject Reason"
+     },
+     "source": {
+      "default": "app",
+      "title": "Source",
+      "type": "string"
+     },
+     "status": {
+      "default": "pending",
+      "enum": [
+       "pending",
+       "confirmed",
+       "rejected"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "suggestion_id": {
+      "title": "Suggestion Id",
+      "type": "string"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     },
+     "text": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Text"
+     },
+     "verdict": {
+      "anyOf": [
+       {
+        "enum": [
+         "found",
+         "against"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Verdict"
+     }
+    },
+    "required": [
+     "kind",
+     "company_id",
+     "engagement_id",
+     "quote"
+    ],
+    "title": "EvidenceSuggestion",
     "type": "object"
    },
    "ExceptionDecisionRequest": {
@@ -9871,6 +11876,86 @@
     "title": "FieldStatus",
     "type": "string"
    },
+   "Figure": {
+    "properties": {
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "value": {
+      "title": "Value",
+      "type": "string"
+     }
+    },
+    "required": [
+     "value",
+     "label"
+    ],
+    "title": "Figure",
+    "type": "object"
+   },
+   "FileDecision": {
+    "properties": {
+     "all": {
+      "default": false,
+      "title": "All",
+      "type": "boolean"
+     },
+     "all_that_pass": {
+      "default": false,
+      "title": "All That Pass",
+      "type": "boolean"
+     },
+     "keys": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Keys",
+      "type": "array"
+     },
+     "state": {
+      "anyOf": [
+       {
+        "enum": [
+         "kept",
+         "removed"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "State"
+     }
+    },
+    "title": "FileDecision",
+    "type": "object"
+   },
+   "FindCommitmentsResult": {
+    "properties": {
+     "skipped": {
+      "title": "Skipped",
+      "type": "integer"
+     },
+     "suggestions": {
+      "title": "Suggestions",
+      "type": "integer"
+     },
+     "ungrounded": {
+      "title": "Ungrounded",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "suggestions",
+     "ungrounded",
+     "skipped"
+    ],
+    "title": "FindCommitmentsResult",
+    "type": "object"
+   },
    "FlagExclusionScreen": {
     "description": "Exclude companies whose boolean field equals `exclude_when` --\nnorms-based screens, controversial weapons, controversy flags.",
     "properties": {
@@ -9967,6 +12052,130 @@
     "title": "FlagOut",
     "type": "object"
    },
+   "FlowFile": {
+    "properties": {
+     "check": {
+      "title": "Check",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "company_name": {
+      "title": "Company Name",
+      "type": "string"
+     },
+     "content_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Content Key"
+     },
+     "doc_type": {
+      "title": "Doc Type",
+      "type": "string"
+     },
+     "duplicate_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duplicate Of"
+     },
+     "filename": {
+      "title": "Filename",
+      "type": "string"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "page_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page Url"
+     },
+     "passes": {
+      "title": "Passes",
+      "type": "boolean"
+     },
+     "raw_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Raw Url"
+     },
+     "source": {
+      "enum": [
+       "upload",
+       "filings",
+       "web"
+      ],
+      "title": "Source",
+      "type": "string"
+     },
+     "state": {
+      "anyOf": [
+       {
+        "enum": [
+         "kept",
+         "removed"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "State"
+     },
+     "year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Year"
+     }
+    },
+    "required": [
+     "key",
+     "company_id",
+     "company_name",
+     "doc_type",
+     "filename",
+     "year",
+     "source",
+     "check",
+     "passes"
+    ],
+    "title": "FlowFile",
+    "type": "object"
+   },
    "FlowList": {
     "properties": {
      "flows": {
@@ -9995,9 +12204,158 @@
        }
       ],
       "title": "Identity Run Id"
+     },
+     "repeat": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "enum": [
+          "skip",
+          "run"
+         ],
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Repeat"
+     },
+     "reporting_year": {
+      "anyOf": [
+       {
+        "maximum": 2100.0,
+        "minimum": 1990.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reporting Year"
+     },
+     "schema_choice": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SchemaChoice"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "settings": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/FlowSettings"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "source": {
+      "anyOf": [
+       {
+        "enum": [
+         "upload",
+         "import",
+         "filings",
+         "filings_web"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source"
+     },
+     "step": {
+      "anyOf": [
+       {
+        "maximum": 5.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Step"
      }
     },
     "title": "FlowPatch",
+    "type": "object"
+   },
+   "FlowProgress": {
+    "properties": {
+     "companies": {
+      "items": {
+       "$ref": "#/components/schemas/CompanyProgress"
+      },
+      "title": "Companies",
+      "type": "array"
+     },
+     "cost_usd": {
+      "title": "Cost Usd",
+      "type": "number"
+     },
+     "done": {
+      "title": "Done",
+      "type": "integer"
+     },
+     "finished": {
+      "title": "Finished",
+      "type": "integer"
+     },
+     "minutes_left": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Minutes Left"
+     },
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     },
+     "started_at": {
+      "title": "Started At",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "stopping": {
+      "title": "Stopping",
+      "type": "boolean"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "run_id",
+     "started_at",
+     "done",
+     "finished",
+     "total",
+     "minutes_left",
+     "cost_usd",
+     "status",
+     "stopping",
+     "companies"
+    ],
+    "title": "FlowProgress",
     "type": "object"
    },
    "FlowRow": {
@@ -10113,8 +12471,75 @@
     "title": "FlowRow",
     "type": "object"
    },
+   "FlowSettings": {
+    "properties": {
+     "batch": {
+      "default": false,
+      "title": "Batch",
+      "type": "boolean"
+     },
+     "decision_framework_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decision Framework Id"
+     },
+     "decision_framework_version": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decision Framework Version"
+     },
+     "evidence_passages": {
+      "anyOf": [
+       {
+        "maximum": 50.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence Passages"
+     },
+     "mode": {
+      "default": "normal",
+      "enum": [
+       "cheap",
+       "normal",
+       "max"
+      ],
+      "title": "Mode",
+      "type": "string"
+     }
+    },
+    "title": "FlowSettings",
+    "type": "object"
+   },
    "FromCompaniesRequest": {
     "properties": {
+     "base_path": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Base Path"
+     },
      "companies": {
       "items": {
        "$ref": "#/components/schemas/CompanyRef"
@@ -10288,6 +12713,60 @@
     "title": "FromSourceRequest",
     "type": "object"
    },
+   "FundOverlap": {
+    "properties": {
+     "as_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of"
+     },
+     "companies": {
+      "title": "Companies",
+      "type": "integer"
+     },
+     "cycle": {
+      "title": "Cycle",
+      "type": "string"
+     },
+     "funds": {
+      "items": {
+       "$ref": "#/components/schemas/OverlapFund"
+      },
+      "title": "Funds",
+      "type": "array"
+     },
+     "pairs": {
+      "items": {
+       "$ref": "#/components/schemas/OverlapPair"
+      },
+      "title": "Pairs",
+      "type": "array"
+     },
+     "shared_selections": {
+      "items": {
+       "$ref": "#/components/schemas/SharedSelection"
+      },
+      "title": "Shared Selections",
+      "type": "array"
+     }
+    },
+    "required": [
+     "as_of",
+     "cycle",
+     "companies",
+     "funds",
+     "pairs",
+     "shared_selections"
+    ],
+    "title": "FundOverlap",
+    "type": "object"
+   },
    "GateRule": {
     "description": "A rule evaluated *before* the score exists. A knockout is a\ndecision, not a deduction -- an excluded entity never reaches the\naverage, where a strong score elsewhere could dilute it.",
     "properties": {
@@ -10355,6 +12834,39 @@
      "code"
     ],
     "title": "GicsMatch",
+    "type": "object"
+   },
+   "Grade": {
+    "properties": {
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "simulated": {
+      "title": "Simulated",
+      "type": "boolean"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "boolean"
+       }
+      ],
+      "title": "Value"
+     }
+    },
+    "required": [
+     "value",
+     "simulated",
+     "label"
+    ],
+    "title": "Grade",
     "type": "object"
    },
    "GroupCap": {
@@ -10436,6 +12948,57 @@
      }
     },
     "title": "HTTPValidationError",
+    "type": "object"
+   },
+   "HeldIn": {
+    "properties": {
+     "market_value_eur_m": {
+      "title": "Market Value Eur M",
+      "type": "number"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "portfolio_id": {
+      "title": "Portfolio Id",
+      "type": "string"
+     },
+     "selection_status": {
+      "anyOf": [
+       {
+        "enum": [
+         "proposed",
+         "confirmed"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Selection Status"
+     },
+     "weight_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Weight Pct"
+     }
+    },
+    "required": [
+     "portfolio_id",
+     "name",
+     "weight_pct",
+     "market_value_eur_m",
+     "selection_status"
+    ],
+    "title": "HeldIn",
     "type": "object"
    },
    "HistogramBin": {
@@ -11010,6 +13573,14 @@
       "exclusiveMinimum": 0.0,
       "title": "Shares Outstanding",
       "type": "number"
+     },
+     "simulated_fields": {
+      "description": "Metrics, flags and categories above whose value is simulated, not real data.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Simulated Fields",
+      "type": "array"
      }
     },
     "required": [
@@ -11202,6 +13773,18 @@
     "title": "IndicatorCategory",
     "type": "string"
    },
+   "InfluenceLevel": {
+    "enum": [
+     "1",
+     "2",
+     "3",
+     "4A",
+     "4B",
+     "5"
+    ],
+    "title": "InfluenceLevel",
+    "type": "string"
+   },
    "Instructions": {
     "properties": {
      "instructions": {
@@ -11217,6 +13800,34 @@
      }
     },
     "title": "Instructions",
+    "type": "object"
+   },
+   "IntakeReport": {
+    "properties": {
+     "created": {
+      "default": 0,
+      "title": "Created",
+      "type": "integer"
+     },
+     "rejected": {
+      "items": {
+       "$ref": "#/components/schemas/Rejection"
+      },
+      "title": "Rejected",
+      "type": "array"
+     },
+     "unchanged": {
+      "default": 0,
+      "title": "Unchanged",
+      "type": "integer"
+     },
+     "updated": {
+      "default": 0,
+      "title": "Updated",
+      "type": "integer"
+     }
+    },
+    "title": "IntakeReport",
     "type": "object"
    },
    "InteractionType": {
@@ -11252,9 +13863,16 @@
       "title": "Comment"
      },
      "context_etag": {
-      "minLength": 1,
-      "title": "Context Etag",
-      "type": "string"
+      "anyOf": [
+       {
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Context Etag"
      },
      "corrected_value": {
       "anyOf": [
@@ -11289,13 +13907,18 @@
       "type": "string"
      },
      "reason_code": {
-      "$ref": "#/components/schemas/DecisionReason"
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DecisionReason"
+       },
+       {
+        "type": "null"
+       }
+      ]
      }
     },
     "required": [
-     "decision",
-     "reason_code",
-     "context_etag"
+     "decision"
     ],
     "title": "ItemDecisionRequest",
     "type": "object"
@@ -11495,6 +14118,29 @@
      "not_in"
     ],
     "title": "LabelRule",
+    "type": "object"
+   },
+   "LatestNote": {
+    "properties": {
+     "at": {
+      "title": "At",
+      "type": "string"
+     },
+     "by": {
+      "title": "By",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text",
+     "by",
+     "at"
+    ],
+    "title": "LatestNote",
     "type": "object"
    },
    "LayerWeights": {
@@ -12592,9 +15238,15 @@
    "MonthlyRunRequest": {
     "properties": {
      "esg_provider": {
-      "default": "default",
-      "title": "Esg Provider",
-      "type": "string"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Esg Provider"
      },
      "month": {
       "title": "Month",
@@ -12673,6 +15325,90 @@
     "title": "NewVersionRequest",
     "type": "object"
    },
+   "NextAction": {
+    "properties": {
+     "owner": {
+      "default": "",
+      "title": "Owner",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     },
+     "when": {
+      "default": "",
+      "title": "When",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "title": "NextAction",
+    "type": "object"
+   },
+   "NextMeeting": {
+    "properties": {
+     "days": {
+      "title": "Days",
+      "type": "integer"
+     },
+     "estimated": {
+      "title": "Estimated",
+      "type": "boolean"
+     },
+     "last_meeting": {
+      "title": "Last Meeting",
+      "type": "string"
+     }
+    },
+    "required": [
+     "days",
+     "estimated",
+     "last_meeting"
+    ],
+    "title": "NextMeeting",
+    "type": "object"
+   },
+   "Note": {
+    "properties": {
+     "at": {
+      "title": "At",
+      "type": "string"
+     },
+     "by": {
+      "title": "By",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "note_id": {
+      "title": "Note Id",
+      "type": "string"
+     },
+     "scope": {
+      "title": "Scope",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "note_id",
+     "company_id",
+     "text",
+     "by",
+     "at",
+     "scope"
+    ],
+    "title": "Note",
+    "type": "object"
+   },
    "NoteCitation": {
     "properties": {
      "page": {
@@ -12700,6 +15436,29 @@
      "quote"
     ],
     "title": "NoteCitation",
+    "type": "object"
+   },
+   "NoteCreate": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "scope": {
+      "default": "house",
+      "title": "Scope",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id",
+     "text"
+    ],
+    "title": "NoteCreate",
     "type": "object"
    },
    "NoteItem": {
@@ -12745,6 +15504,22 @@
      "citations"
     ],
     "title": "NoteItem",
+    "type": "object"
+   },
+   "NoteList": {
+    "properties": {
+     "notes": {
+      "items": {
+       "$ref": "#/components/schemas/Note"
+      },
+      "title": "Notes",
+      "type": "array"
+     }
+    },
+    "required": [
+     "notes"
+    ],
+    "title": "NoteList",
     "type": "object"
    },
    "NoteReject": {
@@ -12805,6 +15580,250 @@
     },
     "title": "NoteSections",
     "type": "object"
+   },
+   "NotesSummary": {
+    "properties": {
+     "count": {
+      "title": "Count",
+      "type": "integer"
+     },
+     "latest": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LatestNote"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "count",
+     "latest"
+    ],
+    "title": "NotesSummary",
+    "type": "object"
+   },
+   "Objective": {
+    "properties": {
+     "closed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Closed At"
+     },
+     "description": {
+      "title": "Description",
+      "type": "string"
+     },
+     "escalated": {
+      "default": false,
+      "title": "Escalated",
+      "type": "boolean"
+     },
+     "evidence_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence Url"
+     },
+     "follows_objective_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Follows Objective Id"
+     },
+     "influence_evidence": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Influence Evidence"
+     },
+     "influence_level": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/InfluenceLevel"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "objective_id": {
+      "title": "Objective Id",
+      "type": "string"
+     },
+     "objective_type": {
+      "$ref": "#/components/schemas/ObjectiveType"
+     },
+     "outcome": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Outcome"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "receptiveness": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Receptiveness"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "result": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ObjectiveResult"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "source": {
+      "default": "app",
+      "title": "Source",
+      "type": "string"
+     },
+     "started_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Started At"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ObjectiveStatus",
+      "default": "initiated"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     }
+    },
+    "required": [
+     "description",
+     "objective_type"
+    ],
+    "title": "Objective",
+    "type": "object"
+   },
+   "ObjectiveResult": {
+    "enum": [
+     "deterioration",
+     "not_achieved",
+     "partially_achieved",
+     "achieved",
+     "abandoned"
+    ],
+    "title": "ObjectiveResult",
+    "type": "string"
+   },
+   "ObjectiveResultRequest": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "influence_level": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/InfluenceLevel"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "issue_id": {
+      "title": "Issue Id",
+      "type": "string"
+     },
+     "outcome": {
+      "title": "Outcome",
+      "type": "string"
+     },
+     "result": {
+      "$ref": "#/components/schemas/ObjectiveResult"
+     }
+    },
+    "required": [
+     "company_id",
+     "issue_id",
+     "result",
+     "outcome"
+    ],
+    "title": "ObjectiveResultRequest",
+    "type": "object"
+   },
+   "ObjectiveStatus": {
+    "enum": [
+     "initiated",
+     "in_progress",
+     "closed",
+     "abandoned"
+    ],
+    "title": "ObjectiveStatus",
+    "type": "string"
+   },
+   "ObjectiveType": {
+    "enum": [
+     "transparency",
+     "operational",
+     "strategic"
+    ],
+    "title": "ObjectiveType",
+    "type": "string"
    },
    "ObservationOut": {
     "properties": {
@@ -12882,6 +15901,34 @@
      "created_at"
     ],
     "title": "ObservationOut",
+    "type": "object"
+   },
+   "Observed": {
+    "properties": {
+     "simulated": {
+      "title": "Simulated",
+      "type": "boolean"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "boolean"
+       }
+      ],
+      "title": "Value"
+     }
+    },
+    "required": [
+     "value",
+     "simulated"
+    ],
+    "title": "Observed",
     "type": "object"
    },
    "OlderRun": {
@@ -13064,6 +16111,192 @@
      "dossier"
     ],
     "title": "OutreachLetterRequest",
+    "type": "object"
+   },
+   "OverlapFund": {
+    "properties": {
+     "companies": {
+      "title": "Companies",
+      "type": "integer"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "portfolio_id": {
+      "title": "Portfolio Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "portfolio_id",
+     "name",
+     "companies"
+    ],
+    "title": "OverlapFund",
+    "type": "object"
+   },
+   "OverlapHeldIn": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "portfolio_id": {
+      "title": "Portfolio Id",
+      "type": "string"
+     },
+     "weight_pct": {
+      "title": "Weight Pct",
+      "type": "number"
+     }
+    },
+    "required": [
+     "portfolio_id",
+     "name",
+     "weight_pct"
+    ],
+    "title": "OverlapHeldIn",
+    "type": "object"
+   },
+   "OverlapMatrix": {
+    "properties": {
+     "as_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of"
+     },
+     "basis": {
+      "enum": [
+       "top",
+       "selection"
+      ],
+      "title": "Basis",
+      "type": "string"
+     },
+     "companies": {
+      "items": {
+       "$ref": "#/components/schemas/OverlapMatrixCompany"
+      },
+      "title": "Companies",
+      "type": "array"
+     },
+     "cycle": {
+      "title": "Cycle",
+      "type": "string"
+     },
+     "funds": {
+      "items": {
+       "$ref": "#/components/schemas/OverlapFund"
+      },
+      "title": "Funds",
+      "type": "array"
+     },
+     "scope": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Scope"
+     }
+    },
+    "required": [
+     "as_of",
+     "basis",
+     "scope",
+     "cycle",
+     "funds",
+     "companies"
+    ],
+    "title": "OverlapMatrix",
+    "type": "object"
+   },
+   "OverlapMatrixCompany": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "funds": {
+      "title": "Funds",
+      "type": "integer"
+     },
+     "house_weight_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "House Weight Pct"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "weights": {
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "title": "Weights",
+      "type": "object"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "house_weight_pct",
+     "funds",
+     "weights"
+    ],
+    "title": "OverlapMatrixCompany",
+    "type": "object"
+   },
+   "OverlapPair": {
+    "properties": {
+     "a": {
+      "title": "A",
+      "type": "string"
+     },
+     "b": {
+      "title": "B",
+      "type": "string"
+     },
+     "shared_companies": {
+      "title": "Shared Companies",
+      "type": "integer"
+     },
+     "shared_weight_pct": {
+      "title": "Shared Weight Pct",
+      "type": "number"
+     }
+    },
+    "required": [
+     "a",
+     "b",
+     "shared_companies",
+     "shared_weight_pct"
+    ],
+    "title": "OverlapPair",
     "type": "object"
    },
    "OverlapRequest": {
@@ -13359,6 +16592,33 @@
      "fact_ids"
     ],
     "title": "PhaseoutOut",
+    "type": "object"
+   },
+   "PickedScope": {
+    "properties": {
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "scope": {
+      "title": "Scope",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "proposed",
+       "confirmed"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "scope",
+     "label",
+     "status"
+    ],
+    "title": "PickedScope",
     "type": "object"
    },
    "Pillar": {
@@ -14170,6 +17430,73 @@
     "title": "PriorRun",
     "type": "object"
    },
+   "PriorityPreview": {
+    "properties": {
+     "companies": {
+      "title": "Companies",
+      "type": "integer"
+     },
+     "entering_top": {
+      "items": {
+       "$ref": "#/components/schemas/RankMove"
+      },
+      "title": "Entering Top",
+      "type": "array"
+     },
+     "leaving_top": {
+      "items": {
+       "$ref": "#/components/schemas/RankMove"
+      },
+      "title": "Leaving Top",
+      "type": "array"
+     },
+     "score_change": {
+      "items": {
+       "$ref": "#/components/schemas/ScoreChange"
+      },
+      "title": "Score Change",
+      "type": "array"
+     },
+     "top_active": {
+      "items": {
+       "$ref": "#/components/schemas/TopRow"
+      },
+      "title": "Top Active",
+      "type": "array"
+     },
+     "top_candidate": {
+      "items": {
+       "$ref": "#/components/schemas/TopRow"
+      },
+      "title": "Top Candidate",
+      "type": "array"
+     }
+    },
+    "required": [
+     "companies",
+     "top_active",
+     "top_candidate",
+     "entering_top",
+     "leaving_top",
+     "score_change"
+    ],
+    "title": "PriorityPreview",
+    "type": "object"
+   },
+   "PriorityPreviewRequest": {
+    "properties": {
+     "content": {
+      "additionalProperties": true,
+      "title": "Content",
+      "type": "object"
+     }
+    },
+    "required": [
+     "content"
+    ],
+    "title": "PriorityPreviewRequest",
+    "type": "object"
+   },
    "ProgramParams": {
     "properties": {
      "benchmark": {
@@ -14271,6 +17598,365 @@
      "params"
     ],
     "title": "ProgramRequest",
+    "type": "object"
+   },
+   "Programme": {
+    "properties": {
+     "built_in": {
+      "title": "Built In",
+      "type": "boolean"
+     },
+     "confirmed": {
+      "title": "Confirmed",
+      "type": "integer"
+     },
+     "created_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created At"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "programme_id": {
+      "title": "Programme Id",
+      "type": "string"
+     },
+     "proposed": {
+      "title": "Proposed",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "programme_id",
+     "name",
+     "built_in",
+     "created_by",
+     "created_at",
+     "confirmed",
+     "proposed"
+    ],
+    "title": "Programme",
+    "type": "object"
+   },
+   "ProgrammeChip": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "programme_id": {
+      "title": "Programme Id",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "proposed",
+       "confirmed"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "programme_id",
+     "name",
+     "status"
+    ],
+    "title": "ProgrammeChip",
+    "type": "object"
+   },
+   "ProgrammeCreate": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "ProgrammeCreate",
+    "type": "object"
+   },
+   "ProgrammeDetail": {
+    "properties": {
+     "built_in": {
+      "title": "Built In",
+      "type": "boolean"
+     },
+     "confirmed": {
+      "title": "Confirmed",
+      "type": "integer"
+     },
+     "created_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created At"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By"
+     },
+     "members": {
+      "items": {
+       "$ref": "#/components/schemas/ProgrammeMember"
+      },
+      "title": "Members",
+      "type": "array"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "programme_id": {
+      "title": "Programme Id",
+      "type": "string"
+     },
+     "proposed": {
+      "title": "Proposed",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "programme_id",
+     "name",
+     "built_in",
+     "created_by",
+     "created_at",
+     "confirmed",
+     "proposed",
+     "members"
+    ],
+    "title": "ProgrammeDetail",
+    "type": "object"
+   },
+   "ProgrammeList": {
+    "properties": {
+     "programmes": {
+      "items": {
+       "$ref": "#/components/schemas/Programme"
+      },
+      "title": "Programmes",
+      "type": "array"
+     }
+    },
+    "required": [
+     "programmes"
+    ],
+    "title": "ProgrammeList",
+    "type": "object"
+   },
+   "ProgrammeMember": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "confirmed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed At"
+     },
+     "confirmed_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed By"
+     },
+     "end_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "End Reason"
+     },
+     "ended_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ended At"
+     },
+     "ended_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ended By"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "proposed_at": {
+      "title": "Proposed At",
+      "type": "string"
+     },
+     "proposed_by": {
+      "title": "Proposed By",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "proposed",
+       "confirmed",
+       "ended"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "status",
+     "proposed_by",
+     "proposed_at",
+     "confirmed_by",
+     "confirmed_at",
+     "ended_by",
+     "ended_at",
+     "end_reason"
+    ],
+    "title": "ProgrammeMember",
+    "type": "object"
+   },
+   "ProgrammeMembersChange": {
+    "properties": {
+     "add": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Add",
+      "type": "array"
+     },
+     "end": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "End",
+      "type": "array"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "remove": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Remove",
+      "type": "array"
+     }
+    },
+    "title": "ProgrammeMembersChange",
+    "type": "object"
+   },
+   "ProgrammeSuggestion": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "issues": {
+      "items": {
+       "$ref": "#/components/schemas/SuggestedIssue"
+      },
+      "title": "Issues",
+      "type": "array"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "issues"
+    ],
+    "title": "ProgrammeSuggestion",
+    "type": "object"
+   },
+   "ProgrammeSuggestions": {
+    "properties": {
+     "suggestions": {
+      "items": {
+       "$ref": "#/components/schemas/ProgrammeSuggestion"
+      },
+      "title": "Suggestions",
+      "type": "array"
+     }
+    },
+    "required": [
+     "suggestions"
+    ],
+    "title": "ProgrammeSuggestions",
     "type": "object"
    },
    "Project": {
@@ -14375,6 +18061,29 @@
      "reason"
     ],
     "title": "PromoteRequest",
+    "type": "object"
+   },
+   "ProofStatementRequest": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "issue_id": {
+      "title": "Issue Id",
+      "type": "string"
+     },
+     "proof_statement": {
+      "title": "Proof Statement",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id",
+     "issue_id",
+     "proof_statement"
+    ],
+    "title": "ProofStatementRequest",
     "type": "object"
    },
    "ProposalStarted": {
@@ -14876,6 +18585,22 @@
        }
       ]
      },
+     "scale": {
+      "default": "units",
+      "enum": [
+       "units",
+       "millions"
+      ],
+      "title": "Scale",
+      "type": "string"
+     },
+     "snapshot_dates": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Snapshot Dates",
+      "type": "array"
+     },
      "spec": {
       "anyOf": [
        {
@@ -14885,6 +18610,25 @@
         "type": "null"
        }
       ]
+     },
+     "trend": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/TrendPoint"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Trend"
+     },
+     "unit": {
+      "default": "",
+      "title": "Unit",
+      "type": "string"
      },
      "vintage": {
       "additionalProperties": true,
@@ -14985,6 +18729,34 @@
     "title": "QuantityShockNode",
     "type": "object"
    },
+   "RankMove": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "rank_active": {
+      "title": "Rank Active",
+      "type": "integer"
+     },
+     "rank_candidate": {
+      "title": "Rank Candidate",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "rank_active",
+     "rank_candidate"
+    ],
+    "title": "RankMove",
+    "type": "object"
+   },
    "RatifyRequest": {
     "properties": {
      "version": {
@@ -15047,6 +18819,17 @@
      "custom"
     ],
     "title": "RebalanceFrequency",
+    "type": "string"
+   },
+   "Receptiveness": {
+    "enum": [
+     "very_good",
+     "good",
+     "neutral",
+     "insufficient",
+     "refusal"
+    ],
+    "title": "Receptiveness",
     "type": "string"
    },
    "Recipe": {
@@ -15601,6 +19384,34 @@
     "title": "RejectRequest",
     "type": "object"
    },
+   "Rejection": {
+    "properties": {
+     "field": {
+      "title": "Field",
+      "type": "string"
+     },
+     "reason": {
+      "title": "Reason",
+      "type": "string"
+     },
+     "row": {
+      "title": "Row",
+      "type": "integer"
+     },
+     "sheet": {
+      "title": "Sheet",
+      "type": "string"
+     }
+    },
+    "required": [
+     "sheet",
+     "row",
+     "field",
+     "reason"
+    ],
+    "title": "Rejection",
+    "type": "object"
+   },
    "RemoveOverrideRequest": {
     "properties": {
      "criterion_id": {
@@ -15623,6 +19434,53 @@
      "reason"
     ],
     "title": "RemoveOverrideRequest",
+    "type": "object"
+   },
+   "RepeatRow": {
+    "properties": {
+     "added": {
+      "title": "Added",
+      "type": "integer"
+     },
+     "approved": {
+      "title": "Approved",
+      "type": "integer"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "date": {
+      "title": "Date",
+      "type": "string"
+     },
+     "kind": {
+      "enum": [
+       "same",
+       "added"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     },
+     "waiting": {
+      "title": "Waiting",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "company_id",
+     "kind",
+     "added",
+     "run_id",
+     "date",
+     "approved",
+     "waiting"
+    ],
+    "title": "RepeatRow",
     "type": "object"
    },
    "ReplicationComparisonReport": {
@@ -15814,6 +19672,9 @@
       "title": "Datasets",
       "type": "array"
      },
+     "deck": {
+      "$ref": "#/components/schemas/DeckSettings"
+     },
      "goal": {
       "default": "",
       "title": "Goal",
@@ -15870,7 +19731,7 @@
      "chart": {
       "anyOf": [
        {
-        "$ref": "#/components/schemas/arp__schemas__reporting__ChartSpec"
+        "$ref": "#/components/schemas/arp__schemas__chart_specs__ChartSpec"
        },
        {
         "type": "null"
@@ -16333,6 +20194,11 @@
      "round": {
       "title": "Round",
       "type": "integer"
+     },
+     "search_unreachable": {
+      "default": false,
+      "title": "Search Unreachable",
+      "type": "boolean"
      },
      "sources": {
       "default": [],
@@ -16846,6 +20712,110 @@
     "title": "RfpAssigneeIn",
     "type": "object"
    },
+   "RfpDocumentEdit": {
+    "properties": {
+     "priority": {
+      "anyOf": [
+       {
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Priority"
+     },
+     "review_by": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Review By"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
+     }
+    },
+    "title": "RfpDocumentEdit",
+    "type": "object"
+   },
+   "RfpDocumentOut": {
+    "properties": {
+     "document_date": {
+      "format": "date",
+      "title": "Document Date",
+      "type": "string"
+     },
+     "filename": {
+      "title": "Filename",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "pages": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pages"
+     },
+     "priority": {
+      "title": "Priority",
+      "type": "integer"
+     },
+     "review_by": {
+      "format": "date",
+      "title": "Review By",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "uploaded_by": {
+      "title": "Uploaded By",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "filename",
+     "document_date",
+     "review_by",
+     "priority",
+     "status",
+     "uploaded_by",
+     "pages"
+    ],
+    "title": "RfpDocumentOut",
+    "type": "object"
+   },
    "RfpLibraryEntryEdit": {
     "properties": {
      "answer": {
@@ -17181,6 +21151,28 @@
       ],
       "title": "Assignee"
      },
+     "base_entry_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Base Entry Id"
+     },
+     "document_priority": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Document Priority"
+     },
      "flags": {
       "items": {
        "type": "string"
@@ -17191,6 +21183,17 @@
      "id": {
       "title": "Id",
       "type": "integer"
+     },
+     "kept_share": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kept Share"
      },
      "last_editor": {
       "anyOf": [
@@ -17210,6 +21213,13 @@
      "question": {
       "title": "Question",
       "type": "string"
+     },
+     "segments": {
+      "items": {
+       "$ref": "#/components/schemas/RfpSegment"
+      },
+      "title": "Segments",
+      "type": "array"
      },
      "sources": {
       "items": {
@@ -17233,20 +21243,72 @@
      "flags",
      "assignee",
      "last_editor",
-     "sources"
+     "sources",
+     "document_priority",
+     "base_entry_id",
+     "kept_share",
+     "segments"
     ],
     "title": "RfpQuestionOut",
     "type": "object"
    },
+   "RfpSegment": {
+    "properties": {
+     "change": {
+      "enum": [
+       "kept",
+       "added",
+       "removed"
+      ],
+      "title": "Change",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text",
+     "change"
+    ],
+    "title": "RfpSegment",
+    "type": "object"
+   },
    "RfpSourceOut": {
     "properties": {
+     "document_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Document Id"
+     },
      "entry_id": {
-      "title": "Entry Id",
-      "type": "integer"
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Entry Id"
      },
      "entry_question": {
-      "title": "Entry Question",
-      "type": "string"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Entry Question"
      },
      "file": {
       "anyOf": [
@@ -17259,6 +21321,14 @@
       ],
       "title": "File"
      },
+     "kind": {
+      "enum": [
+       "entry",
+       "document"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
      "location": {
       "anyOf": [
        {
@@ -17270,13 +21340,53 @@
       ],
       "title": "Location"
      },
+     "page": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page"
+     },
+     "priority": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Priority"
+     },
      "quote": {
       "title": "Quote",
       "type": "string"
      },
      "source": {
-      "title": "Source",
-      "type": "string"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
      },
      "written_by": {
       "anyOf": [
@@ -17291,13 +21401,9 @@
      }
     },
     "required": [
-     "entry_id",
-     "entry_question",
+     "kind",
      "quote",
-     "source",
-     "file",
-     "location",
-     "written_by"
+     "file"
     ],
     "title": "RfpSourceOut",
     "type": "object"
@@ -17816,6 +21922,17 @@
        }
       ]
      },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
      "guidance": {
       "default": "",
       "title": "Guidance",
@@ -17835,15 +21952,39 @@
       "title": "Scope",
       "type": "string"
      },
+     "selection": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SourceSelection"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
      "stage": {
       "enum": [
+       "discovering",
        "awaiting_sources",
+       "extracting",
        "awaiting_review",
        "accepted",
-       "cancelled"
+       "cancelled",
+       "failed"
       ],
       "title": "Stage",
       "type": "string"
+     },
+     "step_started_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Step Started At"
      },
      "taxonomy_id": {
       "anyOf": [
@@ -18091,6 +22232,127 @@
      "reason"
     ],
     "title": "ScenarioOut",
+    "type": "object"
+   },
+   "SchemaChoice": {
+    "description": "What step 3 extracts: a saved schema version, or a fixed profile.",
+    "properties": {
+     "kind": {
+      "enum": [
+       "schema",
+       "profile"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "profile": {
+      "anyOf": [
+       {
+        "enum": [
+         "financials",
+         "tnfd"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Profile"
+     },
+     "schema_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Schema Id"
+     },
+     "version": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Version"
+     }
+    },
+    "required": [
+     "kind"
+    ],
+    "title": "SchemaChoice",
+    "type": "object"
+   },
+   "ScoreChange": {
+    "properties": {
+     "active": {
+      "title": "Active",
+      "type": "number"
+     },
+     "candidate": {
+      "title": "Candidate",
+      "type": "number"
+     },
+     "change": {
+      "title": "Change",
+      "type": "number"
+     },
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "active",
+     "candidate",
+     "change"
+    ],
+    "title": "ScoreChange",
+    "type": "object"
+   },
+   "ScorePart": {
+    "properties": {
+     "empty": {
+      "title": "Empty",
+      "type": "boolean"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "normalised": {
+      "title": "Normalised",
+      "type": "number"
+     },
+     "points": {
+      "title": "Points",
+      "type": "number"
+     },
+     "weight": {
+      "title": "Weight",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "weight",
+     "normalised",
+     "points",
+     "empty"
+    ],
+    "title": "ScorePart",
     "type": "object"
    },
    "ScoreRequest": {
@@ -18444,6 +22706,24 @@
     "title": "SectionLayoutHint",
     "type": "string"
    },
+   "SectionPlan": {
+    "properties": {
+     "summary": {
+      "default": "",
+      "title": "Summary",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title"
+    ],
+    "title": "SectionPlan",
+    "type": "object"
+   },
    "Sector": {
     "properties": {
      "name": {
@@ -18587,6 +22867,197 @@
     "title": "SelectAll",
     "type": "object"
    },
+   "SelectedElsewhere": {
+    "properties": {
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "scope": {
+      "title": "Scope",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "proposed",
+       "confirmed"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "scope",
+     "label",
+     "status"
+    ],
+    "title": "SelectedElsewhere",
+    "type": "object"
+   },
+   "Selection": {
+    "properties": {
+     "confirmed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed At"
+     },
+     "confirmed_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed By"
+     },
+     "proposed_at": {
+      "title": "Proposed At",
+      "type": "string"
+     },
+     "proposed_by": {
+      "title": "Proposed By",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "proposed",
+       "confirmed"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "weights_version": {
+      "title": "Weights Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "status",
+     "proposed_by",
+     "proposed_at",
+     "confirmed_by",
+     "confirmed_at",
+     "weights_version"
+    ],
+    "title": "Selection",
+    "type": "object"
+   },
+   "SelectionChange": {
+    "properties": {
+     "add": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Add",
+      "type": "array"
+     },
+     "cycle": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cycle"
+     },
+     "remove": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Remove",
+      "type": "array"
+     },
+     "scope": {
+      "default": "house",
+      "title": "Scope",
+      "type": "string"
+     }
+    },
+    "title": "SelectionChange",
+    "type": "object"
+   },
+   "SelectionConfirm": {
+    "properties": {
+     "cycle": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cycle"
+     },
+     "scope": {
+      "default": "house",
+      "title": "Scope",
+      "type": "string"
+     }
+    },
+    "title": "SelectionConfirm",
+    "type": "object"
+   },
+   "SelectionConfirmed": {
+    "description": "The selection confirm: how many rows were confirmed, and the stored names of proposed rows dropped because their\ncompany is no longer in the scope (sorted).",
+    "properties": {
+     "confirmed": {
+      "title": "Confirmed",
+      "type": "integer"
+     },
+     "dropped": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Dropped",
+      "type": "array"
+     }
+    },
+    "required": [
+     "confirmed",
+     "dropped"
+    ],
+    "title": "SelectionConfirmed",
+    "type": "object"
+   },
+   "SelectionList": {
+    "properties": {
+     "current": {
+      "title": "Current",
+      "type": "boolean"
+     },
+     "cycle": {
+      "title": "Cycle",
+      "type": "string"
+     },
+     "rows": {
+      "items": {
+       "$ref": "#/components/schemas/SelectionRow"
+      },
+      "title": "Rows",
+      "type": "array"
+     }
+    },
+    "required": [
+     "cycle",
+     "current",
+     "rows"
+    ],
+    "title": "SelectionList",
+    "type": "object"
+   },
    "SelectionRequest": {
     "properties": {
      "tags": {
@@ -18601,6 +23072,77 @@
      "tags"
     ],
     "title": "SelectionRequest",
+    "type": "object"
+   },
+   "SelectionRow": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "confirmed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed At"
+     },
+     "confirmed_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed By"
+     },
+     "in_scope": {
+      "title": "In Scope",
+      "type": "boolean"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "proposed_at": {
+      "title": "Proposed At",
+      "type": "string"
+     },
+     "proposed_by": {
+      "title": "Proposed By",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "proposed",
+       "confirmed"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "weights_version": {
+      "title": "Weights Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "status",
+     "proposed_by",
+     "proposed_at",
+     "confirmed_by",
+     "confirmed_at",
+     "weights_version",
+     "issuer_id",
+     "company",
+     "in_scope"
+    ],
+    "title": "SelectionRow",
     "type": "object"
    },
    "SensitivityRequest": {
@@ -18761,6 +23303,40 @@
     "title": "ShareOut",
     "type": "object"
    },
+   "SharedSelection": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "held_in": {
+      "items": {
+       "$ref": "#/components/schemas/OverlapHeldIn"
+      },
+      "title": "Held In",
+      "type": "array"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "scopes": {
+      "items": {
+       "$ref": "#/components/schemas/PickedScope"
+      },
+      "title": "Scopes",
+      "type": "array"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "scopes",
+     "held_in"
+    ],
+    "title": "SharedSelection",
+    "type": "object"
+   },
    "ShockIndicators": {
     "properties": {
      "energy": {
@@ -18821,6 +23397,29 @@
     ],
     "title": "SignalType",
     "type": "string"
+   },
+   "SkippedUpload": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "duplicate_of": {
+      "title": "Duplicate Of",
+      "type": "string"
+     },
+     "filename": {
+      "title": "Filename",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id",
+     "filename",
+     "duplicate_of"
+    ],
+    "title": "SkippedUpload",
+    "type": "object"
    },
    "SmartSearchRequest": {
     "properties": {
@@ -19126,6 +23725,28 @@
      "field_id"
     ],
     "title": "SourcePick",
+    "type": "object"
+   },
+   "SourceSelection": {
+    "properties": {
+     "files": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Files",
+      "type": "array"
+     },
+     "urls": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Urls",
+      "type": "array"
+     }
+    },
+    "title": "SourceSelection",
     "type": "object"
    },
    "SourcesRequest": {
@@ -19613,6 +24234,110 @@
     "title": "StartRequest",
     "type": "object"
    },
+   "StartingUniverse": {
+    "properties": {
+     "as_of_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of Date"
+     },
+     "kind": {
+      "enum": [
+       "demo",
+       "file",
+       "portfolio"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "universe_id": {
+      "title": "Universe Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "universe_id",
+     "label",
+     "kind",
+     "as_of_date"
+    ],
+    "title": "StartingUniverse",
+    "type": "object"
+   },
+   "StartingUniverseDetail": {
+    "properties": {
+     "as_of_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of Date"
+     },
+     "company_count": {
+      "title": "Company Count",
+      "type": "integer"
+     },
+     "fields": {
+      "additionalProperties": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "title": "Fields",
+      "type": "object"
+     },
+     "kind": {
+      "enum": [
+       "demo",
+       "file",
+       "portfolio"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "notes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+     },
+     "universe_id": {
+      "title": "Universe Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "universe_id",
+     "label",
+     "kind",
+     "as_of_date",
+     "company_count",
+     "notes",
+     "fields"
+    ],
+    "title": "StartingUniverseDetail",
+    "type": "object"
+   },
    "StepSettings": {
     "description": "Per-run overrides; a field left out keeps the app's setting.",
     "properties": {
@@ -19818,10 +24543,38 @@
    },
    "Storyline": {
     "properties": {
+     "answer": {
+      "default": "",
+      "title": "Answer",
+      "type": "string"
+     },
      "approved": {
       "default": false,
       "title": "Approved",
       "type": "boolean"
+     },
+     "closing": {
+      "items": {
+       "$ref": "#/components/schemas/NextAction"
+      },
+      "maxItems": 5,
+      "title": "Closing",
+      "type": "array"
+     },
+     "figures": {
+      "items": {
+       "$ref": "#/components/schemas/Figure"
+      },
+      "maxItems": 2,
+      "title": "Figures",
+      "type": "array"
+     },
+     "sections": {
+      "items": {
+       "$ref": "#/components/schemas/SectionPlan"
+      },
+      "title": "Sections",
+      "type": "array"
      },
      "slides": {
       "items": {
@@ -19849,13 +24602,45 @@
    },
    "StorylineSlide": {
     "properties": {
+     "chart_kind": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Chart Kind"
+     },
      "headline": {
       "title": "Headline",
+      "type": "string"
+     },
+     "kicker": {
+      "default": "",
+      "title": "Kicker",
       "type": "string"
      },
      "purpose": {
       "title": "Purpose",
       "type": "string"
+     },
+     "rationale": {
+      "default": "",
+      "title": "Rationale",
+      "type": "string"
+     },
+     "section": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Section"
      },
      "source_refs": {
       "items": {
@@ -19863,6 +24648,22 @@
       },
       "title": "Source Refs",
       "type": "array"
+     },
+     "subheading": {
+      "default": "",
+      "title": "Subheading",
+      "type": "string"
+     },
+     "visual": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Visual"
      }
     },
     "required": [
@@ -20138,6 +24939,24 @@
      "mappings"
     ],
     "title": "SuggestMappingResponse",
+    "type": "object"
+   },
+   "SuggestedIssue": {
+    "properties": {
+     "fir_theme": {
+      "title": "Fir Theme",
+      "type": "string"
+     },
+     "issue_id": {
+      "title": "Issue Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "issue_id",
+     "fir_theme"
+    ],
+    "title": "SuggestedIssue",
     "type": "object"
    },
    "TableRef": {
@@ -20756,6 +25575,14 @@
       "title": "Description",
       "type": "string"
      },
+     "kpis": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/FieldDefinition"
+      },
+      "title": "Kpis",
+      "type": "array"
+     },
      "name": {
       "title": "Name",
       "type": "string"
@@ -21219,6 +26046,34 @@
     "title": "TopN",
     "type": "object"
    },
+   "TopRow": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "rank": {
+      "title": "Rank",
+      "type": "integer"
+     },
+     "score": {
+      "title": "Score",
+      "type": "number"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "score",
+     "rank"
+    ],
+    "title": "TopRow",
+    "type": "object"
+   },
    "TransitionOut": {
     "properties": {
      "actions": {
@@ -21548,6 +26403,46 @@
     "title": "TransitionPlanIndicator",
     "type": "object"
    },
+   "TrendPoint": {
+    "properties": {
+     "as_of": {
+      "title": "As Of",
+      "type": "string"
+     },
+     "result": {
+      "$ref": "#/components/schemas/AggregationResult"
+     }
+    },
+    "required": [
+     "as_of",
+     "result"
+    ],
+    "title": "TrendPoint",
+    "type": "object"
+   },
+   "TriggerCounts": {
+    "properties": {
+     "high": {
+      "title": "High",
+      "type": "integer"
+     },
+     "low": {
+      "title": "Low",
+      "type": "integer"
+     },
+     "medium": {
+      "title": "Medium",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "high",
+     "medium",
+     "low"
+    ],
+    "title": "TriggerCounts",
+    "type": "object"
+   },
    "TriggerScanRequest": {
     "properties": {
      "companies": {
@@ -21664,6 +26559,19 @@
      }
     },
     "title": "UpdateDraftRequest",
+    "type": "object"
+   },
+   "UploadResponse": {
+    "properties": {
+     "path": {
+      "title": "Path",
+      "type": "string"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "title": "UploadResponse",
     "type": "object"
    },
    "ValidateMeetingSummaryRequest": {
@@ -22897,6 +27805,17 @@
      "commitment_id": {
       "title": "Commitment Id",
       "type": "string"
+     },
+     "evidence": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence"
      }
     },
     "required": [
@@ -22971,6 +27890,158 @@
     "title": "VetoRule",
     "type": "object"
    },
+   "Vote": {
+    "properties": {
+     "against_management": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Against Management"
+     },
+     "demo": {
+      "title": "Demo",
+      "type": "boolean"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "item_number": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Item Number"
+     },
+     "management_recommendation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Management Recommendation"
+     },
+     "meeting_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Meeting Date"
+     },
+     "meeting_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Meeting Type"
+     },
+     "proponent": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proponent"
+     },
+     "rationale": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rationale"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "vote": {
+      "title": "Vote",
+      "type": "string"
+     },
+     "vote_label": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Vote Label"
+     }
+    },
+    "required": [
+     "meeting_date",
+     "meeting_type",
+     "item_number",
+     "description",
+     "proponent",
+     "management_recommendation",
+     "vote",
+     "vote_label",
+     "against_management",
+     "rationale",
+     "source",
+     "demo"
+    ],
+    "title": "Vote",
+    "type": "object"
+   },
+   "VoteList": {
+    "properties": {
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     },
+     "votes": {
+      "items": {
+       "$ref": "#/components/schemas/Vote"
+      },
+      "title": "Votes",
+      "type": "array"
+     }
+    },
+    "required": [
+     "votes",
+     "total"
+    ],
+    "title": "VoteList",
+    "type": "object"
+   },
    "VoteReviewDecisionRequest": {
     "description": "Voting's review decision carries extra fields (vote, co_signed_by)\nand its own validation beyond the generic shape shared by the other\nrouters -- see arp/api/review_endpoints.py's module docstring for why\nthat isn't generalized -- but still calls the same submit_review()\npersistence helper everyone else uses.",
     "properties": {
@@ -23030,6 +28101,24 @@
     "title": "VoteReviewDecisionRequest",
     "type": "object"
    },
+   "VotesBody": {
+    "additionalProperties": false,
+    "properties": {
+     "votes": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Votes",
+      "type": "array"
+     }
+    },
+    "required": [
+     "votes"
+    ],
+    "title": "VotesBody",
+    "type": "object"
+   },
    "VotingPreviewRequest": {
     "properties": {
      "policy": {
@@ -23044,6 +28133,34 @@
     "title": "VotingPreviewRequest",
     "type": "object"
    },
+   "WaitingCounts": {
+    "properties": {
+     "ballots": {
+      "title": "Ballots",
+      "type": "integer"
+     },
+     "decisions": {
+      "title": "Decisions",
+      "type": "integer"
+     },
+     "review": {
+      "title": "Review",
+      "type": "integer"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "review",
+     "decisions",
+     "ballots",
+     "total"
+    ],
+    "title": "WaitingCounts",
+    "type": "object"
+   },
    "WalkOrTalk": {
     "enum": [
      "walk",
@@ -23051,6 +28168,199 @@
     ],
     "title": "WalkOrTalk",
     "type": "string"
+   },
+   "WatchCheckRequest": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id"
+    ],
+    "title": "WatchCheckRequest",
+    "type": "object"
+   },
+   "WatchCheckResult": {
+    "properties": {
+     "documents": {
+      "title": "Documents",
+      "type": "integer"
+     },
+     "skipped": {
+      "title": "Skipped",
+      "type": "integer"
+     },
+     "suggestions": {
+      "title": "Suggestions",
+      "type": "integer"
+     },
+     "unclear": {
+      "title": "Unclear",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "documents",
+     "suggestions",
+     "unclear",
+     "skipped"
+    ],
+    "title": "WatchCheckResult",
+    "type": "object"
+   },
+   "WatchTopic": {
+    "description": "A question a person asked to watch for in the company's reports (`stw_watch_topics`).",
+    "properties": {
+     "closed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Closed At"
+     },
+     "closed_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Closed By"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By"
+     },
+     "engagement_id": {
+      "title": "Engagement Id",
+      "type": "string"
+     },
+     "external_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "External Id"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "source": {
+      "default": "app",
+      "title": "Source",
+      "type": "string"
+     },
+     "status": {
+      "default": "open",
+      "enum": [
+       "open",
+       "closed"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     },
+     "topic_id": {
+      "title": "Topic Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "engagement_id",
+     "question"
+    ],
+    "title": "WatchTopic",
+    "type": "object"
+   },
+   "WatchTopicRequest": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "issue_id": {
+      "title": "Issue Id",
+      "type": "string"
+     },
+     "proof_statement": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proof Statement"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "target_date": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Date"
+     }
+    },
+    "required": [
+     "company_id",
+     "issue_id",
+     "question"
+    ],
+    "title": "WatchTopicRequest",
+    "type": "object"
    },
    "WeightedNode": {
     "properties": {
@@ -23087,6 +28397,43 @@
     ],
     "title": "WeightingScheme",
     "type": "string"
+   },
+   "WeightsVersion": {
+    "properties": {
+     "activated_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Activated At"
+     },
+     "activated_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Activated By"
+     },
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "version",
+     "activated_by",
+     "activated_at"
+    ],
+    "title": "WeightsVersion",
+    "type": "object"
    },
    "WindowEvidence": {
     "properties": {
@@ -23226,6 +28573,349 @@
      }
     },
     "title": "WorkbenchRequest",
+    "type": "object"
+   },
+   "Worklist": {
+    "properties": {
+     "as_of": {
+      "title": "As Of",
+      "type": "string"
+     },
+     "cycle": {
+      "title": "Cycle",
+      "type": "string"
+     },
+     "rows": {
+      "items": {
+       "$ref": "#/components/schemas/WorklistRow"
+      },
+      "title": "Rows",
+      "type": "array"
+     },
+     "scope": {
+      "$ref": "#/components/schemas/WorklistScope"
+     },
+     "universe_note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Universe Note"
+     },
+     "weights": {
+      "$ref": "#/components/schemas/WeightsVersion"
+     }
+    },
+    "required": [
+     "as_of",
+     "universe_note",
+     "scope",
+     "weights",
+     "cycle",
+     "rows"
+    ],
+    "title": "Worklist",
+    "type": "object"
+   },
+   "WorklistRow": {
+    "properties": {
+     "aum_held_eur_m": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Aum Held Eur M"
+     },
+     "broken_commitments": {
+      "title": "Broken Commitments",
+      "type": "integer"
+     },
+     "carbon_intensity": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Observed"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "commitment_flags": {
+      "items": {
+       "$ref": "#/components/schemas/CommitmentFlag"
+      },
+      "title": "Commitment Flags",
+      "type": "array"
+     },
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "controversy": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Observed"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "coverage_tier": {
+      "title": "Coverage Tier",
+      "type": "string"
+     },
+     "coverage_tier_confirmed": {
+      "title": "Coverage Tier Confirmed",
+      "type": "boolean"
+     },
+     "engaged": {
+      "$ref": "#/components/schemas/Engaged"
+     },
+     "equity_held_eur_m": {
+      "title": "Equity Held Eur M",
+      "type": "number"
+     },
+     "escalated": {
+      "title": "Escalated",
+      "type": "integer"
+     },
+     "esg_extra": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/Observed"
+      },
+      "title": "Esg Extra",
+      "type": "object"
+     },
+     "esg_score": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Observed"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "held_in": {
+      "items": {
+       "$ref": "#/components/schemas/HeldIn"
+      },
+      "title": "Held In",
+      "type": "array"
+     },
+     "holdings_weight_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Holdings Weight Pct"
+     },
+     "identifier": {
+      "title": "Identifier",
+      "type": "string"
+     },
+     "issuer_id": {
+      "title": "Issuer Id",
+      "type": "string"
+     },
+     "last_topics": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Last Topics",
+      "type": "array"
+     },
+     "new_high_trigger": {
+      "title": "New High Trigger",
+      "type": "boolean"
+     },
+     "next_meeting": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/NextMeeting"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "norms_violation": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Observed"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "notes": {
+      "$ref": "#/components/schemas/NotesSummary"
+     },
+     "open_engagements": {
+      "title": "Open Engagements",
+      "type": "integer"
+     },
+     "overdue_commitments": {
+      "title": "Overdue Commitments",
+      "type": "integer"
+     },
+     "ownership_pct": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Observed"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "parts": {
+      "items": {
+       "$ref": "#/components/schemas/ScorePart"
+      },
+      "title": "Parts",
+      "type": "array"
+     },
+     "programmes": {
+      "items": {
+       "$ref": "#/components/schemas/ProgrammeChip"
+      },
+      "title": "Programmes",
+      "type": "array"
+     },
+     "score": {
+      "title": "Score",
+      "type": "number"
+     },
+     "sector": {
+      "title": "Sector",
+      "type": "string"
+     },
+     "selected_elsewhere": {
+      "items": {
+       "$ref": "#/components/schemas/SelectedElsewhere"
+      },
+      "title": "Selected Elsewhere",
+      "type": "array"
+     },
+     "selection": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Selection"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "transition_grade": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Grade"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "triggers": {
+      "$ref": "#/components/schemas/TriggerCounts"
+     }
+    },
+    "required": [
+     "issuer_id",
+     "company",
+     "sector",
+     "identifier",
+     "engaged",
+     "last_topics",
+     "norms_violation",
+     "esg_extra",
+     "equity_held_eur_m",
+     "ownership_pct",
+     "holdings_weight_pct",
+     "aum_held_eur_m",
+     "coverage_tier",
+     "coverage_tier_confirmed",
+     "triggers",
+     "new_high_trigger",
+     "open_engagements",
+     "escalated",
+     "overdue_commitments",
+     "broken_commitments",
+     "commitment_flags",
+     "next_meeting",
+     "transition_grade",
+     "esg_score",
+     "controversy",
+     "carbon_intensity",
+     "score",
+     "parts",
+     "selection",
+     "programmes",
+     "held_in",
+     "selected_elsewhere",
+     "notes"
+    ],
+    "title": "WorklistRow",
+    "type": "object"
+   },
+   "WorklistScope": {
+    "properties": {
+     "companies": {
+      "title": "Companies",
+      "type": "integer"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key",
+     "label",
+     "kind",
+     "companies"
+    ],
+    "title": "WorklistScope",
+    "type": "object"
+   },
+   "WorklistScopes": {
+    "properties": {
+     "scopes": {
+      "items": {
+       "$ref": "#/components/schemas/WorklistScope"
+      },
+      "title": "Scopes",
+      "type": "array"
+     }
+    },
+    "required": [
+     "scopes"
+    ],
+    "title": "WorklistScopes",
     "type": "object"
    },
    "XbrlRunRequest": {
@@ -23613,6 +29303,18 @@
       ],
       "description": "Ad-hoc spec. Mutually exclusive with calibration_id."
      },
+     "universe": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Starting universe id from GET /api/index/universes (demo, file:<stem>, portfolio:<id>). Omit for the demo universe. Exclusive with candidates.",
+      "title": "Universe"
+     },
      "use_prior_state": {
       "default": true,
       "description": "Chain from the most recent stored review before this date.",
@@ -23628,6 +29330,41 @@
    },
    "arp__api__routers__portfolio__AskRequest": {
     "properties": {
+     "as_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "YYYY-MM-DD; each portfolio's newest snapshot on or before it.",
+      "title": "As Of"
+     },
+     "date_range": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "[start, end]: a trend, one point per snapshot date in it.",
+      "title": "Date Range"
+     },
+     "portfolio_ids": {
+      "description": "The screen's selection; a portfolio named in the question wins.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Portfolio Ids",
+      "type": "array"
+     },
      "question": {
       "title": "Question",
       "type": "string"
@@ -23988,7 +29725,7 @@
     "title": "ChartSpec",
     "type": "object"
    },
-   "arp__schemas__reporting__ChartSpec": {
+   "arp__schemas__chart_specs__ChartSpec": {
     "properties": {
      "category_column": {
       "anyOf": [
@@ -24121,6 +29858,40 @@
    }
   },
   "/api/argus/flows/{flow_id}": {
+   "delete": {
+    "description": "Undo a hand-over that failed after creating its flow: only an unused draft can go.",
+    "operationId": "delete_flow_api_argus_flows__flow_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Flow",
+    "tags": [
+     "argus"
+    ]
+   },
    "get": {
     "operationId": "get_flow_api_argus_flows__flow_id__get",
     "parameters": [
@@ -24311,6 +30082,440 @@
      }
     },
     "summary": "Upload Companies",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/companies/{company_id}": {
+   "delete": {
+    "description": "Drops the row and its file choices in this flow. The documents stay on the company.",
+    "operationId": "remove_company_api_argus_flows__flow_id__companies__company_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Remove Company",
+    "tags": [
+     "argus"
+    ]
+   },
+   "put": {
+    "description": "Registers the row again with the form's values and replaces it in place.",
+    "operationId": "edit_company_api_argus_flows__flow_id__companies__company_id__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CompanyInput"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Edit Company",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/companies/{company_id}/retry": {
+   "post": {
+    "description": "Re-runs one failed company inside the flow's run, on the files kept for it now (a file replaced in step 2 is used).\nAsync: the launcher starts the job on this event loop. Nothing changes until the job holds the run.",
+    "operationId": "retry_company_api_argus_flows__flow_id__companies__company_id__retry_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FlowProgress"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Retry Company",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/discard": {
+   "post": {
+    "description": "Delete a draft with whatever it holds. Its documents stay on the companies.",
+    "operationId": "discard_flow_api_argus_flows__flow_id__discard_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Discard Flow",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/documents/find": {
+   "post": {
+    "description": "One discovery run for the flow's companies: filings only, or filings plus the companies' websites.",
+    "operationId": "find_documents_api_argus_flows__flow_id__documents_find_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Find Documents",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/documents/upload": {
+   "post": {
+    "operationId": "upload_flow_document_api_argus_flows__flow_id__documents_upload_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_upload_flow_document_api_argus_flows__flow_id__documents_upload_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Upload Flow Document",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/files": {
+   "post": {
+    "description": "Keep or remove files in this flow only; the files themselves stay on the company.",
+    "operationId": "decide_files_api_argus_flows__flow_id__files_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FileDecision"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Decide Files",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/progress": {
+   "get": {
+    "description": "Step 4: the flow's run as a whole and per company.",
+    "operationId": "flow_progress_api_argus_flows__flow_id__progress_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FlowProgress"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Flow Progress",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/start": {
+   "post": {
+    "description": "Starts the flow's run through the same path as `/api/extraction/start`, reading only the kept files.",
+    "operationId": "start_flow_api_argus_flows__flow_id__start_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Start Flow",
     "tags": [
      "argus"
     ]
@@ -24836,6 +31041,47 @@
     ]
    }
   },
+  "/api/authority-taxonomy/uploads": {
+   "post": {
+    "operationId": "upload_api_authority_taxonomy_uploads_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_upload_api_authority_taxonomy_uploads_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UploadResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Upload",
+    "tags": [
+     "authority-taxonomy"
+    ]
+   }
+  },
   "/api/bi/ask": {
    "post": {
     "operationId": "ask_api_bi_ask_post",
@@ -25155,6 +31401,28 @@
     ]
    }
   },
+  "/api/climate/simulated-schema": {
+   "get": {
+    "description": "The fields of the SIMULATED ESG dataset (not real ESG data).",
+    "operationId": "simulated_schema_api_climate_simulated_schema_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DataPointSchema"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Simulated Schema",
+    "tags": [
+     "climate"
+    ]
+   }
+  },
   "/api/companies": {
    "get": {
     "operationId": "search_companies_api_companies_get",
@@ -25387,6 +31655,53 @@
      }
     },
     "summary": "Get Company Facts",
+    "tags": [
+     "companies"
+    ]
+   }
+  },
+  "/api/companies/{ref}/simulated-esg": {
+   "get": {
+    "description": "The company's latest SIMULATED value per climate and `simulated_esg` field (`arp showcase load`), in schema\norder; empty when it has none. Only source `simulated`: every value here is invented and must be shown so.",
+    "operationId": "get_simulated_esg_api_companies__ref__simulated_esg_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "ref",
+      "required": true,
+      "schema": {
+       "title": "Ref",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/DataPointObservation"
+         },
+         "title": "Response Get Simulated Esg Api Companies  Ref  Simulated Esg Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Simulated Esg",
     "tags": [
      "companies"
     ]
@@ -31692,6 +38007,7 @@
   },
   "/api/holdings/holders": {
    "get": {
+    "description": "Holder records, plus every portfolio that has none (seeded or imported data): listed read-only, nothing stored.",
     "operationId": "holders_api_holdings_holders_get",
     "responses": {
      "200": {
@@ -32557,6 +38873,74 @@
      }
     },
     "summary": "Get Screen Bundle",
+    "tags": [
+     "index"
+    ]
+   }
+  },
+  "/api/index/universes": {
+   "get": {
+    "description": "The demo universe, then the holdings files, then portfolios with a snapshot.",
+    "operationId": "get_universes_api_index_universes_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/StartingUniverse"
+         },
+         "title": "Response Get Universes Api Index Universes Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Universes",
+    "tags": [
+     "index"
+    ]
+   }
+  },
+  "/api/index/universes/{universe_id}": {
+   "get": {
+    "operationId": "get_universe_api_index_universes__universe_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "universe_id",
+      "required": true,
+      "schema": {
+       "title": "Universe Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StartingUniverseDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Universe",
     "tags": [
      "index"
     ]
@@ -33644,6 +40028,97 @@
     ]
    }
   },
+  "/api/portfolio/monitoring/rules/{rule_id}": {
+   "delete": {
+    "description": "Removes the rule only. Its alerts stay in the log, so they have to be closed first.",
+    "operationId": "delete_monitoring_rule_api_portfolio_monitoring_rules__rule_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "rule_id",
+      "required": true,
+      "schema": {
+       "title": "Rule Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Monitoring Rule",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
+  "/api/portfolio/monitoring/rules/{rule_id}/clear-alerts": {
+   "post": {
+    "description": "Closes every live alert of one rule in one human decision. The rule need not exist any more.",
+    "operationId": "clear_monitoring_rule_alerts_api_portfolio_monitoring_rules__rule_id__clear_alerts_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "rule_id",
+      "required": true,
+      "schema": {
+       "title": "Rule Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ClearAlertsRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Clear Monitoring Rule Alerts Api Portfolio Monitoring Rules  Rule Id  Clear Alerts Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Clear Monitoring Rule Alerts",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
   "/api/portfolio/monthly-run": {
    "post": {
     "operationId": "post_monthly_run_api_portfolio_monthly_run_post",
@@ -33680,6 +40155,37 @@
      }
     },
     "summary": "Post Monthly Run",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
+  "/api/portfolio/monthly-run/last": {
+   "get": {
+    "description": "The newest monthly run that ran (a blocked one is not recorded), or null.",
+    "operationId": "get_last_monthly_run_api_portfolio_monthly_run_last_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "anyOf": [
+          {
+           "additionalProperties": true,
+           "type": "object"
+          },
+          {
+           "type": "null"
+          }
+         ],
+         "title": "Response Get Last Monthly Run Api Portfolio Monthly Run Last Get"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Last Monthly Run",
     "tags": [
      "portfolio"
     ]
@@ -33723,9 +40229,15 @@
       "name": "esg_provider",
       "required": false,
       "schema": {
-       "default": "default",
-       "title": "Esg Provider",
-       "type": "string"
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Esg Provider"
       }
      }
     ],
@@ -35343,7 +41855,82 @@
     ]
    }
   },
+  "/api/reports/templates/{template_id}/preview.png": {
+   "get": {
+    "description": "The template's frame drawn on a blank slide; 404 when the template can't frame a house deck.",
+    "operationId": "template_preview_api_reports_templates__template_id__preview_png_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "template_id",
+      "required": true,
+      "schema": {
+       "title": "Template Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Template Preview",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
   "/api/reports/{report_id}": {
+   "delete": {
+    "description": "Removes an unfinished report's folder. A finished one, or one still being worked on, is never removed.",
+    "operationId": "discard_report_api_reports__report_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Discard Report",
+    "tags": [
+     "reporting"
+    ]
+   },
    "get": {
     "operationId": "get_report_api_reports__report_id__get",
     "parameters": [
@@ -35718,6 +42305,60 @@
      }
     },
     "summary": "Render Report",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
+  "/api/reports/{report_id}/slides/{n}/approve": {
+   "post": {
+    "description": "Accept slide `n` (1-based) as it is: clears the fit ladder's `needs_review`, which unblocks the download.",
+    "operationId": "approve_slide_api_reports__report_id__slides__n__approve_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "n",
+      "required": true,
+      "schema": {
+       "title": "N",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Approve Slide Api Reports  Report Id  Slides  N  Approve Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Approve Slide",
     "tags": [
      "reporting"
     ]
@@ -36282,6 +42923,165 @@
     "summary": "Get Snapshot",
     "tags": [
      "review"
+    ]
+   }
+  },
+  "/api/rfp/documents": {
+   "get": {
+    "operationId": "list_documents_api_rfp_documents_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RfpDocumentOut"
+         },
+         "title": "Response List Documents Api Rfp Documents Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Documents",
+    "tags": [
+     "rfp"
+    ]
+   },
+   "post": {
+    "description": "Parses and stores a .pdf or .docx as `active`; with `replaces`, retires that document in the same transaction.",
+    "operationId": "upload_document_api_rfp_documents_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_upload_document_api_rfp_documents_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpDocumentOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Upload Document",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/documents/{document_id}": {
+   "put": {
+    "operationId": "edit_document_api_rfp_documents__document_id__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "document_id",
+      "required": true,
+      "schema": {
+       "title": "Document Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RfpDocumentEdit"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpDocumentOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Edit Document",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/documents/{document_id}/retire": {
+   "post": {
+    "operationId": "retire_document_api_rfp_documents__document_id__retire_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "document_id",
+      "required": true,
+      "schema": {
+       "title": "Document Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpDocumentOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Retire Document",
+    "tags": [
+     "rfp"
     ]
    }
   },
@@ -37798,6 +44598,48 @@
     ]
    }
   },
+  "/api/stewardship/activities/{activity_id}/find-commitments": {
+   "post": {
+    "operationId": "find_commitments_in_note_api_stewardship_activities__activity_id__find_commitments_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "activity_id",
+      "required": true,
+      "schema": {
+       "title": "Activity Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FindCommitmentsResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Find Commitments In Note",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
   "/api/stewardship/benchmarks": {
    "get": {
     "operationId": "list_benchmarks_api_stewardship_benchmarks_get",
@@ -37881,6 +44723,72 @@
      }
     },
     "summary": "Get Catalogue",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/cockpit": {
+   "get": {
+    "operationId": "get_cockpit_api_stewardship_cockpit_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "portfolio_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Portfolio Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "As Of"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CockpitResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Cockpit",
     "tags": [
      "stewardship"
     ]
@@ -38138,6 +45046,395 @@
     ]
    }
   },
+  "/api/stewardship/evidence-suggestions": {
+   "get": {
+    "operationId": "list_suggestions_api_stewardship_evidence_suggestions_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "default": "pending",
+       "enum": [
+        "pending",
+        "confirmed",
+        "rejected"
+       ],
+       "title": "Status",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "items": {
+           "$ref": "#/components/schemas/EvidenceSuggestion"
+          },
+          "type": "array"
+         },
+         "title": "Response List Suggestions Api Stewardship Evidence Suggestions Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Suggestions",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/evidence-suggestions/{suggestion_id}/confirm": {
+   "post": {
+    "operationId": "confirm_suggestion_api_stewardship_evidence_suggestions__suggestion_id__confirm_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "suggestion_id",
+      "required": true,
+      "schema": {
+       "title": "Suggestion Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "anyOf": [
+         {
+          "$ref": "#/components/schemas/ConfirmRequest"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Body"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EvidenceSuggestion"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Confirm Suggestion",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/evidence-suggestions/{suggestion_id}/reject": {
+   "post": {
+    "operationId": "reject_suggestion_api_stewardship_evidence_suggestions__suggestion_id__reject_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "suggestion_id",
+      "required": true,
+      "schema": {
+       "title": "Suggestion Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RejectRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EvidenceSuggestion"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Reject Suggestion",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/intake/engagements": {
+   "post": {
+    "operationId": "post_engagements_api_stewardship_intake_engagements_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "type": "array"
+        },
+        "title": "Batch",
+        "type": "object"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IntakeReport"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IntakeReport"
+        }
+       }
+      },
+      "description": "Rows rejected; nothing written"
+     }
+    },
+    "summary": "Post Engagements",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/intake/engagements.xlsx": {
+   "post": {
+    "operationId": "post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_post_engagements_xlsx_api_stewardship_intake_engagements_xlsx_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IntakeReport"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IntakeReport"
+        }
+       }
+      },
+      "description": "Rows rejected; nothing written"
+     }
+    },
+    "summary": "Post Engagements Xlsx",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/intake/template": {
+   "get": {
+    "operationId": "get_template_api_stewardship_intake_template_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "enum": [
+        "engagements",
+        "votes"
+       ],
+       "title": "Kind",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Template",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/intake/votes": {
+   "post": {
+    "operationId": "post_votes_api_stewardship_intake_votes_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/VotesBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IntakeReport"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IntakeReport"
+        }
+       }
+      },
+      "description": "Rows rejected; nothing written"
+     }
+    },
+    "summary": "Post Votes",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/intake/votes.xlsx": {
+   "post": {
+    "operationId": "post_votes_xlsx_api_stewardship_intake_votes_xlsx_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_post_votes_xlsx_api_stewardship_intake_votes_xlsx_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IntakeReport"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IntakeReport"
+        }
+       }
+      },
+      "description": "Rows rejected; nothing written"
+     }
+    },
+    "summary": "Post Votes Xlsx",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
   "/api/stewardship/monitoring/open-engagement": {
    "post": {
     "description": "Opens an engagement for a trigger the active rules raise, or one a monthly run stored. The theme and\nseverity come from the rule, not the request.",
@@ -38177,6 +45474,277 @@
      }
     },
     "summary": "Open Engagement From Trigger",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/notes": {
+   "get": {
+    "description": "The company's notes, newest first. No route edits or deletes a note.",
+    "operationId": "get_notes_api_stewardship_notes_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/NoteList"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Notes",
+    "tags": [
+     "stewardship"
+    ]
+   },
+   "post": {
+    "description": "Adds a note on a company of the house universe; `scope` only records where it was written.",
+    "operationId": "post_note_api_stewardship_notes_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/NoteCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Note"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Note",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/objectives/{objective_id}/result": {
+   "post": {
+    "operationId": "record_objective_result_api_stewardship_objectives__objective_id__result_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "objective_id",
+      "required": true,
+      "schema": {
+       "title": "Objective Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ObjectiveResultRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Objective"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Record Objective Result",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/overlap": {
+   "get": {
+    "description": "Every house fund, every fund pair's shared companies and shared weight, and the companies picked in two or\nmore scopes in `cycle` (default: the current one).",
+    "operationId": "get_overlap_api_stewardship_overlap_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "cycle",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Cycle"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FundOverlap"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Overlap",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/overlap/matrix": {
+   "get": {
+    "description": "A fund x company grid of weights: the `n` companies with the largest house weight (`basis=top`), or every\ncompany picked in `scope` in `cycle` (`basis=selection`).",
+    "operationId": "get_overlap_matrix_api_stewardship_overlap_matrix_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "basis",
+      "required": false,
+      "schema": {
+       "default": "top",
+       "title": "Basis",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "n",
+      "required": false,
+      "schema": {
+       "default": 100,
+       "title": "N",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "scope",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Scope"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cycle",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Cycle"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/OverlapMatrix"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Overlap Matrix",
     "tags": [
      "stewardship"
     ]
@@ -38422,6 +45990,392 @@
      }
     },
     "summary": "Get Policy Version",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/programmes": {
+   "get": {
+    "description": "Every engagement programme with its member counts, the four built-in ones first.",
+    "operationId": "get_programmes_api_stewardship_programmes_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProgrammeList"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Programmes",
+    "tags": [
+     "stewardship"
+    ]
+   },
+   "post": {
+    "description": "A new programme by name; its id is the name lower-cased with runs of other characters as `_`.",
+    "operationId": "post_programme_api_stewardship_programmes_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProgrammeCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Programme"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Programme",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/programmes/{programme_id}": {
+   "get": {
+    "description": "The programme and every member it had, ended ones included.",
+    "operationId": "get_programme_api_stewardship_programmes__programme_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "programme_id",
+      "required": true,
+      "schema": {
+       "title": "Programme Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProgrammeDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Programme",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/programmes/{programme_id}/confirm": {
+   "post": {
+    "description": "Every proposed member becomes confirmed, recorded as the signed-in user.",
+    "operationId": "post_programme_confirm_api_stewardship_programmes__programme_id__confirm_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "programme_id",
+      "required": true,
+      "schema": {
+       "title": "Programme Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Confirmed"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Programme Confirm",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/programmes/{programme_id}/members": {
+   "post": {
+    "description": "Proposes companies, drops proposed ones and ends confirmed ones (with a reason).",
+    "operationId": "post_programme_members_api_stewardship_programmes__programme_id__members_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "programme_id",
+      "required": true,
+      "schema": {
+       "title": "Programme Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProgrammeMembersChange"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProgrammeDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Programme Members",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/programmes/{programme_id}/suggestions": {
+   "get": {
+    "description": "Companies with an open or stalled issue on the programme's theme that are not members yet. Writes nothing.",
+    "operationId": "get_programme_suggestions_api_stewardship_programmes__programme_id__suggestions_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "programme_id",
+      "required": true,
+      "schema": {
+       "title": "Programme Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProgrammeSuggestions"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Programme Suggestions",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/selection": {
+   "get": {
+    "description": "The engagement selection of a scope and cycle (default: the current one), folded from its log.",
+    "operationId": "get_selection_api_stewardship_selection_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "cycle",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Cycle"
+      }
+     },
+     {
+      "in": "query",
+      "name": "scope",
+      "required": false,
+      "schema": {
+       "default": "house",
+       "title": "Scope",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SelectionList"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Selection",
+    "tags": [
+     "stewardship"
+    ]
+   },
+   "post": {
+    "description": "Adds companies of the scope as proposed and removes proposed ones; confirmed rows stay.",
+    "operationId": "post_selection_api_stewardship_selection_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SelectionChange"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SelectionList"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Selection",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/selection/confirm": {
+   "post": {
+    "description": "Every proposed row of the scope and cycle whose company is still in the scope becomes confirmed, recorded as the\nsigned-in user; proposed rows whose company left the scope are removed and named in `dropped`.",
+    "operationId": "post_selection_confirm_api_stewardship_selection_confirm_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SelectionConfirm"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SelectionConfirmed"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Selection Confirm",
     "tags": [
      "stewardship"
     ]
@@ -39379,6 +47333,48 @@
     ]
    }
   },
+  "/api/stewardship/studio/priority/preview": {
+   "post": {
+    "description": "What candidate weights would change against the active version, on the house scope.",
+    "operationId": "post_priority_preview_api_stewardship_studio_priority_preview_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PriorityPreviewRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PriorityPreview"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Priority Preview",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
   "/api/stewardship/studio/voting/preview": {
    "post": {
     "operationId": "post_voting_preview_api_stewardship_studio_voting_preview_post",
@@ -39485,6 +47481,94 @@
      }
     },
     "summary": "Get Tiers",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/tiers/bilateral": {
+   "post": {
+    "description": "Picks a company for bilateral: while the pick stands it is the company's tier\nproposal, which still needs the tier confirm at stage 5 to count.",
+    "operationId": "post_bilateral_pick_api_stewardship_tiers_bilateral_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BilateralPickRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Post Bilateral Pick Api Stewardship Tiers Bilateral Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Bilateral Pick",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/tiers/bilateral/{issuer_id}/withdraw": {
+   "post": {
+    "operationId": "post_bilateral_withdraw_api_stewardship_tiers_bilateral__issuer_id__withdraw_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "issuer_id",
+      "required": true,
+      "schema": {
+       "title": "Issuer Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Post Bilateral Withdraw Api Stewardship Tiers Bilateral  Issuer Id  Withdraw Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Bilateral Withdraw",
     "tags": [
      "stewardship"
     ]
@@ -39922,6 +48006,388 @@
      }
     },
     "summary": "Put Universe",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/votes": {
+   "get": {
+    "description": "The company's vote-ledger decisions, newest meeting first (at most 500, with the total).",
+    "operationId": "get_votes_api_stewardship_votes_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/VoteList"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Votes",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/watch-items/{item_kind}/{item_id}/check": {
+   "post": {
+    "operationId": "check_watch_item_api_stewardship_watch_items__item_kind___item_id__check_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "item_kind",
+      "required": true,
+      "schema": {
+       "enum": [
+        "objective",
+        "commitment",
+        "topic"
+       ],
+       "title": "Item Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "item_id",
+      "required": true,
+      "schema": {
+       "title": "Item Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WatchCheckRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WatchCheckResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Check Watch Item",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/watch-items/{item_kind}/{item_id}/proof-statement": {
+   "post": {
+    "operationId": "set_proof_statement_api_stewardship_watch_items__item_kind___item_id__proof_statement_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "item_kind",
+      "required": true,
+      "schema": {
+       "enum": [
+        "objective",
+        "commitment",
+        "topic"
+       ],
+       "title": "Item Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "item_id",
+      "required": true,
+      "schema": {
+       "title": "Item Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProofStatementRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "anyOf": [
+          {
+           "$ref": "#/components/schemas/Objective"
+          },
+          {
+           "$ref": "#/components/schemas/Commitment"
+          },
+          {
+           "$ref": "#/components/schemas/WatchTopic"
+          }
+         ],
+         "title": "Response Set Proof Statement Api Stewardship Watch Items  Item Kind   Item Id  Proof Statement Post"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Set Proof Statement",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/watch-topics": {
+   "get": {
+    "operationId": "list_watch_topics_api_stewardship_watch_topics_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "items": {
+           "$ref": "#/components/schemas/WatchTopic"
+          },
+          "type": "array"
+         },
+         "title": "Response List Watch Topics Api Stewardship Watch Topics Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Watch Topics",
+    "tags": [
+     "stewardship"
+    ]
+   },
+   "post": {
+    "operationId": "add_watch_topic_api_stewardship_watch_topics_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/WatchTopicRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WatchTopic"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Add Watch Topic",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/watch-topics/{topic_id}/close": {
+   "post": {
+    "operationId": "close_watch_topic_api_stewardship_watch_topics__topic_id__close_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "topic_id",
+      "required": true,
+      "schema": {
+       "title": "Topic Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WatchTopic"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Close Watch Topic",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/worklist": {
+   "get": {
+    "description": "One row per company of the scope (house, `portfolio:<id>` or `group:<id>`), computed from stored values on every request.",
+    "operationId": "get_worklist_api_stewardship_worklist_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "scope",
+      "required": false,
+      "schema": {
+       "default": "house",
+       "title": "Scope",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Worklist"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Worklist",
+    "tags": [
+     "stewardship"
+    ]
+   }
+  },
+  "/api/stewardship/worklist/scopes": {
+   "get": {
+    "description": "The house, every fund with company holdings at the latest snapshot, and every group of funds or companies.",
+    "operationId": "get_worklist_scopes_api_stewardship_worklist_scopes_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WorklistScopes"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Worklist Scopes",
     "tags": [
      "stewardship"
     ]
@@ -44417,6 +52883,27 @@
     "summary": "Get Voting Review Queue",
     "tags": [
      "voting"
+    ]
+   }
+  },
+  "/api/waiting": {
+   "get": {
+    "operationId": "get_waiting_api_waiting_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WaitingCounts"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Waiting",
+    "tags": [
+     "review"
     ]
    }
   },

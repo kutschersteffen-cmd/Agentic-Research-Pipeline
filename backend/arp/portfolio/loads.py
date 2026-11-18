@@ -25,6 +25,14 @@ def record_load(store, rec: LoadRecord) -> None:
     store.append_governance_event("load_recorded", payload)
 
 
+def record_load_once(store, rec: LoadRecord) -> None:
+    """Records the load unless the latest one of its source and month has the same status and content hash,
+    so a repeated import or `arp showcase load` adds no record."""
+    last = latest_load(store, rec.kind, rec.source_id, rec.month)
+    if last is None or (last.status, last.content_hash) != (rec.status, rec.content_hash):
+        record_load(store, rec)
+
+
 def latest_load(store, kind: str, source_id: str, month: str) -> LoadRecord | None:
     hits = [
         e for e in store.list_governance_events()

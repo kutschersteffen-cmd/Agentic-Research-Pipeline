@@ -156,6 +156,12 @@ def test_fingerprint_follows_the_fact_keywords(monkeypatch):
     assert extraction.fingerprint(levy, "STL-R1") == before[1]  # and only that fact's
 
 
+def test_instructions_name_the_current_year(monkeypatch):  # "in force in the current year" needs it
+    monkeypatch.setattr("arp.transition_barrier.clock.today", lambda: date(2026, 11, 5))
+    text = extraction.field_for(FACTS["levy"], CELL, BOOK.conversions).extraction_instructions
+    assert "The current year is 2026." in text
+
+
 def test_unit_without_currency_gets_plain_sentence():
     gw = FACTS["price"].model_copy(update={"id": "capacity", "unit": "GW"})
     text = extraction.field_for(gw, CELL, BOOK.conversions).extraction_instructions

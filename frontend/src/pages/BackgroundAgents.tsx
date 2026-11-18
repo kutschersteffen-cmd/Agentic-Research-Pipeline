@@ -17,6 +17,22 @@ const SUB_TABS = [
   { id: "calibration", label: "Calibration Agent" },
 ] as const;
 
+/** An interval below 1 hour would run the agent back to back; the API refuses it too. */
+function intervalProblem(hours: number): string | null {
+  return Number.isFinite(hours) && hours >= 1 ? null : "Interval must be at least 1 hour.";
+}
+
+/** "Past runs" reloads by itself every 3 s while one of them is still pending or running. */
+function useRefreshWhileRunning(runs: RunManifest[], reload: () => void) {
+  const unfinished = runs.some((r) => r.status === "pending" || r.status === "running");
+  useEffect(() => {
+    if (!unfinished) return;
+    const t = setTimeout(reload, 3000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runs, unfinished]);
+}
+
 export function BackgroundAgents() {
   const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("taxonomyResearcher");
 
@@ -47,11 +63,14 @@ function TaxonomyResearcherPanel() {
   const [results, setResults] = useState<TaxonomyResearchFinding[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [intervalError, setIntervalError] = useState<string | null>(null);
 
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useRefreshWhileRunning(pastRuns, () => void loadPastRuns());
 
   async function refresh() {
     const s = (await api.getTaxonomyResearcherSchedule()) as TaxonomyResearcherScheduleConfig;
@@ -60,20 +79,28 @@ function TaxonomyResearcherPanel() {
     setSelectedIds(s.taxonomy_ids ?? []);
     const t = (await api.listTaxonomies()) as { taxonomies: Taxonomy[] };
     setTaxonomies(t.taxonomies);
+    await loadPastRuns();
+  }
+
+  async function loadPastRuns() {
     const r = (await api.listRuns("taxonomy_research")) as { runs: RunManifest[] };
     setPastRuns(r.runs);
   }
 
   async function saveSchedule() {
     if (!schedule) return;
+    setSaved(false);
+    setIntervalError(intervalProblem(schedule.interval_hours));
+    if (intervalProblem(schedule.interval_hours)) return;
     setBusy(true);
     setError(null);
     try {
-      const saved = (await api.updateTaxonomyResearcherSchedule({
+      const stored = (await api.updateTaxonomyResearcherSchedule({
         ...schedule,
         taxonomy_ids: scopeAll ? null : selectedIds,
       })) as TaxonomyResearcherScheduleConfig;
-      setSchedule(saved);
+      setSchedule(stored);
+      setSaved(true);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -88,6 +115,7 @@ function TaxonomyResearcherPanel() {
     try {
       const res = await api.startTaxonomyResearcherRun({ taxonomy_ids: scopeAll ? null : selectedIds });
       setRunId(res.run_id);
+      await loadPastRuns();
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -132,8 +160,13 @@ function TaxonomyResearcherPanel() {
               type="number"
               min={1}
               value={schedule.interval_hours}
-              onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
+              onChange={(e) => {
+                setSchedule({ ...schedule, interval_hours: Number(e.target.value) });
+                setSaved(false);
+                setIntervalError(null);
+              }}
             />
+            {intervalError && <span className="error-text">{intervalError}</span>}
           </label>
           <label className="checkbox-label">
             <input type="checkbox" checked={scopeAll} onChange={(e) => setScopeAll(e.target.checked)} />
@@ -161,6 +194,7 @@ function TaxonomyResearcherPanel() {
           <button onClick={saveSchedule} disabled={busy}>
             Save schedule
           </button>
+          {saved && <span className="status-text" role="status"> Saved.</span>}
           {schedule.last_run_id && <p className="muted">Last scheduled run: {schedule.last_run_id}</p>}
         </section>
       )}
@@ -246,26 +280,37 @@ function CalibrationPanel() {
   const [results, setResults] = useState<DriftFlag[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [intervalError, setIntervalError] = useState<string | null>(null);
 
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useRefreshWhileRunning(pastRuns, () => void loadPastRuns());
 
   async function refresh() {
     const s = (await api.getCalibrationSchedule()) as CalibrationScheduleConfig;
     setSchedule(s);
+    await loadPastRuns();
+  }
+
+  async function loadPastRuns() {
     const r = (await api.listRuns("calibration")) as { runs: RunManifest[] };
     setPastRuns(r.runs);
   }
 
   async function saveSchedule() {
     if (!schedule) return;
+    setSaved(false);
+    setIntervalError(intervalProblem(schedule.interval_hours));
+    if (intervalProblem(schedule.interval_hours)) return;
     setBusy(true);
     setError(null);
     try {
-      const saved = (await api.updateCalibrationSchedule(schedule)) as CalibrationScheduleConfig;
-      setSchedule(saved);
+      const stored = (await api.updateCalibrationSchedule(schedule)) as CalibrationScheduleConfig;
+      setSchedule(stored);
+      setSaved(true);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -280,6 +325,7 @@ function CalibrationPanel() {
     try {
       const res = await api.startCalibrationRun();
       setRunId(res.run_id);
+      await loadPastRuns();
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -298,8 +344,8 @@ function CalibrationPanel() {
   return (
     <div>
       <p className="help-text">
-        Flags a thematic-universe verdict as possibly stale when a document for that company was fetched after the
-        verdict was made. A flag doesn't mean the verdict is wrong, and the agent never re-classifies or edits a match.
+        Flags a thematic-universe verdict as possibly stale when a document for that company is dated after the
+        verdict was made (its publication date, or a fetch time its source reports). A flag doesn't mean the verdict is wrong, and the agent never re-classifies or edits a match.
       </p>
       {error && <p className="error-text" role="alert">{error}</p>}
 
@@ -320,12 +366,18 @@ function CalibrationPanel() {
               type="number"
               min={1}
               value={schedule.interval_hours}
-              onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
+              onChange={(e) => {
+                setSchedule({ ...schedule, interval_hours: Number(e.target.value) });
+                setSaved(false);
+                setIntervalError(null);
+              }}
             />
+            {intervalError && <span className="error-text">{intervalError}</span>}
           </label>
           <button onClick={saveSchedule} disabled={busy}>
             Save schedule
           </button>
+          {saved && <span className="status-text" role="status"> Saved.</span>}
           {schedule.last_run_id && <p className="muted">Last scheduled run: {schedule.last_run_id}</p>}
         </section>
       )}
@@ -364,8 +416,8 @@ function CalibrationPanel() {
                 {results.map((f, i) => (
                   <tr key={`${f.company_id}-${f.activity_id}-${i}`}>
                     <td>{f.source_run_id}</td>
-                    <td>{f.company_id}</td>
-                    <td>{f.activity_id}</td>
+                    <td>{f.company_name ? <>{f.company_name} <span className="mono muted">{f.company_id}</span></> : f.company_id}</td>
+                    <td>{f.activity_name ? <>{f.activity_name} <span className="mono muted">{f.activity_id}</span></> : f.activity_id}</td>
                     <td><VerdictBadge verdict={f.old_verdict} /></td>
                     <td><ConfidenceBadge value={f.old_confidence} /></td>
                     <td>{new Date(f.old_generated_at).toLocaleString()}</td>

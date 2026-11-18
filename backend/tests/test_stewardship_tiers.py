@@ -27,13 +27,13 @@ def _ctx(issuer_id="X", weight=None, aum=None, emitter=None, open_engagements=0,
 @pytest.mark.parametrize(
     ("ctx", "tier", "rule"),
     [
-        (_ctx(weight=2.0, emitter=True), "priority_bilateral", "top_weight"),  # first hit wins over the emitter rule
-        (_ctx(weight=0.2, aum=800), "priority_bilateral", "large_exposure"),
-        (_ctx(weight=0.2, escalated=True), "priority_bilateral", "escalated"),
-        (_ctx(weight=0.02, emitter=True), "thematic_collaborative", "high_emitter"),
-        (_ctx(weight=0.02), "systemic", "small_position"),
-        (_ctx(weight=0.3), "scaled_baseline", "default"),
-        (_ctx(), "scaled_baseline", "default"),  # no data: never fails, falls through to the default
+        (_ctx(weight=2.0, emitter=True), "bilateral", "top_weight"),  # first hit wins over the emitter rule
+        (_ctx(weight=0.2, aum=800), "bilateral", "large_exposure"),
+        (_ctx(weight=0.2, escalated=True), "bilateral", "escalated"),
+        (_ctx(weight=0.02, emitter=True), "letter", "high_emitter"),
+        (_ctx(weight=0.02), "monitor", "small_position"),
+        (_ctx(weight=0.3), "letter", "default"),
+        (_ctx(), "letter", "default"),  # no data: never fails, falls through to the default
     ],
 )
 def test_house_rules_assign_a_tier_with_the_rule_that_fired(ctx, tier, rule):
@@ -61,7 +61,7 @@ def test_confirm_is_append_only_and_only_changes_need_a_person(tmp_path):
 
 
 def test_reevaluation_is_due_after_a_quarter():
-    proposal = {"issuer_id": "X", "name": "X", "tier": "systemic", "rule": "r", "reason": "", "inputs": {}}
+    proposal = {"issuer_id": "X", "name": "X", "tier": "monitor", "rule": "r", "reason": "", "inputs": {}}
     old = {**proposal, "assigned_at": (datetime.now(UTC) - timedelta(days=100)).isoformat()}
     assert review_tiers([proposal], {"X": old})["reevaluation_due"]
     fresh = {**old, "assigned_at": datetime.now(UTC).isoformat()}
@@ -70,7 +70,7 @@ def test_reevaluation_is_due_after_a_quarter():
 
 def test_confirmation_needs_a_name(tmp_path):
     with pytest.raises(ValueError):
-        TierStore(tmp_path).confirm({"issuer_id": "X", "tier": "systemic"}, " ")
+        TierStore(tmp_path).confirm({"issuer_id": "X", "tier": "monitor"}, " ")
 
 
 def test_tier_report_endpoint(tmp_path):
@@ -82,3 +82,35 @@ def test_tier_report_endpoint(tmp_path):
     report = get_tiers(StreamStore(tmp_path / "s"), engagements)
     assert report["confirmed"] == report["in_scope"] == len(report["assignments"])
     assert all(a["rule"] and a["confirmed_by"] == "tester" for a in report["assignments"])
+
+
+def test_small_positions_are_monitored_and_open_engagements_get_the_letter():
+    # AC-3, AC-4
+    [small] = evaluate(load_graph(), [_ctx(weight=0.03, aum=5)])
+    assert (small["tier"], small["rule"]) == ("monitor", "small_position")
+    [engaged] = evaluate(load_graph(), [_ctx(weight=0.01, open_engagements=1)])
+    assert (engaged["tier"], engaged["rule"]) == ("letter", "open_engagement")
+
+
+def test_old_tier_rows_are_read_as_the_new_keys_and_never_rewritten(tmp_path):
+    # AC-5, AC-6, AC-7: a thematic latest row leaves the issuer without a confirmed tier
+    rows = [("SYN01", "scaled_baseline"), ("SYN05", "systemic"), ("SYN03", "priority_bilateral"), ("SYN02", "priority_bilateral"), ("SYN02", "thematic_collaborative")]  # fmt: skip
+    path = tmp_path / "tier_assignments.jsonl"
+    path.write_text("".join(json.dumps({"issuer_id": i, "tier": t, "rule": "r", "reason": "", "confirmed_by": "A", "assigned_at": datetime.now(UTC).isoformat()}) + "\n" for i, t in rows))  # fmt: skip
+    before = path.read_bytes()
+    assert {i: r["tier"] for i, r in TierStore(tmp_path).latest().items()} == {"SYN01": "letter", "SYN05": "monitor", "SYN03": "bilateral"}
+    review = tier_review(tmp_path, json.loads(SAMPLE_PATH.read_text()), [])
+    changes = {c["issuer_id"]: (c["tier"], c["current_tier"]) for c in review["changes"]}
+    assert changes["SYN02"] == ("letter", None) and changes["SYN05"] == ("letter", "monitor")
+    assert "SYN01" not in changes and "SYN03" not in changes
+    assert review["distribution"] == {"bilateral": 1, "letter": 1, "monitor": 1} and review["confirmed"] == 3
+    assert path.read_bytes() == before
+
+
+def test_a_coverage_rule_version_with_the_old_keys_still_runs():
+    # AC-8: thematic outputs read as letter
+    old = json.dumps(load_graph()).replace("'bilateral'", "'priority_bilateral'").replace("'monitor'", "'systemic'")
+    old = old.replace("'letter'", "'thematic_collaborative'", 3).replace("'letter'", "'scaled_baseline'")
+    contexts = tier_contexts(json.loads(SAMPLE_PATH.read_text()), [])
+    got = [(r["tier"], r["rule"]) for r in evaluate(json.loads(old), contexts)]
+    assert got == [(r["tier"], r["rule"]) for r in evaluate(load_graph(), contexts)]

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { errorDetail } from "../lib/barrier";
 import type { OutputItem, OutputKind } from "../types";
 
 // Statuses a downstream step can rely on; the first such output is the default pick. Anything else (a draft, a
@@ -34,10 +35,16 @@ export function InputPicker({ kind, label, value, onChange, filter, autoSelect =
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.listOutputs(kind).then((r) => setItems(r.outputs), (e: Error) => setError(e.message));
+    api.listOutputs(kind).then((r) => setItems(r.outputs), (e: Error) => setError(errorDetail(e)));
   }, [kind]);
 
   const shown = (items ?? []).filter((o) => !filter || filter(o));
+  // Two outputs that read the same (same name, day, status, author) get their saved time, so they can be told apart.
+  const labels = shown.map(outputLabel);
+  const labelOf = (o: OutputItem, i: number) =>
+    o.as_of && o.as_of.length > 10 && labels.indexOf(labels[i]) !== labels.lastIndexOf(labels[i]) // a date alone has no clock
+      ? `${labels[i]} · ${o.as_of.slice(11, 16)}` // the clock of the date the label already shows
+      : labels[i];
   useEffect(() => {
     if (!autoSelect || value || !items) return;
     const first = shown.find((o) => USABLE.has(o.status));
@@ -52,9 +59,9 @@ export function InputPicker({ kind, label, value, onChange, filter, autoSelect =
       {label}
       <select value={value} onChange={(e) => onChange(shown.find((o) => o.id === e.target.value) ?? null)} disabled={!items}>
         <option value="">{!items ? "Loading…" : shown.length === 0 ? "Nothing saved yet" : "Select…"}</option>
-        {shown.map((o) => (
+        {shown.map((o, i) => (
           <option key={o.id} value={o.id}>
-            {outputLabel(o)}
+            {labelOf(o, i)}
           </option>
         ))}
       </select>

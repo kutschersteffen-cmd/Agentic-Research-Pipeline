@@ -3,6 +3,7 @@ import { EngagementIssuePanel } from "../components/EngagementIssuePanel";
 import { api } from "../api/client";
 import type { EngagementIssue, EngagementRecord, IssueSeverity, TriggerEvent } from "../types";
 import { activatable } from "../lib/activatable";
+import { unlistedText } from "../lib/engagement";
 
 interface ScanCompanyRow {
   company_id: string;
@@ -15,8 +16,10 @@ interface ScanSignalRow {
   detail: string;
 }
 
-const DEFAULT_SCAN_COMPANIES: ScanCompanyRow[] = [{ company_id: "AAPL", name: "Apple Inc." }];
-const DEFAULT_SCAN_SIGNALS: ScanSignalRow[] = [
+const EMPTY_COMPANY: ScanCompanyRow = { company_id: "", name: "" };
+const EMPTY_SIGNAL: ScanSignalRow = { company_id: "", theme: "", severity: "medium", detail: "" };
+const SAMPLE_SCAN_COMPANIES: ScanCompanyRow[] = [{ company_id: "AAPL", name: "Apple Inc." }];
+const SAMPLE_SCAN_SIGNALS: ScanSignalRow[] = [
   { company_id: "AAPL", theme: "executive_compensation", severity: "high", detail: "Say-on-pay support fell below 70% at peers." },
 ];
 
@@ -33,9 +36,11 @@ export function EngagementDashboard() {
   const [newIssueTheme, setNewIssueTheme] = useState("");
   const [newIssueSeverity, setNewIssueSeverity] = useState<IssueSeverity>("medium");
 
-  const [companyRows, setCompanyRows] = useState<ScanCompanyRow[]>(DEFAULT_SCAN_COMPANIES);
-  const [signalRows, setSignalRows] = useState<ScanSignalRow[]>(DEFAULT_SCAN_SIGNALS);
+  // The form starts empty; "Load sample" fills in the Apple example.
+  const [companyRows, setCompanyRows] = useState<ScanCompanyRow[]>([EMPTY_COMPANY]);
+  const [signalRows, setSignalRows] = useState<ScanSignalRow[]>([EMPTY_SIGNAL]);
   const [triggerResult, setTriggerResult] = useState<TriggerEvent[] | null>(null);
+  const [unlisted, setUnlisted] = useState<{ count: number; company_ids: string[] } | null>(null);
 
   function updateCompanyRow(idx: number, patch: Partial<ScanCompanyRow>) {
     setCompanyRows((prev) => prev.map((row, i) => (i === idx ? { ...row, ...patch } : row)));
@@ -99,9 +104,11 @@ export function EngagementDashboard() {
     setBusy(true);
     setError(null);
     setTriggerResult(null);
+    setUnlisted(null);
     try {
       const res = await api.triggerScan({ companies, signals });
       setTriggerResult(res.events);
+      setUnlisted(res.unlisted_signals ?? null);
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -230,12 +237,27 @@ export function EngagementDashboard() {
             + Add signal
           </button>
         </div>
-        <button onClick={runTriggerScan} disabled={busy}>
-          Run scan
-        </button>
+        <div className="toolbar">
+          <button onClick={runTriggerScan} disabled={busy}>
+            Run scan
+          </button>
+          <button
+            className="secondary"
+            onClick={() => {
+              setCompanyRows(SAMPLE_SCAN_COMPANIES);
+              setSignalRows(SAMPLE_SCAN_SIGNALS);
+            }}
+            disabled={busy}
+          >
+            Load sample
+          </button>
+        </div>
         {triggerResult && (
           <div className="review-item">
             <p className="muted">{triggerResult.length} event(s)</p>
+            {unlisted && unlisted.count > 0 && (
+              <p className="status-text">{unlistedText(unlisted.count, unlisted.company_ids)}</p>
+            )}
             <ul className="timeline">
               {triggerResult.map((e) => (
                 <li key={e.trigger_id}>

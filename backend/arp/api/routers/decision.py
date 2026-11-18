@@ -58,6 +58,7 @@ class DatasetSummary(BaseModel):
     source: str
     source_ref: str | None = None
     as_of: str | None = None
+    created_at: str = Field(description="When the dataset was added: tells two uploads of the same file apart.")
     row_count: int
     columns: list[str]
     preview: list[dict[str, str]]
@@ -82,6 +83,7 @@ def _summarise(dataset: Dataset, *, base: Dataset | None = None, calculated: lis
         source=dataset.source,
         source_ref=dataset.source_ref,
         as_of=dataset.as_of,
+        created_at=dataset.created_at,
         row_count=dataset.row_count,
         columns=dataset.columns,
         preview=dataset.rows[:_PREVIEW_ROWS],

@@ -62,7 +62,7 @@ class DossierCreate(BaseModel):
 
 class DossierPatch(BaseModel):
     taxonomy_id: str | None = None
-    status: Literal["shelved"] | None = None
+    status: Literal["shelved", "active"] | None = None
     reason: str | None = None
 
 
@@ -145,6 +145,8 @@ def patch_dossier(
             raise HTTPException(409, str(exc)) from exc
     if req.status == "shelved":
         dossier = store.shelve(dossier_id, principal.name, req.reason.strip())
+    elif req.status == "active":
+        dossier = store.unshelve(dossier_id)
     if dossier is None:
         raise _unknown(dossier_id)
     return view(dossier)

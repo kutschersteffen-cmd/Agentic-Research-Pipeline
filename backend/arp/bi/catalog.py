@@ -236,6 +236,7 @@ VIEW_DATASETS: dict[str, DatasetDef] = {
             "unit": "Unit of the value.",
             "as_of": "Date the value was observed.",
             "source": "Source of the value.",
+            "value_text": "Text value (e.g. a transition grade letter); NULL when the value is not text.",
         },
         metrics=[
             MetricDef(name="Avg value", expression="AVG(value)", description="Mean value. Only meaningful for a single field_id."),

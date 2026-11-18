@@ -34,6 +34,7 @@ from arp.stewardship.process import (  # noqa: E402
     escalation_contexts,
     flow,
 )
+from arp.stewardship.tiers import TierStore  # noqa: E402
 from arp.storage.engagement_store import EngagementStore  # noqa: E402
 from tests.conftest import PRINCIPAL
 
@@ -67,25 +68,25 @@ def _ctx(step=0, tier=None, high=False, missed=0, months=0, stalled=False) -> di
     [
         (
             _ctx(high=True, missed=1, months=3),
-            "written_escalation_to_board",
+            "escalation_to_chair",
             False,
             "high_severity_trigger",
         ),  # first hit, two steps
-        (_ctx(step=1, missed=1, months=3), "written_escalation_to_board", False, "commitment_missed"),
-        (_ctx(step=2, high=True, missed=1), "written_escalation_to_board", False, "hold"),  # just escalated: no repeat
-        (_ctx(months=12), "joint_engagement", False, "no_progress_12m"),
-        (_ctx(stalled=True), "joint_engagement", False, "stalled"),
+        (_ctx(step=0, missed=1, months=3), "written_escalation_to_board", False, "commitment_missed"),
+        (_ctx(step=1, high=True, missed=1), "written_escalation_to_board", False, "hold"),  # just escalated: no repeat
+        (_ctx(months=12), "written_escalation_to_board", False, "no_progress_12m"),
+        (_ctx(stalled=True), "written_escalation_to_board", False, "stalled"),
         (_ctx(months=3), "private_engagement", False, "hold"),
         (
-            _ctx(step=2, tier="thematic_collaborative", high=True, months=4),
-            "escalation_to_chair",
+            _ctx(step=2, tier="letter", high=True, months=4),
+            "vote_against_management",
             True,
             "high_severity_trigger",
         ),  # capped
-        (_ctx(step=3, tier="thematic_collaborative", stalled=True), "escalation_to_chair", True, "stalled"),  # at the cap
-        (_ctx(step=6, stalled=True), "public_statement", False, "stalled"),  # top of the ladder, no tier: not capped
-        (_ctx(tier="systemic", stalled=True), "private_engagement", True, "stalled"),
-        (_ctx(step=5, tier="scaled_baseline", months=3), "file_or_cofile_resolution", False, "hold"),  # never a step down
+        (_ctx(step=3, tier="letter", stalled=True), "vote_against_management", True, "stalled"),  # at the cap
+        (_ctx(step=5, stalled=True), "public_statement", False, "stalled"),  # top of the ladder, no tier: not capped
+        (_ctx(tier="monitor", stalled=True), "private_engagement", True, "stalled"),
+        (_ctx(step=4, tier="letter", months=3), "file_or_cofile_resolution", False, "hold"),  # never a step down
     ],
 )
 def test_house_rules_recommend_a_capped_step(ctx, recommended, promote, rule):
@@ -108,7 +109,7 @@ def test_live_engagements_use_their_own_step_commitments_and_sla(tmp_path):
         "stalled": True,
     }
     [r] = evaluate(load_graph(), [live])
-    assert (r["recommended"], r["rule"]) == ("joint_engagement", "stalled")  # the missed commitment waits 3 months
+    assert (r["recommended"], r["rule"]) == ("written_escalation_to_board", "stalled")  # the missed commitment waits 3 months
 
 
 def test_stage_5_decides_live_recommendations_only(tmp_path):
@@ -118,7 +119,7 @@ def test_stage_5_decides_live_recommendations_only(tmp_path):
         s for s in flow(HOUSE, StreamStore(tmp_path / "s"), store.list_all(), sla_days=-1)["stages"] if s["id"] == "checkpoint"
     )
     decisions = [d for d in stage["decisions"] if d["kind"] == "escalation"]
-    assert [(d["company_id"], d["next"]) for d in decisions] == [("ACME", "joint_engagement")]
+    assert [(d["company_id"], d["next"]) for d in decisions] == [("ACME", "written_escalation_to_board")]
     metrics = {m["label"]: m["value"] for m in stage["metrics"]}
     assert metrics["Escalations to decide"] == 1 and metrics["Sample recommendations"] > 0
 
@@ -127,7 +128,7 @@ def test_preview_shows_what_a_lower_cap_changes(tmp_path):
     ctxs = escalation_contexts(tmp_path, SAMPLE, [], sla_days=30)
     candidate = copy.deepcopy(load_graph())
     caps = next(n for n in candidate["nodes"] if n["id"] == "tier_caps")
-    next(r for r in caps["content"]["rules"] if r["_id"] == "priority_bilateral")["m"] = "2"
+    next(r for r in caps["content"]["rules"] if r["_id"] == "bilateral")["m"] = "1"
     result = preview(candidate, load_graph(), ctxs)
     assert result["promotions_candidate"] > result["promotions_active"]
     assert any(c["this draft"].endswith("(promote)") for c in result["changes"])
@@ -141,6 +142,15 @@ def test_a_cap_outside_the_ladder_is_rejected_on_save(tmp_path):
         PolicyStore(tmp_path).save("escalation_rules", graph, "", "Designer", SAMPLE)
 
 
+def test_a_cap_of_the_old_top_step_is_rejected_on_save(tmp_path):
+    # stewardship-three-tiers AC-26: the ladder has 6 steps, 0-5
+    graph = copy.deepcopy(load_graph())
+    caps = next(n for n in graph["nodes"] if n["id"] == "tier_caps")
+    next(r for r in caps["content"]["rules"] if r["_id"] == "bilateral")["m"] = "6"
+    with pytest.raises(ValueError, match=r"\(a whole number 0-5\)"):
+        PolicyStore(tmp_path).save("escalation_rules", graph, "", "Designer", SAMPLE)
+
+
 def _example_without_wait() -> dict:
     """The example client graph, without its 3-month wait, so a just-opened live engagement qualifies."""
     graph = load_client_example()
@@ -150,6 +160,8 @@ def _example_without_wait() -> dict:
 
 
 def test_client_graph_inherits_the_house_unless_it_overrides(tmp_path):
+    # SYN10 confirmed `monitor` (cap 0), so the client's climate cap of 3 is above the house's
+    TierStore(tmp_path).confirm({"issuer_id": "SYN10", "tier": "monitor"}, "tester")
     ctxs = escalation_contexts(tmp_path, SAMPLE, [], sla_days=30)
     house = evaluate(load_graph(), ctxs)
     assert not any(r["higher"] for r in client_evaluate(load_client_default(), ctxs, house))
@@ -189,7 +201,7 @@ def test_a_client_escalation_above_the_house_is_decided_at_the_house_checkpoint(
         return [d for d in next(s for s in stages if s["id"] == "checkpoint")["decisions"] if d["kind"] == "client_exception"]
 
     [item] = checkpoint()
-    assert (item["client"], item["house"], item["client_step"]) == ("Pension Fund", "private_engagement", "joint_engagement")
+    assert (item["client"], item["house"], item["client_step"]) == ("Pension Fund", "private_engagement", "written_escalation_to_board")
     body = ExceptionDecisionRequest(
         issue_id=issue.issue_id, client_step=item["client_step"], decision=decision
     )
@@ -198,7 +210,7 @@ def test_a_client_escalation_above_the_house_is_decided_at_the_house_checkpoint(
     # the decided step is gone (this test graph has no wait, so after an adopt it already asks for the next step)
     assert all(d["client_step"] != item["client_step"] for d in checkpoint())
     [live] = engagements.get("SYN10").issues
-    assert live.escalation_stage.value == ("joint_engagement" if decision == "adopt" else "private_engagement")
+    assert live.escalation_stage.value == ("written_escalation_to_board" if decision == "adopt" else "private_engagement")
     with pytest.raises(HTTPException) as again:
         decide_client_exception(stream["stream_id"], body, settings, streams, engagements, PRINCIPAL)
     assert again.value.status_code == 404

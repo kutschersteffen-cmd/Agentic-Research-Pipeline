@@ -245,6 +245,95 @@ def _review_item_links(conn: Connection) -> None:
     ))
 
 
+def _vote_meeting_key_namespaces(conn: Connection) -> None:
+    """Vote meeting and item external_ids from #440 (`<key>:<date>`, key = company_id, isin_<ISIN>, cusip or issuer
+    name) into the namespaced form `arp.stewardship.intake.meeting_key` writes, so a re-sent row finds its meeting."""
+    from sqlalchemy import text
+
+    old_rows = conn.execute(text(
+        "SELECT meeting_id, source, external_id, company_id, cusip, issuer_name FROM vote_meetings WHERE source IN ('api', 'excel')"
+        " AND external_id IS NOT NULL AND external_id !~ '^(cid|isin|cusip|name):' AND external_id !~ '^:'"
+    )).all()
+    for meeting_id, source, ext, company_id, cusip, issuer in old_rows:
+        key, _, date = ext.rpartition(":")
+        if key.startswith("isin_"):
+            new_key = f"isin:{key[5:]}"
+        else:
+            new_key = f"{'cid' if key == company_id else 'cusip' if key == cusip else 'name' if key == issuer else 'cid'}:{key}"
+        new = f"{new_key}:{date}"
+        taken = conn.execute(text("SELECT 1 FROM vote_meetings WHERE source = :s AND external_id = :e"), {"s": source, "e": new}).first()
+        if taken:  # a new-format meeting already exists; leave the old row for a person to merge
+            continue
+        conn.execute(text("UPDATE vote_meetings SET external_id = :new WHERE meeting_id = :id"), {"new": new, "id": meeting_id})
+        conn.execute(text(
+            "UPDATE vote_items SET external_id = :new || substr(external_id, length(:old) + 1)"
+            " WHERE meeting_id = :id AND starts_with(external_id, :old || ':')"
+        ), {"new": new, "old": ext, "id": meeting_id})
+
+
+def _vote_meeting_key_repair(conn: Connection) -> None:
+    """Re-key `cid:<id>` vote meetings whose id resolves to no company (in neither stw_companies nor the registry)
+    under the key `meeting_key` gives their stored isin/cusip, as intake does today. The first version of the namespace
+    step filed #440 rows with an unknown company_id beside an ISIN under `cid:`, so a re-send made a second meeting."""
+    import logging
+
+    from sqlalchemy import text
+    from sqlalchemy.orm import Session
+
+    from arp.stewardship.intake import _company, meeting_key
+
+    rows = conn.execute(text(
+        "SELECT meeting_id, source, external_id, isin, cusip FROM vote_meetings WHERE source IN ('api', 'excel')"
+        " AND external_id LIKE 'cid:%' AND (isin IS NOT NULL OR cusip IS NOT NULL)"
+    )).all()
+    skipped = 0
+    with Session(bind=conn) as s:
+        for meeting_id, source, ext, isin, cusip in rows:
+            cid, _, date = ext[len("cid:"):].rpartition(":")
+            if _company(s, cid, None):
+                continue  # the id resolves: intake keys it cid: too
+            new = f"{meeting_key(None, isin, cusip)}:{date}"
+            if conn.execute(text("SELECT 1 FROM vote_meetings WHERE source = :s AND external_id = :e"), {"s": source, "e": new}).first():
+                skipped += 1  # a meeting already holds that key; leave both for a person to merge
+                continue
+            conn.execute(text("UPDATE vote_meetings SET external_id = :new WHERE meeting_id = :id"), {"new": new, "id": meeting_id})
+            conn.execute(text(
+                "UPDATE vote_items SET external_id = :new || substr(external_id, length(:old) + 1)"
+                " WHERE meeting_id = :id AND starts_with(external_id, :old || ':')"
+            ), {"new": new, "old": ext, "id": meeting_id})
+    if skipped:
+        logging.getLogger(__name__).warning("vote_meeting_key_repair: %d meeting(s) left under their old key; their new key is taken", skipped)
+
+
+def _vote_meeting_listing_key(conn: Connection) -> None:
+    """Re-key `cid:` vote meetings that carry an ISIN or CUSIP to the listing key `meeting_key` now gives them
+    (`isin:`, else `cusip:`), and their items the same way, so re-sending an old file updates instead of duplicating."""
+    import logging
+
+    from sqlalchemy import text
+
+    from arp.stewardship.intake import meeting_key
+
+    rows = conn.execute(text(
+        "SELECT meeting_id, source, external_id, isin, cusip FROM vote_meetings WHERE source IN ('api', 'excel')"
+        " AND external_id LIKE 'cid:%' AND (isin IS NOT NULL OR cusip IS NOT NULL)"
+    )).all()
+    skipped = []
+    for meeting_id, source, ext, isin, cusip in rows:
+        new = f"{meeting_key(None, isin, cusip)}:{ext.rpartition(':')[2]}"
+        if conn.execute(text("SELECT 1 FROM vote_meetings WHERE source = :s AND external_id = :e"), {"s": source, "e": new}).first():
+            skipped.append(f"{source}/{ext}")  # a meeting already holds that key; leave both for a person to merge
+            continue
+        conn.execute(text("UPDATE vote_meetings SET external_id = :new WHERE meeting_id = :id"), {"new": new, "id": meeting_id})
+        conn.execute(text(
+            "UPDATE vote_items SET external_id = :new || substr(external_id, length(:old) + 1)"
+            " WHERE meeting_id = :id AND starts_with(external_id, :old || ':')"
+        ), {"new": new, "old": ext, "id": meeting_id})
+    if skipped:
+        logging.getLogger(__name__).warning(
+            "vote_meeting_listing_key: %d meeting(s) left under their old key; their new key is taken: %s", len(skipped), ", ".join(skipped))
+
+
 def rekey_company_ids(conn: Connection) -> None:
     """Sets the registry company on every legacy-keyed row that has none yet (rules:
     `arp.db.companies.company_for`). Rows that match nothing keep NULL; `schema_report` counts them.
@@ -379,6 +468,21 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         name="chunk_embeddings_any_dim",
         description="chunk_embeddings.embedding is an untyped vector, so 1024-dim models' rows fit beside MiniLM's 384",
         apply=_chunk_embeddings_any_dim,
+    ),
+    SchemaStep(
+        name="vote_meeting_key_namespaces",
+        description="vote_meetings/vote_items external_ids from #440 intake rewritten to cid:/isin:/cusip:/name: keys",
+        apply=_vote_meeting_key_namespaces,
+    ),
+    SchemaStep(
+        name="vote_meeting_key_repair",
+        description="cid: vote meetings whose company_id resolves to nothing re-keyed by their isin/cusip, as intake keys them",
+        apply=_vote_meeting_key_repair,
+    ),
+    SchemaStep(
+        name="vote_meeting_listing_key",
+        description="cid: vote meetings with an isin/cusip re-keyed by that listing, so each listing is its own meeting",
+        apply=_vote_meeting_listing_key,
     ),
 )
 

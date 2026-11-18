@@ -20,6 +20,8 @@ export const words = (s: string) => s.replace(/_/g, " ");
 export const STAGE_TABS = [
   { id: "monitoring", n: 1, label: "Monitoring" },
   { id: "selection", n: 2, label: "Selection" },
+  { id: "workbench", n: null, label: "Workbench" },
+  { id: "overlap", n: null, label: "Overlap" },
   { id: "drafting", n: 3, label: "Drafting" },
   { id: "voting", n: 4, label: "Voting" },
   { id: "checkpoint", n: 5, label: "Checkpoint" },
@@ -121,7 +123,10 @@ export function Section({ step, title, children, planned }: { step: string; titl
   return (
     <section className={`card studio-section${planned ? " planned" : ""}`}>
       <p className="studio-step">{step}</p>
-      <h2>{title}</h2>
+      <h2>
+        {title}
+        {planned && <span className="chip chip-not-built">Not built yet</span>}
+      </h2>
       {children}
     </section>
   );
@@ -156,6 +161,11 @@ export function RuleEditor({ label, children }: { label: string; children: React
       {children}
     </div>
   );
+}
+
+/** Marks figures computed from placeholder scores (CLTI), so nobody reads them as an assessment. */
+export function SampleChip() {
+  return <span className="chip chip-sample">Sample data</span>;
 }
 
 /** Honest placeholder for a part of the studio that is designed but not built. */
@@ -195,6 +205,7 @@ export function VersionsPanel({
   info,
   workingCopy,
   dirty,
+  invalid,
   actor,
   onSaved,
   onLoad,
@@ -205,6 +216,8 @@ export function VersionsPanel({
   info: StewardPolicyInfo;
   workingCopy: unknown;
   dirty: boolean;
+  /** Why the working copy cannot be saved (e.g. weights that do not add up), if it cannot. */
+  invalid?: string;
   actor: string;
   onSaved: () => void;
   onLoad: (version: number) => void;
@@ -255,7 +268,7 @@ export function VersionsPanel({
       </p>
       <div className="inline-fields decision-controls">
         <input aria-label="Version note" placeholder="What changed and why" value={note} onChange={(e) => setNote(e.target.value)} />
-        <button onClick={save} disabled={!actor || !dirty || busy !== null} title={needName ?? (dirty ? undefined : "No changes to save")}>
+        <button onClick={save} disabled={!actor || !dirty || !!invalid || busy !== null} title={needName ?? invalid ?? (dirty ? undefined : "No changes to save")}>
           {busy === "save" ? "Saving…" : "Save as new version"}
         </button>
       </div>
@@ -269,7 +282,9 @@ export function VersionsPanel({
               <th>Note</th>
               <th>Created</th>
               <th>Status</th>
-              <th />
+              <th>
+                <span className="visually-hidden">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody>

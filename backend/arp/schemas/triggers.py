@@ -23,6 +23,7 @@ class UnifiedTrigger(BaseModel):
     first_seen_month: str = ""
     is_new: bool = False
     rule: str = ""  # the monitoring rule that raised it; open-engagement needs (issuer_id, rule)
+    demo: bool = False  # raised by demo votes alone, as the last monthly run that listed it said
 
 
 def from_alert(alert: Alert) -> UnifiedTrigger:

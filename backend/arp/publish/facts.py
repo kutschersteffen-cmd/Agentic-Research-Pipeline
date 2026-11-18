@@ -12,6 +12,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from arp.errors import ClientInputError, NotConfigured
 from arp.orchestration.review_queue import same_value
 from arp.schemas.common import Citation, new_id
 
@@ -123,11 +124,11 @@ class FactEvent(BaseModel):
 EVENT_LOCK = 7600076  # advisory-lock key serialising outbox writes
 
 
-class ConcurrentPublish(RuntimeError):
+class ConcurrentPublish(NotConfigured):
     """Another publish changed a fact first."""
 
 
-class LicenceRefused(ValueError):
+class LicenceRefused(ClientInputError):
     """A fact whose current value comes from an internal_only provider source (spec §2.8)."""
 
 

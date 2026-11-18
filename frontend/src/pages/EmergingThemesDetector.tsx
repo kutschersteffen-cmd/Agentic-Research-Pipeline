@@ -1,5 +1,5 @@
 import { when } from "../lib/runs";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { DecisionBar } from "../components/DecisionBar";
@@ -10,6 +10,7 @@ import { ContextBriefBody } from "../components/ContextBrief";
 import type { DossierItem, EmergingThemeCandidate, EmergingThemesScheduleConfig, RunManifest } from "../types";
 import { dossierHref, dossierOfCandidate } from "../lib/dossiers";
 import { activatable } from "../lib/activatable";
+import { intervalError, NO_COMPANIES, NOVELTY_HELP, SCANNING, SCHEDULE_SAVED, scanActive } from "../lib/emergingThemes";
 
 interface Props {
   onNavigate?: (tab: "taxonomy" | "theme") => void;
@@ -32,6 +33,9 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
   const [reasonInputs, setReasonInputs] = useState<Record<string, string>>({});
 
   const [schedule, setSchedule] = useState<EmergingThemesScheduleConfig | null>(null);
+  const [scheduleStatus, setScheduleStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const selectedStatus = recentRuns.find((r) => r.run_id === selectedRunId)?.status;
+  const prevSelectedStatus = useRef(selectedStatus);
 
   useEffect(() => {
     refreshRecentRuns();
@@ -43,6 +47,24 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
     const res = (await api.listRuns("emerging_themes")) as { runs: RunManifest[] };
     setRecentRuns(res.runs);
   }
+
+  // While a listed scan works, reload the list every 2.5 s; a failed reload schedules the next one too.
+  const [pollRetry, setPollRetry] = useState(0);
+  useEffect(() => {
+    if (!recentRuns.some((r) => scanActive(r.status))) return;
+    const t = setTimeout(() => refreshRecentRuns().catch(() => setPollRetry((n) => n + 1)), 2500);
+    return () => clearTimeout(t);
+  }, [recentRuns, pollRetry]);
+
+  // The selected scan just finished: load its candidates.
+  useEffect(() => {
+    const was = prevSelectedStatus.current;
+    prevSelectedStatus.current = selectedStatus;
+    if (selectedRunId && scanActive(was) && selectedStatus && !scanActive(selectedStatus)) {
+      refreshCandidates(selectedRunId).catch((err) => setError((err as Error).message));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRunId, selectedStatus]);
 
   async function refreshCandidates(id: string) {
     const res = await api.getEmergingThemesCandidates(id);
@@ -141,13 +163,16 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
   async function saveSchedule() {
     if (!schedule) return;
+    const invalid = intervalError(schedule.interval_hours);
+    if (invalid) return setScheduleStatus({ ok: false, text: invalid });
     setBusy(true);
-    setError(null);
+    setScheduleStatus(null);
     try {
       const saved = await api.updateEmergingThemesSchedule(schedule);
       setSchedule(saved);
+      setScheduleStatus({ ok: true, text: SCHEDULE_SAVED });
     } catch (err) {
-      setError((err as Error).message);
+      setScheduleStatus({ ok: false, text: (err as Error).message });
     } finally {
       setBusy(false);
     }
@@ -212,15 +237,18 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
         <section className="card">
           <h2>Candidates — {selectedRunId}</h2>
           <button onClick={() => refreshCandidates(selectedRunId)}>Refresh candidates</button>
-          {candidates.length === 0 ? (
+          {scanActive(selectedStatus) && candidates.length === 0 ? (
+            <p className="muted" role="status">{SCANNING}</p>
+          ) : candidates.length === 0 ? (
             <p className="muted">No candidates for this run (nothing survived the independent-source-minimum and lineage-birth filters).</p>
           ) : (
             <div className="table-wrap">
+            <p className="help-text">Novelty: {NOVELTY_HELP}</p>
             <table className="data-table">
               <thead>
                 <tr>
                   <th>Theme</th>
-                  <th>Confidence</th>
+                  <th title={NOVELTY_HELP}>Novelty</th>
                   <th>Status</th>
                   <th>Companies</th>
                   <th>Velocity</th>
@@ -245,11 +273,15 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                       <td><ConfidenceBadge value={c.confidence_score} /></td>
                       <td><CandidateStatusBadge status={c.status} /></td>
                       <td>
-                        <div className="chip-row">
-                          {c.candidate_sectors_companies.map((id) => (
-                            <span className="chip" key={id}>{id}</span>
-                          ))}
-                        </div>
+                        {c.candidate_sectors_companies.length === 0 ? (
+                          <span className="muted">{NO_COMPANIES}</span>
+                        ) : (
+                          <div className="chip-row">
+                            {c.candidate_sectors_companies.map((id) => (
+                              <span className="chip" key={id}>{id}</span>
+                            ))}
+                          </div>
+                        )}
                       </td>
                       <td title="This period's mention count vs. baseline — see the expanded row for what this cluster's baseline was.">{c.signal_velocity.toFixed(2)}&times;</td>
                       <td>{c.first_detected_date}</td>
@@ -400,6 +432,8 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
             <input
               type="number"
               min={1}
+              aria-invalid={scheduleStatus?.ok === false || undefined}
+              aria-describedby={scheduleStatus ? "et-schedule-status" : undefined}
               value={schedule.interval_hours}
               onChange={(e) => setSchedule({ ...schedule, interval_hours: Number(e.target.value) })}
             />
@@ -415,6 +449,11 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
           <button onClick={saveSchedule} disabled={busy}>
             Save schedule
           </button>
+          {scheduleStatus && (
+            <p id="et-schedule-status" className={scheduleStatus.ok ? "status-text" : "error-text"} role={scheduleStatus.ok ? "status" : "alert"}>
+              {scheduleStatus.text}
+            </p>
+          )}
           {schedule.last_run_id && <p className="muted">Last scheduled run: {schedule.last_run_id}</p>}
         </section>
       )}

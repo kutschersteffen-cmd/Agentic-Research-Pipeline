@@ -13,6 +13,7 @@ _PRICE_PER_MILLION_TOKENS: dict[str, tuple[float, float]] = {
     "claude-sonnet-5-5": (2.0, 10.0),
     "claude-sonnet-5": (2.0, 10.0),
     "claude-fable-5": (10.0, 50.0),
+    "claude-haiku-5-5": (0.10, 0.50),
     "claude-haiku-4-5-20251001": (1.0, 5.0),
     # Gemini introductory prices: Argon doubles on 2026-12-01, 3.8 Flash on 2027-01-01 (ai.google.dev pricing)
     "gemini-4-argon": (2.0, 10.0),

@@ -1,7 +1,8 @@
-"""Schema screen Rules list (schema-rules spec AC-39..AC-57, AC-71) against the running app.
+"""Rules list in Argus step 3 (schema-rules spec AC-39..AC-57, AC-71) against the running app.
 
-Draft and suggest-rules are stubbed with Playwright routing, so the suggestions are fixed. Starting a
-run (AC-56, AC-71) also stubs the company list, its readiness and the start call, and reads the body.
+Draft and suggest-rules are stubbed with Playwright routing, so the suggestions are fixed. The rules moved
+from the retired Extraction screen's Schema tab to step 3 (argus-simplified-pipeline slice 6): saving the
+fields there stores the schema version a run reads (AC-56, AC-71 read that saved version).
 """
 
 import os
@@ -14,13 +15,15 @@ from arp.schemas.rules import Condition, ThresholdRule
 from tests.rules_fixtures import R1, R2, R4, R5, schema_f
 
 URL = os.environ.get("ARP_E2E_URL")
+API = os.environ.get("ARP_E2E_API_URL", "http://127.0.0.1:8000")  # the stack's API (e2e_stack.sh)
 pytestmark = [
     pytest.mark.e2e,
     pytest.mark.skipif(not URL, reason="ARP_E2E_URL not set -- start backend/scripts/e2e_stack.sh"),
 ]
 
 F = schema_f().model_dump(mode="json")
-CONFIRM = re.compile(r"rule suggestions? waiting|Confirm schema")
+CONFIRM = re.compile(r"rule suggestions? waiting|Save as a draft schema|Save as v\d+")
+SAVE = "Save as a draft schema"
 # Two more rules on `ambition` that read `total` (AC-45) and `year` (AC-49).
 R_TOTAL = ThresholdRule(rule_id="RT", kind="threshold", conditions=[Condition(field="total", op=">=", value=100)])
 R_YEAR = ThresholdRule(rule_id="RY", kind="threshold", when=True, conditions=[Condition(field="year", op="<=", value=2040)])
@@ -65,11 +68,10 @@ def open_schema(page, drafted, *responses):
 
     page.route("**/api/extraction/schemas/draft", lambda route: route.fulfill(json=drafted))
     page.route("**/api/extraction/schemas/suggest-rules", suggest)
-    # Extraction is no longer in the sidebar; open it by its route.
-    page.goto(URL + "/#/extraction")
-    page.wait_for_load_state("networkidle")
-    page.get_by_role("tab", name="4. Schema").click()
-    page.get_by_role("button", name="Draft extraction schema").click()
+    fid = page.request.post(API + "/api/argus/flows").json()["flow_id"]
+    page.goto(f"{URL}/#/argus/{fid}/3")
+    page.get_by_label("What should be extracted?").fill("Transition targets")
+    page.get_by_role("button", name="Draft fields").click()
     page.get_by_role("button", name="+ Add a rule").wait_for()
     page.wait_for_function("() => !document.body.innerText.includes('Suggesting rules')")
     return calls
@@ -98,28 +100,12 @@ def confirm(page):
 
 
 def start_run(page):
-    """Picks one company (stubbed as ready), starts extraction and returns the posted body."""
-    page.route("**/api/universe/from-companies", lambda r: r.fulfill(json={"path": "e2e.csv", "company_count": 1, "sample": []}))
-    ready = {"on_disk": 1, "registered": 1, "parsed": 1, "doc_types": ["annual_report"], "last_seen_at": None, "ready": True}
-    acme = {"company_id": "acme", "name": "ACME", "ticker": None, "website": None}
-    page.route("**/api/documents/readiness", lambda r: r.fulfill(json={"ready": [{**acme, "readiness": ready}], "onboard": [], "readiness": {}}))
-    bodies = []
-
-    def start(route):
-        bodies.append(route.request.post_data_json)
-        route.fulfill(json={"run_id": "run_e2e", "company_count": 1, "run_type": "extraction"})
-
-    page.route("**/api/extraction/start", start)
-    page.get_by_role("tab", name="1. Companies").click()
-    page.get_by_role("button", name="Single company").click()
-    page.get_by_label("Company name").fill("ACME")
-    page.get_by_role("button", name="Use this company").click()
-    page.get_by_text("ACME selected · 1 ready · 0 to onboard").wait_for()
-    page.get_by_role("tab", name="5. Extract").click()
-    page.get_by_role("button", name="Start extraction").click()
-    page.wait_for_function("() => document.body.innerText.includes('Starting') || document.body.innerText.includes('companies processed')")
-    assert len(bodies) == 1
-    return bodies[0]["datapoint_schema"]
+    """After the fields were saved in step 3, returns the schema version a run started there reads."""
+    page.get_by_role("button", name=re.compile(r"^Edit as v\d+")).wait_for()
+    fid = re.search(r"#/argus/([0-9a-f]+)/3", page.url).group(1)
+    choice = page.request.get(f"{API}/api/argus/flows/{fid}").json()["schema_choice"]
+    assert choice["kind"] == "schema"
+    return page.request.get(f"{API}/api/extraction/schemas/{choice['schema_id']}?version={choice['version']}").json()
 
 
 def test_ac39_waiting_suggestion_shows_sentence_and_actions(page):
@@ -146,7 +132,7 @@ def test_ac42_none_waiting_enables_confirm(page):
     open_schema(page, schema(), suggestions(("ambition", R1()), ("nz2050", R2())))
     item(page, R1_SENTENCE).get_by_role("button", name="Accept").click()
     item(page, R2_SENTENCE).get_by_role("button", name="Drop").click()
-    assert confirm(page).inner_text() == f"Confirm schema ({len(F['fields'])} fields)"
+    assert confirm(page).inner_text() == SAVE
     assert confirm(page).is_enabled()
 
 
@@ -285,9 +271,13 @@ def test_ac56_all_dropped_runs_without_rules(page):
 def test_ac57_editing_a_confirmed_schema_asks_again(page):
     open_schema(page, schema(), suggestions())
     confirm(page).click()
+    edit = page.get_by_role("button", name=re.compile(r"^Edit as v\d+"))
+    edit.wait_for()
     assert confirm(page).count() == 0
+    next_version = edit.inner_text().removeprefix("Edit as ")
+    edit.click()
     page.get_by_label("Field 1 name").fill("Halving target (edited)")
-    assert confirm(page).inner_text() == f"Confirm schema ({len(F['fields'])} fields)"
+    assert confirm(page).inner_text() == f"Save as {next_version}"
     assert confirm(page).is_enabled()
 
 
@@ -343,8 +333,8 @@ def test_suggest_again_disabled_while_a_new_draft_runs(page):
     held = []
     page.unroute("**/api/extraction/schemas/draft")
     page.route("**/api/extraction/schemas/draft", lambda route: held.append(route))  # the redraft stays in flight until fulfilled
-    page.get_by_role("button", name="Draft extraction schema").click()
-    page.wait_for_function("() => [...document.querySelectorAll('button')].find(b => b.innerText === 'Draft extraction schema').disabled")
+    page.get_by_role("button", name="Draft fields").click()
+    page.wait_for_function("() => [...document.querySelectorAll('button')].find(b => b.innerText === 'Draft fields').disabled")
     assert len(held) == 1
     assert page.get_by_role("button", name="Suggest again").is_disabled()
     held[0].fulfill(json=schema())

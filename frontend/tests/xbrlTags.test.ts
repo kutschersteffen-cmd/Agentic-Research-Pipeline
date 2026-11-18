@@ -151,3 +151,10 @@ test("statusText words the routing statuses and leaves not_found alone", () => {
   assert.equal(statusText("no_source"), "No XBRL source yet");
   assert.equal(statusText("not_found", "esef"), "Not found in the ESEF filing index");
 });
+
+test("usingText names the count when known and never claims 0 for an unknown one", async () => {
+  const { usingText } = await import("../src/lib/xbrlTags.ts");
+  assert.equal(usingText(3), "Using 3 companies.");
+  assert.equal(usingText(1), "Using 1 company.");
+  assert.equal(usingText(null), "Using the saved universe.");
+});

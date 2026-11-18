@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
 from arp.schemas.common import now_iso
 from arp.schemas.engagement import (
+    OLD_ROLES,
+    OLD_STAGES,
     Commitment,
     CommitmentStatus,
     Contact,
@@ -64,10 +67,29 @@ class EngagementStore:
 
     def _save(self, record: EngagementRecord) -> EngagementRecord:
         record = record.model_copy(update={"updated_at": now_iso()})
+        data = self._keep_old_values(record.model_dump(mode="json"))
         # Write-then-rename (see arp/storage/atomic_io.py) -- a concurrent
         # reader never sees a half-written record.json.
-        atomic_write_text(self._record_path(record.company_id), record.model_dump_json(indent=2), prefix=".record_")
+        atomic_write_text(self._record_path(record.company_id), json.dumps(data, indent=2, ensure_ascii=False), prefix=".record_")
         return record
+
+    def _keep_old_values(self, data: dict) -> dict:
+        """Stored values of the removed ladder step and engager roles are mapped on read (schemas/engagement.py)
+        and never rewritten: where the mapped value is still what a write would store, the stored one stays."""
+        path = self._record_path(data["company_id"])
+        if not path.exists():
+            return data
+        stored = {i.get("issue_id"): i for i in json.loads(read_text_utf8(path)).get("issues", [])}
+        for issue in data["issues"]:
+            was = stored.get(issue["issue_id"], {})
+            if OLD_STAGES.get(was.get("escalation_stage")) == issue["escalation_stage"]:
+                issue["escalation_stage"] = was["escalation_stage"]
+            if was.get("engager_role") in OLD_ROLES and issue["engager_role"] is None:
+                issue["engager_role"] = was["engager_role"]
+            for new, old in zip(issue["escalation_history"], was.get("escalation_history", []), strict=False):  # append-only
+                if OLD_STAGES.get(old.get("stage")) == new["stage"]:
+                    new["stage"] = old["stage"]
+        return data
 
     def _log_event(self, company_id: str, event_type: str, detail: dict) -> None:
         from arp.storage.run_store import RunStore
@@ -184,13 +206,20 @@ class EngagementStore:
             return record
 
     def update_commitment_status(
-        self, company_id: str, issue_id: str, commitment_id: str, status: CommitmentStatus, validated_by: str | None = None
+        self,
+        company_id: str,
+        issue_id: str,
+        commitment_id: str,
+        status: CommitmentStatus,
+        validated_by: str | None = None,
+        evidence: str | None = None,
     ) -> EngagementRecord:
         with self.lock(company_id):
             record = self._get_or_raise(company_id)
             issue = self._find_issue(record, issue_id)
+            change = {"status": status, "validated_by": validated_by, "validated_at": now_iso(), "evidence": evidence}
             updated_commitments = [
-                c.model_copy(update={"status": status, "validated_by": validated_by, "validated_at": now_iso()}) if c.commitment_id == commitment_id else c
+                c.model_copy(update=change) if c.commitment_id == commitment_id else c
                 for c in issue.commitments
             ]
             if not any(c.commitment_id == commitment_id for c in issue.commitments):
@@ -200,12 +229,18 @@ class EngagementStore:
             self._log_event(company_id, "commitment_status_changed", {"issue_id": issue_id, "commitment_id": commitment_id, "status": status.value})
             return record
 
-    def set_milestone_stage(self, company_id: str, issue_id: str, stage: MilestoneStage, reason: str = "") -> EngagementRecord:
+    def set_milestone_stage(
+        self, company_id: str, issue_id: str, stage: MilestoneStage, reason: str = "", forward_only: bool = False
+    ) -> EngagementRecord:
+        """`forward_only` leaves an issue that is already at or past `stage` where it is."""
         from arp.schemas.engagement import MilestoneTransition
 
         with self.lock(company_id):
             record = self._get_or_raise(company_id)
             issue = self._find_issue(record, issue_id)
+            order = list(MilestoneStage)
+            if forward_only and order.index(issue.milestone_stage) >= order.index(stage):
+                return record
             transition = MilestoneTransition(stage=stage, reason=reason)
             issue = issue.model_copy(update={"milestone_stage": stage, "milestone_history": [*issue.milestone_history, transition]})
             record = self._save(self._replace_issue(record, issue))

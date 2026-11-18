@@ -112,3 +112,45 @@ def test_unreadable_tree_falls_back_to_headers_only(standins, monkeypatch):
     chunk = chunk_document(doc)[0]
     monkeypatch.setattr(module, "tree_for", lambda *a: (_ for _ in ()).throw(RuntimeError("database is locked")))
     assert index_text(chunk, doc, _on()) == _headers_only(chunk, doc)
+
+
+def test_switching_tree_context_embeds_each_text_once(standins, monkeypatch):
+    import numpy as np
+
+    from arp.extraction import field_graph
+    from arp.retrieval import content_store_factory, embeddings
+    from arp.schemas.datapoints import FieldDefinition
+
+    class _Store:
+        def __init__(self):
+            self.rows = {}
+
+        def lookup_embeddings(self, ids, model):
+            return {i: self.rows[(i, model)] for i in ids if (i, model) in self.rows}
+
+        def store_embeddings(self, vectors, model):
+            self.rows.update({(i, model): v for i, v in vectors.items()})
+
+    store = _Store()  # one store across the selections, like the Postgres cache
+    monkeypatch.setattr(content_store_factory, "build_hybrid_content_store", lambda s: store)
+    embedded: list[str] = []
+
+    def fresh_fake():  # a new stand-in per selection must still find the cached vectors
+        monkeypatch.setattr(embeddings, "embed_texts", lambda t: embedded.extend(t) or np.ones((len(t), 3), dtype=np.float32))
+
+    fresh_fake()
+    doc = _tree_doc()
+    _answer(standins, list(TITLES))
+    doc_tree.build_doc_tree(doc, get_settings())
+    field = FieldDefinition(name="f", description="d", data_type="number", extraction_instructions="x", seed_keywords=["text"])
+    off = get_settings().model_copy(update={"hybrid_retrieval_enabled": True, "small_to_big_enabled": False})
+    field_graph.field_evidence(field, [doc], off)
+    embedded.clear()
+    for _ in range(2):
+        fresh_fake()
+        field_graph.field_evidence(field, [doc], _on(hybrid_retrieval_enabled=True, small_to_big_enabled=False))
+    assert sorted(embedded) == sorted(index_text(c, doc, _on()) for c in chunk_document(doc, keywords=["text"]))
+    embedded.clear()
+    fresh_fake()
+    field_graph.field_evidence(field, [doc], off)
+    assert embedded == []  # headers-only vectors and the query's are reused

@@ -9,7 +9,7 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store, get_taxonomy_store, settings_dep
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
-from arp.discovery.site_finder import build_web_search_client
+from arp.discovery.site_finder import SearchUnreachable, build_web_search_client
 from arp.llm.base import LLMClient
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import now_iso
@@ -154,16 +154,17 @@ async def propose(
         return _apply(store, dossier_id, fn)
 
     async def run(run_id: str, llm: LLMClient, _verifier: LLMClient) -> None:
-        proposed, error = None, None
+        proposed, error, unreachable = None, None, False
         try:
             proposed = await propose_sources(taxonomy, build_web_search_client(settings.discovery_user_agent), llm)
         except Exception as exc:  # noqa: BLE001 - recorded on the round and the run
-            error = f"{type(exc).__name__}: {exc}"
+            error, unreachable = f"{type(exc).__name__}: {exc}", isinstance(exc, SearchUnreachable)
 
         def finish(record: ResearchRecord) -> None:
             r = record.latest
             if r is None or r.proposal_run_id != run_id:
                 return
+            r.search_unreachable = unreachable
             if proposed is None:
                 r.plan_status = "proposal_failed"
             else:
@@ -185,6 +186,8 @@ def add_source(
     source = ResearchSource(**req.model_dump(), added_by=principal.name)
 
     def fn(record: ResearchRecord) -> None:
+        if record.latest is not None and record.latest.plan_status == "proposal_failed":
+            record.latest.plan_status = "proposed"  # a failed proposal leaves the plan to fill by hand
         r = open_round(record)
         if len(r.sources) >= MAX_SOURCES:  # the note is written in one model call over at most this many sources
             raise Refused(409, f"a plan holds at most {MAX_SOURCES} sources")

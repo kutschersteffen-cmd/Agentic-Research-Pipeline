@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { api } from "../api/client";
 import { announce } from "../lib/announce";
-import { currentFact, errorDetail } from "../lib/barrier";
+import { currentFact, errorDetail, factSavedText } from "../lib/barrier";
 import type { BarrierFact, BarrierPrimarySource } from "../types";
 
 /** An analyst enters a fact for a source code cannot read: from a registered source, or with an uploaded PDF. */
@@ -42,7 +42,7 @@ export function BarrierFactForm({ code, region, facts, sources, onAdded }: {
         fact, value, unit: unit.trim(), quote, page, locator, source_key: sourceKey,
         ...(upload ? { file, title: title.trim(), publisher: publisher.trim(), as_of: asOf, tier } : {}),
       });
-      const msg = `Fact saved${res.page ? `, quote found on page ${res.page}` : ""}. Derive the cell to use it.`;
+      const msg = factSavedText(res);
       setNotice(msg);
       announce(msg);
       setValue("");

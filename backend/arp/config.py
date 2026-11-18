@@ -16,6 +16,22 @@ class Settings(BaseSettings):
     # LLM
     anthropic_api_key: str | None = Field(default=None)
     gemini_api_key: str | None = Field(default=None, description="Google Gemini API key, needed only when a run uses a gemini-* model.")
+    frontend_dist: Path | None = Field(
+        default=None,
+        description="Directory of the built frontend (frontend/dist). When set, the API serves it at / so the app "
+        "runs on one port, e.g. behind Jupyter Server Proxy. Build it with VITE_API_BASE=. for a path prefix.",
+    )
+    preflight_fetch_url: str = Field(
+        default="https://www.sec.gov/robots.txt",
+        description="URL `arp preflight` downloads to prove outbound document fetches work from this machine.",
+    )
+    gemini_use_vertex: bool = Field(
+        default=False,
+        description="Call Gemini through Vertex AI with Google application default credentials instead of "
+        "ARP_GEMINI_API_KEY (which is then ignored). Needs ARP_GCP_PROJECT.",
+    )
+    gcp_project: str | None = Field(default=None, description="Google Cloud project for Vertex AI calls.")
+    gcp_location: str = Field(default="global", description="Vertex AI location.")
     standins_dir: Path | None = Field(
         default=None,
         description="Test stand-ins: web search, source fetches and model calls answered from fixture files in this "
@@ -29,6 +45,16 @@ class Settings(BaseSettings):
         "repeat the same failure mode instead of catching it -- correlated errors the Advocate/Opposing/"
         "Adjudicator debate's differing prompts don't fix, because the underlying weights are identical. "
         "Set equal to llm_model to opt back into the old single-model behavior.",
+    )
+    gemini_fallback_model: str = Field(
+        default="gemini-3.8-flash",
+        description="Gemini model that replaces a Claude model built by build_llm_client when there is no Anthropic key "
+        "or Anthropic rejects a call for credit or auth. Needs ARP_GEMINI_API_KEY.",
+    )
+    gemini_fallback_verifier_model: str = Field(
+        default="gemini-3.8-flash",
+        description="Gemini model that replaces llm_verifier_model in the same cases. Equal to gemini_fallback_model "
+        "means the verifier is not independent of the extractor; that is logged.",
     )
     llm_cache_enabled: bool = Field(default=True)
     # The optional steps before extraction (arp/extraction/pre_steps.py),
@@ -101,10 +127,17 @@ class Settings(BaseSettings):
     )
     discovery_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".discovery_state")
     engagements_dir: Path = Field(default=REPO_ROOT / "engagements")
+    engagement_store: Literal["file", "postgres"] = Field(default="file", description="Where engagement records live: JSON files under engagements_dir, or Postgres (needs postgres_dsn).")
+    vote_monitoring_window_days: int = Field(default=365, description="Days a vote stays in the monitoring window.")
     stewardship_streams_dir: Path = Field(default=REPO_ROOT / "stewardship_streams", description="Stewardship process page: one JSON file per client stream (envisioned policy, review decisions, built policy).")
     indices_dir: Path = Field(
         default=REPO_ROOT / "indices",
         description="Index construction calibrations (versioned, effective-dated) and the reviews run from them; see arp/storage/index_store.py.",
+    )
+    holdings_dir: Path = Field(default=REPO_ROOT / "data" / "holdings", description="Holdings files Index Construction offers as starting universes.")
+    simulated_esg_path: Path = Field(
+        default=REPO_ROOT / "data" / "simulated" / "esg_simulated.csv",
+        description="Simulated ESG dataset joined onto loaded starting universes, when the file exists.",
     )
     ballots_dir: Path = Field(default=REPO_ROOT / "ballots", description="Where the manual-instruction ballot platform writes vote instruction files, absent a real custodian/proxy-platform integration.")
     reports_dir: Path = Field(default=REPO_ROOT / "reports", description="Presentation/Reporting Tool: one directory per generated report (manifest, request, plan, rendered output file).")
@@ -174,7 +207,7 @@ class Settings(BaseSettings):
         "node's summary and key terms, read from the stored tree (never built at retrieval). Evidence, grounding and "
         "citations still use the chunk text (arp/retrieval/index_text.py).",
     )
-    tree_summary_model: str = Field(default="claude-haiku-4-5-20251001", description="Model for the document tree's summaries (the Haiku model priced in arp/orchestration/cost_tracker.py).")
+    tree_summary_model: str = Field(default="claude-haiku-5-5", description="Model for the document tree's summaries (the Haiku model priced in arp/orchestration/cost_tracker.py).")
     tree_leaf_chars: int = Field(default=6000, description="Characters of a leaf's text sent for its summary.")
     rerank_enabled: bool = Field(
         default=False,
@@ -359,6 +392,10 @@ class Settings(BaseSettings):
     event_refresh_schema_ids: list[str] = Field(default=[], description="Released schemas each new filing is extracted with.")
     event_refresh_max_runs_per_day: int = Field(default=20, description="Cap on refresh runs started per UTC day.")
     event_refresh_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".event_refresh_state")
+    watch_check_on_new_documents: bool = Field(
+        default=True,
+        description="Check a company's open objectives, commitments and watch topics against each new or updated document discovery records (Postgres engagement store only).",
+    )
 
     # Emerging Themes Scanner ("Tool 0" -- arp/emerging_themes/). Ingests
     # public news/filings/regulatory flow across a universe, clusters it
@@ -608,6 +645,25 @@ class Settings(BaseSettings):
                 )
         return self
 
+    @field_validator("frontend_dist", mode="before")
+    @classmethod
+    def _frontend_dist_is_a_build(cls, value: object) -> object:
+        if value in (None, ""):
+            return None
+        if not (Path(str(value)) / "index.html").is_file():
+            raise ValueError(f"ARP_FRONTEND_DIST {value} is not a directory with an index.html.")
+        return value
+
+    @property
+    def gemini_available(self) -> bool:
+        return self.gemini_use_vertex or bool(self.gemini_api_key)
+
+    @model_validator(mode="after")
+    def _vertex_needs_project(self) -> "Settings":
+        if self.gemini_use_vertex and not self.gcp_project:
+            raise ValueError("ARP_GEMINI_USE_VERTEX is true but ARP_GCP_PROJECT is not set.")
+        return self
+
     @model_validator(mode="after")
     def _standins_only_without_model_key(self) -> "Settings":
         if self.standins_dir is None:
@@ -616,6 +672,8 @@ class Settings(BaseSettings):
             raise ValueError(
                 "ARP_STANDINS_DIR is set together with a model API key; stand-ins are for tests only. Unset one of them."
             )
+        if self.gemini_use_vertex:
+            raise ValueError("ARP_STANDINS_DIR is set together with ARP_GEMINI_USE_VERTEX; stand-ins are for tests only. Unset one of them.")
         if not self.standins_dir.is_dir():
             raise ValueError(f"ARP_STANDINS_DIR {self.standins_dir} is not a directory.")
         return self

@@ -12,7 +12,7 @@ from arp.transition_barrier import RUN_TYPE as BARRIER_RUN_TYPE
 if TYPE_CHECKING:
     from arp.api.auth import Principal
 
-REVIEWABLE_RUN_TYPES = ("theme", "extraction", "financials", "identity", "transition_plan", "tnfd", "holdings", BARRIER_RUN_TYPE)  # never voting
+REVIEWABLE_RUN_TYPES = ("theme", "extraction", "financials", "identity", "transition_plan", "tnfd", "holdings", "discovery", BARRIER_RUN_TYPE)  # never voting
 LEGACY_COSIGN = {"extraction": {"edit"}}
 
 
@@ -21,6 +21,8 @@ def cosign_rule(run_type: str) -> set[str]:
 
 
 def _queue_kind(run_type: str, row: dict) -> ReviewItemKind:
+    if row.get("kind") == "conflict" and "accepted" in row:  # a fact conflict; barrier rows use kind "conflict" too
+        return ReviewItemKind.CONFLICT
     if run_type == "extraction":
         return ReviewItemKind.VALUE if "field" in row or "fields" in row else ReviewItemKind.OTHER  # else a PreStepFailed report
     if run_type == "identity":
@@ -29,6 +31,8 @@ def _queue_kind(run_type: str, row: dict) -> ReviewItemKind:
         return ReviewItemKind.SECURITY
     if run_type == BARRIER_RUN_TYPE:
         return ReviewItemKind.BARRIER_CELL
+    if run_type == "discovery":
+        return ReviewItemKind.DISCOVERED_DOCUMENT if "url" in row else ReviewItemKind.NO_DOCUMENTS
     if run_type == "theme" and row.get("kind") == "sector_code":
         return ReviewItemKind.SECTOR_CODE
     return ReviewItemKind.OTHER

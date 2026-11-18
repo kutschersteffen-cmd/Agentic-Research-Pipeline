@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import re
+from pathlib import Path
 
 from arp.config import Settings
 from arp.ingestion.base import DocumentSource
@@ -25,25 +28,29 @@ class DocumentSourceRegistry:
         Results are still walked in source order, keeping the dedup deterministic,
         and return_exceptions preserves the per-source failure isolation below.
         """
+        docs, _ = await self.fetch_each(company, doc_types)
+        return await self.with_trees(dedup(docs))
+
+    async def fetch_each(self, company: CompanyRef, doc_types: list[DocType] | None = None) -> tuple[list[SourceDocument], list[str]]:
+        """Every source's documents in source order, undeduplicated, and the names of the sources that failed as a whole."""
         fetched = await asyncio.gather(
             *(source.fetch(company, doc_types) for source in self.sources),
             return_exceptions=True,
         )
-        seen_hashes: set[str] = set()
-        results: list[SourceDocument] = []
-        for source, docs in zip(self.sources, fetched, strict=True):
-            if isinstance(docs, BaseException):  # one source failing shouldn't block the others
-                logger.warning("Document source %s failed for %s: %s", source.name, company.company_id, docs)
-                continue
-            for doc in docs:
-                if doc.sha256 and doc.sha256 in seen_hashes:
-                    continue
-                if doc.sha256:
-                    seen_hashes.add(doc.sha256)
-                results.append(doc)
+        docs: list[SourceDocument] = []
+        failed: list[str] = []
+        for source, got in zip(self.sources, fetched, strict=True):
+            if isinstance(got, BaseException):  # one source failing shouldn't block the others
+                logger.warning("Document source %s failed for %s: %s", source.name, company.company_id, got)
+                failed.append(source.name)
+            else:
+                docs.extend(got)
+        return docs, failed
+
+    async def with_trees(self, docs: list[SourceDocument]) -> list[SourceDocument]:
         if self.settings is not None and (self.settings.doc_tree_enabled or self.settings.tree_context_enabled):
-            await self._build_trees(results)
-        return results
+            await self._build_trees(docs)
+        return docs
 
     async def _build_trees(self, docs: list[SourceDocument]) -> None:
         from arp.ingestion.doc_tree import build_doc_tree
@@ -53,3 +60,85 @@ class DocumentSourceRegistry:
                 await asyncio.to_thread(build_doc_tree, doc, self.settings)
             except Exception:  # noqa: BLE001 - the tree is optional; the fetch still succeeds
                 logger.warning("Document tree failed for %s", doc.doc_id, exc_info=True)
+
+
+def dedup(docs: list[SourceDocument]) -> list[SourceDocument]:
+    """The first document per content hash (the hash of its text)."""
+    seen: set[str] = set()
+    out = []
+    for doc in docs:
+        if doc.sha256 and doc.sha256 in seen:
+            continue
+        if doc.sha256:
+            seen.add(doc.sha256)
+        out.append(doc)
+    return out
+
+
+ONLY_DOCUMENTS = "only_documents.json"  # in a run's folder: company id -> the content keys it may read (Argus step 2)
+
+
+class UnreadableDocument(Exception):
+    """A kept document with no text: the company fails, and the error row marks it as a document problem."""
+
+    document_problem = True
+
+
+class KeptFileMissing(Exception):
+    """A kept file no source returned because a source failed as a whole: the company fails, not as a document problem."""
+
+
+class KeptDocuments:
+    """A document registry that hands a listed company only its kept documents (by content key); every other
+    company, and everything but `fetch_all`, is the wrapped registry's. `names`: content key -> file name, for the
+    error that names a kept file the run could not read."""
+
+    def __init__(self, inner, only: dict[str, set[str]], names: dict[str, str] | None = None) -> None:
+        self.inner, self.only, self.names = inner, only, names or {}
+
+    async def fetch_all(self, company: CompanyRef, doc_types: list[DocType] | None = None) -> list[SourceDocument]:
+        keep = self.only.get(company.company_id)
+        if keep is None:
+            return await self.inner.fetch_all(company, doc_types)
+        each = getattr(self.inner, "fetch_each", None)
+        # a registry without sources (tests): its own fetch
+        docs, failed = await each(company, doc_types) if each else (await self.inner.fetch_all(company, doc_types), [])
+        # the kept files first, then the dedup among them: the registry dedups on the text's hash, the kept list holds
+        # the files' byte hashes, so its dedup could drop a kept file for another with the same text
+        kept = dedup([d for d in docs if d.content_key in keep])
+        for d in kept:
+            if not _IMAGE.sub("", d.full_text).strip():
+                raise UnreadableDocument(f"No text could be read from {Path(d.local_path).name if d.local_path else d.title}")
+        # a kept file that failed to parse, or had no text, is left out of the fetch (logged, not raised);
+        # a doc-type fetch leaves some out on purpose
+        missing = sorted(keep - {d.content_key for d in docs}) if doc_types is None else []
+        if missing:
+            name = self.names.get(missing[0], "a kept file")
+            if LOCAL_SOURCE in failed:  # the kept files' own source failed as a whole: the file may be fine, so no Replace file
+                raise KeptFileMissing(f"Kept file not found: {name}")
+            raise UnreadableDocument(f"No text could be read from {name}")
+        return await self.inner.with_trees(kept) if each else kept  # as the registry's own fetch_all would have
+
+    def __getattr__(self, name):
+        return getattr(self.inner, name)
+
+
+LOCAL_SOURCE = "local_files"  # LocalFileDocumentSource.name: where step 2's kept files live
+_IMAGE = re.compile(r"<!--\s*image\s*-->")  # Docling's markdown for a picture: no text the run could read
+KEPT_NAMES = "kept_names.json"  # in a run's folder: content key -> file name of the kept files
+
+
+def read_only_documents(run_dir: Path) -> dict[str, set[str]] | None:
+    path = run_dir / ONLY_DOCUMENTS
+    return {k: set(v) for k, v in json.loads(path.read_text()).items()} if path.is_file() else None
+
+
+def read_kept_names(run_dir: Path) -> dict[str, str]:
+    path = run_dir / KEPT_NAMES
+    return json.loads(path.read_text()) if path.is_file() else {}
+
+
+def for_run(registry, run_dir: Path):
+    """The registry a run reads through: limited to its kept documents when it was started from Argus."""
+    only = read_only_documents(run_dir)
+    return registry if only is None else KeptDocuments(registry, only, read_kept_names(run_dir))

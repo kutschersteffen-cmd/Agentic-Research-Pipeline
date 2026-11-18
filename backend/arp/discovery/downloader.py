@@ -88,6 +88,7 @@ async def download_documents(
     working copy are still there, else the URL is fetched again in full.
     """
     discovered: list[DiscoveredDocument] = []
+    rejected_shas = {d.sha256 for d in (known or {}).values() if d.review == "rejected" and d.sha256}
     try:
         safe_company_id = safe_id(company.company_id, label="company_id")
     except UnsafeIdentifierError:
@@ -103,6 +104,8 @@ async def download_documents(
     ) as client:
         for candidate in candidates:
             prior = (known or {}).get(candidate.url)
+            if prior and prior.review == "rejected":
+                continue  # a reviewer dropped this URL: no request
             conditional = {}
             if prior and prior.http_etag:
                 conditional["If-None-Match"] = prior.http_etag
@@ -114,6 +117,8 @@ async def download_documents(
                     if prior is None:
                         logger.info("Skipping %s: 304 to a request without conditional headers", candidate.url)
                         continue
+                    if prior.sha256 in rejected_shas:
+                        continue  # the bytes a reviewer dropped, held at another URL
                     if _still_stored(prior, store):
                         record = CaptureRecord(
                             trigger=trigger,
@@ -156,6 +161,8 @@ async def download_documents(
                 continue
             record.collected = True
             append_capture(documents_dir, record)
+            if content_key in rejected_shas:
+                continue  # the bytes a reviewer dropped, at another URL: captured, not kept
 
             content_type = resp.headers.get("content-type", "").split(";")[0].strip()
             ext = _EXT_BY_CONTENT_TYPE.get(content_type)

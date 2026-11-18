@@ -13,6 +13,7 @@ from arp.ingestion.local_files import parse_file_to_text
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.job_manager import JobManager
 from arp.research.stock_inference.clusters import build_clusters, cluster_points
+from arp.research.stock_inference.index_rules import stated_index_rules
 from arp.research.stock_inference.profile import description_chunks, discover_missing, profile_all
 from arp.research.stock_inference.schemas import Cluster, InferRun
 from arp.research.stock_inference.selection import load_stocks, select
@@ -52,16 +53,18 @@ def load_run(run_id: str, run_store) -> InferRun:
 def _round(v):
     if isinstance(v, float):
         return round(v, 4)
-    if isinstance(v, dict):
-        return {k: _round(x) for k, x in v.items()}
+    if isinstance(v, dict):  # construction_spec keeps full precision: rounding 1e-9 floors to 0 would not validate
+        return {k: x if k == "construction_spec" else _round(x) for k, x in v.items()}
     if isinstance(v, list):
         return [_round(x) for x in v]
     return v
 
 
 def dump(run: InferRun) -> dict:
-    """The run JSON: numbers rounded to 4 decimals; a profile's `error` is absent on success."""
+    """The run JSON: numbers rounded to 4 decimals; a profile's `error` and an unset `comovement` are absent."""
     data = _round(run.model_dump(mode="json"))
+    if data["comovement"] is None:
+        del data["comovement"]
     for p in data["profiles"]:
         if p["error"] is None:
             del p["error"]
@@ -126,8 +129,8 @@ async def start(
     segments = load_segments(segments_path) if segments_path else {}
     methodology_docs = await read_methodology(list(methodology), settings.discovery_user_agent)
     name = name or stocks_path.stem
-    params = {"stocks": str(stocks_path), "methodology": list(methodology), "name": name,
-              "segments": str(segments_path) if segments_path else None,
+    params = {"stocks": str(stocks_path.resolve()), "methodology": list(methodology), "name": name,
+              "segments": str(Path(segments_path).resolve()) if segments_path else None,
               "benchmark": str(benchmark_path) if benchmark_path else None}
     jobs = JobManager(run_store)
     manifest = jobs.create_run("stock_inference", params, len(selected), model=settings.llm_model,
@@ -156,8 +159,11 @@ async def start(
         clusters = build_clusters(chunks, {p.company_id: p.weight for p in described}, bench,
                                   cluster=cluster, embed=embed)
         run = run.model_copy(update={"clusters": clusters})
-        # stated_theme comes from layer 1 (PR 3); methodology documents are used for quote grounding only
-        themes, outliers = await propose_themes(profiles, clusters, None, methodology_docs, llm,
+        stated_theme = None
+        if methodology_docs:
+            index_rules, stated_theme = await stated_index_rules(methodology_docs, name, llm)
+            run = run.model_copy(update={"index_rules": index_rules})
+        themes, outliers = await propose_themes(profiles, clusters, stated_theme, methodology_docs, llm,
                                                 samples=_samples(clusters, chunks),
                                                 fuzzy_threshold=settings.grounding_fuzzy_threshold)
         if not themes:

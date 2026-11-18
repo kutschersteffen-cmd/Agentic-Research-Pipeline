@@ -24,6 +24,7 @@ class ReasonCode(StrEnum):
     AUTO_CORRECTED = "auto_corrected"
     PERIOD_MISSING = "period_missing"
     EXTRACTION_FAILED = "extraction_failed"  # the model's answer never fit the field type
+    NO_DOCUMENTS = "no_documents"  # a discovery run found no document for the company
 
 
 class DecisionKind(StrEnum):
@@ -88,12 +89,15 @@ def sector_item_key(company_id: str) -> str:
 
 class ReviewItemKind(StrEnum):
     VALUE = "value"
+    CONFLICT = "conflict"  # a run's new value against an accepted fact (data rule 1)
     SECTOR_CODE = "sector_code"
     IDENTITY = "identity"
     QUARANTINED_DOCUMENT = "quarantined_document"
     RESTATEMENT_CANDIDATE = "restatement_candidate"
     SECURITY = "security"
     BARRIER_CELL = "barrier_cell"
+    DISCOVERED_DOCUMENT = "discovered_document"
+    NO_DOCUMENTS = "no_documents"
     OTHER = "other"
 
 
@@ -113,15 +117,16 @@ class ItemDecisionRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")  # an old client's `reviewer` is ignored
 
     decision: Literal["approve", "correct", "reject", "escalate"]
-    reason_code: DecisionReason
+    # Required for every item but a conflict, which takes the spec's bare {"decision": ...} (decide.py fills them)
+    reason_code: DecisionReason | None = None
     corrected_value: dict | None = None
     correction_citation: Citation | None = None
     comment: str | None = None
-    context_etag: str = Field(min_length=1)
+    context_etag: str | None = Field(default=None, min_length=1)
 
     @model_validator(mode="after")
     def _consistent(self) -> ItemDecisionRequest:
-        if (self.decision == "approve") != (self.reason_code == DecisionReason.CONFIRMED):
+        if self.reason_code is not None and (self.decision == "approve") != (self.reason_code == DecisionReason.CONFIRMED):
             raise ValueError("approve requires reason 'confirmed'; every other decision forbids it")
         if self.reason_code == DecisionReason.SPAN_MOVED:
             raise ValueError("span_moved is set by the system only")

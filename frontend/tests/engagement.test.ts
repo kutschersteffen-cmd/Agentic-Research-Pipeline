@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { engagementCounts, engagementLine } from "../src/lib/engagement.ts";
+import { batchFlagLines, canSaveResult, checkLine, dueText, engagementCounts, engagementLine, evidenceText, fmt, foundHeader, foundLine, isDemoIssue, issueTopics, loadSuggestions, quoteInNote } from "../src/lib/engagement.ts";
 
 const issue = (status: string, escalation_stage: string) => ({ status, escalation_stage }) as never;
 
@@ -9,10 +9,10 @@ test("engagementCounts tells open, stalled and escalated apart", () => {
     {
       issues: [
         issue("open", "private_engagement"),
-        issue("open", "joint_engagement"),
-        issue("stalled", "joint_engagement"),
-        issue("resolved", "joint_engagement"),
-        issue("closed", "joint_engagement"),
+        issue("open", "written_escalation_to_board"),
+        issue("stalled", "written_escalation_to_board"),
+        issue("resolved", "written_escalation_to_board"),
+        issue("closed", "written_escalation_to_board"),
       ],
     },
   ];
@@ -33,4 +33,104 @@ test("an unknown escalation stage counts as escalated while the issue is open", 
 test("engagementLine never shows a zero nobody measured", () => {
   assert.equal(engagementLine(null), "Engagement · — open · — stalled · — escalated");
   assert.equal(engagementLine("error"), "Engagement · counts unavailable");
+});
+
+test("issueTopics keeps one engagement's topics in the API's order", () => {
+  const topics = [
+    { topic_id: "t3", engagement_id: "e1" },
+    { topic_id: "t2", engagement_id: "e2" },
+    { topic_id: "t1", engagement_id: "e1" },
+  ];
+  assert.deepEqual(issueTopics(topics, "e1").map((t) => t.topic_id), ["t3", "t1"]);
+  assert.deepEqual(issueTopics(topics, "e9"), []);
+});
+
+test("checkLine spells out singular and plural, and the no-documents case", () => {
+  assert.equal(checkLine({ documents: 1, suggestions: 1, unclear: 0 }), "Checked 1 document: 1 new suggestion, 0 unclear.");
+  assert.equal(checkLine({ documents: 5, suggestions: 0, unclear: 2 }), "Checked 5 documents: 0 new suggestions, 2 unclear.");
+  assert.equal(checkLine({ documents: 0, suggestions: 0, unclear: 0 }), "No documents on file for this company.");
+});
+
+test("foundLine counts suggestions", () => {
+  assert.equal(foundLine(1), "Found 1 suggestion.");
+  assert.equal(foundLine(0), "Found 0 suggestions.");
+});
+
+test("evidenceText leaves out the page, or the title, when unknown", () => {
+  const quote = "The board formed a climate committee in March 2026.";
+  assert.equal(evidenceText({ doc_title: "AR2026.txt", page: null, quote }), `AR2026.txt: "${quote}"`);
+  assert.equal(evidenceText({ doc_title: "AR 2026.pdf", page: 4, quote }), `AR 2026.pdf, page 4: "${quote}"`);
+  assert.equal(evidenceText({ doc_title: null, page: null, quote }), `"${quote}"`);
+});
+
+test("Save result needs an influence level unless the result is abandoned", () => {
+  assert.equal(canSaveResult("achieved", "", "Committee named"), false);
+  assert.equal(canSaveResult("achieved", "3", "Committee named"), true);
+  assert.equal(canSaveResult("abandoned", "", "Company sold the unit"), true);
+  assert.equal(canSaveResult("achieved", "3", "  "), false);
+  assert.equal(canSaveResult("", "3", "x"), false);
+});
+
+// Review fixes (spec commitment-loop-review-fixes): the suggestions error and the found-commitment header.
+
+const listing = (fail: string | null) => async () => {
+  if (fail) throw new Error(fail);
+  return { suggestions: [] };
+};
+
+test("loadSuggestions keeps the file store's 409 silent (AC-14)", async () => {
+  const r = await loadSuggestions(listing("409: Watch items need the Postgres engagement store."));
+  assert.deepEqual(r, { loaded: null, error: null });
+});
+
+test("loadSuggestions reports any other error, and a later success clears it (AC-15)", async () => {
+  let calls = 0;
+  const list = async () => listing(calls++ < 2 ? "500: boom" : null)();
+  assert.deepEqual(await loadSuggestions(list), { loaded: null, error: "500: boom" });
+  assert.deepEqual(await loadSuggestions(list), { loaded: { pending: [], confirmed: [] }, error: null });
+  assert.deepEqual(await loadSuggestions(listing("Failed to fetch")), { loaded: null, error: "Failed to fetch" });
+});
+
+test("foundHeader names the note's type and date, or no date when the note is unknown (AC-16, AC-17)", () => {
+  assert.equal(foundHeader({ type: "meeting", activity_type: "meeting", date: "2026-10-01T09:00:00+00:00" }), "Argus found a commitment in the meeting of 2026-10-01");
+  assert.equal(foundHeader({ type: "email", date: "2026-10-01" }), "Argus found a commitment in the email of 2026-10-01");
+  assert.equal(foundHeader(undefined), "Argus found a commitment in a note");
+});
+
+test("quoteInNote matches word for word, ignoring case, spacing and typographic quotes and dashes", () => {
+  assert.equal(quoteInNote("We will publish a transition plan by 2026.", "Call: we will  publish a transition plan by 2026. Thanks"), true);
+  assert.equal(quoteInNote("We’ll publish – by 2026", "they said we'll publish - by 2026"), true);
+  assert.equal(quoteInNote("“Net zero” by 2050", "\"net\u00a0zero\" by 2050"), true);
+  assert.equal(quoteInNote("We will publish a transition plan by 2026.", "We shall publish a transition plan by 2026."), false);
+  assert.equal(quoteInNote("  ", "anything"), false);
+});
+
+// Stewardship screens polish (spec stewardship-screens-polish, PR B).
+
+test("dueText keeps a date whole unless it is an ISO timestamp (B2)", () => {
+  assert.equal(dueText("end of FY2027"), "end of FY2027");
+  assert.equal(dueText("2026-12-31T00:00:00"), "2026-12-31");
+  assert.equal(dueText("2025-12-31 (approx.)"), "2025-12-31 (approx.)");
+});
+
+test("fmt turns codes into words (B9)", () => {
+  assert.equal(fmt("not_achieved"), "not achieved");
+  assert.equal(fmt("in_progress"), "in progress");
+});
+
+test("isDemoIssue looks at the issue and every objective (B10)", () => {
+  assert.equal(isDemoIssue({ data_source: null, objectives: [{ source: null }, { source: "mock_voice_seed" }] as never }), true);
+  assert.equal(isDemoIssue({ data_source: "npx_urth_demo", objectives: [] }), true);
+  assert.equal(isDemoIssue({ data_source: null, objectives: [{ source: null }] as never }), false);
+});
+
+test("batchFlagLines lists each flag of a company in the batch once (B11)", () => {
+  const ballots = [
+    { company_id: "A", name: "Alpha Corp", watch_flags: [{ message: "Commitment overdue." }, { message: "Objective overdue." }] },
+    { company_id: "A", name: "Alpha Corp", watch_flags: [{ message: "Commitment overdue." }] },
+    { company_id: "B", name: "Beta plc", watch_flags: [] },
+    { company_id: "C", name: "Gamma", watch_flags: [{ message: "Broken." }] },
+  ];
+  assert.deepEqual(batchFlagLines(ballots, ["A", "A", "B"]), ["Alpha Corp: Commitment overdue.", "Alpha Corp: Objective overdue."]);
+  assert.deepEqual(batchFlagLines(ballots, ["B"]), []);
 });

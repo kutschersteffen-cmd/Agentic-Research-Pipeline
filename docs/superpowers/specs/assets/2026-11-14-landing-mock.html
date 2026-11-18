@@ -1,0 +1,264 @@
+<title>ARP Landing Mockup</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500&family=Geist:wght@400;600;700&family=Geist+Mono:wght@500&display=swap">
+<style>
+/* Layout: full-bleed dot canvas behind a left intro column, header lockup top-left, promises footer. Arctic tokens (DESIGN.md) + --brand-apex. */
+:root {
+  --bg: #ffffff; --panel-border: #d9e8f2; --text: #082f49; --muted: #3d5a6e; --accent: #0a4a8f; --on-accent: #ffffff;
+  --run: #0284c7; --paper-mark: #f6ecd6; --brand-apex: #ea4c14; --orb: #ea4c14;
+  --serif: "Source Serif 4", Georgia, serif; --sans: "Geist", -apple-system, "Segoe UI", sans-serif; --mono: "Geist Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #06141d; --panel-border: #1d3a4d; --text: #e2f1fa; --muted: #94b6c9; --accent: #38bdf8; --on-accent: #06141d;
+  --run: #7dd3fc; --paper-mark: rgb(246 236 214 / 0.22); --brand-apex: #ff6a2b; --orb: #ff6a2b; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #06141d; --panel-border: #1d3a4d; --text: #e2f1fa; --muted: #94b6c9; --accent: #38bdf8; --on-accent: #06141d;
+  --run: #7dd3fc; --paper-mark: rgb(246 236 214 / 0.22); --brand-apex: #ff6a2b; --orb: #ff6a2b; color-scheme: dark; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); }
+* { box-sizing: border-box; }
+
+.landing { position: relative; min-height: 100%; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; grid-template-columns: minmax(0, 1fr); }
+.landing-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.landing-bar, .landing-main, .landing-promises { position: relative; }
+.landing-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding-block: 24px; padding-left: max(32px, env(safe-area-inset-left, 0px)); padding-right: max(32px, env(safe-area-inset-right, 0px)); }
+.landing-brand { display: inline-flex; align-items: center; gap: 14px; }
+.landing-mark { height: 28px; width: auto; color: var(--text); display: block; }
+.landing-full { color: var(--muted); font-size: 14px; }
+.landing-main { align-self: center; display: grid; gap: 16px; max-width: 640px; padding-block: 32px; padding-right: 48px;
+  padding-left: max(32px, env(safe-area-inset-left, 0px));
+  /* See-through: the network shows behind the intro; a soft halo keeps the text legible. */
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 40%, transparent) 55%, transparent); }
+.landing-main h1, .landing-main p { text-shadow: 0 0 14px var(--bg), 0 0 4px var(--bg); }
+.landing-main h1 { margin: 0; font-family: var(--serif); font-weight: 500; letter-spacing: -0.01em;
+  font-size: clamp(2.5rem, 2rem + 3vw, 4.2rem); line-height: 1.02; text-wrap: balance; }
+.landing-main p { margin: 0; font-size: 16px; line-height: 1.55; color: var(--muted); max-width: 46ch; }
+.landing-main mark { color: inherit; padding: 0.05em 0.3em; margin: 0 -0.1em; border-radius: 0.8em 0.25em 0.9em 0.3em;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+  background: linear-gradient(100deg, transparent 0.4%, var(--paper-mark) 2%, var(--paper-mark) 97%, transparent 99.6%); }
+.landing-open { justify-self: start; padding: 12px 20px; border-radius: 8px; background: var(--accent); color: var(--on-accent); font-weight: 600; text-decoration: none; }
+.landing-open:focus-visible { outline: 2px solid var(--run); outline-offset: 3px; }
+.landing-promises { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; border-top: 1px solid var(--panel-border); background: var(--bg);
+  padding-block: 24px; padding-left: max(32px, env(safe-area-inset-left, 0px)); padding-right: max(32px, env(safe-area-inset-right, 0px)); }
+.landing-promises div { display: grid; gap: 4px; }
+.landing-promises b::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 0; background: var(--text); margin-right: 9px; vertical-align: 2px; }
+.landing-promises span { color: var(--muted); font-size: 14px; }
+
+/* Review controls: not part of the page being mocked. */
+.review { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; font: 500 12px var(--mono); }
+.review button { font: inherit; color: var(--text); background: var(--bg); border: 1px dashed var(--panel-border); border-radius: 6px; padding: 5px 9px; cursor: pointer; }
+.review button[aria-pressed="true"] { border-style: solid; border-color: var(--text); }
+.review button:focus-visible { outline: 2px solid var(--run); outline-offset: 2px; }
+
+@media (max-width: 700px) {
+  .landing-promises { grid-template-columns: minmax(0, 1fr); }
+  .landing-main { background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 40%, transparent) 70%, transparent); padding-right: 32px; }
+}
+</style>
+
+<div class="landing">
+  <canvas class="landing-canvas" id="cv" aria-hidden="true"></canvas>
+  <header class="landing-bar">
+    <span class="landing-brand">
+      <svg class="landing-mark" viewBox="0 0 206 62" role="img" aria-label="ARP">
+        <path fill="currentColor" d="M14 2h10v10h-10zM38 2h10v10h-10zM2 14h10v10h-10zM50 14h10v10h-10zM2 26h10v10h-10zM14 26h10v10h-10zM26 26h10v10h-10zM38 26h10v10h-10zM50 26h10v10h-10zM2 38h10v10h-10zM50 38h10v10h-10zM2 50h10v10h-10zM50 50h10v10h-10zM74 2h10v10h-10zM86 2h10v10h-10zM98 2h10v10h-10zM110 2h10v10h-10zM74 14h10v10h-10zM122 14h10v10h-10zM74 26h10v10h-10zM86 26h10v10h-10zM98 26h10v10h-10zM110 26h10v10h-10zM74 38h10v10h-10zM110 38h10v10h-10zM74 50h10v10h-10zM122 50h10v10h-10zM146 2h10v10h-10zM158 2h10v10h-10zM170 2h10v10h-10zM182 2h10v10h-10zM146 14h10v10h-10zM194 14h10v10h-10zM146 26h10v10h-10zM158 26h10v10h-10zM170 26h10v10h-10zM182 26h10v10h-10zM146 38h10v10h-10zM146 50h10v10h-10z"/>
+        <rect x="26" y="2" width="10" height="10" fill="var(--brand-apex)"/>
+      </svg>
+      <span class="landing-full">Agentic Research Pipeline</span>
+    </span>
+    <span class="review" aria-label="Mockup controls">
+      <button type="button" id="t-light">Light</button><button type="button" id="t-dark">Dark</button><button type="button" id="t-orb">Show orb</button><button type="button" id="t-formed">Show formed</button><button type="button" id="t-replay">Replay</button><span id="t-phase" aria-live="off" style="min-width:64px;opacity:.7"></span>
+    </span>
+  </header>
+  <main class="landing-main">
+    <h1>Company research and stewardship at scale.</h1>
+    <p>Leveraging expert judgement through Agents.</p>
+    <a class="landing-open" href="#home">Open ARP →</a>
+  </main>
+  <footer class="landing-promises">
+    <div><b>The LLM plans, code computes</b><span>Models draft the plan; deterministic code does the maths.</span></div>
+    <div><b>Every citation re-verified</b><span>Each quote is checked against the source document, not trusted from the model.</span></div>
+    <div><b>Nothing flagged ships</b><span>No flagged item reaches an export until a named person approves it.</span></div>
+  </footer>
+</div>
+
+<script>
+// Landing animation v2 (24 s loop): a huge chaotic network -> gathers into a rotating holographic orb
+// of rings, spokes and fragments -> pixel "ARP" emerges from its core -> holds -> dissolves back.
+// Original design in brand colours (no amber: nothing here waits on a person).
+const A = [".X.X.", "X...X", "XXXXX", "X...X", "X...X"], R_ = ["XXXX.", "X...X", "XXXX.", "X..X.", "X...X"], P_ = ["XXXX.", "X...X", "XXXX.", "X....", "X...."];
+const CELLS = [];
+[[0, A], [6, R_], [12, P_]].forEach(([off, L]) => L.forEach((row, y) => [...row].forEach((c, x) => { if (c === "X") CELLS.push([off + x, y]); })));
+const HI = [2, 0]; CELLS.push(HI);
+const PHASES = [["network", 5000], ["gather", 4000], ["orb", 4000], ["emerge", 3500], ["formed", 4000], ["dissolve", 3500]];
+const LOOP = PHASES.reduce((s, [, l]) => s + l, 0);
+function phaseAt(ms) { let r = ((ms % LOOP) + LOOP) % LOOP; for (const [p, l] of PHASES) { if (r < l) return { phase: p, t: r / l }; r -= l; } return { phase: "network", t: 0 }; }
+const ease = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const dpr = Math.min(2, window.devicePixelRatio || 1);
+let W = 0, H = 0, N = 0, ps = [], edges = [], adj = [], rings = [], groups = [], pulses = [], col = {}, dark = false, seed = 11;
+let orb = { cx: 0, cy: 0, R: 0 }, cell = 0, dotsPer = 4;
+const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const readColours = () => {
+  const s = getComputedStyle(cv), g = (n) => s.getPropertyValue(n).trim();
+  col = { g: g('--orb'), m: g('--muted'), r: g('--run'), f: g('--text'), o: g('--brand-apex'), bg: g('--bg') };
+  const h = col.bg.replace('#', ''); dark = h.length >= 6 && (parseInt(h.slice(0, 2), 16) + parseInt(h.slice(2, 4), 16) + parseInt(h.slice(4, 6), 16)) < 200;
+};
+function unit() { const z = rnd() * 2 - 1, a = rnd() * 6.283, r = Math.sqrt(1 - z * z); return [r * Math.cos(a), z, r * Math.sin(a)]; }
+function basis(n) { const a = Math.abs(n[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]; let u = [n[1] * a[2] - n[2] * a[1], n[2] * a[0] - n[0] * a[2], n[0] * a[1] - n[1] * a[0]]; const l = Math.hypot(...u); u = u.map((x) => x / l); const v = [n[1] * u[2] - n[2] * u[1], n[2] * u[0] - n[0] * u[2], n[0] * u[1] - n[1] * u[0]]; return [u, v]; }
+
+function build() {
+  W = cv.offsetWidth; H = cv.offsetHeight; if (!W || !H) return;
+  cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); readColours(); seed = 11;
+  const narrow = W < 700;
+  orb = narrow ? { cx: W / 2, cy: H / 2, R: Math.min(W * 0.42, H * 0.3) } : { cx: W * 0.7, cy: H / 2, R: Math.min(H * 0.34, W * 0.2) };
+  N = Math.round(Math.max(500, Math.min(1400, (W * H) / 900)));
+  dotsPer = [5, 4, 3].find((d) => CELLS.length * d * d <= N * 0.45) || 3;
+  cell = Math.floor((orb.R * 1.75) / 17);
+  // Network: nodes everywhere, wired to their nearest neighbours (grid buckets keep the build linear).
+  ps = Array.from({ length: N }, () => ({ hx: rnd() * W, hy: rnd() * H, ph: rnd() * 6.28, sp: 0.3 + rnd() * 0.7, delay: rnd() }));
+  const D = Math.max(60, Math.sqrt((W * H) / N) * 1.7), grid = new Map(), key = (x, y) => (x << 16) | y;
+  ps.forEach((p, i) => { const k = key(Math.floor(p.hx / D), Math.floor(p.hy / D)); (grid.get(k) || grid.set(k, []).get(k)).push(i); });
+  edges = []; adj = ps.map(() => []);
+  ps.forEach((p, i) => {
+    const gx = Math.floor(p.hx / D), gy = Math.floor(p.hy / D), near = [];
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const j of grid.get(key(gx + dx, gy + dy)) || []) {
+      if (j === i) continue; const d = Math.hypot(ps[j].hx - p.hx, ps[j].hy - p.hy); if (d < D) near.push([d, j]);
+    }
+    near.sort((a, b) => a[0] - b[0]).slice(0, 3).forEach(([, j]) => { if (i < j) { edges.push([i, j]); adj[i].push(j); adj[j].push(i); } });
+  });
+  // Orb: tilted rings (spinning on their own), latitude bands, spokes, a core and shell fragments.
+  rings = []; groups = [];
+  const order = [...ps.keys()].sort(() => rnd() - 0.5); let next = 0;
+  const take = (n) => order.slice(next, (next += n));
+  for (let r = 0; r < 9; r++) {
+    const lat = r < 3, n = lat ? [0, 1, 0] : unit(), [u, v] = basis(n);
+    const c = lat ? (r - 1) * 0.42 : 0, rad = lat ? Math.sqrt(1 - c * c) : 0.62 + rnd() * 0.42;
+    const ring = { n, u, v, c, rad, spin: (lat ? 0.15 : 0.25 + rnd() * 0.45) * (rnd() < 0.5 ? -1 : 1) };
+    rings.push(ring);
+    const ids = take(Math.floor((N * 0.58) / 9));
+    ids.forEach((i, k) => Object.assign(ps[i], { kind: 'ring', ri: r, th: (k / ids.length) * 6.283 }));
+    groups.push({ ids, closed: true });
+  }
+  for (let s = 0; s < 14; s++) {
+    const d = unit(), ids = take(Math.floor((N * 0.14) / 14));
+    ids.forEach((i, k) => { const f = 0.12 + (k / ids.length) * 0.98; Object.assign(ps[i], { kind: 'fixed', b: d.map((x) => x * f) }); });
+    groups.push({ ids, closed: false });
+  }
+  const coreN = Math.floor(N * 0.05);
+  take(coreN).forEach((i) => { const d = unit(), f = rnd() * 0.13; Object.assign(ps[i], { kind: 'fixed', b: d.map((x) => x * f), core: true }); });
+  order.slice(next).forEach((i) => { const d = unit(), f = 0.78 + rnd() * 0.32; Object.assign(ps[i], { kind: 'fixed', b: d.map((x) => x * f) }); });
+  // ARP: dot-matrix targets centred on the orb; a random subset of particles flies there.
+  const step = cell / dotsPer, x0 = orb.cx - (cell * 17) / 2, y0 = orb.cy - (cell * 5) / 2, T = [];
+  for (const [c, r] of CELLS) for (let a = 0; a < dotsPer; a++) for (let b = 0; b < dotsPer; b++)
+    T.push([x0 + c * cell + (b + 0.5) * step, y0 + r * cell + (a + 0.5) * step, c === HI[0] && r === HI[1]]);
+  ps.forEach((p) => (p.arp = false));
+  [...ps.keys()].sort(() => rnd() - 0.5).slice(0, T.length).forEach((i, k) => Object.assign(ps[i], { arp: true, tx: T[k][0], ty: T[k][1], hi: T[k][2] }));
+  pulses = Array.from({ length: Math.round(N / 30) }, () => newPulse(Math.floor(rnd() * N), 0));
+  ps.forEach((p) => (p.x = p.hx, p.y = p.hy));
+  window.__arp = { N, T: T.length, edges: edges.length };
+}
+function newPulse(a, t0) { const nb = adj[a]; const b = nb.length ? nb[Math.floor(rnd() * nb.length)] : a; return { a, b, t0, dur: 500 + rnd() * 700 }; }
+
+const home = (p, t) => [p.hx + Math.sin((t / 2100) * p.sp + p.ph) * 34 + Math.sin(t / 370 + p.ph * 3) * 2, p.hy + Math.cos((t / 2700) * p.sp + p.ph * 1.3) * 26];
+function orbPos(p, t, open) {
+  let v;
+  if (p.kind === 'ring') { const r = rings[p.ri], th = p.th + (r.spin * t) / 1000, c = Math.cos(th) * r.rad, s = Math.sin(th) * r.rad; v = [r.n[0] * r.c + c * r.u[0] + s * r.v[0], r.n[1] * r.c + c * r.u[1] + s * r.v[1], r.n[2] * r.c + c * r.u[2] + s * r.v[2]]; }
+  else v = p.b;
+  const ay = t * 0.00022, ax = 0.32 + Math.sin(t * 0.0003) * 0.1, cy = Math.cos(ay), sy = Math.sin(ay), cx = Math.cos(ax), sx = Math.sin(ax);
+  let x = v[0] * cy + v[2] * sy, z = -v[0] * sy + v[2] * cy, y = v[1] * cx - z * sx; z = v[1] * sx + z * cx;
+  const R = orb.R * (1 + 0.025 * Math.sin(t / 900) + open * 0.18), f = 2.6, s = f / (f + z);
+  return [orb.cx + x * R * s, orb.cy + y * R * s, (1 - z) / 2];
+}
+
+let posCache = [];
+function draw(t) {
+  const { phase, t: pt } = phaseAt(t), e = ease(pt);
+  const netVis = phase === 'network' ? 1 : phase === 'gather' ? clamp(1 - pt * 1.8) : phase === 'dissolve' ? clamp((pt - 0.3) / 0.7) : 0;
+  const orbVis = phase === 'gather' ? e * e : phase === 'orb' ? 1 : phase === 'emerge' ? 1 - 0.55 * e : phase === 'formed' ? 0.45 : phase === 'dissolve' ? 0.45 * (1 - e) : 0;
+  const open = phase === 'emerge' ? e : phase === 'formed' ? 1 : phase === 'dissolve' ? 1 - e : 0;
+  ctx.clearRect(0, 0, W, H);
+  const add = dark ? 'lighter' : 'source-over';
+  // Halo behind the orb.
+  if (orbVis > 0) {
+    const g = ctx.createRadialGradient(orb.cx, orb.cy, 0, orb.cx, orb.cy, orb.R * 1.25);
+    g.addColorStop(0, col.g); g.addColorStop(1, 'transparent');
+    ctx.globalAlpha = (dark ? 0.3 : 0.12) * orbVis; ctx.fillStyle = g; ctx.fillRect(orb.cx - orb.R * 1.3, orb.cy - orb.R * 1.3, orb.R * 2.6, orb.R * 2.6);
+  }
+  // Positions and per-particle state.
+  posCache.length = N;
+  for (let i = 0; i < N; i++) {
+    const p = ps[i], net = home(p, t);
+    let x = net[0], y = net[1], d = 0.5, st = 0, k = 0; // st: 0 net, 1 orb, 2 arp
+    const o = phase === 'network' ? null : orbPos(p, t, open);
+    if (phase === 'gather') { k = ease(clamp((pt - p.delay * 0.35) / 0.65)); x = lerp(net[0], o[0], k); y = lerp(net[1], o[1], k); d = o[2]; st = k > 0.5 ? 1 : 0; }
+    else if (phase === 'orb') { [x, y, d] = o; st = 1; }
+    else if (phase === 'emerge') { if (p.arp) { k = ease(clamp((pt - p.delay * 0.4) / 0.6)); x = lerp(o[0], p.tx, k); y = lerp(o[1], p.ty, k); st = k > 0.6 ? 2 : 1; d = o[2]; } else { [x, y, d] = o; st = 1; } }
+    else if (phase === 'formed') { if (p.arp) { x = p.tx; y = p.ty; st = 2; } else { [x, y, d] = o; st = 1; } }
+    else if (phase === 'dissolve') { k = ease(clamp((pt - p.delay * 0.3) / 0.7)); const fx = p.arp ? p.tx : o[0], fy = p.arp ? p.ty : o[1]; x = lerp(fx, net[0], k); y = lerp(fy, net[1], k); d = o[2]; st = k < 0.4 ? (p.arp ? 2 : 1) : 0; }
+    p.x = x; p.y = y; p.d = d; p.st = st; p.k = k;
+  }
+  // Network wiring.
+  if (netVis > 0) {
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = (dark ? 0.22 : 0.16) * netVis; ctx.strokeStyle = col.m; ctx.lineWidth = 0.7;
+    ctx.beginPath(); for (const [a, b] of edges) { ctx.moveTo(ps[a].x, ps[a].y); ctx.lineTo(ps[b].x, ps[b].y); } ctx.stroke();
+  }
+  // Orb lines: ring arcs and spokes, bucketed by depth so the front reads brighter.
+  if (orbVis > 0) {
+    ctx.globalCompositeOperation = add; ctx.strokeStyle = col.g; ctx.lineWidth = dark ? 0.9 : 0.8;
+    const buckets = [[], [], [], []];
+    for (const g of groups) {
+      const L = g.ids.length, n = g.closed ? L : L - 1;
+      for (let s = 0; s < n; s++) {
+        const a = ps[g.ids[s]], b = ps[g.ids[(s + 1) % L]];
+        if (a.st !== 1 || b.st !== 1) continue;
+        if (Math.abs(a.x - b.x) + Math.abs(a.y - b.y) > orb.R * 0.5) continue; // gaps where particles have left
+        buckets[Math.min(3, Math.floor((a.d + b.d) * 2))].push(a, b);
+      }
+    }
+    buckets.forEach((seg, bi) => { ctx.globalAlpha = orbVis * (0.12 + bi * 0.2) * (dark ? 1 : 0.8); ctx.beginPath(); for (let s = 0; s < seg.length; s += 2) { ctx.moveTo(seg[s].x, seg[s].y); ctx.lineTo(seg[s + 1].x, seg[s + 1].y); } ctx.stroke(); });
+  }
+  // Particles: squares, the Pixel A's own marker.
+  const sq = (x, y, s) => ctx.fillRect(x - s / 2, y - s / 2, s, s);
+  ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = col.m;
+  for (const p of ps) if (p.st === 0) { ctx.globalAlpha = 0.5 * (dark ? 0.9 : 1) * Math.max(netVis, 0.35); sq(p.x, p.y, 1.8); }
+  ctx.globalCompositeOperation = add; ctx.fillStyle = col.g;
+  for (const p of ps) if (p.st === 1) { ctx.globalAlpha = Math.max(0.15, orbVis) * (0.3 + 0.7 * p.d) * (p.core ? 1 : 0.85); sq(p.x, p.y, p.core ? 2.6 : 1.2 + 1.4 * p.d); }
+  ctx.globalCompositeOperation = 'source-over';
+  const ds = Math.max(2, cell / dotsPer - 1.2);
+  for (const p of ps) if (p.st === 2) { ctx.globalAlpha = 1; ctx.fillStyle = p.hi ? col.o : col.f; sq(p.x, p.y, ds); }
+  // Signals running through the network.
+  if (netVis > 0) {
+    ctx.globalCompositeOperation = add; ctx.fillStyle = col.r;
+    for (let i = 0; i < pulses.length; i++) {
+      let q = pulses[i]; let u = (t - q.t0) / q.dur;
+      if (u >= 1 || u < 0) { q = pulses[i] = newPulse(q.b, t); u = 0; }
+      const a = ps[q.a], b = ps[q.b]; ctx.globalAlpha = netVis * 0.9; sq(lerp(a.x, b.x, u), lerp(a.y, b.y, u), 2.6);
+    }
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  return phase;
+}
+
+let start = null, frozen = null;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const label = document.getElementById('t-phase');
+build();
+function loop(now) { start ??= now; const ph = draw(frozen ?? (now - start)); if (label) label.textContent = ph; requestAnimationFrame(loop); }
+if (reduce) frozen = 18500;
+requestAnimationFrame(loop);
+let rf = 0; addEventListener('resize', () => { if (rf) return; rf = requestAnimationFrame(() => { rf = 0; build(); }); });
+
+const root = document.documentElement;
+const $l = document.getElementById('t-light'), $d = document.getElementById('t-dark'), $f = document.getElementById('t-formed'), $o = document.getElementById('t-orb');
+const setTheme = (m) => { root.dataset.theme = m; $l.setAttribute('aria-pressed', m === 'light'); $d.setAttribute('aria-pressed', m === 'dark'); readColours(); };
+const freeze = (ms, btn) => { const on = frozen !== ms; frozen = on ? ms : null; if (!on) start = performance.now() - ms; [$f, $o].forEach((b) => b.setAttribute('aria-pressed', on && b === btn)); };
+$l.onclick = () => setTheme('light'); $d.onclick = () => setTheme('dark');
+$f.onclick = () => freeze(18500, $f); $o.onclick = () => freeze(11000, $o);
+document.getElementById('t-replay').onclick = () => { frozen = null; start = performance.now(); [$f, $o].forEach((b) => b.setAttribute('aria-pressed', 'false')); };
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColours);
+</script>

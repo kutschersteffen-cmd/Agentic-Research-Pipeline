@@ -13,6 +13,8 @@ from typing import Literal, NamedTuple
 
 from pydantic import BaseModel
 
+from arp.schemas.reporting import TemplateFrame
+
 _STYLE_DIR = Path(__file__).parent / "style"
 
 
@@ -34,7 +36,7 @@ class Grid(BaseModel):
 
 
 class TypeStyle(BaseModel):
-    size: int
+    size: float
     line_height: float
     weight: int
     font: Literal["heading", "body"]
@@ -76,7 +78,12 @@ class Tokens(BaseModel):
     type: dict[str, TypeStyle]
     color: Colors  # light mode
     color_dark: Colors
+    graphite: dict[str, str]  # the slide-component palette (light)
+    graphite_dark: dict[str, str]
     fonts: Fonts
+    frame: TemplateFrame | None = None  # a company template's boxes; None = the house frame
+    font_dir: str | None = None  # the template's uploaded font files
+    emu_per_px: float = 9525  # the PPTX scale: a 20 in slide, or the template's own width / 1920
 
     def colors(self, mode: Mode) -> Colors:
         return self.color_dark if mode == "dark" else self.color
@@ -131,18 +138,38 @@ def load_layouts() -> dict[str, LayoutSpec]:
     return {ly.id: ly for ly in (LayoutSpec.model_validate(x) for x in raw["layouts"])}
 
 
-def slot_rect(tokens: Tokens, slot: SlotSpec) -> Rect:
-    g = tokens.grid
-    col_w = (tokens.canvas.width - 2 * g.margin_x - (g.columns - 1) * g.gutter) / g.columns
-    body_top = g.margin_top + g.headline_band
-    body_h = tokens.canvas.height - g.margin_bottom - g.footer_band - body_top
+def slot_rect(tokens: Tokens, slot: SlotSpec, house: bool = False) -> Rect:
+    """The slot's box on the 12x12 body grid: the house body area, or a template frame's body box.
+    `house` keeps the house geometry under a frame (title and section slides)."""
+    g, f = tokens.grid, tokens.frame
+    if f is not None and not house:
+        left, top, width, body_h = f.body.x, f.body.y, f.body.w, f.body.h
+    else:
+        left, top, width = g.margin_x, g.margin_top + g.headline_band, tokens.canvas.width - 2 * g.margin_x
+        body_h = tokens.canvas.height - g.margin_bottom - g.footer_band - top
+    col_w = (width - (g.columns - 1) * g.gutter) / g.columns
     row_h = body_h / 12
     return Rect(
-        x=g.margin_x + slot.col * (col_w + g.gutter),
-        y=body_top + slot.row * row_h,
+        x=left + slot.col * (col_w + g.gutter),
+        y=top + slot.row * row_h,
         w=slot.span * col_w + (slot.span - 1) * g.gutter,
         h=slot.rows * row_h,
     )
+
+
+def with_frame(tokens: Tokens, frame: TemplateFrame, font_dir: str | None, slide_width_emu: int) -> Tokens:
+    """`tokens` drawn inside a company template: its boxes, its families (dark mode too), its slide width."""
+    def stack(family: str) -> str:
+        return f"'{family}', {tokens.fonts.body}"
+
+    fonts = Fonts(heading=stack(frame.headline_font.family), body=stack(frame.body_font_family), mono=stack(frame.body_font_family))
+    return tokens.model_copy(update={"frame": frame, "font_dir": font_dir, "fonts": fonts, "emu_per_px": slide_width_emu / tokens.canvas.width})
+
+
+def footer_fits(tokens: Tokens) -> bool:
+    """The footer keeps its house row only when the body box ends above it (always, without a frame)."""
+    g, f = tokens.grid, tokens.frame
+    return f is None or f.body.y + f.body.h <= tokens.canvas.height - g.margin_bottom - g.footer_band + 0.5
 
 
 def get_variant(layout: str, variant: str) -> VariantSpec:

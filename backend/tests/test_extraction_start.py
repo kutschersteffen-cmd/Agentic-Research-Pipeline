@@ -334,3 +334,16 @@ def test_a_preset_is_readable_without_saving_it(api):
     assert len(r.json()["fields"]) == 72  # 64 questions + 8 helpers
     assert api.get("/api/extraction/presets/no_such_preset").status_code == 404
     assert SchemaRegistry(api.pg).list_index() == []
+
+
+def test_restart_of_an_argus_run_keeps_its_kept_documents(calls, tmp_path, monkeypatch, pg):
+    from arp.ingestion.registry import ONLY_DOCUMENTS, KeptDocuments
+
+    monkeypatch.setattr(extraction, "get_registry", lambda: "registry")
+    store = RunStore(pg, tmp_path)
+    run_id = _finished_run(store, calls)
+    (store.run_dir(run_id) / ONLY_DOCUMENTS).write_text(json.dumps({"c1": ["k1"]}))
+    calls.clear()
+    _restart(store, run_id, from_step="verify")
+    (_, _, kwargs), = calls
+    assert isinstance(kwargs["registry"], KeptDocuments) and kwargs["registry"].only == {"c1": {"k1"}}

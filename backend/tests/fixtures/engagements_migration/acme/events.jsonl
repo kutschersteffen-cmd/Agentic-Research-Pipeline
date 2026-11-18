@@ -1,0 +1,4 @@
+{"event_type": "record_created", "at": "2026-11-12T22:29:44.954252+00:00"}
+{"event_type": "issue_opened", "at": "2026-11-12T22:29:44.954860+00:00", "issue_id": "iss_e809b0ac2683", "theme": "executive_compensation", "source": "manual"}
+{"event_type": "issue_opened", "at": "2026-11-12T22:29:44.955561+00:00", "issue_id": "iss_72fda15fc980", "theme": "board_governance", "source": "manual"}
+{"event_type": "correspondence_added", "at": "2026-11-12T22:29:44.957937+00:00", "issue_id": "iss_e809b0ac2683", "entry_id": "corr_1", "type": "letter"}

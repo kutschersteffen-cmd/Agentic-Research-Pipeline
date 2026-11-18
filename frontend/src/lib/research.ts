@@ -23,6 +23,15 @@ export const canPropose = (r: ResearchRound | undefined) =>
 
 export const planOpen = (r: ResearchRound | undefined) => r?.plan_status === "proposed";
 
+/** Sources can be added to an open plan, and by hand after a failed proposal (the backend then opens the plan). */
+export const canAddSource = (r: ResearchRound | undefined) => planOpen(r) || r?.plan_status === "proposal_failed";
+
+/** What a failed proposal says: search down, or any other failure. */
+export const proposalFailedText = (r: ResearchRound) =>
+  r.search_unreachable
+    ? "The web search could not be reached, so no sources were proposed. Add a source by hand below, or propose again."
+    : "The source proposal failed. Propose again, or add a source by hand below.";
+
 const rewritable = (r: ResearchRound) => !r.note || r.note.status === "write_failed" || r.note.status === "rejected";
 
 export const canWriteNote = (r: ResearchRound | undefined) => !!r && r.plan_status === "approved" && rewritable(r);

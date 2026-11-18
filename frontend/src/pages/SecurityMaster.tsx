@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../api/client";
 import { announce } from "../lib/announce";
-import { parseIntakeError, rowErrorText } from "../lib/holdings";
+import { parseIntakeError, rowErrorText, unmatchedEmptyText } from "../lib/holdings";
 import type { RowError, SecurityMasterStatus, UnmatchedSecurity } from "../types";
 
 /** Data Hub's golden source: the security master maps every security (and issuer identifier) to one internal issuer
@@ -105,7 +105,7 @@ export function SecurityMaster() {
               <tr><th>ISIN</th><th>Held by</th><th>As of</th><th>Reason</th></tr>
             </thead>
             <tbody>
-              {unmatched?.length === 0 && <tr><td colSpan={4} className="muted">Every held security is matched.</td></tr>}
+              {unmatched?.length === 0 && status && <tr><td colSpan={4} className="muted">{unmatchedEmptyText(status.issuers)}</td></tr>}
               {unmatched?.map((r) => (
                 <tr key={`${r.kind}/${r.holder_id}/${r.security_id}`}>
                   <td>{r.isin ?? r.security_id}</td>

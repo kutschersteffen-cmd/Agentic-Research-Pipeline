@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useReducer, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 import { api } from "../api/client";
-import type { RunManifest, StewardshipFlow } from "../types";
-import { ACTIVE_STATUSES, decisionRunType, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
+import type { RunManifest, StewardshipFlow, StewardshipStage } from "../types";
+import { ACTIVE_STATUSES, REVIEWABLE_RUN_TYPES, decisionRunType, waitingCount } from "../lib/runs";
 import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { useMe } from "../lib/reviewer";
-import { useWaitingTotal } from "../lib/useWaitingTotal";
-import { DONE, STATE_LABEL, cardView, openCount, stepState, type StepState } from "../lib/workspaceCard";
+import { STATE_LABEL, cardView, failedProcesses, flowTrack, openCount, processState, stepActivity, stepState, stepStatusLine, type Activity, type StepState } from "../lib/workspaceCard";
+import { Drawing, WorkspaceDrawing } from "../components/WorkspaceDrawing";
+import { cockpitDrawing } from "../lib/workspaceDrawing";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
 
@@ -14,56 +15,10 @@ import { previousMonth } from "../lib/holdings";
 // their processes live in lib/processes.ts; this file draws them and reads
 // their live state from the runs list and the house stewardship flow.
 
-// One icon family on a 48 grid: the same stroke everywhere, and exactly one
-// element per icon in the highlight colour (.hub-ico .hi / .hi-fill).
-const ICON = { width: 52, height: 52, viewBox: "0 0 48 48", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, className: "hub-ico", "aria-hidden": true };
-
-const ICONS: Record<WorkspaceId, ReactElement> = {
-  stewardiq: (
-    <svg {...ICON}>
-      <path d="M24 5 L39 10 V23 C39 32 32.5 39.5 24 43 C15.5 39.5 9 32 9 23 V10 Z" />
-      <path className="hi" d="M16.5 24 L22 29.5 L31.5 19" />
-    </svg>
-  ),
-  argus: (
-    <svg {...ICON}>
-      <path d="M11 5 H29 L37 13 V43 H11 Z" />
-      <path d="M29 5 V13 H37 M16 20 H31 M16 34 H26" />
-      <path className="hi" d="M16 27 H44 M40 23 L44 27 L40 31" />
-    </svg>
-  ),
-  transitionIntel: (
-    <svg {...ICON}>
-      <circle cx="24" cy="24" r="18" />
-      <path d="M6 24 H42 M24 6 C17 12 17 36 24 42 M24 6 C31 12 31 36 24 42" opacity="0.55" />
-      <path className="hi" d="M12 32 L20 25 L26 29 L37 16" />
-    </svg>
-  ),
-  rdLab: (
-    <svg {...ICON}>
-      <circle cx="24" cy="24" r="19" strokeDasharray="2 4" opacity="0.55" />
-      <path d="M24 24 L12.5 14 M24 24 L35.5 14 M24 24 L24 36" />
-      <circle cx="11" cy="12.5" r="3.5" />
-      <circle cx="37" cy="12.5" r="3.5" />
-      <circle cx="24" cy="39.5" r="3.5" />
-      <circle className="hi-fill" cx="24" cy="24" r="5.5" />
-    </svg>
-  ),
-  dataHub: (
-    <svg {...ICON}>
-      <ellipse cx="24" cy="10" rx="15" ry="5" />
-      <path d="M9 10 V38 C9 41 15.7 43 24 43 C32.3 43 39 41 39 38 V10" />
-      <path d="M9 19 C9 22 15.7 24 24 24 C32.3 24 39 22 39 19" />
-      <path className="hi" d="M9 28.5 C9 31.5 15.7 33.5 24 33.5 C32.3 33.5 39 31.5 39 28.5" />
-    </svg>
-  ),
-};
-
-const WORKSPACE_OF_RUN_TYPE = new Map(WORKSPACES.flatMap((w) => w.runTypes.map((t) => [t, w] as const)));
 
 /** Runs, refreshed every 3 s while one is live, every 15 s otherwise. Null
  * until the first answer: a count nobody received is unknown, never zero. */
-function useRuns() {
+export function useRuns() {
   const [runs, setRuns] = useState<RunManifest[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {
@@ -80,7 +35,7 @@ function useRuns() {
 
 
 /** The house stewardship flow, loaded once: its stages carry StewardIQ's numbers. */
-function useHouseFlow() {
+export function useHouseFlow() {
   const [flow, setFlow] = useState<StewardshipFlow | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -89,56 +44,51 @@ function useHouseFlow() {
   return { flow, error };
 }
 
-/** Where a run row goes: its review, its ballot, or its process. */
-function runHref(r: RunManifest): string {
-  if (r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type)) return `#/review/${r.run_type}/${encodeURIComponent(r.run_id)}`;
-  if (r.run_type === "proxy_voting") return `#/voting/${encodeURIComponent(r.run_id)}`;
-  const w = WORKSPACE_OF_RUN_TYPE.get(r.run_type);
-  return w ? `#/${w.id}` : "#/history";
+/** Loads and the monthly run leave no run behind: their steps read the feed overview and the last monthly run.
+ * Loaded once; null until both answer (or when one fails), which leaves those steps as they were: "No runs yet". */
+function useActivity(): Activity | null {
+  const [activity, setActivity] = useState<Activity | null>(null);
+  useEffect(() => {
+    Promise.all([api.listFeeds(), api.lastMonthlyRun()]).then(
+      ([f, lastRun]) => setActivity({ feeds: f.feeds, lastRun }),
+      () => undefined,
+    );
+  }, []);
+  return activity;
 }
 
-const WEEK_MS = 7 * 24 * 3600 * 1000;
-const isToday = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
-const recent = (iso: string) => Date.now() - new Date(iso).getTime() < WEEK_MS;
-
-/** A workspace as a card: a way into it. Icon, purpose, one dot per process and the
- * process that matters now; the count lives in the headline. */
+/** A workspace as a card: a way into it. A drawing, its purpose, one square per process and one
+ * status line naming what matters now; the label carries each process's state for screen readers. */
 function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
   const v = cardView(w, runs, flow, new Date());
+  const { word, tone, detail } = v.status;
+  const n = w.processes.length;
   return (
-    <a className={`hub-card${v.awaits ? " hub-card-await" : ""}`} href={`#/${w.id}`} aria-label={v.label}>
-      {ICONS[w.id]}
-      <span className="hub-card-text">
-        <span className="hub-card-name">{w.name}</span>
-        <span className="hub-card-purpose" title={w.purpose}>{w.purpose}</span>
+    <a className={`hub-card${tone === "wait" ? " hub-card-await" : ""}`} href={`#/${w.id}`} aria-label={v.label}>
+      <span className="hub-card-fig">
+        <span className="hub-card-cap">{`${n} ${n === 1 ? "process" : "processes"}`}</span>
+        <WorkspaceDrawing id={w.id} accent={tone === "wait" ? "wait" : tone === "now" ? "now" : null} />
       </span>
-      <ol className="hub-dots">
-        {w.processes.map((p, i) => (
-          <li key={p.id} className={`hub-dot-${v.dots[i]}`} />
-        ))}
-      </ol>
-      <span className="hub-card-now">{v.now}</span>
-      <span className="hub-card-foot">{v.footer}</span>
+      <span className="hub-card-body">
+        <span className="hub-card-name">{w.short ?? w.name}</span>
+        <span className="hub-card-purpose">{w.purpose}</span>
+        <span className="hub-card-status">
+          <span className="hub-marks" aria-hidden="true">
+            {v.dots.map((d, i) => (
+              <span key={i} className={`hub-mark hub-mark-${d}`} />
+            ))}
+          </span>
+          <span>
+            <span className={`hub-status-${tone}`}>{word}</span>
+            {detail && <span className="hub-status-detail"> · {detail}</span>}
+          </span>
+        </span>
+      </span>
     </a>
   );
 }
 
-/** The key to the step dots on the start page's workspace cards. Workspace
- * pages mark state on the step cards themselves, so they carry no legend. */
-function StateLegend({ waiting }: { waiting: boolean }) {
-  // The signal colour only appears when something waits (One Signal Rule), so its key does too.
-  const keys: StepState[] = waiting ? ["done", "now", "wait", "failed", "idle"] : ["done", "now", "failed", "idle"];
-  return (
-    <p className="muted hub-legend">
-      {keys.map((st) => (
-        <span key={st}>
-          <span className={`hub-dot hub-dot-${st}`} aria-hidden />
-          {STATE_LABEL[st]}
-        </span>
-      ))}
-    </p>
-  );
-}
+const COCKPIT_SHAPES = cockpitDrawing();
 
 export function StartPage() {
   const { runs, error, retry } = useRuns();
@@ -147,57 +97,17 @@ export function StartPage() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const name = reviewer.trim();
-  // The one waiting total (null while loading, "error" if it could not load).
-  const needsTotal = useWaitingTotal(runs, flow);
-
   const known = runs !== null;
-  const all = runs ?? [];
-  const active = all.filter((r) => ACTIVE_STATUSES.has(r.status));
-  const waiting = known && typeof needsTotal === "number" ? needsTotal : null;
-  const failed = all.filter((r) => r.status === "failed" && recent(r.updated_at));
-  const today = all.filter((r) => DONE.has(r.status) && isToday(r.updated_at));
-  // Failed runs count in the headline (they wait on a Resume); this row is only what is running.
-  const chips = [...active].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 6);
-  const n = (v: number) => (known ? v : "—");
 
   return (
     <div className="page hub hub-start">
       <header className="hub-hero">
-        <div>
         <h1>
           <span className="hub-hero-greet">
             {greeting}
             {name ? `, ${name}` : ""}.
           </span>
-          <span>
-            {!known ? (error ? "Runs could not be loaded." : "Loading runs…") : needsTotal === "error" ? "What waits on you could not be loaded." : waiting === null ? "Loading what waits on you…" : waiting > 0 ? waiting === 1 ? "1 decision waits on you." : `${waiting} decisions wait on you.` : "Nothing waits on you."}
-          </span>
         </h1>
-        {waiting !== null && (
-          <details className="hub-counts">
-            <summary>What counts?</summary>
-            Review items, ballots, open stewardship decisions, failed runs to resume and blocking data issues. The Review Queue and each workspace list them.
-          </details>
-        )}
-        </div>
-        <dl className="hub-stats">
-          <div className={waiting ? "you" : undefined}>
-            <dt>waiting on you</dt>
-            <dd>{waiting ?? "—"}</dd>
-          </div>
-          <div>
-            <dt>running</dt>
-            <dd>{n(active.length)}</dd>
-          </div>
-          <div className={known && failed.length > 0 ? "failed" : undefined}>
-            <dt>failed this week</dt>
-            <dd>{n(failed.length)}</dd>
-          </div>
-          <div>
-            <dt>done today</dt>
-            <dd>{n(today.length)}</dd>
-          </div>
-        </dl>
       </header>
       {error && (
         <p className="error-text" role="alert">
@@ -212,23 +122,17 @@ export function StartPage() {
           <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} />
         ))}
       </div>
-      <StateLegend waiting={!!waiting} />
-      {known && (
-      <nav className="hub-now" aria-label="Runs running">
-        <span className="hub-now-label">Now</span>
-        {chips.map((r) => {
-          const state = ACTIVE_STATUSES.has(r.status) ? "now" : "failed";
-          const pct = r.company_count > 0 ? Math.round((r.completed_count / r.company_count) * 100) : 0;
-          return (
-            <a key={r.run_id} className={`hub-chip hub-chip-${state}`} href={runHref(r)}>
-              <span className={`hub-dot hub-dot-${state}`} aria-hidden />
-              {runTypeLabel(r.run_type)} <span className="hub-chip-id">{r.run_id}</span> · {state === "now" ? `running ${pct}%` : "failed"}
-            </a>
-          );
-        })}
-        {chips.length === 0 && <span className="muted">Nothing running.</span>}
-      </nav>
-      )}
+      {/* Not a workspace card: one StewardIQ screen with its own way in, so the cards stay five workspaces. */}
+      <a className="hub-entry" href="#/stewardiq/cockpit" aria-label="Cockpit, StewardIQ" aria-describedby="hub-entry-cockpit-purpose">
+        <span className="hub-entry-fig">
+          <Drawing shapes={COCKPIT_SHAPES} />
+        </span>
+        <span className="hub-card-body">
+          <span className="hub-card-cap hub-entry-cap">StewardIQ</span>
+          <span className="hub-card-name">Cockpit</span>
+          <span className="hub-card-purpose" id="hub-entry-cockpit-purpose">Engagement coverage, upcoming meetings, control gaps, escalation and votes on one page.</span>
+        </span>
+      </a>
     </div>
   );
 }
@@ -256,23 +160,64 @@ function writeWalk(walk: Walk | null) {
 }
 
 /** One process drawn as its steps in order: each card carries the step's live
- * state, what it hands on, and opens the screen that does it. */
-function ProcessFlow({ p, runs, flow }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+ * state and what it hands on; a click opens its details panel under the flow. */
+function ProcessFlow({ p, runs, flow, activity }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null; activity: Activity | null }) {
+  const state = runs ? processState(p, runs, flow, activity) : null;
+  const [open, setOpen] = useState<number | null>(null);
+  // While a panel is open the flow keeps the fold it had when the panel opened, so a poll never folds it away under the reader.
+  const [openFolded, setOpenFolded] = useState(false);
+  const folded = open !== null ? openFolded : state === "idle";
+  const toggle = (i: number) => {
+    setOpenFolded(folded);
+    setOpen(open === i ? null : i);
+  };
+  const views = p.steps.map((s) => stepView(s, runs, flow, activity));
+  const { reached, runInto } = flowTrack(views.map((v) => v.state));
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "Escape" || open === null) return;
+    e.stopPropagation(); // Esc closes this panel only, not the Ask ARP panel listening on window
+    setOpen(null);
+    document.getElementById(`step-${p.id}-${open}`)?.focus();
+  };
+  const steps = (
+    <div onKeyDown={onKeyDown}>
+      <ol className="hub-flow">
+        {p.steps.map((s, i) => (
+          <li key={`${s.tab}-${s.sub ?? ""}-${i}`} className={`hub-flow-item${i <= reached ? " reached" : ""}${runInto[i] ? " run-into" : ""}`}>
+            <StepCard s={s} i={i} p={p} view={views[i]} open={open === i} onToggle={() => toggle(i)} />
+          </li>
+        ))}
+      </ol>
+      {open !== null && <StepPanel s={p.steps[open]} i={open} p={p} view={views[open]} />}
+    </div>
+  );
   return (
     <section className="hub-process" aria-labelledby={`process-${p.id}`}>
       <div className="section-heading">
         <h2 id={`process-${p.id}`}>{p.title}</h2>
-        <span className="chip">{p.cadence}</span>
+        <span className="hub-process-meta">
+          {state && (
+            <span className="hub-process-state">
+              <span className={`hub-mark hub-mark-${state}`} aria-hidden />
+              <span className={`hub-status-${state}`}>{STATE_LABEL[state]}</span>
+            </span>
+          )}
+          <span className="chip">{p.cadence}</span>
+        </span>
       </div>
       <p className="help-text">
         <strong>Done when:</strong> {p.outcome}
       </p>
       {p.run && <RunProcess p={p} />}
-      <ol className="hub-flow">
-        {p.steps.map((s, i) => (
-          <StepCard key={`${s.tab}-${s.sub ?? ""}-${i}`} s={s} i={i} p={p} runs={runs} flow={flow} />
-        ))}
-      </ol>
+      {/* A process nobody has run is folded away so the ones with activity stand out; one click opens it. */}
+      {folded ? (
+        <details className="hub-process-fold">
+          <summary>Show {p.steps.length} steps</summary>
+          {steps}
+        </details>
+      ) : (
+        steps
+      )}
     </section>
   );
 }
@@ -289,7 +234,7 @@ function RunProcess({ p }: { p: Process }) {
   if (p.run === "extraction") {
     return (
       <p className="hub-run">
-        <a className="button-link" href="#/extraction/companies/auto" onClick={() => writeWalk({ id: p.id, step: 1 })}>
+        <a className="button-link" href="#/argus/new" onClick={() => writeWalk({ id: p.id, step: 1 })}>
           Run process
         </a>{" "}
         <span className="muted">Pick the companies; Identify, Documents and Extract then follow on their own and stop wherever something is flagged.</span>
@@ -334,57 +279,109 @@ function RunProcess({ p }: { p: Process }) {
   );
 }
 
-function StepCard({ s, i, p, runs, flow }: { s: Step; i: number; p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
-  const state = stepState(s, runs, flow);
+type StepView = { state: StepState; line: ReturnType<typeof stepStatusLine>; last: RunManifest | undefined; stage: StewardshipStage | undefined; fromRuns: boolean };
+
+/** What a step shows, worked out once for its card and its details panel. */
+function stepView(s: Step, runs: RunManifest[] | null, flow: StewardshipFlow | null, activity: Activity | null): StepView {
+  const state = stepState(s, runs, flow, activity);
   const mine = s.runTypes && runs ? runs.filter((r) => s.runTypes!.includes(decisionRunType(r))).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)) : null;
   const last = mine?.[0];
   const waiting = mine && !s.reviewedElsewhere ? mine.reduce((n, r) => n + waitingCount(r), 0) : 0;
   const stage = s.stage ? flow?.stages.find((x) => x.id === s.stage) : undefined;
-  const decisions = openCount(stage);
-  return (
-    <li className="hub-flow-item">
-      <a className={`hub-step hub-step-${state}`} href={stepHref(s)} onClick={() => writeWalk({ id: p.id, step: i })}>
+  const line = stepStatusLine(state, waiting, openCount(stage), last?.updated_at ?? stepActivity(s, activity)?.at ?? null);
+  return { state, line, last, stage, fromRuns: waiting > 0 };
+}
+
+function StepCard({ s, i, p, view, open, onToggle }: { s: Step; i: number; p: Process; view: StepView; open: boolean; onToggle: () => void }) {
+  const { state, line, last, stage } = view;
+  if (s.planned) {
+    return (
+      <div className="hub-step hub-step-planned">
         <span className="hub-step-head">
           <span className="hub-step-num">{i + 1}</span>
-          <span className="hub-step-title">
-            {s.label}
-            {s.optional && <span className="muted"> (optional)</span>}
+          <span className="hub-step-title">{s.label}</span>
+          <span className="chip">Planned</span>
+        </span>
+        <span className="hub-step-about">{s.does}</span>
+      </div>
+    );
+  }
+  return (
+    <button type="button" id={`step-${p.id}-${i}`} className={`hub-step hub-step-${state}`} aria-expanded={open} aria-controls={`step-panel-${p.id}`} onClick={onToggle}>
+      <span className="hub-step-head">
+        <span className="hub-step-num">{i + 1}</span>
+        <span className="hub-step-title">
+          {s.label}
+          {s.optional && <span className="muted"> (optional)</span>}
+        </span>
+      </span>
+      <span className={`hub-step-status hub-step-status-${line.tone}${line.tone === "wait" ? " hub-step-banner" : ""}`}>{line.text}</span>
+      <span className="hub-step-about">{s.does}</span>
+      {last && (
+        <span className="hub-step-rows">
+          <span>
+            Last run<b>{last.status.replace(/_/g, " ")}</b>
+          </span>
+          <span>
+            Updated<b>{new Date(last.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</b>
           </span>
         </span>
-        {(waiting > 0 || decisions > 0) && (
-          <span className="hub-step-banner">{waiting > 0 ? `${waiting} waiting on you` : `${decisions} decision${decisions === 1 ? "" : "s"} open`}</span>
-        )}
-        <span className="hub-step-about">{s.does}</span>
+      )}
+      {stage && stage.metrics.length > 0 && (
+        <span className="hub-step-rows">
+          {/* The same three the Steward Workflow stage card shows, so the
+              number behind the "decisions open" banner is on screen. */}
+          {stage.metrics.slice(0, 3).map((m) => (
+            <span key={m.label}>
+              {m.label}
+              <b>{m.value}</b>
+            </span>
+          ))}
+        </span>
+      )}
+      {s.handsOn && i < p.steps.length - 1 && (
+        <span className={s.carried ? "hub-step-handoff" : "hub-step-handoff manual"} title={s.carried ? undefined : "Not passed on automatically: type it into the next step."}>
+          Passes on: {s.handsOn}
+          {!s.carried && " · re-entered by hand"}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/** The open step's details, under its process's flow. Only its "Open" link leaves the page. */
+function StepPanel({ s, i, p, view }: { s: Step; i: number; p: Process; view: StepView }) {
+  const { state, line, last, fromRuns } = view;
+  // Run counts the Review Queue holds go there; decisions and other runs are worked in the step's own screen.
+  const nowHref = fromRuns && s.runTypes!.every((t) => REVIEWABLE_RUN_TYPES.has(t)) ? "#/review" : stepHref(s);
+  return (
+    <div className="hub-step-panel" role="region" id={`step-panel-${p.id}`} aria-label={`${s.label} details`}>
+      <p className="meta">
+        Step {i + 1} of {p.steps.length}
+      </p>
+      <h3>{s.label}</h3>
+      <p>{s.does}</p>
+      <dl>
+        <dt>Status</dt>
+        <dd>
+          <span className={`hub-mark hub-mark-${state}`} aria-hidden />
+          {STATE_LABEL[state]}
+        </dd>
+        <dt>Now</dt>
+        <dd>{line.tone === "wait" ? <a href={nowHref}>{line.text}</a> : line.text}</dd>
         {last && (
-          <span className="hub-step-rows">
-            <span>
-              Last run<b>{last.status.replace(/_/g, " ")}</b>
-            </span>
-            <span>
-              Updated<b>{new Date(last.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</b>
-            </span>
-          </span>
+          <>
+            <dt>Latest run</dt>
+            <dd>
+              <code>{last.run_id}</code> · {last.status.replace(/_/g, " ")}
+            </dd>
+          </>
         )}
-        {stage && stage.metrics.length > 0 && (
-          <span className="hub-step-rows">
-            {/* The same three the Steward Workflow stage card shows, so the
-                number behind the "decisions open" banner is on screen. */}
-            {stage.metrics.slice(0, 3).map((m) => (
-              <span key={m.label}>
-                {m.label}
-                <b>{m.value}</b>
-              </span>
-            ))}
-          </span>
-        )}
-        {s.handsOn && i < p.steps.length - 1 && (
-          <span className={s.carried ? "hub-step-handoff" : "hub-step-handoff manual"}>
-            Hands on: {s.handsOn}
-            {!s.carried && " · re-entered by hand"}
-          </span>
-        )}
+      </dl>
+      <a className="button-link" href={stepHref(s)} onClick={() => writeWalk({ id: p.id, step: i })}>
+        Open {s.label} →
       </a>
-    </li>
+    </div>
   );
 }
 
@@ -395,27 +392,27 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
   const { runs, error } = useRuns();
   const { flow, error: flowError } = useHouseFlow();
   const usesFlow = w.processes.some((p) => p.steps.some((s) => s.stage));
+  const activity = useActivity();
+  // The header drawing lights up like the workspace's start-page card: waiting, running, or not at all.
+  const tone = cardView(w, runs, flow, new Date()).status.tone;
 
   return (
     <div className="page hub">
-      <p className="hub-crumb">
-        <a href="#/home">Start</a> › {w.name}
-      </p>
       <h1>{w.name}</h1>
-      <p className="help-text">{w.purpose} Open a step to work in its screen; a bar there shows the next step.</p>
+      <p className="help-text">
+        {w.purpose} Click a step for its details; open it from there. A dashed <span className="hub-step-handoff-key">re-entered by hand</span> line means that output is typed into the next step, not passed on.
+      </p>
+      <WorkspaceDrawing id={w.id} accent={tone === "wait" ? "wait" : tone === "now" ? "now" : null} />
       {error && <p className="error-text" role="alert">Runs could not be loaded: {error}. Step states are unknown until the backend responds.</p>}
       {usesFlow && flowError && <p className="error-text" role="alert">The stewardship flow could not be loaded: {flowError}. Stage numbers are unknown.</p>}
-      {w.processes.map((p) => (
-        <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} />
+      {failedProcesses(w, runs, flow, activity).map((title) => (
+        <p key={title} className="hub-failed-line">
+          Last run failed: {title}. <a href="#/history">Open Run history →</a>
+        </p>
       ))}
-      <nav className="hub-screens" aria-label={`${w.name} screens`}>
-        <span className="hub-now-label">Screens</span>
-        {w.screens.map(([href, label]) => (
-          <a key={href} className="hub-chip" href={href}>
-            {label}
-          </a>
-        ))}
-      </nav>
+      {w.processes.map((p) => (
+        <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} activity={activity} />
+      ))}
     </div>
   );
 }

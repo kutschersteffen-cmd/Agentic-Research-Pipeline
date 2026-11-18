@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from arp.portfolio import aggregation, datapoint_mapping
 from arp.schemas.common import CompanyRef
-from arp.schemas.portfolio import SecurityRef
+from arp.schemas.portfolio import AggregationResult, Holding, SecurityRef
 from arp.schemas.portfolio_monitoring import Alert, AlertCategory, AlertRule, AlertStatus, AlertTransition, BreachType
-from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
 
 _COMPARATORS = {
     "gt": lambda value, limit: value > limit,
@@ -54,6 +54,28 @@ def list_alerts(store: PortfolioStore, *, status: AlertStatus | None = None) -> 
     return [a for a in alerts if status is None or a.status == status]
 
 
+def with_company_names(alerts: list[Alert], companies: dict[str, CompanyRef]) -> list[Alert]:
+    """Read-time fill for the API: `company_name` from the directory, and the company id in a concentration
+    rationale (`<rule name>: <company_id> = ...`) swapped for that name, whether or not the rule still exists
+    under that name. The stored event log is never touched."""
+    named: list[Alert] = []
+    for alert in alerts:
+        company = companies.get(alert.company_id) if alert.company_id else None
+        if company is None:
+            named.append(alert)
+            continue
+        update: dict = {"company_name": company.name}
+        if alert.breach_type == BreachType.HOLDINGS_CAUSED:
+            update["rationale"] = alert.rationale.replace(f": {alert.company_id} = ", f": {company.name} = ", 1)
+        named.append(alert.model_copy(update=update))
+    return named
+
+
+def named_alerts(store: PortfolioStore, alerts: list[Alert]) -> list[Alert]:
+    """The one way the API returns alerts, so the list and the status-change answer read the same."""
+    return with_company_names(alerts, {c.company_id: c for c in store.list_companies()})
+
+
 def _has_open_alert(store: PortfolioStore, scope_id: str, rule_id: str) -> bool:
     """Dedup for recurring conditions (threshold rules): a breach that's
     still active never spawns a duplicate, but one that was resolved and
@@ -72,7 +94,7 @@ def _already_alerted_flag(store: PortfolioStore, scope_id: str, flag_id: str) ->
 
 
 def _raise_alert(store: PortfolioStore, alert: Alert) -> Alert:
-    store.append_alert_event(alert.scope_id, "alert_raised", {"alert": alert.model_dump(mode="json")})
+    store.append_alert_event(alert.scope_id, "alert_raised", {"alert": alert.model_dump(mode="json", exclude={"company_name"})})
     return alert
 
 
@@ -85,6 +107,19 @@ def transition_alert(store: PortfolioStore, scope_id: str, alert_id: str, transi
         raise ValueError(f"No alert {alert_id!r} in scope {scope_id!r}")
     store.append_alert_event(scope_id, "status_changed", {"alert_id": alert_id, "transition": transition.model_dump(mode="json")})
     return alerts[alert_id].model_copy(update={"status": transition.status, "owner": transition.owner or alerts[alert_id].owner})
+
+
+def live_alerts_of_rule(store: PortfolioStore, rule_id: str) -> list[Alert]:
+    return [a for a in list_alerts(store) if a.rule_id == rule_id and a.status in _OPEN_STATUSES]
+
+
+def clear_rule_alerts(store: PortfolioStore, rule_id: str, transition: AlertTransition) -> int:
+    """Closes every live alert of one rule with the same human decision: one `status_changed` event appended
+    per alert, nothing rewritten. Works for a rule that is no longer stored."""
+    live = live_alerts_of_rule(store, rule_id)
+    for alert in live:
+        store.append_alert_event(alert.scope_id, "status_changed", {"alert_id": alert.alert_id, "transition": transition.model_dump(mode="json")})
+    return len(live)
 
 
 def _resolve_holdings_as_of(store: PortfolioStore, as_of: str | None) -> str | None:
@@ -145,11 +180,18 @@ def _evaluate_field_threshold(store: PortfolioStore, rule: AlertRule, companies:
                     observed_value=value,
                     threshold_value=rule.threshold_value,
                     breach_type=BreachType.DATA_CAUSED,
-                    rationale=f"{rule.name}: {rule.field_id} = {value} {rule.comparator} {rule.threshold_value}",
+                    rationale=f"{rule.name}: {rule.field_id} = {value} {rule.comparator} {rule.threshold_value}"
+                    + (" Simulated: the value is simulated ESG data, not real data." if obs.source == "simulated" else ""),
                 ),
             )
         )
     return raised
+
+
+def _is_cash(security: SecurityRef) -> bool:
+    return security.asset_class == "cash" or any(
+        (code or "").startswith("_CURRENCY") for code in (security.security_id, security.isin)
+    )
 
 
 def _evaluate_concentration_threshold(
@@ -162,18 +204,25 @@ def _evaluate_concentration_threshold(
     holdings = store.load_holdings_as_of(as_of, rule.portfolio_ids or None)
     if not holdings:
         return []
-    result = aggregation.aggregate(
-        holdings, securities, companies, group_by="company_id", metric="market_value_sum",
-        as_of=as_of, portfolio_filter=rule.portfolio_ids, spec_name=rule.name,
-    )
-    if not result.total_market_value_eur:
+
+    def by_company(lines: list[Holding]) -> AggregationResult:
+        return aggregation.aggregate(
+            lines, securities, companies, group_by="company_id", metric="market_value_sum",
+            as_of=as_of, portfolio_filter=rule.portfolio_ids, spec_name=rule.name,
+        )
+
+    nav = by_company(holdings).total_market_value_eur
+    if not nav:
         return []
+    # A company's weight sums only its non-cash lines over a NAV of all lines, so a company held only through
+    # cash/currency lines never alerts (owner, 15 Nov 2026: "Only non-cash lines").
+    result = by_company([h for h in holdings if not (h.security_id in securities and _is_cash(securities[h.security_id]))])
     raised: list[Alert] = []
     for row in result.rows:
         company_id = row.group_value
         if row.market_value_eur is None or company_id == "(unresolved)":
             continue
-        weight = row.market_value_eur / result.total_market_value_eur
+        weight = row.market_value_eur / nav
         if not _breaches(weight, rule):
             continue
         if _has_open_alert(store, company_id, rule.rule_id):
@@ -190,7 +239,8 @@ def _evaluate_concentration_threshold(
                     threshold_value=rule.threshold_value,
                     breach_type=BreachType.HOLDINGS_CAUSED,
                     snapshot_date=as_of,
-                    rationale=f"{rule.name}: {company_id} = {weight:.2%} of NAV {rule.comparator} {rule.threshold_value:.2%}",
+                    rationale=f"{rule.name}: {companies[company_id].name if company_id in companies else company_id}"
+                    f" = {weight:.2%} of NAV {rule.comparator} {rule.threshold_value:.2%}",
                 ),
             )
         )
@@ -225,6 +275,9 @@ def _evaluate_portfolio_aggregate_threshold(
             continue
         prior = _latest_alert_for(store, scope_id, rule.rule_id)
         breach_type = _classify_aggregate_drift(prior, as_of, values)
+        held = sorted({securities[h.security_id].company_id for h in holdings
+                       if h.portfolio_id == portfolio_id and h.security_id in securities and securities[h.security_id].company_id})
+        note = datapoint_mapping.simulated_note(store, held, rule.field_id, as_of)
         raised.append(
             _raise_alert(
                 store,
@@ -238,7 +291,8 @@ def _evaluate_portfolio_aggregate_threshold(
                     breach_type=breach_type,
                     snapshot_date=as_of,
                     data_point_values=values,
-                    rationale=f"{rule.name}: {portfolio_id} = {row.weighted_avg_value} {rule.comparator} {rule.threshold_value}",
+                    rationale=f"{rule.name}: {portfolio_id} = {row.weighted_avg_value} {rule.comparator} {rule.threshold_value}"
+                    + (f" {note}" if note else ""),
                 ),
             )
         )
@@ -252,8 +306,7 @@ def evaluate_threshold_rules(store: PortfolioStore, *, as_of: str | None = None)
     with no data/holdings yet to evaluate against is silently skipped, not
     an error (see monitoring/scheduler.py's bare except around the caller
     for the same reasoning applied one level up)."""
-    companies = {c.company_id: c for c in store.list_companies()}
-    securities = {s.security_id: s for s in store.list_securities()}
+    securities, companies = portfolio_directories(store)
     resolved_as_of = _resolve_holdings_as_of(store, as_of)
 
     raised: list[Alert] = []

@@ -62,6 +62,9 @@ def evaluate(graph: dict, sample: dict, records: list[EngagementRecord]) -> list
                     "sector": c["issuer"]["sector"],
                     **{k: t.get(k) for k in ("type", "theme", "severity", "rule", "reason")},
                     "engagement_id": open_by_theme.get((c["issuer_id"], t["theme"])),
+                    # raised by demo votes alone: no against-management vote outside the demo sources (owner, 15 Nov 2026)
+                    "demo": t.get("rule") == "vote_against_management"
+                    and not c["issuer"].get("vote", {}).get("against_management_non_demo"),
                 }
             )
     return out

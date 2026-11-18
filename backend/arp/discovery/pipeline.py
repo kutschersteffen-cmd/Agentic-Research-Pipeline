@@ -7,11 +7,13 @@ from datetime import date, timedelta
 import httpx
 
 from arp.config import Settings
+from arp.db.session import retrying
 from arp.discovery.change_detector import ChangeDetector
 from arp.discovery.crawler import CrawlConfig, HomepageUnreachableError, crawl_for_documents
 from arp.discovery.downloader import download_documents
 from arp.discovery.refresh import refresh_hook
 from arp.discovery.report_finding import search_candidates, select_candidates
+from arp.discovery.review import review_items
 from arp.discovery.site_check import check_homepage
 from arp.discovery.site_finder import WebSearchClient, build_web_search_client, homepage_from_ids, resolve_company_homepage
 from arp.ingestion.edgar import EdgarDocumentSource
@@ -40,19 +42,21 @@ async def _discover_for_company(
     transport: httpx.AsyncBaseTransport | None = None,
     today: date | None = None,
     sleep=asyncio.sleep,
+    web: bool = True,
+    expected_year: int | None = None,
 ) -> DiscoveryCompanyResult:
     today = today or date.today()
     filings = await _edgar_filings(company, edgar, doc_types) if edgar and company.cik else []
     esef_docs, esef_current = await _esef_documents(company, esef, doc_types, today) if esef else ([], False)
-    expected_year = today.year - 1
+    expected_year = expected_year or today.year - 1
     types = [t for t in (DocType.ANNUAL_REPORT_10K, DocType.SUSTAINABILITY_REPORT) if not doc_types or t in doc_types]
     if esef_current:
         types = [t for t in types if t != DocType.ANNUAL_REPORT_10K]
     search_cands = await search_candidates(
         company, search_client, expected_year, types, delay=settings.discovery_request_delay_seconds, sleep=sleep
-    )
-    homepage, check = company.website, None
-    if not homepage:  # a supplied website is used unchecked; a derived one is checked first
+    ) if web else []
+    homepage, check = (company.website if web else None), None
+    if web and not homepage:  # a supplied website is used unchecked; a derived one is checked first
         homepage = await homepage_from_ids(
             settings.discovery_user_agent, lei=company.lei, isin=company.isin, cik=company.cik, transport=transport
         )
@@ -162,6 +166,8 @@ async def execute_discovery_run(
     transport: httpx.AsyncBaseTransport | None = None,
     today: date | None = None,
     sleep=None,
+    web: bool = True,
+    expected_year: int | None = None,
 ) -> str:
     """Runs the document discovery pipeline over a company universe against
     an already-created run (see create_discovery_run).
@@ -197,22 +203,32 @@ async def execute_discovery_run(
     async def _worker(company: CompanyRef) -> DiscoveryCompanyResult:
         return await _discover_for_company(
             company, settings=settings, search_client=search_client, change_detector=change_detector, doc_types=doc_types,
-            edgar=edgar_source, esef=esef_source, transport=transport, today=today, sleep=sleep or asyncio.sleep,
+            edgar=edgar_source, esef=esef_source, transport=transport, today=today, sleep=sleep or asyncio.sleep, web=web,
+            expected_year=expected_year,
         )
 
-    def _on_success(company: CompanyRef, result: DiscoveryCompanyResult) -> None:
-        # no documents, or a PDF that doesn't name the company (doc_check), needs a reviewer
-        flagged = any(d.company_match in ("none", "no_text") for d in result.documents_found)
-        job_manager.record_progress(
-            run_id,
-            completed_delta=1,
-            review_delta=1 if not result.documents_found or flagged else 0,
-        )
+    manifest = run_store.load_manifest(run_id)
+    triggered_by = (manifest.params if manifest else {}).get("triggered_by", "manual")
+
+    async def _write_result(company: CompanyRef, result: DiscoveryCompanyResult, row: dict) -> None:
+        # the result row and its review items in one write, then the progress (as run_company_batch does)
+        items = review_items(company, result, triggered_by=triggered_by)
+
+        def _commit() -> None:
+            retrying(run_store.record_company_result, run_id, row, observations=[], review_items=items, company=company)
+            retrying(job_manager.record_progress, run_id, completed_delta=1, review_delta=len(items))
+
+        await asyncio.to_thread(_commit)
 
     def _on_error(company: CompanyRef, exc: Exception) -> None:
         job_manager.record_progress(run_id, failed_delta=1)
 
     with hold_run(run_store, run_id):  # one worker per run; RunBusy if another holds it
+        # A crash between a result write and its progress write leaves the count short: the queue is the truth.
+        with run_store.lock(run_id):
+            current = run_store.load_manifest(run_id)
+            current.review_count = len({q["item_key"] for q in run_store.read_review_queue(run_id)})
+            run_store.save_manifest(current)
         await run_batch(
             companies,
             item_key=lambda c: c.company_id,
@@ -220,8 +236,8 @@ async def execute_discovery_run(
             sinks=run_sinks(run_store, run_id),
             concurrency=settings.max_concurrent_downloads,
             result_to_json=lambda r: r.model_dump(mode="json"),
-            on_success=_on_success,
             on_error=_on_error,
+            write_result=_write_result,
         )
 
         job_manager.finish_run(run_id)

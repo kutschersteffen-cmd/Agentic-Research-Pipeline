@@ -48,3 +48,34 @@ def test_unknown_or_unsafe_flow_is_404(client):
 def test_viewer_cannot_create_or_change(client):
     app.dependency_overrides[current_user] = lambda: Principal(user_id="v", name="V", role="viewer")
     assert client.post("/api/argus/flows").status_code == 403
+
+
+def test_only_an_empty_unstarted_draft_can_be_deleted(client, tmp_path):
+    # a hand-over that fails after creating the flow removes it again, so no empty draft is left on #/argus
+    empty = client.post("/api/argus/flows").json()["flow_id"]
+    assert client.delete(f"/api/argus/flows/{empty}").status_code == 204
+    assert client.get(f"/api/argus/flows/{empty}").status_code == 404
+    assert client.delete(f"/api/argus/flows/{empty}").status_code == 404
+    started = client.post("/api/argus/flows").json()["flow_id"]
+    client.patch(f"/api/argus/flows/{started}", json={"step": 2})
+    assert client.delete(f"/api/argus/flows/{started}").status_code == 409
+    assert client.get(f"/api/argus/flows/{started}").status_code == 200
+    app.dependency_overrides[current_user] = lambda: Principal(user_id="v", name="V", role="viewer")
+    try:
+        assert client.delete(f"/api/argus/flows/{started}").status_code == 403
+    finally:
+        app.dependency_overrides.pop(current_user, None)
+
+
+def test_the_flow_reports_how_its_identity_run_ended(client, pg, tmp_path):
+    """Step 1 kept saying "Identity run started." after the run had failed, with no way to try again."""
+    from arp.schemas.common import RunManifest
+    from arp.storage.run_store import RunStore
+
+    run_store = RunStore(pg, tmp_path / "runs")
+
+    fid = client.post("/api/argus/flows").json()["flow_id"]
+    assert client.get(f"/api/argus/flows/{fid}").json()["identity"] is None
+    run_store.save_manifest(RunManifest(run_id="identity_x", run_type="identity", status="partially_completed"))
+    flow = client.patch(f"/api/argus/flows/{fid}", json={"identity_run_id": "identity_x"}).json()
+    assert flow["identity"] == {"run_id": "identity_x", "status": "partially_completed"}

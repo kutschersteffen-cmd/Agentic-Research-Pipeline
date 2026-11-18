@@ -15,6 +15,7 @@ from arp.api.auth import Principal, require_role
 from arp.api.deps import get_run_store
 from arp.config import get_settings
 from arp.db.session import require_dsn
+from arp.errors import ClientInputError
 from arp.signal_lab.compare import Comparison, compare_experiments
 from arp.signal_lab.cutoffs import CutoffTable, load_cutoff_table
 from arp.signal_lab.inputs import load_inputs
@@ -155,13 +156,13 @@ def _run_upload(recipe_bytes: bytes, prices_bytes: bytes, panel_bytes: dict[str,
         recipe = Recipe.model_validate_json(recipe_bytes)
     except ValidationError as exc:
         detail = "; ".join(f"{'.'.join(map(str, e['loc'])) or 'recipe'}: {e['msg']}" for e in exc.errors())
-        raise ValueError(f"invalid recipe: {detail}") from exc
+        raise ClientInputError(f"invalid recipe: {detail}") from exc
     nodes = list(spec_nodes({"method": recipe.method, "params": recipe.params}))
     for node in nodes:
         get_method(node.get("method"))
     for node in nodes:
         if node["method"] not in APP_RUNNABLE:
-            raise ValueError(
+            raise ClientInputError(
                 f"{node['method']} runs from the CLI (arp signals run) or a notebook (arp.signal_lab.lab.Lab), not the app"
             )
     names = {node["method"] for node in nodes}

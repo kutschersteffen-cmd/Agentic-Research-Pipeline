@@ -32,6 +32,8 @@ def discover_run(
     rows = run_store.read_results(run_id)
     unreachable = [r for r in rows if r.get("homepage_unreachable")]
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/, new documents under data/documents/)")
+    if queued := run_store.load_manifest(run_id).review_count:
+        typer.echo(f"{queued} items queued for review (open the Review page)")
     if unreachable:
         typer.echo(f"WARNING: {len(unreachable)}/{len(companies)} companies' homepage could not be reached (not the same as \"no documents found\"):", err=True)
         for r in unreachable:

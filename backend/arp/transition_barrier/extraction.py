@@ -15,13 +15,14 @@ from arp.checks.numeric import candidates
 from arp.extraction.field_graph import extract_one_field
 from arp.schemas.common import DocType, SourceDocument
 from arp.schemas.datapoints import ExtractedField, FieldDataType, FieldDefinition, ValueState
+from arp.transition_barrier import clock
 from arp.transition_barrier.dataset import data_dir
 from arp.transition_barrier.facts import FactRefused, _parse_value
 from arp.transition_barrier.render import _with_unit
 from arp.transition_barrier.rule_book import FactDef
 from arp.transition_barrier.units import convert
 
-PROMPT_VERSION = "tb-extract-3"
+PROMPT_VERSION = "tb-extract-4"
 AS_OF_RULE = "Give the as-of date of the value in period_text when the source states one."
 _TYPES = {
     "number": FieldDataType.NUMBER, "boolean": FieldDataType.BOOLEAN,
@@ -69,6 +70,8 @@ def field_for(fact: FactDef, cell: str, conversions: list[dict]) -> FieldDefinit
         )
     elif fact.unit:
         instructions.append(f"Give unit_text as {fact.unit} when the source uses that unit.")
+    # the definitions say "current year"; without the date the model judges by the document's own time
+    instructions.append(f"The current year is {clock.today().year}.")
     instructions.append(AS_OF_RULE)
     return FieldDefinition(
         field_id=fact.id,

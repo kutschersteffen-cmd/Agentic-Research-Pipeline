@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from arp.discovery.site_finder import WebSearchClient
+from arp.discovery.site_finder import SearchReport, WebSearchClient
 from arp.ingestion.parsing import chunk_document
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
@@ -17,8 +17,17 @@ _NEWS_QUERY_TEMPLATES = [
 ]
 
 
+NEWS_DOWN = ("The news search could not be reached and no earnings-call transcripts were found for the selected universe, "
+             'so there is nothing to draft from. Use another method, for example "Build from authority sources" with an '
+             "uploaded document.")
+NEWS_OFF = ("No earnings-call transcripts were found for the selected universe and the news search is switched off, so "
+            'there is nothing to draft from. Tick "Also search news", or use another method.')
+NEWS_EMPTY = ("The news search found nothing for this theme and no earnings-call transcripts were found for the selected "
+              "universe, so there is nothing to draft from. Try another theme name, or use another method.")
+
+
 async def gather_corpus_from_news(
-    theme_name: str, search_client: WebSearchClient, max_results: int = 15
+    theme_name: str, search_client: WebSearchClient, max_results: int = 15, report: SearchReport | None = None
 ) -> list[CorpusSnippet]:
     """News search gives current, real-world vocabulary for a theme --
     the same instinct as the academic keyword-discovery methods this
@@ -26,8 +35,14 @@ async def gather_corpus_from_news(
     news instead of transcripts."""
     corpus: list[CorpusSnippet] = []
     seen_urls: set[str] = set()
+    report = report or SearchReport()
     for template in _NEWS_QUERY_TEMPLATES:
-        results = await search_client.search(template.format(theme=theme_name), max_results=6)
+        report.queries += 1
+        try:
+            results = await search_client.search(template.format(theme=theme_name), max_results=6)
+        except Exception:  # noqa: BLE001 - counted; every query failing means the search could not be reached
+            report.failed += 1
+            continue
         for r in results:
             if r.url in seen_urls:
                 continue
@@ -70,17 +85,20 @@ async def build_theme_from_news_and_transcripts(
     registry: DocumentSourceRegistry | None = None,
 ) -> tuple[ThemeDefinition, str, LLMUsage]:
     corpus: list[CorpusSnippet] = []
+    report = SearchReport()
     if search_client is not None:
-        corpus.extend(await gather_corpus_from_news(theme_name, search_client))
+        corpus.extend(await gather_corpus_from_news(theme_name, search_client, report=report))
     if companies and registry is not None:
         corpus.extend(await gather_corpus_from_transcripts(companies, registry, keywords=[theme_name]))
 
     if not corpus:
-        raise ValueError("No news or transcript corpus could be gathered -- pass a search client and/or companies with available transcripts.")
+        raise ValueError(NEWS_OFF if search_client is None else NEWS_DOWN if report.unreachable else NEWS_EMPTY)
 
     activities, assessment, usage = await synthesize_activities_from_corpus(theme_name, theme_description, corpus, llm)
     theme = ThemeDefinition(name=theme_name, description=theme_description, activities=activities)
     news_count = sum(1 for s in corpus if s.source_type == CorpusSourceType.NEWS)
     transcript_count = sum(1 for s in corpus if s.source_type == CorpusSourceType.TRANSCRIPT)
     notes = f"Derived from {news_count} news snippet(s) and {transcript_count} transcript passage(s). {assessment}"
+    if report.unreachable:
+        notes += " News search could not be reached; drafted from transcripts only."
     return theme, notes, usage

@@ -14,8 +14,16 @@ from arp.api.routers.stewardship import (
     get_case_study,
     set_commitment_status,
 )
-from arp.schemas.engagement import CorrespondenceEntry, EscalationStage, InteractionType, IssueStatus
-from arp.stewardship import tracking
+from arp.schemas.engagement import (
+    Commitment,
+    CorrespondenceEntry,
+    EngagementIssue,
+    EngagementRecord,
+    EscalationStage,
+    InteractionType,
+    IssueStatus,
+)
+from arp.stewardship import tracking, worklist
 from arp.stewardship.process import HOUSE, StreamStore, flow
 from arp.storage.engagement_store import EngagementStore
 from tests.conftest import PRINCIPAL
@@ -59,6 +67,20 @@ def test_overdue_and_missed_commitments_and_stalls_become_triggers(world):
     assert due["text"] == "Publish interim targets"
 
 
+@pytest.mark.parametrize("due", ["end of 2026", "31/12/2025"])
+def test_a_free_text_due_date_counts_as_no_due_date(due):
+    # intake stores due dates as typed: the same rule as watch_flags (tracking._iso)
+    issue = EngagementIssue(theme="t", commitments=[Commitment(text="x", target_date=due)])
+    records = [EngagementRecord(company_id="C", name="C", issues=[issue])]
+    assert tracking.watch_flags_by_company(records, TODAY) == {}
+    assert tracking.triggers(records, sla_days=365, today=TODAY) == []
+    [c] = tracking.commitments(records, TODAY)
+    assert c["overdue"] is False and c["target_date"] == due
+    sample = {"issuers": [{"issuer_id": "C", "name": "C", "sector": "x", "holding": {}}]}
+    [row] = worklist.indicators(sample, records, [], {"C": ("monitor", False)}, {}, {}, TODAY)
+    assert row["overdue_commitments"] == 0
+
+
 def test_stage_1_and_6_show_the_tracking_loop(world):
     engagements, streams, issue = world
     _commit(engagements, issue, "Publish interim targets", "2020-01-01")
@@ -83,7 +105,7 @@ def test_a_closed_engagement_gets_a_case_study_from_its_records_with_style_flags
     with pytest.raises(HTTPException) as still_open:
         get_case_study("ACME", issue.issue_id, streams, engagements)
     assert still_open.value.status_code == 422
-    engagements.set_escalation_stage("ACME", issue.issue_id, EscalationStage.JOINT_ENGAGEMENT, "Lead")
+    engagements.set_escalation_stage("ACME", issue.issue_id, EscalationStage.WRITTEN_ESCALATION_TO_BOARD, "Lead")
     kept = _commit(engagements, issue, "Publish interim targets", "2026-06-30")
     set_commitment_status(
         kept["commitment_id"],
@@ -108,7 +130,7 @@ def test_a_closed_engagement_gets_a_case_study_from_its_records_with_style_flags
     )
     assert engagements.get("ACME").issues[0].status == IssueStatus.RESOLVED
     study = get_case_study("ACME", issue.issue_id, streams, engagements)
-    assert "joint engagement (decided by Lead)" in study["text"]
+    assert "written escalation to board (decided by Lead)" in study["text"]
     assert "1 letter (advocacy pressure)" in study["text"]
     assert "Kept: Publish interim targets" in study["text"]
     assert study["text"].endswith("Outcome. Resolved: Thanks to our engagement the board set interim targets.")

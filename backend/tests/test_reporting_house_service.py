@@ -23,6 +23,7 @@ from arp.schemas.reporting import (
     Storyline,
     StorylineSlide,
 )
+from arp.schemas.visuals import NextAction
 from arp.storage.reporting_store import ReportingStore
 
 _REQ = ReportRequest(title="T", qualitative_notes="notes", goal="g", layout=LayoutInstructions(output_format=OutputFormat.HOUSE_DECK))
@@ -89,7 +90,7 @@ async def test_applied_qa_edit_replaces_stale_fit_and_lint_findings(tmp_path, fa
         Finding(slide=1, slot="items", stage="lint", rule="exclamation", message="old"),
     ]
 
-    async def fake_fit(deck, request, llm, max_passes=3, usage=None, shift=None):
+    async def fake_fit(deck, request, llm, max_passes=3, usage=None, shift=None, tokens=None):
         return deck, list(stale)
 
     monkeypatch.setattr(house_pipeline, "fit_deck", fake_fit)
@@ -183,6 +184,18 @@ def test_put_storyline_saves_edits_and_rejects_empty(client, store):
     blank.slides[1].headline = "   "
     assert client.put(f"/api/reports/{rid}/storyline", json=blank.model_dump()).status_code == 422
     assert client.get(f"/api/reports/{rid}/findings").json() == {"findings": []}
+
+
+@pytest.mark.parametrize("update, field", [
+    ({"title": " ".join(["word"] * 11)}, "title"),
+    ({"slides": [StorylineSlide(headline="Point holds.", purpose="p", subheading=" ".join(["w"] * 17))]}, "subheading"),
+    ({"slides": [StorylineSlide(headline="Point holds.", purpose="p", visual="points")], "closing": [NextAction(text="Hold")]}, "closing"),
+])
+def test_put_storyline_rejects_limit_breaks(client, store, update, field):
+    rid = _seed(store, _storyline(1))
+    r = client.put(f"/api/reports/{rid}/storyline", json=_storyline(1).model_copy(update=update).model_dump())
+    assert r.status_code == 422 and field in r.json()["detail"]
+    assert store.load_storyline(rid) == _storyline(1)  # not saved
 
 
 def test_approve_empty_storyline_is_422(client, store):

@@ -1,10 +1,9 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { canLeave } from "./lib/leaveGuard";
-import { ReviewerField } from "./components/ReviewerField";
-import { SignedInAs } from "./components/SignedInAs";
 import { ProcessBar, StartPage, WorkspaceOverview } from "./pages/ProcessHub";
 import { ArgusFlow } from "./pages/ArgusFlow";
-import { ArgusStart } from "./pages/ArgusStart";
+import { singleFlight, stepFromUrl } from "./lib/argusFlow";
+import { ArgusNew, ArgusStart, openNewFlow } from "./pages/ArgusStart";
 import { WORKSPACES, workspaceOfProcess, type WorkspaceId } from "./lib/processes";
 import { STAGE_TABS } from "./pages/steward/common";
 import { SUB_TABS as RISK_TABS } from "./lib/subTabs";
@@ -12,25 +11,28 @@ import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
 import { AskPanel } from "./components/AskPanel";
 import { clearTurns, loadTurns, saveTurns, type AskTurn } from "./lib/askHistory";
 import { useMe } from "./lib/reviewer";
-import { ThemeSwitch } from "./components/ThemeSwitch";
-import { NAV_ICONS } from "./components/NavIcons";
-import type { ReviewableRunKind, RunManifest, UniverseHandoff } from "./types";
+import { AppTopbar } from "./components/AppTopbar";
+import { WorkspaceRow } from "./components/WorkspaceRow";
+import type { ReviewableRunKind, RunManifest, WaitingCounts } from "./types";
 import { REVIEWABLE_RUN_TYPES, runTypeLabel } from "./lib/runs";
+import { api } from "./api/client";
 import { listAllRuns } from "./lib/poll";
-import { HUBS, NAV_GROUPS, currentNavIds, navCount, redirectHash } from "./lib/nav";
+import { HUBS, entryTab, redirectHash } from "./lib/nav";
+import { Landing } from "./pages/Landing";
 
 // Pages load on demand so the first screen does not ship every page and its editors.
 const ThemeBuilder = lazy(() => import("./pages/ThemeBuilder").then((x) => ({ default: x.ThemeBuilder })));
-const Extraction = lazy(() => import("./pages/Extraction").then((x) => ({ default: x.Extraction })));
 const TransitionBarrierAssessment = lazy(() => import("./pages/TransitionBarrierAssessment").then((x) => ({ default: x.TransitionBarrierAssessment })));
 const EmergingThemesDetector = lazy(() => import("./pages/EmergingThemesDetector").then((x) => ({ default: x.EmergingThemesDetector })));
 const ReviewQueue = lazy(() => import("./pages/ReviewQueue").then((x) => ({ default: x.ReviewQueue })));
 const RunHistory = lazy(() => import("./pages/RunHistory").then((x) => ({ default: x.RunHistory })));
 const DataLibrary = lazy(() => import("./pages/DataLibrary").then((x) => ({ default: x.DataLibrary })));
+const AuthorityTaxonomyRun = lazy(() => import("./pages/AuthorityTaxonomyRun").then((x) => ({ default: x.AuthorityTaxonomyRun })));
 const TaxonomyLibrary = lazy(() => import("./pages/TaxonomyLibrary").then((x) => ({ default: x.TaxonomyLibrary })));
 const BackgroundAgents = lazy(() => import("./pages/BackgroundAgents").then((x) => ({ default: x.BackgroundAgents })));
 const EngagementDashboard = lazy(() => import("./pages/EngagementDashboard").then((x) => ({ default: x.EngagementDashboard })));
 const VotingRuns = lazy(() => import("./pages/VotingRuns").then((x) => ({ default: x.VotingRuns })));
+const StewardCockpit = lazy(() => import("./pages/StewardCockpit").then((x) => ({ default: x.StewardCockpit })));
 const StewardWorkflow = lazy(() => import("./pages/StewardWorkflow").then((x) => ({ default: x.StewardWorkflow })));
 const PortfolioRiskMonitoringTool = lazy(() => import("./pages/PortfolioRiskMonitoringTool").then((x) => ({ default: x.PortfolioRiskMonitoringTool })));
 const ReportBuilder = lazy(() => import("./pages/ReportBuilder").then((x) => ({ default: x.ReportBuilder })));
@@ -46,7 +48,6 @@ const Outputs = lazy(() => import("./pages/Outputs").then((x) => ({ default: x.O
 const Arcade = lazy(() => import("./pages/Arcade").then((x) => ({ default: x.Arcade })));
 const DecisionStudio = lazy(() => import("./pages/DecisionStudio").then((x) => ({ default: x.DecisionStudio })));
 const IndexBuilder = lazy(() => import("./pages/IndexBuilder").then((x) => ({ default: x.IndexBuilder })));
-const ArgusUniverse = lazy(() => import("./pages/ArgusUniverse").then((x) => ({ default: x.ArgusUniverse })));
 const ArgusWalkthrough = lazy(() => import("./pages/ArgusWalkthrough").then((x) => ({ default: x.ArgusWalkthrough })));
 const Company = lazy(() => import("./pages/Company").then((x) => ({ default: x.Company })));
 const XbrlFacts = lazy(() => import("./pages/XbrlFacts").then((x) => ({ default: x.XbrlFacts })));
@@ -58,9 +59,8 @@ const TABS = [
   { id: "home", label: "Start" },
   { id: "stewardiq", label: "StewardIQ" },
   { id: "argus", label: "Argus" },
-  { id: "argusUniverse", label: "Universe" },
   { id: "argusWalkthrough", label: "Walkthrough" },
-  { id: "transitionIntel", label: "Transition Intelligence Platform" },
+  { id: "transitionIntel", label: "Transition Intel" },
   { id: "rdLab", label: "R&D Lab" },
   { id: "dataHub", label: "Data Hub" },
   { id: "search", label: "Search" },
@@ -74,8 +74,6 @@ const TABS = [
   { id: "emergingThemes", label: "Emerging Themes" },
   { id: "themes", label: "Theme dossiers" },
   { id: "backgroundAgents", label: "Background Agents" },
-  { id: "extraction", label: "Extraction" },
-  { id: "transitionPlan", label: "Transition Plan" },
   { id: "transitionBarrier", label: "Transition Barriers" },
   { id: "portfolio-monitoring", label: "Risk Monitoring" },
   { id: "review", label: "Review Queue" },
@@ -138,30 +136,15 @@ function readRoute() {
   return parseHash();
 }
 
-const mac = /Mac|iPhone|iPad/.test(navigator.userAgent);
-
 function navigate(tab: TabId, ...params: string[]) {
   window.location.hash = "/" + [tab, ...params].map(encodeURIComponent).join("/");
-}
-
-/** ARP mark: a pixel "A"; the apex square is the signal, where a person ratifies. */
-function ArpMark() {
-  return (
-    <svg className="app-sidebar-mark" viewBox="0 0 62 62" aria-hidden="true">
-      <path fill="currentColor" d="M14 2h10v10H14zM38 2h10v10H38zM2 14h10v10H2zM50 14h10v10H50zM2 26h10v10H2zM14 26h10v10H14zM26 26h10v10H26zM38 26h10v10H38zM50 26h10v10H50zM2 38h10v10H2zM50 38h10v10H50zM2 50h10v10H2zM50 50h10v10H50z" />
-      <rect x="26" y="2" width="10" height="10" fill="var(--hi)" />
-    </svg>
-  );
 }
 
 function App() {
   const [route, setRoute] = useState(readRoute);
   const active = route.tab;
-  const [waiting, setWaiting] = useState<{ review: number } | null>(null);
+  const [waiting, setWaiting] = useState<WaitingCounts | null>(null);
   const [recentRuns, setRecentRuns] = useState<RunManifest[]>([]);
-  // One universe in flight between screens, addressed to one of them.
-  const [handoff, setHandoff] = useState<(UniverseHandoff & { to: TabId }) | null>(null);
-  const pendingFor = (to: TabId) => (handoff?.to === to ? handoff : null);
   const [pendingTaxonomyId, setPendingTaxonomyId] = useState<string | null>(null);
 
   // The hash last shown, so a navigation the open screen refuses can be put back.
@@ -169,19 +152,25 @@ function App() {
   useEffect(() => {
     const onHash = () => {
       const next = readRoute();
-      if (next.tab !== parseHash(shownHash.current).tab && !canLeave()) {
+      // Any change of address remounts a guarded screen (its key is its params), so even a link to the same tab asks.
+      if (window.location.hash !== shownHash.current && !canLeave()) {
         // hashchange cannot be cancelled; replaceState restores the URL without firing it again.
         history.replaceState(null, "", shownHash.current || "#");
         return;
       }
       shownHash.current = window.location.hash;
       setRoute(next);
-      setNavOpen(false);
       window.scrollTo(0, 0);
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
+
+  // An announcement belongs to the screen it was made on: another screen starts with an empty live region.
+  useEffect(() => {
+    const el = document.getElementById("announcer");
+    if (el) el.textContent = "";
+  }, [active]);
 
   // A decision anywhere (see lib/announce) refreshes the counts below.
   const [decidedAt, setDecidedAt] = useState(0);
@@ -194,13 +183,10 @@ function App() {
   // Counts on the "Needs you" items, refreshed on every navigation and after
   // every decision. Failure leaves them off rather than showing a zero nobody measured.
   useEffect(() => {
+    api.getWaiting().then(setWaiting, () => setWaiting(null));
     listAllRuns()
-      .then((runs) => {
-        const sum = (keep: (r: RunManifest) => boolean) => runs.filter(keep).reduce((n, r) => n + r.review_count, 0);
-        setWaiting({ review: sum((r) => REVIEWABLE_RUN_TYPES.has(r.run_type)) });
-        setRecentRuns([...runs].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 50));
-      })
-      .catch(() => setWaiting(null));
+      .then((runs) => setRecentRuns([...runs].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 50)))
+      .catch(() => {});
   }, [route, decidedAt]);
 
   const hub = hubOf(active);
@@ -219,8 +205,7 @@ function App() {
   const canAsk = me != null && me.role !== "viewer";
   const [askOpen, setAskOpen] = useState(false);
   const [askTurns, setAskTurns] = useState<AskTurn[]>(() => loadTurns());
-  const askSideRef = useRef<HTMLButtonElement>(null);
-  const askTopRef = useRef<HTMLButtonElement>(null);
+  const askRef = useRef<HTMLButtonElement>(null);
   useEffect(() => saveTurns(askTurns), [askTurns]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -238,39 +223,17 @@ function App() {
   }, [canAsk]);
   function closeAsk() {
     setAskOpen(false);
-    // The sidebar is a closed drawer at 1024px and below, so focus goes to the top-bar button there.
-    const narrow = window.matchMedia("(max-width: 1024px)").matches;
-    (narrow ? askTopRef : askSideRef).current?.focus();
+    askRef.current?.focus();
   }
-
-  // Below 1024px the sidebar is an off-canvas drawer; on desktop navOpen is
-  // ignored by the CSS.
-  const [navOpen, setNavOpen] = useState(false);
-  const navRef = useRef<HTMLElement>(null);
-  const menuRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!navOpen) return;
-    const menu = menuRef.current;
-    // Most screens have no sidebar link; then focus the first one so the drawer still takes focus.
-    (navRef.current?.querySelector<HTMLElement>(".nav-tab.active") ?? navRef.current?.querySelector<HTMLElement>(".nav-tab"))?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setNavOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      menu?.focus();
-    };
-  }, [navOpen]);
 
   function go(id: TabId) {
     navigate(id);
-    setNavOpen(false);
   }
 
-  const sendUniverse = (from: string) => (to: "extraction" | "transitionPlan" | "xbrl", path: string, count: number) => {
-    setHandoff({ path, count, from, to });
-    navigate(to);
-  };
+  // A hand-over opens step 1 of a new Argus flow with the companies listed; the Transition Plan one also picks that template.
+  // One hand-over at a time: a double click on "Argus →" must not start two flows.
+  const sendToArgus = useRef(singleFlight((to: "argus" | "transitionPlan", path: string) =>
+    openNewFlow({ universePath: path, preset: to === "transitionPlan" ? "transition_plan" : null }))).current;
 
   function sendToTheme(taxonomyId: string) {
     setPendingTaxonomyId(taxonomyId);
@@ -282,7 +245,7 @@ function App() {
   }
 
   return (
-    <div className={navOpen ? "app-shell nav-open" : "app-shell"}>
+    <div className="app-shell app-shell-start">
       {/* Routing lives in the hash, so the skip link focuses <main> instead of
           following an in-page anchor. */}
       <a
@@ -296,83 +259,16 @@ function App() {
         Skip to content
       </a>
       <div id="announcer" className="visually-hidden" role="status" aria-live="polite" />
-      <header className="app-topbar">
-        <button
-          ref={menuRef}
-          className="app-topbar-menu"
-          aria-label="Open navigation"
-          aria-expanded={navOpen}
-          aria-controls="app-sidebar"
-          onClick={() => setNavOpen(true)}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round">
-            <path d="M4 7h16M4 12h16M4 17h16" />
-          </svg>
-        </button>
-        <ArpMark />
-        <span className="app-topbar-title">{TABS.find((t) => t.id === active)!.label}</span>
-        {canAsk && (
-          <button ref={askTopRef} className="app-topbar-ask" aria-expanded={askOpen} onClick={() => setAskOpen(true)}>
-            Ask
-          </button>
-        )}
-      </header>
-      <div className="nav-scrim" onClick={() => setNavOpen(false)} />
-      <aside className="app-sidebar" id="app-sidebar" ref={navRef}>
-        <div className="app-sidebar-brand">
-          <ArpMark />
-          <span className="app-sidebar-wordmark">ARP</span>
-        </div>
-        <div className="app-sidebar-reviewer">
-          {/* The not-verified note is repeated where a typed name confirms a decision. */}
-          <ReviewerField hint={false} />
-          <SignedInAs />
-        </div>
-        <div className="sidebar-actions">
-          <button className="palette-trigger" title={mac ? "⌘K" : "Ctrl K"} aria-keyshortcuts="Control+K Meta+K" onClick={() => setPaletteOpen(true)}>
-            Jump to…
-          </button>
-          {canAsk && (
-            <button ref={askSideRef} className="palette-trigger" title={mac ? "⌘J" : "Ctrl J"} aria-keyshortcuts="Control+J Meta+J" aria-expanded={askOpen} onClick={() => { setNavOpen(false); setAskOpen(true); }}>
-              Ask ARP
-            </button>
-          )}
-        </div>
-        <nav className="app-nav">
-          {NAV_GROUPS.map((group, i) => {
-            const links = group.ids.map((id) => {
-              const t = TABS.find((tab) => tab.id === id)!;
-              const current = currentNavIds(active).includes(id);
-              const count = navCount(id, waiting);
-              return (
-                <a
-                  key={t.id}
-                  href={`#/${t.id}`}
-                  className={current ? "nav-tab active" : "nav-tab"}
-                  aria-current={current ? "page" : undefined}
-                  onClick={() => setNavOpen(false)}
-                >
-                  <span className="nav-tab-icon">{NAV_ICONS[t.id]}</span>
-                  <span className="nav-tab-label">{t.label}</span>
-                  {count > 0 && (
-                    <span className="nav-count" title={`${count} ${count === 1 ? "review item" : "review items"} waiting on you`} aria-label={`${count} ${count === 1 ? "review item" : "review items"} waiting on you`}>
-                      {/* "items", so 7 here never reads as the start page's total of decisions. */}
-                      {count} {count === 1 ? "item" : "items"}
-                    </span>
-                  )}
-                </a>
-              );
-            });
-            return (
-              <div className="nav-group" key={group.label ?? `group-${i}`}>
-                {group.label && <div className="nav-group-label">{group.label}</div>}
-                {links}
-              </div>
-            );
-          })}
-        </nav>
-        <ThemeSwitch />
-      </aside>
+      <AppTopbar
+        active={active}
+        canAsk={canAsk}
+        askOpen={askOpen}
+        askRef={askRef}
+        waiting={waiting}
+        onSearch={() => setPaletteOpen(true)}
+        onAsk={() => setAskOpen(true)}
+      />
+      <WorkspaceRow hash={window.location.hash} />
       {askOpen && canAsk && (
         <AskPanel turns={askTurns} setTurns={setAskTurns} onClose={closeAsk} onClear={() => { clearTurns(); setAskTurns([]); }} />
       )}
@@ -390,8 +286,10 @@ function App() {
         )}
         <Suspense fallback={<p className="muted" role="status">Loading…</p>}>
         {active === "home" && <StartPage />}
-        {active === "argus" && (route.params[0] ? <ArgusFlow key={route.params[0]} flowId={route.params[0]} step={Number(route.params[1] ?? 1) || 1} onSendUniverse={sendUniverse("Argus")} /> : <ArgusStart />)}
-        {isWorkspace(active) && active !== "argus" && <WorkspaceOverview key={active} id={active} />}
+        {active === "argus" && route.params[0] === "new" && <ArgusNew preset={route.params[1] ?? null} />}
+        {active === "argus" && route.params[0] !== "new" && (route.params[0] ? <ArgusFlow key={route.params[0]} flowId={route.params[0]} step={stepFromUrl(route.params[1])} /> : <ArgusStart />)}
+        {isWorkspace(active) && active !== "argus" && !(active === "stewardiq" && route.params[0] === "cockpit") && <WorkspaceOverview key={active} id={active} />}
+        {active === "stewardiq" && route.params[0] === "cockpit" && <StewardCockpit key={route.params[1] ?? "today"} asOf={route.params[1]} />}
         {active === "search" && <Search />}
         {active === "securityMaster" && <SecurityMaster />}
         {active === "feeds" && <Feeds />}
@@ -399,16 +297,15 @@ function App() {
         {active === "smartSearch" && <SmartSearch />}
         {active === "outputs" && <Outputs />}
         {active === "arcade" && <Arcade selected={route.params[0] ?? null} />}
-        {active === "theme" && <ThemeBuilder key={route.params[0]} initialRunId={route.params[0] ?? null} onSendToExtraction={(path, count) => sendUniverse("Thematic Universe")("extraction", path, count)} pendingTaxonomyId={pendingTaxonomyId} />}
-        {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
+        {active === "theme" && <ThemeBuilder key={route.params[0]} initialRunId={route.params[0] ?? null} onSendToArgus={(path) => sendToArgus("argus", path)} pendingTaxonomyId={pendingTaxonomyId} />}
+        {active === "taxonomy" && route.params[0] === "authority" && <AuthorityTaxonomyRun key={route.params[1] ?? "new"} runId={route.params[1]} />}
+        {active === "taxonomy" && route.params[0] !== "authority" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
         {active === "emergingThemes" && <EmergingThemesDetector onNavigate={go} />}
         {active === "themes" && <ThemeDossiers params={route.params} onFindCompanies={sendToTheme} />}
         {active === "backgroundAgents" && <BackgroundAgents />}
-        {active === "extraction" && <Extraction key="extraction" initialTab={route.params[0]} initialAuto={route.params[1] === "auto"} pendingUniverse={pendingFor("extraction")} />}
-        {active === "transitionPlan" && <Extraction key="transitionPlan" initialProfile="transition_plan" pendingUniverse={pendingFor("transitionPlan")} />}
         {active === "transitionBarrier" && <TransitionBarrierAssessment params={route.params} />}
-        {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool key={route.params[0]} initialSub={route.params[0]} onSendUniverse={sendUniverse("Risk Monitoring")} />}
-        {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} />}
+        {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool key={route.params[0]} initialSub={route.params[0]} onSendUniverse={sendToArgus} />}
+        {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} waiting={waiting} />}
         {active === "history" && <RunHistory onOpenReview={openReview} focusRunId={route.params[0] ?? null} />}
         {active === "plans" && <Plans selectedId={route.params[0] ?? null} onSelect={(id) => navigate("plans", id)} />}
         {active === "stewardship" && <StewardWorkflow initialTab={route.params[0]} />}
@@ -420,10 +317,9 @@ function App() {
         {active === "valueChain" && <ValueChainExplorer key={route.params.join("/")} params={route.params} />}
         {active === "decision" && <DecisionStudio key={route.params.join("/")} initialSource={route.params[0]} initialRunId={route.params[1]} />}
         {active === "index" && <IndexBuilder />}
-        {active === "argusUniverse" && <ArgusUniverse onSendUniverse={sendUniverse("Argus Universe")} />}
         {active === "argusWalkthrough" && <ArgusWalkthrough key={route.params.join("/")} params={route.params} />}
         {active === "rfp" && <RfpAnswers projectId={route.params[0] ? Number(route.params[0]) : null} onOpen={(id) => (id === null ? navigate("rfp") : navigate("rfp", String(id)))} />}
-        {active === "xbrl" && <XbrlFacts pendingUniverse={pendingFor("xbrl")} selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("xbrl", id)} />}
+        {active === "xbrl" && <XbrlFacts selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("xbrl", id)} />}
         {active === "library" && <DataLibrary />}
         {active === "companies" && <Company companyRef={route.params[0]} />}
         </Suspense>
@@ -432,4 +328,15 @@ function App() {
   );
 }
 
-export default App;
+/** Opening ARP lands on the landing page; any other address opens the app as before. */
+function Root() {
+  const [landing, setLanding] = useState(() => entryTab(window.location.hash) === "welcome");
+  useEffect(() => {
+    const onHash = () => setLanding(entryTab(window.location.hash) === "welcome");
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  return landing ? <Landing /> : <App />;
+}
+
+export default Root;

@@ -2,16 +2,17 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import date
 from pathlib import Path
 
 import typer
 
 from arp.cli._shared import _portfolio_directories, _portfolio_store
-from arp.config import get_settings
+from arp.config import REPO_ROOT, get_settings
 from arp.llm.factory import build_llm_client
 from arp.portfolio import analytics, qa_agent
 from arp.portfolio.climate.esg_api_source import pull_esg
-from arp.portfolio.constituent_import import import_constituent_files
+from arp.portfolio.constituent_import import NOTIONAL_EUR, import_holdings_files
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.monitoring import evaluator as monitoring_evaluator
 from arp.portfolio.monthly_run import run_month
@@ -34,21 +35,27 @@ def portfolio_seed_demo() -> None:
     Deterministic and safe to re-run.
     """
     store = _portfolio_store()
-    summary = asyncio.run(generate_demo_dataset(store))
+    summary = asyncio.run(generate_demo_dataset(store, today=date.today()))
     typer.echo(json.dumps(summary.__dict__, indent=2))
 
 
 
 @portfolio_app.command("import-constituents")
 def portfolio_import_constituents(
-    files: list[Path] = typer.Argument(..., help="Constituent_<ISIN>.xlsx files."),
-    notional_eur: float = typer.Option(..., help="Assumed fund size in EUR; the files carry weights only."),
+    files: list[Path] = typer.Argument(..., help="Holdings .xlsx files; a path not found here is looked up from the repo root."),
+    notional_eur: float = typer.Option(NOTIONAL_EUR, help="Assumed fund size in EUR; the files carry weights only."),
+    fund_isin: str = typer.Option(None, "--fund-isin", help="The fund's ISIN, for one file not named Constituent_<ISIN>.xlsx."),
     project: str = typer.Option(None, "--project", help="Namespace portfolio ids and tag them project:<id>."),
 ) -> None:
-    """Imports ETF constituent files as one portfolio per file, sizing
-    each weight at the assumed notional. Idempotent: a re-run overwrites
-    the same snapshot."""
-    summary = import_constituent_files(_portfolio_store(), files, notional_eur, project)
+    """Imports ETF holdings files as one portfolio per file, sizing each weight at the assumed notional.
+    Constituent_<ISIN>.xlsx becomes portfolio_<isin>, any other name portfolio_<file stem>.
+    Idempotent: a re-run overwrites the same snapshot."""
+    paths = [f if f.is_absolute() or f.exists() else REPO_ROOT / f for f in files]
+    try:
+        summary = import_holdings_files(_portfolio_store(), paths, notional_eur, fund_isin, project)
+    except (ValueError, OSError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
     typer.echo(json.dumps(summary, indent=2, ensure_ascii=False))
 
 
@@ -77,7 +84,7 @@ def portfolio_aggregate(
     group_by: str = typer.Option(..., help="portfolio_id | asset_class | company_id | company_name | sector | country | currency"),
     metric: str = typer.Option("market_value_sum", help="market_value_sum | weighted_avg_datapoint | count"),
     portfolio: list[str] = typer.Option(None, "--portfolio", help="Restrict to these portfolio_ids; repeatable."),
-    company_id: str = typer.Option(None, help="Filter to one issuer, e.g. bmw."),
+    company_id: str = typer.Option(None, help="Filter to one issuer, e.g. isin_DE0005190003."),
     asset_class: str = typer.Option(None),
     data_point_field_id: str = typer.Option(None, help="Required for metric=weighted_avg_datapoint, e.g. climate_carbon_intensity."),
     as_of: str = typer.Option(None, help="Snapshot date; defaults to the latest available."),
@@ -115,7 +122,7 @@ def portfolio_pivot(
     col_dim: str = typer.Option(..., help="Same choices as --row-dim."),
     metric: str = typer.Option("market_value_sum", help="market_value_sum | weighted_avg_datapoint | count"),
     portfolio: list[str] = typer.Option(None, "--portfolio", help="Restrict to these portfolio_ids; repeatable."),
-    company_id: str = typer.Option(None, help="Filter to one issuer, e.g. bmw."),
+    company_id: str = typer.Option(None, help="Filter to one issuer, e.g. isin_DE0005190003."),
     asset_class: str = typer.Option(None),
     data_point_field_id: str = typer.Option(None, help="Required for metric=weighted_avg_datapoint, e.g. climate_carbon_intensity."),
     as_of: str = typer.Option(None, help="Snapshot date; defaults to the latest available."),
@@ -230,7 +237,7 @@ def portfolio_monitoring_evaluate_now() -> None:
 def portfolio_monthly_run(
     month: str = typer.Option(..., help="YYYY-MM"),
     portfolio: list[str] = typer.Option(None, "--portfolio", help="Restrict to these portfolio_ids; repeatable. Default: all."),
-    esg_provider: str = typer.Option("default"),
+    esg_provider: str = typer.Option(None, help="Default: `default`, or `simulated` for a month with only a simulated ESG load."),
 ) -> None:
     """Runs the monthly monitoring: alerts, then stewardship triggers. Blocked unless the month's loads are ok."""
     store = _portfolio_store()

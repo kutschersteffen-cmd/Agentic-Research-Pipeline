@@ -181,3 +181,31 @@ def test_rejected_file_writes_nothing(env):
     assert store.list_revisions("index", "IX1", "2026-10-31") == []
     assert store.list_snapshot_dates("IX1", kind="index") == []
     assert store._read_jsonl(store.holdings_audit_path()) == []
+
+
+def test_an_uploaded_holding_is_analysed_under_its_issuer(env):
+    """Seen live: ten uploaded holdings, eight of them mapped by the security master, came back from
+    "market value by company" as one row "(unresolved)". The holding knew its issuer; the security did not."""
+    from arp.portfolio.aggregation import aggregate
+    from arp.storage.portfolio_store import portfolio_directories
+
+    env[2].add(IdentifierMap(issuer_key="ISS-1", scheme="ISIN", value=ISIN))
+    run(env, kind="portfolio", holder="P1")
+    store = env[0]
+    securities, companies = portfolio_directories(store)
+    assert securities[ISIN].company_id == "ISS-1"
+    assert securities[ISIN2].company_id is None  # not in the master: stays unmatched, never guessed
+
+    result = aggregate(store.load_holdings_as_of("2026-10-31"), securities, companies, group_by="company_id",
+                       metric="market_value_sum", as_of="2026-10-31")
+    assert {r.group_value: r.market_value_eur for r in result.rows} == {"ISS-1": 600, "(unresolved)": 400}
+
+
+def test_a_master_fix_reaches_analytics_on_the_next_load(env):
+    from arp.storage.portfolio_store import portfolio_directories
+
+    run(env, kind="portfolio", holder="P1")
+    assert portfolio_directories(env[0])[0][ISIN].company_id is None
+    env[2].add(IdentifierMap(issuer_key="ISS-1", scheme="ISIN", value=ISIN))
+    run(env, rows("portfolio", weights=(50, 50)), kind="portfolio", holder="P1")
+    assert portfolio_directories(env[0])[0][ISIN].company_id == "ISS-1"

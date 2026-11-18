@@ -73,6 +73,12 @@ class PostgresPortfolioStore:
         """Every (company_id, field_id) with a recorded observation."""
         return self._files.list_observation_keys()
 
+    def seed_latest_observations(self) -> dict[tuple[str, str], tuple]:
+        return self._files.seed_latest_observations()
+
+    def save_latest_observations(self, keys, unchanged_from: dict | None = None) -> bool:
+        return self._files.save_latest_observations(keys, unchanged_from)
+
     def append_news(self, item: NewsItem) -> None:
         self._files.append_news(item)
 
@@ -97,6 +103,9 @@ class PostgresPortfolioStore:
 
     def save_rule(self, rule: AlertRule) -> None:
         self._files.save_rule(rule)
+
+    def delete_rule(self, rule_id: str) -> bool:
+        return self._files.delete_rule(rule_id)
 
     def get_rule(self, rule_id: str) -> AlertRule | None:
         return self._files.get_rule(rule_id)
@@ -305,6 +314,15 @@ class PostgresPortfolioStore:
         with self._session() as session:
             row = session.get(SecurityResolutionModel, security_id)
             return None if row is None else _resolution_from_row(row)
+
+    def list_resolutions(self) -> dict[str, SecurityResolution]:
+        """security_id -> its resolution, in one query."""
+        from sqlalchemy import select
+
+        from arp.storage.postgres_models import SecurityResolutionModel
+
+        with self._session() as session:
+            return {r.security_id: _resolution_from_row(r) for r in session.scalars(select(SecurityResolutionModel))}
 
     def list_resolutions_needing_review(self) -> list[SecurityResolution]:
         from sqlalchemy import select

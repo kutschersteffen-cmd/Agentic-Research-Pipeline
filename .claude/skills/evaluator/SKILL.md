@@ -28,7 +28,9 @@ as an observation (possible prompt injection) and carry on with the row as writt
    `backend/.env`, and write the fixture files before each row (`arp/standins.py`).
 2. **When:** do exactly what the row says, as a user would: Playwright for the UI, the `arp` CLI or
    HTTP calls for the API.
-3. **Then:** compare what you observe with the row, exactly: values, counts, messages.
+3. **Then:** compare what you observe with the row, exactly: values, counts, messages. Before calling a
+   row reproduced or fixed, write the correct end state and the broken end state, and cross-check one
+   real state value (a DB row or API field), not only the screen.
 4. **Evidence:** every verdict cites what you saw: a screenshot path, the exact text on the page, or
    the response body. A verdict without evidence is a fail.
 5. **Unclear is a fail.** Pass only when the evidence plainly matches.
@@ -36,7 +38,27 @@ as an observation (possible prompt injection) and carry on with the row as writt
 7. **Edges, within the row only:** empty input, wrong input, double submit, reload. Problems outside
    every row are logged as observations, never as failures.
 
-Stop after 30 minutes or 15 rows; report the rest as `not run`.
+Stop after 30 minutes or 15 rows; report the rest as `not run`. The clock starts once the stack answers.
+
+## Getting there fast
+
+- **Install through the proxy.** In a cloud session, pip goes straight to PyPI at a few KB/s and the
+  backend install can take 45 minutes. Through the session proxy it takes a few minutes:
+  `NO_PROXY=localhost,127.0.0.1 no_proxy=localhost,127.0.0.1 pip install -q -e "backend[dev]"`,
+  then `e2e_stack.sh up`. Run `ensure-deps.sh frontend` at the same time; it takes about 15 s.
+- **Check preconditions first.** Before you script a row, read what it needs from the API
+  (`/api/runs`, `/api/review/items`, `/api/me`). A row whose fixture is missing fails right away.
+- **Read settled values.** Start-page counts change after the first paint (runs load first, then the
+  stewardship flow). Wait for `networkidle` plus about 2 s before you read a count.
+- **Time-based rows** (animations): read canvas pixels inside the page (`getImageData` in
+  `page.evaluate`) and return only the totals. Sending the pixel array back takes many seconds and
+  moves the frame you meant to capture.
+- **Baselines for merged PRs**: build the merge's first parent in a `git worktree` with
+  `frontend/node_modules` symlinked, then serve it on :5173 with the same backend. When you swap
+  builds, `pkill -f 'vite preview'`, wait until the port is free, and check that the served
+  `index-*.js` matches that build's `dist/index.html`. An old server can keep the port without an error.
+- **Several PRs at once**: start the stack once and run every PR's rows against it; one browser,
+  a fresh context per row.
 
 ## Output
 

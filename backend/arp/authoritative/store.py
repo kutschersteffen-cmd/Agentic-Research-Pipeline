@@ -17,6 +17,7 @@ from arp.authoritative.models import AuthoritativePublish, AuthoritativeValue
 from arp.authoritative.source_values import _as_of_end
 from arp.db import models as m
 from arp.decision.dataset import Dataset
+from arp.errors import ClientInputError
 from arp.schemas.common import new_id
 from arp.schemas.decision import MechanismConfig
 from arp.storage.postgres_models import PublishedFactModel
@@ -24,7 +25,7 @@ from arp.storage.postgres_models import PublishedFactModel
 NOT_IN_DATASET = "not_in_dataset"
 
 
-class StalePublish(ValueError):
+class StalePublish(ClientInputError):
     """The dataset is older than one this framework already published: the timeline never runs backwards."""
 
 

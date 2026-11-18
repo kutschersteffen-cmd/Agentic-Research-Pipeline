@@ -79,14 +79,21 @@ Chart types (viz_type) and their groupby shape:
 """
 
 
-async def plan_from_brief(brief: str, metas: dict[str, DatasetMeta], llm: LLMClient) -> tuple[ChartPlan | None, list[str]]:
+_NO_MAPPING = "The brief could not be mapped onto the available datasets."
+
+
+async def plan_from_brief(
+    brief: str, metas: dict[str, DatasetMeta], llm: LLMClient
+) -> tuple[ChartPlan | None, list[str], str | None]:
+    """(plan, validation errors, clarification): a plan, or the errors of a plan that still
+    fails after the repair round, or the model's question back when it returned no plan."""
     system = _build_system(metas)
     out, _ = await llm.complete_structured(system=system, prompt=f"Brief: {brief}", output_model=PlannerRefusal)
     if out.plan is None:
-        return None, [out.clarification_needed or "The brief could not be mapped onto the available datasets."]
+        return None, [], out.clarification_needed or _NO_MAPPING
     errors = validate_plan(out.plan, metas)
     if not errors:
-        return out.plan, []
+        return out.plan, [], None
 
     repair = (
         f"Brief: {brief}\n\nYour previous plan failed validation:\n"
@@ -95,6 +102,6 @@ async def plan_from_brief(brief: str, metas: dict[str, DatasetMeta], llm: LLMCli
     )
     out, _ = await llm.complete_structured(system=system, prompt=repair, output_model=PlannerRefusal)
     if out.plan is None:
-        return None, [out.clarification_needed or "The brief could not be mapped onto the available datasets."]
+        return None, [], out.clarification_needed or _NO_MAPPING
     errors = validate_plan(out.plan, metas)
-    return (None, errors) if errors else (out.plan, [])
+    return (None, errors, None) if errors else (out.plan, [], None)

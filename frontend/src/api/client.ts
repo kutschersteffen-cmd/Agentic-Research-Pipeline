@@ -1,13 +1,23 @@
+import { plainDetail } from "../lib/setupErrors";
 import { clearToken, getToken } from "../lib/auth";
 import type { Plan } from "../lib/plans";
 import { filenameFromDisposition, inlineSafe } from "../lib/files";
 import { profileEmbedParams } from "../lib/biEmbed";
+import { cockpitPath } from "../lib/cockpit";
 import type { RowLineage } from "../lib/lineage";
 import type { Me } from "../lib/reviewKeys";
 import type {
   AuthoritativeValue,
+  Objective,
+  WatchItemKind,
+  WatchTopic,
+  EvidenceSuggestion,
+  WatchCheckResult,
+  FindCommitmentsResult,
   ArgusDraft,
   ArgusFlow,
+  Cockpit,
+  FlowProgress,
   AskHistoryTurn,
   AskResponse,
   WorkbenchResponse,
@@ -50,6 +60,7 @@ import type {
   XbrlRequiredRow,
   XbrlTag,
   XbrlVerifyRow,
+  RfpDocument,
   RfpLibraryEntry,
   RfpProject,
   RfpProjectSummary,
@@ -57,10 +68,25 @@ import type {
   SignalExperimentDetail,
   SignalExperimentSummary,
   SignalMethod,
+  BilateralPick,
+  SelectionConfirmed,
+  StewardNote,
+  StewardNoteList,
+  VoteList,
+  PortfolioGroup,
+  PriorityPreview,
+  ProgrammeList,
+  ProgrammeDetail,
+  SelectionList,
+  WorkProgramme,
+  Worklist,
+  WorklistScopes,
+  FundOverlap,
+  OverlapMatrix,
 } from "../types";
 import { tagQuery } from "../lib/xbrlTags";
 import { encodeRef, factsUrl, type FactFilters } from "../pages/company/companyQuery";
-import type { CompanyFactRow, CompanySearchHit, CompanySummary, CompanyTransition, FactTrail, Taxonomy, ThemeLayers } from "../types";
+import type { CompanyFactRow, CompanySearchHit, CompanySummary, CompanyTransition, FactTrail, SimulatedObservation, Taxonomy, ThemeLayers } from "../types";
 import type {
   DatasetSummary,
   DecisionComparison,
@@ -87,6 +113,8 @@ import type {
   ConstructionSpec,
   IndexCalibration,
   IndexCatalogue,
+  IndexStartingUniverse,
+  IndexStartingUniverseDetail,
   IndexReviewResult,
   CompanyRef,
   DataPointSchema,
@@ -97,7 +125,6 @@ import type {
   PortfolioSummary,
   QAAnswer,
   SearchResponse,
-  TransitionPlanAssessmentRecord,
   ExtractionProfile,
   PipelineShape,
   RunCompany,
@@ -106,6 +133,7 @@ import type {
   TransitionPlanIndicatorDef,
 } from "../types";
 import type { XbrlRunMarket } from "../types";
+import type { AuthorityDraft, AuthorityRunRequest, AuthorityRunState } from "../types";
 import type { VcExposure, VcFootprint, VcSector, VcLinkRuleIn, VcLinks, VcMaterialFootprint, VcMaterialTree, VcNode, VcPortfolio, VcPriceShock, VcQuantityShock, VcRecipe, VcRecipeIn, VcRecipeList, VcRoutes, VcSearch, VcStatus, VcTree } from "../types";
 import type { RunFailure } from "../types";
 import type {
@@ -126,7 +154,7 @@ import type {
   StandardsSaved,
   StandardsView,
 } from "../types";
-import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, Walkthrough } from "../types";
+import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, WaitingCounts, Walkthrough } from "../types";
 import type { DecisionInput, DocType, DocumentPassages, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
 import type { BIChartPlan, BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
@@ -172,7 +200,7 @@ async function errorFor(res: Response): Promise<Error> {
   } catch {
     /* ignore parse failure */
   }
-  return new Error(`${res.status}: ${detail}`);
+  return new Error(`${res.status}: ${plainDetail(detail)}`);
 }
 
 /** fetch with the bearer token; a 401 drops the token, any non-2xx throws. */
@@ -266,6 +294,17 @@ export const api = {
     return request<{ imported: number; dropped: string[] }>("/api/rfp/library/import", { method: "POST", body: form });
   },
   retireRfpEntry: (id: number) => request<RfpLibraryEntry>(`/api/rfp/library/${id}/retire`, { method: "POST" }),
+  listRfpDocuments: () => request<RfpDocument[]>("/api/rfp/documents"),
+  uploadRfpDocument: (file: File, title: string, documentDate: string, priority: number, replaces: number | null) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("title", title);
+    form.append("document_date", documentDate);
+    form.append("priority", String(priority));
+    if (replaces !== null) form.append("replaces", String(replaces));
+    return request<RfpDocument>("/api/rfp/documents", { method: "POST", body: form });
+  },
+  retireRfpDocument: (id: number) => request<RfpDocument>(`/api/rfp/documents/${id}/retire`, { method: "POST" }),
   listRfpProjects: () => request<RfpProjectSummary[]>("/api/rfp/projects"),
   createRfpProject: (file: File, investor: string, dueDate: string) => {
     const form = new FormData();
@@ -285,6 +324,7 @@ export const api = {
   rfpExportUrl: (id: number) => `${API_BASE}/api/rfp/projects/${id}/export`,
   listReviewItems: (runId?: string) =>
     request<{ items: ReviewItem[] }>(`/api/review/items${runId ? `?run_id=${encodeURIComponent(runId)}` : ""}`),
+  getWaiting: () => request<WaitingCounts>("/api/waiting"),
   getItemContext: (runId: string, itemKey: string) =>
     request<ItemContext>(`/api/review/runs/${encodeURIComponent(runId)}/items/${encodeURIComponent(itemKey)}/context`),
   getWalkthrough: (runId: string, companyId: string, q: { item: string; period_end?: string; basis?: string }) =>
@@ -312,10 +352,13 @@ export const api = {
 
   // Holdings intake
   listHolders: () => request<{ holders: HolderStatus[] }>("/api/holdings/holders"),
-  uploadHoldings: (f: { file: File; holder_id: string; kind: string; as_of: string; provider?: string; override_reason?: string }) => {
+  uploadHoldings: (f: {
+    file: File; holder_id: string; kind: string; as_of: string; provider?: string; override_reason?: string;
+    decimal?: "." | ","; weight_unit?: "percent" | "fraction";
+  }) => {
     const form = new FormData();
     form.append("file", f.file);
-    for (const k of ["holder_id", "kind", "as_of", "provider", "override_reason"] as const) if (f[k]) form.append(k, f[k]!);
+    for (const k of ["holder_id", "kind", "as_of", "provider", "override_reason", "decimal", "weight_unit"] as const) if (f[k]) form.append(k, f[k]!);
     return request<IntakeResult>("/api/holdings/upload", { method: "POST", body: form });
   },
   pullHolder: (kind: string, holderId: string) =>
@@ -366,6 +409,8 @@ export const api = {
     request<{ month: string; holdings: Record<string, string>; esg: { provider: string; status: string }; blocked_reasons: string[] }>(
       `/api/portfolio/monthly-run/status${buildQuery({ month })}`,
     ),
+  /** The newest monthly run that ran, or null when none has. */
+  lastMonthlyRun: () => request<{ month: string; at: string; alerts: number; triggers: number } | null>("/api/portfolio/monthly-run/last"),
   runMonth: (month: string) =>
     request<{ status: "ran" | "blocked"; blocked_reasons: string[]; alerts: number; triggers: number }>("/api/portfolio/monthly-run", {
       method: "POST",
@@ -446,10 +491,6 @@ export const api = {
 
   // Transition Plan Assessment (64-indicator walk/talk RAG disclosure assessment)
   getTransitionPlanIndicators: () => request<TransitionPlanIndicatorDef[]>("/api/transition-plan/indicators"),
-  getTransitionPlanResults: (runId: string, offset = 0, limit = 500) =>
-    request<{ total: number; results: TransitionPlanAssessmentRecord[] }>(
-      `/api/transition-plan/runs/${runId}/results?offset=${offset}&limit=${limit}`,
-    ),
   getTnfdReviewHistory: (runId: string, itemKey: string) =>
     request(`/api/tnfd/runs/${runId}/review-history?item_key=${encodeURIComponent(itemKey)}`),
   submitTnfdReview: (runId: string, body: unknown) =>
@@ -494,6 +535,7 @@ export const api = {
   getCompanyFacts: (ref: string, filters: FactFilters) => request<CompanyFactRow[]>(factsUrl(ref, filters)),
   getFactTrail: (factId: number) => request<FactTrail>(`/api/facts/${factId}/trail`),
   getCompanyTransition: (ref: string) => request<CompanyTransition>(`/api/companies/${encodeRef(ref)}/transition`),
+  getSimulatedEsg: (ref: string) => request<SimulatedObservation[]>(`/api/companies/${encodeRef(ref)}/simulated-esg`),
 
   // Documents
   listDocuments: (companyId: string) => request(`/api/documents/${companyId}`),
@@ -643,31 +685,76 @@ export const api = {
 
   // Argus flows (#/argus/<flow_id>/<step>)
   createArgusFlow: () => request<ArgusFlow>("/api/argus/flows", { method: "POST" }),
+  deleteArgusFlow: async (flowId: string): Promise<void> => {
+    await authFetch(`${API_BASE}/api/argus/flows/${encodeURIComponent(flowId)}`, { method: "DELETE" }); // 204: no body to parse
+  },
+  /** Deletes a draft with whatever it holds; its documents stay on the companies. */
+  discardArgusFlow: async (flowId: string): Promise<void> => {
+    await authFetch(`${API_BASE}/api/argus/flows/${encodeURIComponent(flowId)}/discard`, { method: "POST" }); // 204: no body to parse
+  },
   listArgusFlows: () => request<{ flows: ArgusDraft[] }>("/api/argus/flows"),
   getArgusFlow: (flowId: string) => request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}`),
-  patchArgusFlow: (flowId: string, body: { identity_run_id?: string }) =>
+  patchArgusFlow: (flowId: string, body: Partial<Pick<ArgusFlow, "identity_run_id" | "reporting_year" | "source" | "step" | "schema_choice" | "settings" | "repeat">>) =>
     request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}`, { method: "PATCH", body: JSON.stringify(body) }),
+  updateFlowCompany: (flowId: string, companyId: string, company: { name: string; ticker?: string; isin?: string; lei?: string; cik?: string }) =>
+    request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies/${encodeURIComponent(companyId)}`, { method: "PUT", body: JSON.stringify(company) }),
+  removeFlowCompany: (flowId: string, companyId: string) =>
+    request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies/${encodeURIComponent(companyId)}`, { method: "DELETE" }),
   uploadFlowCompanies: (flowId: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
     return request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies/upload`, { method: "POST", headers: {}, body: form });
   },
+  findFlowDocuments: (flowId: string) => request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/documents/find`, { method: "POST" }),
+  uploadFlowDocument: (flowId: string, companyId: string, docType: string, file: File) => {
+    const form = new FormData();
+    form.append("company_id", companyId);
+    form.append("doc_type", docType);
+    form.append("file", file);
+    return request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/documents/upload`, { method: "POST", headers: {}, body: form });
+  },
+  startArgusFlow: (flowId: string) => request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/start`, { method: "POST" }),
+  getFlowProgress: (flowId: string) => request<FlowProgress>(`/api/argus/flows/${encodeURIComponent(flowId)}/progress`),
+  retryFlowCompany: (flowId: string, companyId: string) =>
+    request<FlowProgress>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies/${encodeURIComponent(companyId)}/retry`, { method: "POST" }),
+  decideFlowFiles: (flowId: string, body: { keys?: string[]; state?: "kept" | "removed"; all_that_pass?: boolean; all?: boolean }) =>
+    request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/files`, { method: "POST", body: JSON.stringify(body) }),
   addFlowCompanies: (flowId: string, body: { universe_path?: string; company?: { name: string; ticker?: string; isin?: string; lei?: string; cik?: string } }) =>
     request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies`, { method: "POST", body: JSON.stringify(body) }),
 
   // Universe from an in-hand company list (e.g. filtered thematic-run matches)
-  universeFromCompanies: (companies: unknown[], name: string) =>
+  /** `basePath`: a saved universe the new list starts from; it is not changed. */
+  universeFromCompanies: (companies: unknown[], name: string, basePath?: string) =>
     request<{ path: string; company_count: number; sample: unknown[] }>("/api/universe/from-companies", {
       method: "POST",
-      body: JSON.stringify({ companies, name }),
+      body: JSON.stringify({ companies, name, base_path: basePath }),
     }),
 
   universeWorkbench: (body: { companies?: unknown[]; universe_path?: string; availability?: boolean }) =>
     request<WorkbenchResponse>("/api/universe/workbench", { method: "POST", body: JSON.stringify(body) }),
 
+  // Authority taxonomy run
+  startAuthorityRun: (body: AuthorityRunRequest) =>
+    request<{ id: string; stage: string }>("/api/authority-taxonomy/runs", jsonBody("POST", body)),
+  getAuthorityRun: (id: string) => request<AuthorityRunState>(`/api/authority-taxonomy/runs/${encodeURIComponent(id)}`),
+  selectAuthoritySources: (id: string, body: { urls: string[]; files: string[] }) =>
+    request<AuthorityRunState>(`/api/authority-taxonomy/runs/${encodeURIComponent(id)}/sources`, jsonBody("POST", body)),
+  putAuthorityDraft: (id: string, draft: AuthorityDraft) =>
+    request<AuthorityRunState>(`/api/authority-taxonomy/runs/${encodeURIComponent(id)}/draft`, jsonBody("PUT", draft)),
+  acceptAuthorityRun: (id: string) =>
+    request<{ taxonomy_id: string }>(`/api/authority-taxonomy/runs/${encodeURIComponent(id)}/accept`, { method: "POST" }),
+  cancelAuthorityRun: async (id: string): Promise<void> => {
+    await authFetch(`${API_BASE}/api/authority-taxonomy/runs/${encodeURIComponent(id)}`, { method: "DELETE" });
+  },
+  uploadAuthorityDocument: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<{ path: string }>("/api/authority-taxonomy/uploads", { method: "POST", body: form });
+  },
+
   // Taxonomy library
   discoverTaxonomySources: (name: string) =>
-    request<{ authority_sources: unknown[]; thematic_funds: unknown[] }>("/api/taxonomies/discover-sources", {
+    request<{ authority_sources: unknown[]; thematic_funds: unknown[]; search_unreachable: boolean }>("/api/taxonomies/discover-sources", {
       method: "POST",
       body: JSON.stringify({ name }),
     }),
@@ -678,7 +765,7 @@ export const api = {
   createDossier: (name: string, taxonomyId: string | null) =>
     request<Dossier>("/api/dossiers", jsonBody("POST", { name, taxonomy_id: taxonomyId })),
   getDossier: (id: string) => request<Dossier>(`/api/dossiers/${encodeURIComponent(id)}`),
-  patchDossier: (id: string, body: { taxonomy_id: string } | { status: "shelved"; reason: string }) =>
+  patchDossier: (id: string, body: { taxonomy_id: string } | { status: "shelved"; reason: string } | { status: "active" }) =>
     request<Dossier>(`/api/dossiers/${encodeURIComponent(id)}`, jsonBody("PATCH", body)),
   getResearch: (id: string) => request<ResearchView>(research(id)),
   proposeSources: (id: string) => request<ProposalStarted>(research(id, "/propose"), { method: "POST" }),
@@ -717,9 +804,14 @@ export const api = {
   generateTaxonomySchema: (taxonomyId: string, version: number) =>
     request<DataPointSchema>(`/api/taxonomies/${taxonomyId}/versions/${version}/schema`, { method: "POST" }),
   listSchemas: () =>
-    request<{ schema_id: string; version: number; name: string; release_flag: boolean; saved_at: string }[]>("/api/extraction/schemas"),
+    request<{ schema_id: string; version: number; name: string; release_flag: boolean; saved_at: string; field_count: number }[]>("/api/extraction/schemas"),
   getSchema: (schemaId: string, version: number) =>
     request<DataPointSchema>(`/api/extraction/schemas/${encodeURIComponent(schemaId)}?version=${version}`),
+  registerSchema: (schema: DataPointSchema) =>
+    request<DataPointSchema>("/api/extraction/schemas", { method: "POST", body: JSON.stringify(schema) }),
+  listPresets: () => request<{ preset_id: string; name: string; field_count: number }[]>("/api/extraction/presets"),
+  installPreset: (presetId: string) =>
+    request<{ schema_id: string; version: number }>(`/api/extraction/presets/${encodeURIComponent(presetId)}/install`, { method: "POST" }),
   releaseSchema: (schemaId: string, version: number) =>
     request<DataPointSchema>(`/api/extraction/schemas/${encodeURIComponent(schemaId)}/versions/${version}/release`, { method: "POST" }),
   compareTaxonomies: (body: unknown) => request("/api/taxonomies/compare", { method: "POST", body: JSON.stringify(body) }),
@@ -757,6 +849,7 @@ export const api = {
     request<{ triggers: UnifiedTrigger[] }>(`/api/stewardship/triggers${status ? `?status=${status}` : ""}`),
   transitionTrigger: (triggerId: string, body: { status: UnifiedTrigger["status"]; decided_by: string; reason?: string }) =>
     request<UnifiedTrigger>(`/api/stewardship/triggers/${encodeURIComponent(triggerId)}/transition`, { method: "POST", body: JSON.stringify(body) }),
+  getCockpit: (asOf?: string, portfolioId?: string | null) => request<Cockpit>(cockpitPath(asOf, portfolioId)),
   listStewardshipStreams: () => request<{ streams: StewardshipStream[] }>("/api/stewardship/streams"),
   createStewardshipStream: (body: { name: string; vehicle_type: string; client_policy?: unknown }) =>
     request<{ stream_id: string }>("/api/stewardship/streams", { method: "POST", body: JSON.stringify(body) }),
@@ -765,6 +858,11 @@ export const api = {
     request(`/api/stewardship/streams/${encodeURIComponent(streamId)}/decisions`, { method: "POST", body: JSON.stringify(body) }),
   confirmTiers: (body: { issuer_ids?: string[] }) =>
     request<{ confirmed: number }>("/api/stewardship/tiers/confirm", { method: "POST", body: JSON.stringify(body) }),
+  getBilateralPicks: () => request<{ picks: BilateralPick[] }>("/api/stewardship/tiers"),
+  pickBilateral: (body: { issuer_id: string; reason: string }) =>
+    request<{ picked: string }>("/api/stewardship/tiers/bilateral", { method: "POST", body: JSON.stringify(body) }),
+  withdrawBilateral: (issuerId: string) =>
+    request<{ withdrawn: string }>(`/api/stewardship/tiers/bilateral/${encodeURIComponent(issuerId)}/withdraw`, { method: "POST" }),
   getStewardPolicy: (policyId: StewardPolicyId, stream?: string) =>
     request<StewardPolicyInfo>(`/api/stewardship/policies/${policyId}${streamQuery(stream)}`),
   getStewardPolicyVersion: (policyId: StewardPolicyId, version: number, stream?: string) =>
@@ -820,7 +918,10 @@ export const api = {
   getTracking: () => request<{ commitments: TrackedCommitment[]; engagements: TrackedEngagement[] }>("/api/stewardship/tracking"),
   addCommitment: (body: { company_id: string; issue_id: string; text: string; target_date?: string }) =>
     request("/api/stewardship/tracking/commitments", { method: "POST", body: JSON.stringify(body) }),
-  setCommitmentStatus: (commitmentId: string, body: { company_id: string; issue_id: string; status: "verified" | "missed" }) =>
+  setCommitmentStatus: (
+    commitmentId: string,
+    body: { company_id: string; issue_id: string; status: "verified" | "missed"; evidence?: string },
+  ) =>
     request(`/api/stewardship/tracking/commitments/${encodeURIComponent(commitmentId)}`, { method: "POST", body: JSON.stringify(body) }),
   closeEngagement: (body: { company_id: string; issue_id: string; status: "resolved" | "closed"; outcome: string }) =>
     request("/api/stewardship/tracking/close", { method: "POST", body: JSON.stringify(body) }),
@@ -840,6 +941,30 @@ export const api = {
   ) => request(`/api/stewardship/streams/${encodeURIComponent(streamId)}/exceptions`, { method: "POST", body: JSON.stringify(body) }),
   getIssueCatalogue: () => request<IssueCatalogue>("/api/stewardship/catalogue"),
   getCoverageInputs: () => request<{ contexts: Record<string, unknown>[] }>("/api/stewardship/studio/coverage/inputs"),
+  // The stewardship workbench (spec stewardship-priority-worklist)
+  getWorklist: (scope: string) => request<Worklist>(`/api/stewardship/worklist${buildQuery({ scope })}`),
+  getWorklistScopes: () => request<WorklistScopes>("/api/stewardship/worklist/scopes"),
+  getFundOverlap: () => request<FundOverlap>("/api/stewardship/overlap"),
+  // `n` counts for basis top, `scope` for basis selection; the server ignores the other one.
+  getOverlapMatrix: (basis: "top" | "selection", n: number, scope?: string) =>
+    request<OverlapMatrix>(`/api/stewardship/overlap/matrix${buildQuery({ basis, n: String(n), scope })}`),
+  getSelection: (scope: string, cycle?: string) => request<SelectionList>(`/api/stewardship/selection${buildQuery({ scope, cycle })}`),
+  changeSelection: (body: { cycle: string; scope: string; add?: string[]; remove?: string[] }) =>
+    request<SelectionList>("/api/stewardship/selection", jsonBody("POST", body)),
+  confirmSelection: (body: { cycle: string; scope: string }) =>
+    request<SelectionConfirmed>("/api/stewardship/selection/confirm", jsonBody("POST", body)),
+  listProgrammes: () => request<ProgrammeList>("/api/stewardship/programmes"),
+  createProgramme: (name: string) => request<WorkProgramme>("/api/stewardship/programmes", jsonBody("POST", { name })),
+  addProgrammeMembers: (programmeId: string, add: string[]) =>
+    request<ProgrammeDetail>(`/api/stewardship/programmes/${encodeURIComponent(programmeId)}/members`, jsonBody("POST", { add })),
+  previewPriority: (content: unknown) =>
+    request<PriorityPreview>("/api/stewardship/studio/priority/preview", jsonBody("POST", { content })),
+  createPortfolioGroup: (body: { name: string; kind: "portfolios" | "companies"; members: string[] }) =>
+    request<PortfolioGroup>("/api/portfolio/groups", jsonBody("POST", body)),
+  getSimulatedSchema: () => request<DataPointSchema>("/api/climate/simulated-schema"),
+  getNotes: (companyId: string) => request<StewardNoteList>(`/api/stewardship/notes${buildQuery({ company_id: companyId })}`),
+  addNote: (body: { company_id: string; text: string; scope: string }) => request<StewardNote>("/api/stewardship/notes", jsonBody("POST", body)),
+  getVotes: (companyId: string) => request<VoteList>(`/api/stewardship/votes${buildQuery({ company_id: companyId })}`),
   previewCoverage: (graph: unknown) =>
     request<CoveragePreview>("/api/stewardship/studio/coverage/preview", { method: "POST", body: JSON.stringify({ graph }) }),
   getMonitoringTriggers: () => request<{ triggers: MonitoringTrigger[] }>("/api/stewardship/studio/monitoring/triggers"),
@@ -874,7 +999,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
   triggerScan: (body: { companies: unknown[]; signals: unknown[] }) =>
-    request<{ events: TriggerEvent[] }>("/api/engagement/trigger-scan", { method: "POST", body: JSON.stringify(body) }),
+    request<{ events: TriggerEvent[]; unlisted_signals: { count: number; company_ids: string[] } }>("/api/engagement/trigger-scan", { method: "POST", body: JSON.stringify(body) }),
   draftDossier: (companyId: string, issueId: string, company: unknown) =>
     request<{ dossier: ResearchDossier; needs_review: boolean }>(
       `/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/dossier`,
@@ -909,11 +1034,34 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  verifyCommitment: (companyId: string, issueId: string, body: { commitment_id: string }) =>
+  verifyCommitment: (companyId: string, issueId: string, body: { commitment_id: string; evidence?: string }) =>
     request(`/api/engagement/records/${encodeURIComponent(companyId)}/issues/${encodeURIComponent(issueId)}/verify-commitment`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  // Watch list (spec stewardship-commitment-loop)
+  setProofStatement: (kind: WatchItemKind, id: string, body: { company_id: string; issue_id: string; proof_statement: string }) =>
+    request<unknown>(`/api/stewardship/watch-items/${kind}/${encodeURIComponent(id)}/proof-statement`, jsonBody("POST", body)),
+  listWatchTopics: (companyId: string) =>
+    request<{ topics: WatchTopic[] }>(`/api/stewardship/watch-topics?company_id=${encodeURIComponent(companyId)}`),
+  addWatchTopic: (body: { company_id: string; issue_id: string; question: string; proof_statement?: string; target_date?: string }) =>
+    request<WatchTopic>("/api/stewardship/watch-topics", jsonBody("POST", body)),
+  closeWatchTopic: (topicId: string) => request<WatchTopic>(`/api/stewardship/watch-topics/${encodeURIComponent(topicId)}/close`, { method: "POST" }),
+  recordObjectiveResult: (
+    objectiveId: string,
+    body: { company_id: string; issue_id: string; result: string; influence_level: string | null; outcome: string },
+  ) => request<Objective>(`/api/stewardship/objectives/${encodeURIComponent(objectiveId)}/result`, jsonBody("POST", body)),
+  listSuggestions: (companyId: string, status: "pending" | "confirmed" | "rejected") =>
+    request<{ suggestions: EvidenceSuggestion[] }>(`/api/stewardship/evidence-suggestions?company_id=${encodeURIComponent(companyId)}&status=${status}`),
+  confirmSuggestion: (id: string, body: { text?: string; proof_statement?: string; target_date?: string } = {}) =>
+    request<EvidenceSuggestion>(`/api/stewardship/evidence-suggestions/${encodeURIComponent(id)}/confirm`, jsonBody("POST", body)),
+  rejectSuggestion: (id: string, reason: string) =>
+    request<EvidenceSuggestion>(`/api/stewardship/evidence-suggestions/${encodeURIComponent(id)}/reject`, jsonBody("POST", { reason })),
+  checkWatchItem: (kind: WatchItemKind, id: string, companyId: string) =>
+    request<WatchCheckResult>(`/api/stewardship/watch-items/${kind}/${encodeURIComponent(id)}/check`, jsonBody("POST", { company_id: companyId })),
+  findCommitments: (activityId: string) =>
+    request<FindCommitmentsResult>(`/api/stewardship/activities/${encodeURIComponent(activityId)}/find-commitments`, { method: "POST" }),
 
   // Voting (proxy)
   startVotingRun: (body: { companies?: unknown[]; universe_path?: string; meeting_dates?: Record<string, string> }) =>
@@ -938,10 +1086,20 @@ export const api = {
       body: JSON.stringify(body),
     }),
   listPortfolioCompanies: () => request<CompanyRef[]>("/api/portfolio/companies"),
-  askPortfolio: (question: string) => request<QAAnswer>("/api/portfolio/ask", { method: "POST", body: JSON.stringify({ question }) }),
+  askPortfolio: (body: { question: string; portfolio_ids?: string[]; as_of?: string; date_range?: [string, string] }) =>
+    request<QAAnswer>("/api/portfolio/ask", { method: "POST", body: JSON.stringify(body) }),
   listMonitoringRules: () => request<AlertRule[]>("/api/portfolio/monitoring/rules"),
-  createMonitoringRule: (rule: Omit<AlertRule, "rule_id" | "created_at">) =>
+  /** Without `rule_id` a new rule; with the `rule_id` and `created_at` of a stored rule, that rule is replaced. */
+  createMonitoringRule: (rule: Omit<AlertRule, "rule_id" | "created_at"> & Partial<Pick<AlertRule, "rule_id" | "created_at">>) =>
     request<AlertRule>("/api/portfolio/monitoring/rules", { method: "POST", body: JSON.stringify(rule) }),
+  deleteMonitoringRule: async (ruleId: string) => {
+    await authFetch(`${API_BASE}/api/portfolio/monitoring/rules/${encodeURIComponent(ruleId)}`, { method: "DELETE" }); // 204: no body to parse
+  },
+  clearRuleAlerts: (ruleId: string, status: "resolved" | "false_positive") =>
+    request<{ cleared: number }>(`/api/portfolio/monitoring/rules/${encodeURIComponent(ruleId)}/clear-alerts`, {
+      method: "POST",
+      body: JSON.stringify({ status }),
+    }),
   listAlerts: (status?: AlertStatus) => request<Alert[]>(`/api/portfolio/monitoring/alerts${buildQuery({ status })}`),
   transitionAlert: (scopeId: string, alertId: string, body: { status: AlertStatus; reason?: string; owner?: string }) =>
     request<Alert>(`/api/portfolio/monitoring/alerts/${encodeURIComponent(scopeId)}/${encodeURIComponent(alertId)}/transition`, {
@@ -999,6 +1157,10 @@ export const api = {
     request<ReportManifest>(`/api/reports${buildQuery({ render: String(render) })}`, { method: "POST", body: JSON.stringify(body) }),
   listReports: () => request<{ reports: ReportManifest[] }>("/api/reports"),
   getReport: (reportId: string) => request<ReportManifest>(`/api/reports/${encodeURIComponent(reportId)}`),
+  /** Discards an unfinished report (plan_ready, storyline_ready or failed); a finished one is refused with 409. */
+  deleteReport: async (reportId: string) => {
+    await authFetch(`${API_BASE}/api/reports/${encodeURIComponent(reportId)}`, { method: "DELETE" }); // 204: no body to parse
+  },
   getReportPlan: (reportId: string) => request<ReportPlan>(`/api/reports/${encodeURIComponent(reportId)}/plan`),
   updateReportPlan: (reportId: string, plan: ReportPlan) =>
     request<ReportPlan>(`/api/reports/${encodeURIComponent(reportId)}/plan`, { method: "PUT", body: JSON.stringify(plan) }),
@@ -1008,6 +1170,10 @@ export const api = {
     request<Storyline>(`/api/reports/${encodeURIComponent(reportId)}/storyline`, { method: "PUT", body: JSON.stringify(storyline) }),
   approveStoryline: (reportId: string) =>
     request<ReportManifest>(`/api/reports/${encodeURIComponent(reportId)}/storyline/approve`, { method: "POST" }),
+  /** Accepts slide `n` (1-based) as it is, clearing the fit ladder's needs-review flag that blocks the download. */
+  approveSlide: async (reportId: string, n: number) => {
+    await authFetch(`${API_BASE}/api/reports/${encodeURIComponent(reportId)}/slides/${n}/approve`, { method: "POST" });
+  },
   getReportFindings: (reportId: string) => request<{ findings: Finding[] }>(`/api/reports/${encodeURIComponent(reportId)}/findings`),
   reportDownloadUrl: (reportId: string, file?: string) =>
     `${API_BASE}/api/reports/${encodeURIComponent(reportId)}/download${buildQuery({ file })}`,
@@ -1155,6 +1321,9 @@ export const api = {
   getDecisionInputs: () => request<{ in_scope: number; published: DecisionInput[] }>("/api/stewardship/decision-inputs"),
   // Index construction
   getIndexCatalogue: () => request<IndexCatalogue>("/api/index/catalogue"),
+  listIndexUniverses: () => request<IndexStartingUniverse[]>("/api/index/universes"),
+  getIndexUniverse: (universeId: string) =>
+    request<IndexStartingUniverseDetail>(`/api/index/universes/${encodeURIComponent(universeId)}`),
   getIndexPreset: (name: string) => request<ConstructionSpec>(`/api/index/presets/${name}`),
   getIndexScreenBundle: (name: string) =>
     request<{ name: string; screens: ConstructionSpec["screens"] }>(`/api/index/screen-bundles/${name}`),
@@ -1179,6 +1348,7 @@ export const api = {
     persist?: boolean;
     use_prior_state?: boolean;
     decision_snapshot_ids?: string[];
+    universe?: string;
   }) => request<IndexReviewResult>("/api/index/run", { method: "POST", body: JSON.stringify(body) }),
   // Value chain explorer
   valueChainStatus: () => request<VcStatus>("/api/value-chain/status"),

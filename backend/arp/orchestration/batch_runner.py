@@ -12,7 +12,7 @@ from arp.llm.batching_client import BatchRequestFailed
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import hold_run, traceback_tail
 from arp.orchestration.review_queue import queue_for_review
-from arp.orchestration.step_tally import on_company, tally_run
+from arp.orchestration.step_tally import on_company, settle_cost, tally_run
 from arp.schemas.common import CompanyRef
 from arp.storage.run_store import RunStore
 
@@ -106,7 +106,9 @@ async def run_batch(
                 result = await worker(item)
             except Exception as exc:  # noqa: BLE001 - isolate failures per item
                 logger.exception("Batch item %s failed", key)
-                row = {"key": key, "error": str(exc)}
+                row = {"key": key, "error": str(exc) or type(exc).__name__}  # httpx timeouts have an empty message
+                if getattr(exc, "document_problem", False):  # a file the user can replace (Argus step 4)
+                    row["document_problem"] = True
                 if isinstance(exc, ReviewRequired):
                     row.update(review=True, report=exc.report)
                 else:
@@ -155,8 +157,10 @@ async def run_company_batch(
     job_manager = JobManager(run_store)
     # The run's stored companies when it has them: resolved (entity_id set), identity conflicts
     # left out (save_companies recorded them as run errors), the same set on a fresh run and a resume.
+    # Only the ones passed in, though: a resume of some companies (Argus Retry) must not run the rest.
     if run_store.has_companies(run_id):
-        companies = run_store.load_companies(run_id) or []
+        wanted = {c.company_id for c in companies}
+        companies = [c for c in run_store.load_companies(run_id) or [] if c.company_id in wanted]
 
     manifest = run_store.load_manifest(run_id)
     run_type = manifest.run_type if manifest else ""
@@ -174,15 +178,16 @@ async def run_company_batch(
                             fiscal_year_end=company.fiscal_year_end)
             if company.entity_id is not None else []
         )
-        retrying(
+        conflicts = retrying(
             run_store.record_company_result,
             run_id, row, observations=observations, review_items=items, company=company, errors=errors,
         )
+        settle_cost(run_id, company.company_id)  # the result's own cost, recorded next, includes these calls
         retrying(
             job_manager.record_progress,
             run_id,
             completed_delta=1,
-            review_delta=len(items),
+            review_delta=len(items) + (conflicts or 0),  # conflict items on accepted facts (data rule 1)
             usage=getattr(result, "usage", None),
             cost_delta_usd=cost_usd(result) if cost_usd else 0.0,
         )
@@ -191,13 +196,17 @@ async def run_company_batch(
         await asyncio.to_thread(_commit, company, result, row)
 
     def _on_error(company: CompanyRef, exc: Exception) -> None:
+        # The calls a company finished before it stopped were made: their cost stays in the run's total.
+        spent = settle_cost(run_id, company.company_id)
         if isinstance(exc, BatchRequestFailed) and exc.result_type == "canceled" and _cancel_check():
+            if spent:
+                retrying(job_manager.record_progress, run_id, cost_delta_usd=spent)
             return  # stopped by the cancel, not failed: the run must end cancelled, not partial
         if isinstance(exc, ReviewRequired):
             retrying(queue_for_review, run_store, run_id, company.company_id, exc.report, company=company)
-            retrying(job_manager.record_progress, run_id, review_delta=1)
+            retrying(job_manager.record_progress, run_id, review_delta=1, cost_delta_usd=spent)
         else:
-            retrying(job_manager.record_progress, run_id, failed_delta=1)
+            retrying(job_manager.record_progress, run_id, failed_delta=1, cost_delta_usd=spent)
 
     async def _worker(company: CompanyRef) -> ResultT:
         with on_company(company.company_id):

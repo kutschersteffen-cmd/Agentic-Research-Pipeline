@@ -11,6 +11,14 @@ PRINCIPAL = Principal(user_id="u_test", name="Test", role="approver")
 
 
 @pytest.fixture(autouse=True)
+def _no_gemini_key_from_the_environment(monkeypatch):
+    """With ARP_GEMINI_API_KEY set, build_llm_client returns the Gemini-fallback wrapper (spec llm-gemini-fallback),
+    so a developer's or cloud session's key would change what every factory test sees. A test that needs the key
+    passes gemini_api_key=... to Settings or sets the variable itself."""
+    monkeypatch.delenv("ARP_GEMINI_API_KEY", raising=False)
+
+
+@pytest.fixture(autouse=True)
 def _disable_hybrid_retrieval_by_default(monkeypatch):
     """Settings.hybrid_retrieval_enabled defaults to True in production
     (see arp/config.py), but that path downloads a ~220MB embedding model

@@ -1,0 +1,117 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api } from "../api/client";
+import { flowHref, progressHeader } from "../lib/argusFlow";
+import { errorDetail } from "../lib/barrier";
+import type { ArgusFlow as Flow, FlowProgress } from "../types";
+
+const ACTIVE = new Set(["pending", "running"]);
+
+/** Step 4: the flow's run, live per company; Stop lets running companies finish, Retry re-runs one that failed. */
+export function ArgusExtract({ flow, onEnded }: { flow: Flow; onEnded: () => void }) {
+  const [p, setP] = useState<FlowProgress | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const load = useCallback(() => api.getFlowProgress(flow.flow_id).then(setP, (e: Error) => setError(errorDetail(e))), [flow.flow_id]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+  const running = !!p && ACTIVE.has(p.status);
+  useEffect(() => {
+    if (!running) return;
+    const t = setInterval(() => void api.getFlowProgress(flow.flow_id).then(setP, () => {}), 2500); // a failed poll waits for the next
+    return () => clearInterval(t);
+  }, [running, flow.flow_id]);
+  // the run has ended while the page is open: the flow now reaches step 5, so the step bar links it
+  const wasRunning = useRef(false);
+  useEffect(() => {
+    if (wasRunning.current && !running) onEnded();
+    wasRunning.current = running;
+  }, [running, onEnded]);
+
+  /** true when the request went through. */
+  async function act(fn: () => Promise<unknown>): Promise<boolean> {
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+      await load();
+      return true;
+    } catch (e) {
+      setError(errorDetail(e as Error));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+  const line = useRef<HTMLParagraphElement>(null);
+
+  if (!p) return error ? <p className="error-text" role="alert">{error}</p> : <p className="muted" role="status">Loading…</p>;
+  return (
+    <section className="argus-progress" aria-label="Extract">
+      <div className="argus-progress-head">
+        <p ref={line} tabIndex={-1} className="argus-progress-line" role="status">{progressHeader({ ...p, done: p.finished })}</p>
+        {running && (
+          // aria-disabled, not disabled: a disabled button loses the keyboard's focus (as Save in step 1)
+          <button type="button" className="danger-outline" aria-disabled={busy || p.stopping}
+            onClick={() => !busy && !p.stopping && void act(() => api.cancelRun(p.run_id))}>
+            {p.stopping ? "Stopping…" : "Stop"}
+          </button>
+        )}
+      </div>
+      {p.stopping && <p className="muted">Stopping: companies already running will finish.</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
+      <div className="table-wrap">
+        <table className="data-table stack-on-phone" aria-label="Companies in this run">
+          <thead>
+            <tr>
+              <th scope="col">Company</th>
+              <th scope="col">Status</th>
+              <th scope="col">Progress</th>
+              <th scope="col">Needs you</th>
+            </tr>
+          </thead>
+          <tbody>
+            {p.companies.map((c) => (
+              <tr key={c.company_id} className={c.status === "Failed" ? "argus-row-await" : undefined}>
+                <td data-label="Company">{c.name}</td>
+                <td data-label="Status">
+                  <div>
+                    <span className={c.status === "Failed" ? "await-text" : undefined}>{c.status}</span>
+                    {c.reason && <span className="xbrl-sub">{c.reason}</span>}
+                    {c.status === "Failed" && (
+                      <span className="row-actions argus-progress-fix">
+                        {c.retryable && (
+                          <button type="button" className="secondary" aria-label={`Retry ${c.name}`} aria-disabled={busy || running}
+                            title={running ? "Retry once the other companies have finished" : undefined}
+                            onClick={async () => {
+                              // a failure keeps the focus here; on success the row stops being Failed and this button goes
+                              if (!busy && !running && (await act(() => api.retryFlowCompany(flow.flow_id, c.company_id)))) line.current?.focus();
+                            }}>
+                            Retry
+                          </button>
+                        )}
+                        {c.document_problem && <a href={flowHref(flow.flow_id, 2)}>Replace file</a>}
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td data-label="Progress">
+                  <div className="progress-bar" role="progressbar" aria-label={`${c.name} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={c.percent}>
+                    <div className="progress-bar-fill" style={{ transform: `scaleX(${c.percent / 100})` }} />
+                  </div>
+                </td>
+                <td data-label="Needs you">{c.needs_you ? `${c.needs_you} to review` : ""}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {!running && (
+        <div className="row-actions argus-flow-actions">
+          <a className="button-link" href={flowHref(flow.flow_id, 5)}>See results</a>
+        </div>
+      )}
+    </section>
+  );
+}

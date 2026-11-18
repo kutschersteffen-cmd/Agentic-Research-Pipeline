@@ -6,11 +6,18 @@ export interface Me {
   role: "viewer" | "analyst" | "approver";
 }
 
-/** Key of one extracted field's decision: per-field and per-period for new runs, `company:field` for old ones. */
+const LIST_BASIS = /^(action|region|target|phaseout):/;
+
+/** Key of one extracted field's decision: per-field and per-period for new runs, `company:field` for old ones.
+ * A list item's basis is appended as the backend does (arp/schemas/review.py period_key), so each item has its own key. */
 export const fieldItemKey = (
   r: { company_id: string; issuer_key?: string | null },
-  f: { field_id: string; period_end?: string | null },
-): string => (r.issuer_key ? `${r.issuer_key}:${f.field_id}:${f.period_end ?? "unspecified"}` : `${r.company_id}:${f.field_id}`);
+  f: { field_id: string; period_end?: string | null; basis?: string | null },
+): string => {
+  if (!r.issuer_key) return `${r.company_id}:${f.field_id}`;
+  const item = f.basis && LIST_BASIS.test(f.basis) ? `|${f.basis.replaceAll(":", "|")}` : "";
+  return `${r.issuer_key}:${f.field_id}:${f.period_end ?? "unspecified"}${item}`;
+};
 
 /** A queued item's flag reasons: its review reasons, then its route reasons, each once. */
 export const flaggedReasons = (item: { reason_codes?: unknown; route_reasons?: unknown }): string[] => [
@@ -25,6 +32,9 @@ export const ITEM_KIND_LABEL: Record<ReviewItemKind, string> = {
   barrier_cell: "Rating",
   quarantined_document: "Held document",
   restatement_candidate: "Restatement",
+  discovered_document: "Found document",
+  no_documents: "No documents",
+  conflict: "Conflict",
   other: "Other",
 };
 
@@ -36,6 +46,9 @@ export const DECISION_REASONS = [
 export const decisionChoices = (kind: ReviewItemKind, runType?: string): ItemDecisionBody["decision"][] =>
   kind === "quarantined_document" || (kind === "other" && runType === "extraction") ? ["approve", "reject", "escalate"]
   : kind === "barrier_cell" ? ["approve", "reject"]
+  : kind === "discovered_document" ? ["approve", "reject", "escalate"]
+  : kind === "no_documents" ? ["approve", "escalate"]
+  : kind === "conflict" ? ["reject", "approve", "escalate"] // keep accepted, accept new
   : kind === "other" ? []
   : ["approve", "correct", "reject", "escalate"];
 

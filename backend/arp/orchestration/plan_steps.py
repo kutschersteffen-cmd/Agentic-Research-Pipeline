@@ -46,16 +46,29 @@ def build_steps(settings: Settings, run_store: RunStore) -> dict[str, Any]:
         from arp.research.pipeline import load_theme_run_matches, run_thematic_universe
         from arp.research.taxonomy_schema import released_run_schema
         from arp.storage.taxonomy_store import TaxonomyStore
-        from arp.universe import load_company_universe
+        from arp.universe import (
+            UniverseRejected,
+            load_company_universe,
+            not_saved_message,
+            saved_universes,
+            universe_source_path,
+        )
 
-        # shortcut: `source` is a universe file path; portfolio ids come with the Plans page (plan task 9).
+        # shortcut: `source` is a saved universe's file name or a universe file path; portfolio ids come with the
+        # Plans page (plan task 9).
         taxonomy, schema = released_run_schema(TaxonomyStore(settings.taxonomies_dir), SchemaRegistry(settings.postgres_dsn),
                                                taxonomy_id, None)
-        companies = load_company_universe(source)
+        path = universe_source_path(settings.runs_dir, source)
+        try:
+            companies = load_company_universe(path)
+        except (OSError, UniverseRejected) as exc:
+            if path.exists():  # a real file that does not load: its own message
+                raise
+            raise ValueError(not_saved_message(source, saved_universes(settings.runs_dir))) from exc
         run_id = asyncio.run(run_thematic_universe(
             taxonomy.theme, companies, llm=build_llm_client(settings), verifier_llm=build_verifier_llm_client(settings),
             registry=get_registry(), settings=settings, run_store=run_store,
-            indirect_model=resolve_indirect_exposure_model(settings, use_sample=False), universe_path=source,
+            indirect_model=resolve_indirect_exposure_model(settings, use_sample=False), universe_path=str(path),
             taxonomy_id=taxonomy.taxonomy_id, taxonomy_version=taxonomy.version, extraction_schema=schema))
         best: dict[str, dict] = {c.company_id: {"id": c.company_id, "name": c.name, "exposure": "none",
                                                 "included": False} for c in companies}

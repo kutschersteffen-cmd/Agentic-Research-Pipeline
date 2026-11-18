@@ -1,7 +1,8 @@
 import { when } from "../lib/runs";
 import { FileImg, FileLink } from "../components/FileLink";
-import { useEffect, useState } from "react";
-import { api } from "../api/client";
+import { useEffect, useRef, useState } from "react";
+import { api, downloadFile } from "../api/client";
+import { ElapsedLine } from "../components/ElapsedLine";
 import { Modal } from "../components/Modal";
 import type {
   AudienceLevel,
@@ -21,6 +22,8 @@ import type {
 } from "../types";
 import { CHART_TYPES } from "../types";
 import { activatable } from "../lib/activatable";
+import { findingText, reviewSlide } from "../lib/findings";
+import { draftingLine } from "../lib/progress";
 
 const AUDIENCE_LEVELS: AudienceLevel[] = ["executive", "technical", "general"];
 const TONES: Tone[] = ["formal", "conversational", "persuasive", "neutral_analytical"];
@@ -45,10 +48,56 @@ function moved<T>(items: T[], index: number, delta: number): T[] | null {
   return next;
 }
 
-function groupBySlide(findings: Finding[]): [number, Finding[]][] {
-  const groups = new Map<number, Finding[]>();
-  for (const f of findings) groups.set(f.slide, [...(groups.get(f.slide) ?? []), f]);
+/** The lines to show per slide; a finding that is not listed (findingText) is left out, and so is a slide without any. */
+function groupBySlide(findings: Finding[]): [number, string[]][] {
+  const groups = new Map<number, string[]>();
+  for (const f of findings) {
+    const text = findingText(f);
+    if (text !== null) groups.set(f.slide, [...(groups.get(f.slide) ?? []), text]);
+  }
   return [...groups.entries()].sort((a, b) => a[0] - b[0]);
+}
+
+/** A deck file's download link; when a slide still needs review, the refusal comes with a button that approves
+ * that slide and downloads again. */
+function DeckDownload({ reportId, file }: { reportId: string; file: string }) {
+  const [error, setError] = useState("");
+  const [approving, setApproving] = useState(false);
+  const url = api.reportDownloadUrl(reportId, file);
+  const download = () => {
+    setError("");
+    return downloadFile(url, file).catch((err: Error) => setError(err.message));
+  };
+  const slide = reviewSlide(error);
+  async function approve(n: number) {
+    setApproving(true);
+    try {
+      await api.approveSlide(reportId, n);
+      await download();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setApproving(false);
+    }
+  }
+  return (
+    <>
+      <a href={url} className="button-link" onClick={(e) => { e.preventDefault(); void download(); }}>
+        Download {file.split(".").pop()?.toUpperCase()}
+      </a>
+      {error && (
+        <span className="error-text" role="alert">
+          {" "}
+          {slide === null ? error : `Slide ${slide} needs review.`}
+        </span>
+      )}
+      {slide !== null && (
+        <button type="button" onClick={() => approve(slide)} disabled={approving}>
+          {approving ? "Approving..." : `Approve slide ${slide}`}
+        </button>
+      )}
+    </>
+  );
 }
 
 export function ReportBuilder() {
@@ -74,6 +123,8 @@ export function ReportBuilder() {
 
   // Generation state
   const [busy, setBusy] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  const reportsHeading = useRef<HTMLHeadingElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [manifest, setManifest] = useState<ReportManifest | null>(null);
   const [plan, setPlan] = useState<ReportPlan | null>(null);
@@ -131,6 +182,7 @@ export function ReportBuilder() {
       return;
     }
     setBusy(true);
+    setDrafting(true);
     setError(null);
     setPlan(null);
     setStoryline(null);
@@ -169,6 +221,25 @@ export function ReportBuilder() {
       setError((err as Error).message);
     } finally {
       setBusy(false);
+      setDrafting(false);
+    }
+  }
+
+  async function discardReport(reportId: string) {
+    if (!window.confirm("Discard this draft?")) return;
+    setError(null);
+    try {
+      await api.deleteReport(reportId);
+      reportsHeading.current?.focus(); // the row and its button are about to go: keep the keyboard in this section
+      if (manifest?.report_id === reportId) {
+        setManifest(null);
+        setPlan(null);
+        setStoryline(null);
+        setFindings([]);
+      }
+      refreshReports();
+    } catch (err) {
+      setError((err as Error).message);
     }
   }
 
@@ -296,6 +367,8 @@ export function ReportBuilder() {
     setPreviewPageCount(0);
     setEnlargedPage(null);
   }
+
+  const listedFindings = groupBySlide(findings);
 
   return (
     <div className={previewReportId ? "page split-review" : "page"} style={previewReportId ? { maxWidth: 1560 } : undefined}>
@@ -441,7 +514,10 @@ export function ReportBuilder() {
           <textarea rows={2} value={freeInstructions} onChange={(e) => setFreeInstructions(e.target.value)} placeholder="lead with the risk section, one chart per slide max..." />
         </label>
 
-        <button onClick={draftPlan} disabled={busy}>{outputFormat === "house_deck" ? "Draft storyline" : "Draft content plan"}</button>
+        <button onClick={draftPlan} disabled={busy}>
+          {drafting ? "Drafting…" : outputFormat === "house_deck" ? "Draft storyline" : "Draft content plan"}
+        </button>
+        {drafting && <ElapsedLine text={(seconds) => draftingLine(outputFormat, seconds)} />}
         {error && <p className="error-text" role="alert">{error}</p>}
       </section>
 
@@ -547,6 +623,9 @@ export function ReportBuilder() {
           {storyline.slides.map((slide, i) => (
             <div className="review-item" key={i}>
               <input type="text" aria-label={`Slide ${i + 1} headline`} value={slide.headline} disabled={storyline.approved} onChange={(e) => updateSlide(i, { headline: e.target.value })} placeholder={`Slide ${i + 1} headline`} />
+              {manifest.template_id && (
+                <input type="text" aria-label={`Slide ${i + 1} subheading`} value={slide.subheading ?? ""} disabled={storyline.approved} onChange={(e) => updateSlide(i, { subheading: e.target.value })} placeholder="Subheading (one sentence under the headline)" />
+              )}
               <input type="text" aria-label={`Slide ${i + 1} purpose`} value={slide.purpose} disabled={storyline.approved} onChange={(e) => updateSlide(i, { purpose: e.target.value })} placeholder="Purpose (what this slide shows)" />
               {!storyline.approved && (
                 <div className="toolbar">
@@ -561,7 +640,7 @@ export function ReportBuilder() {
           <div className="toolbar">
             {!storyline.approved && (
               <>
-                <button className="link-button" onClick={() => setStoryline({ ...storyline, slides: [...storyline.slides, { headline: "", purpose: "", source_refs: [] }] })}>
+                <button className="link-button" onClick={() => setStoryline({ ...storyline, slides: [...storyline.slides, { headline: "", subheading: "", purpose: "", source_refs: [], visual: null, chart_kind: null, rationale: "", section: null, kicker: "" }] })}>
                   + Add headline
                 </button>
                 <button onClick={saveStoryline} disabled={busy}>Save</button>
@@ -583,27 +662,22 @@ export function ReportBuilder() {
                   Preview
                 </button>
                 {manifest.output_files.map((f) => (
-                  <FileLink key={f} className="button-link" url={api.reportDownloadUrl(manifest.report_id, f)} name={f}>
-                    Download {f.split(".").pop()?.toUpperCase()}
-                  </FileLink>
+                  <DeckDownload key={f} reportId={manifest.report_id} file={f} />
                 ))}
               </>
             )}
           </div>
           {manifest.error && <p className="error-text" role="alert">{manifest.error}</p>}
 
-          {findings.length > 0 && (
+          {listedFindings.length > 0 && (
             <>
               <h3>Findings</h3>
-              {groupBySlide(findings).map(([slide, items]) => (
+              {listedFindings.map(([slide, items]) => (
                 <div className="review-item" key={slide}>
                   <strong>{slide === 0 ? "Title slide" : `Slide ${slide}`}</strong>
                   <ul>
-                    {items.map((f, j) => (
-                      <li key={j}>
-                        <span className="mono">{f.stage}/{f.rule}</span>
-                        {f.slot && <span className="muted"> [{f.slot}]</span>} — {f.message}
-                      </li>
+                    {items.map((text, j) => (
+                      <li key={j}>{text}</li>
                     ))}
                   </ul>
                 </div>
@@ -614,7 +688,7 @@ export function ReportBuilder() {
       )}
 
       <section className="card">
-        <h2>Previous reports</h2>
+        <h2 ref={reportsHeading} tabIndex={-1}>Previous reports</h2>
         {reports.length === 0 && <p className="muted">No reports generated yet.</p>}
         {reports.length > 0 && (
           <div className="table-wrap">
@@ -636,6 +710,17 @@ export function ReportBuilder() {
                     <td><span className={`status-pill status-${r.status}`}>{r.status}</span></td>
                     <td className="mono">{when(r.created_at)}</td>
                     <td>
+                      {(r.status === "plan_ready" || r.status === "storyline_ready") && (
+                        <button className="link-button" style={{ marginRight: 10 }} onClick={(e) => { e.stopPropagation(); openReport(r.report_id); }}>
+                          Open
+                        </button>
+                      )}
+                      {/* a failed row that still has an output was finished once (its re-render failed): not a draft */}
+                      {(r.status === "plan_ready" || r.status === "storyline_ready" || (r.status === "failed" && !r.output_filename)) && (
+                        <button className="link-button" onClick={(e) => { e.stopPropagation(); discardReport(r.report_id); }}>
+                          Discard
+                        </button>
+                      )}
                       {r.status === "completed" && (
                         <>
                           <button

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { embedDashboard } from "@superset-ui/embedded-sdk";
 import { api } from "../../api/client";
-import { designRequestBody, embedErrorText, embedUrlFor, SUPERSET_URL } from "../../lib/biEmbed";
+import { clarificationText, designRequestBody, embedErrorText, embedUrlFor, SUPERSET_URL, withoutStatusCode } from "../../lib/biEmbed";
 import { apiMessage, initialPicker, isOther, projectGroups, reducePicker, saveBody, UNSCOPED_CAVEAT } from "../../lib/projects";
 import type { BIDesignResult, DashboardItem, OpenedDashboard } from "../../types";
 import { ProjectBar } from "./ProjectBar";
@@ -67,6 +67,9 @@ export function EmbeddedDashboard({ dashboardId, title, companyId = null }: { da
 
 /** What the designer did with the last brief. The dashboard itself shows in the picker above. */
 function ResultView({ result, onSave }: { result: BIDesignResult; onSave?: () => void }) {
+  if (result.clarification_needed) {
+    return <div className="banner banner-warning" role="status">{clarificationText(result.clarification_needed)}</div>;
+  }
   if (result.dashboard_id === null) {
     return (
       <div className="banner banner-warning">
@@ -111,7 +114,7 @@ function ListError({ error }: { error: string }) {
   if (error.startsWith("503:")) {
     return <div className="banner banner-warning" role="alert">{error.slice(4).trim()}</div>;
   }
-  return <div className="banner banner-danger" role="alert">The dashboard list could not be loaded. {error.replace(/^\d{3}:\s*/, "")}</div>;
+  return <div className="banner banner-danger" role="alert">The dashboard list could not be loaded. {withoutStatusCode(error)}</div>;
 }
 
 /** Dashboards (Superset): every `arp-` dashboard in Superset, embedded here.
@@ -301,7 +304,7 @@ export function SupersetBI() {
         </div>
         {error && (
           <p className="error-text" role="alert">
-            {error}
+            {withoutStatusCode(error)}
           </p>
         )}
         {saveNote && !shown?.length && <p className="muted" role="status">{saveNote}</p>}

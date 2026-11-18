@@ -15,6 +15,11 @@ same mistake costs one week, not every week. You never merge, and you change rul
 - **Failed CI runs on PRs:** group by job name; note the jobs that failed on three or more PRs.
 - **Holdout and evaluator:** `<slug> AC-n: fail` lines in Holdout acceptance logs, and failing rows
   in posted acceptance matrices.
+- **Auto-merges:** merged PRs with an `Auto-merge (factory)` comment.
+- **Spec drift:** for each spec in `docs/superpowers/specs/` merged to `main` in the last 30 days,
+  in a fresh subagent given only that spec and the repo: list the files, endpoints, settings and
+  behaviours it describes that the current code no longer matches. Leave out rows of a later spec
+  that replaced it and parts the spec marks as later work.
 
 Never attach or read the `holdout` repo; the AC labels in the app repo's logs are all you need.
 
@@ -40,11 +45,17 @@ At most 3 changes, each the smallest edit that would have prevented it, in one o
 - Never loosen a guard: no lower coverage bar, no higher fix limit, no fewer checks, no skipped tests.
 - A fix that needs a workflow, hook or app-code change goes in the PR body as a proposal; don't edit
   those files.
+- Prefer a mechanism over prose: ask if a lint, hook or test would have caught the pattern, and propose
+  that (in the PR body, since hooks and workflows are `risk:high`) before adding a CLAUDE.md line. Keep
+  only changes that are durable, change a decision, and are not already covered.
 - One-off failures go in the log only.
+- Spec drift: one log finding per drifted spec. In the PR body, say for each whether the code or the
+  spec looks wrong; never edit app code or a spec in the retro PR.
 
 ## 4. Open the PR
 
 - Branch `claude/retro-<YYYY-MM-DD>` off `main`; PR against `main`, titled `Factory retro <date>`.
 - Label `risk:normal` if it edits `.claude/`, else `risk:low` (see the steward skill).
-- Body: the numbers line, then each rule change with the findings it answers.
+- Body: the numbers line, then each rule change with the findings it answers, then the auto-merged
+  PRs as links, for the owner to spot-check.
 - Nothing happened this week (no PRs, no failures): no PR; say so in the session and stop.

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { continueLabel, documentsText, extractedBeforeText, flowHref, identifierList } from "../src/lib/argusFlow.ts";
+import { continueLabel, documentsText, draftHint, extractedBeforeText, flowHref, identifierList, identityStatus, notInRun, searchStatusText } from "../src/lib/argusFlow.ts";
 import { argusRows } from "../src/lib/argusStart.ts";
 import type { ArgusFlow, FlowRow, RunManifest } from "../src/types.ts";
 
@@ -34,6 +34,168 @@ test("a draft lists as Draft at its step, newest first, opening the flow", () =>
   const rows = argusRows([run], [], [flow({ flow_id: "f1", companies: [{ company_id: "a" }, { company_id: "b" }] as ArgusFlow["companies"] })]);
   assert.deepEqual(rows.map((r) => [r.runId, r.label, r.companies, r.status, r.step, r.starterName, r.openHref]), [
     ["f1", "New extraction", 2, "Draft", 1, "Alice", "#/argus/f1/1"],
-    ["r1", "Extraction", 3, "Running", 4, "bob", "#/extraction/extract"],
+    ["r1", "Extraction", 3, "Running", 4, "bob", "#/history/r1"],
   ]);
+});
+
+test("step 2 continue counts kept files and their companies", async () => {
+  const { continueFilesLabel, previousYear } = await import("../src/lib/argusFlow.ts");
+  const f = (company_id: string, state: "kept" | "removed" | null) => ({ company_id, state }) as never;
+  assert.deepEqual(continueFilesLabel([f("a", "kept"), f("a", "kept"), f("b", "kept"), f("c", "kept"), f("c", "kept"), f("c", "kept"), f("c", "kept"), f("d", "removed"), f("e", null)]),
+    { text: "Continue with 7 files for 3 companies", disabled: false });
+  assert.deepEqual(continueFilesLabel([f("a", "kept")]), { text: "Continue with 1 file for 1 company", disabled: false });
+  assert.deepEqual(continueFilesLabel([f("a", "removed")]), { text: "Continue with 0 files for 0 companies", disabled: true });
+  assert.equal(previousYear(new Date("2026-11-09")), 2025);
+});
+
+test("step 3 start label, new documents line and repeat gate", async () => {
+  const { startLabel, newDocsLine, canStart } = await import("../src/lib/argusFlow.ts");
+  assert.equal(startLabel("Green capex", 2, true, 3), "Extract Green capex v2 for 3 companies");
+  assert.equal(startLabel("Green capex", 2, true, 1), "Extract Green capex v2 for 1 company");
+  assert.equal(startLabel("Green capex", 3, false, 3), "Try Green capex on 1 company");  // AC-29
+  assert.equal(startLabel("Financials", null, true, 2), "Extract Financials for 2 companies");
+  assert.equal(startLabel(null, 1, false, 2), "Loading schema…");  // not "Try  on 1 company" before the schema arrives
+  assert.deepEqual([newDocsLine(1), newDocsLine(3), newDocsLine(0)],
+    ["1 new document since the last run", "3 new documents since the last run", null]);
+  const same = { company_id: "a", kind: "same" } as never, added = { company_id: "b", kind: "added" } as never;
+  assert.equal(canStart([same, added], {}), false);  // AC-32
+  assert.equal(canStart([same, added], { a: "skip" }), true);
+  assert.equal(canStart([added], {}), true);
+});
+
+test("the picker lists only each schema's newest version", async () => {
+  const { newestVersions } = await import("../src/lib/argusFlow.ts");
+  const s = (schema_id: string, version: number, name = schema_id) => ({ schema_id, version, name, release_flag: false });
+  assert.deepEqual(newestVersions([s("a", 1), s("b", 1, "B"), s("a", 3), s("a", 2)]).map((x) => [x.schema_id, x.version]), [["a", 3], ["b", 1]]);
+});
+
+import { onlyNeedsYou, progressHeader, resultRows } from "../src/lib/argusFlow.ts";
+import type { ExtractedField, ExtractionRecord, ReviewItem } from "../src/types.ts";
+
+test("progress header", () => {
+  const p = { started_at: "2026-11-10T14:02:00", done: 3, total: 10, minutes_left: 8, cost_usd: 1.2, status: "running" };
+  assert.equal(progressHeader(p), "Started 14:02 · 3 of 10 done · about 8 minutes left · $1.20 so far"); // AC-39
+  assert.equal(progressHeader({ ...p, done: 0, minutes_left: null }), "Started 14:02 · 0 of 10 done · estimating time left · $1.20 so far");
+  assert.equal(progressHeader({ ...p, minutes_left: 1 }), "Started 14:02 · 3 of 10 done · about 1 minute left · $1.20 so far");
+  assert.equal(progressHeader({ ...p, status: "cancelled" }), "Started 14:02 · 3 of 10 done · $1.20 so far"); // over: no time left to estimate
+});
+
+const field = (id: string, f: Partial<ExtractedField> = {}): ExtractedField =>
+  ({ field_id: id, field_name: id.toUpperCase(), value: 1, citations: [], confidence: 0.9, grounded: true, conflicting_sources: false,
+     value_state: "found", period_end: "2025-12-31", ...f });
+const record = (cid: string, fields: ExtractedField[]): ExtractionRecord =>
+  ({ company_id: cid, issuer_key: `k${cid}`, name: cid.toUpperCase(), schema_id: "s", run_id: "r", fields, overall_confidence: 0.9, needs_review: false } as ExtractionRecord);
+const item = (key: string): ReviewItem =>
+  ({ item_key: key, kind: "value", run_id: "r", run_type: "extraction", payload: {}, state: "pending", escalated: false, high_risk: false, decision: null });
+
+test("results: one row per value, what needs you first, and the filter", () => {
+  const results = [
+    record("a", [field("f1"), field("f2"), field("f3", { value: null, value_state: "not_found" })]),
+    record("b", [field("f1"), field("f2"), field("f3"), field("f4")]),
+  ];
+  const rows = resultRows(results, [item("ka:f3:2025-12-31"), item("kb:f2:2025-12-31")]);
+  assert.equal(rows.length, 7); // AC-40
+  assert.deepEqual(rows.slice(0, 2).map((r) => r.key), ["ka:f3:2025-12-31", "kb:f2:2025-12-31"]);
+  assert.ok(rows[0].notFound && !rows[1].notFound); // AC-42
+  assert.equal(onlyNeedsYou(rows).length, 2); // AC-41
+  assert.equal(rows[2].company, "A");
+});
+
+test("results: a company a pre-step stopped for review gets its own row", () => {
+  const stop = { ...item("d"), kind: "other" as const, payload: { company_id: "d", name: "Dco", failed_step_label: "Parse & index", error: "no document text could be parsed" } };
+  const rows = resultRows([record("a", [field("f1")])], [stop]);
+  assert.equal(rows.length, 2);
+  assert.deepEqual([rows[0].key, rows[0].company, rows[0].field, rows[0].value, rows[0].companyLevel], ["d", "Dco", "Parse & index", "no document text could be parsed", true]);
+  assert.equal(onlyNeedsYou(rows).length, 1);
+});
+
+test("saving edited fields bumps only the changed released fields", async () => {
+  const { bumpChangedFields } = await import("../src/lib/argusFlow.ts");
+  const f = (id: string, extra: object = {}) => ({ field_id: id, name: id, description: "d", data_type: "number", extraction_instructions: "", required: false,
+    source_doc_types: [], seed_keywords: [], status: "released", version: 1, ...extra }) as never;
+  const original = { schema_id: "s", fields: [f("a"), f("b"), f("c", { status: "draft" })] } as never;
+  const edited = { schema_id: "s", fields: [
+    f("a", { rules: [{ kind: "requires", field: "b", equals: true }] }),  // released, a rule added: next field version, a draft
+    f("b"),                                                                   // unchanged: keeps v1
+    f("c", { status: "draft", description: "new" }),                                         // a draft field changed in place: no bump needed
+    f("n", { status: undefined, version: undefined }),                        // new field: untouched
+  ] } as never;
+  const out = bumpChangedFields(original, edited).fields as { field_id: string; version?: number; status?: string }[];
+  assert.deepEqual(out.map((x) => [x.field_id, x.version, x.status]), [["a", 2, "draft"], ["b", 1, "released"], ["c", 1, "draft"], ["n", undefined, undefined]]);
+  assert.equal(bumpChangedFields(null, edited), edited);  // a drafted schema has nothing released to protect
+});
+
+test("a hand-over clicked twice while the first is in flight starts one flow", async () => {
+  const { singleFlight } = await import("../src/lib/argusFlow.ts");
+  let calls = 0;
+  let release!: () => void;
+  const send = singleFlight(async () => { calls++; await new Promise<void>((r) => (release = r)); });
+  const first = send();
+  await send();  // the double click: ignored, resolves at once
+  assert.equal(calls, 1);
+  release();
+  await first;
+  const again = send();  // after the first finished, a new send goes through
+  release();
+  await again;
+  assert.equal(calls, 2);
+  const failing = singleFlight(async () => { throw new Error("boom"); });
+  await assert.rejects(failing(), /boom/);
+  await assert.rejects(failing(), /boom/);  // a failure frees the guard
+});
+
+test("results: a conflict row shows the accepted and the new value", () => {
+  const conflict = { ...item("ka:f1:2025-12-31"), kind: "conflict" as const, payload: { kind: "conflict", accepted: { value: 12, fact_id: 7 } } };
+  const rows = resultRows([record("a", [field("f1", { value: 14 })])], [conflict]);
+  assert.equal(rows.length, 1);
+  assert.deepEqual([rows[0].accepted, rows[0].value], ["12", "14"]); // AC-55: Accepted: 12 / New: 14
+  assert.equal(onlyNeedsYou(rows).length, 1);
+});
+
+test("a conflict's accepted value reads like the new one, with its unit, and never as [object Object]", async () => {
+  const { acceptedLabel } = await import("../src/lib/argusFlow.ts");
+  assert.equal(acceptedLabel(12000000, "EUR"), "12000000 EUR");
+  assert.equal(acceptedLabel(12, null), "12");
+  assert.equal(acceptedLabel({ low: 1, high: 2 }, null), '{"low":1,"high":2}');
+  assert.equal(acceptedLabel(null, "EUR"), "—");
+});
+
+test("a finished search that found nothing says so and what to do next", () => {
+  // seen live: "Search completed." above an empty list, with Continue disabled and no reason
+  assert.equal(searchStatusText("completed", 0), "The search found no documents. Add an ISIN, LEI or CIK in step 1, try the other source, or upload the report.");
+  assert.equal(searchStatusText("completed", 3), "Search completed.");
+  assert.equal(searchStatusText("partially_completed", 2), "Search partially completed.");
+  assert.equal(searchStatusText("failed", 0), "Search failed.");
+  assert.equal(searchStatusText("running", 0), "Searching…");
+});
+
+test("a draft says it runs on one company and what turns it into the full run", () => {
+  // seen live: nothing told the user that Release is the step between the one-company trial and the full run
+  assert.equal(draftHint(false, 2, true), "A draft runs on one company only. Release it to extract all 2 companies.");
+  assert.equal(draftHint(false, 3, false), "A draft runs on one company only. An approver releases it to extract all 3 companies.");
+  assert.equal(draftHint(false, 1, true), null);
+  assert.equal(draftHint(true, 5, true), null);
+});
+
+test("companies of the flow that are not in its run are listed, with the earlier run a Skip kept", () => {
+  // seen live: after "Skip, keep earlier results" the company's values were simply gone from Results
+  const companies = [{ company_id: "msft", name: "Microsoft" }, { company_id: "aapl", name: "Apple" }, { company_id: "sap", name: "SAP" }];
+  const repeatRows = [{ company_id: "msft", kind: "same", added: 0, run_id: "extraction_r1", date: "2026-10-01", approved: 1, waiting: 3 }];
+  assert.deepEqual(notInRun(companies, new Set(["aapl"]), { msft: "skip" }, repeatRows as never), [
+    { name: "Microsoft", earlier: { run_id: "extraction_r1", date: "2026-10-01" } },
+    { name: "SAP", earlier: null },
+  ]);
+  assert.deepEqual(notInRun(companies, new Set(["aapl", "msft", "sap"]), {}, []), []);
+});
+
+test("step 1 says how the identity run ended and offers it again while companies are unmatched", () => {
+  // seen live: "Identity run started." stayed forever after the run had failed, and the button was gone
+  assert.equal(identityStatus(null, null, 2), null);
+  assert.deepEqual(identityStatus("r", null, 2), { text: "Identity run started.", again: false });
+  assert.deepEqual(identityStatus("r", "running", 2), { text: "Identity run started.", again: false });
+  assert.deepEqual(identityStatus("r", "partially_completed", 2), {
+    text: "The identity run ended (partially completed): 2 companies still have no identifier. Add an ISIN, LEI or CIK for them, or try again.", again: true });
+  assert.deepEqual(identityStatus("r", "failed", 1), {
+    text: "The identity run ended (failed): 1 company still has no identifier. Add an ISIN, LEI or CIK for it, or try again.", again: true });
+  assert.deepEqual(identityStatus("r", "completed", 0), { text: "Identities resolved.", again: false });
 });

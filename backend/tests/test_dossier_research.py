@@ -456,3 +456,53 @@ def test_a_lost_upload_falls_back_to_the_url(env):
     note = env.research()["rounds"][0]["note"]
     assert (note["status"], note["error"]) == ("written", None)
     assert [i["citations"][0]["source_id"] for i in note["sections"]["opportunities"]] == [ids[IEA]]
+
+
+# --- showcase-themes-fixes, section 3: "find sources" with search down ---
+
+SOURCE = {"title": "ECB bulletin", "publisher": "ECB", "url": "https://ecb.europa.eu/b", "category": "central_bank_regulator",
+          "why": "w", "how": "h"}
+
+
+def test_search_down_is_told_and_a_source_can_be_added_by_hand(env):  # AC-19, AC-20, AC-21
+    _write(env.folder, "search.json", {"error": "down"})
+    env.proposed()
+    r = env.research()["rounds"][0]
+    assert (r["plan_status"], r["search_unreachable"]) == ("proposal_failed", True)
+    assert env.client.post(env.url("/sources"), json=SOURCE).status_code == 200
+    r = env.research()["rounds"][0]
+    assert r["plan_status"] == "proposed" and [s["url"] for s in r["sources"]] == [SOURCE["url"]]
+
+
+def test_a_failed_model_call_is_not_search_down(env):  # AC-22
+    _write(env.folder, "model/SourceClassificationDraft.json", {"error": "x"})
+    env.proposed()
+    r = env.research()["rounds"][0]
+    assert (r["plan_status"], r["search_unreachable"]) == ("proposal_failed", False)
+
+
+def test_an_empty_search_is_not_search_down(env):  # AC-108
+    _write(env.folder, "search.json", {"results": []})
+    env.proposed()
+    r = env.research()["rounds"][0]
+    assert (r["plan_status"], r["search_unreachable"]) == ("proposed", False)
+
+
+def test_a_bot_challenge_is_search_down(env, monkeypatch):  # AC-23
+    import httpx
+
+    from arp.api.routers import dossier_research
+    from arp.discovery.site_finder import DuckDuckGoSearchClient
+
+    transport = httpx.MockTransport(lambda request: httpx.Response(202, text="challenge"))
+    monkeypatch.setattr(dossier_research, "build_web_search_client",
+                        lambda ua: DuckDuckGoSearchClient(ua, transport=transport))
+    env.proposed()
+    r = env.research()["rounds"][0]
+    assert (r["plan_status"], r["search_unreachable"]) == ("proposal_failed", True)
+
+
+def test_adding_to_an_approved_plan_is_still_refused(env):  # AC-97
+    env.approved()
+    r = env.client.post(env.url("/sources"), json=SOURCE)
+    assert (r.status_code, r.json()["detail"]) == (409, "the source plan is not open for edits")

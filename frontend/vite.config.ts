@@ -11,6 +11,9 @@ const isolation = {
 
 // https://vite.dev/config/
 export default defineConfig({
+  // VITE_API_BASE=. is the one-port build: the API serves it (ARP_FRONTEND_DIST) and every URL is
+  // relative, so it also works under a path prefix such as Jupyter's /user/<id>/proxy/8000/.
+  base: process.env.VITE_API_BASE === '.' ? './' : '/',
   plugins: [react()],
   server: { headers: isolation },
   preview: { headers: isolation },

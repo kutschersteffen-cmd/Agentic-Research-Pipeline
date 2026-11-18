@@ -5,7 +5,9 @@ import { correctionLine } from "../lib/corrections";
 import { valueLabel } from "../lib/fieldValue";
 import { listAllRuns } from "../lib/poll";
 import { runTypeLabel } from "../lib/runs";
-import { allCitations, fmt, markQuotes, notRecordedNote, passageFor, parseWalkthroughParams, pickRow, planBasis, gateLine, retrievalLine, scoreText, scoresMissing, stepTiming, steps, timingTotal, walkthroughHref, type Step } from "../lib/walkthrough";
+import { allCitations, fmt, markQuotes, notRecordedNote, passageFor, parseWalkthroughParams, pickRow, planBasis, gateLine, retrievalLine, scoreText, scoresMissing, stepTiming, steps, timingTotal, verifyNote, walkthroughHref, type Step } from "../lib/walkthrough";
+import { errorDetail } from "../lib/barrier";
+import { notesInWords, reasonSentences } from "../lib/routeReasons";
 import type { Correction, ExtractedField, RunManifest, Walkthrough, WalkthroughPassage } from "../types";
 
 type Obj = Record<string, unknown>;
@@ -68,11 +70,11 @@ export function ArgusWalkthrough({ params }: { params: string[] }) {
   useEffect(() => {
     listAllRuns()
       .then((all) => setRuns(all.filter((r) => RUN_TYPES.has(r.run_type)).sort((a, b) => (a.created_at < b.created_at ? 1 : -1))))
-      .catch((e) => setError((e as Error).message));
+      .catch((e) => setError(errorDetail(e as Error)));
     if (route.runId && route.companyId && route.item) {
       api.getWalkthrough(route.runId, route.companyId, { item: route.item, period_end: route.periodEnd, basis: route.basis })
         .then(setW)
-        .catch((e) => setError((e as Error).message));
+        .catch((e) => setError(errorDetail(e as Error)));
     }
     // Mounted once per route: App keys this page by the route.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -83,7 +85,7 @@ export function ArgusWalkthrough({ params }: { params: string[] }) {
     if (!run) return;
     let live = true;
     setRecords(null);
-    loadRecords(run).then((r) => live && setRecords(r)).catch((e) => live && setError((e as Error).message));
+    loadRecords(run).then((r) => live && setRecords(r)).catch((e) => live && setError(errorDetail(e as Error)));
     return () => {
       live = false;
     };
@@ -172,7 +174,7 @@ function RowResult({ w, row, basis }: { w: Walkthrough; row: Obj; basis?: string
         {basis && <div><dt>Basis</dt><dd>{basis}</dd></div>}
         <div><dt>Confidence</dt><dd>{conf(f.confidence)}</dd></div>
         <div><dt>Alternatives</dt><dd>{f.alternatives?.length ?? 0}</dd></div>
-        <div><dt>Route</dt><dd>{f.route ?? "none"}{f.route_reasons?.length ? ` · ${f.route_reasons.join(", ")}` : ""}</dd></div>
+        <div><dt>Route</dt><dd>{f.route ?? "none"}{reasonSentences(f.route_reasons ?? []) ? ` · ${reasonSentences(f.route_reasons ?? [])}` : ""}</dd></div>
       </dl>
       {f.route === "review" && <a href={`#/review/${w.run_type}/${w.run_id}`}>Open in review queue</a>}
     </>
@@ -199,10 +201,11 @@ function StepBody({ s, w, row, quotes, needsReview }: { s: Step; w: Walkthrough;
     case "Verify":
     case "Verify, blind": {
       if (s.answer != null) return <VerifyTabs s={s} w={w} row={row} />;
-      if (w.recorded) return null;
+      const note = w.recorded ? verifyNote(s, w) : null;
+      if (w.recorded) return note ? <p className="wt-line">{note}</p> : null;
       // Not recorded: what the stored row holds.
       const notes = w.run_type in SECTIONS ? w.rows.map((r) => r.verifier_notes).filter(Boolean).join(" ") : `Verifier confidence ${conf(row.verifier_confidence)}. ${row.verifier_notes ?? ""}`;
-      return <p className="wt-line">{notes || "No verifier notes stored."}</p>;
+      return <p className="wt-line">{notesInWords(notes) || "No verifier notes stored."}</p>;
     }
     case "Ground every quote": {
       const cites = w.run_type in SECTIONS ? allCitations(w.rows) : list(row.citations);
@@ -238,8 +241,8 @@ function StepBody({ s, w, row, quotes, needsReview }: { s: Step; w: Walkthrough;
       return bad.length ? <ul className="wt-lines">{bad.map((c, i) => <li key={i}>{String(c.check_id)}: {String(c.detail ?? "")}</li>)}</ul> : null;
     }
     case "Route": {
-      const reasons = Array.isArray(row.route_reasons) ? row.route_reasons : [];
-      return reasons.length ? <p className="wt-line">{reasons.join(", ")}</p> : null;
+      const reasons = reasonSentences(Array.isArray(row.route_reasons) ? row.route_reasons.map(String) : []);
+      return reasons ? <p className="wt-line">{reasons}</p> : null;
     }
     default:
       return null;

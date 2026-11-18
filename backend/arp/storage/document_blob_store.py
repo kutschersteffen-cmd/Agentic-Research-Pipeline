@@ -21,6 +21,7 @@ import hashlib
 import logging
 from pathlib import Path
 
+from arp.errors import NotConfigured
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.storage.atomic_io import atomic_write_bytes
 from arp.storage.object_store_client import ensure_bucket, get_client
@@ -28,7 +29,7 @@ from arp.storage.object_store_client import ensure_bucket, get_client
 logger = logging.getLogger(__name__)
 
 
-class CaptureStoreError(RuntimeError):
+class CaptureStoreError(NotConfigured):
     """The original bytes could not be stored and verified."""
 
 

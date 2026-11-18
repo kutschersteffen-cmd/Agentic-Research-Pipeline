@@ -223,7 +223,7 @@ Theme name `Hydrogen`, theme key `hydrogen`, scope `S1`, guidance `G1`, value ch
 | AC-15 | `note.txt` already uploaded once | Upload `note.txt` again | `path` ends with `_authority/note-2.txt`; the first file is unchanged | unit |
 | AC-16 | — | Upload `x.docx` | 422, `detail == "unsupported file type"`; nothing written | unit |
 | AC-17 | A path returned by AC-14 and a run at `awaiting_sources` | `POST /runs/{id}/sources` with `files == [that path]` | 200 | unit |
-| AC-52 | — | Upload with filename `../../x.txt` | 200, `path` is under `<documents_dir>/_authority/`; no file is written outside that folder | unit |
+| AC-52 | — | Upload with filename `../../x.txt` | 422; nothing is written | unit |
 | AC-53 | — | Upload a file one byte larger than `max_upload_bytes` | 413; nothing is written | unit |
 | AC-54 | A discovery stub that blocks until released | `POST /runs`, then `GET /runs/{id}` at once | `stage == "discovering"`, `error` null | unit |
 | AC-55 | A run created over an hour ago, at `awaiting_sources`; an extraction stub that blocks until released | `POST /runs/{id}/sources`, then `GET /runs/{id}` at once | `stage == "extracting"`, `error` null | unit |

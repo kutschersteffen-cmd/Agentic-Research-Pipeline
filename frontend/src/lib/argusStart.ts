@@ -16,7 +16,15 @@ export interface ArgusRow {
   starterName: string | null;
   createdAt: string;
   openHref: string;
+  /** A draft's first companies, since every draft is labelled "New extraction". */
+  names?: string;
 }
+
+/** The first two names and how many more: "Apple, Microsoft +13". */
+export const companiesSummary = (names: string[]) => names.slice(0, 2).join(", ") + (names.length > 2 ? ` +${names.length - 2}` : "");
+
+/** The line above the Runs table while a Process tile is pressed. */
+export const filterLine = (step: number | null) => (step === null ? null : `Showing step ${step} ${STEPS[step - 1]} only.`);
 
 export const ARGUS_RUN_TYPES = ["extraction", "financials", "tnfd", "transition_plan"];
 export const STEPS = ["Companies", "Documents", "Schema", "Extract", "Results"];
@@ -40,7 +48,9 @@ function stepAndStatus(r: RunManifest, open: Set<string>): [ArgusStep, ArgusStat
 /** Argus runs and draft flows, newest first. A finished run needs you while any of its review items is still open. */
 export function argusRows(runs: RunManifest[], items: ReviewItem[], flows: ArgusDraft[] = []): ArgusRow[] {
   const open = new Set(items.map((i) => i.run_id));
-  const drafts: ArgusRow[] = flows.map((f) => ({
+  const flowOf = new Map(flows.filter((f) => f.run_id).map((f) => [f.run_id as string, f.flow_id]));
+  // a draft is listed once it has a company: "Start new extraction" and old links store a flow on every click or visit
+  const drafts: ArgusRow[] = flows.filter((f) => !f.run_id && f.companies.length > 0).map((f) => ({
     runId: f.flow_id,
     label: "New extraction",
     companies: f.companies.length,
@@ -50,6 +60,7 @@ export function argusRows(runs: RunManifest[], items: ReviewItem[], flows: Argus
     starterName: f.started_by_name,
     createdAt: f.created_at,
     openHref: flowHref(f.flow_id, f.step),
+    names: companiesSummary(f.companies.map((c) => c.name)),
   }));
   return runs
     .filter((r) => ARGUS_RUN_TYPES.includes(r.run_type))
@@ -65,8 +76,10 @@ export function argusRows(runs: RunManifest[], items: ReviewItem[], flows: Argus
         startedBy: starter,
         starterName: typeof r.params?.started_by_name === "string" ? r.params.started_by_name : starter,
         createdAt: r.created_at,
-        // shortcut: the old screens until slice 5 builds steps 4 and 5
-        openHref: step === 5 ? "#/review" : "#/extraction/extract",
+        // a run started outside Argus flows has no flow page: its review, else its Run History row
+        openHref: flowOf.has(r.run_id)
+          ? flowHref(flowOf.get(r.run_id)!, step)
+          : step === 5 ? `#/review/${r.run_type}/${encodeURIComponent(r.run_id)}` : `#/history/${encodeURIComponent(r.run_id)}`,
       };
     })
     .concat(drafts)
@@ -97,13 +110,14 @@ export function waiting(rows: ArgusRow[], items: ReviewItem[]): { total: number;
 }
 
 /** The five Process tiles: runs per step, and what waits there. */
-export function tiles(rows: ArgusRow[], items: ReviewItem[]): { step: number; label: string; count: number; needs: string | null }[] {
+export function tiles(rows: ArgusRow[], items: ReviewItem[]): { step: number; label: string; count: number; needs: string | null; tone: "await" | "failed" | null }[] {
   return STEPS.map((name, i) => {
     const step = i + 1;
     const here = rows.filter((r) => r.step === step);
     const values = step === 5 ? ownItems(here, items).length : 0;
     const failed = step === 4 ? here.filter((r) => r.status === "Failed").length : 0;
     const needs = values ? `${values} values need you` : failed ? `${failed} failed` : null;
-    return { step, label: name, count: here.length, needs };
+    // Values wait on a person (amber); failures are status, shown in the failed colour.
+    return { step, label: name, count: here.length, needs, tone: values ? "await" : failed ? "failed" : null };
   });
 }

@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from arp.api.deps import get_run_store, settings_dep
 from arp.config import Settings
-from arp.discovery.site_finder import SearchResult, WebSearchClient
+from arp.discovery.site_finder import SearchResult, SearchUnreachable, WebSearchClient
 from arp.grounding import ground_citations
 from arp.ingestion.html_text import extract_html_text
 from arp.llm.base import LLMClient
@@ -112,6 +112,7 @@ class ResearchRound(BaseModel):
     round: int
     taxonomy_version: int
     plan_status: Literal["proposing", "proposal_failed", "proposed", "approved"] = "proposing"
+    search_unreachable: bool = False  # the last proposal failed because the web search could not be reached
     proposal_run_id: str | None = None
     plan_approved_by: str | None = None
     plan_approved_at: str | None = None
@@ -308,7 +309,7 @@ async def search_results(theme_name: str, search_client: WebSearchClient) -> lis
         for r in found:
             results.setdefault(r.url, r)
     if len(errors) == len(queries):
-        raise RuntimeError(f"web search failed: {errors[0]}")
+        raise SearchUnreachable(f"web search failed: {errors[0]}")
     return list(results.values())
 
 

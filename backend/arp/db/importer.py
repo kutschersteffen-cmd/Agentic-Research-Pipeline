@@ -53,6 +53,7 @@ from arp.db.observations import _DECIDED, _SKIP, RULE_NOT_APPLICABLE, _edited, _
 from arp.db.runs import RunStore, _decision_kind, _iso, _jsonb_safe, _ts
 from arp.db.session import engine
 from arp.db.to_observations import review_target, to_observations, unqueued_item
+from arp.errors import NotConfigured
 from arp.schemas.common import CompanyRef, RunManifest
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.issuer import IdentifierMap
@@ -72,7 +73,7 @@ _DERIVED_ERRORS = ("identity_conflict", "invalid_value", "unregistered_citation"
 _IDENTITY_COLUMNS = ("family_id", "version", "supersedes", "published_at", "identity_confidence", "identity_review")
 
 
-class ImportFailed(RuntimeError):
+class ImportFailed(NotConfigured):
     """An import unit failed; the message names the source file or row."""
 
 
@@ -161,12 +162,14 @@ def _esg_loads(settings: Settings) -> list[dict]:
     for e in store.list_governance_events():
         if (e.get("event_type"), e.get("kind"), e.get("status")) != ("load_recorded", "esg", "ok"):
             continue
+        if e["source_id"] == "simulated":  # arp showcase load: simulated data never becomes provider rows
+            continue
         since, last_at[e["month"]] = last_at.get(e["month"], ""), e["at"]
         # ponytail: observations do not record their provider; two providers loading the same month blend
         rows: dict[str, dict] = defaultdict(dict)
         for (company, fid), obs in history.items():
             # an optional field counts only if this load wrote it, not an earlier load of the month
-            hits = [o for o in obs if o.period == e["month"] and o.observed_at <= e["at"]
+            hits = [o for o in obs if o.period == e["month"] and o.observed_at <= e["at"] and o.source != "simulated"
                     and (fid not in OPTIONAL_FIELD_IDS or o.observed_at > since)]
             if hits:
                 rows[company][fid] = hits[-1].value

@@ -68,3 +68,6 @@ frontend/reports/
 
 # Playwright screenshots from local E2E runs
 backend/test-results/
+
+# Showcase demo pack: the owner downloads these reports; they are copyrighted and large
+demo/showcase/documents/*.pdf

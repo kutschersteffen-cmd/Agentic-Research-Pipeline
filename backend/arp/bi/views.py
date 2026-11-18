@@ -163,7 +163,8 @@ _VIEWS = {
         SELECT p.month AS month, p.row->>'company_id' AS company_id, p.row->>'company_name' AS company_name,
                p.row->>'field_id' AS field_id, p.row->>'field_name' AS field_name,
                CASE WHEN jsonb_typeof(p.row->'value') = 'number' THEN (p.row->>'value')::double precision END AS value,
-               p.row->>'unit' AS unit, bi.safe_date(p.row->>'as_of') AS as_of, p.row->>'source' AS source
+               p.row->>'unit' AS unit, bi.safe_date(p.row->>'as_of') AS as_of, p.row->>'source' AS source,
+               CASE WHEN jsonb_typeof(p.row->'value') = 'string' THEN p.row->>'value' END AS value_text
         FROM bi_published p WHERE p.dataset = 'company_profile'
     """,
 }

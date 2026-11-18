@@ -93,6 +93,9 @@
     "OPENWIKI_TELEMETRY_DISABLED": "1"
   },
   "permissions": {
+    "allow": [
+      "mcp__claude-code-remote__add_repo"
+    ],
     "deny": [
       "Read(./graphify-out/graph.json)"
     ]

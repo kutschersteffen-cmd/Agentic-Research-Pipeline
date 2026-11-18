@@ -13,9 +13,10 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.pool import NullPool
 
+from arp.errors import ClientInputError, NotConfigured
 from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
 from arp.orchestration.job_manager import JobManager
-from arp.schemas.common import JobStatus, RunManifest
+from arp.schemas.common import JobStatus, RunManifest, now_iso
 from arp.storage.postgres import _CONNECT_TIMEOUT_SECONDS
 from arp.storage.run_store import RunStore
 
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class RunBusy(RuntimeError):
+class RunBusy(NotConfigured):
     """Another worker already holds this run's lease."""
 
 
@@ -172,7 +173,7 @@ def run_alive(run_store, run_id: str | None) -> bool:
         return True
 
 
-class NotResumable(ValueError):
+class NotResumable(ClientInputError):
     """This run cannot be resumed; the message says why."""
 
 
@@ -225,16 +226,18 @@ def _xbrl_source(settings: Settings):
     return XbrlFactSource(edgar, settings.cache_dir, ttl_hours=settings.xbrl_facts_ttl_hours)
 
 
-def restart_run(run_store: RunStore, run_id: str) -> None:
+def restart_run(run_store: RunStore, run_id: str, failed_count: int = 0) -> None:
     """Marks the run RUNNING again (error and cancel request cleared), with
     its counts rebuilt from the files: failed items are retried, so they no
     longer count; tokens and cost stay, that money was spent. review_count
-    stays too: review-stopped items are never re-run, and discovery records
-    review counts without review_queue rows."""
+    stays too: review-stopped items are never re-run, and a discovery company's
+    result and review items are stored together, so the count matches the queue."""
     with run_store.lock(run_id):
         current = run_store.load_manifest(run_id)
         current.completed_count = len(run_store.done_keys(run_id))
-        current.failed_count = 0
+        current.failed_count = failed_count
+        # when this restart began and how much was done by then: time left counts from here (Argus step 4)
+        current.params = {**current.params, "restarted_at": now_iso(), "done_at_restart": current.completed_count + failed_count}
         current.cancel_requested = False
         current.status = JobStatus.RUNNING
         current.error = None
@@ -250,15 +253,22 @@ async def resume_run(
     llm: LLMClient | None = None,
     verifier_llm: LLMClient | None = None,
     lease: bool = True,
+    company_ids: list[str] | None = None,
 ) -> str:
     """Continues a run that was killed, failed, partly failed or cancelled,
     from what its creator stored (manifest params, companies.json). Items
     already in results.jsonl, or stopped for review, are not run again;
     plain failures are retried. Holds the run's lease throughout unless
-    `lease=False` (the caller -- a LocalJobLauncher -- already holds it)."""
+    `lease=False` (the caller -- a LocalJobLauncher -- already holds it).
+    `company_ids`: only these companies; the run's other failures stay failed."""
     manifest = check_resumable(run_store, run_id)
     run_type = manifest.run_type
     companies = run_store.load_companies(run_id)
+    still_failed = 0
+    if company_ids is not None:
+        companies = [c for c in companies if c.company_id in company_ids]
+        done = run_store.done_keys(run_id, include_errors=True)
+        still_failed = len({r["key"] for r in run_store.read_errors(run_id) if r.get("key")} - done - set(company_ids))
 
     # The run keeps the models it started on.
     run_settings = settings.model_copy(
@@ -272,11 +282,13 @@ async def resume_run(
         llm = llm or build_llm_client(run_settings)
         verifier_llm = verifier_llm or build_verifier_llm_client(run_settings)
 
+    from arp.ingestion.registry import for_run
+
     with hold_run(run_store, run_id) if lease else nullcontext():
-        restart_run(run_store, run_id)
+        restart_run(run_store, run_id, still_failed)
 
         common = {"settings": run_settings, "run_store": run_store}
-        llms = {"llm": llm, "verifier_llm": verifier_llm, "registry": registry}
+        llms = {"llm": llm, "verifier_llm": verifier_llm, "registry": for_run(registry, run_store.run_dir(run_id))}
         return await _RESUME[run_type](run_id, manifest, companies, **common, **llms)
 
 

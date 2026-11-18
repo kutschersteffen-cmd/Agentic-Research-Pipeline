@@ -1,6 +1,7 @@
 """Argus step 1: adding companies to a flow registers them by LEI/ISIN/CIK; a list's own id becomes scheme USER."""
 
 import json
+import re
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from arp.api.deps import settings_dep
 from arp.api.main import app
+from arp.argus.flows import safe_key
 from arp.config import Settings
 from arp.db.models import Company, CompanyIdentifier
 from arp.db.session import engine
@@ -162,3 +164,73 @@ def test_bad_file_is_400_and_unknown_flow_is_404(client, fid):
     assert client.post(f"/api/argus/flows/{fid}/companies/upload", files={"file": ("u.txt", "x")}).status_code == 400
     assert client.post(f"/api/argus/flows/{fid}/companies/upload", files={"file": ("u.json", "{")}).status_code == 400
     assert client.post("/api/argus/flows/nope/companies/upload", files={"file": ("u.csv", CSV)}).status_code == 404
+
+
+def test_a_name_only_company_gets_a_safe_key(client, fid):
+    from arp.storage.safe_path import safe_id
+    flow = client.post(f"/api/argus/flows/{fid}/companies", json={"company": {"name": "Siemens AG"}}).json()
+    c = flow["companies"][0]
+    assert c["name"] == "Siemens AG" and re.fullmatch(r"siemens-ag-[0-9a-f]{8}", c["company_id"])
+    assert safe_id(c["company_id"])
+
+
+def test_an_unsafe_own_id_becomes_a_safe_key(client, fid, pg):
+    flow = upload(client, fid, "name,company_id\nAcme,Acme Corp/1\n")
+    assert re.fullmatch(r"acme-corp-1-[0-9a-f]{8}", flow["companies"][0]["company_id"])
+
+
+def test_a_stored_flow_with_an_unsafe_key_reads_back_safe(client, fid, settings):
+    path = settings.runs_dir / "_flows" / f"{fid}.json"
+    data = json.loads(path.read_text())
+    data["companies"] = [{"company_id": "Siemens AG", "name": "Siemens AG"}]
+    path.write_text(json.dumps(data))
+    c = client.get(f"/api/argus/flows/{fid}").json()["companies"][0]
+    assert c["name"] == "Siemens AG" and c["company_id"] == safe_key("Siemens AG")
+
+
+def test_names_that_slug_alike_get_different_keys(client, fid):
+    for name in ("ACME, Inc.", "Acme Inc", "株式会社トヨタ", "株式会社ソニー"):
+        client.post(f"/api/argus/flows/{fid}/companies", json={"company": {"name": name}})
+    keys = [c["company_id"] for c in client.get(f"/api/argus/flows/{fid}").json()["companies"]]
+    assert len(keys) == 4 and len(set(keys)) == 4
+    assert all(safe_key(k) == k for k in keys) and keys[2].startswith("company-")
+    assert safe_key("Acme Inc") == safe_key("Acme Inc")  # stable, so a re-read keeps the key
+
+
+def test_a_placeholder_identifier_is_not_an_identifier(client, fid, pg):
+    """"N/A" in an ISIN column matched every other "N/A" row to one company; rows vanished and a later flow's
+    company was filed under the first one's central id."""
+    flow = upload(client, fid, "name,isin,lei,cik\nAlpha AG,N/A,,\nBeta SE,N/A,-,\nGamma plc,-,,n/a\n")
+    assert [c["name"] for c in flow["companies"]] == ["Alpha AG", "Beta SE", "Gamma plc"]
+    assert [c["entity_id"] for c in flow["companies"]] == [None, None, None]
+    assert [r["problem"] for r in flow["rows"]] == ["No identifier: add an ISIN, LEI or CIK"] * 3
+    assert count(pg) == 0
+    other = client.post("/api/argus/flows").json()["flow_id"]
+    delta = client.post(f"/api/argus/flows/{other}/companies", json={"company": {"name": "Delta Oy", "isin": "n/a"}}).json()
+    assert delta["companies"][0]["entity_id"] is None
+
+
+def test_a_real_identifier_beside_a_placeholder_still_matches(client, fid, pg):
+    flow = upload(client, fid, "name,isin,lei\nApple,US0378331005,N/A\n")
+    assert flow["companies"][0]["entity_id"] is not None
+    assert flow["rows"][0]["problem"] is None
+
+
+def test_documents_filed_under_the_flow_key_land_on_the_matched_company(client, fid, pg):
+    """The flow key was never recorded as the company's universe id, so registering a document under it
+    created a second company named after the key."""
+    from arp.db.companies import ensure_universe_company
+
+    flow = upload(client, fid, CSV)
+    apple, microsoft = flow["companies"][0], flow["companies"][1]
+    with Session(engine(pg)) as s, s.begin():
+        filed = [str(ensure_universe_company(s, c["company_id"])) for c in (apple, microsoft)]
+    assert filed == [apple["entity_id"], microsoft["entity_id"]]
+    assert count(pg) == 3
+
+
+def test_the_same_company_has_one_key_in_every_flow(client, fid, pg):
+    first = upload(client, fid, CSV)["companies"]
+    other = client.post("/api/argus/flows").json()["flow_id"]
+    again = upload(client, other, "name,isin,company_id\nApple,US0378331005,\nMicrosoft,US5949181045,MSFT\n")["companies"]
+    assert [c["company_id"] for c in again] == [first[0]["company_id"], first[1]["company_id"]]

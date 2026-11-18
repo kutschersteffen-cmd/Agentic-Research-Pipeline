@@ -15,7 +15,8 @@ from arp.db.fields import (
     retire_field,
 )
 from arp.db.session import transaction
-from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
+from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition, FieldStatus
+from arp.schemas.rules import RequiresRule
 
 
 def _source(s) -> int:
@@ -114,6 +115,20 @@ def test_schema_registry_released_field_change_requires_new_version(pg):
     assert reg.save(edited).version == 2
     assert reg.get(s.schema_id, 1).fields[0].description == "Capex."
     assert reg.get(s.schema_id).release_flag is False
+
+
+def test_rule_added_to_released_field_saves_as_next_field_version(pg):
+    # Argus step 3 "Edit as v<n+1>" + a rule sends the changed field as its next version, a draft
+    reg = SchemaRegistry(pg)
+    s = reg.release(*(lambda x: (x.schema_id, x.version))(reg.save(_schema())))
+    edited = s.model_copy(deep=True)
+    edited.fields[0].rules = [RequiresRule(rule_id="r1", kind="requires", field=s.fields[0].field_id, equals=True)]
+    with pytest.raises(FieldVersionError):
+        reg.save(edited)
+    edited.fields[0].version, edited.fields[0].status = 2, FieldStatus.DRAFT
+    saved = reg.save(edited)
+    assert (saved.version, saved.fields[0].version, len(saved.fields[0].rules)) == (2, 2, 1)
+    assert reg.get(s.schema_id, 1).fields[0].rules == []
 
 
 def test_schema_registry_save_discards_client_release_metadata(pg):

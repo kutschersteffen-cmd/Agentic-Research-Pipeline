@@ -28,7 +28,9 @@ The extractor reports one value per period. Set agrees=false whenever you \
 find a problem with any of them, even a small one; corrected_value is the \
 corrected value for the first value listed (values[0]). Set disagreement_type \
 to what is wrong with values[0]: value, unit_or_scale, period, entity (another \
-company or segment), or not_disclosed; none when you agree. Back a correction \
+company or segment), or not_disclosed; none when you agree. A figure stated for a \
+segment or business line whose described activity is what the field asks about \
+is the right entity, not another one. Back a correction \
 with citations whose quote is an EXACT, VERBATIM substring of the evidence, \
 tagged with its doc_id and passage_id: a correction without one is not applied. \
 confidence should reflect your own certainty after this check, not the original \

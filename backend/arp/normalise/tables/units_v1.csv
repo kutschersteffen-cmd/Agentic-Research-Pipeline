@@ -12,6 +12,12 @@ tCO2-e,tCO2e,1,emissions,0
 t CO2e,tCO2e,1,emissions,0
 tonnes CO2e,tCO2e,1,emissions,0
 tonnes of CO2 equivalent,tCO2e,1,emissions,0
+metric tons CO2e,tCO2e,1,emissions,0
+metric tonnes CO2e,tCO2e,1,emissions,0
+metric tons of CO2e,tCO2e,1,emissions,0
+metric tonnes of CO2e,tCO2e,1,emissions,0
+metric tons of CO2 equivalent,tCO2e,1,emissions,0
+metric tonnes of CO2 equivalent,tCO2e,1,emissions,0
 kgCO2e,tCO2e,0.001,emissions,0
 ktCO2e,tCO2e,1000,emissions,0
 MtCO2e,tCO2e,1000000,emissions,0

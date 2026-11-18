@@ -14,8 +14,11 @@ from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import async_playwright
 
 from arp.config import Settings
-from arp.reporting.house_style import load_tokens
-from arp.schemas.reporting import Finding
+from arp.errors import NotConfigured
+from arp.reporting.design_checks import ANATOMY
+from arp.reporting.house_style import Tokens, load_tokens
+from arp.reporting.render_model import FULL_BLEED, body_box
+from arp.schemas.reporting import Box, Finding
 
 _TOL = 1.5  # px slack for sub-pixel layout rounding
 
@@ -26,7 +29,18 @@ _SLOTS_JS = """() => [...document.querySelectorAll('[data-slot]')].map(el => {
 })"""
 
 
-class BrowserUnavailable(RuntimeError):
+# Component slides: every drawn element, read top-anchored so overflow shows in the scroll size whatever the anchor.
+_VISUAL_JS = """() => [...document.querySelectorAll('section[data-visual] [data-name]')].map(el => {
+  const sec = el.closest('section'), s = sec.getBoundingClientRect(), html = el instanceof HTMLElement;
+  if (html) el.style.justifyContent = 'flex-start';
+  const r = el.getBoundingClientRect();
+  return {slide: +sec.dataset.slide, visual: sec.dataset.visual, name: el.dataset.name, html, x: r.left - s.left, y: r.top - s.top,
+          w: r.width, h: r.height, sh: el.scrollHeight, ch: el.clientHeight, sw: el.scrollWidth, cw: el.clientWidth,
+          fs: parseFloat(getComputedStyle(el).fontSize) || 0};
+})"""
+
+
+class BrowserUnavailable(NotConfigured):
     pass
 
 
@@ -51,29 +65,53 @@ async def _page(html: str, scale: float = 1.0):
             await browser.close()
 
 
-async def measure(html: str) -> list[Finding]:
-    tokens = load_tokens()
-    g, w, h = tokens.grid, tokens.canvas.width, tokens.canvas.height
-    safe = (g.margin_x, g.margin_top + g.headline_band, w - g.margin_x, h - g.margin_bottom - g.footer_band)
+_FRAME_TEXT = ("headline", "subheading")  # placed by the frame, not the body grid
+
+
+async def measure(html: str, tokens: Tokens | None = None) -> list[Finding]:
+    tokens = tokens or load_tokens()
+    g, w, h, f = tokens.grid, tokens.canvas.width, tokens.canvas.height, tokens.frame
+    safe = (f.body.x, f.body.y, f.body.x + f.body.w, f.body.y + f.body.h) if f else \
+        (g.margin_x, g.margin_top + g.headline_band, w - g.margin_x, h - g.margin_bottom - g.footer_band)
     async with _page(html) as page:
         boxes = await page.evaluate(_SLOTS_JS)
-    out: list[Finding] = []
+        visual = await page.evaluate(_VISUAL_JS)
+    out: list[Finding] = _visual_fit(visual, body_box(tokens))
 
     def add(b, rule, msg):
         out.append(Finding(slide=b["slide"], slot=b["slot"], stage="fit", rule=rule, message=msg))
 
     for b in boxes:
-        if b["sh"] > b["ch"] + _TOL:
-            add(b, "overflow", f"ratio={b['sh'] / b['ch']:.2f}")
+        if b["sh"] > b["ch"] + _TOL:  # an approved subheading is never rewritten, so it gets a rule of its own
+            add(b, "subheading_overflow" if b["slot"] == "subheading" else "overflow", f"ratio={b['sh'] / b['ch']:.2f}")
         if b["sw"] > b["cw"] + _TOL:
             add(b, "overflow_x", f"content {b['sw']}px wide in a {b['cw']}px slot")
-        if b["slot"] != "headline" and (b["x"] < safe[0] - _TOL or b["y"] < safe[1] - _TOL or b["x"] + b["w"] > safe[2] + _TOL or b["y"] + b["h"] > safe[3] + _TOL):
+        if b["slot"] not in _FRAME_TEXT and not (f and b["slot"] in ("title", "subtitle")) and (b["x"] < safe[0] - _TOL or b["y"] < safe[1] - _TOL or b["x"] + b["w"] > safe[2] + _TOL or b["y"] + b["h"] > safe[3] + _TOL):
             add(b, "off_grid", "slot box leaves the grid's safe area")
     for i, a in enumerate(boxes):
         for b in boxes[i + 1 :]:
-            if a["slide"] == b["slide"] and a["x"] < b["x"] + b["w"] - _TOL and b["x"] < a["x"] + a["w"] - _TOL \
+            if a["slide"] == b["slide"] and {a["slot"], b["slot"]} != set(_FRAME_TEXT) and a["x"] < b["x"] + b["w"] - _TOL and b["x"] < a["x"] + a["w"] - _TOL \
                     and a["y"] < b["y"] + b["h"] - _TOL and b["y"] < a["y"] + a["h"] - _TOL:
                 add(b, "collision", f"overlaps {a['slot']}")
+    return out
+
+
+def _visual_fit(boxes: list[dict], body: Box) -> list[Finding]:
+    """Component slides: `overflow` (text taller than its box, or a body element outside the body box) and `overflow_x`."""
+    out = []
+
+    def add(b, rule, msg):
+        out.append(Finding(slide=b["slide"], slot=b["name"], stage="fit", rule=rule, message=msg))
+
+    for b in boxes:
+        # Geist's glyph box (1.3em) overhangs its 1.2 line height by 0.05em top and bottom; only that much is tolerated.
+        if b["html"] and b["ch"] and b["sh"] > b["ch"] + _TOL + 0.1 * b["fs"]:
+            add(b, "overflow", f"ratio={b['sh'] / b['ch']:.2f}")
+        if b["html"] and b["sw"] > b["cw"] + _TOL:
+            add(b, "overflow_x", f"content {b['sw']}px wide in a {b['cw']}px box")
+        if b["visual"] not in FULL_BLEED and not b["name"].startswith(ANATOMY) and (
+                b["y"] < body.y - _TOL or b["y"] + b["h"] > body.y + body.h + _TOL or b["x"] < body.x - _TOL or b["x"] + b["w"] > body.x + body.w + _TOL):
+            add(b, "overflow", f"ratio={(b['y'] + b['h'] - min(b['y'], body.y)) / body.h:.2f} (outside the body box)")
     return out
 
 

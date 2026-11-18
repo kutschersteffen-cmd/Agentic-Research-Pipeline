@@ -12,6 +12,8 @@ from arp.portfolio.monitoring.evaluator import list_alerts
 from arp.schemas.triggers import UnifiedTrigger
 from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
 
+GRADE_LETTERS = "ABCDEF"  # the transition grades of arp/showcase/simulate.py GRADES
+
 
 def month_end(month: str) -> str:
     first = datetime.strptime(month, "%Y-%m")  # ValueError if malformed
@@ -38,9 +40,26 @@ def climate_metric_rows(store: PortfolioStore, month: str, portfolio_ids: list[s
                 "financed_emissions_tco2e": pcaf["financed_emissions_tco2e"],
                 "coverage_pct": pcaf["coverage_pct"],
                 "uncovered_market_value_eur": pcaf["uncovered_market_value_eur"],
+                **grade_weights(store, holdings, securities, obs_as_of),
             }
         )
     return rows
+
+
+def grade_weights(store: PortfolioStore, holdings, securities, as_of: str) -> dict[str, float | None]:
+    """`grade_<x>_weight_pct` for each transition grade A to F (SIMULATED, `arp showcase load`): the share in percent of
+    the weight of the holdings whose company has a grade as of `as_of`. All None when no holding has one."""
+    by_grade = dict.fromkeys(GRADE_LETTERS, 0.0)
+    grades: dict[str, str | None] = {}
+    for h in holdings:
+        company_id = (sec := securities.get(h.security_id)) and sec.company_id
+        if company_id and company_id not in grades:
+            obs = datapoint_mapping.resolve_field_value(store, company_id, "transition_grade", as_of)
+            grades[company_id] = obs.value if obs is not None else None
+        if company_id and grades[company_id] in by_grade:
+            by_grade[grades[company_id]] += h.weight_pct or 0
+    total = sum(by_grade.values())
+    return {f"grade_{g.lower()}_weight_pct": (100 * w / total if total else None) for g, w in by_grade.items()}
 
 
 def alert_rows(store: PortfolioStore) -> list[dict]:

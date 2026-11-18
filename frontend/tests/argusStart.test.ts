@@ -17,7 +17,7 @@ test("rows are Argus runs only, newest first, labelled and stepped", () => {
     ["r2", "Financials", 5, "Needs you", "bob", 3],
     ["r1", "Green capex v2", 4, "Running", "alice", 3],
   ]);
-  assert.deepEqual(rows.map((r) => r.openHref), ["#/review", "#/extraction/extract"]);
+  assert.deepEqual(rows.map((r) => r.openHref), ["#/review/financials/r2", "#/history/r1"]);
 });
 
 test("cancelled is Stopped, failed is Failed, finished without review is Finished; old transition_plan runs list", () => {
@@ -91,4 +91,21 @@ test("rows show the starter's name and filter on the starter's id; old runs fall
   const rows = argusRows([run({ run_id: "n", params: { started_by: "u-1", started_by_name: "Alice Smith" } }), run({ run_id: "o", params: { started_by: "bob" } })], []);
   assert.deepEqual(rows.map((r) => [r.runId, r.starterName]), [["n", "Alice Smith"], ["o", "bob"]]);
   assert.deepEqual(filterRows(rows, { step: null, mineOf: "u-1" }).map((r) => r.runId), ["n"]);
+});
+
+test("a run started from a flow opens that flow's step; the flow is no longer a draft row", () => {
+  const f = { flow_id: "f1", run_id: "r1", step: 4, companies: [], created_at: "2026-10-01", started_by: "alice", started_by_name: "Alice" };
+  const rows = argusRows([R1, R2], [], [f as never]);
+  assert.deepEqual(rows.map((r) => [r.runId, r.openHref]), [["r2", "#/review/financials/r2"], ["r1", "#/argus/f1/4"]]);
+  const done = argusRows([run({ run_id: "r1", status: "completed" })], [], [f as never]);
+  assert.equal(done[0].openHref, "#/argus/f1/5");
+});
+
+// UI polish 1, F7: a failed note is not amber.
+test("pol_ac7_tile_tone", () => {
+  const failed = tiles(argusRows([run({ run_id: "f1", status: "failed" }), run({ run_id: "f2", status: "failed" })], []), []);
+  assert.deepEqual([failed[3].tone, failed[3].needs], ["failed", "2 failed"]);
+  const values = tiles(argusRows([R2], []), [item("r2"), item("r2"), item("r2")]);
+  assert.equal(values[4].tone, "await");
+  assert.ok(tiles([], []).every((t) => t.tone === null));
 });

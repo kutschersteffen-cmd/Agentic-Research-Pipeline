@@ -4,7 +4,7 @@ import type { ExtractionRecord, ReviewableRunKind, RunManifest } from "../types"
 export const ACTIVE_STATUSES = new Set(["running", "pending"]);
 
 // Run types whose flagged items go to the Review Queue.
-export const REVIEWABLE_RUN_TYPES: ReadonlySet<string> = new Set<ReviewableRunKind>(["theme", "extraction", "financials", "identity", "transition_plan", "tnfd", "transition_barrier_derivation"]);
+export const REVIEWABLE_RUN_TYPES: ReadonlySet<string> = new Set<ReviewableRunKind>(["theme", "extraction", "financials", "identity", "transition_plan", "tnfd", "transition_barrier_derivation", "discovery"]);
 
 // Run types the backend can resume, and the statuses a resume applies to.
 export const RESUMABLE_RUN_TYPES: ReadonlySet<string> = new Set([
@@ -130,3 +130,15 @@ export function notFoundLine(records: ExtractionRecord[]): string | null {
     .map(([n, label]) => `${n} ${label}`);
   return parts.length ? `Not found: ${parts.join(" · ")}` : null;
 }
+
+/** A poll answered 404: the run no longer exists, so polling stops. */
+export const runGone = (message: string) => message.startsWith("404:");
+
+/** What a run's progress counts: an emerging-themes scan counts mentions, every other run companies. */
+export const progressUnit = (runType: string): string => (runType === "emerging_themes" ? "mentions" : "companies");
+
+/** A finished run that spent no tokens shows this line in place of cost and tokens. */
+export const NO_MODEL_CALLS = "No new model calls (answers reused or nothing to read)";
+
+export const spentNothing = (m: Pick<RunManifest, "status" | "input_tokens" | "output_tokens">): boolean =>
+  m.status === "completed" && m.input_tokens === 0 && m.output_tokens === 0;

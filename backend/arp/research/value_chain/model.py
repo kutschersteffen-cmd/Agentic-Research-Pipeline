@@ -12,6 +12,8 @@ from typing import Literal
 
 import numpy as np
 
+from arp.errors import ClientInputError
+
 # Read-only queries on a build from `arp io build-full`; spec Appendix B:
 # docs/superpowers/specs/2026-10-24-value-chain-explorer-design.md. float64 throughout, nothing rounded.
 
@@ -30,7 +32,7 @@ class NotBuilt(Exception):
         super().__init__(NOT_BUILT)
 
 
-class ShockError(ValueError):
+class ShockError(ClientInputError):
     """A shock request the model cannot run (unknown region or sector, bad size, nothing to shock)."""
 
 
@@ -42,7 +44,7 @@ class UnknownNode(KeyError):
         return self.args[0]
 
 
-class UnknownMaterial(ValueError):
+class UnknownMaterial(ClientInputError):
     def __init__(self, key: str) -> None:
         super().__init__(f"unknown material '{key}'")
 

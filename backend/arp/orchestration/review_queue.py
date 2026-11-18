@@ -202,7 +202,8 @@ def effective_decisions(run_store: RunStore, run_id: str) -> dict[str, dict]:
     for k, s in item_states(run_store, run_id).items():
         if s.state in FINAL_STATES:
             row = s.effective
-            out[k] = {**row, "edited_value": row["corrected_value"]} if row.get("decision") == "correct" else row
+            # legacy record_review_decision rows carry only `edited_value` (issue #406)
+            out[k] = {**row, "edited_value": row.get("corrected_value") or row.get("edited_value")} if row.get("decision") == "correct" else row
     return out
 
 

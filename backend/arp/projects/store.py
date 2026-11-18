@@ -9,6 +9,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from arp.errors import ClientInputError
 from arp.storage.atomic_io import atomic_write_bytes, atomic_write_text, read_text_utf8
 from arp.storage.locks import KeyedLock
 from arp.storage.safe_path import UnsafeIdentifierError, safe_filename
@@ -19,7 +20,7 @@ DASHBOARD_SLUG_RE = re.compile(r"^arp-[a-z0-9][a-z0-9-]{0,118}$")
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 
-class ProjectError(ValueError):
+class ProjectError(ClientInputError):
     pass
 
 

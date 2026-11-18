@@ -6,11 +6,11 @@
 branch. `main` is protected: a PR merges only once its required CI checks are green.
 
 Agents driving a PR follow `.claude/skills/steward/SKILL.md`: a `risk:` label, a stop after three
-failed fix rounds, `factory:blocked` for spec questions, at most three agent PRs in flight. Once CI is
+failed fix rounds, `factory:blocked` for spec questions, one item per PR. Once CI is
 green, the `evaluator` skill checks the spec's `evaluator` rows in the running app.
 Hidden acceptance tests live in the private `holdout` repo, written by the `test-writer` skill in a
 session that never works on the implementation; the Holdout acceptance job runs them on PRs that say
-`Spec: <slug>` and prints only `AC-n pass|fail`. Never attach `holdout` to an implementing session.
+`Spec: <slug>` and prints only `AC-n pass|fail` (docs-only PRs skip it). Never attach `holdout` to an implementing session.
 If CI goes red on `main` after a merge, the Main guard workflow opens a `Revert <sha>` PR (or an issue);
 merge it, or close it when a fix is already on the way.
 To run a feature through all of this, start a cloud session and type `/factory <feature>`: the
@@ -138,12 +138,46 @@ The owner answers by tapping buttons, not by typing. Every question to the owner
 - The question must stand alone: say what was found and what is being decided, since earlier chat
   may be hidden while the buttons are open.
 - A spec or plan is still shown as an artifact first; the buttons collect the verdict.
-- Merge button: once a `risk:low` or `risk:normal` PR is green on its current head, mergeable and has
-  no review thread waiting on the agent, the agent driving it asks `Merge PR #<n>?` with title, risk
-  label and short head SHA. `Approve` merges it then and there (`merge_pull_request`, `merge_method:
-  merge`, `expectedHeadSha` set to the SHA in the question; if the head moved, ask again).
-  `Not approved` leaves it for the owner. `risk:high` PRs are never offered: the owner merges them on
-  GitHub. One tap covers one PR at one SHA; agents still never approve a PR.
+- Auto-merge, no tap, for `risk:low` and `risk:normal`: only the factory dispatcher merges
+  (`merge_pull_request`, `merge_method: merge`, `expectedHeadSha` the head it read every gate on; if the
+  head moved, it reads them again), also when the PR is behind `main`, once all of these hold on that head:
+  1. no changed file is in the steward table's `risk:high` row or under `docs/superpowers/specs/`,
+     whatever the label;
+  2. every required check is green;
+  3. hidden rows: the PR's `Spec:` and `Rows:` lines match the spec and slice the dispatcher started its
+     builder for (its board card and that session's prompt are the record); if not, this gate fails.
+     A `Rows:` line, if present, lists exactly the rows of one slice in the spec's `## Slices`.
+     The PR owes that slice's rows, or with a `Spec:` line and no `Rows:` line all the spec's rows, or with
+     no `Spec:` line none. If the rows it owes include `holdout` rows, the `Holdout acceptance` log has a
+     result line for each of them and every result line ends in pass; if they include none and it has a
+     `Spec:` line, the log shows the own-rows run for it printing `holdout rows: 0` or `holdout: nothing to
+     run` (a skipped run does not count). A PR with
+     `Refs #<n>` to a `Nightly Holdout failed` issue ran all 6 shards green, or, if the check skipped, its
+     linked manual `holdout.yml` run on that head is green;
+  4. each review its paths require is there for that head's code, posted by a session the dispatcher
+     started for it (its events show the post), with no open blocking finding, no `factory:blocked`
+     label and no review thread waiting on the PR's agent: `Code review (factory)`; `UI review (factory)`
+     when it touches `frontend/src/**`; when the spec has `evaluator` rows, an `Acceptance matrix
+     (evaluator)` with an `Evidence review (factory)` that says `Verdict: pass`;
+  5. GitHub shows it mergeable, with no conflict; if it refuses the merge as out of date, the dispatcher
+     asks the builder to merge `origin/main` in and reads the gates again once green.
+  It then tells the owner one line: PR, title, risk label, short SHA, plus `main has failing hidden tests:
+  issue #<n>` while a `Nightly Holdout failed` issue is open. If `main` goes red afterwards, the Main guard
+  opens a revert PR. Any other PR is the owner's to merge on GitHub, unless a rule below covers it.
+- `risk:high`: unchanged, the owner merges it on GitHub; no agent merges it.
+- Agents never approve a PR and never lower a risk label.
+- Holdout PR: the test-writer session merges its own PR in the holdout repo, no tap, once that PR's check
+  is green (`merge_method: merge`, `expectedHeadSha` the head the check passed on), if its diff is only
+  under `specs/<slug>/` or, for the regression move, only that folder moved or copied into `regression/`.
+  Any other holdout PR is the owner's.
+- Spec PR: the owner's `Approve` on a spec, tapped in the session that wrote it on a question that shows
+  the spec and the PR's head SHA and whose `Approve` description says it also merges the PR, merges that
+  PR if its diff is exactly that one spec file. Once the checks on its head are green and it is mergeable,
+  that session merges it (`merge_method: merge`, `expectedHeadSha` the current head) without a second
+  question, if the spec file differs from the asked SHA at most in its `Status:` line; else it asks again.
+  Being behind `main` does not matter; if GitHub refuses the merge as out of date, merge `origin/main` in
+  and merge once green. Keep one `send_later` check-in until it merges. A decision relayed by another
+  session is not that tap. Other PRs follow the rules above.
 
 ## Checks
 
@@ -153,7 +187,7 @@ The owner answers by tapping buttons, not by typing. Every question to the owner
   then `cd frontend && npm run gen:api`, fix the type errors `tsc -b` reports, and commit both generated files.
   A new `request<T>()` against an endpoint with a response model gets a line in `frontend/src/api/contract.ts`.
 - Browser flow (cloud session): `bash .claude/hooks/ensure-deps.sh postgres && bash backend/scripts/e2e_stack.sh up`,
-  then `cd backend && ARP_E2E_URL=http://localhost:5173 ARP_CHROMIUM_PATH=$(ls -d /opt/pw-browsers/chromium-*/chrome-linux/chrome | head -1) pytest -m e2e tests/e2e`;
+  then `cd backend && ARP_E2E_URL=http://localhost:5173 ARP_CHROMIUM_PATH=$(ls -d /opt/pw-browsers/chromium-*/chrome-linux*/chrome | head -1) pytest -m e2e tests/e2e`;
   `e2e_stack.sh down` when done. CI runs it as the "E2E (browser)" job.
 - Mutation check (do the tests catch bugs?): `cd backend && pip install mutmut==3.8.0 "pytest<9.2" && python scripts/mutation_check.py --base origin/main`
   (some tests need `ARP_TEST_POSTGRES_DSN`). CI runs it nightly and on `risk:high` PRs; surviving mutants are weak tests.
@@ -171,7 +205,8 @@ The owner answers by tapping buttons, not by typing. Every question to the owner
   installs everything in the background.
 
 The Stop hook (`.claude/hooks/check.sh`) runs these on the code you changed and blocks finishing
-on failure; CI runs the full suites.
+on failure; CI runs the full suites on `main`. On a PR it skips the jobs whose files the PR does not touch
+(rules: `.github/scripts/ci_changes.py`).
 
 ## Codebase context
 
@@ -249,7 +284,9 @@ Keep them out of `.claude/skills/`: a trusted workspace would load them from the
 - `runs-pane` — live pane of `arp runs list`, refreshed every 15 s; `/runs` refreshes now.
   Needs `ARP_POSTGRES_DSN` and the backend installed, else it shows the error.
 - `token-usage` — status line after each turn: context fill, session cost, rate-limit use
-  (`ctx 45k/200k (23%) · $1.23 · 5h 42%`).
+  (`ctx 45k/200k (23%) · $1.23 · 5h 42%`). When the current pace would use up a limit before it
+  resets, it adds `⚠ 5h out in ~40m` and shows a toast once per limit window: start fewer parallel
+  sessions or jobs until it clears. There is no cap on agent PRs in flight; this warning replaces it.
 
 Check one with `claude plugin validate .claude/mods/<mod>` and `claude plugin test .claude/mods/<mod>`.
 

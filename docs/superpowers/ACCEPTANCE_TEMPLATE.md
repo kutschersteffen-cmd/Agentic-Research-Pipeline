@@ -27,6 +27,9 @@ Must not change: <behaviours that stay as they are, each also an AC row>
   database row, what the UI shows. "Function X is called" is not a criterion.
 - **"Then" is exact**: values, counts, messages, status codes. "Works correctly" is not a criterion.
 - **IDs are stable.** Never renumber. Retire a row with ~~strikethrough~~ and the reason.
+- **Name the settings a row depends on.** If the outcome changes with a config flag or default
+  (e.g. `small_to_big_enabled`), "Given" states its value. A spec that retires a format or behaviour
+  lists the earlier specs' rows it supersedes, so their hidden tests are retired in the same change.
 - **Regressions are rows too.** Behaviour that must stay the same gets its own ID.
 - **"Checked by"** is one of:
   - `holdout`: a deterministic test in the private `holdout` repo, written by the `test-writer`

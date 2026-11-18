@@ -20,6 +20,8 @@ export type Step = {
   /** Its flagged items wait on a later step (the Review Queue), so its state shows only running/failed/done. */
   reviewedElsewhere?: boolean;
   optional?: boolean;
+  /** Not built yet: drawn dimmed and not linked. */
+  planned?: boolean;
 };
 /** `run`: the process has an engine that runs it end to end ("Run process"); the others are walked step by step. */
 export type Process = { id: string; title: string; cadence: string; outcome: string; steps: Step[]; run?: "extraction" | "monthly" };
@@ -27,6 +29,8 @@ export type WorkspaceId = "stewardiq" | "argus" | "transitionIntel" | "rdLab" | 
 export type Workspace = {
   id: WorkspaceId;
   name: string;
+  /** Fits the sidebar and a start-page card title; `name` stays the page title. */
+  short?: string;
   purpose: string;
   /** Runs this workspace produces: its card's waiting/failed/running counts. */
   runTypes: string[];
@@ -45,6 +49,7 @@ export const WORKSPACES: Workspace[] = [
     purpose: "Engage companies, vote, and track what they commit to.",
     runTypes: ["proxy_voting"],
     screens: [
+      ["#/stewardiq/cockpit", "Cockpit"],
       ["#/stewardship", "Steward Workflow"],
       ["#/engagement", "Engagement"],
       ["#/voting", "Proxy Voting"],
@@ -98,11 +103,9 @@ export const WORKSPACES: Workspace[] = [
     // xbrl_fetch counts for the Argus card but is not in REVIEWABLE: it has nothing to review.
     runTypes: [...EXTRACTION_RUNS, "xbrl_fetch"],
     screens: [
-      ["#/argusUniverse", "Universe"],
+      ["#/argus/new", "New extraction"],
       ["#/argusWalkthrough", "Walkthrough"],
       ["#/xbrl", "XBRL Facts"],
-      ["#/extraction", "Extraction"],
-      ["#/transitionPlan", "Transition Plan extraction"],
       ["#/review", "Review Queue"],
     ],
     processes: [
@@ -112,17 +115,15 @@ export const WORKSPACES: Workspace[] = [
         run: "extraction",
         cadence: "Per universe, refreshed when disclosures change",
         outcome: "Every company resolved and documented, every figure cited to a verified source, every flagged one reviewed, and tiers from a ratified template.",
-        // The Extraction screen's own staged flow; each step opens its tab. Companies with
-        // documents already on file skip Identify and Documents.
+        // The Argus flow's steps: Companies opens a new flow; the others are steps of a flow, so they open the Argus start page.
         steps: [
-          { tab: "argusUniverse", label: "Universe", does: "Bring or pick the universe, map it through the security master, see what is already stored, and hand the chosen companies to Extraction.", handsOn: "Mapped universe", carried: true },
-          { tab: "extraction", sub: "companies", label: "Companies", does: "Pick the universe: upload, paste, or take one handed over from Universe, Data Hub, Risk Monitoring or Thematic Universe.", handsOn: "Companies", carried: true },
-          { tab: "extraction", sub: "identify", label: "Identify", does: "Resolve each company to one issuer; ambiguous matches wait for review.", handsOn: "Resolved companies", carried: true, runTypes: ["identity"] },
-          { tab: "extraction", sub: "documents", label: "Documents", does: "Discover and download annual, sustainability and proxy reports, or upload your own by type.", handsOn: "Documents", carried: true, runTypes: ["discovery"] },
-          { tab: "extraction", sub: "schema", label: "Schema", optional: true, does: "Custom profile only: the data points to extract and their types.", handsOn: "Schema", carried: true },
-          { tab: "extraction", sub: "extract", label: "Extract", does: "Custom schema, Financials, TNFD or Transition plan profile; every citation re-verified against its source.", handsOn: "Flagged figures", carried: true, runTypes: EXTRACTION_RUNS, reviewedElsewhere: true },
+          { tab: "argus", sub: "new", label: "Companies", does: "Upload, pick a saved universe or add companies one by one, or take one handed over from Data Hub, Risk Monitoring or Thematic Universe; see what is already stored.", handsOn: "Companies", carried: true },
+          { tab: "argus", label: "Identify", does: "Resolve each company to one issuer; ambiguous matches wait for review.", handsOn: "Resolved companies", carried: true, runTypes: ["identity"] },
+          { tab: "argus", label: "Documents", does: "Discover and download annual, sustainability and proxy reports, or upload your own by type.", handsOn: "Documents", carried: true, runTypes: ["discovery"] },
+          { tab: "argus", label: "Schema", optional: true, does: "Custom profile only: the data points to extract and their types.", handsOn: "Schema", carried: true },
+          { tab: "argus", label: "Extract", does: "Custom schema, Financials, TNFD or Transition plan profile; every citation re-verified against its source.", handsOn: "Flagged figures", carried: true, runTypes: EXTRACTION_RUNS, reviewedElsewhere: true },
           { tab: "review", label: "Review", does: "Approve, edit or reject every flagged figure.", handsOn: "Reviewed figures", carried: true, runTypes: REVIEWABLE },
-          { tab: "extraction", sub: "extract", label: "Score", optional: true, does: "Attach a ratified Decision Studio template at setup (or after the run); publish the tiers from the run's Scoring panel.", handsOn: "Published tiers", carried: true },
+          { tab: "argus", label: "Score", optional: true, does: "Attach a ratified Decision Studio template at setup (or after the run); publish the tiers from the run's Scoring panel.", handsOn: "Published tiers", carried: true },
           { tab: "decision", label: "Template", optional: true, does: "Build and ratify scoring templates in Decision Studio (R&D Lab); only ratified versions reach Argus." },
         ],
       },
@@ -132,7 +133,7 @@ export const WORKSPACES: Workspace[] = [
         cadence: "Per universe, refreshed when filings change",
         outcome: "Every company routed to its filing market, its tagged facts stored with the original filing, revenue and capex resolved, and an extraction run verified against them.",
         steps: [
-          { tab: "argusUniverse", label: "Universe", does: "Bring or pick the universe, map it through the security master, and hand the chosen companies to the fetch.", handsOn: "Mapped universe", carried: true },
+          { tab: "xbrl", label: "Companies", does: "Upload, pick a saved universe or add one company: the same picker as Argus step 1.", handsOn: "Companies", carried: true },
           { tab: "xbrl", label: "Fetch", does: "Route each company to its filing market and fetch its tagged facts with the original filing.", handsOn: "Stored facts", carried: true, runTypes: ["xbrl_fetch"] },
           { tab: "xbrl", label: "Facts", does: "Browse the stored facts per company, see revenue and capex resolved, and choose the tags to keep.", handsOn: "Resolved facts", carried: false },
           { tab: "xbrl", label: "Verify", does: "Compare an extraction run's revenue and capex with the stored facts. The run must have been made with XBRL facts off, or the check is refused." },
@@ -143,12 +144,13 @@ export const WORKSPACES: Workspace[] = [
   {
     id: "transitionIntel",
     name: "Transition Intelligence Platform",
+    short: "Transition Intel",
     purpose: "Monitor holdings and assess climate and transition risk.",
     runTypes: ["transition_barrier_refresh"],
     screens: [
       ["#/portfolio-monitoring", "Risk Monitoring"],
       ["#/transitionBarrier", "Transition Barriers"],
-      ["#/transitionPlan", "Transition Plan"],
+      ["#/argus/new/transition_plan", "Transition Plan"],
     ],
     processes: [
       {
@@ -220,9 +222,9 @@ export const WORKSPACES: Workspace[] = [
         steps: [
           { tab: "themes", label: "Spot", does: "An emerging theme with its context: promote an Emerging Themes candidate, or start a dossier from a topic." },
           { tab: "themes", label: "Define", does: "Attach the theme's taxonomy and ratify a version." },
-          { tab: "themes", label: "Research", does: "Risks, opportunities and transmission channels from approved authoritative sources (coming later)." },
+          { tab: "themes", label: "Research", does: "Risks, opportunities and transmission channels from approved authoritative sources." },
           { tab: "themes", label: "Find companies", does: "The exposed universe, measured against the latest ratified taxonomy version and reviewed." },
-          { tab: "themes", label: "Position and standards", does: "The house position and the stewardship standards derived from it (coming later)." },
+          { tab: "themes", label: "Position and standards", does: "The house position and the stewardship standards derived from it." },
         ],
       },
       {
@@ -285,6 +287,28 @@ export const WORKSPACES: Workspace[] = [
 
 export const PROCESSES: Process[] = WORKSPACES.flatMap((w) => w.processes);
 export const workspaceOfProcess = (id: string | undefined) => WORKSPACES.find((w) => w.processes.some((p) => p.id === id));
+
+// Routes with their own place in the top bar never belong to a workspace.
+const OWN_PLACE = new Set(["home", "review", "reporting", "arcade"]);
+
+/** The workspace a route belongs to, for the workspace row: the longest screens href the hash equals or extends,
+ * else the workspace whose overview the tab is, else a process step's screen. */
+export function workspaceOfRoute(hash: string): WorkspaceId | null {
+  const tab = hash.replace(/^#\/?/, "").split("/")[0];
+  if (OWN_PLACE.has(tab)) return null;
+  // A listed screen wins over the tab: #/argus/new/transition_plan is Transition Intel's, though its tab is argus.
+  let best: [WorkspaceId, number] | null = null;
+  for (const w of WORKSPACES)
+    for (const [href] of w.screens)
+      if ((hash === href || hash.startsWith(href + "/")) && (!best || href.length > best[1])) best = [w.id, href.length];
+  if (best) return best[0];
+  const own = WORKSPACES.find((w) => w.id === tab);
+  if (own) return own.id;
+  return WORKSPACES.find((w) => w.processes.some((p) => p.steps.some((s) => s.tab === tab)))?.id ?? null;
+}
+
+/** The workspace row's links: the workspace itself, then its screens. */
+export const rowLinks = (w: Workspace): [href: string, label: string][] => [[`#/${w.id}`, w.short ?? w.name], ...w.screens];
 
 /** Steward Workflow stages owned by a step; their open decisions are what StewardIQ waits on. */
 export const DECISION_STAGES: string[] = [...new Set(PROCESSES.flatMap((p) => p.steps.map((s) => s.stage).filter((s): s is string => !!s)))];

@@ -4,13 +4,17 @@ One JSON file per flow under `runs_dir/_flows/`, so no worker, Run History or re
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import re
 from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 
 from fastapi import Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal
 from arp.api.deps import settings_dep
@@ -23,6 +27,46 @@ from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 logger = logging.getLogger(__name__)
 
 
+def safe_key(value: str) -> str:
+    """A company key every documents endpoint accepts (`safe_id`): `Siemens AG` becomes `siemens-ag-<hash>`.
+    The hash of the whole value keeps names that slug alike (`ACME, Inc.`, `Acme Inc`) apart, and is stable."""
+    try:
+        return safe_id(value)
+    except UnsafeIdentifierError:
+        digest = hashlib.sha1(value.encode()).hexdigest()[:8]
+        slug = re.sub(r"[^a-z0-9._-]+", "-", value.lower()).strip("-._")[:100].rstrip("-._")
+        return f"{slug}-{digest}" if slug else f"company-{digest}"
+
+
+class SkippedUpload(BaseModel):
+    company_id: str
+    filename: str
+    duplicate_of: str
+
+
+class SchemaChoice(BaseModel):
+    """What step 3 extracts: a saved schema version, or a fixed profile."""
+
+    kind: Literal["schema", "profile"]
+    schema_id: str | None = None
+    version: int | None = None
+    profile: Literal["financials", "tnfd"] | None = None
+
+    def model_post_init(self, _context) -> None:
+        if self.kind == "profile":
+            self.schema_id = self.version = None
+        else:
+            self.profile = None
+
+
+class FlowSettings(BaseModel):
+    mode: Literal["cheap", "normal", "max"] = "normal"
+    evidence_passages: int | None = Field(default=None, ge=1, le=50)
+    batch: bool = False
+    decision_framework_id: str | None = None
+    decision_framework_version: int | None = None
+
+
 class ArgusFlow(BaseModel):
     flow_id: str
     created_at: str
@@ -32,6 +76,28 @@ class ArgusFlow(BaseModel):
     step: int = 1  # the furthest step reached, 1..5
     companies: list[CompanyRef] = []
     identity_run_id: str | None = None
+    # step 2
+    reporting_year: int | None = None  # None reads as the previous calendar year
+    source: Literal["upload", "import", "filings", "filings_web"] | None = None
+    discovery_run_id: str | None = None
+    decisions: dict[str, Literal["kept", "removed"]] = {}
+    skipped_uploads: list[SkippedUpload] = []
+    # step 3
+    schema_choice: SchemaChoice | None = None
+    settings: FlowSettings = FlowSettings()
+    repeat: dict[str, Literal["skip", "run"]] = {}
+    run_id: str | None = None
+    starting: bool = False  # set while a Start is being dispatched
+    starting_at: str | None = None  # when that Start began
+    problems: dict[str, str] = {}  # company key -> why its ticker gave no identifier (step 1 shows it)
+    identity_applied: str | None = None  # the identity run whose result was read back into `companies`
+
+
+def is_starting(flow: ArgusFlow) -> bool:
+    """A Start is being dispatched. A flag older than a minute is left over from a Start that died: not starting.
+    A flag stored without its time (before `starting_at` existed) is as old as the flow's last write."""
+    began = datetime.fromisoformat(flow.starting_at or flow.updated_at)
+    return flow.starting and datetime.now(UTC) - began < timedelta(seconds=60)
 
 
 class FlowStore:
@@ -53,7 +119,12 @@ class FlowStore:
 
     def get(self, flow_id: str) -> ArgusFlow | None:
         path = self._path(flow_id)
-        return ArgusFlow.model_validate_json(read_text_utf8(path)) if path and path.is_file() else None
+        if not (path and path.is_file()):
+            return None
+        flow = ArgusFlow.model_validate_json(read_text_utf8(path))
+        for c in flow.companies:  # flows saved before keys were made safe
+            c.company_id = safe_key(c.company_id)
+        return flow
 
     def save(self, flow: ArgusFlow) -> ArgusFlow:
         self.flows_dir.mkdir(parents=True, exist_ok=True)
@@ -80,8 +151,24 @@ class FlowStore:
             flow = self.get(flow_id)
             if flow is None:
                 return None
+            flow.starting = is_starting(flow)  # before the save moves `updated_at`: a dead Start's flag must not look fresh
             fn(flow)
             return self.save(flow)
+
+    def delete(self, flow_id: str, *, only_empty: bool) -> bool | None:
+        """Remove a draft: None if missing, False if it may not go. `only_empty`: only one nobody has used yet (no
+        companies, still at step 1). Otherwise any flow without a run that is not being started."""
+        if self._path(flow_id) is None:
+            return None
+        with self._lock.acquire(flow_id):
+            flow = self.get(flow_id)
+            if flow is None:
+                return None
+            in_use = flow.companies or flow.step > 1 if only_empty else is_starting(flow)
+            if flow.run_id or in_use:
+                return False
+            self._path(flow_id).unlink(missing_ok=True)
+            return True
 
 
 def get_flow_store(settings: Settings = Depends(settings_dep)) -> FlowStore:

@@ -109,11 +109,13 @@ The bypass trusts the socket address: never run dev mode behind a proxy on the
 same host (every proxied request would arrive from loopback) and never publish
 the port on a LAN-reachable address. Requests from anywhere else still need a
 token. Dev mode also refuses browser requests from foreign origins (an `Origin`
-header not in `ARP_ALLOWED_ORIGINS` gets no bypass, so another website cannot
-act as you), and the API only answers the host names in `ARP_TRUSTED_HOSTS`
+header not in `ARP_ALLOWED_ORIGINS` gets no bypass, so only the origins listed
+there can act as you), and the API only answers the host names in `ARP_TRUSTED_HOSTS`
 (default `localhost`, `127.0.0.1`, `[::1]`, `backend`), which blocks DNS
 rebinding; this host check applies to every route, voting included. Dev mode has a single user, so four-eyes
-steps (calibration approval, co-sign) need local mode.
+steps (calibration approval, co-sign) need local mode. Never combine
+`ARP_AUTH_MODE=dev` with `ARP_ALLOWED_ORIGINS=["*"]`: `"*"` lets any website
+open in the same browser act as the dev approver.
 
 **Switching to local mode** (real per-person sign-in):
 
@@ -194,7 +196,13 @@ arp db init-postgres                                             # schema + `bi`
 arp portfolio seed-demo                                          # demo holdings into Postgres
 arp bi bootstrap                                                 # views, bi_reader role, Superset database, datasets, metrics, descriptions, templates (idempotent)
 arp golden-set bi                                                # planner eval; needs an API key, not run in CI
+arp bi ask "Which sectors have the largest exposure?"           # one chart on the Scratch dashboard; prints its URL and plan
+arp bi design "Carbon intensity by portfolio over time"         # an unpublished draft dashboard, same output
 ```
+
+`arp bi ask` and `arp bi design` do what `/api/bi/ask` and `/api/bi/design` do, without the API: they need Superset
+reachable from where the CLI runs, the Superset settings above and a model. Exit 3 means the model could not answer
+from the `bi` datasets (the reason is on stderr); exit 1 is a Superset or setup error.
 
 `arp bi bootstrap` re-applies the `bi` views (including `holdings_history`), registers the six datasets and their
 metrics, and copies descriptions from `backend/arp/bi/catalog.py`. Each run overwrites the dataset description and the
@@ -303,6 +311,7 @@ arp decision score --source transition_barrier --region "European Union"  # enti
 arp decision score --dataset <dataset_id> --framework <fw_id>
 arp report run --title "Electrification Review" --notes notes.txt --format pptx --out review.pptx
 arp report plan --title "Q3 Review" --notes notes.txt --format house_deck --out storyline.json   # drafts headlines, no slides yet
+arp report plan ... --format house_deck --max-slides 20 --profile workshop --detail comprehensive   # deck length and style (default: 12, committee, balanced)
 arp report approve <report_id>      # builds output.pdf + output.pptx and findings; later: arp report rerun <report_id>
 arp discover run --universe companies.csv
 arp xbrl fetch --universe companies.csv     # market auto (default): SEC companyfacts or ESEF per company, files only; also: arp xbrl screen (routing preview) | arp xbrl taxonomy update | tags | select | files | verify

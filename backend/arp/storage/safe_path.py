@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from arp.errors import ClientInputError
+
 # Every file-based store in this app builds paths as
 # `some_dir / <client-supplied id> / ...`. An id that contains "/", "\",
 # or ".." segments escapes the intended directory once joined with Path's
@@ -13,7 +15,7 @@ from pathlib import Path
 _SAFE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 
-class UnsafeIdentifierError(ValueError):
+class UnsafeIdentifierError(ClientInputError):
     pass
 
 

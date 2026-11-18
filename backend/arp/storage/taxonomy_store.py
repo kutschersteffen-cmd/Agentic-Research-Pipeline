@@ -5,6 +5,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+from arp.errors import NotConfigured
 from arp.schemas.common import now_iso
 from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyStatus
 from arp.schemas.thematic import OLD_FORMAT_MESSAGE, ThemeDefinition
@@ -19,7 +20,7 @@ from arp.storage.safe_path import safe_id
 _VERSION_BUMP_ATTEMPTS = 5
 
 
-class TaxonomyVersionConflict(RuntimeError):
+class TaxonomyVersionConflict(NotConfigured):
     """A version file this store meant to create already existed -- see
     TaxonomyStore.new_version. Surfaces as a 503 via api/main.py's
     RuntimeError handler: the caller's edit was not saved and retrying is
@@ -93,10 +94,11 @@ class TaxonomyStore:
         self,
         taxonomy_id: str,
         theme: ThemeDefinition,
-        derivation_method: DerivationMethod,
+        derivation_method: DerivationMethod | None,
         source_notes: str = "",
     ) -> Taxonomy:
         """Appends a new version based on whatever is currently latest.
+        `derivation_method=None` keeps the latest version's method (read under the same lock).
 
         The whole read-current-then-write-next cycle is locked, so two
         concurrent edits produce v2 and v3 rather than both writing v2 and
@@ -115,7 +117,7 @@ class TaxonomyStore:
                     name=current.name,
                     version=current.version + 1,
                     theme=theme,
-                    derivation_method=derivation_method,
+                    derivation_method=derivation_method or current.derivation_method,
                     source_notes=source_notes,
                     based_on_version=current.version,
                 )

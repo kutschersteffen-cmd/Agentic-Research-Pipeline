@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from arp.db import models as m
 from arp.db.session import transaction
+from arp.errors import ClientInputError
 from arp.schemas.common import now_iso
 from arp.schemas.datapoints import DataPointSchema, FieldDefinition, FieldQuality, FieldStatus
 
@@ -19,15 +20,15 @@ _EXTRACTED_ID = re.compile(r"[a-z][a-z0-9_]*|theme:[^:\s]+|vote:[^:\s]+:[^:\s]+"
 _REGISTRY_LOCK = 7243001  # pg_advisory_xact_lock key serialising schema saves/releases
 
 
-class FieldIdCollision(ValueError):
+class FieldIdCollision(ClientInputError):
     """Two different provider codes normalise to the same field_id."""
 
 
-class UnreleasedFieldError(ValueError):
+class UnreleasedFieldError(ClientInputError):
     """A run was asked for on a schema that is not released."""
 
 
-class FieldVersionError(ValueError):
+class FieldVersionError(ClientInputError):
     """A released field's content changed without a higher field version."""
 
 
@@ -200,7 +201,7 @@ class SchemaRegistry:
             rows = s.scalars(select(m.DataSchema).where(m.DataSchema.body.is_not(None)).order_by(m.DataSchema.saved_at)).all()
             return [
                 {"schema_id": r.schema_id, "version": r.version, "name": r.name,
-                 "release_flag": r.release_flag, "saved_at": r.saved_at.isoformat()}
+                 "release_flag": r.release_flag, "saved_at": r.saved_at.isoformat(), "field_count": len(r.body.get("fields", []))}
                 for r in rows
             ]
 

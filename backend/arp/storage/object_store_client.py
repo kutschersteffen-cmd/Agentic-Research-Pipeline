@@ -10,11 +10,13 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
+from arp.errors import NotConfigured
+
 if TYPE_CHECKING:
     from botocore.client import BaseClient
 
 
-class ObjectStoreExtraNotInstalled(RuntimeError):
+class ObjectStoreExtraNotInstalled(NotConfigured):
     def __init__(self, exc: Exception) -> None:
         super().__init__(
             "object_store_endpoint_url is set but boto3 isn't installed. Install the optional extra: "

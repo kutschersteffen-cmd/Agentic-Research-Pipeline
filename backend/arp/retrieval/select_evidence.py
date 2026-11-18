@@ -93,7 +93,13 @@ def _vector_ranking(
                 content_store.store_embeddings(new_vectors, EMBED_MODEL_NAME)
                 cached.update(new_vectors)
 
-    return _cosine_ranking(candidates, keys, cached, embed_texts([query_text])[0])
+    # a field's query is the same on every selection: cached beside the chunks, under its own model tag
+    query_key, query_model = f"query#{hashlib.sha256(query_text.encode('utf-8')).hexdigest()[:16]}", f"{EMBED_MODEL_NAME}#query"
+    query_vec = content_store.lookup_embeddings([query_key], query_model).get(query_key)
+    if query_vec is None:
+        query_vec = embed_texts([query_text])[0]
+        content_store.store_embeddings({query_key: query_vec}, query_model)
+    return _cosine_ranking(candidates, keys, cached, query_vec)
 
 
 def _cosine_ranking(

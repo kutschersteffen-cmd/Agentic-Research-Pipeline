@@ -26,6 +26,7 @@
           "sheet": null,
           "company_id": "https://example.org/hydrogen.html",
           "source_filename": null,
+          "source_url": "https://example.org/hydrogen.html",
           "content_key": null,
           "span_text": "electrolyser stack manufacturing, defined as building electrolyser stacks",
           "char_start": 30,

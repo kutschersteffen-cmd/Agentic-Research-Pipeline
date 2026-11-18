@@ -5,7 +5,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from arp.schemas.chart_specs import NATIVE_CHART_TYPES, ChartSpec, ChartType, TableSpec  # noqa: F401  (re-exported)
 from arp.schemas.common import JobStatus, new_id, now_iso
+from arp.schemas.visuals import Figure, NextAction, SectionPlan, Visual, Words
 
 # ---- Audience & layout instructions ---------------------------------------
 
@@ -127,6 +129,33 @@ class TemplateLayoutInfo(BaseModel):
     placeholder_types: list[str] = Field(default_factory=list)
 
 
+class Box(BaseModel):
+    """A rectangle in house-canvas px (the slide width maps to 1920)."""
+
+    x: float
+    y: float
+    w: float
+    h: float
+
+
+class FrameFont(BaseModel):
+    family: str
+    size_px: float
+    bold: bool
+
+
+class TemplateFrame(BaseModel):
+    """Where a company template puts the headline, subheading and body, and in which fonts."""
+
+    layout_name: str
+    headline: Box
+    subheading: Box
+    body: Box
+    headline_font: FrameFont
+    subheading_font: FrameFont
+    body_font_family: str
+
+
 class TemplateStyleProfile(BaseModel):
     """Deterministically extracted from an uploaded .pptx template via
     python-pptx -- never LLM-guessed. Drives DeckBuilder's layout/color/font
@@ -143,52 +172,12 @@ class TemplateStyleProfile(BaseModel):
     major_font: str | None = None
     minor_font: str | None = None
     stored_path: str = Field(description="Where the original template file is kept on disk, so DeckBuilder can clone it as the render base.")
+    frame: TemplateFrame | None = Field(default=None, description="Headline/subheading/body boxes for house decks; None when the template can't frame one.")
+    frame_error: str | None = Field(default=None, description="Why `frame` is None, when it was checked.")
+    font_dir: str | None = None
 
 
 # ---- Content plan (LLM output, deterministically rendered) -----------------
-
-
-class ChartType(StrEnum):
-    BAR = "bar"
-    COLUMN = "column"
-    STACKED_COLUMN = "stacked_column"
-    LINE = "line"
-    AREA = "area"
-    PIE = "pie"
-    DOUGHNUT = "doughnut"
-    SCATTER = "scatter"
-    RADAR = "radar"
-    WATERFALL = "waterfall"
-    HEATMAP = "heatmap"
-    TABLE = "table"
-    """Not a chart at all -- an explicit signal the data reads better as a table than any chart."""
-
-
-NATIVE_CHART_TYPES = {
-    ChartType.BAR, ChartType.COLUMN, ChartType.STACKED_COLUMN, ChartType.LINE,
-    ChartType.AREA, ChartType.PIE, ChartType.DOUGHNUT, ChartType.SCATTER, ChartType.RADAR,
-}
-"""Chart types python-pptx can build as a native, still-editable-in-PowerPoint chart object.
-Everything else (waterfall, heatmap) is rendered to a static image instead -- see chart_builder.py."""
-
-
-class ChartSpec(BaseModel):
-    dataset_id: str
-    chart_type: ChartType = ChartType.BAR
-    title: str = ""
-    category_column: str | None = Field(default=None, description="Column used for category/x-axis labels. Required for every type except scatter/heatmap.")
-    value_columns: list[str] = Field(default_factory=list, description="One or more numeric columns to plot as series.")
-    x_column: str | None = Field(default=None, description="scatter only: numeric column for the x-axis (category_column is unused).")
-    y_column: str | None = Field(default=None, description="heatmap only: the row-axis category column (category_column is the column axis).")
-    value_column: str | None = Field(default=None, description="heatmap only: the numeric cell value column.")
-    notes: str = Field(default="", description="Caption/takeaway text rendered under the chart.")
-
-
-class TableSpec(BaseModel):
-    dataset_id: str
-    columns: list[str] = Field(default_factory=list, description="Subset/order of dataset columns to include. Empty = all columns.")
-    row_offset: int = Field(default=0, ge=0, description="First dataset row shown; a split table slide continues from here.")
-    max_rows: int = Field(default=20, description="Renderer truncates to this many rows; a truncation note is added if the dataset has more.")
 
 
 class ContentItem(BaseModel):
@@ -247,14 +236,20 @@ class SlideContent(BaseModel):
     not a slot -- it always renders in the fixed headline band."""
 
     headline: str
-    layout: str
-    variant: str
+    subheading: str = ""
+    kicker: str = ""
+    layout: str = ""
+    variant: str = ""
     slots: dict[str, str | list[str]] = Field(default_factory=dict)
     chart: ChartSpec | None = None
     table: TableSpec | None = None
+    visual: Visual | None = None
     image_path: str | None = None
     speaker_notes: str = ""
     source_refs: list[str] = Field(default_factory=list)
+    source_line: str = ""
+    needs_review: bool = False
+    type_step: int = Field(default=0, ge=-1, le=2, description="Fit ladder: 1-2 set the visual's text smaller, -1 one size larger.")
 
 
 class Deck(BaseModel):
@@ -265,8 +260,14 @@ class Deck(BaseModel):
 
 class StorylineSlide(BaseModel):
     headline: str
+    subheading: str = ""
     purpose: str
     source_refs: list[str] = Field(default_factory=list)
+    visual: str | None = None
+    chart_kind: str | None = None
+    rationale: Words(20) = ""
+    section: int | None = None
+    kicker: str = ""
 
 
 class Storyline(BaseModel):
@@ -274,6 +275,10 @@ class Storyline(BaseModel):
     subtitle: str = ""
     slides: list[StorylineSlide]
     approved: bool = False
+    answer: Words(30) = ""
+    figures: list[Figure] = Field(default_factory=list, max_length=2)
+    sections: list[SectionPlan] = Field(default_factory=list)
+    closing: list[NextAction] = Field(default_factory=list, max_length=5)
 
 
 class Finding(BaseModel):
@@ -294,6 +299,13 @@ class RunRef(BaseModel):
 # ---- Request / run record ---------------------------------------------------
 
 
+class DeckSettings(BaseModel):
+    profile: Literal["executive", "client_pitch", "committee", "workshop"] = "committee"
+    purpose: Literal["recommendation", "review", "process", "briefing"] = "recommendation"
+    detail: Literal["concise", "balanced", "comprehensive"] = "balanced"
+    max_slides: int = Field(default=12, ge=3, le=25)
+
+
 class ReportRequest(BaseModel):
     title: str
     qualitative_notes: str = Field(description="Free-text analysis, findings, talking points -- the raw qualitative input the planner works from.")
@@ -303,6 +315,7 @@ class ReportRequest(BaseModel):
     template_id: str | None = Field(default=None, description="A previously ingested TemplateStyleProfile.template_id, pptx only.")
     goal: str = ""
     run_refs: list[RunRef] = Field(default_factory=list)
+    deck: DeckSettings = Field(default_factory=DeckSettings)
 
 
 class ReportStatus(StrEnum):

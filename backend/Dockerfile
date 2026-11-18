@@ -51,6 +51,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 FROM python:${PYTHON_VERSION} AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+        libatomic1 \
         libgomp1 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 1000 --shell /usr/sbin/nologin arp

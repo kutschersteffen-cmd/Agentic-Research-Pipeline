@@ -68,7 +68,7 @@ export function Issues() {
             {!issues && !error && <tr><td colSpan={4} className="muted">Loading…</td></tr>}
             {issues && shown.length === 0 && <tr><td colSpan={4} className="muted">Nothing open here.</td></tr>}
             {shown.slice(0, SHOWN).map((i) => (
-              <tr key={i.ref}>
+              <tr key={`${i.ref}|${i.title}`}>{/* a feed can be both failed and behind: two issues, one ref */}
                 <td><span className={SEVERITY[i.severity][1]}>{SEVERITY[i.severity][0]}</span></td>
                 <td>{i.title}</td>
                 <td className="muted">{i.detail}</td>

@@ -237,3 +237,37 @@ def test_evaluate_news_triggers_dedupes_already_alerted_flag_id(tmp_path):
     second = evaluate_news_triggers(store, min_severity="medium")
 
     assert second == []  # unlike a threshold breach, a resolved news alert never re-fires
+
+
+# --- showcase-portfolio-data PR 2 (AC-59): an alert raised on simulated values says so ---
+
+
+def _ci(store, source):
+    from arp.schemas.portfolio import DataPointObservation
+
+    store.append_observation(DataPointObservation(
+        company_id="c1", field_id="climate_carbon_intensity", field_name="CI", value=500.0, source=source,
+        observed_at="2025-06-01T00:00:00+00:00"))
+
+
+def test_alerts_raised_on_simulated_values_say_simulated(tmp_path):
+    store = PortfolioStore(tmp_path)
+    _seed_single_holding(store)
+    _ci(store, "simulated")
+    store.save_rule(_field_rule())
+    store.save_rule(AlertRule(name="WACI limit", rule_type="portfolio_aggregate_threshold", field_id="climate_carbon_intensity", comparator="gt", threshold_value=50.0))
+    by_scope = {a.scope_id: a.rationale for a in evaluate_threshold_rules(store, as_of="2026-01-01")}
+    assert by_scope["c1"].endswith(" Simulated: the value is simulated ESG data, not real data.")
+    assert by_scope["portfolio__p1"] == (
+        "WACI limit: p1 = 500.0 gt 50.0 Simulated: 1 of the 1 company values in scope are simulated ESG data, not real data.")
+    assert all("Simulated" in a.rationale for a in list_alerts(store))  # what the Monitoring page shows
+
+
+def test_alerts_raised_on_real_values_do_not(tmp_path):
+    store = PortfolioStore(tmp_path)
+    _seed_single_holding(store)
+    _ci(store, "internal_api")
+    store.save_rule(_field_rule())
+    store.save_rule(AlertRule(name="WACI limit", rule_type="portfolio_aggregate_threshold", field_id="climate_carbon_intensity", comparator="gt", threshold_value=50.0))
+    alerts = evaluate_threshold_rules(store, as_of="2026-01-01")
+    assert len(alerts) == 2 and not any("Simulated" in a.rationale for a in alerts)

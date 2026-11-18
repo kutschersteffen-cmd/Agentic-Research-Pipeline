@@ -10,6 +10,7 @@ from arp.config import Settings
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.factory import batch_settings
 from arp.schemas.common import CompanyRef
+from arp.stewardship.tracking import watch_flags_by_company
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
@@ -55,8 +56,12 @@ async def start_voting_run(
 
 
 @router.get("/runs/{run_id}/ballots")
-def get_voting_ballots(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
-    return {"ballots": [b.model_dump(mode="json") for b in get_ballots(run_store, run_id)]}
+def get_voting_ballots(
+    run_id: str, run_store: RunStore = Depends(get_run_store), engagement_store: EngagementStore = Depends(get_engagement_store)
+) -> dict:
+    ballots = get_ballots(run_store, run_id)
+    flags = watch_flags_by_company([engagement_store.get(c) for c in {b.company_id for b in ballots}])
+    return {"ballots": [b.model_copy(update={"watch_flags": flags.get(b.company_id, [])}).model_dump(mode="json") for b in ballots]}
 
 
 @router.get("/runs/{run_id}/review-queue")
@@ -93,6 +98,8 @@ def submit_voting_review(run_id: str, req: VoteReviewDecisionRequest, run_store:
         raise HTTPException(400, "decision must be 'approve', 'edit', or 'reject'")
     if req.decision == "edit" and not req.vote:
         raise HTTPException(400, "vote is required when decision == 'edit'")
+    if req.decision == "edit" and not (req.comment or "").strip():
+        raise HTTPException(400, "An override needs a reason.")
     if req.co_signed_by and req.reviewer and req.co_signed_by.strip().casefold() == req.reviewer.strip().casefold():
         raise HTTPException(400, "co_signed_by must be a second person, not the reviewer")
     edited_value = {"vote": req.vote, "co_signed_by": req.co_signed_by} if req.decision == "edit" else (

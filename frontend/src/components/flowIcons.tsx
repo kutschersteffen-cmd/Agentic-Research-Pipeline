@@ -70,13 +70,6 @@ STEP_ICONS.parse_index = (
   </svg>
 );
 
-// Extraction stage overview (StageFlowChart)
-STEP_ICONS.companies = STEP_ICONS.company;
-STEP_ICONS.identify = STEP_ICONS.identity;
-STEP_ICONS.documents = STEP_ICONS.document_mgmt;
-STEP_ICONS.schema = STEP_ICONS.parse_index;
-STEP_ICONS.scoring = STEP_ICONS.aggregate;
-STEP_ICONS.results = STEP_ICONS.verify;
 // Stewardship stages (steward flow)
 STEP_ICONS.monitoring = (
   <svg {...ICON}>

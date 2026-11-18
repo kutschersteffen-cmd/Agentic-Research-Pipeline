@@ -10,6 +10,7 @@ import json
 import shutil
 from datetime import date
 
+from arp.errors import ClientInputError
 from arp.holdings.file_source import Mapping, read_rows
 from arp.holdings.validate import RowError, isin_is_valid, iso_date
 from arp.portfolio.loads import LoadRecord, record_load
@@ -158,7 +159,7 @@ def load(store, idmap: IdentifierMapStore, data: bytes, filename: str) -> dict:
     return {"identifiers": len(rows), "issuers": issuers, "content_hash": digest}
 
 
-class MasterRejected(ValueError):
+class MasterRejected(ClientInputError):
     def __init__(self, errors: list[RowError]) -> None:
         super().__init__(f"security master rejected: {len(errors)} problems")
         self.errors = errors

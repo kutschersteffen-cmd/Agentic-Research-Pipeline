@@ -37,14 +37,26 @@ be reviewed by a human before any commitment is logged as real, so err on \
 the side of precision over inference."""
 
 
+_KIND = {"objective": "Objective", "commitment": "Commitment", "topic": "Watch topic"}
+
+
 def _dossier_context(dossier: ResearchDossier) -> str:
     citations = "\n".join(f"- [{c.doc_id}] \"{c.quote}\"" for c in dossier.citations)
+    watch = "\n".join(
+        f"- {_KIND[e.item_kind]}: {e.text}"
+        + (f" (due {e.target_date})" if e.target_date else "")
+        + (f" [{e.flag}]" if e.flag else "")
+        + (f"; proof: {e.proof_statement}" if e.proof_statement else "")
+        + "".join(f"; {line}" for line in e.evidence)
+        for e in dossier.watch_list
+    )
     return (
         f"Summary: {dossier.summary}\n"
         f"Controversy context: {dossier.controversy_context}\n"
         f"Peer benchmark notes: {dossier.peer_benchmark_notes}\n"
         f"Engagement history: {dossier.engagement_history_summary}\n"
-        f"Citations available for reuse:\n{citations or '(none)'}"
+        f"Citations available for reuse:\n{citations or '(none)'}\n"
+        f"Watch list:\n{watch or '(none)'}"
     )
 
 

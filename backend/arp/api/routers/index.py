@@ -1,18 +1,22 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date, timedelta
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal, require_role
-from arp.api.deps import get_decision_store, get_index_store
+from arp.api.deps import get_decision_store, get_index_store, get_portfolio_store, settings_dep
+from arp.config import Settings
 from arp.decision.publish import as_fields
 from arp.index.calc import level_series
 from arp.index.fields import DataQualityBlock, available_fields
 from arp.index.mock_data import demo_price_panel, demo_risk_model, demo_universe
 from arp.index.pipeline import run_review
 from arp.index.presets import SCREEN_BUNDLES, build_preset, rule_catalogue
+from arp.portfolio.index_universe import LoadedUniverse, UnknownUniverse, list_universes, load_universe
 from arp.schemas.index import (
     ConstructionSpec,
     IndexCalibration,
@@ -40,6 +44,66 @@ def get_catalogue() -> dict:
     catalogue = rule_catalogue()
     catalogue["fields"] = available_fields(demo_universe())
     return catalogue
+
+
+# -------------------------------------------------------- starting universes
+
+DEMO_LABEL = "Built-in demo universe (60 synthetic companies)"
+
+
+class StartingUniverse(BaseModel):
+    universe_id: str
+    label: str
+    kind: Literal["demo", "file", "portfolio"]
+    as_of_date: str | None
+
+
+class StartingUniverseDetail(StartingUniverse):
+    company_count: int
+    notes: list[str]
+    fields: dict[str, list[str]]
+
+
+def portfolio_store_getter() -> Callable[[], object]:
+    """Lazy: a run on the demo or a file universe never builds the portfolio store (and needs no Postgres)."""
+    return get_portfolio_store
+
+
+def _load(universe_id: str, settings: Settings, stores: Callable[[], object]) -> LoadedUniverse:
+    try:
+        return load_universe(universe_id, settings.holdings_dir, settings.simulated_esg_path, stores)
+    except UnknownUniverse as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.get("/universes", response_model=list[StartingUniverse])
+def get_universes(
+    settings: Settings = Depends(settings_dep), stores: Callable[[], object] = Depends(portfolio_store_getter)
+) -> list[dict]:
+    """The demo universe, then the holdings files, then portfolios with a snapshot."""
+    demo = {"universe_id": "demo", "label": DEMO_LABEL, "kind": "demo", "as_of_date": None}
+    return [demo, *list_universes(settings.holdings_dir, stores)]
+
+
+@router.get("/universes/{universe_id:path}", response_model=StartingUniverseDetail)
+def get_universe(
+    universe_id: str,
+    settings: Settings = Depends(settings_dep),
+    stores: Callable[[], object] = Depends(portfolio_store_getter),
+) -> StartingUniverseDetail:
+    if universe_id == "demo":
+        demo = demo_universe()
+        return StartingUniverseDetail(
+            universe_id="demo", label=DEMO_LABEL, kind="demo", as_of_date=None,
+            company_count=len(demo), notes=[], fields=available_fields(demo),
+        )  # fmt: skip
+    u = _load(universe_id, settings, stores)
+    return StartingUniverseDetail(
+        universe_id=u.universe_id, label=u.label, kind=u.kind, as_of_date=u.as_of_date,
+        company_count=len(u.candidates), notes=u.notes, fields=available_fields(u.candidates),
+    )  # fmt: skip
 
 
 # ------------------------------------------------------------ calibrations
@@ -164,6 +228,11 @@ class RunRequest(BaseModel):
     spec: ConstructionSpec | None = Field(default=None, description="Ad-hoc spec. Mutually exclusive with calibration_id.")
     calibration_id: str | None = Field(default=None, description="Run the calibration version in force on review_date.")
     candidates: list[IndexCandidate] | None = Field(default=None, description="Omit to use the built-in demo universe.")
+    universe: str | None = Field(
+        default=None,
+        description="Starting universe id from GET /api/index/universes (demo, file:<stem>, portfolio:<id>). "
+        "Omit for the demo universe. Exclusive with candidates.",
+    )
     persist: bool = Field(default=False, description="False previews without writing anything.")
     use_prior_state: bool = Field(default=True, description="Chain from the most recent stored review before this date.")
     returns_panel: dict[str, dict[str, float]] | None = Field(
@@ -232,16 +301,42 @@ def run(
     req: RunRequest,
     store: IndexStore = Depends(get_index_store),
     decisions: DecisionStore = Depends(get_decision_store),
+    app_settings: Settings = Depends(settings_dep),
+    stores: Callable[[], object] = Depends(portfolio_store_getter),
 ) -> ReviewResult:
+    if req.universe is not None and req.candidates:
+        raise HTTPException(400, "Send either universe or candidates, not both.")
     spec, calibration_id, version = _resolve_spec(req, store)
     prior_state = store.latest_state_before(req.index_id, req.review_date) if req.use_prior_state else None
 
-    universe, input_notes = _with_decisions(_universe(req.candidates), req.decision_snapshot_ids, req.review_date, decisions)
+    candidates, universe_notes = req.candidates, []
+    if req.universe not in (None, "demo"):
+        loaded = _load(req.universe, app_settings, stores)
+        try:  # compared as dates: as strings, "2026-11-1" sorts after "2026-11-02"
+            review_day = date.fromisoformat(req.review_date)
+        except ValueError:
+            raise HTTPException(400, f"review_date {req.review_date!r} is not an ISO date (YYYY-MM-DD).") from None
+        if review_day < date.fromisoformat(loaded.as_of_date):
+            raise HTTPException(
+                400,
+                f"{loaded.label} holds holdings as of {loaded.as_of_date}, after the review date {req.review_date}: "
+                "a review cannot use holdings that did not exist yet.",
+            )
+        candidates, universe_notes = loaded.candidates, loaded.notes
+    universe, input_notes = _with_decisions(_universe(candidates), req.decision_snapshot_ids, req.review_date, decisions)
+    input_notes = universe_notes + input_notes
     settings = spec.constraints.solver
     risk_model = None
     if settings.method in ("min_tracking_error", "max_score") or settings.tracking_error_budget is not None:
         from arp.index.risk import RiskModelError, build_risk_model
 
+        if not req.returns_panel and candidates:
+            # demo_risk_model would invent a returns history for real names.
+            raise HTTPException(
+                422,
+                "Risk model: a loaded starting universe has no returns history, so tracking-error methods cannot "
+                "run on it. Use the built-in demo universe, or send a returns_panel.",
+            )
         try:
             risk_model = (
                 build_risk_model(settings.risk_model, universe, req.returns_panel)
@@ -303,7 +398,11 @@ def get_levels(
     members = {c.company_id for c in review.constituents}
     universe = [c for c in demo_universe() if c.company_id in members]
     if len(universe) != len(members):
-        raise HTTPException(409, "Level series is only available for reviews run on the built-in demo universe")
+        raise HTTPException(
+            409,
+            "No level series: this review ran on a loaded starting universe, which has no price history "
+            "(its prices are a weight proxy).",
+        )
     # Dates *after* the effective close. Generating them from the review
     # date's month ran the series over the period before the rebalance --
     # the index shown doing things it had not yet been constituted to do.

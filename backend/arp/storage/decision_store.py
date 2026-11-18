@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from arp.decision.dataset import Dataset
 from arp.schemas.common import now_iso
 from arp.schemas.decision import AuditEntry, MechanismConfig, PublishedDecision
-from arp.storage.atomic_io import atomic_write_text, read_text_utf8
+from arp.storage.atomic_io import atomic_write_text, read_text_utf8, write_text_exclusive
+from arp.storage.locks import KeyedLock
 from arp.storage.safe_path import safe_id
 
 
@@ -27,6 +30,13 @@ class DecisionStore:
 
     def __init__(self, frameworks_dir: Path) -> None:
         self.frameworks_dir = frameworks_dir
+        self._locks = KeyedLock(lock_path=lambda framework_id: self._dir(framework_id) / ".lock")
+        self._published_locks = KeyedLock(lock_path=lambda _: self._published_dir() / ".lock")
+
+    @contextmanager
+    def _lock(self, framework_id: str) -> Iterator[None]:
+        with self._locks.acquire(framework_id):
+            yield
 
     # --- frameworks ---
 
@@ -44,35 +54,41 @@ class DecisionStore:
     def _audit_path(self, framework_id: str, version: int) -> Path:
         return self._dir(framework_id) / f"v{int(version)}.audit.json"
 
-    def _write(self, config: MechanismConfig) -> None:
-        atomic_write_text(self._version_path(config.framework_id, config.version), config.model_dump_json(indent=2))
-        atomic_write_text(self._latest_pointer_path(config.framework_id), json.dumps({"latest_version": config.version}))
+    def _write(self, config: MechanismConfig, *, new: bool = False) -> None:
+        """Caller holds the framework lock. The pointer names the highest version on disk, so no write moves it down."""
+        path, text = self._version_path(config.framework_id, config.version), config.model_dump_json(indent=2)
+        (write_text_exclusive if new else atomic_write_text)(path, text)
+        latest = max(self.list_versions(config.framework_id))
+        atomic_write_text(self._latest_pointer_path(config.framework_id), json.dumps({"latest_version": latest}))
 
     def save(self, config: MechanismConfig, audit: list[AuditEntry] | None = None) -> MechanismConfig:
         """Writes a framework version. Refuses to overwrite a ratified
         version: re-deriving a framework is a new version, not a silent
         replacement of the one someone signed off."""
-        existing = self.get(config.framework_id, config.version)
-        if existing is not None and existing.ratified:
-            raise ValueError(
-                f"{config.framework_id} v{config.version} is ratified and cannot be overwritten -- create a new version instead."
-            )
-        self._write(config)
-        if audit is not None:
-            self.save_audit(config.framework_id, config.version, audit)
+        with self._lock(config.framework_id):
+            existing = self.get(config.framework_id, config.version)
+            if existing is not None and existing.ratified:
+                raise ValueError(
+                    f"{config.framework_id} v{config.version} is ratified and cannot be overwritten -- create a new version instead."
+                )
+            self._write(config)
+            if audit is not None:
+                self.save_audit(config.framework_id, config.version, audit)
         return config
 
     def new_version(self, config: MechanismConfig, audit: list[AuditEntry] | None = None) -> MechanismConfig:
         """The only way to change a framework. The previous version stays
         exactly as it was, which is what lets a decision taken last quarter
         still point at the rules that produced it."""
-        current = self.get(config.framework_id)
-        updated = config.model_copy(
-            update={"version": (current.version + 1) if current else 1, "ratified": False, "ratified_at": None, "ratified_by": None, "created_at": now_iso()}
-        )
-        self._write(updated)
-        if audit is not None:
-            self.save_audit(updated.framework_id, updated.version, audit)
+        with self._lock(config.framework_id):
+            # Highest version on disk, not the pointer: a stale pointer must not make two versions share a number.
+            versions = self.list_versions(config.framework_id)
+            updated = config.model_copy(
+                update={"version": (versions[-1] + 1) if versions else 1, "ratified": False, "ratified_at": None, "ratified_by": None, "created_at": now_iso()}
+            )
+            self._write(updated, new=True)
+            if audit is not None:
+                self.save_audit(updated.framework_id, updated.version, audit)
         return updated
 
     def save_audit(self, framework_id: str, version: int, audit: list[AuditEntry]) -> None:
@@ -134,13 +150,14 @@ class DecisionStore:
         return sorted(out, key=lambda c: c.created_at, reverse=True)
 
     def ratify(self, framework_id: str, version: int | None = None, ratified_by: str | None = None) -> MechanismConfig:
-        config = self.get(framework_id, version)
-        if config is None:
-            raise ValueError(f"Unknown framework: {framework_id} v{version}")
-        if config.ratified:
-            return config
-        ratified = config.model_copy(update={"ratified": True, "ratified_at": now_iso(), "ratified_by": ratified_by})
-        self._write(ratified)
+        with self._lock(framework_id):
+            config = self.get(framework_id, version)
+            if config is None:
+                raise ValueError(f"Unknown framework: {framework_id} v{version}")
+            if config.ratified:
+                return config
+            ratified = config.model_copy(update={"ratified": True, "ratified_at": now_iso(), "ratified_by": ratified_by})
+            self._write(ratified)
         return ratified
 
     # --- datasets ---
@@ -180,9 +197,10 @@ class DecisionStore:
 
     def save_published(self, snapshot: PublishedDecision) -> PublishedDecision:
         path = self._published_dir() / f"{safe_id(snapshot.snapshot_id, label='snapshot_id')}.json"
-        if path.exists():
-            raise ValueError(f"{snapshot.snapshot_id} is already published and cannot be overwritten.")
-        atomic_write_text(path, snapshot.model_dump_json(indent=2))
+        with self._published_locks.acquire("_published"):
+            if path.exists():
+                raise ValueError(f"{snapshot.snapshot_id} is already published and cannot be overwritten.")
+            atomic_write_text(path, snapshot.model_dump_json(indent=2))
         return snapshot
 
     def get_published(self, snapshot_id: str) -> PublishedDecision | None:

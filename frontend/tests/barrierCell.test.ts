@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cellHash, currentFact, errorDetail, historyLine, outcomeClass, ratifiedLine, sourceHref, sourceText, valueText } from "../src/lib/barrier.ts";
+import { cellHash, currentFact, errorDetail, factSavedText, historyLine, outcomeClass, ratifiedLine, sourceHref, sourceText, valueText } from "../src/lib/barrier.ts";
 import { decisionChoices } from "../src/lib/reviewKeys.ts";
 
 test("ratifiedLine names who ratified a derived rating, or says it is hand-rated", () => {
@@ -62,4 +62,12 @@ test("sourceHref opens an extracted value's source at its PDF page, an HTML sour
   assert.equal(sourceHref({ url: "https://example.org/report.pdf", page: 12 }), "https://example.org/report.pdf#page=12");
   assert.equal(sourceHref({ url: "https://eur-lex.europa.eu/eli/reg/2023/956/oj", page: null }), "https://eur-lex.europa.eu/eli/reg/2023/956/oj");
   assert.equal(sourceHref({ url: null, page: 3 }), null);
+});
+
+test("the notice after adding a fact says whether the quote was checked in a document", () => {
+  // seen live: an invented quote and page 88 were answered with "Fact saved, quote found on page 88."
+  assert.equal(factSavedText({ page: 12, machine_checked: true }), "Fact saved, quote found on page 12. Derive the cell to use it.");
+  assert.equal(factSavedText({ page: 88, machine_checked: false }), "Fact saved as entered: the quote was not checked against the document. Derive the cell to use it.");
+  assert.equal(factSavedText({ page: null, machine_checked: false }), "Fact saved as entered: the quote was not checked against the document. Derive the cell to use it.");
+  assert.equal(factSavedText({ page: null, machine_checked: true }), "Fact saved, quote found in the document. Derive the cell to use it.");
 });

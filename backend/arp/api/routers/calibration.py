@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from arp.agents.calibration_agent import CalibrationAgentScheduler, create_calibration_run, execute_calibration_run
 from arp.api.deps import get_calibration_scheduler, get_registry, settings_dep
@@ -55,5 +55,7 @@ def update_schedule(
 ) -> CalibrationScheduleConfig:
     """Enable/disable and configure the automatic recurring calibration
     pass (interval). Takes effect immediately."""
+    if config.interval_hours < 1:  # checked here, not on the stored model, so an older file holding 0 still loads
+        raise HTTPException(422, "Interval must be at least 1 hour.")
     scheduler.save_config(config)
     return config

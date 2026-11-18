@@ -4,6 +4,7 @@ import type { PublishedDecision, RunDecision, RunScoringKind, TemplateMatch } fr
 import { ConfirmSignedIn } from "./ConfirmSignedIn";
 import { LevelOverrides } from "./LevelOverrides";
 import { activatable } from "../lib/activatable";
+import { errorDetail } from "../lib/barrier";
 
 interface PickerProps {
   runType: RunScoringKind;
@@ -41,7 +42,7 @@ export function ScoringTemplatePicker({ runType, fieldNames, presetFields, value
     names
       .then((field_names) => api.matchTemplates({ run_type: runType, field_names, ratified_only: true }))
       .then((m) => live && setMatches(m))
-      .catch((e: Error) => live && setError(e.message));
+      .catch((e: Error) => live && setError(errorDetail(e)));
     return () => {
       live = false;
     };
@@ -128,7 +129,7 @@ export function RunScoringPanel({ runId, runType, fieldNames, presetFields }: Pa
     } catch (e) {
       const message = (e as Error).message;
       if (message.includes("No scoring template")) setUnattached(true);
-      else setError(message);
+      else setError(errorDetail(e as Error));
     }
   }, [runId]);
 
@@ -144,7 +145,7 @@ export function RunScoringPanel({ runId, runType, fieldNames, presetFields }: Pa
     try {
       setDecision(await api.rescoreRunDecision(runId));
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorDetail(e as Error));
     }
   }
 
@@ -154,7 +155,7 @@ export function RunScoringPanel({ runId, runType, fieldNames, presetFields }: Pa
     try {
       setPublished(await api.publishRunDecision(runId));
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorDetail(e as Error));
     }
   }
 
@@ -164,7 +165,7 @@ export function RunScoringPanel({ runId, runType, fieldNames, presetFields }: Pa
       await api.attachRunFramework(runId, choice);
       await load();
     } catch (e) {
-      setError((e as Error).message);
+      setError(errorDetail(e as Error));
     }
   }
 

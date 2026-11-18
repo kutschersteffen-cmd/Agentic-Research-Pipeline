@@ -19,11 +19,19 @@ export type DocType =
 export type JobStatus = "pending" | "running" | "completed" | "partially_completed" | "failed" | "cancelled";
 
 export type RunFailure = Served<S["RunFailure"]>;
+/** One SIMULATED value (`GET /api/companies/{ref}/simulated-esg`); never real ESG data. */
+export type SimulatedObservation = Served<S["DataPointObservation"]>;
 export type DocumentPassages = Served<S["DocumentPassages"]>;
+export type WaitingCounts = Served<S["WaitingCounts"]>;
 export type DocumentPassage = DocumentPassages["passages"][number];
 export type ArgusFlow = Served<S["ArgusFlowView"]>;
 export type ArgusDraft = Served<S["ArgusFlow"]>; // as GET /api/argus/flows lists it, without rows
+export type Cockpit = Served<S["CockpitResponse"]>; // GET /api/stewardship/cockpit
 export type FlowRow = Served<S["FlowRow"]>;
+export type FlowFile = Served<S["FlowFile"]>;
+export type RepeatRow = Served<S["RepeatRow"]>;
+export type FlowProgress = Served<S["FlowProgress"]>;
+export type CompanyProgress = Served<S["CompanyProgress"]>;
 export type Dossier = Served<S["DossierView"]>;
 export type DossierItem = Served<S["DossierItem"]>;
 export type DossierStepState = Dossier["steps"][number]["state"];
@@ -57,6 +65,7 @@ export type RunStarted = Served<S["RunStarted"]>;
 export type PriorRun = Served<S["PriorRun"]>;
 
 export type RfpLibraryEntry = Served<S["RfpLibraryEntryOut"]>;
+export type RfpDocument = Served<S["RfpDocumentOut"]>;
 export type RfpProjectSummary = Served<S["RfpProjectSummary"]>;
 export type RfpProject = Served<S["RfpProjectOut"]>;
 export type RfpQuestion = Served<S["RfpQuestionOut"]>;
@@ -64,8 +73,8 @@ export type AskResponse = Served<S["AskResponse"]>;
 export type AskHistoryTurn = Served<S["HistoryTurn"]>;
 
 // The run types the Review Queue endpoints exist for -- a subset of every
-// run_type, since discovery has no review queue of its own.
-export type ReviewableRunKind = "theme" | "extraction" | "financials" | "identity" | "transition_plan" | "tnfd" | "transition_barrier_derivation";
+// run_type, since most run types have no review queue.
+export type ReviewableRunKind = "theme" | "extraction" | "financials" | "identity" | "transition_plan" | "tnfd" | "transition_barrier_derivation" | "discovery";
 
 export interface CompanyRef {
   company_id: string;
@@ -86,13 +95,6 @@ export interface Readiness {
   doc_types: string[];
   last_seen_at: string | null;
   ready: boolean;
-}
-
-/** A saved company universe handed from one screen to the next; `from` names the sender. */
-export interface UniverseHandoff {
-  path: string;
-  count: number;
-  from: string;
 }
 
 export interface RunManifest {
@@ -132,6 +134,10 @@ export interface ActivityDefinition {
 }
 
 export type StandardCodeMatch = Served<S["StandardCodeMatch"]>;
+
+export type AuthorityRunState = Served<S["RunState"]>;
+export type AuthorityDraft = Served<S["ThemeDefinition"]>;
+export type AuthorityRunRequest = S["AuthorityRunRequest"];
 
 export type GicsMatch = Served<S["GicsMatch"]>;
 
@@ -254,6 +260,7 @@ export interface FieldDefinition {
   source_doc_types: DocType[];
   seed_keywords: string[];
   status?: "draft" | "released" | "retired";
+  version?: number;
   rules?: FieldRule[];
 }
 
@@ -539,7 +546,7 @@ export interface ReviewDecision {
   decided_at: string;
 }
 
-export type ReviewItemKind = "value" | "sector_code" | "identity" | "quarantined_document" | "restatement_candidate" | "security" | "barrier_cell" | "other";
+export type ReviewItemKind = "value" | "sector_code" | "identity" | "quarantined_document" | "restatement_candidate" | "security" | "barrier_cell" | "discovered_document" | "no_documents" | "conflict" | "other";
 export type ItemState = "pending" | "first_done" | "second_done" | "disagreed" | "final";
 
 export interface ReviewItem {
@@ -717,6 +724,8 @@ export interface DriftFlag {
   source_run_id: string;
   company_id: string;
   activity_id: string;
+  company_name?: string | null;
+  activity_name?: string | null;
   old_verdict: string;
   old_confidence: number;
   old_generated_at: string;
@@ -735,6 +744,7 @@ export type DerivationMethod =
   | "empirical"
   | "emerging_signal_discovery"
   | "merged"
+  | "stock_inference"
   | "manual";
 
 export type TaxonomyStatus = "draft" | "ratified";
@@ -847,7 +857,6 @@ export type MilestoneStage =
 
 export type EscalationStage =
   | "private_engagement"
-  | "joint_engagement"
   | "written_escalation_to_board"
   | "escalation_to_chair"
   | "vote_against_management"
@@ -869,6 +878,7 @@ export interface CorrespondenceEntry {
   summary: string;
   doc_ref?: string | null;
   logged_by?: string | null;
+  activity_type?: string | null;
 }
 
 export interface Commitment {
@@ -879,7 +889,16 @@ export interface Commitment {
   status: CommitmentStatus;
   validated_by?: string | null;
   validated_at?: string | null;
+  evidence?: string | null;
+  proof_statement?: string | null;
 }
+
+export type Objective = Served<S["Objective"]>;
+export type WatchTopic = Served<S["WatchTopic"]>;
+export type WatchItemKind = "objective" | "commitment" | "topic";
+export type EvidenceSuggestion = Served<S["EvidenceSuggestion"]>;
+export type WatchCheckResult = Served<S["WatchCheckResult"]>;
+export type FindCommitmentsResult = Served<S["FindCommitmentsResult"]>;
 
 export interface MilestoneTransition {
   stage: MilestoneStage;
@@ -909,6 +928,8 @@ export interface EngagementIssue {
   correspondence: CorrespondenceEntry[];
   commitments: Commitment[];
   tags: string[];
+  objectives: Objective[];
+  data_source?: string;
 }
 
 export interface EngagementRecord {
@@ -958,6 +979,18 @@ export interface ResearchDossier {
   citations: Citation[];
   confidence: number;
   needs_review: boolean;
+  watch_list?: WatchListEntry[];
+}
+
+export interface WatchListEntry {
+  item_kind: "objective" | "commitment" | "topic";
+  item_id: string;
+  text: string;
+  proof_statement: string | null;
+  target_date: string | null;
+  status: string;
+  flag: "overdue" | "broken" | null;
+  evidence: string[];
 }
 
 export interface OutreachLetterDraft {
@@ -965,6 +998,8 @@ export interface OutreachLetterDraft {
   body: string;
   recommended_recipient: string;
   citations: Citation[];
+  /** `[...]` tokens left in the letter to fill in by hand (not citations). */
+  placeholders?: string[];
 }
 
 export interface MeetingTalkingPoints {
@@ -1049,6 +1084,19 @@ export interface CompanyBallot {
   meeting_date?: string | null;
   votes: VoteRecord[];
   generated_at: string;
+  watch_flags?: WatchFlag[];
+}
+
+/** An overdue or broken commitment or objective of the company (spec stewardship-commitment-loop, PR 3). */
+export interface WatchFlag {
+  item_kind: "commitment" | "objective";
+  item_id: string;
+  engagement_id: string;
+  kind: "overdue" | "broken";
+  text: string;
+  target_date: string | null;
+  since: string | null;
+  message: string;
 }
 
 export interface VoteReviewDecision {
@@ -1089,6 +1137,11 @@ export interface QAAnswer {
   spec?: (AnalyticRequest & { analytic_id: string; created_at: string }) | null;
   result?: AggregationResult | null;
   answer_text: string;
+  /** Set instead of `result` when the request named a date range. */
+  trend?: { as_of: string; result: AggregationResult }[] | null;
+  snapshot_dates?: string[];
+  scale?: "units" | "millions";
+  unit?: string;
 }
 
 export type AlertRuleType = "field_threshold" | "concentration_threshold" | "portfolio_aggregate_threshold";
@@ -1259,7 +1312,7 @@ export const CHART_TYPES: ChartType[] = [
   "bar", "column", "stacked_column", "line", "area", "pie", "doughnut", "scatter", "radar", "waterfall", "heatmap", "table",
 ];
 
-export type ChartSpec = Served<S["arp__schemas__reporting__ChartSpec"]>;
+export type ChartSpec = Served<S["arp__schemas__chart_specs__ChartSpec"]>;
 
 export interface TableSpec {
   dataset_id: string;
@@ -1494,6 +1547,7 @@ export interface BarrierRegistrySource {
 }
 
 export interface BarrierMatrix {
+  refresh_enabled: boolean;
   sectors: string[];
   regions: BarrierRegion[];
   pillars: BarrierPillar[];
@@ -1570,6 +1624,7 @@ export interface BarrierHistoryEntry {
 export interface BarrierCell extends BarrierScore {
   latest_result: BarrierResult | null;
   history: BarrierHistoryEntry[];
+  refresh_enabled: boolean;
 }
 
 export interface BarrierFactForm {
@@ -1902,6 +1957,20 @@ export interface IndexFieldInventory {
   categories: string[];
 }
 
+/** A starting universe for Index Construction: the demo universe, a holdings file or a stored portfolio. */
+export interface IndexStartingUniverse {
+  universe_id: string;
+  label: string;
+  kind: "demo" | "file" | "portfolio";
+  as_of_date: string | null;
+}
+
+export interface IndexStartingUniverseDetail extends IndexStartingUniverse {
+  company_count: number;
+  notes: string[];
+  fields: IndexFieldInventory;
+}
+
 export interface RuleParamSpec {
   name: string;
   kind: string;
@@ -2066,6 +2135,15 @@ export interface ClientExceptionItem {
   reason: string;
 }
 
+/** A standing bilateral pick from GET /api/stewardship/tiers; `name` is null once the issuer left the house universe. */
+export interface BilateralPick {
+  issuer_id: string;
+  name: string | null;
+  reason: string;
+  by: string;
+  at: string;
+}
+
 export interface TierChangeItem {
   kind: "tier_change";
   issuer_id: string;
@@ -2125,7 +2203,26 @@ export interface StewardshipStream {
 }
 
 // Stage studios: versioned house policies (backend/arp/stewardship/policies.py)
-export type StewardPolicyId = "monitoring_rules" | "coverage_rules" | "escalation_rules" | "phrase_blocklist" | "house_voting";
+export type StewardPolicyId = "monitoring_rules" | "coverage_rules" | "escalation_rules" | "phrase_blocklist" | "house_voting" | "priority_weights";
+
+// The stewardship workbench (backend/arp/schemas/worklist.py)
+export type Worklist = Served<S["Worklist"]>;
+export type WorklistRow = Served<S["WorklistRow"]>;
+export type WorklistScope = Served<S["WorklistScope"]>;
+export type SelectionList = Served<S["SelectionList"]>;
+export type WorkProgramme = Served<S["Programme"]>;
+export type ProgrammeDetail = Served<S["ProgrammeDetail"]>;
+export type PriorityPreview = Served<S["PriorityPreview"]>;
+export type PortfolioGroup = Served<S["PortfolioGroup"]>;
+export type WorklistScopes = Served<S["WorklistScopes"]>;
+export type ProgrammeList = Served<S["ProgrammeList"]>;
+export type SelectionConfirmed = Served<S["SelectionConfirmed"]>;
+export type StewardNote = Served<S["Note"]>;
+export type StewardNoteList = Served<S["NoteList"]>;
+export type VoteList = Served<S["VoteList"]>;
+// The fund overlap tab (backend/arp/schemas/overlap.py)
+export type FundOverlap = Served<S["FundOverlap"]>;
+export type OverlapMatrix = Served<S["OverlapMatrix"]>;
 
 export interface PolicyVersionMeta {
   version: number;
@@ -2208,6 +2305,7 @@ export interface MonitoringTrigger {
   rule: string;
   reason: string;
   engagement_id: string | null;
+  demo?: boolean; // raised by demo votes alone; tracking triggers carry none
 }
 
 export interface MonitoringPreview {
@@ -2482,9 +2580,12 @@ export interface RunCompany {
   name: string;
   /** review: a step before extraction stopped it, and its error report waits in the review queue. */
   status: "done" | "failed" | "review" | "waiting";
+  /** The central id the company was matched to; absent for a run started before it was saved. */
+  entity_id?: string | null;
 }
 
-/** Superset BI designer (/api/bi). A refused plan is a 200 with `rejected` reasons and no dashboard. */
+/** Superset BI designer (/api/bi). A plan that fails validation is a 200 with `rejected` reasons and no dashboard;
+ * a question back from the model is a 200 with `clarification_needed`. */
 export type BIChartSpec = Served<S["ChartSpec-Output"]>;
 
 export type BIChartPlan = Served<S["ChartPlan"]>;
@@ -2509,7 +2610,8 @@ export interface HolderStatus {
   holder_id: string;
   kind: "index" | "portfolio";
   name: string;
-  source: "api" | "file";
+  /** null: a portfolio with no holder record (seeded or imported data), listed read-only. */
+  source: "api" | "file" | null;
   as_of: string | null;
   last_pull_at: string | null;
   last_error: string | null;
@@ -2541,6 +2643,7 @@ export interface UnifiedTrigger {
   first_seen_month: string;
   is_new: boolean;
   rule: string;
+  demo: boolean; // raised by demo votes alone, as the last monthly run said
   company: string;
 }
 

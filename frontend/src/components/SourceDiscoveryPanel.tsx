@@ -7,17 +7,19 @@ interface Props {
   candidates: SourceCandidate[];
   selected: Set<string>;
   onToggle: (candidateId: string) => void;
+  /** Shown when there are no candidates; defaults to the before-any-search text. */
+  emptyText?: string;
 }
 
 /** Ranked/explained source candidate cards with an in-app "Inspect" window
  * for viewing the original document (mostly PDF) before selecting it as a
  * reference -- used for both authority-source ranking and thematic-fund
  * discovery, since both return the same SourceCandidate shape. */
-export function SourceDiscoveryPanel({ candidates, selected, onToggle }: Props) {
+export function SourceDiscoveryPanel({ candidates, selected, onToggle, emptyText }: Props) {
   const [inspecting, setInspecting] = useState<SourceCandidate | null>(null);
 
   if (candidates.length === 0) {
-    return <p className="help-text">No candidates yet — run a search above.</p>;
+    return <p className="help-text">{emptyText ?? "No candidates yet — run a search above."}</p>;
   }
 
   return (

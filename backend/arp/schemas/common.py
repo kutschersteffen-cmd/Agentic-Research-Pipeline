@@ -172,6 +172,9 @@ class Citation(BaseModel):
         default=None, description="Resolved from the cited SourceDocument by grounding, so a citation is self-contained for building a 'view source' link."
     )
     source_filename: str | None = Field(default=None, description="On-disk filename, resolved by grounding.")
+    source_url: str | None = Field(
+        default=None, description="The document's web address when it has no local file, resolved by grounding."
+    )
     content_key: str | None = Field(default=None, description="Content hash of the cited document, set by grounding.")
     span_text: str | None = Field(default=None, description="Exact source text the quote matched, set by grounding.")
     char_start: int | None = Field(default=None, description="Start offset of the match in the document text.")

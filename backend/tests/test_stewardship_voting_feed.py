@@ -60,6 +60,7 @@ def test_decided_ballots_reach_stage_4_the_checkpoint_and_monitoring(tmp_path, p
     assert issuer_fields(rows)["SYN01"] == {
         "vote.decided": 2,
         "vote.against_management": 1,
+        "vote.against_management_non_demo": 1,  # Proxy Voting run rows are never demo (decisions round 2, area 1)
         "vote.overrode_policy": 1,
         "vote.last_meeting_date": "2026-05-15",
     }
@@ -77,3 +78,38 @@ def test_decided_ballots_reach_stage_4_the_checkpoint_and_monitoring(tmp_path, p
     assert checkpoint["Votes against the policy"] == 1
     [row] = stages["checkpoint"]["details"][0]["rows"]
     assert (row["item"], row["vote"], row["reason"]) == ("2", "against", "Pay not linked to targets")
+
+
+def test_stage_4_details_list_run_votes_only(tmp_path, pg):
+    def row(run_id, item):
+        return {
+            "run_id": run_id, "company_id": "SYN01", "company": "Synthetic Company 01", "meeting_date": "2026-05-15",
+            "item": item, "type": None, "management": "for", "policy": None, "vote": "for", "status": "cast",
+            "decided_by": "x", "co_signed_by": None, "note": None, "overrode_policy": False, "against_management": False,
+        }  # fmt: skip
+
+    votes = [row(None, "ledger"), row("vote_run", "run")]
+    stages = {s["id"]: s for s in flow(HOUSE, StreamStore(tmp_path / "s"), [], sla_days=45, votes=votes)["stages"]}
+    metrics = {m["label"]: m["value"] for m in stages["voting"]["metrics"]}
+    assert metrics["Ballot items decided"] == "2 of 2"
+    assert [r["item"] for r in stages["voting"]["details"][1]["rows"]] == ["run"]
+
+
+def test_stage_4_abstain_is_not_against_management_vote_abstain_ac23(tmp_path, pg):
+    # spec vote-abstain-and-seed-fixes AC-23: one number, and an abstention is not in it
+    runs = RunStore(pg, tmp_path / "runs")
+    runs.save_manifest(RunManifest(run_id="vote_run", run_type="proxy_voting"))
+    ballot = CompanyBallot(
+        company_id="SYN01", name="Synthetic Company 01", meeting_id="SYN01-2026-AGM", meeting_date="2026-05-15",
+        votes=[_vote("1", VotePosition.FOR), _vote("2", VotePosition.FOR)],
+    )  # fmt: skip
+    runs.append_result("vote_run", ballot.model_dump(mode="json"))
+    for key, vote in (("SYN01:1", "abstain"), ("SYN01:2", "against")):
+        submit_review(runs, "vote_run", item_key=key, decision="edit", reviewer="A. Reviewer", edited_value={"vote": vote, "co_signed_by": None}, comment="x")
+
+    stages = {s["id"]: s for s in flow(HOUSE, StreamStore(tmp_path / "s"), [], sla_days=45, votes=items(runs))["stages"]}
+    metrics = stages["voting"]["metrics"]
+    assert [m["label"] for m in metrics] == [
+        "Resolutions", "Expected against", "Case-by-case", "Sanction votes", "Ballot items decided", "Against management",
+    ]  # fmt: skip
+    assert {m["label"]: m["value"] for m in metrics}["Against management"] == 1

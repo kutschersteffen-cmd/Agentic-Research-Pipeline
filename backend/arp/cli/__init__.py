@@ -31,8 +31,10 @@ from arp.cli.revenue_catalogue import revenue_catalogue_app
 from arp.cli.rfp import rfp_app
 from arp.cli.runs import runs_app
 from arp.cli.scale import scale_app
+from arp.cli.showcase import showcase_app
 from arp.cli.signal_lab import signals_app
 from arp.cli.snapshots import snapshots_app
+from arp.cli.stewardship import stewardship_app
 from arp.cli.taxonomy import taxonomy_app
 from arp.cli.taxonomy_researcher import taxonomy_researcher_app
 from arp.cli.theme import theme_app
@@ -76,6 +78,10 @@ def _require_postgres(ctx: typer.Context) -> None:
 
     if "--help" in sys.argv[1:] or ctx.invoked_subcommand in ("io", "pageindex"):  # pageindex: PDF files only
         return
+    if sys.argv[1:3] == ["showcase", "simulate"]:  # holdings files in, a CSV out
+        return
+    if sys.argv[1:3] == ["report", "sheet"]:  # fixture slides in, PNGs out
+        return
     try:
         settings = get_settings()
     except ValidationError as exc:  # one plain line per error, not a terminal-wrapped traceback
@@ -83,6 +89,8 @@ def _require_postgres(ctx: typer.Context) -> None:
             where = f"{'.'.join(map(str, error['loc']))}: " if error["loc"] else ""
             typer.echo(where + error["msg"].removeprefix("Value error, "), err=True)
         raise typer.Exit(1) from exc
+    if ctx.invoked_subcommand == "preflight":  # reports an unreachable or unmigrated database as its own line
+        return
     try:
         require_postgres(settings)
         if ctx.invoked_subcommand != "db":
@@ -90,6 +98,19 @@ def _require_postgres(ctx: typer.Context) -> None:
     except RuntimeError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
+
+
+@app.command("preflight")
+def preflight_cmd(base_url: str = typer.Option("http://127.0.0.1:8000", help="Where the running app answers.")) -> None:
+    """Readiness checks: Postgres, both models, the compute services, the served frontend, an outbound fetch."""
+    import asyncio
+
+    from arp import preflight
+    from arp.config import get_settings
+
+    lines = asyncio.run(preflight.run_preflight(get_settings(), base_url=base_url, on_line=typer.echo))
+    if any(line.startswith("FAIL") for line in lines):
+        raise typer.Exit(1)
 
 
 app.add_typer(theme_app, name="theme")
@@ -109,6 +130,7 @@ app.add_typer(universe_app, name="universe")
 app.add_typer(revenue_catalogue_app, name="revenue-catalogue")
 app.add_typer(engagement_app, name="engagement")
 app.add_typer(voting_app, name="voting")
+app.add_typer(stewardship_app, name="stewardship")
 app.add_typer(portfolio_app, name="portfolio")
 app.add_typer(climate_app, name="climate")
 app.add_typer(decision_app, name="decision")
@@ -132,3 +154,4 @@ app.add_typer(xbrl_app, name="xbrl")
 app.add_typer(plan_app, name="plan")
 app.add_typer(io_app, name="io")
 app.add_typer(rfp_app, name="rfp")
+app.add_typer(showcase_app, name="showcase")

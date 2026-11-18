@@ -54,6 +54,10 @@ def test_start_new_extraction_opens_empty_step_1_and_lists_a_draft(page):
     assert _names(page) == []
     assert page.locator('[role="tablist"]').count() == 0
     assert page.get_by_role("navigation", name="Steps").count() == 1
+    # the start page lists a draft only once it has a company (spec showcase-argus-fixes, decided item 7)
+    page.locator("#argus-one-name").fill("Listed Draft Co")
+    page.get_by_role("button", name="Add", exact=True).click()
+    page.get_by_role("table", name="Companies").get_by_text("Listed Draft Co").wait_for()
     page.goto(URL + "/#/argus")
     row = page.get_by_role("table", name="Runs").locator("tbody tr").filter(has=page.locator(f'a[href="#/argus/{flow_id}/1"]'))
     row.wait_for()

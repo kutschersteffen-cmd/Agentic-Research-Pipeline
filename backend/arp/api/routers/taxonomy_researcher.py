@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from arp.agents.taxonomy_researcher import (
@@ -85,5 +85,7 @@ def update_schedule(
     """Enable/disable and configure the automatic recurring taxonomy
     research scan (interval + optional taxonomy_ids scope). Takes effect
     immediately."""
+    if config.interval_hours < 1:  # checked here, not on the stored model, so an older file holding 0 still loads
+        raise HTTPException(422, "Interval must be at least 1 hour.")
     scheduler.save_config(config)
     return config

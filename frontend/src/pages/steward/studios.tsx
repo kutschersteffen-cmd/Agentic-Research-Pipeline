@@ -2,6 +2,7 @@ import { FileLink } from "../../components/FileLink";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client";
 import type {
+  BilateralPick,
   DecisionInput,
   CatalogueIssue,
   ClientEscalationPreview,
@@ -25,9 +26,10 @@ import type {
   VotingPosition,
   VotingPreview,
 } from "../../types";
-import { ActorField, DataTable, Planned, RuleEditor, Section, StudioHeader, VersionsPanel, useActor, usePolicy, words } from "./common";
+import { ActorField, DataTable, Planned, RuleEditor, SampleChip, Section, StudioHeader, VersionsPanel, useActor, usePolicy, words } from "./common";
 import { ClientExceptionDecisions, EscalationDecisions, PolicyDifference, TierDecisions } from "./decisions";
 import { OutreachDecisions } from "./drafting";
+import { errorDetail } from "../../lib/themeLayers";
 
 const LazyPolicyCanvas = lazy(() => import("./PolicyCanvas"));
 
@@ -37,7 +39,7 @@ export interface StudioProps {
   onOpen: (tab: string) => void;
 }
 
-const TIER_ORDER = ["Priority Bilateral", "Thematic & Collaborative", "Scaled Baseline", "Systemic / Market-Level"];
+const TIER_ORDER = ["Bilateral", "Letter", "Monitor"];
 
 function countMissing(value: unknown): number {
   if (value === null || value === undefined) return 1;
@@ -195,7 +197,8 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
                     <td>{words(t.type)}</td>
                     <td>{words(t.theme)}</td>
                     <td>
-                      {t.reason} <span className="muted">({t.rule})</span>
+                      {/CLTI score/.test(t.reason) && <SampleChip />} {t.reason} <span className="muted">({t.rule})</span>
+                      {t.demo && <> <span className="chip">Demo data</span></>}
                     </td>
                     <td>
                       {t.engagement_id ? (
@@ -389,6 +392,107 @@ function DecisionInputs() {
   );
 }
 
+/** Companies picked by hand for bilateral (spec stewardship-three-tiers). While a pick stands it is
+ * the company's tier proposal; the tier confirm at stage 5 makes it count. */
+function BilateralPicks({ onChanged }: { onChanged: () => void }) {
+  const [companies, setCompanies] = useState<{ issuer_id: string; name: string }[]>([]);
+  const [picks, setPicks] = useState<BilateralPick[]>([]);
+  const [issuer, setIssuer] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState("");
+  const loadPicks = () => api.getBilateralPicks().then((t) => setPicks(t.picks), (e: Error) => setError(e.message));
+  useEffect(() => {
+    api.getCoverageInputs().then(
+      (r) => setCompanies(r.contexts.map((c) => ({ issuer_id: String(c.issuer_id), name: String(c.name) }))),
+      (e: Error) => setError(e.message),
+    );
+    loadPicks();
+  }, []);
+  // The server's refusal names the issuer id; show the company's name instead, without the status code.
+  const act = (call: () => Promise<unknown>, issuerId: string, name: string, done: string, after?: () => void) => {
+    setBusy(true);
+    setError(null);
+    setStatus("");
+    call()
+      .then(() => {
+        after?.();
+        setStatus(done);
+        onChanged();
+        return loadPicks();
+      }, (e: unknown) => setError(errorDetail(e).replaceAll(issuerId, name)))
+      .finally(() => setBusy(false));
+  };
+  const pick = () => {
+    const name = companies.find((c) => c.issuer_id === issuer)?.name ?? issuer;
+    act(() => api.pickBilateral({ issuer_id: issuer, reason }), issuer, name, `${name} is picked for bilateral.`, () => {
+      setIssuer("");
+      setReason("");
+    });
+  };
+  return (
+    <>
+      <h3>Bilateral picks</h3>
+      <p className="help-text">
+        A pick makes bilateral this company&apos;s tier proposal, whatever the coverage rules say, until it is withdrawn. It
+        counts once the tier change is confirmed at stage 5.
+      </p>
+      <div className="toolbar">
+        <label className="field-label">
+          Company
+          <select value={issuer} onChange={(e) => setIssuer(e.target.value)}>
+            <option value="" disabled>
+              Choose a company…
+            </option>
+            {companies.map((c) => (
+              <option key={c.issuer_id} value={c.issuer_id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field-label">
+          Reason
+          <input value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} />
+        </label>
+        <button
+          disabled={busy || !issuer || !reason.trim()}
+          onClick={pick}
+        >
+          Pick for bilateral
+        </button>
+      </div>
+      {error && <p className="error-text" role="alert">{error}</p>}
+      <p className="status-text" role="status">
+        {status}
+      </p>
+      {picks.length === 0 ? (
+        <p className="muted">No company is picked for bilateral.</p>
+      ) : (
+        <ul className="decision-changes">
+          {picks.map((p) => (
+            <li key={p.issuer_id}>
+              {p.name ?? `${p.issuer_id} (no longer in the house universe)`} — {p.reason} — {p.by}, {p.at.slice(0, 10)}{" "}
+              <button
+                className="link-button"
+                disabled={busy}
+                aria-label={`Withdraw the bilateral pick for ${p.name ?? p.issuer_id}`}
+                onClick={() => {
+                  const name = p.name ?? p.issuer_id;
+                  act(() => api.withdrawBilateral(p.issuer_id), p.issuer_id, name, `The bilateral pick for ${name} is withdrawn.`);
+                }}
+              >
+                Withdraw
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
   const draft = useRuleDraft<CoveragePreview>("coverage_rules", api.previewCoverage);
   const { info, graph, preview } = draft;
@@ -414,6 +518,7 @@ export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
       />
       <Section step="Review" title="Confirmed coverage tiers">
         <DataTable rows={stage.details.find((d) => d.label.includes("coverage"))?.rows ?? []} />
+        <BilateralPicks onChanged={onChanged} />
         <div className="toolbar">
           <button className="link-button" onClick={() => onOpen("checkpoint")}>
             Tier changes are confirmed at stage 5 →
@@ -430,7 +535,7 @@ export function SelectionStudio({ stage, onChanged, onOpen }: StudioProps) {
             <code>holding.index_weight_pct</code>, <code>holding.aum_held_eur_m</code>, <code>history.escalated</code>,{" "}
             <code>history.open_engagements</code>, <code>issuer.climate.high_emitter</code>,{" "}
             <code>issuer.nature.high_impact_sector</code> (any company field can be added as a column). Outputs: <code>tier</code>{" "}
-            (priority_bilateral, thematic_collaborative, scaled_baseline or systemic), <code>rule</code> and <code>reason</code>. Open
+            (bilateral, letter or monitor), <code>rule</code> and <code>reason</code>. Open
             the table with <em>Edit Table</em>.
           </p>
           <p className="muted">{draft.editing}</p>
@@ -791,7 +896,6 @@ export function VotingStudio({ stage, onChanged }: StudioProps) {
 
 const LADDER = [
   "private_engagement",
-  "joint_engagement",
   "written_escalation_to_board",
   "escalation_to_chair",
   "vote_against_management",
@@ -903,11 +1007,11 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
               company: r.company,
               theme: r.theme,
               data: r.source === "live" ? "live" : "sample",
-              tier: r.tier ?? "none",
+              tier: r.tier ?? "No tier yet",
               "step now": r.current,
               recommended: r.escalate ? r.recommended : "hold",
               "highest step for tier": r.max_step + (r.promote_tier ? " · promote the tier" : ""),
-              why: `${r.reason} (${r.rule})`,
+              why: r.reason,
             }))}
             empty="No open engagements."
           />
@@ -918,7 +1022,7 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
         <Section step="Design" title="Escalation rules and tier caps">
           <p className="help-text">
             Two tables, both read top to bottom with the <strong>first</strong> matching row deciding. <code>tier_caps</code> sets the
-            highest ladder step per coverage tier (<code>tier.max_step</code>, 0-6). <code>escalation_rules</code> sets how many steps
+            highest ladder step per coverage tier (<code>tier.max_step</code>, 0-5). <code>escalation_rules</code> sets how many steps
             up an engagement should move (<code>escalate_by</code>) with <code>rule</code> and <code>reason</code>. Its inputs:{" "}
             <code>triggers.high_same_theme</code>, <code>triggers.same_theme</code>, <code>engagement.commitments_missed</code>,{" "}
             <code>engagement.months_at_step</code>, <code>engagement.stalled</code>, <code>engagement.step_index</code>,{" "}

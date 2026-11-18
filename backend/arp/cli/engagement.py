@@ -14,6 +14,7 @@ from arp.engagement.reporting_agent import compile_report
 from arp.engagement.triggers import ControversySignal, StaticControversySource, run_trigger_screen, scan_for_stalled_issues
 from arp.llm.factory import build_llm_client
 from arp.schemas.engagement import CorrespondenceEntry, EscalationStage, IssueSeverity, TriggerSource
+from arp.stewardship.tracking import watch_list
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 from arp.voting.pipeline import get_ballots, get_cast_votes
@@ -95,10 +96,15 @@ def engagement_log_correspondence(
 
 
 @engagement_app.command("verify-commitment")
-def engagement_verify_commitment(company_id: str, issue_id: str, commitment_id: str, by: str = typer.Option(...)) -> None:
-    from arp.engagement.tracking_agent import log_commitment_verified
+def engagement_verify_commitment(
+    company_id: str, issue_id: str, commitment_id: str, by: str = typer.Option(...), evidence: str = typer.Option(None)
+) -> None:
+    from arp.engagement.tracking_agent import MissingEvidence, log_commitment_verified
 
-    log_commitment_verified(_engagement_store(), company_id, issue_id, commitment_id, by)
+    try:
+        log_commitment_verified(_engagement_store(), company_id, issue_id, commitment_id, by, evidence)
+    except MissingEvidence as exc:
+        raise typer.BadParameter(str(exc), param_hint="--evidence") from exc
     typer.echo("Verified.")
 
 
@@ -113,7 +119,7 @@ def engagement_dossier_draft(
     """Research Agent: drafts a grounded briefing dossier for one issue.
     The result is written to disk, not auto-applied, so a human can run the
     dossier-accuracy review checkpoint before any Drafting Agent handoff."""
-    from arp.engagement.research_agent import research_company_issue
+    from arp.engagement.research_agent import NoDocuments, research_company_issue
 
     settings = get_settings()
     llm = build_llm_client(settings)
@@ -130,12 +136,17 @@ def engagement_dossier_draft(
     if company is None:
         typer.echo(f"{company_id} not found in {universe}", err=True)
         raise typer.Exit(1)
-    dossier, needs_review, _usage = asyncio.run(
-        research_company_issue(
-            company, issue, record, registry=_registry(), llm=llm,
-            fuzzy_threshold=settings.grounding_fuzzy_threshold, confidence_review_threshold=settings.confidence_review_threshold,
+    try:
+        dossier, needs_review, _usage = asyncio.run(
+            research_company_issue(
+                company, issue, record, registry=_registry(), llm=llm,
+                fuzzy_threshold=settings.grounding_fuzzy_threshold, confidence_review_threshold=settings.confidence_review_threshold,
+            )
         )
-    )
+    except NoDocuments as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    dossier = dossier.model_copy(update={"watch_list": watch_list(store, company_id, issue_id)})
     out.write_text(dossier.model_dump_json(indent=2))
     typer.echo(f"Wrote dossier to {out} (needs_review={needs_review})")
 

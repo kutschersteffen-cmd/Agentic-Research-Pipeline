@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel
 
-from arp.discovery.site_finder import WebSearchClient
+from arp.discovery.site_finder import SearchReport, WebSearchClient
 from arp.llm.base import LLMClient
 from arp.research.authority_taxonomy.library import LibraryEntry, SourceType, load_library, save_library
 from arp.research.taxonomy_sources.discovery import _AUTHORITY_QUERY_TEMPLATES, _run_queries
@@ -67,6 +67,7 @@ async def discover_candidates(
     user_agent: str,
     use_library: bool = True,
     library_root: Path | None = None,
+    report: SearchReport | None = None,
 ) -> list[Candidate]:
     allowed: list[str] = []
     if guidance.strip():
@@ -87,7 +88,8 @@ async def discover_candidates(
                 candidates.append(Candidate(**e.model_dump(exclude={"checked_on", "status", "summary"}), summary=_truncate(e.summary), reason="Approved library entry.", from_library=True))
 
     web = await _run_queries(
-        theme_name, _AUTHORITY_QUERY_TEMPLATES + _EXTRA_TEMPLATES, SourceCandidateType.AUTHORITY, search_client, per_query=4
+        theme_name, _AUTHORITY_QUERY_TEMPLATES + _EXTRA_TEMPLATES, SourceCandidateType.AUTHORITY, search_client, per_query=4,
+        report=report,
     )
     for r in web:
         if r.url in seen or not keep(r.url):

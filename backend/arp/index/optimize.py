@@ -47,6 +47,7 @@ from math import fsum
 
 import numpy as np
 
+from arp.errors import ClientInputError
 from arp.index.risk import RiskModel
 from arp.schemas.index import ConstraintSet, IndexCandidate
 
@@ -301,7 +302,7 @@ def _active_risk_expression(risk_model: RiskModel, names: list[str], w, benchmar
     return root @ active
 
 
-class RiskModelCoverageError(ValueError):
+class RiskModelCoverageError(ClientInputError):
     def __init__(self, missing: list[str]) -> None:
         shown = ", ".join(missing[:5])
         super().__init__(

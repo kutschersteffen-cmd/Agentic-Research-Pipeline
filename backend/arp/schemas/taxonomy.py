@@ -17,6 +17,7 @@ class DerivationMethod(StrEnum):
     EMPIRICAL = "empirical"  # synthesized bottom-up from the Extraction Engine's readings of a sample company universe
     EMERGING_SIGNAL_DISCOVERY = "emerging_signal_discovery"  # promoted from a Tool 0 Emerging Themes Scanner candidate (see arp/emerging_themes/)
     MERGED = "merged"  # consolidated from two or more existing taxonomies
+    STOCK_INFERENCE = "stock_inference"  # inferred from a stock list by `arp taxonomy infer`
     MANUAL = "manual"  # hand-authored, no LLM involvement
 
 

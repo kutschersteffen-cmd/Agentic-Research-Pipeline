@@ -68,6 +68,6 @@ async def run_bi_set(cases: list[BiCase], *, llm: LLMClient) -> list[BiCaseResul
     metas = offline_metas()
     results = []
     for case in cases:
-        plan, reasons = await plan_from_brief(case.brief, metas, llm)
-        results.append(evaluate_case(case, plan, reasons))
+        plan, reasons, clarification = await plan_from_brief(case.brief, metas, llm)
+        results.append(evaluate_case(case, plan, reasons or [clarification]))
     return results

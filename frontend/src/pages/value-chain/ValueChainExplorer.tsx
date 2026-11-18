@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { apiMessage } from "../../lib/projects";
-import { nodeHash, portfolioHash, recipesHash, searchable, shockHash } from "../../lib/valueChain";
+import { explorerParams, nodeHash, portfolioHash, recipesHash, searchable, shockHash } from "../../lib/valueChain";
 import type { VcNodeRef } from "../../types";
 import { ExposureView } from "./ExposureView";
 import { FootprintView } from "./FootprintView";
@@ -90,7 +90,7 @@ export function ValueChainExplorer({ params }: { params: string[] }) {
     );
   }
   if (params[0] === "recipes") return <Recipes params={params.slice(1)} />;
-  return <NodeExplorer params={params} />;
+  return <NodeExplorer params={explorerParams(params)} />;
 }
 
 /** `#/valueChain/recipes`, `…/recipes/new`, `…/recipes/<rid>` and `…/recipes/<rid>/exposure[/<from id>]`. */

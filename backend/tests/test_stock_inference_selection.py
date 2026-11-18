@@ -84,3 +84,10 @@ def test_nace_rev_reaches_nace_sectors(tmp_path, monkeypatch):  # F3
     monkeypatch.setattr(stored, "nace_sectors", lambda code, rev: seen.append((code, rev)) or set())
     stored.stored_data(None, stocks[0], None, {})
     assert seen == [("20.1", "2.1")]
+
+
+def test_weight_80_stops_at_the_boundary_despite_float_sums(tmp_path):  # 0.2+0.15+...+0.1 == 0.7999...
+    ws = [20, 15, 15, 10, 10, 10, 5, 5, 5, 5]
+    stocks, total = load_stocks(_csv(tmp_path, [f"t{i:02d},Co,{w}" for i, w in enumerate(ws)]))
+    picked, sel = select(stocks, total)
+    assert len(picked) == 6 and sel.cutoff_reason == "weight_80"

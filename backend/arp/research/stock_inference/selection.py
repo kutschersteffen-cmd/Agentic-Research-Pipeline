@@ -58,7 +58,7 @@ def select(stocks: list[InferStock], total_weight: float | None) -> tuple[list[I
         for s in ordered:
             picked.append(s)
             running += s.weight or 0.0
-            if running >= WEIGHT_CUTOFF * total_weight:
+            if running >= WEIGHT_CUTOFF * total_weight - 1e-9:  # float sums such as 0.7999... reach 80 %
                 reason = "weight_80"
                 break
             if len(picked) == MAX_STOCKS:

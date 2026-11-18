@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import Literal
 
 from arp.db.fields import SchemaRegistry
+from arp.errors import ClientInputError
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
 from arp.schemas.taxonomy import Taxonomy, TaxonomyStatus
 from arp.schemas.thematic import ActivityDefinition
@@ -146,11 +147,11 @@ def build_taxonomy_schema(taxonomy: Taxonomy) -> DataPointSchema:
             f for a in taxonomy.theme.activities
             for f in [*activity_fields(a, taxonomy.taxonomy_id, taxonomy.version),
                       *(_evidence_field(taxonomy.taxonomy_id, taxonomy.version, a, k) for k in EVIDENCE_KEYS)]
-        ],
+        ] + [k.model_copy(update={"version": taxonomy.version}) for k in taxonomy.theme.kpis],
     )
 
 
-class ThemeRunRefused(ValueError):
+class ThemeRunRefused(ClientInputError):
     """A theme run may not start: `status` is the HTTP status the API answers with."""
 
     def __init__(self, status: int, message: str) -> None:

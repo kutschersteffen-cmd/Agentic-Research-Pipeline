@@ -1,0 +1,108 @@
+{
+ "monitoring_triggers": {
+  "triggers": [
+   {
+    "company": "Synthetic Company 04",
+    "demo": false,
+    "engagement_id": null,
+    "issuer_id": "SYN04",
+    "reason": "Controversy severity 4 or higher",
+    "rule": "severe_controversy",
+    "sector": "Energy",
+    "severity": "high",
+    "theme": "governance_controversy",
+    "type": "controversy"
+   },
+   {
+    "company": "Synthetic Company 04",
+    "demo": false,
+    "engagement_id": null,
+    "issuer_id": "SYN04",
+    "reason": "Position up more than 50%",
+    "rule": "position_jump",
+    "sector": "Energy",
+    "severity": "low",
+    "theme": "position_review",
+    "type": "holding_change"
+   },
+   {
+    "company": "Synthetic Company 06",
+    "demo": false,
+    "engagement_id": null,
+    "issuer_id": "SYN06",
+    "reason": "Human rights controversy severity 4 or higher",
+    "rule": "human_rights",
+    "sector": "Consumer Discretionary",
+    "severity": "high",
+    "theme": "human_rights",
+    "type": "controversy"
+   },
+   {
+    "company": "Synthetic Company 08",
+    "demo": false,
+    "engagement_id": null,
+    "issuer_id": "SYN08",
+    "reason": "Position up more than 50%",
+    "rule": "position_jump",
+    "sector": "Health Care",
+    "severity": "low",
+    "theme": "position_review",
+    "type": "holding_change"
+   },
+   {
+    "company": "Synthetic Company 09",
+    "demo": false,
+    "engagement_id": null,
+    "issuer_id": "SYN09",
+    "reason": "Pay misaligned with performance for 3+ years",
+    "rule": "pay_misalignment",
+    "sector": "Energy",
+    "severity": "medium",
+    "theme": "executive_compensation",
+    "type": "score_change"
+   },
+   {
+    "company": "Synthetic Company 10",
+    "demo": false,
+    "engagement_id": null,
+    "issuer_id": "SYN10",
+    "reason": "CLTI score below 30",
+    "rule": "clti_laggard",
+    "sector": "Materials",
+    "severity": "high",
+    "theme": "climate_transition",
+    "type": "score_change"
+   },
+   {
+    "company": "Synthetic Company 11",
+    "demo": false,
+    "engagement_id": null,
+    "issuer_id": "SYN11",
+    "reason": "Nature score below 25 in a high-impact sector",
+    "rule": "nature_laggard",
+    "sector": "Utilities",
+    "severity": "medium",
+    "theme": "nature",
+    "type": "score_change"
+   },
+   {
+    "company": "Synthetic Company 11",
+    "demo": false,
+    "engagement_id": null,
+    "issuer_id": "SYN11",
+    "reason": "Pay misaligned with performance for 3+ years",
+    "rule": "pay_misalignment",
+    "sector": "Utilities",
+    "severity": "medium",
+    "theme": "executive_compensation",
+    "type": "score_change"
+   }
+  ]
+ },
+ "universe": {
+  "issuers": 12,
+  "note": "SYNTHETIC, fictional data for exercising the policy graphs and back-tests. Company names, values and meetings are invented; about 10% of company values are deliberately missing. Holdings (index weight, AUM held across house portfolios) are synthetic too.",
+  "set_by": "tests",
+  "source": "sample"
+ }
+}

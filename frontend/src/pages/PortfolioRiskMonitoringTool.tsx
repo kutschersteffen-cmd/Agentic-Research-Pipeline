@@ -6,14 +6,14 @@ import { CompanyProfiles } from "./portfolio-monitoring/CompanyProfiles";
 import { AskThePortfolio } from "./portfolio-monitoring/AskThePortfolio";
 import { SupersetBI } from "./portfolio-monitoring/SupersetBI";
 import { HoldingsIntake } from "./portfolio-monitoring/HoldingsIntake";
-import { resolveSubTab, SUB_TABS } from "../lib/subTabs";
+import { openingSubTab, SUB_TABS } from "../lib/subTabs";
 
 /** One top-level tool (spec §9): a persistent portfolio/date selection
  * pane that isn't itself a sub-tab, plus one MECE sub-tab per capability
  * area. Ad-hoc slicing lives in Superset (the Dashboards tab), whose
  * native filter bar is that tab's selection UI; old pivot/superset links
  * land there (lib/subTabs). */
-type SendUniverse = (to: "transitionPlan" | "extraction", path: string, count: number) => void;
+type SendUniverse = (to: "argus" | "transitionPlan", path: string, count: number) => Promise<void> | void;
 
 export function PortfolioRiskMonitoringTool({ initialSub, onSendUniverse }: { initialSub?: string; onSendUniverse?: SendUniverse }) {
   return (
@@ -26,7 +26,7 @@ export function PortfolioRiskMonitoringTool({ initialSub, onSendUniverse }: { in
 type SubId = (typeof SUB_TABS)[number]["id"];
 
 function Inner({ initialSub, onSendUniverse }: { initialSub?: string; onSendUniverse?: SendUniverse }) {
-  const [sub, setSub] = useState<SubId>(() => resolveSubTab(initialSub, SUB_TABS));
+  const [sub, setSub] = useState<SubId>(() => openingSubTab(initialSub));
 
   return (
     <div className="page">

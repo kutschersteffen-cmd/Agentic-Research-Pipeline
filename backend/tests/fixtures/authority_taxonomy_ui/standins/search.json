@@ -1,0 +1,14 @@
+{
+  "results": [
+    {
+      "title": "EU Taxonomy hydrogen",
+      "url": "https://example.org/eu-hydrogen",
+      "snippet": "EU Taxonomy for hydrogen."
+    },
+    {
+      "title": "Blocked report",
+      "url": "https://example.org/blocked",
+      "snippet": "Report behind a paywall."
+    }
+  ]
+}

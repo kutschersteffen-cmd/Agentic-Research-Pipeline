@@ -1,0 +1,49 @@
+{
+ "held_isins": {
+  "DE0000000001": "C1",
+  "DE0000000002": "C2"
+ },
+ "universe": {
+  "engagements": [],
+  "issuers": [
+   {
+    "fields": {
+     "portfolio.ghg_intensity": 80.0,
+     "score.clti": 16
+    },
+    "holding": {
+     "aum_held_eur_m": 3.0,
+     "change_pct": 50.0,
+     "index_weight_pct": 60.0
+    },
+    "issuer_id": "C2",
+    "name": "Company C2",
+    "region": "DE",
+    "sector": "Energy"
+   },
+   {
+    "fields": {
+     "portfolio.ghg_intensity": 120.0,
+     "score.clti": 30,
+     "vote.against_management": 0,
+     "vote.against_management_non_demo": 0,
+     "vote.decided": 1,
+     "vote.last_meeting_date": "2026-05-01",
+     "vote.overrode_policy": 0
+    },
+    "holding": {
+     "aum_held_eur_m": 2.0,
+     "change_pct": 100.0,
+     "index_weight_pct": 40.0
+    },
+    "issuer_id": "C1",
+    "name": "Company C1",
+    "region": "DE",
+    "sector": "Energy"
+   }
+  ],
+  "meetings": [],
+  "note": "Companies held in the house portfolios as of 2026-10-31. CLTI scores are placeholders; weights are the share of house holdings, not an index weight.",
+  "source": "portfolio"
+ }
+}

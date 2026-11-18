@@ -1,23 +1,21 @@
+import { dimensionLabel, eurText, formatEur, valueHeader } from "../lib/askPortfolio";
 import type { AggregationResult } from "../types";
 
-function formatEur(value: number): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
-}
-
-export function AggregationResultTable({ result }: { result: AggregationResult }) {
+/** `scale` ("millions") and `unit` come with an Ask the Portfolio answer; without them figures are plain EUR. */
+export function AggregationResultTable({ result, scale, unit }: { result: AggregationResult; scale?: string; unit?: string }) {
   const weighted = result.metric === "weighted_avg_datapoint";
 
   return (
     <div>
       <p className="muted">
-        {result.spec_name} — grouped by {result.group_by}, as of {result.as_of}
+        {result.spec_name} — grouped by {dimensionLabel(result.group_by)}, as of {result.as_of}
       </p>
       <div className="table-wrap">
         <table className="data-table">
           <thead>
             <tr>
-              <th>{result.group_by}</th>
-              {weighted ? <th>Weighted avg</th> : <th>Market value (EUR)</th>}
+              <th>{dimensionLabel(result.group_by)}</th>
+              <th>{valueHeader(result.metric, scale, unit)}</th>
               {weighted && <th>Coverage</th>}
               <th>Holdings</th>
             </tr>
@@ -29,7 +27,7 @@ export function AggregationResultTable({ result }: { result: AggregationResult }
                 {weighted ? (
                   <td>{row.weighted_avg_value != null ? row.weighted_avg_value.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "no data"}</td>
                 ) : (
-                  <td>{row.market_value_eur != null ? formatEur(row.market_value_eur) : "--"}</td>
+                  <td>{row.market_value_eur != null ? formatEur(row.market_value_eur, scale) : "--"}</td>
                 )}
                 {weighted && <td>{row.coverage_pct != null ? `${(row.coverage_pct * 100).toFixed(1)}%` : "--"}</td>}
                 <td>{row.holding_count}</td>
@@ -46,8 +44,8 @@ export function AggregationResultTable({ result }: { result: AggregationResult }
         </table>
       </div>
       <p className="muted">
-        Total: EUR {formatEur(result.total_market_value_eur)}
-        {result.unresolved_market_value_eur > 0 && ` (EUR ${formatEur(result.unresolved_market_value_eur)} excluded for missing data)`}
+        Total: {eurText(result.total_market_value_eur, scale)}
+        {result.unresolved_market_value_eur > 0 && ` (${eurText(result.unresolved_market_value_eur, scale)} excluded for missing data)`}
       </p>
     </div>
   );

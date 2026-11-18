@@ -23,6 +23,7 @@ export const REVIEW_KIND_LABEL: Record<ReviewableRunKind, string> = {
   transition_plan: "Transition plan",
   tnfd: "TNFD",
   transition_barrier_derivation: "Transition barrier ratings",
+  discovery: "Document discovery",
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -57,7 +58,8 @@ function isCitationArray(v: unknown): v is Citation[] {
  * dominating the card the way a top-level JSON.stringify dump used to. */
 export function ReviewItemFields({ item, onOpenSource, reviewKind }: { item: Record<string, unknown>; onOpenSource: (s: ActiveSource) => void; reviewKind?: ReviewItemKind }) {
   const barrier = reviewKind === "barrier_cell";
-  const known = new Set([...(barrier ? ["code", "region", "kind", "current", "proposed", "values", "not_counted"] : []), "item_key", "queued_at", "company_id", "name", "ticker", "confidence", "verdict", "citations", "field", "field_id", "issuer_key", "issuer_scheme", "schema_id", "run_id", "reason_codes", "route_reasons", "adjudicator_rationale", "rationale", "failed_step_label", "error"]);
+  const discovery = reviewKind === "discovered_document" || reviewKind === "no_documents";
+  const known = new Set([...(barrier ? ["code", "region", "kind", "current", "proposed", "values", "not_counted"] : []), "item_key", "queued_at", "company_id", "name", "ticker", "confidence", "verdict", "citations", "field", "field_id", "issuer_key", "issuer_scheme", "schema_id", "run_id", "reason_codes", "route_reasons", "adjudicator_rationale", "rationale", "failed_step_label", "error", ...(discovery ? ["url", "company_match", "homepage_used", "homepage_unreachable", "crawl_error"] : [])]);
   // Per-field extraction rows carry the field itself; old rows keep these at top level.
   const field = (item.field ?? null) as { field_name?: string; value?: unknown; value_state?: ExtractedField["value_state"]; unit?: string | null; period_end?: string | null; citations?: unknown; confidence?: number } | null;
   const citations = item.citations ?? field?.citations;
@@ -79,6 +81,17 @@ export function ReviewItemFields({ item, onOpenSource, reviewKind }: { item: Rec
         </span>
       </div>
       {barrier && <BarrierItemFields item={item} />}
+      {reviewKind === "discovered_document" && (
+        <p>
+          <span className="mono">{String(item.url ?? "")}</span>
+          <span className="muted"> · company match: {String(item.company_match ?? "").replaceAll("_", " ")}</span>
+        </p>
+      )}
+      {reviewKind === "no_documents" && (
+        <p className="muted">
+          {item.homepage_unreachable ? `Homepage unreachable: ${String(item.crawl_error ?? "")}` : item.homepage_used ? `Homepage ${String(item.homepage_used)} had no documents` : "No homepage found"}
+        </p>
+      )}
       {field?.field_name && (
         <p>
           {field.field_name}: <strong>{valueLabel(field as ExtractedField)}</strong>

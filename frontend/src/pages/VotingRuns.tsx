@@ -132,7 +132,7 @@ export function VotingRuns({ selectedRunId, onSelectRun }: { selectedRunId: stri
         />
         {universePath && (
           <p className="status-text">
-            {companyCount} companies loaded from {universePath}
+            {companyCount} companies loaded from {universePath.split(/[\\/]/).pop()}
           </p>
         )}
         <button onClick={startRun} disabled={starting || !universePath}>

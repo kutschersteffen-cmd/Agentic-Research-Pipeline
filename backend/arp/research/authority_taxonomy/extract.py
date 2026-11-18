@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -7,7 +8,7 @@ from pydantic import BaseModel, Field
 from arp.grounding import ground_citations
 from arp.ingestion.parsing import chunk_document
 from arp.llm.base import LLMClient, LLMUsage
-from arp.research.authority_taxonomy.checklist import AUTHORITY_CHECKLIST
+from arp.research.authority_taxonomy.checklist import AUTHORITY_CHECKLIST, INDEX_RULES_CHECKLIST, ChecklistItem
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.authority_taxonomy import (
     ActivityCriterion,
@@ -111,7 +112,33 @@ class _ThresholdsDraft(BaseModel):
     thresholds: list[_ThresholdItem] = Field(default_factory=list)
 
 
+class IndexRuleItem(BaseModel):
+    text: str
+    quote: str = _QUOTE
+
+
+class IndexRulesDraft(BaseModel):
+    rules: list[IndexRuleItem] = Field(default_factory=list)
+
+
+# A Markdown heading, or a short unpunctuated line: extract_html_text and pypdf drop heading markup, so a
+# title-like line is all that is left of one. shortcut: also matches short list items, fine for a location hint.
+_HEADING_RE = re.compile(r"^(?:#{1,6}\s+(.+?)|([A-Z0-9][^\n.;:,!?]{2,79}?))\s*$", re.MULTILINE)
+
+
+class StatedRule(BaseModel):
+    """A stated index rule; `quote` is the document's own text the model's quote grounded to."""
+
+    kind: str
+    text: str
+    quote: str
+    source: str
+
+
+_RULE_KEYS = {i.key for i in INDEX_RULES_CHECKLIST}
+
 _DRAFTS: dict[str, type[BaseModel]] = {
+    **dict.fromkeys(_RULE_KEYS, IndexRulesDraft),
     "theme_description": _ThemeDescriptionDraft,
     "activities": _ActivitiesDraft,
     "boundaries": _BoundariesDraft,
@@ -131,28 +158,47 @@ class SourceExtraction(BaseModel):
     definitions: list[Definition] = Field(default_factory=list)
     thresholds: list[Threshold] = Field(default_factory=list)
     sector_codes: list[SectorCode] = Field(default_factory=list)
+    rules: list[StatedRule] = Field(default_factory=list)
     report: dict[str, Literal["found", "not_in_source"]] = Field(default_factory=dict)
     usage: LLMUsage = Field(default_factory=LLMUsage)
 
 
 async def extract_source(
-    url: str, text: str, *, theme_name: str, scope: str, value_chain: bool, llm: LLMClient
+    url: str, text: str, *, theme_name: str, scope: str, value_chain: bool, llm: LLMClient,
+    checklist: list[ChecklistItem] = AUTHORITY_CHECKLIST, page_breaks: list[int] | None = None,
 ) -> SourceExtraction:
     """One schema-forced LLM call per checklist item over the chunks relevant to it (the whole
     document is chunked, so nothing past a fixed prefix is lost). Every element must quote the
     source; an element whose quote fails grounding is dropped."""
-    doc = SourceDocument(company_id=url, doc_type=DocType.OTHER, title=url, source_url=url, full_text=text)
+    doc = SourceDocument(company_id=url, doc_type=DocType.OTHER, title=url, source_url=url, full_text=text, page_breaks=page_breaks or [])
     chunks = chunk_document(doc)
     docs_by_id = {doc.doc_id: doc}
 
-    def ground(quote: str) -> list[SourceCitation]:
+    def locate(quote: str) -> tuple[str, str] | None:
+        """(grounded span, location) for a quote, None when it does not ground. The location is the
+        page when the parse has pages, else the nearest section heading above the quote."""
+        if not quote:
+            return None
         c = Citation(doc_id=doc.doc_id, doc_type=DocType.OTHER, quote=quote, location=url)
-        grounded = ground_citations([c], docs_by_id, _FUZZY_THRESHOLD)[0]
-        return [SourceCitation(quote=grounded.quote, source_url=url)] if quote and grounded.grounded else []
+        g = ground_citations([c], docs_by_id, _FUZZY_THRESHOLD)[0]
+        if not g.grounded:
+            return None
+        if g.page is not None:
+            return g.span_text, f"p. {g.page}"
+        heads = list(_HEADING_RE.finditer(text, 0, g.char_start))
+        return g.span_text, (heads[-1].group(1) or heads[-1].group(2)).strip() if heads else ""
+
+    def span(quote: str) -> str | None:
+        """The document text the quote grounds to, None when it does not ground."""
+        return hit[0] if (hit := locate(quote)) else None
+
+    def ground(quote: str) -> list[SourceCitation]:
+        hit = locate(quote)
+        return [SourceCitation(quote=quote, source_url=url, location=hit[1])] if hit else []
 
     out = SourceExtraction(url=url)
     boundaries: list[_BoundaryItem] = []
-    for item in AUTHORITY_CHECKLIST:
+    for item in checklist:
         if item.key == "value_chain" and not value_chain:
             continue
         selected = select_relevant_chunks(chunks, item.keywords + [theme_name], max_chunks=6, fallback_to_all=False)
@@ -165,7 +211,13 @@ async def extract_source(
             )
             out.usage.input_tokens += usage.input_tokens
             out.usage.output_tokens += usage.output_tokens
-            found = _apply(item.key, draft, out, ground, boundaries)
+            if item.key in _RULE_KEYS:
+                n = len(out.rules)
+                out.rules += [StatedRule(kind=item.key, text=r.text, quote=q, source=url)
+                              for r in draft.rules if (q := span(r.quote)) is not None]
+                found = len(out.rules) > n
+            else:
+                found = _apply(item.key, draft, out, ground, boundaries)
         out.report[item.key] = "found" if found else "not_in_source"
 
     # Boundaries run before the activities they refer to may exist (value_chain comes later), so attach at the end.

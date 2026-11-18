@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../../api/client";
 import { FileLink } from "../../components/FileLink";
+import { usePortfolioPane } from "../../context/usePortfolioPane";
 import { announce } from "../../lib/announce";
 import { ageLabel, needsOverrideReason, parseIntakeError, previousMonth, rowErrorText } from "../../lib/holdings";
 import type { HolderStatus, IntakeResult, RowError } from "../../types";
@@ -15,8 +16,9 @@ const summary = (r: IntakeResult): string =>
 
 type RunStatus = Awaited<ReturnType<typeof api.monthlyRunStatus>>;
 
-/** Read-only view of what a month's run needs (computed on demand by the backend), plus a manual run. */
-function MonthlyRunPanel() {
+/** Read-only view of what a month's run needs (computed on demand by the backend), plus a manual run.
+ * `reloadKey` changes when an upload on this page may have changed the month's loads. */
+function MonthlyRunPanel({ reloadKey }: { reloadKey: number }) {
   const [month, setMonth] = useState(() => previousMonth(new Date()));
   const [status, setStatus] = useState<RunStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +28,7 @@ function MonthlyRunPanel() {
   const load = (m: string) => api.monthlyRunStatus(m).then((s) => { setStatus(s); setError(null); }, (e: Error) => { setStatus(null); setError(e.message); });
   useEffect(() => {
     if (month) void load(month);
-  }, [month]);
+  }, [month, reloadKey]);
 
   async function run() {
     setRunning(true);
@@ -92,6 +94,10 @@ export function HoldingsIntake() {
   const [asOf, setAsOf] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [provider, setProvider] = useState("default");
+  const [decimal, setDecimal] = useState<"." | ",">(".");
+  const [weightUnit, setWeightUnit] = useState<"percent" | "fraction">("percent");
+  const [uploads, setUploads] = useState(0);
+  const { refreshPortfolios } = usePortfolioPane();
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ message: string; errors: RowError[] } | null>(null);
@@ -134,13 +140,17 @@ export function HoldingsIntake() {
     setError(null);
     setNotice(null);
     try {
-      const msg = summary(await api.uploadHoldings({ file, holder_id: holderId.trim(), kind, as_of: asOf, provider, override_reason: reason.trim() || undefined }));
+      const msg = summary(await api.uploadHoldings({
+        file, holder_id: holderId.trim(), kind, as_of: asOf, provider, decimal, weight_unit: weightUnit, override_reason: reason.trim() || undefined,
+      }));
       setNotice(msg);
       announce(msg);
       setFile(null);
       if (fileRef.current) fileRef.current.value = "";
       setReason("");
       void load();
+      void refreshPortfolios(); // a new holder is a new portfolio in the pane
+      setUploads((n) => n + 1);
     } catch (err) {
       const parsed = parseIntakeError(err as Error);
       setError(parsed);
@@ -163,6 +173,7 @@ export function HoldingsIntake() {
       announce(msg);
       setEsgFile(null);
       if (esgFileRef.current) esgFileRef.current.value = "";
+      setUploads((n) => n + 1);
     } catch (err) {
       setEsgError(parseIntakeError(err as Error));
     } finally {
@@ -189,7 +200,7 @@ export function HoldingsIntake() {
             <tr key={`${h.kind}/${h.holder_id}`}>
               <td>{h.name || h.holder_id}</td>
               <td>{h.kind}</td>
-              <td>{h.source}</td>
+              <td>{h.source ?? "—"}</td>
               <td>{h.as_of ?? "—"}</td>
               <td>{ageLabel(h.age_days)}</td>
               <td>{h.last_pull_at ? new Date(h.last_pull_at).toLocaleString() : "—"}</td>
@@ -209,7 +220,7 @@ export function HoldingsIntake() {
       </table>
       </div>
 
-      <MonthlyRunPanel />
+      <MonthlyRunPanel reloadKey={uploads} />
 
       <h3>Templates</h3>
       <p>
@@ -247,6 +258,20 @@ export function HoldingsIntake() {
         <label className="field-label">
           Provider
           <input value={provider} onChange={(e) => setProvider(e.target.value)} />
+        </label>
+        <label className="field-label">
+          Decimal separator
+          <select value={decimal} onChange={(e) => setDecimal(e.target.value as "." | ",")}>
+            <option value=".">Point (1,234.56)</option>
+            <option value=",">Comma (1.234,56)</option>
+          </select>
+        </label>
+        <label className="field-label">
+          Weights are
+          <select value={weightUnit} onChange={(e) => setWeightUnit(e.target.value as "percent" | "fraction")}>
+            <option value="percent">Percent (5 = 5%)</option>
+            <option value="fraction">Fraction (0.05 = 5%)</option>
+          </select>
         </label>
         <label className="field-label">
           Override reason (optional)

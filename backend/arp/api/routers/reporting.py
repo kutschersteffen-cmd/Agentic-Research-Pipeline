@@ -1,18 +1,23 @@
 from __future__ import annotations
 
+import shutil
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from arp.api.deps import get_llm_client, get_reporting_store
+from arp.reporting.browser import write_pngs
 from arp.reporting.datasets import parse_tabular_upload
 from arp.reporting.preview import ensure_preview_images
 from arp.reporting.service import ReportingService
+from arp.reporting.storyline import _errors as storyline_errors
 from arp.reporting.style_profile import ingest_template
+from arp.reporting.template_frame import TemplateFrameError, font_family_of, frame_preview_html
 from arp.schemas.reporting import ReportManifest, ReportPlan, ReportRequest, ReportStatus, Storyline
 from arp.storage.reporting_store import ReportingStore
+from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
 router = APIRouter(prefix="/api/reports", tags=["reporting"])
 
@@ -34,18 +39,48 @@ def _get_manifest_or_404(store: ReportingStore, report_id: str):
 
 
 @router.post("/templates")
-async def upload_template(file: UploadFile, store: ReportingStore = Depends(get_reporting_store)) -> dict:
+async def upload_template(
+    file: UploadFile, fonts: list[UploadFile] = File(default=[]), layout_name: str | None = Form(None),
+    store: ReportingStore = Depends(get_reporting_store),
+) -> dict:
     """Ingests a .pptx template so the Content Planner and DeckBuilder can
     match its style (layouts, theme colors/fonts) for every subsequent
     presentation generated with this template_id."""
     if not file.filename or not file.filename.lower().endswith(".pptx"):
         raise HTTPException(400, "Template must be a .pptx file")
+    names = [Path(f.filename or "").name for f in fonts]  # never a path from the client
+    if bad := [n for n in names if font_family_of(n) is None]:
+        raise HTTPException(400, f"Font files must be named <Family>-<weight>.ttf, .otf or .woff2 (got {', '.join(bad)})")
     content = await file.read()
-    with tempfile.NamedTemporaryFile(suffix=".pptx") as tmp:
-        tmp.write(content)
-        tmp.flush()
-        style = ingest_template(store, Path(tmp.name), file.filename)
-    return style.model_dump(mode="json")
+    with tempfile.TemporaryDirectory() as tmp:
+        pptx = Path(tmp) / "template.pptx"
+        pptx.write_bytes(content)
+        saved = []
+        for name, f in zip(names, fonts, strict=True):
+            (Path(tmp) / name).write_bytes(await f.read())
+            saved.append((name, Path(tmp) / name))
+        style = ingest_template(store, pptx, file.filename, saved, layout_name)
+    out = style.model_dump(mode="json")
+    if style.frame is not None:
+        out["preview_png"] = f"/api/reports/templates/{style.template_id}/preview.png"
+    return out
+
+
+@router.get("/templates/{template_id}/preview.png")
+async def template_preview(template_id: str, store: ReportingStore = Depends(get_reporting_store)) -> FileResponse:
+    """The template's frame drawn on a blank slide; 404 when the template can't frame a house deck."""
+    try:
+        style = store.load_template_style(template_id)
+    except UnsafeIdentifierError as exc:
+        raise HTTPException(404, "Template not found") from exc
+    if style is None or style.frame is None:
+        raise HTTPException(404, "Template has no frame")
+    out = store.template_dir(template_id) / "preview.png"
+    if not out.exists():
+        with tempfile.TemporaryDirectory() as tmp:
+            [png] = await write_pngs(frame_preview_html(style.frame), Path(tmp), scale=1)
+            shutil.move(png, out)
+    return FileResponse(out, media_type="image/png")
 
 
 @router.get("/templates")
@@ -87,7 +122,10 @@ async def create_report(
     edited (GET/PUT .../plan) before a separate POST .../render call."""
     llm = get_llm_client()
     service = ReportingService(store)
-    manifest = await service.create_and_plan(request, llm)
+    try:
+        manifest = await service.create_and_plan(request, llm)
+    except TemplateFrameError as exc:
+        raise HTTPException(422, str(exc)) from exc
     if render and manifest.status == ReportStatus.PLAN_READY:  # a house deck waits for storyline approval instead
         manifest = await service.render_from_plan(manifest.report_id)
     return manifest.model_dump(mode="json")
@@ -101,6 +139,28 @@ def list_reports(store: ReportingStore = Depends(get_reporting_store)) -> dict:
 @router.get("/{report_id}")
 def get_report(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> dict:
     return _get_manifest_or_404(store, report_id).model_dump(mode="json")
+
+
+_DISCARDABLE = (ReportStatus.PLAN_READY, ReportStatus.STORYLINE_READY, ReportStatus.FAILED)
+
+
+@router.delete("/{report_id}", status_code=204)
+def discard_report(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> None:
+    """Removes an unfinished report's folder. A finished one, or one still being worked on, is never removed."""
+    try:
+        folder = store.reports_dir / safe_id(report_id, label="report_id")
+    except UnsafeIdentifierError:
+        raise HTTPException(404, "Report not found") from None
+    # exists() first: load_manifest goes through report_dir(), which would create the folder it is asked about
+    manifest = store.load_manifest(report_id) if folder.exists() else None
+    if manifest is None:
+        raise HTTPException(404, "Report not found")
+    if manifest.status not in _DISCARDABLE:
+        raise HTTPException(409, f"Only an unfinished report can be discarded (status: {manifest.status.value}).")
+    if manifest.output_filename:
+        # a failed re-render sets a finished report to `failed` and keeps its output: that file was delivered
+        raise HTTPException(409, f"Only an unfinished report can be discarded (status: {manifest.status.value}, with a finished output).")
+    shutil.rmtree(folder)
 
 
 @router.get("/{report_id}/plan")
@@ -150,6 +210,8 @@ def update_storyline(report_id: str, storyline: Storyline, store: ReportingStore
     _unapproved_storyline(store, report_id)
     if not storyline.slides or any(not s.headline.strip() for s in storyline.slides):
         raise HTTPException(422, "Storyline needs at least one slide and no blank headlines")
+    if errors := storyline_errors(storyline):  # the deck build would fail on them after approval
+        raise HTTPException(422, "Storyline: " + "; ".join(errors))
     storyline.approved = False  # only POST .../approve approves
     store.save_storyline(report_id, storyline)
     return storyline.model_dump(mode="json")
@@ -194,6 +256,10 @@ def download_report(report_id: str, file: str | None = None, store: ReportingSto
     manifest = _get_manifest_or_404(store, report_id)
     if manifest.output_filename is None:
         raise HTTPException(409, "Report has not been rendered yet")
+    deck = store.load_deck(report_id)
+    flagged = next((n for n, s in enumerate(deck.slides, 1) if s.needs_review), None) if deck else None
+    if flagged is not None:
+        raise HTTPException(409, f"Slide {flagged} needs review")
     if file is not None and file not in manifest.output_files:
         raise HTTPException(404, "No such output file for this report")
     filename = file or manifest.output_filename
@@ -206,6 +272,18 @@ def download_report(report_id: str, file: str | None = None, store: ReportingSto
         filename=f"{manifest.title or report_id}.{ext}",
         media_type=_CONTENT_TYPES.get(ext, "application/octet-stream"),
     )
+
+
+@router.post("/{report_id}/slides/{n}/approve")
+def approve_slide(report_id: str, n: int, store: ReportingStore = Depends(get_reporting_store)) -> dict:
+    """Accept slide `n` (1-based) as it is: clears the fit ladder's `needs_review`, which unblocks the download."""
+    _get_manifest_or_404(store, report_id)
+    deck = store.load_deck(report_id)
+    if deck is None or not 1 <= n <= len(deck.slides):
+        raise HTTPException(404, "Slide not found")
+    deck.slides[n - 1].needs_review = False
+    store.save_deck(report_id, deck)
+    return deck.slides[n - 1].model_dump(mode="json")
 
 
 # ---- Preview (page/slide thumbnails, rendered in-browser) -------------------

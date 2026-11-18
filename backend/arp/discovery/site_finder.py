@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -20,6 +21,27 @@ class SearchResult(BaseModel):
     title: str
     url: str
     snippet: str = ""
+
+
+class SearchBlocked(RuntimeError):
+    """The search engine answered with a bot challenge (DuckDuckGo's HTTP 202) instead of results."""
+
+
+class SearchUnreachable(RuntimeError):
+    """Every query of one feature call failed: the web search could not be reached."""
+
+
+@dataclass
+class SearchReport:
+    """One feature call's queries. `unreachable` when every query failed (a connection error, an HTTP error status
+    or a bot challenge); a search that worked and found nothing is not unreachable."""
+
+    queries: int = 0
+    failed: int = 0
+
+    @property
+    def unreachable(self) -> bool:
+        return self.queries > 0 and self.failed == self.queries
 
 
 class WebSearchClient(ABC):
@@ -47,8 +69,7 @@ class DuckDuckGoSearchClient(WebSearchClient):
             resp = await client.get(self._URL, params={"q": query})
             resp.raise_for_status()
         if resp.status_code == 202:  # DuckDuckGo's bot challenge page, not results
-            logger.warning("DuckDuckGo returned a bot challenge for %r; no search results", query)
-            return []
+            raise SearchBlocked(f"DuckDuckGo answered a bot challenge for {query!r}")
         soup = BeautifulSoup(resp.text, "lxml")
         results: list[SearchResult] = []
         for a in soup.select("a.result__a")[:max_results]:

@@ -18,6 +18,7 @@ import type {
 import { activatable } from "../lib/activatable";
 import { ConfirmSignedIn } from "../components/ConfirmSignedIn";
 import { TaxonomySchemaLine } from "../components/TaxonomySchemaLine";
+import { builtUniverseLine, fundSearchEmptyText } from "../lib/universeBuilder";
 
 const METHOD_LABELS: Record<DerivationMethod, string> = {
   llm_draft: "LLM draft (freeform)",
@@ -27,6 +28,7 @@ const METHOD_LABELS: Record<DerivationMethod, string> = {
   news_transcript_mining: "News & earnings-call transcript mining",
   empirical: "Empirical (Extraction Engine readings)",
   emerging_signal_discovery: "Emerging Themes Scanner (Tool 0)",
+  stock_inference: "Inferred from stocks",
   merged: "Merged from existing taxonomies",
   manual: "Manual / hand-authored",
 };
@@ -34,7 +36,6 @@ const METHOD_LABELS: Record<DerivationMethod, string> = {
 const CREATABLE_METHODS: DerivationMethod[] = [
   "llm_draft",
   "industry_anchored",
-  "authority_source",
   "news_transcript_mining",
 ];
 
@@ -59,14 +60,18 @@ export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
     setTaxonomies(res.taxonomies);
   }
 
+  // Reloaded on every sub-tab, so a taxonomy created elsewhere (another tab, the API) shows up in the pickers.
   useEffect(() => {
     refreshLibrary();
-  }, []);
+  }, [sub]);
 
   return (
     <div className="page">
       <h1>Taxonomy Library</h1>
       <p className="help-text">Versioned thematic taxonomies with provenance: draft one from a source, news or transcripts, then review, ratify, compare and merge.</p>
+      <div className="inline-block">
+        <button onClick={() => { window.location.hash = "#/taxonomy/authority"; }}>Build from authority sources</button>
+      </div>
       <nav className="sub-nav">
         {SUB_TABS.map((t) => (
           <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} aria-pressed={t.id === sub} onClick={() => setSub(t.id)}>
@@ -293,47 +298,21 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
   const [mineNews, setMineNews] = useState(true);
   const [universePath, setUniversePath] = useState<string | null>(null);
 
-  const [authorityCandidates, setAuthorityCandidates] = useState<SourceCandidate[]>([]);
-  const [selectedAuthority, setSelectedAuthority] = useState<Set<string>>(new Set());
-
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Taxonomy | null>(null);
   const [draftActivities, setDraftActivities] = useState<ActivityDefinition[]>([]);
 
-  async function discoverAuthoritySources() {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = (await api.discoverTaxonomySources(name)) as { authority_sources: SourceCandidate[] };
-      setAuthorityCandidates(res.authority_sources);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function toggleAuthority(candidateId: string) {
-    setSelectedAuthority((prev) => {
-      const next = new Set(prev);
-      if (next.has(candidateId)) next.delete(candidateId);
-      else next.add(candidateId);
-      return next;
-    });
-  }
-
   async function draftTaxonomy() {
     setBusy(true);
     setError(null);
     try {
-      const authorityUrls = authorityCandidates.filter((c) => selectedAuthority.has(c.candidate_id)).map((c) => c.url);
       const payload = {
         name,
         description,
         derivation_method: method,
         use_sample_io: useSampleIo,
-        authority_urls: authorityUrls,
+        authority_urls: [], // still sent, empty: the create request keeps its shape
         universe_path: universePath,
         mine_news: mineNews,
       };
@@ -395,15 +374,6 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
             <input type="checkbox" checked={useSampleIo} onChange={(e) => setUseSampleIo(e.target.checked)} />
             Anchor against the bundled sample input-output industry list
           </label>
-        )}
-
-        {method === "authority_source" && (
-          <div className="inline-block">
-            <button onClick={discoverAuthoritySources} disabled={busy || !name}>
-              Discover authority sources
-            </button>
-            <SourceDiscoveryPanel candidates={authorityCandidates} selected={selectedAuthority} onToggle={toggleAuthority} />
-          </div>
         )}
 
         {method === "news_transcript_mining" && (
@@ -599,6 +569,7 @@ function CompareMergeView({ taxonomies, onSaved }: { taxonomies: Taxonomy[]; onS
 function UniverseBuilderView() {
   const [query, setQuery] = useState("S&P 500");
   const [funds, setFunds] = useState<SourceCandidate[]>([]);
+  const [searched, setSearched] = useState<{ search_unreachable: boolean } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -608,8 +579,9 @@ function UniverseBuilderView() {
     setBusy(true);
     setError(null);
     try {
-      const res = (await api.discoverTaxonomySources(query)) as { thematic_funds: SourceCandidate[] };
+      const res = (await api.discoverTaxonomySources(query)) as { thematic_funds: SourceCandidate[]; search_unreachable: boolean };
       setFunds(res.thematic_funds);
+      setSearched(res);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -652,7 +624,7 @@ function UniverseBuilderView() {
         <button onClick={search} disabled={busy || !query}>
           Search
         </button>
-        <SourceDiscoveryPanel candidates={funds} selected={selected} onToggle={toggle} />
+        <SourceDiscoveryPanel candidates={funds} selected={selected} onToggle={toggle} emptyText={fundSearchEmptyText(searched)} />
         <p className="help-text">
           Fund-provider export formats aren't standardized and several finance domains are unreachable for automated
           fetching, so download the constituents CSV from the fund's site, then upload it below to build the
@@ -666,10 +638,7 @@ function UniverseBuilderView() {
         {error && <p className="error-text" role="alert">{error}</p>}
         {result && (
           <>
-            <p className="status-text">
-              Built {result.company_count} companies — saved at <code>{result.path}</code>. Use this path as the
-              universe for the news-mining derivation method or the Thematic Universe Builder.
-            </p>
+            <p className="status-text">{builtUniverseLine(result)}</p>
             <div className="table-wrap">
               <table className="data-table">
                 <thead>
