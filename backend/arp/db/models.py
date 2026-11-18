@@ -722,6 +722,27 @@ class RfpQuestion(Base):
     sources: Mapped[list] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))  # {entry_id, quote}
     assignee: Mapped[str | None] = mapped_column(Text)
     last_editor: Mapped[str | None] = mapped_column(Text)
+    # set at drafting; the base entry stays when that entry is retired, so no foreign key
+    base_entry_id: Mapped[int | None] = mapped_column(BigInteger)
+    document_priority: Mapped[int | None] = mapped_column(Integer)  # 0: no document source; null: nothing drafted
+
+
+class RfpReferenceDocument(Base):
+    """A PDF or Word document auto-fill falls back to when approved answers do not answer a question; priority 1 first."""
+
+    __tablename__ = "rfp_reference_documents"
+
+    id: Mapped[int] = _id()
+    title: Mapped[str] = mapped_column(Text)
+    filename: Mapped[str] = mapped_column(Text)
+    content_key: Mapped[str] = mapped_column(Text)  # the original file in the blob store
+    full_text: Mapped[str] = mapped_column(Text)
+    page_breaks: Mapped[list] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))  # empty for Word
+    document_date: Mapped[date] = mapped_column(Date)
+    review_by: Mapped[date] = mapped_column(Date)
+    priority: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"))
+    status: Mapped[str] = mapped_column(Text, default="active", server_default="active")  # active | retired
+    uploaded_by: Mapped[str] = mapped_column(Text)
 
 
 class RefineTurn(Base):

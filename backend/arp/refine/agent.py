@@ -99,7 +99,7 @@ def _result(reply: str, changed=(), not_changed=(), check_figures=()) -> dict:
 
 
 async def run_turn(turn_id: int, kind: str, doc_id: str, message: str, history: list[dict], llm: LLMClient,
-                   store: ReportingStore, *, today: date) -> None:
+                   store: ReportingStore, *, today: date, verifier: LLMClient | None = None) -> None:
     try:
         if kind == "rfp":
             with transaction() as s:
@@ -119,7 +119,7 @@ async def run_turn(turn_id: int, kind: str, doc_id: str, message: str, history: 
         ops = [op.model_dump(exclude_none=True) for op in out.ops]
         if kind == "rfp":
             save_progress(turn_id, ops=ops, result=_result(out.reply))  # the reply shows while answers arrive
-            r = await apply_rfp_ops(turn_id, int(doc_id), ops, llm, today=today)
+            r = await apply_rfp_ops(turn_id, int(doc_id), ops, llm, today=today, verifier=verifier)
             save_progress(turn_id, result=_result(out.reply, r["changed"], r["not_changed"]))
         else:
             request = store.load_request(doc_id)

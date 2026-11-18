@@ -1,0 +1,3747 @@
+{
+ "/api/stewardship/decision-inputs": {
+  "in_scope": 12,
+  "published": []
+ },
+ "/api/stewardship/selection": {
+  "current": true,
+  "rows": []
+ },
+ "/api/stewardship/streams/house/flow": {
+  "data_note": "Meeting and company data are a synthetic sample (fictional companies); engagement data is live.",
+  "edges": [
+   {
+    "from": "monitoring",
+    "to": "selection"
+   },
+   {
+    "from": "selection",
+    "to": "drafting"
+   },
+   {
+    "from": "drafting",
+    "to": "voting"
+   },
+   {
+    "from": "voting",
+    "to": "checkpoint"
+   },
+   {
+    "from": "checkpoint",
+    "to": "tracking"
+   },
+   {
+    "from": "tracking",
+    "label": "missed commitments, stalls",
+    "to": "monitoring"
+   },
+   {
+    "from": "monitoring",
+    "to": "client_policy"
+   },
+   {
+    "from": "checkpoint",
+    "to": "client_policy"
+   },
+   {
+    "from": "client_policy",
+    "label": "client exceptions",
+    "to": "checkpoint"
+   },
+   {
+    "from": "client_policy",
+    "to": "reporting"
+   }
+  ],
+  "stages": [
+   {
+    "decisions": [],
+    "details": [],
+    "id": "monitoring",
+    "layer": "house",
+    "metrics": [
+     {
+      "hint": null,
+      "label": "Companies monitored",
+      "source": "sample",
+      "tone": "neutral",
+      "value": 12
+     },
+     {
+      "hint": null,
+      "label": "Values missing",
+      "source": "sample",
+      "tone": "warn",
+      "value": "11%"
+     },
+     {
+      "hint": "By the active monitoring rules, on company data",
+      "label": "Triggers raised",
+      "source": "sample",
+      "tone": "neutral",
+      "value": 8
+     },
+     {
+      "hint": "Missed or overdue commitments and stalled engagements (stage 6)",
+      "label": "Tracking triggers",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     },
+     {
+      "hint": "Companies with a trigger and no open engagement on its theme",
+      "label": "Without an engagement",
+      "source": "sample",
+      "tone": "warn",
+      "value": 6
+     },
+     {
+      "hint": "Engagements opened by the controversy screen, the SLA sweep or a monitoring rule",
+      "label": "Opened by triggers",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": "No activity for 45 days",
+      "label": "Stalled engagements",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     }
+    ],
+    "number": 1,
+    "status": "partial",
+    "summary": "Watches every in-scope holding and raises triggers.",
+    "title": "Continuous Monitoring & Detection"
+   },
+   {
+    "decisions": [],
+    "details": [
+     {
+      "label": "Confirmed coverage tiers",
+      "rows": [
+       {
+        "companies": 0,
+        "tier": "Bilateral"
+       },
+       {
+        "companies": 0,
+        "tier": "Letter"
+       },
+       {
+        "companies": 0,
+        "tier": "Monitor"
+       }
+      ]
+     }
+    ],
+    "id": "selection",
+    "layer": "house",
+    "metrics": [
+     {
+      "hint": null,
+      "label": "Open engagements",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": null,
+      "label": "Awaiting research",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": "Coverage tiers (E1) from the house coverage rules",
+      "label": "Tiers confirmed",
+      "source": "sample",
+      "tone": "warn",
+      "value": "0 of 12"
+     }
+    ],
+    "number": 2,
+    "status": "partial",
+    "summary": "Assigns coverage tiers and opens engagements; researches every new one.",
+    "title": "Research & Selection"
+   },
+   {
+    "decisions": [],
+    "details": [],
+    "id": "drafting",
+    "layer": "house",
+    "metrics": [
+     {
+      "hint": null,
+      "label": "Summaries to draft",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": null,
+      "label": "Awaiting response",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": null,
+      "label": "Drafts at the checkpoint",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     },
+     {
+      "hint": "Sent outreach tagged advocacy/pressure (E6)",
+      "label": "Advocacy / pressure",
+      "source": "live",
+      "tone": "neutral",
+      "value": "0 of 0"
+     },
+     {
+      "hint": "E8 phrase blocklist, on drafts not yet approved",
+      "label": "Style flags open",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     }
+    ],
+    "number": 3,
+    "status": "live",
+    "summary": "Prepares outreach and meeting summaries; tags advocacy interactions.",
+    "title": "Drafting"
+   },
+   {
+    "decisions": [],
+    "details": [
+     {
+      "label": "Most frequent reasons to vote against",
+      "rows": [
+       {
+        "issue": "board.committee_independence",
+        "resolutions": 7
+       },
+       {
+        "issue": "board.attendance",
+        "resolutions": 4
+       },
+       {
+        "issue": "pay.performance_alignment",
+        "resolutions": 3
+       },
+       {
+        "issue": "capital.share_issuance",
+        "resolutions": 3
+       },
+       {
+        "issue": "capital.share_buybacks",
+        "resolutions": 3
+       },
+       {
+        "issue": "audit.financial_statements",
+        "resolutions": 3
+       }
+      ]
+     },
+     {
+      "label": "Votes decided in Proxy Voting",
+      "rows": []
+     }
+    ],
+    "id": "voting",
+    "layer": "house",
+    "metrics": [
+     {
+      "hint": "Evaluated with the policy graph",
+      "label": "Resolutions",
+      "source": "sample",
+      "tone": "neutral",
+      "value": 170
+     },
+     {
+      "hint": null,
+      "label": "Expected against",
+      "source": "sample",
+      "tone": "neutral",
+      "value": "21%"
+     },
+     {
+      "hint": null,
+      "label": "Case-by-case",
+      "source": "sample",
+      "tone": "neutral",
+      "value": 3
+     },
+     {
+      "hint": "Votes against because an engagement reached the vote step",
+      "label": "Sanction votes",
+      "source": "sample",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": "From Proxy Voting runs; the rest await a person",
+      "label": "Ballot items decided",
+      "source": "live",
+      "tone": "neutral",
+      "value": "\u2014"
+     },
+     {
+      "hint": null,
+      "label": "Against management",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     }
+    ],
+    "number": 4,
+    "status": "partial",
+    "summary": "Expected votes from the policy graph; checks votes cast; feeds vote outcomes back as triggers.",
+    "title": "Link Engagement \u2194 Voting"
+   },
+   {
+    "decisions": [
+     {
+      "company": "Synthetic Company 01",
+      "current": "none",
+      "issuer_id": "SYN01",
+      "kind": "tier_change",
+      "proposed": "Letter",
+      "reason": "Default: baseline coverage",
+      "rule": "default"
+     },
+     {
+      "company": "Synthetic Company 02",
+      "current": "none",
+      "issuer_id": "SYN02",
+      "kind": "tier_change",
+      "proposed": "Letter",
+      "reason": "High-emitting sector",
+      "rule": "high_emitter"
+     },
+     {
+      "company": "Synthetic Company 03",
+      "current": "none",
+      "issuer_id": "SYN03",
+      "kind": "tier_change",
+      "proposed": "Bilateral",
+      "reason": "Index weight of 1% or more",
+      "rule": "top_weight"
+     },
+     {
+      "company": "Synthetic Company 04",
+      "current": "none",
+      "issuer_id": "SYN04",
+      "kind": "tier_change",
+      "proposed": "Letter",
+      "reason": "High-emitting sector",
+      "rule": "high_emitter"
+     },
+     {
+      "company": "Synthetic Company 05",
+      "current": "none",
+      "issuer_id": "SYN05",
+      "kind": "tier_change",
+      "proposed": "Letter",
+      "reason": "High-emitting sector",
+      "rule": "high_emitter"
+     },
+     {
+      "company": "Synthetic Company 06",
+      "current": "none",
+      "issuer_id": "SYN06",
+      "kind": "tier_change",
+      "proposed": "Letter",
+      "reason": "Default: baseline coverage",
+      "rule": "default"
+     },
+     {
+      "company": "Synthetic Company 07",
+      "current": "none",
+      "issuer_id": "SYN07",
+      "kind": "tier_change",
+      "proposed": "Bilateral",
+      "reason": "Index weight of 1% or more",
+      "rule": "top_weight"
+     },
+     {
+      "company": "Synthetic Company 08",
+      "current": "none",
+      "issuer_id": "SYN08",
+      "kind": "tier_change",
+      "proposed": "Letter",
+      "reason": "Default: baseline coverage",
+      "rule": "default"
+     },
+     {
+      "company": "Synthetic Company 09",
+      "current": "none",
+      "issuer_id": "SYN09",
+      "kind": "tier_change",
+      "proposed": "Letter",
+      "reason": "High-emitting sector",
+      "rule": "high_emitter"
+     },
+     {
+      "company": "Synthetic Company 10",
+      "current": "none",
+      "issuer_id": "SYN10",
+      "kind": "tier_change",
+      "proposed": "Letter",
+      "reason": "High-emitting sector",
+      "rule": "high_emitter"
+     },
+     {
+      "company": "Synthetic Company 11",
+      "current": "none",
+      "issuer_id": "SYN11",
+      "kind": "tier_change",
+      "proposed": "Letter",
+      "reason": "High-emitting sector",
+      "rule": "high_emitter"
+     },
+     {
+      "company": "Synthetic Company 12",
+      "current": "none",
+      "issuer_id": "SYN12",
+      "kind": "tier_change",
+      "proposed": "Letter",
+      "reason": "High-impact nature sector",
+      "rule": "nature_impact"
+     }
+    ],
+    "details": [
+     {
+      "label": "Votes against the policy's recommendation",
+      "rows": []
+     }
+    ],
+    "id": "checkpoint",
+    "layer": "house",
+    "metrics": [
+     {
+      "hint": "Recommended by the escalation rules",
+      "label": "Escalations to decide",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     },
+     {
+      "hint": "0 at their tier's cap: promote the tier",
+      "label": "Sample recommendations",
+      "source": "sample",
+      "tone": "neutral",
+      "value": 5
+     },
+     {
+      "hint": null,
+      "label": "Tier changes to confirm",
+      "source": "sample",
+      "tone": "warn",
+      "value": 12
+     },
+     {
+      "hint": "Nothing is sent before approval",
+      "label": "Outreach to approve",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     },
+     {
+      "hint": "Decided in Proxy Voting against the policy's recommendation: review the reason",
+      "label": "Votes against the policy",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     },
+     {
+      "hint": "A client's escalation rules want a higher step: adopt or decline",
+      "label": "Client escalations above the house",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     }
+    ],
+    "number": 5,
+    "status": "partial",
+    "summary": "Every escalation, sanction list, outreach and disclosure is decided by a person.",
+    "title": "Human Checkpoint"
+   },
+   {
+    "decisions": [],
+    "details": [
+     {
+      "label": "Open engagements by milestone",
+      "rows": []
+     }
+    ],
+    "id": "tracking",
+    "layer": "house",
+    "metrics": [
+     {
+      "hint": null,
+      "label": "Commitments open",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": null,
+      "label": "Commitments met",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     },
+     {
+      "hint": null,
+      "label": "Commitments missed",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": "Open commitments to verify or mark missed",
+      "label": "Past target date",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     },
+     {
+      "hint": "Closed engagements (E7)",
+      "label": "Case studies ready",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     }
+    ],
+    "number": 6,
+    "status": "live",
+    "summary": "Logs outcomes and commitments; missed dates and stalls go back to monitoring.",
+    "title": "Tracking"
+   },
+   {
+    "decisions": [],
+    "details": [],
+    "id": "client_policy",
+    "layer": "client",
+    "metrics": [
+     {
+      "hint": null,
+      "label": "Client streams",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": null,
+      "label": "Decisions open",
+      "source": "live",
+      "tone": "good",
+      "value": 0
+     }
+    ],
+    "number": 7,
+    "status": "live",
+    "summary": "Client streams apply their own policies on top of the house results.",
+    "title": "Client Policy Evaluation"
+   },
+   {
+    "decisions": [],
+    "details": [],
+    "id": "reporting",
+    "layer": "client",
+    "metrics": [
+     {
+      "hint": null,
+      "label": "Engagements",
+      "source": "live",
+      "tone": "neutral",
+      "value": 0
+     },
+     {
+      "hint": "Disclosure records (E2) need the voting feed.",
+      "label": "Vote disclosure",
+      "source": "not_built",
+      "tone": "neutral",
+      "value": "\u2014"
+     }
+    ],
+    "number": 8,
+    "status": "partial",
+    "summary": "Stewardship reports and public vote disclosure.",
+    "title": "Reporting & Disclosure"
+   }
+  ],
+  "stream": {
+   "mandate": null,
+   "name": "House program",
+   "stream_id": "house"
+  }
+ },
+ "/api/stewardship/studio/coverage/inputs": {
+  "contexts": [
+   {
+    "history": {
+     "escalated": false,
+     "open_engagements": 0
+    },
+    "holding": {
+     "aum_held_eur_m": 303,
+     "change_pct": 0,
+     "index_weight_pct": 0.9
+    },
+    "issuer": {
+     "audit": {
+      "auditor_tenure_years": 3,
+      "material_weakness": null,
+      "non_audit_fee_ratio": 0.1,
+      "qualified_opinion": false,
+      "tender_disclosed": null
+     },
+     "climate": {
+      "capex_alignment_disclosed": true,
+      "high_emitter": false,
+      "interim_target": true,
+      "net_zero_target": true,
+      "sbti_validated": null,
+      "scope1_2_disclosed": false,
+      "scope3_disclosed": true,
+      "tcfd_aligned": true
+     },
+     "controversy": {
+      "governance_severity": 2,
+      "human_rights_severity": 2,
+      "max_severity": 1,
+      "ungc_status": "pass"
+     },
+     "financial": {
+      "payout_ratio_pct": 60
+     },
+     "governance": {
+      "audit_committee_independence_pct": 70,
+      "average_board_tenure_years": 8,
+      "board_female_pct": 42,
+      "board_independence_pct": 80,
+      "chair_ceo_combined": false,
+      "chair_is_former_ceo": false,
+      "controlled_company": false,
+      "dual_class": true,
+      "dual_class_sunset_years": 10,
+      "longest_independent_tenure_years": 9,
+      "majority_voting": true,
+      "nomination_committee_independence_pct": 55,
+      "open_investigation": false,
+      "poison_pill_unapproved": false,
+      "remuneration_committee_independence_pct": null,
+      "staggered_board": false,
+      "takeover_period": false
+     },
+     "nature": {
+      "high_impact_sector": false,
+      "tnfd_aligned": false
+     },
+     "pay": {
+      "ceo_pay_ratio": 90,
+      "ceo_peer_percentile": 43,
+      "climate_metric_included": true,
+      "discretion_explained": false,
+      "discretion_used": false,
+      "esg_metric_included": true,
+      "esg_metric_weight_pct": 15,
+      "long_term_incentive_pct": 60,
+      "misalignment_years": 1,
+      "nonexec_fee_change_pct": 0,
+      "nonexec_performance_pay": false,
+      "plan_dilution_pct": null,
+      "plan_discount_pct": 0,
+      "repricing_allowed": null,
+      "severance_multiple": 2,
+      "single_trigger_vesting": false,
+      "targets_disclosed": true,
+      "vesting_period_years": 4
+     },
+     "region": "EU",
+     "score": {
+      "clti": 81,
+      "nature": 61,
+      "transition_plan": 71
+     },
+     "sector": "Industrials",
+     "voting": {
+      "dissent_addressed": true,
+      "majority_proposal_not_implemented": null,
+      "prior_year_dissent_pct": 6
+     }
+    },
+    "issuer_id": "SYN01",
+    "name": "Synthetic Company 01"
+   },
+   {
+    "history": {
+     "escalated": false,
+     "open_engagements": 0
+    },
+    "holding": {
+     "aum_held_eur_m": 81,
+     "change_pct": -15,
+     "index_weight_pct": 0.3
+    },
+    "issuer": {
+     "audit": {
+      "auditor_tenure_years": 3,
+      "material_weakness": false,
+      "non_audit_fee_ratio": 0.6,
+      "qualified_opinion": false,
+      "tender_disclosed": true
+     },
+     "climate": {
+      "capex_alignment_disclosed": true,
+      "high_emitter": true,
+      "interim_target": true,
+      "net_zero_target": true,
+      "sbti_validated": true,
+      "scope1_2_disclosed": true,
+      "scope3_disclosed": null,
+      "tcfd_aligned": true
+     },
+     "controversy": {
+      "governance_severity": 3,
+      "human_rights_severity": 2,
+      "max_severity": null,
+      "ungc_status": "pass"
+     },
+     "financial": {
+      "payout_ratio_pct": 45
+     },
+     "governance": {
+      "audit_committee_independence_pct": 60,
+      "average_board_tenure_years": 8,
+      "board_female_pct": 45,
+      "board_independence_pct": 100,
+      "chair_ceo_combined": true,
+      "chair_is_former_ceo": false,
+      "controlled_company": false,
+      "dual_class": false,
+      "dual_class_sunset_years": null,
+      "longest_independent_tenure_years": null,
+      "majority_voting": true,
+      "nomination_committee_independence_pct": 100,
+      "open_investigation": false,
+      "poison_pill_unapproved": false,
+      "remuneration_committee_independence_pct": 100,
+      "staggered_board": false,
+      "takeover_period": false
+     },
+     "nature": {
+      "high_impact_sector": true,
+      "tnfd_aligned": true
+     },
+     "pay": {
+      "ceo_pay_ratio": null,
+      "ceo_peer_percentile": 60,
+      "climate_metric_included": true,
+      "discretion_explained": null,
+      "discretion_used": false,
+      "esg_metric_included": true,
+      "esg_metric_weight_pct": 0,
+      "long_term_incentive_pct": 55,
+      "misalignment_years": 0,
+      "nonexec_fee_change_pct": 5,
+      "nonexec_performance_pay": false,
+      "plan_dilution_pct": 5,
+      "plan_discount_pct": 0,
+      "repricing_allowed": false,
+      "severance_multiple": 1.5,
+      "single_trigger_vesting": false,
+      "targets_disclosed": null,
+      "vesting_period_years": 2
+     },
+     "region": "EU",
+     "score": {
+      "clti": 92,
+      "nature": 28,
+      "transition_plan": 27
+     },
+     "sector": "Utilities",
+     "voting": {
+      "dissent_addressed": true,
+      "majority_proposal_not_implemented": false,
+      "prior_year_dissent_pct": 3
+     }
+    },
+    "issuer_id": "SYN02",
+    "name": "Synthetic Company 02"
+   },
+   {
+    "history": {
+     "escalated": false,
+     "open_engagements": 0
+    },
+    "holding": {
+     "aum_held_eur_m": 1547,
+     "change_pct": -40,
+     "index_weight_pct": 3.1
+    },
+    "issuer": {
+     "audit": {
+      "auditor_tenure_years": 3,
+      "material_weakness": false,
+      "non_audit_fee_ratio": 0.1,
+      "qualified_opinion": false,
+      "tender_disclosed": true
+     },
+     "climate": {
+      "capex_alignment_disclosed": true,
+      "high_emitter": false,
+      "interim_target": true,
+      "net_zero_target": null,
+      "sbti_validated": null,
+      "scope1_2_disclosed": true,
+      "scope3_disclosed": true,
+      "tcfd_aligned": true
+     },
+     "controversy": {
+      "governance_severity": 3,
+      "human_rights_severity": 2,
+      "max_severity": 2,
+      "ungc_status": "pass"
+     },
+     "financial": {
+      "payout_ratio_pct": 120
+     },
+     "governance": {
+      "audit_committee_independence_pct": 45,
+      "average_board_tenure_years": 6,
+      "board_female_pct": 33,
+      "board_independence_pct": 80,
+      "chair_ceo_combined": null,
+      "chair_is_former_ceo": false,
+      "controlled_company": false,
+      "dual_class": null,
+      "dual_class_sunset_years": null,
+      "longest_independent_tenure_years": 16,
+      "majority_voting": null,
+      "nomination_committee_independence_pct": 60,
+      "open_investigation": true,
+      "poison_pill_unapproved": false,
+      "remuneration_committee_independence_pct": 40,
+      "staggered_board": false,
+      "takeover_period": null
+     },
+     "nature": {
+      "high_impact_sector": false,
+      "tnfd_aligned": true
+     },
+     "pay": {
+      "ceo_pay_ratio": 260,
+      "ceo_peer_percentile": 61,
+      "climate_metric_included": true,
+      "discretion_explained": true,
+      "discretion_used": false,
+      "esg_metric_included": true,
+      "esg_metric_weight_pct": 5,
+      "long_term_incentive_pct": 70,
+      "misalignment_years": 2,
+      "nonexec_fee_change_pct": 5,
+      "nonexec_performance_pay": false,
+      "plan_dilution_pct": null,
+      "plan_discount_pct": null,
+      "repricing_allowed": false,
+      "severance_multiple": 1,
+      "single_trigger_vesting": false,
+      "targets_disclosed": true,
+      "vesting_period_years": null
+     },
+     "region": "US",
+     "score": {
+      "clti": 78,
+      "nature": null,
+      "transition_plan": 70
+     },
+     "sector": "Information Technology",
+     "voting": {
+      "dissent_addressed": true,
+      "majority_proposal_not_implemented": false,
+      "prior_year_dissent_pct": 6
+     }
+    },
+    "issuer_id": "SYN03",
+    "name": "Synthetic Company 03"
+   },
+   {
+    "history": {
+     "escalated": false,
+     "open_engagements": 0
+    },
+    "holding": {
+     "aum_held_eur_m": 92,
+     "change_pct": 120,
+     "index_weight_pct": 0.2
+    },
+    "issuer": {
+     "audit": {
+      "auditor_tenure_years": 6,
+      "material_weakness": false,
+      "non_audit_fee_ratio": 0.4,
+      "qualified_opinion": false,
+      "tender_disclosed": true
+     },
+     "climate": {
+      "capex_alignment_disclosed": true,
+      "high_emitter": true,
+      "interim_target": true,
+      "net_zero_target": true,
+      "sbti_validated": null,
+      "scope1_2_disclosed": true,
+      "scope3_disclosed": null,
+      "tcfd_aligned": true
+     },
+     "controversy": {
+      "governance_severity": null,
+      "human_rights_severity": 1,
+      "max_severity": 5,
+      "ungc_status": "pass"
+     },
+     "financial": {
+      "payout_ratio_pct": 60
+     },
+     "governance": {
+      "audit_committee_independence_pct": 55,
+      "average_board_tenure_years": 8,
+      "board_female_pct": 33,
+      "board_independence_pct": 100,
+      "chair_ceo_combined": false,
+      "chair_is_former_ceo": true,
+      "controlled_company": false,
+      "dual_class": false,
+      "dual_class_sunset_years": 10,
+      "longest_independent_tenure_years": 11,
+      "majority_voting": true,
+      "nomination_committee_independence_pct": 60,
+      "open_investigation": false,
+      "poison_pill_unapproved": false,
+      "remuneration_committee_independence_pct": 70,
+      "staggered_board": false,
+      "takeover_period": false
+     },
+     "nature": {
+      "high_impact_sector": false,
+      "tnfd_aligned": true
+     },
+     "pay": {
+      "ceo_pay_ratio": 140,
+      "ceo_peer_percentile": 31,
+      "climate_metric_included": true,
+      "discretion_explained": false,
+      "discretion_used": false,
+      "esg_metric_included": null,
+      "esg_metric_weight_pct": 10,
+      "long_term_incentive_pct": 70,
+      "misalignment_years": 0,
+      "nonexec_fee_change_pct": 3,
+      "nonexec_performance_pay": false,
+      "plan_dilution_pct": 3,
+      "plan_discount_pct": 0,
+      "repricing_allowed": false,
+      "severance_multiple": null,
+      "single_trigger_vesting": false,
+      "targets_disclosed": true,
+      "vesting_period_years": 3
+     },
+     "region": "US",
+     "score": {
+      "clti": 92,
+      "nature": 68,
+      "transition_plan": null
+     },
+     "sector": "Energy",
+     "voting": {
+      "dissent_addressed": false,
+      "majority_proposal_not_implemented": false,
+      "prior_year_dissent_pct": null
+     }
+    },
+    "issuer_id": "SYN04",
+    "name": "Synthetic Company 04"
+   },
+   {
+    "history": {
+     "escalated": false,
+     "open_engagements": 0
+    },
+    "holding": {
+     "aum_held_eur_m": 8,
+     "change_pct": 0,
+     "index_weight_pct": 0.03
+    },
+    "issuer": {
+     "audit": {
+      "auditor_tenure_years": 12,
+      "material_weakness": false,
+      "non_audit_fee_ratio": 0.1,
+      "qualified_opinion": false,
+      "tender_disclosed": true
+     },
+     "climate": {
+      "capex_alignment_disclosed": true,
+      "high_emitter": true,
+      "interim_target": null,
+      "net_zero_target": true,
+      "sbti_validated": true,
+      "scope1_2_disclosed": true,
+      "scope3_disclosed": true,
+      "tcfd_aligned": true
+     },
+     "controversy": {
+      "governance_severity": null,
+      "human_rights_severity": 2,
+      "max_severity": 1,
+      "ungc_status": null
+     },
+     "financial": {
+      "payout_ratio_pct": 30
+     },
+     "governance": {
+      "audit_committee_independence_pct": 80,
+      "average_board_tenure_years": 6,
+      "board_female_pct": null,
+      "board_independence_pct": 100,
+      "chair_ceo_combined": false,
+      "chair_is_former_ceo": false,
+      "controlled_company": null,
+      "dual_class": false,
+      "dual_class_sunset_years": null,
+      "longest_independent_tenure_years": 4,
+      "majority_voting": true,
+      "nomination_committee_independence_pct": 70,
+      "open_investigation": false,
+      "poison_pill_unapproved": null,
+      "remuneration_committee_independence_pct": 70,
+      "staggered_board": false,
+      "takeover_period": false
+     },
+     "nature": {
+      "high_impact_sector": true,
+      "tnfd_aligned": true
+     },
+     "pay": {
+      "ceo_pay_ratio": 180,
+      "ceo_peer_percentile": 46,
+      "climate_metric_included": true,
+      "discretion_explained": false,
+      "discretion_used": null,
+      "esg_metric_included": true,
+      "esg_metric_weight_pct": 5,
+      "long_term_incentive_pct": 60,
+      "misalignment_years": 2,
+      "nonexec_fee_change_pct": null,
+      "nonexec_performance_pay": false,
+      "plan_dilution_pct": 12,
+      "plan_discount_pct": 0,
+      "repricing_allowed": false,
+      "severance_multiple": 1,
+      "single_trigger_vesting": false,
+      "targets_disclosed": true,
+      "vesting_period_years": 4
+     },
+     "region": "UK",
+     "score": {
+      "clti": 95,
+      "nature": 47,
+      "transition_plan": 82
+     },
+     "sector": "Materials",
+     "voting": {
+      "dissent_addressed": true,
+      "majority_proposal_not_implemented": false,
+      "prior_year_dissent_pct": 6
+     }
+    },
+    "issuer_id": "SYN05",
+    "name": "Synthetic Company 05"
+   },
+   {
+    "history": {
+     "escalated": false,
+     "open_engagements": 0
+    },
+    "holding": {
+     "aum_held_eur_m": 249,
+     "change_pct": 10,
+     "index_weight_pct": 0.45
+    },
+    "issuer": {
+     "audit": {
+      "auditor_tenure_years": 12,
+      "material_weakness": false,
+      "non_audit_fee_ratio": 0.4,
+      "qualified_opinion": false,
+      "tender_disclosed": true
+     },
+     "climate": {
+      "capex_alignment_disclosed": true,
+      "high_emitter": false,
+      "interim_target": true,
+      "net_zero_target": true,
+      "sbti_validated": true,
+      "scope1_2_disclosed": false,
+      "scope3_disclosed": true,
+      "tcfd_aligned": true
+     },
+     "controversy": {
+      "governance_severity": 2,
+      "human_rights_severity": 4,
+      "max_severity": 1,
+      "ungc_status": "watchlist"
+     },
+     "financial": {
+      "payout_ratio_pct": 60
+     },
+     "governance": {
+      "audit_committee_independence_pct": 55,
+      "average_board_tenure_years": 4,
+      "board_female_pct": 33,
+      "board_independence_pct": 55,
+      "chair_ceo_combined": false,
+      "chair_is_former_ceo": null,
+      "controlled_company": false,
+      "dual_class": false,
+      "dual_class_sunset_years": 10,
+      "longest_independent_tenure_years": 11,
+      "majority_voting": true,
+      "nomination_committee_independence_pct": 80,
+      "open_investigation": false,
+      "poison_pill_unapproved": false,
+      "remuneration_committee_independence_pct": 55,
+      "staggered_board": false,
+      "takeover_period": false
+     },
+     "nature": {
+      "high_impact_sector": false,
+      "tnfd_aligned": true
+     },
+     "pay": {
+      "ceo_pay_ratio": 180,
+      "ceo_peer_percentile": 58,
+      "climate_metric_included": false,
+      "discretion_explained": false,
+      "discretion_used": false,
+      "esg_metric_included": true,
+      "esg_metric_weight_pct": 15,
+      "long_term_incentive_pct": 60,
+      "misalignment_years": 2,
+      "nonexec_fee_change_pct": 15,
+      "nonexec_performance_pay": null,
+      "plan_dilution_pct": 8,
+      "plan_discount_pct": null,
+      "repricing_allowed": false,
+      "severance_multiple": 1,
+      "single_trigger_vesting": false,
+      "targets_disclosed": true,
+      "vesting_period_years": 4
+     },
+     "region": "JP",
+     "score": {
+      "clti": 38,
+      "nature": null,
+      "transition_plan": 42
+     },
+     "sector": "Consumer Discretionary",
+     "voting": {
+      "dissent_addressed": true,
+      "majority_proposal_not_implemented": false,
+      "prior_year_dissent_pct": 6
+     }
+    },
+    "issuer_id": "SYN06",
+    "name": "Synthetic Company 06"
+   },
+   {
+    "history": {
+     "escalated": false,
+     "open_engagements": 0
+    },
+    "holding": {
+     "aum_held_eur_m": 768,
+     "change_pct": 10,
+     "index_weight_pct": 1.4
+    },
+    "issuer": {
+     "audit": {
+      "auditor_tenure_years": 6,
+      "material_weakness": false,
+      "non_audit_fee_ratio": 0.4,
+      "qualified_opinion": true,
+      "tender_disclosed": true
+     },
+     "climate": {
+      "capex_alignment_disclosed": true,
+      "high_emitter": false,
+      "interim_target": true,
+      "net_zero_target": false,
+      "sbti_validated": true,
+      "scope1_2_disclosed": true,
+      "scope3_disclosed": true,
+      "tcfd_aligned": true
+     },
+     "controversy": {
+      "governance_severity": null,
+      "human_rights_severity": null,
+      "max_severity": null,
+      "ungc_status": "pass"
+     },
+     "financial": {
+      "payout_ratio_pct": null
+     },
+     "governance": {
+      "audit_committee_independence_pct": 60,
+      "average_board_tenure_years": 8,
+      "board_female_pct": 36,
+      "board_independence_pct": 40,
+      "chair_ceo_combined": false,
+      "chair_is_former_ceo": false,
+      "controlled_company": false,
+      "dual_class": false,
+      "dual_class_sunset_years": null,
+      "longest_independent_tenure_years": 7,
+      "majority_voting": true,
+      "nomination_committee_independence_pct": 70,
+      "open_investigation": false,
+      "poison_pill_unapproved": false,
+      "remuneration_committee_independence_pct": 70,
+      "staggered_board": false,
+      "takeover_period": false
+     },
+     "nature": {
+      "high_impact_sector": false,
+      "tnfd_aligned": true
+     },
+     "pay": {
+      "ceo_pay_ratio": 90,
+      "ceo_peer_percentile": 86,
+      "climate_metric_included": true,
+      "discretion_explained": false,
+      "discretion_used": false,
+      "esg_metric_included": true,
+      "esg_metric_weight_pct": 25,
+      "long_term_incentive_pct": 60,
+      "misalignment_years": 1,
+      "nonexec_fee_change_pct": 5,
+      "nonexec_performance_pay": null,
+      "plan_dilution_pct": 3,
+      "plan_discount_pct": 0,
+      "repricing_allowed": false,
+      "severance_multiple": null,
+      "single_trigger_vesting": null,
+      "targets_disclosed": true,
+      "vesting_period_years": 3
+     },
+     "region": "EU",
+     "score": {
+      "clti": 78,
+      "nature": 18,
+      "transition_plan": 59
+     },
+     "sector": "Financials",
+     "voting": {
+      "dissent_addressed": true,
+      "majority_proposal_not_implemented": true,
+      "prior_year_dissent_pct": 10
+     }
+    },
+    "issuer_id": "SYN07",
+    "name": "Synthetic Company 07"
+   },
+   {
+    "history": {
+     "escalated": false,
+     "open_engagements": 0
+    },
+    "holding": {
+     "aum_held_eur_m": 270,
+     "change_pct": 65,
+     "index_weight_pct": 0.6
+    },
+    "issuer": {
+     "audit": {
+      "auditor_tenure_years": 3,
+      "material_weakness": false,
+      "non_audit_fee_ratio": 0.3,
+      "qualified_opinion": false,
+      "tender_disclosed": true
+     },
+     "climate": {
+      "capex_alignment_disclosed": null,
+      "high_emitter": false,
+      "interim_target": true,
+      "net_zero_target": true,
+      "sbti_validated": true,
+      "scope1_2_disclosed": true,
+      "scope3_disclosed": true,
+      "tcfd_aligned": true
+     },
+     "controversy": {
+      "governance_severity": 2,
+      "human_rights_severity": 2,
+      "max_severity": 2,
+      "ungc_status": "pass"
+     },
+     "financial": {
+      "payout_ratio_pct": 45
+     },
+     "governance": {
+      "audit_committee_independence_pct": 100,
+      "average_board_tenure_years": 4,
+      "board_female_pct": 42,
+      "board_independence_pct": 60,
+      "chair_ceo_combined": false,
+      "chair_is_former_ceo": false,
+      "controlled_company": false,
+      "dual_class": false,
+      "dual_class_sunset_years": 5,
+      "longest_independent_tenure_years": 4,
+      "majority_voting": true,
+      "nomination_committee_independence_pct": 45,
+      "open_investigation": false,
+      "poison_pill_unapproved": false,
+      "remuneration_committee_independence_pct": 80,
+      "staggered_board": null,
+      "takeover_period": false
+     },
+     "nature": {
+      "high_impact_sector": false,
+      "tnfd_aligned": true
+     },
+     "pay": {
+      "ceo_pay_ratio": 400,
+      "ceo_peer_percentile": 74,
+      "climate_metric_included": true,
+      "discretion_explained": false,
+      "discretion_used": false,
+      "esg_metric_included": true,
+      "esg_metric_weight_pct": 15,
+      "long_term_incentive_pct": 60,
+      "misalignment_years": 0,
+      "nonexec_fee_change_pct": 5,
+      "nonexec_performance_pay": false,
+      "plan_dilution_pct": 3,
+      "plan_discount_pct": 0,
+      "repricing_allowed": null,
+      "severance_multiple": 1,
+      "single_trigger_vesting": false,
+      "targets_disclosed": true,
+      "vesting_period_years": 5
+     },
+     "region": "US",
+     "score": {
+      "clti": 68,
+      "nature": 33,
+      "transition_plan": 25
+     },
+     "sector": "Health Care",
+     "voting": {
+      "dissent_addressed": true,
+      "majority_proposal_not_implemented": false,
+      "prior_year_dissent_pct": 25
+     }
+    },
+    "issuer_id": "SYN08",
+    "name": "Synthetic Company 08"
+   },
+   {
+    "history": {
+     "escalated": false,
+     "open_engagements": 0
+    },
+    "holding": {
+     "aum_held_eur_m": 17,
+     "change_pct": 5,
+     "index_weight_pct": 0.04
+    },
+    "issuer": {
+     "audit": {
+      "auditor_tenure_years": null,
+      "material_weakness": false,
+      "non_audit_fee_ratio": 0.3,
+      "qualified_opinion": true,
+      "tender_disclosed": null
+     },
+     "climate": {
+      "capex_alignment_disclosed": true,
+      "high_emitter": true,
+      "interim_target": true,
+      "net_zero_target": true,
+      "sbti_validated": true,
+      "scope1_2_disclosed": true,
+      "scope3_disclosed": true,
+      "tcfd_aligned": true
+     },
+     "controversy": {
+      "governance_severity": 2,
+      "human_rights_severity": 1,
+      "max_severity": 1,
+      "ungc_status": "pass"
+     },
+     "financial": {
+      "payout_ratio_pct": 30
+     },
+     "governance": {
+      "audit_committee_independence_pct": 80,
+      "average_board_tenure_years": 8,
+      "board_female_pct": 28,
+      "board_independence_pct": 70,
+      "chair_ceo_combined": false,
+      "chair_is_former_ceo": false,
+      "controlled_company": null,
+      "dual_class": false,
+      "dual_class_sunset_years": null,
+      "longest_independent_tenure_years": 9,
+      "majority_voting": true,
+      "nomination_committee_independence_pct": 60,
+      "open_investigation": null,
+      "poison_pill_unapproved": false,
+      "remuneration_committee_independence_pct": 70,
+      "staggered_board": false,
+      "takeover_period": false
+     },
+     "nature": {
+      "high_impact_sector": false,
+      "tnfd_aligned": false
+     },
+     "pay": {
+      "ceo_pay_ratio": 140,
+      "ceo_peer_percentile": 62,
+      "climate_metric_included": true,
+      "discretion_explained": false,
+      "discretion_used": false,
+      "esg_metric_included": true,
+      "esg_metric_weight_pct": 0,
+      "long_term_incentive_pct": 45,
+      "misalignment_years": 4,
+      "nonexec_fee_change_pct": 15,
+      "nonexec_performance_pay": false,
+      "plan_dilution_pct": 8,
+      "plan_discount_pct": 0,
+      "repricing_allowed": false,
+      "severance_multiple": 1,
+      "single_trigger_vesting": false,
+      "targets_disclosed": true,
+      "vesting_period_years": 2
+     },
+     "region": "UK",
+     "score": {
+      "clti": 48,
+      "nature": 14,
+      "transition_plan": 65
+     },
+     "sector": "Energy",
+     "voting": {
+      "dissent_addressed": true,
+      "majority_proposal_not_implemented": false,
+      "prior_year_dissent_pct": 6
+     }
+    },
+    "issuer_id": "SYN09",
+    "name": "Synthetic Company 09"
+   },
+   {
+    "history": {
+     "escalated": false,
+     "open_engagements": 0
+    },
+    "holding": {
+     "aum_held_eur_m": 6,
+     "change_pct": -5,
+     "index_weight_pct": 0.02
+    },
+    "issuer": {
+     "audit": {
+      "auditor_tenure_years": 12,
+      "material_weakness": false,
+      "non_audit_fee_ratio": 0.4,
+      "qualified_opinion": false,
+      "tender_disclosed": true
+     },
+     "climate": {
+      "capex_alignment_disclosed": true,
+      "high_emitter": true,
+      "interim_target": true,
+      "net_zero_target": true,
+      "sbti_validated": true,
+      "scope1_2_disclosed": true,
+      "scope3_disclosed": true,
+      "tcfd_aligned": true
+     },
+     "controversy": {
+      "governance_severity": 2,
+      "human_rights_severity": 2,
+      "max_severity": 2,
+      "ungc_status": "pass"
+     },
+     "financial": {
+      "payout_ratio_pct": 45
+     },
+     "governance": {
+      "audit_committee_independence_pct": 55,
+      "average_board_tenure_years": 8,
+      "board_female_pct": 45,
+      "board_independence_pct": 100,
+      "chair_ceo_combined": false,
+      "chair_is_former_ceo": false,
+      "controlled_company": false,
+      "dual_class": null,
+      "dual_class_sunset_years": 10,
+      "longest_independent_tenure_years": 4,
+      "majority_voting": true,
+      "nomination_committee_independence_pct": null,
+      "open_investigation": false,
+      "poison_pill_unapproved": false,
+      "remuneration_committee_independence_pct": 100,
+      "staggered_board": false,
+      "takeover_period": false
+     },
+     "nature": {
+      "high_impact_sector": true,
+      "tnfd_aligned": true
+     },
+     "pay": {
+      "ceo_pay_ratio": 140,
+      "ceo_peer_percentile": 39,
+      "climate_metric_included": true,
+      "discretion_explained": false,
+      "discretion_used": false,
+      "esg_metric_included": null,
+      "esg_metric_weight_pct": 0,
+      "long_term_incentive_pct": 55,
+      "misalignment_years": null,
+      "nonexec_fee_change_pct": 5,
+      "nonexec_performance_pay": false,
+      "plan_dilution_pct": 5,
+      "plan_discount_pct": null,
+      "repricing_allowed": false,
+      "severance_multiple": 1,
+      "single_trigger_vesting": false,
+      "targets_disclosed": false,
+      "vesting_period_years": null
+     },
+     "region": "JP",
+     "score": {
+      "clti": 18,
+      "nature": 91,
+      "transition_plan": 25
+     },
+     "sector": "Materials",
+     "voting": {
+      "dissent_addressed": true,
+      "majority_proposal_not_implemented": false,
+      "prior_year_dissent_pct": null
+     }
+    },
+    "issuer_id": "SYN10",
+    "name": "Synthetic Company 10"
+   },
+   {
+    "history": {
+     "escalated": false,
+     "open_engagements": 0
+    },
+    "holding": {
+     "aum_held_eur_m": 20,
+     "change_pct": 0,
+     "index_weight_pct": 0.08
+    },
+    "issuer": {
+     "audit": {
+      "auditor_tenure_years": 6,
+      "material_weakness": false,
+      "non_audit_fee_ratio": 0.4,
+      "qualified_opinion": false,
+      "tender_disclosed": true
+     },
+     "climate": {
+      "capex_alignment_disclosed": true,
+      "high_emitter": true,
+      "interim_target": true,
+      "net_zero_target": true,
+      "sbti_validated": false,
+      "scope1_2_disclosed": true,
+      "scope3_disclosed": true,
+      "tcfd_aligned": true
+     },
+     "controversy": {
+      "governance_severity": 2,
+      "human_rights_severity": 1,
+      "max_severity": 2,
+      "ungc_status": null
+     },
+     "financial": {
+      "payout_ratio_pct": 30
+     },
+     "governance": {
+      "audit_committee_independence_pct": 100,
+      "average_board_tenure_years": 13,
+      "board_female_pct": 45,
+      "board_independence_pct": 60,
+      "chair_ceo_combined": false,
+      "chair_is_former_ceo": false,
+      "controlled_company": false,
+      "dual_class": false,
+      "dual_class_sunset_years": null,
+      "longest_independent_tenure_years": 7,
+      "majority_voting": true,
+      "nomination_committee_independence_pct": null,
+      "open_investigation": false,
+      "poison_pill_unapproved": true,
+      "remuneration_committee_independence_pct": 80,
+      "staggered_board": null,
+      "takeover_period": false
+     },
+     "nature": {
+      "high_impact_sector": true,
+      "tnfd_aligned": true
+     },
+     "pay": {
+      "ceo_pay_ratio": 40,
+      "ceo_peer_percentile": 68,
+      "climate_metric_included": true,
+      "discretion_explained": false,
+      "discretion_used": null,
+      "esg_metric_included": true,
+      "esg_metric_weight_pct": 10,
+      "long_term_incentive_pct": 70,
+      "misalignment_years": 4,
+      "nonexec_fee_change_pct": 5,
+      "nonexec_performance_pay": null,
+      "plan_dilution_pct": 3,
+      "plan_discount_pct": 0,
+      "repricing_allowed": false,
+      "severance_multiple": 1,
+      "single_trigger_vesting": null,
+      "targets_disclosed": true,
+      "vesting_period_years": null
+     },
+     "region": "US",
+     "score": {
+      "clti": 66,
+      "nature": 22,
+      "transition_plan": 15
+     },
+     "sector": "Utilities",
+     "voting": {
+      "dissent_addressed": true,
+      "majority_proposal_not_implemented": false,
+      "prior_year_dissent_pct": 3
+     }
+    },
+    "issuer_id": "SYN11",
+    "name": "Synthetic Company 11"
+   },
+   {
+    "history": {
+     "escalated": false,
+     "open_engagements": 0
+    },
+    "holding": {
+     "aum_held_eur_m": 49,
+     "change_pct": 0,
+     "index_weight_pct": 0.12
+    },
+    "issuer": {
+     "audit": {
+      "auditor_tenure_years": null,
+      "material_weakness": false,
+      "non_audit_fee_ratio": 0.6,
+      "qualified_opinion": true,
+      "tender_disclosed": true
+     },
+     "climate": {
+      "capex_alignment_disclosed": null,
+      "high_emitter": false,
+      "interim_target": true,
+      "net_zero_target": true,
+      "sbti_validated": true,
+      "scope1_2_disclosed": true,
+      "scope3_disclosed": true,
+      "tcfd_aligned": true
+     },
+     "controversy": {
+      "governance_severity": 2,
+      "human_rights_severity": 2,
+      "max_severity": 2,
+      "ungc_status": "watchlist"
+     },
+     "financial": {
+      "payout_ratio_pct": 60
+     },
+     "governance": {
+      "audit_committee_independence_pct": 70,
+      "average_board_tenure_years": null,
+      "board_female_pct": 45,
+      "board_independence_pct": 70,
+      "chair_ceo_combined": false,
+      "chair_is_former_ceo": false,
+      "controlled_company": false,
+      "dual_class": true,
+      "dual_class_sunset_years": null,
+      "longest_independent_tenure_years": 9,
+      "majority_voting": true,
+      "nomination_committee_independence_pct": 55,
+      "open_investigation": false,
+      "poison_pill_unapproved": false,
+      "remuneration_committee_independence_pct": 60,
+      "staggered_board": false,
+      "takeover_period": false
+     },
+     "nature": {
+      "high_impact_sector": true,
+      "tnfd_aligned": true
+     },
+     "pay": {
+      "ceo_pay_ratio": 400,
+      "ceo_peer_percentile": 38,
+      "climate_metric_included": true,
+      "discretion_explained": false,
+      "discretion_used": false,
+      "esg_metric_included": true,
+      "esg_metric_weight_pct": 10,
+      "long_term_incentive_pct": 60,
+      "misalignment_years": 1,
+      "nonexec_fee_change_pct": 3,
+      "nonexec_performance_pay": false,
+      "plan_dilution_pct": 15,
+      "plan_discount_pct": 0,
+      "repricing_allowed": false,
+      "severance_multiple": 1.5,
+      "single_trigger_vesting": false,
+      "targets_disclosed": true,
+      "vesting_period_years": 3
+     },
+     "region": "EU",
+     "score": {
+      "clti": 73,
+      "nature": 78,
+      "transition_plan": 78
+     },
+     "sector": "Consumer Staples",
+     "voting": {
+      "dissent_addressed": true,
+      "majority_proposal_not_implemented": false,
+      "prior_year_dissent_pct": 3
+     }
+    },
+    "issuer_id": "SYN12",
+    "name": "Synthetic Company 12"
+   }
+  ]
+ },
+ "/api/stewardship/studio/monitoring/triggers": {
+  "triggers": [
+   {
+    "company": "Synthetic Company 04",
+    "demo": false,
+    "engagement_id": null,
+    "issuer_id": "SYN04",
+    "reason": "Controversy severity 4 or higher",
+    "rule": "severe_controversy",
+    "sector": "Energy",
+    "severity": "high",
+    "theme": "governance_controversy",
+    "type": "controversy"
+   },
+   {
+    "company": "Synthetic Company 04",
+    "demo": false,
+    "engagement_id": null,
+    "issuer_id": "SYN04",
+    "reason": "Position up more than 50%",
+    "rule": "position_jump",
+    "sector": "Energy",
+    "severity": "low",
+    "theme": "position_review",
+    "type": "holding_change"
+   },
+   {
+    "company": "Synthetic Company 06",
+    "demo": false,
+    "engagement_id": null,
+    "issuer_id": "SYN06",
+    "reason": "Human rights controversy severity 4 or higher",
+    "rule": "human_rights",
+    "sector": "Consumer Discretionary",
+    "severity": "high",
+    "theme": "human_rights",
+    "type": "controversy"
+   },
+   {
+    "company": "Synthetic Company 08",
+    "demo": false,
+    "engagement_id": null,
+    "issuer_id": "SYN08",
+    "reason": "Position up more than 50%",
+    "rule": "position_jump",
+    "sector": "Health Care",
+    "severity": "low",
+    "theme": "position_review",
+    "type": "holding_change"
+   },
+   {
+    "company": "Synthetic Company 09",
+    "demo": false,
+    "engagement_id": null,
+    "issuer_id": "SYN09",
+    "reason": "Pay misaligned with performance for 3+ years",
+    "rule": "pay_misalignment",
+    "sector": "Energy",
+    "severity": "medium",
+    "theme": "executive_compensation",
+    "type": "score_change"
+   },
+   {
+    "company": "Synthetic Company 10",
+    "demo": false,
+    "engagement_id": null,
+    "issuer_id": "SYN10",
+    "reason": "CLTI score below 30",
+    "rule": "clti_laggard",
+    "sector": "Materials",
+    "severity": "high",
+    "theme": "climate_transition",
+    "type": "score_change"
+   },
+   {
+    "company": "Synthetic Company 11",
+    "demo": false,
+    "engagement_id": null,
+    "issuer_id": "SYN11",
+    "reason": "Nature score below 25 in a high-impact sector",
+    "rule": "nature_laggard",
+    "sector": "Utilities",
+    "severity": "medium",
+    "theme": "nature",
+    "type": "score_change"
+   },
+   {
+    "company": "Synthetic Company 11",
+    "demo": false,
+    "engagement_id": null,
+    "issuer_id": "SYN11",
+    "reason": "Pay misaligned with performance for 3+ years",
+    "rule": "pay_misalignment",
+    "sector": "Utilities",
+    "severity": "medium",
+    "theme": "executive_compensation",
+    "type": "score_change"
+   }
+  ]
+ },
+ "/api/stewardship/tiers": {
+  "assignments": [],
+  "changes": [
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 303,
+      "change_pct": 0,
+      "index_weight_pct": 0.9
+     }
+    },
+    "issuer_id": "SYN01",
+    "name": "Synthetic Company 01",
+    "reason": "Default: baseline coverage",
+    "rule": "default",
+    "tier": "letter"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 81,
+      "change_pct": -15,
+      "index_weight_pct": 0.3
+     }
+    },
+    "issuer_id": "SYN02",
+    "name": "Synthetic Company 02",
+    "reason": "High-emitting sector",
+    "rule": "high_emitter",
+    "tier": "letter"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 1547,
+      "change_pct": -40,
+      "index_weight_pct": 3.1
+     }
+    },
+    "issuer_id": "SYN03",
+    "name": "Synthetic Company 03",
+    "reason": "Index weight of 1% or more",
+    "rule": "top_weight",
+    "tier": "bilateral"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 92,
+      "change_pct": 120,
+      "index_weight_pct": 0.2
+     }
+    },
+    "issuer_id": "SYN04",
+    "name": "Synthetic Company 04",
+    "reason": "High-emitting sector",
+    "rule": "high_emitter",
+    "tier": "letter"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 8,
+      "change_pct": 0,
+      "index_weight_pct": 0.03
+     }
+    },
+    "issuer_id": "SYN05",
+    "name": "Synthetic Company 05",
+    "reason": "High-emitting sector",
+    "rule": "high_emitter",
+    "tier": "letter"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 249,
+      "change_pct": 10,
+      "index_weight_pct": 0.45
+     }
+    },
+    "issuer_id": "SYN06",
+    "name": "Synthetic Company 06",
+    "reason": "Default: baseline coverage",
+    "rule": "default",
+    "tier": "letter"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 768,
+      "change_pct": 10,
+      "index_weight_pct": 1.4
+     }
+    },
+    "issuer_id": "SYN07",
+    "name": "Synthetic Company 07",
+    "reason": "Index weight of 1% or more",
+    "rule": "top_weight",
+    "tier": "bilateral"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 270,
+      "change_pct": 65,
+      "index_weight_pct": 0.6
+     }
+    },
+    "issuer_id": "SYN08",
+    "name": "Synthetic Company 08",
+    "reason": "Default: baseline coverage",
+    "rule": "default",
+    "tier": "letter"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 17,
+      "change_pct": 5,
+      "index_weight_pct": 0.04
+     }
+    },
+    "issuer_id": "SYN09",
+    "name": "Synthetic Company 09",
+    "reason": "High-emitting sector",
+    "rule": "high_emitter",
+    "tier": "letter"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 6,
+      "change_pct": -5,
+      "index_weight_pct": 0.02
+     }
+    },
+    "issuer_id": "SYN10",
+    "name": "Synthetic Company 10",
+    "reason": "High-emitting sector",
+    "rule": "high_emitter",
+    "tier": "letter"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 20,
+      "change_pct": 0,
+      "index_weight_pct": 0.08
+     }
+    },
+    "issuer_id": "SYN11",
+    "name": "Synthetic Company 11",
+    "reason": "High-emitting sector",
+    "rule": "high_emitter",
+    "tier": "letter"
+   },
+   {
+    "current_tier": null,
+    "inputs": {
+     "history": {
+      "escalated": false,
+      "open_engagements": 0
+     },
+     "holding": {
+      "aum_held_eur_m": 49,
+      "change_pct": 0,
+      "index_weight_pct": 0.12
+     }
+    },
+    "issuer_id": "SYN12",
+    "name": "Synthetic Company 12",
+    "reason": "High-impact nature sector",
+    "rule": "nature_impact",
+    "tier": "letter"
+   }
+  ],
+  "confirmed": 0,
+  "distribution": {},
+  "in_scope": 12,
+  "picks": [],
+  "reevaluation_due": false
+ },
+ "/api/stewardship/worklist/scopes": {
+  "scopes": [
+   {
+    "companies": 12,
+    "key": "house",
+    "kind": "house",
+    "label": "All house holdings"
+   }
+  ]
+ },
+ "/api/stewardship/worklist?scope=house": {
+  "rows": [
+   {
+    "aum_held_eur_m": 303.0,
+    "broken_commitments": 0,
+    "carbon_intensity": null,
+    "commitment_flags": [],
+    "company": "Synthetic Company 01",
+    "controversy": null,
+    "coverage_tier": "letter",
+    "coverage_tier_confirmed": false,
+    "engaged": {
+     "last": null,
+     "yes": false
+    },
+    "equity_held_eur_m": 0.0,
+    "escalated": 0,
+    "esg_extra": {},
+    "esg_score": null,
+    "held_in": [],
+    "holdings_weight_pct": 0.9,
+    "identifier": "SYN01",
+    "issuer_id": "SYN01",
+    "last_topics": [],
+    "new_high_trigger": false,
+    "next_meeting": null,
+    "norms_violation": null,
+    "notes": {
+     "count": 0,
+     "latest": null
+    },
+    "open_engagements": 0,
+    "overdue_commitments": 0,
+    "ownership_pct": null,
+    "parts": [
+     {
+      "empty": false,
+      "id": "open_triggers",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 30
+     },
+     {
+      "empty": false,
+      "id": "holdings_weight",
+      "normalised": 0.8182,
+      "points": 16.4,
+      "weight": 20
+     },
+     {
+      "empty": false,
+      "id": "overdue_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 15
+     },
+     {
+      "empty": false,
+      "id": "escalated",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "transition_grade",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": false,
+      "id": "aum_held",
+      "normalised": 0.8182,
+      "points": 8.2,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "next_meeting",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 5
+     },
+     {
+      "empty": false,
+      "id": "coverage_tier",
+      "normalised": 0.5,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "open_engagements",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "esg_score",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "controversy",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "carbon_intensity",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     }
+    ],
+    "programmes": [],
+    "score": 24.6,
+    "sector": "Industrials",
+    "selected_elsewhere": [],
+    "selection": null,
+    "transition_grade": null,
+    "triggers": {
+     "high": 0,
+     "low": 0,
+     "medium": 0
+    }
+   },
+   {
+    "aum_held_eur_m": 81.0,
+    "broken_commitments": 0,
+    "carbon_intensity": null,
+    "commitment_flags": [],
+    "company": "Synthetic Company 02",
+    "controversy": null,
+    "coverage_tier": "letter",
+    "coverage_tier_confirmed": false,
+    "engaged": {
+     "last": null,
+     "yes": false
+    },
+    "equity_held_eur_m": 0.0,
+    "escalated": 0,
+    "esg_extra": {},
+    "esg_score": null,
+    "held_in": [],
+    "holdings_weight_pct": 0.3,
+    "identifier": "SYN02",
+    "issuer_id": "SYN02",
+    "last_topics": [],
+    "new_high_trigger": false,
+    "next_meeting": null,
+    "norms_violation": null,
+    "notes": {
+     "count": 0,
+     "latest": null
+    },
+    "open_engagements": 0,
+    "overdue_commitments": 0,
+    "ownership_pct": null,
+    "parts": [
+     {
+      "empty": false,
+      "id": "open_triggers",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 30
+     },
+     {
+      "empty": false,
+      "id": "holdings_weight",
+      "normalised": 0.5455,
+      "points": 10.9,
+      "weight": 20
+     },
+     {
+      "empty": false,
+      "id": "overdue_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 15
+     },
+     {
+      "empty": false,
+      "id": "escalated",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "transition_grade",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": false,
+      "id": "aum_held",
+      "normalised": 0.4545,
+      "points": 4.5,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "next_meeting",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 5
+     },
+     {
+      "empty": false,
+      "id": "coverage_tier",
+      "normalised": 0.5,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "open_engagements",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "esg_score",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "controversy",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "carbon_intensity",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     }
+    ],
+    "programmes": [],
+    "score": 15.4,
+    "sector": "Utilities",
+    "selected_elsewhere": [],
+    "selection": null,
+    "transition_grade": null,
+    "triggers": {
+     "high": 0,
+     "low": 0,
+     "medium": 0
+    }
+   },
+   {
+    "aum_held_eur_m": 1547.0,
+    "broken_commitments": 0,
+    "carbon_intensity": null,
+    "commitment_flags": [],
+    "company": "Synthetic Company 03",
+    "controversy": null,
+    "coverage_tier": "bilateral",
+    "coverage_tier_confirmed": false,
+    "engaged": {
+     "last": null,
+     "yes": false
+    },
+    "equity_held_eur_m": 0.0,
+    "escalated": 0,
+    "esg_extra": {},
+    "esg_score": null,
+    "held_in": [],
+    "holdings_weight_pct": 3.1,
+    "identifier": "SYN03",
+    "issuer_id": "SYN03",
+    "last_topics": [],
+    "new_high_trigger": false,
+    "next_meeting": null,
+    "norms_violation": null,
+    "notes": {
+     "count": 0,
+     "latest": null
+    },
+    "open_engagements": 0,
+    "overdue_commitments": 0,
+    "ownership_pct": null,
+    "parts": [
+     {
+      "empty": false,
+      "id": "open_triggers",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 30
+     },
+     {
+      "empty": false,
+      "id": "holdings_weight",
+      "normalised": 1.0,
+      "points": 20.0,
+      "weight": 20
+     },
+     {
+      "empty": false,
+      "id": "overdue_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 15
+     },
+     {
+      "empty": false,
+      "id": "escalated",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "transition_grade",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": false,
+      "id": "aum_held",
+      "normalised": 1.0,
+      "points": 10.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "next_meeting",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 5
+     },
+     {
+      "empty": false,
+      "id": "coverage_tier",
+      "normalised": 1.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "open_engagements",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "esg_score",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "controversy",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "carbon_intensity",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     }
+    ],
+    "programmes": [],
+    "score": 30.0,
+    "sector": "Information Technology",
+    "selected_elsewhere": [],
+    "selection": null,
+    "transition_grade": null,
+    "triggers": {
+     "high": 0,
+     "low": 0,
+     "medium": 0
+    }
+   },
+   {
+    "aum_held_eur_m": 92.0,
+    "broken_commitments": 0,
+    "carbon_intensity": null,
+    "commitment_flags": [],
+    "company": "Synthetic Company 04",
+    "controversy": null,
+    "coverage_tier": "letter",
+    "coverage_tier_confirmed": false,
+    "engaged": {
+     "last": null,
+     "yes": false
+    },
+    "equity_held_eur_m": 0.0,
+    "escalated": 0,
+    "esg_extra": {},
+    "esg_score": null,
+    "held_in": [],
+    "holdings_weight_pct": 0.2,
+    "identifier": "SYN04",
+    "issuer_id": "SYN04",
+    "last_topics": [],
+    "new_high_trigger": false,
+    "next_meeting": null,
+    "norms_violation": null,
+    "notes": {
+     "count": 0,
+     "latest": null
+    },
+    "open_engagements": 0,
+    "overdue_commitments": 0,
+    "ownership_pct": null,
+    "parts": [
+     {
+      "empty": false,
+      "id": "open_triggers",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 30
+     },
+     {
+      "empty": false,
+      "id": "holdings_weight",
+      "normalised": 0.4545,
+      "points": 9.1,
+      "weight": 20
+     },
+     {
+      "empty": false,
+      "id": "overdue_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 15
+     },
+     {
+      "empty": false,
+      "id": "escalated",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "transition_grade",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": false,
+      "id": "aum_held",
+      "normalised": 0.5455,
+      "points": 5.5,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "next_meeting",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 5
+     },
+     {
+      "empty": false,
+      "id": "coverage_tier",
+      "normalised": 0.5,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "open_engagements",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "esg_score",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "controversy",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "carbon_intensity",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     }
+    ],
+    "programmes": [],
+    "score": 14.6,
+    "sector": "Energy",
+    "selected_elsewhere": [],
+    "selection": null,
+    "transition_grade": null,
+    "triggers": {
+     "high": 0,
+     "low": 0,
+     "medium": 0
+    }
+   },
+   {
+    "aum_held_eur_m": 8.0,
+    "broken_commitments": 0,
+    "carbon_intensity": null,
+    "commitment_flags": [],
+    "company": "Synthetic Company 05",
+    "controversy": null,
+    "coverage_tier": "letter",
+    "coverage_tier_confirmed": false,
+    "engaged": {
+     "last": null,
+     "yes": false
+    },
+    "equity_held_eur_m": 0.0,
+    "escalated": 0,
+    "esg_extra": {},
+    "esg_score": null,
+    "held_in": [],
+    "holdings_weight_pct": 0.03,
+    "identifier": "SYN05",
+    "issuer_id": "SYN05",
+    "last_topics": [],
+    "new_high_trigger": false,
+    "next_meeting": null,
+    "norms_violation": null,
+    "notes": {
+     "count": 0,
+     "latest": null
+    },
+    "open_engagements": 0,
+    "overdue_commitments": 0,
+    "ownership_pct": null,
+    "parts": [
+     {
+      "empty": false,
+      "id": "open_triggers",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 30
+     },
+     {
+      "empty": false,
+      "id": "holdings_weight",
+      "normalised": 0.0909,
+      "points": 1.8,
+      "weight": 20
+     },
+     {
+      "empty": false,
+      "id": "overdue_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 15
+     },
+     {
+      "empty": false,
+      "id": "escalated",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "transition_grade",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": false,
+      "id": "aum_held",
+      "normalised": 0.0909,
+      "points": 0.9,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "next_meeting",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 5
+     },
+     {
+      "empty": false,
+      "id": "coverage_tier",
+      "normalised": 0.5,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "open_engagements",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "esg_score",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "controversy",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "carbon_intensity",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     }
+    ],
+    "programmes": [],
+    "score": 2.7,
+    "sector": "Materials",
+    "selected_elsewhere": [],
+    "selection": null,
+    "transition_grade": null,
+    "triggers": {
+     "high": 0,
+     "low": 0,
+     "medium": 0
+    }
+   },
+   {
+    "aum_held_eur_m": 249.0,
+    "broken_commitments": 0,
+    "carbon_intensity": null,
+    "commitment_flags": [],
+    "company": "Synthetic Company 06",
+    "controversy": null,
+    "coverage_tier": "letter",
+    "coverage_tier_confirmed": false,
+    "engaged": {
+     "last": null,
+     "yes": false
+    },
+    "equity_held_eur_m": 0.0,
+    "escalated": 0,
+    "esg_extra": {},
+    "esg_score": null,
+    "held_in": [],
+    "holdings_weight_pct": 0.45,
+    "identifier": "SYN06",
+    "issuer_id": "SYN06",
+    "last_topics": [],
+    "new_high_trigger": false,
+    "next_meeting": null,
+    "norms_violation": null,
+    "notes": {
+     "count": 0,
+     "latest": null
+    },
+    "open_engagements": 0,
+    "overdue_commitments": 0,
+    "ownership_pct": null,
+    "parts": [
+     {
+      "empty": false,
+      "id": "open_triggers",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 30
+     },
+     {
+      "empty": false,
+      "id": "holdings_weight",
+      "normalised": 0.6364,
+      "points": 12.7,
+      "weight": 20
+     },
+     {
+      "empty": false,
+      "id": "overdue_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 15
+     },
+     {
+      "empty": false,
+      "id": "escalated",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "transition_grade",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": false,
+      "id": "aum_held",
+      "normalised": 0.6364,
+      "points": 6.4,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "next_meeting",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 5
+     },
+     {
+      "empty": false,
+      "id": "coverage_tier",
+      "normalised": 0.5,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "open_engagements",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "esg_score",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "controversy",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "carbon_intensity",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     }
+    ],
+    "programmes": [],
+    "score": 19.1,
+    "sector": "Consumer Discretionary",
+    "selected_elsewhere": [],
+    "selection": null,
+    "transition_grade": null,
+    "triggers": {
+     "high": 0,
+     "low": 0,
+     "medium": 0
+    }
+   },
+   {
+    "aum_held_eur_m": 768.0,
+    "broken_commitments": 0,
+    "carbon_intensity": null,
+    "commitment_flags": [],
+    "company": "Synthetic Company 07",
+    "controversy": null,
+    "coverage_tier": "bilateral",
+    "coverage_tier_confirmed": false,
+    "engaged": {
+     "last": null,
+     "yes": false
+    },
+    "equity_held_eur_m": 0.0,
+    "escalated": 0,
+    "esg_extra": {},
+    "esg_score": null,
+    "held_in": [],
+    "holdings_weight_pct": 1.4,
+    "identifier": "SYN07",
+    "issuer_id": "SYN07",
+    "last_topics": [],
+    "new_high_trigger": false,
+    "next_meeting": null,
+    "norms_violation": null,
+    "notes": {
+     "count": 0,
+     "latest": null
+    },
+    "open_engagements": 0,
+    "overdue_commitments": 0,
+    "ownership_pct": null,
+    "parts": [
+     {
+      "empty": false,
+      "id": "open_triggers",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 30
+     },
+     {
+      "empty": false,
+      "id": "holdings_weight",
+      "normalised": 0.9091,
+      "points": 18.2,
+      "weight": 20
+     },
+     {
+      "empty": false,
+      "id": "overdue_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 15
+     },
+     {
+      "empty": false,
+      "id": "escalated",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "transition_grade",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": false,
+      "id": "aum_held",
+      "normalised": 0.9091,
+      "points": 9.1,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "next_meeting",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 5
+     },
+     {
+      "empty": false,
+      "id": "coverage_tier",
+      "normalised": 1.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "open_engagements",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "esg_score",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "controversy",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "carbon_intensity",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     }
+    ],
+    "programmes": [],
+    "score": 27.3,
+    "sector": "Financials",
+    "selected_elsewhere": [],
+    "selection": null,
+    "transition_grade": null,
+    "triggers": {
+     "high": 0,
+     "low": 0,
+     "medium": 0
+    }
+   },
+   {
+    "aum_held_eur_m": 270.0,
+    "broken_commitments": 0,
+    "carbon_intensity": null,
+    "commitment_flags": [],
+    "company": "Synthetic Company 08",
+    "controversy": null,
+    "coverage_tier": "letter",
+    "coverage_tier_confirmed": false,
+    "engaged": {
+     "last": null,
+     "yes": false
+    },
+    "equity_held_eur_m": 0.0,
+    "escalated": 0,
+    "esg_extra": {},
+    "esg_score": null,
+    "held_in": [],
+    "holdings_weight_pct": 0.6,
+    "identifier": "SYN08",
+    "issuer_id": "SYN08",
+    "last_topics": [],
+    "new_high_trigger": false,
+    "next_meeting": null,
+    "norms_violation": null,
+    "notes": {
+     "count": 0,
+     "latest": null
+    },
+    "open_engagements": 0,
+    "overdue_commitments": 0,
+    "ownership_pct": null,
+    "parts": [
+     {
+      "empty": false,
+      "id": "open_triggers",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 30
+     },
+     {
+      "empty": false,
+      "id": "holdings_weight",
+      "normalised": 0.7273,
+      "points": 14.5,
+      "weight": 20
+     },
+     {
+      "empty": false,
+      "id": "overdue_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 15
+     },
+     {
+      "empty": false,
+      "id": "escalated",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "transition_grade",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": false,
+      "id": "aum_held",
+      "normalised": 0.7273,
+      "points": 7.3,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "next_meeting",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 5
+     },
+     {
+      "empty": false,
+      "id": "coverage_tier",
+      "normalised": 0.5,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "open_engagements",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "esg_score",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "controversy",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "carbon_intensity",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     }
+    ],
+    "programmes": [],
+    "score": 21.8,
+    "sector": "Health Care",
+    "selected_elsewhere": [],
+    "selection": null,
+    "transition_grade": null,
+    "triggers": {
+     "high": 0,
+     "low": 0,
+     "medium": 0
+    }
+   },
+   {
+    "aum_held_eur_m": 17.0,
+    "broken_commitments": 0,
+    "carbon_intensity": null,
+    "commitment_flags": [],
+    "company": "Synthetic Company 09",
+    "controversy": null,
+    "coverage_tier": "letter",
+    "coverage_tier_confirmed": false,
+    "engaged": {
+     "last": null,
+     "yes": false
+    },
+    "equity_held_eur_m": 0.0,
+    "escalated": 0,
+    "esg_extra": {},
+    "esg_score": null,
+    "held_in": [],
+    "holdings_weight_pct": 0.04,
+    "identifier": "SYN09",
+    "issuer_id": "SYN09",
+    "last_topics": [],
+    "new_high_trigger": false,
+    "next_meeting": null,
+    "norms_violation": null,
+    "notes": {
+     "count": 0,
+     "latest": null
+    },
+    "open_engagements": 0,
+    "overdue_commitments": 0,
+    "ownership_pct": null,
+    "parts": [
+     {
+      "empty": false,
+      "id": "open_triggers",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 30
+     },
+     {
+      "empty": false,
+      "id": "holdings_weight",
+      "normalised": 0.1818,
+      "points": 3.6,
+      "weight": 20
+     },
+     {
+      "empty": false,
+      "id": "overdue_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 15
+     },
+     {
+      "empty": false,
+      "id": "escalated",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "transition_grade",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": false,
+      "id": "aum_held",
+      "normalised": 0.1818,
+      "points": 1.8,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "next_meeting",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 5
+     },
+     {
+      "empty": false,
+      "id": "coverage_tier",
+      "normalised": 0.5,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "open_engagements",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "esg_score",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "controversy",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "carbon_intensity",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     }
+    ],
+    "programmes": [],
+    "score": 5.4,
+    "sector": "Energy",
+    "selected_elsewhere": [],
+    "selection": null,
+    "transition_grade": null,
+    "triggers": {
+     "high": 0,
+     "low": 0,
+     "medium": 0
+    }
+   },
+   {
+    "aum_held_eur_m": 6.0,
+    "broken_commitments": 0,
+    "carbon_intensity": null,
+    "commitment_flags": [],
+    "company": "Synthetic Company 10",
+    "controversy": null,
+    "coverage_tier": "letter",
+    "coverage_tier_confirmed": false,
+    "engaged": {
+     "last": null,
+     "yes": false
+    },
+    "equity_held_eur_m": 0.0,
+    "escalated": 0,
+    "esg_extra": {},
+    "esg_score": null,
+    "held_in": [],
+    "holdings_weight_pct": 0.02,
+    "identifier": "SYN10",
+    "issuer_id": "SYN10",
+    "last_topics": [],
+    "new_high_trigger": false,
+    "next_meeting": null,
+    "norms_violation": null,
+    "notes": {
+     "count": 0,
+     "latest": null
+    },
+    "open_engagements": 0,
+    "overdue_commitments": 0,
+    "ownership_pct": null,
+    "parts": [
+     {
+      "empty": false,
+      "id": "open_triggers",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 30
+     },
+     {
+      "empty": false,
+      "id": "holdings_weight",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 20
+     },
+     {
+      "empty": false,
+      "id": "overdue_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 15
+     },
+     {
+      "empty": false,
+      "id": "escalated",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "transition_grade",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": false,
+      "id": "aum_held",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "next_meeting",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 5
+     },
+     {
+      "empty": false,
+      "id": "coverage_tier",
+      "normalised": 0.5,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "open_engagements",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "esg_score",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "controversy",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "carbon_intensity",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     }
+    ],
+    "programmes": [],
+    "score": 0.0,
+    "sector": "Materials",
+    "selected_elsewhere": [],
+    "selection": null,
+    "transition_grade": null,
+    "triggers": {
+     "high": 0,
+     "low": 0,
+     "medium": 0
+    }
+   },
+   {
+    "aum_held_eur_m": 20.0,
+    "broken_commitments": 0,
+    "carbon_intensity": null,
+    "commitment_flags": [],
+    "company": "Synthetic Company 11",
+    "controversy": null,
+    "coverage_tier": "letter",
+    "coverage_tier_confirmed": false,
+    "engaged": {
+     "last": null,
+     "yes": false
+    },
+    "equity_held_eur_m": 0.0,
+    "escalated": 0,
+    "esg_extra": {},
+    "esg_score": null,
+    "held_in": [],
+    "holdings_weight_pct": 0.08,
+    "identifier": "SYN11",
+    "issuer_id": "SYN11",
+    "last_topics": [],
+    "new_high_trigger": false,
+    "next_meeting": null,
+    "norms_violation": null,
+    "notes": {
+     "count": 0,
+     "latest": null
+    },
+    "open_engagements": 0,
+    "overdue_commitments": 0,
+    "ownership_pct": null,
+    "parts": [
+     {
+      "empty": false,
+      "id": "open_triggers",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 30
+     },
+     {
+      "empty": false,
+      "id": "holdings_weight",
+      "normalised": 0.2727,
+      "points": 5.5,
+      "weight": 20
+     },
+     {
+      "empty": false,
+      "id": "overdue_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 15
+     },
+     {
+      "empty": false,
+      "id": "escalated",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "transition_grade",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": false,
+      "id": "aum_held",
+      "normalised": 0.2727,
+      "points": 2.7,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "next_meeting",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 5
+     },
+     {
+      "empty": false,
+      "id": "coverage_tier",
+      "normalised": 0.5,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "open_engagements",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "esg_score",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "controversy",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "carbon_intensity",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     }
+    ],
+    "programmes": [],
+    "score": 8.2,
+    "sector": "Utilities",
+    "selected_elsewhere": [],
+    "selection": null,
+    "transition_grade": null,
+    "triggers": {
+     "high": 0,
+     "low": 0,
+     "medium": 0
+    }
+   },
+   {
+    "aum_held_eur_m": 49.0,
+    "broken_commitments": 0,
+    "carbon_intensity": null,
+    "commitment_flags": [],
+    "company": "Synthetic Company 12",
+    "controversy": null,
+    "coverage_tier": "letter",
+    "coverage_tier_confirmed": false,
+    "engaged": {
+     "last": null,
+     "yes": false
+    },
+    "equity_held_eur_m": 0.0,
+    "escalated": 0,
+    "esg_extra": {},
+    "esg_score": null,
+    "held_in": [],
+    "holdings_weight_pct": 0.12,
+    "identifier": "SYN12",
+    "issuer_id": "SYN12",
+    "last_topics": [],
+    "new_high_trigger": false,
+    "next_meeting": null,
+    "norms_violation": null,
+    "notes": {
+     "count": 0,
+     "latest": null
+    },
+    "open_engagements": 0,
+    "overdue_commitments": 0,
+    "ownership_pct": null,
+    "parts": [
+     {
+      "empty": false,
+      "id": "open_triggers",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 30
+     },
+     {
+      "empty": false,
+      "id": "holdings_weight",
+      "normalised": 0.3636,
+      "points": 7.3,
+      "weight": 20
+     },
+     {
+      "empty": false,
+      "id": "overdue_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 15
+     },
+     {
+      "empty": false,
+      "id": "escalated",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "transition_grade",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 10
+     },
+     {
+      "empty": false,
+      "id": "aum_held",
+      "normalised": 0.3636,
+      "points": 3.6,
+      "weight": 10
+     },
+     {
+      "empty": true,
+      "id": "next_meeting",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 5
+     },
+     {
+      "empty": false,
+      "id": "coverage_tier",
+      "normalised": 0.5,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "open_engagements",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "esg_score",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "controversy",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": true,
+      "id": "carbon_intensity",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     },
+     {
+      "empty": false,
+      "id": "broken_commitments",
+      "normalised": 0.0,
+      "points": 0.0,
+      "weight": 0
+     }
+    ],
+    "programmes": [],
+    "score": 10.9,
+    "sector": "Consumer Staples",
+    "selected_elsewhere": [],
+    "selection": null,
+    "transition_grade": null,
+    "triggers": {
+     "high": 0,
+     "low": 0,
+     "medium": 0
+    }
+   }
+  ],
+  "scope": {
+   "companies": 12,
+   "key": "house",
+   "kind": "house",
+   "label": "All house holdings"
+  },
+  "universe_note": "SYNTHETIC, fictional data for exercising the policy graphs and back-tests. Company names, values and meetings are invented; about 10% of company values are deliberately missing. Holdings (index weight, AUM held across house portfolios) are synthetic too.",
+  "weights": {
+   "activated_at": null,
+   "activated_by": null,
+   "version": 0
+  }
+ }
+}

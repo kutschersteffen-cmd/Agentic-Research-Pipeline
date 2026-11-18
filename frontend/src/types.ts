@@ -22,9 +22,11 @@ export type RunFailure = Served<S["RunFailure"]>;
 /** One SIMULATED value (`GET /api/companies/{ref}/simulated-esg`); never real ESG data. */
 export type SimulatedObservation = Served<S["DataPointObservation"]>;
 export type DocumentPassages = Served<S["DocumentPassages"]>;
+export type WaitingCounts = Served<S["WaitingCounts"]>;
 export type DocumentPassage = DocumentPassages["passages"][number];
 export type ArgusFlow = Served<S["ArgusFlowView"]>;
 export type ArgusDraft = Served<S["ArgusFlow"]>; // as GET /api/argus/flows lists it, without rows
+export type Cockpit = Served<S["CockpitResponse"]>; // GET /api/stewardship/cockpit
 export type FlowRow = Served<S["FlowRow"]>;
 export type FlowFile = Served<S["FlowFile"]>;
 export type RepeatRow = Served<S["RepeatRow"]>;
@@ -63,6 +65,7 @@ export type RunStarted = Served<S["RunStarted"]>;
 export type PriorRun = Served<S["PriorRun"]>;
 
 export type RfpLibraryEntry = Served<S["RfpLibraryEntryOut"]>;
+export type RfpDocument = Served<S["RfpDocumentOut"]>;
 export type RfpProjectSummary = Served<S["RfpProjectSummary"]>;
 export type RfpProject = Served<S["RfpProjectOut"]>;
 export type RfpQuestion = Served<S["RfpQuestionOut"]>;
@@ -1312,7 +1315,7 @@ export const CHART_TYPES: ChartType[] = [
   "bar", "column", "stacked_column", "line", "area", "pie", "doughnut", "scatter", "radar", "waterfall", "heatmap", "table",
 ];
 
-export type ChartSpec = Served<S["arp__schemas__reporting__ChartSpec"]>;
+export type ChartSpec = Served<S["arp__schemas__chart_specs__ChartSpec"]>;
 
 export interface TableSpec {
   dataset_id: string;
@@ -2205,7 +2208,26 @@ export interface StewardshipStream {
 }
 
 // Stage studios: versioned house policies (backend/arp/stewardship/policies.py)
-export type StewardPolicyId = "monitoring_rules" | "coverage_rules" | "escalation_rules" | "phrase_blocklist" | "house_voting";
+export type StewardPolicyId = "monitoring_rules" | "coverage_rules" | "escalation_rules" | "phrase_blocklist" | "house_voting" | "priority_weights";
+
+// The stewardship workbench (backend/arp/schemas/worklist.py)
+export type Worklist = Served<S["Worklist"]>;
+export type WorklistRow = Served<S["WorklistRow"]>;
+export type WorklistScope = Served<S["WorklistScope"]>;
+export type SelectionList = Served<S["SelectionList"]>;
+export type WorkProgramme = Served<S["Programme"]>;
+export type ProgrammeDetail = Served<S["ProgrammeDetail"]>;
+export type PriorityPreview = Served<S["PriorityPreview"]>;
+export type PortfolioGroup = Served<S["PortfolioGroup"]>;
+export type WorklistScopes = Served<S["WorklistScopes"]>;
+export type ProgrammeList = Served<S["ProgrammeList"]>;
+export type SelectionConfirmed = Served<S["SelectionConfirmed"]>;
+export type StewardNote = Served<S["Note"]>;
+export type StewardNoteList = Served<S["NoteList"]>;
+export type VoteList = Served<S["VoteList"]>;
+// The fund overlap tab (backend/arp/schemas/overlap.py)
+export type FundOverlap = Served<S["FundOverlap"]>;
+export type OverlapMatrix = Served<S["OverlapMatrix"]>;
 
 export interface PolicyVersionMeta {
   version: number;
@@ -2288,6 +2310,7 @@ export interface MonitoringTrigger {
   rule: string;
   reason: string;
   engagement_id: string | null;
+  demo?: boolean; // raised by demo votes alone; tracking triggers carry none
 }
 
 export interface MonitoringPreview {
@@ -2566,7 +2589,8 @@ export interface RunCompany {
   entity_id?: string | null;
 }
 
-/** Superset BI designer (/api/bi). A refused plan is a 200 with `rejected` reasons and no dashboard. */
+/** Superset BI designer (/api/bi). A plan that fails validation is a 200 with `rejected` reasons and no dashboard;
+ * a question back from the model is a 200 with `clarification_needed`. */
 export type BIChartSpec = Served<S["arp__bi__plan__ChartSpec"]>;
 
 export type BIChartPlan = Served<S["ChartPlan"]>;
@@ -2624,6 +2648,7 @@ export interface UnifiedTrigger {
   first_seen_month: string;
   is_new: boolean;
   rule: string;
+  demo: boolean; // raised by demo votes alone, as the last monthly run said
   company: string;
 }
 

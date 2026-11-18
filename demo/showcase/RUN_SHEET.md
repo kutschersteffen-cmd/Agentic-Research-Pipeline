@@ -13,11 +13,21 @@ Holdings are public ETF holdings files (DWS constituent exports as of 2 Nov 2026
 
 ## Day before
 
-1. In the Jupyter terminal: `scripts/launch_jupyter.sh up`, then `scripts/launch_jupyter.sh check` (the
-   `fetch` line says whether live document search will work; the show does not need it).
+0. Sign-in, once. In the Jupyter terminal: `scripts/launch_jupyter.sh users`. In `config/users.json`, change
+   the first reviewer's `name` to your own name (the release in step 4 records it). Add the two lines it printed
+   (`ARP_AUTH_MODE=local`, `ARP_USERS_FILE=...`) to `backend/.env` and delete any older `ARP_AUTH_MODE`,
+   `ARP_DEV_TRUSTED_NETWORKS` and `ARP_ALLOWED_ORIGINS` lines there; `up` refuses to start in dev mode. Keep the
+   two tokens out of any window you share on screen. The first token is yours; the second is only for a second
+   review. Hand out no token: an analyst who opens the link sees the "Access token" box and nothing else.
+1. In the Jupyter terminal: `scripts/launch_jupyter.sh down` (stops a server started with the old settings),
+   `scripts/launch_jupyter.sh up`, then `scripts/launch_jupyter.sh check` (the
+   `fetch` line says whether live document search will work; the show does not need it). Open the printed
+   link in the browser you present from → Open ARP → the round account button at the top right → paste the
+   first token into the "Access token" box and press Enter: it shows "Signed in as <your name> (approver)".
 2. Save the 14 PDFs listed in `demo/showcase/documents.csv` into `demo/showcase/documents/` under their
    `file_name`. Each annual report needs a text layer with the company name on its first pages.
-3. Load the pack, from `backend/`: `python scripts/load_showcase_pack.py`. It takes about 5 minutes
+3. Load the pack, from `backend/`: `ARP_SHOWCASE_TOKEN=<first token> python scripts/load_showcase_pack.py`
+   (its voting run is created as you). It takes about 5 minutes
    (`arp showcase load` alone about 3). Every line must read `ok`; a `skip portfolios` line means #434 is not
    merged yet (T1 and R3 then fall back, see below). Run it again whenever you like: nothing doubles.
 4. Taxonomy for R2: Taxonomy Library → New taxonomy → method "LLM draft (freeform)", theme "Energy transition" →
@@ -92,6 +102,9 @@ R3 (live, 4 minutes). Index Construction → Starting universe "DAX.xlsx" (40 co
 2026-11-02, simulated ESG fields matched) → Start from a preset "eu_pab" → add a screen on the simulated
 `transition_grade` (leave out F) and on controversial revenue (`coal_revenue_pct` above 5) → Preview:
 constituents, weights, and the notes "Starting universe: DAX.xlsx ..." and "Simulated ESG data: matched ...".
+Say it: the Preview drops BASF N under "Norms-based exclusion (UNGC / OECD)" (35 of 40 kept). That flag is a
+simulated demo flag (`data/simulated/activity_overrides.csv`), not a finding about BASF, and the exclusion row
+itself shows no `Simulated` mark.
 Depends on index-starting-universe PR 2 (the starting-universe card); its backend is on `main`.
 Fallback R3: without that PR, Index Construction runs on the built-in demo universe: say it is synthetic (60
 invented companies), load the preset "eu_pab" and Preview.
@@ -139,5 +152,5 @@ No scene of its own has a fallback here: if the A1 run is not finished, show its
 
 There is no reset command. In the bank Jupyter: `scripts/launch_jupyter.sh down`; ask for the Postgres
 database to be dropped and created again (or point `ARP_POSTGRES_DSN` at a fresh one); move `runs/` and
-`data/documents/` aside; `scripts/launch_jupyter.sh up` (it migrates the new database); then the day-before
-list from step 3.
+`data/documents/` aside; keep `config/users.json` and the two sign-in lines in `backend/.env`;
+`scripts/launch_jupyter.sh up` (it migrates the new database); then the day-before list from step 3.

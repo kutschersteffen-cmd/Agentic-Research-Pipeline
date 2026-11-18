@@ -72,9 +72,12 @@ def _last_query(page):
 
 
 def _click(page, name):
-    """Click a button and wait for the shock request it sends, so _last_query reads that request."""
-    with page.expect_request("**/api/value-chain/shock/*"):
+    """Click a button and return the query of the shock request it sends. Not _last_query: the route handler
+    that fills page.shock_requests can run after expect_request has returned, so the list may still end at the
+    request before."""
+    with page.expect_request("**/api/value-chain/shock/*") as sent:
         page.get_by_role("button", name=name).click()
+    return parse_qs(urlparse(sent.value.url).query)
 
 
 def test_shocks_view(page):  # AC-26 to AC-30e, on stubbed numbers
@@ -91,8 +94,8 @@ def test_shocks_view(page):  # AC-26 to AC-30e, on stubbed numbers
     assert page.get_by_text("−45.8 t CO₂e").is_visible()
     assert page.get_by_text(CAVEAT).is_visible()
 
-    _click(page, "All of CN")
-    assert _last_query(page)["region"] == ["CN"] and "node" not in _last_query(page)
+    query = _click(page, "All of CN")
+    assert query["region"] == ["CN"] and "node" not in query
 
     _click(page, "Supply dependency")
     page.get_by_role("heading", name="Dependency indicator: output change").wait_for()
@@ -104,10 +107,9 @@ def test_shocks_view(page):  # AC-26 to AC-30e, on stubbed numbers
     page.get_by_text("this node 0.01%").wait_for()
     assert _last_query(page) == {"carbon_eur_per_t": ["100"], "top": ["6"], "focus": ["CN.2"]}
     assert page.get_by_role("region", name="By region").locator("li").count() == 6
-    _click(page, "EU-27")
-    assert len(_last_query(page)["region"]) == 27 and "GB" not in _last_query(page)["region"]
-    _click(page, "CN only")
-    assert _last_query(page)["region"] == ["CN"]
+    query = _click(page, "EU-27")
+    assert len(query["region"]) == 27 and "GB" not in query["region"]
+    assert _click(page, "CN only")["region"] == ["CN"]
     assert page.console_errors == []
 
     for view in ("", "/tree", "/footprint"):  # AC-30: each view links to the Shocks view of the same node

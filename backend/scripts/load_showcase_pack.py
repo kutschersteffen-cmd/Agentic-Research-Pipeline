@@ -1,9 +1,9 @@
 """Loads the showcase demo pack (demo/showcase/) into ARP, in the order the app needs.
 
 Spec: docs/superpowers/specs/2026-11-12-showcase-demo-pack-design.md. Run from backend/ the day before, after
-`scripts/launch_jupyter.sh up`:
+`scripts/launch_jupyter.sh up`, with the presenter's token (spec showcase-login-origins):
 
-    python scripts/load_showcase_pack.py [--only STEP] [--again] [--base-url URL]
+    ARP_SHOWCASE_TOKEN=<token> python scripts/load_showcase_pack.py [--only STEP] [--again] [--base-url URL]
 
 One line per step, `ok|skip|FAIL <step>: <reason>`, detail lines indented; exit 1 if any step failed.
 """

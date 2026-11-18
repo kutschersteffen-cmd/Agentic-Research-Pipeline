@@ -3,6 +3,7 @@ import { clearToken, getToken } from "../lib/auth";
 import type { Plan } from "../lib/plans";
 import { filenameFromDisposition, inlineSafe } from "../lib/files";
 import { profileEmbedParams } from "../lib/biEmbed";
+import { cockpitPath } from "../lib/cockpit";
 import type { RowLineage } from "../lib/lineage";
 import type { Me } from "../lib/reviewKeys";
 import type {
@@ -15,6 +16,7 @@ import type {
   FindCommitmentsResult,
   ArgusDraft,
   ArgusFlow,
+  Cockpit,
   FlowProgress,
   AskHistoryTurn,
   AskResponse,
@@ -58,6 +60,7 @@ import type {
   XbrlRequiredRow,
   XbrlTag,
   XbrlVerifyRow,
+  RfpDocument,
   RfpLibraryEntry,
   RfpProject,
   RfpProjectSummary,
@@ -69,6 +72,20 @@ import type {
   SignalExperimentSummary,
   SignalMethod,
   BilateralPick,
+  SelectionConfirmed,
+  StewardNote,
+  StewardNoteList,
+  VoteList,
+  PortfolioGroup,
+  PriorityPreview,
+  ProgrammeList,
+  ProgrammeDetail,
+  SelectionList,
+  WorkProgramme,
+  Worklist,
+  WorklistScopes,
+  FundOverlap,
+  OverlapMatrix,
 } from "../types";
 import { tagQuery } from "../lib/xbrlTags";
 import { encodeRef, factsUrl, type FactFilters } from "../pages/company/companyQuery";
@@ -140,7 +157,7 @@ import type {
   StandardsSaved,
   StandardsView,
 } from "../types";
-import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, Walkthrough } from "../types";
+import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, WaitingCounts, Walkthrough } from "../types";
 import type { DecisionInput, DocType, DocumentPassages, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
 import type { BIChartPlan, BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
@@ -280,6 +297,17 @@ export const api = {
     return request<{ imported: number; dropped: string[] }>("/api/rfp/library/import", { method: "POST", body: form });
   },
   retireRfpEntry: (id: number) => request<RfpLibraryEntry>(`/api/rfp/library/${id}/retire`, { method: "POST" }),
+  listRfpDocuments: () => request<RfpDocument[]>("/api/rfp/documents"),
+  uploadRfpDocument: (file: File, title: string, documentDate: string, priority: number, replaces: number | null) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("title", title);
+    form.append("document_date", documentDate);
+    form.append("priority", String(priority));
+    if (replaces !== null) form.append("replaces", String(replaces));
+    return request<RfpDocument>("/api/rfp/documents", { method: "POST", body: form });
+  },
+  retireRfpDocument: (id: number) => request<RfpDocument>(`/api/rfp/documents/${id}/retire`, { method: "POST" }),
   listRfpProjects: () => request<RfpProjectSummary[]>("/api/rfp/projects"),
   createRfpProject: (file: File, investor: string, dueDate: string) => {
     const form = new FormData();
@@ -305,6 +333,7 @@ export const api = {
   getDeckHtml: async (reportId: string) => (await authFetch(`${API_BASE}/api/reports/${encodeURIComponent(reportId)}/deck/html`)).text(),
   listReviewItems: (runId?: string) =>
     request<{ items: ReviewItem[] }>(`/api/review/items${runId ? `?run_id=${encodeURIComponent(runId)}` : ""}`),
+  getWaiting: () => request<WaitingCounts>("/api/waiting"),
   getItemContext: (runId: string, itemKey: string) =>
     request<ItemContext>(`/api/review/runs/${encodeURIComponent(runId)}/items/${encodeURIComponent(itemKey)}/context`),
   getWalkthrough: (runId: string, companyId: string, q: { item: string; period_end?: string; basis?: string }) =>
@@ -829,6 +858,7 @@ export const api = {
     request<{ triggers: UnifiedTrigger[] }>(`/api/stewardship/triggers${status ? `?status=${status}` : ""}`),
   transitionTrigger: (triggerId: string, body: { status: UnifiedTrigger["status"]; decided_by: string; reason?: string }) =>
     request<UnifiedTrigger>(`/api/stewardship/triggers/${encodeURIComponent(triggerId)}/transition`, { method: "POST", body: JSON.stringify(body) }),
+  getCockpit: (asOf?: string, portfolioId?: string | null) => request<Cockpit>(cockpitPath(asOf, portfolioId)),
   listStewardshipStreams: () => request<{ streams: StewardshipStream[] }>("/api/stewardship/streams"),
   createStewardshipStream: (body: { name: string; vehicle_type: string; client_policy?: unknown }) =>
     request<{ stream_id: string }>("/api/stewardship/streams", { method: "POST", body: JSON.stringify(body) }),
@@ -920,6 +950,30 @@ export const api = {
   ) => request(`/api/stewardship/streams/${encodeURIComponent(streamId)}/exceptions`, { method: "POST", body: JSON.stringify(body) }),
   getIssueCatalogue: () => request<IssueCatalogue>("/api/stewardship/catalogue"),
   getCoverageInputs: () => request<{ contexts: Record<string, unknown>[] }>("/api/stewardship/studio/coverage/inputs"),
+  // The stewardship workbench (spec stewardship-priority-worklist)
+  getWorklist: (scope: string) => request<Worklist>(`/api/stewardship/worklist${buildQuery({ scope })}`),
+  getWorklistScopes: () => request<WorklistScopes>("/api/stewardship/worklist/scopes"),
+  getFundOverlap: () => request<FundOverlap>("/api/stewardship/overlap"),
+  // `n` counts for basis top, `scope` for basis selection; the server ignores the other one.
+  getOverlapMatrix: (basis: "top" | "selection", n: number, scope?: string) =>
+    request<OverlapMatrix>(`/api/stewardship/overlap/matrix${buildQuery({ basis, n: String(n), scope })}`),
+  getSelection: (scope: string, cycle?: string) => request<SelectionList>(`/api/stewardship/selection${buildQuery({ scope, cycle })}`),
+  changeSelection: (body: { cycle: string; scope: string; add?: string[]; remove?: string[] }) =>
+    request<SelectionList>("/api/stewardship/selection", jsonBody("POST", body)),
+  confirmSelection: (body: { cycle: string; scope: string }) =>
+    request<SelectionConfirmed>("/api/stewardship/selection/confirm", jsonBody("POST", body)),
+  listProgrammes: () => request<ProgrammeList>("/api/stewardship/programmes"),
+  createProgramme: (name: string) => request<WorkProgramme>("/api/stewardship/programmes", jsonBody("POST", { name })),
+  addProgrammeMembers: (programmeId: string, add: string[]) =>
+    request<ProgrammeDetail>(`/api/stewardship/programmes/${encodeURIComponent(programmeId)}/members`, jsonBody("POST", { add })),
+  previewPriority: (content: unknown) =>
+    request<PriorityPreview>("/api/stewardship/studio/priority/preview", jsonBody("POST", { content })),
+  createPortfolioGroup: (body: { name: string; kind: "portfolios" | "companies"; members: string[] }) =>
+    request<PortfolioGroup>("/api/portfolio/groups", jsonBody("POST", body)),
+  getSimulatedSchema: () => request<DataPointSchema>("/api/climate/simulated-schema"),
+  getNotes: (companyId: string) => request<StewardNoteList>(`/api/stewardship/notes${buildQuery({ company_id: companyId })}`),
+  addNote: (body: { company_id: string; text: string; scope: string }) => request<StewardNote>("/api/stewardship/notes", jsonBody("POST", body)),
+  getVotes: (companyId: string) => request<VoteList>(`/api/stewardship/votes${buildQuery({ company_id: companyId })}`),
   previewCoverage: (graph: unknown) =>
     request<CoveragePreview>("/api/stewardship/studio/coverage/preview", { method: "POST", body: JSON.stringify({ graph }) }),
   getMonitoringTriggers: () => request<{ triggers: MonitoringTrigger[] }>("/api/stewardship/studio/monitoring/triggers"),
@@ -1125,6 +1179,10 @@ export const api = {
     request<Storyline>(`/api/reports/${encodeURIComponent(reportId)}/storyline`, { method: "PUT", body: JSON.stringify(storyline) }),
   approveStoryline: (reportId: string) =>
     request<ReportManifest>(`/api/reports/${encodeURIComponent(reportId)}/storyline/approve`, { method: "POST" }),
+  /** Accepts slide `n` (1-based) as it is, clearing the fit ladder's needs-review flag that blocks the download. */
+  approveSlide: async (reportId: string, n: number) => {
+    await authFetch(`${API_BASE}/api/reports/${encodeURIComponent(reportId)}/slides/${n}/approve`, { method: "POST" });
+  },
   getReportFindings: (reportId: string) => request<{ findings: Finding[] }>(`/api/reports/${encodeURIComponent(reportId)}/findings`),
   reportDownloadUrl: (reportId: string, file?: string) =>
     `${API_BASE}/api/reports/${encodeURIComponent(reportId)}/download${buildQuery({ file })}`,

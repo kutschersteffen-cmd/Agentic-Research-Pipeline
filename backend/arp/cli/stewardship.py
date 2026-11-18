@@ -56,6 +56,23 @@ def seed_demo_cmd(
     typer.echo(", ".join(f"{k} {v}" for k, v in counts.items()))
 
 
+@stewardship_app.command("seed-cockpit-demo")
+def seed_cockpit_demo_cmd(as_of: str = typer.Option(None, "--as-of", help="YYYY-MM-DD; default today UTC.")) -> None:
+    """Planned meetings, escalations, tiers, 14 upcoming shareholder meetings and programme members for the cockpit; run after seed-demo and load-npx."""
+    from datetime import UTC, date, datetime
+
+    from arp.stewardship.cockpit_demo import seed_cockpit_demo
+
+    try:
+        day = date.fromisoformat(as_of) if as_of else datetime.now(UTC).date()
+    except ValueError as exc:
+        typer.echo(f"--as-of is not a YYYY-MM-DD date: {as_of}", err=True)
+        raise typer.Exit(1) from exc
+    settings = get_settings()
+    if not seed_cockpit_demo(settings, require_dsn(settings), day, typer.echo):
+        raise typer.Exit(1)
+
+
 @stewardship_app.command("load-npx")
 def load_npx_cmd(directory: Path = typer.Argument(..., help="Folder with the N-PX CSVs, e.g. data/voting/npx_urth/.")) -> None:
     """Load N-PX vote CSVs into the vote ledger (source npx_urth_demo); safe to re-run, never fetches."""

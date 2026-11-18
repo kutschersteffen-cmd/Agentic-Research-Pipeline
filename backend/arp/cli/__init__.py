@@ -64,6 +64,8 @@ def _require_postgres(ctx: typer.Context) -> None:
         return
     if sys.argv[1:3] == ["showcase", "simulate"]:  # holdings files in, a CSV out
         return
+    if sys.argv[1:3] == ["report", "sheet"]:  # fixture slides in, PNGs out
+        return
     try:
         settings = get_settings()
     except ValidationError as exc:  # one plain line per error, not a terminal-wrapped traceback

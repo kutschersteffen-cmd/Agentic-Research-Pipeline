@@ -14,9 +14,11 @@ from arp.llm.factory import build_llm_client
 from arp.reporting.datasets import parse_tabular_upload
 from arp.reporting.scheduler import ReportScheduler
 from arp.reporting.service import ReportingService
+from arp.reporting.storyline import content_cap
 from arp.reporting.style_profile import ingest_template
 from arp.schemas.reporting import (
     AudienceProfile,
+    DeckSettings,
     LayoutInstructions,
     OutputFormat,
     QuantitativeDataset,
@@ -68,6 +70,7 @@ def _build_request(
     goal: str = "",
     theme: str = "light",
     run_ref: list[str] = (),
+    deck: DeckSettings | None = None,
 ) -> ReportRequest:
     datasets = [QuantitativeDataset.model_validate_json(p.read_text()) for p in data]
     try:
@@ -85,6 +88,7 @@ def _build_request(
             output_format=format, target_length=target_length, free_instructions=layout_notes, include_appendix=include_appendix, theme=theme,
         ),
         template_id=template_id,
+        deck=deck or DeckSettings(),
     )
 
 
@@ -123,6 +127,10 @@ def reporting_plan(
     goal: str = typer.Option("", help="House deck: the decision or question the deck serves."),
     theme: str = typer.Option("light", click_type=click.Choice(["light", "dark"]), metavar="light|dark", help="House deck colour mode."),
     run_ref: list[str] = typer.Option([], help="House deck: pipeline output to load as data, kind:id (kind is decision or run); repeatable."),
+    max_slides: int = typer.Option(12, min=3, max=25, help="House deck: most content slides (the executive profile keeps at most 8)."),
+    profile: str = typer.Option("committee", click_type=click.Choice(["executive", "client_pitch", "committee", "workshop"]), help="House deck: storyline arc."),
+    purpose: str = typer.Option("recommendation", click_type=click.Choice(["recommendation", "review", "process", "briefing"]), help="House deck: what the deck is for."),
+    detail: str = typer.Option("balanced", click_type=click.Choice(["concise", "balanced", "comprehensive"]), help="House deck: how much detail per slide."),
 ) -> None:
     """Drafts a ReportPlan (the one LLM call) and stops -- does not render.
     Review/edit the written plan JSON by hand, then either push your edits
@@ -136,7 +144,13 @@ def reporting_plan(
         audience_level=audience_level, audience_description=audience_description,
         target_length=target_length, layout_notes=layout_notes, include_appendix=include_appendix,
         goal=goal, theme=theme, run_ref=run_ref,
+        deck=DeckSettings(profile=profile, purpose=purpose, detail=detail, max_slides=max_slides),
     )
+    if format == OutputFormat.HOUSE_DECK and target_length and target_length > content_cap(request):
+        raise typer.BadParameter(
+            f"--target-length {target_length} is more than the deck keeps ({content_cap(request)}); raise --max-slides or pick another --profile",
+            param_hint="--target-length",
+        )
     service = ReportingService(store, settings)
     manifest = asyncio.run(service.create_and_plan(request, llm))
     if format == OutputFormat.HOUSE_DECK:
@@ -307,3 +321,12 @@ def reporting_show(report_id: str) -> None:
         typer.echo("Not found", err=True)
         raise typer.Exit(1)
     typer.echo(json.dumps(manifest.model_dump(mode="json"), indent=2))
+
+
+@reporting_app.command("sheet")
+def reporting_sheet(out: Path = typer.Option(..., help="Directory for the review sheet PNGs.")) -> None:
+    """Renders the slide-component review sheet: one 1920×1080 PNG per fixture slide, named like the mockups, plus sheet.png."""
+    from arp.reporting.sheet import write_sheet
+
+    paths = write_sheet(out)
+    typer.echo(f"Wrote {len(paths)} PNGs to {out}")

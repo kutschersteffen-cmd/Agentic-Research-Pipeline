@@ -1,408 +1,901 @@
 {
- "schemaVersion": 2,
- "generatedAt": "2026-09-30T15:40:18Z",
- "title": "Design System: Agentic Research Pipeline",
- "extensions": {
-  "colorMeta": {
-   "ink": {
-    "role": "neutral",
-    "displayName": "Ink",
-    "canonical": "#141414",
-    "tonalRamp": [
-     "color-mix(in oklch, #141414 40%, black)",
-     "color-mix(in oklch, #141414 60%, black)",
-     "color-mix(in oklch, #141414 80%, black)",
-     "color-mix(in oklch, #141414 100%, black)",
-     "color-mix(in oklch, #141414 80%, white)",
-     "color-mix(in oklch, #141414 60%, white)",
-     "color-mix(in oklch, #141414 40%, white)",
-     "color-mix(in oklch, #141414 20%, white)"
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-17T16:27:35Z",
+  "title": "Design System: Agentic Research Pipeline",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "theme": "light",
+        "purpose": "All text and structural lines.",
+        "canonical": "oklch(20.5% 0.023 265.5)",
+        "tonalRamp": [
+          "#090b0f",
+          "#22252c",
+          "#3c424e",
+          "#5b616f",
+          "#7c8291",
+          "#9fa5b3",
+          "#c4c9d3",
+          "#eceef4"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Accent",
+        "theme": "light",
+        "purpose": "Primary buttons, links, done steps (ink).",
+        "canonical": "oklch(20.5% 0.023 265.5)",
+        "tonalRamp": [
+          "#090b0f",
+          "#22252c",
+          "#3c424e",
+          "#5b616f",
+          "#7c8291",
+          "#9fa5b3",
+          "#c4c9d3",
+          "#eceef4"
+        ]
+      },
+      "accent-ink": {
+        "role": "primary",
+        "displayName": "Accent Ink",
+        "theme": "light",
+        "purpose": "Primary button hover.",
+        "canonical": "oklch(0.0% 0.000 0.0)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "accent-tint": {
+        "role": "primary",
+        "displayName": "Accent Tint",
+        "theme": "light",
+        "purpose": "Secondary-button hover, pressed filter chip, selected row.",
+        "canonical": "rgb(20 20 20 / 0.06)"
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Ground",
+        "theme": "light",
+        "purpose": "The page.",
+        "canonical": "oklch(97.2% 0.005 258.3)",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#242526",
+          "#414244",
+          "#606164",
+          "#818285",
+          "#a3a5a8",
+          "#c8c9cb",
+          "#eeeeef"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "theme": "light",
+        "purpose": "Cards, tables, inputs; set off by a hairline, never a shadow.",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "theme": "light",
+        "purpose": "Every border and divider.",
+        "canonical": "oklch(89.9% 0.014 258.3)",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#222529",
+          "#3e4249",
+          "#5c6269",
+          "#7d838b",
+          "#a0a5ad",
+          "#c6c9cf",
+          "#eceff2"
+        ]
+      },
+      "field-border": {
+        "role": "neutral",
+        "displayName": "Field Border",
+        "theme": "light",
+        "purpose": "Form field edges only (clears 3:1).",
+        "canonical": "oklch(61.7% 0.027 257.7)",
+        "tonalRamp": [
+          "#090b0f",
+          "#20252e",
+          "#3a4350",
+          "#586271",
+          "#788393",
+          "#9ba6b5",
+          "#c2cad5",
+          "#eaeff5"
+        ]
+      },
+      "well": {
+        "role": "neutral",
+        "displayName": "Well",
+        "theme": "light",
+        "purpose": "Recessed areas, disabled controls, hover rows.",
+        "canonical": "oklch(94.8% 0.008 253.9)",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#232527",
+          "#3f4246",
+          "#5e6266",
+          "#7f8387",
+          "#a2a5aa",
+          "#c7c9cc",
+          "#edeef0"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "theme": "light",
+        "purpose": "Secondary text and labels.",
+        "canonical": "oklch(46.5% 0.031 259.0)",
+        "tonalRamp": [
+          "#080b10",
+          "#1f252f",
+          "#394351",
+          "#576273",
+          "#778395",
+          "#9ba6b7",
+          "#c2cad6",
+          "#eaeff6"
+        ]
+      },
+      "text-2": {
+        "role": "neutral",
+        "displayName": "Text 2",
+        "theme": "light",
+        "purpose": "Page intros and process descriptions (80% ink, 20% muted).",
+        "canonical": "color-mix(in oklch, #121722 80%, #4f5a6b)"
+      },
+      "signal-amber": {
+        "role": "signal",
+        "displayName": "Signal Amber",
+        "theme": "light",
+        "purpose": "The one signal: a person must act. Nothing else.",
+        "canonical": "oklch(51.5% 0.096 78.8)",
+        "tonalRamp": [
+          "#130900",
+          "#352100",
+          "#5b3b00",
+          "#7e5a11",
+          "#a17b39",
+          "#c39f63",
+          "#dfc59d",
+          "#fbecd6"
+        ]
+      },
+      "signal-amber-wash": {
+        "role": "signal",
+        "displayName": "Signal Amber Wash",
+        "theme": "light",
+        "purpose": "Backs waiting tiles and pending banners.",
+        "canonical": "oklch(94.5% 0.031 86.5)",
+        "tonalRamp": [
+          "#0d0b06",
+          "#29251a",
+          "#494131",
+          "#69604d",
+          "#8a816e",
+          "#ada491",
+          "#cfc9bb",
+          "#f2eee6"
+        ]
+      },
+      "status-high": {
+        "role": "status",
+        "displayName": "Status High",
+        "theme": "light",
+        "purpose": "Run done / High rating.",
+        "canonical": "oklch(53.0% 0.120 157.1)",
+        "tonalRamp": [
+          "#001005",
+          "#002f15",
+          "#005229",
+          "#007545",
+          "#359765",
+          "#64ba89",
+          "#a0d9b6",
+          "#d8f8e3"
+        ]
+      },
+      "status-mid": {
+        "role": "status",
+        "displayName": "Status Mid",
+        "theme": "light",
+        "purpose": "Mid rating.",
+        "canonical": "oklch(52.0% 0.125 70.0)",
+        "tonalRamp": [
+          "#160700",
+          "#3c1b00",
+          "#673300",
+          "#8d5100",
+          "#b17316",
+          "#d3984e",
+          "#ebc191",
+          "#ffead0"
+        ]
+      },
+      "status-low": {
+        "role": "status",
+        "displayName": "Status Low",
+        "theme": "light",
+        "purpose": "Failed run / Low rating.",
+        "canonical": "oklch(55.3% 0.186 21.4)",
+        "tonalRamp": [
+          "#200002",
+          "#500008",
+          "#860013",
+          "#b3172e",
+          "#db454e",
+          "#fe7274",
+          "#ffaaa7",
+          "#ffdedb"
+        ]
+      },
+      "status-run": {
+        "role": "status",
+        "displayName": "Status Run",
+        "theme": "light",
+        "purpose": "Running.",
+        "canonical": "oklch(51.9% 0.171 260.0)",
+        "tonalRamp": [
+          "#000924",
+          "#002058",
+          "#003a93",
+          "#1d5bc0",
+          "#407ee7",
+          "#68a4ff",
+          "#a0caff",
+          "#d8f0ff"
+        ]
+      },
+      "status-neutral": {
+        "role": "status",
+        "displayName": "Status Neutral",
+        "theme": "light",
+        "purpose": "Stopped / unknown status.",
+        "canonical": "oklch(50.0% 0.010 64.0)",
+        "tonalRamp": [
+          "#0c0b0a",
+          "#272422",
+          "#46413d",
+          "#65605b",
+          "#87817c",
+          "#a9a49f",
+          "#ccc8c5",
+          "#f0eeec"
+        ]
+      },
+      "paper": {
+        "role": "surface",
+        "displayName": "Paper",
+        "theme": "light",
+        "purpose": "Evidence paper (quoted source text).",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "paper-mark": {
+        "role": "signal",
+        "displayName": "Paper Mark",
+        "theme": "light",
+        "purpose": "Highlighter on the cited span.",
+        "canonical": "oklch(94.5% 0.031 86.5)",
+        "tonalRamp": [
+          "#0d0b06",
+          "#29251a",
+          "#494131",
+          "#69604d",
+          "#8a816e",
+          "#ada491",
+          "#cfc9bb",
+          "#f2eee6"
+        ]
+      },
+      "brand-orange": {
+        "role": "brand",
+        "displayName": "Brand Orange",
+        "theme": "light",
+        "purpose": "Logo apex and landing orb only; never in the app UI.",
+        "canonical": "oklch(63.3% 0.203 37.0)",
+        "tonalRamp": [
+          "#210000",
+          "#530000",
+          "#8a0000",
+          "#b80d00",
+          "#e14300",
+          "#ff7247",
+          "#ffaa8c",
+          "#ffdfcd"
+        ]
+      },
+      "night-ground": {
+        "role": "neutral",
+        "displayName": "Ground (Night)",
+        "theme": "dark",
+        "purpose": "The page.",
+        "canonical": "oklch(17.2% 0.012 260.6)",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#232529",
+          "#3f4248",
+          "#5d6168",
+          "#7e8389",
+          "#a1a5ac",
+          "#c6c9ce",
+          "#edeef1"
+        ]
+      },
+      "night-panel": {
+        "role": "neutral",
+        "displayName": "Panel (Night)",
+        "theme": "dark",
+        "purpose": "Cards, tables, inputs; set off by a hairline, never a shadow.",
+        "canonical": "oklch(21.2% 0.018 259.7)",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#22252b",
+          "#3d424b",
+          "#5b626c",
+          "#7c838d",
+          "#9fa5af",
+          "#c5c9d1",
+          "#eceff3"
+        ]
+      },
+      "night-hairline": {
+        "role": "neutral",
+        "displayName": "Hairline (Night)",
+        "theme": "dark",
+        "purpose": "Every border and divider.",
+        "canonical": "rgb(232 235 240 / 0.12)"
+      },
+      "night-field-border": {
+        "role": "neutral",
+        "displayName": "Field Border (Night)",
+        "theme": "dark",
+        "purpose": "Form field edges only (clears 3:1).",
+        "canonical": "oklch(57.0% 0.029 259.0)",
+        "tonalRamp": [
+          "#090b10",
+          "#20252e",
+          "#394351",
+          "#576272",
+          "#788394",
+          "#9ba6b6",
+          "#c2cad6",
+          "#eaeff6"
+        ]
+      },
+      "night-well": {
+        "role": "neutral",
+        "displayName": "Well (Night)",
+        "theme": "dark",
+        "purpose": "Recessed areas, disabled controls, hover rows.",
+        "canonical": "oklch(25.0% 0.023 259.3)",
+        "tonalRamp": [
+          "#090b0f",
+          "#21252c",
+          "#3b424e",
+          "#59626f",
+          "#7a8391",
+          "#9da6b3",
+          "#c3cad3",
+          "#ebeff4"
+        ]
+      },
+      "night-ink": {
+        "role": "neutral",
+        "displayName": "Ink (Night)",
+        "theme": "dark",
+        "purpose": "All text and structural lines.",
+        "canonical": "oklch(93.9% 0.007 260.7)",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#242527",
+          "#404246",
+          "#5f6166",
+          "#808287",
+          "#a2a5a9",
+          "#c7c9cc",
+          "#edeef0"
+        ]
+      },
+      "night-muted": {
+        "role": "neutral",
+        "displayName": "Muted (Night)",
+        "theme": "dark",
+        "purpose": "Secondary text and labels.",
+        "canonical": "oklch(74.2% 0.024 260.7)",
+        "tonalRamp": [
+          "#090b0f",
+          "#21252d",
+          "#3b424e",
+          "#5a626f",
+          "#7a8391",
+          "#9da6b3",
+          "#c4c9d3",
+          "#ebeff4"
+        ]
+      },
+      "night-accent": {
+        "role": "primary",
+        "displayName": "Accent (Night)",
+        "theme": "dark",
+        "purpose": "Primary buttons, links, done steps (ink).",
+        "canonical": "oklch(93.9% 0.007 260.7)",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#242527",
+          "#404246",
+          "#5f6166",
+          "#808287",
+          "#a2a5a9",
+          "#c7c9cc",
+          "#edeef0"
+        ]
+      },
+      "night-accent-ink": {
+        "role": "primary",
+        "displayName": "Accent Ink (Night)",
+        "theme": "dark",
+        "purpose": "Primary button hover.",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "night-accent-tint": {
+        "role": "primary",
+        "displayName": "Accent Tint (Night)",
+        "theme": "dark",
+        "purpose": "Secondary-button hover, pressed filter chip, selected row.",
+        "canonical": "rgb(232 232 227 / 0.08)"
+      },
+      "night-signal-amber": {
+        "role": "signal",
+        "displayName": "Signal Amber (Night)",
+        "theme": "dark",
+        "purpose": "The one signal: a person must act. Nothing else.",
+        "canonical": "oklch(75.1% 0.117 81.0)",
+        "tonalRamp": [
+          "#140900",
+          "#372000",
+          "#5e3900",
+          "#835800",
+          "#a67a1b",
+          "#c89e50",
+          "#e2c592",
+          "#fdecd0"
+        ]
+      },
+      "night-signal-amber-wash": {
+        "role": "signal",
+        "displayName": "Signal Amber Wash (Night)",
+        "theme": "dark",
+        "purpose": "Backs waiting tiles and pending banners.",
+        "canonical": "rgb(212 166 80 / 0.14)"
+      },
+      "night-high": {
+        "role": "status",
+        "displayName": "High (Night)",
+        "theme": "dark",
+        "purpose": "Run done / High rating.",
+        "canonical": "oklch(78.7% 0.145 161.5)",
+        "tonalRamp": [
+          "#001105",
+          "#003116",
+          "#00562a",
+          "#007946",
+          "#009c66",
+          "#44bf8a",
+          "#91dcb6",
+          "#d2fae4"
+        ]
+      },
+      "night-mid": {
+        "role": "status",
+        "displayName": "Mid (Night)",
+        "theme": "dark",
+        "purpose": "Mid rating.",
+        "canonical": "oklch(85.0% 0.146 90.5)",
+        "tonalRamp": [
+          "#130900",
+          "#362100",
+          "#5d3b00",
+          "#815a00",
+          "#a47c00",
+          "#c5a12a",
+          "#e0c781",
+          "#fbeec8"
+        ]
+      },
+      "night-low": {
+        "role": "status",
+        "displayName": "Low (Night)",
+        "theme": "dark",
+        "purpose": "Failed run / Low rating.",
+        "canonical": "oklch(71.5% 0.180 16.8)",
+        "tonalRamp": [
+          "#1f0003",
+          "#4f0010",
+          "#840020",
+          "#b01c3b",
+          "#d8475b",
+          "#fb737f",
+          "#ffaaaf",
+          "#ffdedf"
+        ]
+      },
+      "night-run": {
+        "role": "status",
+        "displayName": "Run (Night)",
+        "theme": "dark",
+        "purpose": "Running.",
+        "canonical": "oklch(75.4% 0.131 250.8)",
+        "tonalRamp": [
+          "#000b1d",
+          "#00254b",
+          "#00427f",
+          "#1663a8",
+          "#3e86cd",
+          "#68aaee",
+          "#a1cefe",
+          "#d8f2ff"
+        ]
+      },
+      "night-paper": {
+        "role": "surface",
+        "displayName": "Paper (Night)",
+        "theme": "dark",
+        "purpose": "Evidence paper (quoted source text).",
+        "canonical": "oklch(96.1% 0.011 89.7)",
+        "tonalRamp": [
+          "#0c0b09",
+          "#262521",
+          "#44423c",
+          "#64615a",
+          "#85827b",
+          "#a7a59e",
+          "#cbc9c4",
+          "#efeeeb"
+        ]
+      },
+      "brand-orange-night": {
+        "role": "brand",
+        "displayName": "Brand Orange (Night)",
+        "theme": "dark",
+        "purpose": "Logo apex and landing orb only; never in the app UI.",
+        "canonical": "oklch(70.2% 0.196 40.7)",
+        "tonalRamp": [
+          "#200000",
+          "#510000",
+          "#870000",
+          "#b41d00",
+          "#dd4a00",
+          "#ff7641",
+          "#ffad8a",
+          "#ffe0cc"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The start-page greeting only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page titles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles and workspace card names."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "The big number on stat tiles (tabular)."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "All running text and controls; help text to about 70ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Counts, run IDs, step labels, chips, table meta. 13px is the floor."
+      },
+      "excerpt": {
+        "displayName": "Excerpt",
+        "purpose": "Quoted source text on evidence paper only."
+      },
+      "landing-headline": {
+        "displayName": "Landing Headline",
+        "purpose": "The landing page headline only."
+      }
+    },
+    "shadows": [
+      {
+        "name": "float",
+        "value": "0 2px 6px oklch(20% 0.014 58 / 0.07), 0 8px 24px oklch(20% 0.014 58 / 0.10)",
+        "purpose": "Popovers, menus, hover lift on pipeline and flow cards."
+      },
+      {
+        "name": "overlay",
+        "value": "0 12px 32px oklch(20% 0.014 58 / 0.16)",
+        "purpose": "Modals."
+      },
+      {
+        "name": "night-float",
+        "value": "0 2px 6px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5)",
+        "purpose": "Popovers, menus, hover lift on pipeline and flow cards. (dark theme)"
+      },
+      {
+        "name": "night-overlay",
+        "value": "0 12px 32px rgb(0 0 0 / 0.6)",
+        "purpose": "Modals. (dark theme)"
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "State changes (--ease)."
+      },
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        "purpose": "Bars and panels (--ease-out)."
+      },
+      {
+        "name": "dur-fast",
+        "value": "100ms",
+        "purpose": "Colour hovers (--dur-fast)."
+      },
+      {
+        "name": "dur",
+        "value": "140ms",
+        "purpose": "State changes (--dur)."
+      },
+      {
+        "name": "dur-slow",
+        "value": "240ms",
+        "purpose": "Bars and panels (--dur-slow)."
+      },
+      {
+        "name": "pulse",
+        "value": "1.6s ease-in-out infinite (opacity 1 → 0.3 → 1)",
+        "purpose": "The running step's status square; none under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "phone-cards",
+        "value": "560px",
+        "purpose": "Stacked tables become cards."
+      },
+      {
+        "name": "tile-strip-stack",
+        "value": "640px",
+        "purpose": "The Argus tile strip stacks into one column."
+      },
+      {
+        "name": "phone",
+        "value": "760px",
+        "purpose": "Phone layout: two-row top bar, body-size intros, one card per row."
+      },
+      {
+        "name": "flow-stack",
+        "value": "900px",
+        "purpose": "Process flows stack into one column."
+      },
+      {
+        "name": "touch",
+        "value": "1024px",
+        "purpose": "Filter chips grow to 44px."
+      },
+      {
+        "name": "wide",
+        "value": "1100px",
+        "purpose": "Two-column head and three-column overview header; workspace cards 3 + 2."
+      }
     ]
-   },
-   "signal-orange": {
-    "role": "primary",
-    "displayName": "Signal Orange",
-    "canonical": "#ea4c14",
-    "tonalRamp": [
-     "color-mix(in oklch, #ea4c14 40%, black)",
-     "color-mix(in oklch, #ea4c14 60%, black)",
-     "color-mix(in oklch, #ea4c14 80%, black)",
-     "color-mix(in oklch, #ea4c14 100%, black)",
-     "color-mix(in oklch, #ea4c14 80%, white)",
-     "color-mix(in oklch, #ea4c14 60%, white)",
-     "color-mix(in oklch, #ea4c14 40%, white)",
-     "color-mix(in oklch, #ea4c14 20%, white)"
-    ]
-   },
-   "signal-orange-ink": {
-    "role": "primary",
-    "displayName": "Signal Orange Ink",
-    "canonical": "#b8400f",
-    "tonalRamp": [
-     "color-mix(in oklch, #b8400f 40%, black)",
-     "color-mix(in oklch, #b8400f 60%, black)",
-     "color-mix(in oklch, #b8400f 80%, black)",
-     "color-mix(in oklch, #b8400f 100%, black)",
-     "color-mix(in oklch, #b8400f 80%, white)",
-     "color-mix(in oklch, #b8400f 60%, white)",
-     "color-mix(in oklch, #b8400f 40%, white)",
-     "color-mix(in oklch, #b8400f 20%, white)"
-    ]
-   },
-   "signal-lime": {
-    "role": "primary",
-    "displayName": "Signal Lime (Night)",
-    "canonical": "#c6ff3d",
-    "tonalRamp": [
-     "color-mix(in oklch, #c6ff3d 40%, black)",
-     "color-mix(in oklch, #c6ff3d 60%, black)",
-     "color-mix(in oklch, #c6ff3d 80%, black)",
-     "color-mix(in oklch, #c6ff3d 100%, black)",
-     "color-mix(in oklch, #c6ff3d 80%, white)",
-     "color-mix(in oklch, #c6ff3d 60%, white)",
-     "color-mix(in oklch, #c6ff3d 40%, white)",
-     "color-mix(in oklch, #c6ff3d 20%, white)"
-    ]
-   },
-   "graphite-ground": {
-    "role": "neutral",
-    "displayName": "Graphite Ground",
-    "canonical": "#f3f3f0",
-    "tonalRamp": [
-     "color-mix(in oklch, #f3f3f0 40%, black)",
-     "color-mix(in oklch, #f3f3f0 60%, black)",
-     "color-mix(in oklch, #f3f3f0 80%, black)",
-     "color-mix(in oklch, #f3f3f0 100%, black)",
-     "color-mix(in oklch, #f3f3f0 80%, white)",
-     "color-mix(in oklch, #f3f3f0 60%, white)",
-     "color-mix(in oklch, #f3f3f0 40%, white)",
-     "color-mix(in oklch, #f3f3f0 20%, white)"
-    ]
-   },
-   "panel-white": {
-    "role": "neutral",
-    "displayName": "Panel White",
-    "canonical": "#ffffff",
-    "tonalRamp": [
-     "color-mix(in oklch, #ffffff 40%, black)",
-     "color-mix(in oklch, #ffffff 60%, black)",
-     "color-mix(in oklch, #ffffff 80%, black)",
-     "color-mix(in oklch, #ffffff 100%, black)",
-     "color-mix(in oklch, #ffffff 80%, white)",
-     "color-mix(in oklch, #ffffff 60%, white)",
-     "color-mix(in oklch, #ffffff 40%, white)",
-     "color-mix(in oklch, #ffffff 20%, white)"
-    ]
-   },
-   "hairline": {
-    "role": "neutral",
-    "displayName": "Hairline",
-    "canonical": "#dcdcd7",
-    "tonalRamp": [
-     "color-mix(in oklch, #dcdcd7 40%, black)",
-     "color-mix(in oklch, #dcdcd7 60%, black)",
-     "color-mix(in oklch, #dcdcd7 80%, black)",
-     "color-mix(in oklch, #dcdcd7 100%, black)",
-     "color-mix(in oklch, #dcdcd7 80%, white)",
-     "color-mix(in oklch, #dcdcd7 60%, white)",
-     "color-mix(in oklch, #dcdcd7 40%, white)",
-     "color-mix(in oklch, #dcdcd7 20%, white)"
-    ]
-   },
-   "muted-graphite": {
-    "role": "neutral",
-    "displayName": "Muted Graphite",
-    "canonical": "#5c5c57",
-    "tonalRamp": [
-     "color-mix(in oklch, #5c5c57 40%, black)",
-     "color-mix(in oklch, #5c5c57 60%, black)",
-     "color-mix(in oklch, #5c5c57 80%, black)",
-     "color-mix(in oklch, #5c5c57 100%, black)",
-     "color-mix(in oklch, #5c5c57 80%, white)",
-     "color-mix(in oklch, #5c5c57 60%, white)",
-     "color-mix(in oklch, #5c5c57 40%, white)",
-     "color-mix(in oklch, #5c5c57 20%, white)"
-    ]
-   },
-   "night-ground": {
-    "role": "neutral",
-    "displayName": "Night Ground",
-    "canonical": "#0c0d0f",
-    "tonalRamp": [
-     "color-mix(in oklch, #0c0d0f 40%, black)",
-     "color-mix(in oklch, #0c0d0f 60%, black)",
-     "color-mix(in oklch, #0c0d0f 80%, black)",
-     "color-mix(in oklch, #0c0d0f 100%, black)",
-     "color-mix(in oklch, #0c0d0f 80%, white)",
-     "color-mix(in oklch, #0c0d0f 60%, white)",
-     "color-mix(in oklch, #0c0d0f 40%, white)",
-     "color-mix(in oklch, #0c0d0f 20%, white)"
-    ]
-   },
-   "night-panel": {
-    "role": "neutral",
-    "displayName": "Night Panel",
-    "canonical": "#131417",
-    "tonalRamp": [
-     "color-mix(in oklch, #131417 40%, black)",
-     "color-mix(in oklch, #131417 60%, black)",
-     "color-mix(in oklch, #131417 80%, black)",
-     "color-mix(in oklch, #131417 100%, black)",
-     "color-mix(in oklch, #131417 80%, white)",
-     "color-mix(in oklch, #131417 60%, white)",
-     "color-mix(in oklch, #131417 40%, white)",
-     "color-mix(in oklch, #131417 20%, white)"
-    ]
-   },
-   "night-ink": {
-    "role": "neutral",
-    "displayName": "Night Ink",
-    "canonical": "#e8e8e3",
-    "tonalRamp": [
-     "color-mix(in oklch, #e8e8e3 40%, black)",
-     "color-mix(in oklch, #e8e8e3 60%, black)",
-     "color-mix(in oklch, #e8e8e3 80%, black)",
-     "color-mix(in oklch, #e8e8e3 100%, black)",
-     "color-mix(in oklch, #e8e8e3 80%, white)",
-     "color-mix(in oklch, #e8e8e3 60%, white)",
-     "color-mix(in oklch, #e8e8e3 40%, white)",
-     "color-mix(in oklch, #e8e8e3 20%, white)"
-    ]
-   },
-   "status-high": {
-    "role": "secondary",
-    "displayName": "Status High",
-    "canonical": "oklch(50% 0.150 149)",
-    "tonalRamp": [
-     "color-mix(in oklch, oklch(50% 0.150 149) 40%, black)",
-     "color-mix(in oklch, oklch(50% 0.150 149) 60%, black)",
-     "color-mix(in oklch, oklch(50% 0.150 149) 80%, black)",
-     "color-mix(in oklch, oklch(50% 0.150 149) 100%, black)",
-     "color-mix(in oklch, oklch(50% 0.150 149) 80%, white)",
-     "color-mix(in oklch, oklch(50% 0.150 149) 60%, white)",
-     "color-mix(in oklch, oklch(50% 0.150 149) 40%, white)",
-     "color-mix(in oklch, oklch(50% 0.150 149) 20%, white)"
-    ]
-   },
-   "status-mid": {
-    "role": "secondary",
-    "displayName": "Status Mid",
-    "canonical": "oklch(52% 0.125 70)",
-    "tonalRamp": [
-     "color-mix(in oklch, oklch(52% 0.125 70) 40%, black)",
-     "color-mix(in oklch, oklch(52% 0.125 70) 60%, black)",
-     "color-mix(in oklch, oklch(52% 0.125 70) 80%, black)",
-     "color-mix(in oklch, oklch(52% 0.125 70) 100%, black)",
-     "color-mix(in oklch, oklch(52% 0.125 70) 80%, white)",
-     "color-mix(in oklch, oklch(52% 0.125 70) 60%, white)",
-     "color-mix(in oklch, oklch(52% 0.125 70) 40%, white)",
-     "color-mix(in oklch, oklch(52% 0.125 70) 20%, white)"
-    ]
-   },
-   "status-low": {
-    "role": "secondary",
-    "displayName": "Status Low",
-    "canonical": "oklch(54% 0.174 30)",
-    "tonalRamp": [
-     "color-mix(in oklch, oklch(54% 0.174 30) 40%, black)",
-     "color-mix(in oklch, oklch(54% 0.174 30) 60%, black)",
-     "color-mix(in oklch, oklch(54% 0.174 30) 80%, black)",
-     "color-mix(in oklch, oklch(54% 0.174 30) 100%, black)",
-     "color-mix(in oklch, oklch(54% 0.174 30) 80%, white)",
-     "color-mix(in oklch, oklch(54% 0.174 30) 60%, white)",
-     "color-mix(in oklch, oklch(54% 0.174 30) 40%, white)",
-     "color-mix(in oklch, oklch(54% 0.174 30) 20%, white)"
-    ]
-   }
   },
-  "typographyMeta": {
-   "display": {
-    "displayName": "Display",
-    "purpose": "Start-page status line only."
-   },
-   "headline": {
-    "displayName": "Headline",
-    "purpose": "Page titles and process card names."
-   },
-   "title": {
-    "displayName": "Title",
-    "purpose": "Card and section headings."
-   },
-   "body": {
-    "displayName": "Body",
-    "purpose": "All running text."
-   },
-   "label": {
-    "displayName": "Label (mono)",
-    "purpose": "Numbers, IDs, step labels, state."
-   }
-  },
-  "themes": {
-   "graphite": {
-    "fontDisplay": "Geist",
-    "fontMono": "Geist Mono",
-    "signal": "#ea4c14"
-   },
-   "night": {
-    "fontDisplay": "Hanken Grotesk",
-    "fontMono": "JetBrains Mono",
-    "signal": "#c6ff3d"
-   }
-  },
-  "shadows": [
-   {
-    "name": "float",
-    "value": "0 2px 6px oklch(20% 0.014 58 / 0.07), 0 8px 24px oklch(20% 0.014 58 / 0.10)",
-    "purpose": "Popovers and hover lift on pipeline cards."
-   },
-   {
-    "name": "overlay",
-    "value": "0 12px 32px oklch(20% 0.014 58 / 0.16)",
-    "purpose": "Modals and the drawer."
-   }
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ink fill, 8px corners; the one solid action in a group.",
+      "html": "<button class=\"ds-btn-primary\">Run process</button>",
+      "css": ".ds-btn-primary{background:var(--accent,#121722);color:var(--on-accent,#fff);border:0;border-radius:8px;padding:9px 16px;font:500 15px Geist,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;cursor:pointer;transition:background 100ms}.ds-btn-primary:hover{background:var(--accent-ink,#000)}.ds-btn-primary:focus-visible{outline:2px solid var(--accent,#121722);outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Transparent with a hairline; hover fills with the accent tint.",
+      "html": "<button class=\"ds-btn-secondary\">Export</button>",
+      "css": ".ds-btn-secondary{background:transparent;color:var(--accent,#121722);border:1px solid var(--panel-border,#d8dee7);border-radius:8px;padding:9px 16px;font:500 15px Geist,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;cursor:pointer;transition:background 100ms}.ds-btn-secondary:hover{background:var(--accent-tint,rgb(20 20 20 / .06))}.ds-btn-secondary:focus-visible{outline:2px solid var(--accent,#121722);outline-offset:2px}"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Panel fill, field border (3:1), 6px corners.",
+      "html": "<input class=\"ds-input\" placeholder=\"Search companies\">",
+      "css": ".ds-input{background:var(--panel,#fff);color:var(--text,#121722);border:1px solid var(--field-border,#7b8696);border-radius:6px;padding:8px 10px;font:400 15px Geist,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;width:240px}.ds-input:focus-visible{outline:2px solid var(--accent,#121722);outline-offset:1px}"
+    },
+    {
+      "name": "Filter Chips",
+      "kind": "chip",
+      "refersTo": "filter-chip-pressed",
+      "description": "A list filter: pill buttons with aria-pressed, exactly one pressed.",
+      "html": "<div class=\"ds-chips\" role=\"group\" aria-label=\"Show runs\"><button class=\"ds-chip\" aria-pressed=\"true\">All</button><button class=\"ds-chip\" aria-pressed=\"false\">Only mine</button></div>",
+      "css": ".ds-chips{display:flex;gap:6px}.ds-chip{height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--panel-border,#d8dee7);background:transparent;color:var(--muted,#4f5a6b);font:500 14px Geist,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;cursor:pointer}.ds-chip[aria-pressed=true]{background:var(--accent-tint,rgb(20 20 20 / .06));color:var(--text,#121722)}.ds-chip:focus-visible{outline:2px solid var(--accent,#121722);outline-offset:2px}"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "description": "An 8px square in the status colour, then the word; no border. Pending is outlined, unknown dashed.",
+      "html": "<span class=\"ds-pill ds-run\">running</span> <span class=\"ds-pill ds-done\">completed</span> <span class=\"ds-pill ds-fail\">failed</span> <span class=\"ds-pill ds-pending\">pending</span>",
+      "css": ".ds-pill{display:inline-flex;align-items:center;gap:6px;font:500 13px Geist,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin-right:12px}.ds-pill::before{content:'';width:8px;height:8px;background:currentColor;flex:none}.ds-run{color:var(--run,#2563c9)}.ds-done{color:var(--high,#13804f)}.ds-fail{color:var(--low,#c8323f)}.ds-pending{color:var(--muted,#4f5a6b)}.ds-pending::before{background:transparent;box-shadow:inset 0 0 0 1px currentColor}"
+    },
+    {
+      "name": "Needs-you Count",
+      "kind": "chip",
+      "refersTo": "badge-needs-you",
+      "description": "The one amber count: square (2px), on the top bar's Review Queue link.",
+      "html": "<a class=\"ds-rq\">Review Queue <span class=\"ds-count\">15</span></a>",
+      "css": ".ds-rq{display:inline-flex;align-items:center;gap:6px;font:500 15px Geist,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text,#121722);text-decoration:none}.ds-count{background:var(--hi,#85601a);color:var(--on-hi,#fff);border-radius:2px;padding:2px 6px;font:500 13px 'Geist Mono',ui-monospace,monospace}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Flat panel set off by a hairline; never a shadow, never a card on a card.",
+      "html": "<div class=\"ds-card\"><h3>Proxy season</h3><p>Voting intentions published, votes cast checked against policy.</p></div>",
+      "css": ".ds-card{background:var(--panel,#fff);border:1px solid var(--panel-border,#d8dee7);border-radius:12px;padding:18px 20px;font:400 15px Geist,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text,#121722);max-width:360px}.ds-card h3{margin:0 0 6px;font-weight:500;font-size:20px;letter-spacing:-.015em}.ds-card p{margin:0;color:var(--text-2,#2b3342)}"
+    },
+    {
+      "name": "Top Bar",
+      "kind": "nav",
+      "description": "One bar on every page: lockup, search, Ask ARP, Workspaces, Review Queue with its count, Reports, user menu.",
+      "html": "<nav class=\"ds-top\"><b>ARP</b><span class=\"ds-search\">Search or jump to… <kbd>Ctrl K</kbd></span><a>Workspaces ▾</a><a>Review Queue <span class=\"ds-n\">15</span></a><a aria-current=\"page\">Reports</a><span class=\"ds-me\">D</span></nav>",
+      "css": ".ds-top{display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--bg,#f4f6f9);border-bottom:1px solid var(--panel-border,#d8dee7);font:500 15px Geist,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text,#121722)}.ds-top b{font:600 18px 'Geist Mono',ui-monospace,monospace;letter-spacing:.08em}.ds-search{flex:1;padding:6px 12px;border:1px solid var(--panel-border,#d8dee7);border-radius:999px;color:var(--muted,#4f5a6b)}.ds-search kbd{float:right;font:13px 'Geist Mono',ui-monospace,monospace}.ds-top a{color:inherit;text-decoration:none;padding-bottom:2px}.ds-top a[aria-current]{border-bottom:2px solid var(--text,#121722)}.ds-n{background:var(--hi,#85601a);color:var(--on-hi,#fff);border-radius:2px;padding:1px 6px;font:500 13px 'Geist Mono',ui-monospace,monospace}.ds-me{width:28px;height:28px;display:grid;place-items:center;border:1px solid var(--panel-border,#d8dee7);border-radius:999px}"
+    },
+    {
+      "name": "Process Step Card",
+      "kind": "custom",
+      "description": "A step in a workspace's process flow: a button that opens its details panel. Running: --run edge, soft ring, pulsing square. Waiting: amber edge, inset ring and banner.",
+      "html": "<div class=\"ds-flow\"><button class=\"ds-step ds-step-now\" aria-expanded=\"true\"><span class=\"ds-h\"><span class=\"ds-num\">1</span>PROXY VOTING</span><span class=\"ds-st\">Running</span><span class=\"ds-about\">The policy drafts a vote per resolution.</span></button><button class=\"ds-step ds-step-wait\" aria-expanded=\"false\"><span class=\"ds-h\"><span class=\"ds-num\">2</span>CHECKPOINT</span><span class=\"ds-banner\">15 decisions open</span><span class=\"ds-about\">Review every vote against policy.</span></button></div>",
+      "css": ".ds-flow{display:flex;gap:18px;font:400 13px Geist,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.ds-step{display:flex;flex-direction:column;gap:6px;width:220px;padding:8px 12px;text-align:left;background:var(--panel,#fff);color:var(--text,#121722);border:1px solid var(--panel-border,#d8dee7);border-radius:8px;font:inherit;cursor:pointer}.ds-step:hover{border-color:var(--text,#121722)}.ds-step[aria-expanded=true]{outline:1px solid var(--text,#121722);outline-offset:3px}.ds-step:focus-visible{outline:2px solid var(--accent,#121722);outline-offset:2px}.ds-h{display:flex;align-items:center;gap:8px;font:600 13px 'Geist Mono',ui-monospace,monospace;letter-spacing:.05em}.ds-num{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:6px;background:var(--well,#eaeef3);color:var(--muted,#4f5a6b)}.ds-st{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--run,#2563c9)}.ds-st::before{content:'';width:8px;height:8px;background:currentColor;animation:ds-pulse 1.6s ease-in-out infinite}@keyframes ds-pulse{50%{opacity:.3}}@media (prefers-reduced-motion:reduce){.ds-st::before{animation:none}}.ds-step-now,.ds-step-now:hover{border-color:var(--run,#2563c9);box-shadow:0 0 0 3px color-mix(in srgb,var(--run,#2563c9) 18%,transparent)}.ds-step-wait,.ds-step-wait:hover{border-color:var(--await-edge,#85601a);box-shadow:inset 0 0 0 1px var(--await-edge,#85601a)}.ds-banner{padding:4px 8px;border-radius:6px;background:var(--await,#f6ecd6);border:1px solid var(--await-edge,#85601a);font-weight:600;text-align:center}.ds-about{color:var(--muted,#4f5a6b)}"
+    },
+    {
+      "name": "Process Card",
+      "kind": "custom",
+      "description": "Signature start-page card: drawing area with a mono caption, name, purpose, and one status line of 8px squares (ink done, blue running, amber waiting, red failed, outlined idle).",
+      "html": "<a class=\"ds-proc\"><span class=\"ds-cap\">3 processes</span><b>StewardIQ</b><span class=\"ds-p\">Engage companies, vote, and track what they commit to.</span><span class=\"ds-line\"><i class=\"d\"></i><i class=\"w\"></i><i></i> Waiting on you · Proxy season</span></a>",
+      "css": ".ds-proc{display:flex;flex-direction:column;gap:8px;width:280px;padding:28px 24px;border:1px solid var(--await-edge,#85601a);border-radius:12px;background:var(--panel,#fff);color:var(--text,#121722);font:400 15px Geist,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;text-decoration:none}.ds-cap{font:500 13px 'Geist Mono',ui-monospace,monospace;color:var(--muted,#4f5a6b)}.ds-proc b{font-weight:500;font-size:20px;letter-spacing:-.015em}.ds-p{color:var(--text-2,#2b3342)}.ds-line{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--hi,#85601a)}.ds-line i{width:8px;height:8px;box-shadow:inset 0 0 0 1px var(--muted,#4f5a6b)}.ds-line i.d{background:var(--text,#121722);box-shadow:none}.ds-line i.w{background:var(--hi,#85601a);box-shadow:none}.ds-proc:focus-visible{outline:2px solid var(--accent,#121722);outline-offset:2px}"
+    }
   ],
-  "motion": [
-   {
-    "name": "ease-standard",
-    "value": "cubic-bezier(0.4, 0, 0.2, 1)",
-    "purpose": "All state transitions."
-   },
-   {
-    "name": "duration-standard",
-    "value": "140ms",
-    "purpose": "Hover, border and lift transitions."
-   }
-  ],
-  "breakpoints": [
-   {
-    "name": "single-column",
-    "value": "640px"
-   },
-   {
-    "name": "drawer",
-    "value": "1024px"
-   },
-   {
-    "name": "cards-two-up",
-    "value": "1100px"
-   }
-  ]
- },
- "components": [
-  {
-   "name": "Primary Button",
-   "kind": "button",
-   "refersTo": "button-primary",
-   "description": "The one solid action per area; ink fill.",
-   "html": "<button class=\"ds-btn-primary\">Open review queue</button>",
-   "css": ".ds-btn-primary{background:var(--accent,#141414);color:var(--on-accent,#fff);border:0;border-radius:8px;padding:9px 16px;font:500 15px Geist,system-ui,sans-serif;cursor:pointer;transition:background 140ms cubic-bezier(.4,0,.2,1)}.ds-btn-primary:hover{background:var(--accent-ink,#000)}.ds-btn-primary:focus-visible{outline:2px solid var(--accent,#141414);outline-offset:2px}"
-  },
-  {
-   "name": "Secondary Button",
-   "kind": "button",
-   "refersTo": "button-secondary",
-   "description": "The quiet action beside a primary; hairline border.",
-   "html": "<button class=\"ds-btn-secondary\">Change vote</button>",
-   "css": ".ds-btn-secondary{background:transparent;color:var(--accent,#141414);border:1px solid var(--panel-border,#dcdcd7);border-radius:8px;padding:9px 16px;font:500 15px Geist,system-ui,sans-serif;cursor:pointer}.ds-btn-secondary:hover{background:rgb(20 20 20 / .06);border-color:var(--accent,#141414)}.ds-btn-secondary:focus-visible{outline:2px solid var(--accent,#141414);outline-offset:2px}"
-  },
-  {
-   "name": "Text Input",
-   "kind": "input",
-   "refersTo": "input",
-   "description": "Panel fill, hairline border, 8px radius.",
-   "html": "<input class=\"ds-input\" placeholder=\"run id\">",
-   "css": ".ds-input{background:var(--panel,#fff);color:var(--text,#141414);border:1px solid var(--panel-border,#dcdcd7);border-radius:8px;padding:8px 10px;font:400 15px Geist,system-ui,sans-serif}.ds-input:focus-visible{outline:2px solid var(--accent,#141414);outline-offset:1px}"
-  },
-  {
-   "name": "Needs-you Badge",
-   "kind": "chip",
-   "refersTo": "badge-needs-you",
-   "description": "Signal fill count on 'Needs you' nav items only.",
-   "html": "<span class=\"ds-badge\">13</span>",
-   "css": ".ds-badge{display:inline-block;min-width:1.5rem;text-align:center;background:var(--hi,#ea4c14);color:var(--on-hi,#141414);border-radius:999px;padding:1px 6px;font:600 13px Geist,system-ui,sans-serif}"
-  },
-  {
-   "name": "Status Pill",
-   "kind": "chip",
-   "description": "Run status; outlined in the status colour.",
-   "html": "<span class=\"ds-pill ds-pill-ok\">completed</span> <span class=\"ds-pill ds-pill-fail\">failed</span>",
-   "css": ".ds-pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid;font:500 13px Geist,system-ui,sans-serif}.ds-pill-ok{color:oklch(50% .15 149)}.ds-pill-fail{color:oklch(54% .174 30)}"
-  },
-  {
-   "name": "Card",
-   "kind": "card",
-   "refersTo": "card",
-   "description": "Flat panel on a hairline; no shadow.",
-   "html": "<div class=\"ds-card\"><h3>Recent scans</h3><p>Five runs this week.</p></div>",
-   "css": ".ds-card{background:var(--panel,#fff);border:1px solid var(--panel-border,#dcdcd7);border-radius:12px;padding:18px 20px;font:400 15px Geist,system-ui,sans-serif;color:var(--text,#141414)}.ds-card h3{margin:0 0 8px;font-weight:600;font-size:16px}"
-  },
-  {
-   "name": "Sidebar Nav",
-   "kind": "nav",
-   "refersTo": "nav-item-active",
-   "description": "Active item inverts to ink; waiting items carry the signal badge.",
-   "html": "<nav class=\"ds-nav\"><a class=\"on\">Start</a><a>Review Queue <span>11</span></a><a>Runs</a></nav>",
-   "css": ".ds-nav{display:flex;flex-direction:column;gap:2px;width:220px;font:500 14px Geist,system-ui,sans-serif}.ds-nav a{display:flex;justify-content:space-between;padding:7px 10px;border-radius:8px;color:#141414;cursor:pointer}.ds-nav a:hover{background:#ebebe7}.ds-nav a.on{background:#141414;color:#fff}.ds-nav span{background:#ea4c14;color:#141414;border-radius:999px;padding:1px 6px;font-size:13px}"
-  },
-  {
-   "name": "Process Card",
-   "kind": "custom",
-   "description": "Signature start-page card: icon, purpose, step dots, the step that matters now.",
-   "html": "<a class=\"ds-proc\"><b>StewardIQ</b><span class=\"p\">Engage companies, vote, and track what they commit to.</span><span class=\"dots\"><i class=\"d\"></i><i class=\"d\"></i><i class=\"w\"></i><i></i></span><span class=\"m\">Step 3 of 4 · Vote</span><span class=\"s\">3 waiting on you</span></a>",
-   "css": ".ds-proc{display:flex;flex-direction:column;gap:12px;width:240px;padding:24px;border:1px solid #141414;background:#fff;font:400 15px Geist,system-ui,sans-serif;color:#141414}.ds-proc b{font-size:22px;letter-spacing:-.02em}.ds-proc .p{color:#5c5c57}.ds-proc .dots{display:flex;justify-content:space-between}.ds-proc i{width:12px;height:12px;border-radius:50%;border:2px solid #dcdcd7;box-sizing:border-box}.ds-proc i.d{background:#141414;border:0}.ds-proc i.w{background:#ea4c14;border:0;box-shadow:0 0 0 5px rgb(234 76 20 / .22)}.ds-proc .m{font:13px 'Geist Mono',monospace;color:#5c5c57}.ds-proc .s{font:13px 'Geist Mono',monospace;color:#b8400f}.ds-proc:hover{transform:translateY(-2px);transition:transform 140ms}"
+  "narrative": {
+    "northStar": "The Annotated Report",
+    "overview": "ARP is a calm instrument panel for teams that run long agent pipelines and ratify what the agents propose. It reads like a well-kept research report: ink on a cool blue-grey ground, titles and figures in one engineered sans, and every number traceable to the page it came from. One colour, amber, is reserved for one reason only: a person must act. When nothing waits on anyone, no amber appears.\n\nThe system is precise and quiet. Cards are flat panels set off by a hairline; Geist carries titles, figures, text and controls, Geist Mono carries IDs and state, and a serif appears only where text is quoted from a source. Density is high enough for tables of thousands of companies while staying legible on a projector. Two themes share one structure: **Night Desk**, in light and dark. The theme switch (System / Light / Dark), in the top bar's user menu, chooses between them, and every component reads its colours from the same tokens.",
+    "keyCharacteristics": [
+      "Blue-grey ground, ink accent for controls (near-black in light, near-white in dark), amber reserved for \"waiting on a person\".",
+      "Status colours (green / amber-brown / red / blue) describe runs and ratings, never the person-must-act state.",
+      "Cards are flat: a panel fill and a hairline, no shadow.",
+      "Geist for titles, figures and reading; Geist Mono for IDs, labels and state; a serif only for quoted source text.",
+      "Three signature elements carry the identity: the Pixel mark language, the needs-you shape and evidence paper.",
+      "The start page leads with the five workspaces; everything else is reached from them."
+    ],
+    "rules": [
+      {
+        "name": "The One Signal Rule",
+        "body": "Amber means one thing only: a person must act. Never use it for branding, decoration, hover, focus of a normal control, or \"running\". When nothing waits, no amber appears anywhere on the screen. Keyboard focus is an accent outline. A proposed item's box is neutral; only its \"Proposed\" tag and the needs-you shape carry the signal, so a queue never turns into a wall of amber. The flagged vote that needs a second person takes the signal border.",
+        "section": "colors"
+      },
+      {
+        "name": "The Brand Colour Rule",
+        "body": "Brand orange (#ea4c14 light, #ff6a2b Night) appears in two places only: the logo apex and the landing animation's orb glow. It never appears in the app's interface, so it cannot be mistaken for the amber signal.",
+        "section": "colors"
+      },
+      {
+        "name": "Provenance Is Not Status",
+        "body": "Where a number came from (live, synthetic sample, portfolio holdings, not built) is shown with neutral marks: filled, half, ring, dashed ring. Metric numbers are ink. Green, amber-brown and red stay for status.",
+        "section": "colors"
+      },
+      {
+        "name": "The Status Is Not The Signal Rule",
+        "body": "Status colours describe runs and ratings. Red marks a failed run and also a Low (L) rating on Transition Barriers; that second use is a deliberate, confirmed exception, because the matrix reads as a traffic light. It never marks something waiting on a person.",
+        "section": "colors"
+      },
+      {
+        "name": "Chart Colours",
+        "body": "Charts with categories use four slots, `--cat-1` to `--cat-4` (blue, magenta, gold, violet; `lib/palette.ts` explains the validation). They are neither status nor signal.",
+        "section": "colors"
+      },
+      {
+        "name": "The Arcade Exception",
+        "body": "The hidden arcade games draw in their own neon palette. They sit outside the product and are the only place where neon is decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Icon Accent Rule",
+        "body": "Each workspace drawing has exactly one element that can light up: in the signal colour (`--hi`) when the workspace waits on someone, in the running colour (`--run`) when it runs. Otherwise the whole drawing is a quiet wireframe.",
+        "section": "colors"
+      },
+      {
+        "name": "The Serif Means Source Rule",
+        "body": "The serif is for text quoted from a source document (the evidence paper) and the landing page's headline. Titles, figures, buttons, navigation, tables and forms stay in Geist.",
+        "section": "typography"
+      },
+      {
+        "name": "The Mono Means Data Rule",
+        "body": "Mono is for IDs, labels and state. Never set a sentence of prose in mono for a \"technical\" feel.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Card Rule",
+        "body": "Cards and stat tiles take a hairline, never a shadow. Nothing inside a card takes a shadow. Never stack a card on a card.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "read every colour from the tokens (`var(--hi)`, `var(--accent)`, `var(--text)`, …); both themes depend on it.",
+      "use amber for exactly one meaning: a person must act (see The One Signal Rule).",
+      "give anything that waits on a person the needs-you shape as well as the colour.",
+      "keep text at 13px or larger and at ≥4.5:1 contrast in both themes.",
+      "set titles and figures in Geist, IDs and state in the mono face, and keep the serif for quoted source text.",
+      "let wide tables scroll inside their frame, with the edge shadow cue."
+    ],
+    "donts": [
+      "use amber for anything that doesn't wait on a person: not branding, not \"running\", not hover.",
+      "use brand orange anywhere but the logo apex and the landing animation.",
+      "put shadows on cards, tables, wells or inputs, or stack cards.",
+      "round markers: dots, steps and segments are square.",
+      "use emoji as icons or status markers; draw icons in the shared stroke family. (The ✎ on \"Proposed\" is a text glyph, not an icon.)",
+      "hard-code colours or fonts in components (third-party editors included); follow the live theme.",
+      "fade disabled or switched-off items with opacity; mark them with the well fill or a dashed edge and keep text legible."
+    ]
   }
- ],
- "narrative": {
-  "northStar": "The Signal Room",
-  "overview": "ARP is a quiet instrument panel for teams that run long agent pipelines and ratify what the agents propose. Almost everything on screen is ink on a neutral ground: graphite by day, near-black by night. Exactly one colour is allowed to light up, and it lights up for one reason only: a person must act. When nothing waits on anyone, the screen is monochrome.\n\nThe system is precise and restrained. Surfaces are flat and separated by hairlines rather than shadows. Controls are ink, text is set in a workhorse sans with a monospace for data and state, and density is high enough for tables of thousands of companies while staying legible on a projector. Two themes share one structure: **Graphite** (light) and **Night** (dark). The sidebar switch (System / Light / Dark) chooses between them, and every component reads its colours from the same tokens.",
-  "keyCharacteristics": [
-   "Monochrome by default; one signal colour per theme, reserved for \"waiting on a person\".",
-   "Status colours (green / amber / red) describe runs and ratings, never the person-must-act state.",
-   "Flat surfaces with hairline borders; shadows only for things that float.",
-   "Sans for reading, mono for numbers, IDs, labels and state.",
-   "The start page leads with the four processes; everything else is reached from them."
-  ],
-  "rules": [
-   {
-    "name": "The One Signal Rule",
-    "body": "Orange (Graphite) and lime (Night) mean one thing only: a person must act. Never use them for branding, decoration, hover, focus of a normal control, or \"running\". When nothing waits, no signal colour appears anywhere on the screen.",
-    "section": "colors"
-   },
-   {
-    "name": "The Status Is Not The Signal Rule",
-    "body": "Green, amber and red describe runs and ratings. Red marks a failed run and also a Low (L) rating on Transition Barriers; that second use is a deliberate, confirmed exception, because the matrix reads as a traffic light. It never marks something waiting on a person.",
-    "section": "colors"
-   },
-   {
-    "name": "The Icon Accent Rule",
-    "body": "Each process icon has exactly one element drawn in the signal colour, and it only lights up when that process waits on someone. Otherwise the whole icon is ink.",
-    "section": "colors"
-   },
-   {
-    "name": "The Mono Means Data Rule",
-    "body": "Mono is for numbers, IDs, labels and state. Never set a sentence of prose in mono for a \"technical\" feel.",
-    "section": "typography"
-   },
-   {
-    "name": "The Flat-By-Default Rule",
-    "body": "Cards and tables sit flat on a hairline. If you reach for a shadow, the element must float above the page.",
-    "section": "elevation"
-   }
-  ],
-  "dos": [
-   "**Do** read every colour from the tokens (`var(--hi)`, `var(--text)`, …); both themes depend on it.",
-   "**Do** use the signal colour for exactly one meaning: a person must act (see The One Signal Rule).",
-   "**Do** use `--hi-ink` (#b8400f) when orange is text in Graphite.",
-   "**Do** keep text at 13px or larger and at ≥4.5:1 contrast in both themes.",
-   "**Do** put numbers, IDs and state in the mono face.",
-   "**Do** let wide tables scroll inside their frame, with the edge shadow cue."
-  ],
-  "donts": [
-   "**Don't** use orange or lime for anything that doesn't wait on a person: not branding, not \"running\", not hover.",
-   "**Don't** add shadows to flat cards or tables.",
-   "**Don't** use emoji as icons or status markers; draw icons in the shared stroke family.",
-   "**Don't** hard-code colours or fonts in components (third-party editors included); follow the live theme.",
-   "**Don't** fade disabled or switched-off items with opacity; mark them with the well fill or a dashed edge and keep text legible."
-  ]
- }
 }

@@ -144,6 +144,7 @@ def test_rfp_rewrite_end_to_end(pg, llm, report):
     stand_in(llm, {"output": {"reply": "Shortening Q1.", "ops": [{"op": "rewrite", "question_ids": [qid], "instruction": "shorter"}]}})
     draft = DraftOut(answer="We screen holdings quarterly.", citations=[Cited(entry_id=eid, quote="We screen all holdings quarterly.")])
     (llm._folder / "model" / "DraftOut.json").write_text(json.dumps({"output": draft.model_dump()}))
+    (llm._folder / "model" / "FactCheck.json").write_text(json.dumps({"output": {}}))  # the second model's check passes
     tid = turns.start_turn("rfp", pid, "alice", "shorter")
     asyncio.run(run_turn(tid, "rfp", pid, "shorter", [], llm, report[0], today=TODAY))
     out = turns.turn_out(tid)

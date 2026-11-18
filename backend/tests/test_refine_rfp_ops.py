@@ -12,7 +12,7 @@ from arp.db.session import transaction
 from arp.llm.base import LLMUsage
 from arp.refine import turns
 from arp.refine.rfp_ops import apply_rfp_ops
-from arp.rfp.draft import Cited, DraftOut
+from arp.rfp.draft import Cited, DraftOut, FactCheck
 
 TODAY = date(2026, 11, 14)
 E1_ANSWER = "We screen all holdings quarterly. Exclusions cover thermal coal."
@@ -31,6 +31,14 @@ class Standin:
         if isinstance(out, Exception):
             raise out
         return out, LLMUsage()
+
+
+class Passes:
+    """The second model: finds nothing unsupported or unanswered."""
+
+    async def complete_structured(self, *, output_model, **_):
+        assert output_model is FactCheck
+        return FactCheck(), LLMUsage()
 
 
 @pytest.fixture
@@ -67,7 +75,7 @@ def state(qid):
 
 def run(p, ops, llm):
     tid = turns.start_turn("rfp", str(p["P"]), "alice", "msg")
-    return tid, asyncio.run(apply_rfp_ops(tid, p["P"], ops, llm, today=TODAY))
+    return tid, asyncio.run(apply_rfp_ops(tid, p["P"], ops, llm, today=TODAY, verifier=Passes()))
 
 
 def test_rewrite_two_grounded(p):
@@ -217,7 +225,7 @@ def test_progress_lists_changed_so_far(p):
     tid = turns.start_turn("rfp", str(p["P"]), "alice", "msg")
     turns.save_progress(tid, result={"reply": "ok"})
     asyncio.run(apply_rfp_ops(tid, p["P"], [{"op": "rewrite", "question_ids": [p["Q1"], p["Q2"], p["Q3"]]}],
-                              Watches(grounded(p)), today=TODAY))
+                              Watches(grounded(p)), today=TODAY, verifier=Passes()))
     assert (seen[0]["reply"], seen[0]["changed"], seen[0]["not_changed"]) == ("ok", [p["Q1"]], [])
     t = turns.turn_out(tid)
     assert (t["changed"], t["not_changed"]) == ([p["Q1"], p["Q2"]], [{"id": p["Q3"], "reason": "approved"}])

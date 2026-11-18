@@ -59,6 +59,13 @@ const DRAW: Record<WorkspaceId, () => Shape[]> = {
   },
 };
 
+/** The cockpit's drawing: a console of three upright panels on one base, read at a glance. No accent: the
+ * cockpit shows state, it never waits on anyone. */
+export const cockpitDrawing = (): Shape[] => [
+  ...box(-62, -26, 0, 124, 52, 5),
+  ...[-56, -16, 24].flatMap((x, i) => box(x, -14, 5, 32, 5, i === 1 ? 54 : 44)),
+];
+
 /** A workspace's drawing. With an accent, exactly one shape (the drawing's slot) carries it. */
 export function drawing(id: WorkspaceId, accent: "wait" | "now" | null): Shape[] {
   return DRAW[id]().map((s) => ({ ...s, accent: accent !== null && s.accent }));

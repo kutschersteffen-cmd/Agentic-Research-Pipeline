@@ -1,5 +1,5 @@
 import type { RunManifest, StewardshipFlow, StewardshipStage } from "../types";
-import type { Process, Step, Workspace } from "./processes.ts";
+import { WORKSPACES, type Process, type Step, type Workspace } from "./processes.ts";
 import { ACTIVE_STATUSES, ago, decisionRunType, waitingCount } from "./runs.ts";
 
 /** Decisions a stage still waits on: every item except policy differences
@@ -56,6 +56,17 @@ export const processState = (p: Process, runs: RunManifest[] | null, flow: Stewa
   return RANK.find((r) => states.includes(r)) ?? "idle";
 };
 
+/** A process's track: `reached` is the last done step (-1 if none); `runInto[i]` marks a running step right after
+ * the reached part (or a running first step), whose incoming connector is drawn in the running colour. */
+export function flowTrack(states: StepState[]): { reached: number; runInto: boolean[] } {
+  const reached = states.lastIndexOf("done");
+  return { reached, runInto: states.map((s, i) => s === "now" && i <= reached + 1) };
+}
+
+/** Titles of a workspace's processes whose state is failed, for the overview's "Last run failed" lines. */
+export const failedProcesses = (w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null, activity: Activity | null): string[] =>
+  w.processes.filter((p) => p.steps.some((s) => stepState(s, runs, flow, activity) === "failed")).map((p) => p.title);
+
 export type CardStatus = { word: string; tone: StepState | "unknown"; detail: string };
 export type CardView = { dots: (StepState | "unknown")[]; now: string; status: CardStatus; label: string; awaits: boolean };
 
@@ -72,10 +83,32 @@ export function cardStatus(states: (StepState | "unknown")[] | null, titles: str
   return { word: "No runs yet", tone: "idle", detail: "" };
 }
 
-/** The Review Queue badge, shared by the sidebar and the start top bar: "items", so the number never
- * reads as a total of decisions. */
-export const reviewBadge = (count: number): { text: string; title: string } | null =>
-  count > 0 ? { text: `${count} ${count === 1 ? "item" : "items"}`, title: `${count} ${count === 1 ? "review item" : "review items"} waiting on you` } : null;
+type Waiting = { review: number; decisions: number; ballots: number; total: number };
+const PARTS = [
+  ["review", "review item", "review items"],
+  ["decisions", "stewardship decision", "stewardship decisions"],
+  ["ballots", "ballot", "ballots"],
+] as const;
+const counted = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const sane = (w: Waiting) =>
+  [w.review, w.decisions, w.ballots, w.total].every((n) => Number.isInteger(n) && n >= 0) && w.total === w.review + w.decisions + w.ballots;
+
+/** The Review Queue badge: everything waiting on a decision, its parts named in the label. Hidden at 0 or on bad input. */
+export const waitingBadge = (w: Waiting): { text: string; title: string } | null =>
+  sane(w) && w.total > 0
+    ? { text: String(w.total), title: `${w.total} waiting for a decision: ${PARTS.filter(([k]) => w[k] > 0).map(([k, one, many]) => counted(w[k], one, many)).join(", ")}` }
+    : null;
+
+/** The Review Queue's note on what waits elsewhere: stewardship decisions and ballots. */
+export const alsoWaiting = (w: Waiting): { text: string; href: string }[] =>
+  sane(w)
+    ? [
+        { n: w.decisions, one: "stewardship decision", many: "stewardship decisions", place: "Steward Workflow", href: "#/stewardship" },
+        { n: w.ballots, one: "ballot", many: "ballots", place: "Proxy Voting", href: "#/voting" },
+      ]
+        .filter((p) => p.n > 0)
+        .map((p) => ({ text: `${counted(p.n, p.one, p.many)} also ${p.n === 1 ? "waits" : "wait"}, in ${p.place} →`, href: p.href }))
+    : [];
 
 /** What a start-page workspace card shows: the way in, each process's state, and one status line. */
 export function cardView(w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null, now: Date): CardView {
@@ -117,3 +150,16 @@ export const workspaceState = (w: Workspace, runs: RunManifest[] | null): StepSt
   const states = w.processes.map((p) => processState(p, runs, null));
   return RANK.find((r) => states.includes(r)) ?? "idle";
 };
+
+export type MenuItem = { href: string; label: string; purpose: string; tone: "wait" | "now" | "failed" | null; word: string };
+/** The top bar's Workspaces menu: Start, then each workspace with its card's status when it needs a look. */
+export function workspaceMenuItems(runs: RunManifest[] | null, flow: StewardshipFlow | null, now: Date): MenuItem[] {
+  return [
+    { href: "#/home", label: "Start", purpose: "Every workspace at a glance", tone: null, word: "" },
+    ...WORKSPACES.map((w) => {
+      const { tone, word } = cardView(w, runs, flow, now).status;
+      const loud = tone === "wait" || tone === "now" || tone === "failed";
+      return { href: `#/${w.id}`, label: w.short ?? w.name, purpose: w.purpose, tone: loud ? tone : null, word: loud ? word : "" };
+    }),
+  ];
+}

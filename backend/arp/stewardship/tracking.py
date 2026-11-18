@@ -72,7 +72,7 @@ def triggers(records: list[EngagementRecord], sla_days: int, today: date | None 
             for c in i.commitments:
                 if c.status == CommitmentStatus.MISSED:
                     raise_("commitment_missed", "high", "commitment_missed", f"Commitment missed: {c.text}")
-                elif c.status == CommitmentStatus.OPEN and c.target_date and date.fromisoformat(c.target_date[:10]) < today:
+                elif c.status == CommitmentStatus.OPEN and (due := _iso(c.target_date)) and date.fromisoformat(due) < today:
                     raise_(
                         "commitment_missed",
                         "medium",
@@ -98,8 +98,8 @@ def commitments(records: list[EngagementRecord], today: date | None = None) -> l
             "target_date": c.target_date,
             "status": c.status.value,
             "overdue": c.status == CommitmentStatus.OPEN
-            and bool(c.target_date)
-            and date.fromisoformat(c.target_date[:10]) < today,
+            and bool(due := _iso(c.target_date))
+            and date.fromisoformat(due) < today,
             "validated_by": c.validated_by,
         }
         for r in records
@@ -109,9 +109,11 @@ def commitments(records: list[EngagementRecord], today: date | None = None) -> l
 
 
 def _iso(value: str | None) -> str | None:
-    """`value` when it is a `YYYY-MM-DD` date, else None: intake stores free-text due dates, which count as none."""
+    """The `YYYY-MM-DD` date `value` starts with, else None: intake stores free-text due dates, which count as none,
+    and the API stores datetimes as given (the same date part `triggers()` reads)."""
+    day = (value or "")[:10]
     try:
-        return value if value and date.fromisoformat(value).isoformat() == value else None
+        return day if date.fromisoformat(day).isoformat() == day else None
     except ValueError:
         return None
 
@@ -135,7 +137,7 @@ def watch_flags_by_company(records: list[EngagementRecord | None], today: date |
             for c in i.commitments:
                 due = _iso(c.target_date)
                 if c.status == CommitmentStatus.MISSED:
-                    since = _iso((c.validated_at or "")[:10]) or due or _day(c.made_at)
+                    since = _iso(c.validated_at) or due or _day(c.made_at)
                     kind, message = "broken", f'Commitment broken: "{c.text}" was marked not met on {since}.'
                 elif c.status == CommitmentStatus.OPEN and due and due < today_iso:
                     since, kind, message = due, "overdue", f'Commitment overdue: "{c.text}" was due {due}.'
@@ -146,7 +148,7 @@ def watch_flags_by_company(records: list[EngagementRecord | None], today: date |
             for o in i.objectives:
                 due = _iso(o.target_date)
                 if o.result in (ObjectiveResult.NOT_ACHIEVED, ObjectiveResult.DETERIORATION):
-                    since = _iso((o.closed_at or "")[:10]) or due
+                    since = _iso(o.closed_at) or due
                     kind = "broken"
                     message = f'Objective failed: "{o.description}" was closed as {_w(o.result.value)}' + (f" on {since}." if since else ".")
                 elif o.status in (ObjectiveStatus.INITIATED, ObjectiveStatus.IN_PROGRESS) and due and due < today_iso:

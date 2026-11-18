@@ -3,6 +3,11 @@ import type { BIDesignResult, DashboardItem } from "../types";
 // `env` is undefined under `node --test`, hence the `?.`.
 export const SUPERSET_URL: string = import.meta.env?.VITE_SUPERSET_URL ?? "http://127.0.0.1:8088";
 
+/** The warning banner for a result where the model asked a question back instead of planning. */
+export function clarificationText(question: string): string {
+  return `The model needs more detail: ${question} Nothing was created in Superset. Refine the brief and try again.`;
+}
+
 export function designRequestBody(brief: string): { brief: string } {
   return { brief: brief.trim() };
 }
@@ -23,11 +28,16 @@ export function pickDefaultDashboard(items: DashboardItem[], preferredSlug = "ar
   return items.find((d) => d.slug === preferredSlug) ?? items[0] ?? null;
 }
 
+/** A client error without its leading "NNN: " status code; nothing else changes. */
+export function withoutStatusCode(error: string): string {
+  return error.replace(/^\d{3}:\s*/, "");
+}
+
 /** The embed error for people: a dashboard that vanished or lost its `arp-` slug (403/404)
  * is "no longer available"; anything else loses its "NNN: " status prefix. */
 export function embedErrorText(error: string): string {
   if (/^40[34]:/.test(error)) return "This dashboard is no longer available here.";
-  return error.replace(/^\d{3}:\s*/, "");
+  return withoutStatusCode(error);
 }
 
 /** What the Company Profile adds to the embed-token request. The server checks the id

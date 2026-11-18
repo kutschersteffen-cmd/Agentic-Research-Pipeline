@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { NAV_GROUPS, currentNavIds, navCount, redirectHash, splitHash } from "../src/lib/nav.ts";
+import { readFileSync } from "node:fs";
+import { redirectHash, splitHash } from "../src/lib/nav.ts";
 import { parseWalkthroughParams } from "../src/lib/walkthrough.ts";
 
 test("redirectHash sends each removed screen, and any path under it, to its replacement", () => {
@@ -29,25 +30,8 @@ test("redirectHash leaves every other hash alone", () => {
   assert.equal(redirectHash(""), null);
 });
 
-test("the sidebar lists exactly the approved links, in order, under the approved labels", () => {
-  assert.deepEqual(
-    NAV_GROUPS.flatMap((g) => g.ids),
-    ["home", "review", "stewardiq", "argus", "transitionIntel", "rdLab", "dataHub", "reporting", "refine", "arcade"],
-  );
-  assert.deepEqual(NAV_GROUPS.map((g) => g.label), [null, "Needs you", "Workspaces", "Output", null]);
-});
-
-test("currentNavIds marks a sidebar link only for its own screen", () => {
-  assert.deepEqual(currentNavIds("argus"), ["argus"]);
-  assert.deepEqual(currentNavIds("review"), ["review"]);
-  for (const off of ["search", "history", "argusUniverse", "transitionPlan"]) assert.deepEqual(currentNavIds(off), [], off);
-});
-
-test("navCount shows the review badge and nothing else", () => {
-  assert.equal(navCount("review", { review: 1 }), 1);
-  assert.equal(navCount("argus", { review: 1 }), 0);
-  assert.equal(navCount("review", null), 0);
-});
+// App-wide top bar (2026-11-15-app-wide-top-bar spec) retired the sidebar tests: NAV_GROUPS and currentNavIds went with
+// the sidebar. The Workspaces menu's links are checked in workspaceCard.test.ts (pr1_menu_items).
 
 test("splitHash takes the query off the tab only, so a walkthrough's ?basis= still reaches its parser", () => {
   const r = splitHash("#/argusWalkthrough/run1/co1/item1?basis=action:3");
@@ -55,4 +39,9 @@ test("splitHash takes the query off the tab only, so a walkthrough's ?basis= sti
   assert.deepEqual(parseWalkthroughParams(r.params), { runId: "run1", companyId: "co1", item: "item1", periodEnd: undefined, basis: "action:3" });
   const refine = splitHash("#/refine?report=rpt_1");
   assert.deepEqual([refine.tab, refine.params, refine.query.get("report")], ["refine", [], "rpt_1"]);
+});
+
+test("the top bar links Refine right after Reports, marked current on its own screen (refine-chat AC-36)", () => {
+  const bar = readFileSync(new URL("../src/components/AppTopbar.tsx", import.meta.url), "utf8");
+  assert.match(bar, /href="#\/reporting"[^>]*>\s*Reports\s*<\/a>\s*<a href="#\/refine" aria-current=\{active === "refine" \? "page" : undefined\}>\s*Refine\s*<\/a>/);
 });

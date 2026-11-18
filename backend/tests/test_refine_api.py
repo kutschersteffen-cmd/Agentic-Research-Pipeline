@@ -119,6 +119,7 @@ def P(env):
         ids = {"pid": str(p.id), "e1": e1.id, **{f"q{i}": q.id for i, q in enumerate(qs, 1)}}
     draft = DraftOut(answer=GROUNDED, citations=[Cited(entry_id=ids["e1"], quote=LIB)])
     env.stand_in("DraftOut", {"output": draft.model_dump()})
+    env.stand_in("FactCheck", {"output": {}})  # the second model's check finds nothing unsupported
     return ids
 
 

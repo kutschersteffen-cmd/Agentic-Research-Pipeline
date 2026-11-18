@@ -131,14 +131,9 @@ export function ArgusStart() {
 
   return (
     <div className="page hub argus-start">
-      <p className="hub-crumb">
-        <a href="#/home">Start</a> › Argus
-      </p>
       <div className="argus-head">
         <h1>Argus</h1>
         <span className="argus-head-actions">
-          <a href="#/argusWalkthrough">Walkthrough</a>
-          <a href="#/xbrl">XBRL Facts</a>
           <button disabled={starting} onClick={() => void start()}>
             Start new extraction
           </button>
@@ -155,7 +150,7 @@ export function ArgusStart() {
           <a
             key={t.step}
             href="#/argus"
-            className={`argus-tile${t.needs ? " argus-tile-await" : ""}${t.count === 0 ? " argus-tile-empty" : ""}`}
+            className={`argus-tile${t.tone ? ` argus-tile-${t.tone}` : ""}${t.count === 0 ? " argus-tile-empty" : ""}`}
             aria-pressed={step === t.step}
             onClick={(e) => {
               e.preventDefault();
@@ -172,9 +167,14 @@ export function ArgusStart() {
       </section>
       <div className="argus-body">
         <div>
-          <label className="argus-mine">
-            <input type="checkbox" id="argus-only-mine" checked={onlyMine} disabled={me === null} onChange={(e) => setOnlyMine(e.target.checked)} /> Only mine
-          </label>
+          <div role="group" aria-label="Show runs" className="filter-chips">
+            <button type="button" className="filter-chip" aria-pressed={!onlyMine} onClick={() => setOnlyMine(false)}>
+              All
+            </button>
+            <button type="button" className="filter-chip" aria-pressed={onlyMine} disabled={me === null} onClick={() => setOnlyMine(true)}>
+              Only mine
+            </button>
+          </div>
           {filterLine(step) && <p className="argus-filter-line" role="status">{filterLine(step)}</p>}
           <div className="table-wrap">
             <table ref={runsTable} tabIndex={-1} className="data-table stack-on-phone" aria-label="Runs">
@@ -225,7 +225,9 @@ export function ArgusStart() {
                     <td data-label="Step">
                       {r.step} {STEPS[r.step - 1]}
                     </td>
-                    <td data-label="Status" className={r.status === "Needs you" ? "await-text" : undefined}>{r.status}</td>
+                    <td data-label="Status" data-status={r.status.toLowerCase().replace(" ", "-")} className={r.status === "Needs you" ? "await-text" : undefined}>
+                      {r.status}
+                    </td>
                     <td>
                       <span className="row-actions">
                         <a href={r.openHref}>Open</a>

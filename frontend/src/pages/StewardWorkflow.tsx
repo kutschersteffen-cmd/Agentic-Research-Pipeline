@@ -9,6 +9,8 @@ import { FlowChart, FlowList } from "./steward/flow";
 import { DraftingStudio } from "./steward/drafting";
 import { ProgramStudio } from "./steward/program";
 import { TrackingStudio } from "./steward/tracking";
+import { WorkbenchStudio } from "./steward/workbench";
+import { OverlapStudio } from "./steward/overlap";
 import {
   CheckpointStudio,
   ClientPicker,
@@ -60,7 +62,7 @@ function HouseUniverse({ onChanged }: { onChanged: () => void }) {
       ))}
       <span className="muted">
         {info.issuers} companies{info.set_by ? ` · set by ${info.set_by}` : ""}
-        {!reviewer.trim() && " · enter your name in the sidebar to change it"}
+        {!reviewer.trim() && " · enter your name in the user menu (top right) to change it"}
       </span>
       {error && <span className="error-text" role="alert">{error}</span>}
     </div>
@@ -163,9 +165,15 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
   useEffect(() => {
     loadStreams();
   }, [loadStreams]);
+  // The Workbench's rows come first: the flow (stage badges) is read once they show, not alongside them.
+  const [flowWanted, setFlowWanted] = useState(tab !== "workbench");
+  const showFlow = useCallback(() => setFlowWanted(true), []);
   useEffect(() => {
-    reload();
-  }, [reload]);
+    if (tab !== "workbench") setFlowWanted(true);
+  }, [tab]);
+  useEffect(() => {
+    if (flowWanted) reload();
+  }, [reload, flowWanted]);
 
   // Client stages default to the first client stream when the house is selected.
   const firstClient = streams.find((s) => s.kind === "client")?.stream_id;
@@ -304,10 +312,12 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
       {tab !== "overview" && CLIENT_STAGES.has(tab) && stream === "house" && (
         <p className="muted card">Choose a client stream above (or create one on the overview) to work on its policy and reporting.</p>
       )}
-      {tab !== "overview" && tab !== "program" && !stage && loading && <p className="status-text">Loading…</p>}
+      {tab !== "overview" && tab !== "program" && tab !== "workbench" && tab !== "overlap" && !stage && loading && <p className="status-text">Loading…</p>}
 
       {studioProps && tab === "monitoring" && <MonitoringStudio {...studioProps} />}
       {studioProps && tab === "selection" && <SelectionStudio {...studioProps} />}
+      {tab === "workbench" && <WorkbenchStudio onRowsShown={showFlow} />}
+      {tab === "overlap" && <OverlapStudio />}
       {studioProps && tab === "drafting" && <DraftingStudio {...studioProps} />}
       {studioProps && tab === "voting" && <VotingStudio {...studioProps} />}
       {studioProps && tab === "checkpoint" && <CheckpointStudio {...studioProps} />}

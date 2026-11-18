@@ -61,6 +61,7 @@ class TriggerStore:
                             rule=t["rule"],
                         ),
                     )
+                    found[tid].demo = bool(t.get("demo"))  # the last run that lists it decides; standards never do
             elif row["event"] == "standards":
                 for t in row["triggers"]:
                     tid = trigger_id(t["issuer_id"], t["rule"])

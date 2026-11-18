@@ -10,8 +10,10 @@ from sqlalchemy import select, update
 from arp.db import models as m
 from arp.db.session import transaction
 from arp.llm.base import LLMClient
+from arp.rfp.compare import compare
 from arp.rfp.detect import detect_questions
-from arp.rfp.draft import APPROVED, NO_SOURCE, Draft, Entry, draft_answer
+from arp.rfp.documents import active as active_documents
+from arp.rfp.draft import APPROVED, NO_SOURCE, STALE_SOURCE, Draft, Entry, draft_answer, flags_for
 from arp.rfp.library import extract_pairs
 from arp.rfp.locations import Layout
 from arp.rfp.text import has_figures
@@ -60,15 +62,30 @@ def _active_entries(s) -> list[Entry]:
     return [Entry(e.id, e.question, e.answer, e.review_by) for e in rows]
 
 
+def source_flags(s, sources: list[dict], answer: str) -> list[str]:
+    """`check figure` by part 1's rule; `stale source` when a cited entry or document is past its review-by date or a
+    cited document is retired."""
+    entry_ids = [src["entry_id"] for src in sources if src.get("entry_id") is not None]
+    doc_ids = [src["document_id"] for src in sources if src.get("document_id") is not None]
+    review_bys = list(s.scalars(select(m.RfpLibraryEntry.review_by).where(m.RfpLibraryEntry.id.in_(entry_ids)))) if entry_ids else []
+    docs = list(s.scalars(select(m.RfpReferenceDocument).where(m.RfpReferenceDocument.id.in_(doc_ids)))) if doc_ids else []
+    flags = flags_for(answer, review_bys + [d.review_by for d in docs], today())
+    if any(d.status == "retired" for d in docs) and STALE_SOURCE not in flags:
+        flags.append(STALE_SOURCE)
+    return flags
+
+
 def set_run_status(project_id: int, run_status: str, **values) -> None:
     with transaction() as s:
         s.execute(update(m.RfpProject).where(m.RfpProject.id == project_id).values(run_status=run_status, **values))
 
 
-async def autofill(project_id: int, llm: LLMClient, settings=None) -> None:
-    """Drafts every `no source` question again from the active library; never touches edited, approved, left blank."""
+async def autofill(project_id: int, llm: LLMClient, verifier: LLMClient, settings=None) -> None:
+    """Drafts every `no source` question again from the active library and reference documents; never touches edited,
+    approved, left blank."""
     with transaction() as s:
         entries = _active_entries(s)
+        docs = active_documents(s)
         todo = [(q.id, q.question) for q in s.scalars(
             select(m.RfpQuestion).where(m.RfpQuestion.project_id == project_id, m.RfpQuestion.status == NO_SOURCE)
             .order_by(m.RfpQuestion.position)
@@ -78,17 +95,21 @@ async def autofill(project_id: int, llm: LLMClient, settings=None) -> None:
 
     async def one(question: str) -> Draft:
         async with limit:
-            return await draft_answer(question, entries, llm, today=day, settings=settings)
+            return await draft_answer(question, entries, llm, verifier, today=day, settings=settings, documents=docs)
 
     drafts: list[Draft] = await asyncio.gather(*(one(question) for _, question in todo))
     with transaction() as s:
         for (qid, _), d in zip(todo, drafts, strict=True):
             # WHERE status: a colleague may have edited the question while its draft was being written
             s.execute(update(m.RfpQuestion).where(m.RfpQuestion.id == qid, m.RfpQuestion.status == NO_SOURCE)
-                      .values(status=d.status, answer=d.answer, sources=d.sources, flags=d.flags))
+                      # flags again here: a cited document may have been retired while the draft was written
+                      .values(status=d.status, answer=d.answer, sources=d.sources,
+                              flags=source_flags(s, d.sources, d.answer) if d.sources else d.flags,
+                              base_entry_id=d.base_entry_id, document_priority=d.document_priority))
 
 
-async def detect_and_fill(project_id: int, data: bytes, suffix: str, llm: LLMClient, settings=None) -> None:
+async def detect_and_fill(project_id: int, data: bytes, suffix: str, llm: LLMClient, verifier: LLMClient,
+                          settings=None) -> None:
     try:
         found, not_located = await detect_questions(Layout(data, suffix), llm)
         with transaction() as s:
@@ -98,7 +119,7 @@ async def detect_and_fill(project_id: int, data: bytes, suffix: str, llm: LLMCli
                 for i, d in enumerate(found)
             )
         set_run_status(project_id, "drafting", not_located=not_located)
-        await autofill(project_id, llm, settings)
+        await autofill(project_id, llm, verifier, settings)
         set_run_status(project_id, "done")
     except Exception:
         set_run_status(project_id, "failed")
@@ -122,20 +143,30 @@ def project_summaries(s) -> list[RfpProjectSummary]:
 
 def project_out(s, p: m.RfpProject) -> RfpProjectOut:
     questions = questions_of(s, p.id)
-    ids = {src["entry_id"] for q in questions for src in q.sources}
+    ids = ({src.get("entry_id") for q in questions for src in q.sources} | {q.base_entry_id for q in questions}) - {None}
+    doc_ids = {src.get("document_id") for q in questions for src in q.sources} - {None}
+    # whatever their status: a retired base entry still compares
     entries = {e.id: e for e in s.scalars(select(m.RfpLibraryEntry).where(m.RfpLibraryEntry.id.in_(ids)))} if ids else {}
+    docs = {d.id: d for d in s.scalars(select(m.RfpReferenceDocument).where(m.RfpReferenceDocument.id.in_(doc_ids)))} \
+        if doc_ids else {}
 
     def source(src: dict) -> RfpSourceOut:
+        if src.get("document_id") is not None:
+            d = docs[src["document_id"]]
+            return RfpSourceOut(kind="document", document_id=d.id, title=d.title, file=d.filename, priority=d.priority,
+                                quote=src["quote"], page=src.get("page"))
         e = entries[src["entry_id"]]
-        return RfpSourceOut(entry_id=e.id, entry_question=e.question, quote=src["quote"], source=source_label(e),
-                         file=e.source_file, location=e.source_location, written_by=e.written_by)
+        return RfpSourceOut(kind="entry", entry_id=e.id, entry_question=e.question, quote=src["quote"],
+                            source=source_label(e), file=e.source_file, location=e.source_location,
+                            written_by=e.written_by)
 
-    return RfpProjectOut(
-        **_summary(p, questions),
-        questions=[
-            RfpQuestionOut(id=q.id, location=q.location, answer_location=q.answer_location, question=q.question,
-                        answer=q.answer, status=q.status, flags=q.flags, assignee=q.assignee, last_editor=q.last_editor,
-                        sources=[source(src) for src in q.sources])
-            for q in questions
-        ],
-    )
+    def question(q: m.RfpQuestion) -> RfpQuestionOut:
+        base = entries.get(q.base_entry_id)
+        segments, kept_share = compare(base.answer, q.answer) if base else ([], None)
+        return RfpQuestionOut(id=q.id, location=q.location, answer_location=q.answer_location, question=q.question,
+                              answer=q.answer, status=q.status, flags=q.flags, assignee=q.assignee,
+                              last_editor=q.last_editor, sources=[source(src) for src in q.sources],
+                              document_priority=q.document_priority, base_entry_id=q.base_entry_id,
+                              kept_share=kept_share, segments=segments)
+
+    return RfpProjectOut(**_summary(p, questions), questions=[question(q) for q in questions])

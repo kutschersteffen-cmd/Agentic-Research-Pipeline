@@ -187,6 +187,15 @@ def test_ask_refusal_prints_the_reason_and_exits_3(monkeypatch):
     assert "No dataset has share prices." in result.stderr and result.stdout == ""
 
 
+@pytest.mark.parametrize("command", ["ask", "design"])
+def test_clarification_prints_the_question_and_exits_3(monkeypatch, command):
+    from arp.bi.service import DesignResult
+
+    result, _ = _ask_offline(monkeypatch, command, lambda text: DesignResult(clarification_needed="Which portfolio do you mean?"))
+    assert result.exit_code == 3
+    assert result.stderr == "Clarification needed: Which portfolio do you mean?\n" and result.stdout == ""
+
+
 def test_ask_superset_error_prints_the_body_and_exits_1(monkeypatch):
     from arp.bi.service import BIError
 

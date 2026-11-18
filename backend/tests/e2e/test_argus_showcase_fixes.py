@@ -2,8 +2,8 @@
 
 import os
 import re
-from random import randint
-from uuid import uuid4
+from random import choices, randint
+from string import ascii_lowercase
 
 import pytest
 
@@ -17,7 +17,9 @@ pytestmark = [
     pytest.mark.skipif(not URL, reason="ARP_E2E_URL not set -- start backend/scripts/e2e_stack.sh"),
 ]
 
-TAG = uuid4().hex[:6]  # names and ids of this run, so what earlier runs left behind never matches
+# Names and ids of this run, so what earlier runs left behind never matches. Letters only: a hex tag such as
+# 7b2097 puts a year in a company's name, the upload check then reads that file as "Year 2097" and does not keep it.
+TAG = "".join(choices(ascii_lowercase, k=6))
 
 
 @pytest.fixture
@@ -76,15 +78,16 @@ def test_a_filtered_start_page_says_so_and_offers_show_all(page):
     table.get_by_text("Green capex v2").wait_for()
     process = page.get_by_role("region", name="Process")
     assert "Extractions at each step. Click a step to list only its extractions." in process.inner_text()  # AC-75
-    assert page.locator(".argus-head").get_by_role("link", name="Walkthrough").get_attribute("href") == "#/argusWalkthrough"  # AC-80
+    # AC-80; UI polish 1 F2 moved the link from the header to the workspace row.
+    assert page.get_by_role("navigation", name="Argus screens").get_by_role("link", name="Walkthrough").get_attribute("href") == "#/argusWalkthrough"
 
-    page.get_by_label("Only mine").check()
+    page.get_by_role("button", name="Only mine").click()  # UI polish 2 L8: chips, not a checkbox
     process.get_by_role("link").nth(2).click()  # 3 Schema: no run is there
     page.get_by_text("Showing step 3 Schema only.").wait_for()  # AC-76
     assert "No run matches this filter." in table.inner_text() and "No runs yet" not in table.inner_text()  # AC-72
     table.get_by_role("button", name="Show all").click()  # AC-73
     table.get_by_text("Green capex v2").wait_for()
-    assert not page.get_by_label("Only mine").is_checked()
+    assert page.get_by_role("button", name="Only mine").get_attribute("aria-pressed") == "false"
     assert process.locator('[aria-pressed="true"]').count() == 0 and page.get_by_text("Showing step").count() == 0
 
     runs.clear()  # AC-74: nothing at all still reads as before
@@ -374,7 +377,8 @@ def test_phone_labels_stay_on_one_line(page):
     page.goto(URL + "/#/argus")
     cell = page.get_by_role("table", name="Runs").locator('td[data-label="Run"]').first
     cell.wait_for()
-    assert cell.evaluate(one_line)  # not "Ru / n"
+    # UI polish 2 (L9, AC-15) supersedes the runs half: the Argus phone card shows no field labels at all.
+    assert cell.evaluate("td => getComputedStyle(td, '::before').content") == "none"
     page.goto(f"{URL}/#/argus/{fid}/1")
     cell = page.get_by_role("table", name="Companies").locator('td[data-label="Company"]').first
     cell.wait_for()
@@ -528,8 +532,9 @@ def test_release_asks_first(page, tmp_path):
     fid = _flow(api, "name\n" + "\n".join(names) + "\n", reporting_year=2025, step=3)
     for i, c in enumerate(_ok(api.get(f"{API}/api/argus/flows/{fid}"))["companies"]):
         pdf = make_pdf(tmp_path / f"r{i}.pdf", [f"{c['name']} Annual Report 2025", FILLER], n_pages=2).read_bytes()
-        _ok(api.post(f"{API}/api/argus/flows/{fid}/documents/upload", multipart={
-            "company_id": c["company_id"], "doc_type": "10-K", "file": {"name": f"r{i}.pdf", "mimeType": "application/pdf", "buffer": pdf}}))
+        files = _ok(api.post(f"{API}/api/argus/flows/{fid}/documents/upload", multipart={
+            "company_id": c["company_id"], "doc_type": "10-K", "file": {"name": f"r{i}.pdf", "mimeType": "application/pdf", "buffer": pdf}}))["files"]
+    assert [(f["check"], f["state"]) for f in files] == [(f"✓ {n}, 2025", "kept") for n in names]  # the dialog counts companies with a kept file
     s = f"Release {TAG}"
     _schema(api, "rel", s, _fields("r", 2))
     page.goto(f"{URL}/#/argus/{fid}/3")

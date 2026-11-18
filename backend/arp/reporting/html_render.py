@@ -17,6 +17,8 @@ from jinja2 import Environment, FileSystemLoader
 from arp.reporting.chart_builder import ChartDataError, heatmap_table, render_chart_svg, text_on
 from arp.reporting.design import DesignTheme
 from arp.reporting.house_style import _STYLE_DIR, Mode, Tokens, footer_fits, get_variant, load_tokens, slot_rect
+from arp.reporting.html_writer import html_slide
+from arp.reporting.render_model import Text, palette, render_slide
 from arp.reporting.template_frame import font_family_of
 from arp.schemas.reporting import ChartType, Deck, QuantitativeDataset, SlideContent, TableSpec
 
@@ -101,17 +103,21 @@ def render_deck_html(deck: Deck, datasets: list[QuantitativeDataset], tokens: To
     tokens = tokens or load_tokens()
     theme = theme_from_tokens(tokens, mode)
     by_id = {d.dataset_id: d for d in datasets}
-    slides = [
-        {
+    slides, families = [], set()
+    for i, s in enumerate(deck.slides):
+        if s.visual is not None:  # component slide: drawn from the render model
+            prims = render_slide(s, i, deck, tokens, by_id, mode)
+            families |= {p.family for p in prims if isinstance(p, Text)}
+            slides.append({"index": i, "visual": s.visual.type, "html": html_slide(prims, tokens, mode)})
+            continue
+        slides.append({
             "index": i, "layout": s.layout, "headline": s.headline, "subheading": s.subheading, "framed": tokens.frame is not None,
             "refs": " · ".join(s.source_refs),
             "slots": [_slot_view(i, s, sp, tokens, by_id, theme) for sp in get_variant(s.layout, s.variant).slots],
-        }
-        for i, s in enumerate(deck.slides)
-    ]
+        })
     fonts = {"heading": tokens.heading_font(mode), "body": tokens.fonts.body, "mono": tokens.fonts.mono or tokens.fonts.body}
-    stacks = [*fonts.values(), *([tokens.frame.subheading_font.family] if tokens.frame else [])]
+    stacks = [*fonts.values(), *([tokens.frame.subheading_font.family] if tokens.frame else []), *sorted(families)]
     return _env.get_template("base.html.j2").render(
         deck=deck, slides=slides, t=tokens, c=tokens.colors(mode), fonts=fonts, mode=mode, font_faces=_font_faces(stacks, tokens.font_dir),
-        frame=tokens.frame, footer=footer_fits(tokens),
+        frame=tokens.frame, footer=footer_fits(tokens), panel=palette(tokens, mode)["panel"],
     )

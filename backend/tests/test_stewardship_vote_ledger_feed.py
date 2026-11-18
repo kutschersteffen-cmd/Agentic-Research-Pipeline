@@ -27,8 +27,8 @@ SOCGEN = "isin_FR0000130809"  # in the house universe, no stw_companies row
 def universe(pg, sample_house_universe, monkeypatch):
     issuer = copy.deepcopy(json.loads(SAMPLE_PATH.read_text())["issuers"][0])
     issuer.update(issuer_id=SOCGEN, name="Societe Generale", fields={})
-    monkeypatch.setattr(process, "house_universe", lambda: {"issuers": [copy.deepcopy(issuer)]})
-    monkeypatch.setattr(process, "house_isins", lambda: {})  # the sample-like universe above holds no securities
+    # house_universe() and house_isins() both read house_build(); the sample-like universe above holds no securities
+    monkeypatch.setattr(process, "house_build", lambda: process.HouseBuild({"issuers": [copy.deepcopy(issuer)]}, {}, None))
 
 
 def _load(tmp_path, pg, dates=None, lines=None):
@@ -61,7 +61,7 @@ def test_ac39_old_against_vote_raises_none(tmp_path, pg):
 def test_rows_carry_every_voting_feed_key(tmp_path, pg):
     _load(tmp_path, pg)
     keys = {"run_id", "company_id", "company", "meeting_date", "item", "type", "management", "policy", "vote", "status",
-            "decided_by", "co_signed_by", "note", "overrode_policy", "against_management"}  # fmt: skip
+            "decided_by", "co_signed_by", "note", "overrode_policy", "against_management", "demo"}  # fmt: skip
     rows = ledger_rows(pg, 365)
     assert len(rows) == 10 and all(set(r) == keys for r in rows)
     assert {r["meeting_date"] for r in rows if r["company_id"] == SOCGEN} == {"2026-05-23"}
@@ -111,8 +111,9 @@ def test_isin_of_a_company_outside_the_house_universe_keeps_isin_key(tmp_path, p
 
 
 def test_ac38_house_issuer_holding_the_isin_gets_the_trigger(tmp_path, pg, monkeypatch):
-    """A portfolio universe names issuers by portfolio company id (here `bmw`), not `isin_<ISIN>`: the vote on the
-    ISIN the portfolio holds must reach that issuer, with stw_* empty."""
+    """A portfolio universe names issuers by portfolio company id (here BMW's `isin_DE0005190003`), not
+    `isin_<ISIN>` of the held security (the seed's mock ISIN): the vote on the ISIN the portfolio holds must reach
+    that issuer, with stw_* empty."""
     import asyncio
 
     from arp.portfolio.mock_data import generate_demo_dataset
@@ -122,14 +123,39 @@ def test_ac38_house_issuer_holding_the_isin_gets_the_trigger(tmp_path, pg, monke
 
     store = PortfolioStore(tmp_path / "pf")
     asyncio.run(generate_demo_dataset(store))
-    isin = next(i for i, c in held_isins(store).items() if c == "bmw")
+    isin = next(i for i, c in held_isins(store).items() if c == "isin_DE0005190003")
     # an unheld security-master row on the same ISIN, naming another company: the held issuer still wins
     store.save_security(SecurityRef(security_id="BMW_GY", isin=isin, name="BMW", asset_class="equity", currency="EUR", company_id="bmw_legacy"))
-    monkeypatch.setattr(process, "house_universe", lambda: from_portfolio(store))
-    monkeypatch.setattr(process, "house_isins", lambda: held_isins(store))
+    monkeypatch.setattr(process, "house_build", lambda: process.HouseBuild(from_portfolio(store), held_isins(store), None))
     d = tmp_path / "npx"
     d.mkdir()
     (d / "f.csv").write_text(FIXTURE.read_text().replace("FR0000130809", isin).replace("/2024,", "/2026,"))
     load_npx(d, pg)
     out = monitoring_triggers(Settings(), StreamStore(tmp_path / "s"), EngagementStore(tmp_path / "e"))["triggers"]
-    assert [t["rule"] for t in out if t["issuer_id"] == "bmw" and t["type"] == "vote_outcome"] == ["vote_against_management"]
+    assert [t["rule"] for t in out if t["issuer_id"] == "isin_DE0005190003" and t["type"] == "vote_outcome"] == ["vote_against_management"]
+
+
+# stewardship-decisions-round-2, area 1: a trigger raised by demo votes alone carries `demo`
+
+
+def test_trigger_from_demo_votes_alone_is_demo(tmp_path, pg):  # AC-1
+    _load(tmp_path, pg)  # npx_load writes source npx_urth_demo
+    [t] = _vote_triggers(tmp_path)
+    assert t["demo"] is True
+
+
+def test_one_real_against_vote_clears_demo(tmp_path, pg):  # AC-2
+    from arp.stewardship.intake import intake_votes
+
+    _load(tmp_path, pg)
+    row = {"external_id": "real1", "isin": "FR0000130809", "meeting_date": "2026-05-23", "item_number": "99",
+           "vote": "against", "management_recommendation": "for", "rationale": "Board independence"}
+    assert intake_votes([row], pg, "api").rejected == []
+    [t] = _vote_triggers(tmp_path)
+    assert t["demo"] is False
+    assert all(t["demo"] is False for t in _all_rule_triggers(tmp_path) if t["rule"] != "vote_against_management")
+
+
+def _all_rule_triggers(tmp_path):
+    out = monitoring_triggers(Settings(), StreamStore(tmp_path / "s"), EngagementStore(tmp_path / "e"))["triggers"]
+    return [t for t in out if "rule" in t and "engagement_id" in t]

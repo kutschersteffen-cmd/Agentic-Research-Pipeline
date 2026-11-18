@@ -40,7 +40,7 @@ const LIGHT: Record<string, string> = {
   "--hi": "#85601a", "--hi-ink": "#85601a", "--on-hi": "#ffffff", "--high": "#13804f", "--low": "#c8323f",
 };
 const DARK: Record<string, string> = {
-  "--bg": "#0d1015", "--panel": "#141921", "--panel-border": "#2c3644", "--field-border": "#6d7889",
+  "--bg": "#0d1015", "--panel": "#141921", "--panel-border": "rgb(232 235 240 / 0.12)", "--field-border": "#6d7889",
   "--well": "#1b222d", "--text": "#e8ebf0", "--muted": "#a3acbb", "--accent": "#e8ebf0",
   "--sidebar-bg": "#10141a", "--on-accent": "#0d1015", "--await": "rgb(212 166 80 / 0.14)",
   "--await-edge": "#d4a650", "--hi": "#d4a650", "--hi-ink": "#d4a650", "--on-hi": "#0d1015",
@@ -153,7 +153,9 @@ test("ac12b_palette_untouched", (t) => {
 test("ac13_amber_usage_unchanged", (t) => {
   // Amber may only be added by the rules that release 2 and 3 approved; everything else must match main.
   // The ARP logo's highlight square (sidebar and landing page) is the brand mark, not a status.
-  const allowed = /\.nav-dot-wait|\.source-excerpt-page mark|\.hub-status-wait|\.hub-mark-wait|\.ws-accent-wait|\.hub-card-await \{|<rect x="26" y="2" width="10" height="10" fill="var\(--hi\)" \/>/;
+  // UI polish 2 L9: the Argus phone card's "Needs you" status dot is a waiting state.
+  // Deferred polish minors: a waiting Argus document row tints its whole phone card (the cells' amber, moved to the card).
+  const allowed = /\.source-excerpt-page mark|\.hub-status-wait|\.hub-mark-wait|\.ws-accent-wait|\.hub-card-await \{|td\[data-status="needs-you"\]::before|tr\.argus-row-await \{|<rect x="26" y="2" width="10" height="10" fill="var\(--hi\)" \/>/;
   const cmd = (ref: string) => `git grep -h -E "var\\(--(hi|hi-ink|await|await-edge)\\)" ${ref} -- src`;
   const main = onMain(t, cmd("origin/main"));
   const head = onMain(t, cmd("HEAD"));
@@ -197,7 +199,8 @@ test("r2_ac15b_square_controls_unchanged", (t) => {
 test("r2_ac16b_status_colours", () => {
   const want: [string, string][] = [
     [".hub-step-status-now", "--run"], [".hub-step-status-failed", "--low"], [".hub-step-status-done", "--muted"],
-    [".hub-step-status-idle", "--muted"], [".nav-dot-now", "--run"], [".nav-dot-failed", "--low"], [".nav-dot-done", "--muted"],
+    // .nav-dot-* went with the sidebar (2026-11-15-app-wide-top-bar spec).
+    [".hub-step-status-idle", "--muted"],
   ];
   for (const [sel, tok] of want) {
     const r = rule(sel);

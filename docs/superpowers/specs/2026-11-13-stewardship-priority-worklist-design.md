@@ -118,7 +118,12 @@ tool records the pick the same way.
 - A simulated value read as real. Every simulated value carries `Simulated`, in the cell, in the column header and in
   the why panel (AC-21, AC-22, AC-39, AC-40).
 - A score nobody can explain. Each row's points add up to its score, component by component, in the panel.
-- Stale numbers. No cache: a trigger or overdue commitment stored a second ago shows on the next request (AC-13).
+- Stale numbers. A trigger or overdue commitment stored a second ago shows on the next request (AC-13). One cache
+  only (owner decision, 15 Nov 2026, for AC-44 on the 2,581-company showcase house): the latest value of each
+  portfolio observation file, kept per server process and re-read whenever the file's modification time or size
+  changes, so it is never stale. At start-up the cache is filled from `observations_latest.json`; each entry is
+  still checked against its file's modification time and size before use. Holdings, tiers, triggers, engagements, selections, notes, programmes and the vote
+  ledger are read fresh on every request; no score is stored.
 
 ## Constraints
 
@@ -568,7 +573,7 @@ columns 11 to 14 and in the panel's Value column, and in the column header when 
 (`Grade · Simulated`). The page also shows the universe note from `house_universe()`, which already says how many
 companies carry simulated values.
 
-**New-trigger refresh check (PR 7).** No cache anywhere. The page refetches when the browser tab regains focus. A row
+**New-trigger refresh check (PR 7).** No cache of triggers (see Anti-goals for the one cache there is). The page refetches when the browser tab regains focus. A row
 whose issuer has a stored `high` trigger with `is_new` true shows the tag `New high trigger` next to its trigger counts,
 and the trigger filter offers "new high trigger".
 

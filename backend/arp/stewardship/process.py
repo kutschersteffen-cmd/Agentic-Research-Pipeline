@@ -35,7 +35,14 @@ from arp.stewardship.policy_graph import evaluate, generate
 from arp.stewardship.policy_review import DATA, build, decide, review
 from arp.stewardship.tiers import TIER_LABELS, TIERS, PickStore, TierStore, apply_picks, review_tiers, tier_contexts
 from arp.stewardship.tiers import evaluate as evaluate_tiers
-from arp.stewardship.universe import HouseUniverseSetting, from_portfolio, held_isins
+from arp.stewardship.universe import (
+    HouseBuild,
+    HouseUniverseSetting,
+    copy_build,
+    from_portfolio,
+    kept_build,
+    latest_observations,
+)
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.decision_store import DecisionStore
 from arp.storage.run_store import RunStore
@@ -44,15 +51,16 @@ SAMPLE_PATH = DATA / "examples" / "sample_meetings.json"
 HOUSE = "house"
 
 
-def vote_items(runs_dir: Path | None = None) -> list[dict]:
-    """Every ballot item from the Proxy Voting runs (see voting_feed) plus the vote ledger's decisions (vote_ledger_feed)."""
+def vote_items(runs_dir: Path | None = None, house_issuers: list[dict] | None = None, held: dict | None = None) -> list[dict]:
+    """Every ballot item from the Proxy Voting runs (see voting_feed) plus the vote ledger's decisions (vote_ledger_feed).
+    `house_issuers`: the house universe's issuers, when the caller already has them."""
     from arp.config import get_settings
 
     if runs_dir is None:
         runs_dir = get_settings().runs_dir
     settings = get_settings()
     dsn = require_dsn(settings)
-    ledger = vote_ledger_feed.ledger_rows(dsn, settings.vote_monitoring_window_days)
+    ledger = vote_ledger_feed.ledger_rows(dsn, settings.vote_monitoring_window_days, house_issuers, held)
     seen = {(r["run_id"], r["company_id"], r["item"]) for r in ledger if r["run_id"] is not None}
     runs = [r for r in voting_feed.items(RunStore(dsn, runs_dir)) if (r["run_id"], r["company_id"], r["item"]) not in seen]
     return runs + ledger
@@ -67,27 +75,35 @@ def portfolio_alerts() -> list:
     return list_alerts(build_portfolio_store(get_settings()))
 
 
-def house_universe() -> dict:
-    """The issuers the house program covers: the companies held in the house portfolios (default), or
-    the synthetic sample, as the house setting says (see universe.py)."""
+def house_build() -> HouseBuild:
+    """The issuers the house program covers, as the house setting says (see universe.py): the companies held in the
+    house portfolios (default), with the held ISIN map and the latest observations read to build them, or the
+    synthetic sample. Built once per process and kept until an input changes (spec stewardship-house-universe-cache);
+    every call checks the inputs once and gets its own copy."""
     from arp.config import get_settings
-    from arp.storage.portfolio_store_factory import build_portfolio_store
 
     settings = get_settings()
-    if HouseUniverseSetting(settings.stewardship_streams_dir).get()["source"] == "sample":
-        return json.loads(SAMPLE_PATH.read_text())
-    return from_portfolio(build_portfolio_store(settings))
+
+    def build() -> HouseBuild:
+        from arp.storage.portfolio_store_factory import build_portfolio_store
+
+        if HouseUniverseSetting(settings.stewardship_streams_dir).get()["source"] == "sample":
+            return HouseBuild(json.loads(SAMPLE_PATH.read_text()), {}, None)
+        store = build_portfolio_store(settings)
+        observations, held = latest_observations(store), {}
+        return HouseBuild(from_portfolio(store, observations=observations, held_isins_out=held), held, observations)
+
+    return copy_build(kept_build(settings, build))
+
+
+def house_universe() -> dict:
+    """`house_build().universe`."""
+    return house_build().universe
 
 
 def house_isins() -> dict[str, str]:
     """ISIN -> house issuer id for the portfolio universe; empty for the sample, whose issuers have no ISINs."""
-    from arp.config import get_settings
-    from arp.storage.portfolio_store_factory import build_portfolio_store
-
-    settings = get_settings()
-    if HouseUniverseSetting(settings.stewardship_streams_dir).get()["source"] == "sample":
-        return {}
-    return held_isins(build_portfolio_store(settings))
+    return house_build().held
 
 
 def load_sample(
@@ -95,6 +111,7 @@ def load_sample(
     votes: list[dict] | None = None,
     alerts: list | None = None,
     base: dict | None = None,
+    build: HouseBuild | None = None,
 ) -> dict:
     """The house issuers (`house_universe()`, or `base`) with live data merged in as company fields, matched
     by issuer id, so coverage, monitoring and escalation rules read it like
@@ -105,14 +122,23 @@ def load_sample(
     - decided Proxy Voting ballots (`vote.decided`, `vote.against_management`,
       `vote.overrode_policy`, `vote.last_meeting_date`);
     - open Risk Monitoring alerts (`alert.open_news_controversy`,
-      `alert.open_threshold_breach`)."""
+      `alert.open_threshold_breach`).
+
+    `build`: `house_build()` when the caller already has it (one input check per request)."""
     if frameworks_dir is None:
         from arp.config import get_settings
 
         frameworks_dir = get_settings().frameworks_dir
-    sample = house_universe() if base is None else base
+    held: dict[str, str] | None = None  # from the universe build, so the vote ledger does not read it all again
+    if base is not None:
+        sample = base
+    else:
+        build = house_build() if build is None else build
+        sample, held = build.universe, build.held
     merged = [as_fields(snapshot) for snapshot in DecisionStore(frameworks_dir).latest_published()]
-    merged.append(voting_feed.issuer_fields(vote_items() if votes is None else votes))
+    if votes is None:
+        votes = vote_items(house_issuers=sample["issuers"] if base is None else None, held=held)
+    merged.append(voting_feed.issuer_fields(votes))
     merged.append(alerts_feed.issuer_fields(portfolio_alerts() if alerts is None else alerts))
     for fields in merged:
         for issuer in sample["issuers"]:
@@ -628,8 +654,12 @@ EDGES = [
 def flow(
     stream_id: str, streams: StreamStore, records: list[EngagementRecord], sla_days: int, votes: list[dict] | None = None
 ) -> dict:
-    votes = vote_items() if votes is None else votes
-    sample = load_sample(votes=votes)
+    if votes is None:  # the house universe is built once, for the vote ledger and the sample (it is the slow part)
+        build = house_build()
+        votes = vote_items(house_issuers=build.universe["issuers"], held=build.held)
+        sample = load_sample(votes=votes, base=build.universe)
+    else:
+        sample = load_sample(votes=votes)
     house_policy = PolicyStore(streams.root).active("house_voting")
     tiers = tier_review(streams.root, sample, records)
     triggers = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, records)
@@ -727,11 +757,12 @@ def tier_review(root: Path, sample: dict, records: list[EngagementRecord]) -> di
 
 def confirm_tiers(root: Path, records: list[EngagementRecord], decided_by: str, issuer_ids: list[str] | None = None) -> int:
     """Confirms the proposed tier changes (all of them, or the listed issuers)."""
-    changes = tier_review(root, load_sample(), records)["changes"]
-    wanted = [c for c in changes if issuer_ids is None or c["issuer_id"] in issuer_ids]
     store = TierStore(root)
-    for change in wanted:
-        store.confirm({k: v for k, v in change.items() if k != "current_tier"}, decided_by)
+    with store.lock():  # two simultaneous confirms would otherwise both append every open change
+        changes = tier_review(root, load_sample(), records)["changes"]
+        wanted = [c for c in changes if issuer_ids is None or c["issuer_id"] in issuer_ids]
+        for change in wanted:
+            store.confirm({k: v for k, v in change.items() if k != "current_tier"}, decided_by)
     return len(wanted)
 
 

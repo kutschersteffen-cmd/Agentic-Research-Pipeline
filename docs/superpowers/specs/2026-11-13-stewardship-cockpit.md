@@ -191,7 +191,7 @@ shareholder_meetings: [{date, company_id, company, items: int, flagged: int|null
 control_gaps: [{company_id, company, engagement_id, theme, open_days: int|null, gaps: [str]}]
 ladder: [{step: int, stage, label, companies: [{company_id, company}]}]       # one per ESCALATION_ORDER step: 6, steps 1..6
 voting: {season: int, meetings: int, votes: int, for: int, against: int, abstain: int, other: int,
-         against_management: int, topics: [{topic, votes: int, against_management: int}]}
+         against_management: int, topics: [{topic, votes: int, against_management: int, abstain: int}]}
 emissions: null | {...}                               # PR 2, below; null in PR 1
 ```
 
@@ -211,14 +211,15 @@ Rules:
 - `shareholder_meetings`: meetings in the window, sorted by date, one row per company and meeting date.
   - **From runs:** the latest `proxy_voting` run with a ballot for that company and date
     (`voting_feed.items()`). `items` = its ballot items. `flagged` = items where the policy recommends `against` or
-    `withhold` and management recommends `for`. `ballot_state` = `cast` when every item is cast, `decided` when
-    no item is `awaiting` but not every item is cast, else `awaiting`.
+    `withhold` and management recommends `for`. `ballot_state`, the first that applies: `awaiting` when the
+    ballot has no items or any item is `awaiting`; `cast` when every item is cast; `declined` when any item is
+    `declined`; else `decided` (amended by `cockpit-review-fixes`, 15 Nov 2026).
   - **From the ledger,** only when no run row exists for that company and date. Meeting date = UTC date part of
     `meeting_date`; meetings with null `company_id` are skipped. `items` = its `vote_items`; `flagged` = null.
     `ballot_state` = `cast` when every item has a decision, `awaiting` when some do, `not_started` when none do.
     `run_id` is null.
-  - `days_to_meeting` = meeting date − `as_of` in days. `action_due` = `ballot_state` is `awaiting` or
-    `not_started` and `days_to_meeting` ≤ 7.
+  - `days_to_meeting` = meeting date − `as_of` in days. `action_due` = `ballot_state` is `awaiting`,
+    `not_started` or `declined` and `days_to_meeting` ≤ 7 (amended by `cockpit-review-fixes`, 15 Nov 2026).
 - `days[i].engagement_meetings` / `shareholder_meetings` = rows of the two lists above on that date.
 - `control_gaps`: one row per open engagement with a gap. `gaps` ⊆ `["no_objective", "no_next_meeting"]`, in that
   order. `open_days` = `as_of` − the date part of `started_at`, or null when `started_at` is null. Sorted by
@@ -230,8 +231,12 @@ Rules:
   statement. (`stewardship-three-tiers` removed the step "Joint engagement", 14 Nov 2026.)
 - `voting` (season, in scope). The unit is one vote:
   - Votes counted: each `vote_decisions` row (a split vote counts once per decision row), plus each run item with
-    status `cast` that has no ledger decision with the same `run_id`.
-  - `for` / `against` / `abstain` come from the vote value; `withhold` counts as `against`. Every other value
+    status `cast` that has no ledger decision with the same `run_id`. A ballot item counts once, with its latest
+    decision (`vote-abstain-and-seed-fixes`): of run items, per (company, meeting date, item number) only the newest
+    `proxy_voting` run in which the item is `cast`; of ledger decisions with a `run_id`, per `vote_items` row only the
+    one with the latest `decided_at` (null is oldest; a tie keeps the greatest `decision_id`). Ledger decisions
+    without a `run_id` are filed votes and each counts.
+  - `for` / `against` / `abstain` come from the vote value; `withhold` counts as `abstain`. Every other value
     (`do_not_vote`, `one_year`, `two_years`, `three_years`, `other`) is `other`.
   - `against_management`: the decision's `against_management` is true, or the run feed's `against_management`.
   - `meetings` = distinct (company or issuer, meeting date) among the counted votes.
@@ -262,10 +267,10 @@ emissions: {total_tco2e: float, engaged_tco2e: float, selected_not_engaged_tco2e
 - Holdings: `store.load_holdings_as_of(as_of, <portfolio ids in scope, or None for all>)`, exactly as
   `arp climate financed-emissions` selects them.
 - Buckets: engaged companies, selected but not engaged, and the rest. The three sum to `total_tco2e` (±0.1 t).
-- `contributors`: the 6 largest companies by `tco2e`, ties by name. `share` = `tco2e / total_tco2e`, 0 to 1, 4
+- `contributors`: the 6 largest companies by `tco2e` rounded to 0.01 t, ties by name, then `company_id` (amended by `cockpit-review-fixes`, 15 Nov 2026). `share` = `tco2e / total_tco2e`, 0 to 1, 4
   decimals. `status` is the first that applies: `in_escalation`, `engaged`, `selected`, `not_selected`. `company` and `sector` come
   from the security's company.
-- `emissions` is `null` when no holdings are in scope or `total_tco2e` is 0.
+- `emissions` is `null` when no holdings are in scope or `total_tco2e`, rounded to 0.01 t, is 0 (amended by `cockpit-review-fixes`, 15 Nov 2026).
 
 ## The page (`#/stewardiq/cockpit`)
 
@@ -281,7 +286,7 @@ showing it. Layout and copy follow the mockup:
 - **Six key figures:**
   - **Companies engaged**: `engaged_selected / selected`, with "<p>% of selected companies".
   - **Financed emissions covered** (PR 2; hidden while `emissions` is null): `engaged_tco2e / total_tco2e` as a %,
-    with "<a> of <b> Mt CO₂e in engagement".
+    with "<a> of <b> t CO₂e in engagement".
   - **Next 30 days**: the two meeting lists' counts added up, with the split.
   - **Control gaps**: the number of gap rows, with "<x> without objective · <y> without next meeting".
   - **In escalation**: companies at step 2 or higher, with "Highest step: <label>".
@@ -291,16 +296,21 @@ showing it. Layout and copy follow the mockup:
 - **Engaged vs selected, by theme and tier** (owner decision 6): a grid with one row per `themes` entry, one
   column per `tiers` entry (header: the tier `label`) and a Total column. A header row shows each tier's totals
   from `tiers`. Each cell shows "<e> / <s>" over a small bar: the selected track with the engaged fill. A cell with
-  `selected` 0 shows `–` and no bar. Below 900 px the grid scrolls sideways inside its card. Feature B swaps the
+  `selected` 0 shows `–` and no bar. Two bar scales (amended by `cockpit-review-fixes`, 15 Nov 2026): named-theme rows against the largest named-theme
+  `selected`, the "All themes" row and the `Other` row against `summary.selected`. The `Other` row is labelled
+  `No theme yet`, stays last under a 2 px rule, and one muted line under the legend reads `Theme rows: a full bar
+  is <n> companies. All themes and No theme yet: a full bar is <N> companies.` (the first sentence left out when no
+  named theme has `selected` above 0; ` and No theme yet` left out without an `Other` row). Below 900 px the grid scrolls sideways inside its card. Feature B swaps the
   theme rows for named programmes; nothing else on the page changes.
 - **Financed emissions in engagement** (PR 2): one stacked bar (engaged / selected not engaged / not selected) and
   the contributors table (Company · sector, Share, Status).
 - **Upcoming engagement meetings:** Date, Company + theme, Objective (or "No objective"), Step. Up to 6 rows, then
   a button `All <n>` that shows the rest in place.
 - **Upcoming shareholder meetings:** Date, Company, Items, Flagged (`–` when null), Ballot.
-  - Ballot text is `Cast`, `Decided, not cast`, `Awaiting decision` or `Not started`.
+  - Ballot text is `Cast`, `Decided, not cast`, `Declined`, `Awaiting decision` or `Not started`.
   - When `action_due`, the text is exactly `Decision due today` (0 days), `Decision due in 1 day` (1) or
-    `Decision due in <n> days` (2–7), in the signal style.
+    `Decision due in <n> days` (2–7), in the signal style. A `declined` ballot keeps its word: `Declined · decision
+    due today`, `Declined · decision due in 1 day` or `Declined · decision due in <n> days` (amended by `cockpit-review-fixes`, 15 Nov 2026).
   - A row with a `run_id` links to `#/voting/<run_id>`.
   - Up to 6 rows, then `All <n>`.
   - Footnote: "Flagged: items where the voting policy recommends a vote against management."
@@ -312,13 +322,16 @@ showing it. Layout and copy follow the mockup:
   - With no gaps it reads "No control gaps." and uses no signal colour.
 - **Escalation ladder:** 6 rows, each with the step number, label, count and company names. Step 1 shows only the
   count.
-- **Voting, season to date:** one stacked bar for / against / abstain (plus other, only when it is above 0) with
-  counts. Under it, "Against management, by topic": one bar per topic, "<rate>% · <a> of <n>".
+- **Voting, season to date:** one stacked bar for / against / abstained or withheld (plus other, only when it is
+  above 0), legend `<count> <label> (<p>%)`. Under it, "Against management, by topic": one bar per topic,
+  "<rate>% · <a> of <n> · <q>% abstained or withheld"; a footnote says abstentions never count as against
+  management and a withhold only when management recommended for (`vote-abstain-and-seed-fixes` section 3).
 - **Zero cases:** `selected` 0 shows `0 / 0` and "– of selected companies"; `voting.votes` 0 shows "0 meetings · –
   against management"; no company in escalation shows `0` and "Highest step: –"; a topic with 0 votes shows
-  "– · 0 of 0".
-- **Numbers:** percentages are whole numbers, rounded half up. Mt CO₂e has two decimals. Counts use thousands
-  separators.
+  "– · 0 of 0 · – abstained or withheld".
+- **Numbers:** percentages are whole numbers, rounded half up. Emissions are t CO₂e in whole tonnes with thousands
+  separators; an amount above 0 and below 1 t keeps two decimals, so none reads 0 (owner decision 15 Nov 2026,
+  replacing Mt with two decimals). Counts use thousands separators.
 - **Empty and error states:** an empty section says so in one line (e.g. "No engagement meetings in the next 30
   days."), never a blank card. A load failure shows one `role="alert"` line, "The cockpit could not be loaded:
   <message>".
@@ -350,9 +363,13 @@ removes a row. Let `h(x)` = `int(hashlib.sha256(x.encode("utf-8")).hexdigest(), 
    h("esc:" + engagement_id) mod 100`, it moves the engagement to step 2 (`c` 0–1), 3 (`c` 2), 4 (`c` 3) or 5 (`c`
    4). Each move writes `escalation_stage` plus one `stw_transitions` row (`kind` `escalation`, `decided_by`
    `showcase demo`, `source` `cockpit_demo`). Prints `ok escalation: <n> engagements`.
-3. `tiers`: it proposes tiers with the active coverage rules (`tier_contexts` + `evaluate` over `load_sample()` and
-   the engagement records) and confirms every proposal whose issuer has no confirmed tier yet, with `decided_by`
-   `showcase demo`. Prints `ok tiers: <n> confirmed`.
+3. `tiers` (owner decisions, 15 Nov 2026, PR #481): for every held company (the company key of any holding in
+   `load_holdings_as_of(as_of, None)`, with or without a `stw_companies` row, whose summed `market_value_eur` there is
+   above 0 (amended by `cockpit-review-fixes`, 15 Nov 2026)), it proposes a tier with the active
+   coverage rules (`tier_contexts` + `evaluate`, with the company's share of all house holdings and its ledger
+   engagements as inputs) and confirms every proposal whose company has no confirmed tier yet, under that company
+   key, with `decided_by` `showcase demo`. So engaged companies sit among all selected ones, and small positions fill
+   Monitor. Prints `ok tiers: <n> confirmed`.
 4. `meetings`: it upserts 14 `vote_meetings` (`source` `cockpit_demo`, `external_id` `cockpit_demo:meeting:<k>`, k
    = 0–13) for 14 held companies that have `stw_companies` rows (held = the company key of any holding in
    `load_holdings_as_of(as_of, None)`). The companies are the 14 with the smallest `h(company_id)`.
@@ -471,7 +488,7 @@ company `isin_XA0000000001` ("Alpha AG", its `stw_companies` row inserted first)
 | AC-39 | AC-36 plus a ledger meeting for H on 2026-11-19 | same | exactly one row for H on that date, with the run's `run_id` | unit |
 | AC-40 | ledger, company G: a 2026-03-10 meeting with four decisions: categories `{DIRECTOR ELECTIONS}` `for` (`against_management` false); `{SECTION 14A SAY-ON-PAY VOTES}` `against` (true); `{AUDIT-RELATED}` `abstain` (null); proponent `shareholder`, categories `{OTHER SOCIAL MATTERS}`, `for` (true). Also a 2025-12-01 meeting with one decision and a 2026-11-20 meeting with one decision | Cockpit `?as_of=2026-11-17` | `voting` is `{season: 2026, meetings: 1, votes: 4, for: 2, against: 1, abstain: 1, other: 0, against_management: 2, …}` | holdout |
 | AC-41 | AC-40 | same | `voting.topics` as `{topic, votes, against_management}` is exactly `[{Shareholder proposals,1,1},{Remuneration,1,1},{Director elections,1,0},{Auditors,1,0},{Capital and other,0,0}]` | holdout |
-| AC-42 | ledger only: a 2026-03-10 meeting for G with three decisions `withhold`, `one_year`, `do_not_vote` | same | `voting` has `votes` 3, `for` 0, `against` 1, `abstain` 0, `other` 2 | holdout |
+| ~~AC-42~~ | Superseded by AC-90 (`vote-abstain-and-seed-fixes` AC-10) (`withhold` counts as `abstain`) | — | ~~ledger only: a 2026-03-10 meeting for G with three decisions `withhold`, `one_year`, `do_not_vote`; same; `voting` has `votes` 3, `for` 0, `against` 1, `abstain` 0, `other` 2; holdout~~ | retired |
 | AC-43 | a 2026-03-10 ledger meeting for G, one item with two decisions (a split vote), both `for` | Cockpit `?as_of=2026-11-17` | `voting.votes` is 2 and `voting.meetings` is 1 | holdout |
 | AC-44 | portfolio P holds company A only; A and B are both engaged and selected, each with a planned meeting in the window, one `no_objective` gap and a ledger meeting in the window | Cockpit `?portfolio_id=P&as_of=2026-11-17` | `engagement_meetings`, `shareholder_meetings`, `control_gaps` and every `ladder[].companies` hold only A; `summary.selected` is 1; `scope` is `{portfolio_id: P, label: <P's name>}` | holdout |
 | AC-45 | the stack's portfolios plus 3 saved by the test; N = the number of portfolios in the store | Cockpit `?as_of=2026-11-17` | `scope` is `{portfolio_id: null, label: "All portfolios (N)"}`; `portfolios` has N entries sorted by `name` | holdout |
@@ -489,10 +506,10 @@ company `isin_XA0000000001` ("Alpha AG", its `stw_companies` row inserted first)
 | AC-57 | the showcase portfolios loaded (`arp showcase load`) | Cockpit for each portfolio, `as_of=2026-11-02` | `emissions.total_tco2e` equals `financed_emissions_tco2e` from `arp climate financed-emissions --portfolio <id> --as-of 2026-11-02`, within 0.1 t | holdout |
 | AC-58 | same, plus `seed-cockpit-demo --as-of 2026-11-02` | Cockpit `?as_of=2026-11-02` | `engaged_tco2e + selected_not_engaged_tco2e + not_selected_tco2e` equals `total_tco2e` within 0.1 t; `contributors` has 6 entries | holdout |
 | AC-59 | portfolio Q saved with no snapshot on or before 2026-11-17 | Cockpit `?portfolio_id=Q&as_of=2026-11-17` | `emissions` is `null` | holdout |
-| AC-60 | (PR 2) the demo stack | open `#/stewardiq/cockpit` | the "Financed emissions covered" figure shows the % and "<a> of <b> Mt CO₂e in engagement", matching the API; the emissions panel shows the three-part bar and 6 contributors | evaluator |
+| AC-60 | (PR 2) the demo stack | open `#/stewardiq/cockpit` | the "Financed emissions covered" figure shows the % and "<a> of <b> t CO₂e in engagement", matching the API; the emissions panel shows the three-part bar and 6 contributors | evaluator |
 | AC-61 | (PR 2) a scope where `emissions` is null | open the page in that scope | the emissions figure and panel are hidden, with no empty card in their place | evaluator |
 | AC-62 | the demo stack | open `#/stewardiq/cockpit` | sections in mockup order: key figures, 30-day strip, engaged vs selected by theme and tier, financed emissions, upcoming engagement meetings, upcoming shareholder meetings, control gaps, escalation ladder, voting season to date | evaluator |
-| AC-63 | the demo stack | read the six key figures | each equals the value computed from `GET /api/stewardship/cockpit` for the same `as_of` and scope, with whole-number percentages and Mt to two decimals | evaluator |
+| AC-63 | the demo stack | read the six key figures | each equals the value computed from `GET /api/stewardship/cockpit` for the same `as_of` and scope, with whole-number percentages and t CO₂e in whole tonnes with thousands separators | evaluator |
 | AC-64 | the demo stack | the 30-day strip | 30 day columns from the `as_of` date, weekends shaded, bars on exactly the dates in `days` with counts above 0 | evaluator |
 | AC-65 | the demo stack | Upcoming engagement meetings | at most 6 rows, then `All <n>` with n = `len(engagement_meetings)`; clicking it shows n rows | evaluator |
 | AC-66 | the demo stack, `#/stewardiq/cockpit/<seed as_of>` | Upcoming shareholder meetings, `All 14` opened | the 4 meetings within 7 days read `Decision due in 1 day` / `Decision due in <n> days` in the signal style; the other 10 read `Not started` in the neutral style; Flagged shows `–` | evaluator |
@@ -519,6 +536,7 @@ company `isin_XA0000000001` ("Alpha AG", its `stw_companies` row inserted first)
 | AC-87 | `stewardship-three-tiers` PR B and cockpit PR 1 merged; as cockpit AC-24, but the two engagements escalated to `written_escalation_to_board` and `escalation_to_chair` | as cockpit AC-24 | `ladder[2].companies` is `[{company_id: "isin_XA0000000001", company: "Alpha AG"}]`, and A is in no other ladder step | holdout |
 | AC-88 | `stewardship-three-tiers` PR B and cockpit PR 1 merged; as cockpit AC-55, but A's engagement escalated to `written_escalation_to_board` | as cockpit AC-55 | A's contributor `status` is `in_escalation` | holdout |
 | AC-89 | `stewardship-three-tiers` PR B and cockpit PR 1 merged; as cockpit AC-25 | as cockpit AC-25 | A is listed only in `ladder[3]` | holdout |
+| AC-90 | `vote-abstain-and-seed-fixes` merged; ledger only: a 2026-03-10 meeting for G with three decisions `withhold`, `one_year`, `do_not_vote` | same | `voting` has `votes` 3, `for` 0, `against` 0, `abstain` 1, `other` 2 | holdout |
 
 PR slices: PR 1 delivers AC-1 to AC-52 and AC-62 to AC-84, except the emissions parts of AC-62 and AC-63, which
 come with PR 2. PR 2 delivers AC-53 to AC-61. PR 1's `Rows:` line lists AC-1 to AC-52, AC-73 to AC-78, AC-82 and AC-83; the

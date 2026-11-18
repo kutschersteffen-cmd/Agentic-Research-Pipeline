@@ -78,6 +78,8 @@ class Tokens(BaseModel):
     type: dict[str, TypeStyle]
     color: Colors  # light mode
     color_dark: Colors
+    graphite: dict[str, str]  # the slide-component palette (light)
+    graphite_dark: dict[str, str]
     fonts: Fonts
     frame: TemplateFrame | None = None  # a company template's boxes; None = the house frame
     font_dir: str | None = None  # the template's uploaded font files

@@ -1,5 +1,6 @@
 """Refine chat, RFP operations: the model's `rewrite` and `leave_blank` ops, applied one question at a time in id order.
-A rewrite goes through the grounded drafting; an answer the library does not back is never saved."""
+A rewrite goes through the grounded drafting (library first, then reference documents, then the second model's
+check); an answer the sources do not back is never saved."""
 
 from __future__ import annotations
 
@@ -11,6 +12,7 @@ from arp.db.session import transaction
 from arp.llm.base import LLMClient
 from arp.refine.turns import save_progress
 from arp.rfp import store
+from arp.rfp.documents import active as active_documents
 from arp.rfp.draft import APPROVED, DRAFTED, LEFT_BLANK, NO_SOURCE, draft_answer
 
 log = logging.getLogger(__name__)
@@ -25,7 +27,8 @@ def question_state(q: m.RfpQuestion) -> dict:
     return {"answer": q.answer, "status": q.status, "sources": q.sources, "flags": q.flags, "last_editor": q.last_editor}
 
 
-async def _apply(turn_id: int, qid: int, op: dict, project_id: int, entries, llm: LLMClient, today: date, settings):
+async def _apply(turn_id: int, qid: int, op: dict, project_id: int, entries, docs, llm: LLMClient, verifier: LLMClient,
+                 today: date, settings):
     """`(before, after)` when the question changed, else the reason it did not."""
     with transaction() as s:
         q = s.get(m.RfpQuestion, qid, with_for_update=True)
@@ -41,7 +44,7 @@ async def _apply(turn_id: int, qid: int, op: dict, project_id: int, entries, llm
             return USE_AUTOFILL
         question, current, read = q.question, q.answer, (q.answer, q.status, q.last_editor)
     try:
-        d = await draft_answer(question, entries, llm, today=today, settings=settings,
+        d = await draft_answer(question, entries, llm, verifier, today=today, settings=settings, documents=docs,
                                instruction=op.get("instruction"), current=current)
     except Exception:
         log.exception("refine: drafting question %s failed", qid)
@@ -59,11 +62,13 @@ async def _apply(turn_id: int, qid: int, op: dict, project_id: int, entries, llm
             return CHANGED_DURING_TURN
         before = question_state(q)
         q.answer, q.status, q.sources, q.flags, q.last_editor = d.answer, DRAFTED, d.sources, d.flags, None
+        q.base_entry_id, q.document_priority = d.base_entry_id, d.document_priority
         return before, question_state(q)
 
 
 async def apply_rfp_ops(turn_id: int, project_id: int, ops: list[dict], llm: LLMClient, *, today: date,
-                        settings=None) -> dict:
+                        settings=None, verifier: LLMClient | None = None) -> dict:
+    """`verifier`: the second model that fact-checks each draft; `llm` when not given."""
     changed: list[int] = []
     not_changed: list[dict] = []
     before: dict[str, dict] = {}
@@ -78,9 +83,10 @@ async def apply_rfp_ops(turn_id: int, project_id: int, ops: list[dict], llm: LLM
             todo.setdefault(qid, op)
     with transaction() as s:
         entries = store._active_entries(s)
+        docs = active_documents(s)
     save_progress(turn_id, done=0, total=len(todo))
     for done, qid in enumerate(sorted(todo), 1):
-        out = await _apply(turn_id, qid, todo[qid], project_id, entries, llm, today, settings)
+        out = await _apply(turn_id, qid, todo[qid], project_id, entries, docs, llm, verifier or llm, today, settings)
         if isinstance(out, str):
             not_changed.append({"id": qid, "reason": out})
         else:

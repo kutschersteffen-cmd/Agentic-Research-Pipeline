@@ -15,6 +15,7 @@ from arp.api.deps import get_decision_store, get_engagement_store, get_stream_st
 from arp.config import Settings
 from arp.engagement.tracking_agent import MissingEvidence, check_evidence
 from arp.schemas.engagement import (
+    OLD_STAGES,
     Commitment,
     CommitmentStatus,
     CorrespondenceType,
@@ -630,8 +631,18 @@ def get_program(
     stream = _stream_or_404(streams, stream_id)
     return {
         "saved": stream.get("program"),
-        "versions": [  # approved before the three tiers: old keys mapped on read, never rewritten
-            {**v, "targets": [{**t, "tier": map_tier(t.get("tier"))} for t in v.get("targets", [])]}
+        "versions": [  # approved before the three tiers or the six-step ladder: old keys mapped on read, never rewritten
+            {
+                **v,
+                "targets": [
+                    {
+                        **t,
+                        "tier": map_tier(t.get("tier")),
+                        "client_step": OLD_STAGES.get(t.get("client_step"), t.get("client_step")),
+                    }
+                    for t in v.get("targets", [])
+                ],
+            }
             for v in stream.get("program_versions", [])
         ],
         "runs": stream.get("program_runs", []),

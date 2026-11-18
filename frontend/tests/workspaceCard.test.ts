@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { cardStatus, cardView, reviewBadge, stepStatusLine, workspaceState } from "../src/lib/workspaceCard.ts";
+import { cardStatus, cardView, failedProcesses, alsoWaiting, waitingBadge, stepStatusLine, workspaceMenuItems, workspaceState } from "../src/lib/workspaceCard.ts";
 import { WORKSPACES } from "../src/lib/processes.ts";
 import type { RunManifest, StewardshipFlow } from "../src/types.ts";
 
@@ -81,10 +81,33 @@ test("r2 AC-19b: workspace order unchanged", () =>
 // simplified start page (docs/superpowers/specs/2026-11-15-start-page-simplified-design.md, Supersedes).
 
 // Start page simplified (docs/superpowers/specs/2026-11-15-start-page-simplified-design.md).
-test("sp_ac4_review_badge", () => {
-  assert.equal(reviewBadge(0), null);
-  assert.deepEqual(reviewBadge(1), { text: "1 item", title: "1 review item waiting on you" });
-  assert.deepEqual(reviewBadge(15), { text: "15 items", title: "15 review items waiting on you" });
+const W = (review: number, decisions: number, ballots: number, total = review + decisions + ballots) => ({ review, decisions, ballots, total });
+test("wc_ac5_waiting_badge", () => {
+  assert.deepEqual(waitingBadge(W(82, 15, 3)), {
+    text: "100",
+    title: "100 waiting for a decision: 82 review items, 15 stewardship decisions, 3 ballots",
+  });
+});
+test("wc_ac6_singulars_and_zero", () => {
+  assert.deepEqual(waitingBadge(W(1, 0, 0)), { text: "1", title: "1 waiting for a decision: 1 review item" });
+  assert.deepEqual(waitingBadge(W(0, 1, 0)), { text: "1", title: "1 waiting for a decision: 1 stewardship decision" });
+  assert.deepEqual(waitingBadge(W(0, 0, 1)), { text: "1", title: "1 waiting for a decision: 1 ballot" });
+  assert.equal(waitingBadge(W(0, 0, 0)), null);
+});
+test("wc_waiting_badge_rejects_bad_input", () => {
+  assert.equal(waitingBadge(W(-1, 2, 0, 1)), null);
+  assert.equal(waitingBadge(W(1, 0, 0, NaN)), null);
+  assert.equal(waitingBadge(W(1.5, 0, 0, 1.5)), null);
+  assert.equal(waitingBadge(W(1, 1, 0, 3)), null); // total is not the sum
+});
+test("wc_also_waiting", () => {
+  assert.deepEqual(alsoWaiting(W(0, 15, 3)), [
+    { text: "15 stewardship decisions also wait, in Steward Workflow →", href: "#/stewardship" },
+    { text: "3 ballots also wait, in Proxy Voting →", href: "#/voting" },
+  ]);
+  assert.deepEqual(alsoWaiting(W(1, 1, 0)), [{ text: "1 stewardship decision also waits, in Steward Workflow →", href: "#/stewardship" }]);
+  assert.deepEqual(alsoWaiting(W(0, 0, 1)), [{ text: "1 ballot also waits, in Proxy Voting →", href: "#/voting" }]);
+  assert.deepEqual(alsoWaiting(W(5, 0, 0)), []);
 });
 const T = ["Engage", "Vote", "Track"];
 const CASES: [Parameters<typeof cardStatus>[0], string, [string, string, string]][] = [
@@ -110,4 +133,40 @@ test("sp_review_up_to_date_names_when_any_step_ran", () => {
 test("sp_ac19_card_status_in_view", () => {
   assert.equal(view("Argus", busy).status.word, "Waiting on you");
   assert.equal(view("Argus", down).status.word, "Status unknown");
+});
+
+// App-wide top bar, PR 1: the Workspaces menu.
+test("pr1_menu_items", () => {
+  const empty = workspaceMenuItems(null, null, NOW);
+  assert.deepEqual(empty.map((i) => i.label), ["Start", "StewardIQ", "Argus", "Transition Intel", "R&D Lab", "Data Hub"]);
+  assert.deepEqual(empty.map((i) => i.href), ["#/home", "#/stewardiq", "#/argus", "#/transitionIntel", "#/rdLab", "#/dataHub"]);
+  assert.ok(empty.every((i) => i.tone === null && i.word === ""));
+  const steward = workspaceMenuItems(busy.runs, busy.flow, NOW).find((i) => i.label === "StewardIQ")!;
+  assert.deepEqual([steward.tone, steward.word], ["wait", "Waiting on you"]);
+});
+
+// UI polish 1, F9: each workspace's purpose under its name in the Workspaces menu.
+test("pol_menu_purpose", () => {
+  const items = workspaceMenuItems(null, null, NOW);
+  assert.equal(items[0].purpose, "Every workspace at a glance");
+  assert.deepEqual(items.slice(1).map((i) => i.purpose), WORKSPACES.map((w) => w.purpose));
+});
+
+// UI polish 1, F11: titles of a workspace's failed processes.
+test("pol_ac11_failed_processes", () => {
+  const lab = ws("R&D Lab");
+  const watching = lab.processes.filter((p) => p.steps.some((s) => s.runTypes?.includes("calibration"))).map((p) => p.title);
+  assert.ok(watching.length >= 1);
+  assert.deepEqual(failedProcesses(lab, [run("calibration", "failed")], null, null), watching);
+  assert.deepEqual(failedProcesses(lab, [run("emerging_themes", "failed")], null, null), ["Launch a thematic product"]);
+  assert.deepEqual(failedProcesses(lab, [], null, null), []);
+  assert.deepEqual(failedProcesses(lab, null, null, null), []);
+});
+test("pol_failed_with_wait", () => {
+  // StewardIQ waits on open decisions while a proxy-voting run failed: the failed line still names it.
+  const sq = ws("StewardIQ");
+  const out = failedProcesses(sq, [run("proxy_voting", "failed")], flowWith({ drafting: 2 }), null);
+  const voting = sq.processes.filter((p) => p.steps.some((s) => s.runTypes?.includes("proxy_voting"))).map((p) => p.title);
+  assert.deepEqual(out, voting);
+  assert.deepEqual(voting, ["Proxy season"]);
 });

@@ -4675,6 +4675,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reports/{report_id}/slides/{n}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Slide
+         * @description Accept slide `n` (1-based) as it is: clears the fit ladder's `needs_review`, which unblocks the download.
+         */
+        post: operations["approve_slide_api_reports__report_id__slides__n__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/reports/{report_id}/storyline": {
         parameters: {
             query?: never;
@@ -4867,6 +4887,61 @@ export interface paths {
         get: operations["get_snapshot_api_review_runs__run_id__snapshots__snapshot_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Documents */
+        get: operations["list_documents_api_rfp_documents_get"];
+        put?: never;
+        /**
+         * Upload Document
+         * @description Parses and stores a .pdf or .docx as `active`; with `replaces`, retires that document in the same transaction.
+         */
+        post: operations["upload_document_api_rfp_documents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit Document */
+        put: operations["edit_document_api_rfp_documents__document_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/documents/{document_id}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retire Document */
+        post: operations["retire_document_api_rfp_documents__document_id__retire_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5585,6 +5660,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/cockpit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Cockpit */
+        get: operations["get_cockpit_api_stewardship_cockpit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/decision-inputs": {
         parameters: {
             query?: never;
@@ -5838,6 +5930,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Notes
+         * @description The company's notes, newest first. No route edits or deletes a note.
+         */
+        get: operations["get_notes_api_stewardship_notes_get"];
+        put?: never;
+        /**
+         * Post Note
+         * @description Adds a note on a company of the house universe; `scope` only records where it was written.
+         */
+        post: operations["post_note_api_stewardship_notes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/objectives/{objective_id}/result": {
         parameters: {
             query?: never;
@@ -5849,6 +5965,48 @@ export interface paths {
         put?: never;
         /** Record Objective Result */
         post: operations["record_objective_result_api_stewardship_objectives__objective_id__result_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/overlap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Overlap
+         * @description Every house fund, every fund pair's shared companies and shared weight, and the companies picked in two or
+         *     more scopes in `cycle` (default: the current one).
+         */
+        get: operations["get_overlap_api_stewardship_overlap_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/overlap/matrix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Overlap Matrix
+         * @description A fund x company grid of weights: the `n` companies with the largest house weight (`basis=top`), or every
+         *     company picked in `scope` in `cycle` (`basis=selection`).
+         */
+        get: operations["get_overlap_matrix_api_stewardship_overlap_matrix_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6036,13 +6194,13 @@ export interface paths {
         };
         /**
          * Get Selection
-         * @description The house engagement selection of a cycle (default: the current one), folded from its log.
+         * @description The engagement selection of a scope and cycle (default: the current one), folded from its log.
          */
         get: operations["get_selection_api_stewardship_selection_get"];
         put?: never;
         /**
          * Post Selection
-         * @description Adds companies as proposed and removes proposed ones; confirmed rows stay.
+         * @description Adds companies of the scope as proposed and removes proposed ones; confirmed rows stay.
          */
         post: operations["post_selection_api_stewardship_selection_post"];
         delete?: never;
@@ -6062,7 +6220,8 @@ export interface paths {
         put?: never;
         /**
          * Post Selection Confirm
-         * @description Every proposed row of the cycle becomes confirmed, recorded as the signed-in user.
+         * @description Every proposed row of the scope and cycle whose company is still in the scope becomes confirmed, recorded as the
+         *     signed-in user; proposed rows whose company left the scope are removed and named in `dropped`.
          */
         post: operations["post_selection_confirm_api_stewardship_selection_confirm_post"];
         delete?: never;
@@ -6748,6 +6907,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/stewardship/votes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Votes
+         * @description The company's vote-ledger decisions, newest meeting first (at most 500, with the total).
+         */
+        get: operations["get_votes_api_stewardship_votes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stewardship/watch-items/{item_kind}/{item_id}/check": {
         parameters: {
             query?: never;
@@ -6826,9 +7005,29 @@ export interface paths {
         };
         /**
          * Get Worklist
-         * @description One row per company of the house scope, computed from stored values on every request.
+         * @description One row per company of the scope (house, `portfolio:<id>` or `group:<id>`), computed from stored values on every request.
          */
         get: operations["get_worklist_api_stewardship_worklist_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stewardship/worklist/scopes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Worklist Scopes
+         * @description The house, every fund with company holdings at the latest snapshot, and every group of funds or companies.
+         */
+        get: operations["get_worklist_scopes_api_stewardship_worklist_scopes_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8301,6 +8500,23 @@ export interface paths {
         };
         /** Get Voting Review Queue */
         get: operations["get_voting_review_queue_api_voting_runs__run_id__review_queue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/waiting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Waiting */
+        get: operations["get_waiting_api_waiting_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10090,6 +10306,25 @@ export interface components {
             /** File */
             file?: string;
         };
+        /** Body_upload_document_api_rfp_documents_post */
+        Body_upload_document_api_rfp_documents_post: {
+            /**
+             * Document Date
+             * Format: date
+             */
+            document_date: string;
+            /** File */
+            file: string;
+            /**
+             * Priority
+             * @default 1
+             */
+            priority: number;
+            /** Replaces */
+            replaces?: number | null;
+            /** Title */
+            title: string;
+        };
         /** Body_upload_esg_api_portfolio_esg_upload_post */
         Body_upload_esg_api_portfolio_esg_upload_post: {
             /** File */
@@ -10376,6 +10611,13 @@ export interface components {
             /** Last Run Id */
             last_run_id?: string | null;
         };
+        /** Callout */
+        Callout: {
+            /** Category */
+            category: string;
+            /** Text */
+            text: string;
+        };
         /** Candidate */
         Candidate: {
             /** Covers */
@@ -10472,6 +10714,34 @@ export interface components {
             code: string;
             /** Region */
             region: string;
+        };
+        /** Chart */
+        Chart: {
+            callout?: components["schemas"]["Callout"] | null;
+            data: components["schemas"]["arp__schemas__chart_specs__ChartSpec"];
+            /**
+             * Data Labels
+             * @default true
+             */
+            data_labels: boolean;
+            /** Highlight */
+            highlight?: string | null;
+            insight?: components["schemas"]["Insight"] | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "bar" | "column" | "stacked_column" | "line";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "chart";
+            /**
+             * Unit
+             * @default
+             */
+            unit: string;
         };
         /** ChartPlan */
         ChartPlan: {
@@ -10717,6 +10987,275 @@ export interface components {
              */
             status: "resolved" | "closed";
         };
+        /** CockpitContributor */
+        CockpitContributor: {
+            /** Company */
+            company: string;
+            /** Company Id */
+            company_id: string;
+            /** Sector */
+            sector: string | null;
+            /** Share */
+            share: number;
+            /** Status */
+            status: string;
+            /** Tco2E */
+            tco2e: number;
+        };
+        /** CockpitControlGap */
+        CockpitControlGap: {
+            /** Company */
+            company: string;
+            /** Company Id */
+            company_id: string;
+            /** Engagement Id */
+            engagement_id: string;
+            /** Gaps */
+            gaps: string[];
+            /** Open Days */
+            open_days: number | null;
+            /** Theme */
+            theme: string;
+        };
+        /** CockpitDay */
+        CockpitDay: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Engagement Meetings */
+            engagement_meetings: number;
+            /** Shareholder Meetings */
+            shareholder_meetings: number;
+        };
+        /** CockpitEmissions */
+        CockpitEmissions: {
+            /** Contributors */
+            contributors: components["schemas"]["CockpitContributor"][];
+            /** Engaged Tco2E */
+            engaged_tco2e: number;
+            /** Not Selected Tco2E */
+            not_selected_tco2e: number;
+            /** Selected Not Engaged Tco2E */
+            selected_not_engaged_tco2e: number;
+            /** Total Tco2E */
+            total_tco2e: number;
+            /** Uncovered Holding Count */
+            uncovered_holding_count: number;
+        };
+        /** CockpitEngagementMeeting */
+        CockpitEngagementMeeting: {
+            /** Company */
+            company: string;
+            /** Company Id */
+            company_id: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Engagement Id */
+            engagement_id: string;
+            /** Objective */
+            objective: string | null;
+            /** Stage */
+            stage: string;
+            /** Step */
+            step: number;
+            /** Theme */
+            theme: string;
+        };
+        /** CockpitLadderCompany */
+        CockpitLadderCompany: {
+            /** Company */
+            company: string;
+            /** Company Id */
+            company_id: string;
+        };
+        /** CockpitLadderStep */
+        CockpitLadderStep: {
+            /** Companies */
+            companies: components["schemas"]["CockpitLadderCompany"][];
+            /** Label */
+            label: string;
+            /** Stage */
+            stage: string;
+            /** Step */
+            step: number;
+        };
+        /** CockpitPortfolioOption */
+        CockpitPortfolioOption: {
+            /** Name */
+            name: string;
+            /** Portfolio Id */
+            portfolio_id: string;
+        };
+        /** CockpitProgrammeRow */
+        CockpitProgrammeRow: {
+            /** Engaged */
+            engaged: number;
+            /** Label */
+            label: string;
+            /** Name */
+            name: string;
+            /** Programme Id */
+            programme_id: string;
+            /** Proposed */
+            proposed: number;
+            /** Selected */
+            selected: number;
+        };
+        /** CockpitProgrammeTotals */
+        CockpitProgrammeTotals: {
+            /** Engaged */
+            engaged: number;
+            /** Selected */
+            selected: number;
+        };
+        /** CockpitResponse */
+        CockpitResponse: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Control Gaps */
+            control_gaps: components["schemas"]["CockpitControlGap"][];
+            /** Days */
+            days: components["schemas"]["CockpitDay"][];
+            /** Demo */
+            demo: boolean;
+            emissions: components["schemas"]["CockpitEmissions"] | null;
+            /** Engagement Meetings */
+            engagement_meetings: components["schemas"]["CockpitEngagementMeeting"][];
+            /** Ladder */
+            ladder: components["schemas"]["CockpitLadderStep"][];
+            /** Portfolios */
+            portfolios: components["schemas"]["CockpitPortfolioOption"][];
+            programme_totals: components["schemas"]["CockpitProgrammeTotals"];
+            /** Programmes */
+            programmes: components["schemas"]["CockpitProgrammeRow"][];
+            scope: components["schemas"]["CockpitScope"];
+            /** Shareholder Meetings */
+            shareholder_meetings: components["schemas"]["CockpitShareholderMeeting"][];
+            summary: components["schemas"]["CockpitSummary"];
+            /** Themes */
+            themes: components["schemas"]["CockpitThemeRow"][];
+            /** Tiers */
+            tiers: components["schemas"]["CockpitTierTotal"][];
+            voting: components["schemas"]["CockpitVoting"];
+        };
+        /** CockpitScope */
+        CockpitScope: {
+            /** Label */
+            label: string;
+            /** Portfolio Id */
+            portfolio_id: string | null;
+        };
+        /** CockpitShareholderMeeting */
+        CockpitShareholderMeeting: {
+            /** Action Due */
+            action_due: boolean;
+            /** Ballot State */
+            ballot_state: string;
+            /** Company */
+            company: string;
+            /** Company Id */
+            company_id: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Days To Meeting */
+            days_to_meeting: number;
+            /** Flagged */
+            flagged: number | null;
+            /** Items */
+            items: number;
+            /** Run Id */
+            run_id: string | null;
+        };
+        /** CockpitSummary */
+        CockpitSummary: {
+            /** Engaged Outside Selection */
+            engaged_outside_selection: number;
+            /** Engaged Selected */
+            engaged_selected: number;
+            /** Selected */
+            selected: number;
+        };
+        /** CockpitThemeRow */
+        CockpitThemeRow: {
+            /** Engaged */
+            engaged: number;
+            /** Selected */
+            selected: number;
+            /** Theme */
+            theme: string;
+            /** Tiers */
+            tiers: components["schemas"]["CockpitTierCount"][];
+        };
+        /** CockpitTierCount */
+        CockpitTierCount: {
+            /** Engaged */
+            engaged: number;
+            /** Selected */
+            selected: number;
+            /** Tier */
+            tier: string;
+        };
+        /** CockpitTierTotal */
+        CockpitTierTotal: {
+            /** Engaged */
+            engaged: number;
+            /** Label */
+            label: string;
+            /** Selected */
+            selected: number;
+            /** Tier */
+            tier: string;
+        };
+        /** CockpitTopicCount */
+        CockpitTopicCount: {
+            /** Abstain */
+            abstain: number;
+            /** Against Management */
+            against_management: number;
+            /** Topic */
+            topic: string;
+            /** Votes */
+            votes: number;
+        };
+        /** CockpitVoting */
+        CockpitVoting: {
+            /** Abstain */
+            abstain: number;
+            /** Against */
+            against: number;
+            /** Against Management */
+            against_management: number;
+            /** For */
+            for: number;
+            /** Meetings */
+            meetings: number;
+            /** Other */
+            other: number;
+            /** Season */
+            season: number;
+            /** Topics */
+            topics: components["schemas"]["CockpitTopicCount"][];
+            /** Votes */
+            votes: number;
+        };
+        /** Column */
+        Column: {
+            /** Points */
+            points: string[];
+            /** Title */
+            title: string;
+        };
         /**
          * ColumnKind
          * @enum {string}
@@ -10819,6 +11358,16 @@ export interface components {
             validated_at?: string | null;
             /** Validated By */
             validated_by?: string | null;
+        };
+        /** CommitmentFlag */
+        CommitmentFlag: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "overdue" | "broken";
+            /** Message */
+            message: string;
         };
         /** CommitmentRequest */
         CommitmentRequest: {
@@ -11102,6 +11651,21 @@ export interface components {
             reason: string | null;
             /** Region */
             region: string;
+        };
+        /** ComparisonTable */
+        ComparisonTable: {
+            /** Highlight Column */
+            highlight_column?: string | null;
+            table: components["schemas"]["TableSpec"];
+            /** Total Row */
+            total_row?: {
+                [key: string]: "sum" | "mean" | "none";
+            };
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "comparison_table";
         };
         /**
          * CompositeSignalComponent
@@ -11507,6 +12071,28 @@ export interface components {
         CosignRequest: {
             /** Item Key */
             item_key: string;
+        };
+        /** Cover */
+        Cover: {
+            /**
+             * Answer
+             * @default
+             */
+            answer: string;
+            /**
+             * Context
+             * @default
+             */
+            context: string;
+            /** Figures */
+            figures?: components["schemas"]["Figure"][];
+            /** Title */
+            title: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "cover";
         };
         /** CoverageActionOut */
         CoverageActionOut: {
@@ -12122,6 +12708,32 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** DeckSettings */
+        DeckSettings: {
+            /**
+             * Detail
+             * @default balanced
+             * @enum {string}
+             */
+            detail: "concise" | "balanced" | "comprehensive";
+            /**
+             * Max Slides
+             * @default 12
+             */
+            max_slides: number;
+            /**
+             * Profile
+             * @default committee
+             * @enum {string}
+             */
+            profile: "executive" | "client_pitch" | "committee" | "workshop";
+            /**
+             * Purpose
+             * @default recommendation
+             * @enum {string}
+             */
+            purpose: "recommendation" | "review" | "process" | "briefing";
+        };
         /** DecomposeRequest */
         DecomposeRequest: {
             /**
@@ -12513,6 +13125,13 @@ export interface components {
             next_run_at?: string | null;
             /** Universe Path */
             universe_path?: string | null;
+        };
+        /** Engaged */
+        Engaged: {
+            /** Last */
+            last: string | null;
+            /** Yes */
+            yes: boolean;
         };
         /** EntityDecision */
         EntityDecision: {
@@ -13054,6 +13673,13 @@ export interface components {
          * @enum {string}
          */
         FieldStatus: "draft" | "released" | "retired";
+        /** Figure */
+        Figure: {
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+        };
         /** FileDecision */
         FileDecision: {
             /**
@@ -13330,6 +13956,21 @@ export interface components {
              */
             source: string;
         };
+        /** FundOverlap */
+        FundOverlap: {
+            /** As Of */
+            as_of: string | null;
+            /** Companies */
+            companies: number;
+            /** Cycle */
+            cycle: string;
+            /** Funds */
+            funds: components["schemas"]["OverlapFund"][];
+            /** Pairs */
+            pairs: components["schemas"]["OverlapPair"][];
+            /** Shared Selections */
+            shared_selections: components["schemas"]["SharedSelection"][];
+        };
         /**
          * GateRule
          * @description A rule evaluated *before* the score exists. A knockout is a
@@ -13426,6 +14067,19 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HeldIn */
+        HeldIn: {
+            /** Market Value Eur M */
+            market_value_eur_m: number;
+            /** Name */
+            name: string;
+            /** Portfolio Id */
+            portfolio_id: string;
+            /** Selection Status */
+            selection_status: ("proposed" | "confirmed") | null;
+            /** Weight Pct */
+            weight_pct: number | null;
         };
         /** HistogramBin */
         HistogramBin: {
@@ -13715,6 +14369,11 @@ export interface components {
             sector?: string | null;
             /** Shares Outstanding */
             shares_outstanding: number;
+            /**
+             * Simulated Fields
+             * @description Metrics, flags and categories above whose value is simulated, not real data.
+             */
+            simulated_fields?: string[];
         };
         /** IndexLevelPoint */
         IndexLevelPoint: {
@@ -13803,6 +14462,15 @@ export interface components {
          * @enum {string}
          */
         InfluenceLevel: "1" | "2" | "3" | "4A" | "4B" | "5";
+        /** Insight */
+        Insight: {
+            /** Headline */
+            headline: string;
+            /** Points */
+            points?: string[];
+            /** Stat */
+            stat: string;
+        };
         /** Instructions */
         Instructions: {
             /** Instructions */
@@ -13903,6 +14571,18 @@ export interface components {
             /** Year */
             year: number | null;
         };
+        /** KpiRow */
+        KpiRow: {
+            /** Emphasis */
+            emphasis?: number | null;
+            /** Tiles */
+            tiles: components["schemas"]["Tile"][];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "kpi_row";
+        };
         /** LabelRule */
         LabelRule: {
             /** Field */
@@ -13921,6 +14601,15 @@ export interface components {
              * @description Applies only when the checked field has this value; empty = whenever found.
              */
             when?: boolean | string | number | null;
+        };
+        /** LatestNote */
+        LatestNote: {
+            /** At */
+            at: string;
+            /** By */
+            by: string;
+            /** Text */
+            text: string;
         };
         /** LayerWeights */
         LayerWeights: {
@@ -14570,6 +15259,21 @@ export interface components {
             source_notes: string;
             theme: components["schemas"]["ThemeDefinition"];
         };
+        /** NextAction */
+        NextAction: {
+            /**
+             * Owner
+             * @default
+             */
+            owner: string;
+            /** Text */
+            text: string;
+            /**
+             * When
+             * @default
+             */
+            when: string;
+        };
         /** NextMeeting */
         NextMeeting: {
             /** Days */
@@ -14579,6 +15283,36 @@ export interface components {
             /** Last Meeting */
             last_meeting: string;
         };
+        /** NextSteps */
+        NextSteps: {
+            /** Actions */
+            actions: components["schemas"]["NextAction"][];
+            /**
+             * Emphasis
+             * @default 0
+             */
+            emphasis: number | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "next_steps";
+        };
+        /** Note */
+        Note: {
+            /** At */
+            at: string;
+            /** By */
+            by: string;
+            /** Company Id */
+            company_id: string;
+            /** Note Id */
+            note_id: string;
+            /** Scope */
+            scope: string;
+            /** Text */
+            text: string;
+        };
         /** NoteCitation */
         NoteCitation: {
             /** Page */
@@ -14587,6 +15321,18 @@ export interface components {
             quote: string;
             /** Source Id */
             source_id: string;
+        };
+        /** NoteCreate */
+        NoteCreate: {
+            /** Company Id */
+            company_id: string;
+            /**
+             * Scope
+             * @default house
+             */
+            scope: string;
+            /** Text */
+            text: string;
         };
         /** NoteItem */
         NoteItem: {
@@ -14600,6 +15346,11 @@ export interface components {
             text: string;
             /** Title */
             title: string;
+        };
+        /** NoteList */
+        NoteList: {
+            /** Notes */
+            notes: components["schemas"]["Note"][];
         };
         /** NoteReject */
         NoteReject: {
@@ -14633,6 +15384,12 @@ export interface components {
              * @default []
              */
             transmission_channels: components["schemas"]["NoteItem"][];
+        };
+        /** NotesSummary */
+        NotesSummary: {
+            /** Count */
+            count: number;
+            latest: components["schemas"]["LatestNote"] | null;
         };
         /** Objective */
         Objective: {
@@ -14803,6 +15560,68 @@ export interface components {
             /** Recipient */
             recipient: string;
         };
+        /** OverlapFund */
+        OverlapFund: {
+            /** Companies */
+            companies: number;
+            /** Name */
+            name: string;
+            /** Portfolio Id */
+            portfolio_id: string;
+        };
+        /** OverlapHeldIn */
+        OverlapHeldIn: {
+            /** Name */
+            name: string;
+            /** Portfolio Id */
+            portfolio_id: string;
+            /** Weight Pct */
+            weight_pct: number;
+        };
+        /** OverlapMatrix */
+        OverlapMatrix: {
+            /** As Of */
+            as_of: string | null;
+            /**
+             * Basis
+             * @enum {string}
+             */
+            basis: "top" | "selection";
+            /** Companies */
+            companies: components["schemas"]["OverlapMatrixCompany"][];
+            /** Cycle */
+            cycle: string;
+            /** Funds */
+            funds: components["schemas"]["OverlapFund"][];
+            /** Scope */
+            scope: string | null;
+        };
+        /** OverlapMatrixCompany */
+        OverlapMatrixCompany: {
+            /** Company */
+            company: string;
+            /** Funds */
+            funds: number;
+            /** House Weight Pct */
+            house_weight_pct: number | null;
+            /** Issuer Id */
+            issuer_id: string;
+            /** Weights */
+            weights: {
+                [key: string]: number | null;
+            };
+        };
+        /** OverlapPair */
+        OverlapPair: {
+            /** A */
+            a: string;
+            /** B */
+            b: string;
+            /** Shared Companies */
+            shared_companies: number;
+            /** Shared Weight Pct */
+            shared_weight_pct: number;
+        };
         /** OverlapRequest */
         OverlapRequest: {
             /**
@@ -14881,6 +15700,18 @@ export interface components {
             /** Year */
             year: number | null;
         };
+        /** PickedScope */
+        PickedScope: {
+            /** Label */
+            label: string;
+            /** Scope */
+            scope: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "proposed" | "confirmed";
+        };
         /**
          * Pillar
          * @description The three constraint categories assessed per sector. Values match the
@@ -14888,6 +15719,18 @@ export interface components {
          * @enum {string}
          */
         Pillar: "Technology" | "Regulation" | "Demand & Economics";
+        /** Points */
+        Points: {
+            /** Emphasis */
+            emphasis?: number | null;
+            /** Points */
+            points: string[];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "points";
+        };
         /** PolicyDecisionRequest */
         PolicyDecisionRequest: {
             /**
@@ -16192,6 +17035,7 @@ export interface components {
             audience?: components["schemas"]["AudienceProfile"];
             /** Datasets */
             datasets?: components["schemas"]["QuantitativeDataset"][];
+            deck?: components["schemas"]["DeckSettings"];
             /**
              * Goal
              * @default
@@ -16228,7 +17072,7 @@ export interface components {
              * @default false
              */
             appendix: boolean;
-            chart?: components["schemas"]["arp__schemas__reporting__ChartSpec"] | null;
+            chart?: components["schemas"]["arp__schemas__chart_specs__ChartSpec"] | null;
             /** Heading */
             heading: string;
             /** @default standard */
@@ -16595,6 +17439,42 @@ export interface components {
             /** User Id */
             user_id: string | null;
         };
+        /** RfpDocumentEdit */
+        RfpDocumentEdit: {
+            /** Priority */
+            priority?: number | null;
+            /** Review By */
+            review_by?: string | null;
+            /** Title */
+            title?: string | null;
+        };
+        /** RfpDocumentOut */
+        RfpDocumentOut: {
+            /**
+             * Document Date
+             * Format: date
+             */
+            document_date: string;
+            /** Filename */
+            filename: string;
+            /** Id */
+            id: number;
+            /** Pages */
+            pages: number | null;
+            /** Priority */
+            priority: number;
+            /**
+             * Review By
+             * Format: date
+             */
+            review_by: string;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+            /** Uploaded By */
+            uploaded_by: string;
+        };
         /** RfpLibraryEntryEdit */
         RfpLibraryEntryEdit: {
             /** Answer */
@@ -16698,37 +17578,68 @@ export interface components {
             answer_location: string;
             /** Assignee */
             assignee: string | null;
+            /** Base Entry Id */
+            base_entry_id: number | null;
+            /** Document Priority */
+            document_priority: number | null;
             /** Flags */
             flags: string[];
             /** Id */
             id: number;
+            /** Kept Share */
+            kept_share: number | null;
             /** Last Editor */
             last_editor: string | null;
             /** Location */
             location: string;
             /** Question */
             question: string;
+            /** Segments */
+            segments: components["schemas"]["RfpSegment"][];
             /** Sources */
             sources: components["schemas"]["RfpSourceOut"][];
             /** Status */
             status: string;
         };
+        /** RfpSegment */
+        RfpSegment: {
+            /**
+             * Change
+             * @enum {string}
+             */
+            change: "kept" | "added" | "removed";
+            /** Text */
+            text: string;
+        };
         /** RfpSourceOut */
         RfpSourceOut: {
+            /** Document Id */
+            document_id?: number | null;
             /** Entry Id */
-            entry_id: number;
+            entry_id?: number | null;
             /** Entry Question */
-            entry_question: string;
+            entry_question?: string | null;
             /** File */
             file: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "entry" | "document";
             /** Location */
-            location: string | null;
+            location?: string | null;
+            /** Page */
+            page?: number | null;
+            /** Priority */
+            priority?: number | null;
             /** Quote */
             quote: string;
             /** Source */
-            source: string;
+            source?: string | null;
+            /** Title */
+            title?: string | null;
             /** Written By */
-            written_by: string | null;
+            written_by?: string | null;
         };
         /**
          * RiskModelSpec
@@ -17251,11 +18162,43 @@ export interface components {
          * @enum {string}
          */
         SearchResultType: "company" | "document" | "taxonomy";
+        /** Section */
+        Section: {
+            /**
+             * Agenda
+             * @description Filled by code.
+             */
+            agenda?: string[];
+            /** Number */
+            number: number;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /** Title */
+            title: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "section";
+        };
         /**
          * SectionLayoutHint
          * @enum {string}
          */
         SectionLayoutHint: "standard" | "chart_focus" | "text_only" | "section_header";
+        /** SectionPlan */
+        SectionPlan: {
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /** Title */
+            title: string;
+        };
         /** SectorBenchmarksOut */
         SectorBenchmarksOut: {
             capex: components["schemas"]["BenchmarkOut"];
@@ -17317,6 +18260,18 @@ export interface components {
              */
             type: "select_all";
         };
+        /** SelectedElsewhere */
+        SelectedElsewhere: {
+            /** Label */
+            label: string;
+            /** Scope */
+            scope: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "proposed" | "confirmed";
+        };
         /** Selection */
         Selection: {
             /** Confirmed At */
@@ -17349,11 +18304,32 @@ export interface components {
              * @default []
              */
             remove: string[];
+            /**
+             * Scope
+             * @default house
+             */
+            scope: string;
         };
         /** SelectionConfirm */
         SelectionConfirm: {
             /** Cycle */
             cycle?: string | null;
+            /**
+             * Scope
+             * @default house
+             */
+            scope: string;
+        };
+        /**
+         * SelectionConfirmed
+         * @description The selection confirm: how many rows were confirmed, and the stored names of proposed rows dropped because their
+         *     company is no longer in the scope (sorted).
+         */
+        SelectionConfirmed: {
+            /** Confirmed */
+            confirmed: number;
+            /** Dropped */
+            dropped: string[];
         };
         /** SelectionList */
         SelectionList: {
@@ -17449,6 +18425,17 @@ export interface components {
             /** Value */
             value: number;
         };
+        /** SharedSelection */
+        SharedSelection: {
+            /** Company */
+            company: string;
+            /** Held In */
+            held_in: components["schemas"]["OverlapHeldIn"][];
+            /** Issuer Id */
+            issuer_id: string;
+            /** Scopes */
+            scopes: components["schemas"]["PickedScope"][];
+        };
         /** ShockIndicators */
         ShockIndicators: {
             /**
@@ -17503,17 +18490,35 @@ export interface components {
          *     not a slot -- it always renders in the fixed headline band.
          */
         SlideContent: {
-            chart?: components["schemas"]["arp__schemas__reporting__ChartSpec"] | null;
+            chart?: components["schemas"]["arp__schemas__chart_specs__ChartSpec"] | null;
             /** Headline */
             headline: string;
             /** Image Path */
             image_path?: string | null;
-            /** Layout */
+            /**
+             * Kicker
+             * @default
+             */
+            kicker: string;
+            /**
+             * Layout
+             * @default
+             */
             layout: string;
+            /**
+             * Needs Review
+             * @default false
+             */
+            needs_review: boolean;
             /** Slots */
             slots?: {
                 [key: string]: string | string[];
             };
+            /**
+             * Source Line
+             * @default
+             */
+            source_line: string;
             /** Source Refs */
             source_refs?: string[];
             /**
@@ -17527,8 +18532,19 @@ export interface components {
              */
             subheading: string;
             table?: components["schemas"]["TableSpec"] | null;
-            /** Variant */
+            /**
+             * Type Step
+             * @description Fit ladder: 1-2 set the visual's text smaller, -1 one size larger.
+             * @default 0
+             */
+            type_step: number;
+            /**
+             * Variant
+             * @default
+             */
             variant: string;
+            /** Visual */
+            visual?: (components["schemas"]["Cover"] | components["schemas"]["Section"] | components["schemas"]["KpiRow"] | components["schemas"]["Chart"] | components["schemas"]["ComparisonTable"] | components["schemas"]["TwoColumn"] | components["schemas"]["Points"] | components["schemas"]["NextSteps"]) | null;
         };
         /** SmartSearchRequest */
         SmartSearchRequest: {
@@ -17956,10 +18972,21 @@ export interface components {
         /** Storyline */
         Storyline: {
             /**
+             * Answer
+             * @default
+             */
+            answer: string;
+            /**
              * Approved
              * @default false
              */
             approved: boolean;
+            /** Closing */
+            closing?: components["schemas"]["NextAction"][];
+            /** Figures */
+            figures?: components["schemas"]["Figure"][];
+            /** Sections */
+            sections?: components["schemas"]["SectionPlan"][];
             /** Slides */
             slides: components["schemas"]["StorylineSlide"][];
             /**
@@ -17972,10 +18999,24 @@ export interface components {
         };
         /** StorylineSlide */
         StorylineSlide: {
+            /** Chart Kind */
+            chart_kind?: string | null;
             /** Headline */
             headline: string;
+            /**
+             * Kicker
+             * @default
+             */
+            kicker: string;
             /** Purpose */
             purpose: string;
+            /**
+             * Rationale
+             * @default
+             */
+            rationale: string;
+            /** Section */
+            section?: number | null;
             /** Source Refs */
             source_refs?: string[];
             /**
@@ -17983,6 +19024,8 @@ export interface components {
              * @default
              */
             subheading: string;
+            /** Visual */
+            visual?: string | null;
         };
         /**
          * StrategySpec
@@ -18526,6 +19569,18 @@ export interface components {
             /** Size Total */
             size_total?: number | null;
         };
+        /** Tile */
+        Tile: {
+            /**
+             * Delta
+             * @default
+             */
+            delta: string;
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+        };
         /**
          * TippingPoint
          * @description How far one dimension's weight must move before an entity changes
@@ -18770,6 +19825,18 @@ export interface components {
              * @enum {string}
              */
             status: "open" | "acknowledged" | "resolved";
+        };
+        /** TwoColumn */
+        TwoColumn: {
+            /** Kpis */
+            kpis?: components["schemas"]["Tile"][];
+            left: components["schemas"]["Column"];
+            right: components["schemas"]["Column"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "two_column";
         };
         /** UniverseRequest */
         UniverseRequest: {
@@ -19305,6 +20372,40 @@ export interface components {
              */
             min_score: number;
         };
+        /** Vote */
+        Vote: {
+            /** Against Management */
+            against_management: boolean | null;
+            /** Demo */
+            demo: boolean;
+            /** Description */
+            description: string | null;
+            /** Item Number */
+            item_number: string | null;
+            /** Management Recommendation */
+            management_recommendation: string | null;
+            /** Meeting Date */
+            meeting_date: string | null;
+            /** Meeting Type */
+            meeting_type: string | null;
+            /** Proponent */
+            proponent: string | null;
+            /** Rationale */
+            rationale: string | null;
+            /** Source */
+            source: string;
+            /** Vote */
+            vote: string;
+            /** Vote Label */
+            vote_label: string | null;
+        };
+        /** VoteList */
+        VoteList: {
+            /** Total */
+            total: number;
+            /** Votes */
+            votes: components["schemas"]["Vote"][];
+        };
         /**
          * VoteReviewDecisionRequest
          * @description Voting's review decision carries extra fields (vote, co_signed_by)
@@ -19346,6 +20447,17 @@ export interface components {
             policy: {
                 [key: string]: unknown;
             };
+        };
+        /** WaitingCounts */
+        WaitingCounts: {
+            /** Ballots */
+            ballots: number;
+            /** Decisions */
+            decisions: number;
+            /** Review */
+            review: number;
+            /** Total */
+            total: number;
         };
         /**
          * WalkOrTalk
@@ -19501,7 +20613,11 @@ export interface components {
         WorklistRow: {
             /** Aum Held Eur M */
             aum_held_eur_m: number | null;
+            /** Broken Commitments */
+            broken_commitments: number;
             carbon_intensity: components["schemas"]["Observed"] | null;
+            /** Commitment Flags */
+            commitment_flags: components["schemas"]["CommitmentFlag"][];
             /** Company */
             company: string;
             controversy: components["schemas"]["Observed"] | null;
@@ -19509,18 +20625,36 @@ export interface components {
             coverage_tier: string;
             /** Coverage Tier Confirmed */
             coverage_tier_confirmed: boolean;
+            engaged: components["schemas"]["Engaged"];
+            /** Equity Held Eur M */
+            equity_held_eur_m: number;
             /** Escalated */
             escalated: number;
+            /** Esg Extra */
+            esg_extra: {
+                [key: string]: components["schemas"]["Observed"];
+            };
             esg_score: components["schemas"]["Observed"] | null;
+            /** Held In */
+            held_in: components["schemas"]["HeldIn"][];
             /** Holdings Weight Pct */
             holdings_weight_pct: number | null;
+            /** Identifier */
+            identifier: string;
             /** Issuer Id */
             issuer_id: string;
+            /** Last Topics */
+            last_topics: string[];
+            /** New High Trigger */
+            new_high_trigger: boolean;
             next_meeting: components["schemas"]["NextMeeting"] | null;
+            norms_violation: components["schemas"]["Observed"] | null;
+            notes: components["schemas"]["NotesSummary"];
             /** Open Engagements */
             open_engagements: number;
             /** Overdue Commitments */
             overdue_commitments: number;
+            ownership_pct: components["schemas"]["Observed"] | null;
             /** Parts */
             parts: components["schemas"]["ScorePart"][];
             /** Programmes */
@@ -19529,6 +20663,8 @@ export interface components {
             score: number;
             /** Sector */
             sector: string;
+            /** Selected Elsewhere */
+            selected_elsewhere: components["schemas"]["SelectedElsewhere"][];
             selection: components["schemas"]["Selection"] | null;
             transition_grade: components["schemas"]["Grade"] | null;
             triggers: components["schemas"]["TriggerCounts"];
@@ -19543,6 +20679,11 @@ export interface components {
             kind: string;
             /** Label */
             label: string;
+        };
+        /** WorklistScopes */
+        WorklistScopes: {
+            /** Scopes */
+            scopes: components["schemas"]["WorklistScope"][];
         };
         /** XbrlRunRequest */
         XbrlRunRequest: {
@@ -19866,7 +21007,7 @@ export interface components {
             viz_type: string;
         };
         /** ChartSpec */
-        arp__schemas__reporting__ChartSpec: {
+        arp__schemas__chart_specs__ChartSpec: {
             /**
              * Category Column
              * @description Column used for category/x-axis labels. Required for every type except scatter/heatmap.
@@ -28739,6 +29880,40 @@ export interface operations {
             };
         };
     };
+    approve_slide_api_reports__report_id__slides__n__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+                n: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_storyline_api_reports__report_id__storyline_get: {
         parameters: {
             query?: never;
@@ -29113,6 +30288,125 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_documents_api_rfp_documents_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpDocumentOut"][];
+                };
+            };
+        };
+    };
+    upload_document_api_rfp_documents_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_document_api_rfp_documents_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpDocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_document_api_rfp_documents__document_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RfpDocumentEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpDocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retire_document_api_rfp_documents__document_id__retire_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpDocumentOut"];
                 };
             };
             /** @description Validation Error */
@@ -30323,6 +31617,38 @@ export interface operations {
             };
         };
     };
+    get_cockpit_api_stewardship_cockpit_get: {
+        parameters: {
+            query?: {
+                portfolio_id?: string | null;
+                as_of?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CockpitResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     decision_inputs_api_stewardship_decision_inputs_get: {
         parameters: {
             query?: never;
@@ -30819,6 +32145,70 @@ export interface operations {
             };
         };
     };
+    get_notes_api_stewardship_notes_get: {
+        parameters: {
+            query: {
+                company_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_note_api_stewardship_notes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Note"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     record_objective_result_api_stewardship_objectives__objective_id__result_post: {
         parameters: {
             query?: never;
@@ -30841,6 +32231,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Objective"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_overlap_api_stewardship_overlap_get: {
+        parameters: {
+            query?: {
+                cycle?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FundOverlap"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_overlap_matrix_api_stewardship_overlap_matrix_get: {
+        parameters: {
+            query?: {
+                basis?: string;
+                n?: number;
+                scope?: string | null;
+                cycle?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverlapMatrix"];
                 };
             };
             /** @description Validation Error */
@@ -31188,6 +32643,7 @@ export interface operations {
         parameters: {
             query?: {
                 cycle?: string | null;
+                scope?: string;
             };
             header?: never;
             path?: never;
@@ -31267,7 +32723,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Confirmed"];
+                    "application/json": components["schemas"]["SelectionConfirmed"];
                 };
             };
             /** @description Validation Error */
@@ -32527,6 +33983,37 @@ export interface operations {
             };
         };
     };
+    get_votes_api_stewardship_votes_get: {
+        parameters: {
+            query: {
+                company_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoteList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     check_watch_item_api_stewardship_watch_items__item_kind___item_id__check_post: {
         parameters: {
             query?: never;
@@ -32698,7 +34185,9 @@ export interface operations {
     };
     get_worklist_api_stewardship_worklist_get: {
         parameters: {
-            query?: never;
+            query?: {
+                scope?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -32712,6 +34201,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Worklist"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_worklist_scopes_api_stewardship_worklist_scopes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorklistScopes"];
                 };
             };
         };
@@ -35561,6 +37079,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_waiting_api_waiting_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaitingCounts"];
                 };
             };
         };

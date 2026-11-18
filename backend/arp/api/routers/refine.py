@@ -93,8 +93,8 @@ async def post_turn(kind: Kind, doc_id: str, body: RefineTurnIn, user: Principal
     def create() -> str:
         return JobManager(run_store).create_run("refine", {"turn_id": turn_id, "kind": kind, "doc_id": doc_id}, 0).run_id
 
-    async def run(run_id, llm, _verifier) -> None:
-        await run_turn(turn_id, kind, doc_id, body.message, history, llm, store, today=rfp_store.today())
+    async def run(run_id, llm, verifier) -> None:
+        await run_turn(turn_id, kind, doc_id, body.message, history, llm, store, today=rfp_store.today(), verifier=verifier)
         JobManager(run_store).finish_run(run_id)
 
     try:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 import pytest
@@ -11,7 +12,7 @@ from arp.bi.compiler import plan_hash
 from arp.bi.plan import ChartPlan, ChartSpec, DatasetMeta
 from arp.bi.planner import PlannerRefusal
 from arp.bi.service import BIError, ask_chart, design_dashboard, embed_token
-from arp.bi.superset_client import SupersetError
+from arp.bi.superset_client import SupersetError, chart_form_data
 from arp.llm.base import LLMClient, LLMUsage
 
 WRITES = {"create_chart", "create_dashboard", "update_dashboard", "delete_chart", "delete_dashboard", "ensure_embedded"}
@@ -34,6 +35,7 @@ class FakeClient:
         self.calls: list[tuple] = []
         self.fail_on_chart = fail_on_chart
         self.charts: dict[int, str] = {}
+        self.saved_params: dict[int, dict] = {}
         self.dashboards: dict[str, dict] = {}  # slug -> {id, published, charts, position}
         self.datasets = {d.table: i for i, d in enumerate(VIEW_DATASETS.values(), start=1)}
         self._next = 100
@@ -62,7 +64,12 @@ class FakeClient:
             raise SupersetError(422, "bad params")
         cid = self._id()
         self.charts[cid] = name
+        self.saved_params[cid] = json.loads(json.dumps(chart_form_data(dataset_id, viz_type, params)))
         return cid
+
+    def chart_params(self, chart_id):
+        self.calls.append(("chart_params", chart_id))
+        return self.saved_params[chart_id]
 
     def create_dashboard(self, title, slug, position_json, chart_ids, json_metadata=None):
         self.calls.append(("create_dashboard", slug))
@@ -132,8 +139,14 @@ def test_rejected_plan_makes_no_superset_writes():
     client = FakeClient()
     res = run(design_dashboard("weather?", FakeLLM(PlannerRefusal(clarification_needed="No weather data.")), client))
     assert res.dashboard_id is None and res.plan is None and res.url is None
-    assert res.rejected == ["No weather data."]
+    assert res.clarification_needed == "No weather data." and res.rejected == []
     assert client.writes() == []
+
+
+def test_plan_failing_both_rounds_is_rejected_not_a_clarification():
+    bad = PlannerRefusal(plan=ChartPlan(title="Q", charts=[_spec("A", dataset="nope")]))
+    res = run(ask_chart("x", FakeLLM(bad, bad), FakeClient()))
+    assert res.rejected and res.clarification_needed is None and res.url is None
 
 
 def test_missing_dataset_fails_clearly_before_planning():
@@ -279,6 +292,38 @@ def test_ask_failure_on_update_deletes_new_chart_but_keeps_scratch():
     with pytest.raises(BIError, match="'B'"):
         run(ask_chart("b", llm, client))
     assert list(client.charts.values()) == ["A"] and not any(c[0] == "delete_dashboard" for c in client.calls)
+
+
+def test_same_question_reuses_the_scratch_chart():
+    client = FakeClient()
+    one = PlannerRefusal(plan=ChartPlan(title="Q", charts=[_spec("A")]))
+    r1 = run(ask_chart("a", FakeLLM(one), client))
+    n_writes = len(client.writes())
+    r2 = run(ask_chart("a", FakeLLM(one), client))
+    assert len(client.writes()) == n_writes and (r2.dashboard_id, r2.url) == (r1.dashboard_id, r1.url)
+    assert client.dashboards["arp-scratch"]["charts"] == [101]
+
+
+@pytest.mark.parametrize("chart", [_spec("A", metrics=["Holdings"]), _spec("B")])
+def test_scratch_reuse_needs_same_title_and_params(chart):
+    client = FakeClient()
+    run(ask_chart("a", FakeLLM(PlannerRefusal(plan=ChartPlan(title="Q", charts=[_spec("A")]))), client))
+    run(ask_chart("b", FakeLLM(PlannerRefusal(plan=ChartPlan(title="Q", charts=[chart]))), client))
+    assert len(client.dashboards["arp-scratch"]["charts"]) == 2
+
+
+@pytest.mark.parametrize("failure", [SupersetError(404, "gone"), ValueError("not json")])
+def test_unreadable_params_create_a_chart_instead_of_failing(failure):
+    client = FakeClient()
+    one = PlannerRefusal(plan=ChartPlan(title="Q", charts=[_spec("A")]))
+    run(ask_chart("a", FakeLLM(one), client))
+
+    def boom(cid):
+        raise failure
+
+    client.chart_params = boom
+    r = run(ask_chart("a", FakeLLM(one), client))
+    assert r.url and len(client.dashboards["arp-scratch"]["charts"]) == 2
 
 
 def test_no_code_path_publishes():

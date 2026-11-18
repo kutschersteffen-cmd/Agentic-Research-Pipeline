@@ -167,6 +167,8 @@ jobs:
           set -o pipefail
           arp rfp golden questions --cases arp/golden_set/data/rfp_questions.json --min-recall 0.95 | tee -a "$GITHUB_STEP_SUMMARY"
           arp rfp golden drafts --cases arp/golden_set/data/rfp_drafts.json --min-drafted 0.90 --min-blank 0.95 | tee -a "$GITHUB_STEP_SUMMARY"
+          arp rfp golden drafts --cases arp/golden_set/data/rfp_unchanged_drafts.json --min-drafted 0.90 --min-blank 0.95 --min-unchanged 0.90 | tee -a "$GITHUB_STEP_SUMMARY"
+          arp rfp golden drafts --cases arp/golden_set/data/rfp_chain_drafts.json --min-drafted 0.90 --min-blank 0.95 --min-unchanged 0.90 --min-library-first 0.95 | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Run the Refine chat golden set
         if: steps.key.outputs.present == 'true' && steps.scope.outputs.refine == 'true'
