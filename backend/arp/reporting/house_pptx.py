@@ -25,6 +25,7 @@ from arp.reporting.html_render import HOUSE_LAYOUTS, table_view, theme_from_toke
 from arp.reporting.pptx_writer import pptx_slide
 from arp.reporting.render_model import palette, render_slide, source_line
 from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent
+from arp.storage.report_images import LoadedImage
 
 _ROW_PX = 46  # table row: caption line + 2x10px padding, as in the HTML
 
@@ -215,7 +216,8 @@ class _Builder:
             slide.notes_slide.notes_text_frame.text = notes
 
 
-def build_house_pptx(deck: Deck, datasets: list[QuantitativeDataset], out: Path, tokens: Tokens | None = None, mode: Mode = "light") -> Path:
+def build_house_pptx(deck: Deck, datasets: list[QuantitativeDataset], out: Path, tokens: Tokens | None = None, mode: Mode = "light", *,
+                     images: dict[str, LoadedImage] | None = None) -> Path:
     tokens = tokens or load_tokens()
     prs = Presentation()
     b, by_id = _Builder(tokens, mode), {d.dataset_id: d for d in datasets}
@@ -227,7 +229,7 @@ def build_house_pptx(deck: Deck, datasets: list[QuantitativeDataset], out: Path,
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         slide.background.fill.solid()
         slide.background.fill.fore_color.rgb = _rgb(palette(tokens, mode)["panel"])
-        pptx_slide(slide, render_slide(content, i, deck, tokens, by_id, mode), tokens, mode, tokens.emu_per_px)
+        pptx_slide(slide, render_slide(content, i, deck, tokens, by_id, mode, images=images), tokens, mode, tokens.emu_per_px, images)
         notes = content.speaker_notes
         if not footer_fits(tokens):  # no source zone under the template's body box: the source line moves to the notes
             notes = "\n".join(x for x in (notes, content.source_line or source_line(content, by_id)) if x)

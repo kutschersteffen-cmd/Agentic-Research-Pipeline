@@ -21,6 +21,7 @@ from arp.reporting.html_writer import html_slide
 from arp.reporting.render_model import Text, palette, render_slide
 from arp.reporting.template_frame import font_family_of
 from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent, TableSpec
+from arp.storage.report_images import LoadedImage
 
 HOUSE_LAYOUTS = ("title", "section")  # keep the house geometry inside a template frame
 
@@ -92,16 +93,17 @@ def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict
     return v
 
 
-def render_deck_html(deck: Deck, datasets: list[QuantitativeDataset], tokens: Tokens | None = None, mode: Mode = "light") -> str:
+def render_deck_html(deck: Deck, datasets: list[QuantitativeDataset], tokens: Tokens | None = None, mode: Mode = "light", *,
+                     images: dict[str, LoadedImage] | None = None) -> str:
     tokens = tokens or load_tokens()
     theme = theme_from_tokens(tokens, mode)
     by_id = {d.dataset_id: d for d in datasets}
     slides, families = [], set()
     for i, s in enumerate(deck.slides):
         if s.visual is not None:  # component slide: drawn from the render model
-            prims = render_slide(s, i, deck, tokens, by_id, mode)
+            prims = render_slide(s, i, deck, tokens, by_id, mode, images=images)
             families |= {p.family for p in prims if isinstance(p, Text)}
-            slides.append({"index": i, "visual": s.visual.type, "html": html_slide(prims, tokens, mode)})
+            slides.append({"index": i, "visual": s.visual.type, "html": html_slide(prims, tokens, mode, images)})
             continue
         slides.append({
             "index": i, "layout": s.layout, "headline": s.headline, "subheading": s.subheading, "framed": tokens.frame is not None,
