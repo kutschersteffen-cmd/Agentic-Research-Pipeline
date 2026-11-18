@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { redirectHash, splitHash } from "../src/lib/nav.ts";
 import { parseWalkthroughParams } from "../src/lib/walkthrough.ts";
 
@@ -39,9 +38,4 @@ test("splitHash takes the query off the tab only, so a walkthrough's ?basis= sti
   assert.deepEqual(parseWalkthroughParams(r.params), { runId: "run1", companyId: "co1", item: "item1", periodEnd: undefined, basis: "action:3" });
   const refine = splitHash("#/refine?report=rpt_1");
   assert.deepEqual([refine.tab, refine.params, refine.query.get("report")], ["refine", [], "rpt_1"]);
-});
-
-test("the top bar links Refine right after Reports, marked current on its own screen (refine-chat AC-36)", () => {
-  const bar = readFileSync(new URL("../src/components/AppTopbar.tsx", import.meta.url), "utf8");
-  assert.match(bar, /href="#\/reporting"[^>]*>\s*Reports\s*<\/a>\s*<a href="#\/refine" aria-current=\{active === "refine" \? "page" : undefined\}>\s*Refine\s*<\/a>/);
 });

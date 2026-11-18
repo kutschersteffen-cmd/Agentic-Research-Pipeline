@@ -114,9 +114,6 @@ export function AppTopbar({ active, canAsk, askOpen, askRef, waiting, onSearch, 
           <a href="#/reporting" aria-current={active === "reporting" ? "page" : undefined}>
             Reports
           </a>
-          <a href="#/refine" aria-current={active === "refine" ? "page" : undefined}>
-            Refine
-          </a>
           <div ref={user.wrapRef} className="start-topbar-user">
             <button
               ref={user.buttonRef}
