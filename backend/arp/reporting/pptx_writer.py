@@ -17,9 +17,11 @@ from pptx.oxml.ns import qn
 from pptx.util import Emu, Pt
 
 from arp.reporting.house_style import Mode, Tokens
+from arp.reporting.image_embed import embedded
 from arp.reporting.render_model import (
     LINE_PAD,
     ChartPrim,
+    ImagePrim,
     Line,
     Primitive,
     Rect,
@@ -35,6 +37,7 @@ from arp.reporting.render_model import (
     waterfall_bars,
 )
 from arp.reporting.vega import chart_spec, to_png
+from arp.storage.report_images import LoadedImage
 
 _KINDS = {"bar": XL_CHART_TYPE.BAR_CLUSTERED, "column": XL_CHART_TYPE.COLUMN_CLUSTERED,
           "stacked_column": XL_CHART_TYPE.COLUMN_STACKED, "line": XL_CHART_TYPE.LINE_MARKERS,
@@ -63,8 +66,8 @@ def _fmt_signed(v: float, values: list[float], unit: str) -> str:
 
 
 class _Writer:
-    def __init__(self, slide, tokens: Tokens, mode: Mode, emu_per_px: float):
-        self.slide, self.k, self.c = slide, emu_per_px, palette(tokens, mode)
+    def __init__(self, slide, tokens: Tokens, mode: Mode, emu_per_px: float, images: dict[str, LoadedImage] | None = None):
+        self.slide, self.k, self.c, self.images = slide, emu_per_px, palette(tokens, mode), images or {}
         self.tokens, self.mode = tokens, mode
         self.pt = emu_per_px / 12700  # pt per canvas px
         self.body, self.mono = family(tokens.fonts.body), family(tokens.fonts.mono or tokens.fonts.body)
@@ -221,6 +224,14 @@ class _Writer:
         if p.kind == "bar":
             chart.category_axis.reverse_order = True  # first category on top, as in the HTML
 
+    def image(self, p: ImagePrim) -> None:
+        """The full (or downscaled) image with PowerPoint crop values, so a person can re-crop it; identical bytes are
+        one media part."""
+        pic = self.slide.shapes.add_picture(io.BytesIO(embedded(self.images[p.image].data)), self.e(p.x), self.e(p.y), self.e(p.w), self.e(p.h))
+        self.place(pic, p)
+        pic.crop_left, pic.crop_top, pic.crop_right, pic.crop_bottom = p.crop
+        pic._element.nvPicPr.cNvPr.set("descr", p.alt)
+
     def table(self, p: TablePrim) -> None:
         c = {**self.c, **p.style}
         rows = [p.header, *p.rows, *([p.total] if p.total else [])]
@@ -266,9 +277,10 @@ class _Writer:
         self.place(shape, p)
 
 
-def pptx_slide(slide_obj, prims: list[Primitive], tokens: Tokens, mode: Mode, emu_per_px: float) -> None:
-    """Draws the primitives on `slide_obj` in order; empty text is skipped."""
-    w = _Writer(slide_obj, tokens, mode, emu_per_px)
+def pptx_slide(slide_obj, prims: list[Primitive], tokens: Tokens, mode: Mode, emu_per_px: float,
+               images: dict[str, LoadedImage] | None = None) -> None:
+    """Draws the primitives on `slide_obj` in order; empty text is skipped. `images` holds the bytes behind the image primitives."""
+    w = _Writer(slide_obj, tokens, mode, emu_per_px, images)
     for p in prims:
         if isinstance(p, Rect):
             w.rect(p)
@@ -281,3 +293,5 @@ def pptx_slide(slide_obj, prims: list[Primitive], tokens: Tokens, mode: Mode, em
             w.chart(p)
         elif isinstance(p, TablePrim):
             w.table(p)
+        elif isinstance(p, ImagePrim):
+            w.image(p)

@@ -9,6 +9,7 @@ import pytest
 from PIL import Image
 from pptx import Presentation
 
+from arp.reporting.chart_builder import ChartDataError
 from arp.reporting.house_pptx import build_house_pptx
 from arp.reporting.house_style import load_tokens
 from arp.reporting.html_render import render_deck_html
@@ -91,3 +92,11 @@ def test_ac27_ac27b_chart_picture_finding():
         (0, "chart", "lint", "waterfall chart is a picture in the PowerPoint: change its data in ARP and build again")]
     assert [f.message.split()[0] for f in lint_deck(L("heatmap", **HEAT), req) if f.rule == "chart_picture"] == ["heatmap"]
     assert not [f for f in lint_deck(L("pie"), req) if f.rule == "chart_picture"]
+
+
+@pytest.mark.parametrize("kind,kw", [(k, {}) for k in ("bar", "column", "stacked_column", "line", "area", "pie", "doughnut", "waterfall")]
+                         + [("scatter", {"x_column": "cost"}), ("heatmap", HEAT)])
+def test_empty_dataset_is_a_chart_data_error(kind, kw):
+    empty = DS.model_copy(update={"rows": []})
+    with pytest.raises(ChartDataError, match="has no rows"):
+        render_deck_html(L(kind, **kw), [empty], T)

@@ -212,6 +212,8 @@ def layout_spec(spec: ChartSpec, datasets: list[QuantitativeDataset], w: float, 
     column and line (no highlight), own geometry for area, pie, doughnut, scatter, waterfall and heatmap.
     Labels use the data-label formatter with an empty unit; fills are `categorical_color` per series (pie: per category)."""
     ds = _dataset_by_id(datasets, spec.dataset_id)
+    if not ds.rows:
+        raise ChartDataError(f"Chart on dataset {ds.dataset_id!r} has no rows.")
     kind = spec.chart_type
     if kind == ChartType.HEATMAP:
         rc = _column(ds, spec.y_column, label="y_column (heatmap row axis)")
@@ -225,8 +227,6 @@ def layout_spec(spec: ChartSpec, datasets: list[QuantitativeDataset], w: float, 
             if key in cells:
                 raise ChartDataError(f"duplicate heatmap cell ({r.get(rc)}, {r.get(cc)})")
             cells[key] = _as_float_or_zero(r.get(vc))
-        if not cells:
-            raise ChartDataError(f"Heatmap on dataset {ds.dataset_id!r} has no rows.")
         return _frame(w, h, heatmap_layers(rows, cols, cells, w, h, tokens, mode, _fmt(list(cells.values()))), tokens, mode)
     cols = [_column(ds, c, label="value_columns") for c in spec.value_columns]
     if not cols:

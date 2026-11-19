@@ -246,7 +246,38 @@ class Flow(BaseModel):
         return self
 
 
-Visual = Annotated[Cover | Section | KpiRow | Chart | ComparisonTable | TwoColumn | Points | NextSteps | Flow, Field(discriminator="type")]
+class ImageItem(BaseModel):
+    name: str  # a registered image name; checked against the request when the fill is validated
+    caption: Words(10) = ""
+
+
+class ImageVisual(BaseModel):
+    type: Literal["image"] = "image"
+    variant: Literal["hero", "split", "gallery"]
+    images: list[ImageItem] = Field(min_length=1, max_length=6)
+    points: list[Words(14)] = Field(default_factory=list, max_length=4)
+    side: Literal["left", "right"] = "left"  # split: where the image sits
+    emphasis: int | None = None  # split: 0-based index into points
+
+    @model_validator(mode="after")
+    def _variant(self):
+        n, p = len(self.images), len(self.points)
+        if self.variant == "hero" and (n != 1 or p):
+            raise ValueError("a hero shows exactly 1 image and no points")
+        if self.variant == "split" and (n != 1 or not 2 <= p <= 4):
+            raise ValueError("a split shows exactly 1 image and 2 to 4 points")
+        if self.variant == "gallery" and (not 2 <= n <= 6 or p or not all(i.caption for i in self.images)):
+            raise ValueError("a gallery shows 2 to 6 images, each with a caption, and no points")
+        seen: set[str] = set()
+        for i in self.images:
+            if i.name in seen:
+                raise ValueError(f"image '{i.name}' appears twice")
+            seen.add(i.name)
+        return self
+
+
+Visual = Annotated[Cover | Section | KpiRow | Chart | ComparisonTable | TwoColumn | Points | NextSteps | Flow | ImageVisual,
+                   Field(discriminator="type")]
 
 FRIENDLY_NAMES: dict[str, str] = {
     "cover": "Cover",
@@ -258,4 +289,5 @@ FRIENDLY_NAMES: dict[str, str] = {
     "points": "Key points",
     "next_steps": "Next steps",
     "flow": "Flowchart",
+    "image": "Image",
 }
