@@ -100,6 +100,9 @@ class ReportingStore:
         path = self.report_dir(report_id) / "deck.json"
         return Deck.model_validate_json(read_text_utf8(path)) if path.exists() else None
 
+    def has_deck(self, report_id: str) -> bool:
+        return (self.report_dir(report_id) / "deck.json").exists()
+
     def save_findings(self, report_id: str, findings: list[Finding]) -> None:
         atomic_write_text(self.report_dir(report_id) / "findings.json", json.dumps([f.model_dump() for f in findings], indent=2))
 

@@ -5,17 +5,19 @@ import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, Response
 
 from arp.api.deps import get_llm_client, get_reporting_store
+from arp.refine.agent import NO_DECK
 from arp.reporting.browser import write_pngs
 from arp.reporting.datasets import parse_tabular_upload
+from arp.reporting.html_render import render_deck_html
 from arp.reporting.preview import ensure_preview_images
 from arp.reporting.service import ReportingService
 from arp.reporting.storyline import _errors as storyline_errors
 from arp.reporting.style_profile import ingest_template
 from arp.reporting.template_frame import TemplateFrameError, font_family_of, frame_preview_html
-from arp.schemas.reporting import ReportManifest, ReportPlan, ReportRequest, ReportStatus, Storyline
+from arp.schemas.reporting import Deck, ReportManifest, ReportPlan, ReportRequest, ReportStatus, Storyline
 from arp.storage.report_images import ImageError, ImageTooLarge
 from arp.storage.reporting_store import ReportingStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
@@ -149,7 +151,10 @@ async def create_report(
 
 @router.get("")
 def list_reports(store: ReportingStore = Depends(get_reporting_store)) -> dict:
-    return {"reports": [m.model_dump(mode="json") for m in store.list_reports()]}
+    reports = store.list_reports()
+    for m in reports:  # from deck.json itself, so reports built before the flag existed list right too
+        m.has_deck = store.has_deck(m.report_id)
+    return {"reports": [m.model_dump(mode="json") for m in reports]}
 
 
 @router.get("/{report_id}")
@@ -270,6 +275,33 @@ async def approve_storyline(report_id: str, store: ReportingStore = Depends(get_
 def get_findings(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> dict:
     _get_manifest_or_404(store, report_id)
     return {"findings": [f.model_dump(mode="json") for f in store.load_findings(report_id)]}
+
+
+def _deck_or_409(store: ReportingStore, report_id: str) -> Deck:
+    _get_manifest_or_404(store, report_id)
+    deck = store.load_deck(report_id)
+    if deck is None:
+        raise HTTPException(409, NO_DECK)
+    return deck
+
+
+@router.get("/{report_id}/deck", response_model=Deck)
+def get_deck(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> Deck:
+    return _deck_or_409(store, report_id)
+
+
+@router.get("/{report_id}/deck/html", response_class=HTMLResponse)
+def get_deck_html(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> HTMLResponse:
+    """The deck as the house HTML, for the Refine page's live view; the same render the PDF export starts from."""
+    deck = _deck_or_409(store, report_id)
+    request = store.load_request(report_id)
+    if request is None:
+        raise HTTPException(409, NO_DECK)
+    known = {d.dataset_id for d in request.datasets}
+    for s in deck.slides:  # a dataset deleted after the build leaves its chart slot empty instead of failing the view
+        if s.chart and s.chart.dataset_id not in known:
+            s.chart = None
+    return HTMLResponse(render_deck_html(deck, request.datasets, mode=request.layout.theme))
 
 
 @router.post("/{report_id}/render")

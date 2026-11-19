@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { redirectHash } from "../src/lib/nav.ts";
+import { redirectHash, splitHash } from "../src/lib/nav.ts";
+import { parseWalkthroughParams } from "../src/lib/walkthrough.ts";
 
 test("redirectHash sends each removed screen, and any path under it, to its replacement", () => {
   assert.equal(redirectHash("#/dashboard"), "#/home");
@@ -31,3 +32,10 @@ test("redirectHash leaves every other hash alone", () => {
 // App-wide top bar (2026-11-15-app-wide-top-bar spec) retired the sidebar tests: NAV_GROUPS and currentNavIds went with
 // the sidebar. The Workspaces menu's links are checked in workspaceCard.test.ts (pr1_menu_items).
 
+test("splitHash takes the query off the tab only, so a walkthrough's ?basis= still reaches its parser", () => {
+  const r = splitHash("#/argusWalkthrough/run1/co1/item1?basis=action:3");
+  assert.equal(r.tab, "argusWalkthrough");
+  assert.deepEqual(parseWalkthroughParams(r.params), { runId: "run1", companyId: "co1", item: "item1", periodEnd: undefined, basis: "action:3" });
+  const refine = splitHash("#/refine?report=rpt_1");
+  assert.deepEqual([refine.tab, refine.params, refine.query.get("report")], ["refine", [], "rpt_1"]);
+});

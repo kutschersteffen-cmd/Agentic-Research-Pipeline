@@ -4071,6 +4071,24 @@
     "title": "CalibrationScheduleConfig",
     "type": "object"
    },
+   "Callout": {
+    "properties": {
+     "category": {
+      "title": "Category",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "category",
+     "text"
+    ],
+    "title": "Callout",
+    "type": "object"
+   },
    "Candidate": {
     "properties": {
      "covers": {
@@ -4359,11 +4377,82 @@
     "title": "CellRef",
     "type": "object"
    },
+   "Chart": {
+    "properties": {
+     "callout": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Callout"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "data": {
+      "$ref": "#/components/schemas/arp__schemas__chart_specs__ChartSpec"
+     },
+     "data_labels": {
+      "default": true,
+      "title": "Data Labels",
+      "type": "boolean"
+     },
+     "highlight": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Highlight"
+     },
+     "insight": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Insight"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "kind": {
+      "enum": [
+       "bar",
+       "column",
+       "stacked_column",
+       "line",
+       "waterfall"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "type": {
+      "const": "chart",
+      "default": "chart",
+      "title": "Type",
+      "type": "string"
+     },
+     "unit": {
+      "default": "",
+      "title": "Unit",
+      "type": "string"
+     }
+    },
+    "required": [
+     "data",
+     "kind"
+    ],
+    "title": "Chart",
+    "type": "object"
+   },
    "ChartPlan": {
     "properties": {
      "charts": {
       "items": {
-       "$ref": "#/components/schemas/ChartSpec-Output"
+       "$ref": "#/components/schemas/arp__bi__plan__ChartSpec"
       },
       "title": "Charts",
       "type": "array"
@@ -4383,58 +4472,6 @@
      "charts"
     ],
     "title": "ChartPlan",
-    "type": "object"
-   },
-   "ChartSpec-Output": {
-    "properties": {
-     "dataset": {
-      "title": "Dataset",
-      "type": "string"
-     },
-     "filters": {
-      "additionalProperties": {
-       "type": "string"
-      },
-      "default": {},
-      "title": "Filters",
-      "type": "object"
-     },
-     "groupby": {
-      "default": [],
-      "items": {
-       "type": "string"
-      },
-      "title": "Groupby",
-      "type": "array"
-     },
-     "metrics": {
-      "items": {
-       "type": "string"
-      },
-      "title": "Metrics",
-      "type": "array"
-     },
-     "question": {
-      "default": "",
-      "title": "Question",
-      "type": "string"
-     },
-     "title": {
-      "title": "Title",
-      "type": "string"
-     },
-     "viz_type": {
-      "title": "Viz Type",
-      "type": "string"
-     }
-    },
-    "required": [
-     "title",
-     "viz_type",
-     "dataset",
-     "metrics"
-    ],
-    "title": "ChartSpec",
     "type": "object"
    },
    "ChartType": {
@@ -5795,6 +5832,29 @@
     "title": "CockpitVoting",
     "type": "object"
    },
+   "Column": {
+    "properties": {
+     "points": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 4,
+      "minItems": 2,
+      "title": "Points",
+      "type": "array"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title",
+     "points"
+    ],
+    "title": "Column",
+    "type": "object"
+   },
    "ColumnKind": {
     "enum": [
      "category",
@@ -6976,6 +7036,47 @@
     "title": "ComparisonOut",
     "type": "object"
    },
+   "ComparisonTable": {
+    "properties": {
+     "highlight_column": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Highlight Column"
+     },
+     "table": {
+      "$ref": "#/components/schemas/TableSpec"
+     },
+     "total_row": {
+      "additionalProperties": {
+       "enum": [
+        "sum",
+        "mean",
+        "none"
+       ],
+       "type": "string"
+      },
+      "title": "Total Row",
+      "type": "object"
+     },
+     "type": {
+      "const": "comparison_table",
+      "default": "comparison_table",
+      "title": "Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "table"
+    ],
+    "title": "ComparisonTable",
+    "type": "object"
+   },
    "CompositeSignalComponent": {
     "description": "One sub-signal inside a COMPOSITE StrategySpec -- the same\nper-signal parameters a standalone MOMENTUM/VALUE/TEXT_SENTIMENT spec\nwould carry, minus everything about portfolio construction (buckets,\nlegs, holding period, rebalancing), which is decided once at the\ncomposite level, not per component.",
     "properties": {
@@ -7813,6 +7914,43 @@
      "item_key"
     ],
     "title": "CosignRequest",
+    "type": "object"
+   },
+   "Cover": {
+    "properties": {
+     "answer": {
+      "default": "",
+      "title": "Answer",
+      "type": "string"
+     },
+     "context": {
+      "default": "",
+      "title": "Context",
+      "type": "string"
+     },
+     "figures": {
+      "items": {
+       "$ref": "#/components/schemas/Figure"
+      },
+      "maxItems": 2,
+      "title": "Figures",
+      "type": "array"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "type": {
+      "const": "cover",
+      "default": "cover",
+      "title": "Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title"
+    ],
+    "title": "Cover",
     "type": "object"
    },
    "CoverageActionOut": {
@@ -9132,6 +9270,32 @@
      "framework_version"
     ],
     "title": "DecisionResult",
+    "type": "object"
+   },
+   "Deck": {
+    "properties": {
+     "slides": {
+      "items": {
+       "$ref": "#/components/schemas/SlideContent"
+      },
+      "title": "Slides",
+      "type": "array"
+     },
+     "subtitle": {
+      "default": "",
+      "title": "Subtitle",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title",
+     "slides"
+    ],
+    "title": "Deck",
     "type": "object"
    },
    "DeckSettings": {
@@ -12078,6 +12242,169 @@
     "title": "FlagOut",
     "type": "object"
    },
+   "Flow": {
+    "properties": {
+     "actors": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 4,
+      "title": "Actors",
+      "type": "array"
+     },
+     "arrows": {
+      "items": {
+       "$ref": "#/components/schemas/FlowArrow"
+      },
+      "maxItems": 20,
+      "title": "Arrows",
+      "type": "array"
+     },
+     "direction": {
+      "default": "LR",
+      "enum": [
+       "LR",
+       "TB"
+      ],
+      "title": "Direction",
+      "type": "string"
+     },
+     "emphasis": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Emphasis"
+     },
+     "layout": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/FlowLayout"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "mermaid": {
+      "default": "",
+      "title": "Mermaid",
+      "type": "string"
+     },
+     "steps": {
+      "items": {
+       "$ref": "#/components/schemas/FlowStep"
+      },
+      "maxItems": 12,
+      "minItems": 2,
+      "title": "Steps",
+      "type": "array"
+     },
+     "type": {
+      "const": "flow",
+      "default": "flow",
+      "title": "Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "steps"
+    ],
+    "title": "Flow",
+    "type": "object"
+   },
+   "FlowArrow": {
+    "properties": {
+     "label": {
+      "default": "",
+      "title": "Label",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "target": {
+      "title": "Target",
+      "type": "string"
+     }
+    },
+    "required": [
+     "source",
+     "target"
+    ],
+    "title": "FlowArrow",
+    "type": "object"
+   },
+   "FlowArrowLayout": {
+    "properties": {
+     "label_box": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/FlowBox"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "points": {
+      "items": {
+       "maxItems": 2,
+       "minItems": 2,
+       "prefixItems": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "number"
+        }
+       ],
+       "type": "array"
+      },
+      "title": "Points",
+      "type": "array"
+     }
+    },
+    "required": [
+     "points"
+    ],
+    "title": "FlowArrowLayout",
+    "type": "object"
+   },
+   "FlowBox": {
+    "description": "A rectangle in canvas px.",
+    "properties": {
+     "h": {
+      "title": "H",
+      "type": "number"
+     },
+     "w": {
+      "title": "W",
+      "type": "number"
+     },
+     "x": {
+      "title": "X",
+      "type": "number"
+     },
+     "y": {
+      "title": "Y",
+      "type": "number"
+     }
+    },
+    "required": [
+     "x",
+     "y",
+     "w",
+     "h"
+    ],
+    "title": "FlowBox",
+    "type": "object"
+   },
    "FlowFile": {
     "properties": {
      "check": {
@@ -12200,6 +12527,56 @@
      "passes"
     ],
     "title": "FlowFile",
+    "type": "object"
+   },
+   "FlowLayout": {
+    "description": "Filled by code (`layout_flows`), never by the model. All positions are absolute canvas px.",
+    "properties": {
+     "arrows": {
+      "items": {
+       "$ref": "#/components/schemas/FlowArrowLayout"
+      },
+      "title": "Arrows",
+      "type": "array"
+     },
+     "height": {
+      "default": 0,
+      "title": "Height",
+      "type": "number"
+     },
+     "steps": {
+      "items": {
+       "$ref": "#/components/schemas/FlowStepLayout"
+      },
+      "title": "Steps",
+      "type": "array"
+     },
+     "too_big": {
+      "default": false,
+      "title": "Too Big",
+      "type": "boolean"
+     },
+     "type_step": {
+      "default": 0,
+      "enum": [
+       0,
+       1
+      ],
+      "title": "Type Step",
+      "type": "integer"
+     },
+     "width": {
+      "default": 0,
+      "title": "Width",
+      "type": "number"
+     },
+     "wrapped": {
+      "default": false,
+      "title": "Wrapped",
+      "type": "boolean"
+     }
+    },
+    "title": "FlowLayout",
     "type": "object"
    },
    "FlowList": {
@@ -12551,6 +12928,82 @@
      }
     },
     "title": "FlowSettings",
+    "type": "object"
+   },
+   "FlowStep": {
+    "properties": {
+     "actor": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actor"
+     },
+     "id": {
+      "pattern": "^[A-Za-z][A-Za-z0-9_]{0,31}$",
+      "title": "Id",
+      "type": "string"
+     },
+     "kind": {
+      "default": "step",
+      "enum": [
+       "step",
+       "decision",
+       "data"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "pattern": "\\S",
+      "title": "Label",
+      "type": "string"
+     },
+     "stored": {
+      "default": false,
+      "title": "Stored",
+      "type": "boolean"
+     },
+     "tag": {
+      "default": "",
+      "title": "Tag",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "label"
+    ],
+    "title": "FlowStep",
+    "type": "object"
+   },
+   "FlowStepLayout": {
+    "properties": {
+     "box": {
+      "$ref": "#/components/schemas/FlowBox"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "label_lines": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Label Lines",
+      "type": "array"
+     }
+    },
+    "required": [
+     "id",
+     "box",
+     "label_lines"
+    ],
+    "title": "FlowStepLayout",
     "type": "object"
    },
    "FromCompaniesRequest": {
@@ -13433,6 +13886,86 @@
     "title": "IdentityRunRequest",
     "type": "object"
    },
+   "ImageItem": {
+    "properties": {
+     "caption": {
+      "default": "",
+      "title": "Caption",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "ImageItem",
+    "type": "object"
+   },
+   "ImageVisual": {
+    "properties": {
+     "emphasis": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Emphasis"
+     },
+     "images": {
+      "items": {
+       "$ref": "#/components/schemas/ImageItem"
+      },
+      "maxItems": 6,
+      "minItems": 1,
+      "title": "Images",
+      "type": "array"
+     },
+     "points": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 4,
+      "title": "Points",
+      "type": "array"
+     },
+     "side": {
+      "default": "left",
+      "enum": [
+       "left",
+       "right"
+      ],
+      "title": "Side",
+      "type": "string"
+     },
+     "type": {
+      "const": "image",
+      "default": "image",
+      "title": "Type",
+      "type": "string"
+     },
+     "variant": {
+      "enum": [
+       "hero",
+       "split",
+       "gallery"
+      ],
+      "title": "Variant",
+      "type": "string"
+     }
+    },
+    "required": [
+     "variant",
+     "images"
+    ],
+    "title": "ImageVisual",
+    "type": "object"
+   },
    "ImportRequest": {
     "properties": {
      "template": {
@@ -13829,6 +14362,32 @@
     "title": "InfluenceLevel",
     "type": "string"
    },
+   "Insight": {
+    "properties": {
+     "headline": {
+      "title": "Headline",
+      "type": "string"
+     },
+     "points": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 2,
+      "title": "Points",
+      "type": "array"
+     },
+     "stat": {
+      "title": "Stat",
+      "type": "string"
+     }
+    },
+    "required": [
+     "stat",
+     "headline"
+    ],
+    "title": "Insight",
+    "type": "object"
+   },
    "Instructions": {
     "properties": {
      "instructions": {
@@ -14111,6 +14670,41 @@
      "action_keys"
     ],
     "title": "KpiOut",
+    "type": "object"
+   },
+   "KpiRow": {
+    "properties": {
+     "emphasis": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Emphasis"
+     },
+     "tiles": {
+      "items": {
+       "$ref": "#/components/schemas/Tile"
+      },
+      "maxItems": 4,
+      "minItems": 2,
+      "title": "Tiles",
+      "type": "array"
+     },
+     "type": {
+      "const": "kpi_row",
+      "default": "kpi_row",
+      "title": "Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "tiles"
+    ],
+    "title": "KpiRow",
     "type": "object"
    },
    "LabelRule": {
@@ -15415,6 +16009,42 @@
     "title": "NextMeeting",
     "type": "object"
    },
+   "NextSteps": {
+    "properties": {
+     "actions": {
+      "items": {
+       "$ref": "#/components/schemas/NextAction"
+      },
+      "maxItems": 5,
+      "minItems": 2,
+      "title": "Actions",
+      "type": "array"
+     },
+     "emphasis": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": 0,
+      "title": "Emphasis"
+     },
+     "type": {
+      "const": "next_steps",
+      "default": "next_steps",
+      "title": "Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "actions"
+    ],
+    "title": "NextSteps",
+    "type": "object"
+   },
    "Note": {
     "properties": {
      "at": {
@@ -16674,6 +17304,41 @@
     ],
     "title": "Pillar",
     "type": "string"
+   },
+   "Points": {
+    "properties": {
+     "emphasis": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Emphasis"
+     },
+     "points": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 6,
+      "minItems": 3,
+      "title": "Points",
+      "type": "array"
+     },
+     "type": {
+      "const": "points",
+      "default": "points",
+      "title": "Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "points"
+    ],
+    "title": "Points",
+    "type": "object"
    },
    "PolicyDecisionRequest": {
     "properties": {
@@ -19282,6 +19947,158 @@
      "source"
     ],
     "title": "RedlineOut",
+    "type": "object"
+   },
+   "RefineHistoryItem": {
+    "properties": {
+     "message": {
+      "title": "Message",
+      "type": "string"
+     },
+     "reply": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reply"
+     }
+    },
+    "required": [
+     "message"
+    ],
+    "title": "RefineHistoryItem",
+    "type": "object"
+   },
+   "RefineNotChanged": {
+    "properties": {
+     "id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Id"
+     },
+     "reason": {
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "reason"
+    ],
+    "title": "RefineNotChanged",
+    "type": "object"
+   },
+   "RefineTurnIn": {
+    "properties": {
+     "history": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/RefineHistoryItem"
+      },
+      "title": "History",
+      "type": "array"
+     },
+     "message": {
+      "title": "Message",
+      "type": "string"
+     }
+    },
+    "required": [
+     "message"
+    ],
+    "title": "RefineTurnIn",
+    "type": "object"
+   },
+   "RefineTurnOut": {
+    "properties": {
+     "changed": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Changed",
+      "type": "array"
+     },
+     "check_figures": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Check Figures",
+      "type": "array"
+     },
+     "done": {
+      "title": "Done",
+      "type": "integer"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "not_changed": {
+      "items": {
+       "$ref": "#/components/schemas/RefineNotChanged"
+      },
+      "title": "Not Changed",
+      "type": "array"
+     },
+     "reply": {
+      "title": "Reply",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "status",
+     "reply",
+     "done",
+     "total",
+     "changed",
+     "not_changed",
+     "check_figures",
+     "error"
+    ],
+    "title": "RefineTurnOut",
+    "type": "object"
+   },
+   "RefineTurnStarted": {
+    "properties": {
+     "turn_id": {
+      "title": "Turn Id",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "turn_id"
+    ],
+    "title": "RefineTurnStarted",
     "type": "object"
    },
    "RegimeBucketPerformance": {
@@ -22865,6 +23682,43 @@
     "title": "SearchResultType",
     "type": "string"
    },
+   "Section": {
+    "properties": {
+     "agenda": {
+      "description": "Filled by code.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Agenda",
+      "type": "array"
+     },
+     "number": {
+      "title": "Number",
+      "type": "integer"
+     },
+     "summary": {
+      "default": "",
+      "title": "Summary",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "type": {
+      "const": "section",
+      "default": "section",
+      "title": "Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "number",
+     "title"
+    ],
+    "title": "Section",
+    "type": "object"
+   },
    "SectionLayoutHint": {
     "enum": [
      "standard",
@@ -23575,6 +24429,175 @@
      "duplicate_of"
     ],
     "title": "SkippedUpload",
+    "type": "object"
+   },
+   "SlideContent": {
+    "description": "One house-deck slide. `layout`/`variant` pick a VariantSpec from the\nlayout library; `slots` fill its named text/list slots. The headline is\nnot a slot -- it always renders in the fixed headline band.",
+    "properties": {
+     "chart": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/arp__schemas__chart_specs__ChartSpec"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "headline": {
+      "title": "Headline",
+      "type": "string"
+     },
+     "image_path": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Image Path"
+     },
+     "kicker": {
+      "default": "",
+      "title": "Kicker",
+      "type": "string"
+     },
+     "layout": {
+      "default": "",
+      "title": "Layout",
+      "type": "string"
+     },
+     "needs_review": {
+      "default": false,
+      "title": "Needs Review",
+      "type": "boolean"
+     },
+     "slots": {
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        }
+       ]
+      },
+      "title": "Slots",
+      "type": "object"
+     },
+     "source_line": {
+      "default": "",
+      "title": "Source Line",
+      "type": "string"
+     },
+     "source_refs": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Source Refs",
+      "type": "array"
+     },
+     "speaker_notes": {
+      "default": "",
+      "title": "Speaker Notes",
+      "type": "string"
+     },
+     "subheading": {
+      "default": "",
+      "title": "Subheading",
+      "type": "string"
+     },
+     "table": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TableSpec"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "type_step": {
+      "default": 0,
+      "description": "Fit ladder: 1-2 set the visual's text smaller, -1 one size larger.",
+      "maximum": 2.0,
+      "minimum": -1.0,
+      "title": "Type Step",
+      "type": "integer"
+     },
+     "variant": {
+      "default": "",
+      "title": "Variant",
+      "type": "string"
+     },
+     "visual": {
+      "anyOf": [
+       {
+        "discriminator": {
+         "mapping": {
+          "chart": "#/components/schemas/Chart",
+          "comparison_table": "#/components/schemas/ComparisonTable",
+          "cover": "#/components/schemas/Cover",
+          "flow": "#/components/schemas/Flow",
+          "image": "#/components/schemas/ImageVisual",
+          "kpi_row": "#/components/schemas/KpiRow",
+          "next_steps": "#/components/schemas/NextSteps",
+          "points": "#/components/schemas/Points",
+          "section": "#/components/schemas/Section",
+          "two_column": "#/components/schemas/TwoColumn"
+         },
+         "propertyName": "type"
+        },
+        "oneOf": [
+         {
+          "$ref": "#/components/schemas/Cover"
+         },
+         {
+          "$ref": "#/components/schemas/Section"
+         },
+         {
+          "$ref": "#/components/schemas/KpiRow"
+         },
+         {
+          "$ref": "#/components/schemas/Chart"
+         },
+         {
+          "$ref": "#/components/schemas/ComparisonTable"
+         },
+         {
+          "$ref": "#/components/schemas/TwoColumn"
+         },
+         {
+          "$ref": "#/components/schemas/Points"
+         },
+         {
+          "$ref": "#/components/schemas/NextSteps"
+         },
+         {
+          "$ref": "#/components/schemas/Flow"
+         },
+         {
+          "$ref": "#/components/schemas/ImageVisual"
+         }
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Visual"
+     }
+    },
+    "required": [
+     "headline"
+    ],
+    "title": "SlideContent",
     "type": "object"
    },
    "SmartSearchRequest": {
@@ -26068,6 +27091,29 @@
     "title": "TierSummary",
     "type": "object"
    },
+   "Tile": {
+    "properties": {
+     "delta": {
+      "default": "",
+      "title": "Delta",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "value": {
+      "title": "Value",
+      "type": "string"
+     }
+    },
+    "required": [
+     "value",
+     "label"
+    ],
+    "title": "Tile",
+    "type": "object"
+   },
    "TippingPoint": {
     "description": "How far one dimension's weight must move before an entity changes\ntier. Converts 'the framework says Tier 1' into 'the framework says\nTier 1, and it takes a 14-point weight change to say otherwise'.",
     "properties": {
@@ -26649,6 +27695,36 @@
      "decided_by"
     ],
     "title": "TriggerTransitionRequest",
+    "type": "object"
+   },
+   "TwoColumn": {
+    "properties": {
+     "kpis": {
+      "items": {
+       "$ref": "#/components/schemas/Tile"
+      },
+      "maxItems": 3,
+      "title": "Kpis",
+      "type": "array"
+     },
+     "left": {
+      "$ref": "#/components/schemas/Column"
+     },
+     "right": {
+      "$ref": "#/components/schemas/Column"
+     },
+     "type": {
+      "const": "two_column",
+      "default": "two_column",
+      "title": "Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "left",
+     "right"
+    ],
+    "title": "TwoColumn",
     "type": "object"
    },
    "UniverseRequest": {
@@ -41199,6 +42275,168 @@
     ]
    }
   },
+  "/api/refine/turns/{turn_id}": {
+   "get": {
+    "operationId": "get_turn_api_refine_turns__turn_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "turn_id",
+      "required": true,
+      "schema": {
+       "title": "Turn Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RefineTurnOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Turn",
+    "tags": [
+     "refine"
+    ]
+   }
+  },
+  "/api/refine/{kind}/{doc_id}/turns": {
+   "post": {
+    "operationId": "post_turn_api_refine__kind___doc_id__turns_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "enum": [
+        "rfp",
+        "deck"
+       ],
+       "title": "Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "doc_id",
+      "required": true,
+      "schema": {
+       "title": "Doc Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RefineTurnIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RefineTurnStarted"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Turn",
+    "tags": [
+     "refine"
+    ]
+   }
+  },
+  "/api/refine/{kind}/{doc_id}/undo": {
+   "post": {
+    "operationId": "undo_api_refine__kind___doc_id__undo_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "enum": [
+        "rfp",
+        "deck"
+       ],
+       "title": "Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "doc_id",
+      "required": true,
+      "schema": {
+       "title": "Doc Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RefineTurnOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Undo",
+    "tags": [
+     "refine"
+    ]
+   }
+  },
   "/api/replication/discover": {
    "post": {
     "description": "Searches for candidate 'outperformance' papers on `req.topic` and\nranks them by replication-worthiness -- the API equivalent of\n`arp replicate discover-papers`, using every search source\n(arXiv + Semantic Scholar + generic web) merged/deduped, same as that\nCLI command's default. Proposes candidates; nothing is fetched or\nturned into a spec automatically -- picking one is a separate\nPOST /specs call.",
@@ -42168,6 +43406,91 @@
      }
     },
     "summary": "Get Report",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
+  "/api/reports/{report_id}/deck": {
+   "get": {
+    "operationId": "get_deck_api_reports__report_id__deck_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Deck"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Deck",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
+  "/api/reports/{report_id}/deck/html": {
+   "get": {
+    "description": "The deck as the house HTML, for the Refine page's live view; the same render the PDF export starts from.",
+    "operationId": "get_deck_html_api_reports__report_id__deck_html_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "text/html": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Deck Html",
     "tags": [
      "reporting"
     ]

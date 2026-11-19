@@ -4131,6 +4131,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/refine/turns/{turn_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Turn */
+        get: operations["get_turn_api_refine_turns__turn_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/refine/{kind}/{doc_id}/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Turn */
+        post: operations["post_turn_api_refine__kind___doc_id__turns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/refine/{kind}/{doc_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo */
+        post: operations["undo_api_refine__kind___doc_id__undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/replication/discover": {
         parameters: {
             query?: never;
@@ -4484,6 +4535,43 @@ export interface paths {
          * @description Removes an unfinished report's folder. A finished one, or one still being worked on, is never removed.
          */
         delete: operations["discard_report_api_reports__report_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reports/{report_id}/deck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Deck */
+        get: operations["get_deck_api_reports__report_id__deck_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reports/{report_id}/deck/html": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Deck Html
+         * @description The deck as the house HTML, for the Refine page's live view; the same render the PDF export starts from.
+         */
+        get: operations["get_deck_html_api_reports__report_id__deck_html_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -10568,6 +10656,13 @@ export interface components {
             /** Last Run Id */
             last_run_id?: string | null;
         };
+        /** Callout */
+        Callout: {
+            /** Category */
+            category: string;
+            /** Text */
+            text: string;
+        };
         /** Candidate */
         Candidate: {
             /** Covers */
@@ -10665,10 +10760,38 @@ export interface components {
             /** Region */
             region: string;
         };
+        /** Chart */
+        Chart: {
+            callout?: components["schemas"]["Callout"] | null;
+            data: components["schemas"]["arp__schemas__chart_specs__ChartSpec"];
+            /**
+             * Data Labels
+             * @default true
+             */
+            data_labels: boolean;
+            /** Highlight */
+            highlight?: string | null;
+            insight?: components["schemas"]["Insight"] | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "bar" | "column" | "stacked_column" | "line" | "waterfall";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "chart";
+            /**
+             * Unit
+             * @default
+             */
+            unit: string;
+        };
         /** ChartPlan */
         ChartPlan: {
             /** Charts */
-            charts: components["schemas"]["ChartSpec-Output"][];
+            charts: components["schemas"]["arp__bi__plan__ChartSpec"][];
             /**
              * Goal
              * @default
@@ -10676,34 +10799,6 @@ export interface components {
             goal: string;
             /** Title */
             title: string;
-        };
-        /** ChartSpec */
-        "ChartSpec-Output": {
-            /** Dataset */
-            dataset: string;
-            /**
-             * Filters
-             * @default {}
-             */
-            filters: {
-                [key: string]: string;
-            };
-            /**
-             * Groupby
-             * @default []
-             */
-            groupby: string[];
-            /** Metrics */
-            metrics: string[];
-            /**
-             * Question
-             * @default
-             */
-            question: string;
-            /** Title */
-            title: string;
-            /** Viz Type */
-            viz_type: string;
         };
         /**
          * ChartType
@@ -11199,6 +11294,13 @@ export interface components {
             /** Votes */
             votes: number;
         };
+        /** Column */
+        Column: {
+            /** Points */
+            points: string[];
+            /** Title */
+            title: string;
+        };
         /**
          * ColumnKind
          * @enum {string}
@@ -11594,6 +11696,21 @@ export interface components {
             reason: string | null;
             /** Region */
             region: string;
+        };
+        /** ComparisonTable */
+        ComparisonTable: {
+            /** Highlight Column */
+            highlight_column?: string | null;
+            table: components["schemas"]["TableSpec"];
+            /** Total Row */
+            total_row?: {
+                [key: string]: "sum" | "mean" | "none";
+            };
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "comparison_table";
         };
         /**
          * CompositeSignalComponent
@@ -11999,6 +12116,28 @@ export interface components {
         CosignRequest: {
             /** Item Key */
             item_key: string;
+        };
+        /** Cover */
+        Cover: {
+            /**
+             * Answer
+             * @default
+             */
+            answer: string;
+            /**
+             * Context
+             * @default
+             */
+            context: string;
+            /** Figures */
+            figures?: components["schemas"]["Figure"][];
+            /** Title */
+            title: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "cover";
         };
         /** CoverageActionOut */
         CoverageActionOut: {
@@ -12601,6 +12740,18 @@ export interface components {
             }[];
             /** Tier Summary */
             tier_summary?: components["schemas"]["TierSummary"][];
+        };
+        /** Deck */
+        Deck: {
+            /** Slides */
+            slides: components["schemas"]["SlideContent"][];
+            /**
+             * Subtitle
+             * @default
+             */
+            subtitle: string;
+            /** Title */
+            title: string;
         };
         /** DeckSettings */
         DeckSettings: {
@@ -13664,6 +13815,69 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** Flow */
+        Flow: {
+            /** Actors */
+            actors?: string[];
+            /** Arrows */
+            arrows?: components["schemas"]["FlowArrow"][];
+            /**
+             * Direction
+             * @default LR
+             * @enum {string}
+             */
+            direction: "LR" | "TB";
+            /** Emphasis */
+            emphasis?: string | null;
+            layout?: components["schemas"]["FlowLayout"] | null;
+            /**
+             * Mermaid
+             * @default
+             */
+            mermaid: string;
+            /** Steps */
+            steps: components["schemas"]["FlowStep"][];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "flow";
+        };
+        /** FlowArrow */
+        FlowArrow: {
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+            /** Source */
+            source: string;
+            /** Target */
+            target: string;
+        };
+        /** FlowArrowLayout */
+        FlowArrowLayout: {
+            label_box?: components["schemas"]["FlowBox"] | null;
+            /** Points */
+            points: [
+                number,
+                number
+            ][];
+        };
+        /**
+         * FlowBox
+         * @description A rectangle in canvas px.
+         */
+        FlowBox: {
+            /** H */
+            h: number;
+            /** W */
+            w: number;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        };
         /** FlowFile */
         FlowFile: {
             /** Check */
@@ -13697,6 +13911,42 @@ export interface components {
             state?: ("kept" | "removed") | null;
             /** Year */
             year: number | null;
+        };
+        /**
+         * FlowLayout
+         * @description Filled by code (`layout_flows`), never by the model. All positions are absolute canvas px.
+         */
+        FlowLayout: {
+            /** Arrows */
+            arrows?: components["schemas"]["FlowArrowLayout"][];
+            /**
+             * Height
+             * @default 0
+             */
+            height: number;
+            /** Steps */
+            steps?: components["schemas"]["FlowStepLayout"][];
+            /**
+             * Too Big
+             * @default false
+             */
+            too_big: boolean;
+            /**
+             * Type Step
+             * @default 0
+             * @enum {integer}
+             */
+            type_step: 0 | 1;
+            /**
+             * Width
+             * @default 0
+             */
+            width: number;
+            /**
+             * Wrapped
+             * @default false
+             */
+            wrapped: boolean;
         };
         /** FlowList */
         FlowList: {
@@ -13790,6 +14040,39 @@ export interface components {
              * @enum {string}
              */
             mode: "cheap" | "normal" | "max";
+        };
+        /** FlowStep */
+        FlowStep: {
+            /** Actor */
+            actor?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @default step
+             * @enum {string}
+             */
+            kind: "step" | "decision" | "data";
+            /** Label */
+            label: string;
+            /**
+             * Stored
+             * @default false
+             */
+            stored: boolean;
+            /**
+             * Tag
+             * @default
+             */
+            tag: string;
+        };
+        /** FlowStepLayout */
+        FlowStepLayout: {
+            box: components["schemas"]["FlowBox"];
+            /** Id */
+            id: string;
+            /** Label Lines */
+            label_lines: string[];
         };
         /** FromCompaniesRequest */
         FromCompaniesRequest: {
@@ -14149,6 +14432,41 @@ export interface components {
             /** Universe Path */
             universe_path?: string | null;
         };
+        /** ImageItem */
+        ImageItem: {
+            /**
+             * Caption
+             * @default
+             */
+            caption: string;
+            /** Name */
+            name: string;
+        };
+        /** ImageVisual */
+        ImageVisual: {
+            /** Emphasis */
+            emphasis?: number | null;
+            /** Images */
+            images: components["schemas"]["ImageItem"][];
+            /** Points */
+            points?: string[];
+            /**
+             * Side
+             * @default left
+             * @enum {string}
+             */
+            side: "left" | "right";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "image";
+            /**
+             * Variant
+             * @enum {string}
+             */
+            variant: "hero" | "split" | "gallery";
+        };
         /** ImportRequest */
         ImportRequest: {
             /** Template */
@@ -14361,6 +14679,15 @@ export interface components {
          * @enum {string}
          */
         InfluenceLevel: "1" | "2" | "3" | "4A" | "4B" | "5";
+        /** Insight */
+        Insight: {
+            /** Headline */
+            headline: string;
+            /** Points */
+            points?: string[];
+            /** Stat */
+            stat: string;
+        };
         /** Instructions */
         Instructions: {
             /** Instructions */
@@ -14460,6 +14787,18 @@ export interface components {
             value: number | null;
             /** Year */
             year: number | null;
+        };
+        /** KpiRow */
+        KpiRow: {
+            /** Emphasis */
+            emphasis?: number | null;
+            /** Tiles */
+            tiles: components["schemas"]["Tile"][];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "kpi_row";
         };
         /** LabelRule */
         LabelRule: {
@@ -15161,6 +15500,21 @@ export interface components {
             /** Last Meeting */
             last_meeting: string;
         };
+        /** NextSteps */
+        NextSteps: {
+            /** Actions */
+            actions: components["schemas"]["NextAction"][];
+            /**
+             * Emphasis
+             * @default 0
+             */
+            emphasis: number | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "next_steps";
+        };
         /** Note */
         Note: {
             /** At */
@@ -15582,6 +15936,18 @@ export interface components {
          * @enum {string}
          */
         Pillar: "Technology" | "Regulation" | "Demand & Economics";
+        /** Points */
+        Points: {
+            /** Emphasis */
+            emphasis?: number | null;
+            /** Points */
+            points: string[];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "points";
+        };
         /** PolicyDecisionRequest */
         PolicyDecisionRequest: {
             /**
@@ -16626,6 +16992,56 @@ export interface components {
             status: "breached" | "not breached" | "no disclosure";
             /** Text */
             text: string;
+        };
+        /** RefineHistoryItem */
+        RefineHistoryItem: {
+            /** Message */
+            message: string;
+            /** Reply */
+            reply?: string | null;
+        };
+        /** RefineNotChanged */
+        RefineNotChanged: {
+            /** Id */
+            id: number | null;
+            /** Reason */
+            reason: string;
+        };
+        /** RefineTurnIn */
+        RefineTurnIn: {
+            /**
+             * History
+             * @default []
+             */
+            history: components["schemas"]["RefineHistoryItem"][];
+            /** Message */
+            message: string;
+        };
+        /** RefineTurnOut */
+        RefineTurnOut: {
+            /** Changed */
+            changed: number[];
+            /** Check Figures */
+            check_figures: number[];
+            /** Done */
+            done: number;
+            /** Error */
+            error: string | null;
+            /** Id */
+            id: number;
+            /** Not Changed */
+            not_changed: components["schemas"]["RefineNotChanged"][];
+            /** Reply */
+            reply: string;
+            /** Status */
+            status: string;
+            /** Total */
+            total: number;
+        };
+        /** RefineTurnStarted */
+        RefineTurnStarted: {
+            /** Turn Id */
+            turn_id: number;
         };
         /** RegimeBucketPerformance */
         RegimeBucketPerformance: {
@@ -18017,6 +18433,28 @@ export interface components {
          * @enum {string}
          */
         SearchResultType: "company" | "document" | "taxonomy";
+        /** Section */
+        Section: {
+            /**
+             * Agenda
+             * @description Filled by code.
+             */
+            agenda?: string[];
+            /** Number */
+            number: number;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /** Title */
+            title: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "section";
+        };
         /**
          * SectionLayoutHint
          * @enum {string}
@@ -18315,6 +18753,69 @@ export interface components {
             duplicate_of: string;
             /** Filename */
             filename: string;
+        };
+        /**
+         * SlideContent
+         * @description One house-deck slide. `layout`/`variant` pick a VariantSpec from the
+         *     layout library; `slots` fill its named text/list slots. The headline is
+         *     not a slot -- it always renders in the fixed headline band.
+         */
+        SlideContent: {
+            chart?: components["schemas"]["arp__schemas__chart_specs__ChartSpec"] | null;
+            /** Headline */
+            headline: string;
+            /** Image Path */
+            image_path?: string | null;
+            /**
+             * Kicker
+             * @default
+             */
+            kicker: string;
+            /**
+             * Layout
+             * @default
+             */
+            layout: string;
+            /**
+             * Needs Review
+             * @default false
+             */
+            needs_review: boolean;
+            /** Slots */
+            slots?: {
+                [key: string]: string | string[];
+            };
+            /**
+             * Source Line
+             * @default
+             */
+            source_line: string;
+            /** Source Refs */
+            source_refs?: string[];
+            /**
+             * Speaker Notes
+             * @default
+             */
+            speaker_notes: string;
+            /**
+             * Subheading
+             * @default
+             */
+            subheading: string;
+            table?: components["schemas"]["TableSpec"] | null;
+            /**
+             * Type Step
+             * @description Fit ladder: 1-2 set the visual's text smaller, -1 one size larger.
+             * @default 0
+             */
+            type_step: number;
+            /**
+             * Variant
+             * @default
+             */
+            variant: string;
+            /** Visual */
+            visual?: (components["schemas"]["Cover"] | components["schemas"]["Section"] | components["schemas"]["KpiRow"] | components["schemas"]["Chart"] | components["schemas"]["ComparisonTable"] | components["schemas"]["TwoColumn"] | components["schemas"]["Points"] | components["schemas"]["NextSteps"] | components["schemas"]["Flow"] | components["schemas"]["ImageVisual"]) | null;
         };
         /** SmartSearchRequest */
         SmartSearchRequest: {
@@ -19339,6 +19840,18 @@ export interface components {
             /** Size Total */
             size_total?: number | null;
         };
+        /** Tile */
+        Tile: {
+            /**
+             * Delta
+             * @default
+             */
+            delta: string;
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+        };
         /**
          * TippingPoint
          * @description How far one dimension's weight must move before an entity changes
@@ -19583,6 +20096,18 @@ export interface components {
              * @enum {string}
              */
             status: "open" | "acknowledged" | "resolved";
+        };
+        /** TwoColumn */
+        TwoColumn: {
+            /** Kpis */
+            kpis?: components["schemas"]["Tile"][];
+            left: components["schemas"]["Column"];
+            right: components["schemas"]["Column"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "two_column";
         };
         /** UniverseRequest */
         UniverseRequest: {
@@ -28560,6 +29085,105 @@ export interface operations {
             };
         };
     };
+    get_turn_api_refine_turns__turn_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                turn_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefineTurnOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_turn_api_refine__kind___doc_id__turns_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "rfp" | "deck";
+                doc_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefineTurnIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefineTurnStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_api_refine__kind___doc_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "rfp" | "deck";
+                doc_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefineTurnOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     discover_papers_api_replication_discover_post: {
         parameters: {
             query?: never;
@@ -29254,6 +29878,68 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_deck_api_reports__report_id__deck_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Deck"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_deck_html_api_reports__report_id__deck_html_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
             };
             /** @description Validation Error */
             422: {

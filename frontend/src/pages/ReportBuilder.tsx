@@ -664,6 +664,7 @@ export function ReportBuilder() {
                 {manifest.output_files.map((f) => (
                   <DeckDownload key={f} reportId={manifest.report_id} file={f} />
                 ))}
+                {manifest.has_deck && <a href={`#/refine?report=${manifest.report_id}`} className="button-link">Refine with chat</a>}
               </>
             )}
           </div>

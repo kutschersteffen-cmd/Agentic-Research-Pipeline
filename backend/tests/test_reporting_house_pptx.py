@@ -3,12 +3,14 @@ import subprocess
 
 import pytest
 from pptx import Presentation
+from pptx.enum.chart import XL_CHART_TYPE
 from pypdf import PdfReader
 
 from arp.reporting.browser import write_pdf
 from arp.reporting.house_pptx import build_house_pptx
 from arp.reporting.house_style import get_variant, load_tokens, slot_rect
 from arp.reporting.html_render import render_deck_html
+from arp.schemas.chart_specs import ChartType
 from arp.schemas.reporting import ChartSpec, ColumnKind, DatasetColumn, Deck, QuantitativeDataset, SlideContent, TableSpec
 from tests.fixtures.stress_deck import stress_deck
 
@@ -184,3 +186,27 @@ def test_pptx_table_header_is_small_uppercase_mono(tmp_path):
     run = table.cell(0, 0).text_frame.paragraphs[0].runs[0]
     assert run.text == "K" and run.font.name == load_tokens().fonts.mono.split(",")[0].strip("'\" ") and not run.font.bold
     assert run._r.rPr.get("spc")
+
+
+def _chart_slide(chart_type, **spec):
+    ds = QuantitativeDataset(
+        dataset_id="w", name="W", columns=[DatasetColumn(name="cat", kind=ColumnKind.CATEGORY), DatasetColumn(name="reg", kind=ColumnKind.CATEGORY), DatasetColumn(name="v")],
+        rows=[{"cat": "a", "reg": "x", "v": 10}, {"cat": "b", "reg": "x", "v": -4}, {"cat": "a", "reg": "y", "v": 3}, {"cat": "b", "reg": "y", "v": 8}],
+    )
+    chart = ChartSpec(dataset_id="w", chart_type=chart_type, category_column="cat", value_columns=["v"], **spec)
+    slide = SlideContent(headline="h", layout="two_column", variant="text_chart", slots={"text": "Net zero by 2040"}, chart=chart)
+    return Deck(title="T", slides=[slide]), [ds]
+
+
+def test_text_slot_is_text_frame(tmp_path):  # refine-chat-design AC-33
+    deck, ds = _chart_slide("column")
+    shape = _shapes(Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides[0], "slot:text")[0]
+    assert shape.has_text_frame and shape.text_frame.text == "Net zero by 2040"
+
+
+def test_column_after_chart_type_change(tmp_path):  # refine-chat-design AC-34
+    deck, ds = _chart_slide("waterfall")
+    deck.slides[0].chart.chart_type = ChartType.COLUMN  # as the refine set_chart_type op stores it
+    shape = _shapes(Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides[0], "slot:chart")[0]
+    assert shape.has_chart and shape.chart.chart_type == XL_CHART_TYPE.COLUMN_CLUSTERED
+    assert "<svg" in render_deck_html(deck, ds)

@@ -1,0 +1,64 @@
+{
+  "questions": [
+    {
+      "id": 1,
+      "status": "drafted",
+      "question": "Describe your firm's ESG integration process.",
+      "answer": "We integrate ESG factors into every investment decision through a documented screening step."
+    },
+    {
+      "id": 2,
+      "status": "drafted",
+      "question": "How do you engage with portfolio companies on climate?",
+      "answer": "We run annual engagement meetings on climate targets with all portfolio companies."
+    },
+    {
+      "id": 3,
+      "status": "edited",
+      "question": "What is your policy on human rights and labour standards?",
+      "answer": "Our human rights policy follows the UN Guiding Principles and is reviewed yearly."
+    },
+    {
+      "id": 4,
+      "status": "approved",
+      "question": "Do you report climate risks in line with the TCFD recommendations?",
+      "answer": "Yes, our annual report follows the TCFD recommendations on climate-related disclosure."
+    },
+    {
+      "id": 5,
+      "status": "no source",
+      "question": "What were your Scope 3 emissions in 2025?",
+      "answer": ""
+    },
+    {
+      "id": 6,
+      "status": "drafted",
+      "question": "Describe your board's diversity and independence.",
+      "answer": "Our board has seven members, four of them independent."
+    },
+    {
+      "id": 7,
+      "status": "approved",
+      "question": "How is your firm regulated?",
+      "answer": "We are authorised and regulated by the national financial supervisor."
+    },
+    {
+      "id": 8,
+      "status": "drafted",
+      "question": "Describe your data security and cybersecurity controls.",
+      "answer": "We hold ISO 27001 certification and test our controls each year."
+    },
+    {
+      "id": 9,
+      "status": "no source",
+      "question": "Provide your assets under management by strategy.",
+      "answer": ""
+    },
+    {
+      "id": 10,
+      "status": "drafted",
+      "question": "How do you assess governance at investee companies?",
+      "answer": "Governance is scored on board structure, pay and shareholder rights."
+    }
+  ]
+}

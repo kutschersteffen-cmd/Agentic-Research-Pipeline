@@ -17,7 +17,8 @@ import type { ReviewableRunKind, RunManifest, WaitingCounts } from "./types";
 import { REVIEWABLE_RUN_TYPES, runTypeLabel } from "./lib/runs";
 import { api } from "./api/client";
 import { listAllRuns } from "./lib/poll";
-import { HUBS, entryTab, redirectHash } from "./lib/nav";
+import { HUBS, entryTab, redirectHash, splitHash } from "./lib/nav";
+import { refineTarget } from "./lib/refine";
 import { Landing } from "./pages/Landing";
 
 // Pages load on demand so the first screen does not ship every page and its editors.
@@ -54,6 +55,7 @@ const XbrlFacts = lazy(() => import("./pages/XbrlFacts").then((x) => ({ default:
 const ThemeDossiers = lazy(() => import("./pages/ThemeDossiers").then((x) => ({ default: x.ThemeDossiers })));
 const Plans = lazy(() => import("./pages/Plans").then((x) => ({ default: x.Plans })));
 const RfpAnswers = lazy(() => import("./pages/RfpAnswers").then((x) => ({ default: x.RfpAnswers })));
+const Refine = lazy(() => import("./pages/Refine").then((x) => ({ default: x.Refine })));
 
 const TABS = [
   { id: "home", label: "Start" },
@@ -90,6 +92,7 @@ const TABS = [
   { id: "index", label: "Index Construction" },
   { id: "xbrl", label: "XBRL Facts" },
   { id: "rfp", label: "RFP Answers" },
+  { id: "refine", label: "Refine" },
   { id: "library", label: "Data Library" },
   { id: "arcade", label: "Arcade" },
   // Reached from company names elsewhere (#/companies/<ref>) and the palette; not in the sidebar.
@@ -120,7 +123,7 @@ const runItem = (r: RunManifest): PaletteItem => ({
  * so refresh, Back and a pasted link all land on the same view -- e.g.
  * `#/voting/<run id>` or `#/review/extraction/<run id>`. */
 function parseHash(hash = window.location.hash): { tab: TabId; params: string[] } {
-  const [tab, ...params] = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+  const { tab, params } = splitHash(hash);
   // Old links: the Theme Machine and Design Studio boxes merged into R&D Lab;
   // the Processes screen's processes now live on their workspace pages.
   if (tab === "themeMachine" || tab === "designStudio") return { tab: "rdLab", params: [] };
@@ -190,6 +193,8 @@ function App() {
   }, [route, decidedAt]);
 
   const hub = hubOf(active);
+  // route changes on every hashchange, so this re-reads the tab's query (e.g. #/refine?report=R) with it.
+  const refine = refineTarget(splitHash(window.location.hash).query);
   // The tab title names the screen, for browser tabs and screen readers.
   useEffect(() => {
     document.title = `${hub?.label ?? TABS.find((t) => t.id === active)!.label} · ARP`;
@@ -319,6 +324,7 @@ function App() {
         {active === "index" && <IndexBuilder />}
         {active === "argusWalkthrough" && <ArgusWalkthrough key={route.params.join("/")} params={route.params} />}
         {active === "rfp" && <RfpAnswers projectId={route.params[0] ? Number(route.params[0]) : null} onOpen={(id) => (id === null ? navigate("rfp") : navigate("rfp", String(id)))} />}
+        {active === "refine" && <Refine rfp={refine.rfp} report={refine.report} />}
         {active === "xbrl" && <XbrlFacts selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("xbrl", id)} />}
         {active === "library" && <DataLibrary />}
         {active === "companies" && <Company companyRef={route.params[0]} />}

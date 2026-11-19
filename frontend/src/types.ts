@@ -69,6 +69,9 @@ export type RfpDocument = Served<S["RfpDocumentOut"]>;
 export type RfpProjectSummary = Served<S["RfpProjectSummary"]>;
 export type RfpProject = Served<S["RfpProjectOut"]>;
 export type RfpQuestion = Served<S["RfpQuestionOut"]>;
+export type RefineTurn = Served<S["RefineTurnOut"]>;
+export type RefineHistoryItem = Served<S["RefineHistoryItem"]>;
+export type RefineTurnStarted = Served<S["RefineTurnStarted"]>;
 export type AskResponse = Served<S["AskResponse"]>;
 export type AskHistoryTurn = Served<S["HistoryTurn"]>;
 
@@ -1358,6 +1361,8 @@ export interface ReportManifest {
   output_tokens: number;
   model?: string | null;
   output_files: string[];
+  has_deck?: boolean;
+  deck_edited_since_render?: boolean;
 }
 
 export type StorylineSlide = Served<S["StorylineSlide"]>;
@@ -2586,7 +2591,7 @@ export interface RunCompany {
 
 /** Superset BI designer (/api/bi). A plan that fails validation is a 200 with `rejected` reasons and no dashboard;
  * a question back from the model is a 200 with `clarification_needed`. */
-export type BIChartSpec = Served<S["ChartSpec-Output"]>;
+export type BIChartSpec = Served<S["arp__bi__plan__ChartSpec"]>;
 
 export type BIChartPlan = Served<S["ChartPlan"]>;
 
