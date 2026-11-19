@@ -162,7 +162,7 @@ class _Writer:
                 fill.fore_color.rgb = _rgb(color)
         if p.kind != "line":
             plot.gap_width = 67  # bars take 60% of the band, as in the HTML
-            if p.kind != "stacked_column":
+            if p.kind not in ("stacked_column", "waterfall"):  # stacked bars keep overlap 100
                 plot.overlap = 0
         if p.labels and waterfall:  # each bar's own text: changes signed, totals plain; ink, panel on the ink totals
             last = len(p.categories) - 1

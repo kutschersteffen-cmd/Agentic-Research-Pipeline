@@ -91,6 +91,7 @@ def test_ac35_native_stacked_column(tmp_path):
     base, shown = chart.plots[0].series
     assert list(shown.values) == [100, 14, 6, 4, 2, 82] and list(base.values) == [0, 86, 80, 80, 82, 0]
     assert base.format.fill.type == 5  # MSO_FILL.BACKGROUND: invisible
+    assert chart.plots[0].overlap == 100  # the visible bars sit on the base, not beside it
     assert [str(shown.points[i].format.fill.fore_color.rgb).lower() for i in range(6)] == [
         "121722", "2a78d6", "c4ccd7", "c4ccd7", "c4ccd7", "121722"]
     assert [shown.points[i].data_label.text_frame.text for i in range(6)] == ["100", "−14", "−6", "+4", "−2", "82"]
