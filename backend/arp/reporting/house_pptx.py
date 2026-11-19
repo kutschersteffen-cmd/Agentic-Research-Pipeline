@@ -224,7 +224,7 @@ class _Builder:
 
 
 def build_house_pptx(deck: Deck, datasets: list[QuantitativeDataset], out: Path, tokens: Tokens | None = None, mode: Mode = "light", *,
-                     images: dict[str, LoadedImage] | None = None) -> Path:
+                     images: dict[str, LoadedImage] | None = None, cover_image: str | None = None) -> Path:
     tokens = tokens or load_tokens()
     prs = Presentation()
     b, by_id = _Builder(tokens, mode), {d.dataset_id: d for d in datasets}
@@ -236,7 +236,7 @@ def build_house_pptx(deck: Deck, datasets: list[QuantitativeDataset], out: Path,
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         slide.background.fill.solid()
         slide.background.fill.fore_color.rgb = _rgb(palette(tokens, mode)["panel"])
-        pptx_slide(slide, render_slide(content, i, deck, tokens, by_id, mode, images=images), tokens, mode, tokens.emu_per_px, images)
+        pptx_slide(slide, render_slide(content, i, deck, tokens, by_id, mode, images=images, cover_image=cover_image), tokens, mode, tokens.emu_per_px, images)
         notes = content.speaker_notes
         if not footer_fits(tokens):  # no source zone under the template's body box: the source line moves to the notes
             notes = "\n".join(x for x in (notes, content.source_line or source_line(content, by_id)) if x)
