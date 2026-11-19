@@ -30,10 +30,12 @@ from arp.reporting.render_model import (
     line_scale,
     palette,
     value_range,
+    waterfall_bars,
 )
 
 _KINDS = {"bar": XL_CHART_TYPE.BAR_CLUSTERED, "column": XL_CHART_TYPE.COLUMN_CLUSTERED,
-          "stacked_column": XL_CHART_TYPE.COLUMN_STACKED, "line": XL_CHART_TYPE.LINE_MARKERS}
+          "stacked_column": XL_CHART_TYPE.COLUMN_STACKED, "line": XL_CHART_TYPE.LINE_MARKERS,
+          "waterfall": XL_CHART_TYPE.COLUMN_STACKED}  # a waterfall: the visible bars stacked on an invisible base
 _ALIGN = {"left": PP_ALIGN.LEFT, "center": PP_ALIGN.CENTER, "right": PP_ALIGN.RIGHT}
 _ANCHOR = {"top": MSO_ANCHOR.TOP, "middle": MSO_ANCHOR.MIDDLE, "bottom": MSO_ANCHOR.BOTTOM}
 
@@ -51,6 +53,10 @@ def _number_format(values: list[float], unit: str) -> str:
 
 def _fmt_value(v: float, values: list[float], unit: str) -> str:
     return f"{v:.{decimals(values)}f}{unit}".replace("-", "−")
+
+
+def _fmt_signed(v: float, values: list[float], unit: str) -> str:
+    return f"{v:+.{decimals(values)}f}{unit}".replace("-", "−")
 
 
 class _Writer:
@@ -122,8 +128,14 @@ class _Writer:
         fmt = _number_format(values, p.unit)
         data = CategoryChartData(number_format=fmt)
         data.categories = p.categories
-        for s in p.series:
-            data.add_series(s.name, s.values)
+        waterfall = p.kind == "waterfall"
+        if waterfall:  # base: the bar's lower end; visible: its length (stacked columns cannot cross zero, so no negatives)
+            ends = waterfall_bars(p)
+            data.add_series("base", [min(a, b) for a, b in ends])
+            data.add_series(p.series[0].name, [abs(b - a) for a, b in ends])
+        else:
+            for s in p.series:
+                data.add_series(s.name, s.values)
         frame = self.slide.shapes.add_chart(_KINDS[p.kind], self.e(p.x), self.e(p.y), self.e(p.w), self.e(p.h), data)
         self.place(frame, p)
         chart = frame.chart
@@ -134,7 +146,12 @@ class _Writer:
         if chart.has_legend:
             chart.legend.position, chart.legend.include_in_layout = XL_LEGEND_POSITION.BOTTOM, False
         plot = chart.plots[0]
-        for s, ser in zip(p.series, plot.series, strict=True):
+        shown = list(plot.series)
+        if waterfall:
+            base, *shown = shown
+            base.format.fill.background()
+            base.format.line.fill.background()
+        for s, ser in zip(p.series, shown, strict=True):
             if p.kind == "line":
                 ser.smooth = False
                 ser.format.line.color.rgb, ser.format.line.width = _rgb(s.colors[0]), Emu(self.e(6 if s.colors[0] == self.c["highlight"] else 4))
@@ -145,9 +162,17 @@ class _Writer:
                 fill.fore_color.rgb = _rgb(color)
         if p.kind != "line":
             plot.gap_width = 67  # bars take 60% of the band, as in the HTML
-            if p.kind != "stacked_column":
+            if p.kind not in ("stacked_column", "waterfall"):  # stacked bars keep overlap 100
                 plot.overlap = 0
-        if p.labels:
+        if p.labels and waterfall:  # each bar's own text: changes signed, totals plain; ink, panel on the ink totals
+            last = len(p.categories) - 1
+            for i, v in enumerate(p.series[0].values):
+                dl = shown[0].points[i].data_label
+                dl.position = XL_LABEL_POSITION.INSIDE_END  # a stacked column has no outside-end position
+                run = dl.text_frame.paragraphs[0].add_run()
+                run.text = _fmt_value(v, values, p.unit) if i in (0, last) else _fmt_signed(v, values, p.unit)
+                run.font.color.rgb = _rgb(self.c["panel" if i in (0, last) else "ink"])
+        elif p.labels:
             plot.has_data_labels = True
             dl = plot.data_labels
             dl.number_format, dl.number_format_is_linked, dl.show_value = fmt, False, p.kind != "line"

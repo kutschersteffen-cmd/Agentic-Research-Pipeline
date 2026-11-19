@@ -216,13 +216,26 @@ CHART_LABEL = 24  # chart label size, px (the PPTX chart font)
 
 def value_range(p: ChartPrim) -> tuple[float, float]:
     """A bar or column chart's value axis, zero always in range (stacks by their totals); both writers use it."""
-    if p.kind == "stacked_column":
+    if p.kind == "waterfall":
+        tops = lows = [v for ab in waterfall_bars(p) for v in ab]
+    elif p.kind == "stacked_column":
         tops = [sum(max(s.values[i], 0) for s in p.series) for i in range(len(p.categories))]
         lows = [sum(min(s.values[i], 0) for s in p.series) for i in range(len(p.categories))]
     else:
         tops = lows = [v for s in p.series for v in s.values]
     lo, hi = min(0, *lows), max(0, *tops)
     return lo, hi if hi > lo else lo + 1
+
+
+def waterfall_bars(p: ChartPrim) -> list[tuple[float, float]]:
+    """A component waterfall's bars as (from, to) on the value scale: the first and last rows are totals from 0, each
+    row between a signed change from the running total before it to the one after it. Both writers use it."""
+    values = p.series[0].values
+    out, run = [(0.0, values[0])], values[0]
+    for v in values[1:-1]:
+        out.append((run, run + v))
+        run += v
+    return [*out, (0.0, values[-1])]
 
 
 def bar_label_width(p: ChartPrim) -> float:

@@ -2,6 +2,8 @@
 
 Bars are `well`, the second series `series_2`, the highlighted category or series `highlight` (lines have no `well`:
 it does not show on `panel`). Over 10 bar/column categories: the top 9 by value plus "Other", with a `chart_capped` finding.
+A waterfall's first and last rows are totals (`ink`), the rows between signed changes (`series_2`, the highlighted step
+`highlight`); 3 to 10 rows, the end total equal to the start plus the changes, every running total at or above 0.
 """
 
 from arp.reporting.render_model import (
@@ -19,6 +21,7 @@ from arp.reporting.render_model import (
     Text,
     VisualDataError,
     bar_label_width,
+    decimals,
     line_point,
     palette,
 )
@@ -36,6 +39,22 @@ def _capped(cats: list[str], cols: list[list[float]], ctx) -> tuple[list[str], l
     ctx.findings.append(Finding(slide=ctx.index, stage="fit", rule="chart_capped",
                                 message=f"{n} categories: the top {CAP - 1} by value are shown, the other {len(rest)} as Other"))
     return [cats[i] for i in keep] + ["Other"], [[col[i] for i in keep] + [sum(col[i] for i in rest)] for col in cols]
+
+
+def _check_waterfall(cats: list[str], values: list[float]) -> None:
+    """Row count, then end total, then every running total at or above 0 (a stacked column cannot cross zero)."""
+    if not 3 <= len(values) <= 10:
+        raise VisualDataError(f"a waterfall has 3 to 10 rows (got {len(values)})")
+    dec = decimals(values)
+    fmt = lambda v: f"{v:.{dec}f}".replace("-", "−")  # noqa: E731
+    total = round(sum(values[:-1]), dec)
+    if round(values[-1], dec) != total:
+        raise VisualDataError(f"waterfall end total {fmt(values[-1])} is not the start plus the changes ({fmt(total)})")
+    run = 0.0
+    for i, (cat, v) in enumerate(zip(cats, values, strict=True)):
+        run = v if i in (0, len(values) - 1) else run + v
+        if round(run, dec) < 0:
+            raise VisualDataError(f"a waterfall's running total must stay at or above 0 ({cat}: {fmt(run)})")
 
 
 def _callout(visual, chart: ChartPrim, c, body) -> list[Primitive]:
@@ -66,7 +85,7 @@ def _callout(visual, chart: ChartPrim, c, body) -> list[Primitive]:
 def _clipped_label(chart: ChartPrim, ctx) -> None:
     """An `overflow` finding when a category label is wider than its room: left of the bars (bar), or its band (column),
     where it would be clipped or run into its neighbour. Neither shows in the page's text boxes, so it is checked here."""
-    if chart.kind not in ("bar", "column", "stacked_column"):
+    if chart.kind not in ("bar", "column", "stacked_column", "waterfall"):
         return
     room = bar_label_width(chart) if chart.kind == "bar" else chart.w / len(chart.categories)
     wide = [cat for cat in chart.categories if lines(cat, CHART_LABEL, room) > 1]
@@ -102,13 +121,20 @@ def render(visual, box, ctx):
         raise VisualDataError(f"dataset {spec.dataset_id!r} has no rows")
     cats = [str(r.get(spec.category_column, "")) for r in ds.rows]
     cols = [[number(r.get(col)) for r in ds.rows] for col in spec.value_columns]
-    if visual.kind != "line" and len(cats) > CAP:
-        cats, cols = _capped(cats, cols, ctx)
-    series = []
-    for j, (name, values) in enumerate(zip(spec.value_columns, cols, strict=True)):
-        base = c["series_2"] if j or visual.kind == "line" else c["well"]
-        colors = [c["highlight"] if visual.highlight in (name, cat) else base for cat in cats]
-        series.append(Series(name, values, colors))
+    if visual.kind == "waterfall":
+        _check_waterfall(cats, cols[0])
+        last = len(cats) - 1
+        colors = [c["ink"] if i in (0, last) else c["highlight"] if cat == visual.highlight else c["series_2"]
+                  for i, cat in enumerate(cats)]
+        series = [Series(spec.value_columns[0], cols[0], colors)]
+    else:
+        if visual.kind != "line" and len(cats) > CAP:
+            cats, cols = _capped(cats, cols, ctx)
+        series = []
+        for j, (name, values) in enumerate(zip(spec.value_columns, cols, strict=True)):
+            base = c["series_2"] if j or visual.kind == "line" else c["well"]
+            colors = [c["highlight"] if visual.highlight in (name, cat) else base for cat in cats]
+            series.append(Series(name, values, colors))
     chart_w = box.w - (CARD_W + S48 if visual.insight else 0)
     label = (spec.title or ds.name) + (f", {visual.unit}" if visual.unit else "")
     top = S24 + S16
