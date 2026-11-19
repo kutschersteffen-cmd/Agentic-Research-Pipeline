@@ -70,8 +70,8 @@ class Line:
 @dataclass(frozen=True)
 class Series:
     name: str
-    values: list[float]
-    colors: list[str]  # one fill per point
+    values: list[float | None]  # None: an empty heatmap cell
+    colors: list[str]  # one fill per point (a heatmap's fills come from its values, in vega.heatmap_layers)
 
 
 @dataclass(frozen=True)
