@@ -149,6 +149,7 @@ class RenderCtx:
     type_step: int = 0
     findings: list[Finding] = field(default_factory=list)
     images: dict[str, LoadedImage] = field(default_factory=dict)
+    cover_image: str | None = None  # the registered image drawn behind the cover (`DeckSettings.cover_image`)
 
 
 VISUALS: dict[str, Callable[[object, Box, RenderCtx], list[Primitive]]] = {}
@@ -228,11 +229,13 @@ def anatomy(slide: SlideContent, index: int, tokens: Tokens, mode: Mode) -> list
 
 def render_slide(slide: SlideContent, index: int, deck: Deck, tokens: Tokens, datasets: dict[str, QuantitativeDataset],
                  mode: Mode = "light", findings: list[Finding] | None = None, *,
-                 images: dict[str, LoadedImage] | None = None) -> list[Primitive]:
+                 images: dict[str, LoadedImage] | None = None, cover_image: str | None = None) -> list[Primitive]:
     """The slide's primitives: anatomy plus its visual in the body box; cover and section are full-bleed.
     `findings`, when given, collects what the visual renderer found (a capped chart, a clipped category label).
-    `images` holds the report's registered images by name; an image visual naming one missing from it is a VisualDataError."""
-    ctx = RenderCtx(tokens, mode, deck, index, datasets, slide.type_step, findings if findings is not None else [], images or {})
+    `images` holds the report's registered images by name; an image visual naming one missing from it is a VisualDataError.
+    `cover_image` names the registered image drawn behind a `cover` visual."""
+    ctx = RenderCtx(tokens, mode, deck, index, datasets, slide.type_step, findings if findings is not None else [], images or {},
+                    cover_image)
     visual = slide.visual
     if visual.type in FULL_BLEED:
         return VISUALS[visual.type](visual, Box(x=0, y=0, w=tokens.canvas.width, h=tokens.canvas.height), ctx)

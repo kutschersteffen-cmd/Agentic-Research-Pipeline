@@ -99,14 +99,14 @@ def _slot_view(i: int, slide: SlideContent, spec, tokens: Tokens, datasets: dict
 
 
 def render_deck_html(deck: Deck, datasets: list[QuantitativeDataset], tokens: Tokens | None = None, mode: Mode = "light", *,
-                     images: dict[str, LoadedImage] | None = None) -> str:
+                     images: dict[str, LoadedImage] | None = None, cover_image: str | None = None) -> str:
     tokens = tokens or load_tokens()
     theme = theme_from_tokens(tokens, mode)
     by_id = {d.dataset_id: d for d in datasets}
     slides, families = [], set()
     for i, s in enumerate(deck.slides):
         if s.visual is not None:  # component slide: drawn from the render model
-            prims = render_slide(s, i, deck, tokens, by_id, mode, images=images)
+            prims = render_slide(s, i, deck, tokens, by_id, mode, images=images, cover_image=cover_image)
             families |= {p.family for p in prims if isinstance(p, Text)}
             slides.append({"index": i, "visual": s.visual.type, "html": html_slide(prims, tokens, mode, images)})
             continue
