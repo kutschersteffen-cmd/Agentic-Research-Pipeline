@@ -66,6 +66,8 @@ class Line:
     width: float
     arrow: bool = False
     emphasis: bool = False
+    start: str | None = None  # the primitive this line starts on (a flow arrow's `step:<source>`); the PPTX glues to it
+    end: str | None = None  # the primitive it ends on (`step:<target>`)
 
 
 @dataclass(frozen=True)

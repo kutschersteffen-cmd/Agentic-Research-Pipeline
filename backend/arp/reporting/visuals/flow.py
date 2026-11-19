@@ -47,7 +47,8 @@ def render(visual, box, ctx):
         if step.stored:
             out.append(Rect(f"{name}:stored", b.x, b.y + b.h - S8, b.w, S8, c["ink"]))
     for n, (arrow, lay) in enumerate(zip(visual.arrows, layout.arrows, strict=True), start=1):
-        out.append(Line(f"arrow:{n}", list(lay.points), c["ink"], 2, arrow=True))
+        out.append(Line(f"arrow:{n}", list(lay.points), c["ink"], 2, arrow=True,
+                        start=f"step:{arrow.source}", end=f"step:{arrow.target}"))
         if arrow.label.strip() and lay.label_box is not None:
             lb = lay.label_box
             out.append(Text(f"arrow:{n}:label", lb.x, lb.y, lb.w, lb.h, arrow.label.strip(), SMALL, 400, mono, c["muted"],

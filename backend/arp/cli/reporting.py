@@ -381,3 +381,46 @@ def reporting_sheet(out: Path = typer.Option(..., help="Directory for the review
 
     paths = write_sheet(out)
     typer.echo(f"Wrote {len(paths)} PNGs to {out}")
+
+
+@reporting_app.command("flow")
+def reporting_flow(
+    file: Path = typer.Argument(..., exists=True, dir_okay=False, help="A Mermaid flowchart (.mmd)."),
+    out: str = typer.Option(..., help="Directory for flow.pptx, flow.pdf and flow.png; created if missing."),
+    headline: str | None = typer.Option(None, help="Slide headline; default: FILE's name without its extension."),
+    kicker: str = typer.Option("", help="Slide kicker."),
+    theme: str = typer.Option("light", click_type=click.Choice(["light", "dark"]), metavar="light|dark", help="Colour mode."),
+) -> None:
+    """Turns one Mermaid flowchart into one house slide (PPTX, PDF, 1920×1080 PNG); no report, database or model."""
+    from arp.reporting.browser import write_pdf, write_pngs
+    from arp.reporting.flow_layout import layout_flows
+    from arp.reporting.house_pptx import build_house_pptx
+    from arp.reporting.house_style import load_tokens
+    from arp.reporting.html_render import render_deck_html
+    from arp.reporting.mermaid_flow import MermaidError, parse_mermaid
+    from arp.schemas.reporting import Deck, SlideContent
+    from arp.schemas.visuals import Flow
+
+    text = file.read_text(encoding="utf-8")
+    try:
+        parse_mermaid(text)
+    except MermaidError as exc:  # the parser's message is the whole error; nothing is written
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    title = file.stem if headline is None else headline
+    deck = Deck(title=title, slides=[SlideContent(headline=title, kicker=kicker, visual=Flow(mermaid=text))])
+    tokens = load_tokens()
+    dest = Path(out)
+
+    async def write() -> list:
+        laid, findings = await layout_flows(deck, tokens, theme)
+        html = render_deck_html(laid, [], tokens, theme)
+        await write_pdf(html, dest / "flow.pdf")
+        (page,) = await write_pngs(html, dest, scale=1)
+        page.replace(dest / "flow.png")
+        build_house_pptx(laid, [], dest / "flow.pptx", tokens, theme)
+        return findings
+
+    for f in asyncio.run(write()):
+        typer.echo(f"{f.rule}: {f.message}", err=True)
+    typer.echo(f"Wrote flow.pptx, flow.pdf, flow.png to {out}")

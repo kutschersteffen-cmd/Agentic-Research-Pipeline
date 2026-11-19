@@ -141,8 +141,13 @@ def sheet_snapshot(mode: str = "light") -> list[list[dict]]:
     """Every primitive of every sheet slide (type, name, box, colours, sizes, text), the review sheet's golden."""
     deck, ds, _ = sheet_deck()
     by_id = {d.dataset_id: d for d in ds}
-    return [[{"type": type(p).__name__, **_plain(dataclasses.asdict(p))} for p in render_slide(s, i, deck, load_tokens(), by_id, mode)]
+    return [[{"type": type(p).__name__, **_plain(_fields(p))} for p in render_slide(s, i, deck, load_tokens(), by_id, mode)]
             for i, s in enumerate(deck.slides)]
+
+
+def _fields(p) -> dict:
+    """The primitive's fields, less a Line's unset glue (`start`, `end`: flow arrows only), so the snapshot stays as it was."""
+    return {k: v for k, v in dataclasses.asdict(p).items() if not (k in ("start", "end") and v is None)}
 
 
 def write_sheet(out: Path) -> list[Path]:
