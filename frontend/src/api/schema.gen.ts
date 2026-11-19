@@ -10776,7 +10776,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "bar" | "column" | "stacked_column" | "line";
+            kind: "bar" | "column" | "stacked_column" | "line" | "waterfall";
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -13855,6 +13855,29 @@ export interface components {
             /** Target */
             target: string;
         };
+        /** FlowArrowLayout */
+        FlowArrowLayout: {
+            label_box?: components["schemas"]["FlowBox"] | null;
+            /** Points */
+            points: [
+                number,
+                number
+            ][];
+        };
+        /**
+         * FlowBox
+         * @description A rectangle in canvas px.
+         */
+        FlowBox: {
+            /** H */
+            h: number;
+            /** W */
+            w: number;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        };
         /** FlowFile */
         FlowFile: {
             /** Check */
@@ -13891,14 +13914,18 @@ export interface components {
         };
         /**
          * FlowLayout
-         * @description Filled by code (`layout_flows`), never by the model.
+         * @description Filled by code (`layout_flows`), never by the model. All positions are absolute canvas px.
          */
         FlowLayout: {
+            /** Arrows */
+            arrows?: components["schemas"]["FlowArrowLayout"][];
             /**
              * Height
              * @default 0
              */
             height: number;
+            /** Steps */
+            steps?: components["schemas"]["FlowStepLayout"][];
             /**
              * Too Big
              * @default false
@@ -14038,6 +14065,14 @@ export interface components {
              * @default
              */
             tag: string;
+        };
+        /** FlowStepLayout */
+        FlowStepLayout: {
+            box: components["schemas"]["FlowBox"];
+            /** Id */
+            id: string;
+            /** Label Lines */
+            label_lines: string[];
         };
         /** FromCompaniesRequest */
         FromCompaniesRequest: {
@@ -14396,6 +14431,41 @@ export interface components {
             companies?: components["schemas"]["CompanyRef"][] | null;
             /** Universe Path */
             universe_path?: string | null;
+        };
+        /** ImageItem */
+        ImageItem: {
+            /**
+             * Caption
+             * @default
+             */
+            caption: string;
+            /** Name */
+            name: string;
+        };
+        /** ImageVisual */
+        ImageVisual: {
+            /** Emphasis */
+            emphasis?: number | null;
+            /** Images */
+            images: components["schemas"]["ImageItem"][];
+            /** Points */
+            points?: string[];
+            /**
+             * Side
+             * @default left
+             * @enum {string}
+             */
+            side: "left" | "right";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "image";
+            /**
+             * Variant
+             * @enum {string}
+             */
+            variant: "hero" | "split" | "gallery";
         };
         /** ImportRequest */
         ImportRequest: {
@@ -18745,7 +18815,7 @@ export interface components {
              */
             variant: string;
             /** Visual */
-            visual?: (components["schemas"]["Cover"] | components["schemas"]["Section"] | components["schemas"]["KpiRow"] | components["schemas"]["Chart"] | components["schemas"]["ComparisonTable"] | components["schemas"]["TwoColumn"] | components["schemas"]["Points"] | components["schemas"]["NextSteps"] | components["schemas"]["Flow"]) | null;
+            visual?: (components["schemas"]["Cover"] | components["schemas"]["Section"] | components["schemas"]["KpiRow"] | components["schemas"]["Chart"] | components["schemas"]["ComparisonTable"] | components["schemas"]["TwoColumn"] | components["schemas"]["Points"] | components["schemas"]["NextSteps"] | components["schemas"]["Flow"] | components["schemas"]["ImageVisual"]) | null;
         };
         /** SmartSearchRequest */
         SmartSearchRequest: {
