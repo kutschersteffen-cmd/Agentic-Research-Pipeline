@@ -240,6 +240,8 @@ def build_house_pptx(deck: Deck, datasets: list[QuantitativeDataset], out: Path,
         notes = content.speaker_notes
         if not footer_fits(tokens):  # no source zone under the template's body box: the source line moves to the notes
             notes = "\n".join(x for x in (notes, content.source_line or source_line(content, by_id)) if x)
+        if content.visual.type == "flow" and content.visual.mermaid.strip():  # the flow's source, so it can be edited and rebuilt
+            notes = "\n".join(x for x in (notes, "Mermaid source:\n" + content.visual.mermaid.rstrip()) if x)
         if notes:
             slide.notes_slide.notes_text_frame.text = notes
     out.parent.mkdir(parents=True, exist_ok=True)
