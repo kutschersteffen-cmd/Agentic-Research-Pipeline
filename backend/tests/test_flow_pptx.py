@@ -10,7 +10,9 @@ import pytest
 from PIL import Image
 from pptx import Presentation
 from pptx.oxml.ns import qn
+from typer.testing import CliRunner
 
+from arp.cli.reporting import reporting_app
 from arp.reporting.flow_layout import layout_flows
 from arp.reporting.house_pptx import build_house_pptx
 from arp.reporting.house_style import load_tokens
@@ -102,17 +104,16 @@ def test_sheet_deck_has_no_groups_or_connectors(tmp_path):
         assert not [sh.name for sh in slide.shapes if sh.name.startswith("group:")]
 
 
-def _flow_cli(tmp_path: Path, text: str, name: str = "f1.mmd") -> tuple[subprocess.CompletedProcess, Path]:
+def _flow_cli(tmp_path: Path, monkeypatch, text: str, name: str = "f1.mmd"):
+    """`arp report flow NAME --out d` in this process (so coverage sees it), from `tmp_path`."""
     (tmp_path / name).write_text(text)
-    env = {k: v for k, v in os.environ.items() if not k.startswith("ARP_POSTGRES")}  # needs no database
-    run = subprocess.run([sys.executable, "-m", "arp", "report", "flow", name, "--out", "d"], cwd=tmp_path, env=env,
-                         capture_output=True, text=True)
-    return run, tmp_path / "d"
+    monkeypatch.chdir(tmp_path)
+    return CliRunner().invoke(reporting_app, ["flow", name, "--out", "d"]), tmp_path / "d"
 
 
-def test_ac31_report_flow_writes_three_files(tmp_path):
-    run, d = _flow_cli(tmp_path, F1)
-    assert (run.returncode, run.stdout) == (0, "Wrote flow.pptx, flow.pdf, flow.png to d\n"), run.stderr
+def test_ac31_report_flow_writes_three_files(tmp_path, monkeypatch):
+    run, d = _flow_cli(tmp_path, monkeypatch, F1)
+    assert (run.exit_code, run.stdout) == (0, "Wrote flow.pptx, flow.pdf, flow.png to d\n"), run.output
     with Image.open(d / "flow.png") as im:
         assert im.size == (1920, 1080)
     prs = Presentation(str(d / "flow.pptx"))
@@ -120,14 +121,22 @@ def test_ac31_report_flow_writes_three_files(tmp_path):
     assert (d / "flow.pdf").stat().st_size > 0
 
 
-def test_ac32_parse_error_writes_nothing(tmp_path):
-    run, d = _flow_cli(tmp_path, "flowchart LR\n  a --> b\n  subgraph s\n", "bad.mmd")
-    assert (run.returncode, run.stderr) == (1, "line 3: subgraph is not supported\n")
+def test_ac31_report_flow_needs_no_database(tmp_path):
+    (tmp_path / "f3.mmd").write_text(F3)
+    env = {k: v for k, v in os.environ.items() if not k.startswith("ARP_POSTGRES")}
+    run = subprocess.run([sys.executable, "-m", "arp", "report", "flow", "f3.mmd", "--out", "d"], cwd=tmp_path, env=env,
+                         capture_output=True, text=True)
+    assert (run.returncode, run.stdout) == (0, "Wrote flow.pptx, flow.pdf, flow.png to d\n"), run.stderr
+
+
+def test_ac32_parse_error_writes_nothing(tmp_path, monkeypatch):
+    run, d = _flow_cli(tmp_path, monkeypatch, "flowchart LR\n  a --> b\n  subgraph s\n", "bad.mmd")
+    assert (run.exit_code, run.stderr) == (1, "line 3: subgraph is not supported\n")
     assert not d.exists()
 
 
-def test_ac33_too_big_still_writes_and_warns(tmp_path):
-    run, d = _flow_cli(tmp_path, F4, "f4.mmd")
-    assert run.returncode == 0, run.stderr
+def test_ac33_too_big_still_writes_and_warns(tmp_path, monkeypatch):
+    run, d = _flow_cli(tmp_path, monkeypatch, F4, "f4.mmd")
+    assert run.exit_code == 0, run.output
     assert all((d / f).exists() for f in ("flow.pptx", "flow.pdf", "flow.png"))
     assert len([ln for ln in run.stderr.splitlines() if ln.startswith("flow_too_big: laid out ")]) == 1
