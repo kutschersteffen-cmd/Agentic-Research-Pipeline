@@ -161,14 +161,36 @@ class FlowArrow(BaseModel):
     label: Words(3) = ""
 
 
+class FlowBox(BaseModel):
+    """A rectangle in canvas px."""
+
+    x: float
+    y: float
+    w: float
+    h: float
+
+
+class FlowStepLayout(BaseModel):
+    id: str
+    box: FlowBox
+    label_lines: list[str]
+
+
+class FlowArrowLayout(BaseModel):
+    points: list[tuple[float, float]]  # the route, source border to target border
+    label_box: FlowBox | None = None
+
+
 class FlowLayout(BaseModel):
-    """Filled by code (`layout_flows`), never by the model."""
+    """Filled by code (`layout_flows`), never by the model. All positions are absolute canvas px."""
 
     type_step: Literal[0, 1] = 0
     wrapped: bool = False
     too_big: bool = False
     width: float = 0
     height: float = 0
+    steps: list[FlowStepLayout] = Field(default_factory=list)  # in `steps` order
+    arrows: list[FlowArrowLayout] = Field(default_factory=list)  # in `arrows` order
 
 
 class Flow(BaseModel):
