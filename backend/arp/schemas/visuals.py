@@ -96,7 +96,7 @@ class KpiRow(BaseModel):
 class Chart(BaseModel):
     type: Literal["chart"] = "chart"
     data: ChartSpec
-    kind: Literal["bar", "column", "stacked_column", "line", "heatmap"]
+    kind: Literal["bar", "column", "stacked_column", "line", "waterfall", "heatmap"]
     unit: Chars(6) = ""
     data_labels: bool = True
     highlight: str | None = None
@@ -107,6 +107,8 @@ class Chart(BaseModel):
     def _series(self):
         if not 1 <= len(self.data.value_columns) <= 3:
             raise ValueError("a chart plots 1 to 3 value columns")
+        if self.kind == "waterfall" and len(self.data.value_columns) != 1:
+            raise ValueError("a waterfall plots 1 value column")
         if self.kind == "heatmap":
             if not self.data.y_column:
                 raise ValueError("a heatmap needs y_column")
@@ -166,14 +168,36 @@ class FlowArrow(BaseModel):
     label: Words(3) = ""
 
 
+class FlowBox(BaseModel):
+    """A rectangle in canvas px."""
+
+    x: float
+    y: float
+    w: float
+    h: float
+
+
+class FlowStepLayout(BaseModel):
+    id: str
+    box: FlowBox
+    label_lines: list[str]
+
+
+class FlowArrowLayout(BaseModel):
+    points: list[tuple[float, float]]  # the route, source border to target border
+    label_box: FlowBox | None = None
+
+
 class FlowLayout(BaseModel):
-    """Filled by code (`layout_flows`), never by the model."""
+    """Filled by code (`layout_flows`), never by the model. All positions are absolute canvas px."""
 
     type_step: Literal[0, 1] = 0
     wrapped: bool = False
     too_big: bool = False
     width: float = 0
     height: float = 0
+    steps: list[FlowStepLayout] = Field(default_factory=list)  # in `steps` order
+    arrows: list[FlowArrowLayout] = Field(default_factory=list)  # in `arrows` order
 
 
 class Flow(BaseModel):
