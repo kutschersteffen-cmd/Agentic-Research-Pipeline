@@ -5,6 +5,7 @@ from arp.research.authority_taxonomy.consolidate import consolidate
 from arp.research.authority_taxonomy.extract import SourceExtraction, _ActivitiesDraft, extract_source
 from arp.research.indirect_exposure.core_sectors import _CoreSectorSelection
 from arp.research.indirect_exposure.factory import SAMPLE_DIR, resolve_indirect_exposure_model
+from arp.research.indirect_exposure.migrate import icio_sectors
 from arp.research.standards_mapping.gics import _GicsSelectionList
 from arp.schemas.authority_taxonomy import Definition, SectorCode, SourceCitation, Technology, Threshold, merge_key
 from arp.schemas.thematic import ActivityDefinition
@@ -25,14 +26,14 @@ def _settings(tmp_path, io: bool = False) -> Settings:
 def _act(name, url, role="core", isic=None):
     return ActivityDefinition(
         name=name, in_scope_description=name, out_of_scope_description="", value_chain_role=role,
-        core_isic_codes=isic or [], citations=[SourceCitation(quote=name, source_url=url)],
+        core_sectors=[s for c in isic or [] for s in icio_sectors(c)], citations=[SourceCitation(quote=name, source_url=url)],
     )
 
 
 def _fake(n: int, isic: list[str] | None = None) -> FakeLLMClient:
     script = {_GicsSelectionList.__name__: [_GicsSelectionList(matches=[]) for _ in range(n)]}
     if isic is not None:
-        script[_CoreSectorSelection.__name__] = [_CoreSectorSelection(isic_codes=isic, rationale="r") for _ in range(n)]
+        script[_CoreSectorSelection.__name__] = [_CoreSectorSelection(sectors=[s for c in isic for s in icio_sectors(c)], rationale="r") for _ in range(n)]
     return FakeLLMClient(script)
 
 
@@ -73,10 +74,10 @@ async def test_input_extractions_unchanged(tmp_path):
     assert [c.text for c in theme.activities[0].criteria] == ["c"]
 
 
-async def test_no_model_keeps_raw_isic_code(tmp_path):
+async def test_no_model_still_labels_isic_division(tmp_path):  # sector -> ISIC goes through NACE, no IO model needed
     ext = SourceExtraction(url="A", activities=[_act("Power", "A", isic=["D"])])
     theme, _ = await _run([ext], tmp_path)
-    assert [c.code for c in theme.activities[0].sector_codes if c.system == "ISIC"] == ["D"]
+    assert [c.code for c in theme.activities[0].sector_codes if c.system == "ISIC"] == ["D35"]
 
 
 async def test_exiobase_top5(tmp_path):

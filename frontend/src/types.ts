@@ -128,7 +128,7 @@ export interface ActivityDefinition {
   in_scope_description: string;
   out_of_scope_description: string;
   seed_keywords: string[];
-  core_isic_codes?: string[];
+  core_sectors?: string[];
   source_citation?: Citation | null;
   standards_mapping?: ActivityStandardsMapping | null;
 }
@@ -184,7 +184,7 @@ export interface IndirectExposureResult {
   upstream_exposure: number;
   downstream_exposure: number;
   core_sector: boolean;
-  icio_edition: string;
+  io_edition: string;
   generated_at: string;
 }
 
@@ -3004,7 +3004,7 @@ export type VcMaterialTreeNode = Served<S["ValueChainMaterialTreeNode"]>;
 export type VcLinks = Served<S["ValueChainLinks"]>;
 export type VcLinkRuleIn = S["LinkRuleIn"];
 export type VcPortfolio = Served<S["ValueChainPortfolio"]>;
-export type VcIcioCode = Served<S["IcioCode"]>;
+export type VcSector = Served<S["Sector"]>;
 export type VcExposure = Served<S["Exposure"]>;
 export type VcRoutes = Served<S["RevenueRoutes"]>;
 export type VcRecipe = Served<S["RecipeOut"]>;

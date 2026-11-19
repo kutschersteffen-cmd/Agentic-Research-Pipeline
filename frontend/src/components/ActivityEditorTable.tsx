@@ -12,7 +12,7 @@ function CodeList({ label, codes }: { label: string; codes: { code: string; labe
 
 function StandardsMappingDisplay({ mapping }: { mapping: ActivityStandardsMapping }) {
   const hasAny = mapping.nace_codes.length || mapping.naics_codes.length || mapping.sic_codes.length || mapping.gics.length;
-  if (!hasAny && mapping.unmapped_isic_codes.length === 0) return null;
+  if (!hasAny && mapping.unmapped_sectors.length === 0) return null;
   return (
     <div className="standards-mapping">
       <CodeList label="NACE" codes={mapping.nace_codes} />
@@ -30,8 +30,8 @@ function StandardsMappingDisplay({ mapping }: { mapping: ActivityStandardsMappin
           <span className="muted">[LLM-classified]</span>
         </span>
       )}
-      {mapping.unmapped_isic_codes.length > 0 && (
-        <span className="standards-chip muted">No crosswalk entry for ISIC {mapping.unmapped_isic_codes.join(", ")}</span>
+      {mapping.unmapped_sectors.length > 0 && (
+        <span className="standards-chip muted">No crosswalk entry for {mapping.unmapped_sectors.join(", ")}</span>
       )}
     </div>
   );

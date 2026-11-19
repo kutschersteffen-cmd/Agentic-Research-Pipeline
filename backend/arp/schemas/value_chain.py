@@ -177,22 +177,21 @@ class ValueChainMaterialTree(ValueChainMaterialTreeNode):
 
 class LinkRule(BaseModel):
     """An analyst's (or Scope 6's LLM) link of a company or taxonomy activity to value-chain nodes, stored as
-    ICIO codes or region + sector names, never node ids. docs/superpowers/specs/2026-10-27-value-chain-links-overlays-design.md"""
+    EXIOBASE sector names or region + sector names, never node ids. docs/superpowers/specs/2026-10-27-value-chain-links-overlays-design.md"""
 
     kind: Literal["split", "nodes", "llm"]
-    parts: list[dict] = Field(description="split/llm: [{icio_code, share}]; nodes: [{region, sector, share}].")
+    parts: list[dict] = Field(description="split/llm: [{sectors, share}]; nodes: [{region, sector, share}].")
     set_by: str
     set_at: str
 
 
-class IcioCode(BaseModel):
-    code: str
-    label: str
+class Sector(BaseModel):
+    name: str
 
 
 class LinkRuleIn(BaseModel):
     kind: Literal["split", "nodes"]
-    parts: list[dict] = Field(description="split: [{icio_code, share}]; nodes: [{region, sector, share}]; shares sum to 1.")
+    parts: list[dict] = Field(description="split: [{sectors, share}]; nodes: [{region, sector, share}]; shares sum to 1.")
 
 
 class WeightedNode(BaseModel):
@@ -206,7 +205,9 @@ class ValueChainLinks(BaseModel):
     edition: str
     caveat: str
     subject: str
-    source: Literal["nodes", "split", "nace", "code", "llm", "none"]
+    source: Literal["nodes", "split", "nace", "code", "llm", "none"] = Field(
+        description="code: an activity linked through its core_sectors."
+    )
     region: str | None = Field(description="The company's EXIOBASE region; null for activities.")
     nodes: list[WeightedNode]
     unresolved: list[dict] = Field(description="Rule parts the current build has no node for.")
@@ -221,7 +222,7 @@ class PortfolioHoldingLink(BaseModel):
     name: str
     market_value_eur: float
     weight: float
-    link_source: Literal["nodes", "split", "nace", "code", "llm", "none"]
+    link_source: Literal["nodes", "split", "nace", "llm", "none"]
     top_node: WeightedNode | None
     owned_output_meur: float | None
 

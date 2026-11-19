@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import numpy as np
 
-from arp.research.indirect_exposure.criticality import critical_isic_codes
-from arp.research.indirect_exposure.factory import code_list
+from arp.research.indirect_exposure.criticality import critical_sectors as registry_critical_sectors
 from arp.research.indirect_exposure.io_import import FD_GROUPS, country_regions, group_order, region_groups
 from arp.research.indirect_exposure.leontief import LeontiefModel
-from arp.research.indirect_exposure.nace import division_sectors, isic_to_nace2, nace_sectors, nace_title
-from arp.research.value_chain.model import sector_name
+from arp.research.indirect_exposure.nace import code_set_sectors, isic_to_nace2, nace_title
 from arp.schemas.exposure import IndirectExposureResult, RegionalExposure
 
 
@@ -51,57 +49,52 @@ def _regional(model: LeontiefModel, region: str, core: np.ndarray, column: np.nd
 
 def compute_indirect_exposure(
     company_id: str,
-    isic_code: str,
+    sector: str,
     model: LeontiefModel,
-    core_codes: set[str],
-    icio_edition: str,
+    core_sectors: set[str],
+    io_edition: str,
     *,
-    critical_codes: set[str] | None = None,
+    critical_sectors: set[str] | None = None,
     country: str | None = None,
     nace: tuple[str, str, str] | None = None,
 ) -> IndirectExposureResult | None:
     """Computes structural exposure via Leontief propagation. Pure
     arithmetic on an already-built model -- no LLM call, effectively free
-    per company. Returns None if the company's code is unknown or covers no
-    node, or the theme's core codes cover none.
+    per company. Returns None if the company's sector is unknown or has no
+    node, or the theme's core sectors have none.
 
-    The company is the output-weighted set of nodes its code covers in the
+    The company is the output-weighted set of its sector's nodes in the
     EXIOBASE region of its `country` (ISO alpha-2/3), or in every region
     when the country is unknown or its region not in the build; the core is
-    every node a core code covers, in every region.
+    every node of a core sector, in every region.
 
-    `critical_codes` defaults to the bundled criticality registry's ISIC
-    set (arp.research.indirect_exposure.criticality) when not supplied --
+    `critical_sectors` defaults to the bundled criticality registry's
+    sectors (arp.research.indirect_exposure.criticality) when not supplied --
     the parameter exists so callers/tests can inject a synthetic set
     without depending on the real bundled registry's contents.
 
     `nace` (scheme, code, rev from value_chain.links.company_nace) replaces
-    `isic_code`: the company is then the nodes of its NACE set, and core
-    and critical-input status come from shared EXIOBASE sectors.
+    `sector`: the company is then the nodes of its NACE set.
     """
-    resolved_critical_codes = critical_codes if critical_codes is not None else critical_isic_codes()
+    critical = critical_sectors if critical_sectors is not None else registry_critical_sectors()
     if nace is None:
-        nodes = model.code_nodes.get(isic_code)
+        nodes = model.code_nodes.get(sector)
         if nodes is None:
             return None
-        scheme, label = "icio", model.labels.get(isic_code)
-        core_sector, critical_input = isic_code in core_codes, isic_code in resolved_critical_codes
+        scheme, code, label, names = "exiobase", sector, sector, {sector}
     else:
-        scheme, isic_code, rev = nace
-        targets = isic_to_nace2(isic_code) if scheme == "isic4" else [isic_code]
-        names = {sector_name(s) for t in targets for s in nace_sectors(t, rev)}
+        scheme, code, rev = nace
+        targets = isic_to_nace2(code) if scheme == "isic4" and len(code) == 4 else [code]
+        names = code_set_sectors(*nace)
         nodes = np.flatnonzero(np.isin(model.sectors, list(names)))
         label = nace_title(targets[0], rev) if targets else None
-        covers = code_list().covers
-        core_names = {sector_name(s) for c in core_codes for s in covers.get(c, ())}
-        critical_names = {sector_name(s) for d in resolved_critical_codes for s in division_sectors(d)}
-        core_sector, critical_input = bool(names & core_names), bool(names & critical_names)
+    core_sector, critical_input = bool(names & core_sectors), bool(names & critical)
     region = country_regions().get((country or "").upper())
     if region not in set(model.regions):
         region = None
     if region is not None:
         nodes = nodes[model.regions[nodes] == region]
-    core = np.unique(np.concatenate([model.code_nodes.get(c, np.array([], dtype=np.intp)) for c in core_codes] or [[]])).astype(np.intp)
+    core = np.unique(np.concatenate([model.code_nodes.get(c, np.array([], dtype=np.intp)) for c in core_sectors] or [[]])).astype(np.intp)
     if not len(nodes) or not len(core):
         return None
 
@@ -118,14 +111,14 @@ def compute_indirect_exposure(
     ghg = model.ghg_t_per_meur
     return IndirectExposureResult(
         company_id=company_id,
-        isic_code=isic_code,
+        isic_code=code,
         isic_label=label,
         code_scheme=scheme,
         upstream_exposure=_clamp(_share(column[core].sum(), column.sum())),
         downstream_exposure=_clamp(_share(row[core].sum(), row.sum())),
         core_sector=core_sector,
         critical_input=critical_input,
-        icio_edition=icio_edition,
+        io_edition=io_edition,
         end_market=end_market,
         theme_demand_share=theme_demand_share,
         ghg_direct_t_per_meur=float(weights @ ghg[nodes]),

@@ -53,8 +53,18 @@ export const pct1 = (v: number): string => percent(v, 1);
 export const portfolioHash = (id?: string): string => `#/valueChain/portfolio${id ? `/${encodeURIComponent(id)}` : ""}`;
 
 /** One rule part the current build has no node for, as the link editor lists it. */
-export const unresolvedText = (part: { icio_code?: string; region?: string; sector?: string; share: number }): string =>
-  `Not in this edition: ${part.icio_code ?? `${part.region} · ${part.sector}`} ${pct1(part.share)}`;
+export type LinkPart = { sectors?: string[]; region?: string; sector?: string; share: number };
+export type LinkRow = { sectors: string[]; region: string; sector: string; pct: string };
+
+export const unresolvedText = (part: LinkPart): string =>
+  `Not in this edition: ${part.sectors?.join(", ") ?? `${part.region} · ${part.sector}`} ${pct1(part.share)}`;
+
+/** A stored rule part as an editor row (share in percent). */
+export const partToRow = (p: LinkPart): LinkRow => ({ sectors: p.sectors ?? [], region: p.region ?? "", sector: p.sector ?? "", pct: String(Number((p.share * 100).toFixed(6))) });
+
+/** An editor row as the part the API stores. */
+export const rowToPart = (kind: "split" | "nodes", r: LinkRow): LinkPart =>
+  kind === "split" ? { sectors: r.sectors, share: Number(r.pct) / 100 } : { region: r.region, sector: r.sector, share: Number(r.pct) / 100 };
 
 /** "Linked by NACE 07.29" / "Linked by ISIC 2710" for a nace-sourced link; "" otherwise. */
 export const naceLinkLine = (l: { source: string; code?: string | null; code_scheme?: string | null }): string =>

@@ -4,7 +4,7 @@ from arp.config import Settings
 from arp.llm.base import LLMClient
 from arp.research.authority_taxonomy.extract import SourceExtraction
 from arp.research.authority_taxonomy.matching import match_activities
-from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
+from arp.research.indirect_exposure import nace
 from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.standards_mapping.mapper import map_theme_to_standards
 from arp.schemas.authority_taxonomy import SectorCode, merge_key
@@ -13,24 +13,34 @@ from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 _TOP_UPSTREAM = 5
 
 
-def _isic(model: LeontiefModel | None, code: str) -> str:
-    """ICIO code -> ISIC section letter + first division (D -> D35), the form authority sources cite."""
-    divisions = model.isic_divisions.get(code) if model else None
-    return f"{code[0]}{divisions[0]}" if divisions else code
+def _isic(sector: str) -> list[str]:
+    """Sector -> ISIC section letter + division via NACE (spec decision 5): Production of electricity by wind -> D35,
+    the form authority sources cite."""
+    divisions = sorted({i[:2] for n in nace.sector_nace2_codes(sector) for i in nace.nace2_to_isic4(n)})
+    return [f"{nace.isic4_section(d)}{d}" for d in divisions if nace.isic4_section(d)]
 
 
-def _upstream(model: LeontiefModel, code: str) -> list[str]:
-    """Top supplier codes by the code's total-requirements column, skipping codes sharing its nodes."""
-    own = set(model.code_nodes.get(code, []).tolist())
+def _upstream(model: LeontiefModel, sector: str) -> list[str]:
+    """Top-5 supplier industries as ISIC codes: sectors ranked by the sector's total-requirements column, skipping
+    sectors sharing its nodes, then converted; codes repeated or among the sector's own are skipped."""
+    own = set(model.code_nodes.get(sector, []).tolist())
     if not own:
         return []
     column = model.leontief_inverse[:, sorted(own)].sum(axis=1)
     scored = [
         (float(column[nodes].sum()), c)
         for c, nodes in model.code_nodes.items()
-        if len(nodes) and model.isic_divisions.get(c) and not own & set(nodes.tolist())
+        if len(nodes) and nace.sector_nace2_codes(c) and not own & set(nodes.tolist())
     ]
-    return [c for _, c in sorted(scored, key=lambda s: (-s[0], s[1]))[:_TOP_UPSTREAM]]
+    out, skip = [], set(_isic(sector))
+    for _, c in sorted(scored, key=lambda s: (-s[0], s[1])):
+        for code in _isic(c):
+            if code not in skip and len(out) < _TOP_UPSTREAM:
+                out.append(code)
+                skip.add(code)
+        if len(out) == _TOP_UPSTREAM:
+            break
+    return out
 
 
 def _merge(kept: list, new: list, key, cites: bool = True) -> None:
@@ -110,21 +120,17 @@ async def consolidate(
     )
     theme, _usage = await map_theme_to_standards(theme, settings, llm)
 
-    io = value_chain_model  # labels map_standards' ICIO codes as ISIC; loaded only when there are codes to label
-    if io is None and any(a.core_isic_codes for a in theme.activities):
-        io = resolve_indirect_exposure_model(settings)
     notes: list[str] = []
     if value_chain and value_chain_model is None:
         notes.append("no IO model: sector codes not widened with EXIOBASE upstream industries")
     for act in theme.activities:
-        for isic in act.core_isic_codes:
-            _add(act.sector_codes, SectorCode(system="ISIC", code=_isic(io, isic), origin="map_standards"))
+        for isic in (i for sector in act.core_sectors for i in _isic(sector)):
+            _add(act.sector_codes, SectorCode(system="ISIC", code=isic, origin="map_standards"))
         if m := act.standards_mapping:
             for system, matches in (("NACE", m.nace_codes), ("NAICS", m.naics_codes), ("SIC", m.sic_codes), ("GICS", m.gics)):
                 for match in matches:
                     _add(act.sector_codes, SectorCode(system=system, code=match.code, origin="map_standards"))
         if value_chain and value_chain_model is not None:
-            for isic in act.core_isic_codes:
-                for up in _upstream(value_chain_model, isic):
-                    _add(act.sector_codes, SectorCode(system="ISIC", code=_isic(value_chain_model, up), origin="exiobase"))
+            for isic in (u for sector in act.core_sectors for u in _upstream(value_chain_model, sector)):
+                _add(act.sector_codes, SectorCode(system="ISIC", code=isic, origin="exiobase"))
     return theme, "\n".join(notes)

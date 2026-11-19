@@ -8,6 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 from arp.cli import app
+from arp.research.indirect_exposure.migrate import icio_sectors
 from arp.schemas.common import CompanyRef
 from arp.schemas.taxonomy import DerivationMethod
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
@@ -22,7 +23,7 @@ def _no_postgres(monkeypatch):
 
 
 def _theme(*codes):
-    act = ActivityDefinition(name="e", in_scope_description="i", out_of_scope_description="o", core_isic_codes=list(codes))
+    act = ActivityDefinition(name="e", in_scope_description="i", out_of_scope_description="o", core_sectors=[s for c in codes for s in icio_sectors(c)])
     return ThemeDefinition(name="t", description="", activities=[act])
 
 

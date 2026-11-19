@@ -16,7 +16,8 @@
           "wind",
           "turbine"
         ],
-        "core_isic_codes": [],
+        "core_sectors": [],
+        "contrast_statements": [],
         "source_citation": null,
         "standards_mapping": null,
         "tier": "core",

@@ -3,7 +3,7 @@
 These four files exist so `arp taxonomy map-standards --use-sample-standards`
 is runnable out of the box, without any external download -- **they are not
 authoritative correspondence tables**, and cover only the 10 ISIC Rev.4
-divisions in the bundled sample ICIO dataset
+divisions in the bundled sample input-output dataset
 (`arp/research/indirect_exposure/sample_data/industries.csv`).
 
 ## `isic_nace_sample.csv` (ISIC Rev.4 -> NACE Rev.2)

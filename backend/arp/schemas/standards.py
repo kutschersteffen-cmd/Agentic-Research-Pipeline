@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 class StandardCodeMatch(BaseModel):
     """One code from an external classification standard, derived via a
-    deterministic crosswalk from an activity's core_isic_codes -- never
+    deterministic crosswalk from an activity's core_sectors -- never
     LLM-guessed, since these are large fixed code lists a model can't be
     trusted to recall exactly."""
 
@@ -27,13 +27,13 @@ class GicsMatch(BaseModel):
 
 class ActivityStandardsMapping(BaseModel):
     """An activity's cross-reference into external industry classification
-    standards, derived from its core_isic_codes."""
+    standards, derived from its core_sectors."""
 
     nace_codes: list[StandardCodeMatch] = Field(default_factory=list)
     naics_codes: list[StandardCodeMatch] = Field(default_factory=list)
     sic_codes: list[StandardCodeMatch] = Field(default_factory=list)
     gics: list[GicsMatch] = Field(default_factory=list)
-    unmapped_isic_codes: list[str] = Field(
+    unmapped_sectors: list[str] = Field(
         default_factory=list,
-        description="core_isic_codes with no entry in any loaded crosswalk table -- shown for transparency rather than silently dropped.",
+        description="core_sectors with no entry in any loaded crosswalk table -- shown for transparency rather than silently dropped.",
     )

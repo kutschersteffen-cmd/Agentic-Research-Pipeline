@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 from arp.schemas.common import now_iso
 
@@ -27,8 +27,10 @@ class IndirectExposureResult(BaseModel):
     company_id: str
     isic_code: str
     isic_label: str | None = None
-    code_scheme: Literal["nace2", "nace21", "isic4", "icio"] = Field(
-        default="icio", description="Scheme of isic_code: an ICIO code, or the company's NACE Rev. 2 / Rev. 2.1 or ISIC Rev. 4 code."
+    code_scheme: Literal["exiobase", "nace2", "nace21", "isic4", "icio"] = Field(
+        default="exiobase",
+        description="Scheme of isic_code: an EXIOBASE sector name, the company's NACE Rev. 2 / Rev. 2.1 or ISIC Rev. 4 "
+        "code, or (past results) an ICIO code.",
     )
     upstream_exposure: float = Field(
         ge=0.0, le=1.0, description="Share of this industry's total input requirement traceable to core sectors."
@@ -39,11 +41,14 @@ class IndirectExposureResult(BaseModel):
     core_sector: bool = Field(description="True if the company's own industry is itself one of the theme's core sectors.")
     critical_input: bool = Field(
         default=False,
-        description="True if isic_code is one of the bundled USGS/IEA-flagged critical-mineral ISIC divisions "
+        description="True if the company's sectors include one of the bundled USGS/IEA-flagged critical-mineral ISIC divisions' sectors "
         "(see arp.research.indirect_exposure.criticality) -- a coarse division-level heuristic, independent of "
         "the upstream/downstream Leontief exposure math.",
     )
-    icio_edition: str = Field(description="Label identifying which input-output dataset produced this result.")
+    io_edition: str = Field(
+        validation_alias=AliasChoices("io_edition", "icio_edition"),  # runs stored before the rename
+        description="Label identifying which input-output dataset produced this result.",
+    )
     end_market: dict[str, float] | None = Field(
         default=None,
         description="Share of the industry's final-demand-driven output by end market (households, government, "
@@ -58,3 +63,10 @@ class IndirectExposureResult(BaseModel):
     )
     regional: RegionalExposure | None = Field(default=None, description="Exposure on the region-resolved model.")
     generated_at: str = Field(default_factory=now_iso)
+
+
+def upgrade_stored_exposure(row: dict) -> dict:
+    """Rename `indirect_exposure.icio_edition` to `io_edition` in a row stored before the rename."""
+    if (ie := row.get("indirect_exposure")) is not None and "icio_edition" in ie:
+        ie["io_edition"] = ie.pop("icio_edition")
+    return row

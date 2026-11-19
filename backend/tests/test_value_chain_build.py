@@ -30,6 +30,8 @@ def broken_fixture(tmp_path, kind):
             text = zin.read(name).decode()
             if kind == "drop_z" and name == "Z.txt":
                 continue
+            if kind == "foo":
+                text = text.replace("Mining of copper ores and concentrates", "Foo")
             if kind == "unknown_sector":
                 text = text.replace("Mining of copper ores and concentrates", "Not a sector")
             if kind == "bad_cell" and name == "Z.txt":
@@ -181,3 +183,8 @@ def test_key_collision_fails(tmp_path):  # AC-31
     res, out = build_mat(tmp_path, dict(rows))
     assert res.exit_code != 0
     assert last_err_line(res) == "material/F.txt: two rows share the key 'metal_ores_copper_ores'"
+
+
+def test_unknown_sector_is_named(tmp_path):  # AC-47
+    res = runner.invoke(app, ["io", "build-full", str(broken_fixture(tmp_path, "foo")), "--out", str(tmp_path / "vc")])
+    assert res.exit_code == 1 and "EXIOBASE sector not in exiobase_nace.csv: Foo" in res.stderr

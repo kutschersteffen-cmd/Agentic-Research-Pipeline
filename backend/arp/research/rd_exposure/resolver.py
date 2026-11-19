@@ -91,7 +91,7 @@ class RDResolverContext:
     schema: DataPointSchema
     """The run's released taxonomy schema: rd_intensity extracts its `rd` field."""
     isic_model: LeontiefModel | None = None
-    """Used to resolve a company's ISIC code for the sector-relevance gate
+    """Used to resolve a company's sector for the sector-relevance gate
     on rd_intensity extraction, independent of whether the indirect-
     exposure tier itself is enabled -- see RevenueResolverContext.isic_model
     for the identical precedent."""
@@ -103,7 +103,7 @@ class RDResolverContext:
 async def resolve_company_activity_rd_exposure(
     company: CompanyRef,
     activity: ActivityDefinition,
-    company_isic: str | None,
+    company_sectors: set[str],
     *,
     documents: list[SourceDocument],
     ctx: RDResolverContext,
@@ -122,7 +122,7 @@ async def resolve_company_activity_rd_exposure(
     if activity.lifecycle_stage not in _PRE_REVENUE_STAGES:
         return None, LLMUsage()
 
-    relevant = is_sector_relevant(company_isic, activity.core_isic_codes)
+    relevant = is_sector_relevant(company_sectors, activity.core_sectors)
     usages: list[LLMUsage] = []
 
     rd_intensity = MetricExposure(source="unresolved")

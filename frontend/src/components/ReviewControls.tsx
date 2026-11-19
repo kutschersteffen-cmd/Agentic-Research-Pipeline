@@ -548,7 +548,7 @@ function ItemDecision({
           </select>
           {decision === "correct" &&
             (kind === "sector_code" ? (
-              input("isic_code", "ISIC code")
+              input("isic_code", "Sector")
             ) : kind === "identity" ? (
               <>
                 {input("resolved_website", "Website")}
