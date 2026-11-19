@@ -64,7 +64,7 @@ def _require_postgres(ctx: typer.Context) -> None:
         return
     if sys.argv[1:3] == ["showcase", "simulate"]:  # holdings files in, a CSV out
         return
-    if sys.argv[1:3] == ["report", "sheet"]:  # fixture slides in, PNGs out
+    if sys.argv[1:3] in (["report", "sheet"], ["report", "flow"]):  # fixture slides or a Mermaid file in, files out
         return
     try:
         settings = get_settings()

@@ -38,7 +38,8 @@ async def test_html_and_pptx_boxes_match(fdeck, tmp_path):
             [...s.querySelectorAll('[data-name]')].map(el => { const r = el.getBoundingClientRect(), b = s.getBoundingClientRect();
                 return [el.dataset.name, [r.left - b.left, r.top - b.top, r.width, r.height]]; })))""")
     for i, slide in enumerate(prs.slides):
-        pptx = {sh.name: (sh.left / 9525, sh.top / 9525, sh.width / 9525, sh.height / 9525) for sh in slide.shapes}
+        shapes = [c for sh in slide.shapes for c in (sh.shapes if sh.name.startswith("group:") else [sh])]  # a step's group: its parts
+        pptx = {sh.name: (sh.left / 9525, sh.top / 9525, sh.width / 9525, sh.height / 9525) for sh in shapes}
         assert set(html[i]) == set(pptx), i
         assert {"step:q2", "step:q2:label", "step:q2:tag", "arrow:2:label", "legend:stored"} <= set(html[0])
         for name, box in html[i].items():

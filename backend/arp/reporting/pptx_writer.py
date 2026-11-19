@@ -1,6 +1,7 @@
 """Render-model primitives -> native PPTX shapes for one slide, each named after its primitive.
 
 python-pptx has no API for arrowheads or table cell borders, so `a:tailEnd` and `a:lnT`/`a:lnB` are written as XML.
+A flow's steps become groups and its left-to-right arrows glued connectors (`_flow_groups`, `_Writer.connector`).
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from lxml import etree
 from pptx.chart.data import CategoryChartData
 from pptx.dml.color import RGBColor
 from pptx.enum.chart import XL_CHART_TYPE, XL_LABEL_POSITION, XL_LEGEND_POSITION, XL_TICK_LABEL_POSITION, XL_TICK_MARK
-from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.shapes import MSO_CONNECTOR, MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
 from pptx.oxml.ns import qn
 from pptx.util import Emu, Pt
@@ -71,6 +72,8 @@ class _Writer:
         self.tokens, self.mode = tokens, mode
         self.pt = emu_per_px / 12700  # pt per canvas px
         self.body, self.mono = family(tokens.fonts.body), family(tokens.fonts.mono or tokens.fonts.body)
+        self.shapes = slide.shapes  # where rects and texts go: the slide, or a flow step's group while it is drawn
+        self.drawn: dict[str, tuple] = {}  # rect name -> (primitive, shape), for gluing connectors
 
     def e(self, px: float) -> int:
         return round(px * self.k)
@@ -84,8 +87,9 @@ class _Writer:
         f.name, f.size, f.bold, f.color.rgb = fam, Pt(size * self.pt), weight >= 600, _rgb(color)
 
     def rect(self, p: Rect) -> None:
-        shape = self.slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, self.e(p.x), self.e(p.y), self.e(p.w), self.e(p.h))
+        shape = self.shapes.add_shape(MSO_SHAPE.RECTANGLE, self.e(p.x), self.e(p.y), self.e(p.w), self.e(p.h))
         self.place(shape, p)
+        self.drawn[p.name] = (p, shape)
         if p.fill:
             shape.fill.solid()
             shape.fill.fore_color.rgb = _rgb(p.fill)
@@ -98,7 +102,7 @@ class _Writer:
         shape.shadow.inherit = False
 
     def text(self, p: Text) -> None:
-        shape = self.slide.shapes.add_textbox(self.e(p.x), self.e(p.y), self.e(p.w), self.e(p.h))
+        shape = self.shapes.add_textbox(self.e(p.x), self.e(p.y), self.e(p.w), self.e(p.h))
         self.place(shape, p)
         if p.fill_under:
             shape.fill.solid()
@@ -119,6 +123,8 @@ class _Writer:
                 run._r.get_or_add_rPr().insert(0, ln)
 
     def line(self, p: Line) -> None:
+        if self.connector(p):
+            return
         pts = [(self.e(x), self.e(y)) for x, y in p.points]
         ff = self.slide.shapes.build_freeform(*pts[0], scale=1.0)
         ff.add_line_segments(pts[1:], close=False)
@@ -129,6 +135,35 @@ class _Writer:
         shape.shadow.inherit = False
         if p.arrow:
             etree.SubElement(shape.line._get_or_add_ln(), qn("a:tailEnd"), type="triangle", w="med", len="med")
+
+    def connector(self, p: Line) -> bool:
+        """A line glued at both ends (`start`, `end` drawn rects) whose route runs left to right as a straight
+        (2 points, horizontal) or horizontal-vertical-horizontal (4 points) path becomes a connector glued to both rects,
+        so moving a box in PowerPoint drags it along. False (nothing drawn) for any other line."""
+        if p.start not in self.drawn or p.end not in self.drawn:
+            return False
+        pts = p.points
+        if len(pts) == 2 and _flat(*pts):
+            kind = MSO_CONNECTOR.STRAIGHT
+        elif len(pts) == 4 and _flat(pts[0], pts[1]) and _upright(pts[1], pts[2]) and _flat(pts[2], pts[3]):
+            kind = MSO_CONNECTOR.ELBOW
+        else:
+            return False
+        (x0, y0), (x1, y1) = pts[0], pts[-1]
+        shape = self.slide.shapes.add_connector(kind, self.e(x0), self.e(y0), self.e(x1), self.e(y1))  # flipH/flipV from the ends
+        shape.name = p.name
+        if kind == MSO_CONNECTOR.STRAIGHT:  # python-pptx writes preset `line`; a connector preset keeps the glue in PowerPoint
+            shape._element.spPr.prstGeom.set("prst", "straightConnector1")
+        elif x1 != x0:  # adj1: where the vertical segment sits, as a share of the width from the start
+            av = shape._element.spPr.prstGeom.get_or_add_avLst()
+            etree.SubElement(av, qn("a:gd"), name="adj1", fmla=f"val {round((pts[1][0] - x0) / (x1 - x0) * 100000)}")
+        shape.line.color.rgb, shape.line.width = _rgb(p.color), Emu(self.e(p.width))
+        if p.arrow:
+            etree.SubElement(shape.line._get_or_add_ln(), qn("a:tailEnd"), type="triangle", w="med", len="med")
+        for (rect, target), (x, y), connect in ((self.drawn[p.start], pts[0], shape._connect_begin_to),
+                                                (self.drawn[p.end], pts[-1], shape._connect_end_to)):
+            connect(target, _side(rect, x, y))
+        return True
 
     def chart(self, p: ChartPrim) -> None:
         if p.kind == "heatmap":  # no native heatmap: the PNG of the HTML's Vega-Lite spec, at scale 2
@@ -277,11 +312,47 @@ class _Writer:
         self.place(shape, p)
 
 
+def _flat(a: tuple[float, float], b: tuple[float, float]) -> bool:
+    return abs(a[1] - b[1]) < 0.5
+
+
+def _upright(a: tuple[float, float], b: tuple[float, float]) -> bool:
+    return abs(a[0] - b[0]) < 0.5
+
+
+def _side(r: Rect, x: float, y: float) -> int:
+    """The connection site of a rectangle whose edge (x, y) is on: 0 top, 1 left, 2 bottom, 3 right (the nearest edge)."""
+    dist = (abs(y - r.y), abs(x - r.x), abs(y - r.y - r.h), abs(x - r.x - r.w))
+    return dist.index(min(dist))
+
+
+def _flow_groups(prims: list[Primitive]) -> dict[int, tuple[str, int]]:
+    """Where a flow step's group starts: index of its `step:<id>` rect -> (`group:<id>`, the index after its last part).
+    A flow step is the rect that has a `step:<id>:label` text; its parts follow it (`step:<id>:...`). Other visuals'
+    `step:<n>` rects (the numbered process steps) have no `:label`, so they are never grouped."""
+    names = {p.name for p in prims}
+    out = {}
+    for i, p in enumerate(prims):
+        if isinstance(p, Rect) and p.name.count(":") == 1 and p.name.startswith("step:") and f"{p.name}:label" in names:
+            j = i + 1
+            while j < len(prims) and prims[j].name.startswith(p.name + ":"):
+                j += 1
+            out[i] = ("group:" + p.name.removeprefix("step:"), j)
+    return out
+
+
 def pptx_slide(slide_obj, prims: list[Primitive], tokens: Tokens, mode: Mode, emu_per_px: float,
                images: dict[str, LoadedImage] | None = None) -> None:
     """Draws the primitives on `slide_obj` in order; empty text is skipped. `images` holds the bytes behind the image primitives."""
     w = _Writer(slide_obj, tokens, mode, emu_per_px, images)
-    for p in prims:
+    groups, group_end = _flow_groups(prims), -1
+    for i, p in enumerate(prims):
+        if i in groups:  # child offsets equal slide offsets: python-pptx sets chOff/chExt to the group's off/ext
+            name, group_end = groups[i]
+            group = slide_obj.shapes.add_group_shape()
+            group.name, w.shapes = name, group.shapes
+        elif i == group_end:
+            w.shapes = slide_obj.shapes
         if isinstance(p, Rect):
             w.rect(p)
         elif isinstance(p, Text):
