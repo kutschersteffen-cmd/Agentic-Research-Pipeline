@@ -47,7 +47,7 @@ The deck `title` is at most 10 words. Also return `answer` (the deck's answer fo
 `figures` (0-2 headline numbers from the sources for the cover), `sections` (each a `title` of at most 6 words \
 and a `summary` of at most 14) and `closing` (2-5 next actions). The cover, section dividers and next-steps \
 slide are added by code: do not draft them as slides.
-For every slide set `visual` to one of {visuals}; `chart_kind` (bar, column, stacked_column, line, waterfall or heatmap) when it \
+For every slide set `visual` to one of {visuals}; `chart_kind` (bar, column, stacked_column, line or heatmap) when it \
 is chart; `rationale` (why that visual, at most 20 words); `section` (0-based index into `sections`); and \
 `kicker` (a short label above the headline).
 
