@@ -12,27 +12,53 @@ from arp.reporting.adapters import with_run_datasets
 from arp.reporting.browser import write_pdf, write_pngs
 from arp.reporting.fit import fit_deck, fit_ladder
 from arp.reporting.house_pptx import build_house_pptx
+from arp.reporting.house_style import Mode, Tokens
 from arp.reporting.html_render import render_deck_html
 from arp.reporting.lint import lint_and_rewrite, lint_deck
+from arp.reporting.render_model import ImagePrim, render_slide
 from arp.reporting.slide_fill import duplicate_data, fill_slide
 from arp.reporting.storyline import content_cap
 from arp.reporting.template_frame import house_tokens
 from arp.reporting.visual_qa import visual_qa
 from arp.schemas.reporting import Deck, Finding, ReportRequest, SlideContent, Storyline, StorylineSlide
 from arp.schemas.visuals import Cover, NextSteps, Section
+from arp.storage.report_images import LoadedImage
 from arp.storage.reporting_store import ReportingStore
 
+LOW_RESOLUTION = 0.75  # a crop narrower than this share of its slot width (canvas px) is a `low_resolution` finding
 
-async def render_house_outputs(report_id: str, deck: Deck, request: ReportRequest, store: ReportingStore) -> None:
-    """Writes output.pdf, output.pptx and the preview PNGs from `deck`; no LLM, no measuring (fit_deck owns the fit findings)."""
+
+def low_resolution(deck: Deck, request: ReportRequest, tokens: Tokens, mode: Mode, images: dict[str, LoadedImage]) -> list[Finding]:
+    """One finding per image shown wider than 1 / 0.75 of its source pixels."""
+    by_id, out = {d.dataset_id: d for d in request.datasets}, []
+    for i, s in enumerate(deck.slides):
+        if s.visual is None:
+            continue
+        for p in render_slide(s, i, deck, tokens, by_id, mode, images=images):
+            if isinstance(p, ImagePrim):
+                left, _, right, _ = p.crop
+                shown = images[p.image].entry.width * (1 - left - right)
+                if shown < LOW_RESOLUTION * p.w:
+                    out.append(Finding(slide=i, slot=p.name, stage="fit", rule="low_resolution",
+                                       message=f"image '{p.image}' is shown at {p.w / shown:.1f}× its pixels; use a larger image"))
+    return out
+
+
+async def render_house_outputs(report_id: str, deck: Deck, request: ReportRequest, store: ReportingStore) -> list[Finding]:
+    """Writes output.pdf, output.pptx and the preview PNGs from `deck`; no LLM, no measuring (fit_deck owns the fit findings).
+    Replaces the report's `low_resolution` findings with the current ones, keeps all others, and returns the new ones."""
     tokens = house_tokens(request, store)
-    html = render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme)
+    images = store.load_report_images(report_id, request)
+    html = render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme, images=images)
     await write_pdf(html, store.output_path(report_id, "output.pdf"))
-    build_house_pptx(deck, request.datasets, store.output_path(report_id, "output.pptx"), tokens, mode=request.layout.theme)
+    build_house_pptx(deck, request.datasets, store.output_path(report_id, "output.pptx"), tokens, mode=request.layout.theme, images=images)
     preview = store.preview_dir(report_id)
     for old in preview.glob("page-*.png"):  # a shorter deck must not keep the old tail
         old.unlink()
     await write_pngs(html, preview)
+    low = low_resolution(deck, request, tokens, request.layout.theme, images)
+    store.save_findings(report_id, [f for f in store.load_findings(report_id) if f.rule != "low_resolution"] + low)
+    return low
 
 
 def _outline(storyline: Storyline, request: ReportRequest) -> tuple[list[SlideContent | StorylineSlide], list[Finding]]:
@@ -93,7 +119,8 @@ async def build_house_deck(
     if len(request.datasets) > n:  # saved, so a re-render finds the table's rows
         store.save_request(report_id, request)
     with tempfile.TemporaryDirectory() as tmp:
-        pngs = await write_pngs(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme), Path(tmp))
+        images = store.load_report_images(report_id, request)
+        pngs = await write_pngs(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme, images=images), Path(tmp))
         deck, qa_findings = await visual_qa(deck, pngs, request, llm, usage=usage, shift=findings, tokens=tokens)
     if any(f.rule == "applied" for f in qa_findings):  # QA re-measured the deck: the first fit's measurements are stale
         # Component slides are not QA-edited, so their ladder findings stay.
@@ -101,6 +128,6 @@ async def build_house_deck(
     # Fit splits moved slides; lint once more on the final deck so every lint finding points at the right slide.
     findings = [f for f in [*findings, *qa_findings] if f.stage != "lint"] + lint_deck(deck, request)
     store.save_deck(report_id, deck)
-    await render_house_outputs(report_id, deck, request, store)
     store.save_findings(report_id, findings)
+    findings += await render_house_outputs(report_id, deck, request, store)  # it adds the low_resolution findings
     return deck, findings
