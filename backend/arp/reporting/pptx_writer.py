@@ -36,6 +36,7 @@ from arp.reporting.render_model import (
     value_range,
     waterfall_bars,
 )
+from arp.reporting.vega import chart_spec, to_png
 from arp.storage.report_images import LoadedImage
 
 _KINDS = {"bar": XL_CHART_TYPE.BAR_CLUSTERED, "column": XL_CHART_TYPE.COLUMN_CLUSTERED,
@@ -67,6 +68,7 @@ def _fmt_signed(v: float, values: list[float], unit: str) -> str:
 class _Writer:
     def __init__(self, slide, tokens: Tokens, mode: Mode, emu_per_px: float, images: dict[str, LoadedImage] | None = None):
         self.slide, self.k, self.c, self.images = slide, emu_per_px, palette(tokens, mode), images or {}
+        self.tokens, self.mode = tokens, mode
         self.pt = emu_per_px / 12700  # pt per canvas px
         self.body, self.mono = family(tokens.fonts.body), family(tokens.fonts.mono or tokens.fonts.body)
 
@@ -129,6 +131,10 @@ class _Writer:
             etree.SubElement(shape.line._get_or_add_ln(), qn("a:tailEnd"), type="triangle", w="med", len="med")
 
     def chart(self, p: ChartPrim) -> None:
+        if p.kind == "heatmap":  # no native heatmap: the PNG of the HTML's Vega-Lite spec, at scale 2
+            png = to_png(chart_spec(p, self.tokens, self.mode), self.tokens)
+            self.place(self.slide.shapes.add_picture(io.BytesIO(png), 0, 0), p)
+            return
         values = [v for s in p.series for v in s.values]
         fmt = _number_format(values, p.unit)
         data = CategoryChartData(number_format=fmt)

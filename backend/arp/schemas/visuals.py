@@ -96,7 +96,7 @@ class KpiRow(BaseModel):
 class Chart(BaseModel):
     type: Literal["chart"] = "chart"
     data: ChartSpec
-    kind: Literal["bar", "column", "stacked_column", "line", "waterfall"]
+    kind: Literal["bar", "column", "stacked_column", "line", "waterfall", "heatmap"]
     unit: Chars(6) = ""
     data_labels: bool = True
     highlight: str | None = None
@@ -109,6 +109,11 @@ class Chart(BaseModel):
             raise ValueError("a chart plots 1 to 3 value columns")
         if self.kind == "waterfall" and len(self.data.value_columns) != 1:
             raise ValueError("a waterfall plots 1 value column")
+        if self.kind == "heatmap":
+            if not self.data.y_column:
+                raise ValueError("a heatmap needs y_column")
+            if len(self.data.value_columns) != 1:
+                raise ValueError("a heatmap plots 1 value column")
         return self
 
 
