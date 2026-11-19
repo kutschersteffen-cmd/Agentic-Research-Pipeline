@@ -13,6 +13,7 @@ from collections.abc import Callable, Iterator
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.house_style import get_variant
 from arp.reporting.slide_fill import rewrite_slot
+from arp.schemas.chart_specs import ChartType
 from arp.schemas.reporting import Deck, Finding, ReportRequest, SlideContent
 
 
@@ -189,6 +190,19 @@ def number_not_in_source(deck: Deck, request: ReportRequest) -> list[Finding]:
     return out
 
 
+_PICTURES = (ChartType.WATERFALL, ChartType.HEATMAP)  # layout charts the PowerPoint gets as a picture, not a native chart
+
+
+def chart_picture(deck: Deck, request: ReportRequest) -> list[Finding]:
+    """One finding per slide whose chart is a picture in the PowerPoint; informational, never rewritten."""
+    return [
+        _find(i, "chart", "chart_picture", f"{s.chart.chart_type.value} chart is a picture in the PowerPoint: change its data in ARP and build again")
+        for i, s in enumerate(deck.slides) if s.visual is None and s.chart is not None and s.chart.chart_type in _PICTURES
+    ]
+
+
+NOT_REWRITTEN = {"chart_picture"}
+
 RULES: dict[str, Callable[[Deck, ReportRequest], list[Finding]]] = {
     "over_word_limit": over_word_limit,
     "stock_ai_word": _per_text("stock_ai_word", _STOCK, lambda m: f"Replace '{m.group()}' with a plain verb or the specific thing."),
@@ -199,6 +213,7 @@ RULES: dict[str, Callable[[Deck, ReportRequest], list[Finding]]] = {
     "exclamation": _per_text("exclamation", re.compile("!"), lambda m: "Remove the exclamation mark."),
     "repeated_opener": repeated_opener,
     "number_not_in_source": number_not_in_source,
+    "chart_picture": chart_picture,
 }
 
 
@@ -217,7 +232,7 @@ async def lint_and_rewrite(
     for _ in range(max_rounds):
         todo: dict[tuple[int, str], list[str]] = {}
         for f in findings:
-            if f.slot not in ("headline", "subheading"):  # both approved by a person: reported, never rewritten
+            if f.slot not in ("headline", "subheading") and f.rule not in NOT_REWRITTEN:  # approved by a person, or no text to fix
                 todo.setdefault((f.slide, f.slot), []).append(f.message)
         if not todo:
             break

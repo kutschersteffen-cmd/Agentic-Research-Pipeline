@@ -57,6 +57,26 @@ jobs:
       # - PRs that change no app code: every file under docs/ or .claude/, or a *.md anywhere;
       # - no HOLDOUT_TOKEN.
       # Otherwise it picks the test jobs (`parts`) and the holdout commit every job checks out.
+      # The Rows: line is parsed by a self-tested script (holdout_rows.py), in a step without the HOLDOUT_TOKEN.
+      - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - name: Read the Rows line
+        id: rows
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if out=$(printf '%s\n' "$PR_BODY" | python3 .github/scripts/holdout_rows.py); then
+            echo "rows=$out" >>"$GITHUB_OUTPUT"
+          else
+            echo "error=$(printf '%s' "$out" | head -1)" >>"$GITHUB_OUTPUT"
+            printf '%s\n' "$out"
+          fi
+
       - name: Plan the run
         id: plan
         env:
@@ -68,6 +88,8 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           EVENT: ${{ github.event_name }}
           PR_BODY: ${{ github.event.pull_request.body }}
+          ROWS: ${{ steps.rows.outputs.rows }}
+          ROWS_ERROR: ${{ steps.rows.outputs.error }}
           DRILL: ${{ github.event_name == 'workflow_dispatch' && inputs.drill_fail }}
           TITLE_ONLY_EDIT: ${{ github.event.action == 'edited' && github.event.changes.body == null }}
         run: |
@@ -94,7 +116,11 @@ jobs:
               echo "Holdout acceptance: unreadable Spec: line; write it as a line of its own: Spec: <slug>"
               exit 1
             fi
-            if [ -n "$spec" ]; then rows=$(printf '%s\n' "$PR_BODY" | sed -n 's/^Rows: *\([AC0-9, -]*\).*/\1/p' | head -1 | tr -d ' '); fi
+            if [ -n "$spec" ]; then
+              if [ -n "$ROWS_ERROR" ]; then echo "$ROWS_ERROR"; exit 1; fi
+              rows="$ROWS"
+              if [ -n "$rows" ]; then echo "Rows: $rows"; fi
+            fi
             # The opt-in is a line that is exactly `Holdout: full` (trailing whitespace, including \r, allowed).
             if printf '%s\n' "$PR_BODY" | grep -qE '^Holdout: full[[:space:]]*$'; then full=true; else full=false; fi
           fi

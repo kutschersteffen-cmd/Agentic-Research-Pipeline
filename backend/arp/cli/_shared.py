@@ -47,7 +47,7 @@ def _engagement_store() -> EngagementStore | PostgresEngagementStore:
 
 def _reporting_store() -> ReportingStore:
     settings = get_settings()
-    return ReportingStore(settings.reports_dir, settings.report_templates_dir)
+    return ReportingStore(settings.reports_dir, settings.report_templates_dir, settings.report_images_dir)
 
 
 

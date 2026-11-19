@@ -304,6 +304,40 @@ class DeckSettings(BaseModel):
     purpose: Literal["recommendation", "review", "process", "briefing"] = "recommendation"
     detail: Literal["concise", "balanced", "comprehensive"] = "balanced"
     max_slides: int = Field(default=12, ge=3, le=25)
+    cover_image: str | None = Field(default=None, description="House deck: a registered image name drawn behind the cover.")
+
+
+class StagedImage(BaseModel):
+    """An uploaded image waiting to be named in a ReportRequest (POST /api/reports/images)."""
+
+    image_id: str
+    media_type: Literal["image/png", "image/jpeg"]
+    width: int
+    height: int
+    sha256: str
+
+
+class ReportImageIn(BaseModel):
+    """An image a request names: a staged upload, under the name the deck uses for it.
+    The name, focus and limits are checked by ReportingService (arp.reporting.images), not here."""
+
+    image_id: str
+    name: str
+    alt: str = Field(default="", max_length=200)
+    focus: list[float] | None = None
+
+
+class ReportImage(BaseModel):
+    """An image stored with a report under `reports/<id>/images/<name>.<ext>`."""
+
+    name: str
+    alt: str = Field(default="", max_length=200)
+    focus: list[float] | None = Field(default=None, description="[x, y], each 0 to 1; None is the centre.")
+    image_id: str | None = None
+    media_type: Literal["image/png", "image/jpeg"]
+    width: int
+    height: int
+    sha256: str
 
 
 class ReportRequest(BaseModel):
@@ -316,6 +350,7 @@ class ReportRequest(BaseModel):
     goal: str = ""
     run_refs: list[RunRef] = Field(default_factory=list)
     deck: DeckSettings = Field(default_factory=DeckSettings)
+    images: list[ReportImage | ReportImageIn] = Field(default_factory=list, description="House deck: images the deck may show.")
 
 
 class ReportStatus(StrEnum):

@@ -3466,6 +3466,20 @@
     "title": "Body_upload_flow_document_api_argus_flows__flow_id__documents_upload_post",
     "type": "object"
    },
+   "Body_upload_image_api_reports_images_post": {
+    "properties": {
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file"
+    ],
+    "title": "Body_upload_image_api_reports_images_post",
+    "type": "object"
+   },
    "Body_upload_price_dataset_api_replication_specs__spec_run_id__datasets_prices_post": {
     "properties": {
      "file": {
@@ -9285,6 +9299,18 @@
    },
    "DeckSettings": {
     "properties": {
+     "cover_image": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "House deck: a registered image name drawn behind the cover.",
+      "title": "Cover Image"
+     },
      "detail": {
       "default": "balanced",
       "enum": [
@@ -12215,6 +12241,104 @@
     "title": "FlagOut",
     "type": "object"
    },
+   "Flow": {
+    "properties": {
+     "actors": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 4,
+      "title": "Actors",
+      "type": "array"
+     },
+     "arrows": {
+      "items": {
+       "$ref": "#/components/schemas/FlowArrow"
+      },
+      "maxItems": 20,
+      "title": "Arrows",
+      "type": "array"
+     },
+     "direction": {
+      "default": "LR",
+      "enum": [
+       "LR",
+       "TB"
+      ],
+      "title": "Direction",
+      "type": "string"
+     },
+     "emphasis": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Emphasis"
+     },
+     "layout": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/FlowLayout"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "mermaid": {
+      "default": "",
+      "title": "Mermaid",
+      "type": "string"
+     },
+     "steps": {
+      "items": {
+       "$ref": "#/components/schemas/FlowStep"
+      },
+      "maxItems": 12,
+      "minItems": 2,
+      "title": "Steps",
+      "type": "array"
+     },
+     "type": {
+      "const": "flow",
+      "default": "flow",
+      "title": "Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "steps"
+    ],
+    "title": "Flow",
+    "type": "object"
+   },
+   "FlowArrow": {
+    "properties": {
+     "label": {
+      "default": "",
+      "title": "Label",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "target": {
+      "title": "Target",
+      "type": "string"
+     }
+    },
+    "required": [
+     "source",
+     "target"
+    ],
+    "title": "FlowArrow",
+    "type": "object"
+   },
    "FlowFile": {
     "properties": {
      "check": {
@@ -12337,6 +12461,42 @@
      "passes"
     ],
     "title": "FlowFile",
+    "type": "object"
+   },
+   "FlowLayout": {
+    "description": "Filled by code (`layout_flows`), never by the model.",
+    "properties": {
+     "height": {
+      "default": 0,
+      "title": "Height",
+      "type": "number"
+     },
+     "too_big": {
+      "default": false,
+      "title": "Too Big",
+      "type": "boolean"
+     },
+     "type_step": {
+      "default": 0,
+      "enum": [
+       0,
+       1
+      ],
+      "title": "Type Step",
+      "type": "integer"
+     },
+     "width": {
+      "default": 0,
+      "title": "Width",
+      "type": "number"
+     },
+     "wrapped": {
+      "default": false,
+      "title": "Wrapped",
+      "type": "boolean"
+     }
+    },
+    "title": "FlowLayout",
     "type": "object"
    },
    "FlowList": {
@@ -12688,6 +12848,57 @@
      }
     },
     "title": "FlowSettings",
+    "type": "object"
+   },
+   "FlowStep": {
+    "properties": {
+     "actor": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actor"
+     },
+     "id": {
+      "pattern": "^[A-Za-z][A-Za-z0-9_]{0,31}$",
+      "title": "Id",
+      "type": "string"
+     },
+     "kind": {
+      "default": "step",
+      "enum": [
+       "step",
+       "decision",
+       "data"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "pattern": "\\S",
+      "title": "Label",
+      "type": "string"
+     },
+     "stored": {
+      "default": false,
+      "title": "Stored",
+      "type": "boolean"
+     },
+     "tag": {
+      "default": "",
+      "title": "Tag",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "label"
+    ],
+    "title": "FlowStep",
     "type": "object"
    },
    "FromCompaniesRequest": {
@@ -20100,6 +20311,115 @@
     "title": "ReplicationVerdict",
     "type": "string"
    },
+   "ReportImage": {
+    "description": "An image stored with a report under `reports/<id>/images/<name>.<ext>`.",
+    "properties": {
+     "alt": {
+      "default": "",
+      "maxLength": 200,
+      "title": "Alt",
+      "type": "string"
+     },
+     "focus": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "number"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "[x, y], each 0 to 1; None is the centre.",
+      "title": "Focus"
+     },
+     "height": {
+      "title": "Height",
+      "type": "integer"
+     },
+     "image_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Image Id"
+     },
+     "media_type": {
+      "enum": [
+       "image/png",
+       "image/jpeg"
+      ],
+      "title": "Media Type",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "sha256": {
+      "title": "Sha256",
+      "type": "string"
+     },
+     "width": {
+      "title": "Width",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "name",
+     "media_type",
+     "width",
+     "height",
+     "sha256"
+    ],
+    "title": "ReportImage",
+    "type": "object"
+   },
+   "ReportImageIn": {
+    "description": "An image a request names: a staged upload, under the name the deck uses for it.\nThe name, focus and limits are checked by ReportingService (arp.reporting.images), not here.",
+    "properties": {
+     "alt": {
+      "default": "",
+      "maxLength": 200,
+      "title": "Alt",
+      "type": "string"
+     },
+     "focus": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "number"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Focus"
+     },
+     "image_id": {
+      "title": "Image Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "image_id",
+     "name"
+    ],
+    "title": "ReportImageIn",
+    "type": "object"
+   },
    "ReportPlan": {
     "description": "The Content Planner's full structured output -- deliberately the\n*only* LLM-authored artifact in this pipeline. Every subsequent step\n(chart/table rendering, file assembly) is deterministic code, so the\nsame plan always renders identically and can be hand-edited by a human\nbetween planning and rendering (see ReportingService.render_from_plan).",
     "properties": {
@@ -20145,6 +20465,21 @@
       "default": "",
       "title": "Goal",
       "type": "string"
+     },
+     "images": {
+      "description": "House deck: images the deck may show.",
+      "items": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/ReportImage"
+        },
+        {
+         "$ref": "#/components/schemas/ReportImageIn"
+        }
+       ]
+      },
+      "title": "Images",
+      "type": "array"
      },
      "layout": {
       "$ref": "#/components/schemas/LayoutInstructions"
@@ -24024,6 +24359,7 @@
           "chart": "#/components/schemas/Chart",
           "comparison_table": "#/components/schemas/ComparisonTable",
           "cover": "#/components/schemas/Cover",
+          "flow": "#/components/schemas/Flow",
           "kpi_row": "#/components/schemas/KpiRow",
           "next_steps": "#/components/schemas/NextSteps",
           "points": "#/components/schemas/Points",
@@ -24056,6 +24392,9 @@
          },
          {
           "$ref": "#/components/schemas/NextSteps"
+         },
+         {
+          "$ref": "#/components/schemas/Flow"
          }
         ]
        },
@@ -42655,6 +42994,50 @@
     ]
    }
   },
+  "/api/reports/images": {
+   "post": {
+    "description": "Stages a PNG or JPEG; a POST /api/reports request then names it by `image_id`.",
+    "operationId": "upload_image_api_reports_images_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_upload_image_api_reports_images_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Upload Image Api Reports Images Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Upload Image",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
   "/api/reports/templates": {
    "get": {
     "operationId": "list_templates_api_reports_templates_get",
@@ -43020,6 +43403,56 @@
      }
     },
     "summary": "Get Findings",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
+  "/api/reports/{report_id}/images/{name}": {
+   "get": {
+    "description": "A stored report image, as registered (EXIF-rotated JPEGs upright).",
+    "operationId": "get_report_image_api_reports__report_id__images__name__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "name",
+      "required": true,
+      "schema": {
+       "title": "Name",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Report Image",
     "tags": [
      "reporting"
     ]

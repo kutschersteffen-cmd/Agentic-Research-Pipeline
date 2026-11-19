@@ -10,6 +10,7 @@ from arp.reporting.browser import write_pdf
 from arp.reporting.house_pptx import build_house_pptx
 from arp.reporting.house_style import get_variant, load_tokens, slot_rect
 from arp.reporting.html_render import render_deck_html
+from arp.schemas.chart_specs import ChartType
 from arp.schemas.reporting import ChartSpec, ColumnKind, DatasetColumn, Deck, QuantitativeDataset, SlideContent, TableSpec
 from tests.fixtures.stress_deck import stress_deck
 
@@ -42,13 +43,13 @@ def test_pptx_charts_are_native(tmp_path):
     assert _shapes(prs.slides[i], "slot:chart")[0].has_chart
 
 
-def test_pptx_waterfall_chart_is_native(tmp_path):
+def test_pptx_non_native_chart_is_a_picture(tmp_path):
     deck, ds = stress_deck("min")
     slide = next(s for s in deck.slides if s.layout == "chart_takeaway")
     slide.chart = ChartSpec(dataset_id="stress", chart_type="waterfall", category_column="cat", value_columns=["a"])
     prs = Presentation(build_house_pptx(Deck(title="T", slides=[slide]), ds, tmp_path / "d.pptx"))
     shape = _shapes(prs.slides[0], "slot:chart")[0]
-    assert shape.shape_type != 13 and shape.has_chart  # editable chart, not MSO_SHAPE_TYPE.PICTURE (owner-approved change, 2026-11-14)
+    assert shape.shape_type == 13 and not getattr(shape, "has_chart", False)  # MSO_SHAPE_TYPE.PICTURE
 
 
 def test_pptx_escapes_nothing_and_keeps_literal_text(tmp_path):
@@ -197,54 +198,15 @@ def _chart_slide(chart_type, **spec):
     return Deck(title="T", slides=[slide]), [ds]
 
 
-_HEAT = {"y_column": "reg", "value_column": "v"}
-
-
-def test_text_slot_is_text_frame(tmp_path):  # AC-33
+def test_text_slot_is_text_frame(tmp_path):  # refine-chat-design AC-33
     deck, ds = _chart_slide("column")
     shape = _shapes(Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides[0], "slot:text")[0]
     assert shape.has_text_frame and shape.text_frame.text == "Net zero by 2040"
 
 
-def test_column_after_chart_type_change(tmp_path):  # AC-34
+def test_column_after_chart_type_change(tmp_path):  # refine-chat-design AC-34
     deck, ds = _chart_slide("waterfall")
-    deck.slides[0].chart.chart_type = "column"
+    deck.slides[0].chart.chart_type = ChartType.COLUMN  # as the refine set_chart_type op stores it
     shape = _shapes(Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides[0], "slot:chart")[0]
     assert shape.has_chart and shape.chart.chart_type == XL_CHART_TYPE.COLUMN_CLUSTERED
     assert "<svg" in render_deck_html(deck, ds)
-
-
-def test_waterfall_and_heatmap_native(tmp_path):  # AC-35
-    wf, ds = _chart_slide("waterfall")
-    hm, _ = _chart_slide("heatmap", **_HEAT)
-    prs = Presentation(build_house_pptx(Deck(title="T", slides=[wf.slides[0], hm.slides[0]]), ds, tmp_path / "d.pptx"))
-    w, h = (_shapes(s, "slot:chart")[0] for s in prs.slides)
-    assert w.shape_type != 13 and h.shape_type != 13
-    series = w.chart.plots[0].series
-    assert w.chart.chart_type == XL_CHART_TYPE.COLUMN_STACKED and [x.name for x in series] == ["base", "up", "down"]
-    assert [list(x.values) for x in series] == [[0, 6, 6, 9], [10, 4, 3, 8], [0, 0, 0, 0]]
-    assert "noFill" in series[0]._element.xml
-    assert h.has_table and h.table.cell(0, 1).text == "A" and h.table.cell(1, 0).text == "x"
-
-
-def test_loss_making_waterfall_splits_across_zero(tmp_path):
-    deck, ds = _chart_slide("waterfall")
-    ds[0].rows = [{"cat": c, "reg": "x", "v": v} for c, v in zip("abcd", [5, -8, -4, 6], strict=True)]
-    shape = _shapes(Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides[0], "slot:chart")[0]
-    base, up, down = (list(x.values) for x in shape.chart.plots[0].series)
-    assert base == [0, 0, -3, -1] and up == [5, 5, 0, 0] and down == [0, -3, -4, -6]  # bar 2 (5 -> -3) crosses zero
-
-
-def test_column_chart_unchanged(tmp_path):  # AC-48
-    deck, ds = _chart_slide("column")
-    shape = _shapes(Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides[0], "slot:chart")[0]
-    assert shape.has_chart and shape.chart.chart_type == XL_CHART_TYPE.COLUMN_CLUSTERED
-
-
-def test_html_heatmap_table_waterfall_svg():  # AC-51
-    hm, ds = _chart_slide("heatmap", **_HEAT)
-    html = render_deck_html(hm, ds)
-    assert html.count("<table") == 1 and "background:#" in html and "<svg" not in html
-    wf, ds = _chart_slide("waterfall")
-    html = render_deck_html(wf, ds)
-    assert "<svg" in html and "<table" not in html

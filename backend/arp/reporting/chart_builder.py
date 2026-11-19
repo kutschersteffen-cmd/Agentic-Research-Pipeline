@@ -3,11 +3,6 @@ from __future__ import annotations
 from io import StringIO
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")  # headless: this module never opens a display, only writes PNG files
-import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
 from pptx.chart.data import CategoryChartData, XyChartData
 from pptx.dml.color import RGBColor
 from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
@@ -59,6 +54,17 @@ def _column(ds: QuantitativeDataset, name: str | None, *, label: str) -> str:
 
 def is_native(spec: ChartSpec) -> bool:
     return spec.chart_type in _XL_CHART_TYPE
+
+
+def _plt():
+    """matplotlib, imported only by the drawers that still use it (radar and table SVG, the Word report's PNGs),
+    so the house deck's HTML and PowerPoint paths run without it."""
+    import matplotlib
+
+    matplotlib.use("Agg")  # headless: this module never opens a display, only writes PNG files
+    import matplotlib.pyplot as plt
+
+    return plt
 
 
 def _hex01(hex_color: str) -> tuple[float, float, float]:
@@ -176,11 +182,6 @@ def style_native_chart(chart, spec: ChartSpec, theme: DesignTheme, min_pt: float
             value_axis.major_gridlines.format.line.color.rgb = RGBColor.from_string(theme.gridline)
             value_axis.major_gridlines.format.line.width = Pt(0.5)
 
-    if spec.chart_type == ChartType.WATERFALL:  # series 1 is the invisible lift under each floating bar
-        series_list[0].format.fill.background()
-        series_list[0].format.line.fill.background()
-        chart.has_legend = False
-
 
 def _style_axes_chrome(ax, theme: DesignTheme) -> None:
     """Recessive grid/axes so the marks stay the focus: no top/right
@@ -209,6 +210,7 @@ def render_chart_image(
     for the still-editable path used for pptx output whenever the chart
     type supports it.
     """
+    plt = _plt()
     fig = _draw_chart(spec, datasets, theme or DesignTheme(), width_in, height_in)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, facecolor=fig.get_facecolor())
@@ -224,6 +226,7 @@ def render_chart_svg(
     applies; the figure is sized at 1/2.4 of the slot's pixels in points so
     the 10pt chart type renders at 24px on the 1920px canvas (projector floor).
     """
+    plt = _plt()
     with plt.rc_context({"svg.fonttype": "none"}):
         fig = _draw_chart(spec, datasets, theme, width_px / 172.8, height_px / 172.8)
         buf = StringIO()
@@ -235,6 +238,7 @@ def render_chart_svg(
 
 def _draw_chart(spec: ChartSpec, datasets: list[QuantitativeDataset], theme: DesignTheme, width_in: float, height_in: float):
     ds = _dataset_by_id(datasets, spec.dataset_id)
+    plt = _plt()
     plt.rcParams["font.family"] = "sans-serif"
     fig, ax = plt.subplots(figsize=(width_in, height_in), dpi=150)
     fig.patch.set_facecolor(f"#{theme.surface}")
@@ -323,10 +327,12 @@ def _apply_legend(ax, theme: DesignTheme) -> None:
 
 
 def _sequential_cmap(theme: DesignTheme):
+    from matplotlib.colors import LinearSegmentedColormap
+
     return LinearSegmentedColormap.from_list("arp_sequential", [f"#{c}" for c in theme.sequential])
 
 
-def _heatmap_grid(spec: ChartSpec, ds: QuantitativeDataset) -> tuple[list[str], list[str], list[list[float]]]:
+def _render_heatmap(ax, spec: ChartSpec, ds: QuantitativeDataset, theme: DesignTheme) -> None:
     row_col = _column(ds, spec.y_column, label="y_column (heatmap row axis)")
     col_col = _column(ds, spec.category_column, label="category_column (heatmap column axis)")
     val_col = _column(ds, spec.value_column, label="value_column (heatmap cell values)")
@@ -339,75 +345,6 @@ def _heatmap_grid(spec: ChartSpec, ds: QuantitativeDataset) -> tuple[list[str], 
     for r in ds.rows:
         i, j = row_idx[str(r.get(row_col))], col_idx[str(r.get(col_col))]
         grid[i][j] = _as_float_or_zero(r.get(val_col))
-
-    return row_labels, col_labels, grid
-
-
-def heatmap_table(spec: ChartSpec, ds: QuantitativeDataset, theme: DesignTheme) -> tuple[list[str], list[list], list[list[str]]]:
-    """A heatmap as table cells: headers (corner + column labels), rows (row label + values), and a fill hex
-    per cell from the theme's sequential ramp. Shared by the native pptx table and the HTML preview."""
-    row_labels, col_labels, grid = _heatmap_grid(spec, ds)
-    vals = [v for r in grid for v in r if v == v]
-    lo, hi = (min(vals), max(vals)) if vals else (0.0, 0.0)
-    cmap = _sequential_cmap(theme)
-    fill = lambda v: f"{theme.surface}" if v != v else matplotlib.colors.to_hex(cmap((v - lo) / (hi - lo) if hi > lo else 0.0))[1:].upper()  # noqa: E731
-    rows = [[label, *("" if v != v else v for v in r)] for label, r in zip(row_labels, grid, strict=True)]
-    fills = [[theme.surface, *(fill(v) for v in r)] for r in grid]
-    return ["", *col_labels], rows, fills
-
-
-def text_on(fill_hex: str) -> str | None:
-    """White ink for a dark fill so the cell value stays readable; None keeps the default ink."""
-    r, g, b = (int(fill_hex[i : i + 2], 16) for i in (0, 2, 4))
-    return "FFFFFF" if 0.299 * r + 0.587 * g + 0.114 * b < 140 else None
-
-
-def _waterfall_steps(spec: ChartSpec, datasets: list[QuantitativeDataset]) -> tuple[list[str], list[float]]:
-    ds = _dataset_by_id(datasets, spec.dataset_id)
-    category_col = _column(ds, spec.category_column, label="category_column")
-    value_col = _column(ds, spec.value_columns[0] if spec.value_columns else None, label="value_columns[0]")
-    return [str(row.get(category_col, "")) for row in ds.rows], [_as_float_or_zero(row.get(value_col)) for row in ds.rows]
-
-
-def build_waterfall_chart_data(spec: ChartSpec, datasets: list[QuantitativeDataset]) -> CategoryChartData:
-    """Waterfall as a three-series stacked column: `base` (invisible lift), `up` (visible part >= 0), `down` (visible part <= 0).
-
-    PowerPoint stacks positives up from 0 and negatives down from 0 separately, so a bar that sits below or
-    crosses zero needs its visible part split across `up` and `down` rather than lifted by one base."""
-    categories, steps = _waterfall_steps(spec, datasets)
-    running, bases, ups, downs = 0.0, [], [], []
-    for v in steps:
-        low, high = min(running, running + v), max(running, running + v)
-        if low >= 0:
-            base, up, down = low, high - low, 0.0
-        elif high <= 0:
-            base, up, down = high, 0.0, low - high
-        else:
-            base, up, down = 0.0, high, low
-        bases.append(base)
-        ups.append(up)
-        downs.append(down)
-        running += v
-    data = CategoryChartData()
-    data.categories = categories
-    data.add_series("base", bases)
-    data.add_series("up", ups)
-    data.add_series("down", downs)
-    return data
-
-
-def color_waterfall_points(chart, spec: ChartSpec, datasets: list[QuantitativeDataset]) -> None:
-    """Colour each visible bar by its step's sign, as the SVG preview does."""
-    _, steps = _waterfall_steps(spec, datasets)
-    for series in list(chart.plots[0].series)[1:]:
-        for i, v in enumerate(steps):
-            fmt = series.points[i].format
-            fmt.fill.solid()
-            fmt.fill.fore_color.rgb = RGBColor.from_string(STATUS_GOOD if v >= 0 else STATUS_CRITICAL)
-
-
-def _render_heatmap(ax, spec: ChartSpec, ds: QuantitativeDataset, theme: DesignTheme) -> None:
-    row_labels, col_labels, grid = _heatmap_grid(spec, ds)
 
     im = ax.imshow(grid, aspect="auto", cmap=_sequential_cmap(theme))
     ax.set_xticks(range(len(col_labels)))
@@ -437,7 +374,7 @@ def _render_waterfall(ax, spec: ChartSpec, ds: QuantitativeDataset, theme: Desig
         running += v
     ax.bar(categories, heights, bottom=bottoms, color=colors, width=0.6)
     ax.axhline(0, color=f"#{theme.ink_muted}", linewidth=0.8)
-    plt.setp(ax.get_xticklabels(), rotation=30, ha="right")
+    _plt().setp(ax.get_xticklabels(), rotation=30, ha="right")
 
 
 def render_table_image(columns: list[str], rows: list[dict], out_path: Path, *, width_in: float = 9.0) -> Path:
@@ -447,6 +384,7 @@ def render_table_image(columns: list[str], rows: list[dict], out_path: Path, *, 
     primitives too -- this function exists purely as a fallback for a
     caller that wants a table as a flat image."""
     height_in = 0.35 * (len(rows) + 1) + 0.3
+    plt = _plt()
     fig, ax = plt.subplots(figsize=(width_in, height_in), dpi=150)
     ax.axis("off")
     cell_text = [[str(row.get(c, "")) for c in columns] for row in rows]
@@ -464,10 +402,6 @@ __all__ = [
     "ChartDataError",
     "is_native",
     "build_native_chart_data",
-    "build_waterfall_chart_data",
-    "color_waterfall_points",
-    "heatmap_table",
-    "text_on",
     "render_chart_image",
     "render_chart_svg",
     "render_table_image",

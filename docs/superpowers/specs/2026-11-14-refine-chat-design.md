@@ -14,7 +14,9 @@ Owner decisions on 2026-11-14:
 - Split view with an instant in-browser slide preview.
 - Chat edits to RFP answers count as AI drafts, so the person who asked may approve them.
 - During a bulk RFP edit, answers appear one by one as each finishes.
-- The exported deck is fully editable in PowerPoint.
+- ~~The exported deck is fully editable in PowerPoint.~~ Superseded 2026-11-19: the owner chose
+  `2026-11-18-house-deck-vega-lite-charts` (its AC-23: layout-slide waterfall and heatmap are pictures). Some
+  charts are therefore not editable.
 - PowerPoint round-trip (upload an edited deck and keep refining) is stage 2, a separate spec, using the
   "read edits back into the app's deck" approach.
 
@@ -45,8 +47,8 @@ checks grounding and stores them.** The model never writes to the database direc
    (`render_deck_html`, `backend/arp/reporting/html_render.py:85`; `house_style.slot_rect`).
 6. Undo of the newest turn, repeatable back to the first turn.
 7. Every turn is logged: who asked, what they typed, which operations ran, the state before and after.
-8. The exported `.pptx` is fully editable: no chart is a picture. Waterfall becomes a native stacked-column
-   chart with an invisible base series; heatmap becomes a native table whose cells are filled by value.
+8. ~~The exported `.pptx` is fully editable: no chart is a picture.~~ Retired 2026-11-19 (owner): charts follow
+   `2026-11-18-house-deck-vega-lite-charts`; layout-slide waterfall and heatmap are Vega-Lite pictures.
 
 ## Non-goals
 
@@ -198,17 +200,11 @@ request.
   `deck.json` (`ReportingService._rerender`, `backend/arp/reporting/service.py:189`) with no model call.
   The file is fetched with `GET /api/reports/{id}/download?file=output.pptx`.
 
-### Editable export
+### Editable export (retired 2026-11-19)
 
-- `house_pptx` (`backend/arp/reporting/house_pptx.py:151`) stops inserting chart pictures:
-  - `waterfall`: a native stacked-column chart with 3 series: an invisible base (no fill, no line), the part
-    of each bar above zero, and the part below zero, so bars that cross or sit below zero draw correctly
-    (owner change 2026-11-14, was 2 series). Bars are coloured by the step's sign, as in the preview.
-  - `heatmap`: a native table, one cell per value, cell fill from the theme's sequential palette.
-- `render_deck_html` changes the same way, so preview and export match: a heatmap slot becomes an HTML
-  `<table>` with filled cells; a waterfall slot stays an SVG, drawn as a stacked column with an invisible base.
-- Text slots stay text boxes; tables stay native tables. Images placed in `image` slots stay pictures (they
-  are images, not charts).
+The owner chose `2026-11-18-house-deck-vega-lite-charts` over this section: chart drawing in the preview and the
+`.pptx` follows that spec, so layout-slide waterfall and heatmap are pictures. Text slots stay text boxes, native
+charts stay native (AC-33, AC-34, AC-48 still hold).
 
 ### Turn log and undo
 
@@ -292,7 +288,7 @@ no slot `sidebar`, and whose findings, datasets and slide 2 text contain no `73`
 | AC-32 | after AC-19 | `POST /api/reports/R/render` | `calls.jsonl` gains no `kind: model` line; manifest `deck_edited_since_render` = false | holdout |
 | AC-33 | after AC-32 | download `output.pptx`, open with python-pptx | slide 2 has a text frame containing `Net zero by 2040` | holdout |
 | AC-34 | after AC-24 and a render | open `output.pptx` slide 2 | its chart slot is a native chart of type column; `deck/html` slide 2 chart slot holds an SVG | holdout |
-| AC-35 | a deck with one waterfall slide and one heatmap slide, rendered | open `output.pptx` | no picture shape on either chart slot; the waterfall slot is a native stacked-column chart with 3 series, the first with no fill (owner change 2026-11-14, was 2 series); the heatmap slot is a native table | holdout |
+| ~~AC-35~~ | retired 2026-11-19: the owner chose `2026-11-18-house-deck-vega-lite-charts` (its AC-23) | — | — | — |
 | AC-36 | the app with stand-ins | open the command palette | it lists `Refine`; `/refine?report=R` opens with R selected; the picker lists no report without a deck | evaluator |
 | AC-37 | Refine on R; `RefineOps` returns `set_chart_type(3, "column")` | owner types `make slide 3 a column chart` | slide 3 in the right pane shows a column chart within 1 s of the reply appearing | evaluator |
 | AC-38 | as AC-37 | — | slide 3's thumbnail carries the label `changed` | evaluator |
@@ -304,7 +300,7 @@ no slot `sidebar`, and whose findings, datasets and slide 2 text contain no `73`
 | AC-44 | Refine on R after a chat edit | — | `Preview changed since last export` and `Export .pptx` show; after clicking Export they are gone | evaluator |
 | AC-45 | golden cases file `backend/tests/golden/refine/cases.json`, ≥ 15 instructions with expected ops; a case passes when op names and targets (question ids, slide, slot, variant, chart type) equal the expected, instruction text ignored | `arp golden-set refine --min-accuracy 0.9` with the real model | exits 0 | golden |
 | AC-50 | as AC-41 | — | each answer shows in the right pane within 2 s of the progress line's count going up | evaluator |
-| AC-51 | a deck with one waterfall slide and one heatmap slide | `GET .../deck/html` | the heatmap slot holds a `<table>`; the waterfall slot holds an SVG | holdout |
+| ~~AC-51~~ | retired 2026-11-19: the owner chose `2026-11-18-house-deck-vega-lite-charts` (its AC-23) | — | — | — |
 | AC-52 | P; the `DraftOut` stand-in returns an error for Q1 and a grounded draft for Q2 | ops `rewrite([Q1,Q2])` | turn `done`; `changed` = [Q2]; `not_changed` = [{Q1, `draft failed`}] | holdout |
 | AC-53 | a `refine_turns` row `running` on P from before an API restart | restart the API, then read the turn | `status` `failed`, `error` `interrupted`; a new turn on P returns 202 | unit |
 | AC-54 | after AC-1 | a user with role `viewer` posts undo on P | 403, detail `Viewers cannot change documents.` | holdout |
