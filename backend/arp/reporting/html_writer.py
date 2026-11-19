@@ -5,11 +5,14 @@ Charts are inline Vega-Lite SVG drawn from the ChartPrim geometry (`vega.py`), s
 
 from __future__ import annotations
 
+import base64
 from html import escape
 
 from arp.reporting.house_style import Mode, Tokens
+from arp.reporting.image_embed import embedded
 from arp.reporting.render_model import (
     ChartPrim,
+    ImagePrim,
     Line,
     Primitive,
     Rect,
@@ -19,6 +22,7 @@ from arp.reporting.render_model import (
     palette,
 )
 from arp.reporting.vega import chart_spec, to_svg
+from arp.storage.report_images import LoadedImage
 
 _JUSTIFY = {"top": "flex-start", "middle": "center", "bottom": "flex-end"}
 
@@ -98,8 +102,20 @@ def _table(p: TablePrim, c: dict[str, str], body: str, mono: str) -> str:
             + f'><table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed">{trs}</table></div>')
 
 
-def html_slide(prims: list[Primitive], tokens: Tokens, mode: Mode) -> str:
-    """The slide's elements, in draw order; empty text is skipped."""
+def _pos(a: float, b: float) -> float:
+    """object-position percent for crop fractions `a` (left/top) and `b` (right/bottom): the PPTX crop's region."""
+    return 100 * a / (a + b) if a + b else 50
+
+
+def _image(p: ImagePrim, images: dict[str, LoadedImage]) -> str:
+    left, top, right, bottom = p.crop
+    src = f"data:{p.media_type};base64,{base64.b64encode(embedded(images[p.image].data)).decode()}"
+    style = f"display:block;object-fit:cover;object-position:{_pos(left, right):g}% {_pos(top, bottom):g}%;"
+    return _box(p.name, p.x, p.y, p.w, p.h, style, "img") + f' src="{src}" alt="{_a(p.alt)}">'
+
+
+def html_slide(prims: list[Primitive], tokens: Tokens, mode: Mode, images: dict[str, LoadedImage] | None = None) -> str:
+    """The slide's elements, in draw order; empty text is skipped. `images` holds the bytes behind the image primitives."""
     c = palette(tokens, mode)
     body, mono = family(tokens.fonts.body), family(tokens.fonts.mono or tokens.fonts.body)
     out = []
@@ -115,4 +131,6 @@ def html_slide(prims: list[Primitive], tokens: Tokens, mode: Mode) -> str:
             out.append(_chart(p, tokens, mode))
         elif isinstance(p, TablePrim):
             out.append(_table(p, c, body, mono))
+        elif isinstance(p, ImagePrim):
+            out.append(_image(p, images or {}))
     return "\n".join(out)
