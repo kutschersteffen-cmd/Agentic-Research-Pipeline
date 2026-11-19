@@ -68,10 +68,10 @@ def _fmt_signed(v: float, values: list[float], unit: str) -> str:
 class _Writer:
     def __init__(self, slide, tokens: Tokens, mode: Mode, emu_per_px: float, images: dict[str, LoadedImage] | None = None):
         self.slide, self.k, self.c, self.images = slide, emu_per_px, palette(tokens, mode), images or {}
-        self.shapes = slide.shapes  # where rects and texts go: the slide, or a flow step's group while it is drawn
-        self.drawn: dict[str, tuple] = {}  # rect name -> (primitive, shape), for gluing connectors
         self.pt = emu_per_px / 12700  # pt per canvas px
         self.body, self.mono = family(tokens.fonts.body), family(tokens.fonts.mono or tokens.fonts.body)
+        self.shapes = slide.shapes  # where rects and texts go: the slide, or a flow step's group while it is drawn
+        self.drawn: dict[str, tuple] = {}  # rect name -> (primitive, shape), for gluing connectors
 
     def e(self, px: float) -> int:
         return round(px * self.k)
