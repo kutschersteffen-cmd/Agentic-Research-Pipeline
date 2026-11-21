@@ -1,6 +1,6 @@
 /** Research Orchestrator plans as /api/plans serves them (plain dicts on the backend, so typed here). */
 export type PlanStatus = "draft" | "approved" | "running" | "awaiting_review" | "done" | "failed" | "cancelled";
-export type CallStatus = "pending" | "starting" | "running" | "awaiting_review" | "done" | "failed" | "cancelled";
+export type CallStatus = "pending" | "running" | "awaiting_review" | "done" | "failed" | "cancelled";
 
 export interface DryRunStep { seq: number; kind: string; params: Record<string, unknown>; depends_on: number | null }
 export interface PreviousScript { version: number; script: string; error: string | null; replanned_at: string; replanned_by: string | null }
