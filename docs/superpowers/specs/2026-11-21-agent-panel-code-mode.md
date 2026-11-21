@@ -135,9 +135,18 @@ runs every `ARP_PLAN_WORKER_SECONDS` (default 5) as a scheduler started in the A
 `Capability(id, summary, effect: "read" | "run", lane: "plan" | "sandbox", input_model, output_note)`.
 - Plan lane, effect `run`: the 8 existing steps plus `identity_resolution(universe_run_id, companies=None)` and
   `tnfd_extraction(universe_run_id, as_of, companies=None)` (D8).
-- Sandbox lane, effect `read`: `portfolio_exposure`, `smart_search`, `transition_plan`, `benchmark_sectors`, wrapping the
-  four Ask tools with their existing input and card models. Each returns its card's `model_dump(mode="json")`, without
-  the answer text; an omitted argument means `null`.
+- Sandbox lane, effect `read`: the four tools Ask ARP routes to (`api/routers/ask.py`), called directly instead of
+  through Ask's routing call. Each returns the `model_dump(mode="json")` of what the wrapped function returns, without
+  answer text; an omitted argument means `null`:
+
+  | Capability | Arguments | Wraps | Returns | Model call |
+  |---|---|---|---|---|
+  | `benchmark_sectors` | `{benchmark_id: string \| null}` | `ask.benchmark_sectors` | `BenchmarkCard` | none |
+  | `transition_plan` | `{company: string \| null}` | `ask.newest_transition_plan` | `TransitionPlanCard` | none |
+  | `portfolio_exposure` | `{question: string}` | `qa_agent.answer_question` | its answer model | one `LLMClient` call |
+  | `smart_search` | `{question: string}` | `smart_search.smart_search` | `SearchAnswer` | one `LLMClient` call |
+
+  The tool route acts as the principal who asked for the exploration, carried in its token.
 
 `STEPS`, the checker, the planner's stubs and the new route `GET /api/capabilities` all read the catalog.
 `GET /api/capabilities` returns `[{id, summary, effect, lane, input_schema}]`, sandbox lane first, then plan lane, each sorted by `id`;
@@ -186,8 +195,8 @@ from the header.
   - `plan_approval`: a draft plan. `seq` and `exploration_id` null, `title` the brief's first 60 characters,
     `href` `#/agent/<plan_id>`.
   - `step_review`: a call `awaiting_review`. `exploration_id` null, `title` `<kind> step <seq>`, `href`
-    `#/review/<run_type>/<run_id>` (the route `App.tsx` opens for a reviewable run), or `#/agent/<plan_id>` for a call
-    without a run id (a report storyline).
+    `#/review/<manifest run_type>/<run_id>` (the route `App.tsx` opens for a reviewable run), except
+    `#/agent/<plan_id>` when the call's kind is `report_render` (its gate is the report storyline).
   - `exploration`: an exploration not yet accepted. `plan_id` and `seq` null, `title` the question's first 60
     characters, `href` `#/agent/exploration/<id>`.
   Under the list, one line: `<n> more waiting in the Review Queue`, where `n` is the `total` field of `GET /api/waiting`,
@@ -231,6 +240,10 @@ passed into the isolate. A capability that is not in the sandbox lane has no rou
 
 `POST /api/agent/explorations` answers HTTP 200 with the stored row in every one of these cases.
 
+**Code checks.** The `sandbox/` service checks code before it runs: first lines (`code.split("\n").length` at most 400),
+then a parse with `acorn` (pinned like `workerd`). The same check is exposed as `POST /check` (`{code}` →
+`{ok, error}`) for the backend's retry.
+
 **Exploration flow.** `POST /api/agent/explorations` with `{"question": str}`:
 1. One `LLMClient` call (D7) writes the code. It receives the sandbox capabilities as TypeScript declarations generated
    from the catalog, and returns `{code}`. Code that fails to parse gets one retry with the parse error; a second
@@ -240,7 +253,8 @@ passed into the isolate. A capability that is not in the sandbox lane has no rou
    created_at, accepted_by, accepted_at)`. `status` is `done`, `failed` or `timeout`. `tool_calls` is
    `[{capability_id, args, result_bytes}]`.
 
-The response is the stored row plus `"label": "exploratory"`. `POST /api/agent/explorations/{id}/accept` sets
+The response is the stored row plus `"label": "exploratory"`. `GET /api/agent/explorations` lists them newest first in
+the same shape; `GET /api/agent/explorations/{id}` returns one, or `404 {"detail": "exploration not found"}`. `POST /api/agent/explorations/{id}/accept` sets
 `accepted_by` and `accepted_at`, and the label becomes `accepted`. In the stream an exploration shows as a card with the
 question, the code (collapsed), the result as a table when it is a list of flat objects (JSON otherwise), the tool
 calls, and a badge `Exploratory: not reviewed` until accepted.
@@ -322,10 +336,11 @@ Rows that need stub steps (P3) or forced crashes are `unit`: the app started by 
 | AC-26b | Injected planner usage: model `claude-sonnet-5-5`, 1 000 000 input and 100 000 output tokens, one attempt | `draft_plan` | the stored plan has `planner_cost_usd: 3.00` (at $2 / $10 per 1M) | unit |
 | AC-27 | Demo plan | open `#/agent` | the left column lists the demo plan's thread with chip `draft` | evaluator |
 | AC-28 | Demo plan selected | look at the stream | a script card, 4 dry-run step rows and an approval card with buttons `Approve` and `Edit` | evaluator |
-| AC-29 | Demo plan selected | click `Approve` | the thread's chip reads `approved`; the approval card is gone; the Audit tab shows the signed-in user as approver | evaluator |
+| AC-29 | Demo plan selected | click `Approve` | the thread's chip reads `approved` and the approval card is gone | evaluator |
+| AC-29c | The plan approved in AC-29 | open its Audit tab | the approver line shows the signed-in user | evaluator |
 | AC-29b | Demo plan selected | open the Script tab | the demo script, read-only, with line numbers from 1 to its last line | evaluator |
 | AC-30 | No other drafts, waiting calls or explorations; draft plan A created before plan B's call seq 2 started; plan B `awaiting_review` at seq 2 on run `r_2` of type `extraction` | `GET /api/agent/inbox` | exactly 2 rows: `{kind: "plan_approval", plan_id: A, seq: null, exploration_id: null, href: "#/agent/A"}` then `{kind: "step_review", plan_id: B, seq: 2, exploration_id: null, href: "#/review/extraction/r_2"}` | unit |
-| AC-31 | `GET /api/waiting` returns `total: 7` | open `#/agent` | the inbox footer reads `7 more waiting in the Review Queue` and links to `#/review` | evaluator |
+| AC-31 | `GET /api/waiting` returns `total: n` | open `#/agent` | the inbox footer reads `<n> more waiting in the Review Queue` and links to `#/review` | evaluator |
 | AC-32 | A plan re-planned once (version 2) | open its Diff tab | the header reads `-<a> +<b>`, where a and b count the lines starting `-` and `+` (headers excluded) in `diff -u` of the version 1 and version 2 scripts | evaluator |
 | AC-33 | A done plan with 3 calls | open its Audit tab | 3 rows, each showing seq, kind, run id, status and cost equal to `GET /api/plans/{id}` `calls` | evaluator |
 | AC-34 | A running plan selected; a call changes from `running` to `done` | wait 4 s | that step card shows `done` without a page reload | evaluator |
@@ -336,7 +351,7 @@ Rows that need stub steps (P3) or forced crashes are `unit`: the app started by 
 | AC-39 | Stand-in code `return await codemode.benchmark_sectors({})` | `POST /api/agent/explorations` | HTTP 200; `status: "done"`; `label: "exploratory"`; `result` equals `BenchmarkCard.model_dump(mode="json")` of the card `ask.benchmark_sectors` returns for `benchmark_id: null` (the sample card, `is_sample: true`), without its text | holdout |
 | AC-40 | Stand-in code `return await fetch("https://example.com")` | same | HTTP 200; `status: "failed"`; `error` contains `network access is not allowed` | holdout |
 | AC-41 | Stand-in code `while (true) {}` | same | HTTP 200 within 35 s; `status: "timeout"` | holdout |
-| AC-42 | Stand-in code making 51 `codemode.smart_search` calls in a loop | same | HTTP 200; `status: "failed"`; `error` contains `capability call limit 50 exceeded`; `tool_calls` has 50 rows | holdout |
+| AC-42 | Stand-in code calling `codemode.benchmark_sectors({benchmark_id: null})` 51 times in a loop | same | HTTP 200; `status: "failed"`; `error` contains `capability call limit 50 exceeded`; `tool_calls` has 50 rows | holdout |
 | AC-43 | Stand-in code `return typeof process + "," + typeof globalThis.ARP_TOKEN` | same | HTTP 200; `result` is `"undefined,undefined"` | holdout |
 | AC-44 | Stand-in code returning a string of 300 000 ASCII characters | same | HTTP 200; `status: "failed"`; `error` contains `result exceeds 256 KB` | holdout |
 | AC-45 | Stand-in code `return await codemode.universe_build({})` | same | HTTP 200; `status: "failed"`; `error` contains `universe_build is not available in the sandbox` | holdout |
@@ -344,19 +359,19 @@ Rows that need stub steps (P3) or forced crashes are `unit`: the app started by 
 | AC-45c | Stand-in codes: first `return (`, then `return 1` | same | HTTP 200; `status: "done"`; `result: 1`; `calls.jsonl` has 2 lines with `name: "ExplorationCode"` and that question | holdout |
 | AC-46 | A valid execution token minted in the test | `POST /api/sandbox/tools/universe_build` | HTTP 404 | unit |
 | AC-47 | `ARP_SANDBOX_TOKEN_SECONDS=1`; a token minted 2 s ago | `POST /api/sandbox/tools/smart_search` with it | HTTP 401 | unit |
-| AC-48 | A done exploration | `POST /api/agent/explorations/{id}/accept` as `alice` | `GET` shows `label: "accepted"`, `accepted_by: "alice"`, non-null `accepted_at` | holdout |
+| AC-48 | A done exploration | `POST /api/agent/explorations/{id}/accept` | `GET /api/agent/explorations/{id}` shows `label: "accepted"`, `accepted_by` equal to the signed-in user (`dev` in the e2e app), non-null `accepted_at` | holdout |
 | AC-49 | An exploration not yet accepted | open it in the stream | the card shows the badge `Exploratory: not reviewed` | evaluator |
 | AC-50 | An exploration E not yet accepted | `GET /api/agent/inbox` | exactly 1 row has `exploration_id: E`, and it equals `{kind: "exploration", plan_id: null, seq: null, exploration_id: E, href: "#/agent/exploration/E"}` | holdout |
-| AC-51 | Golden file of 10 questions, each with the capabilities its code must call; a case passes if the code runs to `done` and calls each listed capability at least once | `arp agent golden --cases tests/golden/explore.jsonl --min-pass 8` | exit 0 | golden |
+| AC-51 | Golden file of 10 questions, each with the capabilities its code must call; a case passes if the code runs to `done` and calls each listed capability at least once | `cd backend && arp agent golden --cases tests/golden/explore.jsonl --min-pass 8` (one `{id, question, expected_capabilities: [str]}` per line; the command starts `sandbox/` itself if `ARP_SANDBOX_URL` does not answer) | exit 0 | golden |
 | AC-52 | Must not change: a script `x = exploration` | `arp plan dry-run s.py` | exit 1, stdout contains `line 1: name exploration is not defined` | holdout |
 | AC-53 | Must not change: the v1 checker rows AC-1 to AC-8 | `python3 -m pytest backend/tests/test_plan_script.py` | passes with no test edited | unit |
-| AC-54 | A done exploration; stand-in mini-app HTML | click `Show as mini-app` | the Mini-app tab opens and shows the frame; `GET` of the exploration has non-null `miniapp_html` | evaluator |
+| AC-54 | A done exploration; stand-in mini-app HTML | click `Show as mini-app` | the Mini-app tab opens and shows the frame; `GET /api/agent/explorations/{id}` has non-null `miniapp_html` | evaluator |
 | AC-54b | An exploration with `status: "failed"` | `POST /api/agent/explorations/{id}/miniapp` | HTTP 409, `{"detail": "only a done exploration can be shown as a mini-app"}` | holdout |
 | AC-54c | A done exploration with `miniapp_html` stored | open its Mini-app tab | the iframe's `sandbox` attribute is exactly `allow-scripts` | evaluator |
 | AC-55 | No other page open; stand-in mini-app HTML that calls `fetch("/api/plans")` and shows the outcome | open its Mini-app tab | the frame shows the fetch failed; the API access log has no `GET /api/plans` from opening the tab until 5 s later | evaluator |
 | AC-56 | Mini-app HTML that posts `{"action": "ask", "text": "why sector X?"}` | it loads | the composer contains `why sector X?`; no new thread appears | evaluator |
 | AC-57 | Mini-app HTML that posts `{"action": "run", "plan_id": "<demo>"}` | it loads | the demo plan's status is unchanged and the composer is empty | evaluator |
-| AC-58 | Must not change: the backend suite apart from the cases slice 1 retires openly | `python3 -m pytest` | passes | unit |
+| AC-58 | Must not change: the backend suite, apart from the cases listed under Fixtures, each listed in the PR that edits it | `python3 -m pytest` | passes | unit |
 | AC-59 | Must not change: the frontend suite apart from the cases slice 6 retires openly | `npm test` | passes | unit |
 
 Must not change: v1 and v2 plan behaviour (AC-10, AC-53), the plan language (AC-52), both suites (AC-58, AC-59).
@@ -374,9 +389,9 @@ Each PR puts `Spec: agent-panel-code-mode` and its `Rows:` line in its descripti
 | 5 | Plan budget: columns, planner cost, `spent_usd`, stop before a step | `risk:high` (schema) | AC-23, AC-24, AC-24b, AC-25, AC-25b, AC-26, AC-26b, AC-58 |
 | 6 | Agent screen shell: threads, stream, approval card, composer, Script tab, nav and redirect | `risk:normal` | AC-27, AC-28, AC-29, AC-29b, AC-35, AC-36, AC-37, AC-38, AC-59 |
 | 7 | Inbox endpoint and column | `risk:normal` | AC-30, AC-31, AC-58, AC-59 |
-| 8 | Stage tabs: Diff, Audit; 3 s refresh | `risk:normal` | AC-32, AC-33, AC-34, AC-59 |
-| 9 | `sandbox/` service, tool route and tokens, limits, `e2e_stack.sh` starts it | `risk:high` (secrets, auth) | AC-40, AC-41, AC-42, AC-43, AC-44, AC-45, AC-45b, AC-46, AC-47, AC-58 |
-| 10 | Explorations: model call and retry, table, accept, stream card, inbox rows, golden set | `risk:high` (schema) | AC-39, AC-45c, AC-48, AC-49, AC-50, AC-51, AC-52, AC-58, AC-59 |
+| 8 | Stage tabs: Diff, Audit; 3 s refresh | `risk:normal` | AC-29c, AC-32, AC-33, AC-34, AC-59 |
+| 9 | `sandbox/` service with code checks, tool route and tokens, limits, `e2e_stack.sh` starts it; `agent_explorations` table and `POST /api/agent/explorations` taking code from `explore.json` entry 1 only (no retry yet) | `risk:high` (secrets, auth, schema) | AC-40, AC-41, AC-42, AC-43, AC-44, AC-45, AC-45b, AC-46, AC-47, AC-58 |
+| 10 | Explorations: model call and retry, list and get routes, accept, stream card, inbox rows, golden set | `risk:normal` | AC-39, AC-45c, AC-48, AC-49, AC-50, AC-51, AC-52, AC-58, AC-59 |
 | 11 | Mini-apps: route, generation, iframe, message bridge | `risk:high` (security boundary) | AC-54, AC-54b, AC-54c, AC-55, AC-56, AC-57, AC-58, AC-59 |
 
 Slices go in this order. Slices 3 to 5 may run in parallel after slice 2; slices 6 to 8 need slice 2; slice 10 needs 9;
@@ -394,6 +409,8 @@ slice 11 needs 10.
 
 ## Defaults decided without the owner
 
+- The golden job joins the existing golden-set CI check, triggered also by `backend/arp/agent/**`,
+  `backend/arp/orchestration/capabilities.py` and `sandbox/**`.
 - Launch key format `plan:<plan_id>:v<version>:<seq>:a<attempt>`, stored in run manifest `params["launch_key"]`.
 - Worker interval 5 s; panel refresh 3 s; tool token lifetime 60 s (`ARP_SANDBOX_TOKEN_SECONDS`).
 - Sandbox limits: 30 s, 50 calls, 262 144-byte result, 400 lines.
