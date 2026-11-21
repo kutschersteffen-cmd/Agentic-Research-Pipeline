@@ -326,8 +326,10 @@ async def fit_ladder(
     found = await _measure(deck, request, tokens)
     by_slide: dict[int, list[Finding]] = {}
     for f in found:
-        if deck.slides[f.slide].visual is not None:
-            by_slide.setdefault(f.slide, []).append(f)
+        v = deck.slides[f.slide].visual
+        if v is None or (v.type == "flow" and v.layout and v.layout.too_big and (f.slot or "").startswith(("step:", "arrow:"))):
+            continue  # a too-big flow's own overflow is already its flow_too_big finding
+        by_slide.setdefault(f.slide, []).append(f)
     extra: list[Finding] = []
     for i in sorted(by_slide, reverse=True):  # a split at i must not move the slides still to do
         before = len(deck.slides)

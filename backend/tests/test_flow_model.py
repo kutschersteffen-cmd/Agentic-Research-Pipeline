@@ -131,3 +131,22 @@ async def test_ac40c_rewrites_never_touch_flows(tmp_path):
 async def test_ac40d_too_big_flow_flagged(tmp_path):
     _, slide, findings = await _build(tmp_path, F4)
     assert slide.needs_review and [f.rule for f in findings].count("flow_too_big") == 1
+
+
+async def test_too_big_flow_flagged_once(tmp_path):
+    _, _, findings = await _build(tmp_path, F4)
+    flow = [(f.rule, f.slot) for f in findings if f.slide == 1]
+    assert flow == [("flow_too_big", "visual")]  # the fit ladder adds no overflow findings and no second needs_review
+
+
+async def test_too_big_flow_still_reports_headline_overflow():
+    from arp.reporting.fit import fit_ladder
+    from arp.reporting.flow_layout import layout_flows
+    from arp.reporting.house_style import load_tokens
+
+    long = "Every weak transition plan goes to the decision log before the committee meets again " * 3
+    deck = Deck(title="T", slides=[SlideContent(headline=long, subheading=long, visual=Flow(mermaid=F4))])
+    tokens = load_tokens()
+    deck, _ = await layout_flows(deck, tokens, _REQ.layout.theme)
+    deck, found = await fit_ladder(deck, _REQ, _Recording(), tokens)
+    assert {(f.rule, f.slot) for f in found} == {("overflow", "title"), ("overflow", "subtitle"), ("needs_review", None)}
