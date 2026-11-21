@@ -40,7 +40,8 @@ def _texts(slide: SlideContent, headline: bool = False) -> Iterator[tuple[str, s
 
 
 # Visual fields that hold references or settings, not slide text.
-_NOT_TEXT = {"type", "data", "table", "kind", "unit", "highlight", "highlight_column", "total_row", "category", "agenda"}
+_NOT_TEXT = {"type", "data", "table", "kind", "unit", "highlight", "highlight_column", "total_row", "category", "agenda",
+             "name"}  # `name`: an image visual's registered image name
 
 
 def _visual_texts(v: object, path: str) -> Iterator[tuple[str, str]]:

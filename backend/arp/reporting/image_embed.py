@@ -24,3 +24,18 @@ def embedded(data: bytes) -> bytes:
     buf = io.BytesIO()
     small.save(buf, fmt, **({"quality": 90} if fmt == "JPEG" else {}))
     return buf.getvalue()
+
+
+PREVIEW_EDGE = 768
+
+
+def preview(data: bytes) -> bytes:
+    """The PNG the fill call shows the model: long edge 768 px, never upscaled (spec "Model calls")."""
+    with Image.open(io.BytesIO(data)) as im:
+        k = min(1, PREVIEW_EDGE / max(im.size))
+        small = im.resize((round(im.width * k), round(im.height * k)), Image.Resampling.LANCZOS) if k < 1 else im.copy()
+    if small.mode not in ("RGB", "RGBA", "L", "LA", "P"):  # e.g. a CMYK JPEG, which PNG can't hold
+        small = small.convert("RGB")
+    buf = io.BytesIO()
+    small.save(buf, "PNG")
+    return buf.getvalue()

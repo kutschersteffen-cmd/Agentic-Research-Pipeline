@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.content_planner import _datasets_context
-from arp.reporting.slide_fill import DESIGN_GUIDE, WRITING_GUIDE, add_usage
+from arp.reporting.slide_fill import DESIGN_GUIDE, WRITING_GUIDE, add_usage, image_lines
 from arp.schemas.reporting import ReportRequest, Storyline
 
 _SYSTEM = """\
@@ -74,6 +74,8 @@ async def draft_storyline(request: ReportRequest, llm: LLMClient) -> tuple[Story
     n = request.layout.target_length
     a = request.audience
     d = request.deck
+    images = image_lines(request)
+    visuals = (*CONTENT_VISUALS, "image") if images else CONTENT_VISUALS  # `image` only when there is one to show
     prompt = (
         f"Title: {request.title}\n"
         f"Goal: {request.goal or '(none given)'}\n"
@@ -81,10 +83,11 @@ async def draft_storyline(request: ReportRequest, llm: LLMClient) -> tuple[Story
         f"focus_areas={a.focus_areas or '(none)'}\n"
         f"Slide count: {f'exactly {n} slides, not counting the title slide' if n else 'your choice'}\n\n"
         + _DECK.format(profile=d.profile, arc=_ARCS[d.profile], purpose=d.purpose, detail=d.detail, cap=content_cap(request),
-                       visuals=", ".join(CONTENT_VISUALS), design=DESIGN_GUIDE) + "\n"
+                       visuals=", ".join(visuals), design=DESIGN_GUIDE) + "\n"
         + _SUBHEADING
         + f"Qualitative notes:\n{request.qualitative_notes}\n\n"
         + f"Quantitative datasets:\n{_datasets_context(request.datasets)}\n"
+        + (f"\nImages an `image` slide may show (name (width×height): description):\n{images}" if images else "")
     )
     storyline, usage = await llm.complete_structured(system=_SYSTEM, prompt=prompt, output_model=Storyline)
     errors = _errors(storyline)

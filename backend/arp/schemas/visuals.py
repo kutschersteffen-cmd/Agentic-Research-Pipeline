@@ -269,6 +269,11 @@ class ImageVisual(BaseModel):
 
     @model_validator(mode="after")
     def _variant(self):
+        seen: set[str] = set()
+        for i in self.images:  # checked first: "any variant", so the model hears it whatever else is wrong
+            if i.name in seen:
+                raise ValueError(f"image '{i.name}' appears twice")
+            seen.add(i.name)
         n, p = len(self.images), len(self.points)
         if self.variant == "hero" and (n != 1 or p):
             raise ValueError("a hero shows exactly 1 image and no points")
@@ -276,11 +281,6 @@ class ImageVisual(BaseModel):
             raise ValueError("a split shows exactly 1 image and 2 to 4 points")
         if self.variant == "gallery" and (not 2 <= n <= 6 or p or not all(i.caption for i in self.images)):
             raise ValueError("a gallery shows 2 to 6 images, each with a caption, and no points")
-        seen: set[str] = set()
-        for i in self.images:
-            if i.name in seen:
-                raise ValueError(f"image '{i.name}' appears twice")
-            seen.add(i.name)
         return self
 
 

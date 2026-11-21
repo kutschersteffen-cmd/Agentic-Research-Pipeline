@@ -32,6 +32,7 @@ from arp.schemas.reporting import (
     TableSpec,
 )
 from arp.schemas.visuals import ComparisonTable
+from arp.storage.report_images import layout_images
 
 _MILD = 1.6
 
@@ -92,7 +93,7 @@ async def fit_deck(
     `tokens` carries a template frame when there is one (house tokens otherwise)."""
     extra: list[Finding] = []
     for _ in range(max_passes):
-        found = await measure(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme), tokens)
+        found = await measure(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme, images=layout_images(request)), tokens)
         todo: dict[int, tuple[str, float]] = {}
         for f in found:
             if f.rule == "overflow" and f.slot not in (None, "headline") and deck.slides[f.slide].visual is None:
@@ -110,7 +111,7 @@ async def fit_deck(
                     f.slide += len(new) - 1
             extra += fs
         deck = deck.model_copy(update={"slides": slides})
-    found = await measure(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme), tokens)
+    found = await measure(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme, images=layout_images(request)), tokens)
     return deck, extra + [f for f in found if deck.slides[f.slide].visual is None]  # component slides are fit_ladder's
 
 
@@ -119,7 +120,7 @@ async def fit_deck(
 # tries, in order: shorten its visual text, type steps 1 and 2, a switch to a roomier visual, a split in two (each half
 # trying the first three again), and finally `needs_review`. The approved headline and subtitle are never rewritten.
 
-_STEPPED = {"kpi_row", "points", "next_steps", "two_column"}  # the visuals whose text follows `type_step`
+_STEPPED = {"kpi_row", "points", "next_steps", "two_column", "image"}  # the visuals whose text follows `type_step`
 _APPROVED = {"title", "subtitle"}  # their overflow goes straight to needs_review
 _SHORTEN = "You shorten slide text so it fits its box. Keep every number exactly as written. Keep every fact; invent none.\n\n" + WRITING_GUIDE
 
@@ -145,6 +146,10 @@ def _field(kind: str, name: str) -> tuple | None:
             return "insight", "points", int(n) - 1
         case "chart", ["callout", "text"]:
             return "callout", "text"
+        case "image", ["points", "row", n]:
+            return "points", int(n) - 1
+        case "image", ["image", n, "caption"]:
+            return "images", int(n) - 1, "caption"
     return None
 
 
@@ -164,12 +169,12 @@ def _step(i: int, rule: str, message: str, slot: str | None = None) -> Finding:
 
 async def _measure(deck: Deck, request: ReportRequest, tokens: Tokens | None) -> list[Finding]:
     """The page's measurements plus the overflow the render model finds itself (a clipped chart category label)."""
-    found = await measure(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme), tokens)
+    found = await measure(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme, images=layout_images(request)), tokens)
     model: list[Finding] = []
     by_id = {d.dataset_id: d for d in request.datasets}
     for i, s in enumerate(deck.slides):
         if s.visual is not None:
-            render_slide(s, i, deck, tokens or load_tokens(), by_id, request.layout.theme, model)
+            render_slide(s, i, deck, tokens or load_tokens(), by_id, request.layout.theme, model, images=layout_images(request))
     return found + [f for f in model if f.rule == "overflow"]
 
 
@@ -332,7 +337,7 @@ async def fit_ladder(
                 f.slide += len(deck.slides) - before
         extra += fs
     # Underfill: one type size up (renderers centre their content); flagged if still under half the body height.
-    under = [f.slide for f in design_checks(deck, request.datasets, tokens, request.layout.theme) if f.rule == "underfill"]
+    under = [f.slide for f in design_checks(deck, request.datasets, tokens, request.layout.theme, layout_images(request)) if f.rule == "underfill"]
     for i in under:
         s = deck.slides[i]
         if s.type_step == 0 and not s.needs_review and s.visual.type in _STEPPED:
@@ -340,5 +345,5 @@ async def fit_ladder(
             if not await _overflow(bigger, i, request, tokens):
                 deck = bigger
     if under:
-        extra += [f for f in design_checks(deck, request.datasets, tokens, request.layout.theme) if f.rule == "underfill"]
+        extra += [f for f in design_checks(deck, request.datasets, tokens, request.layout.theme, layout_images(request)) if f.rule == "underfill"]
     return deck, extra

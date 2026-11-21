@@ -13,7 +13,7 @@ from math import isfinite
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-from arp.schemas.reporting import ReportImage
+from arp.schemas.reporting import ReportImage, ReportRequest
 
 MAX_IMAGES = 20
 MAX_BYTES = 20 * 1024 * 1024
@@ -118,3 +118,8 @@ def decode_image(data: bytes, label: str) -> DecodedImage:
         raise ImageError(f"image '{label}' is not a PNG or JPEG image") from exc
     media_type, ext = _FORMATS[fmt]
     return DecodedImage(data=data, media_type=media_type, ext=ext, width=width, height=height)
+
+
+def layout_images(request: ReportRequest) -> dict[str, LoadedImage]:
+    """The request's stored images without their pixels: enough to lay a slide out and measure it, not to draw it."""
+    return {e.name: LoadedImage(entry=e, data=b"") for e in request.images if isinstance(e, ReportImage)}

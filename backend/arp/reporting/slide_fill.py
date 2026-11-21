@@ -15,9 +15,11 @@ from pydantic import BaseModel, ValidationError
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.content_planner import _datasets_context
 from arp.reporting.house_style import SlotSpec, get_variant, load_layouts, load_tokens
+from arp.reporting.image_embed import preview
 from arp.reporting.render_model import VisualDataError, render_slide
-from arp.schemas.reporting import Deck, Finding, QuantitativeDataset, ReportRequest, SlideContent, StorylineSlide
+from arp.schemas.reporting import Deck, Finding, QuantitativeDataset, ReportImage, ReportRequest, SlideContent, StorylineSlide
 from arp.schemas.visuals import FRIENDLY_NAMES, FlowAnswer, Points, Visual
+from arp.storage.report_images import LoadedImage, layout_images
 
 WRITING_GUIDE = (Path(__file__).parent / "style" / "writing.md").read_text()
 DESIGN_GUIDE = (Path(__file__).parent / "style" / "design.md").read_text()
@@ -97,6 +99,11 @@ def validate_slide(slide: SlideContent, datasets: list[QuantitativeDataset]) -> 
     return errors
 
 
+def image_lines(request: ReportRequest) -> str:
+    """One line per registered image, `- <name> (<width>×<height>): <alt>`; empty when there are none."""
+    return "".join(f"- {e.name} ({e.width}×{e.height}):{f' {e.alt}' if e.alt else ''}\n" for e in request.images if isinstance(e, ReportImage))
+
+
 def _prompt(slide: StorylineSlide, index: int, request: ReportRequest) -> str:
     return (
         f"Deck: {request.title}\nGoal: {request.goal or '(none given)'}\n"
@@ -151,7 +158,7 @@ class FlowSlideAnswer(SlideContent):
     visual: FlowAnswer | None = None
 
 
-_ITEMS = {"kpi_row": "tiles", "points": "points", "next_steps": "actions"}  # the list `emphasis` indexes
+_ITEMS = {"kpi_row": "tiles", "points": "points", "next_steps": "actions", "image": "points"}  # the list `emphasis` indexes
 
 
 def _visual_model(kind: str) -> type[BaseModel] | None:
@@ -207,7 +214,8 @@ def _check_visual(content: object, kind: str, request: ReportRequest, source_ref
     if kind == "flow":  # laid out later by layout_flows; a flow has no dataset to check and no layout to render yet
         return content, []
     try:
-        render_slide(content, 1, Deck(title=request.title, slides=[content]), load_tokens(), {d.dataset_id: d for d in request.datasets})
+        render_slide(content, 1, Deck(title=request.title, slides=[content]), load_tokens(), {d.dataset_id: d for d in request.datasets},
+                     images=layout_images(request))  # an unknown image name is an error here
     except VisualDataError as e:
         return None, [str(e)]
     return content, []
@@ -224,7 +232,8 @@ def _points_fallback(slide: StorylineSlide) -> Points:
     return Points(points=chunks + [""] * (3 - len(chunks)))
 
 
-async def _fill_visual(slide: StorylineSlide, index: int, request: ReportRequest, llm: LLMClient) -> tuple[SlideContent, list[Finding], LLMUsage]:
+async def _fill_visual(slide: StorylineSlide, index: int, request: ReportRequest, llm: LLMClient,
+                       images: dict[str, LoadedImage] | None = None) -> tuple[SlideContent, list[Finding], LLMUsage]:
     keep = {"headline": slide.headline, "subheading": slide.subheading, "kicker": slide.kicker, "source_refs": slide.source_refs}
 
     def fallback(rule: str, message: str) -> tuple[SlideContent, list[Finding], LLMUsage]:
@@ -240,17 +249,28 @@ async def _fill_visual(slide: StorylineSlide, index: int, request: ReportRequest
     model = FlowAnswer if flow else _visual_model(slide.visual)
     if model is None:
         return fallback("bad_reference", f"unknown visual {slide.visual!r}")
+    extra: dict = {}
+    if slide.visual == "image":
+        if not (lines := image_lines(request)):
+            return fallback("bad_reference", "no images registered")
+        # The model sees each registered image (decision 1), in registration order, so it picks and captions by content.
+        # All or none, so the previews pair with the listed names.
+        if images and all(n in images for n in layout_images(request)):
+            extra["images"] = [preview(images[n].data) for n in layout_images(request)]
     system = _VISUAL_RULES.format(type=slide.visual, name=FRIENDLY_NAMES.get(slide.visual, slide.visual),
                                   schema=json.dumps(model.model_json_schema())) + "\n" + (FLOW_GUIDE + "\n" if flow else "") + WRITING_GUIDE
     output_model = FlowSlideAnswer if flow else SlideContent
     kind = slide.visual + (f" (chart kind: {slide.chart_kind})" if slide.chart_kind else "")
     prompt = _prompt(slide, index, request) + f"\nVisual: {kind}\nWhy this visual: {slide.rationale or '(not given)'}\n\nVisual guide:\n{DESIGN_GUIDE}"
+    if slide.visual == "image":
+        shown = "; the previews follow in the same order" if "images" in extra else ""
+        prompt += f"\nImages you may show (name them exactly{shown}):\n{lines}"
     try:
-        answer, usage = await llm.complete_structured(system=system, prompt=prompt, output_model=output_model)
+        answer, usage = await llm.complete_structured(system=system, prompt=prompt, output_model=output_model, **extra)
         content, errors = _check_visual(answer, slide.visual, request, slide.source_refs)
         if errors:
             retry = prompt + "\nYour previous answer had these errors; fix them:\n- " + "\n- ".join(errors) + "\n"
-            answer, u2 = await llm.complete_structured(system=system, prompt=retry, output_model=output_model)
+            answer, u2 = await llm.complete_structured(system=system, prompt=retry, output_model=output_model, **extra)
             usage = add_usage(usage, u2)
             content, errors = _check_visual(answer, slide.visual, request, slide.source_refs)
     except Exception as exc:  # noqa: BLE001 -- the client retried already; one slide must not fail the deck
@@ -266,9 +286,12 @@ async def _fill_visual(slide: StorylineSlide, index: int, request: ReportRequest
     return SlideContent(**keep, visual=v), findings, usage
 
 
-async def fill_slide(slide: StorylineSlide, index: int, request: ReportRequest, llm: LLMClient) -> tuple[SlideContent, list[Finding], LLMUsage]:
+async def fill_slide(slide: StorylineSlide, index: int, request: ReportRequest, llm: LLMClient, *,
+                     images: dict[str, LoadedImage] | None = None) -> tuple[SlideContent, list[Finding], LLMUsage]:
+    """`images`: the report's stored images (`ReportingStore.load_report_images`); an `image` slide shows the model a
+    preview of each. Without it the model gets the image list in text only."""
     if slide.visual:
-        return await _fill_visual(slide, index, request, llm)
+        return await _fill_visual(slide, index, request, llm, images)
     placeholder = SlideContent(headline=slide.headline, layout="bullets", variant="three", slots={"items": []}, source_refs=slide.source_refs)
     prompt = _prompt(slide, index, request)
     usage = LLMUsage()
