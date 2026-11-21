@@ -17,7 +17,7 @@ from arp.reporting.content_planner import _datasets_context
 from arp.reporting.house_style import SlotSpec, get_variant, load_layouts, load_tokens
 from arp.reporting.render_model import VisualDataError, render_slide
 from arp.schemas.reporting import Deck, Finding, QuantitativeDataset, ReportRequest, SlideContent, StorylineSlide
-from arp.schemas.visuals import FRIENDLY_NAMES, Points, Visual
+from arp.schemas.visuals import FRIENDLY_NAMES, FlowAnswer, Points, Visual
 
 WRITING_GUIDE = (Path(__file__).parent / "style" / "writing.md").read_text()
 DESIGN_GUIDE = (Path(__file__).parent / "style" / "design.md").read_text()
@@ -123,6 +123,34 @@ Rules:
 {schema}
 """
 
+FLOW_GUIDE = """\
+Mermaid flowchart syntax (the whole text goes in `mermaid`):
+- First line `flowchart LR` (left to right) or `flowchart TB` (top to bottom).
+- A step `id[Label]`, a decision `id{Question?}`, data or a store `id[(Data)]`. Ids are letters, digits and _.
+- A tech tag goes after `<br>` in the label, e.g. `load[Load filings<br>Postgres]`: one `<br>` at most, tag at most 24 characters.
+- Arrows `a --> b`, labelled `a -->|yes| b`. One arrow per pair, no `&`.
+- Actors: `classDef team`, then `class a,b team` or `a:::team`. With actors, every step has exactly one.
+- Class `stored` marks a stored result; class `emphasis` marks the one step the headline is about.
+- Limits: 2 to 12 steps, at most 4 actors and 20 arrows, labels of at most 5 words, arrow labels of at most 3 words.
+- Not supported: subgraph, style, linkStyle, click, other node shapes or arrow types.
+Example:
+flowchart LR
+  collect[Collect filings<br>ESEF]:::team --> check{Data complete?}:::team
+  check -->|yes| review[Review results]:::analyst
+  check -->|no| log[(Gap log)]:::analyst
+  classDef team
+  classDef analyst
+  class log stored
+  class review emphasis
+"""
+
+
+class FlowSlideAnswer(SlideContent):
+    """Slide fill's output model for a `flow` slide: the visual is the model's Mermaid text, unparsed."""
+
+    visual: FlowAnswer | None = None
+
+
 _ITEMS = {"kpi_row": "tiles", "points": "points", "next_steps": "actions"}  # the list `emphasis` indexes
 
 
@@ -176,6 +204,8 @@ def _check_visual(content: object, kind: str, request: ReportRequest, source_ref
         return None, ["subheading: at most 16 words"]
     if errors := _off_source(content, list(source_refs), request):
         return None, errors
+    if kind == "flow":  # laid out later by layout_flows; a flow has no dataset to check and no layout to render yet
+        return content, []
     try:
         render_slide(content, 1, Deck(title=request.title, slides=[content]), load_tokens(), {d.dataset_id: d for d in request.datasets})
     except VisualDataError as e:
@@ -206,19 +236,21 @@ async def _fill_visual(slide: StorylineSlide, index: int, request: ReportRequest
         return SlideContent(**keep, visual=points, needs_review=blank), findings, usage
 
     usage = LLMUsage()
-    model = _visual_model(slide.visual)
+    flow = slide.visual == "flow"
+    model = FlowAnswer if flow else _visual_model(slide.visual)
     if model is None:
         return fallback("bad_reference", f"unknown visual {slide.visual!r}")
     system = _VISUAL_RULES.format(type=slide.visual, name=FRIENDLY_NAMES.get(slide.visual, slide.visual),
-                                  schema=json.dumps(model.model_json_schema())) + "\n" + WRITING_GUIDE
+                                  schema=json.dumps(model.model_json_schema())) + "\n" + (FLOW_GUIDE + "\n" if flow else "") + WRITING_GUIDE
+    output_model = FlowSlideAnswer if flow else SlideContent
     kind = slide.visual + (f" (chart kind: {slide.chart_kind})" if slide.chart_kind else "")
     prompt = _prompt(slide, index, request) + f"\nVisual: {kind}\nWhy this visual: {slide.rationale or '(not given)'}\n\nVisual guide:\n{DESIGN_GUIDE}"
     try:
-        answer, usage = await llm.complete_structured(system=system, prompt=prompt, output_model=SlideContent)
+        answer, usage = await llm.complete_structured(system=system, prompt=prompt, output_model=output_model)
         content, errors = _check_visual(answer, slide.visual, request, slide.source_refs)
         if errors:
             retry = prompt + "\nYour previous answer had these errors; fix them:\n- " + "\n- ".join(errors) + "\n"
-            answer, u2 = await llm.complete_structured(system=system, prompt=retry, output_model=SlideContent)
+            answer, u2 = await llm.complete_structured(system=system, prompt=retry, output_model=output_model)
             usage = add_usage(usage, u2)
             content, errors = _check_visual(answer, slide.visual, request, slide.source_refs)
     except Exception as exc:  # noqa: BLE001 -- the client retried already; one slide must not fail the deck
