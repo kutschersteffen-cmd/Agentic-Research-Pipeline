@@ -9,7 +9,7 @@ from PIL import Image
 from arp.reporting.fit import _field
 from arp.reporting.lint import lint_deck
 from arp.reporting.slide_fill import fill_slide
-from arp.reporting.storyline import draft_storyline
+from arp.reporting.storyline import CONTENT_VISUALS, draft_storyline
 from arp.schemas.reporting import Deck, ReportRequest, SlideContent, Storyline, StorylineSlide
 from arp.schemas.visuals import ImageItem, ImageVisual
 from arp.storage.reporting_store import ReportingStore
@@ -45,14 +45,14 @@ async def test_storyline_offers_image_and_lists_images(setup, fake_llm):  # AC-4
     request, _ = setup
     llm = fake_llm({"Storyline": [Storyline(title="T", slides=[])]})
     await draft_storyline(request, llm)
-    assert "one of kpi_row, chart, comparison_table, two_column, points, image;" in llm.prompts[0]
+    assert f"one of {', '.join(CONTENT_VISUALS)}, image;" in llm.prompts[0]  # after the content visuals main offers
     assert "- a (2000×1000): Landing page\n" in llm.prompts[0] and "- b (1000×2000):\n" in llm.prompts[0]
 
 
 async def test_storyline_without_images_is_unchanged(fake_llm):  # AC-59
     llm = fake_llm({"Storyline": [Storyline(title="T", slides=[])]})
     await draft_storyline(ReportRequest(title="T", qualitative_notes="n"), llm)
-    assert "one of kpi_row, chart, comparison_table, two_column, points;" in llm.prompts[0]
+    assert f"one of {', '.join(CONTENT_VISUALS)};" in llm.prompts[0]
     assert "×" not in llm.prompts[0]
 
 

@@ -246,6 +246,14 @@ class Flow(BaseModel):
         return self
 
 
+class FlowAnswer(BaseModel):
+    """What slide fill asks the model for in place of `Flow`: only the Mermaid text. It does not parse, so a client's own
+    validation retries never see a Mermaid error; slide fill validates it into `Flow` and retries once itself."""
+
+    type: Literal["flow"] = "flow"
+    mermaid: str
+
+
 class ImageItem(BaseModel):
     name: str  # a registered image name; checked against the request when the fill is validated
     caption: Words(10) = ""

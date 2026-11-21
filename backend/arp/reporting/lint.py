@@ -15,7 +15,7 @@ from arp.reporting.house_style import get_variant
 from arp.reporting.slide_fill import rewrite_slot
 from arp.schemas.chart_specs import ChartType
 from arp.schemas.reporting import Deck, Finding, ReportRequest, SlideContent
-from arp.schemas.visuals import Chart
+from arp.schemas.visuals import Chart, Flow
 
 
 def _texts(slide: SlideContent, headline: bool = False) -> Iterator[tuple[str, str]]:
@@ -27,7 +27,15 @@ def _texts(slide: SlideContent, headline: bool = False) -> Iterator[tuple[str, s
     for slot, v in slide.slots.items():
         for t in [v] if isinstance(v, str) else v:
             yield slot, t
-    if slide.visual is not None:
+    if isinstance(slide.visual, Flow):  # only its labels, tags and arrow labels are slide text
+        for n, st in enumerate(slide.visual.steps):
+            yield f"visual.steps.{n}.label", st.label
+            if st.tag:
+                yield f"visual.steps.{n}.tag", st.tag
+        for n, a in enumerate(slide.visual.arrows):
+            if a.label:
+                yield f"visual.arrows.{n}.label", a.label
+    elif slide.visual is not None:
         yield from _visual_texts(slide.visual.model_dump(), "visual")
 
 
