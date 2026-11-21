@@ -1,4 +1,4 @@
-"""House deck build after storyline approval: fill -> lint+rewrite -> fit (legacy slides) -> fit ladder (component slides) -> visual QA -> PDF + PNGs + PPTX."""
+"""House deck build after storyline approval: fill -> flow layout -> lint+rewrite -> fit (legacy slides) -> fit ladder (component slides) -> visual QA -> PDF + PNGs + PPTX."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.adapters import with_run_datasets
 from arp.reporting.browser import write_pdf, write_pngs
 from arp.reporting.fit import fit_deck, fit_ladder
+from arp.reporting.flow_layout import layout_flows
 from arp.reporting.house_pptx import build_house_pptx
 from arp.reporting.house_style import Mode, Tokens
 from arp.reporting.html_render import render_deck_html
@@ -106,6 +107,8 @@ async def build_house_deck(
     filled = await asyncio.gather(*(build(s, i) for i, s in enumerate(plan)))
     deck = Deck(title=storyline.title, subtitle=storyline.subtitle, slides=[content for content, _, _ in filled])
     findings += [f for _, fs, _ in filled for f in fs] + duplicate_data(deck)
+    deck, flow_findings = await layout_flows(deck, tokens, request.layout.theme)  # before lint and fit, which leave flows alone
+    findings += flow_findings
     if usage is not None:
         for _, _, u in filled:
             usage.input_tokens += u.input_tokens

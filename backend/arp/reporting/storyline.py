@@ -32,7 +32,7 @@ _SUBHEADING = (
     "adding the evidence or scope behind it. Same grounding rules as headlines.\n\n"
 )
 
-CONTENT_VISUALS = ("kpi_row", "chart", "comparison_table", "two_column", "points")
+CONTENT_VISUALS = ("kpi_row", "chart", "comparison_table", "two_column", "points", "flow")
 
 _ARCS = {
     "executive": "answer first, KPI and decision slides",
