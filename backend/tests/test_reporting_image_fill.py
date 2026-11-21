@@ -82,6 +82,15 @@ async def test_duplicate_image_is_sent_back(setup, fake_llm):  # AC-48
     assert "image 'a' appears twice" in llm.prompts[1] and slide.visual == good.visual
 
 
+async def test_duplicate_image_is_named_before_other_gallery_errors(setup, fake_llm):  # AC-48, captions missing too
+    request, images = setup
+    twice = {"headline": "x", "visual": {"type": "image", "variant": "gallery", "images": [{"name": "a"}, {"name": "a"}]}}
+    good = _slide(ImageItem(name="a", caption="One"), ImageItem(name="b", caption="Two"), variant="gallery")
+    llm = fake_llm({"SlideContent": [twice, good]})
+    await fill_slide(_STORY, 1, request, llm, images=images)
+    assert "image 'a' appears twice" in llm.prompts[1]
+
+
 def _lint(*items: ImageItem, variant="hero") -> list:
     deck = Deck(title="T", slides=[SlideContent(headline="h"), _slide(*items, variant=variant)])
     return [f for f in lint_deck(deck, ReportRequest(title="T", qualitative_notes="no figures")) if f.slide == 1]
