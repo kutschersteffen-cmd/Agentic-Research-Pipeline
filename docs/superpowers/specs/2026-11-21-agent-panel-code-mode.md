@@ -5,7 +5,7 @@ Slug: agent-panel-code-mode
 Risk: this spec PR is `risk:low`. The build is size L, delivered as 11 PRs (see `## Slices`); each slice names its own
 risk label.
 
-Status: **draft, waiting for the owner's approval.**
+Status: **approved by the owner on 21 Nov 2026** (button in the spec session, after three spec-critic rounds; decisions D1–D8 as recommended).
 Source: thread "Explore Code Mode for ARP" (21 Nov 2026). The owner compared two proposals with today's Research Plans
 (comparison page https://claude.ai/artifact/GiUvnmesyFuvPtVvXnDwcH): "ARP native research workspaces" (Markdown) and
 "Agentic Workspace Architecture: Gemini 4 Argon + Code Mode + OpenShell" (PDF). He asked for an agent panel screen
