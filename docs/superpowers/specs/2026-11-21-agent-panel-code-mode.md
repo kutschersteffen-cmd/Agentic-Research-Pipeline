@@ -6,7 +6,7 @@ Risk: this spec PR is `risk:low`. The build is size L, delivered as 12 PRs (see 
 risk label.
 
 Status: **approved by the owner on 21 Nov 2026** (button in the spec session, after three spec-critic rounds; decisions D1–D8 as recommended). Slice 12 (write actions, D9, AC-60 to AC-67)
-added on 21 Nov 2026 at the owner's request; **that addition awaits approval**.
+added on 21 Nov 2026 at the owner's request, **approved by the owner on 21 Nov 2026** (button, after three spec-critic rounds).
 Source: thread "Explore Code Mode for ARP" (21 Nov 2026). The owner compared two proposals with today's Research Plans
 (comparison page https://claude.ai/artifact/GiUvnmesyFuvPtVvXnDwcH): "ARP native research workspaces" (Markdown) and
 "Agentic Workspace Architecture: Gemini 4 Argon + Code Mode + OpenShell" (PDF). He asked for an agent panel screen
