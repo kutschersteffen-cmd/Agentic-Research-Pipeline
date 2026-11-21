@@ -231,6 +231,40 @@ For the first adoption:
 4. Pilot one bounded, already-confirmed defect through the entire process. Measure whether each handoff and gate works and whether agent/CI execution completes within 15 minutes before scaling up the redesign. A timed-out pilot is a recorded failure to meet the process target, not evidence that controls should be removed.
 5. Review the pilot, simplify unnecessary steps, and version the playbook. Resume application work only after the process and the relevant work specification are approved.
 
+## 8. Detailed Factory adoption backlog
+
+Use this backlog to turn the operating agreement into scoped changes. The [Factory gap review](../../../../docs/FACTORY_PLAYBOOK_GAP_REVIEW.md) contains the original findings and their evidence. It reflects an earlier repository snapshot. Verify each item against the selected branch head, required checks and live deployment configuration before starting it. The row-parser correction from PR [#594](https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/pull/594) is already present at this test branch's base. The remaining items are proposals unless current evidence shows they have been implemented.
+
+| ID | Change and likely files | Completion evidence |
+| --- | --- | --- |
+| F01 | Treat paths that can trigger compute deployment as high risk in the steward rules and repository conventions until F02 is effective. | A change on each deployment-triggering path takes the owner merge route. |
+| F02 | Bind compute deployment to production approval B. Reconcile `.github/workflows/deploy-compute.yml`, the deployment environment and equivalent cloud-side triggers. | Test that merging a matching change does not deploy without authorization for the named artifact and target. Verify the actual environment protection or its approved equivalent. |
+| F03 | Record the merged holdout revision before the dispatcher hands each applicable slice to the builder. Pin that revision in the Factory Board and builder handoff. | A builder stays blocked while an owed holdout is unmerged. An authorized new holdout revision triggers new evidence. |
+| F04 | Make Holdout acceptance require a usable credential and a result for each independently derived owed row. Keep #594's strict row parser and fail closed on missing required tests or skipped results. | Retain parser regression cases. Missing credentials, invalid selections, empty owed results and unexpectedly skipped rows report blocked or failed. |
+| F05 | Put private tests and the candidate runtime in separate execution environments with distinct identities and storage. Scope the test harness to the approved app interface. | Inspect the separation of jobs, identities, credentials and workspaces. Maintain independent holdout evidence and restricted result reporting. |
+| F06 | Report mutation outcomes separately, including killed, survived, timed out and not evaluated. Apply the reporting rules in both mutation scripts. | A run with zero evaluated mutants reports not evaluated. Timeouts receive no credit. Counts reconcile to total scheduled cases. |
+| F07 | Make the AI golden-set check block when a required evaluation cannot run. Set an explicit per-run cost ceiling. | A required run with missing credentials or insufficient budget cannot report a pass. |
+| F08 | Reuse the shared change-impact calculation in Holdout acceptance. Review `.github/scripts/ci_changes.py` and the holdout workflow together. | Changes to app inputs treated as relevant by CI receive the corresponding holdout decision, including affected documentation inputs. |
+| F09 | Extend the acceptance template and spec review for approval A. Record current user evidence, prototype or journeys where relevant, risk, dependencies, V1–V8 applicability and how expected results were derived. | The owner receives a packet tied to the approved spec revision. Explicit reasons cover inapplicable fields. |
+| F10 | Record first work, counted agent and CI time, remaining balance and waits by cause on the Factory Board. Add a shared deadline across remote workers as orchestration is introduced. | One bounded run shows execution on the critical path separately from human and infrastructure waits. Expiry blocks progression without waiving a check. |
+| F11 | Run one confirmed defect through the revised process and record gate outcomes, handoffs and the 15-minute execution budget. | Publish actual timings and every blocked check, plus the decision to iterate or expand the pilot. |
+| F12 | Identify critical user journeys and add a small tagged browser suite in `backend/tests/e2e/`. Exercise saved results, error recovery and keyboard interaction. | Each selected journey has evidence against an integrated candidate, with its environment and dependencies identified. |
+| F13 | Add axe checks to the selected browser journeys and explicitly record the WCAG 2.2 AA target in the specification. | Serious and critical automated findings fail the applicable check. The report identifies what automation covered. |
+| F14 | Introduce visual regression and color-vision checks for selected critical journeys and charts. | A known visual change is detected, and baselines can be reviewed and updated as a separate change. |
+| F15 | Build an acceptance manifest from the approved spec and slice, reconcile all results at the exact PR head, and surface proof and omissions to the owner. | Missing, duplicate, skipped or stale required evidence blocks progression. Legitimately inapplicable rows have an explicit approved reason. |
+| F16 | Run the spec critic separately from the writer. Require example countercases, dispositions, and property or failure-injection rows where applicable. | Evidence names the independent challenger and shows how each blocking ambiguity was resolved before approval A. |
+| F17 | Require a versioned reference and tolerance for consequential financial and index calculations. | A known-answer check states provenance, units, rounding and tolerance, and is reproducible independently of the implementation. |
+| F18 | Evaluate terminology linting for UI copy and structured heuristic review for significant UI work. | The checks identify a seeded terminology or usability issue. Human task-based validation remains documented separately when applicable. |
+
+### Test-branch implementation sequence
+
+1. **Record a baseline.** Capture the factory revision, spec revision, candidate head, worker attempts, checks, owner decisions, elapsed time and available cost. Exercise the run recorder with a synthetic case and then one completed ARP run.
+2. **Compare the dispatcher in shadow mode.** Version the stage rules and worker settings. Evaluate proposed transitions using saved events and compare them with the current factory across normal, blocked, stale-evidence and high-risk cases.
+3. **Close the hard-gate gaps.** Prioritize F02 before granting any new production or merge authority. Build F03–F05 and F15 together as the independent acceptance path. Use F09, F10 and F12 to prepare the pilot.
+4. **Replay and improve.** Pin a small suite of historical ARP tasks. Compare the baseline and a proposed factory change on the same tasks. Require acceptance evidence and an explicit owner rollout decision before applying the candidate. Use F11 to verify handoffs and the shared budget.
+
+The [test-branch implementation spec](../../../../docs/superpowers/specs/2026-11-21-factory-improvement-loop.md) defines the delivery slices and the first acceptance criteria. Separate the deployment-control work from the observability prototype so the branch can be tested without production access.
+
 ## References
 
 Repository foundation inspected: `.claude/CLAUDE.md`, `.claude/skills/factory/SKILL.md`, `.claude/skills/steward/SKILL.md`, `docs/superpowers/ACCEPTANCE_TEMPLATE.md`, and the CI/deployment workflows. These were inspected as existing policy, not invoked to launch agents or change GitHub.
