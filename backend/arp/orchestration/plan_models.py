@@ -36,8 +36,10 @@ class ResearchPlanCall(Base):
     seq: Mapped[int] = mapped_column(Integer, primary_key=True)
     kind: Mapped[str] = mapped_column(Text)
     params: Mapped[dict] = mapped_column(JSONB)
-    status: Mapped[str] = mapped_column(Text)  # pending|running|awaiting_review|done|failed|cancelled
+    status: Mapped[str] = mapped_column(Text)  # pending|starting|running|awaiting_review|done|failed|cancelled
     run_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     result_ref: Mapped[str | None] = mapped_column(Text, nullable=True)  # sync kinds: e.g. index:<id>@<date>
     result: Mapped[dict | None] = mapped_column(JSONB, nullable=True)  # what the script saw; reused on resume
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # 1, plus one for each time this (seq, kind, params) was stored as failed: part of the run's launch key.
+    attempt: Mapped[int] = mapped_column(Integer, default=1, server_default="1")

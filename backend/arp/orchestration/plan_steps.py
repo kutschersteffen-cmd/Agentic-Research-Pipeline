@@ -1,15 +1,19 @@
-"""Real step functions for the plan executor: each starts an existing run type through its own entry point.
+"""Real steps for the plan executor: each starts an existing run type through its own entry point.
 
-Each adapter runs in the executor's worker thread and drives its async run with `asyncio.run`. Results
-are what the script sees: {"id", "run_id", "companies": [{id, name, exposure, included}], "gate"}.
+Each step is a `Step`: `start` creates the run under the call's launch key (or finds the run that key already
+created), `finish` executes it, or attaches to it, in the executor's worker thread, driving its async run with
+`asyncio.run`. Results are what the script sees: {"id", "run_id", "companies": [{id, name, exposure, included}], "gate"}.
 """
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from typing import Any
 
 from arp.config import Settings
 from arp.db.runs import RunStore
+from arp.orchestration.job_manager import LAUNCH_KEY
+from arp.orchestration.plan_executor import Step, sync_step
 from arp.orchestration.review_queue import latest_decisions
 from arp.schemas.common import CompanyRef
 
@@ -36,14 +40,42 @@ def _result(run_id: str, run_store: RunStore, companies: list[dict] | None = Non
             "gate": _has_pending_review(run_store, run_id)}
 
 
-def build_steps(settings: Settings, run_store: RunStore) -> dict[str, Any]:
+def _launch(run_store: RunStore, launch_key: str | None, create: Callable[[], str]) -> str:
+    """The run `launch_key` already created, else a new one whose manifest carries the key."""
+    if launch_key is not None and (found := run_store.find_launch_key(launch_key)):
+        return found
+    token = LAUNCH_KEY.set(launch_key)
+    try:
+        return create()
+    finally:
+        LAUNCH_KEY.reset(token)
+
+
+def _finished(run_store: RunStore, run_id: str) -> bool:
+    manifest = run_store.load_manifest(run_id)
+    return manifest is not None and manifest.status.value not in {"pending", "running"}
+
+
+def _background(run_store: RunStore, create: Callable[..., str], execute: Callable[..., Any]) -> Step:
+    """A run type with a create and an async execute: `finish` executes it unless it already ended. A run left
+    pending or running by a dead worker is executed again; the pipelines skip every company already stored."""
+    def start(launch_key: str | None, **params: Any) -> str:
+        return _launch(run_store, launch_key, lambda: create(**params))
+
+    def finish(run_id: str, **params: Any) -> dict[str, Any]:
+        if not _finished(run_store, run_id):
+            asyncio.run(execute(run_id, **params))
+        return _result(run_id, run_store)
+
+    return Step(start, finish)
+
+
+def build_steps(settings: Settings, run_store: RunStore) -> dict[str, Step]:
     from arp.api.deps import get_registry
     from arp.llm.factory import build_llm_client, build_verifier_llm_client
 
-    def universe_build(*, taxonomy_id: str, source: str) -> dict[str, Any]:
+    def _universe(taxonomy_id: str, source: str):
         from arp.db.fields import SchemaRegistry
-        from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
-        from arp.research.pipeline import load_theme_run_matches, run_thematic_universe
         from arp.research.taxonomy_schema import released_run_schema
         from arp.storage.taxonomy_store import TaxonomyStore
         from arp.universe import (
@@ -65,11 +97,26 @@ def build_steps(settings: Settings, run_store: RunStore) -> dict[str, Any]:
             if path.exists():  # a real file that does not load: its own message
                 raise
             raise ValueError(not_saved_message(source, saved_universes(settings.runs_dir))) from exc
-        run_id = asyncio.run(run_thematic_universe(
-            taxonomy.theme, companies, llm=build_llm_client(settings), verifier_llm=build_verifier_llm_client(settings),
-            registry=get_registry(), settings=settings, run_store=run_store,
-            indirect_model=resolve_indirect_exposure_model(settings, use_sample=False), universe_path=str(path),
-            taxonomy_id=taxonomy.taxonomy_id, taxonomy_version=taxonomy.version, extraction_schema=schema))
+        return taxonomy, schema, path, companies
+
+    def universe_start(launch_key: str | None, *, taxonomy_id: str, source: str) -> str:
+        from arp.research.pipeline import create_theme_run
+
+        taxonomy, schema, path, companies = _universe(taxonomy_id, source)
+        return _launch(run_store, launch_key, lambda: create_theme_run(
+            taxonomy.theme, companies, settings, run_store, universe_path=str(path), taxonomy_id=taxonomy.taxonomy_id,
+            taxonomy_version=taxonomy.version, extraction_schema=schema))
+
+    def universe_finish(run_id: str, *, taxonomy_id: str, source: str) -> dict[str, Any]:
+        from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
+        from arp.research.pipeline import execute_theme_run, load_theme_run_matches
+
+        taxonomy, _schema, _path, companies = _universe(taxonomy_id, source)
+        if not _finished(run_store, run_id):
+            asyncio.run(execute_theme_run(
+                run_id, taxonomy.theme, companies, llm=build_llm_client(settings),
+                verifier_llm=build_verifier_llm_client(settings), registry=get_registry(), settings=settings,
+                run_store=run_store, indirect_model=resolve_indirect_exposure_model(settings, use_sample=False)))
         best: dict[str, dict] = {c.company_id: {"id": c.company_id, "name": c.name, "exposure": "none",
                                                 "included": False} for c in companies}
         for m in load_theme_run_matches(run_store, run_id) or []:
@@ -80,48 +127,63 @@ def build_steps(settings: Settings, run_store: RunStore) -> dict[str, Any]:
             row["included"] = row["included"] or m.verdict.value == "include"
         return _result(run_id, run_store, list(best.values()))
 
-    def document_discovery(*, universe_run_id: str, doc_types: list[str] | None = None,
-                           companies: list[str] | None = None) -> dict[str, Any]:
-        from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
+    def discovery_create(*, universe_run_id: str, doc_types: list[str] | None = None,
+                         companies: list[str] | None = None) -> str:
+        from arp.discovery.pipeline import create_discovery_run
 
-        refs = _companies(run_store, universe_run_id, companies)
-        run_id = create_discovery_run(refs, doc_types, "research_plan", run_store)
-        asyncio.run(execute_discovery_run(run_id, refs, settings=settings, run_store=run_store, doc_types=doc_types))
-        return _result(run_id, run_store)
+        return create_discovery_run(_companies(run_store, universe_run_id, companies), doc_types, "research_plan",
+                                    run_store)
 
-    def extraction(*, universe_run_id: str, schema_id: str, companies: list[str] | None = None) -> dict[str, Any]:
+    async def discovery_execute(run_id: str, *, universe_run_id: str, doc_types: list[str] | None = None,
+                                companies: list[str] | None = None) -> None:
+        from arp.discovery.pipeline import execute_discovery_run
+
+        await execute_discovery_run(run_id, _companies(run_store, universe_run_id, companies), settings=settings,
+                                    run_store=run_store, doc_types=doc_types)
+
+    def extraction_create(*, universe_run_id: str, schema_id: str, companies: list[str] | None = None) -> str:
         from arp.db.fields import SchemaRegistry
-        from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+        from arp.extraction.pipeline import create_extraction_run
 
         schema = SchemaRegistry(settings.postgres_dsn).get(schema_id)
         refs = _companies(run_store, universe_run_id, companies)
-        run_id = create_extraction_run(schema, refs, settings, run_store)  # refuses an unreleased schema
-        asyncio.run(execute_extraction_run(run_id, schema, refs, llm=build_llm_client(settings),
-                                           verifier_llm=build_verifier_llm_client(settings), registry=get_registry(),
-                                           settings=settings, run_store=run_store))
-        return _result(run_id, run_store)
+        return create_extraction_run(schema, refs, settings, run_store)  # refuses an unreleased schema
 
-    def financials_extraction(*, universe_run_id: str, companies: list[str] | None = None) -> dict[str, Any]:
-        from arp.extraction.financials_pipeline import (
-            create_financials_extraction_run,
-            execute_financials_extraction_run,
-        )
+    async def extraction_execute(run_id: str, *, universe_run_id: str, schema_id: str,
+                                 companies: list[str] | None = None) -> None:
+        from arp.db.fields import SchemaRegistry
+        from arp.extraction.pipeline import execute_extraction_run
 
+        schema = SchemaRegistry(settings.postgres_dsn).get(schema_id)
         refs = _companies(run_store, universe_run_id, companies)
-        run_id = create_financials_extraction_run(refs, settings, run_store)
-        asyncio.run(execute_financials_extraction_run(run_id, refs, llm=build_llm_client(settings),
-                                                      verifier_llm=build_verifier_llm_client(settings),
-                                                      registry=get_registry(), settings=settings, run_store=run_store))
-        return _result(run_id, run_store)
+        await execute_extraction_run(run_id, schema, refs, llm=build_llm_client(settings),
+                                     verifier_llm=build_verifier_llm_client(settings), registry=get_registry(),
+                                     settings=settings, run_store=run_store)
 
-    def xbrl_facts(*, universe_run_id: str, companies: list[str] | None = None, market: str = "auto") -> dict[str, Any]:
-        from arp.xbrl_pipeline.fetch import create_xbrl_run, execute_xbrl_run
+    def financials_create(*, universe_run_id: str, companies: list[str] | None = None) -> str:
+        from arp.extraction.financials_pipeline import create_financials_extraction_run
 
-        refs = _companies(run_store, universe_run_id, companies)
-        run_id = create_xbrl_run(refs, None, False, run_store, market=market)
-        asyncio.run(execute_xbrl_run(run_id, refs, settings=settings, run_store=run_store, tags=None, refresh=False,
-                                     market=market))
-        return _result(run_id, run_store)
+        return create_financials_extraction_run(_companies(run_store, universe_run_id, companies), settings, run_store)
+
+    async def financials_execute(run_id: str, *, universe_run_id: str, companies: list[str] | None = None) -> None:
+        from arp.extraction.financials_pipeline import execute_financials_extraction_run
+
+        await execute_financials_extraction_run(run_id, _companies(run_store, universe_run_id, companies),
+                                                llm=build_llm_client(settings),
+                                                verifier_llm=build_verifier_llm_client(settings),
+                                                registry=get_registry(), settings=settings, run_store=run_store)
+
+    def xbrl_create(*, universe_run_id: str, companies: list[str] | None = None, market: str = "auto") -> str:
+        from arp.xbrl_pipeline.fetch import create_xbrl_run
+
+        return create_xbrl_run(_companies(run_store, universe_run_id, companies), None, False, run_store, market=market)
+
+    async def xbrl_execute(run_id: str, *, universe_run_id: str, companies: list[str] | None = None,
+                           market: str = "auto") -> None:
+        from arp.xbrl_pipeline.fetch import execute_xbrl_run
+
+        await execute_xbrl_run(run_id, _companies(run_store, universe_run_id, companies), settings=settings,
+                               run_store=run_store, tags=None, refresh=False, market=market)
 
     def decision_score(*, source_run_id: str, framework_id: str | None = None) -> dict[str, Any]:
         from arp.api.deps import get_decision_store
@@ -139,22 +201,28 @@ def build_steps(settings: Settings, run_store: RunStore) -> dict[str, Any]:
             raise RuntimeError(f"the rules step failed: {stored['error']}")
         return {"id": source_run_id, "run_id": None, "result_ref": f"decision:{source_run_id}", "companies": []}
 
-    def report_render(*, source_ids: list[str], template_id: str | None = None) -> dict[str, Any]:
+    def report_start(_launch_key: str | None, *, source_ids: list[str], template_id: str | None = None) -> str:
+        # shortcut: a report manifest has no params to carry the launch key, so a crash inside create_and_plan leaves
+        # an unused report and the resumed step plans another.
         from arp.api.deps import get_reporting_store
         from arp.reporting.service import ReportingService
-        from arp.schemas.reporting import ReportRequest, ReportStatus, RunRef
+        from arp.schemas.reporting import ReportRequest, RunRef
 
-        service = ReportingService(get_reporting_store())
         request = ReportRequest(title="Research plan report", qualitative_notes="", template_id=template_id,
                                 run_refs=[RunRef(kind="run", ref_id=i) for i in source_ids])
+        manifest = asyncio.run(ReportingService(get_reporting_store()).create_and_plan(request,
+                                                                                         build_llm_client(settings)))
+        return manifest.report_id
 
-        async def _go():
-            manifest = await service.create_and_plan(request, build_llm_client(settings))
-            # A house deck stops at its storyline for a person to approve (its own gate); others render now.
-            return manifest if manifest.status == ReportStatus.STORYLINE_READY else await service.render_from_plan(
-                manifest.report_id)
+    def report_finish(report_id: str, **_params: Any) -> dict[str, Any]:
+        from arp.api.deps import get_reporting_store
+        from arp.reporting.service import ReportingService
+        from arp.schemas.reporting import ReportStatus
 
-        manifest = asyncio.run(_go())
+        manifest = get_reporting_store().load_manifest(report_id)
+        # A house deck stops at its storyline for a person to approve (its own gate); others render now.
+        if manifest.status not in {ReportStatus.STORYLINE_READY, ReportStatus.COMPLETED}:
+            manifest = asyncio.run(ReportingService(get_reporting_store()).render_from_plan(report_id))
         return {"id": manifest.report_id, "run_id": None, "result_ref": f"report:{manifest.report_id}",
                 "companies": [], "gate": manifest.status == ReportStatus.STORYLINE_READY}
 
@@ -186,14 +254,14 @@ def build_steps(settings: Settings, run_store: RunStore) -> dict[str, Any]:
                               for c in result.constituents]}
 
     return {
-        "universe_build": universe_build,
-        "document_discovery": document_discovery,
-        "extraction": extraction,
-        "financials_extraction": financials_extraction,
-        "xbrl_facts": xbrl_facts,
-        "decision_score": decision_score,
-        "index_construct": index_construct,
-        "report_render": report_render,
+        "universe_build": Step(universe_start, universe_finish),
+        "document_discovery": _background(run_store, discovery_create, discovery_execute),
+        "extraction": _background(run_store, extraction_create, extraction_execute),
+        "financials_extraction": _background(run_store, financials_create, financials_execute),
+        "xbrl_facts": _background(run_store, xbrl_create, xbrl_execute),
+        "decision_score": sync_step(decision_score),
+        "index_construct": sync_step(index_construct),
+        "report_render": Step(report_start, report_finish),
     }
 
 
