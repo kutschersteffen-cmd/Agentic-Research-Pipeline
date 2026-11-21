@@ -131,3 +131,9 @@ async def test_ac40c_rewrites_never_touch_flows(tmp_path):
 async def test_ac40d_too_big_flow_flagged(tmp_path):
     _, slide, findings = await _build(tmp_path, F4)
     assert slide.needs_review and [f.rule for f in findings].count("flow_too_big") == 1
+
+
+async def test_too_big_flow_flagged_once(tmp_path):
+    _, _, findings = await _build(tmp_path, F4)
+    flow = [(f.rule, f.slot) for f in findings if f.slide == 1]
+    assert flow == [("flow_too_big", "visual")]  # the fit ladder adds no overflow findings and no second needs_review
