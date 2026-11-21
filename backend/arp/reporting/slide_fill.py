@@ -223,13 +223,16 @@ async def _fill_visual(slide: StorylineSlide, index: int, request: ReportRequest
         if not (lines := image_lines(request)):
             return fallback("bad_reference", "no images registered")
         # The model sees each registered image (decision 1), in registration order, so it picks and captions by content.
-        extra["images"] = [preview(images[n].data) for n in layout_images(request) if images and n in images]
+        # All or none, so the previews pair with the listed names.
+        if images and all(n in images for n in layout_images(request)):
+            extra["images"] = [preview(images[n].data) for n in layout_images(request)]
     system = _VISUAL_RULES.format(type=slide.visual, name=FRIENDLY_NAMES.get(slide.visual, slide.visual),
                                   schema=json.dumps(model.model_json_schema())) + "\n" + WRITING_GUIDE
     kind = slide.visual + (f" (chart kind: {slide.chart_kind})" if slide.chart_kind else "")
     prompt = _prompt(slide, index, request) + f"\nVisual: {kind}\nWhy this visual: {slide.rationale or '(not given)'}\n\nVisual guide:\n{DESIGN_GUIDE}"
     if slide.visual == "image":
-        prompt += f"\nImages you may show (name them exactly; the previews follow in the same order):\n{lines}"
+        shown = "; the previews follow in the same order" if "images" in extra else ""
+        prompt += f"\nImages you may show (name them exactly{shown}):\n{lines}"
     try:
         answer, usage = await llm.complete_structured(system=system, prompt=prompt, output_model=SlideContent, **extra)
         content, errors = _check_visual(answer, slide.visual, request, slide.source_refs)

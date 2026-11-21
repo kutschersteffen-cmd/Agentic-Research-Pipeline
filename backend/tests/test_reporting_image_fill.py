@@ -108,3 +108,14 @@ def test_lint_skips_image_names():  # AC-50
 def test_fit_maps_split_points_and_captions():
     assert _field("image", "points:row:2") == ("points", 1)
     assert _field("image", "image:3:caption") == ("images", 2, "caption")
+
+
+async def test_cmyk_jpeg_gets_a_preview(tmp_path, fake_llm):  # review finding: CMYK can't be written as PNG as is
+    store = ReportingStore(tmp_path / "reports", tmp_path / "tpl")
+    buf = io.BytesIO()
+    Image.new("CMYK", (1600, 900), (0, 0, 0, 0)).save(buf, "JPEG")
+    entry = store.save_report_image("rpt_a", "shot", buf.getvalue())
+    request = ReportRequest(title="T", qualitative_notes="n", images=[entry])
+    llm = fake_llm({"SlideContent": [_slide(ImageItem(name="shot"))]})
+    slide, _, _ = await fill_slide(_STORY, 1, request, llm, images=store.load_report_images("rpt_a", request))
+    assert Image.open(io.BytesIO(llm.images[0][0])).size == (768, 432) and slide.visual.type == "image"
