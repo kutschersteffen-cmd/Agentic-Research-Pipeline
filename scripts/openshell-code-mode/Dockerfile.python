@@ -1,0 +1,7 @@
+FROM python:3.11.14-slim-bookworm
+RUN pip install --no-cache-dir pyarrow==23.0.1 matplotlib==3.10.8 \
+    && install -d -o 1000 -g 1000 /inputs /workspace \
+    && mkdir -p /opt/arp-code-mode
+ENV MPLBACKEND=Agg MPLCONFIGDIR=/tmp/matplotlib
+COPY backend/arp/prototypes/openshell_code_mode/analysis_job.py /opt/arp-code-mode/analysis_job.py
+WORKDIR /workspace

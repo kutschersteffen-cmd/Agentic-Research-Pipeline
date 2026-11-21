@@ -1,0 +1,74 @@
+[
+  {
+    "issuer_id": "SYN01",
+    "name": "Synthetic Company 01",
+    "sector": "Industrials",
+    "weight_pct": 0.9
+  },
+  {
+    "issuer_id": "SYN02",
+    "name": "Synthetic Company 02",
+    "sector": "Utilities",
+    "weight_pct": 0.3
+  },
+  {
+    "issuer_id": "SYN03",
+    "name": "Synthetic Company 03",
+    "sector": "Information Technology",
+    "weight_pct": 3.1
+  },
+  {
+    "issuer_id": "SYN04",
+    "name": "Synthetic Company 04",
+    "sector": "Energy",
+    "weight_pct": 0.2
+  },
+  {
+    "issuer_id": "SYN05",
+    "name": "Synthetic Company 05",
+    "sector": "Materials",
+    "weight_pct": 0.03
+  },
+  {
+    "issuer_id": "SYN06",
+    "name": "Synthetic Company 06",
+    "sector": "Consumer Discretionary",
+    "weight_pct": 0.45
+  },
+  {
+    "issuer_id": "SYN07",
+    "name": "Synthetic Company 07",
+    "sector": "Financials",
+    "weight_pct": 1.4
+  },
+  {
+    "issuer_id": "SYN08",
+    "name": "Synthetic Company 08",
+    "sector": "Health Care",
+    "weight_pct": 0.6
+  },
+  {
+    "issuer_id": "SYN09",
+    "name": "Synthetic Company 09",
+    "sector": "Energy",
+    "weight_pct": 0.04
+  },
+  {
+    "issuer_id": "SYN10",
+    "name": "Synthetic Company 10",
+    "sector": "Materials",
+    "weight_pct": 0.02
+  },
+  {
+    "issuer_id": "SYN11",
+    "name": "Synthetic Company 11",
+    "sector": "Utilities",
+    "weight_pct": 0.08
+  },
+  {
+    "issuer_id": "SYN12",
+    "name": "Synthetic Company 12",
+    "sector": "Consumer Staples",
+    "weight_pct": 0.12
+  }
+]
