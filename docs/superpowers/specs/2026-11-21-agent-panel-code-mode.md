@@ -2,10 +2,11 @@
 
 Slug: agent-panel-code-mode
 
-Risk: this spec PR is `risk:low`. The build is size L, delivered as 11 PRs (see `## Slices`); each slice names its own
+Risk: this spec PR is `risk:low`. The build is size L, delivered as 12 PRs (see `## Slices`); each slice names its own
 risk label.
 
-Status: **approved by the owner on 21 Nov 2026** (button in the spec session, after three spec-critic rounds; decisions D1–D8 as recommended).
+Status: **approved by the owner on 21 Nov 2026** (button in the spec session, after three spec-critic rounds; decisions D1–D8 as recommended). Slice 12 (write actions, D9, AC-60 to AC-67)
+added on 21 Nov 2026 at the owner's request, **approved by the owner on 21 Nov 2026** (button, after three spec-critic rounds).
 Source: thread "Explore Code Mode for ARP" (21 Nov 2026). The owner compared two proposals with today's Research Plans
 (comparison page https://claude.ai/artifact/GiUvnmesyFuvPtVvXnDwcH): "ARP native research workspaces" (Markdown) and
 "Agentic Workspace Architecture: Gemini 4 Argon + Code Mode + OpenShell" (PDF). He asked for an agent panel screen
@@ -26,6 +27,7 @@ Approving this spec accepts all eight as recommended. Each one changes acceptanc
 | D6 | The panel updates by **polling every 3 s** while a plan runs, as the Plans page does today. | Yes (AC-34) | Server-sent events; a new streaming endpoint and reconnect logic. |
 | D7 | Explorations use the configured model (`ARP_LLM_MODEL` through `LLMClient`: Claude or Gemini 4 Argon). | Yes (AC-47) | Gemini 4 Argon only. |
 | D8 | Two run types join plans: `identity_resolution` and `tnfd_extraction`. | Yes (AC-14, AC-15) | Plans keep their 8 run types. |
+| D9 | A **write action** is a button a person presses: "Turn into a plan…" on an accepted exploration drafts a plan with the planner. The plan is a draft and runs only after Approve. The sandbox itself still cannot create anything (D4 holds). | Yes (AC-60 to AC-67) | A sandbox capability `propose_plan` that model code may call; drafts then appear without a click, which needs a cap per exploration and its own rows. |
 
 ## Why
 
@@ -72,11 +74,13 @@ the owner approves it, and an interpreter that never calls `exec` runs it, pausi
 - G6. A sandbox lane runs model-written JavaScript over ARP's read capabilities, with no network, no secrets and fixed
   limits.
 - G7. An exploration can be shown as a mini-app on the stage, in an iframe that can reach nothing.
+- G8. An accepted exploration can be turned into a draft plan by a person, so a finding becomes a reviewed run.
 
 ## Non-goals
 
 - Multi-user workspaces, memberships and source grants (the Markdown plan's P1). ARP has one owner today.
-- Writes from the sandbox: no run starts, no edits, no publishing.
+- Writes from the sandbox: no run starts, no edits, no publishing. Slice 12's write action is a person's click on the
+  screen, not a sandbox call.
 - Webhook and cron triggers for agents.
 - Claude-hosted Programmatic Tool Calling.
 - Parallel steps inside one plan.
@@ -85,7 +89,9 @@ the owner approves it, and an interpreter that never calls `exec` runs it, pausi
 ## Anti-goals
 
 - The sandbox never receives an ARP API token, a model key or any other secret.
-- A plan step never reads an exploration's result. Official numbers keep coming from run types only.
+- A plan step never reads an exploration's result. Official numbers keep coming from run types only. The planner may
+  see an accepted exploration as context when a person turns it into a plan (slice 12); the script it writes still
+  cannot reference it (AC-52).
 - No second front end: the Agent screen is a page of the existing React app.
 
 ## Design
@@ -271,6 +277,37 @@ not-done exploration answers `409 {"detail": "only a done exploration can be sho
 message from the frame, `{"action": "ask", "text": str}`, which puts `text` in the composer without sending it; it
 ignores every other message.
 
+### Phase 6. Write action: exploration to draft plan (slice 12)
+
+An accepted exploration has a "Turn into a plan…" action in its stream card (D9). It opens a field for a brief,
+prefilled with the exploration's question, and a "Draft plan" button, which calls
+`POST /api/agent/explorations/{id}/plan` with the body model `ExplorationPlanRequest(brief: str | None = None)`:
+
+1. An unknown id answers `404 {"detail": "exploration not found"}`. An exploration whose `status` is not `done`, or
+   whose `accepted_at` is null, answers `409 {"detail": "only an accepted exploration can become a plan"}`. Both
+   conditions are checked; the accept route is not changed.
+2. `brief` missing, `null`, or empty after stripping whitespace means the exploration's question.
+3. The route calls the existing `draft_plan` exactly as `POST /api/plans` does (`_context()` and
+   `check=_check_sources`), except that `context` is `_context()` followed by `"\n\n" + exploration_context`, where
+   `exploration_context = f"From exploration {id}, question: {question}\nResult:\n{json_text}"` and
+   `json_text = json.dumps(result, ensure_ascii=False, separators=(",", ":"))`. If `json_text` is over 20 000 bytes
+   as UTF-8, it is cut to the longest prefix of whole characters that fits in 20 000 bytes, followed by
+   `"\n(result truncated at 20000 bytes)"`. A `json_text` of 20 000 bytes or less is passed whole, with no such line.
+4. `research_plans` gets `source_exploration_id`, nullable, the same type as `agent_explorations.id`, a foreign key to
+   it with no cascade. `draft_plan` and `PlanStore.create` take an optional `source_exploration_id`, written in the
+   same insert. Plans drafted any other way have it `null`; `GET /api/plans` and `GET /api/plans/{id}` show the field
+   on every plan. The new plan keeps `status: "draft"` and `approved_by: null`, and the route returns it as
+   `GET /api/plans/{id}` does.
+5. A planner rejection answers `422 {"detail": "<the checker's errors>"}` as `POST /api/plans` does today, and
+   stores no plan.
+
+Nothing else changes: the plan worker skips drafts, so no call is stored and no run starts until a person approves.
+
+On the screen, `Draft plan` is disabled while the request runs. On a 200 the screen selects the new thread; its brief
+card shows a line `From exploration: <question>` linking to `#/agent/exploration/<id>`. On any other status the field
+stays open with the response's `detail` shown under it. An exploration that is not both `done` and accepted shows no
+"Turn into a plan…" action.
+
 ## Fixtures
 
 - **P3** (unit tests only): the script `u = universe_build(taxonomy_id="t", source="s.csv")`,
@@ -298,6 +335,7 @@ Superseded: no v1 or v2 row is retired. v1 rows that say a plan runs after `POST
 now hold once the worker has scanned; their tests are adapted as listed under Fixtures.
 
 Rows that need stub steps (P3) or forced crashes are `unit`: the app started by `e2e_stack.sh` runs the real steps.
+In rows, `\n` inside code means one newline character.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
@@ -373,8 +411,27 @@ Rows that need stub steps (P3) or forced crashes are `unit`: the app started by 
 | AC-57 | Mini-app HTML that posts `{"action": "run", "plan_id": "<demo>"}` | it loads | the demo plan's status is unchanged and the composer is empty | evaluator |
 | AC-58 | Must not change: the backend suite, apart from the cases listed under Fixtures, each listed in the PR that edits it | `python3 -m pytest` | passes | unit |
 | AC-59 | Must not change: the frontend suite apart from the cases slice 6 retires openly | `npm test` | passes | unit |
+| AC-60 | Accepted exploration E with question `Q60`; stand-in planner | `POST /api/agent/explorations/E/plan` `{"brief": "fetch missing reports"}` | HTTP 200; `status: "draft"`, `approved_by: null`, `brief: "fetch missing reports"`, `source_exploration_id: E` | holdout |
+| AC-60b | A plan drafted with `POST /api/plans` | `GET /api/plans/{id}` | `source_exploration_id: null`; every other key the response had before slice 12 is still present | holdout |
+| AC-61 | Done exploration not accepted | `POST /api/agent/explorations/E/plan` `{"brief": "x"}` | HTTP 409, `{"detail": "only an accepted exploration can become a plan"}`; `GET /api/plans` returns as many plans as before | holdout |
+| AC-61b | No exploration with id `00000000-0000-0000-0000-000000000000` | `POST /api/agent/explorations/00000000-0000-0000-0000-000000000000/plan` `{"brief": "x"}` | HTTP 404, `{"detail": "exploration not found"}` | holdout |
+| AC-61c | Exploration with `status: "failed"` and `accepted_at` set directly in the table | the route, `{"brief": "x"}` | HTTP 409, `{"detail": "only an accepted exploration can become a plan"}` | unit |
+| AC-62 | Accepted exploration E with question `Q62`; stand-in planner | `POST /api/agent/explorations/E/plan` `{"brief": "   "}` | HTTP 200; `brief: "Q62"` | holdout |
+| AC-62b | Accepted exploration E with question `Q62b` and result `[{"a":1}]`; stand-in planner | `POST /api/agent/explorations/E/plan` `{}` | the last `calls.jsonl` line with `name: "PlanScript"` has a `prompt` containing the lines `From exploration E, question: Q62b`, `Result:` and `[{"a":1}]`, one after another, each separated by a single newline character | holdout |
+| AC-63 | Accepted exploration whose result is a string of 29 998 ASCII `a` characters (30 000 bytes as JSON); injected planner | the route | the `context` passed to `draft_plan` starts with `_context()`'s output and ends with `Result:\n` + the first 20 000 bytes of that JSON + `\n(result truncated at 20000 bytes)` | unit |
+| AC-63b | Result a string whose JSON text has one 3-byte character at bytes 19 999 to 20 001 (counting from 1) and is longer than 20 000 bytes; injected planner | the route | the result text in `context` is 19 998 bytes, decodes as UTF-8, and is followed by `\n(result truncated at 20000 bytes)` | unit |
+| AC-63c | Result whose JSON is exactly 20 000 bytes; injected planner | the route | `context` ends with the whole JSON and contains no `result truncated` | unit |
+| AC-63d | Accepted exploration E; stand-in planner whose script the checker rejects twice | the route | HTTP 422, `detail` equals the checker's errors joined by newlines; no plan has `source_exploration_id: E` | unit |
+| AC-64 | `ARP_PLAN_WORKER_SECONDS=0`; a draft plan with `source_exploration_id` set | `scan()` twice | both return `[]`; the plan is `draft`; `store.calls(id) == []`; no manifest under `runs_dir` has `params["launch_key"]` starting `plan:<id>:` | unit |
+| AC-65 | Accepted exploration; stand-in planner | click `Turn into a plan…`, then `Draft plan` | a new thread with chip `draft` is at the top and selected | evaluator |
+| AC-65b | The plan from AC-65 | click `From exploration: <question>` in its brief card | the address becomes `#/agent/exploration/<id>` and that exploration's card shows | evaluator |
+| AC-65c | Frontend test: an accepted exploration; the route mocked to answer `422 {"detail": "line 1: bad"}` | click `Turn into a plan…`, then `Draft plan` | the field stays open with `line 1: bad` under it; the thread list is unchanged | unit |
+| AC-66 | Exploration not accepted | open it in the stream | no `Turn into a plan…` action | evaluator |
+| AC-66b | Frontend test: an exploration with `status: "failed"` and `accepted_at` set | render its stream card | no `Turn into a plan…` action | unit |
+| AC-67 | Must not change: stand-in code `return await codemode.propose_plan({brief: "x"})` | `POST /api/agent/explorations` | HTTP 200; `status: "failed"`; `error` contains `propose_plan is not available in the sandbox`; `GET /api/plans` returns as many plans as before | holdout |
 
-Must not change: v1 and v2 plan behaviour (AC-10, AC-53), the plan language (AC-52), both suites (AC-58, AC-59).
+Must not change: v1 and v2 plan behaviour (AC-10, AC-53), the plan language (AC-52), the sandbox's read-only lane
+(AC-45, AC-67), both suites (AC-58, AC-59).
 
 ## Slices
 
@@ -393,9 +450,10 @@ Each PR puts `Spec: agent-panel-code-mode` and its `Rows:` line in its descripti
 | 9 | `sandbox/` service with code checks, tool route and tokens, limits, `e2e_stack.sh` starts it; `agent_explorations` table and `POST /api/agent/explorations` taking code from `explore.json` entry 1 only (no retry yet) | `risk:high` (secrets, auth, schema) | AC-40, AC-41, AC-42, AC-43, AC-44, AC-45, AC-45b, AC-46, AC-47, AC-58 |
 | 10 | Explorations: model call and retry, list and get routes, accept, stream card, inbox rows, golden set | `risk:normal` | AC-39, AC-45c, AC-48, AC-49, AC-50, AC-51, AC-52, AC-58, AC-59 |
 | 11 | Mini-apps: route, generation, iframe, message bridge | `risk:high` (security boundary) | AC-54, AC-54b, AC-54c, AC-55, AC-56, AC-57, AC-58, AC-59 |
+| 12 | Write action: `source_exploration_id` column, `POST /api/agent/explorations/{id}/plan`, "Turn into a plan…" in the stream | `risk:high` (schema) | AC-52, AC-60, AC-60b, AC-61, AC-61b, AC-61c, AC-62, AC-62b, AC-63, AC-63b, AC-63c, AC-63d, AC-64, AC-65, AC-65b, AC-65c, AC-66, AC-66b, AC-67, AC-58, AC-59 |
 
 Slices go in this order. Slices 3 to 5 may run in parallel after slice 2; slices 6 to 8 need slice 2; slice 10 needs 9;
-slice 11 needs 10.
+slice 11 needs 10; slice 12 needs 6 and 10 and may run in parallel with 11.
 
 ## Later (own specs)
 
@@ -403,8 +461,8 @@ slice 11 needs 10.
   host, and gateway secret injection. Entry: a spike on the `arp-gcp` deployment shows OpenShell's kernel needs
   (Landlock, seccomp) are met where the sandbox will run. Exit rows: egress to an unlisted host is blocked at the OS
   layer and logged.
-- **Write actions from the agent.** A sandbox call that proposes a run would create a draft plan for approval, never
-  start one.
+- **Sandbox-initiated drafts.** A `propose_plan` capability that model code may call (D9's alternative), once slice 12
+  has shown how drafts from explorations are used.
 - **Workspaces and grants**, once ARP has a second user.
 
 ## Defaults decided without the owner
@@ -418,6 +476,7 @@ slice 11 needs 10.
 - `@cloudflare/codemode` and `workerd` pinned to the newest release more than two weeks old when slice 9 starts.
 - Template parameters: only `universe_build`'s `source`. More parameters need a new spec.
 - The Agent screen breaks to one column with drawers below 900 px.
+- Exploration context for the planner is cut at 20 000 bytes.
 
 ## Watch
 
