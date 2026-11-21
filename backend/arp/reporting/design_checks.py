@@ -11,6 +11,7 @@ from __future__ import annotations
 from arp.reporting.house_style import Mode, Tokens, load_tokens
 from arp.reporting.render_model import Primitive, Text, body_box, palette, render_slide
 from arp.schemas.reporting import Deck, Finding, QuantitativeDataset
+from arp.storage.report_images import LoadedImage
 
 MIN_SPAN, MIN_TEXT, MIN_CONTRAST, MIN_CONTRAST_LARGE, LARGE = 296, 18, 4.5, 3.0, 48
 ANATOMY = ("strip:", "kicker", "title", "subtitle", "source", "page")
@@ -71,10 +72,11 @@ def check_slides(slides: list[list[Primitive]], tokens: Tokens, mode: Mode = "li
     return out
 
 
-def design_checks(deck: Deck, datasets: list[QuantitativeDataset], tokens: Tokens | None = None, mode: Mode = "light") -> list[Finding]:
-    """Render each slide that has a visual and check it; slides without a visual are skipped."""
+def design_checks(deck: Deck, datasets: list[QuantitativeDataset], tokens: Tokens | None = None, mode: Mode = "light",
+                  images: dict[str, LoadedImage] | None = None) -> list[Finding]:
+    """Render each slide that has a visual and check it; slides without a visual are skipped. `images` as in render_slide."""
     tokens = tokens or load_tokens()
     by_id = {d.dataset_id: d for d in datasets}
-    slides = [render_slide(s, i, deck, tokens, by_id, mode) if s.visual is not None else [] for i, s in enumerate(deck.slides)]
+    slides = [render_slide(s, i, deck, tokens, by_id, mode, images=images) if s.visual is not None else [] for i, s in enumerate(deck.slides)]
     flows = frozenset(i for i, s in enumerate(deck.slides) if s.visual is not None and s.visual.type == "flow")
     return check_slides(slides, tokens, mode, flows)

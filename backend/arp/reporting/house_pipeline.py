@@ -101,8 +101,9 @@ async def build_house_deck(
 
     async def build(slide: SlideContent | StorylineSlide, i: int) -> tuple[SlideContent, list[Finding], LLMUsage]:
         # Each storyline slide is filled (and reported) at its position in the deck.
-        return (slide, [], LLMUsage()) if isinstance(slide, SlideContent) else await fill_slide(slide, i, request, llm)
+        return (slide, [], LLMUsage()) if isinstance(slide, SlideContent) else await fill_slide(slide, i, request, llm, images=images)
 
+    images = store.load_report_images(report_id, request)
     filled = await asyncio.gather(*(build(s, i) for i, s in enumerate(plan)))
     deck = Deck(title=storyline.title, subtitle=storyline.subtitle, slides=[content for content, _, _ in filled])
     findings += [f for _, fs, _ in filled for f in fs] + duplicate_data(deck)
@@ -120,7 +121,6 @@ async def build_house_deck(
     if len(request.datasets) > n:  # saved, so a re-render finds the table's rows
         store.save_request(report_id, request)
     with tempfile.TemporaryDirectory() as tmp:
-        images = store.load_report_images(report_id, request)
         pngs = await write_pngs(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme, images=images,
                                                 cover_image=request.deck.cover_image), Path(tmp))
         deck, qa_findings = await visual_qa(deck, pngs, request, llm, usage=usage, shift=findings, tokens=tokens)
