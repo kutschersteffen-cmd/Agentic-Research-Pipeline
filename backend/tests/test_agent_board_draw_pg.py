@@ -235,3 +235,20 @@ def test_padded_prompt_is_sent_stripped(client, plan, tmp_path):
     res = client.post(f"{_b(plan)}/draw", json={"prompt": "  chart it" + " " * 50000})
     assert res.status_code == 200, res.text
     assert _calls(tmp_path)[0]["prompt"].startswith("Request: chart it\n\nThread data:\n")
+
+
+INF_CHART = {"mark": "bar", "data": {"values": '[{"w": 1e999}, {"w": 0.77}]'},
+             "encoding": {"y": {"field": "w", "type": "quantitative"}}}
+
+
+def test_non_finite_string_values_are_not_numbers_on_draw(client, plan, tmp_path):
+    res = _draw(client, plan, tmp_path, {"kind": "chart", "title": "C", "source": INF_CHART})
+    assert res.status_code == 200, res.text
+    assert res.json()["unverified"] == [0.77]
+
+
+def test_non_finite_string_values_are_not_numbers_on_patch(client, plan):
+    c = client.post(f"{_b(plan)}/blocks", json={"kind": "chart", "title": "C", "source": BAR_C}).json()
+    res = client.patch(f"{_b(plan)}/blocks/{c['id']}", json={"source": INF_CHART})
+    assert res.status_code == 200, res.text
+    assert res.json()["unverified"] == [0.77]

@@ -65,7 +65,8 @@ def _json_numbers(node: Any, out: list) -> None:
     if isinstance(node, bool):
         return
     if isinstance(node, int | float):
-        out.append(node)
+        if math.isfinite(node):  # 1e999 in a JSON string parses to inf: not a number Postgres can store
+            out.append(node)
     elif isinstance(node, dict):
         for v in node.values():
             _json_numbers(v, out)
