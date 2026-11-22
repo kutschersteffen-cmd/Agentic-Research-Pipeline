@@ -14,6 +14,7 @@ import re
 import subprocess
 import sys
 import threading
+import unicodedata
 from collections import OrderedDict
 from typing import Any
 
@@ -183,13 +184,40 @@ DIAGRAM_TYPES = ("flowchart", "mindmap", "timeline", "sequenceDiagram", "quadran
 _DIAGRAM_TYPE_MSG = "unsupported diagram type: {}; use flowchart, mindmap, timeline, sequenceDiagram or quadrantChart"
 _REFUSED_STATEMENTS = ("click", "style", "classdef", "linkstyle", "link", "links", "href")
 _GROUP = re.compile(r":::([A-Za-z][A-Za-z0-9_]*)")
+_ENTITY = re.compile(r"#[A-Za-z0-9_]+;|\ufb02\u00b0|\u00b6\u00df")  # codes and Mermaid's placeholders (1e)
+_STATEMENT_END = re.compile(r";|(?<=\})")  # a statement also ends at `;` and after `}` (Amendment 1b, 1e)
+_LINE = re.compile(r"\r\n|\r|\n")  # Mermaid turns each into a line feed before it reads (Amendment 1d)
+_ZS = " \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u202f\u205f\u3000"  # Zs
+_WORD_SEP = re.compile("[\t" + re.escape(_ZS) + "]+")  # space, tab and every Unicode space separator
+
+
+def _hidden(source: str) -> bool:
+    """A Cc character other than tab, LF and CR, or U+2028, U+2029, U+FEFF (Amendment 1d)."""
+    return any((unicodedata.category(c) == "Cc" and c not in "\t\n\r") or c in "\u2028\u2029\ufeff"
+               for c in source)
+
+
+def _lines(source: str) -> list[str]:
+    return _LINE.split(source)
+
+
+def _words(text: str) -> list[str]:
+    return [w for w in _WORD_SEP.split(text) if w]
+
+
+def _statement_words(words: list[str]) -> list[str]:
+    """A statement's words from its first word that is not `end` (Mermaid lets a statement follow a block's `end`)."""
+    i = 0
+    while i < len(words) and words[i].lower() == "end":
+        i += 1
+    return words[i:]
 
 
 def _check_mermaid(source: str, refused: tuple[str, ...], emphasis_only: bool, html_source: str) -> None:
     """The shared `diagram` checks from the `%%{` check to the outside check (Amendment 1b, 1c)."""
     if "%%{" in source:
         raise BlockInvalid("diagram may not set its own config")
-    statements = [st.split() for ln in source.splitlines() for st in ln.split(";")]  # `;` ends a statement too
+    statements = [_statement_words(_words(st)) for ln in _lines(source) for st in _STATEMENT_END.split(ln)]
     for words in statements:
         if words and words[0].lower() in refused:
             raise BlockInvalid(f"diagram may not use {words[0]} lines")
@@ -212,8 +240,10 @@ def _check_diagram(source: Any) -> None:
         raise BlockInvalid("invalid block")
     if len(source) > 8000:
         raise BlockInvalid("diagram exceeds 8000 characters")
-    first = next((ln for ln in source.splitlines() if ln.strip() and not ln.strip().startswith("%%")), "")
-    word = first.split()[0] if first.split() else ""
+    if _hidden(source):
+        raise BlockInvalid("diagram may not contain hidden characters")
+    first = next((ws for ws in map(_words, _lines(source)) if ws and not ws[0].startswith("%%")), [""])
+    word = first[0]
     if word not in DIAGRAM_TYPES:
         raise BlockInvalid(_DIAGRAM_TYPE_MSG.format(word))
     refused = _REFUSED_STATEMENTS + (("properties", "details") if word == "sequenceDiagram" else ())
@@ -221,13 +251,19 @@ def _check_diagram(source: Any) -> None:
     groups = {g for g in _GROUP.findall(source) if g != "emphasis"}
     if len(groups) > 4:
         raise BlockInvalid(f"diagram has {len(groups)} colour groups; at most 4")
+    if _ENTITY.search(source):
+        raise BlockInvalid("diagram may not use entity codes")
 
 
 def _check_flow_as_diagram(source: str) -> None:
     """A `flow` source after `parse_mermaid` (Amendment 1c): the diagram checks the house-deck subset allows, so
     `<br>` tags, `classDef` and `class` lines stay valid."""
+    if _hidden(source):
+        raise BlockInvalid("diagram may not contain hidden characters")
     refused = tuple(w for w in _REFUSED_STATEMENTS if w != "classdef")
     _check_mermaid(source, refused, False, re.sub(r"<br\s*/?>", "", source, flags=re.IGNORECASE))
+    if _ENTITY.search(source):
+        raise BlockInvalid("diagram may not use entity codes")
 
 
 _TILE_KEYS = {"label", "value", "format", "change", "note"}
