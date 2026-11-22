@@ -6,7 +6,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, Numeric, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -17,7 +17,6 @@ class AgentAsk(Base):
     """One question asked on the Agent screen. A thread is its first ask: the one whose `thread_id` is its own `id`."""
 
     __tablename__ = "agent_asks"
-    __table_args__ = (Index("ix_agent_asks_thread", "thread_id", "created_at"),)
 
     id: Mapped[str] = mapped_column(Text, primary_key=True)  # a UUID4 string
     thread_id: Mapped[str] = mapped_column(Text)

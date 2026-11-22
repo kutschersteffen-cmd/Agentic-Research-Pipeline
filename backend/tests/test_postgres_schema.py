@@ -252,3 +252,18 @@ def test_plan_source_ask_fk_added_to_an_existing_database(current_schema):
     _execute("DELETE FROM schema_migrations WHERE name = 'plan_source_ask_fk'")
     assert ensure_schema(DSN)["steps_applied"] == ["plan_source_ask_fk"]
     assert _execute(fk) == [(1,)]
+
+
+def test_a_missing_table_does_not_hide_missing_columns_in_later_tables(current_schema):
+    """schema_report lists a later table's missing column even when an earlier table (in model order) is missing."""
+    from arp.storage.postgres_schema import ensure_schema, schema_report
+
+    _execute("DROP TABLE agent_asks CASCADE")  # the first table in model order; drops research_plans' FK too
+    _execute("ALTER TABLE research_plans DROP COLUMN budget_usd")
+    try:
+        report = schema_report(DSN)
+        assert "agent_asks" in report["missing_tables"]
+        assert "research_plans.budget_usd" in report["missing_columns"]
+    finally:
+        _execute("DELETE FROM schema_migrations WHERE name = 'plan_source_ask_fk'")  # re-adds the dropped FK
+        ensure_schema(DSN)

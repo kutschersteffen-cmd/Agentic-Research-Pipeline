@@ -195,3 +195,28 @@ def test_plan_from_unknown_ask_is_404(planner, pg):  # AC-72e, AC-73b
         r = planner.post("/api/plans", json={"brief": "b", "source_ask_id": bad})
         assert (r.status_code, r.json()) == (404, {"detail": "ask not found"})
     assert PlanStore(pg).list() == []
+
+
+def _set_created(pg, ask_id: str, at: str) -> None:
+    from sqlalchemy import update
+
+    with Session(get_engine(pg)) as s, s.begin():
+        s.execute(update(AgentAsk).where(AgentAsk.id == ask_id).values(created_at=at))
+
+
+def test_thread_and_threads_follow_created_at_not_insert_order(pg):
+    """Rows stored out of time order still come back oldest first in a thread and newest first in the list."""
+    store = AskStore(pg)
+    a = store.add(thread_id=None, question="a", asked_by="dev", tool="none", standalone_question="a")["id"]
+    late = store.add(thread_id=a, question="late", asked_by="dev", tool="none", standalone_question="late")["id"]
+    early = store.add(thread_id=a, question="early", asked_by="dev", error="x")["id"]
+    b = store.add(thread_id=None, question="b", asked_by="dev", tool="none", standalone_question="b")["id"]
+    # Updated newest first, so the table's physical order is the reverse of time order.
+    _set_created(pg, late, "2026-01-03T00:00:00+00:00")
+    _set_created(pg, early, "2026-01-02T00:00:00+00:00")
+    _set_created(pg, a, "2026-01-01T00:00:00+00:00")
+    _set_created(pg, b, "2025-12-31T00:00:00+00:00")
+    assert [x["question"] for x in store.thread(a)] == ["a", "early", "late"]
+    rows = store.threads()
+    assert [r["thread_id"] for r in rows] == [a, b]
+    assert rows[0]["status"] == "answered"  # the newest ask ("late") answered, though "early" was stored last
