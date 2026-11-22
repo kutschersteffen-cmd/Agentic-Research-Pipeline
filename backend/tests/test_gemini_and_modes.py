@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
+from google.genai import types
 from pydantic import BaseModel, ValidationError
 
 from arp.config import Settings
@@ -16,10 +17,11 @@ class Answer(BaseModel):
     value: int
 
 
-def _response(text: str, prompt=100, out=20, thoughts=5, cached=0):
+def _response(text: str, prompt=100, out=20, thoughts=5, cached=0, finish=None, blocked=None):
     usage = SimpleNamespace(prompt_token_count=prompt, candidates_token_count=out, thoughts_token_count=thoughts,
                             cached_content_token_count=cached)
-    return SimpleNamespace(text=text, usage_metadata=usage)
+    return SimpleNamespace(text=text, usage_metadata=usage, candidates=[SimpleNamespace(finish_reason=finish)],
+                           prompt_feedback=SimpleNamespace(block_reason=blocked))
 
 
 class _Scripted(GeminiClient):
@@ -56,6 +58,38 @@ async def test_retries_run_out_with_the_last_validation_error(tmp_path):
     client = _Scripted(tmp_path, [_response('{"value": "x"}')] * 2)
     with pytest.raises(ValidationError):
         await client.complete_structured(system="s", prompt="p", output_model=Answer, max_validation_retries=1)
+
+
+async def test_a_cut_off_answer_is_resent_with_double_the_limit_not_sent_back(tmp_path):
+    client = _Scripted(tmp_path, [_response('{"val', finish=types.FinishReason.MAX_TOKENS), _response('{"value": 4}')])
+    out, usage = await client.complete_structured(system="s", prompt="p", output_model=Answer, max_tokens=1000)
+    assert (out.value, usage.attempts) == (4, 2)
+    assert [c.max_output_tokens for _, c in client.sent] == [1000, 2000]
+    assert len(client.sent[1][0]) == 1  # the cut-off text is not appended as a model turn
+
+
+async def test_a_cut_off_answer_that_never_fits_raises_a_clear_error(tmp_path):
+    client = _Scripted(tmp_path, [_response('{"val', finish=types.FinishReason.MAX_TOKENS)] * 3)
+    with pytest.raises(ValidationError, match="cut off at max_output_tokens=4000"):
+        await client.complete_structured(system="s", prompt="p", output_model=Answer, max_tokens=1000)
+
+
+async def test_a_blocked_answer_raises_at_once(tmp_path):
+    client = _Scripted(tmp_path, [_response("", finish=types.FinishReason.SAFETY)])
+    with pytest.raises(ValidationError, match="no answer: .*SAFETY"):
+        await client.complete_structured(system="s", prompt="p", output_model=Answer)
+    assert len(client.sent) == 1
+
+
+async def test_extractor_clients_think_low_and_verifiers_keep_the_default(tmp_path):
+    s = Settings(_env_file=None, anthropic_api_key=None, gemini_api_key="k", cache_dir=tmp_path)
+    assert build_llm_client(s, model="gemini-3.8-flash").thinking_level == "low"
+    assert build_llm_client(s, model="gemini-3.8-flash", verifier=True).thinking_level is None
+    client = _Scripted(tmp_path, [_response('{"value": 1}')])
+    client.thinking_level = "low"
+    await client.complete_structured(system="s", prompt="p", output_model=Answer)
+    assert client.sent[0][1].thinking_config.thinking_level == types.ThinkingLevel.LOW
+    assert _Scripted(tmp_path, []).thinking_level is None
 
 
 async def test_a_repeated_call_comes_from_the_disk_cache_at_no_cost(tmp_path):

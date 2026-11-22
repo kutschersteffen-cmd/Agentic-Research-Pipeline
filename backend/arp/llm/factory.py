@@ -37,6 +37,7 @@ def build_llm_client(
         return GeminiClient(
             api_key=settings.gemini_api_key, model=model, cache_dir=settings.cache_dir,
             cache_enabled=settings.llm_cache_enabled, cache_refresh=refresh, **vertex,
+            thinking_level=None if verifier else "low",
         )
     gemini_model = settings.gemini_fallback_verifier_model if verifier else settings.gemini_fallback_model
     independence = ""
@@ -48,6 +49,7 @@ def build_llm_client(
         return GeminiClient(
             api_key=settings.gemini_api_key, model=gemini_model, cache_dir=settings.cache_dir,
             cache_enabled=settings.llm_cache_enabled, cache_refresh=refresh, fallback_from=model, **vertex,
+            thinking_level=None if verifier else "low",
         )
 
     if not settings.anthropic_api_key and settings.gemini_available:
