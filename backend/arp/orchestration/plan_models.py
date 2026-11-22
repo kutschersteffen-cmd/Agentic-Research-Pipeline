@@ -1,5 +1,5 @@
 """Tables of the Research Orchestrator: one row per plan script, one per step call it made, one per saved template
-version."""
+version, and the Agent screen's asks a plan may be drafted from."""
 
 from __future__ import annotations
 
@@ -11,6 +11,22 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from arp.storage.postgres_models import Base
+
+
+class AgentAsk(Base):
+    """One question asked on the Agent screen. A thread is its first ask: the one whose `thread_id` is its own `id`."""
+
+    __tablename__ = "agent_asks"
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)  # a UUID4 string
+    thread_id: Mapped[str] = mapped_column(Text)
+    question: Mapped[str] = mapped_column(Text)
+    standalone_question: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tool: Mapped[str | None] = mapped_column(Text, nullable=True)  # null when the ask failed
+    response: Mapped[dict | None] = mapped_column(JSONB, nullable=True)  # the AskResponse as JSON
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    asked_by: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class ResearchPlan(Base):
@@ -36,6 +52,8 @@ class ResearchPlan(Base):
     budget_usd: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
     # What the planner's model calls for this plan cost, every attempt of every draft and re-plan.
     planner_cost_usd: Mapped[Decimal] = mapped_column(Numeric, default=0, server_default="0")
+    # The ask whose `Draft a plan` drafted this plan; no cascade.
+    source_ask_id: Mapped[str | None] = mapped_column(Text, ForeignKey("agent_asks.id"), nullable=True)
 
 
 class ResearchPlanCall(Base):

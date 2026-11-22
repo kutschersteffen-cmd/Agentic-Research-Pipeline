@@ -233,3 +233,37 @@ def test_plan_planner_cost_backfilled_then_not_null(current_schema):
     assert _execute("SELECT is_nullable, column_default FROM information_schema.columns"
                     " WHERE table_name = 'research_plans' AND column_name = 'planner_cost_usd'") == [("NO", "0")]
     reset_postgres_tables(DSN)
+
+
+def test_plan_source_ask_fk_added_to_an_existing_database(current_schema):
+    """agent-panel-code-mode slice 13: reconciliation adds research_plans.source_ask_id without its foreign key; the
+    step adds it, and a database that has it is left alone."""
+    from arp.storage.postgres_schema import ensure_schema
+    from tests.postgres_helpers import reset_postgres_tables
+
+    reset_postgres_tables(DSN)
+    _execute("ALTER TABLE research_plans DROP COLUMN source_ask_id")
+    _execute("DELETE FROM schema_migrations WHERE name = 'plan_source_ask_fk'")
+    result = ensure_schema(DSN)
+    assert "research_plans.source_ask_id" in result["columns_added"]
+    assert result["steps_applied"] == ["plan_source_ask_fk"]
+    fk = "SELECT 1 FROM pg_constraint WHERE conname = 'research_plans_source_ask_id_fkey'"
+    assert _execute(fk) == [(1,)]
+    _execute("DELETE FROM schema_migrations WHERE name = 'plan_source_ask_fk'")
+    assert ensure_schema(DSN)["steps_applied"] == ["plan_source_ask_fk"]
+    assert _execute(fk) == [(1,)]
+
+
+def test_a_missing_table_does_not_hide_missing_columns_in_later_tables(current_schema):
+    """schema_report lists a later table's missing column even when an earlier table (in model order) is missing."""
+    from arp.storage.postgres_schema import ensure_schema, schema_report
+
+    _execute("DROP TABLE agent_asks CASCADE")  # the first table in model order; drops research_plans' FK too
+    _execute("ALTER TABLE research_plans DROP COLUMN budget_usd")
+    try:
+        report = schema_report(DSN)
+        assert "agent_asks" in report["missing_tables"]
+        assert "research_plans.budget_usd" in report["missing_columns"]
+    finally:
+        _execute("DELETE FROM schema_migrations WHERE name = 'plan_source_ask_fk'")  # re-adds the dropped FK
+        ensure_schema(DSN)

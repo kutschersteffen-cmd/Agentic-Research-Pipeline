@@ -68,6 +68,8 @@ raised`; it becomes `== 502`. The audit assertions in it stay. This follows the 
 
 ## Acceptance
 
+Re-pointed by `2026-11-21-agent-panel-code-mode.md` Phase 7 (slice 13): AC-9's case now lives in `frontend/tests/askError.test.ts`, importing `askErrorText` from `lib/askError.ts`.
+
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
 | AC-1 | The app started by `backend/scripts/e2e_stack.sh up` with `ARP_STANDINS_DIR` set and `model/_ParsedQuestion.json` = `{"error": "credit balance is too low"}` (the stand-in model raises `RuntimeError("credit balance is too low")`) | `POST http://127.0.0.1:8000/api/portfolio/ask` `{"question": "What is my largest holding?"}` | Status 502, body `{"detail": "Ask could not answer this question. Try again."}` | holdout |

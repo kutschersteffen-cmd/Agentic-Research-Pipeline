@@ -167,6 +167,8 @@ generator, and how the news lookup finds articles for the `isin_` key.
 
 ## Acceptance
 
+Re-pointed by `2026-11-21-agent-panel-code-mode.md` Phase 7 (slice 13): AC-26 is the same question asked in the Agent composer's `Ask` mode, on `#/agent/ask/<id>`.
+
 Definitions for every row:
 
 - **Stack**: the app started by `backend/scripts/e2e_stack.sh up`, which runs `arp portfolio seed-demo` (today's

@@ -8,8 +8,7 @@ import { WORKSPACES, workspaceOfProcess, type WorkspaceId } from "./lib/processe
 import { STAGE_TABS } from "./pages/steward/common";
 import { SUB_TABS as RISK_TABS } from "./lib/subTabs";
 import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
-import { AskPanel } from "./components/AskPanel";
-import { clearTurns, loadTurns, saveTurns, type AskTurn } from "./lib/askHistory";
+import { ctrlJTarget, type Selection } from "./lib/agent";
 import { useMe } from "./lib/reviewer";
 import { AppTopbar } from "./components/AppTopbar";
 import { WorkspaceRow } from "./components/WorkspaceRow";
@@ -138,6 +137,12 @@ function readRoute() {
   return parseHash();
 }
 
+/** `#/agent/<plan_id>` selects a plan, `#/agent/ask/<thread_id>` an ask thread. */
+function agentSelection(params: string[]): Selection {
+  if (params[0] === "ask") return params[1] ? { kind: "ask", id: params[1] } : null;
+  return params[0] ? { kind: "plan", id: params[0] } : null;
+}
+
 function navigate(tab: TabId, ...params: string[]) {
   window.location.hash = "/" + [tab, ...params].map(encodeURIComponent).join("/");
 }
@@ -205,30 +210,25 @@ function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const me = useMe();
   const canAsk = me != null && me.role !== "viewer";
-  const [askOpen, setAskOpen] = useState(false);
-  const [askTurns, setAskTurns] = useState<AskTurn[]>(() => loadTurns());
-  const [askPending, setAskPending] = useState<{ id: number; question: string } | null>(null);
-  const searchRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => saveTurns(askTurns), [askTurns]);
+  // Ask ARP lives on the Agent screen: Ctrl/⌘J focuses its composer, the palette's ask sends a new ask thread there.
+  const [agentFocus, setAgentFocus] = useState(0);
+  const [agentAsk, setAgentAsk] = useState<{ id: number; question: string } | null>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen(true);
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j" && canAsk) {
+      const target = ctrlJTarget(canAsk);
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j" && target) {
         e.preventDefault();
-        setAskOpen(true);
+        window.location.hash = target.replace(/^#/, "");
+        setAgentFocus(Date.now());
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [canAsk]);
-  function closeAsk() {
-    setAskOpen(false);
-    searchRef.current?.focus();
-  }
-
   function go(id: TabId) {
     navigate(id);
   }
@@ -265,19 +265,15 @@ function App() {
       <AppTopbar
         active={active}
         canAsk={canAsk}
-        searchRef={searchRef}
         waiting={waiting}
         onSearch={() => setPaletteOpen(true)}
       />
       <WorkspaceRow hash={window.location.hash} />
-      {askOpen && canAsk && (
-        <AskPanel turns={askTurns} setTurns={setAskTurns} onClose={closeAsk} onClear={() => { clearTurns(); setAskTurns([]); }} pending={askPending} />
-      )}
       {paletteOpen && (
         <CommandPalette
           items={[...PALETTE_ITEMS, ...recentRuns.map(runItem)]}
           onClose={() => setPaletteOpen(false)}
-          onAsk={canAsk ? (question) => { setAskPending({ id: Date.now(), question }); setAskOpen(true); } : undefined}
+          onAsk={canAsk ? (question) => { setAgentAsk({ id: Date.now(), question }); navigate("agent"); } : undefined}
         />
       )}
       <main className="app-main" id="main" tabIndex={-1}>
@@ -315,7 +311,11 @@ function App() {
         {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool key={route.params[0]} initialSub={route.params[0]} onSendUniverse={sendToArgus} />}
         {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} waiting={waiting} />}
         {active === "history" && <RunHistory onOpenReview={openReview} focusRunId={route.params[0] ?? null} />}
-        {active === "agent" && <Agent selectedId={route.params[0] ?? null} onSelect={(id) => navigate("agent", id)} />}
+        {active === "agent" && (
+          <Agent selected={agentSelection(route.params)} canAsk={canAsk} focusToken={agentFocus} pendingAsk={agentAsk}
+            onPendingAskTaken={() => setAgentAsk(null)}
+            onSelect={(s) => (s ? navigate("agent", ...(s.kind === "ask" ? ["ask", s.id] : [s.id])) : navigate("agent"))} />
+        )}
         {active === "stewardship" && <StewardWorkflow initialTab={route.params[0]} />}
         {active === "engagement" && <EngagementDashboard />}
         {active === "voting" && <VotingRuns selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("voting", id)} />}
