@@ -81,7 +81,7 @@ moves to the new name in the same holdout change, with its assertion otherwise u
 | AC-1 | e2e stack | open `#/rdLab` | the navigation named "R&D Lab screens" reads, in order: links R&D Lab, Build a thematic portfolio, Themes, Decision Studio, Portfolio Builder, then a button "More" | holdout |
 | AC-2 | e2e stack | open `#/home` | the five start cards' names read, in order: StewardIQ, Argus, Transition Intelligence Platform, R&D Lab, Data Hub | holdout |
 | AC-2b | e2e stack | open `#/home` | the R&D Lab start card shows the text "Research themes and find the companies exposed to them." | holdout |
-| AC-3 | e2e stack | open the Workspaces menu on `#/home` | the item linking to `#/rdLab` has the label "R&D Lab" (the `.start-topbar-place` text) | holdout |
+| AC-3 | e2e stack | open the Workspaces menu on `#/home` | the item linking to `#/rdLab` has the label "R&D Lab": the text of `.start-topbar-place` minus its `.start-topbar-purpose` child, trimmed, equals "R&D Lab" | holdout |
 | AC-3c | e2e stack | open the Workspaces menu on `#/home` | the item linking to `#/rdLab` shows the text "Research themes and find the companies exposed to them." | holdout |
 | AC-3b | e2e stack | open the Workspaces menu on `#/home` | no item's visible text contains the word "Strategy" | holdout |
 | AC-4 | e2e stack | open `#/rdLab` | the `h1` text is "R&D Lab" | holdout |
