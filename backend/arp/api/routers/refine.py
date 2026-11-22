@@ -205,6 +205,8 @@ def get_turns(doc_id: str, kind: str = Depends(_kind)) -> list[dict]:
 @router.post("/{kind}/{doc_id}/undo", response_model=RefineTurnOut)
 def undo(doc_id: str, kind: str = Depends(_kind), user: Principal = Depends(_editor),
          store: ReportingStore = Depends(get_reporting_store)) -> dict:
+    if kind == "deck":
+        _check_doc(kind, doc_id, store)  # a deleted report is a 404, and its folder is not re-created
     reap_stale_turns(now=datetime.now(UTC))
     try:
         return turn_out(undo_last(kind, doc_id, user.user_id, store))

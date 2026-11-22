@@ -664,3 +664,42 @@ def test_thread_title_cut_to_60(env):  # AC-61e
     env.wait(env.turn("deck", rid))
     [t] = env.as_("alice").get("/api/refine/threads").json()
     assert t["title"] == "Deck: " + long[:54] and len(t["title"]) == 60
+
+
+def test_render_keeps_flag_for_edit_made_during_render(env, R, monkeypatch):  # review: service.py:241
+    from arp.refine.agent import mark_deck_edited
+
+    async def slow_render(report_id, deck, request, store):
+        edited = store.load_deck(report_id)
+        edited.slides[0].headline = "edited during render"
+        store.save_deck(report_id, edited)  # what a deck turn that finishes mid-render does
+        mark_deck_edited(store, report_id)
+
+    monkeypatch.setattr("arp.reporting.service.render_house_outputs", slow_render)
+    assert env.as_("alice").post(f"/api/reports/{R}/render").status_code == 200
+    assert env.reports.load_manifest(R).deck_edited_since_render is True
+
+
+def test_failed_deck_write_does_not_block_undo(env, R, monkeypatch):  # review: agent.py:139-142
+    env.ops([SET_TEXT])
+    assert env.wait(env.turn("deck", R))["status"] == "done"
+    real = env.reports.save_deck
+    monkeypatch.setattr(env.reports, "save_deck", lambda *a: (_ for _ in ()).throw(OSError("disk full")))
+    env.ops([{"op": "set_headline", "slide": 1, "text": "New"}])
+    assert env.wait(env.turn("deck", R))["status"] == "failed"
+    monkeypatch.setattr(env.reports, "save_deck", real)
+    assert env.reports.load_deck(R).slides[0].headline == "S1"
+    r = env.undo("deck", R)
+    assert r.status_code == 200, r.text
+    assert env.reports.load_deck(R).slides[1].slots["text"] == "old"
+
+
+def test_undo_on_deleted_report_404(env, R):  # review (optional): undo did not check the document
+    import shutil
+
+    env.ops([SET_TEXT])
+    env.wait(env.turn("deck", R))
+    shutil.rmtree(env.reports.reports_dir / R)
+    r = env.undo("deck", R)
+    assert (r.status_code, r.json()["detail"]) == (404, "Report not found")
+    assert not (env.reports.reports_dir / R).exists()

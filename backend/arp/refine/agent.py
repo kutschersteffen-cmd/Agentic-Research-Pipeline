@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import date
@@ -121,7 +122,8 @@ async def run_turn(turn_id: int, kind: str, doc_id: str, message: str, history: 
             r = await apply_rfp_ops(turn_id, int(doc_id), ops, llm, today=today, verifier=verifier)
             save_progress(turn_id, result=_result(out.reply, r["changed"], r["not_changed"]))
         else:
-            _apply_deck(turn_id, doc_id, deck, document, ops, out.reply, store)
+            # off the event loop: the chart-fit check draws charts
+            await asyncio.to_thread(_apply_deck, turn_id, doc_id, deck, document, ops, out.reply, store)
         finish_turn(turn_id, "done")
     except Exception as exc:  # noqa: BLE001 -- a background turn must always end; the thread shows the error
         log.exception("refine: turn %s failed", turn_id)
@@ -139,7 +141,11 @@ def _apply_deck(turn_id: int, doc_id: str, deck, document: dict, ops: list[dict]
     saved = save_progress(turn_id, ops=ops, result=_result(reply, r["changed"], r["not_changed"], r["check_figures"]),
                           before=document if edited else None, after=after if edited else None)
     if edited and saved:
-        store.save_deck(doc_id, new)
+        try:
+            store.save_deck(doc_id, new)
+        except Exception:
+            save_progress(turn_id, before={}, after={})  # nothing was written, so undo must skip this turn
+            raise
         mark_deck_edited(store, doc_id)
 
 
