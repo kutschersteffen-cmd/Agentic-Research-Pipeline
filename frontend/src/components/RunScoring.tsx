@@ -192,7 +192,7 @@ export function RunScoringPanel({ runId, runType, fieldNames, presetFields }: Pa
         >
           <p>
             Freezes {decision.framework.name} v{decision.framework.version}&apos;s tiers for the {decision.result.entities.length}{" "}
-            companies in this run, matched to issuers by company id. Steward Workflow&apos;s coverage rules and Index Construction can
+            companies in this run, matched to issuers by company id. Steward Workflow&apos;s coverage rules and Portfolio Builder can
             then read them. Nothing changes there until a person confirms tiers or runs an index review.
           </p>
         </ConfirmSignedIn>

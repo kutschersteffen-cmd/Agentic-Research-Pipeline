@@ -48,7 +48,7 @@ test("R&D Lab gains the Signals workbench and keeps what it had", () => {
     ["#/theme", "Thematic Universe"],
     ["#/strategyReplication", "Strategy Replication"],
     ["#/decision", "Decision Studio"],
-    ["#/index", "Index Construction"],
+    ["#/index", "Portfolio Builder"],
   ];
   for (const pair of [...kept, ["#/signals", "Signals workbench"]]) assert.ok(rdLab.screens.some(([h, l]) => h === pair[0] && l === pair[1]), pair[0]);
   const ids = rdLab.processes.map((p) => p.id);

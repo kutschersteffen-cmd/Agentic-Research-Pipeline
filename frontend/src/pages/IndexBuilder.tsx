@@ -345,11 +345,11 @@ export function IndexBuilder() {
 
   return (
     <div className="page">
-      <h1>Index Construction</h1>
+      <h1>Portfolio Builder</h1>
       <p className="help-text">Compose screens, selection, weighting, tilts, constraints and the decarbonisation path into one methodology, save it as a versioned calibration, and run a review. Every step is deterministic.</p>
       <p className="banner banner-warning" role="note">{universeBanner(choice.detail)}</p>
 
-      <div className="sub-nav" role="tablist" aria-label="Index Construction steps">
+      <div className="sub-nav" role="tablist" aria-label="Portfolio Builder steps">
         {SUB_TABS.map((t) => (
           <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} role="tab" aria-selected={t.id === sub} onClick={() => setSub(t.id)}>
             {t.label}
