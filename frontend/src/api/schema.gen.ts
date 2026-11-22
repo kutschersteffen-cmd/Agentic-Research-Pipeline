@@ -90,6 +90,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/agent/explorations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Exploration
+         * @description Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed.
+         */
+        post: operations["create_exploration_api_agent_explorations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/agent/inbox": {
         parameters: {
             query?: never;
@@ -13548,6 +13568,49 @@ export interface components {
             /** Window Start */
             window_start: string;
         };
+        /** Exploration */
+        Exploration: {
+            /** Accepted At */
+            accepted_at: string | null;
+            /** Accepted By */
+            accepted_by: string | null;
+            /** Code */
+            code: string;
+            /** Cost Usd */
+            cost_usd: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error */
+            error: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Label
+             * @enum {string}
+             */
+            label: "exploratory" | "accepted";
+            /** Model */
+            model: string | null;
+            /** Question */
+            question: string;
+            /** Result */
+            result: unknown;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "done" | "failed" | "timeout";
+            /** Tool Calls */
+            tool_calls: components["schemas"]["ToolCall"][];
+        };
+        /** ExplorationRequest */
+        ExplorationRequest: {
+            /** Question */
+            question: string;
+        };
         /** ExportRequest */
         ExportRequest: {
             /** Dashboard Id */
@@ -19609,6 +19672,15 @@ export interface components {
          * @enum {string}
          */
         Tone: "formal" | "conversational" | "persuasive" | "neutral_analytical";
+        /** ToolCall */
+        ToolCall: {
+            /** Args */
+            args: unknown;
+            /** Capability Id */
+            capability_id: string;
+            /** Result Bytes */
+            result_bytes: number;
+        };
         /**
          * TopN
          * @description Fixed-size index: the N best by score, ties broken by float market
@@ -21233,6 +21305,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_exploration_api_agent_explorations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExplorationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exploration"];
                 };
             };
             /** @description Validation Error */

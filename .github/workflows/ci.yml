@@ -242,6 +242,10 @@ jobs:
       - name: Start the app stack
         run: bash backend/scripts/e2e_stack.sh up
 
+      - name: Sandbox tests (sandbox/, installed by the stack)
+        working-directory: sandbox
+        run: npm test
+
       - name: Browser tests
         working-directory: backend
         env:

@@ -7,7 +7,10 @@ risk label.
 
 Status: **approved by the owner on 22 Nov 2026** (button in the spec session, after three spec-critic rounds; decisions D1–D5 as recommended).
 Amendment 1 (22 Nov 2026, Phase 2 below: diagrams in Mermaid, number tiles, checklists, live blocks; D6–D9, AC-33 to AC-64,
-slice 2b): **approved by the owner on 22 Nov 2026** (button in the spec session, head 8272df6). The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
+slice 2b): **approved by the owner on 22 Nov 2026** (button in the spec session, head 8272df6).
+Amendment 1b (22 Nov 2026, from the slice 2b security review on PR #648: diagram link statements after `;`, `//` URLs,
+`link` statements, anchors stripped in the browser; a live chart that does not render is refused on write and not
+re-rendered on read; long table cells cut; AC-36e to AC-36j, AC-49b, AC-58b to AC-58d): **approved by the owner on 22 Nov 2026** (button in the spec session, head 3eda0d8). The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
 "work for anything the user tells the AI", and "let's do all" for tiles, checklists and live blocks.
 
 Source: thread "Add a whiteboard to ARP" (22 Nov 2026). The owner asked for "the same whiteboard functionality as
@@ -136,7 +139,8 @@ A block in a response is:
 `config` replaced by `theme_config(load_tokens(), mode)` for `light` and `dark`, plus, from `palette(load_tokens(), mode)`:
 `background` = `panel`; `axis` and `legend` `labelColor` and `titleColor` = `ink`; `axis` `domainColor` and `tickColor` =
 `line`; `title.color` = `ink`; `mark.color` = `highlight`. Then through `vega.to_svg` (D1). The theme file is not changed. For `flow`,
-the `Flow` from `parse_mermaid` as JSON. Charts are rendered on every write and stored nowhere; a read renders again.
+the `Flow` from `parse_mermaid` as JSON. Charts are rendered on every write and stored nowhere; a read renders again, except for the failure memory of Phase 2
+live charts (Amendment 1b).
 
 On screen:
 - `note`: Markdown with headings, bold, italics, lists, inline code and links whose target starts `https://` or
@@ -243,10 +247,11 @@ section says otherwise. No table changes: the new sources and pointers live in `
 | a string of at most 8 000 characters | `diagram exceeds 8000 characters` |
 | the first word (split on whitespace) of the first line that is not empty and does not start with `%%` equals `flowchart`, `mindmap`, `timeline`, `sequenceDiagram` or `quadrantChart` (that word `<w>`) | `unsupported diagram type: <w>; use flowchart, mindmap, timeline, sequenceDiagram or quadrantChart` |
 | no `%%{` anywhere | `diagram may not set its own config` |
-| no line whose first word is `click`, `style`, `classDef` or `linkStyle` (`<w>` the first such word) | `diagram may not use <w> lines` |
-| every line whose first word is `class` ends with the word `emphasis` | `diagram may only use class lines for emphasis` |
+| no statement whose first word, compared without case, is `click`, `style`, `classDef`, `linkStyle`, `link`, `links` or `href` (`<w>` the first such word as written); a statement is a line, or a part of a line split at `;` (Amendment 1b) | `diagram may not use <w> lines` |
+| every statement (as defined in the row above) whose first word is `class` ends with the word `emphasis` | `diagram may only use class lines for emphasis` |
 | no `<` followed by a letter, `/` or `!` | `diagram may not contain HTML` |
-| no `javascript:`, `http://` or `https://`, compared without case | `diagram may not load from outside` |
+| no `@{` anywhere (Mermaid shape options, which can load images) (Amendment 1b) | `diagram may not use shape options` |
+| no `javascript:`, `http:`, `https:`, `//`, `\\` (two backslashes) or `:\` (a colon followed by one backslash), compared without case (Amendment 1b widens this from `javascript:`, `http://` and `https://`) | `diagram may not load from outside` |
 | at most 4 distinct group names, a group name being each match of `:::([A-Za-z][A-Za-z0-9_]*)` other than `emphasis` (`<n>` their count) | `diagram has <n> colour groups; at most 4` |
 
 A `source` that is not a string answers `422 {"detail": "invalid block"}` before these checks; a source with no line
@@ -292,11 +297,17 @@ before truncation), a string of 1 to 200 characters starting with `/`; otherwise
   key is removed and `data` becomes `{"values": <the pointer's value>}`; the 5 000-row check and rendering run on that.
   Keys inside the resolved rows (a source list's `url` field, say) are data and are not checked. If the 5 000-row check
   fails or the chart does not render, the block answers `rendered: null` and `live_error` = that check's message
-  (`chart exceeds 5000 data rows`, `chart does not render: <first line>`); a write still stores it.
+  (`chart exceeds 5000 data rows`, `chart does not render: <first line>`); a write still stores it, except that a write
+  whose render fails (crash, out of memory, timeout or a Vega error, not a data problem: not found, not rows, over 5 000
+  rows) answers `422 {"detail": "chart does not render: <first line>"}` and stores nothing (Amendment 1b). On a read,
+  the API process remembers each (block id, version, SHA-256 of the resolved data as compact JSON) whose render failed
+  and answers the same `live_error` for it without rendering again. The memory holds at most 1 000 entries, oldest
+  dropped first.
 - `table`: `{"live": pointer, "columns": [str]}`. A table has `rows` or `live`, never both and never neither; otherwise
   `422 {"detail": "invalid block"}`. The 1 to 20 columns check applies to a live table too. Each element of the pointer's list becomes a row:
   for each column, the element's key of that name; a missing key is `null`; a value that is not a string, number or
-  `null` is its compact JSON text. At most 200 rows are shown; more set `live_error` to `live data exceeds 200 rows`.
+  `null` is its compact JSON text. A cell's text (a string value, or the compact JSON text of a value that is not a string, number or `null`)
+  longer than 1 000 characters is cut to its first 1 000 characters followed by `…` (Amendment 1b). At most 200 rows are shown; more set `live_error` to `live data exceeds 200 rows`.
 - tile: `"value": {"live": pointer}`; the pointer's value must be a JSON number.
 
 A write checks only the pointer's form; a pointer that does not resolve is stored. Every read (and the write's own
@@ -334,6 +345,8 @@ refused with that message (one retry, then 422); a person's `POST /blocks` or `P
   one sentence on this to DESIGN.md's Chart Colours paragraph. The `emphasis` step has a 3 px border and semibold text. Under a grouped flowchart one legend line
   lists the groups in that order, each name with its CamelCase split into words (`DataTeam` → `Data Team`), and, when a
   step has `emphasis`, `Bold outline: key step` at the right.
+- Before the SVG Mermaid returns goes into the page, every `<a>` element in it is replaced by its children and every
+  `href` and `xlink:href` attribute is removed (Amendment 1b), so no diagram holds a link.
 - A diagram Mermaid cannot draw shows `This diagram could not be drawn: <first line of Mermaid's error>` and its
   source in a code box; the `⋯` menu works as for any block.
 - A live block shows `Live · step <live_step>` beside its title, or `Live` when `live_step` is `null`. A block with
@@ -477,6 +490,16 @@ means one newline character.
 | AC-62 | Demo plan, empty board | `POST B/blocks` kind `checklist`, title `X`, source `{"items": [{"text": "a", "done": false}]}`, `"unverified": [1]`; then the same with kind `diagram`, source Mind map M | both HTTP 201 with `unverified: []` | holdout |
 | AC-63 | Tiles `T` from AC-50; checklist `C` with items `a` done and `b` not done; diagram `M` with source Mind map M | `Download` on each; `⋯`, `Edit` on `T` | `T.csv` reads `label,value,change,note`, `Utilities,0.31,0.04,vs Q2`, `Issuers,1234.5,-12,` on three lines; `C.md` reads `- [x] a` and `- [ ] b` on two lines; `M.mmd` holds exactly Mind map M; `Edit` on `T` shows its source as formatted JSON | evaluator |
 | AC-64 | The plan of AC-57 with the Board tab open | the test sets Utilities to `0.4` and the plan's status to `done` in one write | within 15 s, with no page reload, the table shows `0.4` | evaluator |
+| AC-36e | Demo plan, empty board | `POST B/blocks` kind `diagram`, source `"flowchart LR\n  a[Start] --> b[End]; click a href \"x\" _blank"` | HTTP 422, `{"detail": "diagram may not use click lines"}` | holdout |
+| AC-36f | Same | `POST B/blocks` kind `diagram`, source `"sequenceDiagram\n  participant A as Analyst\n  link A: Report @ x\n  A->>A: Review"` | HTTP 422, `{"detail": "diagram may not use link lines"}` | holdout |
+| AC-36g | Same | `POST B/blocks` kind `diagram`, source `"flowchart LR\n  a[see //evil.example] --> b"` | HTTP 422, `{"detail": "diagram may not load from outside"}` | holdout |
+| AC-36h | Same | `POST B/blocks` kind `diagram`, source `"flowchart LR\n  a[x:\\\\evil] --> b"` (a colon then two backslashes) | HTTP 422, `{"detail": "diagram may not load from outside"}` | holdout |
+| AC-49b | A `diagram` block stored straight in the table by the test with source `"flowchart LR\n  a --> b\n  click a href \"https://example.com\""` | open the Board tab | the diagram shows boxes `a` and `b`; its `svg` holds no `a` element and no `href` or `xlink:href` attribute | evaluator |
+| AC-58b | Done plan D, empty board | `POST B/blocks` kind `chart`, source `{"live": "/steps/0/result/weights", "mark": "line", "transform": [{"density": "weight", "steps": 50000000}], "encoding": {"x": {"field": "value", "type": "quantitative"}, "y": {"field": "density", "type": "quantitative"}}}` | HTTP 422 whose `detail` starts `chart does not render: `; the board is still empty | holdout |
+| AC-58c | A plan whose step 1 result is `{"rows": [{"note": <a string of 2 000 `x`>}]}`; on its board a live table with columns `["note"]` and pointer `/steps/0/result/rows` | `GET B` | that block's `rendered.rows` is one row whose one cell is 1 001 characters: 1 000 `x` then `…` | holdout |
+| AC-36i | Demo plan, empty board | `POST B/blocks` kind `diagram`, source `"flowchart LR\n  a@{ img: \"x.png\" } --> b"` | HTTP 422, `{"detail": "diagram may not use shape options"}` | holdout |
+| AC-36j | Same | `POST B/blocks` kind `diagram`, source `"flowchart LR\n  a[http:evil.example] --> b"` | HTTP 422, `{"detail": "diagram may not load from outside"}` | holdout |
+| AC-58d | A live chart block whose stored source renders on write but whose resolved data later makes the render fail (the test swaps `render_chart` for one that raises `RenderFailed` and counts calls) | `GET B` twice | both answers carry the same `live_error`, and `render_chart` was called once | unit |
 
 ## Slices
 
@@ -484,8 +507,8 @@ means one newline character.
 |---|---|---|---|---|
 | 1 | Tables, block checks, chart and flow rendering, `GET`, `POST /blocks`, `PATCH`, `undo`, `DELETE` for plans | `risk:high` (schema) | — | AC-1 to AC-13e, AC-30 |
 | 2 | `POST /draw`: prompt, retry, number check (also on a person's `PATCH`), stand-in lists, golden set; in `.github/workflows/golden-set.yml` adds `backend/arp/agent_board/**` and `tests/golden/board.jsonl` to the `paths` filter, `arp/agent_board tests/golden/board.jsonl` to the `other=` git-diff list of the `scope` step, and the `arp agent board-golden …` line to the run step | `risk:high` (workflow file) | slice 1 | AC-14 to AC-17d, AC-19, AC-19b, AC-20, AC-20b, AC-30, AC-32 |
-| 3 | Board tab on the Agent screen, with Phase 2's diagram renderer, tiles, checklists and live labels | `risk:normal` | slice 2b, and slices 6 and 8 of `agent-panel-code-mode` | AC-18, AC-18b, AC-22 to AC-26 (with AC-25b to AC-25h), AC-29, AC-31, AC-47 to AC-55, AC-57, AC-61, AC-63, AC-64 |
-| 2b | Phase 2 backend: `diagram`, `tiles` and `checklist` checks, live pointers on reads, the draw prompt and `BoardBlockDraft` kinds, 4 more golden cases; in `.github/workflows/golden-set.yml` the run step's `--min-pass 8` becomes `--min-pass 11` | `risk:high` (workflow file) | slice 2 | AC-30, AC-33 to AC-46, AC-56, AC-58 to AC-60, AC-62 |
+| 3 | Board tab on the Agent screen, with Phase 2's diagram renderer, tiles, checklists and live labels | `risk:normal` | slice 2b, and slices 6 and 8 of `agent-panel-code-mode` | AC-18, AC-18b, AC-22 to AC-26 (with AC-25b to AC-25h), AC-29, AC-31, AC-47 to AC-55, AC-57, AC-61, AC-63, AC-64, AC-49b |
+| 2b | Phase 2 backend: `diagram`, `tiles` and `checklist` checks, live pointers on reads, the draw prompt and `BoardBlockDraft` kinds, 4 more golden cases; in `.github/workflows/golden-set.yml` the run step's `--min-pass 8` becomes `--min-pass 11` | `risk:high` (workflow file) | slice 2 | AC-30, AC-33 to AC-46, AC-56, AC-58 to AC-60, AC-62, AC-36e to AC-36j, AC-58b to AC-58d |
 | 4 | Boards on explorations | `risk:normal` | slice 3, and slice 10 of `agent-panel-code-mode` | AC-27, AC-28, AC-30, AC-31 |
 
 Slices 1 and 2 are merged. Slice 2b can start once Amendment 1 is approved and its hidden tests are written; slice 3

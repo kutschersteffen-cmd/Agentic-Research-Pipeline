@@ -131,3 +131,17 @@ async def fetch_text(folder: Path, url: str) -> str | None:
     if not isinstance(entry, dict) or not isinstance(entry.get("text"), str):
         return None
     return entry["text"]
+
+
+def exploration_code(folder: Path, question: str, attempt: int = 1) -> str:
+    """Entry `attempt` of explore.json's list for `question`: `{"<question>": [{"code": "<js>"}, ...]}`."""
+    _record(folder, {"kind": "model", "name": "ExplorationCode", "question": question})
+    try:
+        entries = _read(folder / "explore.json")
+    except ValueError:
+        raise RuntimeError("stand-in explore.json is not valid JSON") from None
+    answers = entries.get(question) if isinstance(entries, dict) else None
+    entry = answers[attempt - 1] if isinstance(answers, list) and len(answers) >= attempt else None
+    if not isinstance(entry, dict) or not isinstance(entry.get("code"), str):
+        raise RuntimeError(f"no stand-in code for {question!r} in explore.json")
+    return entry["code"]
