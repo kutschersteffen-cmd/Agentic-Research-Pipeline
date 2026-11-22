@@ -4,6 +4,75 @@
  */
 
 export interface paths {
+    "/api/agent/boards/{thread_kind}/{thread_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Board */
+        get: operations["get_board_api_agent_boards__thread_kind___thread_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/boards/{thread_kind}/{thread_id}/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Block */
+        post: operations["create_block_api_agent_boards__thread_kind___thread_id__blocks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/boards/{thread_kind}/{thread_id}/blocks/{block_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Block */
+        delete: operations["delete_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Block */
+        patch: operations["patch_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__patch"];
+        trace?: never;
+    };
+    "/api/agent/boards/{thread_kind}/{thread_id}/blocks/{block_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo Block */
+        post: operations["undo_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/agent/inbox": {
         parameters: {
             query?: never;
@@ -20891,6 +20960,175 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_board_api_agent_boards__thread_kind___thread_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_kind: string;
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_block_api_agent_boards__thread_kind___thread_id__blocks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_kind: string;
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_kind: string;
+                thread_id: string;
+                block_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_kind: string;
+                thread_id: string;
+                block_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_kind: string;
+                thread_id: string;
+                block_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     inbox_api_agent_inbox_get: {
         parameters: {
             query?: never;
