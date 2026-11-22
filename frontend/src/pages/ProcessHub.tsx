@@ -70,7 +70,7 @@ function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | 
         <WorkspaceDrawing id={w.id} accent={tone === "wait" ? "wait" : tone === "now" ? "now" : null} />
       </span>
       <span className="hub-card-body">
-        <span className="hub-card-name">{w.short ?? w.name}</span>
+        <span className="hub-card-name">{w.name}</span>
         <span className="hub-card-purpose">{w.purpose}</span>
         <span className="hub-card-status">
           <span className="hub-marks" aria-hidden="true">
