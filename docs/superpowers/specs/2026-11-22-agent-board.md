@@ -21,7 +21,7 @@ with links stripped as before, so a diagram that slips past the checks still can
 (button in the spec session, head 6e1dbf0).
 Amendment 1e (22 Nov 2026, from the reviews of PR #660; the owner chose "fix once, frame is the wall"): a statement
 also starts after `}`, Mermaid's own entity placeholders are refused, and the slice 3 frame is named the security
-boundary for diagrams; AC-65 to AC-67, AC-66b, AC-67b: **awaiting the owner's approval**. The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
+boundary for diagrams; AC-65 to AC-67, AC-66b, AC-67b: **approved by the owner on 22 Nov 2026** (button in the spec session, head 89c0bc4). The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
 "work for anything the user tells the AI", and "let's do all" for tiles, checklists and live blocks.
 
 Source: thread "Add a whiteboard to ARP" (22 Nov 2026). The owner asked for "the same whiteboard functionality as
