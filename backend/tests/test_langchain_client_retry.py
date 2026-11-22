@@ -433,3 +433,32 @@ async def test_retry_never_marks_a_thinking_or_empty_text_block(tmp_path):
         assert len(marked) <= 1
         if content[0].type == "text" and content[0].text:
             assert marked == [{"type": "text", "text": "I think", "cache_control": {"type": "ephemeral"}}]
+
+
+async def test_a_call_to_a_tool_never_offered_is_answered_with_a_tool_result(tmp_path):
+    """A model that calls a made-up tool (an exploration's `codemode`) gets an is_error tool_result for that call,
+    not plain text, which the API rejects with a 400."""
+    stray = Message(id="msg_0", type="message", role="assistant", model="claude-sonnet-5", stop_reason="tool_use",
+                    stop_sequence=None, usage=Usage(input_tokens=10, output_tokens=5),
+                    content=[ToolUseBlock(type="tool_use", id="tu_x", name="codemode", input={})])
+    client, fake = _client_with_responses(tmp_path, [stray, _message("tu_2", {"value": 7})])
+
+    instance, _ = await client.complete_structured(system="sys", prompt="prompt", output_model=_Target)
+
+    assert instance.value == 7
+    [result] = fake.messages.calls[1]["messages"][-1]["content"]
+    assert (result["type"], result["tool_use_id"], result["is_error"]) == ("tool_result", "tu_x", True)
+    assert "emit_result" in result["content"]
+
+
+async def test_a_stray_call_next_to_an_invalid_answer_gets_its_own_tool_result(tmp_path):
+    both = Message(id="msg_0", type="message", role="assistant", model="claude-sonnet-5", stop_reason="tool_use",
+                   stop_sequence=None, usage=Usage(input_tokens=10, output_tokens=5),
+                   content=[ToolUseBlock(type="tool_use", id="tu_1", name="emit_result", input={"wrong": 1}),
+                            ToolUseBlock(type="tool_use", id="tu_x", name="codemode", input={})])
+    client, fake = _client_with_responses(tmp_path, [both, _message("tu_2", {"value": 7})])
+
+    await client.complete_structured(system="sys", prompt="prompt", output_model=_Target)
+
+    ids = [b["tool_use_id"] for b in fake.messages.calls[1]["messages"][-1]["content"]]
+    assert ids == ["tu_1", "tu_x"]

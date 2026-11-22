@@ -3,10 +3,11 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import {
   answerActions, budgetLine, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  askingIn, nearEnd, needsYouLine, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd,
+  askingIn, COMPOSER_COPY, explorationBadge, nearEnd, needsYouLine, resultTable, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState,
+  threadRows, threadTitle, untilCancelled, usd,
 } from "../src/lib/agent.ts";
 import type { Plan } from "../src/lib/plans.ts";
-import type { AskThread } from "../src/types.ts";
+import type { AskThread, Exploration } from "../src/types.ts";
 import { HUBS, redirectHash } from "../src/lib/nav.ts";
 
 // Agent screen shell (docs/superpowers/specs/2026-11-21-agent-panel-code-mode.md, slice 6).
@@ -102,9 +103,9 @@ test("every inbox kind the route serves has a label", () => {
 
 // Slice 13: ask threads (Phase 7).
 
-test("the composer's modes: Ask first and pressed, Plan only for a viewer (AC-78)", () => {
-  assert.deepEqual(composerModes(true), { modes: ["Ask", "Plan"], initial: "Ask" });
-  assert.deepEqual(composerModes(false), { modes: ["Plan"], initial: "Plan" });
+test("the composer's modes: Ask first and pressed, Plan only for a viewer, Explore appended once slice 10 is merged (AC-78)", () => {
+  assert.deepEqual(composerModes(true), { modes: ["Ask", "Plan", "Explore"], initial: "Ask" });
+  assert.deepEqual(composerModes(false), { modes: ["Plan", "Explore"], initial: "Plan" });
 });
 
 test("Ctrl/⌘J opens the Agent screen, or nothing for a viewer (AC-79)", () => {
@@ -183,6 +184,37 @@ test("a thread's asks that answer after another thread was picked are dropped", 
   assert.deepEqual([shown, errors], [["B"], []]);
 });
 
+// Explorations (slice 10).
+
+const exp = (id: string, created_at: string, label: "exploratory" | "accepted" = "exploratory") =>
+  ({ id, question: `question ${id} ${"x".repeat(70)}`, created_at, label }) as unknown as Exploration;
+
+test("explorations join the thread list, newest first, with their label as chip", () => {
+  const plans = [{ id: "p1", brief: "plan one", status: "draft", created_at: "2026-11-22T10:00:00Z" }] as Plan[];
+  const rows = threadRows(plans, [], [exp("e1", "2026-11-22T11:00:00Z"), exp("e0", "2026-11-22T09:00:00Z", "accepted")]);
+  assert.deepEqual(rows.map((r) => [r.kind, r.id, r.status]), [["exploration", "e1", "exploratory"], ["plan", "p1", "draft"], ["exploration", "e0", "accepted"]]);
+  assert.equal(rows[0].title.length, 60);
+});
+
+test("Explore mode sends the question to the sandbox lane, never with source_ask_id", () => {
+  assert.deepEqual(composerRequest("Explore", "q", { kind: "ask", id: "T" }), { path: "/api/agent/explorations", body: { question: "q" } });
+  const { label, submit, sending, help } = COMPOSER_COPY.Explore;
+  assert.deepEqual({ label, submit, sending, help }, { label: "Question", submit: "Explore", sending: "Exploring…", help: "Enter runs an exploration; Shift+Enter adds a line." });
+});
+
+test("an exploration shows the badge Exploratory: not reviewed until accepted (AC-49)", () => {
+  assert.equal(explorationBadge({ label: "exploratory" }), "Exploratory: not reviewed");
+  assert.equal(explorationBadge({ label: "accepted" }), null);
+});
+
+test("a result is a table only when it is a list of flat objects", () => {
+  assert.deepEqual(resultTable([{ sector: "Energy", w: 4.5 }, { sector: "IT", ok: true, w: null }]), {
+    columns: ["sector", "w", "ok"],
+    rows: [["Energy", 4.5, null], ["IT", null, true]],
+  });
+  for (const json of [1, "x", null, [], [1, 2], [{ a: { b: 1 } }], [{ a: [1] }], { a: 1 }]) assert.equal(resultTable(json), null);
+});
+
 // Chat-style stream: the composer stays at the bottom and the stream follows new turns only for a reader at its end.
 test("the stream counts as at its end within 80 px of the bottom", () => {
   assert.equal(nearEnd({ scrollTop: 920, scrollHeight: 1500, clientHeight: 500 }), true); // 80 px left
@@ -206,6 +238,12 @@ test("a taller composer keeps a reader at the end pinned but never raises Jump t
 
 test("Jump to latest goes once the end is in view without a scroll, as when the box grows to fit everything", () => {
   assert.deepEqual(streamResized({ wasNearEnd: false, contentGrew: false, boxShrank: false, nowNearEnd: true }), { scrollToEnd: false, jump: false });
+});
+
+test("the accepted chip writes its word in ink and keeps the green on the square only (contrast on a selected row)", () => {
+  const css = readFileSync(new URL("../src/index.css", import.meta.url), "utf8");
+  assert.match(css, /\.status-accepted \{ color: var\(--ink\); \}/);
+  assert.match(css, /\.status-accepted::before \{ background: var\(--high\); \}/);
 });
 
 test("a fast answer is still followed when the follow-down's scroll event lands after it", () => {

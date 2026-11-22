@@ -1,0 +1,10 @@
+{"id": "sector-weights", "question": "What are the sector weights of the benchmark?", "expected_capabilities": ["benchmark_sectors"]}
+{"id": "top3-sectors", "question": "List the three largest sectors in the benchmark with their weight in percent, largest first.", "expected_capabilities": ["benchmark_sectors"]}
+{"id": "sectors-over-10", "question": "Which benchmark sectors weigh more than 10%? One row per sector.", "expected_capabilities": ["benchmark_sectors"]}
+{"id": "sector-count", "question": "How many sectors does the benchmark have, and what do their weights add up to?", "expected_capabilities": ["benchmark_sectors"]}
+{"id": "benchmark-coverage", "question": "How many constituents does the benchmark have and how many were dropped or unclassified?", "expected_capabilities": ["benchmark_sectors"]}
+{"id": "tp-siemens", "question": "What does the newest transition plan assessment for Siemens say? Return it, or null when ARP has none.", "expected_capabilities": ["transition_plan"]}
+{"id": "tp-shell", "question": "Does ARP have a reviewed transition plan for Shell? Return the company and its verdict, or say none.", "expected_capabilities": ["transition_plan"]}
+{"id": "tp-two-companies", "question": "Compare the newest transition plan assessments of BP and TotalEnergies side by side.", "expected_capabilities": ["transition_plan"]}
+{"id": "sectors-and-tp", "question": "Give the benchmark's largest sector and, next to it, the newest transition plan assessment for Unilever.", "expected_capabilities": ["benchmark_sectors", "transition_plan"]}
+{"id": "portfolio-energy", "question": "What is the portfolio's weight in the energy sector, next to the benchmark's energy weight?", "expected_capabilities": ["portfolio_exposure", "benchmark_sectors"]}
