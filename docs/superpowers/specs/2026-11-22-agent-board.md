@@ -5,7 +5,7 @@ Slug: agent-board
 Risk: this spec PR is `risk:low`. The build is size M, delivered as 4 PRs (see `## Slices`); each slice names its own
 risk label.
 
-Status: draft, waiting for the owner's approval (spec-critic: three rounds, all findings fixed).
+Status: **approved by the owner on 22 Nov 2026** (button in the spec session, after three spec-critic rounds; decisions D1–D5 as recommended).
 
 Source: thread "Add a whiteboard to ARP" (22 Nov 2026). The owner asked for "the same whiteboard functionality as
 Claude" and picked option 1 of three: a **Board** tab on the Agent screen's stage with typed blocks (chart, flowchart,
