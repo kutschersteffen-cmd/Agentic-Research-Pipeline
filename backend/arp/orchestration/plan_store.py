@@ -162,6 +162,15 @@ class PlanStore:
             for k, v in values.items():
                 setattr(call, k, v)
 
+    def calls_awaiting_review(self) -> list[dict[str, Any]]:
+        """Every call with status `awaiting_review` of a plan still `awaiting_review`, for the agent inbox. A plan
+        cancelled while a gated step finished keeps that call `awaiting_review`, but nothing waits on it."""
+        with Session(self.engine) as s:
+            rows = s.scalars(select(ResearchPlanCall).join(ResearchPlan, ResearchPlan.id == ResearchPlanCall.plan_id)
+                             .where(ResearchPlanCall.status == "awaiting_review",
+                                    ResearchPlan.status == "awaiting_review"))
+            return [_row(r) for r in rows]
+
     def calls(self, plan_id: str) -> list[dict[str, Any]]:
         with Session(self.engine) as s:
             rows = s.scalars(select(ResearchPlanCall).where(ResearchPlanCall.plan_id == plan_id)

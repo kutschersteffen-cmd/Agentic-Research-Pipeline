@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { budgetLine, chipLabel, lineDiff, scriptLines, sendsComposer, stepState, threadTitle, usd } from "../src/lib/agent.ts";
+import { budgetLine, chipLabel, INBOX_KIND, lineDiff, reviewQueueLine, scriptLines, sendsComposer, stepState, threadTitle, usd } from "../src/lib/agent.ts";
 import { HUBS, redirectHash } from "../src/lib/nav.ts";
 
 // Agent screen shell (docs/superpowers/specs/2026-11-21-agent-panel-code-mode.md, slice 6).
@@ -81,4 +81,15 @@ test("the Audit tab shows a cost as the API serves it (AC-33)", () => {
   assert.equal(usd(null), "–");
   assert.equal(budgetLine(2.05, 5), "spent $2.05 of $5.00");
   assert.equal(budgetLine(2.05, null), "spent $2.05, no budget set");
+});
+
+// Slice 7: the inbox column.
+
+test("the inbox footer counts what waits in the Review Queue (AC-31)", () => {
+  assert.equal(reviewQueueLine(7), "7 more waiting in the Review Queue");
+  assert.equal(reviewQueueLine(0), "0 more waiting in the Review Queue");
+});
+
+test("every inbox kind the route serves has a label", () => {
+  assert.deepEqual(Object.keys(INBOX_KIND).sort(), ["exploration", "plan_approval", "step_review"]);
 });

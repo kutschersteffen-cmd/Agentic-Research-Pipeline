@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import { StepTabs } from "../components/StepTabs";
-import { budgetLine, chipLabel, lineDiff, scriptLines, sendsComposer, stepState, threadTitle, usd } from "../lib/agent";
+import { budgetLine, chipLabel, INBOX_KIND, lineDiff, reviewQueueLine, scriptLines, sendsComposer, stepState, threadTitle, usd } from "../lib/agent";
 import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
 import { when } from "../lib/runs";
+import type { InboxRow } from "../types";
 
 const POLL_MS = 3000;
 const NARROW = "(max-width: 899.98px)";
@@ -35,6 +36,8 @@ function DrawerDialog({ side, label, onClose, children }: { side: "left" | "righ
  * Below 900 px the side columns are drawers opened from the header. */
 export function Agent({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string) => void }) {
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [inbox, setInbox] = useState<InboxRow[]>([]);
+  const [waiting, setWaiting] = useState<number | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [brief, setBrief] = useState("");
   const [busy, setBusy] = useState(false);
@@ -42,9 +45,14 @@ export function Agent({ selectedId, onSelect }: { selectedId: string | null; onS
   const [drawer, setDrawer] = useState<Drawer>(null);
   const [tab, setTab] = useState<StageTab>("script");
 
+  const loadInbox = useCallback(() => {
+    api.getAgentInbox().then(setInbox).catch((e: Error) => setError(`The inbox could not be loaded: ${e.message}.`));
+    api.getWaiting().then((w) => setWaiting(w.total)).catch(() => setWaiting(null)); // no count rather than a wrong one
+  }, []);
   const loadList = useCallback(() => {
     api.listPlans().then(setPlans).catch((e: Error) => setError(`Threads could not be loaded: ${e.message}.`));
-  }, []);
+    loadInbox();
+  }, [loadInbox]);
   const loadPlan = useCallback(() => {
     if (!selectedId) return setPlan(null);
     api.getPlan(selectedId).then(setPlan).catch((e: Error) => setError(`The plan could not be loaded: ${e.message}.`));
@@ -59,13 +67,13 @@ export function Agent({ selectedId, onSelect }: { selectedId: string | null; onS
     if (shownStatus.current && planStatus && planStatus !== shownStatus.current) loadList(); // a change, not the first load
     shownStatus.current = planStatus;
   }, [planStatus, loadList]);
-  // While the plan runs or waits for a review, re-read it every 3 s (D6).
+  // While the plan runs or waits for a review, re-read it and the inbox every 3 s (D6).
   const active = plan !== null && ACTIVE.has(plan.status);
   useEffect(() => {
     if (!active) return;
-    const t = setInterval(loadPlan, POLL_MS);
+    const t = setInterval(() => { loadPlan(); loadInbox(); }, POLL_MS);
     return () => clearInterval(t);
-  }, [active, loadPlan]);
+  }, [active, loadPlan, loadInbox]);
   // Widening past 900 px shows the columns again, so an open drawer goes.
   useEffect(() => {
     const mq = window.matchMedia(NARROW);
@@ -121,6 +129,20 @@ export function Agent({ selectedId, onSelect }: { selectedId: string | null; onS
           ))}
         </ul>
       )}
+      <h2 id={`${id}-inbox-h`} className="agent-inbox-h">Inbox</h2>
+      {inbox.length === 0 ? (
+        <p className="muted">Nothing here is waiting on you.</p>
+      ) : (
+        <ul className="agent-inbox" aria-labelledby={`${id}-inbox-h`}>
+          {inbox.map((r) => (
+            <li key={`${r.kind}:${r.plan_id ?? r.exploration_id}:${r.seq ?? ""}`}>
+              <a href={r.href} onClick={close}>{r.title}</a>
+              <span className="muted">{INBOX_KIND[r.kind]}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {waiting !== null && <p className="agent-inbox-foot"><a href="#/review" onClick={close}>{reviewQueueLine(waiting)}</a></p>}
     </>
   );
   const stage = (id: string, close?: () => void) => (
