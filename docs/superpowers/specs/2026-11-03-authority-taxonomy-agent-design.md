@@ -134,6 +134,10 @@ by the golden command (expected activities against the draft). `Match` = left in
    `same_activity: bool` and a one-sentence `reason`. Only `same_activity=true` pairs match, `method=model`.
 4. Each activity matches at most one other. Pairs are taken in order of left index, then right index; the first
    matching pair (exact or `same_activity=true`) for an activity wins and both sides are then used up.
+5. **Covering matches (amended 2026-11-22, owner, issue #494):** the golden command calls the matcher with
+   `cover=True`. The model review then also answers `same_activity=true` when one activity is a part of the other
+   or includes it plus more, and a right (produced) activity may match several left (expected) ones; each left
+   activity still matches at most once. Consolidation keeps rules 3 and 4 unchanged.
 
 A merged activity keeps the left activity's name and gets the citations of both. Matching never invents an activity; an unmatched activity stays separate (consolidation) or counts as missed
 (golden).

@@ -96,3 +96,26 @@ async def test_same_key_within_one_source_merged_without_model(tmp_path):
     assert [a.name for a in theme.activities] == ["Electrolyser stacks"]
     assert len(theme.activities[0].citations) == 2
     assert _matcher_calls(llm) == []
+
+
+def _defs(*names):
+    return [ActivityDefinition(name=n, in_scope_description="", out_of_scope_description="") for n in names]
+
+
+async def test_cover_lets_one_right_match_several_left():
+    # Issue #494: golden recall counts a produced activity that covers two expected ones for both.
+    llm = _with_review((0, 0, True), (1, 0, True))
+    left = _defs("Manufacture of fuel cells", "Manufacture of fuel cell systems")
+    right = _defs("Manufacture of fuel cells and other equipment converting hydrogen into electricity or heat")
+    got = await match_activities(left, right, scope="s", llm=llm, cover=True)
+    assert [(m.left, m.right, m.method) for m in got] == [(0, 0, "model"), (1, 0, "model")]
+    assert "is a part of the other" in llm.prompts[llm.calls.index(_MatchReviewDraft.__name__)]
+
+
+async def test_without_cover_one_right_matches_once_and_prompt_is_strict():
+    llm = _with_review((0, 0, True), (1, 0, True))
+    left = _defs("Manufacture of fuel cells", "Manufacture of fuel cell systems")
+    right = _defs("Manufacture of fuel cells and other equipment converting hydrogen into electricity or heat")
+    got = await match_activities(left, right, scope="s", llm=llm)
+    assert [(m.left, m.right) for m in got] == [(0, 0)]
+    assert "is a part of the other" not in llm.prompts[llm.calls.index(_MatchReviewDraft.__name__)]
