@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import { AskCard } from "../components/AskCards";
 import { StepTabs } from "../components/StepTabs";
 import {
   answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  askingIn, needsYouLine, scriptLines, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
+  askingIn, nearEnd, needsYouLine, scriptLines, streamResized, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
 } from "../lib/agent";
 import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
 import { when } from "../lib/runs";
@@ -64,6 +64,10 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const [drawer, setDrawer] = useState<Drawer>(null);
   const [tab, setTab] = useState<StageTab>("script");
   const input = useRef<HTMLTextAreaElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const atEnd = useRef(true); // the reader was near the stream's end at the last scroll
+  const [jump, setJump] = useState(false);
   const refocus = useRef(false);
   const current = useRef(selected); // the selection now, for a request that answers after it changed
   current.current = selected;
@@ -99,6 +103,55 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     refocus.current = false;
     input.current?.focus();
   }, [busy]);
+  // Opening a thread shows its newest turn.
+  useLayoutEffect(() => {
+    atEnd.current = true;
+    setJump(false);
+    const el = scroller.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [planId, askId]);
+  // When the stream grows, or its box shrinks under a taller composer, follow it down only if the reader was at the end.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el || !content.current) return;
+    let prev = { height: el.scrollHeight, box: el.clientHeight };
+    const ro = new ResizeObserver(() => {
+      const next = streamResized({ wasNearEnd: atEnd.current, contentGrew: el.scrollHeight > prev.height, boxShrank: el.clientHeight < prev.box, nowNearEnd: nearEnd(el) });
+      prev = { height: el.scrollHeight, box: el.clientHeight };
+      if (next.scrollToEnd) el.scrollTop = el.scrollHeight;
+      if (next.jump !== null) setJump(next.jump);
+    });
+    ro.observe(content.current);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  // The text box grows with its text; CSS caps it at about 8 lines, then it scrolls inside itself.
+  useLayoutEffect(() => {
+    const el = input.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+  }, [text]);
+  function onStreamScroll() {
+    const el = scroller.current;
+    if (!el) return;
+    atEnd.current = nearEnd(el);
+    if (atEnd.current) setJump(false);
+  }
+  // Your own send always takes the stream to the latest turn, wherever you had scrolled: the `Working…` turn it adds
+  // grows the stream, which then follows it down. (Scrolling here, before that turn lands, would fire a scroll event
+  // that reads the grown stream as scrolled up.)
+  function followOwnSend() {
+    atEnd.current = true;
+    setJump(false);
+  }
+  function jumpToLatest() {
+    const el = scroller.current;
+    if (!el) return;
+    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+    input.current?.focus(); // the button goes once the end is reached; focus waits in the composer, not on <body>
+  }
   useEffect(() => {
     if (!focusToken) return;
     if (canAsk) setMode("Ask");
@@ -144,6 +197,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
 
   /** An ask: a follow-up in the selected ask thread, else a new thread, which is selected once it answers. */
   async function ask(question: string, newThread: boolean) {
+    followOwnSend();
     const req = composerRequest("Ask", question, newThread ? null : selected);
     if (!req.body.thread_id && selected) onSelect(null); // no thread is selected while a new one's first ask runs
     setAsking({ question, threadId: req.body.thread_id ?? null });
@@ -174,7 +228,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
       setText("");
       return ask(t, false);
     }
-    const req = composerRequest("Plan", t, selected);
+    const req = composerRequest("Plan", t, selected); // a new plan opens at its end; a failed one leaves the stream be
     await act(async () => {
       const p = await api.agentPost<Plan>(req.path, req.body);
       setText("");
@@ -283,12 +337,21 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
         <aside className="agent-side agent-threads" aria-labelledby="agent-threads-h">{threads("agent-threads")}</aside>
 
         <section className="agent-stream" aria-label="Stream">
+          <div className="agent-scroll" ref={scroller} onScroll={onStreamScroll} tabIndex={0} aria-label="Conversation">
+          <div ref={content}>
           {plan && planId ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />
           ) : askId || askingIn(asking, null) ? (
             <AskStream asks={asks.filter((a) => a.thread_id === askId)} asking={askingIn(asking, askId)} canAsk={canAsk} onDrafted={drafted} />
           ) : (
             <p className="muted agent-empty">Pick a thread, ask a question, or describe the research you want below. For research, a planner writes a short script that chains ARP’s runs; nothing runs until you approve it.</p>
+          )}
+          </div>
+          </div>
+          {jump && (
+            <div className="agent-jump">
+              <button type="button" className="secondary" onClick={jumpToLatest}>Jump to latest</button>
+            </div>
           )}
           <form className="agent-composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
             <div className="agent-modes" role="group" aria-label="Mode">

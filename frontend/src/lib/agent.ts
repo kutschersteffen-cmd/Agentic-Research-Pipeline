@@ -152,3 +152,22 @@ export function threadRows(plans: Plan[], asks: AskThread[]): ThreadRow[] {
     ...asks.map((a) => ({ kind: "ask" as const, id: a.thread_id, title: a.title, status: a.status, created_at: a.created_at })),
   ].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 }
+
+/** How close to the end of the stream, in px, still counts as reading the newest turn. */
+export const NEAR_END_PX = 80;
+
+/** Whether the stream is scrolled to within `NEAR_END_PX` of its end. */
+export const nearEnd = (m: { scrollTop: number; scrollHeight: number; clientHeight: number }): boolean =>
+  m.scrollHeight - m.scrollTop - m.clientHeight <= NEAR_END_PX;
+
+/** What the stream does when its content or its box changes size. A reader who was near the end stays there: new
+ * content (a turn, `Working…`, an answer) or a box squeezed by a taller composer scrolls it down. A reader who had
+ * scrolled up stays put; only new content raises "Jump to latest" (`jump` true), and the button goes once the end is
+ * in view (`jump` false). `jump` null leaves the button as it is. */
+export function streamResized(r: { wasNearEnd: boolean; contentGrew: boolean; boxShrank: boolean; nowNearEnd: boolean }): {
+  scrollToEnd: boolean; jump: boolean | null;
+} {
+  if (r.wasNearEnd && (r.contentGrew || r.boxShrank)) return { scrollToEnd: true, jump: false };
+  if (r.nowNearEnd) return { scrollToEnd: false, jump: false };
+  return { scrollToEnd: false, jump: r.contentGrew ? true : null };
+}
