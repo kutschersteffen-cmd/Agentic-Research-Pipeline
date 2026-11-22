@@ -8,7 +8,7 @@ risk label.
 Status: **approved by the owner on 21 Nov 2026** (button in the spec session, after three spec-critic rounds; decisions D1–D8 as recommended). Slice 12 (write actions, D9, AC-60 to AC-67)
 added on 21 Nov 2026 at the owner's request, **approved by the owner on 21 Nov 2026** (button, after three spec-critic rounds).
 Phase 7 (Ask in the Agent screen, D10 to D13, AC-68 to AC-81, slices 13 and 14, amended AC-31 and AC-35) added on
-22 Nov 2026 at the owner's request ("Do it", project chat, on merging Ask ARP into the Agent screen); awaiting approval.
+22 Nov 2026 at the owner's request ("Do it", project chat, on merging Ask ARP into the Agent screen), **approved by the owner on 22 Nov 2026** (button, after six spec-critic rounds).
 Source: thread "Explore Code Mode for ARP" (21 Nov 2026). The owner compared two proposals with today's Research Plans
 (comparison page https://claude.ai/artifact/GiUvnmesyFuvPtVvXnDwcH): "ARP native research workspaces" (Markdown) and
 "Agentic Workspace Architecture: Gemini 4 Argon + Code Mode + OpenShell" (PDF). He asked for an agent panel screen
