@@ -10,7 +10,7 @@ Amendment 1 (22 Nov 2026, Phase 2 below: diagrams in Mermaid, number tiles, chec
 slice 2b): **approved by the owner on 22 Nov 2026** (button in the spec session, head 8272df6).
 Amendment 1b (22 Nov 2026, from the slice 2b security review on PR #648: diagram link statements after `;`, `//` URLs,
 `link` statements, anchors stripped in the browser; a live chart that does not render is refused on write and not
-re-rendered on read; long table cells cut; AC-36e to AC-36j, AC-49b, AC-58b to AC-58d): **awaiting the owner's approval**. The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
+re-rendered on read; long table cells cut; AC-36e to AC-36j, AC-49b, AC-58b to AC-58d): **approved by the owner on 22 Nov 2026** (button in the spec session, head 3eda0d8). The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
 "work for anything the user tells the AI", and "let's do all" for tiles, checklists and live blocks.
 
 Source: thread "Add a whiteboard to ARP" (22 Nov 2026). The owner asked for "the same whiteboard functionality as
