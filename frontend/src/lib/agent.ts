@@ -127,6 +127,21 @@ export async function draftPlanFromAsk(
   }
 }
 
+/** The ask in flight: its question and the thread it was sent in (`null` starts a new thread). */
+export type Asking = { question: string; threadId: string | null } | null;
+
+/** The in-flight question to show in the ask thread on screen (`askId`, `null` for none): only the thread it was sent from. */
+export const askingIn = (asking: Asking, askId: string | null): string | null =>
+  asking !== null && asking.threadId === askId ? asking.question : null;
+
+/** Hands `load`'s result to `onValue` (or its error to `onError`) unless the returned cancel ran first,
+ * so a response for a thread no longer on screen is dropped. */
+export function untilCancelled<T>(load: Promise<T>, onValue: (v: T) => void, onError: (e: Error) => void): () => void {
+  let live = true;
+  load.then((v) => { if (live) onValue(v); }, (e: Error) => { if (live) onError(e); });
+  return () => { live = false; };
+}
+
 /** One row of the thread list: a plan or an ask thread. */
 export type ThreadRow = { kind: "plan" | "ask"; id: string; title: string; status: string; created_at: string };
 

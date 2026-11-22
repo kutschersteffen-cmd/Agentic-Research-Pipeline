@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import {
   answerActions, budgetLine, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  needsYouLine, scriptLines, sendsComposer, stepState, threadRows, threadTitle, usd,
+  askingIn, needsYouLine, scriptLines, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd,
 } from "../src/lib/agent.ts";
 import type { Plan } from "../src/lib/plans.ts";
 import type { AskThread } from "../src/types.ts";
@@ -153,4 +153,32 @@ test("the Ask panel and its session storage are gone (AC-76b)", () => {
   const files = (dir: string): string[] =>
     readdirSync(dir).flatMap((f) => (statSync(`${dir}/${f}`).isDirectory() ? files(`${dir}/${f}`) : [`${dir}/${f}`]));
   assert.deepEqual(files(src.pathname).filter((f) => readFileSync(f, "utf8").includes("arp.ask.turns")), []);
+});
+
+test("the question in flight shows only in the thread it was sent from", () => {
+  const followUp = { question: "and the top 3?", threadId: "A" };
+  assert.equal(askingIn(followUp, "A"), "and the top 3?");
+  assert.equal(askingIn(followUp, "B"), null);
+  assert.equal(askingIn(followUp, null), null);
+  const fresh = { question: "new?", threadId: null };
+  assert.equal(askingIn(fresh, null), "new?");
+  assert.equal(askingIn(fresh, "A"), null);
+  assert.equal(askingIn(null, "A"), null);
+});
+
+test("a thread's asks that answer after another thread was picked are dropped", async () => {
+  const shown: string[] = [];
+  const errors: string[] = [];
+  let resolveA!: (v: string) => void;
+  let rejectC!: (e: Error) => void;
+  const cancelA = untilCancelled(new Promise<string>((r) => { resolveA = r; }), (v) => shown.push(v), (e) => errors.push(e.message));
+  cancelA(); // B picked: the effect cleanup cancels A
+  untilCancelled(Promise.resolve("B"), (v) => shown.push(v), (e) => errors.push(e.message));
+  await Promise.resolve();
+  resolveA("A");
+  const cancelC = untilCancelled(new Promise<string>((_, j) => { rejectC = j; }), (v) => shown.push(v), (e) => errors.push(e.message));
+  cancelC();
+  rejectC(new Error("late"));
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual([shown, errors], [["B"], []]);
 });

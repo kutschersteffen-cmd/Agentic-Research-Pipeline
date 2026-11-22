@@ -4,7 +4,7 @@ import { AskCard } from "../components/AskCards";
 import { StepTabs } from "../components/StepTabs";
 import {
   answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  needsYouLine, scriptLines, sendsComposer, stepState, threadRows, threadTitle, usd, type Mode, type Selection, type ThreadRow,
+  askingIn, needsYouLine, scriptLines, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
 } from "../lib/agent";
 import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
 import { when } from "../lib/runs";
@@ -56,7 +56,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const [waiting, setWaiting] = useState<number | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [asks, setAsks] = useState<AgentAsk[]>([]);
-  const [asking, setAsking] = useState<string | null>(null); // the question of the ask in flight
+  const [asking, setAsking] = useState<Asking>(null); // the ask in flight and the thread it was sent in
   const [mode, setMode] = useState<Mode>(() => composerModes(canAsk).initial);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -83,9 +83,10 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     if (!planId) return setPlan(null);
     api.getPlan(planId).then(setPlan).catch((e: Error) => setError(`The plan could not be loaded: ${e.message}.`));
   }, [planId]);
+  // A thread's asks; a response that lands after another thread was picked is dropped.
   const loadAsks = useCallback(() => {
     if (!askId) return;
-    api.getAskThread(askId).then(setAsks).catch((e: Error) => setError(`The ask thread could not be loaded: ${e.message}.`));
+    return untilCancelled(api.getAskThread(askId), setAsks, (e) => setError(`The ask thread could not be loaded: ${e.message}.`));
   }, [askId]);
 
   useEffect(loadList, [loadList]);
@@ -145,7 +146,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   async function ask(question: string, newThread: boolean) {
     const req = composerRequest("Ask", question, newThread ? null : selected);
     if (!req.body.thread_id && selected) onSelect(null); // no thread is selected while a new one's first ask runs
-    setAsking(question);
+    setAsking({ question, threadId: req.body.thread_id ?? null });
     setBusy(true);
     setError(null);
     try {
@@ -284,8 +285,8 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
         <section className="agent-stream" aria-label="Stream">
           {plan && planId ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />
-          ) : askId || asking ? (
-            <AskStream asks={asks.filter((a) => a.thread_id === askId)} asking={asking} canAsk={canAsk} onDrafted={drafted} />
+          ) : askId || askingIn(asking, null) ? (
+            <AskStream asks={asks.filter((a) => a.thread_id === askId)} asking={askingIn(asking, askId)} canAsk={canAsk} onDrafted={drafted} />
           ) : (
             <p className="muted agent-empty">Pick a thread, ask a question, or describe the research you want below. For research, a planner writes a short script that chains ARP’s runs; nothing runs until you approve it.</p>
           )}
