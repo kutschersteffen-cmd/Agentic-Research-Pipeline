@@ -117,6 +117,19 @@ jobs:
           arp golden-set run | tee -a "$GITHUB_STEP_SUMMARY"
           arp golden-set run --long | tee -a "$GITHUB_STEP_SUMMARY"
 
+      - name: Gemini schema check (live)
+        # Every structured-output schema sent once to Gemini (scripts/gemini_schema_check.py): catches schemas the
+        # API rejects and thinking settings a model refuses, which the Claude-first golden set never exercises.
+        if: ${{ !cancelled() && steps.key.outputs.present == 'true' && env.ARP_GEMINI_API_KEY != '' }}
+        run: |
+          set -o pipefail; rc=0
+          for m in gemini-3.8-flash gemini-4-argon; do
+            s=0; python scripts/gemini_schema_check.py --model "$m" | tee -a "$GITHUB_STEP_SUMMARY" || s=$?
+            if [ "$s" = 2 ]; then echo "::warning title=Gemini schema check not run::Gemini refused ARP_GEMINI_API_KEY on $m (see log)."
+            elif [ "$s" != 0 ]; then rc=1; fi
+          done
+          exit $rc
+
       - name: Compare the golden set with the evidence gate on and off
         # evidence-gate spec AC-31, AC-32: both pass. Tokens are printed, not gated: the golden cases are too short
         # for the gate to drop anything (AC-33 retired; owner decision 2026-11-02)
