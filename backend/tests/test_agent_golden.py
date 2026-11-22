@@ -71,13 +71,14 @@ def test_starts_the_sandbox_with_an_empty_environment(monkeypatch, tmp_path):
     monkeypatch.setattr(golden, "_answers", lambda url: False)
     monkeypatch.setattr(golden, "_wait", lambda url, what: None)
     monkeypatch.setattr(golden.shutil, "which", lambda name: "/bin/npm")
-    monkeypatch.setattr(golden.subprocess, "run", lambda cmd, **kw: ran.append(cmd))
+    monkeypatch.setattr(golden.subprocess, "run", lambda cmd, env, **kw: ran.append((cmd, set(env))))
     monkeypatch.setattr(golden.subprocess, "Popen", popen)
     monkeypatch.setenv("ARP_ANTHROPIC_API_KEY", "secret")
     with golden.sandbox_service(Settings(sandbox_url="http://127.0.0.1:8799"), "http://127.0.0.1:5555"):
         assert started["cmd"] == ["node", "server.mjs"]
-    assert ran == [["/bin/npm", "ci", "--no-audit", "--no-fund"], ["/bin/npm", "run", "build"]]  # no node_modules yet
-    assert set(started["env"]) == {"PATH", "HOME", "ARP_API_URL", "ARP_SANDBOX_PORT"}
+    stripped = {"PATH", "HOME", "ARP_API_URL", "ARP_SANDBOX_PORT"}  # no ARP_ANTHROPIC_API_KEY anywhere
+    assert ran == [(["/bin/npm", "ci", "--no-audit", "--no-fund"], stripped), (["/bin/npm", "run", "build"], stripped)]
+    assert set(started["env"]) == stripped
     assert (started["env"]["ARP_API_URL"], started["env"]["ARP_SANDBOX_PORT"]) == ("http://127.0.0.1:5555", "8799")
     assert started["terminated"]
 

@@ -98,13 +98,14 @@ def sandbox_service(settings: Settings, api_origin: str) -> Iterator[None]:
     npm = shutil.which("npm")
     if npm is None:
         raise RuntimeError(f"nothing answers at {settings.sandbox_url} and npm is not installed to start sandbox/")
-    if not (SANDBOX_DIR / "node_modules").is_dir():
-        subprocess.run([npm, "ci", "--no-audit", "--no-fund"], cwd=SANDBOX_DIR, check=True, capture_output=True)
-    subprocess.run([npm, "run", "build"], cwd=SANDBOX_DIR, check=True, capture_output=True)
     port = urlparse(settings.sandbox_url).port or 8790
-    # An empty environment apart from PATH and HOME, as e2e_stack.sh starts it, so no secret reaches it.
+    # An empty environment apart from PATH and HOME, as e2e_stack.sh starts it, so no secret reaches the install,
+    # the build (npm lifecycle scripts) or the service.
     env = {"PATH": os.environ.get("PATH", ""), "HOME": os.environ.get("HOME", ""), "ARP_API_URL": api_origin,
            "ARP_SANDBOX_PORT": str(port)}
+    if not (SANDBOX_DIR / "node_modules").is_dir():
+        subprocess.run([npm, "ci", "--no-audit", "--no-fund"], cwd=SANDBOX_DIR, env=env, check=True, capture_output=True)
+    subprocess.run([npm, "run", "build"], cwd=SANDBOX_DIR, env=env, check=True, capture_output=True)
     proc = subprocess.Popen(["node", "server.mjs"], cwd=SANDBOX_DIR, env=env, stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)
     try:
