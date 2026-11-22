@@ -7,7 +7,7 @@ risk label.
 
 Status: **approved by the owner on 22 Nov 2026** (button in the spec session, after three spec-critic rounds; decisions D1–D5 as recommended).
 Amendment 1 (22 Nov 2026, Phase 2 below: diagrams in Mermaid, number tiles, checklists, live blocks; D6–D9, AC-33 to AC-64,
-slice 2b): **awaiting the owner's approval**. The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
+slice 2b): **approved by the owner on 22 Nov 2026** (button in the spec session, head 8272df6). The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
 "work for anything the user tells the AI", and "let's do all" for tiles, checklists and live blocks.
 
 Source: thread "Add a whiteboard to ARP" (22 Nov 2026). The owner asked for "the same whiteboard functionality as
