@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import {
-  answerActions, budgetLine, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, exploreFromAsk, INBOX_KIND, lineDiff,
+  answerActions, budgetLine, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, exploreFromAsk, focusAfterFromAsk, INBOX_KIND, lineDiff,
   askingIn, COMPOSER_COPY, explorationBadge, nearEnd, needsYouLine, resultTable, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState,
   threadRows, threadTitle, untilCancelled, usd,
 } from "../src/lib/agent.ts";
@@ -152,6 +152,13 @@ test("Explore sends the standalone question and the ask's id (AC-80, AC-81)", as
 test("Explore shows the API's detail when the request fails", async () => {
   const ask = { id: "a1", standalone_question: "S?" };
   assert.deepEqual(await exploreFromAsk(ask, () => Promise.reject(new Error("404: ask not found"))), { ok: false, error: "ask not found" });
+});
+
+test("after Draft a plan or Explore, focus goes to the new link card, or back to the button on failure", () => {
+  assert.deepEqual(focusAfterFromAsk("exploration", { ok: true, exploration: { id: "e 1" } as Exploration }), { href: "#/agent/exploration/e%201" });
+  assert.deepEqual(focusAfterFromAsk("plan", { ok: true, plan: { id: "plan_1" } as Plan }), { href: "#/agent/plan_1" });
+  assert.deepEqual(focusAfterFromAsk("exploration", { ok: false, error: "x" }), { button: "Explore" });
+  assert.deepEqual(focusAfterFromAsk("plan", { ok: false, error: "x" }), { button: "Draft a plan" });
 });
 
 test("plans and ask threads share one list, newest first", () => {

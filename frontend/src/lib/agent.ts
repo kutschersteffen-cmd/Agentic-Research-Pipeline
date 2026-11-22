@@ -141,6 +141,17 @@ export async function exploreFromAsk(
   }
 }
 
+/** Where focus goes once `Draft a plan` or `Explore` under an answer finishes: the new link card's link on success,
+ * else back to the pressed button (which was disabled while the request ran, so focus had dropped to <body>). */
+export function focusAfterFromAsk(
+  kind: "plan" | "exploration",
+  out: { ok: true; plan: Plan } | { ok: true; exploration: Exploration } | { ok: false; error: string },
+): { href: string } | { button: "Draft a plan" | "Explore" } {
+  if (!out.ok) return { button: kind === "plan" ? "Draft a plan" : "Explore" };
+  if ("plan" in out) return { href: `#/agent/${encodeURIComponent(out.plan.id)}` };
+  return { href: `#/agent/exploration/${encodeURIComponent(out.exploration.id)}` };
+}
+
 /** The ask in flight: its question and the thread it was sent in (`null` starts a new thread). */
 export type Asking = { question: string; threadId: string | null } | null;
 

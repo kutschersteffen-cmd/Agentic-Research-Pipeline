@@ -4,7 +4,7 @@ import { AskCard } from "../components/AskCards";
 import { ExplorationCard } from "../components/ExplorationCard";
 import { StepTabs } from "../components/StepTabs";
 import {
-  answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, exploreFromAsk, INBOX_KIND, lineDiff,
+  answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, exploreFromAsk, focusAfterFromAsk, INBOX_KIND, lineDiff,
   askingIn, nearEnd, needsYouLine, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
 } from "../lib/agent";
 import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
@@ -527,6 +527,19 @@ function AskTurn({ ask, canAsk, onDrafted, onExplored }: FromAsk & { ask: AgentA
   const [drafting, setDrafting] = useState(false);
   const [exploring, setExploring] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A pressed button is disabled while its request runs, so focus drops to <body>: once the request ends, focus moves
+  // to the new link card, or back to the button on failure (WCAG 2.4.3). Kept until that element has rendered.
+  const [focusNext, setFocusNext] = useState<ReturnType<typeof focusAfterFromAsk> | null>(null);
+  const turn = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (!focusNext || !turn.current) return;
+    const target = "href" in focusNext
+      ? [...turn.current.querySelectorAll<HTMLAnchorElement>(".agent-link-card a")].find((a) => a.getAttribute("href") === focusNext.href)
+      : [...turn.current.querySelectorAll<HTMLButtonElement>(".agent-ask-actions button")].find((b) => b.textContent === focusNext.button && !b.disabled);
+    if (!target) return;
+    target.focus();
+    setFocusNext(null);
+  }, [focusNext, ask.plans, ask.explorations, drafting, exploring]);
   async function draft() {
     setDrafting(true);
     setError(null);
@@ -534,6 +547,7 @@ function AskTurn({ ask, canAsk, onDrafted, onExplored }: FromAsk & { ask: AgentA
     setDrafting(false);
     if (out.ok) onDrafted(ask.id, out.plan);
     else setError(out.error);
+    setFocusNext(focusAfterFromAsk("plan", out));
   }
   async function explore() {
     setExploring(true);
@@ -542,9 +556,10 @@ function AskTurn({ ask, canAsk, onDrafted, onExplored }: FromAsk & { ask: AgentA
     setExploring(false);
     if (out.ok) onExplored(ask.id, out.exploration);
     else setError(out.error);
+    setFocusNext(focusAfterFromAsk("exploration", out));
   }
   return (
-    <li className="ask-turn">
+    <li className="ask-turn" ref={turn}>
       <p className="ask-question">{ask.question}</p>
       {ask.error ? <p className="ask-card error-text">{ask.error}</p> : ask.response && <AskCard response={ask.response} />}
       {!ask.error && answerActions(canAsk).length > 0 && (
