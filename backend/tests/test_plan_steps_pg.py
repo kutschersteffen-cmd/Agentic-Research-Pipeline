@@ -164,12 +164,16 @@ def test_universe_adapter_takes_best_exposure(run_store, monkeypatch, tmp_path):
     def match(cid, exposure, verdict):
         return NS(company_id=cid, name=cid, exposure_estimate=NS(value=exposure), verdict=NS(value=verdict))
 
-    async def fake_run(theme, companies, **kw):
+    def fake_create(theme, companies, *a, **kw):
         return JobManager(run_store).create_run("theme", {}, len(companies), companies=companies).run_id
+
+    async def fake_execute(run_id, *a, **kw):
+        return run_id
 
     monkeypatch.setattr(ts, "released_run_schema", lambda *a: (NS(theme="t", taxonomy_id="tax", version=1), None))
     monkeypatch.setattr(universe, "load_company_universe", lambda src: [ACME, BETA])
-    monkeypatch.setattr(research, "run_thematic_universe", fake_run)
+    monkeypatch.setattr(research, "create_theme_run", fake_create)
+    monkeypatch.setattr(research, "execute_theme_run", fake_execute)
     monkeypatch.setattr(research, "load_theme_run_matches", lambda rs, rid: [
         match("acme", "minor", "exclude"), match("acme", "significant", "include")])
     monkeypatch.setattr("arp.research.indirect_exposure.factory.resolve_indirect_exposure_model", lambda *a, **k: None)
@@ -183,3 +187,25 @@ def test_universe_adapter_takes_best_exposure(run_store, monkeypatch, tmp_path):
 def test_decision_adapter_needs_a_framework(run_store, universe_run):
     with pytest.raises(ValueError, match="no decision framework attached"):
         build_steps(get_settings(), run_store)["decision_score"](source_run_id=universe_run)
+
+
+def test_background_adapter_start_finds_its_run_by_launch_key(run_store, universe_run, monkeypatch):  # AC-3 path
+    import arp.discovery.pipeline as discovery
+
+    rec = _Recorder(run_store, "discovery")
+    executed = []
+
+    async def execute(run_id, *a, **k):
+        executed.append(run_id)
+        JobManager(run_store).finish_run(run_id)
+
+    monkeypatch.setattr(discovery, "create_discovery_run", rec.create)
+    monkeypatch.setattr(discovery, "execute_discovery_run", execute)
+    step = build_steps(get_settings(), run_store)["document_discovery"]
+    first = step.start("plan:p:v1:2:a1", universe_run_id=universe_run)
+    assert run_store.load_manifest(first).params["launch_key"] == "plan:p:v1:2:a1"
+    assert step.start("plan:p:v1:2:a1", universe_run_id=universe_run) == first
+    assert step.start("plan:p:v1:2:a2", universe_run_id=universe_run) != first
+    step.finish(first, universe_run_id=universe_run)
+    step.finish(first, universe_run_id=universe_run)  # ended: attaching reads it, never runs it again
+    assert executed == [first]

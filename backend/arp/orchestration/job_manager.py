@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextvars import ContextVar
 
 from arp.llm.base import LLMUsage
 from arp.schemas.common import CompanyRef, JobStatus, RunManifest, new_id
 from arp.storage.run_store import RunStore
+
+# Set by a plan step's `start` around its run type's create call: the run's manifest stores it in
+# `params["launch_key"]`, in the same write that creates the run, so a resumed step finds the run again.
+LAUNCH_KEY: ContextVar[str | None] = ContextVar("launch_key", default=None)
 
 
 class JobManager:
@@ -27,6 +32,8 @@ class JobManager:
         verifier_model: str | None = None,
         companies: list[CompanyRef] | None = None,
     ) -> RunManifest:
+        if (key := LAUNCH_KEY.get()) is not None:
+            params = {**params, "launch_key": key}
         manifest = RunManifest(
             run_id=new_id(run_type),
             run_type=run_type,

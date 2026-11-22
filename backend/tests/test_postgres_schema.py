@@ -192,3 +192,24 @@ def test_schema_step_0003_idempotent_pg(current_schema):
         assert _execute("SELECT count(*) FROM bi.holdings_history") == [(1,)]
     finally:
         reset_postgres_tables(DSN)
+
+
+def test_plan_call_attempt_backfilled_then_not_null(current_schema):
+    """agent-panel-code-mode slice 1: calls stored before `attempt` existed read 1, and the column ends NOT NULL."""
+    from arp.storage.postgres_schema import ensure_schema
+    from tests.postgres_helpers import reset_postgres_tables
+
+    reset_postgres_tables(DSN)
+    _execute("ALTER TABLE research_plan_calls DROP COLUMN attempt")
+    _execute("DELETE FROM schema_migrations WHERE name = 'plan_call_attempt'")
+    _execute("INSERT INTO research_plans (id, brief, script, dry_run, status, created_at)"
+             " VALUES ('plan_1', 'b', 's', '[]', 'running', now())")
+    _execute("INSERT INTO research_plan_calls (plan_id, seq, kind, params, status, started_at)"
+             " VALUES ('plan_1', 1, 'extraction', '{}', 'failed', now())")
+    result = ensure_schema(DSN)
+    assert "research_plan_calls.attempt" in result["columns_added"]
+    assert result["steps_applied"] == ["plan_call_attempt"]
+    assert _execute("SELECT attempt FROM research_plan_calls") == [(1,)]
+    assert _execute("SELECT is_nullable, column_default FROM information_schema.columns"
+                    " WHERE table_name = 'research_plan_calls' AND column_name = 'attempt'") == [("NO", "1")]
+    reset_postgres_tables(DSN)

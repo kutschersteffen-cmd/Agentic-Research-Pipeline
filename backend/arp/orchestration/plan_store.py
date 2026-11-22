@@ -142,10 +142,11 @@ class PlanStore:
             for k, v in values.items():
                 setattr(plan, k, v)
 
-    def record_call(self, plan_id: str, *, seq: int, kind: str, params: dict, status: str) -> None:
+    def record_call(self, plan_id: str, *, seq: int, kind: str, params: dict, status: str, attempt: int = 1) -> None:
         with Session(self.engine) as s, s.begin():
             s.merge(ResearchPlanCall(plan_id=plan_id, seq=seq, kind=kind, params=params, status=status,
-                                     run_id=None, result_ref=None, result=None, started_at=datetime.now(UTC)))
+                                     run_id=None, result_ref=None, result=None, started_at=datetime.now(UTC),
+                                     attempt=attempt))
 
     def update_call(self, plan_id: str, seq: int, **values: Any) -> None:
         with Session(self.engine) as s, s.begin():
