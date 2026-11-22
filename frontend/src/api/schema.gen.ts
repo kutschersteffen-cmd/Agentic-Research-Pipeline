@@ -3554,7 +3554,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start Plan */
+        /**
+         * Start Plan
+         * @description Claims the plan; the plan worker runs it on its next scan.
+         */
         post: operations["start_plan_api_plans__plan_id__run_post"];
         delete?: never;
         options?: never;

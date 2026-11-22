@@ -282,6 +282,7 @@ class Settings(BaseSettings):
     )
     review_analytics_state_dir: Path = Field(default=REPO_ROOT / "backend" / ".review_analytics_state")
     review_analytics_schedule_enabled: bool = Field(default=False)  # daily; writes the previous month once it has ended
+    plan_worker_seconds: float = Field(default=5.0, ge=0, description="How often the API's plan worker scans for plans to run; 0 turns it off (`arp plan worker` still runs them).")
     known_answer_rate: float = Field(
         default=0.05, ge=0.0, le=1.0,
         description="Known-answer items seeded per open review item when `golden-set seed-known-answers` gets no --count.",
