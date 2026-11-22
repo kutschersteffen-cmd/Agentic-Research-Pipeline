@@ -1,6 +1,7 @@
 #!/bin/bash
-# Slim app stack for browser tests and the evaluator agent: the API on :8000 and the built frontend
-# on :5173 (the default CORS origin), with demo data seeded, against Postgres (the system of record).
+# Slim app stack for browser tests and the evaluator agent: the API on :8000, the built frontend
+# on :5173 (the default CORS origin) and the exploration sandbox on :8790, with demo data seeded, against Postgres
+# (the system of record).
 # No OpenSearch, MinIO or Superset. Auth runs in its default dev mode, so local requests are signed in.
 # Postgres: the CI service, or `bash .claude/hooks/ensure-deps.sh postgres` in a cloud session.
 # Neo4j (company graph, theme exposure layers): the CI service, or `ensure-deps.sh neo4j` (the test graph, :7688). Optional:
@@ -34,8 +35,17 @@ start_api() {  # from backend/, with the environment exported above
   echo $! >"$state/api.pid"
 }
 
+start_sandbox() {  # exploration sandbox (sandbox/): an empty environment apart from PATH and HOME, so no secret reaches it
+  cd "$root/sandbox"
+  [ -d node_modules ] || npm ci --no-audit --no-fund >"$state/sandbox-install.log" 2>&1
+  npm run build >/dev/null
+  nohup env -i PATH="$PATH" HOME="$HOME" ARP_API_URL=http://127.0.0.1:8000 node server.mjs >"$state/sandbox.log" 2>&1 &
+  echo $! >"$state/sandbox.pid"
+}
+
 case "${1:-up}" in
   up)
+    start_sandbox
     cd "$root/backend"
     arp db init-postgres >/dev/null
     arp portfolio seed-demo >/dev/null
@@ -46,6 +56,7 @@ case "${1:-up}" in
     echo $! >"$state/web.pid"
     wait_for http://127.0.0.1:8000/api/health API "$state/api.log"
     wait_for http://localhost:5173/ Frontend "$state/web.log"
+    wait_for http://127.0.0.1:8790/health Sandbox "$state/sandbox.log"
     echo "ARP_E2E_URL=http://localhost:5173"
     ;;
   restart-api)  # no seeding, no frontend build; vite preview keeps running. Start-up waits up to 60 s for the observation fill
@@ -66,7 +77,7 @@ case "${1:-up}" in
     exit 1
     ;;
   down)
-    for p in api web; do
+    for p in api web sandbox; do
       [ -f "$state/$p.pid" ] && kill "$(cat "$state/$p.pid")" 2>/dev/null || true
       rm -f "$state/$p.pid"
     done
