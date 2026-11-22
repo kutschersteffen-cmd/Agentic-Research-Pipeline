@@ -119,10 +119,35 @@ def test_grouped_flowchart_is_accepted(client, plan):
     ("flowchart LR\n  a[\\\\host\\share] --> b", "diagram may not load from outside"),
     ("flowchart LR\n  a@{ img: \"x.png\" } --> b", "diagram may not use shape options"),  # AC-36i
     ("flowchart LR\n  a[http:evil.example] --> b", "diagram may not load from outside"),  # AC-36j
+    ("sequenceDiagram\n  participant A as Analyst\n  properties A: {\"icon\": \"x.png\"}\n  A->>A: Review",
+     "diagram may not use properties lines"),  # AC-36k
+    ("flowchart LR\n  a[x\\/y] --> b", "diagram may not load from outside"),  # AC-36l
+    ("sequenceDiagram\n  participant A as Analyst\n  details A: {\"x\": 1}\n  A->>A: Review",
+     "diagram may not use details lines"),  # AC-36o
 ])
 def test_diagram_checks(client, plan, source, detail):
     assert _detail(_post(client, plan, "diagram", source)) == detail
     assert client.get(_b(plan)).json()["blocks"] == []
+
+
+def test_properties_and_details_only_refused_in_sequence_diagrams(client, plan):  # AC-36q
+    assert _post(client, plan, "diagram", "mindmap\n  root((Move))\n    Details\n    Properties").status_code == 201
+
+
+@pytest.mark.parametrize(("source", "detail"), [
+    ("flowchart LR\n  a[<img src=x>] --> b", "diagram may not contain HTML"),  # AC-36m
+    ("%%{init: {}}%%\nflowchart LR\n  a --> b", "diagram may not set its own config"),  # AC-36n
+    ("flowchart LR\n  a[x //evil] --> b[y]", "diagram may not load from outside"),
+])
+def test_flow_gets_diagram_checks(client, plan, source, detail):
+    assert _detail(_post(client, plan, "flow", source)) == detail
+
+
+def test_flow_keeps_the_house_deck_subset(client, plan):  # AC-36p
+    src = "flowchart LR\n  classDef Ops fill:#fff\n  a[Extract<br>Claude]:::Ops --> b:::Ops\n  class b stored"
+    res = _post(client, plan, "flow", src)
+    assert res.status_code == 201, res.text
+    assert res.json()["rendered"]["steps"][0]["label"] == "Extract"
 
 
 def test_diagram_source_not_a_string(client, plan):

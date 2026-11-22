@@ -185,36 +185,49 @@ _REFUSED_STATEMENTS = ("click", "style", "classdef", "linkstyle", "link", "links
 _GROUP = re.compile(r":::([A-Za-z][A-Za-z0-9_]*)")
 
 
+def _check_mermaid(source: str, refused: tuple[str, ...], emphasis_only: bool, html_source: str) -> None:
+    """The shared `diagram` checks from the `%%{` check to the outside check (Amendment 1b, 1c)."""
+    if "%%{" in source:
+        raise BlockInvalid("diagram may not set its own config")
+    statements = [st.split() for ln in source.splitlines() for st in ln.split(";")]  # `;` ends a statement too
+    for words in statements:
+        if words and words[0].lower() in refused:
+            raise BlockInvalid(f"diagram may not use {words[0]} lines")
+    if emphasis_only:
+        for words in statements:
+            if words and words[0] == "class" and words[-1] != "emphasis":
+                raise BlockInvalid("diagram may only use class lines for emphasis")
+    if re.search(r"<[A-Za-z/!]", html_source):
+        raise BlockInvalid("diagram may not contain HTML")
+    if "@{" in source:
+        raise BlockInvalid("diagram may not use shape options")
+    low = source.lower()
+    if any(x in low for x in ("javascript:", "http:", "https:", "//", "\\")):
+        raise BlockInvalid("diagram may not load from outside")
+
+
 def _check_diagram(source: Any) -> None:
     """Phase 2 `diagram` (D6, D7): the checks in the spec's order."""
     if not isinstance(source, str):
         raise BlockInvalid("invalid block")
     if len(source) > 8000:
         raise BlockInvalid("diagram exceeds 8000 characters")
-    lines = source.splitlines()
-    first = next((ln for ln in lines if ln.strip() and not ln.strip().startswith("%%")), "")
+    first = next((ln for ln in source.splitlines() if ln.strip() and not ln.strip().startswith("%%")), "")
     word = first.split()[0] if first.split() else ""
     if word not in DIAGRAM_TYPES:
         raise BlockInvalid(_DIAGRAM_TYPE_MSG.format(word))
-    if "%%{" in source:
-        raise BlockInvalid("diagram may not set its own config")
-    statements = [st.split() for ln in lines for st in ln.split(";")]  # Amendment 1b: `;` ends a statement too
-    for words in statements:
-        if words and words[0].lower() in _REFUSED_STATEMENTS:
-            raise BlockInvalid(f"diagram may not use {words[0]} lines")
-    for words in statements:
-        if words and words[0] == "class" and words[-1] != "emphasis":
-            raise BlockInvalid("diagram may only use class lines for emphasis")
-    if re.search(r"<[A-Za-z/!]", source):
-        raise BlockInvalid("diagram may not contain HTML")
-    if "@{" in source:
-        raise BlockInvalid("diagram may not use shape options")
-    low = source.lower()
-    if any(x in low for x in ("javascript:", "http:", "https:", "//", "\\\\", ":\\")):
-        raise BlockInvalid("diagram may not load from outside")
+    refused = _REFUSED_STATEMENTS + (("properties", "details") if word == "sequenceDiagram" else ())
+    _check_mermaid(source, refused, True, source)
     groups = {g for g in _GROUP.findall(source) if g != "emphasis"}
     if len(groups) > 4:
         raise BlockInvalid(f"diagram has {len(groups)} colour groups; at most 4")
+
+
+def _check_flow_as_diagram(source: str) -> None:
+    """A `flow` source after `parse_mermaid` (Amendment 1c): the diagram checks the house-deck subset allows, so
+    `<br>` tags, `classDef` and `class` lines stay valid."""
+    refused = tuple(w for w in _REFUSED_STATEMENTS if w != "classdef")
+    _check_mermaid(source, refused, False, re.sub(r"<br\s*/?>", "", source, flags=re.IGNORECASE))
 
 
 _TILE_KEYS = {"label", "value", "format", "change", "note"}
@@ -433,11 +446,13 @@ def checked_view(kind: Any, title: Any, source: Any, data: Any = None) -> dict:
         if not isinstance(source, str):
             raise BlockInvalid("invalid block")
         try:
-            return _view(render("flow", source))
+            rendered = render("flow", source)
         except MermaidError as exc:
             raise BlockInvalid(str(exc)) from None
         except ValidationError as exc:
             raise BlockInvalid(exc.errors()[0]["msg"]) from None
+        _check_flow_as_diagram(source)
+        return _view(rendered)
     if not isinstance(source, dict):
         raise BlockInvalid("invalid block")
     if "live" in source:
