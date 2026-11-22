@@ -75,7 +75,7 @@ export function ReviewQueue({ pendingReview, waiting = null }: Props = {}) {
 
   return (
     <div className="page">
-      <h1>Review Queue</h1>
+      <h1>Needs you</h1>
       <p className="help-text">Low-confidence verdicts, ungrounded citations and uncertain calls wait here, lowest confidence first. Nothing flagged reaches an export until a named person approves it.</p>
 
       <div className="toolbar">

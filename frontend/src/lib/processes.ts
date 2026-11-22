@@ -37,6 +37,10 @@ export type Workspace = {
   processes: Process[];
   /** Every screen of the workspace, for running a single step by hand. */
   screens: [href: string, label: string][];
+  /** The screens the workspace row links, in order (default: all of `screens`). The others still belong here. */
+  row?: string[];
+  /** Screens under the row's "More" menu, in order. */
+  more?: string[];
 };
 
 const REVIEWABLE = [...REVIEWABLE_RUN_TYPES];
@@ -106,8 +110,9 @@ export const WORKSPACES: Workspace[] = [
       ["#/argus/new", "New extraction"],
       ["#/argusWalkthrough", "Walkthrough"],
       ["#/xbrl", "XBRL Facts"],
-      ["#/review", "Review Queue"],
     ],
+    // Walkthrough is the Argus page's "How it works" link; Needs you is in the top bar.
+    row: ["#/argus/new", "#/xbrl"],
     processes: [
       {
         id: "extract",
@@ -124,7 +129,7 @@ export const WORKSPACES: Workspace[] = [
           { tab: "argus", label: "Extract", does: "Custom schema, Financials, TNFD or Transition plan profile; every citation re-verified against its source.", handsOn: "Flagged figures", carried: true, runTypes: EXTRACTION_RUNS, reviewedElsewhere: true },
           { tab: "review", label: "Review", does: "Approve, edit or reject every flagged figure.", handsOn: "Reviewed figures", carried: true, runTypes: REVIEWABLE },
           { tab: "argus", label: "Score", optional: true, does: "Attach a ratified Decision Studio template at setup (or after the run); publish the tiers from the run's Scoring panel.", handsOn: "Published tiers", carried: true },
-          { tab: "decision", label: "Template", optional: true, does: "Build and ratify scoring templates in Decision Studio (R&D Lab); only ratified versions reach Argus." },
+          { tab: "decision", label: "Template", optional: true, does: "Build and ratify scoring templates in Decision Studio (Strategy); only ratified versions reach Argus." },
         ],
       },
       {
@@ -150,7 +155,7 @@ export const WORKSPACES: Workspace[] = [
     screens: [
       ["#/portfolio-monitoring", "Risk Monitoring"],
       ["#/transitionBarrier", "Transition Barriers"],
-      ["#/argus/new/transition_plan", "Transition Plan"],
+      ["#/argus/new/transition_plan", "Transition Plans"],
     ],
     processes: [
       {
@@ -184,11 +189,12 @@ export const WORKSPACES: Workspace[] = [
   },
   {
     id: "rdLab",
-    name: "R&D Lab",
-    purpose: "Spot themes, test strategies and turn them into indices.",
+    name: "Strategy",
+    purpose: "Spot themes and design strategies, from idea to portfolio.",
     runTypes: ["emerging_themes", "taxonomy_research", "theme", "calibration"],
     screens: [
-      ["#/themes", "Theme dossiers"],
+      ["#/designStrategy", "Design a strategy"],
+      ["#/themes", "Themes"],
       ["#/emergingThemes", "Emerging Themes"],
       ["#/taxonomy", "Taxonomy Library"],
       ["#/theme", "Thematic Universe"],
@@ -198,6 +204,9 @@ export const WORKSPACES: Workspace[] = [
       ["#/decision", "Decision Studio"],
       ["#/index", "Portfolio Builder"],
     ],
+    // Emerging Themes is the second tab of Themes (the Themes hub).
+    row: ["#/designStrategy", "#/themes", "#/decision", "#/index"],
+    more: ["#/taxonomy", "#/theme", "#/strategyReplication", "#/signals", "#/valueChain"],
     processes: [
       {
         id: "thematic",
@@ -264,10 +273,11 @@ export const WORKSPACES: Workspace[] = [
       ["#/smartSearch", "Smart Search"],
       ["#/outputs", "Outputs"],
       ["#/securityMaster", "Security Master"],
-      ["#/portfolio-monitoring/holdings", "Holdings Intake"],
       ["#/library", "Data Library"],
       ["#/search", "Search"],
     ],
+    // Search and Smart Search are the top bar's search-or-ask box; Holdings Intake is Risk Monitoring's "Load holdings".
+    row: ["#/feeds", "#/issues", "#/library", "#/outputs", "#/securityMaster"],
     processes: [
       {
         id: "onboard",
@@ -307,8 +317,13 @@ export function workspaceOfRoute(hash: string): WorkspaceId | null {
   return WORKSPACES.find((w) => w.processes.some((p) => p.steps.some((s) => s.tab === tab)))?.id ?? null;
 }
 
-/** The workspace row's links: the workspace itself, then its screens. */
-export const rowLinks = (w: Workspace): [href: string, label: string][] => [[`#/${w.id}`, w.short ?? w.name], ...w.screens];
+const pick = (w: Workspace, hrefs: string[]) => hrefs.map((h) => w.screens.find(([href]) => href === h)!);
+
+/** The workspace row's links: the workspace itself, then its row screens. */
+export const rowLinks = (w: Workspace): [href: string, label: string][] => [[`#/${w.id}`, w.short ?? w.name], ...(w.row ? pick(w, w.row) : w.screens)];
+
+/** The row's "More" menu, empty when the workspace has none. */
+export const moreLinks = (w: Workspace): [href: string, label: string][] => (w.more ? pick(w, w.more) : []);
 
 /** Steward Workflow stages owned by a step; their open decisions are what StewardIQ waits on. */
 export const DECISION_STAGES: string[] = [...new Set(PROCESSES.flatMap((p) => p.steps.map((s) => s.stage).filter((s): s is string => !!s)))];
