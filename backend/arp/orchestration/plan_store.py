@@ -162,6 +162,12 @@ class PlanStore:
             for k, v in values.items():
                 setattr(call, k, v)
 
+    def calls_awaiting_review(self) -> list[dict[str, Any]]:
+        """Every call of any plan with status `awaiting_review`, for the agent inbox."""
+        with Session(self.engine) as s:
+            rows = s.scalars(select(ResearchPlanCall).where(ResearchPlanCall.status == "awaiting_review"))
+            return [_row(r) for r in rows]
+
     def calls(self, plan_id: str) -> list[dict[str, Any]]:
         with Session(self.engine) as s:
             rows = s.scalars(select(ResearchPlanCall).where(ResearchPlanCall.plan_id == plan_id)
