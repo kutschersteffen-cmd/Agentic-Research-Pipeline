@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import typer
 
+from arp.cli.agent import agent_app
 from arp.cli.authority_library import authority_library_app
 from arp.cli.bi import bi_app
 from arp.cli.calibration import calibration_app
@@ -139,3 +140,4 @@ app.add_typer(plan_app, name="plan")
 app.add_typer(io_app, name="io")
 app.add_typer(rfp_app, name="rfp")
 app.add_typer(showcase_app, name="showcase")
+app.add_typer(agent_app, name="agent")

@@ -8,14 +8,17 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from arp.agent_board.checks import BlockInvalid, check_block, check_title, render
-from arp.agent_board.store import BlockNotFound, BoardFull, BoardStore, NothingToUndo
+from arp.agent_board.draw import DrawRefused, draw, unverified
+from arp.agent_board.store import MAX_BLOCKS, BlockNotFound, BoardFull, BoardStore, NothingToUndo
 from arp.config import get_settings
 from arp.db.session import require_dsn
+from arp.llm.base import LLMClient
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/agent/boards", tags=["agent-board"])
@@ -25,6 +28,13 @@ _ABSENT = object()
 
 def board_store() -> BoardStore:
     return BoardStore(require_dsn(get_settings()))
+
+
+def draw_llm() -> Callable[[], LLMClient]:
+    """Builds the model client only after the draw's own checks, so a refused request never needs a model key."""
+    from arp.api.deps import get_llm_client
+
+    return get_llm_client
 
 
 def _thread(thread_kind: str, thread_id: str, store: BoardStore) -> None:
@@ -143,12 +153,14 @@ def _patch(thread_kind: str, thread_id: str, block_id: str, body: dict, store: B
             title = check_title(title)
         except BlockInvalid as exc:
             raise HTTPException(422, str(exc)) from None
-    source, rendered = body.get("source"), _ABSENT
+    source, rendered, missing = body.get("source"), _ABSENT, None
     if source is not None:
         rendered = _checked(row["kind"], title or row["title"], source)
+        if row["kind"] in ("chart", "table"):  # D4: a person's edit keeps the line for numbers still missing
+            missing = unverified(row["kind"], source, store.plan_data(thread_id))
     position = _int(body["position"]) if body.get("position") is not None else None
     try:
-        row = store.patch(thread_kind, thread_id, block_id, title, source, position)
+        row = store.patch(thread_kind, thread_id, block_id, title, source, position, missing)
     except BlockNotFound:
         raise HTTPException(404, "block not found") from None
     return _out(row, rendered)
@@ -182,3 +194,44 @@ def delete_block(thread_kind: str, thread_id: str, block_id: str,
     except BlockNotFound:
         raise HTTPException(404, "block not found") from None
     return Response(status_code=204)
+
+
+def _draw_checks(thread_kind: str, thread_id: str, body: dict, store: BoardStore) -> tuple[str, dict | None, dict]:
+    """Every check that runs before a model call; returns the prompt, the current block and the thread data."""
+    _thread(thread_kind, thread_id, store)
+    prompt = body.get("prompt")
+    if not isinstance(prompt, str) or not 1 <= len(prompt.strip()) <= 2000:
+        raise HTTPException(422, "prompt must be 1 to 2000 characters")
+    current = None
+    if body.get("block_id") is not None:
+        current = _get_block(store, thread_kind, thread_id, body["block_id"])
+    elif len(store.blocks(thread_kind, thread_id)) >= MAX_BLOCKS:
+        raise HTTPException(409, "board is full (50 blocks)")
+    return prompt, current, store.plan_data(thread_id)
+
+
+@router.post("/{thread_kind}/{thread_id}/draw")
+async def draw_block(thread_kind: str, thread_id: str, request: Request, store: BoardStore = Depends(board_store),
+                     llm: Callable[[], LLMClient] = Depends(draw_llm)) -> dict:
+    body = await _body(request)
+    prompt, current, data = await asyncio.to_thread(_draw_checks, thread_kind, thread_id, body, store)
+    try:
+        draft, rendered, missing = await draw(llm(), prompt, data, current)
+    except DrawRefused as exc:
+        raise HTTPException(422, f"the agent could not draw this: {exc}") from None
+    except Exception:  # noqa: BLE001 - spec: any model failure is a 502, nothing stored
+        logger.warning("agent board: draw model call failed", exc_info=True)
+        raise HTTPException(502, "the agent could not draw this: model call failed") from None
+    title = draft.title.strip()
+    try:
+        if current is None:
+            row = await asyncio.to_thread(store.create, thread_kind, thread_id, draft.kind, title, draft.source,
+                                          "agent", missing)
+        else:
+            row = await asyncio.to_thread(store.redraw, thread_kind, thread_id, current["id"], draft.kind, title,
+                                          draft.source, missing)
+    except BoardFull:
+        raise HTTPException(409, "board is full (50 blocks)") from None
+    except BlockNotFound:
+        raise HTTPException(404, "block not found") from None
+    return _out(row, rendered)
