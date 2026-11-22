@@ -28,6 +28,9 @@ export function XbrlTagsArea({ tags, onChange }: { tags: string[]; onChange: (ne
     loadSaved();
   }, []);
 
+  // The server's rule for a name that becomes a file name (backend storage/safe_path.py).
+  const badName = name.trim() !== "" && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(name.trim());
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
     setSaveStatus(null);
@@ -69,15 +72,20 @@ export function XbrlTagsArea({ tags, onChange }: { tags: string[]; onChange: (ne
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          aria-describedby="xbrl-selection-hint"
+          aria-describedby={badName ? "xbrl-selection-error xbrl-selection-hint" : "xbrl-selection-hint"}
+          aria-invalid={badName || undefined}
         />
-        <button type="submit" disabled={saving || !name.trim() || tags.length === 0}>
+        <button type="submit" disabled={saving || !name.trim() || badName || tags.length === 0}>
           {saving ? "Saving…" : "Save as selection"}
         </button>
       </form>
+      {badName && (
+        <p className="error-text" id="xbrl-selection-error">
+          Use letters, digits, dot, underscore and hyphen, starting with a letter or digit, e.g. revenue-core.
+        </p>
+      )}
       <p className="help-text" id="xbrl-selection-hint">
-        Letters, digits, dot, underscore and hyphen, starting with a letter or digit, e.g. revenue-core. Saving cuts these
-        tags out of every stored company. Saving reads every stored company file and can take a few minutes for large lists.
+        Saving cuts these tags out of every stored company and can take a few minutes for large lists.
       </p>
       <div aria-live="polite">
         {saving && <p className="status-text">Saving… this reads every stored company file.</p>}
@@ -104,7 +112,7 @@ export function XbrlTagsArea({ tags, onChange }: { tags: string[]; onChange: (ne
       <h3>Tag registry</h3>
       <p className="help-text">Downloads the latest US GAAP, IFRS, DEI and ESRS taxonomies so every official tag can be chosen.</p>
       <button className="secondary" onClick={updateRegistry} disabled={registry?.busy}>
-        Update tag registry
+        Download latest tag lists
       </button>
       <div aria-live="polite">{registry && <p className={registry.ok ? "status-text" : "error-text"}>{registry.text}</p>}</div>
     </section>
