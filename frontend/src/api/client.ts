@@ -294,6 +294,7 @@ export const api = {
   listExplorations: () => request<Exploration[]>("/api/agent/explorations"),
   getExploration: (id: string) => request<Exploration>(`/api/agent/explorations/${encodeURIComponent(id)}`),
   acceptExploration: (id: string) => request<Exploration>(`/api/agent/explorations/${encodeURIComponent(id)}/accept`, { method: "POST" }),
+  createMiniapp: (id: string) => request<Exploration>(`/api/agent/explorations/${encodeURIComponent(id)}/miniapp`, { method: "POST" }),
   listRfpLibrary: () => request<RfpLibraryEntry[]>("/api/rfp/library"),
   importRfpLibrary: (files: File[]) => {
     const form = new FormData();

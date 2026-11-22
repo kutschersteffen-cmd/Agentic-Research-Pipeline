@@ -28,3 +28,4 @@ class AgentExploration(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     accepted_by: Mapped[str | None] = mapped_column(Text, nullable=True)
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    miniapp_html: Mapped[str | None] = mapped_column(Text, nullable=True)  # Phase 5: written by "Show as mini-app"

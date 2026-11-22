@@ -11643,6 +11643,17 @@
       "title": "Label",
       "type": "string"
      },
+     "miniapp_html": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Miniapp Html"
+     },
      "model": {
       "anyOf": [
        {
@@ -11691,7 +11702,8 @@
      "created_at",
      "accepted_by",
      "accepted_at",
-     "label"
+     "label",
+     "miniapp_html"
     ],
     "title": "Exploration",
     "type": "object"
@@ -31340,6 +31352,49 @@
      }
     },
     "summary": "Accept Exploration",
+    "tags": [
+     "agent"
+    ]
+   }
+  },
+  "/api/agent/explorations/{exploration_id}/miniapp": {
+   "post": {
+    "description": "\"Show as mini-app\": one model call writes a page for the done exploration's result, stored on it.",
+    "operationId": "create_miniapp_api_agent_explorations__exploration_id__miniapp_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "exploration_id",
+      "required": true,
+      "schema": {
+       "title": "Exploration Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Exploration"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Miniapp",
     "tags": [
      "agent"
     ]

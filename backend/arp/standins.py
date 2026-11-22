@@ -145,3 +145,16 @@ def exploration_code(folder: Path, question: str, attempt: int = 1) -> str:
     if not isinstance(entry, dict) or not isinstance(entry.get("code"), str):
         raise RuntimeError(f"no stand-in code for {question!r} in explore.json")
     return entry["code"]
+
+
+def miniapp_html(folder: Path, question: str) -> str:
+    """The miniapp.json `html` for the exploration's question: `{"<exploration question>": {"html": "<html>"}}`."""
+    _record(folder, {"kind": "model", "name": "MiniApp", "question": question})
+    try:
+        entries = _read(folder / "miniapp.json")
+    except ValueError:
+        raise RuntimeError("stand-in miniapp.json is not valid JSON") from None
+    entry = entries.get(question) if isinstance(entries, dict) else None
+    if not isinstance(entry, dict) or not isinstance(entry.get("html"), str):
+        raise RuntimeError(f"no stand-in mini-app for {question!r} in miniapp.json")
+    return entry["html"]

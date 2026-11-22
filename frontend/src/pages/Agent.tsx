@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import { api } from "../api/client";
 import { AskCard } from "../components/AskCards";
 import { ExplorationCard } from "../components/ExplorationCard";
+import { MiniAppFrame } from "../components/MiniAppFrame";
 import { StepTabs } from "../components/StepTabs";
 import {
   answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, INBOX_KIND, lineDiff,
@@ -15,8 +16,10 @@ const POLL_MS = 3000;
 const NARROW = "(max-width: 899.98px)";
 
 type Drawer = "threads" | "stage" | null;
-type StageTab = "script" | "diff" | "audit";
-const STAGE_TABS: { id: StageTab; label: string }[] = [{ id: "script", label: "Script" }, { id: "diff", label: "Diff" }, { id: "audit", label: "Audit" }];
+type StageTab = "script" | "diff" | "audit" | "miniapp";
+const STAGE_TABS: { id: StageTab; label: string }[] = [
+  { id: "script", label: "Script" }, { id: "diff", label: "Diff" }, { id: "audit", label: "Audit" }, { id: "miniapp", label: "Mini-app" },
+];
 
 const Chip = ({ status }: { status: string }) => <span className={`status-pill status-${status}`}>{chipLabel(status)}</span>;
 
@@ -310,7 +313,13 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
         {close && <button type="button" className="link-button" onClick={close}>Close</button>}
       </div>
       <div id={`${id}-panel`} role="tabpanel" aria-label={STAGE_TABS.find((t) => t.id === tab)!.label}>
-        {!plan ? (
+        {tab === "miniapp" ? (
+          exploration && explorationId && exploration.miniapp_html != null ? (
+            <MiniAppFrame key={exploration.id} html={exploration.miniapp_html} data={exploration.result} onAsk={setText} />
+          ) : (
+            <p className="muted">{exploration && explorationId ? "Show as mini-app, on a done exploration, builds a small page for its result here." : "A done exploration can be shown here as a mini-app."}</p>
+          )
+        ) : !plan ? (
           <p className="muted">{explorationId ? "An exploration has no script, changes or audit trail: its code and tool calls are in the stream." : "The selected plan’s script, changes and audit trail show here."}</p>
         ) : tab === "script" ? (
           <pre className="mono agent-script" aria-label="Plan script, read-only">
@@ -352,7 +361,12 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
           <div className="agent-scroll" ref={scroller} onScroll={onStreamScroll} tabIndex={0} role="region" aria-label="Conversation">
           <div ref={content}>
           {exploration && explorationId ? (
-            <ExplorationCard key={exploration.id} exploration={exploration} busy={busy} onAccept={() => act(() => api.acceptExploration(exploration.id))} />
+            <ExplorationCard key={exploration.id} exploration={exploration} busy={busy} onAccept={() => act(() => api.acceptExploration(exploration.id))}
+              onMiniapp={async () => {
+                if (!(await act(() => api.createMiniapp(exploration.id)))) return;
+                setTab("miniapp");
+                if (window.matchMedia(NARROW).matches) setDrawer("stage");
+              }} />
           ) : plan && planId ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />
           ) : askId || askingIn(asking, null) ? (

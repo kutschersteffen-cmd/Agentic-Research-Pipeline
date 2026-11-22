@@ -2,6 +2,7 @@
 Phase 4). Results stay `exploratory` until a person accepts them; nothing in the plan lane reads them."""
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -71,6 +72,15 @@ class ExplorationStore:
                 return None
             if row.accepted_at is None:
                 row.accepted_by, row.accepted_at = user_id, datetime.now(UTC)
+        return _out(row)
+
+    def set_miniapp(self, exploration_id: str, html: str) -> dict | None:
+        key = _uuid(exploration_id)
+        with Session(self.engine, expire_on_commit=False) as s, s.begin():
+            row = s.get(AgentExploration, key, with_for_update=True) if key else None
+            if row is None:
+                return None
+            row.miniapp_html = html
         return _out(row)
 
 
@@ -191,3 +201,55 @@ async def explore(store: ExplorationStore, settings: Settings, question: str, pr
     """Answers the question in the sandbox and stores the outcome, whatever it is."""
     code, model, cost, run = await run_question(settings, question, principal, llm=llm)
     return store.add(question=question, code=code, run=run, model=model, cost_usd=cost)
+
+
+class NotDone(Exception):
+    """Only a done exploration can be shown as a mini-app."""
+
+
+class MiniApp(BaseModel):
+    html: str = Field(description="One complete HTML file: markup, inline <style> and inline <script> only.")
+
+
+MINIAPP_SYSTEM = """You write a small interactive web page (a "mini-app") that shows the result of an exploration of
+ARP's data. Return one complete HTML file.
+
+The page runs in a sandboxed frame that can reach nothing: no network, no external scripts, styles, fonts or images
+(only inline <style>, inline <script> and data: images). Its data is `window.ARP_DATA`, already set before your
+scripts run; it is exactly the result shown below. Read everything from it.
+
+Rules:
+- Show the data; you may sort, filter and chart it. Never compute a new figure and present it as an ARP figure: every
+  number labelled as ARP's comes straight from `window.ARP_DATA`.
+- To suggest a follow-up question, call `window.parent.postMessage({action: "ask", text: "<question>"}, "*")` from a
+  button the person clicks. The screen puts the text in its composer; nothing else is accepted.
+- Keep it readable on a narrow column (about 360 px wide) and in a dark or light theme."""
+
+MINIAPP_CONTEXT_BYTES = 20_000  # the same cut as the planner's exploration context
+
+
+def miniapp_prompt(exploration: dict) -> str:
+    data = json.dumps(exploration["result"], indent=1, default=str)
+    if len(data.encode()) > MINIAPP_CONTEXT_BYTES:
+        data = data.encode()[:MINIAPP_CONTEXT_BYTES].decode(errors="ignore") + "\n… (cut; the page gets all of it)"
+    return f"Question: {exploration['question']}\n\n`window.ARP_DATA`:\n```json\n{data}\n```"
+
+
+async def write_miniapp(store: ExplorationStore, settings: Settings, exploration_id: str, *,
+                        llm: LLMClient | None = None) -> dict | None:
+    """One model call writes the exploration's mini-app HTML, stored as `miniapp_html`; None when there is no such
+    exploration. Raises NotDone for one whose status is not `done`."""
+    found = store.get(exploration_id)
+    if found is None:
+        return None
+    if found["status"] != "done":
+        raise NotDone
+    if settings.standins_dir is not None:
+        html = standins.miniapp_html(settings.standins_dir, found["question"])
+    else:
+        from arp.llm.factory import build_llm_client
+
+        llm = llm or build_llm_client(settings)
+        out, _ = await llm.complete_structured(system=MINIAPP_SYSTEM, prompt=miniapp_prompt(found), output_model=MiniApp)
+        html = out.html
+    return store.set_miniapp(exploration_id, html)
