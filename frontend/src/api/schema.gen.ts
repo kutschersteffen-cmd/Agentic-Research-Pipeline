@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/agent/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inbox
+         * @description Draft plans and calls awaiting review, oldest first (a plan by its `created_at`, a call by its `started_at`).
+         */
+        get: operations["inbox_api_agent_inbox_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/argus/flows": {
         parameters: {
             query?: never;
@@ -14200,6 +14220,24 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** InboxRow */
+        InboxRow: {
+            /** Exploration Id */
+            exploration_id: string | null;
+            /** Href */
+            href: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "plan_approval" | "step_review" | "exploration";
+            /** Plan Id */
+            plan_id: string | null;
+            /** Seq */
+            seq: number | null;
+            /** Title */
+            title: string;
+        };
         /**
          * IndexCalibration
          * @description A saved, versioned, effective-dated construction spec.
@@ -20848,6 +20886,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    inbox_api_agent_inbox_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxRow"][];
+                };
+            };
+        };
+    };
     list_flows_api_argus_flows_get: {
         parameters: {
             query?: never;
