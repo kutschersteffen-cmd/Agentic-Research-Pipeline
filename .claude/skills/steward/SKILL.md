@@ -16,7 +16,7 @@ Pick the highest tier any changed file falls in, add the label, and say why in o
 |---|---|---|
 | `risk:low` | Only `docs/**`, `*.md` outside `.claude/`, frontend copy or styles (`*.css`, text-only `.tsx` edits) | Nothing if the dispatcher tracks it: it auto-merges once every gate is clean; else merges it on GitHub |
 | `risk:normal` | Anything not low or high | Nothing if the dispatcher tracks it: it auto-merges once every gate is clean; else merges it on GitHub |
-| `risk:high` | Auth, permissions, secrets; database schema or data migrations; money, portfolio weights or index maths; deleting stored data; `.github/workflows/**`, `.github/scripts/**`, `.gitleaksignore`; any file a session loads at start (`.claude/**`, `.claude-plugin/**`, `.mcp.json`) | Reads the acceptance matrix and the diff, then merges on GitHub |
+| `risk:high` | Auth, permissions, secrets; database schema or data migrations; money, portfolio weights or index maths; deleting stored data; `.github/workflows/**`, `.github/scripts/**`, `.gitleaksignore`; anything that triggers a deploy (the `deploy-compute.yml` paths: `backend/arp/ingestion/**`, `backend/arp/compute/**`, `backend/arp/retrieval/rerank.py`, `backend/arp/retrieval/embeddings.py`, `backend/arp/schemas/common.py`, `backend/pyproject.toml`, `backend/Dockerfile.compute`, `scripts/gcp/**`); any file a session loads at start (`.claude/**`, `.claude-plugin/**`, `.mcp.json`) | Reads the acceptance matrix and the diff, then merges on GitHub |
 
 A `risk:low` or `risk:normal` PR is merged without a tap by the factory dispatcher once every gate in
 `.claude/CLAUDE.md` (auto-merge) is clean; else the owner merges it. Relabel `risk:high` if a later push
