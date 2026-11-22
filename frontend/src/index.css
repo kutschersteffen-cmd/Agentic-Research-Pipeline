@@ -1749,7 +1749,7 @@ button.hub-step:hover:not(:disabled) { background: var(--panel); }
 /* On a phone the heading takes its own line; the state and cadence chips sit below it. */
 @media (max-width: 760px) { .hub-process .section-heading { flex-wrap: wrap; } .hub-process .section-heading h2 { flex-basis: 100%; } }
 .hub-process-state { display: inline-flex; align-items: center; gap: var(--s-1_5); font-size: var(--text-xs); color: var(--muted); }
-.hub-step-handoff-key { border-bottom: 2px dashed var(--panel-border); color: var(--mid); }
+.hub-step-handoff-key { border-bottom: 2px dashed var(--panel-border); color: var(--mid); white-space: nowrap; }
 .hub-step[aria-expanded="true"] { outline: 1px solid var(--text); outline-offset: 3px; }
 .hub-step:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .hub-step-now, .hub-step-now:hover { border-color: var(--run); box-shadow: 0 0 0 3px color-mix(in srgb, var(--run) 18%, transparent); }
