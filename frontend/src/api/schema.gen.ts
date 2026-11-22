@@ -545,6 +545,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Capabilities
+         * @description Sandbox lane first, then plan lane, each sorted by id; `input_schema` is the input model's JSON schema.
+         */
+        get: operations["list_capabilities_api_capabilities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/climate/schema": {
         parameters: {
             query?: never;
@@ -10646,6 +10666,27 @@ export interface components {
             title: string;
             /** Url */
             url: string;
+        };
+        /** CapabilityOut */
+        CapabilityOut: {
+            /**
+             * Effect
+             * @enum {string}
+             */
+            effect: "read" | "run";
+            /** Id */
+            id: string;
+            /** Input Schema */
+            input_schema: {
+                [key: string]: unknown;
+            };
+            /**
+             * Lane
+             * @enum {string}
+             */
+            lane: "plan" | "sandbox";
+            /** Summary */
+            summary: string;
         };
         /** CapexOut */
         CapexOut: {
@@ -21985,6 +22026,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_capabilities_api_capabilities_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapabilityOut"][];
                 };
             };
         };

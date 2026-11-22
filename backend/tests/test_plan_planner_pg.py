@@ -53,7 +53,7 @@ def test_context_lists_only_ratified():
 def test_stubs_list_every_step():
     stubs = step_stubs()
     assert "def extraction(*, universe_run_id: str, schema_id: str, companies: list[str] | None = None)" in stubs
-    assert stubs.count("def ") == 8
+    assert stubs.count("def ") == 10  # agent-panel-code-mode D8 adds identity_resolution, tnfd_extraction
 
 
 @pytest.fixture(autouse=True)
