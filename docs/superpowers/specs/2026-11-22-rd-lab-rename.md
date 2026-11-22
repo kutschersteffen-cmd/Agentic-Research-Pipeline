@@ -1,6 +1,6 @@
 # Rename Strategy back to R&D Lab
 
-Status: **draft, waiting for the owner's approval**
+Status: **approved by the owner on 22 Nov 2026** (button in the dispatcher thread, after three spec-critic rounds)
 Slug: `rd-lab-rename`
 Risk: this spec PR is `risk:low`. The build is 1 PR, `risk:low` (labels and copy only, no logic).
 Size: S
