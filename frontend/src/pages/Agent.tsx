@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import { AskCard } from "../components/AskCards";
+import { StepTabs } from "../components/StepTabs";
 import {
-  answerActions, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, INBOX_KIND, needsYouLine,
-  scriptLines, sendsComposer, threadRows, threadTitle, type Mode, type Selection, type ThreadRow,
+  answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, INBOX_KIND, lineDiff,
+  needsYouLine, scriptLines, sendsComposer, stepState, threadRows, threadTitle, usd, type Mode, type Selection, type ThreadRow,
 } from "../lib/agent";
-import { ACTIVE, canReplan, resultHref, reviewHref, type Plan } from "../lib/plans";
+import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
+import { when } from "../lib/runs";
 import type { AgentAsk, AskThread, InboxRow } from "../types";
 
 const POLL_MS = 3000;
 const NARROW = "(max-width: 899.98px)";
 
 type Drawer = "threads" | "stage" | null;
+type StageTab = "script" | "diff" | "audit";
+const STAGE_TABS: { id: StageTab; label: string }[] = [{ id: "script", label: "Script" }, { id: "diff", label: "Diff" }, { id: "audit", label: "Audit" }];
 
 const Chip = ({ status }: { status: string }) => <span className={`status-pill status-${status}`}>{chipLabel(status)}</span>;
 
@@ -58,6 +62,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<Drawer>(null);
+  const [tab, setTab] = useState<StageTab>("script");
   const input = useRef<HTMLTextAreaElement>(null);
   const refocus = useRef(false);
   const current = useRef(selected); // the selection now, for a request that answers after it changed
@@ -65,12 +70,15 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const modes = composerModes(canAsk);
   const copy = COMPOSER_COPY[mode];
 
-  const loadList = useCallback(() => {
-    api.listPlans().then(setPlans).catch((e: Error) => setError(`Threads could not be loaded: ${e.message}.`));
-    api.listAskThreads().then(setAskThreads).catch((e: Error) => setError(`Threads could not be loaded: ${e.message}.`));
+  const loadInbox = useCallback(() => {
     api.getAgentInbox().then(setInbox).catch((e: Error) => setError(`The inbox could not be loaded: ${e.message}.`));
     api.getWaiting().then((w) => setWaiting(w.total)).catch(() => setWaiting(null)); // no count rather than a wrong one
   }, []);
+  const loadList = useCallback(() => {
+    api.listPlans().then(setPlans).catch((e: Error) => setError(`Threads could not be loaded: ${e.message}.`));
+    api.listAskThreads().then(setAskThreads).catch((e: Error) => setError(`Threads could not be loaded: ${e.message}.`));
+    loadInbox();
+  }, [loadInbox]);
   const loadPlan = useCallback(() => {
     if (!planId) return setPlan(null);
     api.getPlan(planId).then(setPlan).catch((e: Error) => setError(`The plan could not be loaded: ${e.message}.`));
@@ -102,11 +110,13 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     if (shownStatus.current && planStatus && planStatus !== shownStatus.current) loadList(); // a change, not the first load
     shownStatus.current = planStatus;
   }, [planStatus, loadList]);
+  // While the plan runs or waits for a review, re-read it and the inbox every 3 s (D6).
+  const active = plan !== null && ACTIVE.has(plan.status);
   useEffect(() => {
-    if (!plan || !ACTIVE.has(plan.status)) return;
-    const t = setInterval(loadPlan, POLL_MS);
+    if (!active) return;
+    const t = setInterval(() => { loadPlan(); loadInbox(); }, POLL_MS);
     return () => clearInterval(t);
-  }, [plan, loadPlan]);
+  }, [active, loadPlan, loadInbox]);
   // Widening past 900 px shows the columns again, so an open drawer goes.
   useEffect(() => {
     const mq = window.matchMedia(NARROW);
@@ -229,20 +239,22 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const stage = (id: string, close?: () => void) => (
     <>
       <div className="agent-side-head">
-        <div className="sub-nav" role="tablist" aria-label="Stage">
-          <button type="button" id={`${id}-tab-script`} className="nav-tab active" role="tab" aria-selected="true" aria-controls={`${id}-panel-script`}>Script</button>
-        </div>
+        <StepTabs label="Stage" tabs={STAGE_TABS} active={tab} onSelect={(t) => setTab(t as StageTab)} />
         {close && <button type="button" className="link-button" onClick={close}>Close</button>}
       </div>
-      <div id={`${id}-panel-script`} role="tabpanel" aria-labelledby={`${id}-tab-script`}>
-        {plan ? (
+      <div id={`${id}-panel`} role="tabpanel" aria-label={STAGE_TABS.find((t) => t.id === tab)!.label}>
+        {!plan ? (
+          <p className="muted">The selected plan’s script, changes and audit trail show here.</p>
+        ) : tab === "script" ? (
           <pre className="mono agent-script" aria-label="Plan script, read-only">
             {scriptLines(plan.script).map((l) => (
               <span key={l.n} className="agent-script-line"><span className="agent-ln" aria-hidden="true">{l.n}</span><span>{l.text}{"\n"}</span></span>
             ))}
           </pre>
+        ) : tab === "diff" ? (
+          <DiffTab plan={plan} />
         ) : (
-          <p className="muted">The selected plan’s script shows here.</p>
+          <AuditTab plan={plan} />
         )}
       </div>
     </>
@@ -452,5 +464,78 @@ function AskTurn({ ask, canAsk, onDrafted }: { ask: AgentAsk; canAsk: boolean; o
         </p>
       ))}
     </li>
+  );
+}
+
+/** The Diff tab: each planned step against the stored calls, then, after a re-plan, the previous script against this one. */
+function DiffTab({ plan }: { plan: Plan }) {
+  const prev = plan.previous_scripts.at(-1);
+  const diff = prev ? lineDiff(prev.script, plan.script) : null;
+  return (
+    <>
+      <h3 className="agent-stage-h">Steps</h3>
+      <ol className="agent-diff-steps">
+        {stepRows(plan).map(({ step, call }) => {
+          const state = stepState(plan.status, call !== null);
+          return (
+            <li key={step.seq}>
+              <span className="muted">Step {step.seq}</span> <span className="mono">{step.kind}</span>{" "}
+              <span className={`agent-step-state agent-step-${state}`}>{state}</span>
+              {call && <> <Chip status={call.status} /></>}
+            </li>
+          );
+        })}
+      </ol>
+      {prev && diff ? (
+        <>
+          <h3 className="agent-stage-h mono" aria-label={`${diff.removed} lines removed, ${diff.added} added`}>-{diff.removed} +{diff.added}</h3>
+          <p className="muted agent-diff-caption">Script version {prev.version} against version {plan.version}</p>
+          <pre className="mono agent-diff" aria-label={`Script diff, version ${prev.version} to ${plan.version}`}>
+            {diff.lines.map((l, k) => (
+              <span key={k} className={l.op === "-" ? "agent-diff-del" : l.op === "+" ? "agent-diff-add" : undefined}><span>{l.op}</span><span>{l.text}{"\n"}</span></span>
+            ))}
+          </pre>
+        </>
+      ) : (
+        <p className="muted">No re-plan yet, so there is no earlier script to compare.</p>
+      )}
+    </>
+  );
+}
+
+/** The Audit tab: who approved the plan and when, what it spent, and one row per stored call. */
+function AuditTab({ plan }: { plan: Plan }) {
+  const calls = plan.calls ?? [];
+  return (
+    <>
+      <p className="agent-audit-line">
+        {plan.approved_by ? (
+          <>Approved by <strong>{plan.approved_by}</strong>{plan.approved_at && <> on <time dateTime={plan.approved_at}>{when(plan.approved_at)}</time></>}</>
+        ) : (
+          "Not approved yet."
+        )}
+      </p>
+      {plan.spent_usd !== undefined && <p className="agent-audit-line">{budgetLine(plan.spent_usd, plan.budget_usd)}</p>}
+      {calls.length === 0 ? (
+        <p className="muted">No step has started yet.</p>
+      ) : (
+        <ol className="agent-audit" aria-label="Calls">
+          {calls.map((c) => (
+            <li key={c.seq} className="agent-audit-row">
+              <div className="agent-audit-head">
+                <span className="muted">Step {c.seq}</span> <span className="mono">{c.kind}</span> <Chip status={c.status} />
+              </div>
+              <dl className="agent-audit-fields">
+                <dt>Run</dt><dd className="mono">{c.run_id ?? "–"}</dd>
+                <dt>Started</dt><dd>{c.started_at ? <time dateTime={c.started_at}>{when(c.started_at)}</time> : "–"}</dd>
+                <dt>Model</dt><dd className="mono">{c.model ?? "–"}</dd>
+                <dt>Cost</dt><dd>{usd(c.estimated_cost_usd)}</dd>
+                <dt>Params</dt><dd><code className="agent-params">{JSON.stringify(c.params)}</code></dd>
+              </dl>
+            </li>
+          ))}
+        </ol>
+      )}
+    </>
   );
 }

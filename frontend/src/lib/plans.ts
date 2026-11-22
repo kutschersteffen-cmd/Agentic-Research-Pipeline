@@ -4,7 +4,11 @@ export type CallStatus = "pending" | "running" | "awaiting_review" | "done" | "f
 
 export interface DryRunStep { seq: number; kind: string; params: Record<string, unknown>; depends_on: number | null }
 export interface PreviousScript { version: number; script: string; error: string | null; replanned_at: string; replanned_by: string | null }
-export interface PlanCall { seq: number; kind: string; params: Record<string, unknown>; status: CallStatus; run_id: string | null; result_ref: string | null }
+export interface PlanCall {
+  seq: number; kind: string; params: Record<string, unknown>; status: CallStatus; run_id: string | null; result_ref: string | null;
+  // GET /api/plans/{id} only: when the call started, and its run's model and cost (null without a run).
+  started_at?: string; model?: string | null; estimated_cost_usd?: number | null;
+}
 export interface Plan {
   id: string;
   brief: string;
@@ -21,6 +25,8 @@ export interface Plan {
   /** The ask whose `Draft a plan` drafted it, and that ask's question and thread. */
   source_ask_id: string | null;
   source_ask: { question: string; thread_id: string } | null;
+  budget_usd?: number | null; // the plan budget, once the API serves it (agent-panel-code-mode slice 5)
+  spent_usd?: number;
 }
 
 export const ACTIVE: ReadonlySet<PlanStatus> = new Set(["running", "awaiting_review"]);
