@@ -2,6 +2,10 @@
 
 Bars are `well`, the second series `series_2`, the highlighted category or series `highlight` (lines have no `well`:
 it does not show on `panel`). Over 10 bar/column categories: the top 9 by value plus "Other", with a `chart_capped` finding.
+A waterfall's first and last rows are totals (`ink`), the rows between signed changes (`series_2`, the highlighted step
+`highlight`); 3 to 10 rows, the end total equal to the start plus the changes, every running total at or above 0.
+A heatmap's columns are `category_column`, its rows `y_column` (one Series per row), at most 8 × 10, each in first-seen
+order; a missing cell is None, a duplicate one an error. It has no highlight and no callout.
 """
 
 from arp.reporting.render_model import (
@@ -19,6 +23,7 @@ from arp.reporting.render_model import (
     Text,
     VisualDataError,
     bar_label_width,
+    decimals,
     line_point,
     palette,
 )
@@ -26,6 +31,7 @@ from arp.reporting.visuals._common import LEADING, dataset, fonts, lines, number
 from arp.schemas.reporting import Finding
 
 CARD_W, CAP, STAT, CALLOUT = 520, 10, 96, 24
+HEAT_ROWS, HEAT_COLS = 8, 10
 
 
 def _capped(cats: list[str], cols: list[list[float]], ctx) -> tuple[list[str], list[list[float]]]:
@@ -36,6 +42,36 @@ def _capped(cats: list[str], cols: list[list[float]], ctx) -> tuple[list[str], l
     ctx.findings.append(Finding(slide=ctx.index, stage="fit", rule="chart_capped",
                                 message=f"{n} categories: the top {CAP - 1} by value are shown, the other {len(rest)} as Other"))
     return [cats[i] for i in keep] + ["Other"], [[col[i] for i in keep] + [sum(col[i] for i in rest)] for col in cols]
+
+
+def _heatmap(ds, spec) -> tuple[list[str], list[Series]]:
+    """Columns (categories) and one Series per row, each in first-seen order; None where a (row, column) pair is missing."""
+    keys = [(str(r.get(spec.y_column, "")), str(r.get(spec.category_column, ""))) for r in ds.rows]
+    rows, cols = list(dict.fromkeys(k[0] for k in keys)), list(dict.fromkeys(k[1] for k in keys))
+    if len(rows) > HEAT_ROWS or len(cols) > HEAT_COLS:
+        raise VisualDataError(f"a heatmap shows at most {HEAT_ROWS} rows and {HEAT_COLS} columns (got {len(rows)} × {len(cols)})")
+    cells: dict[tuple[str, str], float] = {}
+    for k, r in zip(keys, ds.rows, strict=True):
+        if k in cells:
+            raise VisualDataError(f"duplicate heatmap cell ({k[0]}, {k[1]})")
+        cells[k] = number(r.get(spec.value_columns[0]))
+    return cols, [Series(row, [cells.get((row, col)) for col in cols], []) for row in rows]
+
+
+def _check_waterfall(cats: list[str], values: list[float]) -> None:
+    """Row count, then end total, then every running total at or above 0 (a stacked column cannot cross zero)."""
+    if not 3 <= len(values) <= 10:
+        raise VisualDataError(f"a waterfall has 3 to 10 rows (got {len(values)})")
+    dec = decimals(values)
+    fmt = lambda v: f"{v:.{dec}f}".replace("-", "−")  # noqa: E731
+    total = round(sum(values[:-1]), dec)
+    if round(values[-1], dec) != total:
+        raise VisualDataError(f"waterfall end total {fmt(values[-1])} is not the start plus the changes ({fmt(total)})")
+    run = 0.0
+    for i, (cat, v) in enumerate(zip(cats, values, strict=True)):
+        run = v if i in (0, len(values) - 1) else run + v
+        if round(run, dec) < 0:
+            raise VisualDataError(f"a waterfall's running total must stay at or above 0 ({cat}: {fmt(run)})")
 
 
 def _callout(visual, chart: ChartPrim, c, body) -> list[Primitive]:
@@ -66,7 +102,7 @@ def _callout(visual, chart: ChartPrim, c, body) -> list[Primitive]:
 def _clipped_label(chart: ChartPrim, ctx) -> None:
     """An `overflow` finding when a category label is wider than its room: left of the bars (bar), or its band (column),
     where it would be clipped or run into its neighbour. Neither shows in the page's text boxes, so it is checked here."""
-    if chart.kind not in ("bar", "column", "stacked_column"):
+    if chart.kind not in ("bar", "column", "stacked_column", "waterfall"):
         return
     room = bar_label_width(chart) if chart.kind == "bar" else chart.w / len(chart.categories)
     wide = [cat for cat in chart.categories if lines(cat, CHART_LABEL, room) > 1]
@@ -97,18 +133,30 @@ def _insight(ins, x, box, c, heading, body) -> list[Primitive]:
 def render(visual, box, ctx):
     c, (heading, body, mono) = palette(ctx.tokens, ctx.mode), fonts(ctx)
     spec = visual.data
-    ds = dataset(ctx, spec.dataset_id, [spec.category_column or "", *spec.value_columns])
+    heatmap = visual.kind == "heatmap"
+    ds = dataset(ctx, spec.dataset_id, [spec.category_column or "", *([spec.y_column] if heatmap else []), *spec.value_columns])
     if not ds.rows:
         raise VisualDataError(f"dataset {spec.dataset_id!r} has no rows")
-    cats = [str(r.get(spec.category_column, "")) for r in ds.rows]
-    cols = [[number(r.get(col)) for r in ds.rows] for col in spec.value_columns]
-    if visual.kind != "line" and len(cats) > CAP:
-        cats, cols = _capped(cats, cols, ctx)
-    series = []
-    for j, (name, values) in enumerate(zip(spec.value_columns, cols, strict=True)):
-        base = c["series_2"] if j or visual.kind == "line" else c["well"]
-        colors = [c["highlight"] if visual.highlight in (name, cat) else base for cat in cats]
-        series.append(Series(name, values, colors))
+    if heatmap:
+        cats, series = _heatmap(ds, spec)
+    elif visual.kind == "waterfall":
+        cats = [str(r.get(spec.category_column, "")) for r in ds.rows]
+        values = [number(r.get(spec.value_columns[0])) for r in ds.rows]
+        _check_waterfall(cats, values)
+        last = len(cats) - 1
+        colors = [c["ink"] if i in (0, last) else c["highlight"] if cat == visual.highlight else c["series_2"]
+                  for i, cat in enumerate(cats)]
+        series = [Series(spec.value_columns[0], values, colors)]
+    else:
+        cats = [str(r.get(spec.category_column, "")) for r in ds.rows]
+        cols = [[number(r.get(col)) for r in ds.rows] for col in spec.value_columns]
+        if visual.kind != "line" and len(cats) > CAP:
+            cats, cols = _capped(cats, cols, ctx)
+        series = []
+        for j, (name, values) in enumerate(zip(spec.value_columns, cols, strict=True)):
+            base = c["series_2"] if j or visual.kind == "line" else c["well"]
+            colors = [c["highlight"] if visual.highlight in (name, cat) else base for cat in cats]
+            series.append(Series(name, values, colors))
     chart_w = box.w - (CARD_W + S48 if visual.insight else 0)
     label = (spec.title or ds.name) + (f", {visual.unit}" if visual.unit else "")
     top = S24 + S16
@@ -116,7 +164,7 @@ def render(visual, box, ctx):
     _clipped_label(chart, ctx)
     out: list[Primitive] = [Text("chart:label", box.x, box.y, chart_w, S24, label.upper(), 20, 400, mono, c["muted"],
                                  fill_under=c["panel"]), chart]
-    if visual.callout and visual.callout.category in cats:  # a callout on an unknown category is not drawn
+    if visual.callout and visual.callout.category in cats and not heatmap:  # nor on an unknown category
         out += _callout(visual, chart, c, body)
     if visual.insight:
         out += _insight(visual.insight, box.x + box.w - CARD_W, box, c, heading, body)

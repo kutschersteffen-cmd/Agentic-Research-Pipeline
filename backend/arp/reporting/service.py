@@ -17,7 +17,17 @@ from arp.reporting.lint import lint_deck
 from arp.reporting.report_builder import build_docx
 from arp.reporting.storyline import draft_storyline
 from arp.reporting.template_frame import house_tokens
-from arp.schemas.reporting import Deck, OutputFormat, ReportManifest, ReportPlan, ReportRequest, ReportStatus, SlideContent
+from arp.schemas.reporting import (
+    Deck,
+    OutputFormat,
+    ReportImageIn,
+    ReportManifest,
+    ReportPlan,
+    ReportRequest,
+    ReportStatus,
+    SlideContent,
+)
+from arp.storage.report_images import ImageError, check_focus, check_known, check_name, check_unique_and_count
 from arp.storage.reporting_store import ReportingStore
 
 _EXTENSION = {OutputFormat.PPTX: "pptx", OutputFormat.DOCX: "docx", OutputFormat.PDF: "pdf"}
@@ -41,8 +51,14 @@ class ReportingService:
     async def create_and_plan(self, request: ReportRequest, llm: LLMClient) -> ReportManifest:
         if request.layout.output_format == OutputFormat.HOUSE_DECK:
             house_tokens(request, self.store, strict=True)  # a template that can't frame the deck fails here, before anything is saved
+        staged = self._check_images(request)  # before anything is saved, too
         manifest = ReportManifest(title=request.title, output_format=request.layout.output_format, template_id=request.template_id)
         manifest.status = ReportStatus.PLANNING
+        if staged:
+            request = request.model_copy(update={"images": [
+                self.store.save_report_image(manifest.report_id, e.name, data, alt=e.alt, focus=e.focus).model_copy(update={"image_id": e.image_id})
+                for e, data in staged
+            ]})
         self.store.save_request(manifest.report_id, request)
         self.store.save_manifest(manifest)
 
@@ -72,6 +88,24 @@ class ReportingService:
         manifest.model = usage.model
         self.store.save_manifest(manifest)
         return manifest
+
+    def _check_images(self, request: ReportRequest) -> list[tuple[ReportImageIn, bytes]]:
+        """Every image a request names is a staged upload under a valid name; returns (entry, bytes) pairs.
+        Raises ImageError with the spec's message for the first problem found."""
+        staged = []
+        for e in request.images:
+            loaded = self.store.load_staged_image(e.image_id) if e.image_id else None
+            if loaded is None:
+                raise ImageError(f"unknown image_id '{e.image_id}'")
+            check_name(e.name)
+            staged.append((e, loaded[1]))
+        names = [e.name for e in request.images]
+        check_unique_and_count(names)
+        for e in request.images:
+            check_focus(e.name, e.focus)
+        if request.deck.cover_image is not None:
+            check_known(request.deck.cover_image, names)
+        return staged
 
     async def approve_storyline(self, report_id: str, llm: LLMClient) -> ReportManifest:
         """House deck: approves the stored storyline and builds the deck from it.
@@ -125,6 +159,7 @@ class ReportingService:
             status=ReportStatus.STORYLINE_READY, rerun_of=old.report_id,
         )
         self.store.save_request(manifest.report_id, request)
+        self.store.copy_report_images(old.report_id, manifest.report_id)
         self.store.save_storyline(manifest.report_id, storyline)
         self.store.save_manifest(manifest)
         # Headlines only, numbered like the built deck (slide 0 is the title).

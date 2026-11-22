@@ -448,6 +448,12 @@ class RunStore:
         with transaction(self.dsn) as s:
             return [self._manifest(r) for r in s.scalars(query)]
 
+    def find_launch_key(self, launch_key: str) -> str | None:
+        """The run whose manifest `params["launch_key"]` is `launch_key` (a plan step's run), else None."""
+        query = select(Run.run_id).where(Run.params["launch_key"].astext == launch_key).order_by(Run.created_at)
+        with transaction(self.dsn) as s:
+            return s.scalars(query).first()
+
     def extraction_runs(self) -> list[RunManifest]:
         """Non-trial extraction runs, newest first."""
         return [m for m in self.list_runs("extraction") if not m.params.get("trial")]

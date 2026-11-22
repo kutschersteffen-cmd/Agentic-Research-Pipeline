@@ -5,7 +5,8 @@ name: Golden set
 # extractions) whenever a PR touches extraction prompts, the LLM clients, grounding or the model
 # settings, and fails if any case fails. PRs touching transition-barrier extraction, fetching, the rule book
 # or its data also run the transition-barrier golden set; PRs touching backend/arp/rfp/ also run the RFP golden
-# checks (question detection, drafting). It calls the real model, so it needs the
+# checks (question detection, drafting); PRs touching backend/arp/refine/ also run the Refine chat golden set, and PRs
+# touching backend/arp/agent_board/ the board golden set. It calls the real model, so it needs the
 # ARP_ANTHROPIC_API_KEY repository secret; without it the job warns and passes.
 on:
   pull_request:
@@ -23,10 +24,14 @@ on:
       - "backend/arp/transition_barrier/data/**"
       - "backend/tests/golden/transition_barrier/**"
       - "backend/arp/rfp/**"
+      - "backend/arp/refine/**"
+      - "backend/tests/golden/refine/**"
       - "backend/arp/research/authority_taxonomy/**"
       - "backend/tests/golden/authority_taxonomy/**"
       - "backend/arp/research/taxonomy_schema.py"
       - "backend/tests/golden/stage_evidence/**"
+      - "backend/arp/agent_board/**"
+      - "backend/tests/golden/board.jsonl"
   workflow_dispatch:
 
 jobs:
@@ -64,12 +69,14 @@ jobs:
         env:
           BASE: ${{ github.base_ref }}
         run: |
-          if [ -z "$BASE" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; echo "rfp=true" >>"$GITHUB_OUTPUT"; echo "gate=true" >>"$GITHUB_OUTPUT"; exit 0; fi
+          if [ -z "$BASE" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; echo "rfp=true" >>"$GITHUB_OUTPUT"; echo "refine=true" >>"$GITHUB_OUTPUT"; echo "gate=true" >>"$GITHUB_OUTPUT"; exit 0; fi
           rfp=$(git diff --name-only "origin/$BASE...HEAD" -- arp/rfp)
           if [ -n "$rfp" ]; then echo "rfp=true" >>"$GITHUB_OUTPUT"; else echo "rfp=false" >>"$GITHUB_OUTPUT"; fi
+          refine=$(git diff --name-only "origin/$BASE...HEAD" -- arp/refine tests/golden/refine)
+          if [ -n "$refine" ]; then echo "refine=true" >>"$GITHUB_OUTPUT"; else echo "refine=false" >>"$GITHUB_OUTPUT"; fi
           gate=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction/evidence_gate.py)
           if [ -n "$gate" ]; then echo "gate=true" >>"$GITHUB_OUTPUT"; else echo "gate=false" >>"$GITHUB_OUTPUT"; fi
-          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py arp/transition_barrier/extraction.py arp/transition_barrier/golden.py arp/transition_barrier/fetching.py arp/transition_barrier/rule_book.py arp/transition_barrier/data tests/golden/transition_barrier arp/rfp arp/research/authority_taxonomy tests/golden/authority_taxonomy arp/research/taxonomy_schema.py tests/golden/stage_evidence)
+          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py arp/transition_barrier/extraction.py arp/transition_barrier/golden.py arp/transition_barrier/fetching.py arp/transition_barrier/rule_book.py arp/transition_barrier/data tests/golden/transition_barrier arp/rfp arp/research/authority_taxonomy tests/golden/authority_taxonomy arp/research/taxonomy_schema.py tests/golden/stage_evidence arp/refine tests/golden/refine arp/agent_board tests/golden/board.jsonl)
           model=$(git diff -U0 "origin/$BASE...HEAD" -- arp/config.py | grep -E '^[+-] .*(llm_|_api_key|grounding_|confidence_review)' || true)
           if [ -n "$other$model" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; else echo "run=false" >>"$GITHUB_OUTPUT"; echo "Only unrelated config.py lines changed; golden set not needed."; fi
 
@@ -116,6 +123,20 @@ jobs:
           arp db init-postgres
           arp golden-set run | tee -a "$GITHUB_STEP_SUMMARY"
           arp golden-set run --long | tee -a "$GITHUB_STEP_SUMMARY"
+          arp agent board-golden --cases tests/golden/board.jsonl --min-pass 11 | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Gemini schema check (live)
+        # Every structured-output schema sent once to Gemini (scripts/gemini_schema_check.py): catches schemas the
+        # API rejects and thinking settings a model refuses, which the Claude-first golden set never exercises.
+        if: ${{ !cancelled() && steps.key.outputs.present == 'true' && env.ARP_GEMINI_API_KEY != '' }}
+        run: |
+          set -o pipefail; rc=0
+          for m in gemini-3.8-flash gemini-4-argon; do
+            s=0; python scripts/gemini_schema_check.py --model "$m" | tee -a "$GITHUB_STEP_SUMMARY" || s=$?
+            if [ "$s" = 2 ]; then echo "::warning title=Gemini schema check not run::Gemini refused ARP_GEMINI_API_KEY on $m (see log)."
+            elif [ "$s" != 0 ]; then rc=1; fi
+          done
+          exit $rc
 
       - name: Compare the golden set with the evidence gate on and off
         # evidence-gate spec AC-31, AC-32: both pass. Tokens are printed, not gated: the golden cases are too short
@@ -161,6 +182,14 @@ jobs:
           arp rfp golden drafts --cases arp/golden_set/data/rfp_drafts.json --min-drafted 0.90 --min-blank 0.95 | tee -a "$GITHUB_STEP_SUMMARY"
           arp rfp golden drafts --cases arp/golden_set/data/rfp_unchanged_drafts.json --min-drafted 0.90 --min-blank 0.95 --min-unchanged 0.90 | tee -a "$GITHUB_STEP_SUMMARY"
           arp rfp golden drafts --cases arp/golden_set/data/rfp_chain_drafts.json --min-drafted 0.90 --min-blank 0.95 --min-unchanged 0.90 --min-library-first 0.95 | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Run the Refine chat golden set
+        if: steps.key.outputs.present == 'true' && steps.scope.outputs.refine == 'true'
+        env:
+          ARP_ANTHROPIC_API_KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
+        run: |
+          set -o pipefail
+          arp golden-set refine --cases tests/golden/refine/cases.json --min-accuracy 0.9 | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Run the authority-taxonomy golden case
         # runs even when an earlier golden step failed, so its own result is always reported

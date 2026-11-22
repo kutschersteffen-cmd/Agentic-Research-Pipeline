@@ -129,7 +129,7 @@ def golden_set_authority_taxonomy(
             settings=settings, llm=llm, value_chain_model=None,
         )
         wanted = [ActivityDefinition(name=n, in_scope_description="", out_of_scope_description="") for n in expected]
-        return theme, await match_activities(wanted, theme.activities, scope=spec["scope"], llm=llm)
+        return theme, await match_activities(wanted, theme.activities, scope=spec["scope"], llm=llm, cover=True)
 
     expected = spec["expected_activities"]
     theme, matches = asyncio.run(run())
@@ -199,6 +199,21 @@ def golden_set_run(
             typer.echo(f"       {result.detail}")
     typer.echo(f"\n{report.passed}/{report.total} passed (extractor={report.extractor_model}, verifier={report.verifier_model}).")
     if fail_on_regression and not report.all_passed:
+        raise typer.Exit(1)
+
+
+@golden_set_app.command("refine")
+def golden_set_refine(
+    cases: Path = typer.Option(..., exists=True, dir_okay=False, help="Refine cases (JSON); fixtures sit in a `fixtures/` folder beside it."),
+    min_accuracy: float = typer.Option(..., "--min-accuracy", help="Exit 1 below this share of passing cases."),
+) -> None:
+    """Runs each instruction through the Refine turn with the real model and checks the ops it returns."""
+    from arp.golden_set.refine import run_refine_golden
+
+    passed, total = asyncio.run(run_refine_golden(cases, build_llm_client(get_settings())))
+    accuracy = passed / total if total else 0.0
+    typer.echo(f"accuracy {accuracy:.3f} ({passed}/{total})")
+    if accuracy < min_accuracy:
         raise typer.Exit(1)
 
 

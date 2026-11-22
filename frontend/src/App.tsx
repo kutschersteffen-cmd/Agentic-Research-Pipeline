@@ -8,8 +8,7 @@ import { WORKSPACES, workspaceOfProcess, type WorkspaceId } from "./lib/processe
 import { STAGE_TABS } from "./pages/steward/common";
 import { SUB_TABS as RISK_TABS } from "./lib/subTabs";
 import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
-import { AskPanel } from "./components/AskPanel";
-import { clearTurns, loadTurns, saveTurns, type AskTurn } from "./lib/askHistory";
+import { ctrlJTarget, type Selection } from "./lib/agent";
 import { useMe } from "./lib/reviewer";
 import { AppTopbar } from "./components/AppTopbar";
 import { WorkspaceRow } from "./components/WorkspaceRow";
@@ -51,8 +50,9 @@ const IndexBuilder = lazy(() => import("./pages/IndexBuilder").then((x) => ({ de
 const ArgusWalkthrough = lazy(() => import("./pages/ArgusWalkthrough").then((x) => ({ default: x.ArgusWalkthrough })));
 const Company = lazy(() => import("./pages/Company").then((x) => ({ default: x.Company })));
 const XbrlFacts = lazy(() => import("./pages/XbrlFacts").then((x) => ({ default: x.XbrlFacts })));
+const DesignStrategy = lazy(() => import("./pages/DesignStrategy").then((x) => ({ default: x.DesignStrategy })));
 const ThemeDossiers = lazy(() => import("./pages/ThemeDossiers").then((x) => ({ default: x.ThemeDossiers })));
-const Plans = lazy(() => import("./pages/Plans").then((x) => ({ default: x.Plans })));
+const Agent = lazy(() => import("./pages/Agent").then((x) => ({ default: x.Agent })));
 const RfpAnswers = lazy(() => import("./pages/RfpAnswers").then((x) => ({ default: x.RfpAnswers })));
 
 const TABS = [
@@ -73,12 +73,13 @@ const TABS = [
   { id: "taxonomy", label: "Taxonomy Library" },
   { id: "emergingThemes", label: "Emerging Themes" },
   { id: "themes", label: "Theme dossiers" },
+  { id: "designStrategy", label: "Build a thematic portfolio" },
   { id: "backgroundAgents", label: "Background Agents" },
   { id: "transitionBarrier", label: "Transition Barriers" },
   { id: "portfolio-monitoring", label: "Risk Monitoring" },
-  { id: "review", label: "Review Queue" },
+  { id: "review", label: "Needs you" },
   { id: "history", label: "Run History" },
-  { id: "plans", label: "Research Plans" },
+  { id: "agent", label: "Agent" },
   { id: "stewardship", label: "Steward Workflow" },
   { id: "engagement", label: "Engagement" },
   { id: "voting", label: "Proxy Voting" },
@@ -87,7 +88,7 @@ const TABS = [
   { id: "signals", label: "Signals workbench" },
   { id: "valueChain", label: "Value Chain Explorer" },
   { id: "decision", label: "Decision Studio" },
-  { id: "index", label: "Index Construction" },
+  { id: "index", label: "Portfolio Builder" },
   { id: "xbrl", label: "XBRL Facts" },
   { id: "rfp", label: "RFP Answers" },
   { id: "library", label: "Data Library" },
@@ -134,6 +135,12 @@ function readRoute() {
   const target = redirectHash(window.location.hash);
   if (target) history.replaceState(null, "", target);
   return parseHash();
+}
+
+/** `#/agent/<plan_id>` selects a plan, `#/agent/ask/<thread_id>` an ask thread. */
+function agentSelection(params: string[]): Selection {
+  if (params[0] === "ask") return params[1] ? { kind: "ask", id: params[1] } : null;
+  return params[0] ? { kind: "plan", id: params[0] } : null;
 }
 
 function navigate(tab: TabId, ...params: string[]) {
@@ -203,29 +210,25 @@ function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const me = useMe();
   const canAsk = me != null && me.role !== "viewer";
-  const [askOpen, setAskOpen] = useState(false);
-  const [askTurns, setAskTurns] = useState<AskTurn[]>(() => loadTurns());
-  const askRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => saveTurns(askTurns), [askTurns]);
+  // Ask ARP lives on the Agent screen: Ctrl/⌘J focuses its composer, the palette's ask sends a new ask thread there.
+  const [agentFocus, setAgentFocus] = useState(0);
+  const [agentAsk, setAgentAsk] = useState<{ id: number; question: string } | null>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen(true);
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j" && canAsk) {
+      const target = ctrlJTarget(canAsk);
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j" && target) {
         e.preventDefault();
-        setAskOpen(true);
+        window.location.hash = target.replace(/^#/, "");
+        setAgentFocus(Date.now());
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [canAsk]);
-  function closeAsk() {
-    setAskOpen(false);
-    askRef.current?.focus();
-  }
-
   function go(id: TabId) {
     navigate(id);
   }
@@ -262,17 +265,17 @@ function App() {
       <AppTopbar
         active={active}
         canAsk={canAsk}
-        askOpen={askOpen}
-        askRef={askRef}
         waiting={waiting}
         onSearch={() => setPaletteOpen(true)}
-        onAsk={() => setAskOpen(true)}
       />
       <WorkspaceRow hash={window.location.hash} />
-      {askOpen && canAsk && (
-        <AskPanel turns={askTurns} setTurns={setAskTurns} onClose={closeAsk} onClear={() => { clearTurns(); setAskTurns([]); }} />
+      {paletteOpen && (
+        <CommandPalette
+          items={[...PALETTE_ITEMS, ...recentRuns.map(runItem)]}
+          onClose={() => setPaletteOpen(false)}
+          onAsk={canAsk ? (question) => { setAgentAsk({ id: Date.now(), question }); navigate("agent"); } : undefined}
+        />
       )}
-      {paletteOpen && <CommandPalette items={[...PALETTE_ITEMS, ...recentRuns.map(runItem)]} onClose={() => setPaletteOpen(false)} />}
       <main className="app-main" id="main" tabIndex={-1}>
         <ProcessBar tab={active} sub={route.params[0]} />
         {hub && (
@@ -301,13 +304,18 @@ function App() {
         {active === "taxonomy" && route.params[0] === "authority" && <AuthorityTaxonomyRun key={route.params[1] ?? "new"} runId={route.params[1]} />}
         {active === "taxonomy" && route.params[0] !== "authority" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
         {active === "emergingThemes" && <EmergingThemesDetector onNavigate={go} />}
+        {active === "designStrategy" && <DesignStrategy />}
         {active === "themes" && <ThemeDossiers params={route.params} onFindCompanies={sendToTheme} />}
         {active === "backgroundAgents" && <BackgroundAgents />}
         {active === "transitionBarrier" && <TransitionBarrierAssessment params={route.params} />}
         {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool key={route.params[0]} initialSub={route.params[0]} onSendUniverse={sendToArgus} />}
         {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} waiting={waiting} />}
         {active === "history" && <RunHistory onOpenReview={openReview} focusRunId={route.params[0] ?? null} />}
-        {active === "plans" && <Plans selectedId={route.params[0] ?? null} onSelect={(id) => navigate("plans", id)} />}
+        {active === "agent" && (
+          <Agent selected={agentSelection(route.params)} canAsk={canAsk} focusToken={agentFocus} pendingAsk={agentAsk}
+            onPendingAskTaken={() => setAgentAsk(null)}
+            onSelect={(s) => (s ? navigate("agent", ...(s.kind === "ask" ? ["ask", s.id] : [s.id])) : navigate("agent"))} />
+        )}
         {active === "stewardship" && <StewardWorkflow initialTab={route.params[0]} />}
         {active === "engagement" && <EngagementDashboard />}
         {active === "voting" && <VotingRuns selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("voting", id)} />}

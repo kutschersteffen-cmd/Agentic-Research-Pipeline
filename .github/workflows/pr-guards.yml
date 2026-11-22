@@ -101,3 +101,6 @@ jobs:
 
       - name: Self-test the Holdout completeness check
         run: python3 .github/scripts/holdout_complete.py --selftest
+
+      - name: Self-test the Rows line parser
+        run: python3 .github/scripts/holdout_rows.py --selftest

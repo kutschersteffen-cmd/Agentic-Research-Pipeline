@@ -150,8 +150,10 @@ def test_ac2_argus_head_has_no_duplicate_links(page):
     assert head.get_by_role("link", name="XBRL Facts").count() == 0
     assert head.get_by_role("button", name="Start new extraction").count() == 1
     row = page.get_by_role("navigation", name="Argus screens")
-    assert row.get_by_role("link", name="Walkthrough").count() == 1
     assert row.get_by_role("link", name="XBRL Facts").count() == 1
+    # ui-trim-workspaces: Walkthrough left the row for "How it works" under the intro.
+    assert row.get_by_role("link", name="Walkthrough").count() == 0
+    assert page.get_by_role("link", name="How it works").count() == 1
 
 
 def test_ac5_process_chips_below_heading_on_phone(page):
@@ -185,14 +187,15 @@ def test_ac11b_failed_line_links_to_run_history(page):
     page.route("**/api/runs", runs)
     _open(page, "/#/rdLab")
     line = page.locator(".hub-failed-line")
-    assert line.count() == 1  # only "Launch a thematic product" watches emerging_themes
-    assert line.inner_text().startswith("Last run failed: Launch a thematic product.")
+    assert line.count() == 1  # only "Build a thematic portfolio" (was "Launch a thematic product") watches emerging_themes
+    assert line.inner_text().startswith("Last run failed: Build a thematic portfolio.")
     assert line.get_by_role("link", name="Open Run history →").get_attribute("href") == "#/history"
     low = page.evaluate("() => { const d = document.createElement('span'); d.style.color = 'var(--low)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; }")
     assert line.evaluate("e => getComputedStyle(e).color") == low
 
 
-@pytest.mark.parametrize("path,title", [("/#/history", "Run History"), ("/#/library", "Data Library")])
+# ui-trim-workspaces removed the Library hub; Themes is the other hub now.
+@pytest.mark.parametrize("path,title", [("/#/history", "Run History"), ("/#/themes", "Theme dossiers")])
 def test_ac6_hub_title_shows_and_links_are_tabs(page, path, title):
     _open(page, path)
     h1 = page.locator("main h1").first

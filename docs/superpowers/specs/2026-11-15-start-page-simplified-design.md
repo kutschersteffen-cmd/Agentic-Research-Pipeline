@@ -208,6 +208,8 @@ the Review Queue badge.
 
 ## Acceptance
 
+Superseded by `2026-11-21-agent-panel-code-mode.md` Phase 7 (slice 13): AC-6b and AC-6c (the Ask panel opens, focus after it closes).
+
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
 | AC-1a | The running app at `/#/home`, 1440×900 | The page loads | There is no `.app-sidebar` element | evaluator |

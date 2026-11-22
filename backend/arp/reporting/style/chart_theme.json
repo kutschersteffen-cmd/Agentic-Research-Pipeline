@@ -1,0 +1,8 @@
+{
+  "view": {"stroke": null},
+  "text": {"font": "{body}", "fontSize": 24},
+  "style": {
+    "category-label": {"color": "{muted}"},
+    "data-label": {"color": "{ink}"}
+  }
+}

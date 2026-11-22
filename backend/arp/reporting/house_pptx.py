@@ -7,6 +7,7 @@ is re-fitted here. Fonts are named, not embedded (python-pptx cannot embed them)
 
 from __future__ import annotations
 
+import io
 import tempfile
 from pathlib import Path
 
@@ -24,7 +25,10 @@ from arp.reporting.house_style import Mode, Rect, Tokens, TypeStyle, footer_fits
 from arp.reporting.html_render import HOUSE_LAYOUTS, table_view, theme_from_tokens
 from arp.reporting.pptx_writer import pptx_slide
 from arp.reporting.render_model import palette, render_slide, source_line
+from arp.reporting.vega import layout_spec, to_png
+from arp.schemas.chart_specs import ChartType
 from arp.schemas.reporting import Deck, QuantitativeDataset, SlideContent
+from arp.storage.report_images import LoadedImage
 
 _ROW_PX = 46  # table row: caption line + 2x10px padding, as in the HTML
 
@@ -159,6 +163,10 @@ class _Builder:
                 frame = slide.shapes.add_chart(kind, self._e(r.x), self._e(r.y), self._e(r.w), self._e(r.h), data)
                 frame.name = name
                 style_native_chart(frame.chart, content.chart, self.theme, min_pt=round(24 * self.pt))  # 24px floor on the 1920px canvas
+            elif content.chart.chart_type in (ChartType.WATERFALL, ChartType.HEATMAP):  # the PNG of the HTML's Vega-Lite spec
+                png = to_png(layout_spec(content.chart, list(datasets.values()), r.w, r.h, self.theme, self.t, self.mode), self.t)
+                pic = slide.shapes.add_picture(io.BytesIO(png), self._e(r.x), self._e(r.y), self._e(r.w), self._e(r.h))
+                pic.name = name
             else:
                 with tempfile.TemporaryDirectory() as tmp:
                     img = render_chart_image(content.chart, list(datasets.values()), Path(tmp) / "c.png", width_in=r.w / 96, height_in=r.h / 96, theme=self.theme)
@@ -215,7 +223,8 @@ class _Builder:
             slide.notes_slide.notes_text_frame.text = notes
 
 
-def build_house_pptx(deck: Deck, datasets: list[QuantitativeDataset], out: Path, tokens: Tokens | None = None, mode: Mode = "light") -> Path:
+def build_house_pptx(deck: Deck, datasets: list[QuantitativeDataset], out: Path, tokens: Tokens | None = None, mode: Mode = "light", *,
+                     images: dict[str, LoadedImage] | None = None, cover_image: str | None = None) -> Path:
     tokens = tokens or load_tokens()
     prs = Presentation()
     b, by_id = _Builder(tokens, mode), {d.dataset_id: d for d in datasets}
@@ -227,10 +236,12 @@ def build_house_pptx(deck: Deck, datasets: list[QuantitativeDataset], out: Path,
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         slide.background.fill.solid()
         slide.background.fill.fore_color.rgb = _rgb(palette(tokens, mode)["panel"])
-        pptx_slide(slide, render_slide(content, i, deck, tokens, by_id, mode), tokens, mode, tokens.emu_per_px)
+        pptx_slide(slide, render_slide(content, i, deck, tokens, by_id, mode, images=images, cover_image=cover_image), tokens, mode, tokens.emu_per_px, images)
         notes = content.speaker_notes
         if not footer_fits(tokens):  # no source zone under the template's body box: the source line moves to the notes
             notes = "\n".join(x for x in (notes, content.source_line or source_line(content, by_id)) if x)
+        if content.visual.type == "flow" and content.visual.mermaid.strip():  # the flow's source, so it can be edited and rebuilt
+            notes = "\n".join(x for x in (notes, "Mermaid source:\n" + content.visual.mermaid.rstrip()) if x)
         if notes:
             slide.notes_slide.notes_text_frame.text = notes
     out.parent.mkdir(parents=True, exist_ok=True)

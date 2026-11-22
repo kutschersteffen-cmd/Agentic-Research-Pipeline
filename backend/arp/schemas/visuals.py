@@ -96,7 +96,7 @@ class KpiRow(BaseModel):
 class Chart(BaseModel):
     type: Literal["chart"] = "chart"
     data: ChartSpec
-    kind: Literal["bar", "column", "stacked_column", "line"]
+    kind: Literal["bar", "column", "stacked_column", "line", "waterfall", "heatmap"]
     unit: Chars(6) = ""
     data_labels: bool = True
     highlight: str | None = None
@@ -107,6 +107,13 @@ class Chart(BaseModel):
     def _series(self):
         if not 1 <= len(self.data.value_columns) <= 3:
             raise ValueError("a chart plots 1 to 3 value columns")
+        if self.kind == "waterfall" and len(self.data.value_columns) != 1:
+            raise ValueError("a waterfall plots 1 value column")
+        if self.kind == "heatmap":
+            if not self.data.y_column:
+                raise ValueError("a heatmap needs y_column")
+            if len(self.data.value_columns) != 1:
+                raise ValueError("a heatmap plots 1 value column")
         return self
 
 
@@ -146,7 +153,139 @@ class NextSteps(BaseModel):
     emphasis: int | None = 0
 
 
-Visual = Annotated[Cover | Section | KpiRow | Chart | ComparisonTable | TwoColumn | Points | NextSteps, Field(discriminator="type")]
+class FlowStep(BaseModel):
+    id: Annotated[str, Field(pattern=r"^[A-Za-z][A-Za-z0-9_]{0,31}$")]
+    label: Annotated[Words(5), Field(pattern=r"\S")]
+    tag: Chars(24) = ""
+    kind: Literal["step", "decision", "data"] = "step"
+    actor: str | None = None
+    stored: bool = False
+
+
+class FlowArrow(BaseModel):
+    source: str
+    target: str
+    label: Words(3) = ""
+
+
+class FlowBox(BaseModel):
+    """A rectangle in canvas px."""
+
+    x: float
+    y: float
+    w: float
+    h: float
+
+
+class FlowStepLayout(BaseModel):
+    id: str
+    box: FlowBox
+    label_lines: list[str]
+
+
+class FlowArrowLayout(BaseModel):
+    points: list[tuple[float, float]]  # the route, source border to target border
+    label_box: FlowBox | None = None
+
+
+class FlowLayout(BaseModel):
+    """Filled by code (`layout_flows`), never by the model. All positions are absolute canvas px."""
+
+    type_step: Literal[0, 1] = 0
+    wrapped: bool = False
+    too_big: bool = False
+    width: float = 0
+    height: float = 0
+    steps: list[FlowStepLayout] = Field(default_factory=list)  # in `steps` order
+    arrows: list[FlowArrowLayout] = Field(default_factory=list)  # in `arrows` order
+
+
+class Flow(BaseModel):
+    type: Literal["flow"] = "flow"
+    mermaid: str = ""
+    direction: Literal["LR", "TB"] = "LR"
+    steps: list[FlowStep] = Field(min_length=2, max_length=12)
+    actors: list[str] = Field(default_factory=list, max_length=4)
+    arrows: list[FlowArrow] = Field(default_factory=list, max_length=20)
+    emphasis: str | None = None
+    layout: FlowLayout | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _parse_mermaid(cls, data):
+        if isinstance(data, dict) and isinstance(data.get("mermaid"), str) and data["mermaid"].strip():
+            from arp.reporting.mermaid_flow import MermaidError, parse_mermaid
+
+            try:
+                parsed = parse_mermaid(data["mermaid"])
+            except MermaidError as e:
+                raise ValueError(str(e)) from None
+            data = {**data, **parsed.model_dump(include={"direction", "steps", "actors", "arrows", "emphasis"})}
+        return data
+
+    @model_validator(mode="after")
+    def _consistent(self):
+        ids = [s.id for s in self.steps]
+        if len(set(ids)) != len(ids):
+            raise ValueError("step ids must be unique")
+        pairs = [(a.source, a.target) for a in self.arrows]
+        for a in self.arrows:
+            if a.source not in ids or a.target not in ids:
+                raise ValueError(f"arrow {a.source}→{a.target} names an unknown step")
+            if a.source == a.target:
+                raise ValueError(f"arrow {a.source}→{a.target}: a step cannot point to itself")
+        if len(set(pairs)) != len(pairs):
+            raise ValueError("an arrow appears twice")
+        for s in self.steps:
+            if s.actor is not None and s.actor not in self.actors:
+                raise ValueError(f"step {s.id}: actor {s.actor} is not in actors")
+            if self.actors and s.actor is None:
+                raise ValueError(f"step {s.id} has no actor; give every step an actor or none")
+        if self.emphasis is not None and self.emphasis not in ids:
+            raise ValueError(f"emphasis {self.emphasis} is not a step id")
+        return self
+
+
+class FlowAnswer(BaseModel):
+    """What slide fill asks the model for in place of `Flow`: only the Mermaid text. It does not parse, so a client's own
+    validation retries never see a Mermaid error; slide fill validates it into `Flow` and retries once itself."""
+
+    type: Literal["flow"] = "flow"
+    mermaid: str
+
+
+class ImageItem(BaseModel):
+    name: str  # a registered image name; checked against the request when the fill is validated
+    caption: Words(10) = ""
+
+
+class ImageVisual(BaseModel):
+    type: Literal["image"] = "image"
+    variant: Literal["hero", "split", "gallery"]
+    images: list[ImageItem] = Field(min_length=1, max_length=6)
+    points: list[Words(14)] = Field(default_factory=list, max_length=4)
+    side: Literal["left", "right"] = "left"  # split: where the image sits
+    emphasis: int | None = None  # split: 0-based index into points
+
+    @model_validator(mode="after")
+    def _variant(self):
+        seen: set[str] = set()
+        for i in self.images:  # checked first: "any variant", so the model hears it whatever else is wrong
+            if i.name in seen:
+                raise ValueError(f"image '{i.name}' appears twice")
+            seen.add(i.name)
+        n, p = len(self.images), len(self.points)
+        if self.variant == "hero" and (n != 1 or p):
+            raise ValueError("a hero shows exactly 1 image and no points")
+        if self.variant == "split" and (n != 1 or not 2 <= p <= 4):
+            raise ValueError("a split shows exactly 1 image and 2 to 4 points")
+        if self.variant == "gallery" and (not 2 <= n <= 6 or p or not all(i.caption for i in self.images)):
+            raise ValueError("a gallery shows 2 to 6 images, each with a caption, and no points")
+        return self
+
+
+Visual = Annotated[Cover | Section | KpiRow | Chart | ComparisonTable | TwoColumn | Points | NextSteps | Flow | ImageVisual,
+                   Field(discriminator="type")]
 
 FRIENDLY_NAMES: dict[str, str] = {
     "cover": "Cover",
@@ -157,4 +296,6 @@ FRIENDLY_NAMES: dict[str, str] = {
     "two_column": "Two columns",
     "points": "Key points",
     "next_steps": "Next steps",
+    "flow": "Flowchart",
+    "image": "Image",
 }

@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import asyncio
 import fcntl
+import hashlib
 import json
+import threading
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -19,6 +21,8 @@ from arp.llm.base import LLMUsage
 T = TypeVar("T", bound=BaseModel)
 
 _MISSING = object()
+_LIST_CALLS: dict[Path, tuple[tuple, int]] = {}  # stand-in list file -> (its version, calls answered from it)
+_LIST_LOCK = threading.Lock()
 
 
 def active_dir() -> Path | None:
@@ -39,6 +43,17 @@ def _read(path: Path) -> Any:
     except FileNotFoundError:
         return _MISSING
     return json.loads(text)
+
+
+def _list_entry(path: Path, entries: list) -> Any:
+    """A list stand-in answers call i (counted per file since it was last written) with entry i, then the last one."""
+    version = (path.stat().st_mtime_ns, hashlib.sha256(json.dumps(entries).encode()).hexdigest())
+    with _LIST_LOCK:
+        seen, n = _LIST_CALLS.get(path, (None, 0))
+        if seen != version:
+            n = 0
+        _LIST_CALLS[path] = (version, n + 1)
+    return entries[min(n, len(entries) - 1)] if entries else None
 
 
 async def _delay(entry: Any) -> None:
@@ -69,6 +84,8 @@ class StandInLLMClient:
             raise RuntimeError(f"stand-in model/{name}.json is not valid JSON") from None
         if entry is _MISSING:
             raise RuntimeError(f"no stand-in for {name}")
+        if isinstance(entry, list):
+            entry = _list_entry(self._folder / "model" / f"{name}.json", entry)
         await _delay(entry)
         if isinstance(entry, dict) and "error" in entry:
             raise RuntimeError(str(entry["error"]))
@@ -114,3 +131,17 @@ async def fetch_text(folder: Path, url: str) -> str | None:
     if not isinstance(entry, dict) or not isinstance(entry.get("text"), str):
         return None
     return entry["text"]
+
+
+def exploration_code(folder: Path, question: str, attempt: int = 1) -> str:
+    """Entry `attempt` of explore.json's list for `question`: `{"<question>": [{"code": "<js>"}, ...]}`."""
+    _record(folder, {"kind": "model", "name": "ExplorationCode", "question": question})
+    try:
+        entries = _read(folder / "explore.json")
+    except ValueError:
+        raise RuntimeError("stand-in explore.json is not valid JSON") from None
+    answers = entries.get(question) if isinstance(entries, dict) else None
+    entry = answers[attempt - 1] if isinstance(answers, list) and len(answers) >= attempt else None
+    if not isinstance(entry, dict) or not isinstance(entry.get("code"), str):
+        raise RuntimeError(f"no stand-in code for {question!r} in explore.json")
+    return entry["code"]

@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from arp.api.auth import Principal, current_user
 from arp.api.routers import plans
+from arp.config import get_settings
 from arp.orchestration.plan_store import PlanStore
 
 GATED = """u = universe_build(taxonomy_id="t", source="u.csv")
@@ -47,13 +48,16 @@ def world():
 @pytest.fixture
 def client(store, world, monkeypatch):
     monkeypatch.setattr(plans, "build_runtime", lambda settings: (world.steps(), lambda c: world.reviewed))
-    monkeypatch.setattr(plans, "REVIEW_POLL_SECONDS", 0.05, raising=False)  # absent before the fix
     app = FastAPI()
     app.include_router(plans.router)
     app.dependency_overrides[plans.plan_store] = lambda: store
     app.dependency_overrides[current_user] = lambda: Principal(user_id="alice", name="alice", role="approver")
     with TestClient(app) as c:
+        # POST /run only claims a plan: the plan worker the API lifespan starts runs it (agent-panel-code-mode D1)
+        worker = c.portal.start_task_soon(
+            plans.plan_worker, get_settings().model_copy(update={"plan_worker_seconds": 0.05}))
         yield c
+        worker.cancel()
         for p in store.list():  # let any worker still waiting (the old blocking wait) end
             if p["status"] in {"running", "awaiting_review"}:
                 store.set_status(p["id"], "cancelled")

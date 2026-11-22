@@ -262,6 +262,8 @@ one row, not two.
 
 ## Acceptance
 
+Superseded by `2026-11-21-agent-panel-code-mode.md` Phase 7 (slice 13): AC-35 to AC-45, AC-48, AC-51, AC-52 and AC-54 (the panel rows; its AC-68c re-covers the history rows, AC-69b the failed-turn row, AC-76e the disabled-while-working row). Re-pointed: AC-29 to AC-34, AC-46 and AC-49 now apply to the answer card in an ask thread on `#/agent/ask/<id>`.
+
 Backend rows replace the model with stand-ins: one for routing and, on the portfolio and Smart Search paths, one
 for the downstream agent. Each stand-in returns the same fixed output on every call. `evaluator` rows use the
 real model in the running app.

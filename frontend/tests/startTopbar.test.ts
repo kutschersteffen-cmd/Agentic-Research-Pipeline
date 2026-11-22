@@ -5,7 +5,11 @@ import { readFileSync } from "node:fs";
 // Start page simplified (docs/superpowers/specs/2026-11-15-start-page-simplified-design.md).
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), "utf8");
 const bar = () => read("../src/components/AppTopbar.tsx");
-test("sp_ac3b_ask_only_when_available", () => assert.match(bar(), /\{canAsk && \(\s*<button[^>]*className="start-topbar-ask"/));
+// ui-trim-workspaces: one box; it offers asking only when asking is available.
+test("sp_ac3b_ask_only_when_available", () => {
+  assert.ok(!bar().includes("start-topbar-ask"));
+  assert.ok(bar().includes('canAsk ? "Search or ask…" : "Search…"'));
+});
 test("sp_ac5_same_badge_source", () => {
   // One badge: the top bar's, fed by /api/waiting.
   assert.ok(bar().includes("waitingBadge("), "AppTopbar");
@@ -16,7 +20,7 @@ test("wc_badge_not_from_review_count", () => {
 });
 test("sp_kbd_hints_hidden_from_names", () => {
   const kbds = bar().match(/<kbd[^>]*>/g) ?? [];
-  assert.equal(kbds.length, 2);
+  assert.equal(kbds.length, 1); // ui-trim-workspaces: the ⌘J hint left with the Ask ARP button
   for (const k of kbds) assert.ok(k.includes('aria-hidden="true"'), k);
 });
 test("pr1_no_sidebar_anywhere", () => {

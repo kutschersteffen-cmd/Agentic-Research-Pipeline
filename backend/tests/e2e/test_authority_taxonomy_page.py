@@ -282,7 +282,9 @@ def test_unsaved_edit_guards_same_screen_links(page):
     open_run(page, review_state())
     page.get_by_label("Criterion 1").first.fill("edited")
     page.once("dialog", lambda d: d.dismiss())
-    page.get_by_role("navigation", name="R&D Lab screens").get_by_role("link", name="Taxonomy Library").click()
+    row = page.get_by_role("navigation", name="R&D Lab screens")  # ui-trim-workspaces: under More
+    row.get_by_role("button", name="More").click()
+    row.get_by_role("link", name="Taxonomy Library").click()
     page.wait_for_timeout(300)
     assert page.evaluate("() => location.hash") == "#/taxonomy/authority/r1"
     assert page.get_by_label("Criterion 1").first.input_value() == "edited"

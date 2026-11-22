@@ -16,7 +16,7 @@ Pick the highest tier any changed file falls in, add the label, and say why in o
 |---|---|---|
 | `risk:low` | Only `docs/**`, `*.md` outside `.claude/`, frontend copy or styles (`*.css`, text-only `.tsx` edits) | Nothing if the dispatcher tracks it: it auto-merges once every gate is clean; else merges it on GitHub |
 | `risk:normal` | Anything not low or high | Nothing if the dispatcher tracks it: it auto-merges once every gate is clean; else merges it on GitHub |
-| `risk:high` | Auth, permissions, secrets; database schema or data migrations; money, portfolio weights or index maths; deleting stored data; `.github/workflows/**`, `.github/scripts/**`, `.gitleaksignore`; any file a session loads at start (`.claude/**`, `.claude-plugin/**`, `.mcp.json`) | Reads the acceptance matrix and the diff, then merges on GitHub |
+| `risk:high` | Auth, permissions, secrets; database schema or data migrations; money, portfolio weights or index maths; deleting stored data; `.github/workflows/**`, `.github/scripts/**`, `.gitleaksignore`; anything that triggers a deploy (the `deploy-compute.yml` paths: `backend/arp/ingestion/**`, `backend/arp/compute/**`, `backend/arp/retrieval/rerank.py`, `backend/arp/retrieval/embeddings.py`, `backend/arp/schemas/common.py`, `backend/pyproject.toml`, `backend/Dockerfile.compute`, `scripts/gcp/**`); any file a session loads at start (`.claude/**`, `.claude-plugin/**`, `.mcp.json`) | Reads the acceptance matrix and the diff, then merges on GitHub |
 
 A `risk:low` or `risk:normal` PR is merged without a tap by the factory dispatcher once every gate in
 `.claude/CLAUDE.md` (auto-merge) is clean; else the owner merges it. Relabel `risk:high` if a later push
@@ -29,7 +29,7 @@ When the PR implements a spec, put `Spec: <slug>` on its own line in the descrip
 name without date and `.md`), so the Holdout acceptance job runs that spec's hidden tests. You never
 see those tests: a failure reads `<slug> AC-n: fail`; fix the behaviour the row describes.
 When the PR builds one slice of a spec, add a `Rows: AC-1, AC-4` line under it naming the rows that
-slice delivers, so hidden tests for later slices don't run yet. The last slice drops the line.
+slice delivers (each ID listed, suffixes such as `AC-4b` included, no ranges: an unreadable line fails the check), so hidden tests for later slices don't run yet. The last slice drops the line.
 A PR that fixes a nightly failure puts `Holdout: full` and `Refs #<issue>` (the nightly issue) each on its
 own line, so the full hidden suite runs before it merges. Its fix-round count starts at 0. The issue closes
 on the next green full run on `main`, not by the PR. If `Holdout acceptance` skips because no app code

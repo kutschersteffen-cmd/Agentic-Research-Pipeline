@@ -6,8 +6,10 @@ from collections.abc import Callable
 
 from pydantic import BaseModel, Field
 
+from arp.config import get_settings
 from arp.errors import ClientInputError
-from arp.llm.base import LLMClient
+from arp.llm.base import LLMClient, LLMUsage
+from arp.orchestration.cost_tracker import estimate_cost_usd
 from arp.orchestration.plan_api import BUILTINS, STEPS
 from arp.orchestration.plan_check import MAX_LINES
 from arp.orchestration.plan_store import PlanNotReplannable, PlanStore
@@ -68,21 +70,28 @@ def planner_context(taxonomies, frameworks, calibrations=(), universes=()) -> st
                                                               or "- none saved yet"))
 
 
+def _cost(usage: LLMUsage) -> float:
+    return estimate_cost_usd(usage.model or get_settings().llm_model, usage)
+
+
 # Extra checks on a script's dry run (one error line each), e.g. the API's saved-universe check.
 StepCheck = Callable[[list[dict]], list[str]]
 
 
 async def draft_plan(brief: str, llm: LLMClient, store: PlanStore, context: str = "",
-                     check: StepCheck | None = None) -> str:
+                     check: StepCheck | None = None, source_ask_id: str | None = None) -> str:
     """Store the planner's script as a draft plan and return its id. Raises PlanRejected."""
     system = SYSTEM.replace("{stubs}", step_stubs())
     base = f"Research brief:\n{brief}" + (f"\n\n{context}" if context else "")
     prompt = base
     errors: list[str] = []
+    cost = 0.0  # every attempt's model call, stored on the plan once one is accepted
     for _ in range(2):
-        out, _usage = await llm.complete_structured(system=system, prompt=prompt, output_model=PlanScript)
+        out, usage = await llm.complete_structured(system=system, prompt=prompt, output_model=PlanScript)
+        cost += _cost(usage)
         try:  # checks the script, then dry-runs it off the event loop
-            return await asyncio.to_thread(store.create, brief, out.script, check=check)
+            return await asyncio.to_thread(store.create, brief, out.script, check=check, planner_cost_usd=cost,
+                                           source_ask_id=source_ask_id)
         except ValueError as exc:
             errors = str(exc).splitlines()
         prompt = (f"{base}\n\nYour previous script:\n{out.script}\n\n"
@@ -117,7 +126,8 @@ async def replan_plan(plan_id: str, llm: LLMClient, store: PlanStore, context: s
     prompt = base
     errors: list[str] = []
     for _ in range(2):
-        out, _usage = await llm.complete_structured(system=system, prompt=prompt, output_model=PlanScript)
+        out, usage = await llm.complete_structured(system=system, prompt=prompt, output_model=PlanScript)
+        await asyncio.to_thread(store.add_planner_cost, plan_id, _cost(usage))
         try:  # checks the script, then dry-runs it with the finished steps' results, off the event loop
             return await asyncio.to_thread(store.replan, plan_id, out.script, user, check)
         except ValueError as exc:

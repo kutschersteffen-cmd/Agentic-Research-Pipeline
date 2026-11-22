@@ -34,7 +34,8 @@ def card(page, heading):
 
 def test_risk_monitoring_opens_on_monitoring_and_alerts(page):
     page.goto(f"{URL}/#/portfolio-monitoring")
-    assert page.get_by_role("button", name="Monitoring & Alerts").get_attribute("aria-pressed") == "true"
+    # ui-trim-workspaces: the tab "Monitoring & Alerts" is now "Alerts".
+    assert page.get_by_role("button", name="Alerts", exact=True).get_attribute("aria-pressed") == "true"
     page.get_by_role("heading", name="Add a monitoring rule").wait_for()
 
 

@@ -117,8 +117,8 @@ def test_pptx_primitive_details(tmp_path):
 
 def test_html_chart_is_inline_svg():
     html = render_deck_html(Deck(title="D", slides=[_slide()]), [EPS])
-    assert '<svg data-name="chart"' in html and "<rect" in html and ">18%<" in html
-    assert '<svg data-name="chart:2"' in html and "<polyline" in html and ">u 7.0%<" in html  # line: series name and last value at the end
+    assert '<svg data-name="chart"' in html and 'aria-roledescription="rect mark"' in html and ">18%<" in html  # Vega-Lite bars
+    assert '<svg data-name="chart:2"' in html and 'class="mark-line' in html and ">u 7.0%<" in html  # line: series name and last value at the end
 
 
 def _table_html(html: str) -> str:

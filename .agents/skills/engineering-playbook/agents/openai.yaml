@@ -1,0 +1,6 @@
+interface:
+  display_name: "Engineering Playbook"
+  short_description: "Run an evidence-led engineering workflow with a 15-minute budget"
+  default_prompt: "Use $engineering-playbook to plan this task and identify its approval and verification gates."
+policy:
+  allow_implicit_invocation: false

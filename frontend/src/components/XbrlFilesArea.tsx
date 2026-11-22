@@ -91,8 +91,7 @@ export function XbrlFilesArea(p: {
     <section className="card" aria-labelledby="xbrl-files-title">
       <h2 id="xbrl-files-title">Files</h2>
       <p className="help-text" id="xbrl-files-hint">
-        What is stored for each fetched company. Choose a company’s name to see its facts below. The annual report is
-        third-party HTML: it is only downloaded, never opened in this app.
+        What is stored for each fetched company. Choose a company’s name to see its facts below.
       </p>
       {error && <p className="error-text">Fetched companies could not be loaded ({error}).</p>}
       {!data && !error && <p className="muted">Loading fetched companies…</p>}

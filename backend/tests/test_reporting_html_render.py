@@ -84,17 +84,15 @@ def test_dark_mode_uses_dark_ground_lime_accent_and_dark_heading_font():
     assert "font-family: 'Hanken Grotesk'" in dark and "font-family: 'Hanken Grotesk'" not in light
 
 
-def test_chart_svg_uses_dark_ink_and_projector_sized_text():
+def test_ac21_ac21b_layout_chart_dark_text_size_and_label_colour():
+    """Replaces test_chart_svg_uses_dark_ink_and_projector_sized_text: layout charts are Vega-Lite now (AC-21, AC-21b)."""
     import re
 
-    from arp.reporting.chart_builder import render_chart_svg
-    from arp.reporting.house_style import load_tokens
-    from arp.reporting.html_render import theme_from_tokens
-    from tests.fixtures.stress_deck import stress_deck
+    from tests.test_reporting_vega_layout import L, chart_svg
 
-    deck, ds = stress_deck("min")
-    spec = next(s.chart for s in deck.slides if s.chart)
-    svg = render_chart_svg(spec, ds, width_px=1200, height_px=600, theme=theme_from_tokens(load_tokens(), "dark"))
-    assert f"fill: {load_tokens().color_dark.ink_muted.lower()}" in svg
-    scale = 1200 / float(re.search(r'width="([\d.]+)pt"', svg).group(1))
-    assert min(float(x) for x in re.findall(r"font-size: ([\d.]+)px", svg)) * scale >= 24
+    svg = chart_svg(L("bar"), "dark")
+    texts = re.findall(r"<text[^>]*>([^<]*)</text>", svg)
+    assert texts
+    assert len(re.findall(r'<text[^>]* font-size="24px"', svg)) == len(texts)
+    fills = {t: f for f, t in re.findall(r'<text[^>]* fill="([^"]*)"[^>]*>([^<]*)</text>', svg)}
+    assert {fills[c].lower() for c in ("North", "South", "West")} == {"#a3acbb"}

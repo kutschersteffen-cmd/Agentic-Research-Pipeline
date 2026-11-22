@@ -35,7 +35,7 @@ test("AC-9: awaits only where a dot waits", () => {
   assert.deepEqual(got, { StewardIQ: true, Argus: true, "Transition Intelligence Platform": false, "R&D Lab": false, "Data Hub": false });
 });
 
-test("AC-10: busy R&D Lab now line names the failed process", () => assert.equal(view("R&D Lab", busy).now, "Launch a thematic product"));
+test("AC-10: busy R&D Lab now line names the failed process", () => assert.equal(view("R&D Lab", busy).now, "Build a thematic portfolio"));
 test("AC-11: busy Data Hub now line", () => assert.equal(view("Data Hub", busy).now, "No runs yet"));
 test("AC-12: calm Argus now line gives the last run's age", () => assert.equal(view("Argus", calm).now, "Last run 2 h ago"));
 
@@ -158,7 +158,7 @@ test("pol_ac11_failed_processes", () => {
   const watching = lab.processes.filter((p) => p.steps.some((s) => s.runTypes?.includes("calibration"))).map((p) => p.title);
   assert.ok(watching.length >= 1);
   assert.deepEqual(failedProcesses(lab, [run("calibration", "failed")], null, null), watching);
-  assert.deepEqual(failedProcesses(lab, [run("emerging_themes", "failed")], null, null), ["Launch a thematic product"]);
+  assert.deepEqual(failedProcesses(lab, [run("emerging_themes", "failed")], null, null), ["Build a thematic portfolio"]);
   assert.deepEqual(failedProcesses(lab, [], null, null), []);
   assert.deepEqual(failedProcesses(lab, null, null, null), []);
 });
@@ -169,4 +169,9 @@ test("pol_failed_with_wait", () => {
   const voting = sq.processes.filter((p) => p.steps.some((s) => s.runTypes?.includes("proxy_voting"))).map((p) => p.title);
   assert.deepEqual(out, voting);
   assert.deepEqual(voting, ["Proxy season"]);
+});
+
+test("rd-lab-rename AC-11: Argus Template step names R&D Lab", () => {
+  const steps = WORKSPACES.find((w) => w.id === "argus")!.processes.flatMap((p) => p.steps);
+  assert.equal(steps.find((s) => s.label === "Template")!.does, "Build and ratify scoring templates in Decision Studio (R&D Lab); only ratified versions reach Argus.");
 });

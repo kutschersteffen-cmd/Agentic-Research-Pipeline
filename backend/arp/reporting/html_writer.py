@@ -1,32 +1,28 @@
 """Render-model primitives -> absolutely positioned HTML for one slide; every element carries `data-name`.
 
-Charts are inline SVG drawn from the ChartPrim geometry (no matplotlib), so the box matches the PPTX chart frame.
+Charts are inline Vega-Lite SVG drawn from the ChartPrim geometry (`vega.py`), so the box matches the PPTX chart frame.
 """
 
 from __future__ import annotations
 
+import base64
 from html import escape
 
 from arp.reporting.house_style import Mode, Tokens
-from arp.reporting.render_model import (
-    CHART_LABEL as _LABEL,
-)
+from arp.reporting.image_embed import embedded
 from arp.reporting.render_model import (
     ChartPrim,
+    ImagePrim,
     Line,
     Primitive,
     Rect,
     TablePrim,
     Text,
-    bar_label_width,
-    bar_plot_x,
-    column_plot_y,
-    decimals,
     family,
-    line_point,
     palette,
-    value_range,
 )
+from arp.reporting.vega import chart_spec, to_svg
+from arp.storage.report_images import LoadedImage
 
 _JUSTIFY = {"top": "flex-start", "middle": "center", "bottom": "flex-end"}
 
@@ -76,58 +72,10 @@ def _line(p: Line) -> str:
             + f'><polyline points="{pts}" fill="none" stroke="{_a(p.color)}" stroke-width="{p.width}"/>{head}</svg>')
 
 
-def _chart(p: ChartPrim, c: dict[str, str], body: str) -> str:
-    n, dec = len(p.categories), decimals([v for s in p.series for v in s.values])
-    fmt = lambda v: f"{v:.{dec}f}{p.unit}".replace("-", "−")  # noqa: E731
-    # category labels muted, value labels ink
-    txt = lambda x, y, s, anchor="middle", color="muted": (f'<text x="{x}" y="{y}" text-anchor="{anchor}" '  # noqa: E731
-                                                           f'font-size="{_LABEL}" fill="{_a(c[color])}">{escape(s)}</text>')
-    stacked = p.kind == "stacked_column"
-    lo, hi = value_range(p)
-    out = []
-    if p.kind == "bar":  # horizontal: category labels right-aligned left of the bars, value labels right of the bar
-        lw, band = bar_label_width(p), p.h / max(n, 1)
-        x0, x1 = bar_plot_x(p)
-        sx = lambda v: x0 + (v - lo) / (hi - lo) * (x1 - x0)  # noqa: E731
-        bh = band * 0.6 / len(p.series)
-        for i, cat in enumerate(p.categories):
-            out.append(txt(lw, i * band + band / 2 + _LABEL / 3, cat, "end"))
-            for j, s in enumerate(p.series):
-                v, y = s.values[i], i * band + band * 0.2 + j * bh
-                out.append(f'<rect x="{min(sx(0), sx(v))}" y="{y}" width="{abs(sx(v) - sx(0))}" height="{bh}" fill="{_a(s.colors[i])}"/>')
-                if p.labels:
-                    out.append(txt(max(sx(0), sx(v)) + 8, y + bh / 2 + _LABEL / 3, fmt(v), "start", "ink"))
-    else:
-        band, (y0, y1) = p.w / max(n, 1), column_plot_y(p)
-        sy = lambda v: y1 - (v - lo) / (hi - lo) * (y1 - y0)  # noqa: E731
-        for i, cat in enumerate(p.categories):
-            out.append(txt(line_point(p, i, 0)[0] - p.x if p.kind == "line" else i * band + band / 2, p.h - 12, cat))
-        if p.kind == "line":  # min/max scale (line_point); the series name and last value at the line end
-            for s in p.series:
-                pts = [(x - p.x, y - p.y) for x, y in (line_point(p, i, v) for i, v in enumerate(s.values))]
-                out.append(f'<polyline points="{" ".join(f"{x},{y}" for x, y in pts)}" fill="none" stroke="{_a(s.colors[0])}" '
-                           f'stroke-width="{6 if s.colors[0] == c["highlight"] else 4}"/>')
-                out += [f'<circle cx="{x}" cy="{y}" r="6" fill="{_a(s.colors[i])}"/>' for i, (x, y) in enumerate(pts)]
-                if p.labels:
-                    out.append(txt(pts[-1][0] + 16, pts[-1][1] + _LABEL / 3, f"{s.name} {fmt(s.values[-1])}", "start", "ink"))
-        else:
-            bw = band * 0.6 / (1 if stacked else len(p.series))
-            for i in range(n):
-                pos = neg = 0.0
-                for j, s in enumerate(p.series):
-                    v = s.values[i]
-                    if stacked:
-                        base = pos if v >= 0 else neg
-                        a, b, x = base, base + v, i * band + band * 0.2
-                        pos, neg = (b, neg) if v >= 0 else (pos, b)
-                    else:
-                        a, b, x = 0, v, i * band + band * 0.2 + j * bw
-                    top, bot = sy(max(a, b)), sy(min(a, b))
-                    out.append(f'<rect x="{x}" y="{top}" width="{bw}" height="{bot - top}" fill="{_a(s.colors[i])}"/>')
-                    if p.labels:
-                        out.append(txt(x + bw / 2, (top + bot) / 2 + _LABEL / 3 if stacked else top - 8, fmt(v), "middle", "ink"))
-    return (_box(p.name, p.x, p.y, p.w, p.h, "", "svg") + f' viewBox="0 0 {p.w} {p.h}" font-family="{_a(body)}">'
-            + "".join(out) + "</svg>")
+def _chart(p: ChartPrim, tokens: Tokens, mode: Mode) -> str:
+    """The Vega-Lite SVG in the chart's box: its root `<svg>` gets the box's `data-name` and absolute position."""
+    svg = to_svg(chart_spec(p, tokens, mode), tokens)
+    return _box(p.name, p.x, p.y, p.w, p.h, "", "svg") + svg.removeprefix("<svg")
 
 
 def _table(p: TablePrim, c: dict[str, str], body: str, mono: str) -> str:
@@ -154,8 +102,21 @@ def _table(p: TablePrim, c: dict[str, str], body: str, mono: str) -> str:
             + f'><table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed">{trs}</table></div>')
 
 
-def html_slide(prims: list[Primitive], tokens: Tokens, mode: Mode) -> str:
-    """The slide's elements, in draw order; empty text is skipped."""
+def _pos(a: float, b: float) -> float:
+    """object-position percent for crop fractions `a` (left/top) and `b` (right/bottom): the PPTX crop's region."""
+    return 100 * a / (a + b) if a + b else 50
+
+
+def _image(p: ImagePrim, images: dict[str, LoadedImage]) -> str:
+    left, top, right, bottom = p.crop
+    data = images[p.image].data  # empty when only measuring (layout_images): the box is the same without pixels
+    src = f' src="data:{p.media_type};base64,{base64.b64encode(embedded(data)).decode()}"' if data else ""
+    style = f"display:block;object-fit:cover;object-position:{_pos(left, right):g}% {_pos(top, bottom):g}%;"
+    return _box(p.name, p.x, p.y, p.w, p.h, style, "img") + f'{src} alt="{_a(p.alt)}">'
+
+
+def html_slide(prims: list[Primitive], tokens: Tokens, mode: Mode, images: dict[str, LoadedImage] | None = None) -> str:
+    """The slide's elements, in draw order; empty text is skipped. `images` holds the bytes behind the image primitives."""
     c = palette(tokens, mode)
     body, mono = family(tokens.fonts.body), family(tokens.fonts.mono or tokens.fonts.body)
     out = []
@@ -168,7 +129,9 @@ def html_slide(prims: list[Primitive], tokens: Tokens, mode: Mode) -> str:
         elif isinstance(p, Line):
             out.append(_line(p))
         elif isinstance(p, ChartPrim):
-            out.append(_chart(p, c, body))
+            out.append(_chart(p, tokens, mode))
         elif isinstance(p, TablePrim):
             out.append(_table(p, c, body, mono))
+        elif isinstance(p, ImagePrim):
+            out.append(_image(p, images or {}))
     return "\n".join(out)

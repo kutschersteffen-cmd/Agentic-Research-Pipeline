@@ -42,7 +42,7 @@ disk.
 - `arp/reporting/render_model.py`: each visual renders to primitives (`Rect`, `Text`, `Line`, `ChartPrim`,
   `TablePrim`). Both writers draw that list: `html_writer.py` for the HTML/PDF/PNG and `pptx_writer.py`
   for the PPTX, so the two outputs match box for box (slide-components spec, AC-1).
-- `arp/reporting/storyline.py`: the storyline prompt offers `CONTENT_VISUALS` (five types).
+- `arp/reporting/storyline.py`: the storyline prompt offers `CONTENT_VISUALS`.
   `slide_fill._fill_visual` asks the model for the chosen visual, validates it, retries once, then falls
   back to a `points` slide with a `bad_reference` finding.
 - `arp/storage/reporting_store.py`: one directory per report under `reports/<report_id>/` (manifest,
@@ -383,7 +383,7 @@ crop fractions ±0.001.
 | AC-42 | the hero deck with slide 1 showing `small` instead of `quad` | `POST /api/reports/{id}/render`, then `GET /api/reports/{id}/findings` | exactly one `low_resolution` finding: stage `fit`, slide 1, message `image 'small' is shown at 2.2× its pixels; use a larger image` | holdout |
 | AC-43 | a request with images `a` (`quad`, alt `Landing page`) and `b` (`tall`); a storyline slide with `visual: image`; a fake `LLMClient` passed to `fill_slide` in-process that records `images` and returns a valid hero on `a` | `fill_slide` | the fake got `images` of 2 PNGs, 768 × 384 then 384 × 768, in that order; the slide is an `image` hero on `a` | holdout |
 | AC-44 | the hero deck (slide 1 shows `quad`, 2000 px wide) | render, then findings | no `low_resolution` finding | holdout |
-| AC-45 | AC-43's request; a recording fake `LLMClient` | `draft_storyline` | the prompt's visual list is `kpi_row, chart, comparison_table, two_column, points, image`; it contains the lines `- a (2000×1000): Landing page` and `- b (1000×2000):` (no trailing space) | holdout |
+| AC-45 | AC-43's request; a recording fake `LLMClient` | `draft_storyline` | the prompt's visual list is `kpi_row, chart, comparison_table, two_column, points, flow, image`; it contains the lines `- a (2000×1000): Landing page` and `- b (1000×2000):` (no trailing space) | holdout |
 | AC-46 | AC-43's request; a fake `LLMClient` that returns a hero on `nope` on both calls | `fill_slide` | the slide is a `points` slide; one `bad_reference` finding whose message contains `unknown image 'nope'; registered: a, b`; the fake was called twice | holdout |
 | AC-47 | a request with no images; a storyline slide with `visual: image`; a recording fake `LLMClient` | `fill_slide` | the slide is a `points` slide; one `bad_reference` finding with message `no images registered`; the fake was called 0 times | holdout |
 | AC-48 | AC-43's request; a fake `LLMClient` that returns a gallery listing `a` twice, then a valid gallery | `fill_slide` | the second call's prompt contains `image 'a' appears twice`; the slide is the second answer | holdout |
@@ -397,7 +397,7 @@ crop fractions ±0.001.
 | AC-56 | as AC-55 | open the preview pages of slides 3 and 4 | every caption sits under its own image and the images line up in rows | evaluator |
 | AC-57 | as AC-55, with `deck.cover_image` set and a cover with an answer | open the cover's preview page | the card's text is fully readable on the card, and the image is visible right of the ink panel around the card | evaluator |
 | AC-58 | a stored house deck with no image slides and no `cover_image` | `build_house_pptx` | shape names, positions and font sizes equal the shape list the test-writer records from `main` when this spec merges (kept in the holdout repo), ±1 | holdout |
-| AC-59 | a request with no images; a recording fake `LLMClient` | `draft_storyline` | the visual list in the prompt is exactly `kpi_row, chart, comparison_table, two_column, points` (slide-components AC-16 still holds) | holdout |
+| AC-59 | a request with no images; a recording fake `LLMClient` | `draft_storyline` | the visual list in the prompt is exactly `kpi_row, chart, comparison_table, two_column, points, flow` (slide-components AC-16 still holds) | holdout |
 | AC-60 | a legacy (no `visual`) storyline slide; a fake `LLMClient` returning a `SlideContent` with `image_path` `/etc/passwd` | `fill_slide` | the returned slide's `image_path` is None | holdout |
 
 Must not change: decks without images (AC-58), the storyline prompt without images (AC-59), the dropped

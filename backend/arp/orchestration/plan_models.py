@@ -1,14 +1,32 @@
-"""Tables of the Research Orchestrator: one row per plan script, one per step call it made."""
+"""Tables of the Research Orchestrator: one row per plan script, one per step call it made, one per saved template
+version, and the Agent screen's asks a plan may be drafted from."""
 
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from arp.storage.postgres_models import Base
+
+
+class AgentAsk(Base):
+    """One question asked on the Agent screen. A thread is its first ask: the one whose `thread_id` is its own `id`."""
+
+    __tablename__ = "agent_asks"
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)  # a UUID4 string
+    thread_id: Mapped[str] = mapped_column(Text)
+    question: Mapped[str] = mapped_column(Text)
+    standalone_question: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tool: Mapped[str | None] = mapped_column(Text, nullable=True)  # null when the ask failed
+    response: Mapped[dict | None] = mapped_column(JSONB, nullable=True)  # the AskResponse as JSON
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    asked_by: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class ResearchPlan(Base):
@@ -27,6 +45,15 @@ class ResearchPlan(Base):
     version: Mapped[int | None] = mapped_column(Integer, nullable=True, default=1)
     previous_scripts: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=list)  # [{version, script,
     # error, replanned_at, replanned_by}]
+    # Set on a plan instantiated from a saved template.
+    template_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    template_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Plan budget: the plan stops before a step once runs plus planner calls cost this much. NULL: no cap.
+    budget_usd: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    # What the planner's model calls for this plan cost, every attempt of every draft and re-plan.
+    planner_cost_usd: Mapped[Decimal] = mapped_column(Numeric, default=0, server_default="0")
+    # The ask whose `Draft a plan` drafted this plan; no cascade.
+    source_ask_id: Mapped[str | None] = mapped_column(Text, ForeignKey("agent_asks.id"), nullable=True)
 
 
 class ResearchPlanCall(Base):
@@ -36,8 +63,22 @@ class ResearchPlanCall(Base):
     seq: Mapped[int] = mapped_column(Integer, primary_key=True)
     kind: Mapped[str] = mapped_column(Text)
     params: Mapped[dict] = mapped_column(JSONB)
-    status: Mapped[str] = mapped_column(Text)  # pending|running|awaiting_review|done|failed|cancelled
+    status: Mapped[str] = mapped_column(Text)  # pending|starting|running|awaiting_review|done|failed|cancelled
     run_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     result_ref: Mapped[str | None] = mapped_column(Text, nullable=True)  # sync kinds: e.g. index:<id>@<date>
     result: Mapped[dict | None] = mapped_column(JSONB, nullable=True)  # what the script saw; reused on resume
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # 1, plus one for each time this (seq, kind, params) was stored as failed: part of the run's launch key.
+    attempt: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+
+
+class ResearchPlanTemplate(Base):
+    """An approved or done plan's script saved under a name; immutable, a second save under the name is version 2."""
+    __tablename__ = "research_plan_templates"
+
+    name: Mapped[str] = mapped_column(Text, primary_key=True)
+    version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    script: Mapped[str] = mapped_column(Text)
+    source_plan_id: Mapped[str] = mapped_column(Text)  # no foreign key: a template outlives its plan
+    created_by: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

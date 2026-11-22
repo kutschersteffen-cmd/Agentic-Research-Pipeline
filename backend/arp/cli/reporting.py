@@ -22,10 +22,12 @@ from arp.schemas.reporting import (
     LayoutInstructions,
     OutputFormat,
     QuantitativeDataset,
+    ReportImageIn,
     ReportPlan,
     ReportRequest,
     RunRef,
 )
+from arp.storage.report_images import ImageError, check_known, check_name, check_unique_and_count, decode_image, parse_focus
 from arp.storage.reporting_store import ReportingStore
 
 reporting_app = typer.Typer(help="Presentation & Reporting Tool: LLM-drafted content plan, deterministically rendered to pptx/docx/pdf.")
@@ -97,6 +99,50 @@ def _copy_rendered_output(store: ReportingStore, manifest, out: Path) -> None:
     shutil.copyfile(output_path, out)
 
 
+def _pairs(values: list[str], flag: str) -> list[tuple[str, str]]:
+    out = []
+    for v in values:
+        name, sep, rest = v.partition("=")
+        if not sep:
+            raise ImageError(f"{flag} takes NAME=VALUE (got {v!r})")
+        out.append((name, rest))
+    return out
+
+
+def _stage_cli_images(
+    store: ReportingStore, format: OutputFormat, image: list[str], image_alt: list[str], image_focus: list[str], cover_image: str | None,
+) -> list[ReportImageIn]:
+    """Checks every image flag and file, then stages the files: a bad one fails before any report exists."""
+    given = [flag for flag, v in (("--image", image), ("--image-alt", image_alt), ("--image-focus", image_focus), ("--cover-image", cover_image)) if v]
+    try:
+        if given and format != OutputFormat.HOUSE_DECK:
+            raise ImageError(f"{given[0]} needs --format house_deck")
+        files = []
+        for name, path in _pairs(image, "--image"):
+            check_name(name)
+            if not Path(path).is_file():
+                raise ImageError(f"image '{name}': file not found: {path}")
+            data = Path(path).read_bytes()
+            decode_image(data, name)
+            files.append((name, data))
+        names = [n for n, _ in files]
+        check_unique_and_count(names)
+        focus = {n: parse_focus(n, v) for n, v in _pairs(image_focus, "--image-focus")}
+        alt = dict(_pairs(image_alt, "--image-alt"))
+        for n in [*alt, *focus, *([cover_image] if cover_image else [])]:
+            check_known(n, names)
+        if too_long := [n for n, a in alt.items() if len(a) > 200]:
+            raise ImageError(f"alt text for '{too_long[0]}' is longer than 200 characters")
+        return [
+            ReportImageIn(image_id=store.stage_image(data, name).image_id, name=name, alt=alt.get(name, ""), focus=focus.get(name))
+            for name, data in files
+        ]
+    except ImageError as exc:
+        # Printed plainly rather than as typer.BadParameter: rich would wrap the message inside its error box.
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(2) from exc
+
+
 _REQUEST_OPTIONS = {
     "title": typer.Option(...),
     "notes": typer.Option(..., exists=True, help="Text file with the qualitative notes/analysis to work from."),
@@ -131,6 +177,10 @@ def reporting_plan(
     profile: str = typer.Option("committee", click_type=click.Choice(["executive", "client_pitch", "committee", "workshop"]), help="House deck: storyline arc."),
     purpose: str = typer.Option("recommendation", click_type=click.Choice(["recommendation", "review", "process", "briefing"]), help="House deck: what the deck is for."),
     detail: str = typer.Option("balanced", click_type=click.Choice(["concise", "balanced", "comprehensive"]), help="House deck: how much detail per slide."),
+    image: list[str] = typer.Option([], help="House deck: an image the deck may show, NAME=PATH (PNG or JPEG); repeatable."),
+    image_alt: list[str] = typer.Option([], help="House deck: alt text for an image, NAME=TEXT; repeatable."),
+    image_focus: list[str] = typer.Option([], help="House deck: the point a crop keeps, NAME=X,Y (each 0 to 1); repeatable."),
+    cover_image: str = typer.Option(None, help="House deck: the registered image drawn behind the cover."),
 ) -> None:
     """Drafts a ReportPlan (the one LLM call) and stops -- does not render.
     Review/edit the written plan JSON by hand, then either push your edits
@@ -144,13 +194,14 @@ def reporting_plan(
         audience_level=audience_level, audience_description=audience_description,
         target_length=target_length, layout_notes=layout_notes, include_appendix=include_appendix,
         goal=goal, theme=theme, run_ref=run_ref,
-        deck=DeckSettings(profile=profile, purpose=purpose, detail=detail, max_slides=max_slides),
+        deck=DeckSettings(profile=profile, purpose=purpose, detail=detail, max_slides=max_slides, cover_image=cover_image),
     )
     if format == OutputFormat.HOUSE_DECK and target_length and target_length > content_cap(request):
         raise typer.BadParameter(
             f"--target-length {target_length} is more than the deck keeps ({content_cap(request)}); raise --max-slides or pick another --profile",
             param_hint="--target-length",
         )
+    request.images = _stage_cli_images(store, format, image, image_alt, image_focus, cover_image)
     service = ReportingService(store, settings)
     manifest = asyncio.run(service.create_and_plan(request, llm))
     if format == OutputFormat.HOUSE_DECK:
@@ -330,3 +381,46 @@ def reporting_sheet(out: Path = typer.Option(..., help="Directory for the review
 
     paths = write_sheet(out)
     typer.echo(f"Wrote {len(paths)} PNGs to {out}")
+
+
+@reporting_app.command("flow")
+def reporting_flow(
+    file: Path = typer.Argument(..., exists=True, dir_okay=False, help="A Mermaid flowchart (.mmd)."),
+    out: str = typer.Option(..., help="Directory for flow.pptx, flow.pdf and flow.png; created if missing."),
+    headline: str | None = typer.Option(None, help="Slide headline; default: FILE's name without its extension."),
+    kicker: str = typer.Option("", help="Slide kicker."),
+    theme: str = typer.Option("light", click_type=click.Choice(["light", "dark"]), metavar="light|dark", help="Colour mode."),
+) -> None:
+    """Turns one Mermaid flowchart into one house slide (PPTX, PDF, 1920×1080 PNG); no report, database or model."""
+    from arp.reporting.browser import write_pdf, write_pngs
+    from arp.reporting.flow_layout import layout_flows
+    from arp.reporting.house_pptx import build_house_pptx
+    from arp.reporting.house_style import load_tokens
+    from arp.reporting.html_render import render_deck_html
+    from arp.reporting.mermaid_flow import MermaidError, parse_mermaid
+    from arp.schemas.reporting import Deck, SlideContent
+    from arp.schemas.visuals import Flow
+
+    text = file.read_text(encoding="utf-8")
+    try:
+        parse_mermaid(text)
+    except MermaidError as exc:  # the parser's message is the whole error; nothing is written
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    title = file.stem if headline is None else headline
+    deck = Deck(title=title, slides=[SlideContent(headline=title, kicker=kicker, visual=Flow(mermaid=text))])
+    tokens = load_tokens()
+    dest = Path(out)
+
+    async def write() -> list:
+        laid, findings = await layout_flows(deck, tokens, theme)
+        html = render_deck_html(laid, [], tokens, theme)
+        await write_pdf(html, dest / "flow.pdf")
+        (page,) = await write_pngs(html, dest, scale=1)
+        page.replace(dest / "flow.png")
+        build_house_pptx(laid, [], dest / "flow.pptx", tokens, theme)
+        return findings
+
+    for f in asyncio.run(write()):
+        typer.echo(f"{f.rule}: {f.message}", err=True)
+    typer.echo(f"Wrote flow.pptx, flow.pdf, flow.png to {out}")

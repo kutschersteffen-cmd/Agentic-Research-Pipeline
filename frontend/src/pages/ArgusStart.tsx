@@ -5,12 +5,13 @@ import { errorDetail } from "../lib/barrier";
 import { STEPS, argusRows, filterLine, filterRows, tiles, waiting } from "../lib/argusStart";
 import { ACTIVE_STATUSES } from "../lib/runs";
 import { WORKSPACES } from "../lib/processes";
+import { HandoffLegend } from "./ProcessHub";
 import { neighbour, useRowFocus } from "../lib/rowFocus";
 import { listAllRuns, usePoll } from "../lib/poll";
 import type { ArgusDraft, ReviewItem, RunManifest } from "../types";
 
 /** The Transition plan template, preselected for step 3 by #/argus/new/transition_plan and the Transition Plan hand-over. */
-const PRESETS: Record<string, string> = { transition_plan: "transition_plan_indicators" };
+export const PRESETS: Record<string, string> = { transition_plan: "transition_plan_indicators" };
 
 /** Starts a new flow (optionally with a saved universe and a step 3 template) and opens its step 1,
  * replacing the current history entry so Back never lands on the creating route again. */
@@ -140,6 +141,9 @@ export function ArgusStart() {
         </span>
       </div>
       <p className="help-text">{purpose}</p>
+      <p className="help-text">
+        <a href="#/argusWalkthrough">How it works</a>
+      </p>
       {startError && <p className="error-text" role="alert">The extraction could not be started: {startError}.</p>}
       {deleteError && <p className="error-text" role="alert">The draft could not be deleted: {deleteError}</p>}
       {error && <p className="error-text" role="alert">Runs could not be loaded: {error}.</p>}
@@ -257,6 +261,7 @@ export function ArgusStart() {
           <a href="#/review">Open the review list</a>
         </aside>
       </div>
+      <HandoffLegend />
     </div>
   );
 }

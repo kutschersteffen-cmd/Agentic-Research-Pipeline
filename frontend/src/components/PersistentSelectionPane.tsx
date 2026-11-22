@@ -10,14 +10,14 @@ import type { DemoSeedSummary } from "../types";
  * sub-tab via `usePortfolioPane()` -- switching sub-tabs never resets it. */
 type Destination = "argus" | "transitionPlan";
 const DESTINATIONS: { id: Destination; label: string }[] = [
-  { id: "argus", label: "Argus" },
-  { id: "transitionPlan", label: "Argus, Transition plan" },
+  { id: "argus", label: "Extract data" },
+  { id: "transitionPlan", label: "Assess transition plans" },
 ];
 
 export function PersistentSelectionPane({ onSendUniverse }: { onSendUniverse?: (to: Destination, path: string, count: number) => Promise<void> | void }) {
   const {
     portfolios, refreshPortfolios, portfoliosError, selectedPortfolioIds, setSelectedPortfolioIds, groups, saveCurrentAsGroup, loadGroup, deleteGroup,
-    effectiveAsOf, selectionLabel,
+    effectiveAsOf,
   } = usePortfolioPane();
   const [sendError, setSendError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -35,6 +35,7 @@ export function PersistentSelectionPane({ onSendUniverse }: { onSendUniverse?: (
     }
   }
   const [groupName, setGroupName] = useState("");
+  const [naming, setNaming] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [seedSummary, setSeedSummary] = useState<DemoSeedSummary | null>(null);
   const [seedError, setSeedError] = useState<string | null>(null);
@@ -86,16 +87,29 @@ export function PersistentSelectionPane({ onSendUniverse }: { onSendUniverse?: (
                   </option>
                 ))}
               </select>
-              <input type="text" aria-label="Group name" placeholder="Group name" value={groupName} onChange={(e) => setGroupName(e.target.value)} />
-              <button
-                onClick={() => {
-                  saveCurrentAsGroup(groupName);
-                  setGroupName("");
-                }}
-                disabled={!groupName.trim()}
-              >
-                Save selection as group
-              </button>
+              {naming && (
+                <>
+                  <input type="text" aria-label="Group name" placeholder="Group name" value={groupName} onChange={(e) => setGroupName(e.target.value)} />
+                  <button
+                    onClick={() => {
+                      saveCurrentAsGroup(groupName);
+                      setGroupName("");
+                      setNaming(false);
+                    }}
+                    disabled={!groupName.trim()}
+                  >
+                    Save selection as group
+                  </button>
+                </>
+              )}
+            </div>
+            <div className="toolbar selection-pane-links">
+              {!naming && (
+                <button className="link-button" onClick={() => setNaming(true)}>
+                  Save as group…
+                </button>
+              )}
+              <a href="#/portfolio-monitoring/holdings">Load holdings</a>
             </div>
             {groups.length > 0 && (
               <p className="muted">
@@ -114,7 +128,7 @@ export function PersistentSelectionPane({ onSendUniverse }: { onSendUniverse?: (
           <DateSelector />
           {onSendUniverse && (
             <div className="toolbar" style={{ gridColumn: "1 / -1" }}>
-              <span className="muted">Use the companies held in {selectionLabel || "this selection"} in:</span>
+              <span className="muted">Send these companies to:</span>
               {DESTINATIONS.map((d) => (
                 <button key={d.id} className="secondary" disabled={sending} onClick={() => sendHoldings(d.id)}>
                   {d.label} &rarr;

@@ -14,8 +14,10 @@ backend() {
   "$PY" -c 'import fastapi, pytest, ruff' 2>/dev/null && return 0
   echo "Installing backend dependencies (~3 min)..." >&2
   # CPU-only torch first: docling would otherwise pull ~4 GB of CUDA libraries.
-  pip install -q torch --index-url https://download.pytorch.org/whl/cpu &&
-    pip install -q -e "backend[dev]"
+  # Cloud sessions' proxy blocks download.pytorch.org; then let docling pull torch from PyPI.
+  pip install -q torch --index-url https://download.pytorch.org/whl/cpu ||
+    echo "CPU torch index unreachable; installing torch from PyPI instead." >&2
+  pip install -q -e "backend[dev]"
 }
 
 frontend() {

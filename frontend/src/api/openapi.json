@@ -683,6 +683,129 @@
     "title": "AddCompanies",
     "type": "object"
    },
+   "AgentAsk": {
+    "properties": {
+     "asked_by": {
+      "title": "Asked By",
+      "type": "string"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "explorations": {
+      "items": {
+       "$ref": "#/components/schemas/AskExplorationLink"
+      },
+      "title": "Explorations",
+      "type": "array"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "plans": {
+      "items": {
+       "$ref": "#/components/schemas/AskPlanLink"
+      },
+      "title": "Plans",
+      "type": "array"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "response": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/AskResponse"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "standalone_question": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Standalone Question"
+     },
+     "thread_id": {
+      "title": "Thread Id",
+      "type": "string"
+     },
+     "tool": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tool"
+     }
+    },
+    "required": [
+     "id",
+     "thread_id",
+     "question",
+     "standalone_question",
+     "tool",
+     "response",
+     "error",
+     "asked_by",
+     "created_at",
+     "plans",
+     "explorations"
+    ],
+    "title": "AgentAsk",
+    "type": "object"
+   },
+   "AgentAskRequest": {
+    "properties": {
+     "question": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Question",
+      "type": "string"
+     },
+     "thread_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Thread Id"
+     }
+    },
+    "required": [
+     "question"
+    ],
+    "title": "AgentAskRequest",
+    "type": "object"
+   },
    "AggregationResult": {
     "properties": {
      "as_of": {
@@ -1691,6 +1814,57 @@
     "title": "ArgusFlowView",
     "type": "object"
    },
+   "AskExplorationLink": {
+    "properties": {
+     "exploration_id": {
+      "title": "Exploration Id",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "exploration_id",
+     "question",
+     "status",
+     "label"
+    ],
+    "title": "AskExplorationLink",
+    "type": "object"
+   },
+   "AskPlanLink": {
+    "properties": {
+     "brief": {
+      "title": "Brief",
+      "type": "string"
+     },
+     "plan_id": {
+      "title": "Plan Id",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "plan_id",
+     "brief",
+     "status"
+    ],
+    "title": "AskPlanLink",
+    "type": "object"
+   },
    "AskResponse": {
     "properties": {
      "answer_text": {
@@ -1769,6 +1943,44 @@
      "answered_at"
     ],
     "title": "AskResponse",
+    "type": "object"
+   },
+   "AskThread": {
+    "properties": {
+     "asks": {
+      "title": "Asks",
+      "type": "integer"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "answered",
+       "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "thread_id": {
+      "title": "Thread Id",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "thread_id",
+     "title",
+     "status",
+     "created_at",
+     "asks"
+    ],
+    "title": "AskThread",
     "type": "object"
    },
    "AssumptionOut": {
@@ -3466,6 +3678,20 @@
     "title": "Body_upload_flow_document_api_argus_flows__flow_id__documents_upload_post",
     "type": "object"
    },
+   "Body_upload_image_api_reports_images_post": {
+    "properties": {
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file"
+    ],
+    "title": "Body_upload_image_api_reports_images_post",
+    "type": "object"
+   },
    "Body_upload_price_dataset_api_replication_specs__spec_run_id__datasets_prices_post": {
     "properties": {
      "file": {
@@ -4114,6 +4340,48 @@
      "from_library"
     ],
     "title": "Candidate",
+    "type": "object"
+   },
+   "CapabilityOut": {
+    "properties": {
+     "effect": {
+      "enum": [
+       "read",
+       "run"
+      ],
+      "title": "Effect",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "input_schema": {
+      "additionalProperties": true,
+      "title": "Input Schema",
+      "type": "object"
+     },
+     "lane": {
+      "enum": [
+       "plan",
+       "sandbox"
+      ],
+      "title": "Lane",
+      "type": "string"
+     },
+     "summary": {
+      "title": "Summary",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "summary",
+     "effect",
+     "lane",
+     "input_schema"
+    ],
+    "title": "CapabilityOut",
     "type": "object"
    },
    "CapexOut": {
@@ -9122,6 +9390,18 @@
    },
    "DeckSettings": {
     "properties": {
+     "cover_image": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "House deck: a registered image name drawn behind the cover.",
+      "title": "Cover Image"
+     },
      "detail": {
       "default": "balanced",
       "enum": [
@@ -10080,6 +10360,17 @@
      "brief": {
       "title": "Brief",
       "type": "string"
+     },
+     "source_ask_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Ask Id"
      }
     },
     "required": [
@@ -11289,6 +11580,134 @@
      "cutoff_status"
     ],
     "title": "ExperimentSummary",
+    "type": "object"
+   },
+   "Exploration": {
+    "properties": {
+     "accepted_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Accepted At"
+     },
+     "accepted_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Accepted By"
+     },
+     "code": {
+      "title": "Code",
+      "type": "string"
+     },
+     "cost_usd": {
+      "title": "Cost Usd",
+      "type": "number"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "label": {
+      "enum": [
+       "exploratory",
+       "accepted"
+      ],
+      "title": "Label",
+      "type": "string"
+     },
+     "model": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Model"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "result": {
+      "title": "Result"
+     },
+     "status": {
+      "enum": [
+       "done",
+       "failed",
+       "timeout"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "tool_calls": {
+      "items": {
+       "$ref": "#/components/schemas/ToolCall"
+      },
+      "title": "Tool Calls",
+      "type": "array"
+     }
+    },
+    "required": [
+     "id",
+     "question",
+     "code",
+     "status",
+     "result",
+     "error",
+     "tool_calls",
+     "model",
+     "cost_usd",
+     "created_at",
+     "accepted_by",
+     "accepted_at",
+     "label"
+    ],
+    "title": "Exploration",
+    "type": "object"
+   },
+   "ExplorationRequest": {
+    "properties": {
+     "question": {
+      "minLength": 1,
+      "title": "Question",
+      "type": "string"
+     }
+    },
+    "required": [
+     "question"
+    ],
+    "title": "ExplorationRequest",
     "type": "object"
    },
    "ExportRequest": {
@@ -13403,6 +13822,70 @@
     "title": "ImportRequest",
     "type": "object"
    },
+   "InboxRow": {
+    "properties": {
+     "exploration_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Exploration Id"
+     },
+     "href": {
+      "title": "Href",
+      "type": "string"
+     },
+     "kind": {
+      "enum": [
+       "plan_approval",
+       "step_review",
+       "exploration"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "plan_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Plan Id"
+     },
+     "seq": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Seq"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "plan_id",
+     "seq",
+     "exploration_id",
+     "title",
+     "href"
+    ],
+    "title": "InboxRow",
+    "type": "object"
+   },
    "IndexCalibration": {
     "description": "A saved, versioned, effective-dated construction spec.\n\nVersions are append-only, exactly like the taxonomy library: editing a\ncalibration creates a new version rather than overwriting history, and\n`effective_from` means the engine resolves the version *in force on the\nreview date* rather than the latest one -- otherwise today's parameters\nsilently rewrite past reviews.",
     "properties": {
@@ -13784,6 +14267,30 @@
     ],
     "title": "InfluenceLevel",
     "type": "string"
+   },
+   "InstantiateRequest": {
+    "properties": {
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "version": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Version"
+     }
+    },
+    "required": [
+     "source"
+    ],
+    "title": "InstantiateRequest",
+    "type": "object"
    },
    "Instructions": {
     "properties": {
@@ -19239,6 +19746,250 @@
     "title": "RedlineOut",
     "type": "object"
    },
+   "RefineHistoryItem": {
+    "properties": {
+     "message": {
+      "title": "Message",
+      "type": "string"
+     },
+     "reply": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reply"
+     }
+    },
+    "required": [
+     "message"
+    ],
+    "title": "RefineHistoryItem",
+    "type": "object"
+   },
+   "RefineNotChanged": {
+    "properties": {
+     "id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Id"
+     },
+     "reason": {
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "reason"
+    ],
+    "title": "RefineNotChanged",
+    "type": "object"
+   },
+   "RefineTurn": {
+    "properties": {
+     "changed": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Changed",
+      "type": "array"
+     },
+     "check_figures": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Check Figures",
+      "type": "array"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "done": {
+      "title": "Done",
+      "type": "integer"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "message": {
+      "title": "Message",
+      "type": "string"
+     },
+     "not_changed": {
+      "items": {
+       "$ref": "#/components/schemas/RefineNotChanged"
+      },
+      "title": "Not Changed",
+      "type": "array"
+     },
+     "reply": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reply"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     },
+     "turn_id": {
+      "title": "Turn Id",
+      "type": "integer"
+     },
+     "user_id": {
+      "title": "User Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "turn_id",
+     "user_id",
+     "message",
+     "reply",
+     "status",
+     "done",
+     "total",
+     "changed",
+     "not_changed",
+     "check_figures",
+     "error",
+     "created_at"
+    ],
+    "title": "RefineTurn",
+    "type": "object"
+   },
+   "RefineTurnIn": {
+    "properties": {
+     "history": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/RefineHistoryItem"
+      },
+      "title": "History",
+      "type": "array"
+     },
+     "message": {
+      "title": "Message",
+      "type": "string"
+     }
+    },
+    "required": [
+     "message"
+    ],
+    "title": "RefineTurnIn",
+    "type": "object"
+   },
+   "RefineTurnOut": {
+    "properties": {
+     "changed": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Changed",
+      "type": "array"
+     },
+     "check_figures": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Check Figures",
+      "type": "array"
+     },
+     "done": {
+      "title": "Done",
+      "type": "integer"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "not_changed": {
+      "items": {
+       "$ref": "#/components/schemas/RefineNotChanged"
+      },
+      "title": "Not Changed",
+      "type": "array"
+     },
+     "reply": {
+      "title": "Reply",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "status",
+     "reply",
+     "done",
+     "total",
+     "changed",
+     "not_changed",
+     "check_figures",
+     "error"
+    ],
+    "title": "RefineTurnOut",
+    "type": "object"
+   },
+   "RefineTurnStarted": {
+    "properties": {
+     "turn_id": {
+      "title": "Turn Id",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "turn_id"
+    ],
+    "title": "RefineTurnStarted",
+    "type": "object"
+   },
    "RegimeBucketPerformance": {
     "properties": {
      "long_short": {
@@ -19634,6 +20385,115 @@
     "title": "ReplicationVerdict",
     "type": "string"
    },
+   "ReportImage": {
+    "description": "An image stored with a report under `reports/<id>/images/<name>.<ext>`.",
+    "properties": {
+     "alt": {
+      "default": "",
+      "maxLength": 200,
+      "title": "Alt",
+      "type": "string"
+     },
+     "focus": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "number"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "[x, y], each 0 to 1; None is the centre.",
+      "title": "Focus"
+     },
+     "height": {
+      "title": "Height",
+      "type": "integer"
+     },
+     "image_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Image Id"
+     },
+     "media_type": {
+      "enum": [
+       "image/png",
+       "image/jpeg"
+      ],
+      "title": "Media Type",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "sha256": {
+      "title": "Sha256",
+      "type": "string"
+     },
+     "width": {
+      "title": "Width",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "name",
+     "media_type",
+     "width",
+     "height",
+     "sha256"
+    ],
+    "title": "ReportImage",
+    "type": "object"
+   },
+   "ReportImageIn": {
+    "description": "An image a request names: a staged upload, under the name the deck uses for it.\nThe name, focus and limits are checked by ReportingService (arp.reporting.images), not here.",
+    "properties": {
+     "alt": {
+      "default": "",
+      "maxLength": 200,
+      "title": "Alt",
+      "type": "string"
+     },
+     "focus": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "number"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Focus"
+     },
+     "image_id": {
+      "title": "Image Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "image_id",
+     "name"
+    ],
+    "title": "ReportImageIn",
+    "type": "object"
+   },
    "ReportPlan": {
     "description": "The Content Planner's full structured output -- deliberately the\n*only* LLM-authored artifact in this pipeline. Every subsequent step\n(chart/table rendering, file assembly) is deterministic code, so the\nsame plan always renders identically and can be hand-edited by a human\nbetween planning and rendering (see ReportingService.render_from_plan).",
     "properties": {
@@ -19679,6 +20539,21 @@
       "default": "",
       "title": "Goal",
       "type": "string"
+     },
+     "images": {
+      "description": "House deck: images the deck may show.",
+      "items": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/ReportImage"
+        },
+        {
+         "$ref": "#/components/schemas/ReportImageIn"
+        }
+       ]
+      },
+      "title": "Images",
+      "type": "array"
      },
      "layout": {
       "$ref": "#/components/schemas/LayoutInstructions"
@@ -22402,14 +23277,29 @@
    },
    "ScriptRequest": {
     "properties": {
+     "budget_usd": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Budget Usd"
+     },
      "script": {
-      "title": "Script",
-      "type": "string"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Script"
      }
     },
-    "required": [
-     "script"
-    ],
     "title": "ScriptRequest",
     "type": "object"
    },
@@ -25537,6 +26427,20 @@
     "title": "TemplateMatchRequest",
     "type": "object"
    },
+   "TemplateRequest": {
+    "properties": {
+     "name": {
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "TemplateRequest",
+    "type": "object"
+   },
    "ThemeDefinition": {
     "properties": {
      "activities": {
@@ -25984,6 +26888,28 @@
     ],
     "title": "Tone",
     "type": "string"
+   },
+   "ToolCall": {
+    "properties": {
+     "args": {
+      "title": "Args"
+     },
+     "capability_id": {
+      "title": "Capability Id",
+      "type": "string"
+     },
+     "result_bytes": {
+      "title": "Result Bytes",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "capability_id",
+     "args",
+     "result_bytes"
+    ],
+    "title": "ToolCall",
+    "type": "object"
    },
    "TopN": {
     "description": "Fixed-size index: the N best by score, ties broken by float market\ncap then company_id so the result is order-independent.",
@@ -29817,6 +30743,520 @@
  },
  "openapi": "3.1.0",
  "paths": {
+  "/api/agent/ask-threads": {
+   "get": {
+    "operationId": "list_ask_threads_api_agent_ask_threads_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AskThread"
+         },
+         "title": "Response List Ask Threads Api Agent Ask Threads Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Ask Threads",
+    "tags": [
+     "agent"
+    ]
+   }
+  },
+  "/api/agent/asks": {
+   "get": {
+    "description": "The thread's asks, oldest first.",
+    "operationId": "list_thread_asks_api_agent_asks_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AgentAsk"
+         },
+         "title": "Response List Thread Asks Api Agent Asks Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Thread Asks",
+    "tags": [
+     "agent"
+    ]
+   },
+   "post": {
+    "description": "One ask, stored in its thread (a new one without `thread_id`). A failed ask is stored and answered with 200.",
+    "operationId": "post_agent_ask_api_agent_asks_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AgentAskRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AgentAsk"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Agent Ask",
+    "tags": [
+     "agent"
+    ]
+   }
+  },
+  "/api/agent/boards/{thread_kind}/{thread_id}": {
+   "get": {
+    "operationId": "get_board_api_agent_boards__thread_kind___thread_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Board Api Agent Boards  Thread Kind   Thread Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Board",
+    "tags": [
+     "agent-board"
+    ]
+   }
+  },
+  "/api/agent/boards/{thread_kind}/{thread_id}/blocks": {
+   "post": {
+    "operationId": "create_block_api_agent_boards__thread_kind___thread_id__blocks_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Create Block Api Agent Boards  Thread Kind   Thread Id  Blocks Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Block",
+    "tags": [
+     "agent-board"
+    ]
+   }
+  },
+  "/api/agent/boards/{thread_kind}/{thread_id}/blocks/{block_id}": {
+   "delete": {
+    "operationId": "delete_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "block_id",
+      "required": true,
+      "schema": {
+       "title": "Block Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Block",
+    "tags": [
+     "agent-board"
+    ]
+   },
+   "patch": {
+    "operationId": "patch_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "block_id",
+      "required": true,
+      "schema": {
+       "title": "Block Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Patch Block Api Agent Boards  Thread Kind   Thread Id  Blocks  Block Id  Patch",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Patch Block",
+    "tags": [
+     "agent-board"
+    ]
+   }
+  },
+  "/api/agent/boards/{thread_kind}/{thread_id}/blocks/{block_id}/undo": {
+   "post": {
+    "operationId": "undo_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__undo_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "block_id",
+      "required": true,
+      "schema": {
+       "title": "Block Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Undo Block Api Agent Boards  Thread Kind   Thread Id  Blocks  Block Id  Undo Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Undo Block",
+    "tags": [
+     "agent-board"
+    ]
+   }
+  },
+  "/api/agent/boards/{thread_kind}/{thread_id}/draw": {
+   "post": {
+    "operationId": "draw_block_api_agent_boards__thread_kind___thread_id__draw_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Draw Block Api Agent Boards  Thread Kind   Thread Id  Draw Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Draw Block",
+    "tags": [
+     "agent-board"
+    ]
+   }
+  },
+  "/api/agent/explorations": {
+   "post": {
+    "description": "Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed.",
+    "operationId": "create_exploration_api_agent_explorations_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ExplorationRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Exploration"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Exploration",
+    "tags": [
+     "agent"
+    ]
+   }
+  },
+  "/api/agent/inbox": {
+   "get": {
+    "description": "Draft plans and calls awaiting review, oldest first (a plan by its `created_at`, a call by its `started_at`).",
+    "operationId": "inbox_api_agent_inbox_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/InboxRow"
+         },
+         "title": "Response Inbox Api Agent Inbox Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Inbox",
+    "tags": [
+     "agent"
+    ]
+   }
+  },
   "/api/argus/flows": {
    "get": {
     "operationId": "list_flows_api_argus_flows_get",
@@ -31377,6 +32817,32 @@
     "summary": "Update Schedule",
     "tags": [
      "calibration"
+    ]
+   }
+  },
+  "/api/capabilities": {
+   "get": {
+    "description": "Sandbox lane first, then plan lane, each sorted by id; `input_schema` is the input model's JSON schema.",
+    "operationId": "list_capabilities_api_capabilities_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/CapabilityOut"
+         },
+         "title": "Response List Capabilities Api Capabilities Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Capabilities",
+    "tags": [
+     "capabilities"
     ]
    }
   },
@@ -39200,6 +40666,121 @@
     ]
    }
   },
+  "/api/plan-templates/{name}": {
+   "get": {
+    "operationId": "get_template_api_plan_templates__name__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "name",
+      "required": true,
+      "schema": {
+       "title": "Name",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "version",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Version"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Template Api Plan Templates  Name  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Template",
+    "tags": [
+     "plans"
+    ]
+   }
+  },
+  "/api/plan-templates/{name}/instantiate": {
+   "post": {
+    "description": "A draft plan from the template, with `source` in every `universe_build` call; it runs only after approval.",
+    "operationId": "instantiate_template_api_plan_templates__name__instantiate_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "name",
+      "required": true,
+      "schema": {
+       "title": "Name",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/InstantiateRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Instantiate Template Api Plan Templates  Name  Instantiate Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Instantiate Template",
+    "tags": [
+     "plans"
+    ]
+   }
+  },
   "/api/plans": {
    "get": {
     "operationId": "list_plans_api_plans_get",
@@ -39311,6 +40892,7 @@
     ]
    },
    "put": {
+    "description": "A new script or budget returns the plan to draft for a new approval. A budget alone keeps every stored call.",
     "operationId": "edit_plan_api_plans__plan_id__put",
     "parameters": [
      {
@@ -39498,6 +41080,7 @@
   },
   "/api/plans/{plan_id}/run": {
    "post": {
+    "description": "Claims the plan; the plan worker runs it on its next scan.",
     "operationId": "start_plan_api_plans__plan_id__run_post",
     "parameters": [
      {
@@ -39535,6 +41118,60 @@
      }
     },
     "summary": "Start Plan",
+    "tags": [
+     "plans"
+    ]
+   }
+  },
+  "/api/plans/{plan_id}/template": {
+   "post": {
+    "operationId": "save_template_api_plans__plan_id__template_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "plan_id",
+      "required": true,
+      "schema": {
+       "title": "Plan Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TemplateRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Save Template Api Plans  Plan Id  Template Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Save Template",
     "tags": [
      "plans"
     ]
@@ -41044,6 +42681,214 @@
     ]
    }
   },
+  "/api/refine/turns/{turn_id}": {
+   "get": {
+    "operationId": "get_turn_api_refine_turns__turn_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "turn_id",
+      "required": true,
+      "schema": {
+       "title": "Turn Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RefineTurnOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Turn",
+    "tags": [
+     "refine"
+    ]
+   }
+  },
+  "/api/refine/{kind}/{doc_id}/turns": {
+   "get": {
+    "description": "Any signed-in role; a document with no turns answers [].",
+    "operationId": "get_turns_api_refine__kind___doc_id__turns_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "doc_id",
+      "required": true,
+      "schema": {
+       "title": "Doc Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "title": "Kind",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RefineTurn"
+         },
+         "title": "Response Get Turns Api Refine  Kind   Doc Id  Turns Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Turns",
+    "tags": [
+     "refine"
+    ]
+   },
+   "post": {
+    "operationId": "post_turn_api_refine__kind___doc_id__turns_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "doc_id",
+      "required": true,
+      "schema": {
+       "title": "Doc Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "title": "Kind",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RefineTurnIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RefineTurnStarted"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Turn",
+    "tags": [
+     "refine"
+    ]
+   }
+  },
+  "/api/refine/{kind}/{doc_id}/undo": {
+   "post": {
+    "operationId": "undo_api_refine__kind___doc_id__undo_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "doc_id",
+      "required": true,
+      "schema": {
+       "title": "Doc Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "title": "Kind",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RefineTurnOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Undo",
+    "tags": [
+     "refine"
+    ]
+   }
+  },
   "/api/replication/discover": {
    "post": {
     "description": "Searches for candidate 'outperformance' papers on `req.topic` and\nranks them by replication-worthiness -- the API equivalent of\n`arp replicate discover-papers`, using every search source\n(arXiv + Semantic Scholar + generic web) merged/deduped, same as that\nCLI command's default. Proposes candidates; nothing is fetched or\nturned into a spec automatically -- picking one is a separate\nPOST /specs call.",
@@ -41790,6 +43635,50 @@
     ]
    }
   },
+  "/api/reports/images": {
+   "post": {
+    "description": "Stages a PNG or JPEG; a POST /api/reports request then names it by `image_id`.",
+    "operationId": "upload_image_api_reports_images_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_upload_image_api_reports_images_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Upload Image Api Reports Images Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Upload Image",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
   "/api/reports/templates": {
    "get": {
     "operationId": "list_templates_api_reports_templates_get",
@@ -42070,6 +43959,56 @@
      }
     },
     "summary": "Get Findings",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
+  "/api/reports/{report_id}/images/{name}": {
+   "get": {
+    "description": "A stored report image, as registered (EXIF-rotated JPEGs upright).",
+    "operationId": "get_report_image_api_reports__report_id__images__name__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "name",
+      "required": true,
+      "schema": {
+       "title": "Name",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Report Image",
     "tags": [
      "reporting"
     ]

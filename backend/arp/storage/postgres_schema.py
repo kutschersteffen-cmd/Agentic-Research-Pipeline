@@ -393,6 +393,34 @@ def unmatched_company_rows(conn: Connection) -> dict[str, int]:
     return out
 
 
+def _plan_call_attempt(conn: Connection) -> None:
+    """research_plan_calls.attempt, added nullable by reconciliation: every existing call was its first attempt."""
+    from sqlalchemy import text
+
+    conn.execute(text("ALTER TABLE research_plan_calls ALTER COLUMN attempt SET DEFAULT 1"))
+    conn.execute(text("UPDATE research_plan_calls SET attempt = 1 WHERE attempt IS NULL"))
+    conn.execute(text("ALTER TABLE research_plan_calls ALTER COLUMN attempt SET NOT NULL"))
+
+
+def _plan_planner_cost(conn: Connection) -> None:
+    """research_plans.planner_cost_usd, added nullable by reconciliation: plans drafted before it cost 0."""
+    from sqlalchemy import text
+
+    conn.execute(text("ALTER TABLE research_plans ALTER COLUMN planner_cost_usd SET DEFAULT 0"))
+    conn.execute(text("UPDATE research_plans SET planner_cost_usd = 0 WHERE planner_cost_usd IS NULL"))
+    conn.execute(text("ALTER TABLE research_plans ALTER COLUMN planner_cost_usd SET NOT NULL"))
+
+
+def _plan_source_ask_fk(conn: Connection) -> None:
+    """research_plans.source_ask_id, added by reconciliation without its foreign key: add it, named as create_all
+    names it, so a fresh database (which already has it) and an existing one end the same."""
+    from sqlalchemy import text
+
+    name = "research_plans_source_ask_id_fkey"
+    if not conn.execute(text("SELECT 1 FROM pg_constraint WHERE conname = :n"), {"n": name}).first():
+        conn.execute(text(f"ALTER TABLE research_plans ADD CONSTRAINT {name} FOREIGN KEY (source_ask_id) REFERENCES agent_asks (id)"))
+
+
 # Run before create_all, so a legacy-shaped table does not shadow a new one of the same name.
 PRE_CREATE_STEPS: tuple[SchemaStep, ...] = (
     SchemaStep("0005_rename_legacy_companies", "companies -> legacy_companies", _rename_legacy_companies),
@@ -483,6 +511,21 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         name="vote_meeting_listing_key",
         description="cid: vote meetings with an isin/cusip re-keyed by that listing, so each listing is its own meeting",
         apply=_vote_meeting_listing_key,
+    ),
+    SchemaStep(
+        name="plan_call_attempt",
+        description="research_plan_calls.attempt: default 1, existing calls backfilled to 1, then NOT NULL",
+        apply=_plan_call_attempt,
+    ),
+    SchemaStep(
+        name="plan_planner_cost",
+        description="research_plans.planner_cost_usd: default 0, existing plans backfilled to 0, then NOT NULL",
+        apply=_plan_planner_cost,
+    ),
+    SchemaStep(
+        name="plan_source_ask_fk",
+        description="research_plans.source_ask_id -> agent_asks.id foreign key, which reconciliation does not add",
+        apply=_plan_source_ask_fk,
     ),
 )
 

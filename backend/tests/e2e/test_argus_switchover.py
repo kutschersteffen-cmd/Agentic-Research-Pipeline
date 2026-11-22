@@ -126,7 +126,7 @@ def test_thematic_universe_hands_over_to_step_1(page):  # AC-65
 @pytest.mark.parametrize("sub", ["holdings", "monitoring"])  # Data Hub's holdings screen, and a Risk Monitoring tab
 def test_portfolio_selection_hands_over_to_step_1(page, sub):  # AC-65
     page.goto(f"{URL}/#/portfolio-monitoring/{sub}")
-    send = page.get_by_role("button", name=re.compile(r"^Argus\s*→$"))
+    send = page.get_by_role("button", name=re.compile(r"^Extract data\s*→$"))  # ui-trim-workspaces C2
     send.wait_for()
     send.click()
     page.wait_for_url(STEP_1)
@@ -139,7 +139,7 @@ def test_portfolio_selection_hands_over_to_step_1(page, sub):  # AC-65
 
 def test_transition_plan_hand_over_preselects_the_template(page):
     page.goto(f"{URL}/#/portfolio-monitoring/holdings")
-    send = page.get_by_role("button", name=re.compile(r"Transition plan"))
+    send = page.get_by_role("button", name=re.compile(r"Assess transition plans"))  # ui-trim-workspaces C3
     send.wait_for()
     send.click()
     page.wait_for_url(STEP_1)
@@ -151,7 +151,7 @@ def test_a_failed_hand_over_shows_the_error_and_stays(page):
     page.route(re.compile(r".*/api/argus/flows$"), lambda r: r.fulfill(status=503, body='{"detail": "store down"}')
                if r.request.method == "POST" else r.continue_())
     page.goto(f"{URL}/#/portfolio-monitoring/holdings")
-    send = page.get_by_role("button", name=re.compile(r"^Argus\s*→$"))
+    send = page.get_by_role("button", name=re.compile(r"^Extract data\s*→$"))  # ui-trim-workspaces C2
     send.wait_for()
     send.click()
     alert = page.get_by_role("alert").filter(has_text="store down")

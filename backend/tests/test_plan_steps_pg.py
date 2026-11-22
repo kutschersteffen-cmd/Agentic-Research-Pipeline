@@ -41,8 +41,8 @@ def test_gate_until_every_item_is_decided(run_store, universe_run):
     assert reviewed({"run_id": universe_run}) is True
 
 
-def test_all_eight_kinds_present(run_store):
-    assert len(build_steps(get_settings(), run_store)) == 8
+def test_all_ten_kinds_present(run_store):  # agent-panel-code-mode D8 adds identity_resolution, tnfd_extraction
+    assert len(build_steps(get_settings(), run_store)) == 10
 
 
 def _candidate(cid):
@@ -126,6 +126,9 @@ class _Recorder:
     ("financials_extraction", "arp.extraction.financials_pipeline", "create_financials_extraction_run",
      "execute_financials_extraction_run", {}),
     ("xbrl_facts", "arp.xbrl_pipeline.fetch", "create_xbrl_run", "execute_xbrl_run", {}),
+    ("identity_resolution", "arp.discovery.identity_pipeline", "create_identity_run", "execute_identity_run", {}),
+    ("tnfd_extraction", "arp.extraction.tnfd_pipeline", "create_tnfd_extraction_run", "execute_tnfd_extraction_run",
+     {"as_of": "2025-12-31"}),
 ])
 def test_background_adapters_pass_filtered_companies(run_store, universe_run, monkeypatch, kind, module, create,
                                                      execute, params):
@@ -139,6 +142,26 @@ def test_background_adapters_pass_filtered_companies(run_store, universe_run, mo
     out = build_steps(get_settings(), run_store)[kind](universe_run_id=universe_run, companies=["beta"], **params)
     assert rec.companies == ["beta"]
     assert out["run_id"] and out["gate"] is False
+
+
+def test_tnfd_adapter_passes_the_period(run_store, universe_run, monkeypatch):
+    import arp.extraction.tnfd_pipeline as tnfd
+
+    seen = {}
+    rec = _Recorder(run_store, "tnfd")
+
+    def create(refs, as_of, *a):
+        seen["create"] = as_of
+        return rec.create(refs)
+
+    async def execute(run_id, refs, as_of, **k):
+        seen["execute"] = as_of
+
+    monkeypatch.setattr(tnfd, "create_tnfd_extraction_run", create)
+    monkeypatch.setattr(tnfd, "execute_tnfd_extraction_run", execute)
+    monkeypatch.setattr("arp.api.deps.get_registry", lambda: None)
+    build_steps(get_settings(), run_store)["tnfd_extraction"](universe_run_id=universe_run, as_of="FY2025")
+    assert seen == {"create": "FY2025", "execute": "FY2025"}
 
 
 def test_extraction_adapter_loads_schema(run_store, universe_run, monkeypatch):
@@ -164,12 +187,16 @@ def test_universe_adapter_takes_best_exposure(run_store, monkeypatch, tmp_path):
     def match(cid, exposure, verdict):
         return NS(company_id=cid, name=cid, exposure_estimate=NS(value=exposure), verdict=NS(value=verdict))
 
-    async def fake_run(theme, companies, **kw):
+    def fake_create(theme, companies, *a, **kw):
         return JobManager(run_store).create_run("theme", {}, len(companies), companies=companies).run_id
+
+    async def fake_execute(run_id, *a, **kw):
+        return run_id
 
     monkeypatch.setattr(ts, "released_run_schema", lambda *a: (NS(theme="t", taxonomy_id="tax", version=1), None))
     monkeypatch.setattr(universe, "load_company_universe", lambda src: [ACME, BETA])
-    monkeypatch.setattr(research, "run_thematic_universe", fake_run)
+    monkeypatch.setattr(research, "create_theme_run", fake_create)
+    monkeypatch.setattr(research, "execute_theme_run", fake_execute)
     monkeypatch.setattr(research, "load_theme_run_matches", lambda rs, rid: [
         match("acme", "minor", "exclude"), match("acme", "significant", "include")])
     monkeypatch.setattr("arp.research.indirect_exposure.factory.resolve_indirect_exposure_model", lambda *a, **k: None)
@@ -183,3 +210,25 @@ def test_universe_adapter_takes_best_exposure(run_store, monkeypatch, tmp_path):
 def test_decision_adapter_needs_a_framework(run_store, universe_run):
     with pytest.raises(ValueError, match="no decision framework attached"):
         build_steps(get_settings(), run_store)["decision_score"](source_run_id=universe_run)
+
+
+def test_background_adapter_start_finds_its_run_by_launch_key(run_store, universe_run, monkeypatch):  # AC-3 path
+    import arp.discovery.pipeline as discovery
+
+    rec = _Recorder(run_store, "discovery")
+    executed = []
+
+    async def execute(run_id, *a, **k):
+        executed.append(run_id)
+        JobManager(run_store).finish_run(run_id)
+
+    monkeypatch.setattr(discovery, "create_discovery_run", rec.create)
+    monkeypatch.setattr(discovery, "execute_discovery_run", execute)
+    step = build_steps(get_settings(), run_store)["document_discovery"]
+    first = step.start("plan:p:v1:2:a1", universe_run_id=universe_run)
+    assert run_store.load_manifest(first).params["launch_key"] == "plan:p:v1:2:a1"
+    assert step.start("plan:p:v1:2:a1", universe_run_id=universe_run) == first
+    assert step.start("plan:p:v1:2:a2", universe_run_id=universe_run) != first
+    step.finish(first, universe_run_id=universe_run)
+    step.finish(first, universe_run_id=universe_run)  # ended: attaching reads it, never runs it again
+    assert executed == [first]

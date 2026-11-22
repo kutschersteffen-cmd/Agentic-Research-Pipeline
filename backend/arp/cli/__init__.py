@@ -3,6 +3,7 @@ from __future__ import annotations
 import typer
 from typer.core import TyperGroup
 
+from arp.cli.agent import agent_app
 from arp.cli.authority_library import authority_library_app
 from arp.cli.bi import bi_app
 from arp.cli.calibration import calibration_app
@@ -80,7 +81,7 @@ def _require_postgres(ctx: typer.Context) -> None:
         return
     if sys.argv[1:3] == ["showcase", "simulate"]:  # holdings files in, a CSV out
         return
-    if sys.argv[1:3] == ["report", "sheet"]:  # fixture slides in, PNGs out
+    if sys.argv[1:3] in (["report", "sheet"], ["report", "flow"]):  # fixture slides or a Mermaid file in, files out
         return
     try:
         settings = get_settings()
@@ -155,3 +156,4 @@ app.add_typer(plan_app, name="plan")
 app.add_typer(io_app, name="io")
 app.add_typer(rfp_app, name="rfp")
 app.add_typer(showcase_app, name="showcase")
+app.add_typer(agent_app, name="agent")

@@ -4,6 +4,7 @@
   "plugins": [
     { "name": "runs-pane", "source": "./.claude/mods/runs-pane" },
     { "name": "test-guard", "source": "./.claude/mods/test-guard" },
-    { "name": "token-usage", "source": "./.claude/mods/token-usage" }
+    { "name": "token-usage", "source": "./.claude/mods/token-usage" },
+    { "name": "engineering-playbook", "source": "./.claude/mods/engineering-playbook" }
   ]
 }

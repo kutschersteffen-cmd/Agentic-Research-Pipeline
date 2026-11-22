@@ -1,4 +1,4 @@
-import { useEffect, useId, type RefObject } from "react";
+import { useEffect, useId } from "react";
 import type { WaitingCounts } from "../types";
 import { waitingBadge, workspaceMenuItems } from "../lib/workspaceCard";
 import { workspaceOfRoute } from "../lib/processes";
@@ -18,11 +18,8 @@ const LOCKUP =
 type Props = {
   active: string;
   canAsk: boolean;
-  askOpen: boolean;
-  askRef: RefObject<HTMLButtonElement | null>;
   waiting: WaitingCounts | null;
   onSearch: () => void;
-  onAsk: () => void;
 };
 
 /** The workspaces with their state. Mounted only while the menu is open, so its polling stops when it closes. */
@@ -47,7 +44,7 @@ function WorkspaceLinks({ current }: { current: string }) {
 
 /** The top bar on every page but the landing page. Everything the old sidebar said about the person (reviewer
  * name, sign-in, theme) is in the user menu; the workspaces are in the Workspaces menu. */
-export function AppTopbar({ active, canAsk, askOpen, askRef, waiting, onSearch, onAsk }: Props) {
+export function AppTopbar({ active, canAsk, waiting, onSearch }: Props) {
   const me = useMe();
   const name = me?.name ?? "Account";
   const [reviewer, setReviewer] = useReviewer();
@@ -75,15 +72,10 @@ export function AppTopbar({ active, canAsk, askOpen, askRef, waiting, onSearch, 
           <circle cx="7" cy="7" r="4.5" />
           <path d="M10.5 10.5 14 14" strokeLinecap="round" />
         </svg>
-        <span className="start-topbar-search-label">Search or jump to…</span>
+        <span className="start-topbar-search-label">{canAsk ? "Search or ask…" : "Search…"}</span>
         <kbd aria-hidden="true">{mac ? "⌘K" : "Ctrl K"}</kbd>
       </button>
       <div className="start-topbar-end">
-        {canAsk && (
-          <button ref={askRef} type="button" className="start-topbar-ask" aria-keyshortcuts="Control+J Meta+J" aria-expanded={askOpen} onClick={onAsk}>
-            Ask ARP <kbd aria-hidden="true">{mac ? "⌘J" : "Ctrl J"}</kbd>
-          </button>
-        )}
         <nav className="start-topbar-nav" aria-label="Main">
           <div ref={spaces.wrapRef} className="start-topbar-spaces">
             <button
@@ -104,7 +96,7 @@ export function AppTopbar({ active, canAsk, askOpen, askRef, waiting, onSearch, 
             </div>
           </div>
           <a href="#/review" aria-current={active === "review" ? "page" : undefined}>
-            Review Queue
+            Needs you
             {badge && (
               <span className="nav-count" title={badge.title} aria-label={badge.title}>
                 {badge.text}

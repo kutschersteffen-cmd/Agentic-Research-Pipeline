@@ -27,12 +27,15 @@ from arp.api.deps import (
     settings_dep,
 )
 from arp.api.routers import (
+    agent,
+    agent_board,
     argus,
     ask,
     authoritative,
     authority_taxonomy,
     bi,
     calibration,
+    capabilities,
     climate,
     companies,
     decision,
@@ -54,12 +57,14 @@ from arp.api.routers import (
     portfolio,
     projects,
     publish,
+    refine,
     replication,
     reporting,
     revenue_catalogue,
     review,
     rfp,
     runs,
+    sandbox_tools,
     search,
     security_master,
     signals,
@@ -87,6 +92,7 @@ from arp.api.routers import (
 )
 from arp.db.session import require_cutover, require_postgres
 from arp.errors import ClientInputError, NotConfigured
+from arp.refine.turns import reap_stale_turns
 from arp.schemas.thematic import OLD_FORMAT_MESSAGE
 from arp.stewardship.universe import wait_for_fill
 from arp.transition_alignment.benchmarks import check_benchmarks
@@ -117,6 +123,8 @@ async def lifespan(app: FastAPI):
     check_benchmarks()  # so does an invalid benchmarks file
     require_postgres(settings)  # Postgres is the system of record: no DSN or no answer, no app
     require_cutover(settings)  # nor on an un-migrated or un-imported database
+    # shortcut: fails every running turn at startup, safe only with one API worker; reap by age or worker id before running several
+    reap_stale_turns()  # a turn left `running` by the last process can never finish: fail it, unlocking its document
     settings.ensure_dirs()
     if settings.standins_dir is not None:
         logger.warning("Test stand-ins are ON: web search, fetch and model answers come from %s", settings.standins_dir)
@@ -140,9 +148,12 @@ async def lifespan(app: FastAPI):
     report_scheduler.start()
     publishing_scheduler.start()
     review_analytics_scheduler.start()
+    plan_worker = plans.start_plan_worker(settings) if settings.plan_worker_seconds > 0 else None
     try:
         yield
     finally:
+        if plan_worker is not None:
+            plan_worker.cancel()
         scheduler.shutdown()
         taxonomy_researcher_scheduler.shutdown()
         calibration_scheduler.shutdown()
@@ -176,6 +187,11 @@ app.include_router(extraction.router, dependencies=[Depends(authorize)])
 app.include_router(documents.router, dependencies=[Depends(authorize)])
 app.include_router(discovery.router, dependencies=[Depends(authorize)])
 app.include_router(plans.router, dependencies=[Depends(authorize)])
+app.include_router(plans.templates_router, dependencies=[Depends(authorize)])
+app.include_router(agent_board.router, dependencies=[Depends(authorize)])
+app.include_router(capabilities.router, dependencies=[Depends(authorize)])
+app.include_router(agent.router, dependencies=[Depends(authorize)])
+app.include_router(sandbox_tools.router)  # signed in by its execution token, not a user (spec agent-panel-code-mode)
 app.include_router(identity.router, dependencies=[Depends(authorize)])
 app.include_router(runs.router, dependencies=[Depends(authorize)])
 app.include_router(universe.router, dependencies=[Depends(authorize)])
@@ -200,6 +216,7 @@ app.include_router(transition_plan.router, dependencies=[Depends(authorize)])
 app.include_router(transition_barrier.router, dependencies=[Depends(authorize)])
 app.include_router(transition_alignment.router, dependencies=[Depends(authorize)])
 app.include_router(rfp.router, dependencies=[Depends(authorize)])
+app.include_router(refine.router, dependencies=[Depends(current_user)])  # own role check: a viewer's 403 names the page
 app.include_router(portfolio.router, dependencies=[Depends(authorize)])
 app.include_router(climate.router, dependencies=[Depends(authorize)])
 app.include_router(decision.router, dependencies=[Depends(authorize)])
