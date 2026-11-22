@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from arp.errors import NotConfigured
@@ -155,14 +155,17 @@ class PlanStore:
                       .values(planner_cost_usd=ResearchPlan.planner_cost_usd + _usd(usd)))
 
     def spent_usd(self, plan_id: str) -> float:
-        """`estimated_cost_usd` summed over the runs the plan's calls store, plus the planner's own calls."""
+        """`estimated_cost_usd` summed over every run the plan started (each attempt, also those a resume, re-plan or
+        edit dropped from its calls: found by their launch key) and the runs its calls store, plus the planner's own
+        calls."""
         from arp.db.models import Run
 
         run_ids = select(ResearchPlanCall.run_id).where(ResearchPlanCall.plan_id == plan_id,
                                                         ResearchPlanCall.run_id.is_not(None))
+        launched = Run.params["launch_key"].astext.startswith(f"plan:{plan_id}:", autoescape=True)
         with Session(self.engine) as s:
             runs = s.scalar(select(func.coalesce(func.sum(Run.estimated_cost_usd), 0))
-                            .where(Run.run_id.in_(run_ids)))
+                            .where(or_(Run.run_id.in_(run_ids), launched)))
             planner = s.scalar(select(ResearchPlan.planner_cost_usd).where(ResearchPlan.id == plan_id))
         return float(Decimal(runs) + (planner or 0))
 
