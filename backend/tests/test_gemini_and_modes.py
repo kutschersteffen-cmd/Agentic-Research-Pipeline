@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 
 import pytest
-from google.genai import types
-from pydantic import BaseModel, ValidationError
+from google.genai import errors, types
+from pydantic import BaseModel, Field, ValidationError
 
 from arp.config import Settings
 from arp.extraction.steps import MODES, StepSettings, pipeline_shape
@@ -31,7 +31,10 @@ class _Scripted(GeminiClient):
 
     async def _send(self, contents, config):
         self.sent.append((list(contents), config))
-        return self.replies.pop(0)
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
 
 
 async def test_a_valid_json_answer_is_validated_and_its_usage_reported(tmp_path):
@@ -77,6 +80,34 @@ async def test_a_cut_off_answer_that_never_fits_raises_a_clear_error(tmp_path):
 async def test_a_blocked_answer_raises_at_once(tmp_path):
     client = _Scripted(tmp_path, [_response("", finish=types.FinishReason.SAFETY)])
     with pytest.raises(ValidationError, match="no answer: .*SAFETY"):
+        await client.complete_structured(system="s", prompt="p", output_model=Answer)
+    assert len(client.sent) == 1
+
+
+_TOO_COMPLEX = {"error": {"code": 400, "message": "The specified schema produces a constraint that has too many states for serving.",
+                          "status": "INVALID_ARGUMENT"}}
+
+
+class Bounded(BaseModel):
+    value: int = Field(default=0, ge=0, le=9)
+
+
+async def test_a_too_complex_schema_is_relaxed_then_moved_into_the_prompt_and_remembered(tmp_path):
+    reject = errors.ClientError(400, _TOO_COMPLEX)
+    client = _Scripted(tmp_path, [reject, reject, _response('{"value": 2}'), _response('{"value": 3}')])
+    out, usage = await client.complete_structured(system="sys", prompt="p", output_model=Bounded)
+    assert (out.value, usage.attempts) == (2, 1)
+    full, relaxed, in_prompt = (c for _, c in client.sent[:3])
+    assert full.response_json_schema == Bounded.model_json_schema()
+    assert relaxed.response_json_schema == {"properties": {"value": {"type": "integer"}}, "type": "object", "required": ["value"]}
+    assert in_prompt.response_json_schema is None and '"maximum": 9' in in_prompt.system_instruction
+    await client.complete_structured(system="sys", prompt="q", output_model=Bounded)
+    assert client.sent[3][1].response_json_schema is None  # the next call starts at the level that worked
+
+
+async def test_other_client_errors_are_not_retried(tmp_path):
+    client = _Scripted(tmp_path, [errors.ClientError(400, {"error": {"code": 400, "message": "bad", "status": "INVALID_ARGUMENT"}})])
+    with pytest.raises(errors.ClientError):
         await client.complete_structured(system="s", prompt="p", output_model=Answer)
     assert len(client.sent) == 1
 

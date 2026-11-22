@@ -6,7 +6,8 @@ so a call site that picks its model at runtime is not covered.
 
     cd backend && python scripts/gemini_schema_check.py [--model gemini-4-argon] [--only SlideContent,PlanDraft]
 
-Exit code 1 when any schema is rejected (a 400 from the API) or no answer validates against it; exit code 2 when
+A schema Gemini finds too complex still passes when the client's fallback (relaxed schema, or schema in the
+prompt) gets a valid answer; the line says which fallback it needed. Exit code 1 when any schema is rejected (a 400 from the API) or no answer validates against it; exit code 2 when
 the check could not run (no key, or the API refused the key or its billing: 401, 402, 403).
 """
 
@@ -52,7 +53,8 @@ async def check(client, name: str, model: type[BaseModel], gate: asyncio.Semapho
                 system="Fill the schema with a short, plausible example.", prompt=f"Give one example {name}.",
                 output_model=model, max_validation_retries=0, max_tokens=8192,
             )
-            return name, "ok", ""
+            level = getattr(client, "_schema_level", {}).get(name, 0)
+            return name, "ok", ("", "schema too complex: sent relaxed", "schema too complex: sent in the prompt")[level]
         except errors.ClientError as exc:
             return name, "REJECTED", str(exc)[:300]
         except ValidationError as exc:
