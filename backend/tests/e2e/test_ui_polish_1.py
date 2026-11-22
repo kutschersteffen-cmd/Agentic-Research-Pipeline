@@ -187,8 +187,8 @@ def test_ac11b_failed_line_links_to_run_history(page):
     page.route("**/api/runs", runs)
     _open(page, "/#/rdLab")
     line = page.locator(".hub-failed-line")
-    assert line.count() == 1  # only "Launch a thematic product" watches emerging_themes
-    assert line.inner_text().startswith("Last run failed: Launch a thematic product.")
+    assert line.count() == 1  # only "Design a strategy" (was "Launch a thematic product") watches emerging_themes
+    assert line.inner_text().startswith("Last run failed: Design a strategy.")
     assert line.get_by_role("link", name="Open Run history →").get_attribute("href") == "#/history"
     low = page.evaluate("() => { const d = document.createElement('span'); d.style.color = 'var(--low)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; }")
     assert line.evaluate("e => getComputedStyle(e).color") == low
