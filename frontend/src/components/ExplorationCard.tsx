@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { explorationBadge, resultTable } from "../lib/agent";
 import type { Exploration } from "../types";
 
@@ -5,6 +6,15 @@ import type { Exploration } from "../types";
  * result as a table when it is a list of flat objects (JSON otherwise), the tool calls, and a badge until accepted. */
 export function ExplorationCard({ exploration: e, busy, onAccept }: { exploration: Exploration; busy: boolean; onAccept: () => void }) {
   const badge = explorationBadge(e);
+  // Accept removes its own button: once the card shows the acceptance, focus moves to that line (WCAG 2.4.3).
+  const accepting = useRef(false);
+  const acceptedLine = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!badge && accepting.current) {
+      accepting.current = false;
+      acceptedLine.current?.focus();
+    }
+  }, [badge]);
   const table = e.status === "done" ? resultTable(e.result) : null;
   return (
     <>
@@ -12,16 +22,16 @@ export function ExplorationCard({ exploration: e, busy, onAccept }: { exploratio
         <h2 id="agent-exploration-h">{e.question}</h2>
         <p className="agent-meta">
           <span className={`status-pill status-${e.status}`}>{e.status}</span>{" "}
-          {badge ? <span className="agent-badge">{badge}</span> : <span className="muted">Accepted by {e.accepted_by}</span>}
+          {badge ? <span className="agent-badge">{badge}</span> : <span ref={acceptedLine} tabIndex={-1} className="muted">Accepted by {e.accepted_by}</span>}
         </p>
         {badge && (
           <div className="toolbar">
-            <button disabled={busy} onClick={onAccept}>Accept</button>
+            <button disabled={busy} onClick={() => { accepting.current = true; onAccept(); }}>Accept</button>
           </div>
         )}
         <details className="agent-exploration-code">
           <summary>Code</summary>
-          <pre className="mono agent-wrap" aria-label="Exploration code">{e.code}</pre>
+          <pre className="mono plan-script agent-wrap" aria-label="Exploration code">{e.code}</pre>
         </details>
       </article>
 
@@ -39,7 +49,7 @@ export function ExplorationCard({ exploration: e, busy, onAccept }: { exploratio
             </table>
           </div>
         ) : (
-          <pre className="mono agent-wrap" aria-label="Exploration result">{JSON.stringify(e.result, null, 2)}</pre>
+          <pre className="mono plan-script agent-wrap" aria-label="Exploration result">{JSON.stringify(e.result, null, 2)}</pre>
         )}
       </article>
 

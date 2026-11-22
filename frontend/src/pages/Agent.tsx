@@ -256,7 +256,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
       </div>
       <div id={`${id}-panel`} role="tabpanel" aria-label={STAGE_TABS.find((t) => t.id === tab)!.label}>
         {!plan ? (
-          <p className="muted">The selected plan’s script, changes and audit trail show here.</p>
+          <p className="muted">{explorationId ? "An exploration has no script, changes or audit trail: its code and tool calls are in the stream." : "The selected plan’s script, changes and audit trail show here."}</p>
         ) : tab === "script" ? (
           <pre className="mono agent-script" aria-label="Plan script, read-only">
             {scriptLines(plan.script).map((l) => (
