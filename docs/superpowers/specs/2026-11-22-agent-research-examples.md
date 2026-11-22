@@ -5,7 +5,7 @@ Slug: agent-research-examples
 Risk: this spec PR is `risk:low`. The build is size L, delivered as 6 PRs (see `## Slices`); each slice names its own
 risk label.
 
-Status: **draft, waiting for the owner's approval** (spec-critic: two rounds, ready for approval).
+Status: **approved by the owner on 22 Nov 2026** (button in the spec session, after two spec-critic rounds; decisions D1–D7 as recommended).
 
 Source: thread "Check research workspaces deck" (22 Nov 2026). The owner reviewed the deck "ARP Native Research
 Workspaces, Engineering" and asked that the agent can do what its examples show (climate shortlist, grid portfolio,
