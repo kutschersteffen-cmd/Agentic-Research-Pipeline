@@ -141,6 +141,25 @@ def run(plan_id: str) -> None:
         raise typer.Exit(1)
 
 
+@plan_app.command("worker")
+def worker(once: bool = typer.Option(False, "--once", help="Scan once and exit.")) -> None:
+    """Run plans that were started (`POST /api/plans/{id}/run`) or whose review gate was passed, until stopped.
+    Scans every ARP_PLAN_WORKER_SECONDS (5 when it is 0) and prints the id of each plan it ran."""
+    import time
+
+    from arp.config import get_settings
+    from arp.orchestration.plan_worker import scan
+
+    store = _store()
+    steps, reviewed = _runtime()
+    while True:
+        for plan_id in scan(store, steps, reviewed):
+            typer.echo(plan_id)
+        if once:
+            return
+        time.sleep(get_settings().plan_worker_seconds or 5)
+
+
 @plan_app.command("replan")
 def replan(plan_id: str, user: str | None = typer.Option(None, "--user", help="Who asks for the re-plan.")) -> None:
     """Have the planner rewrite a failed plan's remaining work; finished steps are kept. Stores it as a draft."""

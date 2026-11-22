@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -13,10 +14,11 @@ from arp.db.session import require_dsn
 from arp.orchestration.plan_executor import PlanNotRunnable, cancel_plan, claim_plan, run_plan
 from arp.orchestration.plan_planner import PlanRejected, draft_plan, replan_plan
 from arp.orchestration.plan_store import PlanNotFound, PlanNotReplannable, PlanStore
+from arp.orchestration.plan_worker import scan
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/plans", tags=["plans"])
-_running: set[asyncio.Task] = set()  # strong refs: a running plan's task is never garbage-collected
+_running: set[asyncio.Task] = set()  # strong refs: the plan worker's task is never garbage-collected
 
 
 def plan_store() -> PlanStore:
@@ -127,42 +129,46 @@ async def replan(plan_id: str, store: PlanStore = Depends(plan_store),
 
 @router.post("/{plan_id}/run", status_code=202)
 async def start_plan(plan_id: str, store: PlanStore = Depends(plan_store)) -> dict:
+    """Claims the plan; the plan worker runs it on its next scan."""
     _get(store, plan_id)
     try:
         await asyncio.to_thread(claim_plan, store, plan_id)
     except PlanNotRunnable as exc:
         raise HTTPException(409, str(exc)) from exc
-    steps, reviewed = build_runtime(get_settings())
-    task = asyncio.create_task(_drive(plan_id, store, steps, reviewed))
-    _running.add(task)
-    task.add_done_callback(_done)
     return {"plan_id": plan_id, "status": "running"}
 
 
-REVIEW_POLL_SECONDS = 5.0
+def start_plan_worker(settings: Settings) -> asyncio.Task:
+    """Started in the API lifespan when `plan_worker_seconds` is above 0; the caller cancels it on shutdown."""
+    task = asyncio.create_task(plan_worker(settings))
+    _running.add(task)
+    task.add_done_callback(_done)
+    return task
 
 
-async def _drive(plan_id: str, store: PlanStore, steps, reviewed) -> None:
-    """Run the plan in a worker thread. At a review gate the worker returns and this task polls `reviewed`
-    without holding a thread, then starts the worker again; it ends when the plan is no longer waiting."""
+async def plan_worker(settings: Settings) -> None:
+    """The API's plan worker: a scan every `plan_worker_seconds`. Each plan it picks up runs in its own thread, so a
+    long plan never holds up a new one; the plan lease keeps two threads off the same plan."""
+    store = plan_store()
+    steps, reviewed = build_runtime(settings)
     while True:
         try:
-            status = await asyncio.to_thread(run_plan, plan_id, store, steps, reviewed, return_at_gate=True)
-        except PlanNotRunnable:
-            return  # cancelled meanwhile, or another worker took it over
-        if status != "awaiting_review":
-            return
-        while True:
-            await asyncio.sleep(REVIEW_POLL_SECONDS)
-            if (await asyncio.to_thread(store.get, plan_id))["status"] != "awaiting_review":
-                return  # cancelled
-            waiting = [c for c in await asyncio.to_thread(store.calls, plan_id) if c["status"] == "awaiting_review"]
-            if not waiting or await asyncio.to_thread(reviewed, waiting[0]):
-                break
+            await asyncio.to_thread(scan, store, steps, reviewed, run=_in_thread)
+        except Exception:  # noqa: BLE001 - a failed scan (database away) must not end the worker
+            logger.exception("plan worker scan failed")
+        await asyncio.sleep(settings.plan_worker_seconds)
+
+
+def _in_thread(*args, **kwargs) -> None:
+    def go():
         try:
-            await asyncio.to_thread(claim_plan, store, plan_id)
+            run_plan(*args, **kwargs)
         except PlanNotRunnable:
-            return
+            pass  # another thread or process took it first
+        except Exception:  # noqa: BLE001
+            logger.exception("plan worker failed")
+
+    threading.Thread(target=go, daemon=True).start()  # daemon: a restart drops it and the next scan resumes the plan
 
 
 def _done(task: asyncio.Task) -> None:

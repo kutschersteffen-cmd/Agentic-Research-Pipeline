@@ -12,6 +12,7 @@ from typer.testing import CliRunner
 from arp.api.auth import Principal, current_user
 from arp.api.routers import plans
 from arp.cli import plan as plan_cli
+from arp.orchestration import plan_worker
 from arp.orchestration.plan_store import PlanStore
 
 SCRIPT = 'u = universe_build(taxonomy_id="t", source="u.csv")\ne = extraction(universe_run_id=u.run_id, schema_id="s")\n'
@@ -47,6 +48,12 @@ def client(store, gate, monkeypatch):
     with TestClient(app) as c:  # one event loop for the whole test, so a started plan keeps running
         yield c
         gate.set()
+
+
+def _scan(store):
+    """The plan worker's scan, in the background: the stub extraction waits for `gate`."""
+    steps, reviewed = plans.build_runtime(None)
+    threading.Thread(target=plan_worker.scan, args=(store, steps, reviewed), daemon=True).start()
 
 
 def _wait(pred, timeout=5.0):
@@ -94,6 +101,7 @@ def test_run_then_second_run_refused_then_cancel(client, store, gate):  # AC-30,
     plan_id = store.create("b", SCRIPT)
     store.approve(plan_id, "alice")
     assert client.post(f"/api/plans/{plan_id}/run").status_code == 202
+    _scan(store)
     _wait(lambda: len(store.calls(plan_id)) == 2)
     res = client.post(f"/api/plans/{plan_id}/run")
     assert res.status_code == 409
@@ -108,6 +116,7 @@ def test_cli_run_refused_while_running(client, store, gate):  # AC-31
     plan_id = store.create("b", SCRIPT)
     store.approve(plan_id, "alice")
     client.post(f"/api/plans/{plan_id}/run")
+    _scan(store)
     _wait(lambda: len(store.calls(plan_id)) == 2)
     result = CliRunner().invoke(plan_cli.plan_app, ["run", plan_id])
     assert result.exit_code == 1

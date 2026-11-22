@@ -87,6 +87,14 @@ class PlanStore:
         with Session(self.engine) as s:
             return [_plan_row(p) for p in s.scalars(select(ResearchPlan).order_by(ResearchPlan.created_at.desc()))]
 
+    def active(self) -> list[tuple[str, str]]:
+        """(id, status) of every plan that is `running` or `awaiting_review`, oldest first."""
+        with Session(self.engine) as s:
+            rows = s.execute(select(ResearchPlan.id, ResearchPlan.status)
+                             .where(ResearchPlan.status.in_({"running", "awaiting_review"}))
+                             .order_by(ResearchPlan.created_at))
+            return [(r.id, r.status) for r in rows]
+
     def update_script(self, plan_id: str, script: str) -> None:
         """An edit always returns the plan to draft and clears its approval. A re-planned plan keeps the calls kept at
         re-planning: the edited script reads them as `previous` and starts after them."""

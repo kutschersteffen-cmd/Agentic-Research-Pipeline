@@ -139,9 +139,12 @@ async def lifespan(app: FastAPI):
     report_scheduler.start()
     publishing_scheduler.start()
     review_analytics_scheduler.start()
+    plan_worker = plans.start_plan_worker(settings) if settings.plan_worker_seconds > 0 else None
     try:
         yield
     finally:
+        if plan_worker is not None:
+            plan_worker.cancel()
         scheduler.shutdown()
         taxonomy_researcher_scheduler.shutdown()
         calibration_scheduler.shutdown()
