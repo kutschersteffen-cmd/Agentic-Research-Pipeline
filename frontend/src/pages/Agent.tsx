@@ -1,13 +1,31 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import { chipLabel, scriptLines, sendsComposer, threadTitle } from "../lib/agent";
 import { ACTIVE, canReplan, resultHref, reviewHref, type Plan } from "../lib/plans";
 
 const POLL_MS = 3000;
+const NARROW = "(max-width: 899.98px)";
 
 type Drawer = "threads" | "stage" | null;
 
 const Chip = ({ status }: { status: string }) => <span className={`status-pill status-${status}`}>{chipLabel(status)}</span>;
+
+/** A side column opened as a drawer: a native modal <dialog>, so showModal() supplies the focus trap, the inert
+ * background, Escape and the focus return to the header button, as in components/Modal.tsx. A backdrop click closes it. */
+function DrawerDialog({ side, label, onClose, children }: { side: "left" | "right"; label: string; onClose: () => void; children: (close: () => void) => ReactNode }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const close = () => ref.current?.close();
+  useEffect(() => {
+    const d = ref.current;
+    if (d && !d.open) d.showModal();
+  }, []);
+  return (
+    <dialog ref={ref} id="agent-drawer" className={`agent-drawer agent-drawer-${side}`} aria-label={label} onClose={onClose}
+      onClick={(e) => e.target === e.currentTarget && close()}>
+      <div className="agent-drawer-body">{children(close)}</div>
+    </dialog>
+  );
+}
 
 /** The Agent screen: threads on the left, the selected plan's stream in the middle, its stage on the right.
  * Below 900 px the side columns are drawers opened from the header. */
@@ -18,7 +36,6 @@ export function Agent({ selectedId, onSelect }: { selectedId: string | null; onS
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<Drawer>(null);
-  const toggles = { threads: useRef<HTMLButtonElement>(null), stage: useRef<HTMLButtonElement>(null) };
 
   const loadList = useCallback(() => {
     api.listPlans().then(setPlans).catch((e: Error) => setError(`Threads could not be loaded: ${e.message}.`));
@@ -42,17 +59,13 @@ export function Agent({ selectedId, onSelect }: { selectedId: string | null; onS
     const t = setInterval(loadPlan, POLL_MS);
     return () => clearInterval(t);
   }, [plan, loadPlan]);
-
-  function closeDrawer() {
-    if (drawer) toggles[drawer].current?.focus();
-    setDrawer(null);
-  }
+  // Widening past 900 px shows the columns again, so an open drawer goes.
   useEffect(() => {
-    if (!drawer) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeDrawer(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  });
+    const mq = window.matchMedia(NARROW);
+    const onChange = () => { if (!mq.matches) setDrawer(null); };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   async function act(fn: () => Promise<unknown>): Promise<boolean> {
     setBusy(true);
@@ -79,14 +92,55 @@ export function Agent({ selectedId, onSelect }: { selectedId: string | null; onS
     });
   }
 
-  function pick(id: string) {
-    setDrawer(null);
-    onSelect(id);
-  }
+  // `id` keeps the column's and the drawer's ids apart; `close` is set inside a drawer.
+  const threads = (id: string, close?: () => void) => (
+    <>
+      <div className="agent-side-head">
+        <h2 id={`${id}-h`}>Threads</h2>
+        {close && <button type="button" className="link-button" onClick={close}>Close</button>}
+      </div>
+      {plans.length === 0 ? (
+        <p className="muted">No threads yet. Write a brief to start one.</p>
+      ) : (
+        <ul className="agent-thread-list">
+          {plans.map((p) => (
+            <li key={p.id} className={p.id === selectedId ? "selected" : undefined}>
+              <button type="button" className="link-button" aria-current={p.id === selectedId ? "true" : undefined}
+                onClick={() => { close?.(); onSelect(p.id); }}>
+                {threadTitle(p.brief)}
+              </button>
+              <Chip status={p.status} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+  const stage = (id: string, close?: () => void) => (
+    <>
+      <div className="agent-side-head">
+        <div className="sub-nav" role="tablist" aria-label="Stage">
+          <button type="button" id={`${id}-tab-script`} className="nav-tab active" role="tab" aria-selected="true" aria-controls={`${id}-panel-script`}>Script</button>
+        </div>
+        {close && <button type="button" className="link-button" onClick={close}>Close</button>}
+      </div>
+      <div id={`${id}-panel-script`} role="tabpanel" aria-labelledby={`${id}-tab-script`}>
+        {plan ? (
+          <pre className="mono agent-script" aria-label="Plan script, read-only">
+            {scriptLines(plan.script).map((l) => (
+              <span key={l.n} className="agent-script-line"><span className="agent-ln" aria-hidden="true">{l.n}</span><span>{l.text}{"\n"}</span></span>
+            ))}
+          </pre>
+        ) : (
+          <p className="muted">The selected plan’s script shows here.</p>
+        )}
+      </div>
+    </>
+  );
 
   const drawerButton = (which: "threads" | "stage", label: string) => (
-    <button ref={toggles[which]} type="button" className="secondary" aria-expanded={drawer === which}
-      aria-controls={`agent-${which}`} onClick={() => (drawer === which ? closeDrawer() : setDrawer(which))}>
+    <button type="button" className="secondary" aria-haspopup="dialog" aria-expanded={drawer === which}
+      aria-controls={drawer === which ? "agent-drawer" : undefined} onClick={() => setDrawer(which)}>
       {label}
     </button>
   );
@@ -103,26 +157,7 @@ export function Agent({ selectedId, onSelect }: { selectedId: string | null; onS
       {error && <p className="error-text" role="alert">{error}</p>}
 
       <div className="agent-shell">
-        <aside id="agent-threads" className={drawer === "threads" ? "agent-side agent-threads open" : "agent-side agent-threads"} aria-labelledby="agent-threads-h">
-          <div className="agent-side-head">
-            <h2 id="agent-threads-h">Threads</h2>
-            {drawer === "threads" && <button type="button" className="link-button" autoFocus onClick={closeDrawer}>Close</button>}
-          </div>
-          {plans.length === 0 ? (
-            <p className="muted">No threads yet. Write a brief to start one.</p>
-          ) : (
-            <ul className="agent-thread-list">
-              {plans.map((p) => (
-                <li key={p.id} className={p.id === selectedId ? "selected" : undefined}>
-                  <button type="button" className="link-button" aria-current={p.id === selectedId ? "true" : undefined} onClick={() => pick(p.id)}>
-                    {threadTitle(p.brief)}
-                  </button>
-                  <Chip status={p.status} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
+        <aside className="agent-side agent-threads" aria-labelledby="agent-threads-h">{threads("agent-threads")}</aside>
 
         <section className="agent-stream" aria-label="Stream">
           {plan ? (
@@ -148,27 +183,13 @@ export function Agent({ selectedId, onSelect }: { selectedId: string | null; onS
           </form>
         </section>
 
-        <aside id="agent-stage" className={drawer === "stage" ? "agent-side agent-stage open" : "agent-side agent-stage"} aria-label="Stage">
-          <div className="agent-side-head">
-            <div className="sub-nav" role="tablist" aria-label="Stage">
-              <button type="button" id="agent-tab-script" className="nav-tab active" role="tab" aria-selected="true" aria-controls="agent-panel-script">Script</button>
-            </div>
-            {drawer === "stage" && <button type="button" className="link-button" autoFocus onClick={closeDrawer}>Close</button>}
-          </div>
-          <div id="agent-panel-script" role="tabpanel" aria-labelledby="agent-tab-script">
-            {plan ? (
-              <pre className="mono agent-script" aria-label="Plan script, read-only">
-                {scriptLines(plan.script).map((l) => (
-                  <span key={l.n} className="agent-script-line"><span className="agent-ln" aria-hidden="true">{l.n}</span><span>{l.text}{"\n"}</span></span>
-                ))}
-              </pre>
-            ) : (
-              <p className="muted">The selected plan’s script shows here.</p>
-            )}
-          </div>
-        </aside>
+        <aside className="agent-side agent-stage" aria-label="Stage">{stage("agent-stage")}</aside>
       </div>
-      {drawer && <div className="agent-scrim" onClick={closeDrawer} />}
+      {drawer && (
+        <DrawerDialog key={drawer} side={drawer === "threads" ? "left" : "right"} label={drawer === "threads" ? "Threads" : "Stage"} onClose={() => setDrawer(null)}>
+          {(close) => (drawer === "threads" ? threads("agent-drawer-threads", close) : stage("agent-drawer-stage", close))}
+        </DrawerDialog>
+      )}
     </div>
   );
 }
@@ -194,7 +215,7 @@ function Stream({ plan, busy, act }: { plan: Plan; busy: boolean; act: (fn: () =
 
       <article className="card agent-card" aria-labelledby="agent-script-h">
         <h3 id="agent-script-h">Script</h3>
-        <pre className="mono plan-script" aria-label="Plan script">{plan.script}</pre>
+        <pre className="mono plan-script agent-wrap" aria-label="Plan script">{plan.script}</pre>
       </article>
 
       <article className="card agent-card" aria-labelledby="agent-steps-h">
