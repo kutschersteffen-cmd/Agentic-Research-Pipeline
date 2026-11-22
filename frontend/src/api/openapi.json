@@ -683,6 +683,129 @@
     "title": "AddCompanies",
     "type": "object"
    },
+   "AgentAsk": {
+    "properties": {
+     "asked_by": {
+      "title": "Asked By",
+      "type": "string"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "explorations": {
+      "items": {
+       "$ref": "#/components/schemas/AskExplorationLink"
+      },
+      "title": "Explorations",
+      "type": "array"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "plans": {
+      "items": {
+       "$ref": "#/components/schemas/AskPlanLink"
+      },
+      "title": "Plans",
+      "type": "array"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "response": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/AskResponse"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "standalone_question": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Standalone Question"
+     },
+     "thread_id": {
+      "title": "Thread Id",
+      "type": "string"
+     },
+     "tool": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tool"
+     }
+    },
+    "required": [
+     "id",
+     "thread_id",
+     "question",
+     "standalone_question",
+     "tool",
+     "response",
+     "error",
+     "asked_by",
+     "created_at",
+     "plans",
+     "explorations"
+    ],
+    "title": "AgentAsk",
+    "type": "object"
+   },
+   "AgentAskRequest": {
+    "properties": {
+     "question": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Question",
+      "type": "string"
+     },
+     "thread_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Thread Id"
+     }
+    },
+    "required": [
+     "question"
+    ],
+    "title": "AgentAskRequest",
+    "type": "object"
+   },
    "AggregationResult": {
     "properties": {
      "as_of": {
@@ -1691,6 +1814,57 @@
     "title": "ArgusFlowView",
     "type": "object"
    },
+   "AskExplorationLink": {
+    "properties": {
+     "exploration_id": {
+      "title": "Exploration Id",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "exploration_id",
+     "question",
+     "status",
+     "label"
+    ],
+    "title": "AskExplorationLink",
+    "type": "object"
+   },
+   "AskPlanLink": {
+    "properties": {
+     "brief": {
+      "title": "Brief",
+      "type": "string"
+     },
+     "plan_id": {
+      "title": "Plan Id",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "plan_id",
+     "brief",
+     "status"
+    ],
+    "title": "AskPlanLink",
+    "type": "object"
+   },
    "AskResponse": {
     "properties": {
      "answer_text": {
@@ -1769,6 +1943,44 @@
      "answered_at"
     ],
     "title": "AskResponse",
+    "type": "object"
+   },
+   "AskThread": {
+    "properties": {
+     "asks": {
+      "title": "Asks",
+      "type": "integer"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "answered",
+       "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "thread_id": {
+      "title": "Thread Id",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "thread_id",
+     "title",
+     "status",
+     "created_at",
+     "asks"
+    ],
+    "title": "AskThread",
     "type": "object"
    },
    "AssumptionOut": {
@@ -10148,6 +10360,17 @@
      "brief": {
       "title": "Brief",
       "type": "string"
+     },
+     "source_ask_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Ask Id"
      }
     },
     "required": [
@@ -30093,6 +30316,118 @@
  },
  "openapi": "3.1.0",
  "paths": {
+  "/api/agent/ask-threads": {
+   "get": {
+    "operationId": "list_ask_threads_api_agent_ask_threads_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AskThread"
+         },
+         "title": "Response List Ask Threads Api Agent Ask Threads Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Ask Threads",
+    "tags": [
+     "agent"
+    ]
+   }
+  },
+  "/api/agent/asks": {
+   "get": {
+    "description": "The thread's asks, oldest first.",
+    "operationId": "list_thread_asks_api_agent_asks_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AgentAsk"
+         },
+         "title": "Response List Thread Asks Api Agent Asks Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Thread Asks",
+    "tags": [
+     "agent"
+    ]
+   },
+   "post": {
+    "description": "One ask, stored in its thread (a new one without `thread_id`). A failed ask is stored and answered with 200.",
+    "operationId": "post_agent_ask_api_agent_asks_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AgentAskRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AgentAsk"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Agent Ask",
+    "tags": [
+     "agent"
+    ]
+   }
+  },
   "/api/agent/boards/{thread_kind}/{thread_id}": {
    "get": {
     "operationId": "get_board_api_agent_boards__thread_kind___thread_id__get",

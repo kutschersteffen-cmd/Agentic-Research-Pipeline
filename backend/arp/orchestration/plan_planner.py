@@ -79,7 +79,7 @@ StepCheck = Callable[[list[dict]], list[str]]
 
 
 async def draft_plan(brief: str, llm: LLMClient, store: PlanStore, context: str = "",
-                     check: StepCheck | None = None) -> str:
+                     check: StepCheck | None = None, source_ask_id: str | None = None) -> str:
     """Store the planner's script as a draft plan and return its id. Raises PlanRejected."""
     system = SYSTEM.replace("{stubs}", step_stubs())
     base = f"Research brief:\n{brief}" + (f"\n\n{context}" if context else "")
@@ -90,7 +90,8 @@ async def draft_plan(brief: str, llm: LLMClient, store: PlanStore, context: str 
         out, usage = await llm.complete_structured(system=system, prompt=prompt, output_model=PlanScript)
         cost += _cost(usage)
         try:  # checks the script, then dry-runs it off the event loop
-            return await asyncio.to_thread(store.create, brief, out.script, check=check, planner_cost_usd=cost)
+            return await asyncio.to_thread(store.create, brief, out.script, check=check, planner_cost_usd=cost,
+                                           source_ask_id=source_ask_id)
         except ValueError as exc:
             errors = str(exc).splitlines()
         prompt = (f"{base}\n\nYour previous script:\n{out.script}\n\n"

@@ -1,4 +1,4 @@
-import { useEffect, useId, type RefObject } from "react";
+import { useEffect, useId } from "react";
 import type { WaitingCounts } from "../types";
 import { waitingBadge, workspaceMenuItems } from "../lib/workspaceCard";
 import { workspaceOfRoute } from "../lib/processes";
@@ -18,8 +18,6 @@ const LOCKUP =
 type Props = {
   active: string;
   canAsk: boolean;
-  /** The search-or-ask button, where focus returns when the Ask panel closes. */
-  searchRef: RefObject<HTMLButtonElement | null>;
   waiting: WaitingCounts | null;
   onSearch: () => void;
 };
@@ -46,7 +44,7 @@ function WorkspaceLinks({ current }: { current: string }) {
 
 /** The top bar on every page but the landing page. Everything the old sidebar said about the person (reviewer
  * name, sign-in, theme) is in the user menu; the workspaces are in the Workspaces menu. */
-export function AppTopbar({ active, canAsk, searchRef, waiting, onSearch }: Props) {
+export function AppTopbar({ active, canAsk, waiting, onSearch }: Props) {
   const me = useMe();
   const name = me?.name ?? "Account";
   const [reviewer, setReviewer] = useReviewer();
@@ -69,7 +67,7 @@ export function AppTopbar({ active, canAsk, searchRef, waiting, onSearch }: Prop
           <rect x="26" y="2" width="10" height="10" fill="var(--brand-apex)" />
         </svg>
       </a>
-      <button ref={searchRef} type="button" className="start-topbar-search" aria-keyshortcuts="Control+K Meta+K" onClick={onSearch}>
+      <button type="button" className="start-topbar-search" aria-keyshortcuts="Control+K Meta+K" onClick={onSearch}>
         <svg className="start-topbar-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden="true">
           <circle cx="7" cy="7" r="4.5" />
           <path d="M10.5 10.5 14 14" strokeLinecap="round" />
