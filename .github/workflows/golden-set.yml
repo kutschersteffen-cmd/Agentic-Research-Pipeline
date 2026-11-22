@@ -124,7 +124,9 @@ jobs:
         run: |
           set -o pipefail; rc=0
           for m in gemini-3.8-flash gemini-4-argon; do
-            python scripts/gemini_schema_check.py --model "$m" | tee -a "$GITHUB_STEP_SUMMARY" || rc=1
+            s=0; python scripts/gemini_schema_check.py --model "$m" | tee -a "$GITHUB_STEP_SUMMARY" || s=$?
+            if [ "$s" = 2 ]; then echo "::warning title=Gemini schema check not run::Gemini refused ARP_GEMINI_API_KEY on $m (see log)."
+            elif [ "$s" != 0 ]; then rc=1; fi
           done
           exit $rc
 

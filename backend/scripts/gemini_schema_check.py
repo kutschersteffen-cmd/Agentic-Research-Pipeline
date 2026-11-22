@@ -6,7 +6,8 @@ so a call site that picks its model at runtime is not covered.
 
     cd backend && python scripts/gemini_schema_check.py [--model gemini-4-argon] [--only SlideContent,PlanDraft]
 
-Exit code 1 when any schema is rejected (a 400 from the API) or no answer validates against it.
+Exit code 1 when any schema is rejected (a 400 from the API) or no answer validates against it; exit code 2 when
+the check could not run (no key, or the API refused the key or its billing: 401, 402, 403).
 """
 
 from __future__ import annotations
@@ -75,6 +76,10 @@ async def main() -> int:
     client = build_llm_client(settings, model=args.model)
     gate = asyncio.Semaphore(args.concurrency)
     results = await asyncio.gather(*(check(client, n, m, gate) for n, m in models.items()))
+    unusable = [d for _, status, d in results if status == "REJECTED" and d[:3] in ("401", "402", "403")]
+    if unusable:
+        print(f"Gemini refused the key on {args.model}, so no schema was checked: {unusable[0]}", file=sys.stderr)
+        return 2
     for name, status, detail in sorted(results, key=lambda r: (r[1] == "ok", r[0])):
         print(f"{status:9} {name}  {detail}")
     bad = sum(status != "ok" for _, status, _ in results)
