@@ -5,7 +5,7 @@ Slug: agent-board
 Risk: this spec PR is `risk:low`. The build is size M, delivered as 4 PRs (see `## Slices`); each slice names its own
 risk label.
 
-Status: draft, waiting for the owner's approval.
+Status: draft, waiting for the owner's approval (spec-critic: three rounds, all findings fixed).
 
 Source: thread "Add a whiteboard to ARP" (22 Nov 2026). The owner asked for "the same whiteboard functionality as
 Claude" and picked option 1 of three: a **Board** tab on the Agent screen's stage with typed blocks (chart, flowchart,
@@ -138,8 +138,9 @@ On screen:
   is `columns`; a cell that Python's `float()` parses to a finite value is a number (an `int` when it has no `.`, `e`
   or `E`), an empty cell is `null`, anything else a string.
 - `chart`: `<img src="data:image/svg+xml;base64,…">` of the SVG for the current colour scheme (D1, G6).
-- `flow`: `flowCanvas.tsx` with the `Flow`'s steps and arrows, read-only, laid out top to bottom or left to right as
-  the source says.
+- `flow`: a new read-only `BoardFlow` component on React Flow, using `flowCanvas.tsx`'s `FlowHandle`, `LinkedHandles`
+  and `DotGrid`. Each step's rank is its longest path from a step with no incoming arrow; ranks run along the source's
+  direction (`LR` left to right, `TB` top to bottom), and steps of the same rank sit side by side in source order.
 
 ### API
 
@@ -315,11 +316,11 @@ means one newline character.
 | Slice | PR contents | Risk | Needs | Rows |
 |---|---|---|---|---|
 | 1 | Tables, block checks, chart and flow rendering, `GET`, `POST /blocks`, `PATCH`, `undo`, `DELETE` for plans | `risk:high` (schema) | — | AC-1 to AC-13e, AC-30 |
-| 2 | `POST /draw`: prompt, retry, number check (also on a person's `PATCH`), stand-in lists, golden set; adds `backend/arp/agent_board/**` and `tests/golden/board.jsonl` to the path filter and run step of `.github/workflows/golden-set.yml` | `risk:high` (workflow file) | slice 1 | AC-14 to AC-17d, AC-19, AC-19b, AC-20, AC-20b, AC-30, AC-32 |
-| 3 | Board tab on the Agent screen | `risk:normal` | slice 2, and slice 6 of `agent-panel-code-mode` | AC-18, AC-18b, AC-21 to AC-26 (with AC-25b to AC-25h), AC-29, AC-31 |
+| 2 | `POST /draw`: prompt, retry, number check (also on a person's `PATCH`), stand-in lists, golden set; in `.github/workflows/golden-set.yml` adds `backend/arp/agent_board/**` and `tests/golden/board.jsonl` to the `paths` filter, `arp/agent_board tests/golden/board.jsonl` to the `other=` git-diff list of the `scope` step, and the `arp agent board-golden …` line to the run step | `risk:high` (workflow file) | slice 1 | AC-14 to AC-17d, AC-19, AC-19b, AC-20, AC-20b, AC-30, AC-32 |
+| 3 | Board tab on the Agent screen | `risk:normal` | slice 2, and slices 6 and 8 of `agent-panel-code-mode` | AC-18, AC-18b, AC-21 to AC-26 (with AC-25b to AC-25h), AC-29, AC-31 |
 | 4 | Boards on explorations | `risk:normal` | slice 3, and slice 10 of `agent-panel-code-mode` | AC-27, AC-28, AC-30, AC-31 |
 
-Slices 1 and 2 can start now; slice 3 waits for the Agent screen shell.
+Slices 1 and 2 can start now; slice 3 waits for the Agent screen's stage tabs.
 
 ## Later
 
