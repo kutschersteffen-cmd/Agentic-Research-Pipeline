@@ -1,4 +1,4 @@
-"""refine-chat "Turn API": the prompt, the one model call and the turn's orchestration (AC-13)."""
+"""refine-chat "Turn API": the prompt, the one model call and the turn's orchestration (AC-13), RFP and deck."""
 
 from __future__ import annotations
 
@@ -14,7 +14,9 @@ from arp.db.session import transaction
 from arp.refine import turns
 from arp.refine.agent import run_turn
 from arp.rfp.draft import Cited, DraftOut
+from arp.schemas.reporting import Deck, Finding, ReportManifest, ReportRequest, SlideContent
 from arp.standins import StandInLLMClient
+from arp.storage.reporting_store import ReportingStore
 
 TODAY = date(2026, 11, 14)
 
@@ -55,7 +57,7 @@ def row(tid):
 
 def rfp_turn(pid, llm, message="m", history=()):
     tid = turns.start_turn("rfp", pid, "alice", message)
-    asyncio.run(run_turn(tid, pid, message, list(history), llm, today=TODAY))
+    asyncio.run(run_turn(tid, "rfp", pid, message, list(history), llm, None, today=TODAY))
     return tid
 
 
@@ -79,7 +81,7 @@ def test_large_rfp_refused_without_model_call(pg, llm):
                                  answer="a", status="drafted", flags=[], sources=[]) for i in range(401)])
         pid = str(p.id)
     tid = turns.start_turn("rfp", pid, "alice", "shorter")
-    asyncio.run(run_turn(tid, pid, "shorter", [], llm, today=TODAY))
+    asyncio.run(run_turn(tid, "rfp", pid, "shorter", [], llm, None, today=TODAY))
     assert model_calls(llm) == []
     out = turns.turn_out(tid)
     assert out["status"] == "done"
@@ -122,7 +124,7 @@ def test_rfp_rewrite_end_to_end(pg, llm):
     (llm._folder / "model" / "DraftOut.json").write_text(json.dumps({"output": draft.model_dump()}))
     (llm._folder / "model" / "FactCheck.json").write_text(json.dumps({"output": {}}))  # the second model's check passes
     tid = turns.start_turn("rfp", pid, "alice", "shorter")
-    asyncio.run(run_turn(tid, pid, "shorter", [], llm, today=TODAY))
+    asyncio.run(run_turn(tid, "rfp", pid, "shorter", [], llm, None, today=TODAY))
     out = turns.turn_out(tid)
     assert (out["status"], out["reply"], out["changed"], out["not_changed"]) == ("done", "Shortening Q1.", [qid], [])
     with transaction() as s:
@@ -144,3 +146,73 @@ def test_reaped_turn_writes_no_answer(llm, project):
     assert row(tid)["status"] == "failed"
     with transaction() as s:
         assert s.get(m.RfpQuestion, qid).answer == "A1"
+
+
+# --- deck turns (slice 2) -----------------------------------------------------------------------
+
+
+@pytest.fixture
+def report(tmp_path):
+    """Report R: slide 2 is two_column/text_chart with slot `text`; nothing in it contains a 73."""
+    store = ReportingStore(tmp_path / "reports", tmp_path / "tpl")
+    man = ReportManifest(title="R")
+    store.save_manifest(man)
+    store.save_request(man.report_id, ReportRequest(title="R", qualitative_notes="n"))
+    store.save_findings(man.report_id, [Finding(slide=1, stage="qa", rule="r", message="Target year 2040.")])
+    store.save_deck(man.report_id, Deck(title="R", slides=[
+        SlideContent(headline="One", layout="bullets", variant="three", slots={"items": ["x"]}),
+        SlideContent(headline="Two", layout="two_column", variant="text_chart", slots={"text": "old"}),
+    ]))
+    return store, man.report_id
+
+
+def deck_turn(store, rid, llm, message="m", history=()):
+    tid = turns.start_turn("deck", rid, "alice", message)
+    asyncio.run(run_turn(tid, "deck", rid, message, list(history), llm, store, today=TODAY))
+    return tid
+
+
+def test_deck_turn_logs_and_sets_edited_flag(pg, llm, report):  # AC-28, AC-31
+    store, rid = report
+    deck_before = store.load_deck(rid)
+    op = {"op": "set_text", "slide": 2, "slot": "text", "text": "Net zero by 2040"}
+    stand_in(llm, {"output": {"reply": "Done.", "ops": [op]}})
+    tid = deck_turn(store, rid, llm)
+    assert store.load_deck(rid).slides[1].slots["text"] == "Net zero by 2040"
+    assert store.load_manifest(rid).deck_edited_since_render is True
+    r = row(tid)
+    assert r["status"] == "done" and r["ops"] == [op]
+    assert r["before"] == deck_before.model_dump(mode="json")
+    assert r["after"] == store.load_deck(rid).model_dump(mode="json")
+    assert r["result"] == {"reply": "Done.", "changed": [2], "not_changed": [], "check_figures": []}  # 2040 is in the findings
+
+
+def test_deck_turn_with_no_change_leaves_flag_and_undo_marker(pg, llm, report):
+    store, rid = report
+    stand_in(llm, {"output": {"reply": "Nothing to change.", "ops": []}})
+    r = row(deck_turn(store, rid, llm))
+    assert r["status"] == "done" and r["before"] == {} and r["result"]["changed"] == []
+    assert store.load_manifest(rid).deck_edited_since_render is False
+
+
+def test_deck_prompt_lists_slides_and_allowed_slots(pg, llm, report):
+    store, rid = report
+    stand_in(llm, {"output": {"reply": "ok", "ops": []}})
+    deck_turn(store, rid, llm, message="make slide 2 shorter")
+    [call] = model_calls(llm)
+    prompt = json.dumps(call)
+    assert "make slide 2 shorter" in prompt and "text_chart" in prompt and "allowed_variants_and_slots" in prompt
+
+
+def test_reaped_deck_turn_writes_no_deck(pg, llm, report):
+    store, rid = report
+    deck_before = store.load_deck(rid)
+    stand_in(llm, {"output": {"reply": "Done.", "ops": [{"op": "set_text", "slide": 2, "slot": "text", "text": "New"}]}})
+
+    class ReapsDuringCall:
+        async def complete_structured(self, **kw):
+            turns.reap_stale_turns()  # the turn times out during the model call
+            return await llm.complete_structured(**kw)
+
+    tid = deck_turn(store, rid, ReapsDuringCall())
+    assert store.load_deck(rid) == deck_before and row(tid)["status"] == "failed"
