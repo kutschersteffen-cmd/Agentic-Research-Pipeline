@@ -17,8 +17,8 @@ backslash refused in diagrams; `flow` sources get the diagram checks, keeping th
 Amendment 1d (22 Nov 2026, from the round 3 security review on PR #648, the third round of check bypasses, so it closes
 the class: the checks read lines and words the way Mermaid does and refuse hidden characters and entity codes; in the
 browser every diagram is drawn and shown inside a sandboxed frame whose Content-Security-Policy blocks every outside load,
-with links stripped as before, so a diagram that slips past the checks still cannot reach outside; AC-36r to AC-36z, AC-49c, AC-49d, AC-55b): **awaiting the
-owner's approval**. The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
+with links stripped as before, so a diagram that slips past the checks still cannot reach outside; AC-36r to AC-36z, AC-49c, AC-49d, AC-55b): **approved by the owner on 22 Nov 2026**
+(button in the spec session, head 6e1dbf0). The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
 "work for anything the user tells the AI", and "let's do all" for tiles, checklists and live blocks.
 
 Source: thread "Add a whiteboard to ARP" (22 Nov 2026). The owner asked for "the same whiteboard functionality as
