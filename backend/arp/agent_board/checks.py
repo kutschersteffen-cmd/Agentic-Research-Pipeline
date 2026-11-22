@@ -6,7 +6,11 @@
 
 from __future__ import annotations
 
+import json
 import math
+import subprocess
+import sys
+from functools import lru_cache
 from typing import Any
 
 KINDS = ("note", "table", "chart", "flow")
@@ -94,7 +98,10 @@ def _too_many_rows(node: Any) -> bool:
         if isinstance(data, dict) and (_values_rows(data.get("values")) > MAX_CHART_ROWS
                                        or ("graticule" in data and _graticule_rows(data["graticule"]) > MAX_CHART_ROWS)):
             return True
-        if isinstance(node.get("sequence"), dict) and _sequence_rows(node["sequence"]) > MAX_CHART_ROWS:  # data.sequence, impute keyvals
+        if isinstance(node.get("sequence"), dict) and _sequence_rows(node["sequence"]) > MAX_CHART_ROWS:  # data.sequence
+            return True
+        keyvals = node.get("keyvals")  # impute: `{start?, stop, step?}` is a sequence
+        if "impute" in node and isinstance(keyvals, dict) and _sequence_rows(keyvals) > MAX_CHART_ROWS:
             return True
         datasets = node.get("datasets")
         if isinstance(datasets, dict) and any(_values_rows(v) > MAX_CHART_ROWS for v in datasets.values()):
@@ -122,24 +129,34 @@ def _check_table(source: Any) -> None:
             raise BlockInvalid(f"row {i} has {len(row)} cells, expected {len(cols)}")
 
 
-def render_chart(source: dict) -> dict[str, str]:
-    """The source with the house theme for each colour scheme, as SVG (D1)."""
-    from arp.reporting import vega
-    from arp.reporting.house_style import load_tokens
-    from arp.reporting.render_model import palette
+RENDER_TIMEOUT_S = 30
 
-    tokens, out = load_tokens(), {}
-    for mode in ("light", "dark"):
-        c = palette(tokens, mode)
-        config = vega.theme_config(tokens, mode)
-        config["background"] = c["panel"]
-        for part in ("axis", "legend"):
-            config[part] = {**config.get(part, {}), "labelColor": c["ink"], "titleColor": c["ink"]}
-        config["axis"].update(domainColor=c["line"], tickColor=c["line"])
-        config["title"] = {**config.get("title", {}), "color": c["ink"]}
-        config["mark"] = {**config.get("mark", {}), "color": c["highlight"]}
-        out[mode] = vega.to_svg({**source, "config": config}, tokens)
-    return out
+
+class RenderFailed(Exception):
+    """`str()` is the first line of why the chart could not be drawn."""
+
+
+@lru_cache(maxsize=64)
+def _render_cached(source_json: str) -> tuple[str, str]:
+    try:
+        proc = subprocess.run([sys.executable, "-m", "arp.agent_board.render_worker"], input=source_json,
+                              capture_output=True, text=True, timeout=RENDER_TIMEOUT_S, check=False)
+    except subprocess.TimeoutExpired:
+        raise RenderFailed(f"rendering took longer than {RENDER_TIMEOUT_S} s") from None
+    if proc.returncode != 0:
+        lines = [ln for ln in proc.stderr.strip().splitlines() if ln.strip()]
+        if proc.returncode == 1 and lines:
+            raise RenderFailed(lines[0])
+        raise RenderFailed("rendering ran out of memory or crashed")
+    out = json.loads(proc.stdout)
+    return out["light"], out["dark"]
+
+
+def render_chart(source: dict) -> dict[str, str]:
+    """Light and dark SVG of the chart with the house theme (D1), drawn in a child process with a memory cap and a
+    timeout, so no chart can take the API down. The last 64 sources are cached, so reads do not draw again."""
+    light, dark = _render_cached(json.dumps(source, sort_keys=True))
+    return {"light": light, "dark": dark}
 
 
 def render(kind: str, source: Any) -> Any:
@@ -190,6 +207,5 @@ def check_block(kind: Any, title: Any, source: Any) -> Any:
         raise BlockInvalid("chart exceeds 5000 data rows")
     try:
         return render_chart(source)
-    except Exception as exc:  # noqa: BLE001 - any vl-convert failure is the chart's fault
-        first = (str(exc).strip().splitlines() or [type(exc).__name__])[0]
-        raise BlockInvalid(f"chart does not render: {first}") from None
+    except RenderFailed as exc:
+        raise BlockInvalid(f"chart does not render: {exc}") from None

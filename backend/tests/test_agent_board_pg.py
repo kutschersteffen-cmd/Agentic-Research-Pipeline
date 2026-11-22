@@ -186,8 +186,8 @@ def test_move_clamped(client, plan):  # AC-12b
 def test_insert_at_position(client, plan):
     _note(client, plan, "N0")
     _note(client, plan, "N1")
-    res = client.post(f"{_b(plan)}/blocks", json={"kind": "note", "title": "X", "source": "", "position": 1,
-                                                  "origin": "agent", "unverified": [0.5]})
+    res = client.post(f"{_b(plan)}/blocks", json={"kind": "table", "title": "X", "position": 1, "origin": "agent",
+                                                  "source": {"columns": ["a"], "rows": [[0.5]]}, "unverified": [0.5]})
     assert (res.json()["origin"], res.json()["unverified"]) == ("agent", [0.5])
     assert _titles(client, plan) == [("N0", 0), ("X", 1), ("N1", 2)]
 
@@ -249,9 +249,8 @@ def test_block_on_another_board(client, plan, pg):  # AC-13d
     {"layer": [{"data": {"values": "a\n" + "1\n" * 5001, "format": {"type": "csv"}}, "mark": "point"}]},
     {"datasets": {"d": [{"a": 1}] * 5001}, "data": {"name": "d"}, "mark": "point"},
     {"data": {"graticule": {"step": [0.01, 0.01]}}, "mark": "geoshape"},
-    {"data": {"values": [{"k": 1}]}, "transform": [{"impute": "v", "key": "k", "keyvals": {"start": 0, "stop": 9}},
-                                                   {"impute": "v", "key": "k", "keyvals": {"sequence": {"start": 0, "stop": 1e7}}}],
-     "mark": "point"},
+    {"data": {"values": [{"k": 1, "v": 1}]}, "transform": [{"impute": "v", "key": "k", "keyvals": {"stop": 1000000}, "value": 0}],
+     "mark": "point"},  # code review: crashed the process in V8
 ])
 def test_generated_rows_count_against_the_limit(source):
     from arp.agent_board.checks import BlockInvalid, check_block
@@ -266,3 +265,59 @@ def test_small_sequence_renders():
     src = {"data": {"sequence": {"start": 0, "stop": 5000, "as": "x"}}, "mark": "point",
            "encoding": {"x": {"field": "x", "type": "quantitative"}}}
     assert check_block("chart", "C", src)["light"].startswith("<svg")
+
+
+def test_note_never_keeps_unverified(client, plan):
+    res = client.post(f"{_b(plan)}/blocks", json={"kind": "note", "title": "N", "source": "a", "unverified": [1]})
+    assert res.json()["unverified"] == []
+
+
+@pytest.mark.parametrize("content", [
+    b'{"kind": "note", "title": "x", "source": "a\\u0000b"}',
+    b'{"kind": "note", "title": "x\\u0000", "source": "a"}',
+    b'{"kind": "note", "title": "x", "source": "\\ud800"}',
+    b'{"kind": "table", "title": "x", "source": {"columns": ["a"], "rows": [[NaN]]}}',
+    b"[" * 100000,
+])
+def test_unstorable_body_is_invalid(client, plan, content):
+    res = client.post(f"{_b(plan)}/blocks", content=content, headers={"content-type": "application/json"})
+    assert (res.status_code, res.json()) == (422, {"detail": "invalid block"})
+
+
+def test_chart_that_kills_the_renderer(client, plan):
+    """Rendering runs in a child process: a chart that runs V8 out of memory answers 422 and the API stays up."""
+    src = {"data": {"values": [{"v": 1}]}, "transform": [{"density": "v", "steps": 1000000}], "mark": "line",
+           "encoding": {"x": {"field": "value", "type": "quantitative"}, "y": {"field": "density", "type": "quantitative"}}}
+    res = client.post(f"{_b(plan)}/blocks", json={"kind": "chart", "title": "C", "source": src})
+    assert (res.status_code, res.json()) == (422, {"detail": "chart does not render: rendering ran out of memory or crashed"})
+    assert client.get(_b(plan)).status_code == 200
+
+
+def test_board_loads_when_a_stored_chart_no_longer_renders(client, plan, monkeypatch):
+    client.post(f"{_b(plan)}/blocks", json={"kind": "chart", "title": "C", "source": BAR_C})
+
+    def broken(kind, source):
+        raise RuntimeError("theme changed")
+
+    monkeypatch.setattr(agent_board, "render", broken)
+    res = client.get(_b(plan))
+    assert res.status_code == 200
+    assert res.json()["blocks"][0]["rendered"] is None
+
+
+def test_render_worker_in_process(monkeypatch, capsys):
+    import io
+    import json as _json
+
+    from arp.agent_board import render_worker
+
+    monkeypatch.setattr(render_worker.resource, "setrlimit", lambda *a: None)  # never cap the test process
+    monkeypatch.setattr("sys.stdin", io.StringIO(_json.dumps(BAR_C)))
+    assert render_worker.main() == 0
+    assert _json.loads(capsys.readouterr().out)["light"].startswith("<svg")
+    monkeypatch.setattr("sys.stdin", io.StringIO('{"mark": "nope"}'))
+    assert render_worker.main() == 1
+    assert capsys.readouterr().err.startswith("Vega-Lite to SVG conversion failed")
+    monkeypatch.setattr(render_worker, "MAX_SVG_BYTES", 10)
+    with pytest.raises(ValueError, match="exceeds 10 MB"):
+        render_worker.themed_svgs(BAR_C)
