@@ -2,6 +2,7 @@
 Phase 4). Results stay `exploratory` until a person accepts them; nothing in the plan lane reads them."""
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -33,6 +34,19 @@ def _uuid(exploration_id: str) -> uuid.UUID | None:
         return uuid.UUID(exploration_id)
     except ValueError:
         return None
+
+
+RESULT_CONTEXT_BYTES = 20_000
+
+
+def plan_context(exploration: dict[str, Any]) -> str:
+    """What the planner reads about an accepted exploration (Phase 6): its id, question and result as compact JSON,
+    cut to the longest prefix of whole characters that fits in 20 000 bytes as UTF-8, with a line saying so."""
+    text = json.dumps(exploration["result"], ensure_ascii=False, separators=(",", ":"))
+    raw = text.encode()
+    if len(raw) > RESULT_CONTEXT_BYTES:  # "ignore" drops only the character the cut split; the rest is valid UTF-8
+        text = raw[:RESULT_CONTEXT_BYTES].decode(errors="ignore") + f"\n(result truncated at {RESULT_CONTEXT_BYTES} bytes)"
+    return f"From exploration {exploration['id']}, question: {exploration['question']}\nResult:\n{text}"
 
 
 class ExplorationStore:

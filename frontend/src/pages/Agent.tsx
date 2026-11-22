@@ -352,7 +352,8 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
           <div className="agent-scroll" ref={scroller} onScroll={onStreamScroll} tabIndex={0} role="region" aria-label="Conversation">
           <div ref={content}>
           {exploration && explorationId ? (
-            <ExplorationCard key={exploration.id} exploration={exploration} busy={busy} onAccept={() => act(() => api.acceptExploration(exploration.id))} />
+            <ExplorationCard key={exploration.id} exploration={exploration} busy={busy} onAccept={() => act(() => api.acceptExploration(exploration.id))}
+              onDrafted={(p) => { loadList(); onSelect({ kind: "plan", id: p.id }); }} />
           ) : plan && planId ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />
           ) : askId || askingIn(asking, null) ? (
@@ -413,6 +414,9 @@ function Stream({ plan, busy, act }: { plan: Plan; busy: boolean; act: (fn: () =
         </p>
         {plan.source_ask && (
           <p className="agent-meta"><a href={`#/agent/ask/${encodeURIComponent(plan.source_ask.thread_id)}`}>From ask: {plan.source_ask.question}</a></p>
+        )}
+        {plan.source_exploration_id && plan.source_exploration && (
+          <p className="agent-meta"><a href={`#/agent/exploration/${encodeURIComponent(plan.source_exploration_id)}`}>From exploration: {plan.source_exploration.question}</a></p>
         )}
         {(plan.status === "approved" || ACTIVE.has(plan.status)) && (
           <div className="toolbar">

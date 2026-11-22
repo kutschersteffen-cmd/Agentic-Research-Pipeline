@@ -11696,6 +11696,23 @@
     "title": "Exploration",
     "type": "object"
    },
+   "ExplorationPlanRequest": {
+    "properties": {
+     "brief": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Brief"
+     }
+    },
+    "title": "ExplorationPlanRequest",
+    "type": "object"
+   },
    "ExplorationRequest": {
     "properties": {
      "question": {
@@ -31340,6 +31357,68 @@
      }
     },
     "summary": "Accept Exploration",
+    "tags": [
+     "agent"
+    ]
+   }
+  },
+  "/api/agent/explorations/{exploration_id}/plan": {
+   "post": {
+    "description": "\"Turn into a plan…\" (D9): the planner drafts a plan from an accepted exploration. The plan stays a draft, so\nnothing runs until a person approves it. Answers the plan as `GET /api/plans/{id}` does.",
+    "operationId": "plan_from_exploration_api_agent_explorations__exploration_id__plan_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "exploration_id",
+      "required": true,
+      "schema": {
+       "title": "Exploration Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "anyOf": [
+         {
+          "$ref": "#/components/schemas/ExplorationPlanRequest"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Req"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Plan From Exploration Api Agent Explorations  Exploration Id  Plan Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Plan From Exploration",
     "tags": [
      "agent"
     ]
