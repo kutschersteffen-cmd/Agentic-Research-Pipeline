@@ -1,10 +1,14 @@
-{"id": "bar-weights", "prompt": "chart the sector weights from step 1 as a bar chart", "expected_kind": "chart"}
+{"id": "bar-weights", "prompt": "chart the sector weights from step 1 as a bar chart", "expected_kind": "chart", "expected_live": true}
 {"id": "sorted-bars", "prompt": "draw a horizontal bar chart of weight by sector, largest first", "expected_kind": "chart"}
 {"id": "pie-weights", "prompt": "show the sector weights as a pie chart", "expected_kind": "chart"}
-{"id": "weights-table", "prompt": "make a table of the sector weights with columns sector and weight", "expected_kind": "table"}
+{"id": "weights-table", "prompt": "make a table of the sector weights with columns sector and weight", "expected_kind": "table", "expected_live": true}
 {"id": "steps-table", "prompt": "table of the plan's steps: seq, kind and status", "expected_kind": "table"}
-{"id": "plan-flow", "prompt": "draw the plan as a flowchart", "expected_kind": "flow"}
-{"id": "index-flow", "prompt": "flowchart, top to bottom: build universe, construct index, review weights, report", "expected_kind": "flow"}
+{"id": "plan-flow", "prompt": "draw the plan as a flowchart", "expected_kind": "diagram"}
+{"id": "index-flow", "prompt": "flowchart, top to bottom: build universe, construct index, review weights, report", "expected_kind": "diagram"}
 {"id": "summary-note", "prompt": "write a short note summarising what this plan found", "expected_kind": "note"}
 {"id": "largest-note", "prompt": "note which sector has the largest weight and why that matters", "expected_kind": "note"}
 {"id": "german-table", "prompt": "Erstelle eine Tabelle der Sektorgewichte", "expected_kind": "table"}
+{"id": "ideas-mindmap", "prompt": "draw a mind map of what to look at next for this index: sectors, data quality, reporting", "expected_kind": "diagram"}
+{"id": "review-sequence", "prompt": "draw a sequence diagram: the analyst asks the agent for weights, the agent reads step 1 and answers with a chart", "expected_kind": "diagram"}
+{"id": "key-tiles", "prompt": "show the two sector weights as key number tiles", "expected_kind": "tiles"}
+{"id": "next-checklist", "prompt": "make a checklist of next steps to review this index", "expected_kind": "checklist"}
