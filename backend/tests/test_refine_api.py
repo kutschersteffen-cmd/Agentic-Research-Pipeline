@@ -388,3 +388,46 @@ def test_running_turn_failed_by_api_restart(env, P):  # AC-53
     assert (out["status"], out["error"]) == ("failed", "interrupted")
     env.ops([])
     env.wait(env.turn("rfp", P["pid"]))
+
+
+# --- review fixes (#656 code review, blocking 1 and 2) ---------------------------------------------
+
+
+def test_undo_restores_base_entry_and_priority(env, P):
+    with transaction() as s:
+        q = s.get(m.RfpQuestion, P["q1"])
+        q.base_entry_id, q.document_priority = None, 2  # Q1 was drafted from a reference document
+    env.ops([{"op": "rewrite", "question_ids": [P["q1"]]}])
+    env.wait(env.turn("rfp", P["pid"]))
+    assert env.undo("rfp", P["pid"]).status_code == 200
+    with transaction() as s:
+        q = s.get(m.RfpQuestion, P["q1"])
+        assert q.answer == "A1"
+        assert (q.base_entry_id, q.document_priority) == (None, 2)
+
+
+def test_undo_of_turn_logged_without_restore(env, P):  # a turn logged before `result["restore"]` was kept
+    before = state(P["q1"])
+    env.ops([{"op": "rewrite", "question_ids": [P["q1"]]}])
+    tid = env.wait(env.turn("rfp", P["pid"]))["id"]
+    with transaction() as s:
+        t = s.get(m.RefineTurn, tid)
+        t.result = {k: v for k, v in t.result.items() if k != "restore"}
+    assert env.undo("rfp", P["pid"]).status_code == 200
+    assert state(P["q1"]) == before
+
+
+def test_noncanonical_doc_id_shares_the_lock(env, P):
+    env.ops([{"op": "rewrite", "question_ids": [P["q1"]]}], delay_seconds=2)
+    t1 = env.turn("rfp", P["pid"])
+    r = env.as_("alice").post(f"/api/refine/rfp/0{P['pid']}/turns", json={"message": "m", "history": []})
+    env.wait(t1)
+    assert (r.status_code, r.json().get("detail")) == (409, BUSY)
+    assert [t["turn_id"] for t in env.as_("alice").get(f"/api/refine/rfp/0{P['pid']}/turns").json()] == [t1]
+
+
+@pytest.mark.parametrize("method,path", [("post", "turns"), ("get", "turns"), ("post", "undo")])
+def test_non_ascii_digit_doc_id_404(env, P, method, path):
+    kw = {"json": {"message": "m", "history": []}} if (method, path) == ("post", "turns") else {}
+    r = getattr(TestClient(app, raise_server_exceptions=False), method)(f"/api/refine/rfp/²/{path}", **kw)
+    assert (r.status_code, r.json()["detail"]) == (404, "RFP project not found")

@@ -37,8 +37,9 @@ def undo_last(kind: str, doc_id: str, user_id: str) -> int:
             for k in sorted(t.after, key=int):
                 if k not in qs or question_state(qs[k]) != t.after[k]:
                     raise UndoRefused(_CONFLICT.format(f"Q{k}"))
+            restore = (t.result or {}).get("restore", {})  # absent on turns logged before it was kept
             for k, v in t.before.items():
-                for field, value in v.items():
+                for field, value in {**v, **restore.get(k, {})}.items():
                     setattr(qs[k], field, value)
             t.status, t.undone_at = "undone", datetime.now(UTC)
             return t.id

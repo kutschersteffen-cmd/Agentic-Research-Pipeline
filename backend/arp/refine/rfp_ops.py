@@ -24,7 +24,27 @@ CHANGED_DURING_TURN = "changed during this turn"
 
 
 def question_state(q: m.RfpQuestion) -> dict:
+    """The fields the spec logs in a turn's `before`/`after` (refine-chat-design, Turn log and undo)."""
     return {"answer": q.answer, "status": q.status, "sources": q.sources, "flags": q.flags, "last_editor": q.last_editor}
+
+
+def draft_origin(q: m.RfpQuestion) -> dict:
+    """What a re-draft also changes and undo must put back; kept in the turn's `result["restore"]`, beside `before`."""
+    return {"base_entry_id": q.base_entry_id, "document_priority": q.document_priority}
+
+
+def _running_turn(s, turn_id: int) -> m.RefineTurn | None:
+    """The turn, locked, while it is still `running`; None once reaped, so nothing is written without its undo record."""
+    t = s.get(m.RefineTurn, turn_id, with_for_update=True)
+    return t if t is not None and t.status == "running" else None
+
+
+def _record(t: m.RefineTurn, qid: int, before: dict, after: dict, origin: dict) -> tuple[dict, dict]:
+    """Logs the change on the turn in the transaction that writes the question, so a reap can never split them."""
+    t.before, t.after = {**t.before, str(qid): before}, {**t.after, str(qid): after}
+    restore = {**(t.result or {}).get("restore", {}), str(qid): origin}
+    t.result = {**(t.result or {}), "restore": restore}
+    return before, after
 
 
 def _skip(q: m.RfpQuestion | None, op: dict, project_id: int) -> str | None:
@@ -46,9 +66,11 @@ async def _apply(turn_id: int, qid: int, op: dict, project_id: int, entries, doc
         if reason := _skip(q, op, project_id):
             return reason
         if op["op"] == LEAVE_BLANK:  # the leave-blank endpoint's state change
-            before = question_state(q)
+            if (t := _running_turn(s, turn_id)) is None:
+                return DRAFT_FAILED
+            before, origin = question_state(q), draft_origin(q)
             q.status = LEFT_BLANK
-            return before, question_state(q)
+            return _record(t, qid, before, question_state(q), origin)
         question, current, read = q.question, q.answer, (q.answer, q.status, q.last_editor)
     try:
         d = await draft_answer(question, entries, llm, verifier, today=today, settings=settings, documents=docs,
@@ -59,18 +81,17 @@ async def _apply(turn_id: int, qid: int, op: dict, project_id: int, entries, doc
     if d.status == NO_SOURCE:
         return NOT_BACKED
     with transaction() as s:
-        t = s.get(m.RefineTurn, turn_id, with_for_update=True)
-        if t is None or t.status != "running":  # reaped while drafting: write nothing that has no undo record
+        if (t := _running_turn(s, turn_id)) is None:  # reaped while drafting
             return DRAFT_FAILED
         q = s.get(m.RfpQuestion, qid, with_for_update=True)
         if q is None:  # deleted while drafting
             return NO_SUCH_QUESTION
         if (q.answer, q.status, q.last_editor) != read:  # a person's edit or approval while drafting wins
             return CHANGED_DURING_TURN
-        before = question_state(q)
+        before, origin = question_state(q), draft_origin(q)
         q.answer, q.status, q.sources, q.flags, q.last_editor = d.answer, DRAFTED, d.sources, d.flags, None
         q.base_entry_id, q.document_priority = d.base_entry_id, d.document_priority
-        return before, question_state(q)
+        return _record(t, qid, before, question_state(q), origin)
 
 
 async def apply_rfp_ops(turn_id: int, project_id: int, ops: list[dict], llm: LLMClient, *, today: date,
@@ -94,7 +115,8 @@ async def apply_rfp_ops(turn_id: int, project_id: int, ops: list[dict], llm: LLM
         # instant skips count as done up front, so the count steps up once per slow draft (AC-41)
         skipped = {qid: r for qid in todo if (r := _skip(s.get(m.RfpQuestion, qid), todo[qid], project_id))}
     done = len(skipped)
-    save_progress(turn_id, done=done, total=len(todo))
+    if not save_progress(turn_id, done=done, total=len(todo)):
+        return {"changed": changed, "not_changed": not_changed, "before": before, "after": after}  # reaped already
     for qid in sorted(todo):
         out = skipped.get(qid) or await _apply(turn_id, qid, todo[qid], project_id, entries, docs, llm,
                                                verifier or llm, today, settings)
@@ -104,8 +126,7 @@ async def apply_rfp_ops(turn_id: int, project_id: int, ops: list[dict], llm: LLM
             changed.append(qid)
             before[str(qid)], after[str(qid)] = out
         done += qid not in skipped  # a skip is listed here in id order but was counted up front
-        # saved so far stays undoable if the turn dies, and shows on the page mid-turn
-        if not save_progress(turn_id, done=done, before=before, after=after,
-                             result={"changed": changed, "not_changed": not_changed}):
+        # shows mid-turn; before/after were logged with each write
+        if not save_progress(turn_id, done=done, result={"changed": changed, "not_changed": not_changed}):
             break  # reaped: stop changing questions
     return {"changed": changed, "not_changed": not_changed, "before": before, "after": after}
