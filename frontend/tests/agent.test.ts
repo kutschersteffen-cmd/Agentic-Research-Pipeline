@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { chipLabel, INBOX_KIND, reviewQueueLine, scriptLines, sendsComposer, threadTitle } from "../src/lib/agent.ts";
+import { budgetLine, chipLabel, INBOX_KIND, lineDiff, reviewQueueLine, scriptLines, sendsComposer, stepState, threadTitle, usd } from "../src/lib/agent.ts";
 import { HUBS, redirectHash } from "../src/lib/nav.ts";
 
 // Agent screen shell (docs/superpowers/specs/2026-11-21-agent-panel-code-mode.md, slice 6).
@@ -43,6 +43,44 @@ test("the Runs group shows Agent and no Research plans (AC-38)", () => {
   const labels = HUBS.find((h) => h.label === "Runs")!.tabs.map(([, label]) => label);
   assert.ok(labels.includes("Agent"));
   assert.ok(!labels.some((l) => /research plans/i.test(l)));
+});
+
+// Stage tabs: Diff and Audit (slice 8).
+
+test("the Diff header counts the - and + lines of diff -u between two script versions (AC-32)", () => {
+  const v1 = 'u = universe_build(taxonomy_id="t", source="s.csv")\ne = extraction(universe_run_id=u.run_id, schema_id="x")\nr = report_render(source_ids=[e.run_id])\n';
+  const v2 = 'u = universe_build(taxonomy_id="t", source="s.csv")\ne = extraction(universe_run_id=u.run_id, schema_id="y")\nf = financials_extraction(universe_run_id=u.run_id)\nr = report_render(source_ids=[e.run_id])\n';
+  const d = lineDiff(v1, v2);
+  // diff -u: 1 line removed (schema_id="x"), 2 added (schema_id="y" and the financials step).
+  assert.deepEqual([d.removed, d.added], [1, 2]);
+  assert.deepEqual(d.lines.map((l) => l.op).join(""), " -++ ");
+  assert.equal(d.lines[1].text, 'e = extraction(universe_run_id=u.run_id, schema_id="x")');
+});
+
+test("the line diff of equal scripts, and of a missing final newline, matches diff -u", () => {
+  assert.deepEqual(lineDiff("a\nb\n", "a\nb\n"), { removed: 0, added: 0, lines: [{ op: " ", text: "a" }, { op: " ", text: "b" }] });
+  // diff -u marks a last line that lost its newline as changed.
+  assert.deepEqual([lineDiff("a\nb\n", "a\nb").removed, lineDiff("a\nb\n", "a\nb").added], [1, 1]);
+  assert.deepEqual([lineDiff("", "a\n").removed, lineDiff("", "a\n").added], [0, 1]);
+});
+
+test("a step reads started once called, skipped when the plan ended without it, else planned", () => {
+  assert.equal(stepState("running", true), "started");
+  assert.equal(stepState("running", false), "planned");
+  assert.equal(stepState("failed", false), "planned"); // a resume can still run it
+  assert.equal(stepState("done", false), "skipped");
+  assert.equal(stepState("cancelled", false), "skipped");
+});
+
+test("the Audit tab shows a cost as the API serves it (AC-33)", () => {
+  assert.equal(usd(1.2), "$1.20");
+  assert.equal(usd(0), "$0.00");
+  assert.equal(usd(0.123456), "$0.123456");
+  assert.equal(usd(0.0123456789), "$0.0123456789"); // never rounded: equal to GET /api/plans/{id}
+  assert.equal(usd(1234.5), "$1234.50");
+  assert.equal(usd(null), "–");
+  assert.equal(budgetLine(2.05, 5), "spent $2.05 of $5.00");
+  assert.equal(budgetLine(2.05, null), "spent $2.05, no budget set");
 });
 
 // Slice 7: the inbox column.

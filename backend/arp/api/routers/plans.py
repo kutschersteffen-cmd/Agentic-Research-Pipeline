@@ -88,7 +88,7 @@ def list_plans(store: PlanStore = Depends(plan_store)) -> list[dict]:
 
 @router.get("/{plan_id}")
 def get_plan(plan_id: str, store: PlanStore = Depends(plan_store)) -> dict:
-    return {**_get(store, plan_id), "calls": store.calls(plan_id), "spent_usd": store.spent_usd(plan_id)}
+    return {**_get(store, plan_id), "calls": store.audited_calls(plan_id), "spent_usd": store.spent_usd(plan_id)}
 
 
 @router.put("/{plan_id}")
