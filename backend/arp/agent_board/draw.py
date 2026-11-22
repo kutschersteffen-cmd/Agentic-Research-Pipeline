@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
+import re
 from typing import Any, Literal
 
 from pydantic import BaseModel
@@ -72,14 +74,36 @@ def _json_numbers(node: Any, out: list) -> None:
             _json_numbers(v, out)
 
 
+def _values_numbers(values: Any, out: list) -> None:
+    """Numbers of an inline `values`: JSON numbers, also inside a JSON array string; in a CSV or TSV string, every cell
+    that `float()` parses to a finite value (the spec's CSV rule), so string data cannot hide a number from D4."""
+    if not isinstance(values, str):
+        _json_numbers(values, out)
+        return
+    try:
+        _json_numbers(json.loads(values), out)
+        return
+    except ValueError:
+        pass
+    for line in values.splitlines():
+        for cell in re.split(r"[,\t]", line):
+            try:
+                n = float(cell)
+            except ValueError:
+                continue
+            if math.isfinite(n):
+                out.append(n)
+
+
 def _chart_numbers(node: Any, out: list) -> None:
     """Numbers inside every `data.values` and every `datasets` entry, at any depth."""
     if isinstance(node, dict):
         data = node.get("data")
         if isinstance(data, dict):
-            _json_numbers(data.get("values"), out)
+            _values_numbers(data.get("values"), out)
         if isinstance(node.get("datasets"), dict):
-            _json_numbers(node["datasets"], out)
+            for v in node["datasets"].values():
+                _values_numbers(v, out)
         for v in node.values():
             _chart_numbers(v, out)
     elif isinstance(node, list):

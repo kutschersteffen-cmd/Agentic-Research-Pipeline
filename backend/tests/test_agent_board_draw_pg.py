@@ -214,3 +214,17 @@ def test_unstorable_draft_is_refused_and_retried(client, plan, tmp_path, bad):
     calls = _calls(tmp_path)
     assert len(calls) == 2 and calls[1]["prompt"].endswith("Your last answer was refused: invalid block")
     assert client.get(_b(plan)).json()["blocks"] == []
+
+
+@pytest.mark.parametrize("values", [
+    json.dumps([{"s": "Energy", "w": 0.99}, {"s": "Utilities", "w": 0.31}]),
+    "s,w\nEnergy,0.99\nUtilities,0.31",
+    "s\tw\nEnergy\t0.99\nUtilities\t0.31",
+])
+def test_number_check_reads_chart_values_given_as_a_string(client, plan, tmp_path, values):
+    chart = {"mark": "bar", "data": {"values": values, **({} if values.startswith("[") else
+                                                           {"format": {"type": "tsv" if "\t" in values else "csv"}})},
+             "encoding": {"x": {"field": "s", "type": "nominal"}, "y": {"field": "w", "type": "quantitative"}}}
+    res = _draw(client, plan, tmp_path, {"kind": "chart", "title": "C", "source": chart})
+    assert res.status_code == 200, res.text
+    assert res.json()["unverified"] == [0.99]

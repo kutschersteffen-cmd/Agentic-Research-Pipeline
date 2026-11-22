@@ -195,8 +195,9 @@ async def draw_block(thread_kind: str, thread_id: str, request: Request, store: 
                      llm: Callable[[], LLMClient] = Depends(draw_llm)) -> dict:
     body = await _body(request)
     prompt, current, data = await asyncio.to_thread(_draw_checks, thread_kind, thread_id, body, store)
+    client = llm()  # a missing model key is a configuration error, not a failed model call
     try:
-        draft, rendered, missing = await draw(llm(), prompt, data, current)
+        draft, rendered, missing = await draw(client, prompt, data, current)
     except DrawRefused as exc:
         raise HTTPException(422, f"the agent could not draw this: {exc}") from None
     except Exception:  # noqa: BLE001 - spec: any model failure is a 502, nothing stored
