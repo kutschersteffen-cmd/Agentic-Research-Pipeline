@@ -102,6 +102,15 @@ class RefineDocument(BaseModel):
     title: str
 
 
+def _doc(doc_id: str, kind: str = Depends(_kind)) -> str:
+    """An RFP id in one spelling (`07` is `7`), so the turn lock and the thread are per project; else 404."""
+    if kind == "deck":
+        return doc_id
+    if not (doc_id.isascii() and doc_id.isdigit()):
+        raise HTTPException(404, "RFP project not found")
+    return str(int(doc_id))
+
+
 def _check_doc(kind: str, doc_id: str, store: ReportingStore) -> None:
     if kind == "deck":
         try:
@@ -114,13 +123,14 @@ def _check_doc(kind: str, doc_id: str, store: ReportingStore) -> None:
             raise HTTPException(409, NO_DECK)
         return
     with transaction() as s:
-        if not doc_id.isdigit() or s.get(m.RfpProject, int(doc_id)) is None:
+        if s.get(m.RfpProject, int(doc_id)) is None:
             raise HTTPException(404, "RFP project not found")
 
 
 @router.post("/{kind}/{doc_id}/turns", status_code=202, response_model=RefineTurnStarted)
-async def post_turn(doc_id: str, body: RefineTurnIn, kind: str = Depends(_kind), user: Principal = Depends(_editor),
-                    store: ReportingStore = Depends(get_reporting_store), run_store=Depends(get_run_store)) -> RefineTurnStarted:
+async def post_turn(body: RefineTurnIn, kind: str = Depends(_kind), user: Principal = Depends(_editor),
+                    doc_id: str = Depends(_doc), store: ReportingStore = Depends(get_reporting_store),
+                    run_store=Depends(get_run_store)) -> RefineTurnStarted:
     _check_doc(kind, doc_id, store)
     reap_stale_turns(now=datetime.now(UTC))  # a turn whose background task died must not lock its document until restart
     try:
@@ -197,13 +207,13 @@ def get_turn(turn_id: int) -> dict:
 
 
 @router.get("/{kind}/{doc_id}/turns", response_model=list[RefineTurn])
-def get_turns(doc_id: str, kind: str = Depends(_kind)) -> list[dict]:
+def get_turns(kind: str = Depends(_kind), doc_id: str = Depends(_doc)) -> list[dict]:
     """Any signed-in role; a document with no turns answers []."""
     return list_turns(kind, doc_id)
 
 
 @router.post("/{kind}/{doc_id}/undo", response_model=RefineTurnOut)
-def undo(doc_id: str, kind: str = Depends(_kind), user: Principal = Depends(_editor),
+def undo(kind: str = Depends(_kind), user: Principal = Depends(_editor), doc_id: str = Depends(_doc),
          store: ReportingStore = Depends(get_reporting_store)) -> dict:
     if kind == "deck":
         _check_doc(kind, doc_id, store)  # a deleted report is a 404, and its folder is not re-created
