@@ -184,7 +184,8 @@ DIAGRAM_TYPES = ("flowchart", "mindmap", "timeline", "sequenceDiagram", "quadran
 _DIAGRAM_TYPE_MSG = "unsupported diagram type: {}; use flowchart, mindmap, timeline, sequenceDiagram or quadrantChart"
 _REFUSED_STATEMENTS = ("click", "style", "classdef", "linkstyle", "link", "links", "href")
 _GROUP = re.compile(r":::([A-Za-z][A-Za-z0-9_]*)")
-_ENTITY = re.compile(r"#[A-Za-z0-9_]+;")
+_ENTITY = re.compile(r"#[A-Za-z0-9_]+;|\ufb02\u00b0|\u00b6\u00df")  # codes and Mermaid's placeholders (1e)
+_STATEMENT_END = re.compile(r";|(?<=\})")  # a statement also ends at `;` and after `}` (Amendment 1b, 1e)
 _LINE = re.compile(r"\r\n|\r|\n")  # Mermaid turns each into a line feed before it reads (Amendment 1d)
 _ZS = " \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u202f\u205f\u3000"  # Zs
 _WORD_SEP = re.compile("[\t" + re.escape(_ZS) + "]+")  # space, tab and every Unicode space separator
@@ -216,7 +217,7 @@ def _check_mermaid(source: str, refused: tuple[str, ...], emphasis_only: bool, h
     """The shared `diagram` checks from the `%%{` check to the outside check (Amendment 1b, 1c)."""
     if "%%{" in source:
         raise BlockInvalid("diagram may not set its own config")
-    statements = [_statement_words(_words(st)) for ln in _lines(source) for st in ln.split(";")]  # `;` ends one too
+    statements = [_statement_words(_words(st)) for ln in _lines(source) for st in _STATEMENT_END.split(ln)]
     for words in statements:
         if words and words[0].lower() in refused:
             raise BlockInvalid(f"diagram may not use {words[0]} lines")

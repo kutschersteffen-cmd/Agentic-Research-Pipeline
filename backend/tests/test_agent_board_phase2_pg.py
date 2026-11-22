@@ -134,6 +134,10 @@ def test_grouped_flowchart_is_accepted(client, plan):
     ("flowchart LR\n  subgraph s\n    a\n  end click a href \"x\"", "diagram may not use click lines"),  # AC-36z
     ("flowchart LR\n  a --> b\n  END end class a big", "diagram may only use class lines for emphasis"),
     ("\u3000flowchart\u2003LR\n  a --> b; style a x", "diagram may not use style lines"),
+    ("flowchart LR\n  a --> b\n  accDescr { x } click a href \"x\"", "diagram may not use click lines"),  # AC-65
+    ("flowchart LR\n  a[see \ufb02\u00b0\u00b047\u00b6\u00df] --> b", "diagram may not use entity codes"),  # AC-66
+    ("flowchart LR\n  a[see \ufb02\u00b0\u00b047;] --> b", "diagram may not use entity codes"),  # AC-66b
+    ("flowchart LR\n  a[x \u00b6\u00df] --> b", "diagram may not use entity codes"),
 ])
 def test_diagram_checks(client, plan, source, detail):
     assert _detail(_post(client, plan, "diagram", source)) == detail
@@ -144,6 +148,7 @@ def test_diagram_checks(client, plan, source, detail):
     "mindmap\r\n  root((Move))\r\n    Topics",  # AC-36x
     "mindmap\n  root((Team \U0001F9D1\u200d\U0001F4BB))\n    B\u00fcro",  # AC-36y
     "flowchart LR\n  a[Ends] --> b[end]",
+    "flowchart LR\n  a --> b{Ready?}\n  b --> c[Stra\u00dfe]",  # AC-67
 ])
 def test_diagrams_mermaid_reads_are_accepted(client, plan, source):
     res = _post(client, plan, "diagram", source)
@@ -163,6 +168,12 @@ def test_properties_and_details_only_refused_in_sequence_diagrams(client, plan):
 ])
 def test_flow_gets_diagram_checks(client, plan, source, detail):
     assert _detail(_post(client, plan, "flow", source)) == detail
+
+
+def test_flow_decision_with_brace_and_eszett(client, plan):  # AC-67b
+    res = _post(client, plan, "flow", "flowchart LR\n  a --> b{Ready?}\n  b --> c[Stra\u00dfe]")
+    assert res.status_code == 201, res.text
+    assert res.json()["rendered"]["steps"][1]["kind"] == "decision"
 
 
 def test_flow_with_crlf_lines(client, plan):  # AC-36u
