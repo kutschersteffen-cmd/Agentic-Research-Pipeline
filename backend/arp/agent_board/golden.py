@@ -1,4 +1,4 @@
-"""Board golden set (spec agent-board AC-32): real-model drafts over Done plan D's thread data."""
+"""Board golden set (spec agent-board AC-56): real-model drafts over Done plan D's thread data."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import asyncio
 import json
 from pathlib import Path
 
-from arp.agent_board.checks import BlockInvalid, check_block
+from arp.agent_board.checks import BlockInvalid, checked_view
 from arp.agent_board.draw import SYSTEM, BoardBlockDraft, build_prompt, unverified
 from arp.llm.base import LLMClient
 
@@ -22,7 +22,8 @@ def load_cases(path: Path) -> list[dict]:
 
 
 async def run_case(llm: LLMClient, case: dict) -> str | None:
-    """None when the first draft passes every check, has the expected kind and no unverified number; else why not."""
+    """None when the first draft passes every check, has the expected kind, no unverified number, no `live_error` and,
+    with `expected_live`, a live pointer; else why not."""
     try:
         draft, _ = await llm.complete_structured(system=SYSTEM, prompt=build_prompt(case["prompt"], DONE_PLAN_D),
                                                  output_model=BoardBlockDraft)
@@ -31,8 +32,12 @@ async def run_case(llm: LLMClient, case: dict) -> str | None:
     if draft.kind != case["expected_kind"]:
         return f"kind {draft.kind}, expected {case['expected_kind']}"
     try:
-        await asyncio.to_thread(check_block, draft.kind, draft.title, draft.source)
+        shown = await asyncio.to_thread(checked_view, draft.kind, draft.title, draft.source, DONE_PLAN_D)
     except BlockInvalid as exc:
         return f"refused: {exc}"
+    if shown["live_error"] is not None:
+        return f"live error: {shown['live_error']}"
+    if case.get("expected_live") and not shown["live"]:
+        return "not live, expected a live pointer"
     missing = unverified(draft.kind, draft.source, DONE_PLAN_D)
     return f"not in ARP data: {missing}" if missing else None

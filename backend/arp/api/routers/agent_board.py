@@ -13,7 +13,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
-from arp.agent_board.checks import BlockInvalid, check_block, check_title, render, storable
+from arp.agent_board.checks import BlockInvalid, check_title, checked_view, is_live, render, storable, view
 from arp.agent_board.draw import DrawRefused, draw, unverified
 from arp.agent_board.store import MAX_BLOCKS, BlockNotFound, BoardFull, BoardStore, NothingToUndo
 from arp.config import get_settings
@@ -23,7 +23,6 @@ from arp.llm.base import LLMClient
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/agent/boards", tags=["agent-board"])
 THREAD_KINDS = ("plan",)  # `exploration` joins in slice 4
-_ABSENT = object()
 
 
 def board_store() -> BoardStore:
@@ -64,22 +63,33 @@ def _int(v: Any) -> int:
     return v
 
 
-def _out(row: dict, rendered: Any = _ABSENT) -> dict:
-    keys = ("id", "kind", "title", "source", "position", "version", "origin", "unverified", "created_at", "updated_at")
+def _out(row: dict, shown: dict | None = None, data: Any = None) -> dict:
+    """A block as the API answers it; without `shown`, its view is resolved against `data` (the thread data)."""
+    keys = ("id", "kind", "title", "source", "position", "version", "origin", "unverified")
     out = {k: row[k] for k in keys}
-    if rendered is _ABSENT:
+    if shown is None:
+        live = is_live(row["kind"], row["source"])
+        shown = {"rendered": None, "live": live, "live_error": None, "live_step": None}
         try:
-            rendered = render(row["kind"], row["source"])
+            if live:
+                shown = view(row["kind"], row["source"], data, (row["id"], row["version"]))
+            else:
+                shown["rendered"] = render(row["kind"], row["source"])
         except Exception:  # noqa: BLE001 - a block that no longer draws must not hide the rest of the board
             logger.warning("agent board: block %s does not render", row["id"], exc_info=True)
-            rendered = None
-    out["rendered"] = rendered
+    out.update(shown)
+    out["created_at"], out["updated_at"] = row["created_at"], row["updated_at"]
     return out
 
 
-def _checked(kind: Any, title: Any, source: Any) -> Any:
+def _data_for(store: BoardStore, thread_id: str, rows: list[dict]) -> dict | None:
+    """The thread data, loaded only when a block holds a live pointer."""
+    return store.plan_data(thread_id) if any(is_live(r["kind"], r["source"]) for r in rows) else None
+
+
+def _checked(kind: Any, title: Any, source: Any, data: Any = None) -> dict:
     try:
-        return check_block(kind, title, source)
+        return checked_view(kind, title, source, data)
     except BlockInvalid as exc:
         raise HTTPException(422, str(exc)) from None
 
@@ -87,27 +97,30 @@ def _checked(kind: Any, title: Any, source: Any) -> Any:
 @router.get("/{thread_kind}/{thread_id}")
 def get_board(thread_kind: str, thread_id: str, store: BoardStore = Depends(board_store)) -> dict:
     _thread(thread_kind, thread_id, store)
-    blocks = [_out(r) for r in store.blocks(thread_kind, thread_id)]
+    rows = store.blocks(thread_kind, thread_id)
+    data = _data_for(store, thread_id, rows)
+    blocks = [_out(r, data=data) for r in rows]
     return {"thread_kind": thread_kind, "thread_id": thread_id, "blocks": blocks}
 
 
 def _create(thread_kind: str, thread_id: str, body: dict, store: BoardStore) -> dict:
     _thread(thread_kind, thread_id, store)
     kind, title, source = body.get("kind"), body.get("title"), body.get("source")
-    rendered = _checked(kind, title, source)
+    data = store.plan_data(thread_id) if isinstance(kind, str) and is_live(kind, source) else None
+    shown = _checked(kind, title, source, data)
     origin = body.get("origin", "person")
     unverified = body.get("unverified", [])
     if origin not in ("person", "agent") or not isinstance(unverified, list) or not all(
             isinstance(n, int | float) and not isinstance(n, bool) for n in unverified):
         raise HTTPException(422, "invalid block")
-    if kind in ("note", "flow"):
-        unverified = []  # spec "Data": always empty for these kinds
+    if kind in ("note", "flow", "diagram", "checklist"):
+        unverified = []  # spec "Data" and Phase 2: always empty for these kinds
     position = _int(body["position"]) if body.get("position") is not None else None
     try:
         row = store.create(thread_kind, thread_id, kind, title.strip(), source, origin, unverified, position)
     except BoardFull:
         raise HTTPException(409, "board is full (50 blocks)") from None
-    return _out(row, rendered)
+    return _out(row, shown)
 
 
 @router.post("/{thread_kind}/{thread_id}/blocks", status_code=201)
@@ -133,17 +146,20 @@ def _patch(thread_kind: str, thread_id: str, block_id: str, body: dict, store: B
             title = check_title(title)
         except BlockInvalid as exc:
             raise HTTPException(422, str(exc)) from None
-    source, rendered, missing = body.get("source"), _ABSENT, None
+    source, shown, missing = body.get("source"), None, None
+    d4 = source is not None and row["kind"] in ("chart", "table", "tiles")
+    live = is_live(row["kind"], row["source"] if source is None else source)
+    data = store.plan_data(thread_id) if d4 or live else None
     if source is not None:
-        rendered = _checked(row["kind"], title or row["title"], source)
-        if row["kind"] in ("chart", "table"):  # D4: a person's edit keeps the line for numbers still missing
-            missing = unverified(row["kind"], source, store.plan_data(thread_id))
+        shown = _checked(row["kind"], title or row["title"], source, data)
+        if d4:  # D4: a person's edit keeps the line for numbers still missing
+            missing = unverified(row["kind"], source, data)
     position = _int(body["position"]) if body.get("position") is not None else None
     try:
         row = store.patch(thread_kind, thread_id, block_id, title, source, position, missing)
     except BlockNotFound:
         raise HTTPException(404, "block not found") from None
-    return _out(row, rendered)
+    return _out(row, shown, data)
 
 
 @router.patch("/{thread_kind}/{thread_id}/blocks/{block_id}")
@@ -162,7 +178,7 @@ def undo_block(thread_kind: str, thread_id: str, block_id: str, store: BoardStor
         raise HTTPException(404, "block not found") from None
     except NothingToUndo:
         raise HTTPException(409, "nothing to undo") from None
-    return _out(row)
+    return _out(row, data=_data_for(store, thread_id, [row]))
 
 
 @router.delete("/{thread_kind}/{thread_id}/blocks/{block_id}", status_code=204)
@@ -197,7 +213,7 @@ async def draw_block(thread_kind: str, thread_id: str, request: Request, store: 
     prompt, current, data = await asyncio.to_thread(_draw_checks, thread_kind, thread_id, body, store)
     client = llm()  # a missing model key is a configuration error, not a failed model call
     try:
-        draft, rendered, missing = await draw(client, prompt, data, current)
+        draft, shown, missing = await draw(client, prompt, data, current)
     except DrawRefused as exc:
         raise HTTPException(422, f"the agent could not draw this: {exc}") from None
     except Exception:  # noqa: BLE001 - spec: any model failure is a 502, nothing stored
@@ -215,4 +231,4 @@ async def draw_block(thread_kind: str, thread_id: str, request: Request, store: 
         raise HTTPException(409, "board is full (50 blocks)") from None
     except BlockNotFound:
         raise HTTPException(404, "block not found") from None
-    return _out(row, rendered)
+    return _out(row, shown)

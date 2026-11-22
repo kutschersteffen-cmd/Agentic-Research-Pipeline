@@ -12,7 +12,7 @@ agent_app = typer.Typer(help="The Agent screen: board golden set.")
 
 @agent_app.command("board-golden")
 def board_golden(
-    cases: Path = typer.Option(..., help="One {id, prompt, expected_kind} JSON object per line."),
+    cases: Path = typer.Option(..., help="One {id, prompt, expected_kind, expected_live?} JSON object per line."),
     min_pass: int = typer.Option(..., "--min-pass", help="Exit 1 when fewer cases pass."),
 ) -> None:
     """Draw each case once with the real model over Done plan D; a case passes on the first draft."""

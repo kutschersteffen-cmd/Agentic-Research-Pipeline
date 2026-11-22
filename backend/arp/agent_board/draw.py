@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
-from arp.agent_board.checks import BlockInvalid, check_block, storable
+from arp.agent_board.checks import BlockInvalid, checked_view, storable
 from arp.llm.base import LLMClient
 
 MAX_THREAD_BYTES = 20000
@@ -18,19 +18,30 @@ MAX_THREAD_BYTES = 20000
 SYSTEM = """You draw one block on a research board, as JSON {kind, title, source}. Kinds and their source:
 - "note": a Markdown string (headings, bold, italics, lists, inline code). No HTML. At most 20000 characters.
 - "table": {"columns": [string], "rows": [[string | number | null]]}, 1 to 20 columns, at most 200 rows, every row as
-  long as columns. Put numbers in cells as JSON numbers, not strings.
+  long as columns. Put numbers in cells as JSON numbers, not strings. Live form: {"live": pointer, "columns": [string]}
+  with no "rows": each object of the pointed-to list is a row, one cell per column read from the key of that name.
 - "chart": a Vega-Lite object with its data inline in data.values (at most 5000 rows). Never use url, href or loader
-  keys, and never an image mark. Leave out config: the house theme is applied for you.
-- "flow": a Mermaid flowchart string. Start with "flowchart LR" or "flowchart TB". Steps are id[Label], id(Label) or
-  id{Question}; arrows are a --> b or a -->|label| b. 2 to 12 steps, at most 20 arrows, step labels at most 5 words,
-  arrow labels at most 3 words. No subgraph, style, linkStyle or click lines; no step pointing to itself.
+  keys, and never an image mark. Leave out config: the house theme is applied for you. Live form: a top-level
+  "live": pointer instead of "data"; the pointed-to list of objects becomes data.values.
+- "diagram": a Mermaid string, at most 8000 characters, whose first line starts with one of flowchart, mindmap,
+  timeline, sequenceDiagram or quadrantChart. Pick the diagram type that makes the request clearest. No %%{ config,
+  no click, style, classDef or linkStyle lines, no HTML tags, no links (http://, https://, javascript:). In a
+  flowchart, end each node with :::GroupName to group the nodes, using 1 to 4 short CamelCase group names that help
+  the reader (who acts, phase, theme), and mark at most one key step with a line "class <id> emphasis"; class lines
+  are only for emphasis. Set no colours and no config: the house colours are applied for you. Labels at most 5 words.
+- "tiles": {"tiles": [{"label": string, "value": number, "format": "number" | "percent", "change": number,
+  "note": string}]}, 1 to 4 key numbers. label 1 to 40 characters, note at most 80; format, change and note are
+  optional; "percent" means 0.31 shows as 31.0%. Live form of a value: {"live": pointer} to one number.
+- "checklist": {"items": [{"text": string, "done": false}]}, 1 to 50 items, text 1 to 200 characters.
+A pointer is a JSON Pointer into the thread data, starting with /, such as /steps/0/result/weights. When the numbers
+come straight from one list or one number in the thread data, use a live pointer instead of copying them.
 The title is 1 to 120 characters.
 Use only numbers that appear in the thread data, exactly as they appear there; do not compute totals, shares or
 percentages. Never put a URL in a chart. Reply in the language of the request."""
 
 
 class BoardBlockDraft(BaseModel):
-    kind: Literal["note", "table", "chart", "flow"]
+    kind: Literal["note", "table", "chart", "flow", "diagram", "tiles", "checklist"]
     title: str
     source: Any
 
@@ -113,14 +124,18 @@ def _chart_numbers(node: Any, out: list) -> None:
 
 
 def unverified(kind: str, source: Any, thread_data: Any) -> list:
-    """D4: the sorted distinct numbers of a chart or table that no thread number matches to 2 decimals."""
-    if kind not in ("chart", "table"):
+    """D4: the sorted distinct numbers of a chart, table or tiles that no thread number matches to 2 decimals. Numbers
+    read through a live pointer are thread data and never counted."""
+    if kind not in ("chart", "table", "tiles"):
         return []
     found: list = []
     if kind == "chart":
         _chart_numbers(source, found)
-    else:
+    elif kind == "table":
         _json_numbers(source.get("rows"), found)
+    else:
+        for t in source["tiles"]:
+            _json_numbers([v for v in (t.get("value"), t.get("change")) if not isinstance(v, dict)], found)
     known: list = []
     _json_numbers(thread_data, known)
     rounded = {round(c, 2) for c in known}
@@ -128,9 +143,9 @@ def unverified(kind: str, source: Any, thread_data: Any) -> list:
 
 
 async def draw(llm: LLMClient, request: str, thread_data: dict, current: dict | None = None
-               ) -> tuple[BoardBlockDraft, Any, list]:
-    """A checked draft, its `rendered` and `unverified`. A refused draft gets one retry; a second refusal raises
-    `DrawRefused`. Model call errors propagate."""
+               ) -> tuple[BoardBlockDraft, dict, list]:
+    """A checked draft, its view (`rendered`, `live`, `live_error`, `live_step`) and `unverified`. A refused draft, or
+    one with a `live_error`, gets one retry; a second refusal raises `DrawRefused`. Model call errors propagate."""
     refused = None
     for _ in range(2):
         draft, _usage = await llm.complete_structured(
@@ -138,9 +153,11 @@ async def draw(llm: LLMClient, request: str, thread_data: dict, current: dict | 
         try:
             if not storable([draft.title, draft.source]):  # checked like a person's body (NUL, surrogates, NaN)
                 raise BlockInvalid("invalid block")
-            rendered = await asyncio.to_thread(check_block, draft.kind, draft.title, draft.source)
+            shown = await asyncio.to_thread(checked_view, draft.kind, draft.title, draft.source, thread_data)
+            if shown["live_error"] is not None:
+                raise BlockInvalid(shown["live_error"])
         except BlockInvalid as exc:
             refused = str(exc)
             continue
-        return draft, rendered, unverified(draft.kind, draft.source, thread_data)
+        return draft, shown, unverified(draft.kind, draft.source, thread_data)
     raise DrawRefused(refused)

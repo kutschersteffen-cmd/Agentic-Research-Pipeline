@@ -118,7 +118,7 @@ jobs:
           arp db init-postgres
           arp golden-set run | tee -a "$GITHUB_STEP_SUMMARY"
           arp golden-set run --long | tee -a "$GITHUB_STEP_SUMMARY"
-          arp agent board-golden --cases tests/golden/board.jsonl --min-pass 8 | tee -a "$GITHUB_STEP_SUMMARY"
+          arp agent board-golden --cases tests/golden/board.jsonl --min-pass 11 | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Gemini schema check (live)
         # Every structured-output schema sent once to Gemini (scripts/gemini_schema_check.py): catches schemas the
