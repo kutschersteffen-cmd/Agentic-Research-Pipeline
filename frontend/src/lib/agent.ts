@@ -62,9 +62,13 @@ export type StepState = "planned" | "started" | "skipped";
 export const stepState = (planStatus: string, hasCall: boolean): StepState =>
   hasCall ? "started" : planStatus === "done" || planStatus === "cancelled" ? "skipped" : "planned";
 
-/** A cost as the Audit tab shows it: dollars with 2 to 6 decimals, so it reads as the API's value. */
-export const usd = (n: number | null | undefined): string =>
-  n == null ? "–" : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 6 })}`;
+/** A cost as the Audit tab shows it: the API's number unrounded, padded to 2 decimals (1.2 reads $1.20). */
+export function usd(n: number | null | undefined): string {
+  if (n == null) return "–";
+  const s = String(n); // the shortest decimal that is exactly this number
+  if (/e/i.test(s)) return `$${n.toFixed(20).replace(/0+$/, "")}`; // 1e-7: plain digits, no exponent
+  return `$${(s.split(".")[1] ?? "").length <= 2 ? n.toFixed(2) : s}`;
+}
 
 /** The Audit tab's budget line: `spent $x of $y`, or `spent $x, no budget set`. */
 export const budgetLine = (spent: number, budget: number | null | undefined): string =>

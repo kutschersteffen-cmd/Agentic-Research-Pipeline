@@ -76,6 +76,8 @@ test("the Audit tab shows a cost as the API serves it (AC-33)", () => {
   assert.equal(usd(1.2), "$1.20");
   assert.equal(usd(0), "$0.00");
   assert.equal(usd(0.123456), "$0.123456");
+  assert.equal(usd(0.0123456789), "$0.0123456789"); // never rounded: equal to GET /api/plans/{id}
+  assert.equal(usd(1234.5), "$1234.50");
   assert.equal(usd(null), "–");
   assert.equal(budgetLine(2.05, 5), "spent $2.05 of $5.00");
   assert.equal(budgetLine(2.05, null), "spent $2.05, no budget set");
