@@ -11524,6 +11524,134 @@
     "title": "ExperimentSummary",
     "type": "object"
    },
+   "Exploration": {
+    "properties": {
+     "accepted_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Accepted At"
+     },
+     "accepted_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Accepted By"
+     },
+     "code": {
+      "title": "Code",
+      "type": "string"
+     },
+     "cost_usd": {
+      "title": "Cost Usd",
+      "type": "number"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "label": {
+      "enum": [
+       "exploratory",
+       "accepted"
+      ],
+      "title": "Label",
+      "type": "string"
+     },
+     "model": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Model"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "result": {
+      "title": "Result"
+     },
+     "status": {
+      "enum": [
+       "done",
+       "failed",
+       "timeout"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "tool_calls": {
+      "items": {
+       "$ref": "#/components/schemas/ToolCall"
+      },
+      "title": "Tool Calls",
+      "type": "array"
+     }
+    },
+    "required": [
+     "id",
+     "question",
+     "code",
+     "status",
+     "result",
+     "error",
+     "tool_calls",
+     "model",
+     "cost_usd",
+     "created_at",
+     "accepted_by",
+     "accepted_at",
+     "label"
+    ],
+    "title": "Exploration",
+    "type": "object"
+   },
+   "ExplorationRequest": {
+    "properties": {
+     "question": {
+      "minLength": 1,
+      "title": "Question",
+      "type": "string"
+     }
+    },
+    "required": [
+     "question"
+    ],
+    "title": "ExplorationRequest",
+    "type": "object"
+   },
    "ExportRequest": {
     "properties": {
      "dashboard_id": {
@@ -27347,6 +27475,28 @@
     "title": "Tone",
     "type": "string"
    },
+   "ToolCall": {
+    "properties": {
+     "args": {
+      "title": "Args"
+     },
+     "capability_id": {
+      "title": "Capability Id",
+      "type": "string"
+     },
+     "result_bytes": {
+      "title": "Result Bytes",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "capability_id",
+     "args",
+     "result_bytes"
+    ],
+    "title": "ToolCall",
+    "type": "object"
+   },
    "TopN": {
     "description": "Fixed-size index: the N best by score, ties broken by float market\ncap then company_id so the result is order-independent.",
     "properties": {
@@ -31539,6 +31689,48 @@
     "summary": "Draw Block",
     "tags": [
      "agent-board"
+    ]
+   }
+  },
+  "/api/agent/explorations": {
+   "post": {
+    "description": "Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed.",
+    "operationId": "create_exploration_api_agent_explorations_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ExplorationRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Exploration"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Exploration",
+    "tags": [
+     "agent"
     ]
    }
   },

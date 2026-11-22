@@ -1,14 +1,20 @@
 """The Agent screen's inbox: what waits on a person in the agent lanes (spec agent-panel-code-mode, Phase 3)."""
 from __future__ import annotations
 
-from typing import Literal
+from datetime import datetime
+from typing import Any, Literal
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 
-from arp.api.deps import get_run_store
+from arp.agent.explorations import ExplorationStore, explore
+from arp.api.auth import Principal, current_user
+from arp.api.deps import get_run_store, settings_dep
 from arp.api.routers.plans import plan_store
+from arp.config import Settings
 from arp.db.runs import RunStore
+from arp.db.session import require_dsn
+from arp.errors import NotConfigured
 from arp.orchestration.plan_store import PlanStore
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
@@ -41,3 +47,46 @@ def inbox(store: PlanStore = Depends(plan_store), run_store: RunStore = Depends(
                                         title=f"{c['kind']} step {c['seq']}", href=_step_href(c, run_store)))
              for c in store.calls_awaiting_review()]
     return [row for _, row in sorted(rows, key=lambda r: r[0])]
+
+
+class ExplorationRequest(BaseModel):
+    question: str = Field(min_length=1)
+
+
+class ToolCall(BaseModel):
+    capability_id: str
+    args: Any
+    result_bytes: int
+
+
+class Exploration(BaseModel):
+    id: str
+    question: str
+    code: str
+    status: Literal["done", "failed", "timeout"]
+    result: Any
+    error: str | None
+    tool_calls: list[ToolCall]
+    model: str | None
+    cost_usd: float
+    created_at: datetime
+    accepted_by: str | None
+    accepted_at: datetime | None
+    label: Literal["exploratory", "accepted"]
+
+
+def exploration_store(settings: Settings = Depends(settings_dep)) -> ExplorationStore:
+    return ExplorationStore(require_dsn(settings))
+
+
+@router.post("/explorations", response_model=Exploration)
+async def create_exploration(req: ExplorationRequest, store: ExplorationStore = Depends(exploration_store),
+                             settings: Settings = Depends(settings_dep),
+                             principal: Principal = Depends(current_user)) -> dict:
+    """Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed."""
+    try:
+        return await explore(store, settings, req.question, principal)
+    except NotConfigured:
+        raise
+    except RuntimeError as exc:
+        raise HTTPException(502, f"no code was written for this question: {exc}") from exc

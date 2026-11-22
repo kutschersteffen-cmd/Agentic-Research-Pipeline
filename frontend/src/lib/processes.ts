@@ -129,7 +129,7 @@ export const WORKSPACES: Workspace[] = [
           { tab: "argus", label: "Extract", does: "Custom schema, Financials, TNFD or Transition plan profile; every citation re-verified against its source.", handsOn: "Flagged figures", carried: true, runTypes: EXTRACTION_RUNS, reviewedElsewhere: true },
           { tab: "review", label: "Review", does: "Approve, edit or reject every flagged figure.", handsOn: "Reviewed figures", carried: true, runTypes: REVIEWABLE },
           { tab: "argus", label: "Score", optional: true, does: "Attach a ratified Decision Studio template at setup (or after the run); publish the tiers from the run's Scoring panel.", handsOn: "Published tiers", carried: true },
-          { tab: "decision", label: "Template", optional: true, does: "Build and ratify scoring templates in Decision Studio (Strategy); only ratified versions reach Argus." },
+          { tab: "decision", label: "Template", optional: true, does: "Build and ratify scoring templates in Decision Studio (R&D Lab); only ratified versions reach Argus." },
         ],
       },
       {
@@ -189,11 +189,11 @@ export const WORKSPACES: Workspace[] = [
   },
   {
     id: "rdLab",
-    name: "Strategy",
-    purpose: "Spot themes and design strategies, from idea to portfolio.",
+    name: "R&D Lab",
+    purpose: "Research themes and find the companies exposed to them.",
     runTypes: ["emerging_themes", "taxonomy_research", "theme", "calibration"],
     screens: [
-      ["#/designStrategy", "Design a strategy"],
+      ["#/designStrategy", "Build a thematic portfolio"],
       ["#/themes", "Themes"],
       ["#/emergingThemes", "Emerging Themes"],
       ["#/taxonomy", "Taxonomy Library"],
@@ -210,7 +210,7 @@ export const WORKSPACES: Workspace[] = [
     processes: [
       {
         id: "thematic",
-        title: "Design a strategy",
+        title: "Build a thematic portfolio",
         cadence: "Per idea",
         outcome: "A ratified theme, a reviewed universe and an effective-dated index calibration.",
         steps: [

@@ -64,6 +64,7 @@ from arp.api.routers import (
     review,
     rfp,
     runs,
+    sandbox_tools,
     search,
     security_master,
     signals,
@@ -189,6 +190,7 @@ app.include_router(plans.templates_router, dependencies=[Depends(authorize)])
 app.include_router(agent_board.router, dependencies=[Depends(authorize)])
 app.include_router(capabilities.router, dependencies=[Depends(authorize)])
 app.include_router(agent.router, dependencies=[Depends(authorize)])
+app.include_router(sandbox_tools.router)  # signed in by its execution token, not a user (spec agent-panel-code-mode)
 app.include_router(identity.router, dependencies=[Depends(authorize)])
 app.include_router(runs.router, dependencies=[Depends(authorize)])
 app.include_router(universe.router, dependencies=[Depends(authorize)])
