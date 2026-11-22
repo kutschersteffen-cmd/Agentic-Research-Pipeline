@@ -289,7 +289,7 @@ def test_client_program_marks_placeholder_scores(page, sample_house_universe):  
 
     page.route(re.compile(r".*/api/stewardship/streams/[^/]+/program$"), program)
     page.goto(f"{URL}/#/stewardship/program")
-    page.get_by_label("Client stream").select_option(label=name)
+    page.get_by_label("Program", exact=True).select_option(label=name)  # ui-trim-workspaces: one Program select
     page.locator(".warning-banner", has_text="CLTI scores are placeholders").wait_for()
     banner = page.locator(".warning-banner", has_text="CLTI scores are placeholders")
     assert banner.locator(".chip-sample").count() == 1 and banner.inner_text().startswith("Sample data")

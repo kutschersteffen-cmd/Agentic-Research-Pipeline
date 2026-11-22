@@ -81,9 +81,9 @@ export const WORKSPACES: Workspace[] = [
         steps: [
           { tab: "voting", label: "Proxy Voting", does: "Start a run from meeting agendas; the policy drafts a vote per resolution, a person decides.", handsOn: "Decided ballots", carried: true, runTypes: ["proxy_voting"] },
           // Ballots are counted on the Proxy Voting step, so this stage carries no `stage` (no double count).
-          { tab: "stewardship", sub: "voting", label: "Steward · Voting", does: "Decided ballots next to the house policy behind them.", handsOn: "Votes against policy", carried: true },
+          { tab: "stewardship", sub: "voting", label: "Decided votes", does: "Decided ballots next to the house policy behind them.", handsOn: "Votes against policy", carried: true },
           { tab: "stewardship", sub: "checkpoint", stage: "checkpoint", label: "Checkpoint", does: "Review every vote decided against the policy's recommendation, with its reason.", handsOn: "Votes against management", carried: true },
-          { tab: "engagement", label: "Engagement", does: "A vote against management raises a vote_outcome trigger; open the engagement from Monitoring." },
+          { tab: "engagement", label: "Engagement", does: "A vote against management opens a trigger in Monitoring." },
         ],
       },
       {

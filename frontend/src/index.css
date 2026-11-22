@@ -1421,6 +1421,9 @@ mark.style-flag { background: color-mix(in srgb, var(--mid) 30%, transparent); c
 
 /* Steward Workflow: stage studios */
 .workflow-tabs { flex-wrap: wrap; }
+/* The program picker sits at the end of the stage row, its label beside it. */
+.workflow-tabs .workflow-program { display: inline-flex; align-items: center; gap: var(--s-2); margin: 0 0 0 auto; }
+.workflow-tabs .workflow-program > select { display: inline-block; width: auto; margin: 0; }
 /* Extraction step tabs: wrap, and scroll inside the bar if one tab is still too wide. */
 .step-tabs { overflow-x: auto; max-width: 100%; }
 .tab-mark { margin-left: var(--s-1_5); font-size: var(--text-xs); }
@@ -1464,8 +1467,6 @@ mark.style-flag { background: color-mix(in srgb, var(--mid) 30%, transparent); c
 .studio-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--s-6); }
 .studio-columns h3, .studio-section h3 { margin: var(--s-4) 0 var(--s-2); }
 .row-actions { display: flex; gap: var(--s-2); align-items: center; justify-content: flex-end; white-space: nowrap; }
-.client-picker { flex-wrap: wrap; }
-.client-picker .field-label { margin: 0; }
 .position-card { border: 1px solid var(--panel-border); border-radius: var(--r-md); padding: var(--s-3) var(--s-3); margin: var(--s-3) 0; }
 .position-card.changed { border-color: var(--accent); background: var(--accent-tint); }
 .position-card > .muted { margin: var(--s-1) 0 var(--s-2); }
