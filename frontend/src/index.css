@@ -1145,6 +1145,8 @@ h2 .chip-not-built { margin-left: var(--s-2); }
 .chart-tooltip-value { font-weight: 600; }
 
 .selection-pane { margin-bottom: 20px; }
+.selection-pane-links { gap: var(--s-4); align-items: baseline; }
+.selection-pane-links > .link-button { padding: 0; }
 .pane-grid { display: grid; grid-template-columns: 2fr 1fr; gap: var(--s-6); }
 @media (max-width: 760px) { .pane-grid { grid-template-columns: 1fr; } }
 .selection-summary { color: var(--muted); font-size: var(--text-sm); margin: 0 0 var(--s-3); }

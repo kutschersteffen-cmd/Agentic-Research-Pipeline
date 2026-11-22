@@ -19,13 +19,14 @@ export function PortfolioFilterPicker({
 
   return (
     <div>
-      <div className="field-label">Portfolios (none selected = all)</div>
+      <div className="field-label">Portfolios</div>
       {portfolios.map((p) => (
         <label key={p.portfolio_id} className="checkbox-label">
           <input type="checkbox" checked={selected.includes(p.portfolio_id)} onChange={() => toggle(p.portfolio_id)} />
           {p.name}
         </label>
       ))}
+      {selected.length === 0 && <p className="muted">All portfolios</p>}
     </div>
   );
 }

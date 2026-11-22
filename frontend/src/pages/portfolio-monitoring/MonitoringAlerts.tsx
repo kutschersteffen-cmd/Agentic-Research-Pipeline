@@ -312,7 +312,7 @@ export function MonitoringAlerts() {
         <div className="toolbar">
           {STATUS_FILTERS.map((s) => (
             <button key={s} className={s === statusFilter ? "nav-tab active" : "nav-tab"} aria-pressed={s === statusFilter} onClick={() => setStatusFilter(s)}>
-              {s.replace("_", " ")}
+              {s === "false_positive" ? "False positive" : s[0].toUpperCase() + s.slice(1)}
             </button>
           ))}
           <button onClick={evaluateNow} disabled={evaluating}>

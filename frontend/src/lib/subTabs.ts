@@ -7,14 +7,18 @@ export function resolveSubTab<T extends string>(initialSub: string | undefined, 
   return tabs.find((t) => t.id === id)?.id ?? tabs[0].id;
 }
 
-/** Risk Monitoring sub-tabs. */
+/** Risk Monitoring sub-tabs: every routable one (⌘K lists them all). */
 export const SUB_TABS = [
-  { id: "dashboards", label: "Dashboards (Superset)" },
-  { id: "monitoring", label: "Monitoring & Alerts" },
-  { id: "profiles", label: "Company Profiles" },
+  { id: "dashboards", label: "Dashboards" },
+  { id: "monitoring", label: "Alerts" },
+  { id: "profiles", label: "Company profiles" },
   { id: "ask", label: "Ask the Portfolio" },
   { id: "holdings", label: "Holdings Intake" },
 ] as const;
+
+/** The tabs Risk Monitoring shows, in order. Ask the Portfolio and Holdings Intake open by link
+ * (the search-or-ask box, "Load holdings") with no tab selected. */
+export const SHOWN_SUB_TABS = ["monitoring", "dashboards", "profiles"] as const;
 
 /** The sub-tab Risk Monitoring opens on. A route with no sub-tab opens Monitoring & Alerts, which works on a
  * server without Superset; a named, legacy or unknown id goes where resolveSubTab sends it. */
