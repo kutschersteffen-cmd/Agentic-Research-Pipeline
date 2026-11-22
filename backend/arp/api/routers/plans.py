@@ -132,7 +132,7 @@ async def start_plan(plan_id: str, store: PlanStore = Depends(plan_store)) -> di
     """Claims the plan; the plan worker runs it on its next scan."""
     _get(store, plan_id)
     try:
-        await asyncio.to_thread(claim_plan, store, plan_id)
+        await asyncio.to_thread(claim_plan, store, plan_id, take_over=False)  # the worker takes over orphans
     except PlanNotRunnable as exc:
         raise HTTPException(409, str(exc)) from exc
     return {"plan_id": plan_id, "status": "running"}

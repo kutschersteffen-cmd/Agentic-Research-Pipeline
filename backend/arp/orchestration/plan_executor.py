@@ -61,34 +61,36 @@ def plan_alive(store: PlanStore, plan_id: str) -> bool:
         return True
 
 
-def claim_plan(store: PlanStore, plan_id: str) -> None:
+def claim_plan(store: PlanStore, plan_id: str, *, take_over: bool = True) -> None:
     """Mark the plan running before its worker starts, so a caller sees `running` at once and a second claim fails.
+    With `take_over=False` an active plan is refused even when no worker holds it yet: the plan worker picks it up.
     Raises PlanNotRunnable."""
     if store.claim(plan_id, _STARTABLE, "running"):
         return
     status = store.get(plan_id)["status"]
-    if status in _ACTIVE and not plan_alive(store, plan_id):
+    if take_over and status in _ACTIVE and not plan_alive(store, plan_id):
         return  # its worker died; the new worker takes over and resumes
     raise PlanNotRunnable("plan is already running" if status in _ACTIVE else "plan is not approved")
 
 
 def run_plan(plan_id: str, store: PlanStore, steps: dict[str, Step | Callable[..., dict[str, Any]]], reviewed: ReviewedFn,
-             *, poll_seconds: float = 5.0, return_at_gate: bool = False) -> str:
+             *, poll_seconds: float = 5.0, return_at_gate: bool = False, active_only: bool = False) -> str:
     """Run the plan to an end state and return it. Raises PlanNotRunnable when it is not approved or already
     running. With `return_at_gate`, a step that waits for review is not waited for: the plan is left
-    `awaiting_review` and this returns "awaiting_review"; run it again once the step is reviewed."""
+    `awaiting_review` and this returns "awaiting_review"; run it again once the step is reviewed. With `active_only`,
+    only a `running` or `awaiting_review` plan runs: a plan that failed meanwhile waits for its resume."""
     try:
         with run_lease(store, f"plan:{plan_id}"):
-            return _run(plan_id, store, steps, reviewed, poll_seconds, return_at_gate)
+            return _run(plan_id, store, steps, reviewed, poll_seconds, return_at_gate, active_only)
     except RunBusy as exc:
         raise PlanNotRunnable("plan is already running") from exc
 
 
 def _run(plan_id: str, store: PlanStore, steps: dict[str, Step | Callable[..., dict[str, Any]]], reviewed: ReviewedFn, poll: float,
-         return_at_gate: bool) -> str:
+         return_at_gate: bool, active_only: bool) -> str:
     # We hold the lease, so a plan marked running or awaiting review has no other live worker: take it over.
     plan = store.get(plan_id)
-    if plan["status"] not in _STARTABLE | _ACTIVE:
+    if plan["status"] not in (_ACTIVE if active_only else _STARTABLE | _ACTIVE):
         raise PlanNotRunnable("plan is not approved")
     stored = store.calls(plan_id)
     previous = {c["seq"]: c for c in stored}
