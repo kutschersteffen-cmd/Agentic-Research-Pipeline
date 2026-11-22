@@ -3522,7 +3522,10 @@ export interface paths {
         };
         /** Get Plan */
         get: operations["get_plan_api_plans__plan_id__get"];
-        /** Edit Plan */
+        /**
+         * Edit Plan
+         * @description A new script or budget returns the plan to draft for a new approval. A budget alone keeps every stored call.
+         */
         put: operations["edit_plan_api_plans__plan_id__put"];
         post?: never;
         delete?: never;
@@ -17982,8 +17985,10 @@ export interface components {
         };
         /** ScriptRequest */
         ScriptRequest: {
+            /** Budget Usd */
+            budget_usd?: number | null;
             /** Script */
-            script: string;
+            script?: string | null;
         };
         /** SearchAnswer */
         SearchAnswer: {

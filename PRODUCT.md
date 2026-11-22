@@ -49,7 +49,7 @@ export until a human approves it.
   Replication, Emerging Themes, Presentation & Reporting, Decision Studio, Equity Index
   Construction, standing agents.
 - React + TypeScript (Vite) frontend over a FastAPI backend; file-based state, no database.
-- Terminology to keep: run, review queue, grounded / ungrounded citation, ratify, calibration,
+- Terminology to keep: run, Needs you (the review queue), grounded / ungrounded citation, ratify, calibration,
   escalation stage, walk / talk, tier.
 
 ## Brand Commitments

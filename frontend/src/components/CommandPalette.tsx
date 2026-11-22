@@ -4,8 +4,9 @@ import { Modal } from "./Modal";
 export type PaletteItem = { label: string; hint?: string; href: string };
 
 /** Ctrl/⌘K: type part of a screen's name, Enter to go there. Every word
- * typed must appear in the label or its hint, in any order. */
-export function CommandPalette({ items, onClose }: { items: PaletteItem[]; onClose: () => void }) {
+ * typed must appear in the label or its hint, in any order. With `onAsk`, a last
+ * option sends the typed text to Ask ARP; Enter with no matching screen does too. */
+export function CommandPalette({ items, onClose, onAsk }: { items: PaletteItem[]; onClose: () => void; onAsk?: (question: string) => void }) {
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -16,7 +17,15 @@ export function CommandPalette({ items, onClose }: { items: PaletteItem[]; onClo
     const hay = ` ${it.label} ${it.hint ?? ""}`.toLowerCase().replace(/[^a-z0-9]+/g, " ");
     return words.every((w) => hay.includes(` ${w.replace(/[^a-z0-9]+/g, " ").trim()}`));
   });
-  const current = Math.min(index, matches.length - 1);
+  const question = query.trim();
+  const askRow = onAsk && question ? matches.length : -1;
+  const count = matches.length + (askRow >= 0 ? 1 : 0);
+  const current = Math.min(index, count - 1);
+
+  function ask() {
+    onClose();
+    onAsk!(question);
+  }
 
   function go(item: PaletteItem | undefined) {
     if (!item) return;
@@ -25,25 +34,28 @@ export function CommandPalette({ items, onClose }: { items: PaletteItem[]; onClo
   }
 
   return (
-    <Modal title="Jump to a screen or run" onClose={onClose} compact>
+    <Modal title={onAsk ? "Search or ask" : "Jump to a screen or run"} onClose={onClose} compact>
       <input
         className="palette-input"
         ref={input}
         role="combobox"
-        aria-label="Jump to a screen or run"
+        aria-label={onAsk ? "Search or ask" : "Jump to a screen or run"}
         aria-expanded="true"
         aria-controls="palette-list"
-        aria-activedescendant={matches.length ? `palette-${current}` : undefined}
-        placeholder="Type a screen or run, e.g. drafting, voting, a run id"
+        aria-activedescendant={count ? `palette-${current}` : undefined}
+        placeholder={onAsk ? "Type a screen, a run id or a question" : "Type a screen or run, e.g. drafting, voting, a run id"}
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
           setIndex(0);
         }}
         onKeyDown={(e) => {
-          if (e.key === "ArrowDown") setIndex(Math.min(current + 1, matches.length - 1));
+          if (e.key === "ArrowDown") setIndex(Math.min(current + 1, count - 1));
           else if (e.key === "ArrowUp") setIndex(Math.max(current - 1, 0));
-          else if (e.key === "Enter") go(matches[current]);
+          else if (e.key === "Enter") {
+            if (current === askRow) ask();
+            else go(matches[current]);
+          }
           else return;
           e.preventDefault();
         }}
@@ -63,7 +75,19 @@ export function CommandPalette({ items, onClose }: { items: PaletteItem[]; onClo
             {it.hint && <span className="muted">{it.hint}</span>}
           </li>
         ))}
-        {matches.length === 0 && <li className="muted">No screen matches “{query}”.</li>}
+        {askRow >= 0 && (
+          <li
+            id={`palette-${askRow}`}
+            role="option"
+            aria-selected={current === askRow}
+            className={current === askRow ? "palette-item active" : "palette-item"}
+            onMouseMove={() => setIndex(askRow)}
+            onClick={ask}
+          >
+            Ask ARP: “{question}”
+          </li>
+        )}
+        {count === 0 && <li className="muted">No screen matches “{query}”.</li>}
       </ul>
     </Modal>
   );

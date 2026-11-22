@@ -10,6 +10,7 @@ import { ArgusDocuments } from "./ArgusDocuments";
 import { ArgusExtract } from "./ArgusExtract";
 import { ArgusResults } from "./ArgusResults";
 import { ArgusSchema } from "./ArgusSchema";
+import { PRESETS } from "./ArgusStart";
 import type { ArgusFlow as Flow } from "../types";
 
 /** Step 1: one row's Name, Ticker, ISIN, LEI and CIK, open for a correction. Saving registers the row again. */
@@ -117,7 +118,7 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
 
   return (
     <div className="page argus-flow">
-      <h1>New extraction</h1>
+      <h1>{flow.schema_choice?.schema_id === PRESETS.transition_plan ? "Transition plan assessment" : "New extraction"}</h1>
       <StepBar flowId={flow.flow_id} current={step} reached={flow.step} />
       {error && <p className="error-text" role="alert">{error}</p>}
       {step === 2 ? (
