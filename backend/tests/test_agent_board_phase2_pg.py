@@ -124,10 +124,30 @@ def test_grouped_flowchart_is_accepted(client, plan):
     ("flowchart LR\n  a[x\\/y] --> b", "diagram may not load from outside"),  # AC-36l
     ("sequenceDiagram\n  participant A as Analyst\n  details A: {\"x\": 1}\n  A->>A: Review",
      "diagram may not use details lines"),  # AC-36o
+    ("sequenceDiagram\n  participant A as Analyst\n\ufeffproperties A: {\"icon\": \"x.png\"}\n  A->>A: Review",
+     "diagram may not contain hidden characters"),  # AC-36r
+    ("%%\u001cflowchart LR\nsequenceDiagram\n  A->>A: Review", "diagram may not contain hidden characters"),  # AC-36s
+    ("flowchart LR\n  a --> b\u2028  click a x", "diagram may not contain hidden characters"),
+    ("flowchart LR\n  a[see #47;#47;evil.example] --> b", "diagram may not use entity codes"),  # AC-36t
+    ("flowchart LR\n  a --> b\r  click a href \"x\"", "diagram may not use click lines"),  # AC-36v
+    ("flowchart LR\n  a --> b\n  click\u00a0a href \"x\"", "diagram may not use click lines"),  # AC-36w
+    ("flowchart LR\n  subgraph s\n    a\n  end click a href \"x\"", "diagram may not use click lines"),  # AC-36z
+    ("flowchart LR\n  a --> b\n  END end class a big", "diagram may only use class lines for emphasis"),
+    ("\u3000flowchart\u2003LR\n  a --> b; style a x", "diagram may not use style lines"),
 ])
 def test_diagram_checks(client, plan, source, detail):
     assert _detail(_post(client, plan, "diagram", source)) == detail
     assert client.get(_b(plan)).json()["blocks"] == []
+
+
+@pytest.mark.parametrize("source", [
+    "mindmap\r\n  root((Move))\r\n    Topics",  # AC-36x
+    "mindmap\n  root((Team \U0001F9D1\u200d\U0001F4BB))\n    B\u00fcro",  # AC-36y
+    "flowchart LR\n  a[Ends] --> b[end]",
+])
+def test_diagrams_mermaid_reads_are_accepted(client, plan, source):
+    res = _post(client, plan, "diagram", source)
+    assert res.status_code == 201, res.text
 
 
 def test_properties_and_details_only_refused_in_sequence_diagrams(client, plan):  # AC-36q
@@ -138,9 +158,18 @@ def test_properties_and_details_only_refused_in_sequence_diagrams(client, plan):
     ("flowchart LR\n  a[<img src=x>] --> b", "diagram may not contain HTML"),  # AC-36m
     ("%%{init: {}}%%\nflowchart LR\n  a --> b", "diagram may not set its own config"),  # AC-36n
     ("flowchart LR\n  a[x //evil] --> b[y]", "diagram may not load from outside"),
+    ("flowchart LR\n  a[\ufeffx] --> b", "diagram may not contain hidden characters"),
+    ("flowchart LR\n  a[x #47;y] --> b", "diagram may not use entity codes"),
 ])
 def test_flow_gets_diagram_checks(client, plan, source, detail):
     assert _detail(_post(client, plan, "flow", source)) == detail
+
+
+def test_flow_with_crlf_lines(client, plan):  # AC-36u
+    src = "flowchart LR\n  a[Build universe] --> b[Extract]\r\n  b --> c[Report]"
+    res = _post(client, plan, "flow", src)
+    assert res.status_code == 201, res.text
+    assert len(res.json()["rendered"]["steps"]) == 3
 
 
 def test_flow_keeps_the_house_deck_subset(client, plan):  # AC-36p
