@@ -167,3 +167,19 @@ class PlanStore:
             rows = s.scalars(select(ResearchPlanCall).where(ResearchPlanCall.plan_id == plan_id)
                              .order_by(ResearchPlanCall.seq))
             return [_row(r) for r in rows]
+
+    def audited_calls(self, plan_id: str) -> list[dict[str, Any]]:
+        """`calls`, each with its run's `model` and `estimated_cost_usd`: null for a call without a stored run."""
+        from arp.db.models import Run
+
+        calls = self.calls(plan_id)
+        run_ids = [c["run_id"] for c in calls if c["run_id"]]
+        with Session(self.engine) as s:
+            runs = {r.run_id: r for r in s.execute(select(Run.run_id, Run.model, Run.estimated_cost_usd)
+                                                   .where(Run.run_id.in_(run_ids)))} if run_ids else {}
+        out = []
+        for c in calls:
+            run = runs.get(c["run_id"])
+            cost = run.estimated_cost_usd if run else None
+            out.append({**c, "model": run.model if run else None, "estimated_cost_usd": None if cost is None else float(cost)})
+        return out
