@@ -140,6 +140,13 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     atEnd.current = nearEnd(el);
     if (atEnd.current) setJump(false);
   }
+  // Your own send always takes the stream to the latest turn, wherever you had scrolled: the `Working…` turn it adds
+  // grows the stream, which then follows it down. (Scrolling here, before that turn lands, would fire a scroll event
+  // that reads the grown stream as scrolled up.)
+  function followOwnSend() {
+    atEnd.current = true;
+    setJump(false);
+  }
   function jumpToLatest() {
     const el = scroller.current;
     if (!el) return;
@@ -191,6 +198,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
 
   /** An ask: a follow-up in the selected ask thread, else a new thread, which is selected once it answers. */
   async function ask(question: string, newThread: boolean) {
+    followOwnSend();
     const req = composerRequest("Ask", question, newThread ? null : selected);
     if (!req.body.thread_id && selected) onSelect(null); // no thread is selected while a new one's first ask runs
     setAsking({ question, threadId: req.body.thread_id ?? null });
@@ -221,6 +229,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
       setText("");
       return ask(t, false);
     }
+    followOwnSend();
     const req = composerRequest("Plan", t, selected);
     await act(async () => {
       const p = await api.agentPost<Plan>(req.path, req.body);
@@ -330,7 +339,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
         <aside className="agent-side agent-threads" aria-labelledby="agent-threads-h">{threads("agent-threads")}</aside>
 
         <section className="agent-stream" aria-label="Stream">
-          <div className="agent-scroll" ref={scroller} onScroll={onStreamScroll}>
+          <div className="agent-scroll" ref={scroller} onScroll={onStreamScroll} tabIndex={0} aria-label="Conversation">
           <div ref={content}>
           {plan && planId ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />
