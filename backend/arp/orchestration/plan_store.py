@@ -1,17 +1,20 @@
 """Postgres store for research plans and the step calls their runs make."""
 from __future__ import annotations
 
+import ast
+import json
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from arp.errors import NotConfigured
 from arp.orchestration.plan_check import check_script
 from arp.orchestration.plan_interp import dry_run
-from arp.orchestration.plan_models import ResearchPlan, ResearchPlanCall
+from arp.orchestration.plan_models import ResearchPlan, ResearchPlanCall, ResearchPlanTemplate
 from arp.schemas.common import new_id
 
 
@@ -21,6 +24,35 @@ class PlanNotFound(LookupError):
 
 class PlanNotReplannable(NotConfigured):
     pass
+
+
+class TemplateNotFound(LookupError):
+    pass
+
+
+class PlanNotTemplatable(NotConfigured):
+    pass
+
+
+def with_source(script: str, source: str) -> str:
+    """The script with the string literal passed as `source=` to every `universe_build` call replaced by `source`;
+    nothing else changes. Raises ValueError when there is no such source or one is not a string literal."""
+    values = [k.value for node in ast.walk(ast.parse(script))
+              if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "universe_build"
+              for k in node.keywords if k.arg == "source"]
+    if not values:
+        raise ValueError("template has no universe_build source to replace")
+    if any(not (isinstance(v, ast.Constant) and isinstance(v.value, str)) for v in values):
+        raise ValueError("template source is not a string literal")
+    lines = script.split("\n")
+
+    def index(lineno: int, col: int) -> int:  # ast columns count UTF-8 bytes; this is a str index into `script`
+        return sum(len(line) + 1 for line in lines[:lineno - 1]) + len(lines[lineno - 1].encode()[:col].decode())
+
+    literal = json.dumps(source, ensure_ascii=False)  # a JSON string is a valid double-quoted Python literal
+    for v in sorted(values, key=lambda v: (v.lineno, v.col_offset), reverse=True):
+        script = script[:index(v.lineno, v.col_offset)] + literal + script[index(v.end_lineno, v.end_col_offset):]
+    return script
 
 
 def _checked_dry_run(script: str, previous: list[dict] | None = None, first_seq: int = 1,
@@ -65,15 +97,18 @@ class PlanStore:
         self.engine = get_engine(dsn)
 
     def create(self, brief: str, script: str, previous_scripts: list[dict] | None = None,
-               check: Callable[[list[dict]], list[str]] | None = None) -> str:
+               check: Callable[[list[dict]], list[str]] | None = None, template: tuple[str, int] | None = None) -> str:
         """Raises ValueError with the checker's errors when the script is rejected. `previous_scripts` stores the
-        plan as already re-planned (the demo plan), at the version after them. `check` adds errors from the dry run."""
+        plan as already re-planned (the demo plan), at the version after them. `check` adds errors from the dry run.
+        `template` is the (name, version) the script was instantiated from."""
         steps = _checked_dry_run(script, check=check)
         plan_id = new_id("plan")
         history = previous_scripts or []
+        template_name, template_version = template or (None, None)
         with Session(self.engine) as s, s.begin():
             s.add(ResearchPlan(id=plan_id, brief=brief, script=script, dry_run=steps, status="draft",
-                               created_at=datetime.now(UTC), version=len(history) + 1, previous_scripts=history))
+                               created_at=datetime.now(UTC), version=len(history) + 1, previous_scripts=history,
+                               template_name=template_name, template_version=template_version))
         return plan_id
 
     def get(self, plan_id: str) -> dict[str, Any]:
@@ -167,3 +202,40 @@ class PlanStore:
             rows = s.scalars(select(ResearchPlanCall).where(ResearchPlanCall.plan_id == plan_id)
                              .order_by(ResearchPlanCall.seq))
             return [_row(r) for r in rows]
+
+    def save_template(self, plan_id: str, name: str, user: str | None) -> dict[str, Any]:
+        """Save the plan's script as the next version of template `name`. Raises PlanNotFound, and
+        PlanNotTemplatable unless the plan is approved or done."""
+        plan = self.get(plan_id)
+        if plan["status"] not in {"approved", "done"}:
+            raise PlanNotTemplatable("only an approved or done plan can be saved as a template")
+        for _ in range(3):  # two saves under one name at once: the loser takes the next version
+            try:
+                with Session(self.engine) as s, s.begin():
+                    newest = s.scalar(select(func.max(ResearchPlanTemplate.version))
+                                      .where(ResearchPlanTemplate.name == name)) or 0
+                    s.add(ResearchPlanTemplate(name=name, version=newest + 1, script=plan["script"],
+                                               source_plan_id=plan_id, created_by=user, created_at=datetime.now(UTC)))
+                return self.template(name, newest + 1)
+            except IntegrityError:
+                continue
+        raise RuntimeError(f"could not claim a version of template {name}")
+
+    def template(self, name: str, version: int | None = None) -> dict[str, Any]:
+        """The template's given version, or its newest. Raises TemplateNotFound."""
+        query = select(ResearchPlanTemplate).where(ResearchPlanTemplate.name == name)
+        query = query.where(ResearchPlanTemplate.version == version) if version is not None else \
+            query.order_by(ResearchPlanTemplate.version.desc()).limit(1)
+        with Session(self.engine) as s:
+            row = s.scalars(query).first()
+            if row is None:
+                raise TemplateNotFound(name)
+            return _row(row)
+
+    def instantiate(self, name: str, source: str, version: int | None = None) -> str:
+        """A draft plan from the template with `source` in every `universe_build` call. Raises TemplateNotFound, and
+        ValueError when the source cannot be replaced or the checker rejects the result."""
+        tpl = self.template(name, version)
+        script = with_source(tpl["script"], source)
+        return self.create(f"From template {name} v{tpl['version']} with source {source}", script,
+                           template=(name, tpl["version"]))

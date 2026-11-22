@@ -1,4 +1,5 @@
-"""Research Orchestrator API: draft, edit, approve, run and cancel plan scripts."""
+"""Research Orchestrator API: draft, edit, approve, run and cancel plan scripts; save them as templates and
+instantiate those on another universe."""
 from __future__ import annotations
 
 import asyncio
@@ -6,18 +7,19 @@ import logging
 import threading
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal, current_user
 from arp.config import Settings, get_settings
 from arp.db.session import require_dsn
 from arp.orchestration.plan_executor import PlanNotRunnable, cancel_plan, claim_plan, run_plan
 from arp.orchestration.plan_planner import PlanRejected, draft_plan, replan_plan
-from arp.orchestration.plan_store import PlanNotFound, PlanNotReplannable, PlanStore
+from arp.orchestration.plan_store import PlanNotFound, PlanNotReplannable, PlanNotTemplatable, PlanStore, TemplateNotFound
 from arp.orchestration.plan_worker import scan
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/plans", tags=["plans"])
+templates_router = APIRouter(prefix="/api/plan-templates", tags=["plans"])
 _running: set[asyncio.Task] = set()  # strong refs: the plan worker's task is never garbage-collected
 
 
@@ -40,6 +42,15 @@ class DraftRequest(BaseModel):
 
 class ScriptRequest(BaseModel):
     script: str
+
+
+class TemplateRequest(BaseModel):
+    name: str = Field(min_length=1)
+
+
+class InstantiateRequest(BaseModel):
+    source: str
+    version: int | None = None  # None: the newest
 
 
 def _get(store: PlanStore, plan_id: str) -> dict:
@@ -184,4 +195,34 @@ def cancel(plan_id: str, store: PlanStore = Depends(plan_store)) -> dict:
         cancel_plan(plan_id, store)
     except PlanNotRunnable as exc:
         raise HTTPException(409, str(exc)) from exc
+    return _get(store, plan_id)
+
+
+@router.post("/{plan_id}/template")
+def save_template(plan_id: str, req: TemplateRequest, store: PlanStore = Depends(plan_store),
+                  principal: Principal = Depends(current_user)) -> dict:
+    _get(store, plan_id)
+    try:
+        return store.save_template(plan_id, req.name, principal.user_id)
+    except PlanNotTemplatable as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@templates_router.get("/{name}")
+def get_template(name: str, version: int | None = None, store: PlanStore = Depends(plan_store)) -> dict:
+    try:
+        return store.template(name, version)
+    except TemplateNotFound as exc:
+        raise HTTPException(404, "template not found") from exc
+
+
+@templates_router.post("/{name}/instantiate")
+def instantiate_template(name: str, req: InstantiateRequest, store: PlanStore = Depends(plan_store)) -> dict:
+    """A draft plan from the template, with `source` in every `universe_build` call; it runs only after approval."""
+    try:
+        plan_id = store.instantiate(name, req.source, req.version)
+    except TemplateNotFound as exc:
+        raise HTTPException(404, "template not found") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
     return _get(store, plan_id)
