@@ -29627,8 +29627,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                doc_id: string;
                 kind: string;
+                doc_id: string;
             };
             cookie?: never;
         };
@@ -29659,8 +29659,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                doc_id: string;
                 kind: string;
+                doc_id: string;
             };
             cookie?: never;
         };
@@ -29695,8 +29695,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                doc_id: string;
                 kind: string;
+                doc_id: string;
             };
             cookie?: never;
         };

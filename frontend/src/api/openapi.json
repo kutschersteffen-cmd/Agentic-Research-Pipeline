@@ -42735,19 +42735,19 @@
     "parameters": [
      {
       "in": "path",
-      "name": "doc_id",
+      "name": "kind",
       "required": true,
       "schema": {
-       "title": "Doc Id",
+       "title": "Kind",
        "type": "string"
       }
      },
      {
       "in": "path",
-      "name": "kind",
+      "name": "doc_id",
       "required": true,
       "schema": {
-       "title": "Kind",
+       "title": "Doc Id",
        "type": "string"
       }
      }
@@ -42788,19 +42788,19 @@
     "parameters": [
      {
       "in": "path",
-      "name": "doc_id",
+      "name": "kind",
       "required": true,
       "schema": {
-       "title": "Doc Id",
+       "title": "Kind",
        "type": "string"
       }
      },
      {
       "in": "path",
-      "name": "kind",
+      "name": "doc_id",
       "required": true,
       "schema": {
-       "title": "Kind",
+       "title": "Doc Id",
        "type": "string"
       }
      }
@@ -42849,19 +42849,19 @@
     "parameters": [
      {
       "in": "path",
-      "name": "doc_id",
+      "name": "kind",
       "required": true,
       "schema": {
-       "title": "Doc Id",
+       "title": "Kind",
        "type": "string"
       }
      },
      {
       "in": "path",
-      "name": "kind",
+      "name": "doc_id",
       "required": true,
       "schema": {
-       "title": "Kind",
+       "title": "Doc Id",
        "type": "string"
       }
      }
