@@ -1,0 +1,148 @@
+"""Block checks and rendering (spec agent-board, "Block sources and validation" and "Rendering").
+
+`check_block` raises `BlockInvalid` with the spec's message for the first failing check, else returns the block's
+`rendered` value, so a write renders a chart once.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+KINDS = ("note", "table", "chart", "flow")
+_OUTSIDE_KEYS = ("url", "href", "loader")
+
+
+class BlockInvalid(ValueError):
+    """`str()` is the 422 detail."""
+
+
+def _is_number(v: Any) -> bool:
+    return isinstance(v, int | float) and not isinstance(v, bool)
+
+
+def check_title(title: Any) -> str:
+    if not isinstance(title, str):
+        raise BlockInvalid("invalid block")
+    title = title.strip()
+    if not 1 <= len(title) <= 120:
+        raise BlockInvalid("title must be 1 to 120 characters")
+    return title
+
+
+def _outside(node: Any, path: str) -> str | None:
+    """The JSON path of the first key or image mark that could load from outside, in document order."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            p = f"{path}.{k}" if path else k
+            if k in _OUTSIDE_KEYS:
+                return p
+            if k == "mark" and (v == "image" or (isinstance(v, dict) and v.get("type") == "image")):
+                return p
+            if (found := _outside(v, p)) is not None:
+                return found
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            if (found := _outside(v, f"{path}[{i}]")) is not None:
+                return found
+    return None
+
+
+def _too_many_rows(node: Any) -> bool:
+    if isinstance(node, dict):
+        data = node.get("data")
+        if isinstance(data, dict) and isinstance(data.get("values"), list) and len(data["values"]) > 5000:
+            return True
+        return any(_too_many_rows(v) for v in node.values())
+    if isinstance(node, list):
+        return any(_too_many_rows(v) for v in node)
+    return False
+
+
+def _check_table(source: Any) -> None:
+    if not isinstance(source, dict) or not isinstance(source.get("columns"), list) or not isinstance(source.get("rows"), list):
+        raise BlockInvalid("invalid block")
+    cols, rows = source["columns"], source["rows"]
+    if not all(isinstance(c, str) for c in cols):
+        raise BlockInvalid("invalid block")
+    if not 1 <= len(cols) <= 20:
+        raise BlockInvalid("table must have 1 to 20 columns")
+    if len(rows) > 200:
+        raise BlockInvalid("table exceeds 200 rows")
+    for i, row in enumerate(rows, start=1):
+        if not isinstance(row, list) or not all(c is None or isinstance(c, str) or _is_number(c) for c in row):
+            raise BlockInvalid("invalid block")
+        if len(row) != len(cols):
+            raise BlockInvalid(f"row {i} has {len(row)} cells, expected {len(cols)}")
+
+
+def render_chart(source: dict) -> dict[str, str]:
+    """The source with the house theme for each colour scheme, as SVG (D1)."""
+    from arp.reporting import vega
+    from arp.reporting.house_style import load_tokens
+    from arp.reporting.render_model import palette
+
+    tokens, out = load_tokens(), {}
+    for mode in ("light", "dark"):
+        c = palette(tokens, mode)
+        config = vega.theme_config(tokens, mode)
+        config["background"] = c["panel"]
+        for part in ("axis", "legend"):
+            config[part] = {**config.get(part, {}), "labelColor": c["ink"], "titleColor": c["ink"]}
+        config["axis"].update(domainColor=c["line"], tickColor=c["line"])
+        config["title"] = {**config.get("title", {}), "color": c["ink"]}
+        config["mark"] = {**config.get("mark", {}), "color": c["highlight"]}
+        out[mode] = vega.to_svg({**source, "config": config}, tokens)
+    return out
+
+
+def render(kind: str, source: Any) -> Any:
+    """`rendered` of a stored block: null for note and table, SVGs for a chart, the parsed `Flow` for a flow."""
+    if kind == "chart":
+        return render_chart(source)
+    if kind == "flow":
+        from arp.reporting.mermaid_flow import parse_mermaid
+
+        return parse_mermaid(source).model_dump(mode="json")
+    return None
+
+
+def check_block(kind: Any, title: Any, source: Any) -> Any:
+    """Raises `BlockInvalid` for the first failing check; returns `rendered`."""
+    if not isinstance(kind, str) or not isinstance(title, str):
+        raise BlockInvalid("invalid block")
+    check_title(title)
+    if kind not in KINDS:
+        raise BlockInvalid(f"unknown block kind: {kind}")
+    if kind == "note":
+        if not isinstance(source, str):
+            raise BlockInvalid("invalid block")
+        if len(source) > 20000:
+            raise BlockInvalid("note exceeds 20000 characters")
+        return None
+    if kind == "table":
+        _check_table(source)
+        return None
+    if kind == "flow":
+        from pydantic import ValidationError
+
+        from arp.reporting.mermaid_flow import MermaidError
+
+        if not isinstance(source, str):
+            raise BlockInvalid("invalid block")
+        try:
+            return render("flow", source)
+        except MermaidError as exc:
+            raise BlockInvalid(str(exc)) from None
+        except ValidationError as exc:
+            raise BlockInvalid(exc.errors()[0]["msg"]) from None
+    if not isinstance(source, dict):
+        raise BlockInvalid("invalid block")
+    if (path := _outside(source, "")) is not None:
+        raise BlockInvalid(f"chart may not load from outside: {path}")
+    if _too_many_rows(source):
+        raise BlockInvalid("chart exceeds 5000 data rows")
+    try:
+        return render_chart(source)
+    except Exception as exc:  # noqa: BLE001 - any vl-convert failure is the chart's fault
+        first = (str(exc).strip().splitlines() or [type(exc).__name__])[0]
+        raise BlockInvalid(f"chart does not render: {first}") from None

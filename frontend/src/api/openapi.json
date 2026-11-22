@@ -29972,6 +29972,287 @@
  },
  "openapi": "3.1.0",
  "paths": {
+  "/api/agent/boards/{thread_kind}/{thread_id}": {
+   "get": {
+    "operationId": "get_board_api_agent_boards__thread_kind___thread_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Board Api Agent Boards  Thread Kind   Thread Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Board",
+    "tags": [
+     "agent-board"
+    ]
+   }
+  },
+  "/api/agent/boards/{thread_kind}/{thread_id}/blocks": {
+   "post": {
+    "operationId": "create_block_api_agent_boards__thread_kind___thread_id__blocks_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Create Block Api Agent Boards  Thread Kind   Thread Id  Blocks Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Block",
+    "tags": [
+     "agent-board"
+    ]
+   }
+  },
+  "/api/agent/boards/{thread_kind}/{thread_id}/blocks/{block_id}": {
+   "delete": {
+    "operationId": "delete_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "block_id",
+      "required": true,
+      "schema": {
+       "title": "Block Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Block",
+    "tags": [
+     "agent-board"
+    ]
+   },
+   "patch": {
+    "operationId": "patch_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "block_id",
+      "required": true,
+      "schema": {
+       "title": "Block Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Patch Block Api Agent Boards  Thread Kind   Thread Id  Blocks  Block Id  Patch",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Patch Block",
+    "tags": [
+     "agent-board"
+    ]
+   }
+  },
+  "/api/agent/boards/{thread_kind}/{thread_id}/blocks/{block_id}/undo": {
+   "post": {
+    "operationId": "undo_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__undo_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "block_id",
+      "required": true,
+      "schema": {
+       "title": "Block Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Undo Block Api Agent Boards  Thread Kind   Thread Id  Blocks  Block Id  Undo Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Undo Block",
+    "tags": [
+     "agent-board"
+    ]
+   }
+  },
   "/api/argus/flows": {
    "get": {
     "operationId": "list_flows_api_argus_flows_get",
