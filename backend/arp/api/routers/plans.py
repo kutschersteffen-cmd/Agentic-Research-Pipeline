@@ -39,7 +39,8 @@ class DraftRequest(BaseModel):
 
 
 class ScriptRequest(BaseModel):
-    script: str
+    script: str | None = None
+    budget_usd: float | None = None  # null removes the budget; leaving the key out keeps it
 
 
 def _get(store: PlanStore, plan_id: str) -> dict:
@@ -86,17 +87,23 @@ def list_plans(store: PlanStore = Depends(plan_store)) -> list[dict]:
 
 @router.get("/{plan_id}")
 def get_plan(plan_id: str, store: PlanStore = Depends(plan_store)) -> dict:
-    return {**_get(store, plan_id), "calls": store.calls(plan_id)}
+    return {**_get(store, plan_id), "calls": store.calls(plan_id), "spent_usd": store.spent_usd(plan_id)}
 
 
 @router.put("/{plan_id}")
 def edit_plan(plan_id: str, req: ScriptRequest, store: PlanStore = Depends(plan_store)) -> dict:
+    """A new script or budget returns the plan to draft for a new approval. A budget alone keeps every stored call."""
     if _get(store, plan_id)["status"] in {"running", "awaiting_review"}:
         raise HTTPException(409, "plan is already running")
-    try:
-        store.update_script(plan_id, req.script)
-    except ValueError as exc:
-        raise HTTPException(422, str(exc)) from exc
+    if req.script is None and "budget_usd" not in req.model_fields_set:
+        raise HTTPException(422, "send script or budget_usd")
+    if req.script is not None:
+        try:
+            store.update_script(plan_id, req.script)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+    if "budget_usd" in req.model_fields_set:
+        store.set_budget(plan_id, req.budget_usd)
     return _get(store, plan_id)
 
 

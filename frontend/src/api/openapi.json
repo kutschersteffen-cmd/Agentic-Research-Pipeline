@@ -22571,14 +22571,29 @@
    },
    "ScriptRequest": {
     "properties": {
+     "budget_usd": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Budget Usd"
+     },
      "script": {
-      "title": "Script",
-      "type": "string"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Script"
      }
     },
-    "required": [
-     "script"
-    ],
     "title": "ScriptRequest",
     "type": "object"
    },
@@ -39466,6 +39481,7 @@
     ]
    },
    "put": {
+    "description": "A new script or budget returns the plan to draft for a new approval. A budget alone keeps every stored call.",
     "operationId": "edit_plan_api_plans__plan_id__put",
     "parameters": [
      {
