@@ -94,6 +94,20 @@ async def test_model_output_that_does_not_match(on):  # AC-30
     assert str(exc.value).startswith("stand-in model/X.json does not match X:")
 
 
+async def test_model_list_answers_call_by_call(on):  # agent-board "Fixtures": stand-in lists
+    async def answer() -> str:
+        out, _ = await build_llm_client(_settings(on)).complete_structured(system="s", prompt="p", output_model=X)
+        return out.answer
+
+    _write(on, "model/X.json", [{"output": {"answer": "1"}}, {"error": "two"}, {"output": {"answer": "3"}}])
+    assert await answer() == "1"
+    with pytest.raises(RuntimeError, match="two"):
+        await answer()
+    assert [await answer() for _ in range(2)] == ["3", "3"]  # past the end: the last entry
+    _write(on, "model/X.json", [{"output": {"answer": "a"}}, {"output": {"answer": "b"}}])  # rewritten: count anew
+    assert [await answer() for _ in range(2)] == ["a", "b"]
+
+
 async def test_delays(on):  # AC-31
     _write(on, "model/X.json", {"output": {"answer": "a"}, "delay_seconds": 1})
     _write(on, "fetch.json", {"https://a.example/1": {"text": "t", "delay_seconds": 1}})

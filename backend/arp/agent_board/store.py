@@ -49,6 +49,18 @@ class BoardStore:
         with Session(self.engine) as s:
             return s.get(ResearchPlan, plan_id) is not None
 
+    def plan_data(self, plan_id: str) -> dict:
+        """The plan's thread data for a draw (spec "Drawing"): brief, status and its stored calls by `seq`."""
+        from arp.orchestration.plan_models import ResearchPlan, ResearchPlanCall
+
+        with Session(self.engine) as s:
+            plan = s.get(ResearchPlan, plan_id)
+            calls = s.scalars(select(ResearchPlanCall).where(ResearchPlanCall.plan_id == plan_id)
+                              .order_by(ResearchPlanCall.seq))
+            steps = [{"seq": c.seq, "kind": c.kind, "params": c.params, "status": c.status, "run_id": c.run_id,
+                      "result": c.result} for c in calls]
+            return {"brief": plan.brief, "status": plan.status, "steps": steps}
+
     def _lock(self, s: Session, thread_kind: str, thread_id: str) -> None:
         s.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), {"k": f"agent_board:{thread_kind}:{thread_id}"})
 
@@ -100,8 +112,9 @@ class BoardStore:
             return _row(b)
 
     def patch(self, thread_kind: str, thread_id: str, block_id: str, title: str | None = None,
-              source: Any = None, position: int | None = None) -> dict:
-        """A changed `title` or `source` makes a new version; a `source` change sets `origin: person`.
+              source: Any = None, position: int | None = None, unverified: list | None = None) -> dict:
+        """A changed `title` or `source` makes a new version; a `source` change sets `origin: person` and
+        `unverified` (when given).
         `position` moves the block (clamped), without a new version."""
         now = datetime.now(UTC)
         with Session(self.engine) as s, s.begin():
@@ -120,10 +133,26 @@ class BoardStore:
                 b.title, changed = title, True
             if source is not None and source != b.source:
                 b.source, b.origin, changed = source, "person", True
+                if unverified is not None:
+                    b.unverified = unverified
             if changed:
                 b.version += 1
                 b.updated_at = now
                 self._version(s, b, now)
+            s.flush()
+            return _row(b)
+
+    def redraw(self, thread_kind: str, thread_id: str, block_id: str, kind: str, title: str, source: Any,
+               unverified: list) -> dict:
+        """The agent's draft as the block's next version (its kind may change); position unchanged."""
+        now = datetime.now(UTC)
+        with Session(self.engine) as s, s.begin():
+            self._lock(s, thread_kind, thread_id)
+            b = self._block(s, thread_kind, thread_id, block_id)
+            b.kind, b.title, b.source, b.origin, b.unverified = kind, title, source, "agent", unverified
+            b.version += 1
+            b.updated_at = now
+            self._version(s, b, now)
             s.flush()
             return _row(b)
 

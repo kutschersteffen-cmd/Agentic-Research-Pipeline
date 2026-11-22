@@ -5,7 +5,7 @@ name: Golden set
 # extractions) whenever a PR touches extraction prompts, the LLM clients, grounding or the model
 # settings, and fails if any case fails. PRs touching transition-barrier extraction, fetching, the rule book
 # or its data also run the transition-barrier golden set; PRs touching backend/arp/rfp/ also run the RFP golden
-# checks (question detection, drafting). It calls the real model, so it needs the
+# checks (question detection, drafting). PRs touching backend/arp/agent_board/ also run the board golden set. It calls the real model, so it needs the
 # ARP_ANTHROPIC_API_KEY repository secret; without it the job warns and passes.
 on:
   pull_request:
@@ -27,6 +27,8 @@ on:
       - "backend/tests/golden/authority_taxonomy/**"
       - "backend/arp/research/taxonomy_schema.py"
       - "backend/tests/golden/stage_evidence/**"
+      - "backend/arp/agent_board/**"
+      - "backend/tests/golden/board.jsonl"
   workflow_dispatch:
 
 jobs:
@@ -69,7 +71,7 @@ jobs:
           if [ -n "$rfp" ]; then echo "rfp=true" >>"$GITHUB_OUTPUT"; else echo "rfp=false" >>"$GITHUB_OUTPUT"; fi
           gate=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction/evidence_gate.py)
           if [ -n "$gate" ]; then echo "gate=true" >>"$GITHUB_OUTPUT"; else echo "gate=false" >>"$GITHUB_OUTPUT"; fi
-          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py arp/transition_barrier/extraction.py arp/transition_barrier/golden.py arp/transition_barrier/fetching.py arp/transition_barrier/rule_book.py arp/transition_barrier/data tests/golden/transition_barrier arp/rfp arp/research/authority_taxonomy tests/golden/authority_taxonomy arp/research/taxonomy_schema.py tests/golden/stage_evidence)
+          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py arp/transition_barrier/extraction.py arp/transition_barrier/golden.py arp/transition_barrier/fetching.py arp/transition_barrier/rule_book.py arp/transition_barrier/data tests/golden/transition_barrier arp/rfp arp/research/authority_taxonomy tests/golden/authority_taxonomy arp/research/taxonomy_schema.py tests/golden/stage_evidence arp/agent_board tests/golden/board.jsonl)
           model=$(git diff -U0 "origin/$BASE...HEAD" -- arp/config.py | grep -E '^[+-] .*(llm_|_api_key|grounding_|confidence_review)' || true)
           if [ -n "$other$model" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; else echo "run=false" >>"$GITHUB_OUTPUT"; echo "Only unrelated config.py lines changed; golden set not needed."; fi
 
@@ -116,6 +118,7 @@ jobs:
           arp db init-postgres
           arp golden-set run | tee -a "$GITHUB_STEP_SUMMARY"
           arp golden-set run --long | tee -a "$GITHUB_STEP_SUMMARY"
+          arp agent board-golden --cases tests/golden/board.jsonl --min-pass 8 | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Gemini schema check (live)
         # Every structured-output schema sent once to Gemini (scripts/gemini_schema_check.py): catches schemas the
