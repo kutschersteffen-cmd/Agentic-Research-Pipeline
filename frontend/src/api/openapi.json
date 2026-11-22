@@ -11661,6 +11661,27 @@
      "result": {
       "title": "Result"
      },
+     "source_ask": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SourceAsk"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "source_ask_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Ask Id"
+     },
      "status": {
       "enum": [
        "done",
@@ -11691,7 +11712,9 @@
      "created_at",
      "accepted_by",
      "accepted_at",
-     "label"
+     "label",
+     "source_ask_id",
+     "source_ask"
     ],
     "title": "Exploration",
     "type": "object"
@@ -11702,6 +11725,17 @@
       "minLength": 1,
       "title": "Question",
       "type": "string"
+     },
+     "source_ask_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Ask Id"
      }
     },
     "required": [
@@ -24418,6 +24452,24 @@
     "title": "SnapshotManifest",
     "type": "object"
    },
+   "SourceAsk": {
+    "properties": {
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "thread_id": {
+      "title": "Thread Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "question",
+     "thread_id"
+    ],
+    "title": "SourceAsk",
+    "type": "object"
+   },
    "SourceCandidate": {
     "description": "One result of the source-discovery research step -- a named external\nreference the user can choose to ground a taxonomy derivation in.\nPresented for selection, never used automatically.",
     "properties": {
@@ -31220,7 +31272,7 @@
     ]
    },
    "post": {
-    "description": "Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed.",
+    "description": "Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed.\nA `source_ask_id` that names no ask answers 404 and runs nothing.",
     "operationId": "create_exploration_api_agent_explorations_post",
     "requestBody": {
      "content": {

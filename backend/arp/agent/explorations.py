@@ -18,6 +18,7 @@ from arp.api.auth import Principal
 from arp.config import Settings
 from arp.llm.base import LLMClient
 from arp.orchestration.capabilities import CATALOG
+from arp.orchestration.plan_models import AgentAsk
 
 
 def _out(row: AgentExploration) -> dict[str, Any]:
@@ -26,6 +27,14 @@ def _out(row: AgentExploration) -> dict[str, Any]:
     out["cost_usd"] = float(row.cost_usd or 0)
     out["label"] = "accepted" if row.accepted_at else "exploratory"
     return out
+
+
+def _with_source_ask(s: Session, rows: list[AgentExploration]) -> list[dict[str, Any]]:
+    """Each row as `_out` gives it, plus `source_ask: {question, thread_id}` of the ask it came from, or None."""
+    ids = {r.source_ask_id for r in rows if r.source_ask_id}
+    asks = {a.id: {"question": a.question, "thread_id": a.thread_id}
+            for a in s.scalars(select(AgentAsk).where(AgentAsk.id.in_(ids)))} if ids else {}
+    return [{**_out(r), "source_ask": asks.get(r.source_ask_id)} for r in rows]
 
 
 def _uuid(exploration_id: str) -> uuid.UUID | None:
@@ -39,28 +48,31 @@ class ExplorationStore:
     def __init__(self, dsn: str):
         from arp.storage.postgres import get_engine
 
+        self.dsn = dsn  # AskStore checks a source_ask_id on it
         self.engine = get_engine(dsn)
 
-    def add(self, *, question: str, code: str, run: dict[str, Any], model: str | None, cost_usd: float = 0.0) -> dict:
+    def add(self, *, question: str, code: str, run: dict[str, Any], model: str | None, cost_usd: float = 0.0,
+            source_ask_id: str | None = None) -> dict:
+        """Stores the exploration; `source_ask_id` is the ask whose `Explore` sent the question."""
         row = AgentExploration(
             id=uuid.uuid4(), question=question, code=code, status=run["status"], result=run["result"],
             error=run["error"], tool_calls=run["tool_calls"], model=model, cost_usd=Decimal(repr(cost_usd)),
-            created_at=datetime.now(UTC))
+            created_at=datetime.now(UTC), source_ask_id=source_ask_id)
         with Session(self.engine, expire_on_commit=False) as s, s.begin():
             s.add(row)
-        return _out(row)
+        return self.get(str(row.id))
 
     def list(self) -> list[dict]:
         """Every exploration, newest first."""
         with Session(self.engine) as s:
             rows = s.scalars(select(AgentExploration).order_by(AgentExploration.created_at.desc())).all()
-            return [_out(r) for r in rows]
+            return _with_source_ask(s, list(rows))
 
     def get(self, exploration_id: str) -> dict | None:
         key = _uuid(exploration_id)
         with Session(self.engine) as s:
             row = s.get(AgentExploration, key) if key else None
-            return _out(row) if row else None
+            return _with_source_ask(s, [row])[0] if row else None
 
     def accept(self, exploration_id: str, user_id: str) -> dict | None:
         """Marks the exploration accepted by `user_id`; a second accept keeps the first one's name and time."""
@@ -71,7 +83,7 @@ class ExplorationStore:
                 return None
             if row.accepted_at is None:
                 row.accepted_by, row.accepted_at = user_id, datetime.now(UTC)
-        return _out(row)
+        return self.get(exploration_id)
 
 
 class ExplorationCode(BaseModel):
@@ -187,7 +199,7 @@ async def run_question(settings: Settings, question: str, principal: Principal, 
 
 
 async def explore(store: ExplorationStore, settings: Settings, question: str, principal: Principal, *,
-                  llm: LLMClient | None = None) -> dict:
+                  llm: LLMClient | None = None, source_ask_id: str | None = None) -> dict:
     """Answers the question in the sandbox and stores the outcome, whatever it is."""
     code, model, cost, run = await run_question(settings, question, principal, llm=llm)
-    return store.add(question=question, code=code, run=run, model=model, cost_usd=cost)
+    return store.add(question=question, code=code, run=run, model=model, cost_usd=cost, source_ask_id=source_ask_id)

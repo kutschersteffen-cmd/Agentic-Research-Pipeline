@@ -4,7 +4,7 @@ import { AskCard } from "../components/AskCards";
 import { ExplorationCard } from "../components/ExplorationCard";
 import { StepTabs } from "../components/StepTabs";
 import {
-  answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, INBOX_KIND, lineDiff,
+  answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, exploreFromAsk, INBOX_KIND, lineDiff,
   askingIn, nearEnd, needsYouLine, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
 } from "../lib/agent";
 import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
@@ -263,6 +263,12 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     loadList();
   }
 
+  function explored(askIdOf: string, e: Exploration) {
+    const link = { exploration_id: e.id, question: e.question, status: e.status, label: e.label };
+    setAsks((xs) => xs.map((x) => (x.id === askIdOf ? { ...x, explorations: [...x.explorations, link] } : x)));
+    loadList();
+  }
+
   const rows = threadRows(plans, askThreads, explorations);
   const isSelected = (r: ThreadRow) => r.kind === selected?.kind && r.id === selected.id;
   // `id` keeps the column's and the drawer's ids apart; `close` is set inside a drawer.
@@ -356,7 +362,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
           ) : plan && planId ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />
           ) : askId || askingIn(asking, null) ? (
-            <AskStream asks={asks.filter((a) => a.thread_id === askId)} asking={askingIn(asking, askId)} canAsk={canAsk} onDrafted={drafted} />
+            <AskStream asks={asks.filter((a) => a.thread_id === askId)} asking={askingIn(asking, askId)} canAsk={canAsk} onDrafted={drafted} onExplored={explored} />
           ) : (
             <p className="muted agent-empty">Pick a thread, ask a question, or describe the research you want below. For research, a planner writes a short script that chains ARP’s runs; nothing runs until you approve it.</p>
           )}
@@ -497,14 +503,16 @@ function Stream({ plan, busy, act }: { plan: Plan; busy: boolean; act: (fn: () =
   );
 }
 
+type FromAsk = { onDrafted: (askId: string, plan: Plan) => void; onExplored: (askId: string, e: Exploration) => void };
+
 /** An ask thread, oldest ask first: each question, then its answer card or error, the buttons for an answer, and a
- * link card per plan drafted from it. `asking` is the question in flight, shown with `Working…`. */
-function AskStream({ asks, asking, canAsk, onDrafted }: {
-  asks: AgentAsk[]; asking: string | null; canAsk: boolean; onDrafted: (askId: string, plan: Plan) => void;
+ * link card per plan or exploration started from it. `asking` is the question in flight, shown with `Working…`. */
+function AskStream({ asks, asking, canAsk, onDrafted, onExplored }: FromAsk & {
+  asks: AgentAsk[]; asking: string | null; canAsk: boolean;
 }) {
   return (
     <ol className="agent-calls" aria-label="Asks">
-      {asks.map((a) => <AskTurn key={a.id} ask={a} canAsk={canAsk} onDrafted={onDrafted} />)}
+      {asks.map((a) => <AskTurn key={a.id} ask={a} canAsk={canAsk} onDrafted={onDrafted} onExplored={onExplored} />)}
       {asking !== null && (
         <li className="ask-turn">
           <p className="ask-question">{asking}</p>
@@ -515,8 +523,9 @@ function AskStream({ asks, asking, canAsk, onDrafted }: {
   );
 }
 
-function AskTurn({ ask, canAsk, onDrafted }: { ask: AgentAsk; canAsk: boolean; onDrafted: (askId: string, plan: Plan) => void }) {
+function AskTurn({ ask, canAsk, onDrafted, onExplored }: FromAsk & { ask: AgentAsk; canAsk: boolean }) {
   const [drafting, setDrafting] = useState(false);
+  const [exploring, setExploring] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function draft() {
     setDrafting(true);
@@ -526,6 +535,14 @@ function AskTurn({ ask, canAsk, onDrafted }: { ask: AgentAsk; canAsk: boolean; o
     if (out.ok) onDrafted(ask.id, out.plan);
     else setError(out.error);
   }
+  async function explore() {
+    setExploring(true);
+    setError(null);
+    const out = await exploreFromAsk(ask, (path, body) => api.agentPost<Exploration>(path, body));
+    setExploring(false);
+    if (out.ok) onExplored(ask.id, out.exploration);
+    else setError(out.error);
+  }
   return (
     <li className="ask-turn">
       <p className="ask-question">{ask.question}</p>
@@ -533,12 +550,19 @@ function AskTurn({ ask, canAsk, onDrafted }: { ask: AgentAsk; canAsk: boolean; o
       {!ask.error && answerActions(canAsk).length > 0 && (
         <div className="agent-ask-actions">
           <button type="button" className="secondary" disabled={drafting} onClick={draft}>Draft a plan</button>
+          <button type="button" className="secondary" disabled={exploring} onClick={explore}>Explore</button>
         </div>
       )}
       {error && <p className="error-text" role="alert">{error}</p>}
       {ask.plans.map((p) => (
         <p key={p.plan_id} className="agent-link-card">
           <a href={`#/agent/${encodeURIComponent(p.plan_id)}`}>Plan: {threadTitle(p.brief)}</a> <Chip status={p.status} />
+        </p>
+      ))}
+      {ask.explorations.map((x) => (
+        <p key={x.exploration_id} className="agent-link-card">
+          <a href={`#/agent/exploration/${encodeURIComponent(x.exploration_id)}`}>Exploration: {threadTitle(x.question)}</a>{" "}
+          <span className="agent-badge">{x.label}</span>
         </p>
       ))}
     </li>
