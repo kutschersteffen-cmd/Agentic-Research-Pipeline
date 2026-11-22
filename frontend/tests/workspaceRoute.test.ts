@@ -16,7 +16,7 @@ test("pr1_row_links", () => {
   const argus = WORKSPACES.find((w) => w.id === "argus")!;
   const links = rowLinks(argus);
   assert.deepEqual(links[0], ["#/argus", "Argus"]);
-  assert.deepEqual(links.slice(1), argus.screens);
+  assert.deepEqual(links.slice(1), [["#/argus/new", "New extraction"], ["#/xbrl", "XBRL Facts"]]); // ui-trim-workspaces: the row, not every screen
   const ti = WORKSPACES.find((w) => w.id === "transitionIntel")!;
   assert.deepEqual(rowLinks(ti)[0], ["#/transitionIntel", "Transition Intel"]);
 });

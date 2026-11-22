@@ -2616,6 +2616,14 @@ a.vc-box:hover { border-color: var(--text); }
 .ws-row a:hover { color: var(--text); }
 .ws-row a[aria-current="page"] { color: var(--text); border-bottom-color: var(--text); }
 .ws-row .ws-row-name { color: var(--text); font-weight: 600; }
+.ws-row-more { display: flex; flex: none; }
+.ws-row-more-btn { display: inline-flex; align-items: center; gap: var(--s-1_5); margin: 0; padding: 0; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--muted); font: inherit; cursor: pointer; white-space: nowrap; }
+.ws-row-more-btn:hover:not(:disabled) { background: none; color: var(--text); }
+.ws-row-more-btn[aria-current="page"] { color: var(--text); border-bottom-color: var(--text); }
+.ws-row-more-pop { position: fixed; z-index: 60; display: grid; gap: var(--s-0_5); width: 240px; padding: var(--s-1_5); background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-lg); box-shadow: var(--shadow-md); }
+.ws-row-more-pop[hidden] { display: none; }
+.ws-row .ws-row-more-pop > a { display: flex; border-bottom: 0; align-items: center; min-height: 36px; padding: 0 var(--s-2); border-radius: var(--r-md); color: var(--text); text-decoration: none; }
+.ws-row .ws-row-more-pop > a:hover, .ws-row .ws-row-more-pop > a[aria-current="page"] { background: var(--well); }
 /* Tablets: the full search pill no longer fits beside Ask, Workspaces and a long badge; it becomes its icon. */
 @media (min-width: 761px) and (max-width: 1024px) {
   .start-topbar-search { width: 36px; padding: 0; justify-content: center; justify-self: center; }

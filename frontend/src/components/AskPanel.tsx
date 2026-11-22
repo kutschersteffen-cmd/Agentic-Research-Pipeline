@@ -5,11 +5,13 @@ import { AskCard } from "./AskCards";
 
 /** Ask ARP: a side panel where a plain-language question goes to one read-only tool and comes back as a sourced card.
  * The conversation (`turns`) belongs to the app shell, so it survives moving between pages. */
-export function AskPanel({ turns, setTurns, onClose, onClear }: {
+export function AskPanel({ turns, setTurns, onClose, onClear, pending }: {
   turns: AskTurn[];
   setTurns: (update: (turns: AskTurn[]) => AskTurn[]) => void;
   onClose: () => void;
   onClear: () => void;
+  /** A question typed in the search-or-ask box: sent once, when its id is new. */
+  pending?: { id: number; question: string } | null;
 }) {
   const [q, setQ] = useState("");
   const input = useRef<HTMLInputElement>(null);
@@ -31,10 +33,22 @@ export function AskPanel({ turns, setTurns, onClose, onClear }: {
     e.preventDefault();
     const question = q.trim();
     if (!question || working) return;
+    setQ("");
+    await ask(question);
+  }
+
+  const sentPending = useRef<number | null>(null);
+  useEffect(() => {
+    if (!pending || sentPending.current === pending.id) return;
+    sentPending.current = pending.id;
+    void ask(pending.question);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- send each pending question once, by its id
+  }, [pending]);
+
+  async function ask(question: string) {
     const id = `${Date.now()}`;
     const history = historyFor(turns);
     setTurns((ts) => [...ts, { id, question, status: "working" }]);
-    setQ("");
     try {
       const response = await api.ask(question, history);
       setTurns((ts) => ts.map((t) => (t.id === id ? { ...t, status: "answered", response } : t)));
