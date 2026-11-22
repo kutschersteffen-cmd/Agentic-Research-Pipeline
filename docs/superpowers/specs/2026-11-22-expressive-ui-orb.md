@@ -1,6 +1,6 @@
 # Expressive ARP: the Orb, a black look, pixel titles and status that moves
 
-Status: **draft, waiting for the owner's approval**
+Status: **draft, waiting for the owner's approval** (two spec-critic rounds, 33 findings fixed)
 Slug: `expressive-ui-orb`
 Risk: this spec PR is `risk:low`. The build is 3 PRs (see `## Slices`), each `risk:normal`.
 Size: M
@@ -193,10 +193,14 @@ not inside it: they are siblings in the surrounding stage. It carries these attr
 | `data-orb-state` | `idle`, `working` | `working` is set only on the Agent screen. |
 | `data-orb-paused` | `true` or absent | live only: rendering is paused. |
 
+**Before the scene runs.** From mount until the scene has drawn its first frame the Orb has no `data-orb-mode`
+attribute and an empty box: no canvas shown, no still.
+
 **Still mode.** The Orb is `still` when any of these holds: neither `webgl2` nor `webgl` gives a context;
 `prefers-reduced-motion: reduce` matches; the `orbScene` chunk fails to load; the WebGL context is lost; the
-quality rule gives up (below); `localStorage["arp.orb"]` is `still`. In the first, second and last case the
-`orbScene` chunk is never requested. The still is a picture of the assembled gold Orb on black, exported from the
+quality rule gives up (below); `sessionStorage["arp.orb.level"]` is `still` and nothing is pinned;
+`localStorage["arp.orb"]` is `still`. Where the cause is known before the scene loads (no WebGL, reduced motion,
+the stored or pinned `still`) the `orbScene` chunk is never requested. The still is a picture of the assembled gold Orb on black, exported from the
 live component at quality `high`, committed as `frontend/src/assets/orb-still.webp` (800 × 800 px, at most
 80 000 bytes). Nothing is logged to the console when the Orb goes still.
 
@@ -275,7 +279,7 @@ text.
 The cards keep their link, accessible name, caption, name and purpose. Changes:
 
 - Grid: five in a row above 1180 px, three from 761 to 1180 px, two from 481 to 760 px, one at 480 px and below.
-- The figure area is 196 px high, near-black, with a soft glow behind the drawing: blue when the card's status is
+- The figure area is 200 px high, near-black, with a soft glow behind the drawing: blue when the card's status is
   running, amber when waiting, none otherwise.
 - The rail replaces the 8 px squares: an element with `data-rail` holding one `data-seg` element per process, in
   process order, 10 px high, 3 px apart. `data-seg` is the process state: `done` (solid ink), `now` (blue,
@@ -413,7 +417,10 @@ change is listed in that PR.
 
 - Night Desk colours, status and excerpt (`2026-11-08-night-desk-*.md`): every row that pins a light token, the
   two dark blocks or a value in the token table above. `frontend/tests/nightDeskTokens.test.ts` then pins the one
-  token block; its contrast tests keep their thresholds and run on that block. Slice 1.
+  token block; its contrast tests keep their thresholds and run on that block. Slice 1. Its
+  `ac13_amber_usage_unchanged` allow-list gains, in slices 2 and 3, the new uses of the signal colour and only
+  these: the rail's `wait` segment, the waiting glow of a start card, of a figure area and of a process panel,
+  and the drawing's status part.
 - Night Desk landing and landing brand refresh (`2026-11-09-night-desk-landing-design.md`,
   `2026-11-14-landing-brand-refresh-design.md`): the dot animation, its phases, the serif headline, the
   see-through intro and the light `--orb` / `--brand-apex` values. In `frontend/tests/landing.test.ts`:
@@ -435,6 +442,16 @@ change is listed in that PR.
   `backend/tests/e2e/test_top_bar_pr2.py` go in slice 2; those on `.hub-process-state` stay.
 - Public browser tests that set `color_scheme` or a light theme (`backend/tests/e2e/test_ui_polish_2.py`,
   `test_top_bar_pr3.py`, `test_value_chain_portfolio.py`) drop the light case. Slice 1.
+- UI polish 1 and 2 (`2026-11-15-*`, `2026-11-16-ui-polish-2-linear-design.md`), slice 1:
+  `backend/tests/e2e/test_ui_polish_1.py` expects no `.theme-switch` in the user menu (was 1);
+  `test_ui_polish_2.py` expects the hairline `rgba(255, 255, 255, 0.1)` (was `rgba(232, 235, 240, 0.12)`);
+  `frontend/tests/polish2.test.ts` expects the font-smoothing rule on `body` in the one block. The
+  `.theme-switch` CSS itself stays: `ReportBuilder.tsx` uses it for the deck's colour theme.
+- By row, for whoever retires tests of earlier specs: `start-page-simplified` AC-1e (greeting font) and AC-7b
+  (theme switch in the menu); `ui-polish-1` AC-1; `ui-polish-2` AC-2, AC-6, AC-6b, AC-8, AC-9 (light theme and
+  old dark values); `app-wide-top-bar` AC-30, AC-30b (header drawing). Any other earlier row that pins a light
+  token, a value changed in the token table, the dot animation, the serif headline, the 3 + 2 grid or the card
+  squares is superseded the same way.
 
 No row of `ui-trim-workspaces`, `rd-lab-rename`, `agent-panel-code-mode` or `agent-board` is superseded.
 
@@ -504,7 +521,7 @@ Terms used in the rows:
 | AC-27 | AC-26 | at the end of the 60 s | `data-orb-mode` is `still`, the Orb has no `<canvas>` child and `sessionStorage["arp.orb.level"]` is `still` | holdout |
 | AC-28 | `orbMotion.ts` quality rule, unit test | feed, each from the level named: at `high` 60 frame gaps of 30 ms; at `high` 60 of 34 ms; at `low` 60 of 45 ms; at `low` 60 of 51 ms; at `high` 59 of 20 ms plus one first-after-pause gap of 5000 ms; at `high` 59 of 20 ms plus one gap of 5000 ms that is not after a pause | the level is then `high`; `medium`; `low`; `still`; `high`; `medium` (the gap counts as 1000 ms, mean 36.3 ms) | unit |
 | AC-29 | `sessionStorage["arp.orb.level"] = "medium"` set before load, no pin | open `#/home`, read `data-orb-quality` as soon as `data-orb-mode` is `live` | it is `medium` | holdout |
-| AC-30 | slice 1's diff | read `DESIGN.md` with runs of whitespace collapsed to one space | it contains each sentence quoted in `## DESIGN.md amendment` items 2, 4, 5, 6, 7, 9, 10, 11 and 14 (compared the same way), the headings `# Design System: Agentic Research Platform`, `### The Orb` and `### Status Rail`, and neither "in light and dark" nor "the landing animation's orb glow" | unit |
+| AC-30 | slice 1's diff | read `DESIGN.md` with every `*` removed and runs of whitespace collapsed to one space | it contains each sentence quoted in `## DESIGN.md amendment` items 2, 4, 5, 6, 7, 9, 10, 11 and 14 (compared the same way), the headings `# Design System: Agentic Research Platform`, `### The Orb` and `### Status Rail`, and neither "in light and dark" nor "the landing animation's orb glow" | unit |
 | AC-31 | pinned low | open landing; the Orb's canvas has `width` attribute `w` and CSS width `c` | `w` ≤ 0.75 × `c` + 1 | holdout |
 | AC-32 | pinned low, `#/home`, Orb `live` | the test calls `loseContext()` of the `WEBGL_lose_context` extension on the Orb canvas's WebGL context | within 2 s `data-orb-mode` is `still` and no uncaught page error occurred | holdout |
 | AC-59 | pinned low, `#/home` | scroll the page so the Orb is fully outside the viewport (viewport 1440 × 500) | within 1 s the Orb has `data-orb-paused="true"`; after scrolling back to the top the attribute is absent within 1 s | holdout |
@@ -573,7 +590,9 @@ Terms used in the rows:
 | AC-55 | unit test, `canAsk` false | render the workspace overview | no region named "Ask ARP" and no Orb | unit |
 | AC-56 | e2e stack; the test holds `POST /api/agent/asks` open | on `#/rdLab` type `zzqx which themes` in "Ask about R&D Lab", press Enter | the hash starts `#/agent`, and a user turn with exactly the text `zzqx which themes` is visible | holdout |
 | AC-57 | AC-56, the request still held | read the Orb on the Agent screen | it has `data-orb="agent"` and `data-orb-state="working"`; after the test fulfils the request with status 500, `data-orb-state` is `idle` within 2 s | holdout |
-| AC-58 | e2e stack | open `#/agent`, move the pointer onto the Orb and click it | one Orb with `data-orb="agent"` is inside the element with class `agent-head`, before the `h1`; its box is 56 × 56 px (± 1); it has `data-orb-state="idle"`; the text "Click to transform" is not on the page and the phase stays `idle` for 2 s after the click | holdout |
+| AC-58 | e2e stack | open `#/agent` | one Orb with `data-orb="agent"` is inside the element with class `agent-head`, before the `h1`, and its box is 56 × 56 px (± 1) | holdout |
+| AC-58b | e2e stack, no ask in flight | open `#/agent` | the Orb has `data-orb-state="idle"` | holdout |
+| AC-58c | e2e stack, `#/agent`, Orb phase `idle` | move the pointer onto the Orb and click it | the text "Click to transform" is not on the page, and for 2 s after the click `data-orb-phase` stays `idle` | holdout |
 | AC-80 | e2e stack | open `#/rdLab` at 390 × 844, and `#/transitionIntel` at 390 × 844 | `document.documentElement.scrollWidth` is at most 390 on both | holdout |
 | AC-81 | runs R1, 1440 × 900 | open `#/rdLab`, compare with `workspace-desktop-running.png` | pixel title; the drawing in its box right of the title with the first box lit blue; the running panel glows blue and its first rail segment flows; the Ask ARP card is the right column with the Orb above the question box; no lines or particles travel into or out of the Orb | evaluator |
 | AC-82 | runs R1 | open `#/designStrategy` | the flow has a rail of seven `data-seg` elements reading `now`, then six `idle` | holdout |
@@ -586,7 +605,7 @@ Must not change:
 | AC-84 | e2e stack | open landing, press the link "Open ARP" | the hash is `#/home` within 1 s | holdout |
 | AC-85 | runs R1 | open `#/home` | the R&D Lab card's accessible name is "R&D Lab. Build a thematic portfolio: running; Research a theme: no activity yet; Research a strategy: no activity yet; Research a signal: no activity yet" | holdout |
 | AC-86 | e2e stack | open `#/home` | the Cockpit entry (link named "Cockpit, StewardIQ") is present below the five cards | holdout |
-| AC-87 | e2e stack | open `#/rdLab` | in the section labelled "Build a thematic portfolio" the `.hub-step-title` texts read, in order, Spot, Define, Match, Review, Score, Construct, Report, and pressing `#step-thematic-0` sets its `aria-expanded` to `true` | holdout |
+| AC-87 | runs R1 (the process is unfolded) | open `#/rdLab` | in the section labelled "Build a thematic portfolio" the `.hub-step-title` texts read, in order, Spot, Define, Match, Review, Score, Construct, Report, and pressing `#step-thematic-0` sets its `aria-expanded` to `true` | holdout |
 | AC-93 | runs R0, waiting W0, `localStorage["arp.orb"] = "still"` | open `#/rdLab` | no visible element has a computed `color`, `background-color` or `border-top-color` of `rgb(224, 178, 90)` (nothing waits, so no amber) | holdout |
 | AC-88 | e2e stack | open `#/stewardiq` | every `.hub-process-state` holds one 8 × 8 px status square and a status word | holdout |
 | AC-89 | e2e stack | open each of landing, `#/home`, `#/rdLab` | no visible text contains the whole word "product" or "products" (case-insensitive) | holdout |
@@ -606,8 +625,8 @@ is `risk:normal`. They go in this order, one after the other.
 | Slice | PR contents | Rows |
 |---|---|---|
 | 1 | Black tokens, light theme and theme switch removed, pixel font, `Orb.tsx`, `orb/orbScene.ts`, `lib/orbMotion.ts`, the still, `three` dependency, landing page, tab title, `DESIGN.md` amendment | AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-20, AC-21, AC-28, AC-30, AC-31, AC-61, AC-64, AC-65, AC-66, AC-67, AC-68, AC-69, AC-70, AC-71, AC-72, AC-83, AC-84, AC-90, AC-91 |
-| 2 | Start page hero (Orb, caption, pixel greeting, lead), card grid, rails, running detail, drawings with highlight and one-time move | AC-14, AC-15, AC-16, AC-17, AC-18, AC-19, AC-26, AC-27, AC-29, AC-32, AC-33, AC-34, AC-35, AC-36, AC-37, AC-38, AC-39, AC-40, AC-41, AC-42, AC-43, AC-44, AC-45, AC-59, AC-62, AC-73, AC-74, AC-75, AC-76, AC-77, AC-78, AC-79, AC-85, AC-86, AC-91 |
-| 3 | Workspace overview (header, figure box, panels, step rails, counts, Ask ARP card), Orb on the Agent screen | AC-22, AC-23, AC-24, AC-25, AC-46, AC-47, AC-48, AC-49, AC-50, AC-51, AC-52, AC-53, AC-54, AC-55, AC-56, AC-57, AC-58, AC-60, AC-63, AC-80, AC-81, AC-82, AC-87, AC-88, AC-89, AC-92, AC-93, AC-91 |
+| 2 | Start page hero (Orb, caption, pixel greeting, lead), card grid, rails, running detail, drawings with highlight and one-time move | AC-14, AC-15, AC-16, AC-17, AC-18, AC-19, AC-26, AC-27, AC-29, AC-32, AC-33, AC-34, AC-35, AC-36, AC-37, AC-38, AC-39, AC-40, AC-41, AC-42, AC-43, AC-44, AC-45, AC-59, AC-62, AC-64, AC-65, AC-73, AC-74, AC-75, AC-76, AC-77, AC-78, AC-79, AC-85, AC-86, AC-91 |
+| 3 | Workspace overview (header, figure box, panels, step rails, counts, Ask ARP card), Orb on the Agent screen | AC-22, AC-23, AC-24, AC-25, AC-46, AC-47, AC-48, AC-49, AC-50, AC-51, AC-52, AC-53, AC-54, AC-55, AC-56, AC-57, AC-58, AC-58b, AC-58c, AC-60, AC-63, AC-64, AC-65, AC-80, AC-81, AC-82, AC-87, AC-88, AC-89, AC-92, AC-93, AC-91 |
 
 Rows that open several pages (AC-22 to AC-25, AC-47, AC-60, AC-63, AC-89) belong to slice 3, the first slice in which
 all of those pages carry the Orb; slices 1 and 2 must already behave that way on the pages they build.
