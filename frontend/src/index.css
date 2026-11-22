@@ -2366,6 +2366,11 @@ a.vc-box:hover { border-color: var(--text); }
 .agent-thread-list li.selected { background: var(--accent-tint); }
 .agent-thread-list .link-button { text-align: left; overflow-wrap: anywhere; color: var(--text); }
 .agent-thread-list li.selected .link-button { font-weight: 600; }
+.agent-side .agent-inbox-h, .agent-drawer .agent-inbox-h { margin: var(--s-4) 0 var(--s-2); }
+.agent-inbox { list-style: none; padding: 0; margin: 0; }
+.agent-inbox li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-0_5) var(--s-2); padding: var(--s-1_5) var(--s-2); }
+.agent-inbox a { overflow-wrap: anywhere; }
+.agent-inbox-foot { margin: var(--s-2) var(--s-2) 0; }
 .agent-stream { min-width: 0; }
 .agent-stream .agent-card { margin-bottom: var(--s-3); }
 .agent-card h2 { font-size: var(--text-lg); overflow-wrap: anywhere; }

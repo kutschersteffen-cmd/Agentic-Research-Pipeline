@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { chipLabel, scriptLines, sendsComposer, threadTitle } from "../src/lib/agent.ts";
+import { chipLabel, INBOX_KIND, reviewQueueLine, scriptLines, sendsComposer, threadTitle } from "../src/lib/agent.ts";
 import { HUBS, redirectHash } from "../src/lib/nav.ts";
 
 // Agent screen shell (docs/superpowers/specs/2026-11-21-agent-panel-code-mode.md, slice 6).
@@ -43,4 +43,15 @@ test("the Runs group shows Agent and no Research plans (AC-38)", () => {
   const labels = HUBS.find((h) => h.label === "Runs")!.tabs.map(([, label]) => label);
   assert.ok(labels.includes("Agent"));
   assert.ok(!labels.some((l) => /research plans/i.test(l)));
+});
+
+// Slice 7: the inbox column.
+
+test("the inbox footer counts what waits in the Review Queue (AC-31)", () => {
+  assert.equal(reviewQueueLine(7), "7 more waiting in the Review Queue");
+  assert.equal(reviewQueueLine(0), "0 more waiting in the Review Queue");
+});
+
+test("every inbox kind the route serves has a label", () => {
+  assert.deepEqual(Object.keys(INBOX_KIND).sort(), ["exploration", "plan_approval", "step_review"]);
 });

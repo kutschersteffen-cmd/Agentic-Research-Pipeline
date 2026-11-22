@@ -13489,6 +13489,70 @@
     "title": "ImportRequest",
     "type": "object"
    },
+   "InboxRow": {
+    "properties": {
+     "exploration_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Exploration Id"
+     },
+     "href": {
+      "title": "Href",
+      "type": "string"
+     },
+     "kind": {
+      "enum": [
+       "plan_approval",
+       "step_review",
+       "exploration"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "plan_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Plan Id"
+     },
+     "seq": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Seq"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "plan_id",
+     "seq",
+     "exploration_id",
+     "title",
+     "href"
+    ],
+    "title": "InboxRow",
+    "type": "object"
+   },
    "IndexCalibration": {
     "description": "A saved, versioned, effective-dated construction spec.\n\nVersions are append-only, exactly like the taxonomy library: editing a\ncalibration creates a new version rather than overwriting history, and\n`effective_from` means the engine resolves the version *in force on the\nreview date* rather than the latest one -- otherwise today's parameters\nsilently rewrite past reviews.",
     "properties": {
@@ -30292,6 +30356,32 @@
     "summary": "Undo Block",
     "tags": [
      "agent-board"
+    ]
+   }
+  },
+  "/api/agent/inbox": {
+   "get": {
+    "description": "Draft plans and calls awaiting review, oldest first (a plan by its `created_at`, a call by its `started_at`).",
+    "operationId": "inbox_api_agent_inbox_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/InboxRow"
+         },
+         "title": "Response Inbox Api Agent Inbox Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Inbox",
+    "tags": [
+     "agent"
     ]
    }
   },
