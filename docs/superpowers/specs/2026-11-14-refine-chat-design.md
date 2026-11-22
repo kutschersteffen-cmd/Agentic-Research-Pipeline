@@ -5,8 +5,8 @@ Slug: refine-chat-design
 Risk: this spec PR is `risk:low`. The build is three PRs (see `## Slices`); each names its own risk label.
 
 Status: backend design and rows **approved by the owner on 2026-11-14**. The 2026-11-22 amendment (`## Amendment
-2026-11-22: Refine in the Agent screen`, D1 to D3, AC-60 to AC-74c, retired AC-36 to AC-44 and AC-50) **awaits the
-owner's approval**.
+2026-11-22: Refine in the Agent screen`, D1 to D3, AC-60 to AC-74c, retired AC-36 to AC-44 and AC-50) **approved by the
+owner on 2026-11-22** (button, after three spec-critic rounds).
 
 Owner decisions on 2026-11-14:
 
