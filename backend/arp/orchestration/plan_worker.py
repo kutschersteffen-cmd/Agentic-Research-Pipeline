@@ -25,7 +25,7 @@ def scan(store: PlanStore, steps: dict[str, Any], reviewed: ReviewedFn, *,
             if waiting and not reviewed(waiting[0]):
                 continue
         try:
-            run(plan_id, store, steps, reviewed, return_at_gate=True)
+            run(plan_id, store, steps, reviewed, return_at_gate=True, active_only=True)
         except PlanNotRunnable:
             continue  # another worker holds it, or it ended or was cancelled since the listing
         advanced.append(plan_id)

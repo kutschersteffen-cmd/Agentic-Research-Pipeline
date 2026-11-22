@@ -1,5 +1,5 @@
-"""Tables of the Research Orchestrator: one row per plan script, one per step call it made, and the Agent screen's
-asks a plan may be drafted from."""
+"""Tables of the Research Orchestrator: one row per plan script, one per step call it made, one per saved template
+version, and the Agent screen's asks a plan may be drafted from."""
 
 from __future__ import annotations
 
@@ -45,6 +45,9 @@ class ResearchPlan(Base):
     version: Mapped[int | None] = mapped_column(Integer, nullable=True, default=1)
     previous_scripts: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=list)  # [{version, script,
     # error, replanned_at, replanned_by}]
+    # Set on a plan instantiated from a saved template.
+    template_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    template_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Plan budget: the plan stops before a step once runs plus planner calls cost this much. NULL: no cap.
     budget_usd: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
     # What the planner's model calls for this plan cost, every attempt of every draft and re-plan.
@@ -67,3 +70,15 @@ class ResearchPlanCall(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     # 1, plus one for each time this (seq, kind, params) was stored as failed: part of the run's launch key.
     attempt: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+
+
+class ResearchPlanTemplate(Base):
+    """An approved or done plan's script saved under a name; immutable, a second save under the name is version 2."""
+    __tablename__ = "research_plan_templates"
+
+    name: Mapped[str] = mapped_column(Text, primary_key=True)
+    version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    script: Mapped[str] = mapped_column(Text)
+    source_plan_id: Mapped[str] = mapped_column(Text)  # no foreign key: a template outlives its plan
+    created_by: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

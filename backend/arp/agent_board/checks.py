@@ -25,6 +25,28 @@ def _is_number(v: Any) -> bool:
     return isinstance(v, int | float) and not isinstance(v, bool)
 
 
+def storable(node: Any) -> bool:
+    """No NUL character or lone surrogate in any string or key, and no NaN or Infinity: Postgres cannot store them."""
+    stack = [node]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            stack.extend(node.keys())
+            stack.extend(node.values())
+        elif isinstance(node, list):
+            stack.extend(node)
+        elif isinstance(node, str):
+            if "\x00" in node:
+                return False
+            try:
+                node.encode("utf-8")
+            except UnicodeEncodeError:
+                return False
+        elif isinstance(node, float) and not math.isfinite(node):
+            return False
+    return True
+
+
 def check_title(title: Any) -> str:
     if not isinstance(title, str):
         raise BlockInvalid("invalid block")
