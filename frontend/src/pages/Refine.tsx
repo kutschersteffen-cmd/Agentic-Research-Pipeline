@@ -68,24 +68,32 @@ function Workspace({ kind, docId }: { kind: RefineKind; docId: string }) {
   // The newest turn's items carry `changed` until the next turn starts (or it is undone).
   const changed = latest?.turn && latest.turn.status !== "undone" ? latest.turn.changed : [];
 
-  async function loadDoc() {
-    if (kind === "rfp") setProject(await api.getRfpProject(Number(docId)));
-    else {
-      const [h, m] = await Promise.all([api.getDeckHtml(docId), api.getReport(docId)]);
+  /** Fetches the document; the returned function shows it, so a caller can show it together with other state. */
+  async function fetchDoc(): Promise<() => void> {
+    if (kind === "rfp") {
+      const p = await api.getRfpProject(Number(docId));
+      return () => setProject(p);
+    }
+    const [h, m] = await Promise.all([api.getDeckHtml(docId), api.getReport(docId)]);
+    return () => {
       setHtml(h);
       setManifest(m);
-    }
+    };
+  }
+
+  async function loadDoc() {
+    (await fetchDoc())();
   }
 
   usePoll(async () => {
     try {
-      // The turn first, then the document, so a finished reply never shows before its edits.
-      if (running && latest) {
-        const turn = await api.getRefineTurn(latest.turnId);
-        setChat((c) => c.map((e) => (e.turnId === turn.id ? { ...e, turn } : e)));
-        if (turn.status !== "running") announce(turn.reply || turn.error || "The change finished.");
-      }
-      await loadDoc();
+      // The turn is read before the document, so a finished reply never shows before its edits;
+      // both are shown in one render, so a `changed` label never sits next to the old answer.
+      const turn = running && latest ? await api.getRefineTurn(latest.turnId) : null;
+      const showDoc = await fetchDoc();
+      if (turn) setChat((c) => c.map((e) => (e.turnId === turn.id ? { ...e, turn } : e)));
+      showDoc();
+      if (turn && turn.status !== "running") announce(turn.reply || turn.error || "The change finished.");
       setPollError(null);
     } catch (e) {
       setPollError((e as Error).message);

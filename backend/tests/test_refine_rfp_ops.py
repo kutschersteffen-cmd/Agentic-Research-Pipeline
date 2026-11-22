@@ -231,6 +231,22 @@ def test_progress_lists_changed_so_far(p):
     assert (t["changed"], t["not_changed"]) == ([p["Q1"], p["Q2"]], [{"id": p["Q3"], "reason": "approved"}])
 
 
+def test_skips_count_before_drafting(p):
+    """AC-41: approved Q3 counts up front, so the count reads 2 of 3 while Q2 drafts, not 1 then straight to 3."""
+    seen = []
+
+    class Watches(Standin):
+        async def complete_structured(self, **kw):
+            seen.append(turns.turn_out(tid))
+            return await super().complete_structured(**kw)
+
+    tid = turns.start_turn("rfp", str(p["P"]), "alice", "msg")
+    asyncio.run(apply_rfp_ops(tid, p["P"], [{"op": "rewrite", "question_ids": [p["Q1"], p["Q2"], p["Q3"]]}],
+                              Watches(grounded(p)), today=TODAY, verifier=Passes()))
+    assert [(t["done"], t["total"]) for t in seen] == [(1, 3), (2, 3)]
+    assert turns.turn_out(tid)["done"] == 3
+
+
 def test_reaped_turn_stops_between_questions(p):
     class ReapsWhileDrafting(Standin):
         async def complete_structured(self, **kw):
