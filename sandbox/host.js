@@ -2,7 +2,7 @@
 // The isolate sees one object, `codemode`; each method call comes back here over RPC. A capability outside the
 // execution's list is refused without calling ARP; the rest go to ARP's tool route with the execution token, which
 // stays in this worker and never enters the isolate.
-import { DynamicWorkerExecutor } from "@cloudflare/codemode";
+import { DynamicWorkerExecutor, normalizeCode } from "@cloudflare/codemode";
 import { RpcTarget } from "cloudflare:workers";
 
 const RESULT_LIMIT = 262144;
@@ -34,6 +34,21 @@ class Capabilities extends RpcTarget {
   }
 }
 
+// The executor reports a throw as `err.message`, which is undefined for a thrown string, object or empty Error, and
+// would then read as a result. Rethrow every throw as an Error with a non-empty message.
+function wrapThrows(code) {
+  return `async () => {
+  try {
+    return await (${normalizeCode(code)})();
+  } catch (e) {
+    if (e instanceof Error) throw new Error(e.message || e.name || "Error");
+    let text;
+    try { text = typeof e === "string" ? e : JSON.stringify(e); } catch { text = undefined; }
+    throw new Error("code threw " + (text ?? String(e)));
+  }
+}`;
+}
+
 export default {
   async fetch(request, env) {
     const job = await request.json();
@@ -43,7 +58,7 @@ export default {
     const caps = new Capabilities(job, env);
     let out;
     try {
-      out = await executor.execute(job.code, [], { connectors: [{ name: "codemode", binding: caps }] });
+      out = await executor.execute(wrapThrows(job.code), [], { connectors: [{ name: "codemode", binding: caps }] });
     } catch (err) {
       out = { error: err instanceof Error ? err.message : String(err) };
     }

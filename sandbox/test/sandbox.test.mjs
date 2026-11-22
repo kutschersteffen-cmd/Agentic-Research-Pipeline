@@ -21,7 +21,8 @@ before(async () => {
   });
   await new Promise((r) => api.listen(0, "127.0.0.1", r));
   process.env.ARP_API_URL = `http://127.0.0.1:${api.address().port}`;
-  process.env.ARP_SANDBOX_WALL_MS = "2000";
+  process.env.ARP_SANDBOX_WALL_MS = "5000";
+  process.env.ARP_SANDBOX_MEMORY_MB = "256";
   ({ execute } = await import("../server.mjs"));
   ({ checkCode } = await import("../check.mjs"));
 });
@@ -82,4 +83,19 @@ test("code checks: 400 lines pass, 401 fail before running; a parse error names 
   const parsed = checkCode("return (");
   assert.equal(parsed.ok, false);
   assert.match(parsed.error, /^code does not parse: /);
+});
+
+test("code that throws a value that is not an Error fails", async () => {
+  assert.deepEqual(await run('throw "no data"'), { status: "failed", result: null, error: "code threw no data" });
+  assert.deepEqual(await run("await Promise.reject({code: 1})"), { status: "failed", result: null, error: 'code threw {"code":1}' });
+  assert.deepEqual(await run("throw new Error()"), { status: "failed", result: null, error: "Error" });
+  assert.deepEqual(await run('throw new Error("x")'), { status: "failed", result: null, error: "x" });
+});
+
+test("an execution over the memory limit is killed and fails", async () => {
+  const t0 = Date.now();
+  const out = await run("const a = []; let i = 0; while (true) { a.push(new Uint8Array(1e6).fill(i++ % 255)); }");
+  assert.deepEqual(out, { status: "failed", result: null, error: "execution exceeded the 256 MB memory limit" });
+  assert.ok(Date.now() - t0 < 4000);
+  assert.equal((await run("return 4")).result, 4);
 });

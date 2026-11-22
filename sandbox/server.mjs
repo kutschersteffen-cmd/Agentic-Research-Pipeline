@@ -4,6 +4,7 @@
 //   GET  /health                                      -> {ok: true}
 // Each execution gets its own workerd process, killed after the wall time, so a busy loop cannot hold the service.
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { dirname } from "node:path";
@@ -15,7 +16,16 @@ const here = dirname(fileURLToPath(import.meta.url));
 const WORKERD = createRequire(import.meta.url)("workerd").default; // the native binary, not a node shim
 const WALL_MS = Number(process.env.ARP_SANDBOX_WALL_MS ?? 30000);
 const API_URL = new URL(process.env.ARP_API_URL ?? "http://127.0.0.1:8000");
+const MEMORY_MB = Number(process.env.ARP_SANDBOX_MEMORY_MB ?? 512);
 const BODY_LIMIT = 1 << 20;
+
+function rssMb(pid) {  // Linux: resident set size from /proc; null where it cannot be read
+  try {
+    return (Number(readFileSync(`/proc/${pid}/statm`, "utf8").split(" ")[1]) * 4096) / (1 << 20);
+  } catch {
+    return null;
+  }
+}
 
 function startWorkerd() {
   // An empty environment: nothing the service was started with reaches workerd.
@@ -43,9 +53,18 @@ export async function execute({ code, token, capabilities }) {
   const checked = checkCode(code);
   if (!checked.ok) return { status: "failed", result: null, error: checked.error };
   const { child, port } = startWorkerd();
-  let timer;
+  let timer, watch;
   const wall = new Promise((resolve) => {
     timer = setTimeout(() => resolve({ status: "timeout", result: null, error: `execution exceeded ${WALL_MS / 1000} s` }), WALL_MS);
+  });
+  // workerd has no per-isolate memory cap outside Cloudflare, so the whole process is watched and killed at the limit.
+  const memory = new Promise((resolve) => {
+    watch = setInterval(() => {
+      if ((rssMb(child.pid) ?? 0) > MEMORY_MB) {
+        child.kill("SIGKILL");
+        resolve({ status: "failed", result: null, error: `execution exceeded the ${MEMORY_MB} MB memory limit` });
+      }
+    }, 20);
   });
   const run = (async () => {
     const res = await fetch(`http://127.0.0.1:${await port}/`, {
@@ -60,9 +79,10 @@ export async function execute({ code, token, capabilities }) {
     return { status: "done", result: JSON.parse(out.result_json), error: null };
   })().catch((err) => ({ status: "failed", result: null, error: `sandbox error: ${err.message}` }));
   try {
-    return await Promise.race([run, wall]);
+    return await Promise.race([memory, run, wall]);
   } finally {
     clearTimeout(timer);
+    clearInterval(watch);
     child.kill("SIGKILL");
   }
 }
