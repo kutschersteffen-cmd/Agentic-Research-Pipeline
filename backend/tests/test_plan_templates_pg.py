@@ -121,3 +121,9 @@ def test_with_source_replaces_every_call_and_nothing_else():
     assert with_source(script, 'n"ew.csv') == (
         'a = universe_build(taxonomy_id="é", source="n\\"ew.csv")  # "ü.csv"\n'
         'b = universe_build(source="n\\"ew.csv",\n    taxonomy_id="t")\n')
+
+
+def test_with_source_counts_a_lone_carriage_return_as_a_line_break():  # security review finding on PR #627
+    script = ('a = 1\rb = 2\nu = universe_build(taxonomy_id="t", source="old.csv")\n'
+              'e = extraction(schema_id="sch_one", universe_run_id=u.run_id)\n')
+    assert with_source(script, "new.csv") == script.replace('"old.csv"', '"new.csv"')

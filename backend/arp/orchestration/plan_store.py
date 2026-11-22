@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import json
+import re
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
@@ -44,10 +45,12 @@ def with_source(script: str, source: str) -> str:
         raise ValueError("template has no universe_build source to replace")
     if any(not (isinstance(v, ast.Constant) and isinstance(v.value, str)) for v in values):
         raise ValueError("template source is not a string literal")
-    lines = script.split("\n")
+    # Line starts as Python's parser counts lines: after \r\n, a lone \r or \n.
+    starts = [0, *(m.end() for m in re.finditer(r"\r\n|\r|\n", script))]
 
     def index(lineno: int, col: int) -> int:  # ast columns count UTF-8 bytes; this is a str index into `script`
-        return sum(len(line) + 1 for line in lines[:lineno - 1]) + len(lines[lineno - 1].encode()[:col].decode())
+        start = starts[lineno - 1]
+        return start + len(script[start:].encode()[:col].decode())
 
     literal = json.dumps(source, ensure_ascii=False)  # a JSON string is a valid double-quoted Python literal
     for v in sorted(values, key=lambda v: (v.lineno, v.col_offset), reverse=True):
