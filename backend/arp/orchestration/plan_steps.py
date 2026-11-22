@@ -185,6 +185,31 @@ def build_steps(settings: Settings, run_store: RunStore) -> dict[str, Step]:
         await execute_xbrl_run(run_id, _companies(run_store, universe_run_id, companies), settings=settings,
                                run_store=run_store, tags=None, refresh=False, market=market)
 
+    def identity_create(*, universe_run_id: str, companies: list[str] | None = None) -> str:
+        from arp.discovery.identity_pipeline import create_identity_run
+
+        return create_identity_run(_companies(run_store, universe_run_id, companies), run_store)
+
+    async def identity_execute(run_id: str, *, universe_run_id: str, companies: list[str] | None = None) -> None:
+        from arp.discovery.identity_pipeline import execute_identity_run
+
+        await execute_identity_run(run_id, _companies(run_store, universe_run_id, companies),
+                                   llm=build_llm_client(settings), settings=settings, run_store=run_store)
+
+    def tnfd_create(*, universe_run_id: str, as_of: str, companies: list[str] | None = None) -> str:
+        from arp.extraction.tnfd_pipeline import create_tnfd_extraction_run
+
+        return create_tnfd_extraction_run(_companies(run_store, universe_run_id, companies), as_of, settings, run_store)
+
+    async def tnfd_execute(run_id: str, *, universe_run_id: str, as_of: str,
+                           companies: list[str] | None = None) -> None:
+        from arp.extraction.tnfd_pipeline import execute_tnfd_extraction_run
+
+        await execute_tnfd_extraction_run(run_id, _companies(run_store, universe_run_id, companies), as_of,
+                                          llm=build_llm_client(settings),
+                                          verifier_llm=build_verifier_llm_client(settings), registry=get_registry(),
+                                          settings=settings, run_store=run_store)
+
     def decision_score(*, source_run_id: str, framework_id: str | None = None) -> dict[str, Any]:
         from arp.api.deps import get_decision_store
         from arp.decision import templates
@@ -262,6 +287,8 @@ def build_steps(settings: Settings, run_store: RunStore) -> dict[str, Step]:
         "decision_score": sync_step(decision_score),
         "index_construct": sync_step(index_construct),
         "report_render": Step(report_start, report_finish),
+        "identity_resolution": _background(run_store, identity_create, identity_execute),
+        "tnfd_extraction": _background(run_store, tnfd_create, tnfd_execute),
     }
 
 
