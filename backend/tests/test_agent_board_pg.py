@@ -326,6 +326,8 @@ def test_render_worker_in_process(monkeypatch, capsys):
 @pytest.mark.parametrize(("values", "fmt"), [
     (json.dumps([{"a": i} for i in range(5001)]), {"type": "json"}),  # code review: a JSON string was one "line"
     ("a\tb\n" + "1\t2\n" * 5001, {"type": "tsv"}),
+    ("a\r" + "1\r" * 6000, {"type": "csv"}),  # code review: \r row breaks were one line
+    ("a\r\n" + "1\r\n" * 5001, {"type": "csv"}),
 ])
 def test_string_values_count_their_rows(values, fmt):
     from arp.agent_board.checks import BlockInvalid, check_block

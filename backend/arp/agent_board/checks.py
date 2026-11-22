@@ -70,7 +70,7 @@ def _values_rows(values: Any) -> float:
         try:
             parsed = json.loads(values)
         except ValueError:
-            return values.count("\n") + 1  # CSV or TSV
+            return len(values.splitlines())  # CSV or TSV: \r\n, \r and \n all end a row
         if isinstance(parsed, list):
             return len(parsed)
     raise BlockInvalid("chart does not render: data values must be a list or a CSV, TSV or JSON array string")
