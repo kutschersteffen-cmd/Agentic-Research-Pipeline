@@ -282,7 +282,7 @@ def test_unsaved_edit_guards_same_screen_links(page):
     open_run(page, review_state())
     page.get_by_label("Criterion 1").first.fill("edited")
     page.once("dialog", lambda d: d.dismiss())
-    row = page.get_by_role("navigation", name="Strategy screens")  # ui-trim-workspaces: under More
+    row = page.get_by_role("navigation", name="R&D Lab screens")  # ui-trim-workspaces: under More
     row.get_by_role("button", name="More").click()
     row.get_by_role("link", name="Taxonomy Library").click()
     page.wait_for_timeout(300)
