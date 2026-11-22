@@ -51,14 +51,15 @@ async def check(client, name: str, model: type[BaseModel], gate: asyncio.Semapho
         try:
             await client.complete_structured(
                 system="Fill the schema with a short, plausible example.", prompt=f"Give one example {name}.",
-                output_model=model, max_validation_retries=0, max_tokens=8192,
+                output_model=model, max_tokens=8192,  # the app's own validation retries
             )
             level = getattr(client, "_schema_level", {}).get(name, 0)
             return name, "ok", ("", "schema too complex: sent relaxed", "schema too complex: sent in the prompt")[level]
         except errors.ClientError as exc:
             return name, "REJECTED", str(exc)[:300]
         except ValidationError as exc:
-            return name, "INVALID", " ".join(str(exc).split())[:300]
+            level = getattr(client, "_schema_level", {}).get(name, 0)
+            return name, "INVALID", f"(schema level {level}) " + " ".join(str(exc).split())[:300]
 
 
 async def main() -> int:
