@@ -166,3 +166,15 @@ def test_replan_adds_every_attempt_to_the_plan(store):
     asyncio.run(replan_plan(plan_id, _Planner([P3], SONNET), store))
     assert store.get(plan_id)["planner_cost_usd"] == 12.00
     assert store.spent_usd(plan_id) == 12.00
+
+
+def test_planner_cost_uses_the_call_model_else_the_configured_one(store, monkeypatch):
+    from arp.config import get_settings
+
+    opus = LLMUsage(model="claude-opus-5-5", input_tokens=1_000_000, output_tokens=100_000)  # $4 / $20 per 1M
+    assert store.get(asyncio.run(draft_plan("b", _Planner([P3], opus), store)))["planner_cost_usd"] == 6.00
+    monkeypatch.setenv("ARP_LLM_MODEL", "claude-opus-5-5")
+    get_settings.cache_clear()
+    unnamed = LLMUsage(input_tokens=1_000_000, output_tokens=100_000)
+    assert store.get(asyncio.run(draft_plan("b", _Planner([P3], unnamed), store)))["planner_cost_usd"] == 6.00
+    get_settings.cache_clear()
