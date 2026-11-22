@@ -53,7 +53,7 @@ const Company = lazy(() => import("./pages/Company").then((x) => ({ default: x.C
 const XbrlFacts = lazy(() => import("./pages/XbrlFacts").then((x) => ({ default: x.XbrlFacts })));
 const DesignStrategy = lazy(() => import("./pages/DesignStrategy").then((x) => ({ default: x.DesignStrategy })));
 const ThemeDossiers = lazy(() => import("./pages/ThemeDossiers").then((x) => ({ default: x.ThemeDossiers })));
-const Plans = lazy(() => import("./pages/Plans").then((x) => ({ default: x.Plans })));
+const Agent = lazy(() => import("./pages/Agent").then((x) => ({ default: x.Agent })));
 const RfpAnswers = lazy(() => import("./pages/RfpAnswers").then((x) => ({ default: x.RfpAnswers })));
 
 const TABS = [
@@ -80,7 +80,7 @@ const TABS = [
   { id: "portfolio-monitoring", label: "Risk Monitoring" },
   { id: "review", label: "Needs you" },
   { id: "history", label: "Run History" },
-  { id: "plans", label: "Research Plans" },
+  { id: "agent", label: "Agent" },
   { id: "stewardship", label: "Steward Workflow" },
   { id: "engagement", label: "Engagement" },
   { id: "voting", label: "Proxy Voting" },
@@ -315,7 +315,7 @@ function App() {
         {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool key={route.params[0]} initialSub={route.params[0]} onSendUniverse={sendToArgus} />}
         {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} waiting={waiting} />}
         {active === "history" && <RunHistory onOpenReview={openReview} focusRunId={route.params[0] ?? null} />}
-        {active === "plans" && <Plans selectedId={route.params[0] ?? null} onSelect={(id) => navigate("plans", id)} />}
+        {active === "agent" && <Agent selectedId={route.params[0] ?? null} onSelect={(id) => navigate("agent", id)} />}
         {active === "stewardship" && <StewardWorkflow initialTab={route.params[0]} />}
         {active === "engagement" && <EngagementDashboard />}
         {active === "voting" && <VotingRuns selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("voting", id)} />}

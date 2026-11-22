@@ -41,8 +41,8 @@ def test_gate_until_every_item_is_decided(run_store, universe_run):
     assert reviewed({"run_id": universe_run}) is True
 
 
-def test_all_eight_kinds_present(run_store):
-    assert len(build_steps(get_settings(), run_store)) == 8
+def test_all_ten_kinds_present(run_store):  # agent-panel-code-mode D8 adds identity_resolution, tnfd_extraction
+    assert len(build_steps(get_settings(), run_store)) == 10
 
 
 def _candidate(cid):
@@ -126,6 +126,9 @@ class _Recorder:
     ("financials_extraction", "arp.extraction.financials_pipeline", "create_financials_extraction_run",
      "execute_financials_extraction_run", {}),
     ("xbrl_facts", "arp.xbrl_pipeline.fetch", "create_xbrl_run", "execute_xbrl_run", {}),
+    ("identity_resolution", "arp.discovery.identity_pipeline", "create_identity_run", "execute_identity_run", {}),
+    ("tnfd_extraction", "arp.extraction.tnfd_pipeline", "create_tnfd_extraction_run", "execute_tnfd_extraction_run",
+     {"as_of": "2025-12-31"}),
 ])
 def test_background_adapters_pass_filtered_companies(run_store, universe_run, monkeypatch, kind, module, create,
                                                      execute, params):
@@ -139,6 +142,26 @@ def test_background_adapters_pass_filtered_companies(run_store, universe_run, mo
     out = build_steps(get_settings(), run_store)[kind](universe_run_id=universe_run, companies=["beta"], **params)
     assert rec.companies == ["beta"]
     assert out["run_id"] and out["gate"] is False
+
+
+def test_tnfd_adapter_passes_the_period(run_store, universe_run, monkeypatch):
+    import arp.extraction.tnfd_pipeline as tnfd
+
+    seen = {}
+    rec = _Recorder(run_store, "tnfd")
+
+    def create(refs, as_of, *a):
+        seen["create"] = as_of
+        return rec.create(refs)
+
+    async def execute(run_id, refs, as_of, **k):
+        seen["execute"] = as_of
+
+    monkeypatch.setattr(tnfd, "create_tnfd_extraction_run", create)
+    monkeypatch.setattr(tnfd, "execute_tnfd_extraction_run", execute)
+    monkeypatch.setattr("arp.api.deps.get_registry", lambda: None)
+    build_steps(get_settings(), run_store)["tnfd_extraction"](universe_run_id=universe_run, as_of="FY2025")
+    assert seen == {"create": "FY2025", "execute": "FY2025"}
 
 
 def test_extraction_adapter_loads_schema(run_store, universe_run, monkeypatch):
