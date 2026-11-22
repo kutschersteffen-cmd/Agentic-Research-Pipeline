@@ -21,14 +21,9 @@ test("p2_ac7_motion", () => {
 test("p2_ac8_wrap_smoothing", () => {
   assert.match(css, /:where\(h1, h2, h3, h4\) \{ text-wrap: balance; \}/);
   assert.match(css, /:where\(p, li, dd, figcaption\) \{ text-wrap: pretty; \}/);
-  // Every antialiased declaration sits in a rule whose selector (or enclosing @media) names the dark theme.
-  let i = -1, n = 0;
-  while ((i = css.indexOf("-webkit-font-smoothing: antialiased", i + 1)) >= 0) {
-    n++;
-    const before = css.slice(Math.max(0, i - 200), i);
-    assert.match(before, /dark/, before);
-  }
-  assert.ok(n >= 2, "both dark blocks");
+  // One theme since expressive-ui-orb (Supersedes): the font-smoothing rule sits on body, once.
+  assert.equal(css.split("-webkit-font-smoothing: antialiased").length - 1, 1);
+  assert.match(css, /\nbody \{ -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; \}/);
 });
 test("p2_ac10_design_md", () => {
   const design = readFileSync(new URL("../../DESIGN.md", import.meta.url), "utf8");
