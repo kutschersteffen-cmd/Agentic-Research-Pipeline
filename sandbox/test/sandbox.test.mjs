@@ -99,3 +99,10 @@ test("an execution over the memory limit is killed and fails", async () => {
   assert.ok(Date.now() - t0 < 4000);
   assert.equal((await run("return 4")).result, 4);
 });
+
+test("a throw whose message or string form itself throws still fails", async () => {
+  const getter = 'const e = new Error(); Object.defineProperty(e, "message", {get() { throw "boom" }}); throw e';
+  assert.deepEqual(await run(getter), { status: "failed", result: null, error: "code threw a value" });
+  assert.deepEqual(await run("throw {toJSON() { throw 1 }, toString() { throw 2 }}"),
+    { status: "failed", result: null, error: "code threw a value" });
+});

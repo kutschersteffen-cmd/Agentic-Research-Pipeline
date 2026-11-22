@@ -35,16 +35,21 @@ class Capabilities extends RpcTarget {
 }
 
 // The executor reports a throw as `err.message`, which is undefined for a thrown string, object or empty Error, and
-// would then read as a result. Rethrow every throw as an Error with a non-empty message.
+// would then read as a result. Rethrow every throw as an Error with a non-empty message; server.mjs also reports
+// `done` only with a result.
 function wrapThrows(code) {
   return `async () => {
   try {
     return await (${normalizeCode(code)})();
   } catch (e) {
-    if (e instanceof Error) throw new Error(e.message || e.name || "Error");
-    let text;
-    try { text = typeof e === "string" ? e : JSON.stringify(e); } catch { text = undefined; }
-    throw new Error("code threw " + (text ?? String(e)));
+    let message;
+    try {
+      if (e instanceof Error) message = String(e.message || e.name || "Error");
+      else message = "code threw " + (typeof e === "string" ? e : (JSON.stringify(e) ?? String(e)));
+    } catch {
+      message = "code threw a value"; // its message, JSON or string form threw too
+    }
+    throw new Error(message);
   }
 }`;
 }

@@ -76,6 +76,7 @@ export async function execute({ code, token, capabilities }) {
     });
     const out = await res.json();
     if (out.error !== undefined) return { status: "failed", result: null, error: String(out.error) };
+    if (typeof out.result_json !== "string") return { status: "failed", result: null, error: "code failed without a message" };
     return { status: "done", result: JSON.parse(out.result_json), error: null };
   })().catch((err) => ({ status: "failed", result: null, error: `sandbox error: ${err.message}` }));
   try {
