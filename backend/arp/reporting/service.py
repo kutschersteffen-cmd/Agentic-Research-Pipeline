@@ -238,6 +238,8 @@ class ReportingService:
             manifest.error = str(exc)
             self.store.save_manifest(manifest)
             raise
+        # an edit saved while this render ran is not in its output, so the flag stays set for it
+        manifest.deck_edited_since_render = self.store.load_deck(report_id) != deck
         return self._completed(manifest, "output.pdf", ["output.pdf", "output.pptx"])
 
     @staticmethod

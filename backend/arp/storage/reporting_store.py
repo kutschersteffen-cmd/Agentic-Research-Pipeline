@@ -64,7 +64,12 @@ class ReportingStore:
         path = self.manifest_path(report_id)
         if not path.exists():
             return None
-        return ReportManifest.model_validate_json(read_text_utf8(path))
+        return self._with_has_deck(ReportManifest.model_validate_json(read_text_utf8(path)), path.parent)
+
+    @staticmethod
+    def _with_has_deck(manifest: ReportManifest, folder: Path) -> ReportManifest:
+        manifest.has_deck = (folder / "deck.json").exists()  # read, not stored: a deck written by any path counts
+        return manifest
 
     def save_request(self, report_id: str, request: ReportRequest) -> None:
         atomic_write_text(self.request_path(report_id), request.model_dump_json(indent=2))
@@ -116,7 +121,7 @@ class ReportingStore:
             if not mp.exists():
                 continue
             try:
-                manifests.append(ReportManifest.model_validate_json(read_text_utf8(mp)))
+                manifests.append(self._with_has_deck(ReportManifest.model_validate_json(read_text_utf8(mp)), d))
             except (json.JSONDecodeError, OSError, ValueError):
                 continue
         # newest first; the folder name is a random id and says nothing about age
