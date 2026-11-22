@@ -97,13 +97,54 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Explorations
+         * @description Every exploration, newest first.
+         */
+        get: operations["list_explorations_api_agent_explorations_get"];
         put?: never;
         /**
          * Create Exploration
          * @description Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed.
          */
         post: operations["create_exploration_api_agent_explorations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/explorations/{exploration_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Exploration */
+        get: operations["get_exploration_api_agent_explorations__exploration_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/explorations/{exploration_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Exploration
+         * @description A person accepts the exploration's result; its label becomes `accepted`.
+         */
+        post: operations["accept_exploration_api_agent_explorations__exploration_id__accept_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -119,7 +160,8 @@ export interface paths {
         };
         /**
          * Inbox
-         * @description Draft plans and calls awaiting review, oldest first (a plan by its `created_at`, a call by its `started_at`).
+         * @description Draft plans, calls awaiting review and explorations not yet accepted, oldest first (a plan or an exploration
+         *     by its `created_at`, a call by its `started_at`).
          */
         get: operations["inbox_api_agent_inbox_get"];
         put?: never;
@@ -21318,6 +21360,26 @@ export interface operations {
             };
         };
     };
+    list_explorations_api_agent_explorations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exploration"][];
+                };
+            };
+        };
+    };
     create_exploration_api_agent_explorations_post: {
         parameters: {
             query?: never;
@@ -21330,6 +21392,68 @@ export interface operations {
                 "application/json": components["schemas"]["ExplorationRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exploration"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_exploration_api_agent_explorations__exploration_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exploration"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_exploration_api_agent_explorations__exploration_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

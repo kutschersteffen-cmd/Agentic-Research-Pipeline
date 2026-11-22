@@ -37,15 +37,24 @@ def _step_href(call: dict, run_store: RunStore) -> str:
     return f"#/review/{manifest.run_type}/{call['run_id']}"
 
 
+def exploration_store(settings: Settings = Depends(settings_dep)) -> ExplorationStore:
+    return ExplorationStore(require_dsn(settings))
+
+
 @router.get("/inbox", response_model=list[InboxRow])
-def inbox(store: PlanStore = Depends(plan_store), run_store: RunStore = Depends(get_run_store)) -> list[InboxRow]:
-    """Draft plans and calls awaiting review, oldest first (a plan by its `created_at`, a call by its `started_at`)."""
+def inbox(store: PlanStore = Depends(plan_store), run_store: RunStore = Depends(get_run_store),
+          explorations: ExplorationStore = Depends(exploration_store)) -> list[InboxRow]:
+    """Draft plans, calls awaiting review and explorations not yet accepted, oldest first (a plan or an exploration
+    by its `created_at`, a call by its `started_at`)."""
     rows = [(p["created_at"], InboxRow(kind="plan_approval", plan_id=p["id"], seq=None, exploration_id=None,
                                        title=p["brief"][:60], href=f"#/agent/{p['id']}"))
             for p in store.list() if p["status"] == "draft"]
     rows += [(c["started_at"], InboxRow(kind="step_review", plan_id=c["plan_id"], seq=c["seq"], exploration_id=None,
                                         title=f"{c['kind']} step {c['seq']}", href=_step_href(c, run_store)))
              for c in store.calls_awaiting_review()]
+    rows += [(e["created_at"], InboxRow(kind="exploration", plan_id=None, seq=None, exploration_id=e["id"],
+                                        title=e["question"][:60], href=f"#/agent/exploration/{e['id']}"))
+             for e in explorations.list() if e["accepted_at"] is None]
     return [row for _, row in sorted(rows, key=lambda r: r[0])]
 
 
@@ -75,10 +84,6 @@ class Exploration(BaseModel):
     label: Literal["exploratory", "accepted"]
 
 
-def exploration_store(settings: Settings = Depends(settings_dep)) -> ExplorationStore:
-    return ExplorationStore(require_dsn(settings))
-
-
 @router.post("/explorations", response_model=Exploration)
 async def create_exploration(req: ExplorationRequest, store: ExplorationStore = Depends(exploration_store),
                              settings: Settings = Depends(settings_dep),
@@ -90,3 +95,27 @@ async def create_exploration(req: ExplorationRequest, store: ExplorationStore = 
         raise
     except RuntimeError as exc:
         raise HTTPException(502, f"no code was written for this question: {exc}") from exc
+
+
+@router.get("/explorations", response_model=list[Exploration])
+def list_explorations(store: ExplorationStore = Depends(exploration_store)) -> list[dict]:
+    """Every exploration, newest first."""
+    return store.list()
+
+
+@router.get("/explorations/{exploration_id}", response_model=Exploration)
+def get_exploration(exploration_id: str, store: ExplorationStore = Depends(exploration_store)) -> dict:
+    found = store.get(exploration_id)
+    if found is None:
+        raise HTTPException(404, "exploration not found")
+    return found
+
+
+@router.post("/explorations/{exploration_id}/accept", response_model=Exploration)
+def accept_exploration(exploration_id: str, store: ExplorationStore = Depends(exploration_store),
+                       principal: Principal = Depends(current_user)) -> dict:
+    """A person accepts the exploration's result; its label becomes `accepted`."""
+    found = store.accept(exploration_id, principal.user_id)
+    if found is None:
+        raise HTTPException(404, "exploration not found")
+    return found

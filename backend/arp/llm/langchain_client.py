@@ -101,6 +101,13 @@ def _drop_invalid_list_items(output_model: type[T], raw_args: dict, exc: Validat
     return instance, len(paths)
 
 
+def _stray_tool_results(response: Message, answered: str | None, text: str) -> list[dict]:
+    """An is_error tool_result for each tool_use block in `response` other than `answered`: the model called a tool
+    that was never offered (the API needs a result for every tool_use before the next turn)."""
+    return [{"type": "tool_result", "tool_use_id": b.id, "is_error": True, "content": f"`{b.name}` is not a tool here. {text}"}
+            for b in response.content if b.type == "tool_use" and b.id != answered]
+
+
 def _format_validation_errors(exc: ValidationError) -> str:
     """A per-field bullet list naming exactly what's wrong, instead of
     Pydantic's default str(exc) -- which for a large output model can dump
@@ -287,7 +294,9 @@ class LangChainAnthropicClient(LLMClient):
                     output_model.__name__, [{"type": "missing", "loc": (), "input": None, "msg": "no tool call returned"}]
                 )
                 messages.append({"role": "assistant", "content": [b.model_dump(mode="json", exclude_none=True) for b in response.content]})
-                messages.append({"role": "user", "content": f"You must respond by calling the `{_TOOL_NAME}` tool. Try again."})
+                retry = f"You must respond by calling the `{_TOOL_NAME}` tool. Try again."
+                # A tool_use turn must be answered with a tool_result per block; plain text is a 400.
+                messages.append({"role": "user", "content": _stray_tool_results(response, None, retry) or retry})
                 continue
 
             dropped = 0
@@ -312,7 +321,8 @@ class LangChainAnthropicClient(LLMClient):
                                         f"Call `{_TOOL_NAME}` again with a corrected input that fixes every field listed "
                                         f"above. Leave every other field exactly as it was."
                                     ),
-                                }
+                                },
+                                *_stray_tool_results(response, tool_call.id, f"Call only `{_TOOL_NAME}`."),
                             ],
                         }
                     )

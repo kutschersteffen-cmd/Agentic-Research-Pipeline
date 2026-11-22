@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { budgetLine, chipLabel, INBOX_KIND, lineDiff, reviewQueueLine, scriptLines, sendsComposer, stepState, threadTitle, usd } from "../src/lib/agent.ts";
+import { budgetLine, chipLabel, composerText, explorationBadge, INBOX_KIND, lineDiff, resultTable, reviewQueueLine, scriptLines, sendsComposer, stepState, threadRows, threadTitle, usd } from "../src/lib/agent.ts";
+import type { Plan } from "../src/lib/plans.ts";
+import type { Exploration } from "../src/types.ts";
 import { HUBS, redirectHash } from "../src/lib/nav.ts";
 
 // Agent screen shell (docs/superpowers/specs/2026-11-21-agent-panel-code-mode.md, slice 6).
@@ -92,4 +94,39 @@ test("the inbox footer counts what waits in the Review Queue (AC-31)", () => {
 
 test("every inbox kind the route serves has a label", () => {
   assert.deepEqual(Object.keys(INBOX_KIND).sort(), ["exploration", "plan_approval", "step_review"]);
+});
+
+// Explorations (slice 10).
+
+const exp = (id: string, created_at: string, label: "exploratory" | "accepted" = "exploratory") =>
+  ({ id, question: `question ${id} ${"x".repeat(70)}`, created_at, label }) as unknown as Exploration;
+
+test("plans and explorations share the thread list, newest first, explorations with their label as chip", () => {
+  const plans = [{ id: "p1", brief: "plan one", status: "draft", created_at: "2026-11-22T10:00:00Z" }] as unknown as Plan[];
+  const rows = threadRows(plans, [exp("e1", "2026-11-22T11:00:00Z"), exp("e0", "2026-11-22T09:00:00Z", "accepted")]);
+  assert.deepEqual(rows.map((r) => [r.kind, r.id, r.chip, r.href]), [
+    ["exploration", "e1", "exploratory", "#/agent/exploration/e1"],
+    ["plan", "p1", "draft", "#/agent/p1"],
+    ["exploration", "e0", "accepted", "#/agent/exploration/e0"],
+  ]);
+  assert.equal(rows[0].title.length, 60);
+});
+
+test("an exploration shows the badge Exploratory: not reviewed until accepted (AC-49)", () => {
+  assert.equal(explorationBadge({ label: "exploratory" }), "Exploratory: not reviewed");
+  assert.equal(explorationBadge({ label: "accepted" }), null);
+});
+
+test("a result is a table only when it is a list of flat objects", () => {
+  assert.deepEqual(resultTable([{ sector: "Energy", w: 4.5 }, { sector: "IT", ok: true, w: null }]), {
+    columns: ["sector", "w", "ok"],
+    rows: [["Energy", 4.5, null], ["IT", null, true]],
+  });
+  for (const json of [1, "x", null, [], [1, 2], [{ a: { b: 1 } }], [{ a: [1] }], { a: 1 }]) assert.equal(resultTable(json), null);
+});
+
+test("with Explore toggled on, the composer reads Question, Explore and its own help line", () => {
+  assert.deepEqual(composerText(true), { label: "Question", submit: "Explore", sending: "Exploring…", help: "Enter runs an exploration; Shift+Enter adds a line." });
+  assert.equal(composerText(false).submit, "Draft plan");
+  assert.equal(composerText(false).sending, "Drafting…");
 });

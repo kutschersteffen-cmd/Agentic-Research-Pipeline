@@ -1,6 +1,7 @@
 // The Agent screen's rules, kept out of the page so they are testable without rendering it
 // (spec 2026-11-21-agent-panel-code-mode, Phase 3).
-import type { InboxRow } from "../types";
+import type { Plan } from "./plans";
+import type { Exploration, InboxRow } from "../types";
 
 /** A chip: a plan or step status as a person reads it (`awaiting_review` reads `awaiting review`). */
 export const chipLabel = (status: string): string => status.replace(/_/g, " ");
@@ -80,3 +81,37 @@ export const INBOX_KIND: Record<InboxRow["kind"], string> = { plan_approval: "Ap
 
 /** The inbox footer: what else waits outside the agent lanes (`total` of `GET /api/waiting`). */
 export const reviewQueueLine = (n: number): string => `${n} more waiting in the Review Queue`;
+
+/** A row of the thread list: a plan or an exploration, with its chip. */
+export interface ThreadRow { kind: "plan" | "exploration"; id: string; title: string; chip: string; href: string }
+
+/** Plans and explorations in one list, newest first by `created_at` (Phase 3, Threads). */
+export function threadRows(plans: Plan[], explorations: Exploration[]): ThreadRow[] {
+  const rows = [
+    ...plans.map((p) => ({ at: p.created_at ?? "", row: { kind: "plan" as const, id: p.id, title: threadTitle(p.brief), chip: p.status as string, href: `#/agent/${p.id}` } })),
+    ...explorations.map((e) => ({ at: e.created_at, row: { kind: "exploration" as const, id: e.id, title: threadTitle(e.question), chip: e.label as string, href: `#/agent/exploration/${e.id}` } })),
+  ];
+  return rows.sort((a, b) => Date.parse(b.at || "0") - Date.parse(a.at || "0")).map((r) => r.row);
+}
+
+/** The badge an exploration's card shows until a person accepts it (AC-49); none once accepted. */
+export const explorationBadge = (e: Pick<Exploration, "label">): string | null => (e.label === "accepted" ? null : "Exploratory: not reviewed");
+
+type Cell = string | number | boolean | null;
+
+/** An exploration's result as a table when it is a non-empty list of flat objects (every value a string, number,
+ * boolean or null); columns in first-seen order. Anything else is shown as JSON, so this answers null. */
+export function resultTable(result: unknown): { columns: string[]; rows: Cell[][] } | null {
+  if (!Array.isArray(result) || result.length === 0) return null;
+  const flat = (v: unknown) => v === null || ["string", "number", "boolean"].includes(typeof v);
+  const plain = (r: unknown): r is Record<string, unknown> => typeof r === "object" && r !== null && !Array.isArray(r) && Object.values(r).every(flat);
+  if (!result.every(plain)) return null;
+  const columns = [...new Set(result.flatMap((r) => Object.keys(r)))];
+  return { columns, rows: result.map((r) => columns.map((c) => (c in r ? (r[c] as Cell) : null))) };
+}
+
+/** The composer's label, submit button (idle, sending) and help line, with Explore toggled off or on. */
+export const composerText = (explore: boolean) =>
+  explore
+    ? { label: "Question", submit: "Explore", sending: "Exploring…", help: "Enter runs an exploration; Shift+Enter adds a line." }
+    : { label: "Research brief", submit: "Draft plan", sending: "Drafting…", help: "Enter drafts a plan; Shift+Enter adds a line. Name a saved universe in the brief." };

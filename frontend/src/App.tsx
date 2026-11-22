@@ -315,7 +315,8 @@ function App() {
         {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool key={route.params[0]} initialSub={route.params[0]} onSendUniverse={sendToArgus} />}
         {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} waiting={waiting} />}
         {active === "history" && <RunHistory onOpenReview={openReview} focusRunId={route.params[0] ?? null} />}
-        {active === "agent" && <Agent selectedId={route.params[0] ?? null} onSelect={(id) => navigate("agent", id)} />}
+        {active === "agent" && <Agent selectedId={route.params[0] === "exploration" ? null : route.params[0] ?? null} explorationId={route.params[0] === "exploration" ? route.params[1] ?? null : null}
+          onSelect={(id) => navigate("agent", id)} onSelectExploration={(id) => navigate("agent", "exploration", id)} />}
         {active === "stewardship" && <StewardWorkflow initialTab={route.params[0]} />}
         {active === "engagement" && <EngagementDashboard />}
         {active === "voting" && <VotingRuns selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("voting", id)} />}

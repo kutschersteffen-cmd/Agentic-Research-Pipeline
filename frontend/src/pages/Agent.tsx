@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
+import { ExplorationCard } from "../components/ExplorationCard";
 import { StepTabs } from "../components/StepTabs";
-import { budgetLine, chipLabel, INBOX_KIND, lineDiff, reviewQueueLine, scriptLines, sendsComposer, stepState, threadTitle, usd } from "../lib/agent";
+import { budgetLine, chipLabel, composerText, INBOX_KIND, lineDiff, reviewQueueLine, scriptLines, sendsComposer, stepState, threadRows, usd } from "../lib/agent";
 import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
 import { when } from "../lib/runs";
-import type { InboxRow } from "../types";
+import type { Exploration, InboxRow } from "../types";
 
 const POLL_MS = 3000;
 const NARROW = "(max-width: 899.98px)";
@@ -32,10 +33,15 @@ function DrawerDialog({ side, label, onClose, children }: { side: "left" | "righ
   );
 }
 
-/** The Agent screen: threads on the left, the selected plan's stream in the middle, its stage on the right.
- * Below 900 px the side columns are drawers opened from the header. */
-export function Agent({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string) => void }) {
+/** The Agent screen: threads on the left, the selected plan's or exploration's stream in the middle, the plan's stage
+ * on the right. Below 900 px the side columns are drawers opened from the header. */
+export function Agent({ selectedId, explorationId, onSelect, onSelectExploration }: {
+  selectedId: string | null; explorationId: string | null; onSelect: (id: string) => void; onSelectExploration: (id: string) => void;
+}) {
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [explorations, setExplorations] = useState<Exploration[]>([]);
+  const [exploration, setExploration] = useState<Exploration | null>(null);
+  const [explore, setExplore] = useState(false);
   const [inbox, setInbox] = useState<InboxRow[]>([]);
   const [waiting, setWaiting] = useState<number | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -51,15 +57,21 @@ export function Agent({ selectedId, onSelect }: { selectedId: string | null; onS
   }, []);
   const loadList = useCallback(() => {
     api.listPlans().then(setPlans).catch((e: Error) => setError(`Threads could not be loaded: ${e.message}.`));
+    api.listExplorations().then(setExplorations).catch((e: Error) => setError(`Explorations could not be loaded: ${e.message}.`));
     loadInbox();
   }, [loadInbox]);
   const loadPlan = useCallback(() => {
     if (!selectedId) return setPlan(null);
     api.getPlan(selectedId).then(setPlan).catch((e: Error) => setError(`The plan could not be loaded: ${e.message}.`));
   }, [selectedId]);
+  const loadExploration = useCallback(() => {
+    if (!explorationId) return setExploration(null);
+    api.getExploration(explorationId).then(setExploration).catch((e: Error) => setError(`The exploration could not be loaded: ${e.message}.`));
+  }, [explorationId]);
 
   useEffect(loadList, [loadList]);
   useEffect(loadPlan, [loadPlan]);
+  useEffect(loadExploration, [loadExploration]);
   // The thread list shows each plan's chip: reload it when the open plan's status changes.
   const planStatus = plan?.status;
   const shownStatus = useRef(planStatus);
@@ -88,6 +100,7 @@ export function Agent({ selectedId, onSelect }: { selectedId: string | null; onS
     try {
       await fn();
       loadPlan();
+      loadExploration();
       loadList();
       return true;
     } catch (e) {
@@ -101,11 +114,19 @@ export function Agent({ selectedId, onSelect }: { selectedId: string | null; onS
   async function send() {
     if (busy || !brief.trim()) return;
     await act(async () => {
-      const p = await api.draftPlan(brief);
-      setBrief("");
-      onSelect(p.id);
+      if (explore) {
+        const e = await api.explore(brief);
+        setBrief("");
+        onSelectExploration(e.id);
+      } else {
+        const p = await api.draftPlan(brief);
+        setBrief("");
+        onSelect(p.id);
+      }
     });
   }
+  const composer = composerText(explore);
+  const rows = threadRows(plans, explorations);
 
   // `id` keeps the column's and the drawer's ids apart; `close` is set inside a drawer.
   const threads = (id: string, close?: () => void) => (
@@ -114,19 +135,22 @@ export function Agent({ selectedId, onSelect }: { selectedId: string | null; onS
         <h2 id={`${id}-h`}>Threads</h2>
         {close && <button type="button" className="link-button" onClick={close}>Close</button>}
       </div>
-      {plans.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="muted">No threads yet. Write a brief to start one.</p>
       ) : (
         <ul className="agent-thread-list">
-          {plans.map((p) => (
-            <li key={p.id} className={p.id === selectedId ? "selected" : undefined}>
-              <button type="button" className="link-button" aria-current={p.id === selectedId ? "true" : undefined}
-                onClick={() => { close?.(); onSelect(p.id); }}>
-                {threadTitle(p.brief)}
-              </button>
-              <Chip status={p.status} />
-            </li>
-          ))}
+          {rows.map((r) => {
+            const selected = r.id === (r.kind === "plan" ? selectedId : explorationId);
+            return (
+              <li key={`${r.kind}:${r.id}`} className={selected ? "selected" : undefined}>
+                <button type="button" className="link-button" aria-current={selected ? "true" : undefined}
+                  onClick={() => { close?.(); (r.kind === "plan" ? onSelect : onSelectExploration)(r.id); }}>
+                  {r.title}
+                </button>
+                <Chip status={r.chip} />
+              </li>
+            );
+          })}
         </ul>
       )}
       <h2 id={`${id}-inbox-h`} className="agent-inbox-h">Inbox</h2>
@@ -191,13 +215,15 @@ export function Agent({ selectedId, onSelect }: { selectedId: string | null; onS
         <aside className="agent-side agent-threads" aria-labelledby="agent-threads-h">{threads("agent-threads")}</aside>
 
         <section className="agent-stream" aria-label="Stream">
-          {plan ? (
+          {exploration ? (
+            <ExplorationCard key={exploration.id} exploration={exploration} busy={busy} onAccept={() => act(() => api.acceptExploration(exploration.id))} />
+          ) : plan ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />
           ) : (
             <p className="muted agent-empty">Pick a thread, or describe the research you want below. A planner writes a short script that chains ARP’s runs; nothing runs until you approve it.</p>
           )}
           <form className="agent-composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
-            <label className="visually-hidden" htmlFor="agent-brief">Research brief</label>
+            <label className="visually-hidden" htmlFor="agent-brief">{composer.label}</label>
             <textarea id="agent-brief" rows={2} value={brief} onChange={(e) => setBrief(e.target.value)}
               onKeyDown={(e) => {
                 if (sendsComposer({ key: e.key, shiftKey: e.shiftKey, isComposing: e.nativeEvent.isComposing })) {
@@ -206,10 +232,12 @@ export function Agent({ selectedId, onSelect }: { selectedId: string | null; onS
                 }
               }}
               aria-describedby="agent-brief-help"
-              placeholder={'Grid-storage companies in the saved universe "eu listed": extract green capex, score, report'} />
+              placeholder={explore ? "Which holdings lack a reviewed transition plan, by sector weight?" : 'Grid-storage companies in the saved universe "eu listed": extract green capex, score, report'} />
             <div className="agent-composer-foot">
-              <p id="agent-brief-help" className="muted">Enter drafts a plan; Shift+Enter adds a line. Name a saved universe in the brief.</p>
-              <button type="submit" disabled={busy || !brief.trim()}>{busy ? "Drafting…" : "Draft plan"}</button>
+              <button type="button" className="secondary agent-mode-toggle" aria-pressed={explore} disabled={busy} onClick={() => setExplore((x) => !x)}
+                title="Run the question as an exploration: model-written code over ARP's read-only data">Explore</button>
+              <p id="agent-brief-help" className="muted agent-composer-help">{composer.help}</p>
+              <button type="submit" disabled={busy || !brief.trim()}>{busy ? composer.sending : composer.submit}</button>
             </div>
           </form>
         </section>

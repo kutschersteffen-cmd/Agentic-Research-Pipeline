@@ -2903,3 +2903,9 @@ dialog.agent-drawer::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   .wb-filters { position: relative; }
   .wb-filter-panel { left: 0; right: 0; width: auto; }
 }
+.status-exploratory { color: var(--mid); border-color: var(--mid); border-style: dashed; }
+.status-accepted { color: var(--high); border-color: var(--high); }
+.agent-badge { font-size: var(--text-sm); color: var(--mid); border: 1px dashed var(--mid); padding: 0 var(--s-1); }
+.agent-exploration-code summary { cursor: pointer; }
+.agent-mode-toggle[aria-pressed="true"] { border-color: var(--text); font-weight: 600; box-shadow: inset 0 0 0 1px var(--text); }
+.agent-composer-help { flex: 1; }

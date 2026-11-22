@@ -30616,6 +30616,30 @@
    }
   },
   "/api/agent/explorations": {
+   "get": {
+    "description": "Every exploration, newest first.",
+    "operationId": "list_explorations_api_agent_explorations_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/Exploration"
+         },
+         "title": "Response List Explorations Api Agent Explorations Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Explorations",
+    "tags": [
+     "agent"
+    ]
+   },
    "post": {
     "description": "Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed.",
     "operationId": "create_exploration_api_agent_explorations_post",
@@ -30657,9 +30681,94 @@
     ]
    }
   },
+  "/api/agent/explorations/{exploration_id}": {
+   "get": {
+    "operationId": "get_exploration_api_agent_explorations__exploration_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "exploration_id",
+      "required": true,
+      "schema": {
+       "title": "Exploration Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Exploration"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Exploration",
+    "tags": [
+     "agent"
+    ]
+   }
+  },
+  "/api/agent/explorations/{exploration_id}/accept": {
+   "post": {
+    "description": "A person accepts the exploration's result; its label becomes `accepted`.",
+    "operationId": "accept_exploration_api_agent_explorations__exploration_id__accept_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "exploration_id",
+      "required": true,
+      "schema": {
+       "title": "Exploration Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Exploration"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Accept Exploration",
+    "tags": [
+     "agent"
+    ]
+   }
+  },
   "/api/agent/inbox": {
    "get": {
-    "description": "Draft plans and calls awaiting review, oldest first (a plan by its `created_at`, a call by its `started_at`).",
+    "description": "Draft plans, calls awaiting review and explorations not yet accepted, oldest first (a plan or an exploration\nby its `created_at`, a call by its `started_at`).",
     "operationId": "inbox_api_agent_inbox_get",
     "responses": {
      "200": {

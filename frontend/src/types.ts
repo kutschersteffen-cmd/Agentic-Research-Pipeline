@@ -25,6 +25,7 @@ export type DocumentPassages = Served<S["DocumentPassages"]>;
 export type WaitingCounts = Served<S["WaitingCounts"]>;
 /** One row of the Agent screen's inbox (`GET /api/agent/inbox`). */
 export type InboxRow = Served<S["InboxRow"]>;
+export type Exploration = Served<S["Exploration"]>;
 export type DocumentPassage = DocumentPassages["passages"][number];
 export type ArgusFlow = Served<S["ArgusFlowView"]>;
 export type ArgusDraft = Served<S["ArgusFlow"]>; // as GET /api/argus/flows lists it, without rows

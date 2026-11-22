@@ -17,6 +17,7 @@ export interface Plan {
   status: PlanStatus;
   approved_by: string | null;
   approved_at: string | null;
+  created_at?: string;
   error: string | null;
   version: number;
   previous_scripts: PreviousScript[];
