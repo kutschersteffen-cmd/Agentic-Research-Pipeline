@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 KINDS = ("note", "table", "chart", "flow")
@@ -47,10 +48,56 @@ def _outside(node: Any, path: str) -> str | None:
     return None
 
 
+MAX_CHART_ROWS = 5000
+
+
+def _num(v: Any) -> bool:
+    return _is_number(v) and math.isfinite(v)
+
+
+def _values_rows(values: Any) -> float:
+    """Rows of an inline `values`: a list's length, or the line count of an inline CSV/TSV/JSON string."""
+    if isinstance(values, list):
+        return len(values)
+    if isinstance(values, str):
+        return values.count("\n") + 1
+    return 0
+
+
+def _sequence_rows(seq: dict) -> float:
+    """Rows a `sequence` generator makes: (stop - start) / step, step 1 by default; anything unreadable is unbounded."""
+    start, stop, step = seq.get("start", 0), seq.get("stop"), seq.get("step", 1)
+    if not (_num(start) and _num(stop) and _num(step)) or step == 0:
+        return math.inf
+    return max(0, math.ceil((stop - start) / step))
+
+
+def _graticule_rows(g: Any) -> float:
+    """Lines a `graticule` generator makes: about 360 / x-step + 180 / y-step for its finest step."""
+    if not isinstance(g, dict):
+        return 0
+    rows = 0.0
+    for key in ("step", "stepMinor", "stepMajor"):
+        step = g.get(key)
+        if step is None:
+            continue
+        if not (isinstance(step, list) and len(step) == 2 and all(_num(x) and x > 0 for x in step)):
+            return math.inf
+        rows = max(rows, 360 / step[0] + 180 / step[1])
+    return rows
+
+
 def _too_many_rows(node: Any) -> bool:
+    """Any inline `values` (also a named dataset) or data generator (`sequence`, `graticule`) over 5 000 rows."""
     if isinstance(node, dict):
         data = node.get("data")
-        if isinstance(data, dict) and isinstance(data.get("values"), list) and len(data["values"]) > 5000:
+        if isinstance(data, dict) and (_values_rows(data.get("values")) > MAX_CHART_ROWS
+                                       or ("graticule" in data and _graticule_rows(data["graticule"]) > MAX_CHART_ROWS)):
+            return True
+        if isinstance(node.get("sequence"), dict) and _sequence_rows(node["sequence"]) > MAX_CHART_ROWS:  # data.sequence, impute keyvals
+            return True
+        datasets = node.get("datasets")
+        if isinstance(datasets, dict) and any(_values_rows(v) > MAX_CHART_ROWS for v in datasets.values()):
             return True
         return any(_too_many_rows(v) for v in node.values())
     if isinstance(node, list):

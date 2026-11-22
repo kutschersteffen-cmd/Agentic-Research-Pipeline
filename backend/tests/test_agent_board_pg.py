@@ -239,3 +239,30 @@ def test_block_on_another_board(client, plan, pg):  # AC-13d
                 client.post(f"{_b(plan)}/blocks/{x}/undo"), client.delete(f"{_b(plan)}/blocks/{x}")):
         assert (res.status_code, res.json()) == (404, {"detail": "block not found"})
     assert _titles(client, other) == [("X", 0)]
+
+
+@pytest.mark.parametrize("source", [
+    {"data": {"sequence": {"start": 0, "stop": 1000000}}, "mark": "point",
+     "encoding": {"x": {"field": "data", "type": "quantitative"}}},  # security review: crashed the process in V8
+    {"data": {"sequence": {"start": 0, "stop": 10, "step": 0.001}}, "mark": "point"},
+    {"data": {"sequence": {"start": 0, "stop": {"signal": "1e9"}}}, "mark": "point"},
+    {"layer": [{"data": {"values": "a\n" + "1\n" * 5001, "format": {"type": "csv"}}, "mark": "point"}]},
+    {"datasets": {"d": [{"a": 1}] * 5001}, "data": {"name": "d"}, "mark": "point"},
+    {"data": {"graticule": {"step": [0.01, 0.01]}}, "mark": "geoshape"},
+    {"data": {"values": [{"k": 1}]}, "transform": [{"impute": "v", "key": "k", "keyvals": {"start": 0, "stop": 9}},
+                                                   {"impute": "v", "key": "k", "keyvals": {"sequence": {"start": 0, "stop": 1e7}}}],
+     "mark": "point"},
+])
+def test_generated_rows_count_against_the_limit(source):
+    from arp.agent_board.checks import BlockInvalid, check_block
+
+    with pytest.raises(BlockInvalid, match="^chart exceeds 5000 data rows$"):
+        check_block("chart", "C", source)
+
+
+def test_small_sequence_renders():
+    from arp.agent_board.checks import check_block
+
+    src = {"data": {"sequence": {"start": 0, "stop": 5000, "as": "x"}}, "mark": "point",
+           "encoding": {"x": {"field": "x", "type": "quantitative"}}}
+    assert check_block("chart", "C", src)["light"].startswith("<svg")
