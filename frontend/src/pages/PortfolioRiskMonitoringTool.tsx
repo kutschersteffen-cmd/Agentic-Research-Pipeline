@@ -6,7 +6,7 @@ import { CompanyProfiles } from "./portfolio-monitoring/CompanyProfiles";
 import { AskThePortfolio } from "./portfolio-monitoring/AskThePortfolio";
 import { SupersetBI } from "./portfolio-monitoring/SupersetBI";
 import { HoldingsIntake } from "./portfolio-monitoring/HoldingsIntake";
-import { openingSubTab, SUB_TABS } from "../lib/subTabs";
+import { openingSubTab, SHOWN_SUB_TABS, SUB_TABS } from "../lib/subTabs";
 
 /** One top-level tool (spec §9): a persistent portfolio/date selection
  * pane that isn't itself a sub-tab, plus one MECE sub-tab per capability
@@ -34,16 +34,13 @@ function Inner({ initialSub, onSendUniverse }: { initialSub?: string; onSendUniv
       {/* spec §5: on the Dashboards tab Superset's filter bar is the selection UI */}
       {sub !== "dashboards" && (
         <>
-          <p className="help-text">
-            Pick a portfolio or group and an as-of date; the selection carries across the tabs below (Dashboards uses
-            Superset&apos;s own filter bar).
-          </p>
+          <p className="help-text">Pick portfolios and a date. The choice applies to every tab.</p>
           <PersistentSelectionPane onSendUniverse={onSendUniverse} />
         </>
       )}
 
       <nav className="sub-nav">
-        {SUB_TABS.map((t) => (
+        {SHOWN_SUB_TABS.map((id) => SUB_TABS.find((t) => t.id === id)!).map((t) => (
           <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} aria-pressed={t.id === sub} onClick={() => setSub(t.id)}>
             {t.label}
           </button>

@@ -100,7 +100,7 @@ def test_ac3b_lead_phone(page):
     _open(page, "/#/stewardiq", 390, 844)
     intro = page.locator(INTRO)
     assert _style(intro, "fontSize") == _style(page.locator("body"), "fontSize")
-    key = intro.locator(".hub-step-handoff-key")
+    key = page.locator(".hub-step-handoff-key").first  # the legend line moved out of the intro (AC-34f)
     h = key.evaluate("e => e.getClientRects().length")
     assert h == 1, "the key stays on one line"
 

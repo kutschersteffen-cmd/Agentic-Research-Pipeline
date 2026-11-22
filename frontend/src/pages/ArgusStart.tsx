@@ -5,6 +5,7 @@ import { errorDetail } from "../lib/barrier";
 import { STEPS, argusRows, filterLine, filterRows, tiles, waiting } from "../lib/argusStart";
 import { ACTIVE_STATUSES } from "../lib/runs";
 import { WORKSPACES } from "../lib/processes";
+import { HandoffLegend } from "./ProcessHub";
 import { neighbour, useRowFocus } from "../lib/rowFocus";
 import { listAllRuns, usePoll } from "../lib/poll";
 import type { ArgusDraft, ReviewItem, RunManifest } from "../types";
@@ -139,8 +140,9 @@ export function ArgusStart() {
           </button>
         </span>
       </div>
+      <p className="help-text">{purpose}</p>
       <p className="help-text">
-        {purpose} <a href="#/argusWalkthrough">How it works</a>
+        <a href="#/argusWalkthrough">How it works</a>
       </p>
       {startError && <p className="error-text" role="alert">The extraction could not be started: {startError}.</p>}
       {deleteError && <p className="error-text" role="alert">The draft could not be deleted: {deleteError}</p>}
@@ -259,6 +261,7 @@ export function ArgusStart() {
           <a href="#/review">Open the review list</a>
         </aside>
       </div>
+      <HandoffLegend />
     </div>
   );
 }

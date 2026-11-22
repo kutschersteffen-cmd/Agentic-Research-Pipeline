@@ -46,7 +46,7 @@ export function useHouseFlow() {
 
 /** Loads and the monthly run leave no run behind: their steps read the feed overview and the last monthly run.
  * Loaded once; null until both answer (or when one fails), which leaves those steps as they were: "No runs yet". */
-function useActivity(): Activity | null {
+export function useActivity(): Activity | null {
   const [activity, setActivity] = useState<Activity | null>(null);
   useEffect(() => {
     Promise.all([api.listFeeds(), api.lastMonthlyRun()]).then(
@@ -161,12 +161,12 @@ function writeWalk(walk: Walk | null) {
 
 /** One process drawn as its steps in order: each card carries the step's live
  * state and what it hands on; a click opens its details panel under the flow. */
-function ProcessFlow({ p, runs, flow, activity }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null; activity: Activity | null }) {
+export function ProcessFlow({ p, runs, flow, activity, foldable = true }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null; activity: Activity | null; foldable?: boolean }) {
   const state = runs ? processState(p, runs, flow, activity) : null;
   const [open, setOpen] = useState<number | null>(null);
   // While a panel is open the flow keeps the fold it had when the panel opened, so a poll never folds it away under the reader.
   const [openFolded, setOpenFolded] = useState(false);
-  const folded = open !== null ? openFolded : state === "idle";
+  const folded = foldable && (open !== null ? openFolded : state === "idle");
   const toggle = (i: number) => {
     setOpenFolded(folded);
     setOpen(open === i ? null : i);
@@ -385,6 +385,13 @@ function StepPanel({ s, i, p, view }: { s: Step; i: number; p: Process; view: St
   );
 }
 
+/** The one legend line under the flows. */
+export const HandoffLegend = () => (
+  <p className="muted">
+    <span className="hub-step-handoff-key">Dashed line</span>: typed in by hand, not passed on.
+  </p>
+);
+
 /** A workspace: its processes, each drawn step by step, then every screen it
  * owns so a single step can be run by hand. */
 export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
@@ -399,9 +406,7 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
   return (
     <div className="page hub">
       <h1>{w.name}</h1>
-      <p className="help-text">
-        {w.purpose} Click a step for its details; open it from there. A dashed <span className="hub-step-handoff-key">re-entered by hand</span> line means that output is typed into the next step, not passed on.
-      </p>
+      <p className="help-text">{w.purpose}</p>
       <WorkspaceDrawing id={w.id} accent={tone === "wait" ? "wait" : tone === "now" ? "now" : null} />
       {error && <p className="error-text" role="alert">Runs could not be loaded: {error}. Step states are unknown until the backend responds.</p>}
       {usesFlow && flowError && <p className="error-text" role="alert">The stewardship flow could not be loaded: {flowError}. Stage numbers are unknown.</p>}
@@ -413,6 +418,7 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
       {w.processes.map((p) => (
         <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} activity={activity} />
       ))}
+      <HandoffLegend />
     </div>
   );
 }

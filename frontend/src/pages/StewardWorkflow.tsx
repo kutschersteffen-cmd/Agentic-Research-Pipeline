@@ -13,7 +13,6 @@ import { WorkbenchStudio } from "./steward/workbench";
 import { OverlapStudio } from "./steward/overlap";
 import {
   CheckpointStudio,
-  ClientPicker,
   ClientPolicyStudio,
   MonitoringStudio,
   ReportingStudio,
@@ -24,6 +23,9 @@ import type { MetricSource } from "../types";
 
 // "program" is not a stage: it calibrates a client program across stages 2-5 (Part 5).
 const CLIENT_STAGES = new Set(["client_policy", "reporting", "program"]);
+// Workbench and Overlap are sections of Selection; their old links open Selection at that section.
+const IN_SELECTION = new Set(["workbench", "overlap"]);
+const NEW_STREAM = "+new";
 
 /** Which companies the house program covers (see backend stewardship/universe.py).
  * Portfolio holdings make stewardship share company ids with Risk Monitoring,
@@ -130,7 +132,8 @@ function AddStream({ onCreated }: { onCreated: (id: string) => void }) {
 /** The stage lives in the URL (`#/stewardship/<stage>`), so Back moves between
  * stages and a process step can open a stage studio directly. */
 export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
-  const tab: string = STAGE_TABS.some((t) => t.id === initialTab) ? initialTab! : "overview";
+  const asked: string = STAGE_TABS.some((t) => t.id === initialTab) ? initialTab! : "overview";
+  const tab = IN_SELECTION.has(asked) ? "selection" : asked;
   const [streams, setStreams] = useState<StewardshipStream[]>([]);
   const [stream, setStream] = useState("house");
   const [houseFlow, setHouseFlow] = useState<StewardshipFlow | null>(null);
@@ -166,17 +169,35 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
     loadStreams();
   }, [loadStreams]);
   // The Workbench's rows come first: the flow (stage badges) is read once they show, not alongside them.
-  const [flowWanted, setFlowWanted] = useState(tab !== "workbench");
-  const showFlow = useCallback(() => setFlowWanted(true), []);
+  const [flowWanted, setFlowWanted] = useState(asked !== "workbench");
+  // #/stewardship/workbench and /overlap scroll to their section once the content above it has loaded.
+  const scrollToSection = useCallback(() => {
+    if (IN_SELECTION.has(asked)) document.getElementById(`steward-${asked}`)?.scrollIntoView();
+  }, [asked]);
+  const showFlow = useCallback(() => {
+    setFlowWanted(true);
+    scrollToSection();
+  }, [scrollToSection]);
   useEffect(() => {
-    if (tab !== "workbench") setFlowWanted(true);
-  }, [tab]);
+    if (asked !== "workbench") setFlowWanted(true);
+  }, [asked]);
   useEffect(() => {
     if (flowWanted) reload();
   }, [reload, flowWanted]);
 
   // Client stages default to the first client stream when the house is selected.
   const firstClient = streams.find((s) => s.kind === "client")?.stream_id;
+  useEffect(() => {
+    if (CLIENT_STAGES.has(tab) && stream === "house" && firstClient) setStream(firstClient);
+  }, [tab, stream, firstClient]);
+  function chooseProgram(id: string) {
+    if (id === NEW_STREAM) return setAdding(true);
+    setAdding(false);
+    setStream(id);
+    if (id === "house" && CLIENT_STAGES.has(tab)) openTab("overview");
+  }
+  // The house program first, under one name; then each client stream.
+  const programs = [...streams].sort((a, b) => Number(a.kind === "client") - Number(b.kind === "client"));
   function openTab(next: string) {
     setAdding(false);
     if (CLIENT_STAGES.has(next) && stream === "house" && firstClient) setStream(firstClient);
@@ -188,20 +209,18 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
   const stage = tab === "overview" ? undefined : stageFor(tab);
   const mandate = overviewFlow?.stream.mandate;
   const studioProps = stage ? { stage, onChanged: reload, onOpen: openTab } : null;
+  useEffect(scrollToSection, [scrollToSection, stage]);
 
   return (
     <div className="page">
       <h1>Steward Workflow</h1>
-      <p className="help-text">
-        The stewardship process end to end. The overview shows every stage with its key numbers and the decisions waiting; each stage
-        has its own studio to review its data, design and calibrate its rules, and take its decisions.
-      </p>
+      <p className="help-text">Each stage of the stewardship cycle, with the decisions waiting on you.</p>
 
       <nav className="sub-nav workflow-tabs stepper" aria-label="Workflow stages">
         <button className={tab === "overview" ? "nav-tab active" : "nav-tab"} aria-current={tab === "overview" ? "step" : undefined} onClick={() => openTab("overview")}>
           Overview
         </button>
-        {STAGE_TABS.filter((t) => !CLIENT_STAGES.has(t.id)).map((t) => {
+        {STAGE_TABS.filter((t) => !IN_SELECTION.has(t.id) && (stream !== "house" || !CLIENT_STAGES.has(t.id))).map((t) => {
           const n = openCount(stageFor(t.id));
           return (
             <span key={t.id} className="stepper-item">
@@ -218,53 +237,32 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
             </span>
           );
         })}
-        {/* Client work (stages 7-8 and the program) is one control, not three tabs. */}
-        <select
-          className={CLIENT_STAGES.has(tab) ? "nav-tab active" : "nav-tab"}
-          aria-label="Client stages"
-          value={CLIENT_STAGES.has(tab) ? tab : ""}
-          onChange={(e) => e.target.value && openTab(e.target.value)}
-        >
-          <option value="">Client…</option>
-          {STAGE_TABS.filter((t) => CLIENT_STAGES.has(t.id)).map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.n ? `${t.n} ${t.label}` : t.label}
-            </option>
-          ))}
-        </select>
+        <label className="field-label workflow-program">
+          Program
+          <select aria-label="Program" value={adding ? NEW_STREAM : stream} onChange={(e) => chooseProgram(e.target.value)}>
+            {programs.map((s) => (
+              <option key={s.stream_id} value={s.stream_id}>
+                {s.kind === "client" ? s.name : "House program"}
+              </option>
+            ))}
+            <option value={NEW_STREAM}>+ New client stream…</option>
+          </select>
+        </label>
       </nav>
 
       {error && <p className="error-text" role="alert">{error}</p>}
+      {adding && (
+        <AddStream
+          onCreated={async (id) => {
+            await loadStreams();
+            setAdding(false);
+            setStream(id);
+          }}
+        />
+      )}
 
       {tab === "overview" && (
         <>
-          <nav className="sub-nav" aria-label="Process streams">
-            {streams.map((s) => (
-              <button
-                key={s.stream_id}
-                className={s.stream_id === stream && !adding ? "nav-tab active" : "nav-tab"}
-                aria-pressed={s.stream_id === stream && !adding}
-                onClick={() => {
-                  setAdding(false);
-                  setStream(s.stream_id);
-                }}
-              >
-                {s.name}
-              </button>
-            ))}
-            <button className={adding ? "nav-tab active" : "nav-tab"} aria-pressed={adding} onClick={() => setAdding(true)}>
-              + Client stream
-            </button>
-          </nav>
-          {adding && (
-            <AddStream
-              onCreated={async (id) => {
-                await loadStreams();
-                setAdding(false);
-                setStream(id);
-              }}
-            />
-          )}
           {!adding && !overviewFlow && !error && <p className="status-text">Loading stages…</p>}
           {!adding && overviewFlow && (
             <section className="card">
@@ -308,16 +306,24 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
         </>
       )}
 
-      {tab !== "overview" && CLIENT_STAGES.has(tab) && <ClientPicker streams={streams} active={stream} onChange={setStream} onOpen={openTab} />}
       {tab !== "overview" && CLIENT_STAGES.has(tab) && stream === "house" && (
-        <p className="muted card">Choose a client stream above (or create one on the overview) to work on its policy and reporting.</p>
+        <p className="muted card">Choose a client in Program, or "+ New client stream…", to work on its policy and reporting.</p>
       )}
-      {tab !== "overview" && tab !== "program" && tab !== "workbench" && tab !== "overlap" && !stage && loading && <p className="status-text">Loading…</p>}
+      {tab !== "overview" && tab !== "program" && !stage && loading && <p className="status-text">Loading…</p>}
 
       {studioProps && tab === "monitoring" && <MonitoringStudio {...studioProps} />}
       {studioProps && tab === "selection" && <SelectionStudio {...studioProps} />}
-      {tab === "workbench" && <WorkbenchStudio onRowsShown={showFlow} />}
-      {tab === "overlap" && <OverlapStudio />}
+      {tab === "selection" && (
+        <>
+          {/* Each studio brings its own "Workbench" / "Overlap" heading. */}
+          <div id="steward-workbench">
+            <WorkbenchStudio onRowsShown={showFlow} />
+          </div>
+          <div id="steward-overlap">
+            <OverlapStudio />
+          </div>
+        </>
+      )}
       {studioProps && tab === "drafting" && <DraftingStudio {...studioProps} />}
       {studioProps && tab === "voting" && <VotingStudio {...studioProps} />}
       {studioProps && tab === "checkpoint" && <CheckpointStudio {...studioProps} />}

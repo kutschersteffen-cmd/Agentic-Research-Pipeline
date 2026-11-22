@@ -81,9 +81,9 @@ export const WORKSPACES: Workspace[] = [
         steps: [
           { tab: "voting", label: "Proxy Voting", does: "Start a run from meeting agendas; the policy drafts a vote per resolution, a person decides.", handsOn: "Decided ballots", carried: true, runTypes: ["proxy_voting"] },
           // Ballots are counted on the Proxy Voting step, so this stage carries no `stage` (no double count).
-          { tab: "stewardship", sub: "voting", label: "Steward · Voting", does: "Decided ballots next to the house policy behind them.", handsOn: "Votes against policy", carried: true },
+          { tab: "stewardship", sub: "voting", label: "Decided votes", does: "Decided ballots next to the house policy behind them.", handsOn: "Votes against policy", carried: true },
           { tab: "stewardship", sub: "checkpoint", stage: "checkpoint", label: "Checkpoint", does: "Review every vote decided against the policy's recommendation, with its reason.", handsOn: "Votes against management", carried: true },
-          { tab: "engagement", label: "Engagement", does: "A vote against management raises a vote_outcome trigger; open the engagement from Monitoring." },
+          { tab: "engagement", label: "Engagement", does: "A vote against management opens a trigger in Monitoring." },
         ],
       },
       {
@@ -210,8 +210,8 @@ export const WORKSPACES: Workspace[] = [
     processes: [
       {
         id: "thematic",
-        title: "Launch a thematic product",
-        cadence: "Per product idea",
+        title: "Design a strategy",
+        cadence: "Per idea",
         outcome: "A ratified theme, a reviewed universe and an effective-dated index calibration.",
         steps: [
           { tab: "emergingThemes", label: "Spot", does: "Candidate themes from filings and news, gated on corporate action.", handsOn: "Promoted theme", carried: true, runTypes: ["emerging_themes"] },
@@ -220,7 +220,7 @@ export const WORKSPACES: Workspace[] = [
           { tab: "review", label: "Review", does: "Resolve contested classifications.", handsOn: "Reviewed universe", carried: true, runTypes: ["theme"] },
           { tab: "decision", label: "Score", does: "Score and tier the universe in Decision Studio; ratify, then publish.", handsOn: "Published scores", carried: true },
           { tab: "index", label: "Construct", does: "Screen, select, weight and cap from the published scores; save an effective-dated calibration.", handsOn: "Index composition", runTypes: ["calibration"] },
-          { tab: "reporting", label: "Report", does: "Product committee deck." },
+          { tab: "reporting", label: "Report", does: "Committee deck." },
         ],
       },
       {

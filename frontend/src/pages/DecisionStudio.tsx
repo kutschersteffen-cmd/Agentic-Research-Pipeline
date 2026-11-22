@@ -678,7 +678,7 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
   return (
     <div className="page">
       <h1>Decision Studio</h1>
-      <p className="help-text">Turn any per-company table into a scored, ranked and tiered decision. The numbers are computed deterministically, with no LLM, and every automated choice and edit is recorded.</p>
+      <p className="help-text">Score, rank and tier companies from any table. Fixed rules do the maths, not the AI model, and every choice is logged.</p>
 
       <div className="sub-nav" role="tablist" aria-label="Decision Studio steps">
         {SUB_TABS.map((tab) => (

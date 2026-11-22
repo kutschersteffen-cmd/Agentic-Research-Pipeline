@@ -258,7 +258,6 @@ export function XbrlFetchArea({
           ))}
         </select>
       </label>
-      <p className="help-text">Choose a run to see its status again, for example after a reload or a visit to another page.</p>
       {runsError && <p className="error-text">Fetch runs could not be loaded ({runsError}).</p>}
 
       {runId && (

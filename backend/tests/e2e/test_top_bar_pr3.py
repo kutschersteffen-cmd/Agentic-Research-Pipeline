@@ -167,8 +167,10 @@ def test_ac41_phone(page):  # noqa: F811
 def test_ac42_lede(page):  # noqa: F811
     _open(page, "/#/stewardiq")
     lede = page.locator(".page > h1 + p").inner_text()
-    assert "Click a step for its details; open it from there." in lede
+    # ui-trim-workspaces C9: the intro is only the purpose; the legend line sits under the flows.
+    assert "Click a step for its details; open it from there." not in lede
     assert "Open a step to work in its screen" not in lede
+    assert page.get_by_text("typed in by hand, not passed on.").count() == 1
 
 
 def _proxy(pg):
