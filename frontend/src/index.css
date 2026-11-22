@@ -2396,6 +2396,28 @@ a.vc-box:hover { border-color: var(--text); }
 .agent-script-line { display: grid; grid-template-columns: 3ch minmax(0, 1fr); gap: var(--s-3); }
 .agent-script-line > :last-child { white-space: pre-wrap; overflow-wrap: anywhere; }
 .agent-ln { text-align: right; color: var(--muted); user-select: none; }
+/* Diff and Audit tabs. */
+.agent-stage-h { font-size: var(--text-sm); margin: var(--s-3) 0 var(--s-1_5); }
+.agent-stage-h:first-child { margin-top: 0; }
+.agent-diff-steps, .agent-audit { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s-1_5); }
+.agent-diff-steps li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1); }
+.agent-step-state { font-size: var(--text-sm); }
+.agent-step-planned, .agent-step-skipped { color: var(--muted); }
+.agent-step-skipped { font-style: italic; }
+.agent-diff-caption { font-size: var(--text-sm); margin: 0 0 var(--s-1_5); }
+.agent-diff { margin: 0; font-size: var(--text-sm); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.agent-diff > span { display: grid; grid-template-columns: 1ch minmax(0, 1fr); gap: var(--s-1); padding: 0 var(--s-1); }
+/* The line text stays var(--text) for contrast on the tint; only the -/+ marker takes the colour. */
+.agent-diff-del { color: var(--text); background: color-mix(in oklch, var(--low) 10%, transparent); }
+.agent-diff-add { color: var(--text); background: color-mix(in oklch, var(--high) 10%, transparent); }
+.agent-diff-del > :first-child { color: color-mix(in srgb, var(--low) 62%, var(--text)); }
+.agent-diff-add > :first-child { color: color-mix(in srgb, var(--high) 62%, var(--text)); }
+.agent-audit-line { margin: 0 0 var(--s-2); overflow-wrap: anywhere; }
+.agent-audit-row { padding: var(--s-2) 0; border-top: 1px solid var(--panel-border); }
+.agent-audit-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1); margin-bottom: var(--s-1); }
+.agent-audit-fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--s-0_5) var(--s-2); margin: 0; font-size: var(--text-sm); }
+.agent-audit-fields dt { color: var(--muted); }
+.agent-audit-fields dd { margin: 0; overflow-wrap: anywhere; }
 /* Drawers are modal <dialog>s pinned to one edge; the dialog has no padding, so a click on it is a backdrop click. */
 dialog.agent-drawer { margin: 0; padding: 0; top: 0; bottom: 0; height: 100%; max-height: none; width: min(360px, calc(100vw - 48px)); max-width: none; border: 0; background: var(--panel); color: var(--text); box-shadow: var(--shadow-lg); }
 dialog.agent-drawer-left { left: 0; right: auto; }
