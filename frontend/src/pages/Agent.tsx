@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import { AskCard } from "../components/AskCards";
+import { ExplorationCard } from "../components/ExplorationCard";
 import { StepTabs } from "../components/StepTabs";
 import {
   answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  askingIn, nearEnd, needsYouLine, scriptLines, streamResized, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
+  askingIn, nearEnd, needsYouLine, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
 } from "../lib/agent";
 import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
 import { when } from "../lib/runs";
-import type { AgentAsk, AskThread, InboxRow } from "../types";
+import type { AgentAsk, AskThread, Exploration, InboxRow } from "../types";
 
 const POLL_MS = 3000;
 const NARROW = "(max-width: 899.98px)";
@@ -50,7 +51,10 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
 }) {
   const planId = selected?.kind === "plan" ? selected.id : null;
   const askId = selected?.kind === "ask" ? selected.id : null;
+  const explorationId = selected?.kind === "exploration" ? selected.id : null;
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [explorations, setExplorations] = useState<Exploration[]>([]);
+  const [exploration, setExploration] = useState<Exploration | null>(null);
   const [askThreads, setAskThreads] = useState<AskThread[]>([]);
   const [inbox, setInbox] = useState<InboxRow[]>([]);
   const [waiting, setWaiting] = useState<number | null>(null);
@@ -81,12 +85,17 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const loadList = useCallback(() => {
     api.listPlans().then(setPlans).catch((e: Error) => setError(`Threads could not be loaded: ${e.message}.`));
     api.listAskThreads().then(setAskThreads).catch((e: Error) => setError(`Threads could not be loaded: ${e.message}.`));
+    api.listExplorations().then(setExplorations).catch((e: Error) => setError(`Threads could not be loaded: ${e.message}.`));
     loadInbox();
   }, [loadInbox]);
   const loadPlan = useCallback(() => {
     if (!planId) return setPlan(null);
     api.getPlan(planId).then(setPlan).catch((e: Error) => setError(`The plan could not be loaded: ${e.message}.`));
   }, [planId]);
+  const loadExploration = useCallback(() => {
+    if (!explorationId) return setExploration(null);
+    api.getExploration(explorationId).then(setExploration).catch((e: Error) => setError(`The exploration could not be loaded: ${e.message}.`));
+  }, [explorationId]);
   // A thread's asks; a response that lands after another thread was picked is dropped.
   const loadAsks = useCallback(() => {
     if (!askId) return;
@@ -95,6 +104,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
 
   useEffect(loadList, [loadList]);
   useEffect(loadPlan, [loadPlan]);
+  useEffect(loadExploration, [loadExploration]);
   useEffect(loadAsks, [loadAsks]);
   // A viewer's composer opens in Plan; once the signed-in user is known to be able to ask, it opens in Ask.
   useEffect(() => setMode(composerModes(canAsk).initial), [canAsk]);
@@ -109,14 +119,15 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     setJump(false);
     const el = scroller.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [planId, askId]);
+  }, [planId, askId, explorationId]);
   // When the stream grows, or its box shrinks under a taller composer, follow it down only if the reader was at the end.
   useEffect(() => {
     const el = scroller.current;
     if (!el || !content.current) return;
     let prev = { height: el.scrollHeight, box: el.clientHeight };
     const ro = new ResizeObserver(() => {
-      const next = streamResized({ wasNearEnd: atEnd.current, contentGrew: el.scrollHeight > prev.height, boxShrank: el.clientHeight < prev.box, nowNearEnd: nearEnd(el) });
+      const before = { scrollHeight: prev.height, clientHeight: prev.box };
+      const next = streamResized({ wasNearEnd: wasNearEnd(atEnd.current, el.scrollTop, before), contentGrew: el.scrollHeight > prev.height, boxShrank: el.clientHeight < prev.box, nowNearEnd: nearEnd(el) });
       prev = { height: el.scrollHeight, box: el.clientHeight };
       if (next.scrollToEnd) el.scrollTop = el.scrollHeight;
       if (next.jump !== null) setJump(next.jump);
@@ -185,6 +196,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     try {
       await fn();
       loadPlan();
+      loadExploration();
       loadList();
       return true;
     } catch (e) {
@@ -228,11 +240,11 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
       setText("");
       return ask(t, false);
     }
-    const req = composerRequest("Plan", t, selected); // a new plan opens at its end; a failed one leaves the stream be
+    const req = composerRequest(mode, t, selected); // a new plan opens at its end; a failed one leaves the stream be
     await act(async () => {
-      const p = await api.agentPost<Plan>(req.path, req.body);
+      const created = await api.agentPost<Plan | Exploration>(req.path, req.body);
       setText("");
-      onSelect({ kind: "plan", id: p.id });
+      onSelect({ kind: mode === "Explore" ? "exploration" : "plan", id: created.id });
     });
   }
 
@@ -251,7 +263,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     loadList();
   }
 
-  const rows = threadRows(plans, askThreads);
+  const rows = threadRows(plans, askThreads, explorations);
   const isSelected = (r: ThreadRow) => r.kind === selected?.kind && r.id === selected.id;
   // `id` keeps the column's and the drawer's ids apart; `close` is set inside a drawer.
   const threads = (id: string, close?: () => void) => (
@@ -299,7 +311,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
       </div>
       <div id={`${id}-panel`} role="tabpanel" aria-label={STAGE_TABS.find((t) => t.id === tab)!.label}>
         {!plan ? (
-          <p className="muted">The selected plan’s script, changes and audit trail show here.</p>
+          <p className="muted">{explorationId ? "An exploration has no script, changes or audit trail: its code and tool calls are in the stream." : "The selected plan’s script, changes and audit trail show here."}</p>
         ) : tab === "script" ? (
           <pre className="mono agent-script" aria-label="Plan script, read-only">
             {scriptLines(plan.script).map((l) => (
@@ -337,9 +349,11 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
         <aside className="agent-side agent-threads" aria-labelledby="agent-threads-h">{threads("agent-threads")}</aside>
 
         <section className="agent-stream" aria-label="Stream">
-          <div className="agent-scroll" ref={scroller} onScroll={onStreamScroll} tabIndex={0} aria-label="Conversation">
+          <div className="agent-scroll" ref={scroller} onScroll={onStreamScroll} tabIndex={0} role="region" aria-label="Conversation">
           <div ref={content}>
-          {plan && planId ? (
+          {exploration && explorationId ? (
+            <ExplorationCard key={exploration.id} exploration={exploration} busy={busy} onAccept={() => act(() => api.acceptExploration(exploration.id))} />
+          ) : plan && planId ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />
           ) : askId || askingIn(asking, null) ? (
             <AskStream asks={asks.filter((a) => a.thread_id === askId)} asking={askingIn(asking, askId)} canAsk={canAsk} onDrafted={drafted} />

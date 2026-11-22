@@ -2342,6 +2342,8 @@ a.vc-box:hover { border-color: var(--text); }
    threads column, the stream and the stage scroll on their own, and the composer stays at the bottom. */
 @media (min-height: 560px) {
   .app-shell:has(.agent-page) { height: 100vh; height: 100dvh; min-height: 0; }
+  /* The top bar and workspace row keep their height; only the main area gives way to a long thread. */
+  .app-shell:has(.agent-page) > :not(.app-main) { flex: none; }
   .app-shell:has(.agent-page) > .app-main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding-bottom: var(--s-4); }
   .page.agent-page { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; width: 100%; }
   .agent-page > .agent-head, .agent-page > .error-text { flex: none; }
@@ -2902,3 +2904,10 @@ dialog.agent-drawer::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   .wb-filters { position: relative; }
   .wb-filter-panel { left: 0; right: 0; width: auto; }
 }
+.status-exploratory { color: var(--mid); }
+.status-exploratory::before { background: transparent; outline: 1px dashed currentColor; outline-offset: -1px; }
+/* Ink words on every row ground (green text was 4.05:1 on a selected row); the square keeps the green. */
+.status-accepted { color: var(--ink); }
+.status-accepted::before { background: var(--high); }
+.agent-badge { font-size: var(--text-sm); color: var(--mid); border: 1px dashed var(--mid); padding: 0 var(--s-1); }
+.agent-exploration-code summary { cursor: pointer; }

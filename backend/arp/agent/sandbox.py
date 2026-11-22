@@ -116,6 +116,20 @@ async def call_capability(capability_id: str, args: BaseModel, principal: Princi
     raise LookupError(capability_id)
 
 
+async def check(code: str, settings: Settings | None = None) -> dict[str, Any]:
+    """The sandbox's code check, `{ok, error}`; a sandbox that does not answer passes the code on to `execute`, which
+    then reports that it did not answer."""
+    settings = settings or get_settings()
+    try:
+        async with httpx.AsyncClient(timeout=SANDBOX_TIMEOUT_SECONDS) as client:
+            res = await client.post(f"{settings.sandbox_url.rstrip('/')}/check", json={"code": code})
+        res.raise_for_status()
+        out = res.json()
+        return {"ok": bool(out["ok"]), "error": out.get("error")}
+    except (httpx.HTTPError, ValueError, KeyError, TypeError):
+        return {"ok": True, "error": None}
+
+
 async def execute(code: str, principal: Principal, settings: Settings | None = None) -> dict[str, Any]:
     """Runs `code` in the sandbox with a fresh token for the sandbox lane. Returns {status, result, error, tool_calls}."""
     settings = settings or get_settings()

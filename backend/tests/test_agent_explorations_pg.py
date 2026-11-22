@@ -28,11 +28,16 @@ def standins(tmp_path):
 
 @pytest.fixture
 def sandbox_service(monkeypatch):
-    """Answers /execute with `reply(request_json)`; records each request."""
-    state = {"requests": [], "reply": lambda body: {"status": "done", "result": 1, "error": None}}
+    """Answers /execute with `reply(request_json)` and records each such request; answers /check with
+    `check(request_json)` and records its code in `checked`."""
+    state = {"requests": [], "reply": lambda body: {"status": "done", "result": 1, "error": None},
+             "checked": [], "check": lambda body: {"ok": True, "error": None}}
 
     def handler(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
+        if request.url.path == "/check":
+            state["checked"].append(body["code"])
+            return httpx.Response(200, json=state["check"](body))
         state["requests"].append((str(request.url), body))
         return httpx.Response(200, json=state["reply"](body))
 
@@ -113,3 +118,121 @@ def test_no_stand_in_code_is_502(client, standins, sandbox_service):
     res = client.post("/api/agent/explorations", json={"question": "unknown"})
     assert res.status_code == 502
     assert sandbox_service["requests"] == []
+
+
+# Slice 10: the model call and its retry, list and get, accept, inbox rows.
+
+def _parse_check(body):  # what the sandbox's /check answers for code that does not parse
+    if body["code"].rstrip().endswith("("):
+        return {"ok": False, "error": "code does not parse: Unexpected token (3:0)"}
+    return {"ok": True, "error": None}
+
+
+def test_code_that_does_not_parse_gets_one_retry(client, standins, sandbox_service):  # AC-45c
+    sandbox_service["check"] = _parse_check
+    body = _explore(client, standins, "q45c", "return (", "return 1").json()
+    assert (body["status"], body["result"], body["code"]) == ("done", 1, "return 1")
+    assert sandbox_service["checked"] == ["return (", "return 1"]
+    logged = [json.loads(line) for line in (standins / "calls.jsonl").read_text().splitlines()]
+    assert logged == [{"kind": "model", "name": "ExplorationCode", "question": "q45c"}] * 2
+
+
+def test_a_second_parse_failure_is_stored_failed_without_running(client, standins, sandbox_service):
+    sandbox_service["check"] = _parse_check
+    body = _explore(client, standins, "q-bad", "return (", "return (").json()
+    assert (body["status"], body["error"], body["tool_calls"]) == (
+        "failed", "code does not parse: Unexpected token (3:0)", [])
+    assert sandbox_service["requests"] == []
+
+
+def test_a_line_limit_breach_is_not_retried(client, standins, sandbox_service):
+    sandbox_service["check"] = lambda body: {"ok": False, "error": "code exceeds 400 lines"}
+    _explore(client, standins, "q-long", "x", "y")
+    assert sandbox_service["checked"] == ["x"]
+    assert [sent["code"] for _, sent in sandbox_service["requests"]] == ["x"]  # execute reports the breach itself
+
+
+def test_real_model_gets_the_declarations_and_the_parse_error(pg, sandbox_service, fake_llm):
+    import asyncio
+
+    from arp.agent.explorations import ExplorationCode, explore
+
+    sandbox_service["check"] = _parse_check
+    llm = fake_llm({"ExplorationCode": [ExplorationCode(code="return ("), ExplorationCode(code="return 2")]})
+    settings = Settings(standins_dir=None, sandbox_url="http://sandbox.test", llm_model="claude-sonnet-5-5")
+    principal = Principal(user_id="alice", name="alice", role="analyst")
+    row = asyncio.run(explore(ExplorationStore(pg), settings, "weights?", principal, llm=llm))
+    assert (row["status"], row["result"], row["model"]) == ("done", 1, "claude-sonnet-5-5")
+    assert row["cost_usd"] > 0  # both attempts are priced
+    first, second = llm.prompts
+    assert "benchmark_sectors(args: { benchmark_id?: string | null })" in first
+    assert "universe_build" not in first
+    assert first.endswith("Question: weights?")
+    assert "return (" in second and "code does not parse: Unexpected token (3:0)" in second
+
+
+def test_declarations_cover_the_sandbox_lane_only():
+    from arp.agent.explorations import declarations
+    from arp.orchestration.capabilities import CATALOG
+
+    text = declarations()
+    for cap in CATALOG:
+        assert (f"  {cap.id}(args:" in text) == (cap.lane == "sandbox")
+
+
+def test_list_newest_first_and_get(client, standins, sandbox_service):
+    a = _explore(client, standins, "qa", "return 1").json()
+    b = _explore(client, standins, "qb", "return 1").json()
+    assert [e["id"] for e in client.get("/api/agent/explorations").json()] == [b["id"], a["id"]]
+    assert client.get(f"/api/agent/explorations/{a['id']}").json() == a
+    for missing in ("00000000-0000-0000-0000-000000000000", "abc"):
+        res = client.get(f"/api/agent/explorations/{missing}")
+        assert (res.status_code, res.json()) == (404, {"detail": "exploration not found"})
+
+
+def test_accept_labels_it_accepted_by_the_user(client, standins, sandbox_service):  # AC-48
+    e = _explore(client, standins, "q48", "return 1").json()
+    res = client.post(f"/api/agent/explorations/{e['id']}/accept")
+    assert res.status_code == 200
+    got = client.get(f"/api/agent/explorations/{e['id']}").json()
+    assert (got["label"], got["accepted_by"]) == ("accepted", "alice")
+    assert got["accepted_at"] is not None
+    client.app.dependency_overrides[current_user] = lambda: Principal(user_id="bob", name="bob", role="analyst")
+    again = client.post(f"/api/agent/explorations/{e['id']}/accept").json()
+    assert (again["accepted_by"], again["accepted_at"]) == ("alice", got["accepted_at"])  # the first acceptance stays
+    res = client.post("/api/agent/explorations/00000000-0000-0000-0000-000000000000/accept")
+    assert (res.status_code, res.json()) == (404, {"detail": "exploration not found"})
+
+
+def test_inbox_lists_explorations_not_yet_accepted(pg, client, standins, sandbox_service):  # AC-50
+    from arp.api.deps import get_run_store
+    from arp.api.routers import plans
+    from arp.orchestration.plan_store import PlanStore
+
+    client.app.dependency_overrides[plans.plan_store] = lambda: PlanStore(pg)
+    client.app.dependency_overrides[get_run_store] = lambda: None
+    waiting = _explore(client, standins, "q50 " + "x" * 80, "return 1").json()
+    done = _explore(client, standins, "q50b", "return 1").json()
+    client.post(f"/api/agent/explorations/{done['id']}/accept")
+    rows = client.get("/api/agent/inbox").json()
+    assert rows == [{"kind": "exploration", "plan_id": None, "seq": None, "exploration_id": waiting["id"],
+                     "title": waiting["question"][:60], "href": f"#/agent/exploration/{waiting['id']}"}]
+
+
+def test_golden_case_passes_on_done_with_every_expected_capability(monkeypatch):  # AC-51's pass rule
+    import asyncio
+
+    from arp.agent import golden
+
+    def runs(status, called, error=None):
+        async def fake(settings, question, principal, llm=None):
+            return "code", "m", 0.0, {"status": status, "result": None, "error": error,
+                                      "tool_calls": [{"capability_id": c, "args": {}, "result_bytes": 1} for c in called]}
+        return fake
+
+    case = {"id": "x", "question": "q", "expected_capabilities": ["benchmark_sectors", "transition_plan"]}
+    for fake, why in [(runs("done", ["transition_plan", "benchmark_sectors"]), None),
+                      (runs("done", ["benchmark_sectors"]), "did not call transition_plan"),
+                      (runs("failed", [], "boom"), "failed: boom")]:
+        monkeypatch.setattr(golden, "run_question", fake)
+        assert asyncio.run(golden.run_case(None, None, case)) == why

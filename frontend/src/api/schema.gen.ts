@@ -138,13 +138,54 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Explorations
+         * @description Every exploration, newest first.
+         */
+        get: operations["list_explorations_api_agent_explorations_get"];
         put?: never;
         /**
          * Create Exploration
          * @description Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed.
          */
         post: operations["create_exploration_api_agent_explorations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/explorations/{exploration_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Exploration */
+        get: operations["get_exploration_api_agent_explorations__exploration_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/explorations/{exploration_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Exploration
+         * @description A person accepts the exploration's result; its label becomes `accepted`.
+         */
+        post: operations["accept_exploration_api_agent_explorations__exploration_id__accept_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -160,7 +201,8 @@ export interface paths {
         };
         /**
          * Inbox
-         * @description Draft plans and calls awaiting review, oldest first (a plan by its `created_at`, a call by its `started_at`).
+         * @description Draft plans, calls awaiting review and explorations not yet accepted, oldest first (a plan or an exploration
+         *     by its `created_at`, a call by its `started_at`).
          */
         get: operations["inbox_api_agent_inbox_get"];
         put?: never;
@@ -4378,6 +4420,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/refine/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Documents
+         * @description Every RFP project, then every report with a deck, each group newest first. Any signed-in role.
+         */
+        get: operations["get_documents_api_refine_documents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/refine/threads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Threads
+         * @description One row per document with at least one turn, newest first by its newest turn. Any signed-in role.
+         */
+        get: operations["get_threads_api_refine_threads_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/refine/turns/{turn_id}": {
         parameters: {
             query?: never;
@@ -4786,6 +4868,43 @@ export interface paths {
          * @description Removes an unfinished report's folder. A finished one, or one still being worked on, is never removed.
          */
         delete: operations["discard_report_api_reports__report_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reports/{report_id}/deck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Deck */
+        get: operations["get_deck_api_reports__report_id__deck_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reports/{report_id}/deck/html": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Deck Html
+         * @description The deck as the house HTML, for the Refine live view; the same renderer the export starts from.
+         */
+        get: operations["get_deck_html_api_reports__report_id__deck_html_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -17093,6 +17212,15 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** RefineDocument */
+        RefineDocument: {
+            /** Doc Id */
+            doc_id: string;
+            /** Kind */
+            kind: string;
+            /** Title */
+            title: string;
+        };
         /** RefineHistoryItem */
         RefineHistoryItem: {
             /** Message */
@@ -17106,6 +17234,24 @@ export interface components {
             id: number | null;
             /** Reason */
             reason: string;
+        };
+        /** RefineThread */
+        RefineThread: {
+            /** Doc Id */
+            doc_id: string;
+            /** Kind */
+            kind: string;
+            /**
+             * Last Turn At
+             * Format: date-time
+             */
+            last_turn_at: string;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+            /** Turns */
+            turns: number;
         };
         /** RefineTurn */
         RefineTurn: {
@@ -21653,6 +21799,26 @@ export interface operations {
             };
         };
     };
+    list_explorations_api_agent_explorations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exploration"][];
+                };
+            };
+        };
+    };
     create_exploration_api_agent_explorations_post: {
         parameters: {
             query?: never;
@@ -21665,6 +21831,68 @@ export interface operations {
                 "application/json": components["schemas"]["ExplorationRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exploration"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_exploration_api_agent_explorations__exploration_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exploration"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_exploration_api_agent_explorations__exploration_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -29591,6 +29819,46 @@ export interface operations {
             };
         };
     };
+    get_documents_api_refine_documents_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefineDocument"][];
+                };
+            };
+        };
+    };
+    get_threads_api_refine_threads_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefineThread"][];
+                };
+            };
+        };
+    };
     get_turn_api_refine_turns__turn_id__get: {
         parameters: {
             query?: never;
@@ -30416,6 +30684,70 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_deck_api_reports__report_id__deck_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_deck_html_api_reports__report_id__deck_html_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
             };
             /** @description Validation Error */
             422: {

@@ -1,6 +1,6 @@
 // The Agent screen's rules, kept out of the page so they are testable without rendering it
 // (spec 2026-11-21-agent-panel-code-mode, Phase 3).
-import type { AgentAsk, AskThread, InboxRow } from "../types";
+import type { AgentAsk, AskThread, Exploration, InboxRow } from "../types";
 import { askErrorText } from "./askError.ts";
 import type { Plan } from "./plans";
 
@@ -85,14 +85,14 @@ export const needsYouLine = (n: number): string => `${n} more in Needs you`;
 
 // Phase 7: ask threads (spec agent-panel-code-mode, D10 to D13).
 
-export type Mode = "Ask" | "Plan";
+export type Mode = "Ask" | "Plan" | "Explore";
 
-/** The selected thread: a plan or an ask thread. */
-export type Selection = { kind: "plan" | "ask"; id: string } | null;
+/** The selected thread: a plan, an ask thread or an exploration. */
+export type Selection = { kind: "plan" | "ask" | "exploration"; id: string } | null;
 
 /** The composer's mode buttons, and the one pressed when it opens: a viewer cannot ask. */
 export const composerModes = (canAsk: boolean): { modes: Mode[]; initial: Mode } =>
-  canAsk ? { modes: ["Ask", "Plan"], initial: "Ask" } : { modes: ["Plan"], initial: "Plan" };
+  canAsk ? { modes: ["Ask", "Plan", "Explore"], initial: "Ask" } : { modes: ["Plan", "Explore"], initial: "Plan" };
 
 /** The composer's label, submit button (and its text while sending) and help line per mode. */
 export const COMPOSER_COPY: Record<Mode, { label: string; submit: string; sending: string; help: string; placeholder: string }> = {
@@ -101,12 +101,15 @@ export const COMPOSER_COPY: Record<Mode, { label: string; submit: string; sendin
   Plan: { label: "Research brief", submit: "Draft plan", sending: "Drafting…",
     help: "Enter drafts a plan; Shift+Enter adds a line. Name a saved universe in the brief.",
     placeholder: 'Grid-storage companies in the saved universe "eu listed": extract green capex, score, report' },
+  Explore: { label: "Question", submit: "Explore", sending: "Exploring…", help: "Enter runs an exploration; Shift+Enter adds a line.",
+    placeholder: "Which holdings lack a reviewed transition plan, by sector weight?" },
 };
 
-/** What the composer sends on Enter: an ask (a follow-up when an ask thread is selected) or a plan brief.
- * `Plan` never sends `source_ask_id`. */
+/** What the composer sends on Enter: an ask (a follow-up when an ask thread is selected), a plan brief or an
+ * exploration's question. `Plan` and `Explore` never send `source_ask_id`. */
 export function composerRequest(mode: Mode, text: string, selected: Selection): { path: string; body: Record<string, string> } {
   if (mode === "Plan") return { path: "/api/plans", body: { brief: text } };
+  if (mode === "Explore") return { path: "/api/agent/explorations", body: { question: text } };
   return { path: "/api/agent/asks", body: selected?.kind === "ask" ? { question: text, thread_id: selected.id } : { question: text } };
 }
 
@@ -142,15 +145,32 @@ export function untilCancelled<T>(load: Promise<T>, onValue: (v: T) => void, onE
   return () => { live = false; };
 }
 
-/** One row of the thread list: a plan or an ask thread. */
-export type ThreadRow = { kind: "plan" | "ask"; id: string; title: string; status: string; created_at: string };
+/** One row of the thread list: a plan, an ask thread or an exploration (its chip is its label). */
+export type ThreadRow = { kind: "plan" | "ask" | "exploration"; id: string; title: string; status: string; created_at: string };
 
-/** Plans and ask threads in one list, newest first by `created_at`. */
-export function threadRows(plans: Plan[], asks: AskThread[]): ThreadRow[] {
+/** Plans, ask threads and explorations in one list, newest first by `created_at`. */
+export function threadRows(plans: Plan[], asks: AskThread[], explorations: Exploration[] = []): ThreadRow[] {
   return [
     ...plans.map((p) => ({ kind: "plan" as const, id: p.id, title: threadTitle(p.brief), status: p.status, created_at: p.created_at })),
     ...asks.map((a) => ({ kind: "ask" as const, id: a.thread_id, title: a.title, status: a.status, created_at: a.created_at })),
+    ...explorations.map((e) => ({ kind: "exploration" as const, id: e.id, title: threadTitle(e.question), status: e.label, created_at: e.created_at })),
   ].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+}
+
+/** The badge an exploration's card shows until a person accepts it (AC-49); none once accepted. */
+export const explorationBadge = (e: Pick<Exploration, "label">): string | null => (e.label === "accepted" ? null : "Exploratory: not reviewed");
+
+type Cell = string | number | boolean | null;
+
+/** An exploration's result as a table when it is a non-empty list of flat objects (every value a string, number,
+ * boolean or null); columns in first-seen order. Anything else is shown as JSON, so this answers null. */
+export function resultTable(result: unknown): { columns: string[]; rows: Cell[][] } | null {
+  if (!Array.isArray(result) || result.length === 0) return null;
+  const flat = (v: unknown) => v === null || ["string", "number", "boolean"].includes(typeof v);
+  const plain = (r: unknown): r is Record<string, unknown> => typeof r === "object" && r !== null && !Array.isArray(r) && Object.values(r).every(flat);
+  if (!result.every(plain)) return null;
+  const columns = [...new Set(result.flatMap((r) => Object.keys(r)))];
+  return { columns, rows: result.map((r) => columns.map((c) => (c in r ? (r[c] as Cell) : null))) };
 }
 
 /** How close to the end of the stream, in px, still counts as reading the newest turn. */
@@ -159,6 +179,13 @@ export const NEAR_END_PX = 80;
 /** Whether the stream is scrolled to within `NEAR_END_PX` of its end. */
 export const nearEnd = (m: { scrollTop: number; scrollHeight: number; clientHeight: number }): boolean =>
   m.scrollHeight - m.scrollTop - m.clientHeight <= NEAR_END_PX;
+
+/** Whether the reader was at the stream's end before a resize: the last scroll said so (`atEnd`), or the scroll
+ * position was within reach of the end as the stream measured before the resize. The second part keeps a fast
+ * answer followed: the scroll event of the stream's own follow-down can land after the next turn has already grown
+ * the stream, and then reads as scrolled up. */
+export const wasNearEnd = (atEnd: boolean, scrollTop: number, before: { scrollHeight: number; clientHeight: number }): boolean =>
+  atEnd || nearEnd({ scrollTop, ...before });
 
 /** What the stream does when its content or its box changes size. A reader who was near the end stays there: new
  * content (a turn, `Working…`, an answer) or a box squeezed by a taller composer scrolls it down. A reader who had

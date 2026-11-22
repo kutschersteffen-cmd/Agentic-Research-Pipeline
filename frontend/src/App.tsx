@@ -137,9 +137,10 @@ function readRoute() {
   return parseHash();
 }
 
-/** `#/agent/<plan_id>` selects a plan, `#/agent/ask/<thread_id>` an ask thread. */
+/** `#/agent/<plan_id>` selects a plan, `#/agent/ask/<thread_id>` an ask thread, `#/agent/exploration/<id>` an
+ * exploration. */
 function agentSelection(params: string[]): Selection {
-  if (params[0] === "ask") return params[1] ? { kind: "ask", id: params[1] } : null;
+  if (params[0] === "ask" || params[0] === "exploration") return params[1] ? { kind: params[0], id: params[1] } : null;
   return params[0] ? { kind: "plan", id: params[0] } : null;
 }
 
@@ -314,7 +315,7 @@ function App() {
         {active === "agent" && (
           <Agent selected={agentSelection(route.params)} canAsk={canAsk} focusToken={agentFocus} pendingAsk={agentAsk}
             onPendingAskTaken={() => setAgentAsk(null)}
-            onSelect={(s) => (s ? navigate("agent", ...(s.kind === "ask" ? ["ask", s.id] : [s.id])) : navigate("agent"))} />
+            onSelect={(s) => (s ? navigate("agent", ...(s.kind === "plan" ? [s.id] : [s.kind, s.id])) : navigate("agent"))} />
         )}
         {active === "stewardship" && <StewardWorkflow initialTab={route.params[0]} />}
         {active === "engagement" && <EngagementDashboard />}
