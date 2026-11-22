@@ -52,7 +52,9 @@ test("pr3_track_css", () => {
 
 test("pr3_ac42_copy", () => {
   const src = readFileSync(new URL("../src/pages/ProcessHub.tsx", import.meta.url), "utf8");
-  assert.ok(src.includes("Click a step for its details; open it from there."));
+  // ui-trim-workspaces C9: the intro is only the purpose; one legend line under the flows.
+  assert.ok(src.includes(": typed in by hand, not passed on."));
+  assert.ok(!src.includes("Click a step for its details; open it from there."));
   assert.ok(!src.includes("Open a step to work in its screen"));
 });
 

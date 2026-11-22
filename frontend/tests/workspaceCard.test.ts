@@ -35,7 +35,7 @@ test("AC-9: awaits only where a dot waits", () => {
   assert.deepEqual(got, { StewardIQ: true, Argus: true, "Transition Intelligence Platform": false, "Strategy": false, "Data Hub": false });
 });
 
-test("AC-10: busy Strategy now line names the failed process", () => assert.equal(view("Strategy", busy).now, "Launch a thematic product"));
+test("AC-10: busy Strategy now line names the failed process", () => assert.equal(view("Strategy", busy).now, "Design a strategy"));
 test("AC-11: busy Data Hub now line", () => assert.equal(view("Data Hub", busy).now, "No runs yet"));
 test("AC-12: calm Argus now line gives the last run's age", () => assert.equal(view("Argus", calm).now, "Last run 2 h ago"));
 
@@ -158,7 +158,7 @@ test("pol_ac11_failed_processes", () => {
   const watching = lab.processes.filter((p) => p.steps.some((s) => s.runTypes?.includes("calibration"))).map((p) => p.title);
   assert.ok(watching.length >= 1);
   assert.deepEqual(failedProcesses(lab, [run("calibration", "failed")], null, null), watching);
-  assert.deepEqual(failedProcesses(lab, [run("emerging_themes", "failed")], null, null), ["Launch a thematic product"]);
+  assert.deepEqual(failedProcesses(lab, [run("emerging_themes", "failed")], null, null), ["Design a strategy"]);
   assert.deepEqual(failedProcesses(lab, [], null, null), []);
   assert.deepEqual(failedProcesses(lab, null, null, null), []);
 });

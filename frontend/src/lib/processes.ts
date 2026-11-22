@@ -210,8 +210,8 @@ export const WORKSPACES: Workspace[] = [
     processes: [
       {
         id: "thematic",
-        title: "Launch a thematic product",
-        cadence: "Per product idea",
+        title: "Design a strategy",
+        cadence: "Per idea",
         outcome: "A ratified theme, a reviewed universe and an effective-dated index calibration.",
         steps: [
           { tab: "emergingThemes", label: "Spot", does: "Candidate themes from filings and news, gated on corporate action.", handsOn: "Promoted theme", carried: true, runTypes: ["emerging_themes"] },
@@ -220,7 +220,7 @@ export const WORKSPACES: Workspace[] = [
           { tab: "review", label: "Review", does: "Resolve contested classifications.", handsOn: "Reviewed universe", carried: true, runTypes: ["theme"] },
           { tab: "decision", label: "Score", does: "Score and tier the universe in Decision Studio; ratify, then publish.", handsOn: "Published scores", carried: true },
           { tab: "index", label: "Construct", does: "Screen, select, weight and cap from the published scores; save an effective-dated calibration.", handsOn: "Index composition", runTypes: ["calibration"] },
-          { tab: "reporting", label: "Report", does: "Product committee deck." },
+          { tab: "reporting", label: "Report", does: "Committee deck." },
         ],
       },
       {
