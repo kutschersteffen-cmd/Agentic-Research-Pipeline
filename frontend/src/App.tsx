@@ -51,8 +51,9 @@ const IndexBuilder = lazy(() => import("./pages/IndexBuilder").then((x) => ({ de
 const ArgusWalkthrough = lazy(() => import("./pages/ArgusWalkthrough").then((x) => ({ default: x.ArgusWalkthrough })));
 const Company = lazy(() => import("./pages/Company").then((x) => ({ default: x.Company })));
 const XbrlFacts = lazy(() => import("./pages/XbrlFacts").then((x) => ({ default: x.XbrlFacts })));
+const DesignStrategy = lazy(() => import("./pages/DesignStrategy").then((x) => ({ default: x.DesignStrategy })));
 const ThemeDossiers = lazy(() => import("./pages/ThemeDossiers").then((x) => ({ default: x.ThemeDossiers })));
-const Plans = lazy(() => import("./pages/Plans").then((x) => ({ default: x.Plans })));
+const Agent = lazy(() => import("./pages/Agent").then((x) => ({ default: x.Agent })));
 const RfpAnswers = lazy(() => import("./pages/RfpAnswers").then((x) => ({ default: x.RfpAnswers })));
 
 const TABS = [
@@ -61,7 +62,7 @@ const TABS = [
   { id: "argus", label: "Argus" },
   { id: "argusWalkthrough", label: "Walkthrough" },
   { id: "transitionIntel", label: "Transition Intel" },
-  { id: "rdLab", label: "R&D Lab" },
+  { id: "rdLab", label: "Strategy" },
   { id: "dataHub", label: "Data Hub" },
   { id: "search", label: "Search" },
   { id: "securityMaster", label: "Security Master" },
@@ -73,12 +74,13 @@ const TABS = [
   { id: "taxonomy", label: "Taxonomy Library" },
   { id: "emergingThemes", label: "Emerging Themes" },
   { id: "themes", label: "Theme dossiers" },
+  { id: "designStrategy", label: "Design a strategy" },
   { id: "backgroundAgents", label: "Background Agents" },
   { id: "transitionBarrier", label: "Transition Barriers" },
   { id: "portfolio-monitoring", label: "Risk Monitoring" },
-  { id: "review", label: "Review Queue" },
+  { id: "review", label: "Needs you" },
   { id: "history", label: "Run History" },
-  { id: "plans", label: "Research Plans" },
+  { id: "agent", label: "Agent" },
   { id: "stewardship", label: "Steward Workflow" },
   { id: "engagement", label: "Engagement" },
   { id: "voting", label: "Proxy Voting" },
@@ -205,7 +207,8 @@ function App() {
   const canAsk = me != null && me.role !== "viewer";
   const [askOpen, setAskOpen] = useState(false);
   const [askTurns, setAskTurns] = useState<AskTurn[]>(() => loadTurns());
-  const askRef = useRef<HTMLButtonElement>(null);
+  const [askPending, setAskPending] = useState<{ id: number; question: string } | null>(null);
+  const searchRef = useRef<HTMLButtonElement>(null);
   useEffect(() => saveTurns(askTurns), [askTurns]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -223,7 +226,7 @@ function App() {
   }, [canAsk]);
   function closeAsk() {
     setAskOpen(false);
-    askRef.current?.focus();
+    searchRef.current?.focus();
   }
 
   function go(id: TabId) {
@@ -262,17 +265,21 @@ function App() {
       <AppTopbar
         active={active}
         canAsk={canAsk}
-        askOpen={askOpen}
-        askRef={askRef}
+        searchRef={searchRef}
         waiting={waiting}
         onSearch={() => setPaletteOpen(true)}
-        onAsk={() => setAskOpen(true)}
       />
       <WorkspaceRow hash={window.location.hash} />
       {askOpen && canAsk && (
-        <AskPanel turns={askTurns} setTurns={setAskTurns} onClose={closeAsk} onClear={() => { clearTurns(); setAskTurns([]); }} />
+        <AskPanel turns={askTurns} setTurns={setAskTurns} onClose={closeAsk} onClear={() => { clearTurns(); setAskTurns([]); }} pending={askPending} />
       )}
-      {paletteOpen && <CommandPalette items={[...PALETTE_ITEMS, ...recentRuns.map(runItem)]} onClose={() => setPaletteOpen(false)} />}
+      {paletteOpen && (
+        <CommandPalette
+          items={[...PALETTE_ITEMS, ...recentRuns.map(runItem)]}
+          onClose={() => setPaletteOpen(false)}
+          onAsk={canAsk ? (question) => { setAskPending({ id: Date.now(), question }); setAskOpen(true); } : undefined}
+        />
+      )}
       <main className="app-main" id="main" tabIndex={-1}>
         <ProcessBar tab={active} sub={route.params[0]} />
         {hub && (
@@ -301,13 +308,14 @@ function App() {
         {active === "taxonomy" && route.params[0] === "authority" && <AuthorityTaxonomyRun key={route.params[1] ?? "new"} runId={route.params[1]} />}
         {active === "taxonomy" && route.params[0] !== "authority" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
         {active === "emergingThemes" && <EmergingThemesDetector onNavigate={go} />}
+        {active === "designStrategy" && <DesignStrategy />}
         {active === "themes" && <ThemeDossiers params={route.params} onFindCompanies={sendToTheme} />}
         {active === "backgroundAgents" && <BackgroundAgents />}
         {active === "transitionBarrier" && <TransitionBarrierAssessment params={route.params} />}
         {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool key={route.params[0]} initialSub={route.params[0]} onSendUniverse={sendToArgus} />}
         {active === "review" && <ReviewQueue key={pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "review"} pendingReview={pendingReview} waiting={waiting} />}
         {active === "history" && <RunHistory onOpenReview={openReview} focusRunId={route.params[0] ?? null} />}
-        {active === "plans" && <Plans selectedId={route.params[0] ?? null} onSelect={(id) => navigate("plans", id)} />}
+        {active === "agent" && <Agent selectedId={route.params[0] ?? null} onSelect={(id) => navigate("agent", id)} />}
         {active === "stewardship" && <StewardWorkflow initialTab={route.params[0]} />}
         {active === "engagement" && <EngagementDashboard />}
         {active === "voting" && <VotingRuns selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("voting", id)} />}

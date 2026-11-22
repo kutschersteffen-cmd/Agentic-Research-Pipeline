@@ -4,8 +4,9 @@ version."""
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -31,6 +32,10 @@ class ResearchPlan(Base):
     # Set on a plan instantiated from a saved template.
     template_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     template_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Plan budget: the plan stops before a step once runs plus planner calls cost this much. NULL: no cap.
+    budget_usd: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    # What the planner's model calls for this plan cost, every attempt of every draft and re-plan.
+    planner_cost_usd: Mapped[Decimal] = mapped_column(Numeric, default=0, server_default="0")
 
 
 class ResearchPlanCall(Base):

@@ -27,6 +27,7 @@ from arp.api.deps import (
     settings_dep,
 )
 from arp.api.routers import (
+    agent,
     argus,
     ask,
     authoritative,
@@ -181,6 +182,7 @@ app.include_router(discovery.router, dependencies=[Depends(authorize)])
 app.include_router(plans.router, dependencies=[Depends(authorize)])
 app.include_router(plans.templates_router, dependencies=[Depends(authorize)])
 app.include_router(capabilities.router, dependencies=[Depends(authorize)])
+app.include_router(agent.router, dependencies=[Depends(authorize)])
 app.include_router(identity.router, dependencies=[Depends(authorize)])
 app.include_router(runs.router, dependencies=[Depends(authorize)])
 app.include_router(universe.router, dependencies=[Depends(authorize)])

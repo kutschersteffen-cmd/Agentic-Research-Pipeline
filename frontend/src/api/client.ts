@@ -154,7 +154,7 @@ import type {
   StandardsSaved,
   StandardsView,
 } from "../types";
-import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, WaitingCounts, Walkthrough } from "../types";
+import type { InboxRow, ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, WaitingCounts, Walkthrough } from "../types";
 import type { DecisionInput, DocType, DocumentPassages, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
 import type { BIChartPlan, BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
@@ -283,10 +283,12 @@ export const api = {
   listPlans: () => request<Plan[]>("/api/plans"),
   getPlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}`),
   draftPlan: (brief: string) => request<Plan>("/api/plans", jsonBody("POST", { brief })),
+  editPlan: (id: string, script: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}`, jsonBody("PUT", { script })),
   approvePlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}/approve`, { method: "POST" }),
   runPlan: (id: string) => request<{ plan_id: string; status: string }>(`/api/plans/${encodeURIComponent(id)}/run`, { method: "POST" }),
   replanPlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}/replan`, { method: "POST" }),
   cancelPlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
+  getAgentInbox: () => request<InboxRow[]>("/api/agent/inbox"),
   listRfpLibrary: () => request<RfpLibraryEntry[]>("/api/rfp/library"),
   importRfpLibrary: (files: File[]) => {
     const form = new FormData();

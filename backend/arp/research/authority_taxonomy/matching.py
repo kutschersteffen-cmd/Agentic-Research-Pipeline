@@ -19,6 +19,12 @@ Scope of the taxonomy: {scope}
 For every pair return its left and right index, same_activity (true only when both describe the same activity),
 and a one-sentence reason."""
 
+# Golden recall only: lists from different sources split activities at different granularity, so a part or a
+# superset of an expected activity counts as finding it (issue #494). Consolidation keeps the strict rule.
+_COVER = """
+For this review, same_activity also counts as true when one of the two is a part of the other, or one includes the other plus more
+(for example "hydrogen storage tanks" is part of "hydrogen storage and compression equipment")."""
+
 
 class Match(BaseModel):
     left: int
@@ -44,9 +50,10 @@ def keywords(activity: ActivityDefinition) -> set[str]:
 
 
 async def match_activities(
-    left: list[ActivityDefinition], right: list[ActivityDefinition], *, scope: str, llm: LLMClient
+    left: list[ActivityDefinition], right: list[ActivityDefinition], *, scope: str, llm: LLMClient, cover: bool = False
 ) -> list[Match]:
-    """Exact merge-key matches, plus keyword-candidate pairs the model confirms; each activity matches at most once."""
+    """Exact merge-key matches, plus keyword-candidate pairs the model confirms; each activity matches at most once.
+    With `cover` (golden recall), a part or superset also matches and a right activity may match several left ones."""
     lk, rk = [keywords(a) for a in left], [keywords(a) for a in right]
     exact = {(i, j) for i, a in enumerate(left) for j, b in enumerate(right) if merge_key(a.name) == merge_key(b.name)}
     candidates = [(i, j) for i in range(len(left)) for j in range(len(right)) if (i, j) not in exact and lk[i] & rk[j]]
@@ -55,7 +62,7 @@ async def match_activities(
         listing = "\n".join(f"left={i} {left[i].name!r} | right={j} {right[j].name!r}" for i, j in candidates)
         draft, _usage = await llm.complete_structured(
             system=_SYSTEM.format(scope=scope or "(none given)"),
-            prompt=f"Scope: {scope or '(none given)'}\n\nPairs:\n{listing}",
+            prompt=f"Scope: {scope or '(none given)'}\n{_COVER if cover else ''}\nPairs:\n{listing}",
             output_model=_MatchReviewDraft,
         )
         verdicts = {(p.left, p.right): p.reason for p in draft.pairs if p.same_activity and (p.left, p.right) in candidates}
@@ -63,7 +70,7 @@ async def match_activities(
     used_l: set[int] = set()
     used_r: set[int] = set()
     for i, j in sorted(exact | verdicts.keys()):
-        if i in used_l or j in used_r:
+        if i in used_l or (j in used_r and not cover):
             continue
         used_l.add(i)
         used_r.add(j)

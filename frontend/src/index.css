@@ -2349,7 +2349,61 @@ a.vc-box:hover { border-color: var(--text); }
 .passage-text { white-space: pre-wrap; max-height: 16rem; overflow-y: auto; margin: var(--s-1_5) 0; padding: var(--s-2) var(--s-3); background: var(--well); font-size: var(--text-sm); overflow-wrap: anywhere; }
 .passage-row .chip { background: none; } /* a hint, not a status: outline only */
 .plan-script { overflow-x: auto; max-width: 100%; }
-.table-wrap td.plan-inputs { white-space: normal; overflow-wrap: anywhere; min-width: 12rem; }
+
+/* Agent screen (agent-panel-code-mode spec): threads | stream | stage; below 900px the side columns are drawers. */
+.page.agent-page { max-width: 1400px; }
+.agent-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-4); }
+.agent-head h1 { margin-bottom: 0; }
+.agent-drawer-buttons { display: none; gap: var(--s-2); }
+/* The stream never drops below 360px: between 900px and 1100px the side columns give way first. */
+.agent-shell { display: grid; grid-template-columns: minmax(180px, 240px) minmax(360px, 1fr) minmax(220px, 320px); gap: var(--s-4); align-items: start; }
+.agent-side { position: sticky; top: calc(var(--topbar-h) + var(--s-4)); max-height: calc(100vh - var(--topbar-h) - var(--s-8)); overflow-y: auto; }
+.agent-side-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); margin-bottom: var(--s-2); }
+.agent-side h2 { font-size: var(--text-md); margin: 0; }
+.agent-side .sub-nav { margin-bottom: 0; }
+.agent-thread-list { list-style: none; padding: 0; margin: 0; }
+.agent-thread-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-0_5) var(--s-2); padding: var(--s-1_5) var(--s-2); border-radius: var(--r-md); }
+.agent-thread-list li.selected { background: var(--accent-tint); }
+.agent-thread-list .link-button { text-align: left; overflow-wrap: anywhere; color: var(--text); }
+.agent-thread-list li.selected .link-button { font-weight: 600; }
+.agent-side .agent-inbox-h, .agent-drawer .agent-inbox-h { margin: var(--s-4) 0 var(--s-2); }
+.agent-inbox { list-style: none; padding: 0; margin: 0; }
+.agent-inbox li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-0_5) var(--s-2); padding: var(--s-1_5) var(--s-2); }
+.agent-inbox a { overflow-wrap: anywhere; }
+.agent-inbox-foot { margin: var(--s-2) var(--s-2) 0; }
+.agent-stream { min-width: 0; }
+.agent-stream .agent-card { margin-bottom: var(--s-3); }
+.agent-card h2 { font-size: var(--text-lg); overflow-wrap: anywhere; }
+.agent-card h3 { margin: 0 0 var(--s-2); }
+.agent-card .plan-script.agent-wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+.agent-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1); margin: 0; }
+.agent-steps { margin: 0; padding-left: var(--s-6); display: grid; gap: var(--s-1_5); }
+.agent-params { font-size: var(--text-sm); color: var(--muted); overflow-wrap: anywhere; }
+.agent-approval { border-color: var(--accent); }
+.agent-calls { list-style: none; padding: 0; margin: 0; }
+.agent-call { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-2); padding: var(--s-2) var(--s-3); }
+.agent-failure { border-color: var(--low); }
+.agent-empty { margin: 0 0 var(--s-4); max-width: 62ch; }
+.agent-composer { padding: var(--s-2) 0; }
+.agent-composer textarea { width: 100%; box-sizing: border-box; }
+.agent-composer-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); margin-top: var(--s-2); }
+.agent-composer-foot .muted { margin: 0; }
+/* Long lines wrap under their own text, so the number column stays clear and nothing scrolls sideways. */
+.agent-script { margin: 0; font-size: var(--text-sm); line-height: 1.5; }
+.agent-script-line { display: grid; grid-template-columns: 3ch minmax(0, 1fr); gap: var(--s-3); }
+.agent-script-line > :last-child { white-space: pre-wrap; overflow-wrap: anywhere; }
+.agent-ln { text-align: right; color: var(--muted); user-select: none; }
+/* Drawers are modal <dialog>s pinned to one edge; the dialog has no padding, so a click on it is a backdrop click. */
+dialog.agent-drawer { margin: 0; padding: 0; top: 0; bottom: 0; height: 100%; max-height: none; width: min(360px, calc(100vw - 48px)); max-width: none; border: 0; background: var(--panel); color: var(--text); box-shadow: var(--shadow-lg); }
+dialog.agent-drawer-left { left: 0; right: auto; }
+dialog.agent-drawer-right { left: auto; right: 0; }
+dialog.agent-drawer::backdrop { background: oklch(20% 0.014 58 / 0.55); }
+.agent-drawer-body { box-sizing: border-box; height: 100%; overflow-y: auto; padding: var(--s-4); }
+@media (max-width: 899.98px) {
+  .agent-drawer-buttons { display: flex; }
+  .agent-shell { grid-template-columns: minmax(0, 1fr); }
+  .agent-side { display: none; }
+}
 
 /* Authority taxonomy run screens */
 .authority-run ul { list-style: none; padding: 0; margin: 0 0 var(--s-3); }
@@ -2614,6 +2668,14 @@ a.vc-box:hover { border-color: var(--text); }
 .ws-row a:hover { color: var(--text); }
 .ws-row a[aria-current="page"] { color: var(--text); border-bottom-color: var(--text); }
 .ws-row .ws-row-name { color: var(--text); font-weight: 600; }
+.ws-row-more { display: flex; flex: none; }
+.ws-row-more-btn { display: inline-flex; align-items: center; gap: var(--s-1_5); margin: 0; padding: 0; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--muted); font: inherit; cursor: pointer; white-space: nowrap; }
+.ws-row-more-btn:hover:not(:disabled) { background: none; color: var(--text); }
+.ws-row-more-btn[aria-current="page"] { color: var(--text); border-bottom-color: var(--text); }
+.ws-row-more-pop { position: fixed; z-index: 60; display: grid; gap: var(--s-0_5); width: 240px; padding: var(--s-1_5); background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-lg); box-shadow: var(--shadow-md); }
+.ws-row-more-pop[hidden] { display: none; }
+.ws-row .ws-row-more-pop > a { display: flex; border-bottom: 0; align-items: center; min-height: 36px; padding: 0 var(--s-2); border-radius: var(--r-md); color: var(--text); text-decoration: none; }
+.ws-row .ws-row-more-pop > a:hover, .ws-row .ws-row-more-pop > a[aria-current="page"] { background: var(--well); }
 /* Tablets: the full search pill no longer fits beside Ask, Workspaces and a long badge; it becomes its icon. */
 @media (min-width: 761px) and (max-width: 1024px) {
   .start-topbar-search { width: 36px; padding: 0; justify-content: center; justify-self: center; }

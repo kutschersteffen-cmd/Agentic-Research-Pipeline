@@ -79,12 +79,12 @@ def test_navigating_to_the_review_queue_loads_it_from_the_api(page):
     page.wait_for_load_state("networkidle")
 
     with page.expect_response(lambda r: "/api/review" in r.url) as resp:
-        page.get_by_role("navigation").get_by_text("Review Queue").first.click()
+        page.get_by_role("navigation").get_by_text("Needs you").first.click()  # ui-trim-workspaces: renamed
     assert resp.value.ok
 
     page.wait_for_load_state("networkidle")
-    assert page.title() == "Review Queue · ARP"
-    assert page.get_by_role("heading", name="Review Queue").is_visible()
+    assert page.title() == "Needs you · ARP"
+    assert page.get_by_role("heading", name="Needs you").is_visible()
     assert page.console_errors == []
 
 
@@ -118,8 +118,8 @@ def test_workspace_row_on_argus(page):
     assert row.count() == 1
     links = row.get_by_role("link")
     got = [(links.nth(i).inner_text().strip(), links.nth(i).get_attribute("href")) for i in range(links.count())]
-    assert got == [("Argus", "#/argus"), ("New extraction", "#/argus/new"), ("Walkthrough", "#/argusWalkthrough"),
-                   ("XBRL Facts", "#/xbrl"), ("Review Queue", "#/review")]
+    # ui-trim-workspaces: Walkthrough is the page's "How it works" link, Review Queue is "Needs you" in the top bar.
+    assert got == [("Argus", "#/argus"), ("New extraction", "#/argus/new"), ("XBRL Facts", "#/xbrl")]
     assert links.nth(0).get_attribute("aria-current") == "page"
 
 

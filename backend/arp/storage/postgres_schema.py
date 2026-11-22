@@ -402,6 +402,15 @@ def _plan_call_attempt(conn: Connection) -> None:
     conn.execute(text("ALTER TABLE research_plan_calls ALTER COLUMN attempt SET NOT NULL"))
 
 
+def _plan_planner_cost(conn: Connection) -> None:
+    """research_plans.planner_cost_usd, added nullable by reconciliation: plans drafted before it cost 0."""
+    from sqlalchemy import text
+
+    conn.execute(text("ALTER TABLE research_plans ALTER COLUMN planner_cost_usd SET DEFAULT 0"))
+    conn.execute(text("UPDATE research_plans SET planner_cost_usd = 0 WHERE planner_cost_usd IS NULL"))
+    conn.execute(text("ALTER TABLE research_plans ALTER COLUMN planner_cost_usd SET NOT NULL"))
+
+
 # Run before create_all, so a legacy-shaped table does not shadow a new one of the same name.
 PRE_CREATE_STEPS: tuple[SchemaStep, ...] = (
     SchemaStep("0005_rename_legacy_companies", "companies -> legacy_companies", _rename_legacy_companies),
@@ -497,6 +506,11 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         name="plan_call_attempt",
         description="research_plan_calls.attempt: default 1, existing calls backfilled to 1, then NOT NULL",
         apply=_plan_call_attempt,
+    ),
+    SchemaStep(
+        name="plan_planner_cost",
+        description="research_plans.planner_cost_usd: default 0, existing plans backfilled to 0, then NOT NULL",
+        apply=_plan_planner_cost,
     ),
 )
 

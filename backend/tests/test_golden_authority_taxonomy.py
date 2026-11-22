@@ -98,3 +98,27 @@ def test_ac22e_ac22f_exact_found_after_names(monkeypatch, tmp_path):
     assert "FOUND Manufacture of electrolysers = Manufacture of electrolysers (exact: equal merge key)" in lines
     first = next(i for i, x in enumerate(lines) if x.startswith(("FOUND", "MISSED")))
     assert "Manufacture of electrolysers" in lines[1:first]
+
+
+def test_issue_494_part_of_an_expected_activity_counts_as_found(monkeypatch, tmp_path):
+    # The source groups storage and compression as one item; the model lists tanks and compressors apart.
+    tanks, comp = "Manufacture of hydrogen storage tanks", "Manufacture of hydrogen compressors"
+    quote = "including hydrogen storage tanks and hydrogen compressors"
+    review = _MatchReviewDraft(pairs=[
+        _PairVerdict(left=0, right=0, same_activity=True, reason="tanks are part of it"),
+        _PairVerdict(left=0, right=1, same_activity=True, reason="compressors are part of it"),
+    ])
+    import arp.research.authority_taxonomy.matching as matching
+    real, seen = matching.match_activities, []
+
+    async def spy(*a, **kw):
+        seen.append(kw.get("cover"))
+        return await real(*a, **kw)
+
+    monkeypatch.setattr(matching, "match_activities", spy)
+    result = _invoke(monkeypatch, tmp_path, [tanks, comp], quotes={tanks: quote, comp: quote},
+                     expected=["Manufacture of hydrogen storage and compression equipment"], review=review)
+    assert result.exit_code == 0, result.output
+    assert seen[-1] is True  # the golden recall check asks for covering matches
+    assert f"FOUND Manufacture of hydrogen storage and compression equipment = {tanks} (model: tanks are part of it)" in result.output.splitlines()
+    assert "recall=1.00" in result.output

@@ -23,7 +23,7 @@ dependencies = [
     "httpx>=0.27,<1.0",
     "beautifulsoup4>=4.12,<5.0",
     "lxml>=5.2,<7.0",
-    "pypdf>=4.2,<7.0",
+    "pypdf>=6.19.0,<7.0",
     # Exact: the cloud parser (arp/compute/) must report the same parser_version() as a local install.
     "docling==2.140.0",
     "docling-core==2.101.1",

@@ -129,7 +129,7 @@ def golden_set_authority_taxonomy(
             settings=settings, llm=llm, value_chain_model=None,
         )
         wanted = [ActivityDefinition(name=n, in_scope_description="", out_of_scope_description="") for n in expected]
-        return theme, await match_activities(wanted, theme.activities, scope=spec["scope"], llm=llm)
+        return theme, await match_activities(wanted, theme.activities, scope=spec["scope"], llm=llm, cover=True)
 
     expected = spec["expected_activities"]
     theme, matches = asyncio.run(run())
