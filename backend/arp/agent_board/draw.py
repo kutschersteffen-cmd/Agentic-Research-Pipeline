@@ -8,7 +8,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
-from arp.agent_board.checks import BlockInvalid, check_block
+from arp.agent_board.checks import BlockInvalid, check_block, storable
 from arp.llm.base import LLMClient
 
 MAX_THREAD_BYTES = 20000
@@ -111,6 +111,8 @@ async def draw(llm: LLMClient, request: str, thread_data: dict, current: dict | 
         draft, _usage = await llm.complete_structured(
             system=SYSTEM, prompt=build_prompt(request, thread_data, current, refused), output_model=BoardBlockDraft)
         try:
+            if not storable([draft.title, draft.source]):  # checked like a person's body (NUL, surrogates, NaN)
+                raise BlockInvalid("invalid block")
             rendered = await asyncio.to_thread(check_block, draft.kind, draft.title, draft.source)
         except BlockInvalid as exc:
             refused = str(exc)

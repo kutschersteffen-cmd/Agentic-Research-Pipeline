@@ -13,7 +13,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
-from arp.agent_board.checks import BlockInvalid, check_block, check_title, render
+from arp.agent_board.checks import BlockInvalid, check_block, check_title, render, storable
 from arp.agent_board.draw import DrawRefused, draw, unverified
 from arp.agent_board.store import MAX_BLOCKS, BlockNotFound, BoardFull, BoardStore, NothingToUndo
 from arp.config import get_settings
@@ -48,32 +48,12 @@ def _reject_constant(name: str) -> None:
     raise ValueError(f"{name} is not JSON")  # NaN and Infinity: Postgres JSON refuses them
 
 
-def _storable(body: Any) -> bool:
-    """No NUL character and no lone surrogate in any string or key: Postgres cannot store either."""
-    stack = [body]
-    while stack:
-        node = stack.pop()
-        if isinstance(node, dict):
-            stack.extend(node.keys())
-            stack.extend(node.values())
-        elif isinstance(node, list):
-            stack.extend(node)
-        elif isinstance(node, str):
-            if "\x00" in node:
-                return False
-            try:
-                node.encode("utf-8")
-            except UnicodeEncodeError:
-                return False
-    return True
-
-
 async def _body(request: Request) -> dict:
     try:
         body = json.loads(await request.body(), parse_constant=_reject_constant)
     except (ValueError, RecursionError):
         body = None
-    if not isinstance(body, dict) or not _storable(body):
+    if not isinstance(body, dict) or not storable(body):
         raise HTTPException(422, "invalid block")
     return body
 

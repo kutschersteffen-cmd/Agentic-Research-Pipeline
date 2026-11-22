@@ -201,3 +201,16 @@ def test_thread_data_truncated():  # AC-20b
 
 def test_thread_data_not_truncated_when_it_fits():
     assert build_prompt("x", {"a": 1}) == 'Request: x\n\nThread data:\n{"a":1}'
+
+
+@pytest.mark.parametrize("bad", [
+    {"kind": "note", "title": "T", "source": "a\x00b"},
+    {"kind": "table", "title": "T", "source": {"columns": ["a"], "rows": [[float("nan")]]}},
+])
+def test_unstorable_draft_is_refused_and_retried(client, plan, tmp_path, bad):
+    _standin(tmp_path, [{"output": bad}, {"output": bad}])
+    res = client.post(f"{_b(plan)}/draw", json={"prompt": "x"})
+    assert (res.status_code, res.json()) == (422, {"detail": "the agent could not draw this: invalid block"})
+    calls = _calls(tmp_path)
+    assert len(calls) == 2 and calls[1]["prompt"].endswith("Your last answer was refused: invalid block")
+    assert client.get(_b(plan)).json()["blocks"] == []
