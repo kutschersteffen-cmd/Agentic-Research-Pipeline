@@ -281,16 +281,17 @@ def test_panels_per_process(page):  # noqa: F811
 
 def test_esc_leaves_ask_panel_open(page):  # noqa: F811
     _open(page, "/#/stewardiq")
-    ask = page.locator("button.start-topbar-ask")
-    ask.click()
-    assert ask.get_attribute("aria-expanded") == "true"
+    # ui-trim-workspaces: the Ask ARP button is gone; Ctrl+J still opens the panel.
+    page.keyboard.press("Control+j")
+    ask = page.get_by_role("dialog", name="Ask ARP")
+    assert ask.is_visible()
     p = _first_open_process(page)
     btn = _steps(p).nth(1)
     btn.click()
     btn.focus()
     page.keyboard.press("Escape")
     assert _panel(p).count() == 0
-    assert ask.get_attribute("aria-expanded") == "true"  # Esc closed the step panel only
+    assert ask.is_visible()  # Esc closed the step panel only
 
 
 def test_step_card_keeps_body_tracking(page):  # noqa: F811
