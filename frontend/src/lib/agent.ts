@@ -1,5 +1,6 @@
 // The Agent screen's rules, kept out of the page so they are testable without rendering it
 // (spec 2026-11-21-agent-panel-code-mode, Phase 3).
+import type { InboxRow } from "../types";
 
 /** A chip: a plan or step status as a person reads it (`awaiting_review` reads `awaiting review`). */
 export const chipLabel = (status: string): string => status.replace(/_/g, " ");
@@ -19,7 +20,7 @@ export const sendsComposer = (e: { key: string; shiftKey: boolean; isComposing?:
   e.key === "Enter" && !e.shiftKey && !e.isComposing;
 
 /** What an inbox row asks of the person. */
-export const INBOX_KIND: Record<string, string> = { plan_approval: "Approve plan", step_review: "Review step", exploration: "Exploration" };
+export const INBOX_KIND: Record<InboxRow["kind"], string> = { plan_approval: "Approve plan", step_review: "Review step", exploration: "Exploration" };
 
 /** The inbox footer: what else waits outside the agent lanes (`total` of `GET /api/waiting`). */
 export const reviewQueueLine = (n: number): string => `${n} more waiting in the Review Queue`;

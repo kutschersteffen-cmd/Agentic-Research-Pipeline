@@ -1,6 +1,8 @@
 """The Agent screen's inbox route (spec agent-panel-code-mode, AC-30)."""
 from __future__ import annotations
 
+import threading
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -8,8 +10,10 @@ from fastapi.testclient import TestClient
 from arp.api.deps import get_run_store
 from arp.api.routers import agent, plans
 from arp.db.runs import RunStore
+from arp.orchestration.plan_executor import cancel_plan, run_plan
 from arp.orchestration.plan_store import PlanStore
 from arp.schemas.common import RunManifest
+from tests.test_plan_executor_pg import CHAIN, Stubs, _wait_for
 
 SCRIPT = 'u = universe_build(taxonomy_id="t", source="u.csv")\ne = extraction(universe_run_id=u.run_id, schema_id="s")\n'
 
@@ -67,6 +71,21 @@ def test_report_step_opens_the_agent_screen(client, store, run_store):
     assert client.get("/api/agent/inbox").json() == [
         {"kind": "step_review", "plan_id": p, "seq": 1, "exploration_id": None, "title": "report_render step 1",
          "href": f"#/agent/{p}"}]
+
+
+def test_cancel_during_gated_step_leaves_no_row(client, store):  # review of PR #639: the call stays awaiting_review
+    plan_id = store.create("b", CHAIN)
+    store.approve(plan_id, "alice")
+    block = threading.Event()
+    t = threading.Thread(target=run_plan, args=(plan_id, store, Stubs(gate_kind="extraction", block=block).all(),
+                                                lambda c: False), kwargs={"return_at_gate": True})
+    t.start()
+    _wait_for(lambda: len(store.calls(plan_id)) == 2)
+    cancel_plan(plan_id, store)
+    block.set()
+    t.join(5)
+    assert [(c["seq"], c["status"]) for c in store.calls(plan_id)] == [(1, "done"), (2, "awaiting_review")]
+    assert client.get("/api/agent/inbox").json() == []
 
 
 def test_nothing_waiting(client, store):
