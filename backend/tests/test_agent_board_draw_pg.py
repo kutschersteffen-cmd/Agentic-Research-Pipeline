@@ -228,3 +228,10 @@ def test_number_check_reads_chart_values_given_as_a_string(client, plan, tmp_pat
     res = _draw(client, plan, tmp_path, {"kind": "chart", "title": "C", "source": chart})
     assert res.status_code == 200, res.text
     assert res.json()["unverified"] == [0.99]
+
+
+def test_padded_prompt_is_sent_stripped(client, plan, tmp_path):
+    _standin(tmp_path, {"output": {"kind": "note", "title": "S", "source": "s"}})
+    res = client.post(f"{_b(plan)}/draw", json={"prompt": "  chart it" + " " * 50000})
+    assert res.status_code == 200, res.text
+    assert _calls(tmp_path)[0]["prompt"].startswith("Request: chart it\n\nThread data:\n")

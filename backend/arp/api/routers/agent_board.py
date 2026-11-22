@@ -187,7 +187,7 @@ def _draw_checks(thread_kind: str, thread_id: str, body: dict, store: BoardStore
         current = _get_block(store, thread_kind, thread_id, body["block_id"])
     elif len(store.blocks(thread_kind, thread_id)) >= MAX_BLOCKS:
         raise HTTPException(409, "board is full (50 blocks)")
-    return prompt, current, store.plan_data(thread_id)
+    return prompt.strip(), current, store.plan_data(thread_id)  # padding never reaches the model
 
 
 @router.post("/{thread_kind}/{thread_id}/draw")
