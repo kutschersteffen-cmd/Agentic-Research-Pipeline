@@ -14,6 +14,7 @@ Usage (from the repo root):
 import argparse
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -22,6 +23,9 @@ FRONTEND = Path("frontend")
 REPORT = FRONTEND / "reports" / "mutation" / "mutation.json"
 STRYKER = ["npx", "--yes", "-p", "@stryker-mutator/core@10.0.0", "-p", "typescript@5.9.2", "stryker", "run"]
 SHOW_SURVIVORS = 5
+# Stryker copies only frontend/ into <tempDirName>/sandbox-*/, so a test's "../../DESIGN.md" lands in the
+# temp dir instead of the repo root. A copy there keeps those tests passing on the sandbox's initial run.
+TEMP_DIR = FRONTEND / json.loads((FRONTEND / "stryker.config.json").read_text())["tempDirName"]
 
 
 def git(*args: str) -> str:
@@ -64,6 +68,8 @@ def main() -> int:
         lines += ["| File | Killed | Survived | Score |", "|---|---|---|---|"]
         lines += [f"| `{f}` | – | – | **no tests import it** |" for f in files if f not in tested]
     if tested:
+        TEMP_DIR.mkdir(exist_ok=True)
+        shutil.copy("DESIGN.md", TEMP_DIR / "DESIGN.md")
         mutate = ",".join(str(Path(f).relative_to(FRONTEND)) for f in tested)
         run = subprocess.run([*STRYKER, "--mutate", mutate], cwd=FRONTEND, capture_output=True, text=True)
         if run.returncode != 0 or not REPORT.exists():
