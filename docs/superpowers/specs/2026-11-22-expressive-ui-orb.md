@@ -1,6 +1,6 @@
 # Expressive ARP: the Orb, a black look, pixel titles and status that moves
 
-Status: **draft, waiting for the owner's approval** (two spec-critic rounds, 33 findings fixed)
+Status: **approved by the owner on 22 Nov 2026** (button in the spec session, after two spec-critic rounds; decisions D1 to D8 as recommended).
 Slug: `expressive-ui-orb`
 Risk: this spec PR is `risk:low`. The build is 3 PRs (see `## Slices`), each `risk:normal`.
 Size: M
