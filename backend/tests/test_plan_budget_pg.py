@@ -93,6 +93,50 @@ def test_raised_budget_resumes_without_rerunning_done_steps(store, run_store, cl
     assert stubs.starts[1] == 1
 
 
+def test_spent_counts_every_attempt_so_a_resume_stops_at_the_budget(store, run_store):
+    """Each failed attempt of step 1 costs 0.90; a resume rewrites the call row, yet every attempt stays in the spend."""
+    plan_id = _p3(store, 1.00)
+    stubs = P3Stubs(run_store)
+    steps = _costed(stubs, {1: 0.90, 2: 0.10, 3: 0.10})
+
+    def fail(run_id, **params):
+        raise RuntimeError("boom")
+    steps["universe_build"] = Step(steps["universe_build"].start, fail)
+    assert run_plan(plan_id, store, steps, lambda c: True) == "failed"
+    assert store.spent_usd(plan_id) == 0.90
+    assert run_plan(plan_id, store, steps, lambda c: True) == "failed"  # resume: 0.90 < 1.00, attempt 2 starts
+    assert store.calls(plan_id)[0]["run_id"] == "r_1_a2"
+    assert store.spent_usd(plan_id) == 1.80
+    assert run_plan(plan_id, store, steps, lambda c: True) == "failed"  # resume: budget reached, attempt 3 never starts
+    assert store.get(plan_id)["error"] == "budget reached: spent $1.80 of $1.00"
+    assert stubs.starts[1] == 2
+
+
+def test_spent_keeps_runs_whose_calls_a_replan_dropped(store, run_store):
+    plan_id = _p3(store, None)
+    steps = _costed(P3Stubs(run_store, {(2, "finish"): RuntimeError("boom")}), {1: 1.0, 2: 2.0, 3: 4.0})
+    assert run_plan(plan_id, store, steps, lambda c: True) == "failed"
+    store.replan(plan_id, P3)
+    assert [c["seq"] for c in store.calls(plan_id)] == [1]
+    assert store.spent_usd(plan_id) == 3.0
+
+
+@pytest.mark.parametrize("raw", ['NaN', 'Infinity', '-Infinity', '-0.01', '1e400'])
+def test_budget_put_refuses_nan_infinity_and_negatives(store, client, raw):
+    plan_id = store.create("b", P3)
+    store.approve(plan_id, "alice")
+    res = client.put(f"/api/plans/{plan_id}", content=f'{{"budget_usd": {raw}}}',
+                     headers={"Content-Type": "application/json"})
+    assert (res.status_code, res.json()) == (422, {"detail": "budget_usd must be a finite number >= 0, or null for no budget"})
+    plan = store.get(plan_id)
+    assert (plan["status"], plan["budget_usd"]) == ("approved", None)
+
+
+def test_budget_put_accepts_zero(store, client):
+    plan_id = store.create("b", P3)
+    assert client.put(f"/api/plans/{plan_id}", json={"budget_usd": 0}).json()["budget_usd"] == 0.0
+
+
 def test_budget_put_returns_an_approved_plan_to_draft(store, client):  # AC-25
     plan_id = store.create("b", P3)
     store.approve(plan_id, "alice")

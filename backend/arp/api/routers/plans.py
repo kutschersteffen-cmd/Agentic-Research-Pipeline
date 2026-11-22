@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import threading
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -97,6 +98,8 @@ def edit_plan(plan_id: str, req: ScriptRequest, store: PlanStore = Depends(plan_
         raise HTTPException(409, "plan is already running")
     if req.script is None and "budget_usd" not in req.model_fields_set:
         raise HTTPException(422, "send script or budget_usd")
+    if req.budget_usd is not None and not (math.isfinite(req.budget_usd) and req.budget_usd >= 0):
+        raise HTTPException(422, "budget_usd must be a finite number >= 0, or null for no budget")
     if req.script is not None:
         try:
             store.update_script(plan_id, req.script)
