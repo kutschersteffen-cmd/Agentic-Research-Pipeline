@@ -160,7 +160,14 @@ export const NEAR_END_PX = 80;
 export const nearEnd = (m: { scrollTop: number; scrollHeight: number; clientHeight: number }): boolean =>
   m.scrollHeight - m.scrollTop - m.clientHeight <= NEAR_END_PX;
 
-/** What the stream does when a turn, `Working…` or an answer lands: a reader who was near the end follows it down;
- * one who had scrolled up stays put and gets the "Jump to latest" button. */
-export const onStreamGrew = (wasNearEnd: boolean): { scrollToEnd: boolean; showJump: boolean } =>
-  wasNearEnd ? { scrollToEnd: true, showJump: false } : { scrollToEnd: false, showJump: true };
+/** What the stream does when its content or its box changes size. A reader who was near the end stays there: new
+ * content (a turn, `Working…`, an answer) or a box squeezed by a taller composer scrolls it down. A reader who had
+ * scrolled up stays put; only new content raises "Jump to latest" (`jump` true), and the button goes once the end is
+ * in view (`jump` false). `jump` null leaves the button as it is. */
+export function streamResized(r: { wasNearEnd: boolean; contentGrew: boolean; boxShrank: boolean; nowNearEnd: boolean }): {
+  scrollToEnd: boolean; jump: boolean | null;
+} {
+  if (r.wasNearEnd && (r.contentGrew || r.boxShrank)) return { scrollToEnd: true, jump: false };
+  if (r.nowNearEnd) return { scrollToEnd: false, jump: false };
+  return { scrollToEnd: false, jump: r.contentGrew ? true : null };
+}

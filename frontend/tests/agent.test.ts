@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import {
   answerActions, budgetLine, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  askingIn, nearEnd, needsYouLine, onStreamGrew, scriptLines, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd,
+  askingIn, nearEnd, needsYouLine, scriptLines, streamResized, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd,
 } from "../src/lib/agent.ts";
 import type { Plan } from "../src/lib/plans.ts";
 import type { AskThread } from "../src/types.ts";
@@ -193,6 +193,17 @@ test("the stream counts as at its end within 80 px of the bottom", () => {
 });
 
 test("new content scrolls a reader at the end down, and offers Jump to latest to one who scrolled up", () => {
-  assert.deepEqual(onStreamGrew(true), { scrollToEnd: true, showJump: false });
-  assert.deepEqual(onStreamGrew(false), { scrollToEnd: false, showJump: true });
+  const at = { contentGrew: true, boxShrank: false, nowNearEnd: false };
+  assert.deepEqual(streamResized({ ...at, wasNearEnd: true }), { scrollToEnd: true, jump: false });
+  assert.deepEqual(streamResized({ ...at, wasNearEnd: false }), { scrollToEnd: false, jump: true });
+});
+
+test("a taller composer keeps a reader at the end pinned but never raises Jump to latest", () => {
+  const squeezed = { contentGrew: false, boxShrank: true, nowNearEnd: false };
+  assert.deepEqual(streamResized({ ...squeezed, wasNearEnd: true }), { scrollToEnd: true, jump: false });
+  assert.deepEqual(streamResized({ ...squeezed, wasNearEnd: false }), { scrollToEnd: false, jump: null });
+});
+
+test("Jump to latest goes once the end is in view without a scroll, as when the box grows to fit everything", () => {
+  assert.deepEqual(streamResized({ wasNearEnd: false, contentGrew: false, boxShrank: false, nowNearEnd: true }), { scrollToEnd: false, jump: false });
 });

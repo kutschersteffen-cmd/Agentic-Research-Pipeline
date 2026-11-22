@@ -4,7 +4,7 @@ import { AskCard } from "../components/AskCards";
 import { StepTabs } from "../components/StepTabs";
 import {
   answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  askingIn, nearEnd, needsYouLine, onStreamGrew, scriptLines, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
+  askingIn, nearEnd, needsYouLine, scriptLines, streamResized, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
 } from "../lib/agent";
 import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
 import { when } from "../lib/runs";
@@ -116,12 +116,10 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     if (!el || !content.current) return;
     let prev = { height: el.scrollHeight, box: el.clientHeight };
     const ro = new ResizeObserver(() => {
-      const grew = el.scrollHeight > prev.height || el.clientHeight < prev.box;
+      const next = streamResized({ wasNearEnd: atEnd.current, contentGrew: el.scrollHeight > prev.height, boxShrank: el.clientHeight < prev.box, nowNearEnd: nearEnd(el) });
       prev = { height: el.scrollHeight, box: el.clientHeight };
-      if (!grew) return;
-      const next = onStreamGrew(atEnd.current);
       if (next.scrollToEnd) el.scrollTop = el.scrollHeight;
-      if (next.showJump) setJump(true);
+      if (next.jump !== null) setJump(next.jump);
     });
     ro.observe(content.current);
     ro.observe(el);
@@ -152,6 +150,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     if (!el) return;
     const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+    input.current?.focus(); // the button goes once the end is reached; focus waits in the composer, not on <body>
   }
   useEffect(() => {
     if (!focusToken) return;
@@ -229,8 +228,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
       setText("");
       return ask(t, false);
     }
-    followOwnSend();
-    const req = composerRequest("Plan", t, selected);
+    const req = composerRequest("Plan", t, selected); // a new plan opens at its end; a failed one leaves the stream be
     await act(async () => {
       const p = await api.agentPost<Plan>(req.path, req.body);
       setText("");
