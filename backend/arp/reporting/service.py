@@ -238,6 +238,7 @@ class ReportingService:
             manifest.error = str(exc)
             self.store.save_manifest(manifest)
             raise
+        manifest.deck_edited_since_render = False
         return self._completed(manifest, "output.pdf", ["output.pdf", "output.pptx"])
 
     @staticmethod

@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from arp.db.session import transaction
 from arp.llm.base import LLMClient
+from arp.refine.deck_ops import NO_DECK, apply_deck_ops
 from arp.refine.rfp_ops import apply_rfp_ops
 from arp.refine.turns import (
     REFINE_ANSWER_PREVIEW_CHARS,
@@ -22,6 +23,7 @@ from arp.refine.turns import (
 from arp.reporting.house_style import load_layouts
 from arp.rfp.store import questions_of
 from arp.schemas.reporting import ChartType
+from arp.storage.reporting_store import ReportingStore
 
 log = logging.getLogger(__name__)
 
@@ -95,24 +97,54 @@ def _result(reply: str, changed=(), not_changed=(), check_figures=()) -> dict:
     return {"reply": reply, "changed": list(changed), "not_changed": list(not_changed), "check_figures": list(check_figures)}
 
 
-async def run_turn(turn_id: int, doc_id: str, message: str, history: list[dict], llm: LLMClient, *, today: date,
-                   verifier: LLMClient | None = None) -> None:
-    """An RFP turn; deck turns come with the deck operations."""
+async def run_turn(turn_id: int, kind: str, doc_id: str, message: str, history: list[dict], llm: LLMClient,
+                   store: ReportingStore | None, *, today: date, verifier: LLMClient | None = None) -> None:
     try:
-        with transaction() as s:
-            document = {"questions": [{"id": q.id, "status": q.status, "question": q.question, "answer": q.answer}
-                                      for q in questions_of(s, int(doc_id))]}
-        if len(document["questions"]) > REFINE_MAX_QUESTIONS:
-            save_progress(turn_id, result=_result(TOO_MANY_QUESTIONS))
-            finish_turn(turn_id, "done")
-            return
-        out, _ = await llm.complete_structured(system=_SYSTEM["rfp"], prompt=build_prompt("rfp", document, message, history),
+        if kind == "rfp":
+            with transaction() as s:
+                document = {"questions": [{"id": q.id, "status": q.status, "question": q.question, "answer": q.answer}
+                                          for q in questions_of(s, int(doc_id))]}
+            if len(document["questions"]) > REFINE_MAX_QUESTIONS:
+                save_progress(turn_id, result=_result(TOO_MANY_QUESTIONS))
+                finish_turn(turn_id, "done")
+                return
+        else:
+            deck = store.load_deck(doc_id)
+            if deck is None:
+                raise ValueError(NO_DECK)
+            document = deck.model_dump(mode="json")
+        out, _ = await llm.complete_structured(system=_SYSTEM[kind], prompt=build_prompt(kind, document, message, history),
                                                output_model=RefineOps)
         ops = [op.model_dump(exclude_none=True) for op in out.ops]
-        save_progress(turn_id, ops=ops, result=_result(out.reply))  # the reply shows while answers arrive
-        r = await apply_rfp_ops(turn_id, int(doc_id), ops, llm, today=today, verifier=verifier)
-        save_progress(turn_id, result=_result(out.reply, r["changed"], r["not_changed"]))
+        if kind == "rfp":
+            save_progress(turn_id, ops=ops, result=_result(out.reply))  # the reply shows while answers arrive
+            r = await apply_rfp_ops(turn_id, int(doc_id), ops, llm, today=today, verifier=verifier)
+            save_progress(turn_id, result=_result(out.reply, r["changed"], r["not_changed"]))
+        else:
+            _apply_deck(turn_id, doc_id, deck, document, ops, out.reply, store)
         finish_turn(turn_id, "done")
     except Exception as exc:  # noqa: BLE001 -- a background turn must always end; the thread shows the error
         log.exception("refine: turn %s failed", turn_id)
         finish_turn(turn_id, "failed", error=str(exc))
+
+
+def _apply_deck(turn_id: int, doc_id: str, deck, document: dict, ops: list[dict], reply: str, store: ReportingStore) -> None:
+    """All ops in one step; the turn row is written first, so a saved deck always has its undo, and a reaped turn
+    writes no deck."""
+    request = store.load_request(doc_id)
+    findings = "\n".join(f.message for f in store.load_findings(doc_id))
+    new, r = apply_deck_ops(deck, ops, request.datasets if request else [], findings)
+    edited = new != deck
+    after = new.model_dump(mode="json")
+    saved = save_progress(turn_id, ops=ops, result=_result(reply, r["changed"], r["not_changed"], r["check_figures"]),
+                          before=document if edited else None, after=after if edited else None)
+    if edited and saved:
+        store.save_deck(doc_id, new)
+        mark_deck_edited(store, doc_id)
+
+
+def mark_deck_edited(store: ReportingStore, doc_id: str) -> None:
+    manifest = store.load_manifest(doc_id)
+    if manifest is not None:
+        manifest.deck_edited_since_render = True
+        store.save_manifest(manifest)
