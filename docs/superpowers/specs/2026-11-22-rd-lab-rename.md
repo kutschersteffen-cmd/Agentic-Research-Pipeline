@@ -70,6 +70,7 @@ that adds this spec's tests:
 | AC-23b (row link "Design a strategy" is current) | AC-8 |
 | AC-36 (`#/rdLab` `h1` is Strategy) | AC-4 |
 | AC-36b (process "Design a strategy" listed) | AC-6 |
+| AC-34f, `#/rdLab` case only (intro is the old purpose) | AC-5; the other four workspaces keep AC-34f as it is |
 
 Any other old hidden test that locates the row by the name "Strategy screens" or a label "Design a strategy"
 moves to the new name in the same holdout change, with its assertion otherwise unchanged.
@@ -93,7 +94,7 @@ moves to the new name in the same holdout change, with its assertion otherwise u
 | AC-9 | e2e stack | press Ctrl+K and type `R&D Lab` | an option reads "R&D Lab" that is not the `Ask ARP: …` option; pressing it opens `#/rdLab` | holdout |
 | AC-10 | e2e stack | open each of `#/home`, `#/rdLab`, `#/designStrategy`, the Workspaces menu, and the Ctrl+K list with nothing typed | no visible text contains "Design a strategy" (case-insensitive) | holdout |
 | AC-10b | same pages as AC-10 | open each | no visible element's trimmed `innerText` equals "Strategy" | holdout |
-| AC-11 | e2e stack | open `#/argus`, open the step Template of the process that has it | its text reads "Build and ratify scoring templates in Decision Studio (R&D Lab); only ratified versions reach Argus." | holdout |
+| AC-11 | the Argus workspace's process list (`WORKSPACES` entry `argus`) | read the step labelled Template | its `does` text is "Build and ratify scoring templates in Decision Studio (R&D Lab); only ratified versions reach Argus." (no screen shows it today, so a frontend unit test checks it) | unit |
 | AC-12 | AC-1 | press "More" | its menu items read, in order: Taxonomy Library, Thematic Universe, Strategy Replication, Signals workbench, Value Chain Explorer (must not change) | holdout |
 | AC-13 | e2e stack | open `#/taxonomy` | the "More" button in the navigation named "R&D Lab screens" has `aria-current="page"` (must not change) | holdout |
 | AC-14 | e2e stack | open `#/designStrategy` | a link "Start from a theme" with `href` `#/themes` is present (must not change) | holdout |
