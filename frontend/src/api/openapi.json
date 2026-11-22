@@ -31451,6 +31451,59 @@
     ]
    }
   },
+  "/api/agent/boards/{thread_kind}/{thread_id}/draw": {
+   "post": {
+    "operationId": "draw_block_api_agent_boards__thread_kind___thread_id__draw_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Draw Block Api Agent Boards  Thread Kind   Thread Id  Draw Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Draw Block",
+    "tags": [
+     "agent-board"
+    ]
+   }
+  },
   "/api/agent/inbox": {
    "get": {
     "description": "Draft plans and calls awaiting review, oldest first (a plan by its `created_at`, a call by its `started_at`).",

@@ -168,3 +168,26 @@ def test_api_worker_scans_on_its_interval(store, monkeypatch):  # D1: the lifesp
     asyncio.run(go())
     assert store.get(plan_id)["status"] == "done"
     assert stubs.starts == {1: 1, 2: 1, 3: 1}
+
+
+def test_scan_leaves_a_plan_that_failed_after_the_listing(store):  # review of PR #619: no run without a resume
+    first, second = _running(store), _running(store)
+    steps = P3Stubs().steps()
+    inner = steps["universe_build"]
+
+    def start(launch_key, **params):  # while scan() runs the first plan, the second's own worker fails it
+        if store.get(second)["status"] == "running":
+            store.set_status(second, "failed", error="boom")
+        return inner.start(launch_key, **params)
+
+    steps["universe_build"] = Step(start, inner.finish)
+    assert scan(store, steps, lambda c: True) == [first]
+    assert store.get(second)["status"] == "failed"
+    assert store.calls(second) == []
+
+
+def test_second_run_refused_before_any_worker_picks_it_up(client, store):  # v1 AC-30 under D1
+    plan_id = _approved(store)
+    assert client.post(f"/api/plans/{plan_id}/run").status_code == 202
+    res = client.post(f"/api/plans/{plan_id}/run")
+    assert (res.status_code, res.json()) == (409, {"detail": "plan is already running"})

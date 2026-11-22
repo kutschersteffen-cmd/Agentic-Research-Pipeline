@@ -8,7 +8,14 @@ entries never collide). Structured output uses Gemini's JSON mode with the model
 Caching: Gemini caches a shared request prefix of at least 4,096 tokens on its own (implicit caching);
 the cached share comes back as `cached_content_token_count` and is reported as cache_read_tokens.
 Explicit cache objects are not used (Gemini 4 Argon does not support them). Batch: no Gemini batch
-client yet, so a batch run sends Gemini calls one by one (see llm/factory.py)."""
+client yet, so a batch run sends Gemini calls one by one (see llm/factory.py).
+
+Thinking shares max_output_tokens with the answer. An answer cut off there (finish_reason MAX_TOKENS) is
+resent with double the limit, up to _MAX_OUTPUT_CAP, instead of being treated as bad JSON; an answer the
+API blocked raises at once. A schema Gemini rejects as too complex ("too many states") is sent again relaxed
+(constraints dropped, every property required), then as plain JSON mode with the schema in the system prompt;
+Pydantic validates the answer either way, and the level that worked is remembered per output model.
+Extraction calls think at a low level; verifier clients keep the model default."""
 
 from __future__ import annotations
 
@@ -17,18 +24,49 @@ import json
 from pathlib import Path
 
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 from pydantic import ValidationError
+from pydantic_core import PydanticCustomError
 
 from arp.llm.base import LLMClient, LLMUsage, T
 from arp.llm.cache import DiskLLMCache
 from arp.llm.langchain_client import _MAX_NETWORK_RETRIES, _drop_invalid_list_items, _format_validation_errors
+
+_MAX_OUTPUT_CAP = 65_536
+
+
+_CONSTRAINTS = ("maxItems", "minItems", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "pattern",
+                "format", "default", "title")
+
+
+def _relaxed(node):
+    """A copy of a JSON schema without the constraints that blow up Gemini's decoder, every property required."""
+    if isinstance(node, list):
+        return [_relaxed(n) for n in node]
+    if not isinstance(node, dict):
+        return node
+    out = {}
+    for k, v in node.items():
+        if k in _CONSTRAINTS:
+            continue
+        if k in ("properties", "$defs"):
+            out[k] = {name: _relaxed(sub) for name, sub in v.items()}
+        else:
+            out[k] = _relaxed(v)
+    if isinstance(out.get("properties"), dict):
+        out["required"] = list(out["properties"])
+    return out
+
+
+def _failure(model: type, msg: str) -> ValidationError:
+    return ValidationError.from_exception_data(model.__name__, [{"type": PydanticCustomError("llm_output", msg), "loc": (), "input": None}])
 
 
 class GeminiClient(LLMClient):
     def __init__(
         self, api_key: str | None, model: str, cache_dir: Path, cache_enabled: bool = True, cache_refresh: bool = False,
         fallback_from: str = "", *, vertex_project: str | None = None, vertex_location: str = "global",
+        thinking_level: str | None = None,
     ) -> None:
         retry = types.HttpRetryOptions(attempts=_MAX_NETWORK_RETRIES + 1)
         # Vertex AI signs in with Google application default credentials; an API key is not sent.
@@ -36,6 +74,8 @@ class GeminiClient(LLMClient):
         self._client = genai.Client(**auth, http_options=types.HttpOptions(retry_options=retry))
         self.model = model
         self.fallback_from = fallback_from
+        self.thinking_level = thinking_level  # "low", "medium", ...; None keeps the model's default
+        self._schema_level: dict[str, int] = {}  # output model name -> 0 full schema, 1 relaxed, 2 schema in prompt
         self.cache = DiskLLMCache(cache_dir, enabled=cache_enabled, refresh=cache_refresh)
 
     async def _send(self, contents: list[types.Content], config: types.GenerateContentConfig) -> types.GenerateContentResponse:
@@ -67,35 +107,60 @@ class GeminiClient(LLMClient):
             except ValidationError:
                 pass  # stale or corrupt entry: call the model
 
-        config = types.GenerateContentConfig(
-            system_instruction=system or None,
-            response_mime_type="application/json",
-            response_json_schema=schema,
-            # temperature is not sent, as for Claude: Google advises the default for its reasoning models, and the
-            # disk cache is what makes a run reproducible. It stays in the cache key and the LLMClient contract.
-            max_output_tokens=max_tokens,
-        )
+        def make_config(level: int, max_out: int) -> types.GenerateContentConfig:
+            in_prompt = f"\n\nAnswer with one JSON object that matches this JSON schema:\n{json.dumps(schema)}" if level == 2 else ""
+            return types.GenerateContentConfig(
+                system_instruction=(system + in_prompt) or None,
+                response_mime_type="application/json",
+                response_json_schema=(schema, _relaxed(schema), None)[level],
+                # temperature is not sent, as for Claude: Google advises the default for its reasoning models, and the
+                # disk cache is what makes a run reproducible. It stays in the cache key and the LLMClient contract.
+                max_output_tokens=max_out,
+                thinking_config=types.ThinkingConfig(thinking_level=self.thinking_level.upper()) if self.thinking_level else None,
+            )
+
+        level = self._schema_level.get(output_model.__name__, 0)
+        config = make_config(level, max_tokens)
         parts = [*(types.Part.from_bytes(data=b, mime_type="image/png") for b in images or []), types.Part.from_text(text=prompt)]
         contents = [types.Content(role="user", parts=parts)]
         totals = {"input": 0, "output": 0, "cached": 0}
         last_error: ValidationError | None = None
 
         for attempt in range(1, max_validation_retries + 2):
-            response = await self._send(contents, config)
+            while True:
+                try:
+                    response = await self._send(contents, config)
+                    break
+                except errors.ClientError as exc:
+                    if exc.code != 400 or "too many states" not in str(exc) or level == 2:
+                        raise
+                    level += 1
+                    self._schema_level[output_model.__name__] = level
+                    config = make_config(level, config.max_output_tokens or max_tokens)
             u = response.usage_metadata
             if u is not None:
                 totals["input"] += u.prompt_token_count or 0  # includes the cached share
                 totals["output"] += (u.candidates_token_count or 0) + (u.thoughts_token_count or 0)  # thinking is billed as output
                 totals["cached"] += u.cached_content_token_count or 0
             text = response.text or ""
+            candidates = getattr(response, "candidates", None) or []
+            finish = candidates[0].finish_reason if candidates else None
+            if finish == types.FinishReason.MAX_TOKENS:
+                limit = config.max_output_tokens or max_tokens
+                last_error = _failure(output_model, f"answer cut off at max_output_tokens={limit} (thinking counts toward it)")
+                if limit >= _MAX_OUTPUT_CAP:
+                    break
+                config = config.model_copy(update={"max_output_tokens": min(limit * 2, _MAX_OUTPUT_CAP)})
+                continue
+            blocked = getattr(getattr(response, "prompt_feedback", None), "block_reason", None)
+            if not text and (blocked or finish not in (None, types.FinishReason.STOP)):
+                raise _failure(output_model, f"Gemini returned no answer: {blocked or finish}")
             dropped = 0
             try:
                 raw = json.loads(text)
                 instance = output_model.model_validate(raw)
             except json.JSONDecodeError:
-                last_error = ValidationError.from_exception_data(
-                    output_model.__name__, [{"type": "missing", "loc": (), "input": None, "msg": "no JSON returned"}]
-                )
+                last_error = _failure(output_model, "no JSON returned")
                 contents += [types.Content(role="model", parts=[types.Part.from_text(text=text)]),
                              types.Content(role="user", parts=[types.Part.from_text(text="Answer with one JSON object matching the schema. Try again.")])]
                 continue

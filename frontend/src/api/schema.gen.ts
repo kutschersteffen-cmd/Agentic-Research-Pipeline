@@ -73,6 +73,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/agent/boards/{thread_kind}/{thread_id}/draw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Draw Block */
+        post: operations["draw_block_api_agent_boards__thread_kind___thread_id__draw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/agent/inbox": {
         parameters: {
             query?: never;
@@ -21627,6 +21644,40 @@ export interface operations {
                 thread_kind: string;
                 thread_id: string;
                 block_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    draw_block_api_agent_boards__thread_kind___thread_id__draw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_kind: string;
+                thread_id: string;
             };
             cookie?: never;
         };

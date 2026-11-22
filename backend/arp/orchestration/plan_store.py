@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from arp.errors import NotConfigured
@@ -155,14 +155,17 @@ class PlanStore:
                       .values(planner_cost_usd=ResearchPlan.planner_cost_usd + _usd(usd)))
 
     def spent_usd(self, plan_id: str) -> float:
-        """`estimated_cost_usd` summed over the runs the plan's calls store, plus the planner's own calls."""
+        """`estimated_cost_usd` summed over every run the plan started (each attempt, also those a resume, re-plan or
+        edit dropped from its calls: found by their launch key) and the runs its calls store, plus the planner's own
+        calls."""
         from arp.db.models import Run
 
         run_ids = select(ResearchPlanCall.run_id).where(ResearchPlanCall.plan_id == plan_id,
                                                         ResearchPlanCall.run_id.is_not(None))
+        launched = Run.params["launch_key"].astext.startswith(f"plan:{plan_id}:", autoescape=True)
         with Session(self.engine) as s:
             runs = s.scalar(select(func.coalesce(func.sum(Run.estimated_cost_usd), 0))
-                            .where(Run.run_id.in_(run_ids)))
+                            .where(or_(Run.run_id.in_(run_ids), launched)))
             planner = s.scalar(select(ResearchPlan.planner_cost_usd).where(ResearchPlan.id == plan_id))
         return float(Decimal(runs) + (planner or 0))
 
@@ -213,3 +216,19 @@ class PlanStore:
             rows = s.scalars(select(ResearchPlanCall).where(ResearchPlanCall.plan_id == plan_id)
                              .order_by(ResearchPlanCall.seq))
             return [_row(r) for r in rows]
+
+    def audited_calls(self, plan_id: str) -> list[dict[str, Any]]:
+        """`calls`, each with its run's `model` and `estimated_cost_usd`: null for a call without a stored run."""
+        from arp.db.models import Run
+
+        calls = self.calls(plan_id)
+        run_ids = [c["run_id"] for c in calls if c["run_id"]]
+        with Session(self.engine) as s:
+            runs = {r.run_id: r for r in s.execute(select(Run.run_id, Run.model, Run.estimated_cost_usd)
+                                                   .where(Run.run_id.in_(run_ids)))} if run_ids else {}
+        out = []
+        for c in calls:
+            run = runs.get(c["run_id"])
+            cost = run.estimated_cost_usd if run else None
+            out.append({**c, "model": run.model if run else None, "estimated_cost_usd": None if cost is None else float(cost)})
+        return out
