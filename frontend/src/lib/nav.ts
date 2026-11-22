@@ -7,7 +7,7 @@
  * route, so deep links and Processes steps still land. */
 export const HUBS: { label: string; tabs: [string, string][] }[] = [
   { label: "Library", tabs: [["library", "Data Library"], ["search", "Search"]] },
-  { label: "Runs", tabs: [["history", "Run history"], ["plans", "Research plans"], ["backgroundAgents", "Standing agents"]] },
+  { label: "Runs", tabs: [["history", "Run history"], ["agent", "Agent"], ["backgroundAgents", "Standing agents"]] },
 ];
 
 // Removed screens and the screen that now does their job.
@@ -22,9 +22,15 @@ const RETIRED: [string, string][] = [
   ["transitionPlan", "#/argus/new/transition_plan"],
 ];
 
-/** Where an old link to a removed screen (or any path under it) lands, else null. */
+// Moved screens: the rest of the path comes along, so `#/plans/<id>` opens `#/agent/<id>`.
+const MOVED: [string, string][] = [["plans", "agent"]];
+
+/** Where an old link to a removed or moved screen (or any path under it) lands, else null. */
 export function redirectHash(hash: string): string | null {
-  const hit = RETIRED.find(([id]) => hash === `#/${id}` || hash.startsWith(`#/${id}/`));
+  const under = (id: string) => hash === `#/${id}` || hash.startsWith(`#/${id}/`);
+  const moved = MOVED.find(([id]) => under(id));
+  if (moved) return `#/${moved[1]}${hash.slice(`#/${moved[0]}`.length)}`;
+  const hit = RETIRED.find(([id]) => under(id));
   return hit ? hit[1] : null;
 }
 
