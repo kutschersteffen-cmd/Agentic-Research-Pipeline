@@ -21,6 +21,10 @@ export interface Plan {
   version: number;
   previous_scripts: PreviousScript[];
   calls?: PlanCall[];
+  created_at: string;
+  /** The ask whose `Draft a plan` drafted it, and that ask's question and thread. */
+  source_ask_id: string | null;
+  source_ask: { question: string; thread_id: string } | null;
   budget_usd?: number | null; // the plan budget, once the API serves it (agent-panel-code-mode slice 5)
   spent_usd?: number;
 }

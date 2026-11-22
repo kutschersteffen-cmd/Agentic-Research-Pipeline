@@ -2,7 +2,7 @@ import { useState } from "react";
 import { api } from "../../api/client";
 import { usePortfolioPane } from "../../context/usePortfolioPane";
 import { AggregationView } from "../../components/ResultView";
-import { askErrorText } from "../../lib/askHistory";
+import { askErrorText } from "../../lib/askError";
 import { askBody, snapshotLine, trendTable } from "../../lib/askPortfolio";
 import type { QAAnswer } from "../../types";
 

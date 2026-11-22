@@ -10,7 +10,10 @@ Amendment 1 (22 Nov 2026, Phase 2 below: diagrams in Mermaid, number tiles, chec
 slice 2b): **approved by the owner on 22 Nov 2026** (button in the spec session, head 8272df6).
 Amendment 1b (22 Nov 2026, from the slice 2b security review on PR #648: diagram link statements after `;`, `//` URLs,
 `link` statements, anchors stripped in the browser; a live chart that does not render is refused on write and not
-re-rendered on read; long table cells cut; AC-36e to AC-36j, AC-49b, AC-58b to AC-58d): **approved by the owner on 22 Nov 2026** (button in the spec session, head 3eda0d8). The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
+re-rendered on read; long table cells cut; AC-36e to AC-36j, AC-49b, AC-58b to AC-58d): **approved by the owner on 22 Nov 2026** (button in the spec session, head 3eda0d8).
+Amendment 1c (22 Nov 2026, from the round 2 security review on PR #648: `properties` and `details` statements in sequence diagrams and any
+backslash refused in diagrams; `flow` sources get the diagram checks, keeping the house-deck subset; AC-36k to AC-36q): **approved by the owner on 22 Nov 2026**
+(button in the spec session, head ab5d266). The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
 "work for anything the user tells the AI", and "let's do all" for tiles, checklists and live blocks.
 
 Source: thread "Add a whiteboard to ARP" (22 Nov 2026). The owner asked for "the same whiteboard functionality as
@@ -124,6 +127,7 @@ The board code lives in `backend/arp/agent_board/` (store, checks, rendering, dr
 | `chart` | same | every `data.values` at any depth holds at most 5 000 rows | `chart exceeds 5000 data rows` |
 | `chart` | same | `vl-convert` renders it | `chart does not render: <first line of the error>` |
 | `flow` | string, Mermaid | `parse_mermaid` accepts it | the `MermaidError` message unchanged |
+| `flow` | same | then these Phase 2 `diagram` checks, in this order (Amendment 1c: slice 3 draws flows with Mermaid too): the `%%{` check; the refused statement words except `classDef`; the HTML check, run on the source with every match of `<br\s*/?>`, compared without case (the pattern `parse_mermaid` uses for tags), removed; the `@{` check; the outside check. The `class`-for-emphasis check and the colour-group count do not apply to `flow`, so the house-deck subset (`<br>` tags, `classDef`, `class` actors, `stored`) stays valid | that check's message unchanged |
 
 A board holds at most 50 blocks; a create or draw beyond that answers `409 {"detail": "board is full (50 blocks)"}`.
 
@@ -247,11 +251,11 @@ section says otherwise. No table changes: the new sources and pointers live in `
 | a string of at most 8 000 characters | `diagram exceeds 8000 characters` |
 | the first word (split on whitespace) of the first line that is not empty and does not start with `%%` equals `flowchart`, `mindmap`, `timeline`, `sequenceDiagram` or `quadrantChart` (that word `<w>`) | `unsupported diagram type: <w>; use flowchart, mindmap, timeline, sequenceDiagram or quadrantChart` |
 | no `%%{` anywhere | `diagram may not set its own config` |
-| no statement whose first word, compared without case, is `click`, `style`, `classDef`, `linkStyle`, `link`, `links` or `href` (`<w>` the first such word as written); a statement is a line, or a part of a line split at `;` (Amendment 1b) | `diagram may not use <w> lines` |
+| no statement whose first word, compared without case, is `click`, `style`, `classDef`, `linkStyle`, `link`, `links` or `href`, and for a `sequenceDiagram` also `properties` or `details` (`<w>` the first such word as written); a statement is a line, or a part of a line split at `;` (Amendment 1b; `properties` and `details`, whose JSON can name images, Amendment 1c) | `diagram may not use <w> lines` |
 | every statement (as defined in the row above) whose first word is `class` ends with the word `emphasis` | `diagram may only use class lines for emphasis` |
 | no `<` followed by a letter, `/` or `!` | `diagram may not contain HTML` |
 | no `@{` anywhere (Mermaid shape options, which can load images) (Amendment 1b) | `diagram may not use shape options` |
-| no `javascript:`, `http:`, `https:`, `//`, `\\` (two backslashes) or `:\` (a colon followed by one backslash), compared without case (Amendment 1b widens this from `javascript:`, `http://` and `https://`) | `diagram may not load from outside` |
+| no `javascript:`, `http:`, `https:`, `//` or `\` (any backslash, which closes escapes such as `\/`), compared without case (Amendment 1b widens this from `javascript:`, `http://` and `https://`; Amendment 1c widens `\\` and `:\` to any backslash) | `diagram may not load from outside` |
 | at most 4 distinct group names, a group name being each match of `:::([A-Za-z][A-Za-z0-9_]*)` other than `emphasis` (`<n>` their count) | `diagram has <n> colour groups; at most 4` |
 
 A `source` that is not a string answers `422 {"detail": "invalid block"}` before these checks; a source with no line
@@ -499,6 +503,13 @@ means one newline character.
 | AC-58c | A plan whose step 1 result is `{"rows": [{"note": <a string of 2 000 `x`>}]}`; on its board a live table with columns `["note"]` and pointer `/steps/0/result/rows` | `GET B` | that block's `rendered.rows` is one row whose one cell is 1 001 characters: 1 000 `x` then `…` | holdout |
 | AC-36i | Demo plan, empty board | `POST B/blocks` kind `diagram`, source `"flowchart LR\n  a@{ img: \"x.png\" } --> b"` | HTTP 422, `{"detail": "diagram may not use shape options"}` | holdout |
 | AC-36j | Same | `POST B/blocks` kind `diagram`, source `"flowchart LR\n  a[http:evil.example] --> b"` | HTTP 422, `{"detail": "diagram may not load from outside"}` | holdout |
+| AC-36k | Demo plan, empty board | `POST B/blocks` kind `diagram`, source `"sequenceDiagram\n  participant A as Analyst\n  properties A: {\"icon\": \"x.png\"}\n  A->>A: Review"` | HTTP 422, `{"detail": "diagram may not use properties lines"}` | holdout |
+| AC-36l | Same | `POST B/blocks` kind `diagram`, source `"flowchart LR\n  a[x\\/y] --> b"` (one backslash then a slash in the label) | HTTP 422, `{"detail": "diagram may not load from outside"}` | holdout |
+| AC-36m | Same | `POST B/blocks` kind `flow`, source `"flowchart LR\n  a[<img src=x>] --> b"` | HTTP 422, `{"detail": "diagram may not contain HTML"}` | holdout |
+| AC-36n | Same | `POST B/blocks` kind `flow`, source `"%%{init: {}}%%\nflowchart LR\n  a --> b"` | HTTP 422, `{"detail": "diagram may not set its own config"}` | holdout |
+| AC-36o | Same | `POST B/blocks` kind `diagram`, source `"sequenceDiagram\n  participant A as Analyst\n  details A: {\"x\": 1}\n  A->>A: Review"` | HTTP 422, `{"detail": "diagram may not use details lines"}` | holdout |
+| AC-36p | Same | `POST B/blocks` kind `flow`, source `"flowchart LR\n  classDef Ops fill:#fff\n  a[Extract<br>Claude]:::Ops --> b:::Ops\n  class b stored"` | HTTP 201; `rendered.steps[0].label` is `Extract` | holdout |
+| AC-36q | Same | `POST B/blocks` kind `diagram`, source `"mindmap\n  root((Move))\n    Details\n    Properties"` | HTTP 201 | holdout |
 | AC-58d | A live chart block whose stored source renders on write but whose resolved data later makes the render fail (the test swaps `render_chart` for one that raises `RenderFailed` and counts calls) | `GET B` twice | both answers carry the same `live_error`, and `render_chart` was called once | unit |
 
 ## Slices
@@ -508,7 +519,7 @@ means one newline character.
 | 1 | Tables, block checks, chart and flow rendering, `GET`, `POST /blocks`, `PATCH`, `undo`, `DELETE` for plans | `risk:high` (schema) | — | AC-1 to AC-13e, AC-30 |
 | 2 | `POST /draw`: prompt, retry, number check (also on a person's `PATCH`), stand-in lists, golden set; in `.github/workflows/golden-set.yml` adds `backend/arp/agent_board/**` and `tests/golden/board.jsonl` to the `paths` filter, `arp/agent_board tests/golden/board.jsonl` to the `other=` git-diff list of the `scope` step, and the `arp agent board-golden …` line to the run step | `risk:high` (workflow file) | slice 1 | AC-14 to AC-17d, AC-19, AC-19b, AC-20, AC-20b, AC-30, AC-32 |
 | 3 | Board tab on the Agent screen, with Phase 2's diagram renderer, tiles, checklists and live labels | `risk:normal` | slice 2b, and slices 6 and 8 of `agent-panel-code-mode` | AC-18, AC-18b, AC-22 to AC-26 (with AC-25b to AC-25h), AC-29, AC-31, AC-47 to AC-55, AC-57, AC-61, AC-63, AC-64, AC-49b |
-| 2b | Phase 2 backend: `diagram`, `tiles` and `checklist` checks, live pointers on reads, the draw prompt and `BoardBlockDraft` kinds, 4 more golden cases; in `.github/workflows/golden-set.yml` the run step's `--min-pass 8` becomes `--min-pass 11` | `risk:high` (workflow file) | slice 2 | AC-30, AC-33 to AC-46, AC-56, AC-58 to AC-60, AC-62, AC-36e to AC-36j, AC-58b to AC-58d |
+| 2b | Phase 2 backend: `diagram`, `tiles` and `checklist` checks, the diagram checks on `flow` sources (Amendment 1c), live pointers on reads, the draw prompt and `BoardBlockDraft` kinds, 4 more golden cases; in `.github/workflows/golden-set.yml` the run step's `--min-pass 8` becomes `--min-pass 11` | `risk:high` (workflow file) | slice 2 | AC-30, AC-33 to AC-46, AC-56, AC-58 to AC-60, AC-62, AC-36e to AC-36q, AC-58b to AC-58d |
 | 4 | Boards on explorations | `risk:normal` | slice 3, and slice 10 of `agent-panel-code-mode` | AC-27, AC-28, AC-30, AC-31 |
 
 Slices 1 and 2 are merged. Slice 2b can start once Amendment 1 is approved and its hidden tests are written; slice 3
