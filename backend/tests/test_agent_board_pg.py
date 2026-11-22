@@ -1,6 +1,7 @@
 """Agent board API, slice 1 (spec docs/superpowers/specs/2026-11-22-agent-board.md, AC-1 to AC-13e)."""
 from __future__ import annotations
 
+import json
 import socket
 
 import pytest
@@ -262,7 +263,7 @@ def test_generated_rows_count_against_the_limit(source):
 def test_small_sequence_renders():
     from arp.agent_board.checks import check_block
 
-    src = {"data": {"sequence": {"start": 0, "stop": 5000, "as": "x"}}, "mark": "point",
+    src = {"data": {"sequence": {"start": 0, "stop": 2000, "as": "x"}}, "mark": "point",
            "encoding": {"x": {"field": "x", "type": "quantitative"}}}
     assert check_block("chart", "C", src)["light"].startswith("<svg")
 
@@ -307,17 +308,71 @@ def test_board_loads_when_a_stored_chart_no_longer_renders(client, plan, monkeyp
 
 def test_render_worker_in_process(monkeypatch, capsys):
     import io
-    import json as _json
 
     from arp.agent_board import render_worker
 
     monkeypatch.setattr(render_worker.resource, "setrlimit", lambda *a: None)  # never cap the test process
-    monkeypatch.setattr("sys.stdin", io.StringIO(_json.dumps(BAR_C)))
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(BAR_C)))
     assert render_worker.main() == 0
-    assert _json.loads(capsys.readouterr().out)["light"].startswith("<svg")
+    assert json.loads(capsys.readouterr().out)["light"].startswith("<svg")
     monkeypatch.setattr("sys.stdin", io.StringIO('{"mark": "nope"}'))
     assert render_worker.main() == 1
     assert capsys.readouterr().err.startswith("Vega-Lite to SVG conversion failed")
     monkeypatch.setattr(render_worker, "MAX_SVG_BYTES", 10)
-    with pytest.raises(ValueError, match="exceeds 10 MB"):
+    with pytest.raises(ValueError, match="exceeds 1 MB"):
         render_worker.themed_svgs(BAR_C)
+
+
+@pytest.mark.parametrize(("values", "fmt"), [
+    (json.dumps([{"a": i} for i in range(5001)]), {"type": "json"}),  # code review: a JSON string was one "line"
+    ("a\tb\n" + "1\t2\n" * 5001, {"type": "tsv"}),
+])
+def test_string_values_count_their_rows(values, fmt):
+    from arp.agent_board.checks import BlockInvalid, check_block
+
+    with pytest.raises(BlockInvalid, match="^chart exceeds 5000 data rows$"):
+        check_block("chart", "C", {"data": {"values": values, "format": fmt}, "mark": "point"})
+
+
+@pytest.mark.parametrize("values", [{"rows": [{"a": 1}] * 6000}, '{"rows": []}', 3])
+def test_values_that_are_not_rows_are_refused(values):
+    from arp.agent_board.checks import BlockInvalid, check_block
+
+    with pytest.raises(BlockInvalid, match="^chart does not render: data values must be a list"):
+        check_block("chart", "C", {"data": {"values": values, "format": {"type": "json", "property": "rows"}},
+                                   "mark": "point"})
+
+
+def test_small_json_string_values_render():
+    from arp.agent_board.checks import check_block
+
+    src = {"data": {"values": '[{"a": 1}, {"a": 2}]', "format": {"type": "json"}}, "mark": "point",
+           "encoding": {"x": {"field": "a", "type": "quantitative"}}}
+    assert check_block("chart", "C", src)["light"].startswith("<svg")
+
+
+def test_renders_are_not_cached_and_at_most_two_run_at_once(monkeypatch):
+    import threading
+    import time
+
+    from arp.agent_board import checks
+
+    running, peak, calls, lock = [0], [0], [0], threading.Lock()
+
+    def fake_run(*a, **k):
+        with lock:
+            running[0] += 1
+            calls[0] += 1
+            peak[0] = max(peak[0], running[0])
+        time.sleep(0.05)
+        with lock:
+            running[0] -= 1
+        return checks.subprocess.CompletedProcess(a, 0, '{"light": "<svg/>", "dark": "<svg/>"}', "")
+
+    monkeypatch.setattr(checks.subprocess, "run", fake_run)
+    threads = [threading.Thread(target=checks.render_chart, args=(BAR_C,)) for _ in range(6)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert (calls[0], peak[0]) == (6, 2)

@@ -10,7 +10,7 @@ import json
 import math
 import subprocess
 import sys
-from functools import lru_cache
+import threading
 from typing import Any
 
 KINDS = ("note", "table", "chart", "flow")
@@ -60,12 +60,20 @@ def _num(v: Any) -> bool:
 
 
 def _values_rows(values: Any) -> float:
-    """Rows of an inline `values`: a list's length, or the line count of an inline CSV/TSV/JSON string."""
+    """Rows of an inline `values`: a list's length, the rows of a JSON array string, or the lines of a CSV/TSV string.
+    Anything else (an object, a JSON string that is not an array) is refused before rendering."""
+    if values is None:
+        return 0
     if isinstance(values, list):
         return len(values)
     if isinstance(values, str):
-        return values.count("\n") + 1
-    return 0
+        try:
+            parsed = json.loads(values)
+        except ValueError:
+            return values.count("\n") + 1  # CSV or TSV
+        if isinstance(parsed, list):
+            return len(parsed)
+    raise BlockInvalid("chart does not render: data values must be a list or a CSV, TSV or JSON array string")
 
 
 def _sequence_rows(seq: dict) -> float:
@@ -136,27 +144,25 @@ class RenderFailed(Exception):
     """`str()` is the first line of why the chart could not be drawn."""
 
 
-@lru_cache(maxsize=64)
-def _render_cached(source_json: str) -> tuple[str, str]:
-    try:
-        proc = subprocess.run([sys.executable, "-m", "arp.agent_board.render_worker"], input=source_json,
-                              capture_output=True, text=True, timeout=RENDER_TIMEOUT_S, check=False)
-    except subprocess.TimeoutExpired:
-        raise RenderFailed(f"rendering took longer than {RENDER_TIMEOUT_S} s") from None
+_RENDER_SLOTS = threading.BoundedSemaphore(2)  # at most two render children (about 1 GiB each) at once
+
+
+def render_chart(source: dict) -> dict[str, str]:
+    """Light and dark SVG of the chart with the house theme (D1), drawn in a child process with a memory cap and a
+    timeout, so no chart can take the API down. Nothing is cached: a read renders again (spec "Rendering")."""
+    with _RENDER_SLOTS:
+        try:
+            proc = subprocess.run([sys.executable, "-m", "arp.agent_board.render_worker"], input=json.dumps(source),
+                                  capture_output=True, text=True, timeout=RENDER_TIMEOUT_S, check=False)
+        except subprocess.TimeoutExpired:
+            raise RenderFailed(f"rendering took longer than {RENDER_TIMEOUT_S} s") from None
     if proc.returncode != 0:
         lines = [ln for ln in proc.stderr.strip().splitlines() if ln.strip()]
         if proc.returncode == 1 and lines:
             raise RenderFailed(lines[0])
         raise RenderFailed("rendering ran out of memory or crashed")
     out = json.loads(proc.stdout)
-    return out["light"], out["dark"]
-
-
-def render_chart(source: dict) -> dict[str, str]:
-    """Light and dark SVG of the chart with the house theme (D1), drawn in a child process with a memory cap and a
-    timeout, so no chart can take the API down. The last 64 sources are cached, so reads do not draw again."""
-    light, dark = _render_cached(json.dumps(source, sort_keys=True))
-    return {"light": light, "dark": dark}
+    return {"light": out["light"], "dark": out["dark"]}
 
 
 def render(kind: str, source: Any) -> Any:
