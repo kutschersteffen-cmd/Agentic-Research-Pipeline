@@ -196,7 +196,7 @@ export const WORKSPACES: Workspace[] = [
       ["#/signals", "Signals workbench"],
       ["#/valueChain", "Value Chain Explorer"],
       ["#/decision", "Decision Studio"],
-      ["#/index", "Index Construction"],
+      ["#/index", "Portfolio Builder"],
     ],
     processes: [
       {

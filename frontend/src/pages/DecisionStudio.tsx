@@ -1372,7 +1372,7 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
               >
                 <p>
                   Freezes version {config.version}'s result on <strong>{dataset.name}</strong>, matched to issuers by their id column. Steward
-                  Workflow's coverage rules and Index Construction can then read the tiers and scores. Nothing changes there until a
+                  Workflow's coverage rules and Portfolio Builder can then read the tiers and scores. Nothing changes there until a
                   person confirms tiers or runs an index review.
                 </p>
                 <label className="field-label" htmlFor="publish-id-column">
