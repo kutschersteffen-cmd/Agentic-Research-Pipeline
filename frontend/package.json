@@ -15,8 +15,10 @@
   "dependencies": {
     "@gorules/jdm-editor": "1.52.0",
     "@gorules/zen-engine-wasm32-wasi": "2.0.2",
+    "@mermaid-js/layout-elk": "0.1.7",
     "@napi-rs/wasm-runtime": "^1.2.4",
     "@superset-ui/embedded-sdk": "^0.4.0",
+    "mermaid": "11.4.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "reactflow": "11.11.4"

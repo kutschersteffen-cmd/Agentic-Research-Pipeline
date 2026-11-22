@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
+import { AgentBoard } from "../components/AgentBoard";
 import { AskCard } from "../components/AskCards";
 import { ExplorationCard } from "../components/ExplorationCard";
 import { StepTabs } from "../components/StepTabs";
@@ -15,8 +16,10 @@ const POLL_MS = 3000;
 const NARROW = "(max-width: 899.98px)";
 
 type Drawer = "threads" | "stage" | null;
-type StageTab = "script" | "diff" | "audit";
-const STAGE_TABS: { id: StageTab; label: string }[] = [{ id: "script", label: "Script" }, { id: "diff", label: "Diff" }, { id: "audit", label: "Audit" }];
+type StageTab = "board" | "script" | "diff" | "audit";
+const STAGE_TABS: { id: StageTab; label: string }[] = [
+  { id: "board", label: "Board" }, { id: "script", label: "Script" }, { id: "diff", label: "Diff" }, { id: "audit", label: "Audit" },
+];
 
 const Chip = ({ status }: { status: string }) => <span className={`status-pill status-${status}`}>{chipLabel(status)}</span>;
 
@@ -66,7 +69,8 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<Drawer>(null);
-  const [tab, setTab] = useState<StageTab>("script");
+  const [tab, setTab] = useState<StageTab>("board");
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
   const input = useRef<HTMLTextAreaElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -113,8 +117,9 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     refocus.current = false;
     input.current?.focus();
   }, [busy]);
-  // Opening a thread shows its newest turn.
+  // Opening a thread shows its newest turn, and the stage opens on its Board.
   useLayoutEffect(() => {
+    setTab("board");
     atEnd.current = true;
     setJump(false);
     const el = scroller.current;
@@ -185,7 +190,10 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   // Widening past 900 px shows the columns again, so an open drawer goes.
   useEffect(() => {
     const mq = window.matchMedia(NARROW);
-    const onChange = () => { if (!mq.matches) setDrawer(null); };
+    const onChange = () => {
+      setNarrow(mq.matches);
+      if (!mq.matches) setDrawer(null);
+    };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
@@ -310,7 +318,13 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
         {close && <button type="button" className="link-button" onClick={close}>Close</button>}
       </div>
       <div id={`${id}-panel`} role="tabpanel" aria-label={STAGE_TABS.find((t) => t.id === tab)!.label}>
-        {!plan ? (
+        {tab === "board" ? (
+          plan ? (
+            <AgentBoard key={plan.id} planId={plan.id} planStatus={plan.status} idPrefix={id} />
+          ) : (
+            <p className="muted">{explorationId ? "An exploration has no board yet." : "The selected plan’s board shows here."}</p>
+          )
+        ) : !plan ? (
           <p className="muted">{explorationId ? "An exploration has no script, changes or audit trail: its code and tool calls are in the stream." : "The selected plan’s script, changes and audit trail show here."}</p>
         ) : tab === "script" ? (
           <pre className="mono agent-script" aria-label="Plan script, read-only">
@@ -389,7 +403,8 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
           </form>
         </section>
 
-        <aside className="agent-side agent-stage" aria-label="Stage">{stage("agent-stage")}</aside>
+        {/* Below 900 px the stage lives in its drawer only, so the Board polls and draws once. */}
+        <aside className="agent-side agent-stage" aria-label="Stage">{!narrow && stage("agent-stage")}</aside>
       </div>
       {drawer && (
         <DrawerDialog key={drawer} side={drawer === "threads" ? "left" : "right"} label={drawer === "threads" ? "Threads" : "Stage"} onClose={() => setDrawer(null)}>
