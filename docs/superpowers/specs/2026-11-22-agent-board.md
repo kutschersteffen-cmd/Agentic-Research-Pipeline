@@ -6,6 +6,9 @@ Risk: this spec PR is `risk:low`. The build is size M, delivered as 4 PRs (see `
 risk label.
 
 Status: **approved by the owner on 22 Nov 2026** (button in the spec session, after three spec-critic rounds; decisions D1–D5 as recommended).
+Amendment 1 (22 Nov 2026, Phase 2 below: diagrams in Mermaid, number tiles, checklists, live blocks; D6–D9, AC-33 to AC-64,
+slice 2b): **approved by the owner on 22 Nov 2026** (button in the spec session, head 8272df6). The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
+"work for anything the user tells the AI", and "let's do all" for tiles, checklists and live blocks.
 
 Source: thread "Add a whiteboard to ARP" (22 Nov 2026). The owner asked for "the same whiteboard functionality as
 Claude" and picked option 1 of three: a **Board** tab on the Agent screen's stage with typed blocks (chart, flowchart,
@@ -23,6 +26,10 @@ Approving this spec accepts all five as recommended. Each one changes acceptance
 | D3 | **The agent draws when asked**, from one input at the bottom of the Board tab. It never adds blocks on its own while a plan runs. | Yes (AC-14 to AC-20, AC-25) | It adds a block per finished step; more to read, and the board fills without anyone asking. |
 | D4 | **Numbers are checked, not blocked.** A chart or table the agent draws keeps its numbers, and every number not found in the thread's data is listed on the block as `Not in ARP data: …`. | Yes (AC-17, AC-18) | Such a block is refused with 422; the agent then cannot show a share or a total it worked out. |
 | D5 | **One column of blocks**, reordered by Move up and Move down (and drag), not a free 2D canvas. Works the same in the phone drawer. | Yes (AC-23, AC-26) | A free canvas with x/y positions; more to build and harder on a phone. |
+| D6 | **A `diagram` block is any of five Mermaid types** (flowchart, mindmap, timeline, sequenceDiagram, quadrantChart), drawn in the browser by Mermaid 11 with ELK layout and the house colours. The agent draws diagrams instead of `flow` blocks; `flow` blocks stay valid and are drawn by the same renderer. | Yes (AC-33 to AC-36d, AC-47 to AC-49) | Keep only the flowchart subset; ideas, timelines and comparisons cannot be drawn. |
+| D7 | **The agent names its own colour groups.** A flowchart ends each node with `:::GroupName` (1 to 4 groups, any names that help the reader: who acts, phase, theme) and may mark one key step `class <id> emphasis`. ARP assigns the colours and shows a legend; a diagram sets no colours itself. | Yes (AC-36c, AC-47) | Fixed ARP roles (platform, model, person); does not fit topics outside ARP. |
+| D8 | **Two more block kinds: `tiles` (1 to 4 number tiles) and `checklist`** (items a person ticks; each tick is a version, so undo works). Tile values are JSON numbers, so the D4 check covers them. | Yes (AC-37 to AC-40, AC-50, AC-51) | Numbers and to-dos stay in notes. |
+| D9 | **Live blocks.** A `chart`, `table` or tile can point at the thread's data with a JSON Pointer instead of copying numbers; every read fills it from the current data, and the Board reloads when a step changes. The agent uses a pointer whenever the numbers come straight from one list or number in the thread data. | Yes (AC-41 to AC-46, AC-52, AC-53, AC-57 to AC-61) | Every block is a snapshot; a re-run plan leaves old numbers on the board. |
 
 ## Why
 
@@ -222,12 +229,131 @@ from `model/BoardBlockDraft.json`.
 - Below 900 px the stage is a drawer (spec `agent-panel-code-mode`); the Board fills its width with no horizontal
   scroll; tables scroll inside their own box.
 
+### Phase 2 (Amendment 1): diagrams, tiles, checklists, live blocks
+
+Phase 2 adds three kinds to the four, so `KINDS` is `note`, `table`, `chart`, `flow`, `diagram`, `tiles`, `checklist`,
+and lets `chart`, `table` and tiles read the thread's data live. Everything in Phase 1 stays as written unless this
+section says otherwise. No table changes: the new sources and pointers live in `source` (jsonb).
+
+**`diagram` (D6, D7).** `source` is a string of Mermaid text. Checks, in this order, the first failing one answering
+422 with its message:
+
+| Check | Message |
+|---|---|
+| a string of at most 8 000 characters | `diagram exceeds 8000 characters` |
+| the first word (split on whitespace) of the first line that is not empty and does not start with `%%` equals `flowchart`, `mindmap`, `timeline`, `sequenceDiagram` or `quadrantChart` (that word `<w>`) | `unsupported diagram type: <w>; use flowchart, mindmap, timeline, sequenceDiagram or quadrantChart` |
+| no `%%{` anywhere | `diagram may not set its own config` |
+| no line whose first word is `click`, `style`, `classDef` or `linkStyle` (`<w>` the first such word) | `diagram may not use <w> lines` |
+| every line whose first word is `class` ends with the word `emphasis` | `diagram may only use class lines for emphasis` |
+| no `<` followed by a letter, `/` or `!` | `diagram may not contain HTML` |
+| no `javascript:`, `http://` or `https://`, compared without case | `diagram may not load from outside` |
+| at most 4 distinct group names, a group name being each match of `:::([A-Za-z][A-Za-z0-9_]*)` other than `emphasis` (`<n>` their count) | `diagram has <n> colour groups; at most 4` |
+
+A `source` that is not a string answers `422 {"detail": "invalid block"}` before these checks; a source with no line
+that is non-empty and not a `%%` line answers `unsupported diagram type: ; use flowchart, mindmap, timeline,
+sequenceDiagram or quadrantChart` (empty `<w>`).
+
+`rendered` is `null`: the browser draws it. Download saves `<title>.mmd` with the source.
+
+**Shape checks for `tiles` and `checklist`.** Before their listed checks: a `source` that is not an object, `tiles` or
+`items` missing or not a list, a tile or item that is not an object, a `label` or `text` that is missing or not a string,
+or any key not named below, answers `422 {"detail": "invalid block"}`. `label` and `text` lengths count after
+stripping.
+
+**`tiles` (D8).** `source` is `{"tiles": [tile]}`, 1 to 4 tiles. A tile is `{"label": str, "value": number | {"live":
+pointer}, "format"?: "number" | "percent", "change"?: number, "note"?: str}`. Checks: `tiles must have 1 to 4 tiles`;
+`tile <i>: label must be 1 to 40 characters`; `tile <i>: value must be a number` (a JSON number, not a boolean or a
+string, or a `{"live": …}` object); `tile <i>: change must be a number`; `tile <i>: note exceeds 80 characters`;
+`tile <i>: format must be number or percent` (`i` from 1). The D4 check collects every `value` and `change` that is a
+JSON number; it runs on a draw and on a person's `source` PATCH, as for `chart` and `table`. `unverified` is always
+`[]` for `diagram` and `checklist`, as for `note` and `flow`, also when `POST /blocks` passes one. `rendered` is `{"values": [number | null]}`, one entry per tile: the number, or the live value.
+
+On screen a tile shows `label`, then the value large: `format: "number"` (the default) with at most 2 decimals and `,`
+between thousands (`1,234.5`); `"percent"` as value × 100 with one decimal and `%` (`0.31` → `31.0%`). `change` shows
+under it with `+` when above 0, `-` (U+002D) when below 0 and no sign at 0: a number the same way as the value; for `"percent"` as change × 100 with one decimal and ` pts`
+(`0.04` → `+4.0 pts`). `note` shows small under that. A `null` value shows `—`. Download saves `<title>.csv` with header
+`label,value,change,note` and one row per tile: the raw numbers as JSON writes them (`0.31`, not `31.0%`; a live tile's
+resolved value, empty when `null`), empty cells for a missing `change` or `note`.
+
+**`checklist` (D8).** `source` is `{"items": [{"text": str, "done": bool}]}`. Checks: `checklist must have 1 to 50
+items`; `item <i>: text must be 1 to 200 characters`; `item <i>: done must be true or false`. `rendered` is `null`.
+On screen each item is a checkbox with its text; ticking or unticking sends `PATCH` with the whole new `source`, which is a
+new version with `origin: "person"`, so `Undo last change` unticks. Download saves `<title>.md`, one line per item:
+`- [x] text` or `- [ ] text`.
+
+**Live pointers (D9).** Live checks run in this order: shape (`invalid block` for a chart with `live` and `data`, a table with both or neither
+of `rows` and `live`), then the pointer's form, then the chart's outside check or the table's columns check.
+A pointer is a JSON Pointer (RFC 6901) into the thread data (the same JSON the draw prompt gets,
+before truncation), a string of 1 to 200 characters starting with `/`; otherwise
+`422 {"detail": "live must be a JSON Pointer starting with /"}`.
+
+- `chart`: a top-level `"live": pointer`, and no top-level `data` (both: `422 {"detail": "invalid block"}`). The
+  `url`/`href`/`loader`/image check runs on the source as written, at write time. On every read and write, the `live`
+  key is removed and `data` becomes `{"values": <the pointer's value>}`; the 5 000-row check and rendering run on that.
+  Keys inside the resolved rows (a source list's `url` field, say) are data and are not checked. If the 5 000-row check
+  fails or the chart does not render, the block answers `rendered: null` and `live_error` = that check's message
+  (`chart exceeds 5000 data rows`, `chart does not render: <first line>`); a write still stores it.
+- `table`: `{"live": pointer, "columns": [str]}`. A table has `rows` or `live`, never both and never neither; otherwise
+  `422 {"detail": "invalid block"}`. The 1 to 20 columns check applies to a live table too. Each element of the pointer's list becomes a row:
+  for each column, the element's key of that name; a missing key is `null`; a value that is not a string, number or
+  `null` is its compact JSON text. At most 200 rows are shown; more set `live_error` to `live data exceeds 200 rows`.
+- tile: `"value": {"live": pointer}`; the pointer's value must be a JSON number.
+
+A write checks only the pointer's form; a pointer that does not resolve is stored. Every read (and the write's own
+answer) resolves it against the current thread data. When it does not resolve, or its value has the wrong shape, the
+block answers with `live_error`: `live data not found: <pointer>`, `live data is not a list of rows: <pointer>` (chart,
+table: not a list of objects) or `live data is not a number: <pointer>` (tile), and uses no data: a chart with
+`values: []`, a table with no rows, a tile with `null`. Numbers read through a pointer are thread data, so the D4 check
+never lists them.
+
+A block in a response gains three fields: `live` (`true` when its source holds a pointer), `live_error` (`null` or the
+first message above) and `live_step` (for a pointer whose first two tokens are `steps` and an index `n` that exists,
+the `seq` of thread data `steps[n]`; else `null`). For tiles, `live_step` comes from the first tile, in order, that holds a
+pointer, and `live_error` is the message of the first tile, in order, whose pointer fails. `rendered` for a live `table` is `{"rows": [[…]]}`; for a non-live table it stays `null`.
+
+**Drawing.** `BoardBlockDraft.kind` takes the seven kinds. The system prompt offers `note`, `table`, `chart`,
+`diagram`, `tiles` and `checklist` (not `flow`), with their source formats and the diagram checks above, and says: pick
+the diagram type that makes the request clearest; group flowchart nodes with `:::GroupName` (1 to 4 short CamelCase
+names that help the reader) and mark at most one key step with `class <id> emphasis`; set no colours or config; labels
+at most 5 words; when the numbers come straight from one list or one number in the thread data, use a live pointer
+instead of copying them. The retry, refusal and number check work as in Phase 1. A draft with a `live_error` counts as
+refused with that message (one retry, then 422); a person's `POST /blocks` or `PATCH` stores it with its `live_error`.
+
+**On screen (slice 3).**
+
+- `diagram` and `flow` blocks are drawn by Mermaid 11 (`mermaid@11.4.1`) with `@mermaid-js/layout-elk@0.1.7` as the
+  flowchart layout, `securityLevel: "strict"`, theme `base` with the house fonts and colours, and no `classDef` or config
+  from the source. Both packages load with a dynamic `import()` the first time a diagram or flow is on screen, so the
+  first page load does not carry them (AC-55). A `flow` block's source is Mermaid already and is drawn the same way; the
+  `BoardFlow` component of Phase 1 is not built.
+- Flowchart groups take, in the order they first appear in the source, the existing chart slots `--cat-1` (blue),
+  `--cat-4` (violet), `--cat-2` (magenta) and then `--muted` (slate), from `frontend/src/index.css` in both themes. Each
+  group's box has a fill of `color-mix(in oklch, <hue> 14%, var(--panel))`, a 1.5 px border of the hue, and text of
+  `color-mix(in oklch, <hue> 65%, var(--text))`; the text keeps at least 4.5:1 contrast on its fill in light and dark.
+  `--cat-3` (gold) and amber are never group colours (DESIGN.md keeps amber for "a person must act"). The builder adds
+  one sentence on this to DESIGN.md's Chart Colours paragraph. The `emphasis` step has a 3 px border and semibold text. Under a grouped flowchart one legend line
+  lists the groups in that order, each name with its CamelCase split into words (`DataTeam` → `Data Team`), and, when a
+  step has `emphasis`, `Bold outline: key step` at the right.
+- A diagram Mermaid cannot draw shows `This diagram could not be drawn: <first line of Mermaid's error>` and its
+  source in a code box; the `⋯` menu works as for any block.
+- A live block shows `Live · step <live_step>` beside its title, or `Live` when `live_step` is `null`. A block with
+  `live_error` shows it as one line under the content, in the same style as `Not in ARP data`.
+- While the Board tab is open on a plan it sends `GET /api/plans/<id>` every 10 s, and also `GET B` (redrawing the
+  blocks) each time that status is `running`, and once more on the first poll whose status is not `running` after one
+  that was. Both stop when the tab closes.
+- `Edit` shows a `diagram` as text, and `tiles`, `checklist` and any live `chart` or `table` as formatted JSON of the
+  source (a live table is never turned into CSV, so its pointer stays). `Download` of a live table writes `columns`, then
+  `rendered.rows`; of a live chart, the light SVG with the current data.
+- The empty board reads `Nothing on the board yet. Ask for a chart, diagram, table or checklist.`; the field's
+  placeholder is `Ask the agent to draw something…`.
+
 ## Defaults decided here
 
 - Block limits (50 per board, 200 rows, 20 columns, 5 000 chart rows, 20 000 note characters) are fixed, not settings.
 - The draw call uses the configured model (`ARP_LLM_MODEL`), as explorations do.
 - Versions are kept for as long as the block; there is no version browser, only undo.
-- The board does not refresh by itself; it reloads when the thread is opened and after each change.
+- The board reloads when the thread is opened and after each change; from Phase 2 also every 10 s while the thread's
+  status is `running` (D9).
 - A cancelled or failed plan keeps its board and can still be drawn on.
 
 ## Fixtures
@@ -245,10 +371,14 @@ from `model/BoardBlockDraft.json`.
 - **Bar chart C**: `{"mark": "bar", "data": {"values": [{"s": "Energy", "w": 0.125}, {"s": "Utilities", "w": 0.31}]},
   "encoding": {"x": {"field": "s", "type": "nominal"}, "y": {"field": "w", "type": "quantitative"}}}`.
 - **Flow F**: `"flowchart LR\n  a[Build universe] --> b[Extract]\n  b --> c[Report]"`.
+- **Mind map M** (Phase 2): `"mindmap\n  root((Grow newsletter))\n    Topics\n    LinkedIn"`.
+- **Grouped flow G** (Phase 2): `"flowchart LR\n  a[Find flat]:::Housing --> b[Give notice]:::Berlin\n  b --> c[Register]:::Munich\n  class b emphasis"`.
+- **Live pointer W** (Phase 2): `/steps/0/result/weights`, which in Done plan D is the list of two `{sector, weight}` objects.
 
 ## Acceptance
 
-Superseded: none. In rows, `B` is `/api/agent/boards/plan/<id>` for the plan named in "Given", and `\n` inside a string
+A Phase 2 row (AC-33 on) whose `POST B/blocks` names no title sends `title: "X"`.
+Superseded: AC-21 by AC-54 (new empty-board text), AC-32 by AC-56 (golden set with the new kinds). In rows, `B` is `/api/agent/boards/plan/<id>` for the plan named in "Given", and `\n` inside a string
 means one newline character.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
@@ -291,7 +421,7 @@ means one newline character.
 | AC-19b | The block from AC-19 | `POST B/blocks/<A>/undo` | HTTP 200; `kind: "chart"`, `version: 3`, `source` equals Bar chart C | holdout |
 | AC-20 | Done plan D | `POST B/draw` `{"prompt": "   "}` | HTTP 422, `{"detail": "prompt must be 1 to 2000 characters"}`; no new `calls.jsonl` line | holdout |
 | AC-20b | A plan whose calls' results together exceed 20 000 bytes of compact JSON; any valid stand-in draft | `POST B/draw` `{"prompt": "x"}` | the `calls.jsonl` prompt ends with `\n(thread data truncated at 20000 bytes)`, and the thread data part before it is at most 20 000 bytes as UTF-8 | unit |
-| AC-21 | Demo plan | open `#/agent/<id>` | the stage tabs read `Board`, `Script`, `Diff`, `Audit` in that order, then `Mini-app` if that tab has shipped, and `Board` is selected; the board shows `Nothing on the board yet. Ask for a chart, flowchart, table or note.` | evaluator |
+| ~~AC-21~~ | ~~Demo plan~~ | ~~open `#/agent/<id>`~~ | ~~the stage tabs read `Board`, `Script`, `Diff`, `Audit` in that order, then `Mini-app` if that tab has shipped, and `Board` is selected; the board shows `Nothing on the board yet. Ask for a chart, flowchart, table or note.`~~ | superseded by AC-54 |
 | AC-22 | Done plan D with chart C and flow F on its board | open its Board tab | the chart shows as an `img` whose `src` starts `data:image/svg+xml`; the flowchart shows 3 boxes `Build universe`, `Extract`, `Report` joined by 2 arrows | evaluator |
 | AC-23 | Board with notes `One`, `Two` | `⋯` on `Two`, `Move up` | the board shows `Two` above `One`, also after a reload | evaluator |
 | AC-24 | A note whose source is `<img src=x onerror="document.title='hit'">` and `[a](javascript:alert(1))` | open the Board tab | the `<img …>` text is shown as text; `document.title` is not `hit`; `a` is not a link | evaluator |
@@ -309,7 +439,44 @@ means one newline character.
 | AC-29 | Must not change: the `evaluator` rows of `agent-panel-code-mode` AC-27 to AC-38 that are merged when slice 3 opens (its PR lists them) | their checks | pass, with `Board` first among the tabs | evaluator |
 | AC-30 | Must not change: the backend suite | `python3 -m pytest` | passes, with no edited test | unit |
 | AC-31 | Must not change: the frontend suite | `npm test` | passes, with no edited test except those slice 3 lists in its PR | unit |
-| AC-32 | Golden file of 10 board requests over Done plan D's thread data, each with the expected `kind` | `cd backend && arp agent board-golden --cases tests/golden/board.jsonl --min-pass 8` (one `{id, prompt, expected_kind}` per line; a case passes if the draft passes every check on the first call, has the expected kind and `unverified: []`; the slice 2 builder writes the 10 cases) | exit 0 | golden |
+| ~~AC-32~~ | ~~Golden file of 10 board requests over Done plan D's thread data, each with the expected `kind`~~ | ~~`cd backend && arp agent board-golden --cases tests/golden/board.jsonl --min-pass 8` (one `{id, prompt, expected_kind}` per line; a case passes if the draft passes every check on the first call, has the expected kind and `unverified: []`; the slice 2 builder writes the 10 cases)~~ | ~~exit 0~~ | superseded by AC-56 |
+| AC-33 | Demo plan, empty board | `POST B/blocks` kind `diagram`, title `M`, source Mind map M | HTTP 201; `rendered: null`, `live: false`, `live_error: null` | holdout |
+| AC-34 | Same | `POST B/blocks` kind `diagram`, title `P`, source `"pie\n  \"a\": 1"` | HTTP 422, `{"detail": "unsupported diagram type: pie; use flowchart, mindmap, timeline, sequenceDiagram or quadrantChart"}` | holdout |
+| AC-35 | Same | `POST B/blocks` kind `diagram`, source `"%%{init: {\"theme\": \"dark\"}}%%\nflowchart LR\n  a --> b"` | HTTP 422, `{"detail": "diagram may not set its own config"}` | holdout |
+| AC-36 | Same | `POST B/blocks` kind `diagram`, source `"flowchart LR\n  a --> b\n  click a call f()"` | HTTP 422, `{"detail": "diagram may not use click lines"}` | holdout |
+| AC-36b | Same | `POST B/blocks` kind `diagram`, source `"flowchart LR\n  a[<img src=x onerror=f()>] --> b"` | HTTP 422, `{"detail": "diagram may not contain HTML"}` | holdout |
+| AC-36c | Same | `POST B/blocks` kind `diagram`, source a flowchart of 5 nodes `a` … `e`, each with its own group `:::G1` … `:::G5` | HTTP 422, `{"detail": "diagram has 5 colour groups; at most 4"}` | holdout |
+| AC-36d | Same | `POST B/blocks` kind `diagram`, source `"flowchart LR\n  a[x] --> b[https://evil.test]"` | HTTP 422, `{"detail": "diagram may not load from outside"}` | holdout |
+| AC-37 | Done plan D; stand-in draft `{"kind": "tiles", "title": "Key", "source": {"tiles": [{"label": "Utilities", "value": 0.31, "format": "percent"}, {"label": "Other", "value": 0.5}]}}` | `POST B/draw` `{"prompt": "key numbers"}` | HTTP 200; `kind: "tiles"`, `unverified: [0.5]`, `rendered: {"values": [0.31, 0.5]}` | holdout |
+| AC-38 | Demo plan, empty board | `POST B/blocks` kind `tiles`, source `{"tiles": [{"label": "a", "value": "31%"}]}` | HTTP 422, `{"detail": "tile 1: value must be a number"}` | holdout |
+| AC-38b | Same | `POST B/blocks` kind `tiles`, source with 5 tiles `{"label": "a", "value": 1}` | HTTP 422, `{"detail": "tiles must have 1 to 4 tiles"}` | holdout |
+| AC-39 | Demo plan; checklist `C` with source `{"items": [{"text": "Call vendor", "done": false}]}` at version 1 | `PATCH B/blocks/<C>` `{"source": {"items": [{"text": "Call vendor", "done": true}]}}`, then `POST B/blocks/<C>/undo` | the PATCH answers `version: 2`, `origin: "person"`, item 1 `done: true`; the undo answers `version: 3`, item 1 `done: false` | holdout |
+| AC-40 | Demo plan, empty board | `POST B/blocks` kind `checklist`, source `{"items": []}` | HTTP 422, `{"detail": "checklist must have 1 to 50 items"}` | holdout |
+| AC-41 | Done plan D, empty board | `POST B/blocks` kind `table`, title `W`, source `{"live": "/steps/0/result/weights", "columns": ["sector", "weight"]}` | HTTP 201; `live: true`, `live_error: null`, `unverified: []`, `rendered: {"rows": [["Energy", 0.125], ["Utilities", 0.31]]}`; `source` is returned as sent | holdout |
+| AC-42 | The block from AC-41; the test then sets the stored result's Utilities weight to `0.4` | `GET B` | that block's `rendered.rows` is `[["Energy", 0.125], ["Utilities", 0.4]]`; its `version` is still 1 | holdout |
+| AC-43 | Done plan D, empty board | `POST B/blocks` kind `table`, source `{"live": "/steps/5/result", "columns": ["a"]}` | HTTP 201; `live_error: "live data not found: /steps/5/result"`, `rendered: {"rows": []}` | holdout |
+| AC-43b | Same | `POST B/blocks` kind `table`, source `{"live": "steps/0", "columns": ["a"]}` | HTTP 422, `{"detail": "live must be a JSON Pointer starting with /"}` | holdout |
+| AC-44 | Same | `POST B/blocks` kind `chart`, title `C`, source `{"live": "/steps/0/result/weights", "mark": "bar", "encoding": {"x": {"field": "sector", "type": "nominal"}, "y": {"field": "weight", "type": "quantitative"}}}` | HTTP 201; `live: true`, `live_error: null`, `unverified: []`; `rendered.light` contains `#2a78d6` and the text `Utilities` | holdout |
+| AC-45 | Same | `POST B/blocks` kind `chart`, source `{"live": "/steps/0/result/weights", "mark": "image", "encoding": {"url": {"field": "sector"}}}` | HTTP 422, `{"detail": "chart may not load from outside: mark"}` | holdout |
+| AC-46 | Same | `POST B/blocks` kind `tiles`, source `{"tiles": [{"label": "Utilities", "value": {"live": "/steps/0/result/weights/1/weight"}}, {"label": "Bad", "value": {"live": "/steps/0/result/weights/1/sector"}}]}` | HTTP 201; `rendered: {"values": [0.31, null]}`, `live_error: "live data is not a number: /steps/0/result/weights/1/sector"` | holdout |
+| AC-47 | Demo plan with Mind map M and Grouped flow G on its board | open its Board tab | M shows an `svg` holding the text `Grow newsletter`, `Topics` and `LinkedIn`; G shows boxes `Find flat`, `Give notice`, `Register` whose three fill colours differ; under G one line reads `Housing`, `Berlin`, `Munich` and `Bold outline: key step`; `Give notice`'s border is 3 px wide | evaluator |
+| AC-48 | A `diagram` block whose source is `"flowchart LR\n  a -->"` (stored straight in the table by the test, since it passes the server checks) | open the Board tab | the block shows `This diagram could not be drawn:` and its source; its `⋯` menu opens | evaluator |
+| AC-49 | Board with M and G | open the Board tab with the browser's network log on | every request goes to the app's own origin, `fonts.googleapis.com` or `fonts.gstatic.com`; no request made after the Board tab opens goes to any other host | evaluator |
+| AC-50 | Done plan D; tiles `T` with source `{"tiles": [{"label": "Utilities", "value": 0.31, "format": "percent", "change": 0.04, "note": "vs Q2"}, {"label": "Issuers", "value": 1234.5, "change": -12}]}` | open the Board tab | the tiles read `Utilities` `31.0%` `+4.0 pts` `vs Q2` and `Issuers` `1,234.5` `-12` | evaluator |
+| AC-51 | Checklist `C` from AC-39 at version 1 | tick `Call vendor`, reload, then `⋯`, `Undo last change` | after the reload the box is ticked; after the undo it is not | evaluator |
+| AC-52 | The live table from AC-41 | open the Board tab; the test then sets Utilities to `0.4` and reloads the page | beside the title `Live · step 1`; before the change the table shows `0.31`, after it `0.4` | evaluator |
+| AC-53 | The block from AC-43 | open the Board tab | under the table one line reads `live data not found: /steps/5/result` | evaluator |
+| AC-54 | Demo plan, empty board | open `#/agent/<id>` | the stage tabs read `Board`, `Script`, `Diff`, `Audit` in that order, then `Mini-app` if that tab has shipped, and `Board` is selected; the board shows `Nothing on the board yet. Ask for a chart, diagram, table or checklist.` and the field's placeholder is `Ask the agent to draw something…` | evaluator |
+| AC-55 | — | `cd frontend && npx vite build --manifest`, then read `dist/.vite/manifest.json` | the manifest has an entry whose `src` is `node_modules/mermaid/dist/mermaid.core.mjs` with `isDynamicEntry: true`; the `file` of the `index.html` entry and of every chunk reached from it through `imports` (recursively) contains neither the text `gitGraph` nor `org.eclipse.elk` | unit |
+| AC-56 | Golden file of 14 board requests over Done plan D's thread data: the 10 of AC-32 (an `expected_kind` of `flow` there becomes `diagram`) plus one each expecting `diagram` for a mind map, `diagram` for a sequence, `tiles` and `checklist`; two of the 14 (a table and a chart of the sector weights) also carry `"expected_live": true` | `cd backend && arp agent board-golden --cases tests/golden/board.jsonl --min-pass 11` (a case passes as in AC-32, with `live_error: null`, and, when `expected_live` is true, with `live: true`) | exit 0 | golden |
+| AC-57 | A plan with status `running` whose step 1 result is Done plan D's; the live table from AC-41 on its board; the Board tab open | the test sets Utilities to `0.4` | within 15 s, with no page reload, the table shows `0.4` | evaluator |
+| AC-58 | A plan whose step 1 result is `{"rows": [{"v": 1}, …]}` with 5 001 rows | `POST B/blocks` kind `chart`, source `{"live": "/steps/0/result/rows", "mark": "point", "encoding": {"y": {"field": "v", "type": "quantitative"}}}` | HTTP 201; `rendered: null`, `live_error: "chart exceeds 5000 data rows"` | holdout |
+| AC-59 | Done plan D; a person's tiles block `T` with `{"tiles": [{"label": "a", "value": 0.31}]}` | `PATCH B/blocks/<T>` `{"source": {"tiles": [{"label": "a", "value": 9.99}]}}` | `unverified: [9.99]` | holdout |
+| AC-60 | Done plan D, empty board | `POST B/blocks` kind `table`, source `{"live": "/steps/0/result/weights", "columns": ["sector"], "rows": []}` | HTTP 422, `{"detail": "invalid block"}` | holdout |
+| AC-61 | The live table from AC-41 | `⋯`, `Download` | `W.csv` reads `sector,weight`, `Energy,0.125`, `Utilities,0.31` on three lines | evaluator |
+| AC-62 | Demo plan, empty board | `POST B/blocks` kind `checklist`, title `X`, source `{"items": [{"text": "a", "done": false}]}`, `"unverified": [1]`; then the same with kind `diagram`, source Mind map M | both HTTP 201 with `unverified: []` | holdout |
+| AC-63 | Tiles `T` from AC-50; checklist `C` with items `a` done and `b` not done; diagram `M` with source Mind map M | `Download` on each; `⋯`, `Edit` on `T` | `T.csv` reads `label,value,change,note`, `Utilities,0.31,0.04,vs Q2`, `Issuers,1234.5,-12,` on three lines; `C.md` reads `- [x] a` and `- [ ] b` on two lines; `M.mmd` holds exactly Mind map M; `Edit` on `T` shows its source as formatted JSON | evaluator |
+| AC-64 | The plan of AC-57 with the Board tab open | the test sets Utilities to `0.4` and the plan's status to `done` in one write | within 15 s, with no page reload, the table shows `0.4` | evaluator |
 
 ## Slices
 
@@ -317,14 +484,16 @@ means one newline character.
 |---|---|---|---|---|
 | 1 | Tables, block checks, chart and flow rendering, `GET`, `POST /blocks`, `PATCH`, `undo`, `DELETE` for plans | `risk:high` (schema) | — | AC-1 to AC-13e, AC-30 |
 | 2 | `POST /draw`: prompt, retry, number check (also on a person's `PATCH`), stand-in lists, golden set; in `.github/workflows/golden-set.yml` adds `backend/arp/agent_board/**` and `tests/golden/board.jsonl` to the `paths` filter, `arp/agent_board tests/golden/board.jsonl` to the `other=` git-diff list of the `scope` step, and the `arp agent board-golden …` line to the run step | `risk:high` (workflow file) | slice 1 | AC-14 to AC-17d, AC-19, AC-19b, AC-20, AC-20b, AC-30, AC-32 |
-| 3 | Board tab on the Agent screen | `risk:normal` | slice 2, and slices 6 and 8 of `agent-panel-code-mode` | AC-18, AC-18b, AC-21 to AC-26 (with AC-25b to AC-25h), AC-29, AC-31 |
+| 3 | Board tab on the Agent screen, with Phase 2's diagram renderer, tiles, checklists and live labels | `risk:normal` | slice 2b, and slices 6 and 8 of `agent-panel-code-mode` | AC-18, AC-18b, AC-22 to AC-26 (with AC-25b to AC-25h), AC-29, AC-31, AC-47 to AC-55, AC-57, AC-61, AC-63, AC-64 |
+| 2b | Phase 2 backend: `diagram`, `tiles` and `checklist` checks, live pointers on reads, the draw prompt and `BoardBlockDraft` kinds, 4 more golden cases; in `.github/workflows/golden-set.yml` the run step's `--min-pass 8` becomes `--min-pass 11` | `risk:high` (workflow file) | slice 2 | AC-30, AC-33 to AC-46, AC-56, AC-58 to AC-60, AC-62 |
 | 4 | Boards on explorations | `risk:normal` | slice 3, and slice 10 of `agent-panel-code-mode` | AC-27, AC-28, AC-30, AC-31 |
 
-Slices 1 and 2 can start now; slice 3 waits for the Agent screen's stage tabs.
+Slices 1 and 2 are merged. Slice 2b can start once Amendment 1 is approved and its hidden tests are written; slice 3
+waits for slice 2b and the Agent screen's stage tabs.
 
 ## Later
 
-- **Next step up: board to deck.** A `Send to deck` action that turns the board into house-deck slides. Charts are
+- **Next step up: board to deck.** A `Send to deck` action that turns the board into house-deck slides (a `diagram` flowchart that `parse_mermaid` accepts goes in as a native flow; other diagrams as pictures). Charts are
   already Vega-Lite and flowcharts already the deck's Mermaid subset, so it needs a block-to-slide mapping and an
   export route, not new drawing.
 - Mini-app blocks: when slice 11 of `agent-panel-code-mode` ships, a mini-app becomes a fifth block kind instead of its
