@@ -170,3 +170,8 @@ test("pol_failed_with_wait", () => {
   assert.deepEqual(out, voting);
   assert.deepEqual(voting, ["Proxy season"]);
 });
+
+test("rd-lab-rename AC-11: Argus Template step names R&D Lab", () => {
+  const steps = WORKSPACES.find((w) => w.id === "argus")!.processes.flatMap((p) => p.steps);
+  assert.equal(steps.find((s) => s.label === "Template")!.does, "Build and ratify scoring templates in Decision Studio (R&D Lab); only ratified versions reach Argus.");
+});
