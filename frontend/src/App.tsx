@@ -87,7 +87,7 @@ const TABS = [
   { id: "signals", label: "Signals workbench" },
   { id: "valueChain", label: "Value Chain Explorer" },
   { id: "decision", label: "Decision Studio" },
-  { id: "index", label: "Index Construction" },
+  { id: "index", label: "Portfolio Builder" },
   { id: "xbrl", label: "XBRL Facts" },
   { id: "rfp", label: "RFP Answers" },
   { id: "library", label: "Data Library" },
