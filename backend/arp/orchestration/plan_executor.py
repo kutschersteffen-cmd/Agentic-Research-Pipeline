@@ -48,6 +48,16 @@ class _AwaitingReview(Exception):
     pass
 
 
+class BudgetReached(Exception):
+    """No step starts once the plan's runs and planner calls cost its budget; the message is the plan's error."""
+
+
+def _check_budget(store: PlanStore, plan: dict[str, Any]) -> None:
+    budget = plan["budget_usd"]
+    if budget is not None and (spent := store.spent_usd(plan["id"])) >= budget:
+        raise BudgetReached(f"budget reached: spent ${spent:.2f} of ${budget:.2f}")
+
+
 _STARTABLE = {"approved", "failed"}  # failed: `resume` re-runs from the top, reusing finished calls
 _ACTIVE = {"running", "awaiting_review"}
 
@@ -112,11 +122,14 @@ def _run(plan_id: str, store: PlanStore, steps: dict[str, Step | Callable[..., d
             run_id = old["run_id"] if same and old["status"] == "running" else None
             try:
                 if run_id is None:  # recorded as `starting` first, so a crash inside `start` is found on resume
+                    _check_budget(store, plan)
                     attempt = old["attempt"] + (old["status"] == "failed") if same else 1
                     store.record_call(plan_id, seq=seq, kind=kind, params=params, status="starting", attempt=attempt)
                     run_id = step.start(f"plan:{plan_id}:v{plan['version']}:{seq}:a{attempt}", **params)
                     store.update_call(plan_id, seq, status="running", run_id=run_id)
                 result = step.finish(run_id, **params)  # attaches to the run a crashed worker left running
+            except BudgetReached:
+                raise
             except Exception as exc:
                 store.update_call(plan_id, seq, status="failed")
                 raise RuntimeError(f"step {seq} {kind} failed: {exc}") from exc

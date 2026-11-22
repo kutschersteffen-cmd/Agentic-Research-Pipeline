@@ -213,3 +213,23 @@ def test_plan_call_attempt_backfilled_then_not_null(current_schema):
     assert _execute("SELECT is_nullable, column_default FROM information_schema.columns"
                     " WHERE table_name = 'research_plan_calls' AND column_name = 'attempt'") == [("NO", "1")]
     reset_postgres_tables(DSN)
+
+
+def test_plan_planner_cost_backfilled_then_not_null(current_schema):
+    """agent-panel-code-mode slice 5: plans stored before `planner_cost_usd` existed read 0, and the column ends
+    NOT NULL; `budget_usd` is added nullable."""
+    from arp.storage.postgres_schema import ensure_schema
+    from tests.postgres_helpers import reset_postgres_tables
+
+    reset_postgres_tables(DSN)
+    _execute("ALTER TABLE research_plans DROP COLUMN planner_cost_usd, DROP COLUMN budget_usd")
+    _execute("DELETE FROM schema_migrations WHERE name = 'plan_planner_cost'")
+    _execute("INSERT INTO research_plans (id, brief, script, dry_run, status, created_at)"
+             " VALUES ('plan_1', 'b', 's', '[]', 'done', now())")
+    result = ensure_schema(DSN)
+    assert {"research_plans.planner_cost_usd", "research_plans.budget_usd"} <= set(result["columns_added"])
+    assert result["steps_applied"] == ["plan_planner_cost"]
+    assert _execute("SELECT planner_cost_usd, budget_usd FROM research_plans") == [(0, None)]
+    assert _execute("SELECT is_nullable, column_default FROM information_schema.columns"
+                    " WHERE table_name = 'research_plans' AND column_name = 'planner_cost_usd'") == [("NO", "0")]
+    reset_postgres_tables(DSN)
