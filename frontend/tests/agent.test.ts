@@ -239,3 +239,9 @@ test("a taller composer keeps a reader at the end pinned but never raises Jump t
 test("Jump to latest goes once the end is in view without a scroll, as when the box grows to fit everything", () => {
   assert.deepEqual(streamResized({ wasNearEnd: false, contentGrew: false, boxShrank: false, nowNearEnd: true }), { scrollToEnd: false, jump: false });
 });
+
+test("the accepted chip writes its word in ink and keeps the green on the square only (contrast on a selected row)", () => {
+  const css = readFileSync(new URL("../src/index.css", import.meta.url), "utf8");
+  assert.match(css, /\.status-accepted \{ color: var\(--ink\); \}/);
+  assert.match(css, /\.status-accepted::before \{ background: var\(--high\); \}/);
+});

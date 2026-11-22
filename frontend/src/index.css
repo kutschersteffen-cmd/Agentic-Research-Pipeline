@@ -2904,6 +2904,8 @@ dialog.agent-drawer::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 }
 .status-exploratory { color: var(--mid); }
 .status-exploratory::before { background: transparent; outline: 1px dashed currentColor; outline-offset: -1px; }
-.status-accepted { color: var(--high); }
+/* Ink words on every row ground (green text was 4.05:1 on a selected row); the square keeps the green. */
+.status-accepted { color: var(--ink); }
+.status-accepted::before { background: var(--high); }
 .agent-badge { font-size: var(--text-sm); color: var(--mid); border: 1px dashed var(--mid); padding: 0 var(--s-1); }
 .agent-exploration-code summary { cursor: pointer; }
