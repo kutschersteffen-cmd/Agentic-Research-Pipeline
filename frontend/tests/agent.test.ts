@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import {
   answerActions, budgetLine, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  askingIn, COMPOSER_COPY, explorationBadge, needsYouLine, resultTable, scriptLines, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd,
+  askingIn, COMPOSER_COPY, explorationBadge, nearEnd, needsYouLine, resultTable, scriptLines, streamResized, sendsComposer, stepState, threadRows,
+  threadTitle, untilCancelled, usd,
 } from "../src/lib/agent.ts";
 import type { Plan } from "../src/lib/plans.ts";
 import type { AskThread, Exploration } from "../src/types.ts";
@@ -212,4 +213,29 @@ test("a result is a table only when it is a list of flat objects", () => {
     rows: [["Energy", 4.5, null], ["IT", null, true]],
   });
   for (const json of [1, "x", null, [], [1, 2], [{ a: { b: 1 } }], [{ a: [1] }], { a: 1 }]) assert.equal(resultTable(json), null);
+});
+
+// Chat-style stream: the composer stays at the bottom and the stream follows new turns only for a reader at its end.
+test("the stream counts as at its end within 80 px of the bottom", () => {
+  assert.equal(nearEnd({ scrollTop: 920, scrollHeight: 1500, clientHeight: 500 }), true); // 80 px left
+  assert.equal(nearEnd({ scrollTop: 919, scrollHeight: 1500, clientHeight: 500 }), false); // 81 px left
+  assert.equal(nearEnd({ scrollTop: 1000, scrollHeight: 1500, clientHeight: 500 }), true);
+  assert.equal(nearEnd({ scrollTop: 0, scrollHeight: 300, clientHeight: 500 }), true); // nothing to scroll
+  assert.equal(nearEnd({ scrollTop: 0, scrollHeight: 2000, clientHeight: 500 }), false);
+});
+
+test("new content scrolls a reader at the end down, and offers Jump to latest to one who scrolled up", () => {
+  const at = { contentGrew: true, boxShrank: false, nowNearEnd: false };
+  assert.deepEqual(streamResized({ ...at, wasNearEnd: true }), { scrollToEnd: true, jump: false });
+  assert.deepEqual(streamResized({ ...at, wasNearEnd: false }), { scrollToEnd: false, jump: true });
+});
+
+test("a taller composer keeps a reader at the end pinned but never raises Jump to latest", () => {
+  const squeezed = { contentGrew: false, boxShrank: true, nowNearEnd: false };
+  assert.deepEqual(streamResized({ ...squeezed, wasNearEnd: true }), { scrollToEnd: true, jump: false });
+  assert.deepEqual(streamResized({ ...squeezed, wasNearEnd: false }), { scrollToEnd: false, jump: null });
+});
+
+test("Jump to latest goes once the end is in view without a scroll, as when the box grows to fit everything", () => {
+  assert.deepEqual(streamResized({ wasNearEnd: false, contentGrew: false, boxShrank: false, nowNearEnd: true }), { scrollToEnd: false, jump: false });
 });
