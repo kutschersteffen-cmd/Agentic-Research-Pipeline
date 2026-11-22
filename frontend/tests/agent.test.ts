@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import {
   answerActions, budgetLine, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  askingIn, nearEnd, needsYouLine, scriptLines, streamResized, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd,
+  askingIn, nearEnd, needsYouLine, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd,
 } from "../src/lib/agent.ts";
 import type { Plan } from "../src/lib/plans.ts";
 import type { AskThread } from "../src/types.ts";
@@ -206,4 +206,16 @@ test("a taller composer keeps a reader at the end pinned but never raises Jump t
 
 test("Jump to latest goes once the end is in view without a scroll, as when the box grows to fit everything", () => {
   assert.deepEqual(streamResized({ wasNearEnd: false, contentGrew: false, boxShrank: false, nowNearEnd: true }), { scrollToEnd: false, jump: false });
+});
+
+test("a fast answer is still followed when the follow-down's scroll event lands after it", () => {
+  // Followed down to the end of `Working…` (1000 + 87 px of content, a 500 px box): scrollTop 587. The answer (+800 px)
+  // then grows the stream before that scroll's event fires, which reads as scrolled up and clears `atEnd`.
+  const before = { scrollHeight: 1087, clientHeight: 500 };
+  assert.equal(wasNearEnd(false, 587, before), true);
+  assert.deepEqual(streamResized({ wasNearEnd: wasNearEnd(false, 587, before), contentGrew: true, boxShrank: false, nowNearEnd: false }),
+    { scrollToEnd: true, jump: false });
+  // A reader who really scrolled up stays put and gets the button.
+  assert.equal(wasNearEnd(false, 0, before), false);
+  assert.equal(wasNearEnd(true, 0, before), true); // your own send sets `atEnd`
 });

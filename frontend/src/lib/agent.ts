@@ -160,6 +160,13 @@ export const NEAR_END_PX = 80;
 export const nearEnd = (m: { scrollTop: number; scrollHeight: number; clientHeight: number }): boolean =>
   m.scrollHeight - m.scrollTop - m.clientHeight <= NEAR_END_PX;
 
+/** Whether the reader was at the stream's end before a resize: the last scroll said so (`atEnd`), or the scroll
+ * position was within reach of the end as the stream measured before the resize. The second part keeps a fast
+ * answer followed: the scroll event of the stream's own follow-down can land after the next turn has already grown
+ * the stream, and then reads as scrolled up. */
+export const wasNearEnd = (atEnd: boolean, scrollTop: number, before: { scrollHeight: number; clientHeight: number }): boolean =>
+  atEnd || nearEnd({ scrollTop, ...before });
+
 /** What the stream does when its content or its box changes size. A reader who was near the end stays there: new
  * content (a turn, `Working…`, an answer) or a box squeezed by a taller composer scrolls it down. A reader who had
  * scrolled up stays put; only new content raises "Jump to latest" (`jump` true), and the button goes once the end is

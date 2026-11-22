@@ -18,7 +18,10 @@ Amendment 1d (22 Nov 2026, from the round 3 security review on PR #648, the thir
 the class: the checks read lines and words the way Mermaid does and refuse hidden characters and entity codes; in the
 browser every diagram is drawn and shown inside a sandboxed frame whose Content-Security-Policy blocks every outside load,
 with links stripped as before, so a diagram that slips past the checks still cannot reach outside; AC-36r to AC-36z, AC-49c, AC-49d, AC-55b): **approved by the owner on 22 Nov 2026**
-(button in the spec session, head 6e1dbf0). The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
+(button in the spec session, head 6e1dbf0).
+Amendment 1e (22 Nov 2026, from the reviews of PR #660; the owner chose "fix once, frame is the wall"): a statement
+also starts after `}`, Mermaid's own entity placeholders are refused, and the slice 3 frame is named the security
+boundary for diagrams; AC-65 to AC-67, AC-66b, AC-67b: **approved by the owner on 22 Nov 2026** (button in the spec session, head 89c0bc4). The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
 "work for anything the user tells the AI", and "let's do all" for tiles, checklists and live blocks.
 
 Source: thread "Add a whiteboard to ARP" (22 Nov 2026). The owner asked for "the same whiteboard functionality as
@@ -263,18 +266,29 @@ section says otherwise. No table changes: the new sources and pointers live in `
 | no `@{` anywhere (Mermaid shape options, which can load images) (Amendment 1b) | `diagram may not use shape options` |
 | no `javascript:`, `http:`, `https:`, `//` or `\` (any backslash, which closes escapes such as `\/`), compared without case (Amendment 1b widens this from `javascript:`, `http://` and `https://`; Amendment 1c widens `\\` and `:\` to any backslash) | `diagram may not load from outside` |
 | at most 4 distinct group names, a group name being each match of `:::([A-Za-z][A-Za-z0-9_]*)` other than `emphasis` (`<n>` their count) | `diagram has <n> colour groups; at most 4` |
-| no match of `#[A-Za-z0-9_]+;` (Mermaid entity codes such as `#47;`, which Mermaid turns back into `/` when it draws; so a `classDef` colour such as `fill:#fff;` must be written without the trailing `;`) (Amendment 1d) | `diagram may not use entity codes` |
+| no match of `#[A-Za-z0-9_]+;` (Mermaid entity codes such as `#47;`, which Mermaid turns back into `/` when it draws; so a `classDef` colour such as `fill:#fff;` must be written without the trailing `;`) (Amendment 1d), and neither `ﬂ°` (U+FB02 U+00B0) nor `¶ß` (U+00B6 U+00DF) anywhere, each on its own, the placeholders Mermaid writes for entity codes and decodes the same way (Amendment 1e) | `diagram may not use entity codes` |
 
 A `source` that is not a string answers `422 {"detail": "invalid block"}` before these checks; a source with no line
 that is non-empty and not a `%%` line answers `unsupported diagram type: ; use flowchart, mindmap, timeline,
 sequenceDiagram or quadrantChart` (empty `<w>`).
 
+Security boundary (Amendment 1e). The frame that draws diagrams in the browser (slice 3, AC-49c, AC-49d, AC-55b) is
+the security boundary for `diagram` and `flow` blocks; the server checks are a first filter that keeps most unsafe
+sources out of storage and gives the agent a clear refusal. A review finding that a source passes the server checks
+but is contained by the frame (its loads blocked by the frame's policy, its links stripped) is `optional`, not
+blocking. Before slice 3 ships no screen draws these blocks, so this already applies to slice 2b reviews; slice 3
+itself must pass AC-49c, AC-49d and AC-55b. A source that makes Mermaid run a script, or touch the parent page, is
+never contained and stays blocking. This covers only drawing in the Board tab's frame; any other place that draws or
+exports a `diagram` or `flow` source is reviewed on its own.
+
 Lines and words (Amendment 1d). Every check reads the source the way Mermaid does: a line is a part of the source split
 at `\r\n`, `\r` or `\n` (Mermaid turns each into a line feed before it reads); a word is a part of a line or statement
 split at spaces, tabs and every Unicode space separator (category `Zs`, which JavaScript's `\s` matches); and the
 first word of a statement is its first word that is not `end`, compared without case (Mermaid lets a statement follow
-a block's `end` on the same line). With hidden characters refused first, the diagram type and the statements the checks see are the
-ones Mermaid runs.
+a block's `end` on the same line). A new statement also starts after every `}` (Amendment 1e:
+Mermaid runs a statement that follows an `accDescr { … }` block on the same line). This split is on purpose
+everywhere, so text such as `A->>B: send {x} details` is refused too; the agent rewrites it. These rules bring the checks close to Mermaid's reading; where they still differ, the frame
+above is the boundary.
 
 `rendered` is `null`: the browser draws it. Download saves `<title>.mmd` with the source.
 
@@ -553,6 +567,11 @@ literal, decoded as JSON: `\n`, `\r`, `\\`, `\"` and each `\uXXXX` are one chara
 | AC-49c | A `diagram` block stored straight in the table by the test with source `"sequenceDiagram\n  participant A as Analyst\n  properties A: {\"icon\": \"https://example.com/i.png\"}\n  A->>A: Review"` | open the Board tab with the browser's network log on | the diagram shows `Analyst`; the network log shows no completed response from `example.com` (an entry blocked by the Content-Security-Policy counts as blocked) | evaluator |
 | AC-49d | Board with M and G | open the Board tab | each of the two diagrams is inside an `iframe` whose `sandbox` attribute is exactly `allow-scripts allow-same-origin` and whose document URL's path ends `board-diagram.html` | evaluator |
 | AC-55b | — | `cd frontend && npx vite build`, then read `dist/board-diagram.html` | the first child element of its `<head>` is a `<meta http-equiv="Content-Security-Policy">` whose `content` is exactly `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src data:` | unit |
+| AC-65 | Demo plan, empty board | `POST B/blocks` kind `diagram`, source `"flowchart LR\n  a --> b\n  accDescr { x } click a href \"x\""` | HTTP 422, `{"detail": "diagram may not use click lines"}` | holdout |
+| AC-66 | Same | `POST B/blocks` kind `diagram`, source `"flowchart LR\n  a[see \ufb02\u00b0\u00b047\u00b6\u00df] --> b"` | HTTP 422, `{"detail": "diagram may not use entity codes"}` | holdout |
+| AC-66b | Same | `POST B/blocks` kind `diagram`, source `"flowchart LR\n  a[see \ufb02\u00b0\u00b047;] --> b"` | HTTP 422, `{"detail": "diagram may not use entity codes"}` | holdout |
+| AC-67b | Same | `POST B/blocks` kind `flow`, source `"flowchart LR\n  a --> b{Ready?}\n  b --> c[Stra\u00dfe]"` | HTTP 201; `rendered.steps[1].kind` is `decision` | holdout |
+| AC-67 | Same | `POST B/blocks` kind `diagram`, source `"flowchart LR\n  a --> b{Ready?}\n  b --> c[Stra\u00dfe]"` | HTTP 201 | holdout |
 | AC-58d | A live chart block whose stored source renders on write but whose resolved data later makes the render fail (the test swaps `render_chart` for one that raises `RenderFailed` and counts calls) | `GET B` twice | both answers carry the same `live_error`, and `render_chart` was called once | unit |
 
 ## Slices
@@ -562,7 +581,7 @@ literal, decoded as JSON: `\n`, `\r`, `\\`, `\"` and each `\uXXXX` are one chara
 | 1 | Tables, block checks, chart and flow rendering, `GET`, `POST /blocks`, `PATCH`, `undo`, `DELETE` for plans | `risk:high` (schema) | — | AC-1 to AC-13e, AC-30 |
 | 2 | `POST /draw`: prompt, retry, number check (also on a person's `PATCH`), stand-in lists, golden set; in `.github/workflows/golden-set.yml` adds `backend/arp/agent_board/**` and `tests/golden/board.jsonl` to the `paths` filter, `arp/agent_board tests/golden/board.jsonl` to the `other=` git-diff list of the `scope` step, and the `arp agent board-golden …` line to the run step | `risk:high` (workflow file) | slice 1 | AC-14 to AC-17d, AC-19, AC-19b, AC-20, AC-20b, AC-30, AC-32 |
 | 3 | Board tab on the Agent screen, with Phase 2's diagram renderer, tiles, checklists and live labels | `risk:normal` | slice 2b, and slices 6 and 8 of `agent-panel-code-mode` | AC-18, AC-18b, AC-22 to AC-26 (with AC-25b to AC-25h), AC-29, AC-31, AC-47 to AC-55, AC-57, AC-61, AC-63, AC-64, AC-49b, AC-49c, AC-49d, AC-55b |
-| 2b | Phase 2 backend: `diagram`, `tiles` and `checklist` checks, the diagram checks on `flow` sources (Amendment 1c), live pointers on reads, the draw prompt and `BoardBlockDraft` kinds, 4 more golden cases; in `.github/workflows/golden-set.yml` the run step's `--min-pass 8` becomes `--min-pass 11` | `risk:high` (workflow file) | slice 2 | AC-30, AC-33 to AC-46, AC-56, AC-58 to AC-60, AC-62, AC-36e to AC-36z, AC-58b to AC-58d |
+| 2b | Phase 2 backend: `diagram`, `tiles` and `checklist` checks, the diagram checks on `flow` sources (Amendment 1c), live pointers on reads, the draw prompt and `BoardBlockDraft` kinds, 4 more golden cases; in `.github/workflows/golden-set.yml` the run step's `--min-pass 8` becomes `--min-pass 11` | `risk:high` (workflow file) | slice 2 | AC-30, AC-33 to AC-46, AC-56, AC-58 to AC-60, AC-62, AC-36e to AC-36z, AC-58b to AC-58d, AC-65 to AC-67 (with AC-66b, AC-67b) |
 | 4 | Boards on explorations | `risk:normal` | slice 3, and slice 10 of `agent-panel-code-mode` | AC-27, AC-28, AC-30, AC-31 |
 
 Slices 1 and 2 are merged. Slice 2b can start once Amendment 1 is approved and its hidden tests are written; slice 3
