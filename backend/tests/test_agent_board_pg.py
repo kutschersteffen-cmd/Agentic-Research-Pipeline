@@ -260,10 +260,10 @@ def test_generated_rows_count_against_the_limit(source):
         check_block("chart", "C", source)
 
 
-def test_small_sequence_renders():
+def test_5000_point_scatter_renders():
     from arp.agent_board.checks import check_block
 
-    src = {"data": {"sequence": {"start": 0, "stop": 2000, "as": "x"}}, "mark": "point",
+    src = {"data": {"sequence": {"start": 0, "stop": 5000, "as": "x"}}, "mark": "point",
            "encoding": {"x": {"field": "x", "type": "quantitative"}}}
     assert check_block("chart", "C", src)["light"].startswith("<svg")
 
@@ -319,7 +319,7 @@ def test_render_worker_in_process(monkeypatch, capsys):
     assert render_worker.main() == 1
     assert capsys.readouterr().err.startswith("Vega-Lite to SVG conversion failed")
     monkeypatch.setattr(render_worker, "MAX_SVG_BYTES", 10)
-    with pytest.raises(ValueError, match="exceeds 1 MB"):
+    with pytest.raises(ValueError, match="exceeds 2 MB"):
         render_worker.themed_svgs(BAR_C)
 
 

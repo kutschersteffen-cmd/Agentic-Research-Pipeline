@@ -12,7 +12,7 @@ import resource
 import sys
 
 MEMORY_BYTES = 1024 * 2**20  # RLIMIT_DATA: V8 reserves far more address space than it uses, so RLIMIT_AS cannot work
-MAX_SVG_BYTES = 2**20  # per SVG, so a board of 50 charts stays near 100 MB
+MAX_SVG_BYTES = 2 * 2**20  # per SVG: a 5 000-point scatter fits; a board of 50 charts stays near 200 MB
 
 
 def themed_svgs(source: dict) -> dict[str, str]:
@@ -33,7 +33,7 @@ def themed_svgs(source: dict) -> dict[str, str]:
         config["mark"] = {**config.get("mark", {}), "color": c["highlight"]}
         out[mode] = vega.to_svg({**source, "config": config}, tokens)
         if len(out[mode]) > MAX_SVG_BYTES:
-            raise ValueError("the drawn chart exceeds 1 MB")
+            raise ValueError("the drawn chart exceeds 2 MB")
     return out
 
 
