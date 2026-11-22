@@ -198,7 +198,7 @@ export function ArgusResults({ flow }: { flow: Flow }) {
       </div>
       {shown.length === 0 && (flow.schema_choice?.kind === "profile" ? (
         <p className="muted">
-          This profile's values are not listed here. <a href={`#/review/${flow.schema_choice.profile}/${runId}`}>Open them in the Review Queue</a> or download the CSV.
+          This profile's values are not listed here. <a href={`#/review/${flow.schema_choice.profile}/${runId}`}>Open them in Needs you</a> or download the CSV.
         </p>
       ) : (
         <p className="muted">{mineOnly ? "Nothing waits on you in this run." : "This run has no values yet."}</p>

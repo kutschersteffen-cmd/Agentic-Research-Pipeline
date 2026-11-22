@@ -6,7 +6,7 @@
 /** Screens that share a tab strip above the page. Every id keeps its own
  * route, so deep links and Processes steps still land. */
 export const HUBS: { label: string; tabs: [string, string][] }[] = [
-  { label: "Library", tabs: [["library", "Data Library"], ["search", "Search"]] },
+  { label: "Themes", tabs: [["themes", "Dossiers"], ["emergingThemes", "Emerging themes"]] },
   { label: "Runs", tabs: [["history", "Run history"], ["agent", "Agent"], ["backgroundAgents", "Standing agents"]] },
 ];
 
