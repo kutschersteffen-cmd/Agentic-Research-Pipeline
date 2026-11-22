@@ -4420,6 +4420,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/refine/turns/{turn_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Turn */
+        get: operations["get_turn_api_refine_turns__turn_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/refine/{kind}/{doc_id}/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Turns
+         * @description Any signed-in role; a document with no turns answers [].
+         */
+        get: operations["get_turns_api_refine__kind___doc_id__turns_get"];
+        put?: never;
+        /** Post Turn */
+        post: operations["post_turn_api_refine__kind___doc_id__turns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/refine/{kind}/{doc_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo */
+        post: operations["undo_api_refine__kind___doc_id__undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/replication/discover": {
         parameters: {
             query?: never;
@@ -17080,6 +17135,86 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** RefineHistoryItem */
+        RefineHistoryItem: {
+            /** Message */
+            message: string;
+            /** Reply */
+            reply?: string | null;
+        };
+        /** RefineNotChanged */
+        RefineNotChanged: {
+            /** Id */
+            id: number | null;
+            /** Reason */
+            reason: string;
+        };
+        /** RefineTurn */
+        RefineTurn: {
+            /** Changed */
+            changed: number[];
+            /** Check Figures */
+            check_figures: number[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Done */
+            done: number;
+            /** Error */
+            error: string | null;
+            /** Message */
+            message: string;
+            /** Not Changed */
+            not_changed: components["schemas"]["RefineNotChanged"][];
+            /** Reply */
+            reply: string | null;
+            /** Status */
+            status: string;
+            /** Total */
+            total: number;
+            /** Turn Id */
+            turn_id: number;
+            /** User Id */
+            user_id: string;
+        };
+        /** RefineTurnIn */
+        RefineTurnIn: {
+            /**
+             * History
+             * @default []
+             */
+            history: components["schemas"]["RefineHistoryItem"][];
+            /** Message */
+            message: string;
+        };
+        /** RefineTurnOut */
+        RefineTurnOut: {
+            /** Changed */
+            changed: number[];
+            /** Check Figures */
+            check_figures: number[];
+            /** Done */
+            done: number;
+            /** Error */
+            error: string | null;
+            /** Id */
+            id: number;
+            /** Not Changed */
+            not_changed: components["schemas"]["RefineNotChanged"][];
+            /** Reply */
+            reply: string;
+            /** Status */
+            status: string;
+            /** Total */
+            total: number;
+        };
+        /** RefineTurnStarted */
+        RefineTurnStarted: {
+            /** Turn Id */
+            turn_id: number;
+        };
         /** RegimeBucketPerformance */
         RegimeBucketPerformance: {
             long_short?: components["schemas"]["LegPerformance"];
@@ -29567,6 +29702,137 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_turn_api_refine_turns__turn_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                turn_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefineTurnOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_turns_api_refine__kind___doc_id__turns_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                doc_id: string;
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefineTurn"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_turn_api_refine__kind___doc_id__turns_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                doc_id: string;
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefineTurnIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefineTurnStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_api_refine__kind___doc_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                doc_id: string;
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefineTurnOut"];
                 };
             };
             /** @description Validation Error */

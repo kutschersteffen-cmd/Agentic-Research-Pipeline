@@ -19765,6 +19765,250 @@
     "title": "RedlineOut",
     "type": "object"
    },
+   "RefineHistoryItem": {
+    "properties": {
+     "message": {
+      "title": "Message",
+      "type": "string"
+     },
+     "reply": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reply"
+     }
+    },
+    "required": [
+     "message"
+    ],
+    "title": "RefineHistoryItem",
+    "type": "object"
+   },
+   "RefineNotChanged": {
+    "properties": {
+     "id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Id"
+     },
+     "reason": {
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "reason"
+    ],
+    "title": "RefineNotChanged",
+    "type": "object"
+   },
+   "RefineTurn": {
+    "properties": {
+     "changed": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Changed",
+      "type": "array"
+     },
+     "check_figures": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Check Figures",
+      "type": "array"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "done": {
+      "title": "Done",
+      "type": "integer"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "message": {
+      "title": "Message",
+      "type": "string"
+     },
+     "not_changed": {
+      "items": {
+       "$ref": "#/components/schemas/RefineNotChanged"
+      },
+      "title": "Not Changed",
+      "type": "array"
+     },
+     "reply": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reply"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     },
+     "turn_id": {
+      "title": "Turn Id",
+      "type": "integer"
+     },
+     "user_id": {
+      "title": "User Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "turn_id",
+     "user_id",
+     "message",
+     "reply",
+     "status",
+     "done",
+     "total",
+     "changed",
+     "not_changed",
+     "check_figures",
+     "error",
+     "created_at"
+    ],
+    "title": "RefineTurn",
+    "type": "object"
+   },
+   "RefineTurnIn": {
+    "properties": {
+     "history": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/RefineHistoryItem"
+      },
+      "title": "History",
+      "type": "array"
+     },
+     "message": {
+      "title": "Message",
+      "type": "string"
+     }
+    },
+    "required": [
+     "message"
+    ],
+    "title": "RefineTurnIn",
+    "type": "object"
+   },
+   "RefineTurnOut": {
+    "properties": {
+     "changed": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Changed",
+      "type": "array"
+     },
+     "check_figures": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Check Figures",
+      "type": "array"
+     },
+     "done": {
+      "title": "Done",
+      "type": "integer"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "not_changed": {
+      "items": {
+       "$ref": "#/components/schemas/RefineNotChanged"
+      },
+      "title": "Not Changed",
+      "type": "array"
+     },
+     "reply": {
+      "title": "Reply",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "status",
+     "reply",
+     "done",
+     "total",
+     "changed",
+     "not_changed",
+     "check_figures",
+     "error"
+    ],
+    "title": "RefineTurnOut",
+    "type": "object"
+   },
+   "RefineTurnStarted": {
+    "properties": {
+     "turn_id": {
+      "title": "Turn Id",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "turn_id"
+    ],
+    "title": "RefineTurnStarted",
+    "type": "object"
+   },
    "RegimeBucketPerformance": {
     "properties": {
      "long_short": {
@@ -42548,6 +42792,214 @@
     "summary": "Publish",
     "tags": [
      "publish"
+    ]
+   }
+  },
+  "/api/refine/turns/{turn_id}": {
+   "get": {
+    "operationId": "get_turn_api_refine_turns__turn_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "turn_id",
+      "required": true,
+      "schema": {
+       "title": "Turn Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RefineTurnOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Turn",
+    "tags": [
+     "refine"
+    ]
+   }
+  },
+  "/api/refine/{kind}/{doc_id}/turns": {
+   "get": {
+    "description": "Any signed-in role; a document with no turns answers [].",
+    "operationId": "get_turns_api_refine__kind___doc_id__turns_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "doc_id",
+      "required": true,
+      "schema": {
+       "title": "Doc Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "title": "Kind",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RefineTurn"
+         },
+         "title": "Response Get Turns Api Refine  Kind   Doc Id  Turns Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Turns",
+    "tags": [
+     "refine"
+    ]
+   },
+   "post": {
+    "operationId": "post_turn_api_refine__kind___doc_id__turns_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "doc_id",
+      "required": true,
+      "schema": {
+       "title": "Doc Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "title": "Kind",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RefineTurnIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RefineTurnStarted"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Turn",
+    "tags": [
+     "refine"
+    ]
+   }
+  },
+  "/api/refine/{kind}/{doc_id}/undo": {
+   "post": {
+    "operationId": "undo_api_refine__kind___doc_id__undo_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "doc_id",
+      "required": true,
+      "schema": {
+       "title": "Doc Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "kind",
+      "required": true,
+      "schema": {
+       "title": "Kind",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RefineTurnOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Undo",
+    "tags": [
+     "refine"
     ]
    }
   },
