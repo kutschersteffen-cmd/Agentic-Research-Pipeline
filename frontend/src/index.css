@@ -2372,7 +2372,7 @@ a.vc-box:hover { border-color: var(--text); }
 .agent-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1); margin: 0; }
 .agent-steps { margin: 0; padding-left: var(--s-6); display: grid; gap: var(--s-1_5); }
 .agent-params { font-size: var(--text-sm); color: var(--muted); overflow-wrap: anywhere; }
-.agent-approval { border-color: var(--await-edge); background: var(--await); }
+.agent-approval { border-color: var(--accent); }
 .agent-calls { list-style: none; padding: 0; margin: 0; }
 .agent-call { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-2); padding: var(--s-2) var(--s-3); }
 .agent-failure { border-color: var(--low); }
