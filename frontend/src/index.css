@@ -2402,8 +2402,8 @@ a.vc-box:hover { border-color: var(--text); }
 /* The line text stays var(--text) for contrast on the tint; only the -/+ marker takes the colour. */
 .agent-diff-del { color: var(--text); background: color-mix(in oklch, var(--low) 10%, transparent); }
 .agent-diff-add { color: var(--text); background: color-mix(in oklch, var(--high) 10%, transparent); }
-.agent-diff-del > :first-child { color: var(--low); }
-.agent-diff-add > :first-child { color: var(--high); }
+.agent-diff-del > :first-child { color: color-mix(in oklch, var(--low) 62%, var(--ink)); }
+.agent-diff-add > :first-child { color: color-mix(in oklch, var(--high) 62%, var(--ink)); }
 .agent-audit-line { margin: 0 0 var(--s-2); overflow-wrap: anywhere; }
 .agent-audit-row { padding: var(--s-2) 0; border-top: 1px solid var(--panel-border); }
 .agent-audit-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1); margin-bottom: var(--s-1); }
