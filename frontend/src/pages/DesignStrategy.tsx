@@ -3,14 +3,14 @@ import { HandoffLegend, ProcessFlow, useActivity, useHouseFlow, useRuns } from "
 
 const DESIGN = WORKSPACES.find((w) => w.id === "rdLab")!.processes.find((p) => p.id === "thematic")!;
 
-/** Strategy · Design a strategy: the flow from an idea (a theme or a research paper) to a portfolio you can report on. */
+/** R&D Lab · Build a thematic portfolio: the flow from an idea (a theme or a research paper) to a portfolio you can report on. */
 export function DesignStrategy() {
   const { runs } = useRuns();
   const { flow } = useHouseFlow();
   const activity = useActivity();
   return (
     <div className="page">
-      <h1>Design a strategy</h1>
+      <h1>Build a thematic portfolio</h1>
       <p className="help-text">From an idea to a portfolio you can report on.</p>
       <div className="toolbar">
         <a className="button-link" href="#/themes">Start from a theme</a>

@@ -1,0 +1,18 @@
+{
+  "name": "arp-sandbox",
+  "private": true,
+  "type": "module",
+  "description": "Runs model-written JavaScript for explorations in workerd isolates with no network (spec agent-panel-code-mode, Phase 4).",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "esbuild host.js --bundle --format=esm --platform=neutral --external:cloudflare:workers --outfile=dist/host.js --log-level=warning",
+    "start": "node server.mjs",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@cloudflare/codemode": "0.5.6",
+    "acorn": "8.19.0",
+    "esbuild": "0.28.2",
+    "workerd": "1.20261107.1"
+  }
+}
