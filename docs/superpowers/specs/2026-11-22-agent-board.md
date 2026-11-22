@@ -12,8 +12,8 @@ Amendment 1b (22 Nov 2026, from the slice 2b security review on PR #648: diagram
 `link` statements, anchors stripped in the browser; a live chart that does not render is refused on write and not
 re-rendered on read; long table cells cut; AC-36e to AC-36j, AC-49b, AC-58b to AC-58d): **approved by the owner on 22 Nov 2026** (button in the spec session, head 3eda0d8).
 Amendment 1c (22 Nov 2026, from the round 2 security review on PR #648: `properties` and `details` statements in sequence diagrams and any
-backslash refused in diagrams; `flow` sources get the diagram checks, keeping the house-deck subset; AC-36k to AC-36q): **awaiting the owner's
-approval**. The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
+backslash refused in diagrams; `flow` sources get the diagram checks, keeping the house-deck subset; AC-36k to AC-36q): **approved by the owner on 22 Nov 2026**
+(button in the spec session, head ab5d266). The owner asked for it after seeing prototypes: "use Mermaid", diagrams must
 "work for anything the user tells the AI", and "let's do all" for tiles, checklists and live blocks.
 
 Source: thread "Add a whiteboard to ARP" (22 Nov 2026). The owner asked for "the same whiteboard functionality as
