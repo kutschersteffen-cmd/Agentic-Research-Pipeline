@@ -744,6 +744,34 @@ class RfpReferenceDocument(Base):
     status: Mapped[str] = mapped_column(Text, default="active", server_default="active")  # active | retired
     uploaded_by: Mapped[str] = mapped_column(Text)
 
+
+class RefineTurn(Base):
+    """One chat turn of the Refine page: what was asked, what changed, and the before/after for undo."""
+
+    __tablename__ = "refine_turns"
+    __table_args__ = (
+        Index("uq_refine_turns_running", "kind", "doc_id", unique=True, postgresql_where=text("status = 'running'")),
+    )
+
+    id: Mapped[int] = _id()
+    kind: Mapped[str] = mapped_column(Text)  # rfp | deck
+    doc_id: Mapped[str] = mapped_column(Text)
+    user_id: Mapped[str] = mapped_column(Text)
+    message: Mapped[str] = mapped_column(Text)
+    ops: Mapped[list] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))
+    before: Mapped[dict] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
+    after: Mapped[dict] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
+    status: Mapped[str] = mapped_column(Text, default="running")  # running | done | failed
+    done: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    total: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    result: Mapped[dict] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))  # reply, changed, not_changed, check_figures
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _ts()
+    # the timeout counts from here; client default too, as a reconciled ADD COLUMN gets no server default
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=_NOW, server_default=_NOW)
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 import arp.agent.models  # noqa: E402,F401  (registers the explorations table on Base)
 import arp.agent_board.models  # noqa: E402,F401  (registers the agent board tables on Base)
 import arp.authoritative.models  # noqa: E402,F401  (registers the authoritative layer tables on Base)

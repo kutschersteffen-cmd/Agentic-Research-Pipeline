@@ -194,7 +194,8 @@ def _passes(question: str, out: DraftOut, shown: list[Entry], passages: list[Doc
 
 
 async def _step(question: str, shown: list[Entry], passages: list[DocumentChunk], docs: dict[int, RefDoc],
-                llm: LLMClient, verifier: LLMClient, today: date) -> Draft | None:
+                llm: LLMClient, verifier: LLMClient, today: date, instruction: str | None = None,
+                current: str | None = None) -> Draft | None:
     """One drafting call, the code's checks and the second model's check; the draft when it passes."""
     listing = "\n\n".join(f"[E{e.id}]\nQuestion: {e.question}\nAnswer: {e.answer}" for e in shown)
     prompt = f"Library entries:\n\n{listing or '(none)'}\n\n"
@@ -203,7 +204,13 @@ async def _step(question: str, shown: list[Entry], passages: list[DocumentChunk]
         prompt += "Document passages:\n\n" + "\n\n".join(
             f"[D{by_doc[p.doc_id].id}] {by_doc[p.doc_id].title} (priority {by_doc[p.doc_id].priority})\n<passage>\n{_TAG.sub('&lt;', p.text)}\n</passage>"
             for p in passages) + "\n\n"
-    out, _ = await llm.complete_structured(system=_SYSTEM, prompt=prompt + f"RFP question: {question}", output_model=DraftOut)
+    prompt += f"RFP question: {question}"
+    if instruction:
+        prompt += f"\n\nStyle instruction: {instruction}"
+    if current:
+        prompt += (f"\n\nCurrent answer: {current}\n\nUse the current answer as a style reference only: every statement"
+                   " in your answer must be backed by a quoted library entry.")
+    out, _ = await llm.complete_structured(system=_SYSTEM, prompt=prompt, output_model=DraftOut)
     passed = _passes(question, out, shown, passages, docs)
     if passed is None:
         return None
@@ -217,12 +224,13 @@ async def _step(question: str, shown: list[Entry], passages: list[DocumentChunk]
 
 
 async def draft_answer(question: str, entries: list[Entry], llm: LLMClient, verifier: LLMClient, *, today: date,
-                       settings=None, documents: list[RefDoc] | None = None) -> Draft:
+                       settings=None, documents: list[RefDoc] | None = None, instruction: str | None = None,
+                       current: str | None = None) -> Draft:
     """`documents`: the active ones only (`documents.active`). The chain (§1): the top entries alone, then for each document priority, lowest number first, the same entries
     with the top passages of the documents of that priority or a lower number. Stops at the first draft that passes."""
     shown = select_entries(question, entries, settings)
     if shown:
-        d = await _step(question, shown, [], {}, llm, verifier, today)
+        d = await _step(question, shown, [], {}, llm, verifier, today, instruction, current)
         if d is not None:
             return d
     documents = documents or []
@@ -231,7 +239,7 @@ async def draft_answer(question: str, entries: list[Entry], llm: LLMClient, veri
         passages = select_passages(question, list(docs.values()), settings)
         if not passages:
             continue
-        d = await _step(question, shown, passages, docs, llm, verifier, today)
+        d = await _step(question, shown, passages, docs, llm, verifier, today, instruction, current)
         if d is not None:
             return d
     return Draft(NO_SOURCE)
