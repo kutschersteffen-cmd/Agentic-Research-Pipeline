@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import {
   answerActions, budgetLine, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  askingIn, COMPOSER_COPY, explorationBadge, nearEnd, needsYouLine, resultTable, scriptLines, streamResized, sendsComposer, stepState, threadRows,
-  threadTitle, untilCancelled, usd,
+  askingIn, COMPOSER_COPY, explorationBadge, nearEnd, needsYouLine, resultTable, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState,
+  threadRows, threadTitle, untilCancelled, usd,
 } from "../src/lib/agent.ts";
 import type { Plan } from "../src/lib/plans.ts";
 import type { AskThread, Exploration } from "../src/types.ts";
@@ -244,4 +244,16 @@ test("the accepted chip writes its word in ink and keeps the green on the square
   const css = readFileSync(new URL("../src/index.css", import.meta.url), "utf8");
   assert.match(css, /\.status-accepted \{ color: var\(--ink\); \}/);
   assert.match(css, /\.status-accepted::before \{ background: var\(--high\); \}/);
+});
+
+test("a fast answer is still followed when the follow-down's scroll event lands after it", () => {
+  // Followed down to the end of `Working…` (1000 + 87 px of content, a 500 px box): scrollTop 587. The answer (+800 px)
+  // then grows the stream before that scroll's event fires, which reads as scrolled up and clears `atEnd`.
+  const before = { scrollHeight: 1087, clientHeight: 500 };
+  assert.equal(wasNearEnd(false, 587, before), true);
+  assert.deepEqual(streamResized({ wasNearEnd: wasNearEnd(false, 587, before), contentGrew: true, boxShrank: false, nowNearEnd: false }),
+    { scrollToEnd: true, jump: false });
+  // A reader who really scrolled up stays put and gets the button.
+  assert.equal(wasNearEnd(false, 0, before), false);
+  assert.equal(wasNearEnd(true, 0, before), true); // your own send sets `atEnd`
 });
