@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from arp.errors import NotConfigured
 from arp.orchestration.plan_check import check_script
 from arp.orchestration.plan_interp import dry_run
-from arp.orchestration.plan_models import ResearchPlan, ResearchPlanCall, ResearchPlanTemplate
+from arp.orchestration.plan_models import AgentAsk, ResearchPlan, ResearchPlanCall, ResearchPlanTemplate
 from arp.schemas.common import new_id
 
 
@@ -85,6 +85,14 @@ def _plan_row(plan: ResearchPlan) -> dict[str, Any]:
             "budget_usd": None if budget is None else float(budget), "planner_cost_usd": float(row["planner_cost_usd"] or 0)}
 
 
+def _with_source_ask(s: Session, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Adds `source_ask: {question, thread_id}` of the ask each plan was drafted from, or None."""
+    ids = {r["source_ask_id"] for r in rows if r["source_ask_id"]}
+    asks = {a.id: {"question": a.question, "thread_id": a.thread_id}
+            for a in s.scalars(select(AgentAsk).where(AgentAsk.id.in_(ids)))} if ids else {}
+    return [{**r, "source_ask": asks.get(r["source_ask_id"])} for r in rows]
+
+
 def _usd(amount: float) -> Decimal:
     return Decimal(repr(amount))  # repr: the float round-trips exactly, so sums stay decimal
 
@@ -108,11 +116,11 @@ class PlanStore:
 
     def create(self, brief: str, script: str, previous_scripts: list[dict] | None = None,
                check: Callable[[list[dict]], list[str]] | None = None, planner_cost_usd: float = 0.0,
-               template: tuple[str, int] | None = None) -> str:
+               template: tuple[str, int] | None = None, source_ask_id: str | None = None) -> str:
         """Raises ValueError with the checker's errors when the script is rejected. `previous_scripts` stores the
         plan as already re-planned (the demo plan), at the version after them. `check` adds errors from the dry run.
         `planner_cost_usd` is what the planner's calls for this draft cost. `template` is the (name, version) the
-        script was instantiated from."""
+        script was instantiated from. `source_ask_id` is the ask it was drafted from."""
         steps = _checked_dry_run(script, check=check)
         plan_id = new_id("plan")
         history = previous_scripts or []
@@ -121,7 +129,7 @@ class PlanStore:
             s.add(ResearchPlan(id=plan_id, brief=brief, script=script, dry_run=steps, status="draft",
                                created_at=datetime.now(UTC), version=len(history) + 1, previous_scripts=history,
                                planner_cost_usd=_usd(planner_cost_usd), template_name=template_name,
-                               template_version=template_version))
+                               template_version=template_version, source_ask_id=source_ask_id))
         return plan_id
 
     def get(self, plan_id: str) -> dict[str, Any]:
@@ -129,11 +137,11 @@ class PlanStore:
             plan = s.get(ResearchPlan, plan_id)
             if plan is None:
                 raise PlanNotFound(plan_id)
-            return _plan_row(plan)
+            return _with_source_ask(s, [_plan_row(plan)])[0]
 
     def list(self) -> list[dict[str, Any]]:
         with Session(self.engine) as s:
-            return [_plan_row(p) for p in s.scalars(select(ResearchPlan).order_by(ResearchPlan.created_at.desc()))]
+            return _with_source_ask(s, [_plan_row(p) for p in s.scalars(select(ResearchPlan).order_by(ResearchPlan.created_at.desc()))])
 
     def active(self) -> list[tuple[str, str]]:
         """(id, status) of every plan that is `running` or `awaiting_review`, oldest first."""

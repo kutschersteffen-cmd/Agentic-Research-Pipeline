@@ -4,6 +4,47 @@
  */
 
 export interface paths {
+    "/api/agent/ask-threads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Ask Threads */
+        get: operations["list_ask_threads_api_agent_ask_threads_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/asks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Thread Asks
+         * @description The thread's asks, oldest first.
+         */
+        get: operations["list_thread_asks_api_agent_asks_get"];
+        put?: never;
+        /**
+         * Post Agent Ask
+         * @description One ask, stored in its thread (a new one without `thread_id`). A failed ask is stored and answered with 200.
+         */
+        post: operations["post_agent_ask_api_agent_asks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/agent/boards/{thread_kind}/{thread_id}": {
         parameters: {
             query?: never;
@@ -9324,6 +9365,40 @@ export interface components {
             /** Universe Path */
             universe_path?: string | null;
         };
+        /** AgentAsk */
+        AgentAsk: {
+            /** Asked By */
+            asked_by: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error */
+            error: string | null;
+            /** Explorations */
+            explorations: components["schemas"]["AskExplorationLink"][];
+            /** Id */
+            id: string;
+            /** Plans */
+            plans: components["schemas"]["AskPlanLink"][];
+            /** Question */
+            question: string;
+            response: components["schemas"]["AskResponse"] | null;
+            /** Standalone Question */
+            standalone_question: string | null;
+            /** Thread Id */
+            thread_id: string;
+            /** Tool */
+            tool: string | null;
+        };
+        /** AgentAskRequest */
+        AgentAskRequest: {
+            /** Question */
+            question: string;
+            /** Thread Id */
+            thread_id?: string | null;
+        };
         /** AggregationResult */
         AggregationResult: {
             /** As Of */
@@ -9764,6 +9839,26 @@ export interface components {
             /** Updated At */
             updated_at: string;
         };
+        /** AskExplorationLink */
+        AskExplorationLink: {
+            /** Exploration Id */
+            exploration_id: string;
+            /** Label */
+            label: string;
+            /** Question */
+            question: string;
+            /** Status */
+            status: string;
+        };
+        /** AskPlanLink */
+        AskPlanLink: {
+            /** Brief */
+            brief: string;
+            /** Plan Id */
+            plan_id: string;
+            /** Status */
+            status: string;
+        };
         /** AskResponse */
         AskResponse: {
             /** Answer Text */
@@ -9783,6 +9878,25 @@ export interface components {
              */
             tool: "portfolio" | "smart_search" | "transition_plan" | "benchmark_sectors" | "none";
             transition_plan?: components["schemas"]["TransitionPlanCard"] | null;
+        };
+        /** AskThread */
+        AskThread: {
+            /** Asks */
+            asks: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "answered" | "failed";
+            /** Thread Id */
+            thread_id: string;
+            /** Title */
+            title: string;
         };
         /** AssumptionOut */
         AssumptionOut: {
@@ -13239,6 +13353,8 @@ export interface components {
         DraftRequest: {
             /** Brief */
             brief: string;
+            /** Source Ask Id */
+            source_ask_id?: string | null;
         };
         /** DraftSchemaRequest */
         DraftSchemaRequest: {
@@ -21157,6 +21273,90 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_ask_threads_api_agent_ask_threads_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AskThread"][];
+                };
+            };
+        };
+    };
+    list_thread_asks_api_agent_asks_get: {
+        parameters: {
+            query: {
+                thread_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentAsk"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_agent_ask_api_agent_asks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentAskRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentAsk"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_board_api_agent_boards__thread_kind___thread_id__get: {
         parameters: {
             query?: never;

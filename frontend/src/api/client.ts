@@ -18,8 +18,6 @@ import type {
   ArgusFlow,
   Cockpit,
   FlowProgress,
-  AskHistoryTurn,
-  AskResponse,
   WorkbenchResponse,
   CompanyBallot,
   ClientEscalationPreview,
@@ -154,7 +152,7 @@ import type {
   StandardsSaved,
   StandardsView,
 } from "../types";
-import type { Exploration, InboxRow, ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, WaitingCounts, Walkthrough } from "../types";
+import type { AgentAsk, AskThread, Exploration, InboxRow, ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, WaitingCounts, Walkthrough } from "../types";
 import type { DecisionInput, DocType, DocumentPassages, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
 import type { BIChartPlan, BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
@@ -283,6 +281,10 @@ export const api = {
   listPlans: () => request<Plan[]>("/api/plans"),
   getPlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}`),
   draftPlan: (brief: string) => request<Plan>("/api/plans", jsonBody("POST", { brief })),
+  /** A POST whose path and body the Agent screen's rules decide (`composerRequest`, `draftPlanFromAsk` in lib/agent). */
+  agentPost: <T>(path: string, body: unknown) => request<T>(path, jsonBody("POST", body)),
+  listAskThreads: () => request<AskThread[]>("/api/agent/ask-threads"),
+  getAskThread: (threadId: string) => request<AgentAsk[]>(`/api/agent/asks?thread_id=${encodeURIComponent(threadId)}`),
   editPlan: (id: string, script: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}`, jsonBody("PUT", { script })),
   approvePlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}/approve`, { method: "POST" }),
   runPlan: (id: string) => request<{ plan_id: string; status: string }>(`/api/plans/${encodeURIComponent(id)}/run`, { method: "POST" }),
@@ -291,7 +293,6 @@ export const api = {
   getAgentInbox: () => request<InboxRow[]>("/api/agent/inbox"),
   listExplorations: () => request<Exploration[]>("/api/agent/explorations"),
   getExploration: (id: string) => request<Exploration>(`/api/agent/explorations/${encodeURIComponent(id)}`),
-  explore: (question: string) => request<Exploration>("/api/agent/explorations", jsonBody("POST", { question })),
   acceptExploration: (id: string) => request<Exploration>(`/api/agent/explorations/${encodeURIComponent(id)}/accept`, { method: "POST" }),
   listRfpLibrary: () => request<RfpLibraryEntry[]>("/api/rfp/library"),
   importRfpLibrary: (files: File[]) => {
@@ -386,8 +387,6 @@ export const api = {
   },
   listOutputs: (kind?: OutputKind) => request<{ outputs: OutputItem[] }>(`/api/outputs${buildQuery({ kind })}`),
   listIssues: () => request<{ issues: DataIssue[] }>("/api/issues"),
-  ask: (question: string, history: AskHistoryTurn[]) =>
-    request<AskResponse>("/api/ask", { method: "POST", body: JSON.stringify({ question, history }) }),
   smartSearch: (question: string) =>
     request<SmartSearchAnswer>("/api/smart-search", { method: "POST", body: JSON.stringify({ question }) }),
   pullNews: () => request<{ added: number; unmatched: number; received: number }>("/api/feeds/news/pull", { method: "POST" }),

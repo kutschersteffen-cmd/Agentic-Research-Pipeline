@@ -39,6 +39,7 @@ def build_runtime(settings: Settings):
 
 class DraftRequest(BaseModel):
     brief: str
+    source_ask_id: str | None = None  # the ask whose `Draft a plan` sent this brief
 
 
 class ScriptRequest(BaseModel):
@@ -83,10 +84,13 @@ def _check_sources(steps: list[dict]) -> list[str]:
 @router.post("")
 async def create_plan(req: DraftRequest, store: PlanStore = Depends(plan_store)) -> dict:
     from arp.api.deps import get_llm_client
+    from arp.orchestration.ask_store import AskStore
 
+    if req.source_ask_id is not None and not await asyncio.to_thread(AskStore(store.dsn).exists, req.source_ask_id):
+        raise HTTPException(404, "ask not found")
     try:
         plan_id = await draft_plan(req.brief, get_llm_client(), store, await asyncio.to_thread(_context),
-                                 check=_check_sources)
+                                 check=_check_sources, source_ask_id=req.source_ask_id)
     except PlanRejected as exc:
         raise HTTPException(422, str(exc)) from exc
     return _get(store, plan_id)

@@ -186,6 +186,8 @@ links to `#/strategyReplication`.
 
 ## Acceptance
 
+Superseded by `2026-11-21-agent-panel-code-mode.md` Phase 7 (slice 13): AC-4, AC-4b and AC-7. The Ask panel is gone; the palette's ask and Ctrl/⌘J open the Agent screen (its AC-75 to AC-76d).
+
 All rows run on the app started by `backend/scripts/e2e_stack.sh up` (dev auth, role `approver`, no model key),
 at 1440 × 900, unless the Given says otherwise.
 

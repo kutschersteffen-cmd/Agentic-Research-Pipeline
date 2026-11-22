@@ -17,11 +17,14 @@ export interface Plan {
   status: PlanStatus;
   approved_by: string | null;
   approved_at: string | null;
-  created_at?: string;
   error: string | null;
   version: number;
   previous_scripts: PreviousScript[];
   calls?: PlanCall[];
+  created_at: string;
+  /** The ask whose `Draft a plan` drafted it, and that ask's question and thread. */
+  source_ask_id: string | null;
+  source_ask: { question: string; thread_id: string } | null;
   budget_usd?: number | null; // the plan budget, once the API serves it (agent-panel-code-mode slice 5)
   spent_usd?: number;
 }

@@ -25,6 +25,11 @@ export type DocumentPassages = Served<S["DocumentPassages"]>;
 export type WaitingCounts = Served<S["WaitingCounts"]>;
 /** One row of the Agent screen's inbox (`GET /api/agent/inbox`). */
 export type InboxRow = Served<S["InboxRow"]>;
+/** One ask in an Agent screen ask thread (`GET /api/agent/asks`, `POST /api/agent/asks`). */
+export type AgentAsk = Served<S["AgentAsk"]>;
+/** One ask thread in the Agent screen's list (`GET /api/agent/ask-threads`). */
+export type AskThread = Served<S["AskThread"]>;
+/** One exploration (`GET /api/agent/explorations`, `POST /api/agent/explorations`). */
 export type Exploration = Served<S["Exploration"]>;
 export type DocumentPassage = DocumentPassages["passages"][number];
 export type ArgusFlow = Served<S["ArgusFlowView"]>;
@@ -73,7 +78,6 @@ export type RfpProjectSummary = Served<S["RfpProjectSummary"]>;
 export type RfpProject = Served<S["RfpProjectOut"]>;
 export type RfpQuestion = Served<S["RfpQuestionOut"]>;
 export type AskResponse = Served<S["AskResponse"]>;
-export type AskHistoryTurn = Served<S["HistoryTurn"]>;
 
 // The run types the Review Queue endpoints exist for -- a subset of every
 // run_type, since most run types have no review queue.

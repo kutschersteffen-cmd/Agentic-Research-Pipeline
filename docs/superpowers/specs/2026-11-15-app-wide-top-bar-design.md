@@ -240,6 +240,8 @@ For rollout, the owner chose two PRs, shell first.
 
 ## Acceptance
 
+Superseded by `2026-11-21-agent-panel-code-mode.md` Phase 7 (slice 13): AC-17 (Esc closes the Ask panel) and AC-22b (Ctrl+J opens the panel; its AC-76 and AC-76a replace it).
+
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
 | AC-1 | The running app, 1440×900, each of `#/home`, `#/review`, `#/stewardiq`, `#/argus`, `#/history`, `#/library`, `#/arcade` | The page loads | There is exactly one `banner` landmark, and it contains a link named "ARP start" | evaluator |

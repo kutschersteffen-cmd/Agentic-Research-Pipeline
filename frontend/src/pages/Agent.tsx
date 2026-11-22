@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
+import { AskCard } from "../components/AskCards";
 import { ExplorationCard } from "../components/ExplorationCard";
 import { StepTabs } from "../components/StepTabs";
-import { budgetLine, chipLabel, composerText, INBOX_KIND, lineDiff, reviewQueueLine, scriptLines, sendsComposer, stepState, threadRows, usd } from "../lib/agent";
+import {
+  answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, INBOX_KIND, lineDiff,
+  askingIn, needsYouLine, scriptLines, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
+} from "../lib/agent";
 import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
 import { when } from "../lib/runs";
-import type { Exploration, InboxRow } from "../types";
+import type { AgentAsk, AskThread, Exploration, InboxRow } from "../types";
 
 const POLL_MS = 3000;
 const NARROW = "(max-width: 899.98px)";
@@ -33,23 +37,42 @@ function DrawerDialog({ side, label, onClose, children }: { side: "left" | "righ
   );
 }
 
-/** The Agent screen: threads on the left, the selected plan's or exploration's stream in the middle, the plan's stage
- * on the right. Below 900 px the side columns are drawers opened from the header. */
-export function Agent({ selectedId, explorationId, onSelect, onSelectExploration }: {
-  selectedId: string | null; explorationId: string | null; onSelect: (id: string) => void; onSelectExploration: (id: string) => void;
+/** The Agent screen: threads on the left, the selected plan's or ask thread's stream in the middle, its stage on the
+ * right. Below 900 px the side columns are drawers opened from the header. */
+export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPendingAskTaken }: {
+  selected: Selection;
+  onSelect: (s: Selection) => void;
+  canAsk: boolean;
+  /** Changes on every Ctrl/⌘J: the composer takes focus in `Ask` mode. */
+  focusToken: number;
+  /** A question typed in the search-or-ask box, sent once as a new ask thread. */
+  pendingAsk: { id: number; question: string } | null;
+  onPendingAskTaken: () => void;
 }) {
+  const planId = selected?.kind === "plan" ? selected.id : null;
+  const askId = selected?.kind === "ask" ? selected.id : null;
+  const explorationId = selected?.kind === "exploration" ? selected.id : null;
   const [plans, setPlans] = useState<Plan[]>([]);
   const [explorations, setExplorations] = useState<Exploration[]>([]);
   const [exploration, setExploration] = useState<Exploration | null>(null);
-  const [explore, setExplore] = useState(false);
+  const [askThreads, setAskThreads] = useState<AskThread[]>([]);
   const [inbox, setInbox] = useState<InboxRow[]>([]);
   const [waiting, setWaiting] = useState<number | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
-  const [brief, setBrief] = useState("");
+  const [asks, setAsks] = useState<AgentAsk[]>([]);
+  const [asking, setAsking] = useState<Asking>(null); // the ask in flight and the thread it was sent in
+  const [mode, setMode] = useState<Mode>(() => composerModes(canAsk).initial);
+  const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<Drawer>(null);
   const [tab, setTab] = useState<StageTab>("script");
+  const input = useRef<HTMLTextAreaElement>(null);
+  const refocus = useRef(false);
+  const current = useRef(selected); // the selection now, for a request that answers after it changed
+  current.current = selected;
+  const modes = composerModes(canAsk);
+  const copy = COMPOSER_COPY[mode];
 
   const loadInbox = useCallback(() => {
     api.getAgentInbox().then(setInbox).catch((e: Error) => setError(`The inbox could not be loaded: ${e.message}.`));
@@ -57,21 +80,40 @@ export function Agent({ selectedId, explorationId, onSelect, onSelectExploration
   }, []);
   const loadList = useCallback(() => {
     api.listPlans().then(setPlans).catch((e: Error) => setError(`Threads could not be loaded: ${e.message}.`));
-    api.listExplorations().then(setExplorations).catch((e: Error) => setError(`Explorations could not be loaded: ${e.message}.`));
+    api.listAskThreads().then(setAskThreads).catch((e: Error) => setError(`Threads could not be loaded: ${e.message}.`));
+    api.listExplorations().then(setExplorations).catch((e: Error) => setError(`Threads could not be loaded: ${e.message}.`));
     loadInbox();
   }, [loadInbox]);
   const loadPlan = useCallback(() => {
-    if (!selectedId) return setPlan(null);
-    api.getPlan(selectedId).then(setPlan).catch((e: Error) => setError(`The plan could not be loaded: ${e.message}.`));
-  }, [selectedId]);
+    if (!planId) return setPlan(null);
+    api.getPlan(planId).then(setPlan).catch((e: Error) => setError(`The plan could not be loaded: ${e.message}.`));
+  }, [planId]);
   const loadExploration = useCallback(() => {
     if (!explorationId) return setExploration(null);
     api.getExploration(explorationId).then(setExploration).catch((e: Error) => setError(`The exploration could not be loaded: ${e.message}.`));
   }, [explorationId]);
+  // A thread's asks; a response that lands after another thread was picked is dropped.
+  const loadAsks = useCallback(() => {
+    if (!askId) return;
+    return untilCancelled(api.getAskThread(askId), setAsks, (e) => setError(`The ask thread could not be loaded: ${e.message}.`));
+  }, [askId]);
 
   useEffect(loadList, [loadList]);
   useEffect(loadPlan, [loadPlan]);
   useEffect(loadExploration, [loadExploration]);
+  useEffect(loadAsks, [loadAsks]);
+  // A viewer's composer opens in Plan; once the signed-in user is known to be able to ask, it opens in Ask.
+  useEffect(() => setMode(composerModes(canAsk).initial), [canAsk]);
+  useEffect(() => {
+    if (busy || !refocus.current) return;
+    refocus.current = false;
+    input.current?.focus();
+  }, [busy]);
+  useEffect(() => {
+    if (!focusToken) return;
+    if (canAsk) setMode("Ask");
+    input.current?.focus();
+  }, [focusToken, canAsk]);
   // The thread list shows each plan's chip: reload it when the open plan's status changes.
   const planStatus = plan?.status;
   const shownStatus = useRef(planStatus);
@@ -111,23 +153,63 @@ export function Agent({ selectedId, explorationId, onSelect, onSelectExploration
     }
   }
 
-  async function send() {
-    if (busy || !brief.trim()) return;
-    await act(async () => {
-      if (explore) {
-        const e = await api.explore(brief);
-        setBrief("");
-        onSelectExploration(e.id);
-      } else {
-        const p = await api.draftPlan(brief);
-        setBrief("");
-        onSelect(p.id);
+  /** An ask: a follow-up in the selected ask thread, else a new thread, which is selected once it answers. */
+  async function ask(question: string, newThread: boolean) {
+    const req = composerRequest("Ask", question, newThread ? null : selected);
+    if (!req.body.thread_id && selected) onSelect(null); // no thread is selected while a new one's first ask runs
+    setAsking({ question, threadId: req.body.thread_id ?? null });
+    setBusy(true);
+    setError(null);
+    try {
+      const a = await api.agentPost<AgentAsk>(req.path, req.body);
+      if (!req.body.thread_id) {
+        setAsks([a]);
+        onSelect({ kind: "ask", id: a.thread_id });
+      } else if (current.current?.kind === "ask" && current.current.id === a.thread_id) {
+        setAsks((xs) => [...xs, a]);
       }
+      loadList();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setAsking(null);
+      setBusy(false);
+      refocus.current = true; // the text box is disabled until this render lands
+    }
+  }
+
+  async function send() {
+    const t = text.trim();
+    if (busy || !t) return;
+    if (mode === "Ask") {
+      setText("");
+      return ask(t, false);
+    }
+    const req = composerRequest(mode, t, selected);
+    await act(async () => {
+      const created = await api.agentPost<Plan | Exploration>(req.path, req.body);
+      setText("");
+      onSelect({ kind: mode === "Explore" ? "exploration" : "plan", id: created.id });
     });
   }
-  const composer = composerText(explore);
-  const rows = threadRows(plans, explorations);
 
+  const sentPending = useRef<number | null>(null);
+  useEffect(() => {
+    if (!pendingAsk || sentPending.current === pendingAsk.id) return;
+    sentPending.current = pendingAsk.id;
+    onPendingAskTaken();
+    setMode("Ask");
+    void ask(pendingAsk.question, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- send each pending question once, by its id
+  }, [pendingAsk]);
+
+  function drafted(askIdOf: string, p: Plan) {
+    setAsks((xs) => xs.map((x) => (x.id === askIdOf ? { ...x, plans: [...x.plans, { plan_id: p.id, brief: p.brief, status: p.status }] } : x)));
+    loadList();
+  }
+
+  const rows = threadRows(plans, askThreads, explorations);
+  const isSelected = (r: ThreadRow) => r.kind === selected?.kind && r.id === selected.id;
   // `id` keeps the column's and the drawer's ids apart; `close` is set inside a drawer.
   const threads = (id: string, close?: () => void) => (
     <>
@@ -136,21 +218,18 @@ export function Agent({ selectedId, explorationId, onSelect, onSelectExploration
         {close && <button type="button" className="link-button" onClick={close}>Close</button>}
       </div>
       {rows.length === 0 ? (
-        <p className="muted">No threads yet. Write a brief to start one.</p>
+        <p className="muted">No threads yet. Ask a question or write a brief to start one.</p>
       ) : (
         <ul className="agent-thread-list">
-          {rows.map((r) => {
-            const selected = r.id === (r.kind === "plan" ? selectedId : explorationId);
-            return (
-              <li key={`${r.kind}:${r.id}`} className={selected ? "selected" : undefined}>
-                <button type="button" className="link-button" aria-current={selected ? "true" : undefined}
-                  onClick={() => { close?.(); (r.kind === "plan" ? onSelect : onSelectExploration)(r.id); }}>
-                  {r.title}
-                </button>
-                <Chip status={r.chip} />
-              </li>
-            );
-          })}
+          {rows.map((r) => (
+            <li key={`${r.kind}:${r.id}`} className={isSelected(r) ? "selected" : undefined}>
+              <button type="button" className="link-button" aria-current={isSelected(r) ? "true" : undefined}
+                onClick={() => { close?.(); onSelect({ kind: r.kind, id: r.id }); }}>
+                {r.title}
+              </button>
+              <Chip status={r.status} />
+            </li>
+          ))}
         </ul>
       )}
       <h2 id={`${id}-inbox-h`} className="agent-inbox-h">Inbox</h2>
@@ -166,7 +245,7 @@ export function Agent({ selectedId, explorationId, onSelect, onSelectExploration
           ))}
         </ul>
       )}
-      {waiting !== null && <p className="agent-inbox-foot"><a href="#/review" onClick={close}>{reviewQueueLine(waiting)}</a></p>}
+      {waiting !== null && <p className="agent-inbox-foot"><a href="#/review" onClick={close}>{needsYouLine(waiting)}</a></p>}
     </>
   );
   const stage = (id: string, close?: () => void) => (
@@ -215,29 +294,33 @@ export function Agent({ selectedId, explorationId, onSelect, onSelectExploration
         <aside className="agent-side agent-threads" aria-labelledby="agent-threads-h">{threads("agent-threads")}</aside>
 
         <section className="agent-stream" aria-label="Stream">
-          {exploration ? (
+          {exploration && explorationId ? (
             <ExplorationCard key={exploration.id} exploration={exploration} busy={busy} onAccept={() => act(() => api.acceptExploration(exploration.id))} />
-          ) : plan ? (
+          ) : plan && planId ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />
+          ) : askId || askingIn(asking, null) ? (
+            <AskStream asks={asks.filter((a) => a.thread_id === askId)} asking={askingIn(asking, askId)} canAsk={canAsk} onDrafted={drafted} />
           ) : (
-            <p className="muted agent-empty">Pick a thread, or describe the research you want below. A planner writes a short script that chains ARP’s runs; nothing runs until you approve it.</p>
+            <p className="muted agent-empty">Pick a thread, ask a question, or describe the research you want below. For research, a planner writes a short script that chains ARP’s runs; nothing runs until you approve it.</p>
           )}
           <form className="agent-composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
-            <label className="visually-hidden" htmlFor="agent-brief">{composer.label}</label>
-            <textarea id="agent-brief" rows={2} value={brief} onChange={(e) => setBrief(e.target.value)}
+            <div className="agent-modes" role="group" aria-label="Mode">
+              {modes.modes.map((m) => (
+                <button key={m} type="button" className="secondary" aria-pressed={mode === m} onClick={() => setMode(m)}>{m}</button>
+              ))}
+            </div>
+            <label className="visually-hidden" htmlFor="agent-brief">{copy.label}</label>
+            <textarea id="agent-brief" ref={input} rows={2} value={text} disabled={busy} onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
                 if (sendsComposer({ key: e.key, shiftKey: e.shiftKey, isComposing: e.nativeEvent.isComposing })) {
                   e.preventDefault();
                   send();
                 }
               }}
-              aria-describedby="agent-brief-help"
-              placeholder={explore ? "Which holdings lack a reviewed transition plan, by sector weight?" : 'Grid-storage companies in the saved universe "eu listed": extract green capex, score, report'} />
+              aria-describedby="agent-brief-help" maxLength={mode === "Ask" ? 1000 : undefined} placeholder={copy.placeholder} />
             <div className="agent-composer-foot">
-              <button type="button" className="secondary agent-mode-toggle" aria-pressed={explore} disabled={busy} onClick={() => setExplore((x) => !x)}
-                title="Run the question as an exploration: model-written code over ARP's read-only data">Explore</button>
-              <p id="agent-brief-help" className="muted agent-composer-help">{composer.help}</p>
-              <button type="submit" disabled={busy || !brief.trim()}>{busy ? composer.sending : composer.submit}</button>
+              <p id="agent-brief-help" className="muted">{copy.help}</p>
+              <button type="submit" disabled={busy || !text.trim()}>{busy ? copy.sending : copy.submit}</button>
             </div>
           </form>
         </section>
@@ -264,6 +347,9 @@ function Stream({ plan, busy, act }: { plan: Plan; busy: boolean; act: (fn: () =
           <Chip status={plan.status} /> <span className="muted">version {plan.version}</span>
           {plan.approved_by && <span className="muted"> · approved by {plan.approved_by}</span>}
         </p>
+        {plan.source_ask && (
+          <p className="agent-meta"><a href={`#/agent/ask/${encodeURIComponent(plan.source_ask.thread_id)}`}>From ask: {plan.source_ask.question}</a></p>
+        )}
         {(plan.status === "approved" || ACTIVE.has(plan.status)) && (
           <div className="toolbar">
             {plan.status === "approved" && <button disabled={busy} onClick={() => act(() => api.runPlan(plan.id))}>Run</button>}
@@ -344,6 +430,54 @@ function Stream({ plan, busy, act }: { plan: Plan; busy: boolean; act: (fn: () =
         </article>
       )}
     </>
+  );
+}
+
+/** An ask thread, oldest ask first: each question, then its answer card or error, the buttons for an answer, and a
+ * link card per plan drafted from it. `asking` is the question in flight, shown with `Working…`. */
+function AskStream({ asks, asking, canAsk, onDrafted }: {
+  asks: AgentAsk[]; asking: string | null; canAsk: boolean; onDrafted: (askId: string, plan: Plan) => void;
+}) {
+  return (
+    <ol className="agent-calls" aria-label="Asks">
+      {asks.map((a) => <AskTurn key={a.id} ask={a} canAsk={canAsk} onDrafted={onDrafted} />)}
+      {asking !== null && (
+        <li className="ask-turn">
+          <p className="ask-question">{asking}</p>
+          <p className="ask-card muted" role="status">Working…</p>
+        </li>
+      )}
+    </ol>
+  );
+}
+
+function AskTurn({ ask, canAsk, onDrafted }: { ask: AgentAsk; canAsk: boolean; onDrafted: (askId: string, plan: Plan) => void }) {
+  const [drafting, setDrafting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function draft() {
+    setDrafting(true);
+    setError(null);
+    const out = await draftPlanFromAsk(ask, (path, body) => api.agentPost<Plan>(path, body));
+    setDrafting(false);
+    if (out.ok) onDrafted(ask.id, out.plan);
+    else setError(out.error);
+  }
+  return (
+    <li className="ask-turn">
+      <p className="ask-question">{ask.question}</p>
+      {ask.error ? <p className="ask-card error-text">{ask.error}</p> : ask.response && <AskCard response={ask.response} />}
+      {!ask.error && answerActions(canAsk).length > 0 && (
+        <div className="agent-ask-actions">
+          <button type="button" className="secondary" disabled={drafting} onClick={draft}>Draft a plan</button>
+        </div>
+      )}
+      {error && <p className="error-text" role="alert">{error}</p>}
+      {ask.plans.map((p) => (
+        <p key={p.plan_id} className="agent-link-card">
+          <a href={`#/agent/${encodeURIComponent(p.plan_id)}`}>Plan: {threadTitle(p.brief)}</a> <Chip status={p.status} />
+        </p>
+      ))}
+    </li>
   );
 }
 
