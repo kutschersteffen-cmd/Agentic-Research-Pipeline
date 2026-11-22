@@ -152,3 +152,15 @@ export function threadRows(plans: Plan[], asks: AskThread[]): ThreadRow[] {
     ...asks.map((a) => ({ kind: "ask" as const, id: a.thread_id, title: a.title, status: a.status, created_at: a.created_at })),
   ].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 }
+
+/** How close to the end of the stream, in px, still counts as reading the newest turn. */
+export const NEAR_END_PX = 80;
+
+/** Whether the stream is scrolled to within `NEAR_END_PX` of its end. */
+export const nearEnd = (m: { scrollTop: number; scrollHeight: number; clientHeight: number }): boolean =>
+  m.scrollHeight - m.scrollTop - m.clientHeight <= NEAR_END_PX;
+
+/** What the stream does when a turn, `Working…` or an answer lands: a reader who was near the end follows it down;
+ * one who had scrolled up stays put and gets the "Jump to latest" button. */
+export const onStreamGrew = (wasNearEnd: boolean): { scrollToEnd: boolean; showJump: boolean } =>
+  wasNearEnd ? { scrollToEnd: true, showJump: false } : { scrollToEnd: false, showJump: true };

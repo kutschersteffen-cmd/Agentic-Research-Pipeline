@@ -2331,12 +2331,18 @@ a.vc-box:hover { border-color: var(--text); }
 
 /* Agent screen (agent-panel-code-mode spec): threads | stream | stage; below 900px the side columns are drawers. */
 .page.agent-page { max-width: 1400px; }
+/* Chat layout: on the Agent screen the app fills the viewport (dvh, so the composer stays above an on-screen keyboard)
+   and the page never scrolls; the threads column, the stream and the stage scroll on their own. */
+.app-shell:has(.agent-page) { height: 100vh; height: 100dvh; min-height: 0; }
+.app-shell:has(.agent-page) > .app-main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding-bottom: var(--s-4); }
+.page.agent-page { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; width: 100%; }
+.agent-page > .agent-head, .agent-page > .error-text { flex: none; }
 .agent-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-4); }
 .agent-head h1 { margin-bottom: 0; }
 .agent-drawer-buttons { display: none; gap: var(--s-2); }
 /* The stream never drops below 360px: between 900px and 1100px the side columns give way first. */
-.agent-shell { display: grid; grid-template-columns: minmax(180px, 240px) minmax(360px, 1fr) minmax(220px, 320px); gap: var(--s-4); align-items: start; }
-.agent-side { position: sticky; top: calc(var(--topbar-h) + var(--s-4)); max-height: calc(100vh - var(--topbar-h) - var(--s-8)); overflow-y: auto; }
+.agent-shell { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(180px, 240px) minmax(360px, 1fr) minmax(220px, 320px); grid-template-rows: minmax(0, 1fr); gap: var(--s-4); }
+.agent-side { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .agent-side-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); margin-bottom: var(--s-2); }
 .agent-side h2 { font-size: var(--text-md); margin: 0; }
 .agent-side .sub-nav { margin-bottom: 0; }
@@ -2350,7 +2356,11 @@ a.vc-box:hover { border-color: var(--text); }
 .agent-inbox li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-0_5) var(--s-2); padding: var(--s-1_5) var(--s-2); }
 .agent-inbox a { overflow-wrap: anywhere; }
 .agent-inbox-foot { margin: var(--s-2) var(--s-2) 0; }
-.agent-stream { min-width: 0; }
+.agent-stream { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+/* Only this part scrolls; the newest turn sits just above the composer. */
+.agent-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.agent-jump { position: relative; height: 0; }
+.agent-jump button { position: absolute; bottom: var(--s-2); left: 50%; transform: translateX(-50%); margin: 0; box-shadow: var(--shadow-md); background: var(--panel); }
 .agent-stream .agent-card { margin-bottom: var(--s-3); }
 .agent-card h2 { font-size: var(--text-lg); overflow-wrap: anywhere; }
 .agent-card h3 { margin: 0 0 var(--s-2); }
@@ -2363,8 +2373,9 @@ a.vc-box:hover { border-color: var(--text); }
 .agent-call { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-2); padding: var(--s-2) var(--s-3); }
 .agent-failure { border-color: var(--low); }
 .agent-empty { margin: 0 0 var(--s-4); max-width: 62ch; }
-.agent-composer { padding: var(--s-2) 0; }
-.agent-composer textarea { width: 100%; box-sizing: border-box; }
+.agent-composer { flex: none; padding: var(--s-2) 0 0; border-top: 1px solid var(--panel-border); }
+/* Grows with its text (Agent.tsx sets the height) up to about 8 lines, then scrolls inside itself. */
+.agent-composer textarea { width: 100%; box-sizing: border-box; resize: none; max-height: calc(8lh + 2 * var(--s-2) + 2px); overflow-y: auto; }
 .agent-composer-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); margin-top: var(--s-2); }
 .agent-composer-foot .muted { margin: 0; }
 .agent-modes { display: flex; gap: var(--s-1); margin-bottom: var(--s-2); }

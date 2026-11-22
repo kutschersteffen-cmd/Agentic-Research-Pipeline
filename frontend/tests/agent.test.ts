@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import {
   answerActions, budgetLine, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  askingIn, needsYouLine, scriptLines, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd,
+  askingIn, nearEnd, needsYouLine, onStreamGrew, scriptLines, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd,
 } from "../src/lib/agent.ts";
 import type { Plan } from "../src/lib/plans.ts";
 import type { AskThread } from "../src/types.ts";
@@ -181,4 +181,18 @@ test("a thread's asks that answer after another thread was picked are dropped", 
   rejectC(new Error("late"));
   await new Promise((r) => setTimeout(r, 0));
   assert.deepEqual([shown, errors], [["B"], []]);
+});
+
+// Chat-style stream: the composer stays at the bottom and the stream follows new turns only for a reader at its end.
+test("the stream counts as at its end within 80 px of the bottom", () => {
+  assert.equal(nearEnd({ scrollTop: 920, scrollHeight: 1500, clientHeight: 500 }), true); // 80 px left
+  assert.equal(nearEnd({ scrollTop: 919, scrollHeight: 1500, clientHeight: 500 }), false); // 81 px left
+  assert.equal(nearEnd({ scrollTop: 1000, scrollHeight: 1500, clientHeight: 500 }), true);
+  assert.equal(nearEnd({ scrollTop: 0, scrollHeight: 300, clientHeight: 500 }), true); // nothing to scroll
+  assert.equal(nearEnd({ scrollTop: 0, scrollHeight: 2000, clientHeight: 500 }), false);
+});
+
+test("new content scrolls a reader at the end down, and offers Jump to latest to one who scrolled up", () => {
+  assert.deepEqual(onStreamGrew(true), { scrollToEnd: true, showJump: false });
+  assert.deepEqual(onStreamGrew(false), { scrollToEnd: false, showJump: true });
 });

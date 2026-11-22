@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import { AskCard } from "../components/AskCards";
 import { StepTabs } from "../components/StepTabs";
 import {
   answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  askingIn, needsYouLine, scriptLines, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
+  askingIn, nearEnd, needsYouLine, onStreamGrew, scriptLines, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
 } from "../lib/agent";
 import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
 import { when } from "../lib/runs";
@@ -64,6 +64,10 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const [drawer, setDrawer] = useState<Drawer>(null);
   const [tab, setTab] = useState<StageTab>("script");
   const input = useRef<HTMLTextAreaElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const atEnd = useRef(true); // the reader was near the stream's end at the last scroll
+  const [jump, setJump] = useState(false);
   const refocus = useRef(false);
   const current = useRef(selected); // the selection now, for a request that answers after it changed
   current.current = selected;
@@ -99,6 +103,49 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     refocus.current = false;
     input.current?.focus();
   }, [busy]);
+  // Opening a thread shows its newest turn.
+  useLayoutEffect(() => {
+    atEnd.current = true;
+    setJump(false);
+    const el = scroller.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [planId, askId]);
+  // When the stream grows, or its box shrinks under a taller composer, follow it down only if the reader was at the end.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el || !content.current) return;
+    let prev = { height: el.scrollHeight, box: el.clientHeight };
+    const ro = new ResizeObserver(() => {
+      const grew = el.scrollHeight > prev.height || el.clientHeight < prev.box;
+      prev = { height: el.scrollHeight, box: el.clientHeight };
+      if (!grew) return;
+      const next = onStreamGrew(atEnd.current);
+      if (next.scrollToEnd) el.scrollTop = el.scrollHeight;
+      if (next.showJump) setJump(true);
+    });
+    ro.observe(content.current);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  // The text box grows with its text; CSS caps it at about 8 lines, then it scrolls inside itself.
+  useLayoutEffect(() => {
+    const el = input.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+  }, [text]);
+  function onStreamScroll() {
+    const el = scroller.current;
+    if (!el) return;
+    atEnd.current = nearEnd(el);
+    if (atEnd.current) setJump(false);
+  }
+  function jumpToLatest() {
+    const el = scroller.current;
+    if (!el) return;
+    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+  }
   useEffect(() => {
     if (!focusToken) return;
     if (canAsk) setMode("Ask");
@@ -283,12 +330,21 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
         <aside className="agent-side agent-threads" aria-labelledby="agent-threads-h">{threads("agent-threads")}</aside>
 
         <section className="agent-stream" aria-label="Stream">
+          <div className="agent-scroll" ref={scroller} onScroll={onStreamScroll}>
+          <div ref={content}>
           {plan && planId ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />
           ) : askId || askingIn(asking, null) ? (
             <AskStream asks={asks.filter((a) => a.thread_id === askId)} asking={askingIn(asking, askId)} canAsk={canAsk} onDrafted={drafted} />
           ) : (
             <p className="muted agent-empty">Pick a thread, ask a question, or describe the research you want below. For research, a planner writes a short script that chains ARP’s runs; nothing runs until you approve it.</p>
+          )}
+          </div>
+          </div>
+          {jump && (
+            <div className="agent-jump">
+              <button type="button" className="secondary" onClick={jumpToLatest}>Jump to latest</button>
+            </div>
           )}
           <form className="agent-composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
             <div className="agent-modes" role="group" aria-label="Mode">
