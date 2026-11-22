@@ -4130,6 +4130,48 @@
     "title": "Candidate",
     "type": "object"
    },
+   "CapabilityOut": {
+    "properties": {
+     "effect": {
+      "enum": [
+       "read",
+       "run"
+      ],
+      "title": "Effect",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "input_schema": {
+      "additionalProperties": true,
+      "title": "Input Schema",
+      "type": "object"
+     },
+     "lane": {
+      "enum": [
+       "plan",
+       "sandbox"
+      ],
+      "title": "Lane",
+      "type": "string"
+     },
+     "summary": {
+      "title": "Summary",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "summary",
+     "effect",
+     "lane",
+     "input_schema"
+    ],
+    "title": "CapabilityOut",
+    "type": "object"
+   },
    "CapexOut": {
     "properties": {
      "amounts": {
@@ -31813,6 +31855,32 @@
     "summary": "Update Schedule",
     "tags": [
      "calibration"
+    ]
+   }
+  },
+  "/api/capabilities": {
+   "get": {
+    "description": "Sandbox lane first, then plan lane, each sorted by id; `input_schema` is the input model's JSON schema.",
+    "operationId": "list_capabilities_api_capabilities_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/CapabilityOut"
+         },
+         "title": "Response List Capabilities Api Capabilities Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Capabilities",
+    "tags": [
+     "capabilities"
     ]
    }
   },
