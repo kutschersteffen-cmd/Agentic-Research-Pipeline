@@ -15,6 +15,7 @@ from arp.reporting.house_style import get_variant
 from arp.reporting.slide_fill import rewrite_slot
 from arp.schemas.chart_specs import ChartType
 from arp.schemas.reporting import Deck, Finding, ReportRequest, SlideContent
+from arp.schemas.visuals import Chart, Flow
 
 
 def _texts(slide: SlideContent, headline: bool = False) -> Iterator[tuple[str, str]]:
@@ -26,12 +27,21 @@ def _texts(slide: SlideContent, headline: bool = False) -> Iterator[tuple[str, s
     for slot, v in slide.slots.items():
         for t in [v] if isinstance(v, str) else v:
             yield slot, t
-    if slide.visual is not None:
+    if isinstance(slide.visual, Flow):  # only its labels, tags and arrow labels are slide text
+        for n, st in enumerate(slide.visual.steps):
+            yield f"visual.steps.{n}.label", st.label
+            if st.tag:
+                yield f"visual.steps.{n}.tag", st.tag
+        for n, a in enumerate(slide.visual.arrows):
+            if a.label:
+                yield f"visual.arrows.{n}.label", a.label
+    elif slide.visual is not None:
         yield from _visual_texts(slide.visual.model_dump(), "visual")
 
 
 # Visual fields that hold references or settings, not slide text.
-_NOT_TEXT = {"type", "data", "table", "kind", "unit", "highlight", "highlight_column", "total_row", "category", "agenda"}
+_NOT_TEXT = {"type", "data", "table", "kind", "unit", "highlight", "highlight_column", "total_row", "category", "agenda",
+             "name"}  # `name`: an image visual's registered image name
 
 
 def _visual_texts(v: object, path: str) -> Iterator[tuple[str, str]]:
@@ -194,11 +204,16 @@ _PICTURES = (ChartType.WATERFALL, ChartType.HEATMAP)  # layout charts the PowerP
 
 
 def chart_picture(deck: Deck, request: ReportRequest) -> list[Finding]:
-    """One finding per slide whose chart is a picture in the PowerPoint; informational, never rewritten."""
-    return [
-        _find(i, "chart", "chart_picture", f"{s.chart.chart_type.value} chart is a picture in the PowerPoint: change its data in ARP and build again")
-        for i, s in enumerate(deck.slides) if s.visual is None and s.chart is not None and s.chart.chart_type in _PICTURES
-    ]
+    """One finding per slide whose chart is a picture in the PowerPoint (layout waterfall and heatmap, component heatmap);
+    informational, never rewritten."""
+    msg = "{} chart is a picture in the PowerPoint: change its data in ARP and build again"
+    out = []
+    for i, s in enumerate(deck.slides):
+        if s.visual is None and s.chart is not None and s.chart.chart_type in _PICTURES:
+            out.append(_find(i, "chart", "chart_picture", msg.format(s.chart.chart_type.value)))
+        elif isinstance(s.visual, Chart) and s.visual.kind == "heatmap":
+            out.append(_find(i, "chart", "chart_picture", msg.format("heatmap")))
+    return out
 
 
 NOT_REWRITTEN = {"chart_picture"}

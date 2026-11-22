@@ -129,11 +129,15 @@ def _stub_theme_run(monkeypatch, run_store):
     import arp.research.pipeline as research
     import arp.research.taxonomy_schema as ts
 
-    async def fake_run(theme, companies, **kw):
+    def fake_create(theme, companies, *a, **kw):
         return JobManager(run_store).create_run("theme", {}, len(companies), companies=companies).run_id
 
+    async def fake_execute(run_id, *a, **kw):
+        return run_id
+
     monkeypatch.setattr(ts, "released_run_schema", lambda *a: (NS(theme="t", taxonomy_id="tax", version=1), None))
-    monkeypatch.setattr(research, "run_thematic_universe", fake_run)
+    monkeypatch.setattr(research, "create_theme_run", fake_create)
+    monkeypatch.setattr(research, "execute_theme_run", fake_execute)
     monkeypatch.setattr(research, "load_theme_run_matches", lambda rs, rid: [])
     monkeypatch.setattr("arp.research.indirect_exposure.factory.resolve_indirect_exposure_model", lambda *a, **k: None)
     monkeypatch.setattr("arp.api.deps.get_registry", lambda: None)

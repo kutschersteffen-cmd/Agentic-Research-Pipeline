@@ -330,8 +330,8 @@ export function IndexBuilder() {
     { id: "ix-universe", label: "Starting universe", summary: labelOf(universeId) },
     { id: "ix-preset", label: "Preset", summary: loaded?.name ?? "optional" },
     { id: "ix-screens", n: 1, label: "Screens", summary: plural(spec.screens.length, "screen") },
-    { id: "ix-selection", n: 2, label: "Selection", summary: spec.selection.type },
-    { id: "ix-weighting", n: 3, label: "Base weighting", summary: spec.base_weighting.scheme },
+    { id: "ix-selection", n: 2, label: "Selection", summary: optionLabel(spec.selection.type) },
+    { id: "ix-weighting", n: 3, label: "Base weighting", summary: optionLabel(spec.base_weighting.scheme) },
     { id: "ix-tilts", n: 4, label: "Tilts", summary: plural(spec.tilts.length, "tilt") },
     { id: "ix-constraints", n: 5, label: "Constraints", summary: plural(constraintCount, "limit") },
     {
@@ -345,11 +345,11 @@ export function IndexBuilder() {
 
   return (
     <div className="page">
-      <h1>Index Construction</h1>
+      <h1>Portfolio Builder</h1>
       <p className="help-text">Compose screens, selection, weighting, tilts, constraints and the decarbonisation path into one methodology, save it as a versioned calibration, and run a review. Every step is deterministic.</p>
       <p className="banner banner-warning" role="note">{universeBanner(choice.detail)}</p>
 
-      <div className="sub-nav" role="tablist" aria-label="Index Construction steps">
+      <div className="sub-nav" role="tablist" aria-label="Portfolio Builder steps">
         {SUB_TABS.map((t) => (
           <button key={t.id} className={t.id === sub ? "nav-tab active" : "nav-tab"} role="tab" aria-selected={t.id === sub} onClick={() => setSub(t.id)}>
             {t.label}
@@ -464,7 +464,7 @@ export function IndexBuilder() {
                 {busy ? "Running..." : "Preview"}
               </button>
               <button onClick={() => runReview(true)} disabled={busy || loadingId !== null} className="secondary">
-                Run &amp; save
+                Run review and save
               </button>
             </div>
           </div>
@@ -585,8 +585,7 @@ function ScreensCard({
     <div className="card">
       <h2>1 · Screens</h2>
       <p className="help-text">
-        Applied in order. Order is part of the methodology: screens do not commute once a later one is rank-based, and the
-        funnel a committee reviews depends on the order they ran in.
+        Screens run top to bottom. Order changes the result once a screen ranks companies.
       </p>
       <div className="toolbar" style={{ flexWrap: "wrap" }}>
         {(catalogue?.screens ?? []).map((s) => (
@@ -837,8 +836,7 @@ function TiltsCard({
     <div className="card">
       <h2>4 · Tilts</h2>
       <p className="help-text">
-        Applied in order, multiplicatively, onto the base weight. Floor and ceiling are mandatory: an unbounded tilt
-        silently becomes an exclusion, which is a methodology change nobody approved.
+        Tilts multiply the base weight, in order. Set a floor and a ceiling: without them a tilt can drop a company to zero.
       </p>
       <div className="toolbar">
         <button className="secondary" onClick={() => add("metric_tilt")}>
@@ -943,8 +941,7 @@ function ConstraintsCard({
     <div className="card">
       <h2>5 · Constraints</h2>
       <p className="help-text">
-        Applied by a deterministic waterfall, not a solver: pin every breach at its cap, redistribute pro-rata, repeat
-        until no name breaches and the weights sum to one.
+        Any weight over a cap is cut back and the excess shared out, until every cap holds.
       </p>
       <div className="inline-fields">
         <NumberField label="Single-name cap (0-1)" value={c.single_name_cap} onChange={(single_name_cap) => update({ single_name_cap })} step="0.01" placeholder="none" />
@@ -1012,14 +1009,17 @@ function ConstraintsCard({
           solver-backed objective below, or drop the constraint.
         </p>
       )}
-      <h3>How the constraints are satisfied</h3>
-      <p className="help-text">
-        The <strong>waterfall</strong> needs nothing installed and is byte-identical everywhere, but applies the
-        constraints in sequence. The <strong>least-squares projection</strong> solves them simultaneously and returns the
-        closest feasible portfolio to what the rules asked for — and takes the decarbonisation target in the same solve,
-        so no tilt search is needed. Whichever is chosen, every constraint is re-checked here afterwards; a solver&apos;s
-        own &quot;optimal&quot; status is never taken as proof.
-      </p>
+      <details>
+        <summary>How this works</summary>
+        <h3>How the constraints are satisfied</h3>
+        <p className="help-text">
+          The <strong>waterfall</strong> needs nothing installed and is byte-identical everywhere, but applies the
+          constraints in sequence. The <strong>least-squares projection</strong> solves them simultaneously and returns the
+          closest feasible portfolio to what the rules asked for — and takes the decarbonisation target in the same solve,
+          so no tilt search is needed. Whichever is chosen, every constraint is re-checked here afterwards; a solver&apos;s
+          own &quot;optimal&quot; status is never taken as proof.
+        </p>
+      </details>
       <div className="inline-fields">
         <SelectField
           label="Objective"

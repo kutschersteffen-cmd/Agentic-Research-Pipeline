@@ -1,4 +1,4 @@
-"""House deck build after storyline approval: fill -> lint+rewrite -> fit (legacy slides) -> fit ladder (component slides) -> visual QA -> PDF + PNGs + PPTX."""
+"""House deck build after storyline approval: fill -> flow layout -> lint+rewrite -> fit (legacy slides) -> fit ladder (component slides) -> visual QA -> PDF + PNGs + PPTX."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.adapters import with_run_datasets
 from arp.reporting.browser import write_pdf, write_pngs
 from arp.reporting.fit import fit_deck, fit_ladder
+from arp.reporting.flow_layout import layout_flows
 from arp.reporting.house_pptx import build_house_pptx
 from arp.reporting.house_style import Mode, Tokens
 from arp.reporting.html_render import render_deck_html
@@ -34,7 +35,7 @@ def low_resolution(deck: Deck, request: ReportRequest, tokens: Tokens, mode: Mod
     for i, s in enumerate(deck.slides):
         if s.visual is None:
             continue
-        for p in render_slide(s, i, deck, tokens, by_id, mode, images=images):
+        for p in render_slide(s, i, deck, tokens, by_id, mode, images=images, cover_image=request.deck.cover_image):
             if isinstance(p, ImagePrim):
                 left, _, right, _ = p.crop
                 shown = images[p.image].entry.width * (1 - left - right)
@@ -49,9 +50,10 @@ async def render_house_outputs(report_id: str, deck: Deck, request: ReportReques
     Replaces the report's `low_resolution` findings with the current ones, keeps all others, and returns the new ones."""
     tokens = house_tokens(request, store)
     images = store.load_report_images(report_id, request)
-    html = render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme, images=images)
+    html = render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme, images=images, cover_image=request.deck.cover_image)
     await write_pdf(html, store.output_path(report_id, "output.pdf"))
-    build_house_pptx(deck, request.datasets, store.output_path(report_id, "output.pptx"), tokens, mode=request.layout.theme, images=images)
+    build_house_pptx(deck, request.datasets, store.output_path(report_id, "output.pptx"), tokens, mode=request.layout.theme, images=images,
+                      cover_image=request.deck.cover_image)
     preview = store.preview_dir(report_id)
     for old in preview.glob("page-*.png"):  # a shorter deck must not keep the old tail
         old.unlink()
@@ -100,11 +102,14 @@ async def build_house_deck(
 
     async def build(slide: SlideContent | StorylineSlide, i: int) -> tuple[SlideContent, list[Finding], LLMUsage]:
         # Each storyline slide is filled (and reported) at its position in the deck.
-        return (slide, [], LLMUsage()) if isinstance(slide, SlideContent) else await fill_slide(slide, i, request, llm)
+        return (slide, [], LLMUsage()) if isinstance(slide, SlideContent) else await fill_slide(slide, i, request, llm, images=images)
 
+    images = store.load_report_images(report_id, request)
     filled = await asyncio.gather(*(build(s, i) for i, s in enumerate(plan)))
     deck = Deck(title=storyline.title, subtitle=storyline.subtitle, slides=[content for content, _, _ in filled])
     findings += [f for _, fs, _ in filled for f in fs] + duplicate_data(deck)
+    deck, flow_findings = await layout_flows(deck, tokens, request.layout.theme)  # before lint and fit, which leave flows alone
+    findings += flow_findings
     if usage is not None:
         for _, _, u in filled:
             usage.input_tokens += u.input_tokens
@@ -119,8 +124,8 @@ async def build_house_deck(
     if len(request.datasets) > n:  # saved, so a re-render finds the table's rows
         store.save_request(report_id, request)
     with tempfile.TemporaryDirectory() as tmp:
-        images = store.load_report_images(report_id, request)
-        pngs = await write_pngs(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme, images=images), Path(tmp))
+        pngs = await write_pngs(render_deck_html(deck, request.datasets, tokens, mode=request.layout.theme, images=images,
+                                                cover_image=request.deck.cover_image), Path(tmp))
         deck, qa_findings = await visual_qa(deck, pngs, request, llm, usage=usage, shift=findings, tokens=tokens)
     if any(f.rule == "applied" for f in qa_findings):  # QA re-measured the deck: the first fit's measurements are stale
         # Component slides are not QA-edited, so their ladder findings stay.

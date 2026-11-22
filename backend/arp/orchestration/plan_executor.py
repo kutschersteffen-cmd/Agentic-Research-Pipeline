@@ -1,4 +1,4 @@
-"""Runs an approved plan script for real: each step call starts a run type, waits for it, records it.
+"""Runs an approved plan script for real: each step call starts a run type, records its run id, waits for it.
 
 Synchronous on purpose: the interpreter is synchronous, so the API runs this in a worker thread and each
 adapter drives its own async run with `asyncio.run`. One worker per plan, via the same Postgres advisory
@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from arp.errors import NotConfigured
@@ -15,10 +16,24 @@ from arp.orchestration.jobs import RunBusy, run_lease
 from arp.orchestration.plan_interp import run_script
 from arp.orchestration.plan_store import PlanStore, kept_calls
 
-# A step function takes the call's params and returns the result the script sees:
-# {"id", "run_id", "companies", ...}; `"gate": True` means its run waits for human review.
-StepFn = Callable[..., dict[str, Any]]
 ReviewedFn = Callable[[dict[str, Any]], bool]
+
+
+@dataclass(frozen=True)
+class Step:
+    """A step's two halves. `start(launch_key, **params)` creates the run and returns its id; given the launch key of
+    a run it already created, it returns that run instead. `finish(run_id, **params)` executes the run, or attaches to
+    it, and returns the result the script sees: {"id", "run_id", "companies", ...}; `"gate": True` means its run waits
+    for human review. A synchronous kind has no run: its `start` returns None and `finish` does the work."""
+    start: Callable[..., str | None]
+    finish: Callable[..., dict[str, Any]]
+
+    def __call__(self, **params: Any) -> dict[str, Any]:
+        return self.finish(self.start(None, **params), **params)
+
+
+def sync_step(fn: Callable[..., dict[str, Any]]) -> Step:
+    return Step(lambda _key, **_params: None, lambda _run_id, **params: fn(**params))
 
 
 class PlanNotRunnable(NotConfigured):
@@ -31,6 +46,16 @@ class _Cancelled(Exception):
 
 class _AwaitingReview(Exception):
     pass
+
+
+class BudgetReached(Exception):
+    """No step starts once the plan's runs and planner calls cost its budget; the message is the plan's error."""
+
+
+def _check_budget(store: PlanStore, plan: dict[str, Any]) -> None:
+    budget = plan["budget_usd"]
+    if budget is not None and (spent := store.spent_usd(plan["id"])) >= budget:
+        raise BudgetReached(f"budget reached: spent ${spent:.2f} of ${budget:.2f}")
 
 
 _STARTABLE = {"approved", "failed"}  # failed: `resume` re-runs from the top, reusing finished calls
@@ -57,7 +82,7 @@ def claim_plan(store: PlanStore, plan_id: str) -> None:
     raise PlanNotRunnable("plan is already running" if status in _ACTIVE else "plan is not approved")
 
 
-def run_plan(plan_id: str, store: PlanStore, steps: dict[str, StepFn], reviewed: ReviewedFn,
+def run_plan(plan_id: str, store: PlanStore, steps: dict[str, Step | Callable[..., dict[str, Any]]], reviewed: ReviewedFn,
              *, poll_seconds: float = 5.0, return_at_gate: bool = False) -> str:
     """Run the plan to an end state and return it. Raises PlanNotRunnable when it is not approved or already
     running. With `return_at_gate`, a step that waits for review is not waited for: the plan is left
@@ -69,7 +94,7 @@ def run_plan(plan_id: str, store: PlanStore, steps: dict[str, StepFn], reviewed:
         raise PlanNotRunnable("plan is already running") from exc
 
 
-def _run(plan_id: str, store: PlanStore, steps: dict[str, StepFn], reviewed: ReviewedFn, poll: float,
+def _run(plan_id: str, store: PlanStore, steps: dict[str, Step | Callable[..., dict[str, Any]]], reviewed: ReviewedFn, poll: float,
          return_at_gate: bool) -> str:
     # We hold the lease, so a plan marked running or awaiting review has no other live worker: take it over.
     plan = store.get(plan_id)
@@ -93,9 +118,18 @@ def _run(plan_id: str, store: PlanStore, steps: dict[str, StepFn], reviewed: Rev
         if same and old["status"] == "awaiting_review":  # its run already exists: never start it twice
             result = old["result"]
         else:
-            store.record_call(plan_id, seq=seq, kind=kind, params=params, status="running")
+            step = steps[kind] if isinstance(steps[kind], Step) else sync_step(steps[kind])
+            run_id = old["run_id"] if same and old["status"] == "running" else None
             try:
-                result = steps[kind](**params)
+                if run_id is None:  # recorded as `starting` first, so a crash inside `start` is found on resume
+                    _check_budget(store, plan)
+                    attempt = old["attempt"] + (old["status"] == "failed") if same else 1
+                    store.record_call(plan_id, seq=seq, kind=kind, params=params, status="starting", attempt=attempt)
+                    run_id = step.start(f"plan:{plan_id}:v{plan['version']}:{seq}:a{attempt}", **params)
+                    store.update_call(plan_id, seq, status="running", run_id=run_id)
+                result = step.finish(run_id, **params)  # attaches to the run a crashed worker left running
+            except BudgetReached:
+                raise
             except Exception as exc:
                 store.update_call(plan_id, seq, status="failed")
                 raise RuntimeError(f"step {seq} {kind} failed: {exc}") from exc

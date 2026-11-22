@@ -109,9 +109,10 @@ def _pos(a: float, b: float) -> float:
 
 def _image(p: ImagePrim, images: dict[str, LoadedImage]) -> str:
     left, top, right, bottom = p.crop
-    src = f"data:{p.media_type};base64,{base64.b64encode(embedded(images[p.image].data)).decode()}"
+    data = images[p.image].data  # empty when only measuring (layout_images): the box is the same without pixels
+    src = f' src="data:{p.media_type};base64,{base64.b64encode(embedded(data)).decode()}"' if data else ""
     style = f"display:block;object-fit:cover;object-position:{_pos(left, right):g}% {_pos(top, bottom):g}%;"
-    return _box(p.name, p.x, p.y, p.w, p.h, style, "img") + f' src="{src}" alt="{_a(p.alt)}">'
+    return _box(p.name, p.x, p.y, p.w, p.h, style, "img") + f'{src} alt="{_a(p.alt)}">'
 
 
 def html_slide(prims: list[Primitive], tokens: Tokens, mode: Mode, images: dict[str, LoadedImage] | None = None) -> str:

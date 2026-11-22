@@ -24,7 +24,7 @@ const down = { runs: null, flow: null };
 
 // Start page simplified (2026-11-15) retired AC-1/2/3 (card footer "Open →").
 
-test("AC-4: busy R&D Lab first dot is failed", () => assert.equal(view("R&D Lab", busy).dots[0], "failed"));
+test("AC-4: busy Strategy first dot is failed", () => assert.equal(view("Strategy", busy).dots[0], "failed"));
 test("AC-5: busy Argus first dot is wait", () => assert.equal(view("Argus", busy).dots[0], "wait"));
 test("AC-6: busy StewardIQ first two dots wait", () => assert.deepEqual(view("StewardIQ", busy).dots.slice(0, 2), ["wait", "wait"]));
 test("AC-7: busy Transition Intelligence Platform has a running dot", () => assert.ok(view("Transition Intelligence Platform", busy).dots.includes("now")));
@@ -32,10 +32,10 @@ test("AC-8: busy Data Hub dots are idle", () => assert.deepEqual(view("Data Hub"
 
 test("AC-9: awaits only where a dot waits", () => {
   const got = Object.fromEntries(WORKSPACES.map((w) => [w.name, cardView(w, busy.runs, busy.flow, NOW).awaits]));
-  assert.deepEqual(got, { StewardIQ: true, Argus: true, "Transition Intelligence Platform": false, "R&D Lab": false, "Data Hub": false });
+  assert.deepEqual(got, { StewardIQ: true, Argus: true, "Transition Intelligence Platform": false, "Strategy": false, "Data Hub": false });
 });
 
-test("AC-10: busy R&D Lab now line names the failed process", () => assert.equal(view("R&D Lab", busy).now, "Launch a thematic product"));
+test("AC-10: busy Strategy now line names the failed process", () => assert.equal(view("Strategy", busy).now, "Design a strategy"));
 test("AC-11: busy Data Hub now line", () => assert.equal(view("Data Hub", busy).now, "No runs yet"));
 test("AC-12: calm Argus now line gives the last run's age", () => assert.equal(view("Argus", calm).now, "Last run 2 h ago"));
 
@@ -71,11 +71,11 @@ test("r2 AC-8: failed", () => assert.deepEqual(stepStatusLine("failed", 0, 0, D)
 test("r2 AC-9: done with date", () => assert.deepEqual(stepStatusLine("done", 0, 0, D, "en-GB"), { text: "Done · 8 Nov", tone: "done" }));
 test("r2 AC-10: idle", () => assert.deepEqual(stepStatusLine("idle", 0, 0, null), { text: "No runs yet", tone: "idle" }));
 test("r2 AC-11: a waiting process makes the workspace wait", () => assert.equal(workspaceState(ws("Argus"), busy.runs), "wait"));
-test("r2 AC-12: failed outranks done and idle", () => assert.equal(workspaceState(ws("R&D Lab"), busy.runs), "failed"));
+test("r2 AC-12: failed outranks done and idle", () => assert.equal(workspaceState(ws("Strategy"), busy.runs), "failed"));
 test("r2: no runs for the workspace is idle", () => assert.equal(workspaceState(ws("Data Hub"), busy.runs), "idle"));
 test("r2 AC-13: runs not loaded is idle", () => assert.equal(workspaceState(ws("Argus"), null), "idle"));
 test("r2 AC-19b: workspace order unchanged", () =>
-  assert.deepEqual(WORKSPACES.map((w) => w.name), ["StewardIQ", "Argus", "Transition Intelligence Platform", "R&D Lab", "Data Hub"]));
+  assert.deepEqual(WORKSPACES.map((w) => w.name), ["StewardIQ", "Argus", "Transition Intelligence Platform", "Strategy", "Data Hub"]));
 
 // Night Desk release 4 and 6 (waiting sentence, link, stat and target) were retired by the
 // simplified start page (docs/superpowers/specs/2026-11-15-start-page-simplified-design.md, Supersedes).
@@ -138,7 +138,7 @@ test("sp_ac19_card_status_in_view", () => {
 // App-wide top bar, PR 1: the Workspaces menu.
 test("pr1_menu_items", () => {
   const empty = workspaceMenuItems(null, null, NOW);
-  assert.deepEqual(empty.map((i) => i.label), ["Start", "StewardIQ", "Argus", "Transition Intel", "R&D Lab", "Data Hub"]);
+  assert.deepEqual(empty.map((i) => i.label), ["Start", "StewardIQ", "Argus", "Transition Intel", "Strategy", "Data Hub"]);
   assert.deepEqual(empty.map((i) => i.href), ["#/home", "#/stewardiq", "#/argus", "#/transitionIntel", "#/rdLab", "#/dataHub"]);
   assert.ok(empty.every((i) => i.tone === null && i.word === ""));
   const steward = workspaceMenuItems(busy.runs, busy.flow, NOW).find((i) => i.label === "StewardIQ")!;
@@ -154,11 +154,11 @@ test("pol_menu_purpose", () => {
 
 // UI polish 1, F11: titles of a workspace's failed processes.
 test("pol_ac11_failed_processes", () => {
-  const lab = ws("R&D Lab");
+  const lab = ws("Strategy");
   const watching = lab.processes.filter((p) => p.steps.some((s) => s.runTypes?.includes("calibration"))).map((p) => p.title);
   assert.ok(watching.length >= 1);
   assert.deepEqual(failedProcesses(lab, [run("calibration", "failed")], null, null), watching);
-  assert.deepEqual(failedProcesses(lab, [run("emerging_themes", "failed")], null, null), ["Launch a thematic product"]);
+  assert.deepEqual(failedProcesses(lab, [run("emerging_themes", "failed")], null, null), ["Design a strategy"]);
   assert.deepEqual(failedProcesses(lab, [], null, null), []);
   assert.deepEqual(failedProcesses(lab, null, null, null), []);
 });

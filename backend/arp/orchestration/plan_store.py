@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from arp.errors import NotConfigured
@@ -44,7 +45,13 @@ def _row(obj) -> dict[str, Any]:
 
 def _plan_row(plan: ResearchPlan) -> dict[str, Any]:
     row = _row(plan)
-    return {**row, "version": row["version"] or 1, "previous_scripts": row["previous_scripts"] or []}
+    budget = row["budget_usd"]
+    return {**row, "version": row["version"] or 1, "previous_scripts": row["previous_scripts"] or [],
+            "budget_usd": None if budget is None else float(budget), "planner_cost_usd": float(row["planner_cost_usd"] or 0)}
+
+
+def _usd(amount: float) -> Decimal:
+    return Decimal(repr(amount))  # repr: the float round-trips exactly, so sums stay decimal
 
 
 def kept_calls(plan: dict[str, Any], calls: list[dict[str, Any]]) -> tuple[list[dict] | None, int]:
@@ -65,15 +72,17 @@ class PlanStore:
         self.engine = get_engine(dsn)
 
     def create(self, brief: str, script: str, previous_scripts: list[dict] | None = None,
-               check: Callable[[list[dict]], list[str]] | None = None) -> str:
+               check: Callable[[list[dict]], list[str]] | None = None, planner_cost_usd: float = 0.0) -> str:
         """Raises ValueError with the checker's errors when the script is rejected. `previous_scripts` stores the
-        plan as already re-planned (the demo plan), at the version after them. `check` adds errors from the dry run."""
+        plan as already re-planned (the demo plan), at the version after them. `check` adds errors from the dry run.
+        `planner_cost_usd` is what the planner's calls for this draft cost."""
         steps = _checked_dry_run(script, check=check)
         plan_id = new_id("plan")
         history = previous_scripts or []
         with Session(self.engine) as s, s.begin():
             s.add(ResearchPlan(id=plan_id, brief=brief, script=script, dry_run=steps, status="draft",
-                               created_at=datetime.now(UTC), version=len(history) + 1, previous_scripts=history))
+                               created_at=datetime.now(UTC), version=len(history) + 1, previous_scripts=history,
+                               planner_cost_usd=_usd(planner_cost_usd)))
         return plan_id
 
     def get(self, plan_id: str) -> dict[str, Any]:
@@ -86,6 +95,14 @@ class PlanStore:
     def list(self) -> list[dict[str, Any]]:
         with Session(self.engine) as s:
             return [_plan_row(p) for p in s.scalars(select(ResearchPlan).order_by(ResearchPlan.created_at.desc()))]
+
+    def active(self) -> list[tuple[str, str]]:
+        """(id, status) of every plan that is `running` or `awaiting_review`, oldest first."""
+        with Session(self.engine) as s:
+            rows = s.execute(select(ResearchPlan.id, ResearchPlan.status)
+                             .where(ResearchPlan.status.in_({"running", "awaiting_review"}))
+                             .order_by(ResearchPlan.created_at))
+            return [(r.id, r.status) for r in rows]
 
     def update_script(self, plan_id: str, script: str) -> None:
         """An edit always returns the plan to draft and clears its approval. A re-planned plan keeps the calls kept at
@@ -121,6 +138,34 @@ class PlanStore:
             plan.script, plan.dry_run, plan.version = script, steps, version + 1
             plan.status, plan.approved_by, plan.approved_at, plan.error = "draft", None, None, None
 
+    def set_budget(self, plan_id: str, budget_usd: float | None) -> None:
+        """A new budget needs a new approval: an approved, done or failed plan returns to draft. Every stored call is
+        kept, so a resume reuses the finished steps."""
+        with Session(self.engine) as s, s.begin():
+            plan = s.get(ResearchPlan, plan_id, with_for_update=True)
+            if plan is None:
+                raise PlanNotFound(plan_id)
+            plan.budget_usd = None if budget_usd is None else _usd(budget_usd)
+            if plan.status in {"approved", "done", "failed"}:
+                plan.status, plan.approved_by, plan.approved_at = "draft", None, None
+
+    def add_planner_cost(self, plan_id: str, usd: float) -> None:
+        with Session(self.engine) as s, s.begin():
+            s.execute(update(ResearchPlan).where(ResearchPlan.id == plan_id)
+                      .values(planner_cost_usd=ResearchPlan.planner_cost_usd + _usd(usd)))
+
+    def spent_usd(self, plan_id: str) -> float:
+        """`estimated_cost_usd` summed over the runs the plan's calls store, plus the planner's own calls."""
+        from arp.db.models import Run
+
+        run_ids = select(ResearchPlanCall.run_id).where(ResearchPlanCall.plan_id == plan_id,
+                                                        ResearchPlanCall.run_id.is_not(None))
+        with Session(self.engine) as s:
+            runs = s.scalar(select(func.coalesce(func.sum(Run.estimated_cost_usd), 0))
+                            .where(Run.run_id.in_(run_ids)))
+            planner = s.scalar(select(ResearchPlan.planner_cost_usd).where(ResearchPlan.id == plan_id))
+        return float(Decimal(runs) + (planner or 0))
+
     def approve(self, plan_id: str, user: str) -> None:
         self._set(plan_id, status="approved", approved_by=user, approved_at=datetime.now(UTC))
 
@@ -142,16 +187,26 @@ class PlanStore:
             for k, v in values.items():
                 setattr(plan, k, v)
 
-    def record_call(self, plan_id: str, *, seq: int, kind: str, params: dict, status: str) -> None:
+    def record_call(self, plan_id: str, *, seq: int, kind: str, params: dict, status: str, attempt: int = 1) -> None:
         with Session(self.engine) as s, s.begin():
             s.merge(ResearchPlanCall(plan_id=plan_id, seq=seq, kind=kind, params=params, status=status,
-                                     run_id=None, result_ref=None, result=None, started_at=datetime.now(UTC)))
+                                     run_id=None, result_ref=None, result=None, started_at=datetime.now(UTC),
+                                     attempt=attempt))
 
     def update_call(self, plan_id: str, seq: int, **values: Any) -> None:
         with Session(self.engine) as s, s.begin():
             call = s.get(ResearchPlanCall, (plan_id, seq))
             for k, v in values.items():
                 setattr(call, k, v)
+
+    def calls_awaiting_review(self) -> list[dict[str, Any]]:
+        """Every call with status `awaiting_review` of a plan still `awaiting_review`, for the agent inbox. A plan
+        cancelled while a gated step finished keeps that call `awaiting_review`, but nothing waits on it."""
+        with Session(self.engine) as s:
+            rows = s.scalars(select(ResearchPlanCall).join(ResearchPlan, ResearchPlan.id == ResearchPlanCall.plan_id)
+                             .where(ResearchPlanCall.status == "awaiting_review",
+                                    ResearchPlan.status == "awaiting_review"))
+            return [_row(r) for r in rows]
 
     def calls(self, plan_id: str) -> list[dict[str, Any]]:
         with Session(self.engine) as s:

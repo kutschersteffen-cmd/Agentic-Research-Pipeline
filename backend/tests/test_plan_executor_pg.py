@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from arp.orchestration.plan_executor import PlanNotRunnable, cancel_plan, run_plan
+from arp.orchestration.plan_executor import PlanNotRunnable, Step, cancel_plan, run_plan
 from arp.orchestration.plan_store import PlanStore
 
 CHAIN = """u = universe_build(taxonomy_id="t_grid storage", source="u.csv")
@@ -22,20 +22,22 @@ class Stubs:
         self.started: list[str] = []
 
     def step(self, kind):
-        def fn(**params):
+        def start(launch_key, **params):
             self.started.append(kind)
             if kind == self.fail_kind:
                 raise RuntimeError("boom")
+            self.counter += 1
+            return "u_1" if kind == "universe_build" else f"r_{self.counter}"
+
+        def finish(run_id, **params):
             if self.block is not None and kind == "extraction":
                 self.block.wait(5)
-            self.counter += 1
-            out = {"id": f"{kind[0]}_{self.counter}", "run_id": f"r_{self.counter}", "companies": []}
-            if kind == "universe_build":
-                out["id"] = out["run_id"] = "u_1"
+            out = {"id": run_id if kind == "universe_build" else f"{kind[0]}_{self.counter}", "run_id": run_id,
+                   "companies": []}
             if kind == self.gate_kind:
                 out["gate"] = True
             return out
-        return fn
+        return Step(start, finish)
 
     def all(self):
         return {k: self.step(k) for k in ("universe_build", "extraction", "decision_score")}
@@ -194,3 +196,113 @@ def test_claim_marks_running_before_any_worker(store):  # mutation gap: claim mu
     plan_id = _approved(store)
     claim_plan(store, plan_id)
     assert store.get(plan_id)["status"] == "running"
+
+
+# --- agent-panel-code-mode slice 1: start and finish, launch keys, attempts ---
+
+P3 = """u = universe_build(taxonomy_id="t", source="s.csv")
+e = extraction(universe_run_id=u.run_id, schema_id="x")
+r = report_render(source_ids=[e.run_id])
+"""
+
+
+class P3Stubs:
+    """Stub start and finish for P3's three kinds. `start` returns `r_<seq>` (`r_<seq>_a<n>` from attempt 2) and
+    writes that run's manifest with its launch key, or returns the run its launch key already has. `raise_once`
+    maps (seq, "start" | "finish") to an exception raised once, after `start` wrote its manifest."""
+
+    KINDS = {"universe_build": 1, "extraction": 2, "report_render": 3}
+
+    def __init__(self, run_store, raise_once=None):
+        self.run_store, self.raise_once = run_store, dict(raise_once or {})
+        self.starts = {1: 0, 2: 0, 3: 0}
+        self.finishes = {1: 0, 2: 0, 3: 0}
+
+    def _raise(self, seq, half):
+        exc = self.raise_once.pop((seq, half), None)
+        if exc is not None:
+            raise exc
+
+    def step(self, seq):
+        from arp.schemas.common import RunManifest
+
+        def start(launch_key, **params):
+            self.starts[seq] += 1
+            run_id = self.run_store.find_launch_key(launch_key)
+            if run_id is None:
+                attempt = launch_key.rsplit(":a", 1)[1]
+                run_id = f"r_{seq}" if attempt == "1" else f"r_{seq}_a{attempt}"
+                self.run_store.save_manifest(RunManifest(run_id=run_id, run_type="stub",
+                                                         params={"launch_key": launch_key}, estimated_cost_usd=0.0))
+            self._raise(seq, "start")
+            return run_id
+
+        def finish(run_id, **params):
+            self.finishes[seq] += 1
+            self._raise(seq, "finish")
+            return {"id": run_id, "run_id": run_id, "companies": []}
+        return Step(start, finish)
+
+    def all(self):
+        return {kind: self.step(seq) for kind, seq in self.KINDS.items()}
+
+
+def _launch_keys(run_store):
+    return [m.params["launch_key"] for m in run_store.list_runs("stub")]
+
+
+def test_crash_in_finish_leaves_run_id_stored_then_resume_attaches(store, run_store):  # AC-1, AC-2
+    plan_id = _approved(store, P3)
+    stubs = P3Stubs(run_store, {(2, "finish"): SystemExit()})
+    with pytest.raises(SystemExit):
+        run_plan(plan_id, store, stubs.all(), lambda c: True)
+    call = store.calls(plan_id)[1]
+    assert (call["status"], call["run_id"]) == ("running", "r_2")  # AC-1
+    assert run_plan(plan_id, store, stubs.all(), lambda c: True) == "done"
+    assert stubs.starts[2] == 1  # AC-2
+    assert store.calls(plan_id)[1]["run_id"] == "r_2"
+    assert store.get(plan_id)["status"] == "done"
+
+
+def test_crash_in_start_after_create_finds_the_run_by_launch_key(store, run_store):  # AC-3
+    plan_id = _approved(store, P3)
+    stubs = P3Stubs(run_store, {(2, "start"): SystemExit()})
+    with pytest.raises(SystemExit):
+        run_plan(plan_id, store, stubs.all(), lambda c: True)
+    assert store.calls(plan_id)[1]["status"] == "starting"
+    assert run_plan(plan_id, store, stubs.all(), lambda c: True) == "done"
+    key = f"plan:{plan_id}:v1:2:a1"
+    assert _launch_keys(run_store).count(key) == 1
+    assert store.calls(plan_id)[1]["run_id"] == "r_2"
+    assert store.get(plan_id)["status"] == "done"
+
+
+def test_failed_start_resumes_as_a_new_attempt(store, run_store):  # AC-3b
+    plan_id = _approved(store, P3)
+    stubs = P3Stubs(run_store, {(2, "start"): RuntimeError("boom")})
+    assert run_plan(plan_id, store, stubs.all(), lambda c: True) == "failed"
+    assert run_plan(plan_id, store, stubs.all(), lambda c: True) == "done"
+    assert store.calls(plan_id)[1]["attempt"] == 2
+    assert stubs.starts[2] == 2
+    assert sorted(k for k in _launch_keys(run_store) if ":2:" in k) == [f"plan:{plan_id}:v1:2:a1",
+                                                                       f"plan:{plan_id}:v1:2:a2"]
+
+
+def test_executor_records_starting_then_running_before_finish(store, run_store):  # executor order
+    plan_id = _approved(store, P3)
+    seen = []
+    stubs = P3Stubs(run_store)
+    steps = stubs.all()
+    inner = steps["extraction"]
+
+    def start(launch_key, **params):
+        seen.append(("start", store.calls(plan_id)[1]["status"], store.calls(plan_id)[1]["run_id"]))
+        return inner.start(launch_key, **params)
+
+    def finish(run_id, **params):
+        seen.append(("finish", store.calls(plan_id)[1]["status"], store.calls(plan_id)[1]["run_id"]))
+        return inner.finish(run_id, **params)
+
+    steps["extraction"] = Step(start, finish)
+    assert run_plan(plan_id, store, steps, lambda c: True) == "done"
+    assert seen == [("start", "starting", None), ("finish", "running", "r_2")]

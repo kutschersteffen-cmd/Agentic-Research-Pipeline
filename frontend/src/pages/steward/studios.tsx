@@ -19,7 +19,6 @@ import type {
   PolicyDifferenceItem,
   StewardPolicyId,
   StewardshipStage,
-  StewardshipStream,
   TierChangeItem,
   UnifiedTrigger,
   VotingPolicy,
@@ -1092,44 +1091,6 @@ export function CheckpointStudio({ stage, onChanged, onOpen }: StudioProps) {
 // --- 6. Tracking ---------------------------------------------------------------------
 
 // --- 7. Client policy ----------------------------------------------------------------
-
-export function ClientPicker({
-  streams,
-  active,
-  onChange,
-  onOpen,
-}: {
-  streams: StewardshipStream[];
-  active: string;
-  onChange: (id: string) => void;
-  onOpen: (tab: string) => void;
-}) {
-  const clients = streams.filter((s) => s.kind === "client");
-  return (
-    <div className="toolbar client-picker">
-      {clients.length === 0 ? (
-        <p className="muted">No client streams yet.</p>
-      ) : (
-        <label className="field-label">
-          Client stream
-          <select value={clients.some((c) => c.stream_id === active) ? active : ""} onChange={(e) => onChange(e.target.value)}>
-            <option value="" disabled>
-              Choose a client…
-            </option>
-            {clients.map((c) => (
-              <option key={c.stream_id} value={c.stream_id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      <button className="link-button" onClick={() => onOpen("overview")}>
-        + Add a client stream on the overview
-      </button>
-    </div>
-  );
-}
 
 export function ClientPolicyStudio({ stage, streamId, onChanged }: StudioProps & { streamId: string }) {
   const actor = useActor();

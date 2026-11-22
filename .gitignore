@@ -71,3 +71,6 @@ backend/test-results/
 
 # Showcase demo pack: the owner downloads these reports; they are copyrighted and large
 demo/showcase/documents/*.pdf
+
+# Local engineering playbook execution ledgers (publish redacted evidence separately)
+.engineering-playbook/

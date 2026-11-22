@@ -96,7 +96,7 @@ class KpiRow(BaseModel):
 class Chart(BaseModel):
     type: Literal["chart"] = "chart"
     data: ChartSpec
-    kind: Literal["bar", "column", "stacked_column", "line", "waterfall"]
+    kind: Literal["bar", "column", "stacked_column", "line", "waterfall", "heatmap"]
     unit: Chars(6) = ""
     data_labels: bool = True
     highlight: str | None = None
@@ -109,6 +109,11 @@ class Chart(BaseModel):
             raise ValueError("a chart plots 1 to 3 value columns")
         if self.kind == "waterfall" and len(self.data.value_columns) != 1:
             raise ValueError("a waterfall plots 1 value column")
+        if self.kind == "heatmap":
+            if not self.data.y_column:
+                raise ValueError("a heatmap needs y_column")
+            if len(self.data.value_columns) != 1:
+                raise ValueError("a heatmap plots 1 value column")
         return self
 
 
@@ -241,6 +246,14 @@ class Flow(BaseModel):
         return self
 
 
+class FlowAnswer(BaseModel):
+    """What slide fill asks the model for in place of `Flow`: only the Mermaid text. It does not parse, so a client's own
+    validation retries never see a Mermaid error; slide fill validates it into `Flow` and retries once itself."""
+
+    type: Literal["flow"] = "flow"
+    mermaid: str
+
+
 class ImageItem(BaseModel):
     name: str  # a registered image name; checked against the request when the fill is validated
     caption: Words(10) = ""
@@ -256,6 +269,11 @@ class ImageVisual(BaseModel):
 
     @model_validator(mode="after")
     def _variant(self):
+        seen: set[str] = set()
+        for i in self.images:  # checked first: "any variant", so the model hears it whatever else is wrong
+            if i.name in seen:
+                raise ValueError(f"image '{i.name}' appears twice")
+            seen.add(i.name)
         n, p = len(self.images), len(self.points)
         if self.variant == "hero" and (n != 1 or p):
             raise ValueError("a hero shows exactly 1 image and no points")
@@ -263,11 +281,6 @@ class ImageVisual(BaseModel):
             raise ValueError("a split shows exactly 1 image and 2 to 4 points")
         if self.variant == "gallery" and (not 2 <= n <= 6 or p or not all(i.caption for i in self.images)):
             raise ValueError("a gallery shows 2 to 6 images, each with a caption, and no points")
-        seen: set[str] = set()
-        for i in self.images:
-            if i.name in seen:
-                raise ValueError(f"image '{i.name}' appears twice")
-            seen.add(i.name)
         return self
 
 

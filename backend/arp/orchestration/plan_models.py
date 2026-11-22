@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -27,6 +28,10 @@ class ResearchPlan(Base):
     version: Mapped[int | None] = mapped_column(Integer, nullable=True, default=1)
     previous_scripts: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=list)  # [{version, script,
     # error, replanned_at, replanned_by}]
+    # Plan budget: the plan stops before a step once runs plus planner calls cost this much. NULL: no cap.
+    budget_usd: Mapped[Decimal | None] = mapped_column(Numeric, nullable=True)
+    # What the planner's model calls for this plan cost, every attempt of every draft and re-plan.
+    planner_cost_usd: Mapped[Decimal] = mapped_column(Numeric, default=0, server_default="0")
 
 
 class ResearchPlanCall(Base):
@@ -36,8 +41,10 @@ class ResearchPlanCall(Base):
     seq: Mapped[int] = mapped_column(Integer, primary_key=True)
     kind: Mapped[str] = mapped_column(Text)
     params: Mapped[dict] = mapped_column(JSONB)
-    status: Mapped[str] = mapped_column(Text)  # pending|running|awaiting_review|done|failed|cancelled
+    status: Mapped[str] = mapped_column(Text)  # pending|starting|running|awaiting_review|done|failed|cancelled
     run_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     result_ref: Mapped[str | None] = mapped_column(Text, nullable=True)  # sync kinds: e.g. index:<id>@<date>
     result: Mapped[dict | None] = mapped_column(JSONB, nullable=True)  # what the script saw; reused on resume
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # 1, plus one for each time this (seq, kind, params) was stored as failed: part of the run's launch key.
+    attempt: Mapped[int] = mapped_column(Integer, default=1, server_default="1")

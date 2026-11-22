@@ -4,6 +4,95 @@
  */
 
 export interface paths {
+    "/api/agent/boards/{thread_kind}/{thread_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Board */
+        get: operations["get_board_api_agent_boards__thread_kind___thread_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/boards/{thread_kind}/{thread_id}/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Block */
+        post: operations["create_block_api_agent_boards__thread_kind___thread_id__blocks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/boards/{thread_kind}/{thread_id}/blocks/{block_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Block */
+        delete: operations["delete_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Block */
+        patch: operations["patch_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__patch"];
+        trace?: never;
+    };
+    "/api/agent/boards/{thread_kind}/{thread_id}/blocks/{block_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo Block */
+        post: operations["undo_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inbox
+         * @description Draft plans and calls awaiting review, oldest first (a plan by its `created_at`, a call by its `started_at`).
+         */
+        get: operations["inbox_api_agent_inbox_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/argus/flows": {
         parameters: {
             query?: never;
@@ -538,6 +627,26 @@ export interface paths {
          *     pass (interval). Takes effect immediately.
          */
         put: operations["update_schedule_api_calibration_schedule_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Capabilities
+         * @description Sandbox lane first, then plan lane, each sorted by id; `input_schema` is the input model's JSON schema.
+         */
+        get: operations["list_capabilities_api_capabilities_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -3482,7 +3591,10 @@ export interface paths {
         };
         /** Get Plan */
         get: operations["get_plan_api_plans__plan_id__get"];
-        /** Edit Plan */
+        /**
+         * Edit Plan
+         * @description A new script or budget returns the plan to draft for a new approval. A budget alone keeps every stored call.
+         */
         put: operations["edit_plan_api_plans__plan_id__put"];
         post?: never;
         delete?: never;
@@ -3554,7 +3666,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start Plan */
+        /**
+         * Start Plan
+         * @description Claims the plan; the plan worker runs it on its next scan.
+         */
         post: operations["start_plan_api_plans__plan_id__run_post"];
         delete?: never;
         options?: never;
@@ -10685,6 +10800,27 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** CapabilityOut */
+        CapabilityOut: {
+            /**
+             * Effect
+             * @enum {string}
+             */
+            effect: "read" | "run";
+            /** Id */
+            id: string;
+            /** Input Schema */
+            input_schema: {
+                [key: string]: unknown;
+            };
+            /**
+             * Lane
+             * @enum {string}
+             */
+            lane: "plan" | "sandbox";
+            /** Summary */
+            summary: string;
+        };
         /** CapexOut */
         CapexOut: {
             /** Amounts */
@@ -10776,7 +10912,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "bar" | "column" | "stacked_column" | "line" | "waterfall";
+            kind: "bar" | "column" | "stacked_column" | "line" | "waterfall" | "heatmap";
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -14473,6 +14609,24 @@ export interface components {
             template: {
                 [key: string]: unknown;
             };
+        };
+        /** InboxRow */
+        InboxRow: {
+            /** Exploration Id */
+            exploration_id: string | null;
+            /** Href */
+            href: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "plan_approval" | "step_review" | "exploration";
+            /** Plan Id */
+            plan_id: string | null;
+            /** Seq */
+            seq: number | null;
+            /** Title */
+            title: string;
         };
         /**
          * IndexCalibration
@@ -18316,8 +18470,10 @@ export interface components {
         };
         /** ScriptRequest */
         ScriptRequest: {
+            /** Budget Usd */
+            budget_usd?: number | null;
             /** Script */
-            script: string;
+            script?: string | null;
         };
         /** SearchAnswer */
         SearchAnswer: {
@@ -21329,6 +21485,195 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_board_api_agent_boards__thread_kind___thread_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_kind: string;
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_block_api_agent_boards__thread_kind___thread_id__blocks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_kind: string;
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_kind: string;
+                thread_id: string;
+                block_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_kind: string;
+                thread_id: string;
+                block_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_kind: string;
+                thread_id: string;
+                block_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inbox_api_agent_inbox_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxRow"][];
+                };
+            };
+        };
+    };
     list_flows_api_argus_flows_get: {
         parameters: {
             query?: never;
@@ -22441,6 +22786,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_capabilities_api_capabilities_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapabilityOut"][];
                 };
             };
         };

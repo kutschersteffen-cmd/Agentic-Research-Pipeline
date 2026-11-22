@@ -89,6 +89,11 @@ def _text(rows, x, y, align, dx, dy, style, limit=None) -> dict:
 def chart_spec(p: ChartPrim, tokens: Tokens, mode: Mode, highlight: bool = True) -> dict:
     """The Vega-Lite spec of a component chart, the full `p.w` × `p.h` box, no axes, no legend, no background.
     `highlight=False` (layout slides) draws every line 4 px."""
+    if p.kind == "heatmap":  # categories are the columns, one series per row
+        cells = {(i, j): v for i, s in enumerate(p.series) for j, v in enumerate(s.values) if v is not None}
+        fmt_h = _fmt(list(cells.values()), p.unit)
+        return _spec(p, heatmap_layers([s.name for s in p.series], p.categories, cells, p.w, p.h, tokens, mode, fmt_h),
+                     tokens, mode)
     n, dec = len(p.categories), decimals([v for s in p.series for v in s.values])
     fmt = lambda v: f"{v:.{dec}f}{p.unit}".replace("-", "−")  # noqa: E731
     desc = lambda i, s, v: f"{p.categories[i]} | {s.name} | {fmt(v)}"  # noqa: E731

@@ -4148,6 +4148,48 @@
     "title": "Candidate",
     "type": "object"
    },
+   "CapabilityOut": {
+    "properties": {
+     "effect": {
+      "enum": [
+       "read",
+       "run"
+      ],
+      "title": "Effect",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "input_schema": {
+      "additionalProperties": true,
+      "title": "Input Schema",
+      "type": "object"
+     },
+     "lane": {
+      "enum": [
+       "plan",
+       "sandbox"
+      ],
+      "title": "Lane",
+      "type": "string"
+     },
+     "summary": {
+      "title": "Summary",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "summary",
+     "effect",
+     "lane",
+     "input_schema"
+    ],
+    "title": "CapabilityOut",
+    "type": "object"
+   },
    "CapexOut": {
     "properties": {
      "amounts": {
@@ -4424,7 +4466,8 @@
        "column",
        "stacked_column",
        "line",
-       "waterfall"
+       "waterfall",
+       "heatmap"
       ],
       "title": "Kind",
       "type": "string"
@@ -13980,6 +14023,70 @@
     "title": "ImportRequest",
     "type": "object"
    },
+   "InboxRow": {
+    "properties": {
+     "exploration_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Exploration Id"
+     },
+     "href": {
+      "title": "Href",
+      "type": "string"
+     },
+     "kind": {
+      "enum": [
+       "plan_approval",
+       "step_review",
+       "exploration"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "plan_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Plan Id"
+     },
+     "seq": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Seq"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "plan_id",
+     "seq",
+     "exploration_id",
+     "title",
+     "href"
+    ],
+    "title": "InboxRow",
+    "type": "object"
+   },
    "IndexCalibration": {
     "description": "A saved, versioned, effective-dated construction spec.\n\nVersions are append-only, exactly like the taxonomy library: editing a\ncalibration creates a new version rather than overwriting history, and\n`effective_from` means the engine resolves the version *in force on the\nreview date* rather than the latest one -- otherwise today's parameters\nsilently rewrite past reviews.",
     "properties": {
@@ -23388,14 +23495,29 @@
    },
    "ScriptRequest": {
     "properties": {
+     "budget_usd": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Budget Usd"
+     },
      "script": {
-      "title": "Script",
-      "type": "string"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Script"
      }
     },
-    "required": [
-     "script"
-    ],
     "title": "ScriptRequest",
     "type": "object"
    },
@@ -31048,6 +31170,313 @@
  },
  "openapi": "3.1.0",
  "paths": {
+  "/api/agent/boards/{thread_kind}/{thread_id}": {
+   "get": {
+    "operationId": "get_board_api_agent_boards__thread_kind___thread_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Board Api Agent Boards  Thread Kind   Thread Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Board",
+    "tags": [
+     "agent-board"
+    ]
+   }
+  },
+  "/api/agent/boards/{thread_kind}/{thread_id}/blocks": {
+   "post": {
+    "operationId": "create_block_api_agent_boards__thread_kind___thread_id__blocks_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Create Block Api Agent Boards  Thread Kind   Thread Id  Blocks Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Block",
+    "tags": [
+     "agent-board"
+    ]
+   }
+  },
+  "/api/agent/boards/{thread_kind}/{thread_id}/blocks/{block_id}": {
+   "delete": {
+    "operationId": "delete_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "block_id",
+      "required": true,
+      "schema": {
+       "title": "Block Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Block",
+    "tags": [
+     "agent-board"
+    ]
+   },
+   "patch": {
+    "operationId": "patch_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "block_id",
+      "required": true,
+      "schema": {
+       "title": "Block Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Patch Block Api Agent Boards  Thread Kind   Thread Id  Blocks  Block Id  Patch",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Patch Block",
+    "tags": [
+     "agent-board"
+    ]
+   }
+  },
+  "/api/agent/boards/{thread_kind}/{thread_id}/blocks/{block_id}/undo": {
+   "post": {
+    "operationId": "undo_block_api_agent_boards__thread_kind___thread_id__blocks__block_id__undo_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "thread_kind",
+      "required": true,
+      "schema": {
+       "title": "Thread Kind",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "thread_id",
+      "required": true,
+      "schema": {
+       "title": "Thread Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "block_id",
+      "required": true,
+      "schema": {
+       "title": "Block Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Undo Block Api Agent Boards  Thread Kind   Thread Id  Blocks  Block Id  Undo Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Undo Block",
+    "tags": [
+     "agent-board"
+    ]
+   }
+  },
+  "/api/agent/inbox": {
+   "get": {
+    "description": "Draft plans and calls awaiting review, oldest first (a plan by its `created_at`, a call by its `started_at`).",
+    "operationId": "inbox_api_agent_inbox_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/InboxRow"
+         },
+         "title": "Response Inbox Api Agent Inbox Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Inbox",
+    "tags": [
+     "agent"
+    ]
+   }
+  },
   "/api/argus/flows": {
    "get": {
     "operationId": "list_flows_api_argus_flows_get",
@@ -32608,6 +33037,32 @@
     "summary": "Update Schedule",
     "tags": [
      "calibration"
+    ]
+   }
+  },
+  "/api/capabilities": {
+   "get": {
+    "description": "Sandbox lane first, then plan lane, each sorted by id; `input_schema` is the input model's JSON schema.",
+    "operationId": "list_capabilities_api_capabilities_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/CapabilityOut"
+         },
+         "title": "Response List Capabilities Api Capabilities Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Capabilities",
+    "tags": [
+     "capabilities"
     ]
    }
   },
@@ -40542,6 +40997,7 @@
     ]
    },
    "put": {
+    "description": "A new script or budget returns the plan to draft for a new approval. A budget alone keeps every stored call.",
     "operationId": "edit_plan_api_plans__plan_id__put",
     "parameters": [
      {
@@ -40729,6 +41185,7 @@
   },
   "/api/plans/{plan_id}/run": {
    "post": {
+    "description": "Claims the plan; the plan worker runs it on its next scan.",
     "operationId": "start_plan_api_plans__plan_id__run_post",
     "parameters": [
      {

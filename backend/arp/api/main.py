@@ -27,12 +27,15 @@ from arp.api.deps import (
     settings_dep,
 )
 from arp.api.routers import (
+    agent,
+    agent_board,
     argus,
     ask,
     authoritative,
     authority_taxonomy,
     bi,
     calibration,
+    capabilities,
     climate,
     companies,
     decision,
@@ -143,9 +146,12 @@ async def lifespan(app: FastAPI):
     report_scheduler.start()
     publishing_scheduler.start()
     review_analytics_scheduler.start()
+    plan_worker = plans.start_plan_worker(settings) if settings.plan_worker_seconds > 0 else None
     try:
         yield
     finally:
+        if plan_worker is not None:
+            plan_worker.cancel()
         scheduler.shutdown()
         taxonomy_researcher_scheduler.shutdown()
         calibration_scheduler.shutdown()
@@ -179,6 +185,9 @@ app.include_router(extraction.router, dependencies=[Depends(authorize)])
 app.include_router(documents.router, dependencies=[Depends(authorize)])
 app.include_router(discovery.router, dependencies=[Depends(authorize)])
 app.include_router(plans.router, dependencies=[Depends(authorize)])
+app.include_router(agent_board.router, dependencies=[Depends(authorize)])
+app.include_router(capabilities.router, dependencies=[Depends(authorize)])
+app.include_router(agent.router, dependencies=[Depends(authorize)])
 app.include_router(identity.router, dependencies=[Depends(authorize)])
 app.include_router(runs.router, dependencies=[Depends(authorize)])
 app.include_router(universe.router, dependencies=[Depends(authorize)])
