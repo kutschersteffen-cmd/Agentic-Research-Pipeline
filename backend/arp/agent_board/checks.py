@@ -7,12 +7,14 @@ block on a read.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import re
 import subprocess
 import sys
 import threading
+from collections import OrderedDict
 from typing import Any
 
 from arp.agent_board import live as lv
@@ -179,6 +181,7 @@ def _pointer(p: Any) -> str:
 
 DIAGRAM_TYPES = ("flowchart", "mindmap", "timeline", "sequenceDiagram", "quadrantChart")
 _DIAGRAM_TYPE_MSG = "unsupported diagram type: {}; use flowchart, mindmap, timeline, sequenceDiagram or quadrantChart"
+_REFUSED_STATEMENTS = ("click", "style", "classdef", "linkstyle", "link", "links", "href")
 _GROUP = re.compile(r":::([A-Za-z][A-Za-z0-9_]*)")
 
 
@@ -195,18 +198,19 @@ def _check_diagram(source: Any) -> None:
         raise BlockInvalid(_DIAGRAM_TYPE_MSG.format(word))
     if "%%{" in source:
         raise BlockInvalid("diagram may not set its own config")
-    for ln in lines:
-        words = ln.split()
-        if words and words[0] in ("click", "style", "classDef", "linkStyle"):
+    statements = [st.split() for ln in lines for st in ln.split(";")]  # Amendment 1b: `;` ends a statement too
+    for words in statements:
+        if words and words[0].lower() in _REFUSED_STATEMENTS:
             raise BlockInvalid(f"diagram may not use {words[0]} lines")
-    for ln in lines:
-        words = ln.split()
+    for words in statements:
         if words and words[0] == "class" and words[-1] != "emphasis":
             raise BlockInvalid("diagram may only use class lines for emphasis")
     if re.search(r"<[A-Za-z/!]", source):
         raise BlockInvalid("diagram may not contain HTML")
+    if "@{" in source:
+        raise BlockInvalid("diagram may not use shape options")
     low = source.lower()
-    if any(x in low for x in ("javascript:", "http://", "https://")):
+    if any(x in low for x in ("javascript:", "http:", "https:", "//", "\\\\", ":\\")):
         raise BlockInvalid("diagram may not load from outside")
     groups = {g for g in _GROUP.findall(source) if g != "emphasis"}
     if len(groups) > 4:
@@ -315,22 +319,47 @@ def _view(rendered: Any = None, live: bool = False, live_error: str | None = Non
     return {"rendered": rendered, "live": live, "live_error": live_error, "live_step": live_step}
 
 
-def _live_chart(source: dict, data: Any) -> dict:
+MAX_FAILED_RENDERS = 1000
+_FAILED_RENDERS: OrderedDict[tuple, str] = OrderedDict()  # (block id, version, sha256 of data) -> live_error
+_FAILED_LOCK = threading.Lock()
+
+
+def _live_chart(source: dict, data: Any, key: tuple | None = None, strict: bool = False) -> dict:
+    """A live chart resolved against the thread data. A render failure on a write (`strict`) is refused; on a read it
+    is remembered per (block id, version, data hash) in `key`, so the same block and data never render twice."""
     p = source["live"]
     rows, error = lv.rows_of(p, data)
+    step = lv.step_of(p, data)
     resolved = {k: v for k, v in source.items() if k != "live"}
     resolved["data"] = {"values": rows}
-    rendered = None
     try:
-        if _too_many_rows(resolved):
-            error = error or "chart exceeds 5000 data rows"
-        else:
-            rendered = render_chart(resolved)
+        too_many = _too_many_rows(resolved)
     except BlockInvalid as exc:
-        error = error or str(exc)
+        if strict:
+            raise
+        return _view(None, True, error or str(exc), step)
+    if too_many:
+        return _view(None, True, error or "chart exceeds 5000 data rows", step)
+    if key is not None:
+        digest = hashlib.sha256(json.dumps(rows, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+        key = (*key, digest)
+        with _FAILED_LOCK:
+            remembered = _FAILED_RENDERS.get(key)
+        if remembered is not None:
+            return _view(None, True, error or remembered, step)
+    try:
+        rendered = render_chart(resolved)
     except RenderFailed as exc:
-        error = error or f"chart does not render: {exc}"
-    return _view(rendered, True, error, lv.step_of(p, data))
+        message = f"chart does not render: {exc}"
+        if strict:
+            raise BlockInvalid(message) from None
+        if key is not None:
+            with _FAILED_LOCK:
+                _FAILED_RENDERS[key] = message
+                while len(_FAILED_RENDERS) > MAX_FAILED_RENDERS:
+                    _FAILED_RENDERS.popitem(last=False)
+        return _view(None, True, error or message, step)
+    return _view(rendered, True, error, step)
 
 
 def _live_table(source: dict, data: Any) -> dict:
@@ -358,11 +387,12 @@ def _tiles(source: dict, data: Any) -> dict:
     return _view({"values": values}, live, error, step)
 
 
-def view(kind: str, source: Any, data: Any = None) -> dict:
+def view(kind: str, source: Any, data: Any = None, key: tuple | None = None) -> dict:
     """`rendered`, `live`, `live_error` and `live_step` of a stored block, resolved against the thread data. A
-    block that no longer draws answers `rendered: null`, so it cannot hide the rest of the board."""
+    block that no longer draws answers `rendered: null`, so it cannot hide the rest of the board. `key`, the block's
+    (id, version), lets a live chart remember a failed render (Amendment 1b)."""
     if kind == "chart" and is_live(kind, source):
-        return _live_chart(source, data)
+        return _live_chart(source, data, key)
     if kind == "table" and is_live(kind, source):
         return _live_table(source, data)
     if kind == "tiles" and is_live(kind, source):
@@ -417,7 +447,7 @@ def checked_view(kind: Any, title: Any, source: Any, data: Any = None) -> dict:
     if (path := _outside(source, "")) is not None:
         raise BlockInvalid(f"chart may not load from outside: {path}")
     if "live" in source:
-        return _live_chart(source, data)  # rows and rendering run on the resolved data; a failure is `live_error`
+        return _live_chart(source, data, strict=True)  # a data problem is `live_error`; a render failure is refused
     if _too_many_rows(source):
         raise BlockInvalid("chart exceeds 5000 data rows")
     try:

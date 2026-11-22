@@ -81,8 +81,13 @@ def number_of(p: str, data: Any) -> tuple[int | float | None, str | None]:
     return value, None
 
 
+MAX_CELL_CHARS = 1000
+
+
 def cell(v: Any) -> Any:
-    """A live table cell: strings, numbers and null as they are; anything else as its compact JSON text."""
-    if v is None or isinstance(v, str) or (isinstance(v, int | float) and not isinstance(v, bool)):
+    """A live table cell: numbers and null as they are; a string, or any other value as its compact JSON text, cut to
+    1 000 characters followed by `…` when longer (Amendment 1b)."""
+    if v is None or (isinstance(v, int | float) and not isinstance(v, bool)):
         return v
-    return json.dumps(v, ensure_ascii=False, separators=(",", ":"))
+    text = v if isinstance(v, str) else json.dumps(v, ensure_ascii=False, separators=(",", ":"))
+    return text[:MAX_CELL_CHARS] + "…" if len(text) > MAX_CELL_CHARS else text

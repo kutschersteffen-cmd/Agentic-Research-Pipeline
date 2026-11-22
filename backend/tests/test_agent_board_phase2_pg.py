@@ -8,6 +8,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from arp.agent_board import checks
 from arp.agent_board.live import resolve, step_of
 from arp.agent_board.store import BoardStore
 from arp.api.routers import agent_board
@@ -106,6 +107,18 @@ def test_grouped_flowchart_is_accepted(client, plan):
     ("flowchart LR\n  linkStyle 0 stroke:red", "diagram may not use linkStyle lines"),
     ("flowchart LR\n  a --> b\n  class a big", "diagram may only use class lines for emphasis"),
     ("flowchart LR\n  a[JavaScript:x] --> b", "diagram may not load from outside"),
+    ("flowchart LR\n  a[Start] --> b[End]; click a href \"x\" _blank", "diagram may not use click lines"),  # AC-36e
+    ("sequenceDiagram\n  participant A as Analyst\n  link A: Report @ x\n  A->>A: Review",
+     "diagram may not use link lines"),  # AC-36f
+    ("sequenceDiagram\n  participant A\n  Links A: {}", "diagram may not use Links lines"),
+    ("flowchart LR\n  a --> b;  HREF a x", "diagram may not use HREF lines"),
+    ("flowchart LR\n  a --> b; class a big", "diagram may only use class lines for emphasis"),
+    ("flowchart LR\n  a[see //evil.example] --> b", "diagram may not load from outside"),  # AC-36g
+    ("flowchart LR\n  a[x:\\\\evil] --> b", "diagram may not load from outside"),  # AC-36h
+    ("flowchart LR\n  a[x:\\evil] --> b", "diagram may not load from outside"),
+    ("flowchart LR\n  a[\\\\host\\share] --> b", "diagram may not load from outside"),
+    ("flowchart LR\n  a@{ img: \"x.png\" } --> b", "diagram may not use shape options"),  # AC-36i
+    ("flowchart LR\n  a[http:evil.example] --> b", "diagram may not load from outside"),  # AC-36j
 ])
 def test_diagram_checks(client, plan, source, detail):
     assert _detail(_post(client, plan, "diagram", source)) == detail
@@ -358,3 +371,54 @@ def test_draw_with_two_live_errors(client, plan, tmp_path):
     assert (res.status_code, res.json()) == (422, {"detail": "the agent could not draw this: live data not found: "
                                                              "/steps/9"})
     assert client.get(_b(plan)).json()["blocks"] == []
+
+
+# --- Amendment 1b ---
+
+
+def _failing_render(calls):
+    def render(source):
+        calls.append(source)
+        raise checks.RenderFailed("boom")
+    return render
+
+
+LIVE_BAR = {"live": W, "mark": "bar", "encoding": {"x": {"field": "sector", "type": "nominal"},
+                                                   "y": {"field": "weight", "type": "quantitative"}}}
+
+
+def test_live_chart_that_does_not_render_is_refused(client, plan, monkeypatch):  # AC-58b
+    monkeypatch.setattr(checks, "render_chart", _failing_render([]))
+    assert _detail(_post(client, plan, "chart", LIVE_BAR)) == "chart does not render: boom"
+    assert client.get(_b(plan)).json()["blocks"] == []
+
+
+def test_failed_live_render_is_remembered(client, plan, plans, monkeypatch):  # AC-58d
+    assert _post(client, plan, "chart", LIVE_BAR).status_code == 201
+    calls = []
+    monkeypatch.setattr(checks, "render_chart", _failing_render(calls))
+    first = client.get(_b(plan)).json()["blocks"][0]
+    second = client.get(_b(plan)).json()["blocks"][0]
+    assert first["live_error"] == second["live_error"] == "chart does not render: boom"
+    assert (first["rendered"], len(calls)) == (None, 1)
+    plans.update_call(plan, 1, result={"weights": [{"sector": "Energy", "weight": 0.2}]})
+    client.get(_b(plan))
+    assert len(calls) == 2  # new data: rendered again
+
+
+def test_failed_render_memory_is_bounded(monkeypatch):
+    monkeypatch.setattr(checks, "render_chart", _failing_render([]))
+    monkeypatch.setattr(checks, "_FAILED_RENDERS", type(checks._FAILED_RENDERS)())
+    for i in range(checks.MAX_FAILED_RENDERS + 5):
+        checks.view("chart", {"live": "/x", "mark": "bar"}, {"x": []}, (f"b{i}", 1))
+    assert len(checks._FAILED_RENDERS) == checks.MAX_FAILED_RENDERS
+    assert next(iter(checks._FAILED_RENDERS))[0] == "b5"
+
+
+def test_long_live_cells_are_cut(client, plan, plans):  # AC-58c
+    plans.update_call(plan, 1, result={"rows": [{"note": "x" * 2000, "obj": {"k": "y" * 2000}, "n": 1.5}]})
+    _post(client, plan, "table", {"live": "/steps/0/result/rows", "columns": ["note", "obj", "n"]})
+    [row] = client.get(_b(plan)).json()["blocks"][0]["rendered"]["rows"]
+    assert row[0] == "x" * 1000 + "…"
+    assert row[1] == ('{"k":"' + "y" * 2000)[:1000] + "…"
+    assert row[2] == 1.5

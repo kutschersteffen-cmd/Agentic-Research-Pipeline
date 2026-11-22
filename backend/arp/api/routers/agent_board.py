@@ -72,7 +72,7 @@ def _out(row: dict, shown: dict | None = None, data: Any = None) -> dict:
         shown = {"rendered": None, "live": live, "live_error": None, "live_step": None}
         try:
             if live:
-                shown = view(row["kind"], row["source"], data)
+                shown = view(row["kind"], row["source"], data, (row["id"], row["version"]))
             else:
                 shown["rendered"] = render(row["kind"], row["source"])
         except Exception:  # noqa: BLE001 - a block that no longer draws must not hide the rest of the board
