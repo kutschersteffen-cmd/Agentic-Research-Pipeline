@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import { canTurnIntoPlan, draftPlanFromExploration, explorationBadge, resultTable } from "../lib/agent";
+import { canTurnIntoPlan, draftPlanFromExploration, explorationBadge, focusAfterDraft, resultTable, type FocusAfter } from "../lib/agent";
 import type { Plan } from "../lib/plans";
 import type { Exploration } from "../types";
 
@@ -84,18 +84,30 @@ function TurnIntoPlan({ exploration: e, onDrafted }: { exploration: Exploration;
   const [brief, setBrief] = useState<string | null>(null); // null: the field is closed
   const [drafting, setDrafting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Cancel and a refused draft remove or disable the control that had focus; focus goes to the button that opens the
+  // field again, or to the error (WCAG 2.4.3). A drafted plan's brief takes focus on the Agent screen.
+  const refocus = useRef<FocusAfter>(null);
+  const openButton = useRef<HTMLButtonElement>(null);
+  const errorLine = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    const target = refocus.current === "open" ? openButton.current : refocus.current === "error" ? errorLine.current : null;
+    if (!target) return;
+    refocus.current = null;
+    target.focus();
+  }, [brief, error]);
   async function draft() {
     setDrafting(true);
     setError(null);
     const out = await draftPlanFromExploration(e, brief ?? "", (path, body) => api.agentPost<Plan>(path, body));
     setDrafting(false);
+    refocus.current = focusAfterDraft(out);
     if (out.ok) onDrafted(out.plan);
     else setError(out.error);
   }
   if (brief === null) {
     return (
       <div className="toolbar">
-        <button type="button" className="secondary" onClick={() => setBrief(e.question)}>Turn into a plan…</button>
+        <button ref={openButton} type="button" className="secondary" onClick={() => setBrief(e.question)}>Turn into a plan…</button>
       </div>
     );
   }
@@ -106,9 +118,9 @@ function TurnIntoPlan({ exploration: e, onDrafted }: { exploration: Exploration;
         onChange={(ev) => setBrief(ev.target.value)} aria-describedby={error ? "agent-exploration-plan-error" : undefined} />
       <div className="toolbar">
         <button type="submit" disabled={drafting}>Draft plan</button>
-        <button type="button" className="secondary" disabled={drafting} onClick={() => { setBrief(null); setError(null); }}>Cancel</button>
+        <button type="button" className="secondary" disabled={drafting} onClick={() => { refocus.current = "open"; setBrief(null); setError(null); }}>Cancel</button>
       </div>
-      {error && <p id="agent-exploration-plan-error" className="error-text" role="alert">{error}</p>}
+      {error && <p id="agent-exploration-plan-error" ref={errorLine} tabIndex={-1} className="error-text" role="alert">{error}</p>}
     </form>
   );
 }

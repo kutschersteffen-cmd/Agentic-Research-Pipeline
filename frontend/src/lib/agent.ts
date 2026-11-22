@@ -174,6 +174,11 @@ export async function draftPlanFromExploration(
   }
 }
 
+/** Where focus goes in the exploration card after `Draft plan` or `Cancel`: `open` the "Turn into a plan…" button,
+ * `error` the refusal under the field, `null` nowhere in the card (a drafted plan's brief takes it). */
+export type FocusAfter = "open" | "error" | null;
+export const focusAfterDraft = (out: { ok: boolean }): FocusAfter => (out.ok ? null : "error");
+
 type Cell = string | number | boolean | null;
 
 /** An exploration's result as a table when it is a non-empty list of flat objects (every value a string, number,

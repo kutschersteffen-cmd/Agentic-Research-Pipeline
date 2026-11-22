@@ -113,13 +113,23 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     refocus.current = false;
     input.current?.focus();
   }, [busy]);
+  // A plan just drafted from an exploration opens at its brief, which takes focus (WCAG 2.4.3); the stream does not
+  // follow it down until another thread is opened or the reader sends.
+  const briefFirst = useRef<string | null>(null);
   // Opening a thread shows its newest turn.
   useLayoutEffect(() => {
-    atEnd.current = true;
+    if (briefFirst.current !== null && briefFirst.current !== planId) briefFirst.current = null;
+    atEnd.current = briefFirst.current === null;
     setJump(false);
     const el = scroller.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el && briefFirst.current === null) el.scrollTop = el.scrollHeight;
   }, [planId, askId, explorationId]);
+  useEffect(() => {
+    if (!plan || plan.id !== briefFirst.current) return;
+    const h = document.getElementById("agent-brief-h");
+    h?.scrollIntoView({ block: "start" });
+    h?.focus({ preventScroll: true });
+  }, [plan]);
   // When the stream grows, or its box shrinks under a taller composer, follow it down only if the reader was at the end.
   useEffect(() => {
     const el = scroller.current;
@@ -129,7 +139,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
       const before = { scrollHeight: prev.height, clientHeight: prev.box };
       const next = streamResized({ wasNearEnd: wasNearEnd(atEnd.current, el.scrollTop, before), contentGrew: el.scrollHeight > prev.height, boxShrank: el.clientHeight < prev.box, nowNearEnd: nearEnd(el) });
       prev = { height: el.scrollHeight, box: el.clientHeight };
-      if (next.scrollToEnd) el.scrollTop = el.scrollHeight;
+      if (next.scrollToEnd && briefFirst.current === null) el.scrollTop = el.scrollHeight;
       if (next.jump !== null) setJump(next.jump);
     });
     ro.observe(content.current);
@@ -153,6 +163,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   // grows the stream, which then follows it down. (Scrolling here, before that turn lands, would fire a scroll event
   // that reads the grown stream as scrolled up.)
   function followOwnSend() {
+    briefFirst.current = null;
     atEnd.current = true;
     setJump(false);
   }
@@ -353,7 +364,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
           <div ref={content}>
           {exploration && explorationId ? (
             <ExplorationCard key={exploration.id} exploration={exploration} busy={busy} onAccept={() => act(() => api.acceptExploration(exploration.id))}
-              onDrafted={(p) => { loadList(); onSelect({ kind: "plan", id: p.id }); }} />
+              onDrafted={(p) => { briefFirst.current = p.id; loadList(); onSelect({ kind: "plan", id: p.id }); }} />
           ) : plan && planId ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />
           ) : askId || askingIn(asking, null) ? (
@@ -407,7 +418,7 @@ function Stream({ plan, busy, act }: { plan: Plan; busy: boolean; act: (fn: () =
   return (
     <>
       <article className="card agent-card" aria-labelledby="agent-brief-h">
-        <h2 id="agent-brief-h">{plan.brief}</h2>
+        <h2 id="agent-brief-h" tabIndex={-1}>{plan.brief}</h2>
         <p className="agent-meta">
           <Chip status={plan.status} /> <span className="muted">version {plan.version}</span>
           {plan.approved_by && <span className="muted"> · approved by {plan.approved_by}</span>}

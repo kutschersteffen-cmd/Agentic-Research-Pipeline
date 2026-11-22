@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import {
   answerActions, budgetLine, canTurnIntoPlan, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  askingIn, COMPOSER_COPY, draftPlanFromExploration, explorationBadge, nearEnd, needsYouLine, resultTable, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState,
+  askingIn, COMPOSER_COPY, draftPlanFromExploration, explorationBadge, focusAfterDraft, nearEnd, needsYouLine, resultTable, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState,
   threadRows, threadTitle, untilCancelled, usd,
 } from "../src/lib/agent.ts";
 import type { Plan } from "../src/lib/plans.ts";
@@ -282,4 +282,9 @@ test("a refused Draft plan keeps the field open with the detail and drafts no th
   if (out.ok) drafted.push(out.plan);
   assert.deepEqual(out, { ok: false, error: "line 1: bad" });
   assert.deepEqual(drafted, []);
+});
+
+test("after Draft plan, focus goes to the error when refused and leaves the card when drafted", () => {
+  assert.equal(focusAfterDraft({ ok: false }), "error");
+  assert.equal(focusAfterDraft({ ok: true }), null);
 });
