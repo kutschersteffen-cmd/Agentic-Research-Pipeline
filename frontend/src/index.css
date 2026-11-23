@@ -1,45 +1,50 @@
+@font-face {
+  font-family: "Geist Pixel Square";
+  src: url("./assets/fonts/GeistPixel-Square.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  /* Night Desk (light): a cool blue-grey ground with ink text and ink
-     controls. The one signal colour, amber (--hi / --await-edge), is reserved
-     for things waiting on a person -- the "needs you" counts, proposed-not-
-     ratified output, the tiles that link to a decision. Once someone decides,
-     the amber goes. Nothing automated ever uses it. */
-  --bg: #f4f6f9;
-  --panel: #ffffff;
-  --panel-border: #d8dee7;
-  /* Form-field edge: >=3:1 on the field and page (WCAG 1.4.11); --panel-border stays light for cards and rules. */
-  --field-border: #7b8696;
-  --well: #eaeef3;
-  --text: #121722;
-  --muted: #4f5a6b;
-  --accent: #121722;
-  --accent-ink: #000000;
-  --accent-tint: rgb(20 20 20 / 0.06);
-  --sidebar-bg: #eaeef3;
-  --on-accent: #ffffff; /* text on accent and status fills */
-  /* Awaiting a person: a pale amber fill with the signal amber as its edge
-     and its text (--hi-ink: 5.7:1 on white, 4.9:1 on its own fill). */
-  --await: #f6ecd6;
-  --await-edge: #85601a;
-  --hi: #85601a;
-  --hi-ink: #85601a;
-  --on-hi: #ffffff; /* text on a --hi fill: 5.7:1 */
+  /* One theme: black (docs/superpowers/specs/2026-11-22-expressive-ui-orb.md). Ink text and ink
+     controls on a black ground. The one signal colour, amber (--hi / --await-edge), is reserved
+     for things waiting on a person -- the "needs you" counts, proposed-not-ratified output, the
+     tiles that link to a decision. Once someone decides, the amber goes. Nothing automated ever
+     uses it. */
+  --bg: #000000;
+  --panel: #0b0c0f;
+  --panel-2: #101217; /* the top of a card's gradient */
+  --panel-border: rgb(255 255 255 / 0.10);
+  --panel-border-strong: rgb(255 255 255 / 0.18); /* hover edge */
+  /* Form-field edge: >=3:1 on the field and page (WCAG 1.4.11); --panel-border stays faint for cards and rules. */
+  --field-border: #6d7889;
+  --well: #101217;
+  --text: #eceef2;
+  --muted: #9aa3b2;
+  --accent: #eceef2;
+  --accent-ink: #ffffff;
+  --accent-tint: rgb(236 238 242 / 0.08);
+  --sidebar-bg: #050506;
+  --on-accent: #000000; /* text on accent and status fills */
+  /* Awaiting a person: an amber wash with the signal amber as its edge and its text. */
+  --await: rgb(224 178 90 / 0.14);
+  --await-edge: #e0b25a;
+  --hi: #e0b25a;
+  --hi-ink: #e0b25a;
+  --on-hi: #000000; /* text on a --hi fill */
   /* high/mid/low/neutral are status semantics (run status, escalation
-     stage, badges) rendered as small text/borders, not chart marks.
-     Deepened again when the ground moved to warm cream: at the previous
-     values --mid scored 2.99:1 on --well, where .banner-warning renders,
-     and --high 3.66:1. These clear 4.5:1 on --bg, --panel and --well
-     alike, and still clear 4.5:1 under white as badge fills. */
-  --high: #13804f;
-  --mid: oklch(52% 0.125 70);
-  --low: #c8323f;
-  --run: #2563c9; /* running work */
-  --paper: #ffffff; /* source excerpt card */
-  --ink: var(--text);
-  --ink-muted: var(--muted); /* context lines on the paper card */
-  --paper-mark: #f6ecd6; /* the paper card's highlight: the same amber in both themes */
+     stage, badges) rendered as small text/borders, not chart marks. */
+  --high: #4fd69c;
+  --mid: #f2c94c;
+  --low: #ff6b7a;
+  --run: #5fb0ff; /* running work */
+  --paper: #f5f2ea; /* source excerpt card: light paper on the black page */
+  --ink: #1b1a17;
+  --ink-muted: #5f5b52; /* context lines on the paper card */
+  --paper-mark: #f6ecd6; /* the paper card's highlight */
   --paper-mark-edge: #85601a;
-  --neutral: oklch(50% 0.010 64);
+  --neutral: #9a9ba0;
 
   /* Type scale. Replaces fifteen ad-hoc sizes, nine of which sat between
      0.68 and 0.95rem and read as noise rather than hierarchy. */
@@ -76,8 +81,8 @@
   /* Elevation is for things that genuinely float. Flat surfaces keep
      hairline borders -- this direction earns its depth from rules, not
      shadow, so only overlays use these. */
-  --shadow-md: 0 2px 6px oklch(20% 0.014 58 / 0.07), 0 8px 24px oklch(20% 0.014 58 / 0.10);
-  --shadow-lg: 0 12px 32px oklch(20% 0.014 58 / 0.16);
+  --shadow-md: 0 2px 6px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
 
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --dur: 140ms;
@@ -94,105 +99,20 @@
 
   --font-display: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
+  /* Pixel type marks where ARP presents itself (DESIGN.md, The Pixel Means Presence Rule). */
+  --font-pixel: "Geist Pixel Square", "Geist Mono", ui-monospace, monospace;
   font-family: var(--font-display);
-  color-scheme: light;
+  color-scheme: dark;
   accent-color: var(--accent);
 
   /* Chart categorical slots (lib/palette.ts explains the validation). */
-  --cat-1: #2a78d6;
-  --cat-2: #c2407f;
-  --cat-3: #a87400;
-  --cat-4: #6250d6;
-  /* Brand orange (DESIGN.md, The Brand Colour Rule): the logo apex and the landing orb only. */
-  --brand-apex: #ea4c14;
-  --orb: #ea4c14;
-}
-
-/* Night Desk (dark): a blue-black ground with stepped panels and the same
-   amber signal as light mode, so "waiting on a person" looks the same in both
-   themes; red stays for failures. Follows the system setting unless the
-   sidebar switch pins a mode (data-theme on <html>). */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0d1015;
-    --panel: #141921;
-    --panel-border: rgb(232 235 240 / 0.12);
-    --field-border: #6d7889;
-    --well: #1b222d;
-    --text: #e8ebf0;
-    --muted: #a3acbb;
-    --accent: #e8ebf0;
-    --accent-ink: #ffffff;
-    --accent-tint: rgb(232 232 227 / 0.08);
-    --sidebar-bg: #10141a;
-    --on-accent: #0d1015;
-    --await: rgb(212 166 80 / 0.14);
-    --await-edge: #d4a650;
-    --hi: #d4a650;
-    --hi-ink: #d4a650;
-    --on-hi: #0d1015;
-    --high: #4fd69c;
-    --mid: #f2c94c;
-    --low: #ff6b7a;
-    --run: #6cb4ff; /* running work */
-    --paper: #f5f2ea; /* source excerpt card */
-    --ink: #1b1a17;
-    --ink-muted: #5f5b52; /* context lines on the paper card */
-    --paper-mark: #f6ecd6; /* the paper card's highlight: the same amber in both themes */
-    --paper-mark-edge: #85601a;
-    --neutral: #9a9ba0;
-    --shadow-md: 0 2px 6px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
-    --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
-    --font-display: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-mono: "Geist Mono", ui-monospace, monospace;
-    --cat-1: #3987e5;
-    --cat-2: #d55181;
-    --cat-3: #c98500;
-    --cat-4: #9085e9;
-    --brand-apex: #ff6a2b;
-    --orb: #ff6a2b;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0d1015;
-  --panel: #141921;
-  --panel-border: rgb(232 235 240 / 0.12);
-  --field-border: #6d7889;
-  --well: #1b222d;
-  --text: #e8ebf0;
-  --muted: #a3acbb;
-  --accent: #e8ebf0;
-  --accent-ink: #ffffff;
-  --accent-tint: rgb(232 232 227 / 0.08);
-  --sidebar-bg: #10141a;
-  --on-accent: #0d1015;
-  --await: rgb(212 166 80 / 0.14);
-  --await-edge: #d4a650;
-  --hi: #d4a650;
-  --hi-ink: #d4a650;
-  --on-hi: #0d1015;
-  --high: #4fd69c;
-  --mid: #f2c94c;
-  --low: #ff6b7a;
-  --run: #6cb4ff; /* running work */
-  --paper: #f5f2ea; /* source excerpt card */
-  --ink: #1b1a17;
-  --ink-muted: #5f5b52; /* context lines on the paper card */
-  --paper-mark: #f6ecd6; /* the paper card's highlight: the same amber in both themes */
-  --paper-mark-edge: #85601a;
-  --neutral: #9a9ba0;
-  --shadow-md: 0 2px 6px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
-  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
-  --font-display: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, monospace;
   --cat-1: #3987e5;
   --cat-2: #d55181;
   --cat-3: #c98500;
   --cat-4: #9085e9;
+  /* Brand orange (DESIGN.md, The Brand Colour Rule): the logo apex and the landing caption's square only. */
   --brand-apex: #ff6a2b;
   --orb: #ff6a2b;
-  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -209,11 +129,8 @@ kbd, code { letter-spacing: normal; }
 /* Balanced headings and no one-word last lines, everywhere; zero specificity so components still decide. */
 :where(h1, h2, h3, h4) { text-wrap: balance; }
 :where(p, li, dd, figcaption) { text-wrap: pretty; }
-/* Light text on dark reads thinner with greyscale antialiasing (macOS only; elsewhere a no-op). */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-}
-:root[data-theme="dark"] body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+/* Light text on black reads thinner with greyscale antialiasing (macOS only; elsewhere a no-op). */
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 ::selection { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--text); }
 /* The browser default placeholder grey measured 4.47:1 on --panel. */
 ::placeholder { color: var(--muted); opacity: 1; }
@@ -2533,31 +2450,55 @@ dialog.agent-drawer::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .source-excerpt-ctx:last-child { display: block; margin-top: var(--s-1); }
 .source-excerpt-page mark { background: var(--await); color: inherit; padding: 0 2px; box-shadow: inset 0 -2px var(--await-edge); }
 
-/* Night Desk release 5: the landing page. Text sits on a gradient so it reads over the dots. */
-.landing { position: fixed; inset: 0; overflow: hidden; background: var(--bg); color: var(--text); display: grid; grid-template-rows: auto 1fr auto; }
-.landing-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.landing-bar, .landing-main, .landing-promises { position: relative; }
+/* The landing page (expressive-ui-orb): the promise on the left, the Orb's stage on the right. */
+.landing { position: fixed; inset: 0; overflow: hidden auto; background: var(--bg); color: var(--text); display: grid; grid-template-rows: auto 1fr auto; }
 .landing-bar { padding: var(--s-6) max(var(--s-8), env(safe-area-inset-right, 0px)) var(--s-6) max(var(--s-8), env(safe-area-inset-left, 0px)); }
 .landing-brand { display: inline-flex; align-items: center; gap: var(--s-3); font-weight: 700; font-size: var(--text-md); }
 .landing-mark { height: 28px; width: auto; color: var(--text); }
 .landing-full { font-weight: 400; color: var(--muted); font-size: var(--text-sm); }
-.landing-main { align-self: center; display: grid; gap: var(--s-4); max-width: 640px; padding: var(--s-8) var(--s-12) var(--s-8) max(var(--s-8), env(safe-area-inset-left, 0px)); background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 40%, transparent) 55%, transparent); }
-/* See-through intro: the network shows behind the text; a soft halo of the ground keeps it legible. */
-.landing-main h1, .landing-main p { text-shadow: 0 0 14px var(--bg), 0 0 4px var(--bg); }
-.landing-main h1 { margin: 0; font-family: "Source Serif 4", Georgia, serif; font-size: clamp(2.5rem, 2rem + 3vw, 4.2rem); line-height: 1.02; letter-spacing: -0.01em; font-weight: 500; text-wrap: balance; }
-.landing-main p { margin: 0; font-size: var(--text-md); line-height: 1.55; color: var(--muted); max-width: 46ch; }
-.landing-open { justify-self: start; padding: 12px 20px; border-radius: var(--r-md); background: var(--accent); color: var(--on-accent); font-weight: 600; text-decoration: none; }
+.landing-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: var(--s-6); padding: 0 max(var(--s-8), env(safe-area-inset-right, 0px)) 0 max(var(--s-8), env(safe-area-inset-left, 0px)); }
+.landing-copy { align-self: center; display: grid; justify-items: start; gap: var(--s-6); padding: var(--s-8) 0 var(--s-12); }
+.landing-cap { margin: 0; display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.landing-cap i { width: 8px; height: 8px; background: var(--brand-apex); }
+.landing-copy h1 { margin: 0; max-width: 13ch; font-family: var(--font-pixel); font-weight: 400; font-size: clamp(40px, 5.4vw, 80px); line-height: 0.96; letter-spacing: 0; }
+.landing-copy h1 + p { margin: 0; max-width: 34ch; font-size: 1.1875rem; line-height: 1.45; color: var(--muted); }
+.landing-open { display: inline-flex; align-items: center; gap: var(--s-3); height: 48px; padding: 0 22px; border-radius: var(--r-md); background: var(--accent); color: var(--on-accent); font-weight: 600; font-size: var(--text-md); text-decoration: none; transition: transform var(--dur-slow) var(--ease-out); }
+.landing-open:hover { transform: translateY(-2px); }
 .landing-open:focus-visible { outline: 2px solid var(--run); outline-offset: 3px; }
+.landing-open span { font-family: var(--font-mono); transition: transform var(--dur-slow) var(--ease-out); }
+.landing-open:hover span { transform: translateX(4px); }
+/* The Orb's box is the largest square that fits the stage, at most 600px (radius 300px). */
+.landing-stage { position: relative; container-type: size; min-height: 480px; display: grid; place-items: center; }
+.landing-stage .orb { width: min(100cqw, 100cqh, 600px); height: min(100cqw, 100cqh, 600px); }
 .landing-promises { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-6); padding: var(--s-6) var(--s-8); border-top: 1px solid var(--panel-border); background: var(--bg); }
 .landing-promises div { display: grid; gap: var(--s-1); }
 .landing-promises span { color: var(--muted); font-size: var(--text-sm); }
 .landing-promises b::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 0; background: var(--text); margin-right: 9px; vertical-align: 2px; }
+@media (max-width: 860px) {
+  .landing-main { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .landing-stage { order: -1; min-height: 0; height: min(calc(100vw - 2 * var(--s-4)), 400px); }
+}
 @media (max-width: 700px) {
   .landing { position: absolute; min-height: 100dvh; bottom: auto; overflow-y: auto; }
-  .landing-canvas { position: fixed; }
-  .landing-main { padding: var(--s-6) var(--s-4); background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 40%, transparent) 70%, transparent); }
+  .landing-bar { padding: var(--s-4); }
+  .landing-main { padding: 0 var(--s-4); }
+  .landing-copy { padding: var(--s-6) 0 var(--s-8); gap: var(--s-4); }
   .landing-promises { grid-template-columns: 1fr; padding: var(--s-4); }
 }
+@media (prefers-reduced-motion: reduce) {
+  .landing-open, .landing-open span { transition: none; }
+}
+
+/* The Orb (components/Orb.tsx). Its canvas or still fills the square box; the phase label and the hover
+   hint are siblings that the surrounding stage positions. The Orb's colours stay inside the canvas and the
+   label's square (DESIGN.md, The Orb Colour Rule). */
+.orb { position: relative; touch-action: pan-y; }
+.orb > canvas, .orb > img { display: block; width: 100%; height: 100%; }
+.orb[data-orb-mode="live"]:not([data-orb="agent"]) { cursor: pointer; }
+.orb-label { position: absolute; right: 0; bottom: var(--s-4); display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); pointer-events: none; }
+.orb-label i { width: 8px; height: 8px; }
+.orb-hint { position: absolute; z-index: 3; transform: translate(16px, -50%); font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); white-space: nowrap; pointer-events: none; }
+.orb-hint[hidden] { display: none; }
 
 /* Dossier Shelve / Un-shelve: focus lands on these after the control that was used unmounts; they are not controls. */
 .focus-target:focus { outline: none; }

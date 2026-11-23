@@ -154,7 +154,7 @@ def test_ac40_survives_poll(page):  # noqa: F811
 
 
 def test_ac41_phone(page):  # noqa: F811
-    _open(page, "/#/stewardiq", 390, 844, "light")
+    _open(page, "/#/stewardiq", 390, 844)
     p = _first_open_process(page)
     _steps(p).nth(1).click()
     lefts = [b.bounding_box()["x"] for b in p.locator(".hub-step").all()]

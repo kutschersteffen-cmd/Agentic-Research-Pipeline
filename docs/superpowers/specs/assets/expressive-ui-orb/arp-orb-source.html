@@ -1,0 +1,817 @@
+<title>ARP Orb · Signal Lattice</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+@font-face{font-family:"Geist Pixel Square";src:url(data:font/woff2;base64,__PIXELFONT__) format("woff2");font-display:block}
+/* Layout: Signal Lattice home on black. Top bar, a hero that is the Orb's stage, then the five workspace cards with animated isometric drawings and flowing process rails. Single dark look by design. */
+:root{
+  --bg:#000000;--panel:#0b0c0f;--panel2:#101217;--hair:rgb(255 255 255 / .10);--hair2:rgb(255 255 255 / .18);
+  --ink:#eceef2;--muted:#9aa3b2;--run:#5fb0ff;--hi:#e0b25a;--hiw:rgb(224 178 90 / .14);--orb:#ff6a2b;
+  --font:"Geist",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --pixel:"Geist Pixel Square","Geist Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);letter-spacing:-0.008em;font-size:15px;line-height:1.45}
+.mono{font-family:var(--mono)}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+@media (min-width:900px){.wrap{padding-left:max(40px,env(safe-area-inset-left,0px));padding-right:max(40px,env(safe-area-inset-right,0px))}}
+
+.bar{position:relative;z-index:5;border-bottom:1px solid var(--hair);background:rgb(0 0 0 / .7);backdrop-filter:blur(10px)}
+.bar-in{height:56px;display:flex;align-items:center;gap:14px}
+.lock{display:flex;align-items:center;gap:10px;font-weight:500;font-size:15px;white-space:nowrap}
+.search{flex:0 1 280px;height:34px;border:1px solid var(--hair);border-radius:6px;display:flex;align-items:center;padding:0 10px;color:var(--muted);font-size:14px;gap:8px;background:var(--panel);min-width:0}
+.ask{height:34px;display:flex;align-items:center;gap:8px;padding:0 12px 0 8px;border:1px solid var(--hair2);border-radius:8px;font:500 14px var(--font);color:var(--ink);background:transparent;cursor:pointer;white-space:nowrap}
+.ask:hover{background:var(--panel2)}
+.ask:focus-visible,.card:focus-visible,.nav a:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.ask .dot{width:10px;height:10px;background:var(--orbc,var(--orb));box-shadow:0 0 12px var(--orbc,var(--orb))}
+.nav{margin-left:auto;display:flex;gap:20px;align-items:center;font-size:14px}
+.nav a{color:var(--ink);text-decoration:none;white-space:nowrap}
+.cnt{display:inline-block;min-width:18px;padding:1px 5px;border-radius:2px;background:var(--hi);color:#000;font:12px var(--mono);text-align:center;margin-left:6px}
+@media (max-width:860px){.search,.nav .hide-s{display:none}}
+@media (max-width:520px){.lock span,.ask .mono{display:none}}
+
+.hero{position:relative;min-height:660px;overflow:hidden;isolation:isolate;background:#000}
+#stage{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0;touch-action:pan-y}
+.hero-in{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:24px;min-height:660px;pointer-events:none}
+.copy{padding-block:56px 40px;display:flex;flex-direction:column;gap:22px;align-self:center}
+.copy>*{pointer-events:auto}
+.cap{font:13px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.greet{font-family:var(--pixel);font-weight:400;font-size:clamp(52px,7.2vw,104px);line-height:.92;letter-spacing:0;margin:0;text-wrap:balance}
+.lead{font-size:19px;margin:0;max-width:30ch;text-wrap:balance}
+.await{color:var(--hi)}
+.feed{display:flex;flex-direction:column;border:1px solid var(--hair);border-radius:12px;background:rgb(11 12 15 / .78);backdrop-filter:blur(8px);max-width:560px}
+.row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--hair);font-size:14px;min-width:0}
+.row:first-child{border-top:0}
+.row b{font-weight:500}
+.row .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sq{width:8px;height:8px;flex:0 0 8px;display:inline-block}
+.sq.run{background:var(--run);box-shadow:0 0 8px var(--run);animation:blink 1.2s steps(2) infinite}
+.sq.hi{background:var(--hi);box-shadow:0 0 8px var(--hi)}
+.sq.done{background:var(--ink)}
+.meta{margin-left:auto;color:var(--muted);font:13px var(--mono);white-space:nowrap}
+.orb-slot{align-self:stretch;min-height:540px}
+.hud{position:absolute;z-index:3;pointer-events:none;font:11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--orbc,var(--orb));white-space:nowrap;opacity:0;transition:opacity .25s;transform:translate(16px,-50%)}
+.hud.on{opacity:1}
+.phase{position:absolute;z-index:2;right:max(16px,env(safe-area-inset-right,0px));bottom:16px;font:12px var(--mono);color:var(--muted);letter-spacing:.06em;text-transform:uppercase;pointer-events:none;display:flex;gap:10px;align-items:center}
+.phase i{display:inline-block;width:8px;height:8px;background:var(--orbc,var(--orb))}
+@media (max-width:860px){
+  .hero-in{grid-template-columns:minmax(0,1fr)}
+  .orb-slot{order:-1;min-height:420px}
+  .copy{padding-block:0 32px}
+  .phase{bottom:auto;top:392px;right:50%;transform:translateX(50%)}
+}
+
+/* cards */
+.cards-sec{position:relative;z-index:1;padding-block:8px 56px}
+.cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
+@media (max-width:1180px){.cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:760px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:480px){.cards{grid-template-columns:minmax(0,1fr)}}
+.card{position:relative;border:1px solid var(--hair);border-radius:12px;background:linear-gradient(180deg,var(--panel2),var(--panel));overflow:hidden;display:flex;flex-direction:column;text-decoration:none;color:var(--ink);transition:transform .3s cubic-bezier(.2,.8,.2,1),border-color .2s}
+.card:hover{transform:translateY(-3px);border-color:var(--hair2)}
+.card.wait{border-color:color-mix(in oklab,var(--hi) 70%,transparent);box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--hi) 55%,transparent),0 0 40px -12px var(--hi)}
+.card.run{box-shadow:0 0 44px -18px var(--run)}
+.fig{height:196px;position:relative;border-bottom:1px solid var(--hair);background:radial-gradient(60% 70% at 50% 62%,var(--glow,rgb(255 255 255 / .05)),transparent 70%),#030304}
+.card.wait .fig{--glow:rgb(224 178 90 / .13)}
+.card.run .fig{--glow:rgb(95 176 255 / .13)}
+.fig svg{position:absolute;left:0;right:0;top:30px;bottom:6px;width:100%;height:calc(100% - 36px)}
+.fig .cap{position:absolute;left:14px;top:12px;font-size:12px;z-index:1}
+.f-face{fill:url(#gFace);stroke:rgb(236 238 242 / .30);stroke-width:1;stroke-linejoin:round}
+.f-top{fill:url(#gTop);stroke:rgb(236 238 242 / .55);stroke-width:1;stroke-linejoin:round}
+.f-hot{stroke:var(--ink);stroke-opacity:.95}
+.f-acc-wait{stroke:var(--hi);stroke-width:1.6;fill:url(#gWait);filter:drop-shadow(0 0 6px rgb(224 178 90 / .85))}
+.f-acc-run{stroke:var(--run);stroke-width:1.6;fill:url(#gRun);filter:drop-shadow(0 0 6px rgb(95 176 255 / .9))}
+.f-scan-run{fill:rgb(95 176 255 / .10);stroke:var(--run);stroke-width:1;filter:drop-shadow(0 0 5px rgb(95 176 255 / .9))}
+.f-ghost{fill:none;stroke:var(--run);stroke-width:1;stroke-dasharray:3 3;opacity:.7}
+.f-shadow{fill:rgb(255 255 255 / .04)}
+.body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:10px;flex:1}
+.name{font-size:19px;font-weight:500;letter-spacing:-0.015em}
+.purpose{font-size:14px;color:var(--muted);line-height:1.4;flex:1}
+/* process rail: one segment per process; the running one flows, the waiting one breathes */
+.state{display:flex;flex-direction:column;gap:8px}
+.state-l{display:flex;justify-content:space-between;gap:8px;font-size:13px;align-items:baseline}
+.state-l .w{white-space:nowrap}
+.state-l .p{color:var(--muted);font:12px var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rail{display:flex;gap:3px;height:10px}
+.seg{flex:1;position:relative;overflow:hidden;border-radius:1px}
+.seg.done{background:rgb(236 238 242 / .78)}
+.seg.idle{border:1px solid rgb(236 238 242 / .22)}
+.seg.run{background:rgb(95 176 255 / .18);box-shadow:0 0 12px -2px var(--run)}
+.seg.run::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,var(--run) 0 6px,transparent 6px 10px);opacity:.9;animation:flow .9s linear infinite}
+.seg.run::after{content:"";position:absolute;top:0;bottom:0;width:40%;background:linear-gradient(90deg,transparent,rgb(255 255 255 / .9),transparent);animation:sweep 1.6s cubic-bezier(.4,0,.2,1) infinite}
+.seg.wait{background:var(--hi);animation:breathe 1.8s ease-in-out infinite}
+.seg.wait::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 6px,rgb(0 0 0 / .35) 6px 8px)}
+@keyframes flow{to{transform:translateX(10px)}}
+@keyframes sweep{from{left:-40%}to{left:100%}}
+@keyframes breathe{50%{box-shadow:0 0 14px 1px var(--hi);filter:brightness(1.25)}}
+@keyframes blink{50%{opacity:.35}}
+.card.chg .fig{animation:figpop .95s cubic-bezier(.2,.8,.2,1)}
+@keyframes figpop{0%{filter:brightness(2.1)}100%{filter:brightness(1)}}
+@media (prefers-reduced-motion:reduce){.seg.run::before,.seg.run::after,.seg.wait,.sq.run{animation:none}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="gFace" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#15181f"/><stop offset="1" stop-color="#07080a"/></linearGradient>
+    <linearGradient id="gTop" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#262a33"/><stop offset="1" stop-color="#12141a"/></linearGradient>
+    <linearGradient id="gWait" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a4519"/><stop offset="1" stop-color="#241b08"/></linearGradient>
+    <linearGradient id="gRun" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1d4a7a"/><stop offset="1" stop-color="#0a1a2e"/></linearGradient>
+  </defs>
+</svg>
+
+<header class="bar">
+  <div class="wrap bar-in">
+    <div class="lock">
+      <svg width="22" height="22" viewBox="0 0 5 5" aria-hidden="true" shape-rendering="crispEdges"><rect x="2" y="0" width="1" height="1" fill="#ff6a2b"/><rect x="1" y="1" width="1" height="1" fill="var(--ink)"/><rect x="3" y="1" width="1" height="1" fill="var(--ink)"/><rect x="0" y="2" width="1" height="3" fill="var(--ink)"/><rect x="4" y="2" width="1" height="3" fill="var(--ink)"/><rect x="1" y="3" width="3" height="1" fill="var(--ink)"/></svg>
+      <span>Agentic Research Platform</span>
+    </div>
+    <div class="search"><span>Search</span><span class="mono" style="margin-left:auto;font-size:12px">⌘K</span></div>
+    <button class="ask" type="button"><span class="dot"></span>Ask ARP <span class="mono" style="color:var(--muted);font-size:12px">⌘J</span></button>
+    <nav class="nav">
+      <a href="#" class="hide-s">Workspaces</a>
+      <a href="#">Needs you<span class="cnt">4</span></a>
+      <a href="#" class="hide-s">Reports</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero" aria-label="Start">
+  <canvas id="stage" role="img" aria-label="The ARP Orb: a holographic sphere of circuit shells, ring discs and an iris core. Its parts turn in steps, fold, re-align and lock. Hover lights it, a click reconfigures it."></canvas>
+  <div class="wrap hero-in">
+    <div class="copy">
+      <div class="cap">Sunday 22 Nov · 22:15</div>
+      <h1 class="greet">Good evening.</h1>
+      <p class="lead">Two agents are working for you. <span class="await">Four items need you.</span></p>
+      <div class="feed">
+        <div class="row"><span class="sq run"></span><span class="t"><b>Argus</b> · Grid modernisation · extracting financials</span><span class="meta">step 4 of 6</span></div>
+        <div class="row"><span class="sq run"></span><span class="t"><b>R&amp;D Lab</b> · Emerging Themes · reading filings</span><span class="meta">step 1 of 7</span></div>
+        <div class="row"><span class="sq hi"></span><span class="t await"><b>StewardIQ</b> · ballots wait on a second reviewer</span><span class="meta">Needs you</span></div>
+        <div class="row"><span class="sq done"></span><span class="t"><b>Transition Intel</b> · barrier matrix published</span><span class="meta">2 h ago</span></div>
+      </div>
+    </div>
+    <div class="orb-slot" id="slot"></div>
+  </div>
+  <div class="phase" id="phase"><i></i><span id="phaseT">Idle</span></div>
+  <div class="hud" id="hud"></div>
+</section>
+
+<section class="cards-sec wrap" aria-label="Workspaces">
+  <div class="cards">
+    <a class="card wait" href="#" data-draw="stewardiq" data-acc="wait">
+      <div class="fig"><span class="cap">3 processes</span><svg viewBox="-6 -30 212 190" aria-hidden="true"></svg></div>
+      <div class="body"><div class="name">StewardIQ</div><div class="purpose">Engage companies, vote, and track what they commit to.</div>
+        <div class="state"><div class="state-l"><span class="w await">Waiting on you</span><span class="p">Proxy season</span></div><div class="rail"><i class="seg done"></i><i class="seg wait"></i><i class="seg idle"></i></div></div></div>
+    </a>
+    <a class="card run" href="#" data-draw="argus" data-acc="run">
+      <div class="fig"><span class="cap">2 processes</span><svg viewBox="-6 -30 212 190" aria-hidden="true"></svg></div>
+      <div class="body"><div class="name">Argus</div><div class="purpose">Extract cited data points from disclosures and score them.</div>
+        <div class="state"><div class="state-l"><span class="w" style="color:var(--run)">Running</span><span class="p">Extract · step 4 of 6</span></div><div class="rail"><i class="seg run"></i><i class="seg idle"></i></div></div></div>
+    </a>
+    <a class="card" href="#" data-draw="transitionIntel" data-acc="">
+      <div class="fig"><span class="cap">2 processes</span><svg viewBox="-6 -30 212 190" aria-hidden="true"></svg></div>
+      <div class="body"><div class="name">Transition Intel</div><div class="purpose">Monitor holdings and assess climate and transition risk.</div>
+        <div class="state"><div class="state-l"><span class="w">Up to date</span><span class="p">2 h ago</span></div><div class="rail"><i class="seg done"></i><i class="seg done"></i></div></div></div>
+    </a>
+    <a class="card run" href="#" data-draw="rdLab" data-acc="run">
+      <div class="fig"><span class="cap">4 processes</span><svg viewBox="-6 -30 212 190" aria-hidden="true"></svg></div>
+      <div class="body"><div class="name">R&amp;D Lab</div><div class="purpose">Research themes and find the companies exposed to them.</div>
+        <div class="state"><div class="state-l"><span class="w" style="color:var(--run)">Running</span><span class="p">Spot · step 1 of 7</span></div><div class="rail"><i class="seg run"></i><i class="seg done"></i><i class="seg idle"></i><i class="seg idle"></i></div></div></div>
+    </a>
+    <a class="card" href="#" data-draw="dataHub" data-acc="">
+      <div class="fig"><span class="cap">1 process</span><svg viewBox="-6 -30 212 190" aria-hidden="true"></svg></div>
+      <div class="body"><div class="name">Data Hub</div><div class="purpose">Input feeds, stored data and the security master.</div>
+        <div class="state"><div class="state-l"><span class="w">Up to date</span><span class="p">Feeds loaded 06:00</span></div><div class="rail"><i class="seg done"></i></div></div></div>
+    </a>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script>
+(() => {
+'use strict';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const smooth = x => { x = clamp(x); return x * x * (3 - 2 * x); };
+const ease = x => { x = clamp(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const back = x => { x = clamp(x); const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+
+/* ================= workspace drawings (isometric, from the app) ================= */
+const C30 = Math.cos(Math.PI / 6), OX = 100, OY = 112;
+const pt = (x, y, z) => [OX + (x - y) * C30, OY + (x + y) * 0.5 - z];
+const poly = ps => 'M' + ps.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L') + 'Z';
+function box(x, y, z, w, d, h, cls) {
+  const top = poly([pt(x, y, z + h), pt(x + w, y, z + h), pt(x + w, y + d, z + h), pt(x, y + d, z + h)]);
+  const left = poly([pt(x, y + d, z), pt(x + w, y + d, z), pt(x + w, y + d, z + h), pt(x, y + d, z + h)]);
+  const right = poly([pt(x + w, y, z), pt(x + w, y + d, z), pt(x + w, y + d, z + h), pt(x + w, y, z + h)]);
+  const f = cls ? cls : 'f-face', t = cls ? cls : 'f-top';
+  return `<path class="${f}" d="${left}"/><path class="${f}" d="${right}"/><path class="${t}" d="${top}"/>`;
+}
+function shadow(x, y, w, d) { return `<path class="f-shadow" d="${poly([pt(x, y, 0), pt(x + w, y, 0), pt(x + w, y + d, 0), pt(x, y + d, 0)])}"/>`; }
+function disc(z, r, h, topCls, sideCls, dash) {
+  const [x, y] = pt(0, 0, z), rx = r * 1.22, ry = r * 0.7;
+  const side = `M${x - rx} ${y - h}L${x - rx} ${y}A${rx} ${ry} 0 0 0 ${x + rx} ${y}L${x + rx} ${y - h}`;
+  const top = `M${x - rx} ${y - h}A${rx} ${ry} 0 1 0 ${x + rx} ${y - h}A${rx} ${ry} 0 1 0 ${x - rx} ${y - h}Z`;
+  let s = `<path class="${sideCls || 'f-face'}" d="${side}"/><path class="${topCls || 'f-top'}" d="${top}"/>`;
+  if (dash) s += `<ellipse cx="${x}" cy="${y - h}" rx="${rx * 0.72}" ry="${ry * 0.72}" fill="none" stroke="rgb(236 238 242 / .45)" stroke-dasharray="2 4" stroke-dashoffset="${dash}"/>`;
+  return s;
+}
+// Each drawing is still. Only the part that carries the status moves, once, when the status changes:
+// acc is the status ('run', 'wait' or null), a is how far the highlight has come out (0..1, overshoots a little).
+const DRAW = {
+  // the ledger: the top slab (the decision) lifts off the stack
+  stewardiq: (acc, a) => {
+    let s = shadow(-46, -30, 92, 60);
+    for (let i = 0; i < 7; i++) s += box(-46, -30, i * 9, 92, 60, 4);
+    return s + box(-46, -30, 63 + a * 13, 92, 60, 4, acc ? 'f-acc-' + acc : null);
+  },
+  // the document slab with data points; the centre column rises, a scan plane parks over it while running
+  argus: (acc, a) => {
+    const hs = [18, 30, 12, 40, 22, 26, 14, 34, 20];
+    let s = box(-58, -44, 0, 116, 88, 6);
+    hs.forEach((h, k) => { s += box(-44 + Math.floor(k / 3) * 32, -30 + (k % 3) * 24, 6, 16, 14, k === 4 ? h + a * 12 : h, k === 4 && acc ? 'f-acc-' + acc : null); });
+    if (acc === 'run') { const z = 8 + a * 34; s += `<path class="f-scan-run" style="opacity:${clamp(a).toFixed(2)}" d="${poly([pt(-58, -44, z), pt(58, -44, z), pt(58, 44, z), pt(-58, 44, z)])}"/>`; }
+    return s;
+  },
+  // the fin array: the fin of the current step rises out of the pathway
+  transitionIntel: (acc, a) => {
+    let s = shadow(-64, -14, 118, 34);
+    const hot = acc === 'run' ? 3 : acc === 'wait' ? 7 : -1;
+    for (let i = 0; i < 8; i++) s += box(-64 + i * 16, -14, 0, 6, 34, 14 + i * 9 + (i === hot ? a * 10 : 0), i === hot ? 'f-acc-' + acc : null);
+    return s;
+  },
+  // grouped experiments; the one under way grows, with the outline of its next level above it while running
+  rdLab: (acc, a) => {
+    const hb = 34 + a * 9;
+    let s = shadow(-56, -40, 116, 84);
+    s += box(-12, -40, 0, 30, 30, 66);
+    s += box(20, 4, 0, 40, 40, 18);
+    s += box(-56, -18, 0, 36, 36, hb, acc ? 'f-acc-' + acc : null);
+    if (acc === 'run') { const z = hb + 13; s += `<path class="f-ghost" style="opacity:${(clamp(a) * .7).toFixed(2)}" d="${poly([pt(-56, -18, z), pt(-20, -18, z), pt(-20, 18, z), pt(-56, 18, z)])}"/>`; }
+    return s + box(-8, 14, 0, 22, 22, 46);
+  },
+  // the store: the top disc lifts off the stack
+  dataHub: (acc, a) => {
+    let s = '';
+    for (let i = 0; i < 4; i++) s += disc(i * 20 + (i === 3 ? a * 7 : 0), 44, 14, i === 3 && acc ? 'f-acc-' + acc : 'f-top', null, 1);
+    return s;
+  }
+};
+// what each card says in each status (label, detail, one rail segment per process)
+const SAY = {
+  stewardiq: { wait: ['Waiting on you', 'Proxy season', 'done wait idle'], run: ['Running', 'Ballots · step 2 of 3', 'done run idle'], idle: ['Up to date', 'Just now', 'done done done'] },
+  argus: { run: ['Running', 'Extract · step 4 of 6', 'run idle'], wait: ['Waiting on you', '3 flagged', 'wait idle'], idle: ['Up to date', 'Just now', 'done done'] },
+  transitionIntel: { idle: ['Up to date', '2 h ago', 'done done'], run: ['Running', 'Refresh · step 1 of 2', 'run idle'], wait: ['Waiting on you', 'Barrier review', 'done wait'] },
+  rdLab: { run: ['Running', 'Spot · step 1 of 7', 'run done idle idle'], wait: ['Waiting on you', 'Theme sign-off', 'wait done idle idle'], idle: ['Up to date', 'Just now', 'done done idle idle'] },
+  dataHub: { idle: ['Up to date', 'Feeds loaded 06:00', 'done'], run: ['Running', 'Loading feeds', 'run'], wait: ['Waiting on you', 'Feed mapping', 'wait'] }
+};
+const figs = [...document.querySelectorAll('.card[data-draw]')].map(c => ({ svg: c.querySelector('svg'), id: c.dataset.draw, acc: c.dataset.acc || null, prev: null, k: 1, dirty: true, card: c }));
+function setStatus(f, st) {
+  if (st === f.acc) return;
+  f.prev = f.acc; f.acc = st; f.k = reduce ? 1 : 0; f.dirty = true;
+  const [w, p, segs] = SAY[f.id][st || 'idle'], c = f.card;
+  c.className = 'card' + (st ? ' ' + st : '');
+  const wl = c.querySelector('.state-l .w'); wl.textContent = w; wl.className = 'w' + (st === 'wait' ? ' await' : ''); wl.style.color = st === 'run' ? 'var(--run)' : '';
+  c.querySelector('.state-l .p').textContent = p;
+  c.querySelector('.rail').innerHTML = segs.split(' ').map(x => `<i class="seg ${x}"></i>`).join('');
+  if (!reduce) { void c.offsetWidth; c.classList.add('chg'); setTimeout(() => c.classList.toggle('chg', false), 950); }
+}
+// the mock steps through status changes so the highlight can be seen; a click on a card steps that card
+const NEXT = { run: 'wait', wait: null, null: 'run' };
+const SEQ = [[1, 'wait'], [0, 'run'], [2, 'run'], [3, null], [4, 'run'], [1, 'run'], [0, 'wait'], [2, null], [3, 'run'], [4, null]];
+let seqI = 0, seqT = 5, figLast = performance.now();
+figs.forEach(f => f.card.addEventListener('click', e => { e.preventDefault(); setStatus(f, NEXT[f.acc]); seqT = 20; }));
+function drawFigs(now) {
+  const dt = Math.min(.05, (now - figLast) / 1000); figLast = now;
+  seqT -= dt; if (seqT <= 0) { const [i, st] = SEQ[seqI]; seqI = (seqI + 1) % SEQ.length; setStatus(figs[i], st); seqT = 6; }
+  figs.forEach(f => {
+    if (f.k >= 1 && !f.dirty) return;            // still between status changes
+    f.k = Math.min(1, f.k + dt / 0.85); f.dirty = false;
+    const acc = f.acc || (f.k < 1 ? f.prev : null);
+    f.svg.innerHTML = DRAW[f.id](acc, f.acc ? back(f.k) : 1 - ease(f.k));
+  });
+}
+
+/* ================= the Orb: a holographic machine ================= */
+const TAU = Math.PI * 2;
+const canvas = document.getElementById('stage');
+const hero = canvas.parentElement, slot = document.getElementById('slot'), hud = document.getElementById('hud'), phaseT = document.getElementById('phaseT');
+function loopCardsOnly() { (function f(n) { drawFigs(n); requestAnimationFrame(f); })(performance.now()); }
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance' }); }
+catch (e) { canvas.style.display = 'none'; loopCardsOnly(); return; }
+let DPR = Math.min(window.devicePixelRatio || 1, 2);
+renderer.setPixelRatio(DPR);
+renderer.setClearColor(0x000000, 1);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+camera.position.set(0, 0, 12);
+const gl2 = renderer.capabilities.isWebGL2;
+const hdr = gl2 && renderer.extensions.has('EXT_color_buffer_float');
+const FT = hdr ? THREE.HalfFloatType : THREE.UnsignedByteType;
+const rt = new THREE.WebGLRenderTarget(8, 8, { type: FT, samples: gl2 ? 4 : 0, depthBuffer: false });
+const composer = new THREE.EffectComposer(renderer, rt);
+composer.setPixelRatio(DPR);
+composer.addPass(new THREE.RenderPass(scene, camera));
+const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(256, 256), 0.62, 0.62, 0.5);
+[bloom.renderTargetBright, ...bloom.renderTargetsHorizontal, ...bloom.renderTargetsVertical].forEach(t => { t.texture.type = FT; });
+composer.addPass(bloom);
+const finalPass = new THREE.ShaderPass({
+  uniforms: { tDiffuse: { value: null }, uC: { value: new THREE.Vector2(.5, .5) }, uTime: { value: 0 }, uCA: { value: 0.0032 }, uExp: { value: 1.4 }, uRes: { value: new THREE.Vector2(1, 1) } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform vec2 uC, uRes; uniform float uTime, uCA, uExp; varying vec2 vUv;
+    float hh(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)) + uTime * 3.1) * 43758.5453); }
+    void main(){
+      vec2 d = vUv - uC; float r2 = dot(d, d);
+      vec2 off = d * uCA * (1.0 + 8.0 * r2);
+      vec3 c = vec3(0.0), wsum = vec3(0.0);
+      for (int i = 0; i < 7; i++) {
+        float t = float(i) / 6.0;
+        vec3 w = vec3(1.0 - smoothstep(0.0, 0.6, t), 1.0 - abs(t - 0.5) * 2.6, smoothstep(0.4, 1.0, t));
+        w = max(w, 0.0);
+        c += texture2D(tDiffuse, vUv + off * (t - 0.5) * 2.0).rgb * w; wsum += w;
+      }
+      c /= wsum;
+      c = 1.0 - exp(-c * uExp);                 // filmic shoulder: bright gold burns to white
+      c *= 1.0 + (hh(floor(vUv * uRes)) - 0.5) * 0.06;   // grain on lit pixels only, black stays black
+      gl_FragColor = vec4(c, 1.0);
+    }`
+});
+composer.addPass(finalPass);
+
+/* ---------- shaders ---------- */
+const COMMON = `
+#define PI 3.14159265
+#define TAU 6.2831853
+float h11(float n){ return fract(sin(n * 127.1 + 3.7) * 43758.5453); }
+float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+// hold, then snap to the next position with a small overshoot: every moving part uses this
+float stepEase(float x){ float i = floor(x), f = fract(x); float m = smoothstep(0.62, 1.0, f); float b = m - 1.0; return i + 1.0 + 2.2 * b * b * b + 1.2 * b * b; }
+float ln(float dpx, float w, float s){ return 1.0 - smoothstep(max(w - s, 0.0), w + s, dpx); }
+float bx(float dpx, float s){ return 1.0 - smoothstep(-s, s, dpx); }
+// a: position around (0..1), vb: position across in bands; da, dvb: their size per CSS pixel
+vec2 pattern(float a, float vb, float da, float dvb, float seed, float t, float s){
+  float bi = floor(vb), bf = fract(vb);
+  float h1 = h11(bi * 1.7 + seed), h2 = h11(bi * 3.1 + seed + 7.0), h3 = h11(bi * 5.3 + seed + 13.0);
+  float nc = floor(mix(3.0, 20.0, h1 * h1)) + 2.0;
+  float dir = h2 > 0.5 ? 1.0 : -1.0;
+  float rot = stepEase(t * (0.06 + 0.14 * h3) + h1 * 20.0) * dir * (1.0 + floor(h2 * 3.0)) / nc;
+  float uc = fract(a + rot) * nc;
+  float ci = floor(uc), cf = fract(uc);
+  float duc = da * nc;
+  float ch = h21(vec2(ci, bi) + seed), ch2 = h21(vec2(ci + 31.0, bi + 17.0) + seed * 1.3);
+  float I = 0.0, hot = 0.0;
+  if (ch < 0.28) {
+    // trace that extends and retracts, with an end cap and energy running along it
+    float L = mix(0.22, 0.90, clamp(abs(fract(stepEase(t * 0.11 + ch2 * 9.0) * 0.5) * 2.0 - 1.0), 0.0, 1.0));
+    float y0 = (ch2 - 0.5) * 0.5;
+    float dy = abs(bf - 0.5 - y0) / dvb;
+    float e1 = 0.05 + L * 0.9;
+    float arc = ln(dy, 0.5, s) * bx(max(0.05 - cf, cf - e1) / duc, s);
+    float cap = ln(abs(cf - e1) / duc, 0.5, s) * bx(dy - 0.17 / dvb, s);
+    float e = pow(0.5 + 0.5 * sin((cf - t * 0.9 * dir) * TAU + ch * 40.0), 10.0);
+    I += arc + cap * 0.9; hot += arc * e * 1.6;
+  } else if (ch < 0.40) {
+    // rail: two parallel traces with cross ties
+    float d1 = abs(abs(bf - 0.5) - 0.14) / dvb;
+    float inx = bx(max(0.04 - cf, cf - 0.96) / duc, s);
+    float tf = abs(fract(cf * 6.0) - 0.5) / (duc * 6.0);
+    I += ln(d1, 0.45, s) * inx * 0.8;
+    I += ln(tf, 0.45, s) * bx((abs(bf - 0.5) - 0.14) / dvb, s) * inx * 0.55 * (1.0 - smoothstep(0.25, 0.6, duc * 6.0));
+  } else if (ch < 0.50) {
+    // panel that switches on and off
+    float d = max(max(0.10 - cf, cf - 0.90) / duc, (abs(bf - 0.5) - 0.30) / dvb);
+    float blink = step(0.72, h11(floor(t * 1.5 + ch * 10.0) + ch * 77.0));
+    I += ln(abs(d), 0.5, s) + bx(d, s) * (0.06 + 0.30 * blink);
+    hot += bx(d, s) * blink * 0.35;
+  } else if (ch < 0.60) {
+    // tick scale with an index that steps along it
+    float n = 16.0;
+    float tf = abs(fract(cf * n) - 0.5) / (duc * n);
+    float idx = floor(cf * n);
+    float len = mod(idx, 4.0) < 0.5 ? 0.30 : 0.16;
+    float tk = ln(tf, 0.4, s) * bx((abs(bf - 0.5) - len) / dvb, s) * (1.0 - smoothstep(0.25, 0.55, duc * n));
+    float mk = floor(fract(stepEase(t * 0.5 + ch * 5.0) / n) * n);
+    I += tk * 0.8; hot += tk * step(abs(idx - mk), 0.5) * 2.2;
+  } else if (ch < 0.68) {
+    // elbow trace with a square node at the corner
+    float hl = ln(abs(bf - 0.3) / dvb, 0.5, s) * bx(max(0.0 - cf, cf - 0.5) / duc, s);
+    float vl = ln(abs(cf - 0.5) / duc, 0.5, s) * bx(max(0.3 - bf, bf - 1.0) / dvb, s);
+    float nd = bx(max(abs(cf - 0.5) / duc, abs(bf - 0.3) / dvb) - 1.8, s);
+    I += max(hl, vl) + nd; hot += nd * 0.6;
+  }
+  if (h3 > 0.5) I += ln(min(bf, 1.0 - bf) / dvb, 0.4, s) * 0.32;
+  float fade = (1.0 - smoothstep(0.30, 0.70, dvb)) * (1.0 - smoothstep(0.30, 0.70, duc));
+  return vec2(I, hot) * fade;
+}`;
+const VERT = `
+varying vec3 vP; varying vec3 vW; varying float vDepth;
+uniform vec3 uCenter; uniform float uR;
+void main(){ vP = position; vec4 wp = modelMatrix * vec4(position, 1.0); vW = wp.xyz - uCenter; vDepth = vW.z / uR; gl_Position = projectionMatrix * viewMatrix * wp; }`;
+const TAIL = `
+  vec3 wd = normalize(vW);
+  float hv = smoothstep(0.8, 0.0, distance(wd, uHover)) * uHoverAmp;
+  float ang = acos(clamp(dot(wd, uRipDir), -1.0, 1.0));
+  float rp = exp(-pow((ang - uFront) * 4.0, 2.0)) * uRipAmp;
+  float mm = clamp(smoothstep(-0.22, 0.22, uFront - ang) + hv * 0.9, 0.0, 1.0);
+  vec3 colA = mix(uCol, uAlt, mm), hotA = mix(uHot, uAltHot, mm);
+  float k = (gl_FrontFacing ? 1.0 : 0.42) / (1.0 + blur * 1.5) * uAlpha * msk;
+  vec3 c = colA * (I * (1.0 + hv * 1.4 + rp * 2.2)) + hotA * (hot + I * (hv * 0.9 + rp * 1.2)) + vec3(0.9) * I * rp * 1.2;
+  gl_FragColor = vec4(c * k, 1.0);
+}`;
+const HEAD = `
+uniform float uTime, uSeed, uBands, uGain, uAlpha, uLonHalf, uPx, uFocus, uDof, uHoverAmp, uFront, uRipAmp;
+uniform vec3 uCol, uHot, uAlt, uAltHot, uHover, uRipDir;
+varying vec3 vP; varying vec3 vW; varying float vDepth;`;
+// a part of a spherical shell: a window in latitude and longitude, etched with the circuit pattern
+const SHELL_FRAG = COMMON + HEAD + `
+uniform vec2 uLat; uniform float uSym;
+void main(){
+  vec3 p = normalize(vP);
+  float lat = asin(clamp(p.y, -1.0, 1.0)), lon = atan(p.z, p.x), lonB = atan(-p.z, -p.x);
+  float v = lat / PI + 0.5, a = lon / TAU + 0.5;
+  float da = max(min(fwidth(lon), fwidth(lonB)) / TAU, 1e-5) * uPx, dv = max(fwidth(lat) / PI, 1e-5) * uPx;
+  float blur = min(abs(vDepth - uFocus) * uDof, 4.0);
+  float s = 0.5 / uPx + blur;
+  float dLat = max(uLat.x - v, v - uLat.y);
+  float dLon = uLonHalf >= 0.499 ? -1000.0 * da : (abs(fract(a * uSym) - 0.5) - uLonHalf) / uSym;
+  float msk = bx(max(dLat / dv, dLon / da), s);
+  if (msk < 0.003) discard;
+  float border = max(ln(abs(dLat) / dv, 0.6, s), ln(abs(dLon) / da, 0.6, s));
+  vec2 pt = pattern(a, v * uBands, da, dv * uBands, uSeed, uTime, s);
+  float I = pt.x * uGain + border * 1.25 + 0.018;
+  float hot = pt.y * uGain + border * 0.15;` + TAIL;
+// a flat ring: the same pattern in polar coordinates, plus rims and a radar sweep
+const DISC_FRAG = COMMON + HEAD + `
+uniform float uInner, uSweep;
+void main(){
+  vec2 q = vP.xy; float r = length(q);
+  float an = atan(q.y, q.x), anB = atan(-q.y, -q.x);
+  float a = an / TAU + 0.5;
+  float da = max(min(fwidth(an), fwidth(anB)) / TAU, 1e-5) * uPx, dr = max(fwidth(r), 1e-5) * uPx;
+  float blur = min(abs(vDepth - uFocus) * uDof, 4.0);
+  float s = 0.5 / uPx + blur;
+  float dR = max(uInner - r, r - 1.0);
+  float dLon = uLonHalf >= 0.499 ? -1000.0 * da : abs(a - 0.5) - uLonHalf;
+  float msk = bx(max(dR / dr, dLon / da), s);
+  if (msk < 0.003) discard;
+  float border = max(ln(abs(r - 1.0) / dr, 0.7, s), ln(abs(r - uInner) / dr, 0.5, s) * 0.8);
+  border = max(border, ln(abs(dLon) / da, 0.6, s));
+  float nb = uBands / (1.0 - uInner);
+  vec2 pt = pattern(a, (r - uInner) * nb, da, dr * nb, uSeed, uTime, s);
+  float sw = pow(1.0 - fract(a - uTime * 0.06), 10.0) * uSweep;
+  float I = pt.x * uGain + border * 0.9 + sw + 0.003;
+  float hot = pt.y * uGain + sw * 0.4;` + TAIL;
+// the core: a camera-facing iris
+const IRIS_FRAG = COMMON + `
+uniform float uTime, uPx, uAperture, uVoice, uBeat; uniform vec3 uCol, uHot;
+varying vec3 vP;
+void main(){
+  vec2 q = vP.xy; float r = length(q);
+  float an = atan(q.y, q.x), anB = atan(-q.y, -q.x);
+  float a = an / TAU + 0.5;
+  float da = max(min(fwidth(an), fwidth(anB)) / TAU, 1e-5) * uPx, dr = max(fwidth(r), 1e-5) * uPx;
+  float s = 0.5 / uPx;
+  float I = 0.0, hot = 0.0;
+  float R0 = 0.15 + 0.08 * uAperture;
+  hot += exp(-r * r * 150.0) * (1.4 + uBeat * 1.4) + exp(-r * r * 26.0) * 0.22;
+  I += ln(abs(r - R0) / dr, 1.3, s) * 1.6; hot += ln(abs(r - R0) / dr, 0.5, s) * 1.0;
+  // six-blade aperture that turns as it opens and closes
+  float n = 6.0;
+  float aa = mod(an + uTime * 0.15 + uAperture * 1.6, TAU / n) - PI / n;
+  float rh = R0 * 0.78 * cos(PI / n) / cos(aa);
+  I += ln(abs(r - rh) / dr, 0.45, s) * 0.9;
+  float rh2 = (R0 + 0.07) * cos(PI / n) / cos(mod(an - uTime * 0.11 - uAperture * 1.1, TAU / n) - PI / n);
+  I += ln(abs(r - rh2) / dr, 0.4, s) * 0.45;
+  // voice ring
+  float nz = sin(an * 7.0 + uTime * 4.0) * 0.45 + sin(an * 13.0 - uTime * 6.3) * 0.30 + sin(an * 29.0 + uTime * 9.1) * 0.25;
+  float rw = 0.36 + uVoice * 0.05 * nz;
+  I += ln(abs(r - rw) / dr, 0.55, s) * (0.7 + uVoice * 0.9); hot += ln(abs(r - rw) / dr, 0.4, s) * uVoice * 0.8;
+  // three heavy arcs that step round and lock
+  float a1 = fract(a + stepEase(uTime * 0.35) / 8.0);
+  I += ln(abs(r - 0.50) / dr, 1.1, s) * step(fract(a1 * 3.0), 0.74) * 1.1;
+  float a2 = fract(a - stepEase(uTime * 0.22 + 3.0) / 12.0);
+  I += ln(abs(r - 0.58) / dr, 0.4, s) * step(fract(a2 * 24.0), 0.5) * 0.7;
+  float nt = 72.0;
+  float tf = abs(fract(a * nt) - 0.5) / (da * nt);
+  I += ln(tf, 0.4, s) * bx((abs(r - 0.69) - (mod(floor(a * nt), 6.0) < 0.5 ? 0.04 : 0.022)) / dr, s) * 0.75;
+  I += ln(abs(r - 0.80) / dr, 0.4, s) * 0.45;
+  float a3 = fract(a + stepEase(uTime * 0.18 + 7.0) / 6.0);
+  I += ln(abs(r - 0.93) / dr, 1.5, s) * step(fract(a3 * 3.0), 0.16) * 1.3;
+  I *= bx((r - 0.985) / dr, s);
+  gl_FragColor = vec4(uCol * I + uHot * hot, 1.0);
+}`;
+const LINE_VERT = `
+attribute float aT; attribute float aSeed; varying float vT; varying float vSeed; varying float vDepth;
+uniform vec3 uCenter; uniform float uR;
+void main(){ vT = aT; vSeed = aSeed; vec4 wp = modelMatrix * vec4(position, 1.0); vDepth = (wp.z - uCenter.z) / uR; gl_Position = projectionMatrix * viewMatrix * wp; }`;
+// straight rays and links: each one draws out from its start, holds, then retracts from the tail
+const LINE_FRAG = `
+uniform float uTime, uSpeed, uGain, uFocus, uDof; uniform vec3 uCol, uHot;
+varying float vT; varying float vSeed; varying float vDepth;
+void main(){
+  float ph = fract(uTime * uSpeed * (0.6 + 0.8 * fract(vSeed * 7.31)) + vSeed);
+  float head = smoothstep(0.0, 0.16, ph), tail = smoothstep(0.58, 0.84, ph);
+  float on = step(vT, head) * step(tail, vT);
+  float tip = exp(-abs(vT - head) * 9.0) * (1.0 - smoothstep(0.14, 0.34, ph));
+  float k = (vDepth < 0.0 ? 0.55 : 1.0) / (1.0 + abs(vDepth - uFocus) * uDof * 0.5);
+  gl_FragColor = vec4((uCol * 0.5 + uHot * tip * 1.8) * on * uGain * k, 1.0);
+}`;
+
+/* ---------- shared state ---------- */
+const PAL = [
+  { col: new THREE.Color(1.0, 0.56, 0.12), hot: new THREE.Color(1.0, 0.86, 0.48) },   // Jarvis gold
+  { col: new THREE.Color(0.14, 0.62, 1.0), hot: new THREE.Color(0.62, 0.95, 1.0) },   // ice
+  { col: new THREE.Color(1.0, 0.27, 0.10), hot: new THREE.Color(1.0, 0.70, 0.34) },   // ember
+  { col: new THREE.Color(0.10, 0.92, 0.62), hot: new THREE.Color(0.74, 1.0, 0.86) }   // mint
+];
+const U = {
+  uTime: { value: 0 }, uCol: { value: PAL[0].col.clone() }, uHot: { value: PAL[0].hot.clone() },
+  uCenter: { value: new THREE.Vector3() }, uR: { value: 1 }, uPx: { value: DPR },
+  uHover: { value: new THREE.Vector3(0, 0, 1) }, uHoverAmp: { value: 0 },
+  uRipDir: { value: new THREE.Vector3(0, 0, 1) }, uFront: { value: -1 }, uRipAmp: { value: 0 },
+  uAlt: { value: PAL[1].col.clone() }, uAltHot: { value: PAL[1].hot.clone() },
+  uFocus: { value: 0.55 }, uDof: { value: 1.15 }
+};
+const S = { aperture: 1, front: -1, ripAmp: 0, colT: 0, punch: 0, voice: 0 };
+const cur = { uCol: { value: PAL[0].col.clone() }, uHot: { value: PAL[0].hot.clone() } };   // colour of the core, rays and glow
+const matOpts = { transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, extensions: { derivatives: true } };
+const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
+const pick = arr => arr[(Math.random() * arr.length) | 0];
+const randQ = () => { const u = Math.random(), v = Math.random(), w = Math.random(); return new THREE.Quaternion(Math.sqrt(1 - u) * Math.sin(TAU * v), Math.sqrt(1 - u) * Math.cos(TAU * v), Math.sqrt(u) * Math.sin(TAU * w), Math.sqrt(u) * Math.cos(TAU * w)); };
+const easeIO = ease, easeOut = x => 1 - Math.pow(1 - clamp(x), 3);
+
+const orb = new THREE.Group(); scene.add(orb);
+const body = new THREE.Group(); orb.add(body);
+
+/* ---------- shell parts ---------- */
+const sphereGeo = new THREE.SphereGeometry(1, 96, 64);
+const parts = [], LON = [0.14, 0.2, 0.26, 0.32, 0.38];
+[[0.46, 8, 0.8, 0.9, 3], [0.62, 12, 0.7, 0.85, 2], [0.80, 16, 0.65, 0.8, 4], [0.94, 20, 0.6, 0.75, 3], [1.06, 24, 0.6, 0.7, 2], [1.20, 16, 0.5, 0.6, 5], [1.32, 12, 0.45, 0.5, 2]].forEach(([r, bands, gain, alpha, sym], i) => {
+  const mat = new THREE.ShaderMaterial({ ...matOpts, uniforms: { ...U, uSeed: { value: 11.3 * (i + 1) }, uBands: { value: bands }, uGain: { value: gain }, uAlpha: { value: alpha }, uLat: { value: new THREE.Vector2(0.2, 0.8) }, uLonHalf: { value: 0.3 }, uSym: { value: sym } }, vertexShader: VERT, fragmentShader: SHELL_FRAG });
+  const mesh = new THREE.Mesh(sphereGeo, mat); mesh.frustumCulled = false; body.add(mesh);
+  parts.push({ mesh, mat, r, q: randQ(), qFrom: null, qTo: null, qT: 0, qDur: 1, spin: rnd(TAU), lonHalf: pick(LON), latC: rnd(0.34, 0.66), latH: rnd(0.05, 0.15), rs: 1, w: (i % 2 ? -1 : 1) * rnd(0.03, 0.09), next: rnd(0.5, 3.5) });
+});
+
+/* ---------- ring discs ---------- */
+const planeGeo = new THREE.PlaneGeometry(2, 2);
+const discs = [];
+[[1.42, 0.30, 12, 0.9, 0.9, 0.22, -1.15, 0.25, 0.5], [1.14, 0.83, 3, 1.0, 0.9, 0, 0.55, 1.0, 0.36], [0.86, 0.80, 3, 1.0, 0.9, 0, -0.45, -0.9, 0.30], [1.52, 0.895, 3, 0.9, 0.8, 0.10, 0.10, -0.08, 0.5]].forEach(([outer, inner, bands, gain, alpha, sweep, tx, ty, lonHalf], i) => {
+  const mat = new THREE.ShaderMaterial({ ...matOpts, uniforms: { ...U, uSeed: { value: 40.7 + i * 9.1 }, uBands: { value: bands }, uGain: { value: gain }, uAlpha: { value: alpha }, uInner: { value: inner }, uSweep: { value: sweep }, uLonHalf: { value: lonHalf } }, vertexShader: VERT, fragmentShader: DISC_FRAG });
+  const g = new THREE.Group(); orb.add(g);
+  const mesh = new THREE.Mesh(planeGeo, mat); mesh.frustumCulled = false; mesh.scale.setScalar(outer); g.add(mesh);
+  discs.push({ g, mesh, mat, tx, ty, spin: rnd(TAU), lonHalf, home: lonHalf, fixed: i === 3, w: [0.03, -0.05, 0.07, -0.02][i], next: rnd(1, 4) });
+});
+
+/* ---------- rays and network ---------- */
+function lineSet(pos, ts, seeds, speed, gain, parent) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('aT', new THREE.Float32BufferAttribute(ts, 1));
+  g.setAttribute('aSeed', new THREE.Float32BufferAttribute(seeds, 1));
+  const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, uniforms: { ...U, ...cur, uSpeed: { value: speed }, uGain: { value: gain } }, vertexShader: LINE_VERT, fragmentShader: LINE_FRAG });
+  const l = new THREE.LineSegments(g, mat); l.frustumCulled = false; parent.add(l); return l;
+}
+const rays = new THREE.Group(); body.add(rays);
+{
+  const pos = [], ts = [], seeds = [];
+  for (let f = 0; f < 8; f++) {                 // fans of rays that fire one after another
+    const q = randQ(), n = 4 + ((Math.random() * 5) | 0), a0 = rnd(TAU), spread = rnd(0.045, 0.11), base = Math.random();
+    for (let i = 0; i < n; i++) {
+      const a = a0 + i * spread, d = new THREE.Vector3(Math.cos(a), Math.sin(a), 0).applyQuaternion(q);
+      const r0 = rnd(0.12, 0.2), r1 = rnd(0.8, 1.38), sd = base + i * 0.018;
+      pos.push(d.x * r0, d.y * r0, d.z * r0, d.x * r1, d.y * r1, d.z * r1); ts.push(0, 1); seeds.push(sd, sd);
+    }
+  }
+  for (let i = 0; i < 5; i++) {                 // long chords across the whole volume
+    const a = new THREE.Vector3(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize().multiplyScalar(1.3), b = new THREE.Vector3(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize().multiplyScalar(1.3), sd = Math.random();
+    pos.push(a.x, a.y, a.z, b.x, b.y, b.z); ts.push(0, 1); seeds.push(sd, sd);
+  }
+  lineSet(pos, ts, seeds, 0.16, 1.0, rays);
+}
+const net = new THREE.Group(); body.add(net);
+{
+  const N = 30, nodes = [];
+  for (let i = 0; i < N; i++) nodes.push(new THREE.Vector3(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize().multiplyScalar(rnd(0.58, 0.8)));
+  const pos = [], ts = [], seeds = [], seen = new Set();
+  nodes.forEach((v, i) => {
+    nodes.map((w, j) => [v.distanceToSquared(w), j]).filter(x => x[1] !== i).sort((a, b) => a[0] - b[0]).slice(0, 2).forEach(([, j]) => {
+      const key = Math.min(i, j) + '-' + Math.max(i, j); if (seen.has(key)) return; seen.add(key);
+      const w = nodes[j], sd = Math.random();
+      pos.push(v.x, v.y, v.z, w.x, w.y, w.z); ts.push(0, 1); seeds.push(sd, sd);
+    });
+  });
+  lineSet(pos, ts, seeds, 0.11, 1.1, net);
+  const pg = new THREE.BufferGeometry().setFromPoints(nodes);
+  var nodeMat = new THREE.PointsMaterial({ size: 3, sizeAttenuation: false, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+  net.add(new THREE.Points(pg, nodeMat));
+}
+
+/* ---------- core, glow, lens streak (camera-facing) ---------- */
+const flat = new THREE.Group(); scene.add(flat);
+const irisMat = new THREE.ShaderMaterial({ ...matOpts, uniforms: { uTime: U.uTime, uPx: U.uPx, uCol: cur.uCol, uHot: cur.uHot, uAperture: { value: 1 }, uVoice: { value: 0 }, uBeat: { value: 0 } }, vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }', fragmentShader: IRIS_FRAG });
+const iris = new THREE.Mesh(planeGeo, irisMat); iris.scale.setScalar(0.56); flat.add(iris);
+function tex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); return new THREE.CanvasTexture(c); }
+const glowMat = new THREE.SpriteMaterial({ map: tex(256, 256, (x) => { const g = x.createRadialGradient(128, 128, 0, 128, 128, 128); g.addColorStop(0, 'rgba(255,255,255,.5)'); g.addColorStop(.3, 'rgba(255,255,255,.12)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 256, 256); }), transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+const glow = new THREE.Sprite(glowMat); glow.scale.set(4.4, 4.4, 1); flat.add(glow);
+const streakMat = new THREE.SpriteMaterial({ map: tex(512, 32, (x, w, h) => { const g = x.createLinearGradient(0, 0, w, 0); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.5, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, w, h); const v = x.createLinearGradient(0, 0, 0, h); v.addColorStop(0, 'rgba(0,0,0,1)'); v.addColorStop(.5, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,1)'); x.globalCompositeOperation = 'destination-out'; x.fillStyle = v; x.fillRect(0, 0, w, h); }), transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+const streak = new THREE.Sprite(streakMat); streak.scale.set(4.6, 0.05, 1); flat.add(streak);
+
+/* ---------- tweens ---------- */
+let tweens = [];
+function tw(o, k, to, dur, delay = 0, e = easeIO) { tweens.push({ o, k, from: null, to, dur, t: -delay, e }); }
+function runTweens(dt) {
+  tweens = tweens.filter(w => {
+    w.t += dt; if (w.t < 0) return true;
+    if (w.from === null) w.from = w.o[w.k];
+    const x = clamp(w.t / w.dur); w.o[w.k] = w.from + (w.to - w.from) * w.e(x);
+    return x < 1;
+  });
+}
+
+/* ---------- choreography ---------- */
+let reconf = null, nextReconf = 6.5, palIdx = 0, speakUntil = -1, nextSpeak = 2.5, label = '';
+function setLabel(t) { if (t !== label) { label = t; phaseT.textContent = t; } }
+function reconfigure(dir) {
+  if (reconf !== null) return;
+  reconf = 0; tweens = [];
+  parts.forEach((p, i) => {
+    const d = i * 0.07;
+    tw(p, 'lonHalf', 0.05, 0.6, d);                                    // fold to a sliver
+    tw(p, 'rs', 0.62 + 0.03 * i, 0.55, 0.15 + d);                      // slide in toward the core
+    p.qFrom = null; p.qTo = randQ(); p.qT = -(0.5 + d); p.qDur = 1.15;   // swing to a new axis
+    tw(p, 'spin', p.spin + pick([-1, 1]) * Math.PI * rnd(0.5, 1.25), 1.5, 0.45 + d);
+    tw(p, 'latC', rnd(0.34, 0.66), 0.9, 1.5 + d); tw(p, 'latH', rnd(0.05, 0.15), 0.9, 1.5 + d);
+    tw(p, 'rs', 1, 0.7, 1.45 + d * 1.8, back);                         // telescope back out, inner parts first
+    tw(p, 'lonHalf', pick(LON), 0.95, 1.7 + d * 1.8, back);            // unfold and lock
+    p.next = rnd(3.4, 6.5);
+  });
+  discs.forEach((d, i) => {
+    tw(d, 'lonHalf', 0.06, 0.5, i * 0.08);
+    if (!d.fixed) { tw(d, 'tx', rnd(-1.25, 1.25), 1.25, 0.4 + i * 0.12, back); tw(d, 'ty', rnd(-1.1, 1.1), 1.25, 0.4 + i * 0.12, back); }
+    tw(d, 'spin', d.spin + pick([-1, 1]) * rnd(1, 2.4), 1.6, 0.3 + i * 0.1);
+    tw(d, 'lonHalf', d.home, 0.9, 1.7 + i * 0.12, back);
+    d.next = rnd(3.4, 6);
+  });
+  tw(S, 'aperture', 0, 0.5, 0); tw(S, 'aperture', 1, 0.75, 1.55, back);
+  U.uRipDir.value.copy(dir || new THREE.Vector3(0, 0, 1)); S.front = -0.3; S.ripAmp = 1; S.colT = 0;
+  tw(S, 'front', Math.PI + 0.4, 1.7, 1.3, easeOut); tw(S, 'ripAmp', 0, 0.7, 2.4);   // the next colour spreads from that point
+  tw(S, 'colT', 1, 1.0, 1.3);
+}
+function commitColour() {
+  palIdx = (palIdx + 1) % PAL.length; const nx = PAL[(palIdx + 1) % PAL.length];
+  U.uCol.value.copy(PAL[palIdx].col); U.uHot.value.copy(PAL[palIdx].hot); U.uAlt.value.copy(nx.col); U.uAltHot.value.copy(nx.hot);
+  S.front = -1; S.colT = 0;
+}
+function idle(dt) {
+  parts.forEach(p => {
+    p.next -= dt; if (p.next > 0) return;
+    const r = Math.random();
+    if (r < 0.6) tw(p, 'spin', p.spin + pick([-1, 1]) * pick([Math.PI / 4, Math.PI / 3, Math.PI / 2, 2 * Math.PI / 3]), rnd(0.9, 1.5), 0, back);
+    else if (r < 0.78) tw(p, 'lonHalf', pick(LON), 1.1, 0, back);
+    else if (r < 0.9) { tw(p, 'rs', pick([0.92, 1.08]), 0.7, 0, back); tw(p, 'rs', 1, 0.7, 1.6, back); }
+    else { tw(p, 'latC', rnd(0.34, 0.66), 1.1); tw(p, 'latH', rnd(0.05, 0.15), 1.1); }
+    p.next = rnd(1.6, 4.5);
+  });
+  discs.forEach(d => {
+    d.next -= dt; if (d.next > 0) return;
+    tw(d, 'spin', d.spin + pick([-1, 1]) * pick([Math.PI / 6, Math.PI / 4, Math.PI / 2]), rnd(0.9, 1.4), 0, back);
+    if (!d.fixed && Math.random() < 0.4) tw(d, 'tx', d.tx + rnd(-0.35, 0.35), 1.3, 0, back);
+    d.next = rnd(2, 5);
+  });
+}
+
+/* ---------- layout & input ---------- */
+let W = 1, H = 1, orbScreen = { x: 0, y: 0, r: 100 };
+function worldAt(x, y, z) {
+  const v = new THREE.Vector3((x / W) * 2 - 1, -(y / H) * 2 + 1, 0.5).unproject(camera);
+  const d = v.sub(camera.position).normalize(), t = (z - camera.position.z) / d.z;
+  return camera.position.clone().add(d.multiplyScalar(t));
+}
+const ppu = () => H / (2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+function layout() {
+  const r = hero.getBoundingClientRect(); W = Math.max(1, r.width); H = Math.max(1, r.height);
+  const pr = Math.max(1, Math.min(DPR, Math.sqrt(3.4e6 / (W * H))));
+  renderer.setPixelRatio(pr); composer.setPixelRatio(pr); U.uPx.value = pr;
+  renderer.setSize(W, H, false); composer.setSize(W, H);
+  camera.aspect = W / H; camera.updateProjectionMatrix();
+  const s = slot.getBoundingClientRect();
+  const cx = s.left - r.left + s.width / 2, cy = s.top - r.top + s.height / 2;
+  const rad = Math.max(80, Math.min(s.width * 0.29, s.height * 0.3, 205));
+  orbScreen = { x: cx, y: cy, r: rad };
+  orb.position.copy(worldAt(cx, cy, 0)); flat.position.copy(orb.position);
+  U.uCenter.value.copy(orb.position);
+  finalPass.uniforms.uC.value.set(cx / W, 1 - cy / H);
+  finalPass.uniforms.uRes.value.set(W, H);
+}
+const ptr = { x: 0, y: 0, in: false };
+const ray = new THREE.Raycaster(), sph = new THREE.Sphere(), hitV = new THREE.Vector3();
+function hitDir() {
+  if (!ptr.in) return null;
+  ray.setFromCamera(new THREE.Vector2((ptr.x / W) * 2 - 1, -(ptr.y / H) * 2 + 1), camera);
+  sph.center.copy(orb.position); sph.radius = U.uR.value * 1.1;
+  return ray.ray.intersectSphere(sph, hitV) ? hitV.clone().sub(orb.position).normalize() : null;
+}
+const setPtr = e => { const r = canvas.getBoundingClientRect(); ptr.x = e.clientX - r.left; ptr.y = e.clientY - r.top; ptr.in = true; };
+canvas.addEventListener('pointermove', setPtr);
+canvas.addEventListener('pointerleave', () => ptr.in = false);
+canvas.addEventListener('pointerdown', e => { setPtr(e); const d = hitDir(); if (d) reconfigure(d); if (e.pointerType !== 'mouse') ptr.in = false; });
+
+/* ---------- frame ---------- */
+let T = 0, last = performance.now(), slow = 0, lastNow = last;
+const qy = new THREE.Quaternion(), yAxis = new THREE.Vector3(0, 1, 0), cTmp = new THREE.Color(), WHITE = new THREE.Color(0.9, 0.9, 0.9);
+function frame(now) {
+  const dt0 = Math.min(0.05, (now - last) / 1000); last = now;
+  const dt = dt0 * (reduce ? 0.3 : 1); T += dt;
+  slow = now - lastNow > 30 ? slow + 1 : 0; lastNow = now;
+  if (slow > 90 && DPR > 1) { DPR = Math.max(1, DPR - 0.5); slow = 0; layout(); }   // slow machine: fewer pixels, same motion
+  U.uTime.value = T; finalPass.uniforms.uTime.value = T % 100;
+  runTweens(dt);
+
+  // sequence: idle, then fold, re-align, unfold, lock; now and then it speaks
+  if (reconf !== null) {
+    const before = reconf; reconf += dt;
+    if (before < 2.35 && reconf >= 2.35) S.punch = 1;
+    setLabel(reconf < 0.75 ? 'Folding' : reconf < 1.6 ? 'Re-aligning' : reconf < 2.35 ? 'Unfolding' : 'Locked');
+    if (reconf > 3.3) { commitColour(); reconf = null; nextReconf = rnd(8, 11); nextSpeak = rnd(1, 2.5); }
+  } else {
+    idle(dt);
+    nextReconf -= dt; if (nextReconf <= 0) reconfigure(null);
+    nextSpeak -= dt; if (nextSpeak <= 0 && T > speakUntil) { speakUntil = T + rnd(2.2, 3.4); nextSpeak = rnd(5, 9); }
+    setLabel(T < speakUntil ? 'Speaking' : 'Idle');
+  }
+  S.punch *= Math.exp(-dt * 5);
+  const speaking = T < speakUntil ? Math.min(1, (speakUntil - T) * 3) : 0;
+  const env = speaking * (0.25 + 0.75 * Math.abs(Math.sin(T * 9.1) * Math.sin(T * 5.3 + 1.0) + 0.3 * Math.sin(T * 23.0)));
+  S.voice += (env - S.voice) * Math.min(1, dt * 14);
+  const bt = (T % 2.4) / 2.4, beat = Math.exp(-Math.pow((bt - .05) * 20, 2)) + .6 * Math.exp(-Math.pow((bt - .17) * 20, 2));
+
+  // colour morph
+  { const wh = Math.sin(Math.PI * S.colT) * 0.6; cur.uCol.value.copy(U.uCol.value).lerp(U.uAlt.value, S.colT).lerp(WHITE, wh); cur.uHot.value.copy(U.uHot.value).lerp(U.uAltHot.value, S.colT).lerp(WHITE, wh); }
+  document.documentElement.style.setProperty('--orbc', '#' + cTmp.copy(cur.uCol.value).getHexString());
+
+  // body: slow turn, a lean toward the cursor, a punch when everything locks
+  body.rotation.y += dt * 0.07;
+  body.rotation.x = Math.sin(T * 0.19) * 0.14;
+  const lx = ptr.in ? clamp((ptr.x - orbScreen.x) / (orbScreen.r * 4), -0.4, 0.4) : 0;
+  const ly = ptr.in ? clamp((ptr.y - orbScreen.y) / (orbScreen.r * 4), -0.4, 0.4) : 0;
+  orb.rotation.y += (lx * 0.7 - orb.rotation.y) * Math.min(1, dt0 * 3);
+  orb.rotation.x += (ly * 0.7 - orb.rotation.x) * Math.min(1, dt0 * 3);
+  const R = (orbScreen.r / ppu()) * (1 + S.punch * 0.03 + 0.006 * Math.sin(T * 1.1));
+  orb.scale.setScalar(R); flat.scale.setScalar(R); U.uR.value = R;
+
+  // hover
+  const hd = hitDir();
+  if (hd) U.uHover.value.lerp(hd, Math.min(1, dt0 * 14)).normalize();
+  U.uHoverAmp.value += ((hd ? 1 : 0) - U.uHoverAmp.value) * Math.min(1, dt0 * 8);
+  canvas.style.cursor = hd ? 'pointer' : 'default';
+  if (hd && reconf === null) { hud.className = 'hud on'; hud.style.left = ptr.x + 'px'; hud.style.top = ptr.y + 'px'; hud.textContent = 'Click to transform'; } else hud.className = 'hud';
+  U.uFront.value = S.front; U.uRipAmp.value = S.ripAmp;
+
+  // parts
+  parts.forEach(p => {
+    if (p.qTo) {
+      p.qT += dt;
+      if (p.qT >= 0) {
+        if (!p.qFrom) p.qFrom = p.q.clone();
+        const x = clamp(p.qT / p.qDur);
+        p.q.copy(p.qFrom).slerp(p.qTo, back(x)).normalize();
+        if (x >= 1) { p.q.copy(p.qTo); p.qTo = null; p.qFrom = null; }
+      }
+    }
+    p.spin += dt * p.w;
+    p.mesh.quaternion.copy(p.q).multiply(qy.setFromAxisAngle(yAxis, p.spin));
+    p.mesh.scale.setScalar(p.r * p.rs * (1 + S.punch * 0.02));
+    p.mat.uniforms.uLat.value.set(p.latC - p.latH, p.latC + p.latH);
+    p.mat.uniforms.uLonHalf.value = p.lonHalf;
+  });
+  discs.forEach(d => { d.spin += dt * d.w; d.g.rotation.set(d.tx, d.ty, 0); d.mesh.rotation.z = d.spin; d.mat.uniforms.uLonHalf.value = d.lonHalf; });
+  rays.rotation.z += dt * 0.03; net.rotation.y -= dt * 0.12; net.rotation.x += dt * 0.05;
+  nodeMat.color.copy(cur.uHot.value);
+
+  // core
+  irisMat.uniforms.uAperture.value = S.aperture; irisMat.uniforms.uVoice.value = S.voice; irisMat.uniforms.uBeat.value = beat + S.punch * 2;
+  glowMat.color.copy(cur.uCol.value); glowMat.opacity = 0.06 + beat * 0.015 + S.punch * 0.14 + S.voice * 0.04;
+  streakMat.color.copy(cur.uHot.value); streakMat.opacity = 0.14 + beat * 0.08 + S.punch * 0.6 + S.voice * 0.2;
+  streak.scale.set(2.9 + S.punch * 2.6 + S.voice * 0.7, 0.045, 1);
+
+  bloom.strength = 0.62 + S.punch * 0.55 + S.voice * 0.1;
+  composer.render();
+  drawFigs(now);
+  requestAnimationFrame(frame);
+}
+layout();
+new ResizeObserver(layout).observe(hero);
+document.fonts && document.fonts.ready.then(layout);
+requestAnimationFrame(frame);
+})();
+</script>

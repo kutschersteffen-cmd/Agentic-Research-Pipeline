@@ -6,6 +6,8 @@ import App from './App.tsx'
 // A tab left open across a deploy still points at old hashed page chunks, which
 // 404 and would blank the app. Reload to pick up the new build (at most once per 10s, so a truly missing chunk cannot loop).
 window.addEventListener('vite:preloadError', (e) => {
+  // The Orb's scene is optional: when it fails to load the Orb shows its still picture instead.
+  if (String((e as Event & { payload?: unknown }).payload).includes('orbScene')) return
   try {
     const last = Number(sessionStorage.getItem('chunk-reload'))
     if (Date.now() - last < 10_000) return
