@@ -71,3 +71,28 @@ def test_drafted_plan_opens_at_its_brief_with_focus(page):  # noqa: F811
     assert _focused_id(page) == "agent-brief-h"
     box, scroller = heading.bounding_box(), page.locator(".agent-scroll").bounding_box()
     assert box["y"] >= scroller["y"] - 1 and box["y"] + box["height"] <= scroller["y"] + scroller["height"]
+
+
+def test_reloads_of_a_running_drafted_plan_leave_focus_and_scroll_alone(page):  # noqa: F811  (code review on #665)
+    running = {**PLAN, "status": "running"}  # a running plan is read again every 3 s
+    _routes(page, lambda r: r.fulfill(json=PLAN))
+    reads = []
+
+    def plan(route):
+        reads.append(1)
+        route.fulfill(json=running)
+
+    page.route(f"**/api/plans/{PLAN['id']}", plan)
+    _open_field(page)
+    page.get_by_role("button", name="Draft plan").click()
+    page.locator("#agent-brief-h").wait_for()
+    page.wait_for_timeout(500)
+    assert _focused_id(page) == "agent-brief-h"
+    page.locator("#agent-brief").focus()  # the reader moves on: composer focused, stream scrolled to its end
+    page.evaluate("const s = document.querySelector('.agent-scroll'); s.scrollTop = s.scrollHeight")
+    top = page.evaluate("document.querySelector('.agent-scroll').scrollTop")
+    before = len(reads)
+    page.wait_for_timeout(3_500)
+    assert len(reads) > before  # it was read again
+    assert _focused_id(page) == "agent-brief"
+    assert page.evaluate("document.querySelector('.agent-scroll').scrollTop") == top

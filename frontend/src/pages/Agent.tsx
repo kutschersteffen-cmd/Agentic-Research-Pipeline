@@ -136,8 +136,10 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     const el = scroller.current;
     if (el && briefFirst.current === null) el.scrollTop = picker ? 0 : el.scrollHeight;
   }, [planId, askId, explorationId, refineSel]);
+  const briefFocus = useRef<string | null>(null); // the drafted plan whose brief has yet to take focus, once
   useEffect(() => {
-    if (!plan || plan.id !== briefFirst.current) return;
+    if (!plan || plan.id !== briefFocus.current) return;
+    briefFocus.current = null; // a reload (every 3 s while the plan runs) leaves scroll and focus where the reader put them
     const h = document.getElementById("agent-brief-h");
     h?.scrollIntoView({ block: "start" });
     h?.focus({ preventScroll: true });
@@ -404,7 +406,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
             refine.doc ? <RefineStream refine={refine} emptyLine={refineCtl.emptyLine} /> : <RefinePicker />
           ) : exploration && explorationId ? (
             <ExplorationCard key={exploration.id} exploration={exploration} busy={busy} onAccept={() => act(() => api.acceptExploration(exploration.id))}
-              onDrafted={(p) => { briefFirst.current = p.id; loadList(); onSelect({ kind: "plan", id: p.id }); }} />
+              onDrafted={(p) => { briefFirst.current = briefFocus.current = p.id; loadList(); onSelect({ kind: "plan", id: p.id }); }} />
           ) : plan && planId ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />
           ) : askId || askingIn(asking, null) ? (
