@@ -1,6 +1,6 @@
 # Remove the GCP deploy path
 
-Status: **draft, waiting for the owner's approval**
+Status: **approved by the owner on 23 Nov 2026** (button in the dispatcher thread, after three spec-critic rounds)
 Slug: `remove-gcp-deploy`
 Risk: this spec PR is `risk:low`. The build is 1 PR, `risk:high` (it deletes a workflow under `.github/workflows/`
 and edits `.claude/skills/steward/SKILL.md`), so the owner merges it on GitHub.
