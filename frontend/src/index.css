@@ -2323,7 +2323,8 @@ a.vc-box:hover { border-color: var(--text); }
 /* Shown only while focused: the keyboard way into the frame (MiniAppFrame). The frame then shows the focus ring. */
 .agent-miniapp-enter { margin-bottom: var(--s-2); }
 .agent-miniapp-enter:not(:focus) { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.agent-miniapp:focus { outline: 2px solid var(--text); outline-offset: 2px; }
+/* Focus moves into the frame's document, so the iframe matches :focus-within, not :focus. */
+.agent-miniapp:is(:focus, :focus-within) { outline: 2px solid var(--text); outline-offset: 2px; }
 /* Diff and Audit tabs. */
 .agent-stage-h { font-size: var(--text-sm); margin: var(--s-3) 0 var(--s-1_5); }
 .agent-stage-h:first-child { margin-top: 0; }

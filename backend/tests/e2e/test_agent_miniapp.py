@@ -137,6 +137,7 @@ def test_the_keyboard_can_scroll_a_mini_app_taller_than_its_frame(page):  # WCAG
     assert page.evaluate("document.activeElement.textContent") == "Scroll the mini-app"
     page.keyboard.press("Enter")
     assert page.evaluate("document.activeElement.classList.contains('agent-miniapp')")
+    assert page.evaluate("getComputedStyle(document.activeElement).outlineStyle") == "solid"  # the focus ring shows
     page.keyboard.press("End")
     time.sleep(0.5)
     assert end.bounding_box()["y"] < before - 1000
