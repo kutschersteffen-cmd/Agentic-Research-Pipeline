@@ -1,11 +1,16 @@
-import { useEffect, useRef } from "react";
-import { explorationBadge, resultTable } from "../lib/agent";
+import { useEffect, useRef, useState } from "react";
+import { api } from "../api/client";
+import { canTurnIntoPlan, draftPlanFromExploration, explorationBadge, focusAfterDraft, resultTable, type FocusAfter } from "../lib/agent";
 import { miniappAction } from "../lib/miniapp";
+import type { Plan } from "../lib/plans";
 import type { Exploration } from "../types";
 
 /** An exploration in the Agent stream (spec agent-panel-code-mode, Phase 4): the question, the code (collapsed), the
- * result as a table when it is a list of flat objects (JSON otherwise), the tool calls, and a badge until accepted. */
-export function ExplorationCard({ exploration: e, busy, onAccept, onMiniapp }: { exploration: Exploration; busy: boolean; onAccept: () => void; onMiniapp: () => void }) {
+ * result as a table when it is a list of flat objects (JSON otherwise), the tool calls, and a badge until accepted.
+ * A done, accepted exploration offers "Turn into a plan…" (Phase 6), which drafts a plan and hands it to `onDrafted`. */
+export function ExplorationCard({ exploration: e, busy, onAccept, onMiniapp, onDrafted }: {
+  exploration: Exploration; busy: boolean; onAccept: () => void; onMiniapp: () => void; onDrafted: (plan: Plan) => void;
+}) {
   const badge = explorationBadge(e);
   // Accept removes its own button: once the card shows the acceptance, focus moves to that line (WCAG 2.4.3).
   const accepting = useRef(false);
@@ -34,6 +39,7 @@ export function ExplorationCard({ exploration: e, busy, onAccept, onMiniapp }: {
             {e.status === "done" && <button id="agent-show-miniapp" className="secondary" disabled={busy} onClick={onMiniapp}>{miniappAction(e)}</button>}
           </div>
         )}
+        {canTurnIntoPlan(e) && <TurnIntoPlan exploration={e} onDrafted={onDrafted} />}
         <details className="agent-exploration-code">
           <summary>Code</summary>
           <pre className="mono plan-script agent-wrap" aria-label="Exploration code">{e.code}</pre>
@@ -74,5 +80,52 @@ export function ExplorationCard({ exploration: e, busy, onAccept, onMiniapp }: {
         )}
       </article>
     </>
+  );
+}
+
+/** "Turn into a plan…": a brief field prefilled with the question, and "Draft plan". On a failure the field stays open
+ * with the response's detail under it. */
+function TurnIntoPlan({ exploration: e, onDrafted }: { exploration: Exploration; onDrafted: (plan: Plan) => void }) {
+  const [brief, setBrief] = useState<string | null>(null); // null: the field is closed
+  const [drafting, setDrafting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Cancel and a refused draft remove or disable the control that had focus; focus goes to the button that opens the
+  // field again, or to the error (WCAG 2.4.3). A drafted plan's brief takes focus on the Agent screen.
+  const refocus = useRef<FocusAfter>(null);
+  const openButton = useRef<HTMLButtonElement>(null);
+  const errorLine = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    const target = refocus.current === "open" ? openButton.current : refocus.current === "error" ? errorLine.current : null;
+    if (!target) return;
+    refocus.current = null;
+    target.focus();
+  }, [brief, error]);
+  async function draft() {
+    setDrafting(true);
+    setError(null);
+    const out = await draftPlanFromExploration(e, brief ?? "", (path, body) => api.agentPost<Plan>(path, body));
+    setDrafting(false);
+    refocus.current = focusAfterDraft(out);
+    if (out.ok) onDrafted(out.plan);
+    else setError(out.error);
+  }
+  if (brief === null) {
+    return (
+      <div className="toolbar">
+        <button ref={openButton} type="button" className="secondary" onClick={() => setBrief(e.question)}>Turn into a plan…</button>
+      </div>
+    );
+  }
+  return (
+    <form className="agent-turn-into-plan" onSubmit={(ev) => { ev.preventDefault(); draft(); }}>
+      <label htmlFor="agent-exploration-brief">Brief for the plan</label>
+      <textarea id="agent-exploration-brief" rows={2} value={brief} disabled={drafting} autoFocus
+        onChange={(ev) => setBrief(ev.target.value)} aria-describedby={error ? "agent-exploration-plan-error" : undefined} />
+      <div className="toolbar">
+        <button type="submit" disabled={drafting}>Draft plan</button>
+        <button type="button" className="secondary" disabled={drafting} onClick={() => { refocus.current = "open"; setBrief(null); setError(null); }}>Cancel</button>
+      </div>
+      {error && <p id="agent-exploration-plan-error" ref={errorLine} tabIndex={-1} className="error-text" role="alert">{error}</p>}
+    </form>
   );
 }

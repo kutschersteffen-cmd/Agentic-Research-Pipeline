@@ -286,3 +286,24 @@ def test_a_missing_table_does_not_hide_missing_columns_in_later_tables(current_s
         _execute("DELETE FROM schema_migrations WHERE name = 'plan_source_ask_fk'")  # re-adds the dropped FK
         _execute("DELETE FROM schema_migrations WHERE name = 'exploration_source_ask_fk'")  # and this one
         ensure_schema(DSN)
+
+
+def test_plan_source_exploration_fk_added_to_an_existing_database(current_schema):
+    """agent-panel-code-mode slice 12: reconciliation adds research_plans.source_exploration_id without its foreign
+    key; the step adds it, and a database that has it is left alone."""
+    from arp.storage.postgres_schema import ensure_schema
+    from tests.postgres_helpers import reset_postgres_tables
+
+    reset_postgres_tables(DSN)
+    _execute("ALTER TABLE research_plans DROP COLUMN source_exploration_id")
+    _execute("DELETE FROM schema_migrations WHERE name = 'plan_source_exploration_fk'")
+    result = ensure_schema(DSN)
+    assert "research_plans.source_exploration_id" in result["columns_added"]
+    assert result["steps_applied"] == ["plan_source_exploration_fk"]
+    fk = "SELECT 1 FROM pg_constraint WHERE conname = 'research_plans_source_exploration_id_fkey'"
+    assert _execute(fk) == [(1,)]
+    assert _execute("SELECT data_type FROM information_schema.columns"
+                    " WHERE table_name = 'research_plans' AND column_name = 'source_exploration_id'") == [("uuid",)]
+    _execute("DELETE FROM schema_migrations WHERE name = 'plan_source_exploration_fk'")
+    assert ensure_schema(DSN)["steps_applied"] == ["plan_source_exploration_fk"]
+    assert _execute(fk) == [(1,)]

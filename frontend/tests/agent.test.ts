@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import {
-  answerActions, budgetLine, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, exploreFromAsk, focusAfterFromAsk, INBOX_KIND, lineDiff,
-  askingIn, COMPOSER_COPY, explorationBadge, nearEnd, needsYouLine, resultTable, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState,
+  answerActions, budgetLine, canTurnIntoPlan, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, exploreFromAsk, focusAfterFromAsk, INBOX_KIND, lineDiff,
+  askingIn, COMPOSER_COPY, draftPlanFromExploration, explorationBadge, focusAfterDraft, nearEnd, needsYouLine, resultTable, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState,
   threadRows, threadTitle, untilCancelled, usd,
 } from "../src/lib/agent.ts";
 import type { Plan } from "../src/lib/plans.ts";
@@ -276,4 +276,35 @@ test("a fast answer is still followed when the follow-down's scroll event lands 
   // A reader who really scrolled up stays put and gets the button.
   assert.equal(wasNearEnd(false, 0, before), false);
   assert.equal(wasNearEnd(true, 0, before), true); // your own send sets `atEnd`
+});
+
+// Write action: exploration to draft plan (agent-panel-code-mode slice 12).
+
+test("only a done, accepted exploration offers Turn into a plan (AC-66, AC-66b)", () => {
+  const at = "2026-11-22T10:00:00Z";
+  assert.equal(canTurnIntoPlan({ status: "done", accepted_at: at }), true);
+  assert.equal(canTurnIntoPlan({ status: "done", accepted_at: null }), false);
+  assert.equal(canTurnIntoPlan({ status: "failed", accepted_at: at }), false);
+  assert.equal(canTurnIntoPlan({ status: "timeout", accepted_at: at }), false);
+});
+
+test("Draft plan posts the brief to the exploration's plan route and returns the plan", async () => {
+  const sent: [string, unknown][] = [];
+  const plan = { id: "plan_1" } as Plan;
+  const out = await draftPlanFromExploration({ id: "e/1" }, "fetch missing reports", async (path, body) => { sent.push([path, body]); return plan; });
+  assert.deepEqual(sent, [["/api/agent/explorations/e%2F1/plan", { brief: "fetch missing reports" }]]);
+  assert.deepEqual(out, { ok: true, plan });
+});
+
+test("a refused Draft plan keeps the field open with the detail and drafts no thread (AC-65c)", async () => {
+  const drafted: Plan[] = [];
+  const out = await draftPlanFromExploration({ id: "e1" }, "q", async () => { throw new Error("422: line 1: bad"); });
+  if (out.ok) drafted.push(out.plan);
+  assert.deepEqual(out, { ok: false, error: "line 1: bad" });
+  assert.deepEqual(drafted, []);
+});
+
+test("after Draft plan, focus goes to the error when refused and leaves the card when drafted", () => {
+  assert.equal(focusAfterDraft({ ok: false }), "error");
+  assert.equal(focusAfterDraft({ ok: true }), null);
 });

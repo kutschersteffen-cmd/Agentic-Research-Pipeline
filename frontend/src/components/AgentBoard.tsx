@@ -454,24 +454,16 @@ function BoardDiagram({ source, title, theme }: { source: string; title: string;
   );
 }
 
-/** The page's colours as the diagram frame needs them, resolved to hex, and again whenever the theme changes. */
+/** The page's colours as the diagram frame needs them, resolved to hex. ARP has one theme (black), so they never change. */
 function useDiagramTheme(): DiagramTheme | null {
   const [theme, setTheme] = useState<DiagramTheme | null>(null);
-  useEffect(() => {
-    const read = () => setTheme(readTheme());
-    read();
-    const media = matchMedia("(prefers-color-scheme: dark)");
-    const observer = new MutationObserver(read);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    media.addEventListener("change", read);
-    return () => { observer.disconnect(); media.removeEventListener("change", read); };
-  }, []);
+  useEffect(() => setTheme(readTheme()), []);
   return theme;
 }
 
 function readTheme(): DiagramTheme {
   const root = document.documentElement;
-  const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  const dark = true;
   const probe = document.createElement("span");
   probe.style.display = "none";
   document.body.append(probe);

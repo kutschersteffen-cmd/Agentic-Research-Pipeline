@@ -4,7 +4,8 @@ import { readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 
 // Night Desk release 1 (docs/superpowers/specs/2026-11-08-night-desk-colours-design.md).
-// DOM-less: the three theme blocks are parsed straight from index.css.
+// DOM-less: the token block is parsed straight from index.css. Since expressive-ui-orb
+// (docs/superpowers/specs/2026-11-22-expressive-ui-orb.md, Supersedes) there is one block: black.
 const css = readFileSync(new URL("../src/index.css", import.meta.url), "utf8");
 
 function blockAfter(src: string, from: number): string {
@@ -24,50 +25,38 @@ function vars(body: string): Map<string, string> {
   }
   return m;
 }
-function themes(src: string) {
-  const light = vars(blockAfter(src, src.indexOf(":root")));
-  const media = blockAfter(src, src.indexOf("@media (prefers-color-scheme: dark)"));
-  const darkMedia = vars(blockAfter(media, media.indexOf(':root:not([data-theme="light"])')));
-  const darkSwitch = vars(blockAfter(src, src.indexOf(':root[data-theme="dark"]')));
-  return { light, darkMedia, darkSwitch };
-}
-const { light, darkMedia, darkSwitch } = themes(css);
+const root = vars(blockAfter(css, css.indexOf(":root {")));
 
-const LIGHT: Record<string, string> = {
-  "--bg": "#f4f6f9", "--panel": "#ffffff", "--panel-border": "#d8dee7", "--field-border": "#7b8696",
-  "--well": "#eaeef3", "--text": "#121722", "--muted": "#4f5a6b", "--accent": "#121722",
-  "--sidebar-bg": "#eaeef3", "--on-accent": "#ffffff", "--await": "#f6ecd6", "--await-edge": "#85601a",
-  "--hi": "#85601a", "--hi-ink": "#85601a", "--on-hi": "#ffffff", "--high": "#13804f", "--low": "#c8323f",
-};
-const DARK: Record<string, string> = {
-  "--bg": "#0d1015", "--panel": "#141921", "--panel-border": "rgb(232 235 240 / 0.12)", "--field-border": "#6d7889",
-  "--well": "#1b222d", "--text": "#e8ebf0", "--muted": "#a3acbb", "--accent": "#e8ebf0",
-  "--sidebar-bg": "#10141a", "--on-accent": "#0d1015", "--await": "rgb(212 166 80 / 0.14)",
-  "--await-edge": "#d4a650", "--hi": "#d4a650", "--hi-ink": "#d4a650", "--on-hi": "#0d1015",
-  "--high": "#4fd69c", "--low": "#ff6b7a",
+// expressive-ui-orb, The black look: the token table (all other tokens keep the old dark value).
+const BLACK: Record<string, string> = {
+  "--bg": "#000000", "--panel": "#0b0c0f", "--panel-2": "#101217", "--panel-border": "rgb(255 255 255 / 0.10)",
+  "--panel-border-strong": "rgb(255 255 255 / 0.18)", "--field-border": "#6d7889", "--well": "#101217",
+  "--text": "#eceef2", "--muted": "#9aa3b2", "--accent": "#eceef2", "--accent-tint": "rgb(236 238 242 / 0.08)",
+  "--sidebar-bg": "#050506", "--on-accent": "#000000", "--await": "rgb(224 178 90 / 0.14)",
+  "--await-edge": "#e0b25a", "--hi": "#e0b25a", "--hi-ink": "#e0b25a", "--on-hi": "#000000",
+  "--high": "#4fd69c", "--low": "#ff6b7a", "--brand-apex": "#ff6a2b", "--orb": "#ff6a2b",
+  "--font-pixel": '"geist pixel square", "geist mono", ui-monospace, monospace',
 };
 const eqAll = (got: Map<string, string>, want: Record<string, string>) =>
   assert.deepEqual(Object.fromEntries(Object.keys(want).map((k) => [k, got.get(k)])), want);
 
-test("ac1_light_tokens", () => eqAll(light, LIGHT));
-test("ac2_dark_switch_tokens", () => eqAll(darkSwitch, DARK));
-test("ac3_dark_media_tokens", () => eqAll(darkMedia, DARK));
-for (const [name, block] of [["ac4a_dark_switch_fonts", darkSwitch], ["ac4b_dark_media_fonts", darkMedia]] as const) {
-  test(name, () => {
-    assert.ok(block.get("--font-display")!.startsWith('"geist"'));
-    assert.ok(block.get("--font-mono")!.startsWith('"geist mono"'));
-  });
-}
-// Narrowed by the landing brand refresh (owner decision, 2026-11-14): #ea4c14 is now the brand orange
-// and may appear only on the --brand-apex and --orb lines; it is still never the signal. Lime stays banned.
+test("orb_ac5_black_tokens", () => eqAll(root, BLACK));
+test("orb_one_theme_block", () => {
+  assert.equal(css.match(/(^|\n):root\s*\{/g)?.length, 1, "one :root block");
+  assert.doesNotMatch(css, /prefers-color-scheme|data-theme/);
+  assert.match(blockAfter(css, css.indexOf(":root {")), /color-scheme: dark;/);
+});
+test("ac4_fonts", () => {
+  assert.ok(root.get("--font-display")!.startsWith('"geist"'));
+  assert.ok(root.get("--font-mono")!.startsWith('"geist mono"'));
+});
+// The old light brand orange #ea4c14 is gone with the light theme; #ff6a2b is the brand orange and is never the signal. Lime stays banned.
 test("ac5_no_old_signal_colours", () => {
   assert.doesNotMatch(css, /c6ff3d/i);
-  const others = css.split("\n").filter((l) => /ea4c14/i.test(l) && !/^\s*--(brand-apex|orb): #ea4c14;\s*$/i.test(l));
-  assert.deepEqual(others, []);
+  assert.doesNotMatch(css, /ea4c14/i);
 });
 test("ac5_brand_orange_is_not_the_signal", () => {
-  for (const [name, block] of [["light", light], ["darkSwitch", darkSwitch], ["darkMedia", darkMedia]] as const)
-    for (const k of ["--hi", "--hi-ink", "--await-edge", "--on-hi"]) assert.doesNotMatch(block.get(k) ?? "", /ea4c14|ff6a2b/i, `${name} ${k}`);
+  for (const k of ["--hi", "--hi-ink", "--await-edge", "--on-hi"]) assert.doesNotMatch(root.get(k) ?? "", /ea4c14|ff6a2b/i, k);
 });
 
 type RGB = [number, number, number];
@@ -89,7 +78,7 @@ const pairs = (t: Map<string, string>, list: [string, string][], min: number) =>
     assert.ok(c >= min, `${f} on ${g} = ${c.toFixed(2)} < ${min}`);
   }
 };
-const both = [light, darkSwitch, darkMedia];
+const both = [root];
 test("ac6_text_contrast", () => both.forEach((t) =>
   pairs(t, ["--text", "--muted", "--hi-ink"].flatMap((f) => ["--bg", "--panel", "--well"].map((g) => [f, g] as [string, string])), 4.5)));
 test("ac6b_fill_contrast", () => both.forEach((t) =>
@@ -97,7 +86,7 @@ test("ac6b_fill_contrast", () => both.forEach((t) =>
 test("ac6c_status_contrast", () => both.forEach((t) => pairs(t, [["--high", "--panel"], ["--low", "--panel"]], 3)));
 
 test("ac7_radii", () =>
-  assert.deepEqual(["--r-sm", "--r-md", "--r-lg", "--r-pill"].map((k) => light.get(k)), ["6px", "8px", "12px", "999px"]));
+  assert.deepEqual(["--r-sm", "--r-md", "--r-lg", "--r-pill"].map((k) => root.get(k)), ["6px", "8px", "12px", "999px"]));
 
 test("ac8_nav_count_uses_signal_token", () => {
   const rule = blockAfter(css, css.indexOf("\n.nav-count {"));
@@ -112,34 +101,32 @@ test("ac9_mid_vs_hi_delta", () => {
       Z = f((r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883);
     return [116 * Y - 16, 500 * (X - Y), 200 * (Y - Z)];
   };
-  const [a, b] = [lab(hex(darkSwitch.get("--mid")!)), lab(hex(darkSwitch.get("--hi")!))];
+  const [a, b] = [lab(hex(root.get("--mid")!)), lab(hex(root.get("--hi")!))];
   assert.ok(Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) >= 10);
 });
 
 test("ac12a_chart_slots", () => {
   const cats = (t: Map<string, string>) => [1, 2, 3, 4].map((i) => t.get(`--cat-${i}`));
-  assert.deepEqual(cats(light), ["#2a78d6", "#c2407f", "#a87400", "#6250d6"]);
-  assert.deepEqual(cats(darkSwitch), ["#3987e5", "#d55181", "#c98500", "#9085e9"]);
-  assert.deepEqual(cats(darkMedia), ["#3987e5", "#d55181", "#c98500", "#9085e9"]);
+  assert.deepEqual(cats(root), ["#3987e5", "#d55181", "#c98500", "#9085e9"]);
 });
 
 test("ac14_untouched_tokens", (t) => {
   let main: string;
   try { main = execSync("git show origin/main:frontend/src/index.css", { encoding: "utf8" }); }
   catch { t.skip("origin/main not fetched"); return; }
-  const before = themes(main);
+  // Compared with origin/main's root block, or, while main still has the dark blocks, with its dark values over its root block.
+  const mainRoot = vars(blockAfter(main, main.indexOf(":root {")));
+  const darkAt = main.indexOf(':root[data-theme="dark"]');
+  const before = new Map([...mainRoot, ...(darkAt >= 0 ? vars(blockAfter(main, darkAt)) : [])]);
   const keep = (m: Map<string, string>) => [...m].filter(([k]) =>
-    /^--(mid|neutral|accent-ink|accent-tint|text-(xs|sm|base|md|lg|xl)|s-[\w]+|shadow-(md|lg)|ease|dur)$/.test(k));
-  assert.deepEqual(keep(light), keep(before.light));
-  assert.deepEqual(keep(darkSwitch), keep(before.darkSwitch));
-  assert.deepEqual(keep(darkMedia), keep(before.darkMedia));
+    /^--(mid|neutral|accent-ink|text-(xs|sm|base|md|lg|xl)|s-[\w]+|shadow-(md|lg)|ease|dur)$/.test(k)).sort();
+  assert.deepEqual(keep(root), keep(before));
 });
 
 // Amber is the "waiting on a person" colour only: its literals live in the token blocks, nowhere else.
 test("amber_literals_only_in_token_blocks", () => {
-  const outside = css.replace(/:root\s*\{[\s\S]*?\n\}/, "").replace(/@media \(prefers-color-scheme: dark\)\s*\{[\s\S]*?\n\}/, "")
-    .replace(/:root\[data-theme="dark"\]\s*\{[\s\S]*?\n\}/, "");
-  assert.doesNotMatch(outside, /#d4a650|#85601a|212 166 80/i);
+  const outside = css.replace(/:root\s*\{[\s\S]*?\n\}/, "");
+  assert.doesNotMatch(outside, /#e0b25a|#d4a650|#85601a|224 178 90|212 166 80/i);
 });
 
 function onMain(t: { skip: (m: string) => void }, cmd: string): string | null {
@@ -175,9 +162,7 @@ const rule = (sel: string) => {
   return bodies.join("\n");
 };
 test("r2_ac1_run_token", () => {
-  assert.equal(light.get("--run"), "#2563c9");
-  assert.equal(darkSwitch.get("--run"), "#6cb4ff");
-  assert.equal(darkMedia.get("--run"), "#6cb4ff");
+  assert.equal(root.get("--run"), "#5fb0ff");
 });
 test("r2_ac2_run_contrast", () => both.forEach((t) => pairs(t, [["--run", "--panel"]], 4.5)));
 test("r2_ac14_hub_card_radius", () => assert.match(rule(".hub-card"), /border-radius:\s*var\(--r-lg\)/));
@@ -216,20 +201,20 @@ test("r3_ac10_mark_uses_await", () => {
 });
 test("r3_ac11_serif", () => assert.match(rule(".source-excerpt-page"), /font-family:\s*"Source Serif 4"/));
 test("r3_ac11b_paper_tokens", () => {
-  assert.equal(light.get("--paper"), "#ffffff");
-  assert.equal(light.get("--ink"), "var(--text)");
-  for (const d of [darkSwitch, darkMedia]) { assert.equal(d.get("--paper"), "#f5f2ea"); assert.equal(d.get("--ink"), "#1b1a17"); }
+  assert.equal(root.get("--paper"), "#f5f2ea");
+  assert.equal(root.get("--ink"), "#1b1a17");
   const r = rule(".source-excerpt-page");
   assert.ok(r.includes("var(--paper)") && r.includes("var(--ink)"));
 });
 test("r3_ac12_font_loaded", () =>
   assert.match(readFileSync(new URL("../index.html", import.meta.url), "utf8"), /Source\+Serif\+4/));
-// The card is light paper in both themes, so its mark uses the light-theme amber everywhere.
+// The card is light paper on the black page, so its mark uses the paper's own amber.
 test("r3_paper_mark_visible_in_dark", () => {
   const r = rule(".source-excerpt-page");
   assert.match(r, /--await:\s*var\(--paper-mark\)/);
   assert.match(r, /--await-edge:\s*var\(--paper-mark-edge\)/);
-  for (const b of [light, darkSwitch, darkMedia]) { assert.equal(b.get("--paper-mark"), "#f6ecd6"); assert.equal(b.get("--paper-mark-edge"), "#85601a"); }
+  assert.equal(root.get("--paper-mark"), "#f6ecd6");
+  assert.equal(root.get("--paper-mark-edge"), "#85601a");
 });
 
 // Night Desk release 4 rows r4_ac10–r4_ac11c and r4_waiting_link_wraps (card icon box, footer, waiting

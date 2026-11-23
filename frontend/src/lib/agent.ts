@@ -186,6 +186,25 @@ export function threadRows(plans: Plan[], asks: AskThread[], explorations: Explo
 /** The badge an exploration's card shows until a person accepts it (AC-49); none once accepted. */
 export const explorationBadge = (e: Pick<Exploration, "label">): string | null => (e.label === "accepted" ? null : "Exploratory: not reviewed");
 
+/** Only a done exploration a person accepted shows `Turn into a plan…` (Phase 6). */
+export const canTurnIntoPlan = (e: Pick<Exploration, "status" | "accepted_at">): boolean => e.status === "done" && e.accepted_at !== null;
+
+/** `Draft plan`: a draft plan from the exploration, with the brief typed in the field. Any failure resolves to its detail. */
+export async function draftPlanFromExploration(
+  e: Pick<Exploration, "id">, brief: string, request: (path: string, body: unknown) => Promise<Plan>,
+): Promise<{ ok: true; plan: Plan } | { ok: false; error: string }> {
+  try {
+    return { ok: true, plan: await request(`/api/agent/explorations/${encodeURIComponent(e.id)}/plan`, { brief }) };
+  } catch (err) {
+    return { ok: false, error: askErrorText(err) };
+  }
+}
+
+/** Where focus goes in the exploration card after `Draft plan` or `Cancel`: `open` the "Turn into a plan…" button,
+ * `error` the refusal under the field, `null` nowhere in the card (a drafted plan's brief takes it). */
+export type FocusAfter = "open" | "error" | null;
+export const focusAfterDraft = (out: { ok: boolean }): FocusAfter => (out.ok ? null : "error");
+
 type Cell = string | number | boolean | null;
 
 /** An exploration's result as a table when it is a non-empty list of flat objects (every value a string, number,

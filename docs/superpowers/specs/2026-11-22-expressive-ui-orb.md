@@ -1,6 +1,10 @@
 # Expressive ARP: the Orb, a black look, pixel titles and status that moves
 
 Status: **approved by the owner on 22 Nov 2026** (button in the spec session, after two spec-critic rounds; decisions D1 to D8 as recommended).
+Amended on 23 Nov 2026 (fixture R3; AC-44 and AC-79 use runs R1 and R3): runs R1 and R2 together leave no running
+card, because R2's `theme` run also makes R&D Lab wait.
+Amended again on 23 Nov 2026: the list of new signal-colour uses under `## Supersedes` now names the hero's
+"items need you" link, which the Design section already sets in that colour.
 Slug: `expressive-ui-orb`
 Risk: this spec PR is `risk:low`. The build is 3 PRs (see `## Slices`), each `risk:normal`.
 Size: M
@@ -419,8 +423,8 @@ change is listed in that PR.
   two dark blocks or a value in the token table above. `frontend/tests/nightDeskTokens.test.ts` then pins the one
   token block; its contrast tests keep their thresholds and run on that block. Slice 1. Its
   `ac13_amber_usage_unchanged` allow-list gains, in slices 2 and 3, the new uses of the signal colour and only
-  these: the rail's `wait` segment, the waiting glow of a start card, of a figure area and of a process panel,
-  and the drawing's status part.
+  these: the start page hero's "items need you" link, the rail's `wait` segment, the waiting glow of a start
+  card, of a figure area and of a process panel, and the drawing's status part.
 - Night Desk landing and landing brand refresh (`2026-11-09-night-desk-landing-design.md`,
   `2026-11-14-landing-brand-refresh-design.md`): the dot animation, its phases, the serif headline, the
   see-through intro and the light `--orb` / `--brand-apex` values. In `frontend/tests/landing.test.ts`:
@@ -468,11 +472,15 @@ Terms used in the rows:
 - **No WebGL** means an init script makes `HTMLCanvasElement.prototype.getContext` return `null` for `webgl2`,
   `webgl` and `experimental-webgl`.
 - **Reduced motion** means the browser context emulates `prefers-reduced-motion: reduce`.
-- **Runs R0, R1, R2** mean the test answers every `GET /api/runs*` with `{"runs": [...]}`: R0 an empty list; R1
+- **Runs R0, R1, R2, R3** mean the test answers every `GET /api/runs*` with `{"runs": [...]}`: R0 an empty list; R1
   one run `{run_id: "r1", run_type: "emerging_themes", status: "running", review_count: 0, company_count: 480,
   completed_count: 212, failed_count: 0, …}`; R2 one run `{run_id: "r2", run_type: "theme", status:
-  "completed", review_count: 2, company_count: 5, completed_count: 5, failed_count: 0, …}`. Other manifest fields
-  take any valid value; `created_at` and `updated_at` are `2026-11-22T10:00:00Z`.
+  "completed", review_count: 2, company_count: 5, completed_count: 5, failed_count: 0, …}`; R3
+  one run `{run_id: "r3", run_type: "extraction", status: "completed", review_count: 2, company_count: 5,
+  completed_count: 5, failed_count: 0, params: {}, …}`. Other manifest fields take any valid value; `created_at` and
+  `updated_at` are `2026-11-22T10:00:00Z`. R2 makes both the Argus card and the R&D Lab card wait; R3 makes only
+  the Argus card wait. "Runs R1 and R3" is the list of both runs: the R&D Lab card runs (rail `now`, `idle`,
+  `idle`, `idle`) and the Argus card waits (rail `wait`, `idle`).
 - **Waiting W** means the test answers `GET /api/waiting` with `{"review": 2, "decisions": 0, "ballots": 0,
   "total": 2}`; **W0** with all four at 0.
 - **The R&D Lab card** and **the Argus card** are the start-page links whose accessible names start "R&D Lab."
@@ -564,7 +572,7 @@ Terms used in the rows:
 | AC-41 | runs R2 | open `#/home` | the Argus card's rail has two `data-seg` elements reading `wait`, `idle`, and the card shows "Waiting on you" | holdout |
 | AC-42 | runs R1 | open `#/home` | on the R&D Lab card, the `now` segment's `::before` has a computed `animation-name` other than `none` with `animation-iteration-count` `infinite`, and the three `idle` segments and their pseudo-elements have `animation-name` `none` | holdout |
 | AC-43 | runs R2 | open `#/home` | on the Argus card, the `wait` segment has a computed `animation-name` other than `none` with `animation-iteration-count` `infinite` | holdout |
-| AC-44 | runs R1 and R2, reduced motion | open `#/home` | every `data-seg` element and its `::before` and `::after` have computed `animation-name` `none` | holdout |
+| AC-44 | runs R1 and R3, reduced motion | open `#/home` | the R&D Lab card's rail has a `now` segment, the Argus card's a `wait` segment, and every `data-seg` element and its `::before` and `::after` have computed `animation-name` `none` | holdout |
 | AC-45 | no route override | open `#/home` | no element with class `hub-mark` is inside a start card | holdout |
 | AC-73 | runs R1 | open `#/home` | the R&D Lab card's `svg.ws-drawing` has `data-status="now"` and exactly one path with class `ws-accent-now`; the Argus card's has `data-status="none"` and no path whose class starts `ws-accent-` | holdout |
 | AC-74 | runs R1 | open `#/home` and record every attribute change of the R&D Lab card's `svg.ws-drawing` for 3 s | `data-status` ends as `now` and `data-moving` was never present (the first known status is drawn in place) | holdout |
@@ -572,7 +580,7 @@ Terms used in the rows:
 | AC-76 | AC-75 with reduced motion | same | `data-status` becomes `none` and `data-moving` is never present | holdout |
 | AC-77 | runs R1 at load, then R0 | watch the R&D Lab card across the change | only the highlighted box changes place; every other shape of the drawing and the four other drawings stay still | evaluator |
 | AC-78 | runs R0 | open `#/home` at widths 1440, 1000, 700 and 390 | the number of workspace cards sharing the first card's top edge is 5, 3, 2 and 1 | holdout |
-| AC-79 | runs R1 and R2 together | open `#/home`, compare with `cards-status-highlights.png` and the start page mock source | the running card glows blue and its rail segment visibly flows; the waiting card has an amber edge and its segment breathes; the Orb sits right of the greeting and matches the mock; no lines or particles travel into or out of the Orb | evaluator |
+| AC-79 | runs R1 and R3 | open `#/home`, compare with `cards-status-highlights.png` and the start page mock source | the R&D Lab card glows blue and its `now` segment visibly flows; the Argus card has an amber edge and its `wait` segment breathes; the Orb sits right of the greeting and matches the mock; no lines or particles travel into or out of the Orb | evaluator |
 
 ### Inside a workspace
 
