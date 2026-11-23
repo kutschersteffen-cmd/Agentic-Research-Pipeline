@@ -14,8 +14,8 @@ Approving this spec accepts all of them as recommended. Each one changes accepta
 | # | Decision | Recommended | If not |
 |---|---|---|---|
 | D1 | **How wide a step is at 100%.** Every step card is 180 px wide at 100%, the width a card has today in a four-step flow. A flow that needs more room than the page gives scrolls sideways instead of shrinking its cards. Today the seven cards of "Build a thematic portfolio" are about 150 px wide on its own page and under 100 px inside R&D Lab. | 180 px (AC-2, AC-3, AC-13, AC-14) | 220 px: roomier, but then four-step flows scroll too inside a workspace. |
-| D2 | **On a phone the flow is one row that scrolls sideways**, as on a laptop. Today the steps stack in one long column below 900 px. | One row at every width (AC-3, AC-5, AC-17) | The column stays below 900 px and the viewer applies only above it; AC-3 and AC-17 are struck. |
-| D3 | **Zoom runs from 50% to 200% and is remembered** in this browser, one value for every flow. | Remembered (AC-40 to AC-42) | Every visit starts at 100%; AC-40 to AC-42 are struck. |
+| D2 | **On a phone the flow is one row that scrolls sideways**, as on a laptop. Today the steps stack in one long column below 900 px. | One row at every width (AC-3, AC-5, AC-17) | The column stays below 900 px and the viewer applies only above it; AC-3, AC-17, AC-26, AC-35 and AC-37 are struck. |
+| D3 | **Zoom runs from 50% to 200% and is remembered** in this browser, one value for every flow. | Remembered (AC-40 to AC-42) | Every visit starts at 100%; AC-40 to AC-42 are struck, and rows with a stored-zoom Given reach that zoom with the buttons instead. |
 | D4 | **A flow opens on the step that needs attention**: the first step waiting on a person, else the first running, else the first failed is scrolled into the middle of the window. | Yes (AC-43 to AC-45) | Every flow opens at step 1; AC-43 and AC-45 are struck. |
 
 ## Why
@@ -51,7 +51,8 @@ lives in full screen, and a mock.
 
 - `ProcessFlow` in `frontend/src/pages/ProcessHub.tsx` is the only component that draws a process step flow. It
   renders in `WorkspaceOverview` (`#/stewardiq`, `#/transitionIntel`, `#/rdLab`, `#/dataHub`: one flow per
-  process, twelve processes of four to eight steps in `frontend/src/lib/processes.ts`) and in
+  process, ten processes of four to seven steps from `frontend/src/lib/processes.ts`; Argus's two processes are
+  not drawn by `ProcessFlow`) and in
   `frontend/src/pages/DesignStrategy.tsx` (`#/designStrategy`, "Build a thematic portfolio", seven steps, never
   folded).
 - Inside each `section.hub-process`, after #674: the step rail (`span.hub-step-rail[data-rail]`, one `data-seg`
@@ -106,7 +107,9 @@ connector rule that belongs to it.
 px wide, and everything in the flow scales by the same factor: text, paddings, the step number square, the gap
 and the connector lines. When the cards and gaps at that size are narrower than the window, the cards grow by
 equal shares to fill it, without scaling their text further. The rail above the flow and the details panel
-below it do not zoom and do not scroll: the rail keeps the full width of the panel.
+below it do not zoom and do not scroll: the rail keeps the full width of the panel. The layout inside a card
+is the same at every zoom: the existing 140 px container rule on `.hub-flow-item` compares the unzoomed card
+width, which is never below 180 px.
 
 **The zoom bar.** `div[data-flow-zoom-bar]` with `role="group"` and `aria-label="Zoom, <process title>"` is the
 first element of the steps block, before the rail, aligned right; inside a folded process it is inside the
@@ -126,7 +129,9 @@ least 44 × 44 px. "Zoom out" is disabled at 50%, "Zoom in" at 200%, "Reset zoom
 | wheel with ctrl or cmd held, pointer over the `ol` | the zoom changes by `−deltaY / 10`; the event is cancelled so the page does not zoom |
 | two fingers on the `ol` moving apart or together | zoom at the start of the gesture × (distance now / distance at the start) |
 
-Every result is clamped to 50 to 200. Wheel and pinch keep the point under the pointer, or between the
+Every result is clamped to 50 to 200. The zoom is kept unrounded; the reading, the stored value, the steps of
+buttons and keys and the disabled states all use the zoom rounded to a whole number (at 109.6 the reading is
+"110%" and "Zoom in" goes to 120). Keys with ctrl, cmd or alt held are left to the browser. Wheel and pinch keep the point under the pointer, or between the
 fingers, where it is, as far as the scroll range allows; buttons and keys keep the middle of the window. A
 wheel without ctrl or cmd scrolls as it does today. The pure rules live in `frontend/src/lib/flowZoom.ts`:
 `stepZoom(z, dir)`, `wheelZoom(z, deltaY)`, `fitZoom(innerWidth, steps)` and `readStoredZoom(raw)`, where
@@ -140,16 +145,19 @@ on the page keep their zoom until the page is opened again.
 **Moving along the flow.** Scrollbar, shift + wheel, a trackpad and one finger on a touch screen work natively.
 Left and right arrows scroll the focused `ol`. Tabbing to a step scrolls it into view. With a mouse, pressing
 the primary button anywhere in the `ol` and moving more than 5 px drags the flow (the content follows the
-pointer one to one, the cursor shows a closed hand, no text is selected), and the release does not open the
-step under it. A press that moves 5 px or less is a click, as today.
+pointer one to one in both directions, counted from the point of the press and not from where the 5 px were
+passed; the cursor shows a closed hand, no text is selected), and the release does not open the step under it. A press that moves 5 px or less is a click, as today.
 
-**Opening on the step that needs attention.** Once, when the runs have loaded for a mounted flow, the first
+**Opening on the step that needs attention.** Exactly once per mount, on the first render where the runs have
+loaded and, for a process with a stewardship stage step, the house flow has answered or failed, the first
 step in order whose state is `wait`, else the first `now`, else the first `failed`, is scrolled sideways to the
 middle of the window, as far as the scroll range allows. Only the `ol` scrolls, never the page, and later polls
-do not scroll it again. A folded flow does this when it is unfolded.
+do not scroll it again; if no step qualifies at that moment, nothing scrolls later. A folded flow does it on
+its first unfold only. The flow's `scroll-behavior` is `auto`.
 
-**Unchanged.** Step cards, their states and colours, the rail, the details panel and Esc, the fold, "Run
-process", the process bar, the legend.
+**Unchanged.** Step cards, their states and colours, the rail, the details panel and Esc, the fold. "Run
+process", the process bar and the legend sit outside the flow and their code is not touched, so they have no
+row here; their own specs' rows stay in the hidden regression set.
 
 ## Supersedes
 
@@ -181,7 +189,7 @@ Terms used in the rows:
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
-| AC-1 | | open `#/designStrategy` | the section holds one bar with exactly four buttons, named in order "Zoom out", "Zoom in", "Reset zoom", "Fit to width", and the reading is "100%" | holdout |
+| AC-1 | | open `#/designStrategy` | the section holds one bar with exactly four buttons, named in order "Zoom out", "Zoom in", "Reset zoom", "Fit to width" | holdout |
 | AC-2 | | open `#/designStrategy` | each of the seven `.hub-step` in the flow is 180 ± 1 wide | holdout |
 | AC-3 | 390 × 844 | open `#/designStrategy` | the seven `.hub-step` are each 180 ± 1 wide and their top edges are equal ± 1 | holdout |
 | AC-4 | | open `#/designStrategy` | the flow's `scrollWidth` is greater than its `clientWidth` | holdout |
@@ -191,7 +199,7 @@ Terms used in the rows:
 | AC-8 | | press card 1 | the next element sibling of the flow is a region named "Define details" | holdout |
 | AC-9 | stored zoom 200 | open `#/designStrategy` | the section's `[data-rail]` is not inside the flow, and it is as wide (± 1) as with no stored zoom | holdout |
 | AC-10 | 1440 × 900, stored zoom 50 | open `#/designStrategy` | the flow's `scrollWidth` equals its `clientWidth`, and the seven `.hub-step` are equally wide ± 1 and each wider than 91 | holdout |
-| AC-11 | runs R0 | open `#/rdLab` | no `[data-flow-zoom-bar]` is visible; after pressing "Show 7 steps" exactly one is | holdout |
+| AC-11 | runs R0 | open `#/rdLab` | no `[data-flow-zoom-bar]` is visible | holdout |
 | AC-12 | runs R1 | open `#/rdLab`, then `#/designStrategy` | the flow sits in a hairline frame inside its panel, the bar is right-aligned above the rail in mono type, the scrollbar is thin and dark, no step text is cut off or overlaps another card, and the last visible card is visibly cut by the frame so it reads as "more to the right" | evaluator |
 
 ### Zoom
@@ -212,7 +220,7 @@ Terms used in the rows:
 | AC-24 | | one `wheel` event with no modifier key and `deltaY = 100` over card 0 | the reading is "100%" | holdout |
 | AC-25 | | ctrl + wheel −300 with the pointer at the middle of card 3 | `document.elementFromPoint` at the pointer is still card 3 or inside it | holdout |
 | AC-26 | 390 × 844, a touch context | two touch points on the flow 100 px apart move to 150 px apart and lift (CDP `Input.dispatchTouchEvent`) | the reading is from "140%" to "160%" and `window.visualViewport.scale` is 1 | holdout |
-| AC-27 | | `fitZoom(1000, 7)`, `fitZoom(2000, 7)`, `fitZoom(300, 7)`, `stepZoom(104, 1)`, `stepZoom(104, -1)`, `wheelZoom(195, -100)`, `readStoredZoom("abc")` | 73, 100, 50, 110, 100, 200, 100 | unit |
+| AC-27 | | `fitZoom(1000, 7)`, `fitZoom(2000, 7)`, `fitZoom(300, 7)`, `stepZoom(104, 1)`, `stepZoom(104, -1)`, `wheelZoom(195, -100)`, `readStoredZoom("abc")`, `stepZoom(109.6, 1)`, `stepZoom(100.4, -1)` | 73, 100, 50, 110, 100, 200, 100, 120, 90 | unit |
 
 ### Keyboard and touch
 
@@ -261,11 +269,16 @@ Terms used in the rows:
 | AC-48 | | open `#/rdLab` at 390 × 844, and `#/transitionIntel` at 390 × 844 | `document.documentElement.scrollWidth` is at most 390 on both (expressive-ui-orb AC-80) | holdout |
 | AC-49 | card 1's details panel is open and the focus is on its "Open" link | press Escape | the panel is gone and card 1 has the focus (top-bar AC-37) | holdout |
 | AC-50 | runs R0, `GET /api/waiting` answered with all four counts 0, `localStorage["arp.orb"] = "still"` | open `#/rdLab`, press "Show 7 steps" | no visible element has a computed `color`, `background-color` or `border-top-color` of `rgb(224, 178, 90)` | holdout |
+| AC-52 | the flow is focused, a `keydown` listener on `window` | press Control+`=`, then Control+`-` | the reading stays "100%" and both events have `defaultPrevented === false` | holdout |
+| AC-53 | | open `#/designStrategy`, then hover and focus each of the bar's buttons in turn | no element of the bar ever has a computed `color`, `background-color` or `border-top-color` of `rgb(95, 176, 255)` (the running blue) or `rgb(224, 178, 90)` (amber) | holdout |
+| AC-54 | | in one `evaluate` call, click "Zoom in" and measure | card 0 is 198 ± 1 wide, the flow's `getAnimations({subtree: true})` is empty and its computed `scroll-behavior` is `auto` | holdout |
+| AC-55 | no stored zoom | open `#/designStrategy` | the reading is "100%" | holdout |
+| AC-56 | runs R0 | open `#/rdLab`, press "Show 7 steps" | exactly one `[data-flow-zoom-bar]` is visible | holdout |
 | AC-51 | the frontend suite | `cd frontend && npm run lint && npx tsc -b && npm test` | exits 0 | unit |
 
 Must not change: the rail and its segments (AC-46), the steps, their order and opening a step (AC-47), no
 sideways page scroll on a phone (AC-48), Esc closing the details panel (AC-49), amber only where a person must
-act (AC-50), the details panel as the next sibling of the flow (AC-8).
+act (AC-50), the browser's own zoom keys (AC-52), the details panel as the next sibling of the flow (AC-8).
 
 ## Slices
 
@@ -273,7 +286,7 @@ One PR, `risk:normal`, with `Spec: process-flow-viewer` in its description and e
 
 | Slice | PR contents | Rows |
 |---|---|---|
-| 1 | The flow window, zoom bar, zoom by button, key, wheel and pinch, drag, remembered zoom, opening on the step that needs attention; `lib/flowZoom.ts` | AC-1 to AC-51 |
+| 1 | The flow window, zoom bar, zoom by button, key, wheel and pinch, drag, remembered zoom, opening on the step that needs attention; `lib/flowZoom.ts` | AC-1 to AC-56 |
 
 ## Defaults decided without the owner
 
