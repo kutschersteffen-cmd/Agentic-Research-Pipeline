@@ -130,14 +130,36 @@ export function cardView(w: Workspace, runs: RunManifest[] | null, flow: Steward
   return { dots, now: line, status, label, awaits: firstWait >= 0 };
 }
 
-/** A running card's detail: "<step> · step i of n" for the first running step of the first running process.
- * Null when no process runs. */
-export function runningDetail(w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null): string | null {
+/** A running card's detail: "<step> · step i of n" for the first running step of the first running process, led by
+ * the process title when `named` (the workspace overview's status line). Null when no process runs. */
+export function runningDetail(w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null, named = false): string | null {
   if (!runs) return null;
   const p = w.processes.find((x) => processState(x, runs, flow) === "now");
   const i = p ? p.steps.findIndex((s) => stepState(s, runs, flow) === "now") : -1;
-  return p && i >= 0 ? `${p.steps[i].label} · step ${i + 1} of ${p.steps.length}` : null;
+  return p && i >= 0 ? `${named ? `${p.title} · ` : ""}${p.steps[i].label} · step ${i + 1} of ${p.steps.length}` : null;
 }
+
+/** The workspace overview's caption: "Workspace · 4 processes". */
+export const workspaceCaption = (w: Workspace): string => `Workspace · ${w.processes.length} ${w.processes.length === 1 ? "process" : "processes"}`;
+
+export type StepSeg = StepState | "planned" | "unknown";
+/** A process's step rail: one segment per step, in step order. A planned step is `planned`; before the runs have
+ * loaded every other step is `unknown`. */
+export const stepRail = (p: Process, runs: RunManifest[] | null, flow: StewardshipFlow | null, activity?: Activity | null): StepSeg[] =>
+  p.steps.map((s) => (s.planned ? "planned" : runs ? stepState(s, runs, flow, activity) : "unknown"));
+
+/** "c of m" under a running step: `completed_count` of `company_count` of the most recently updated running or pending
+ * run among the step's run types. Null without one, or when `m` is 0. */
+export function stepCount(step: Step, runs: RunManifest[] | null): string | null {
+  if (!step.runTypes || !runs) return null;
+  const r = runs
+    .filter((x) => ACTIVE_STATUSES.has(x.status) && step.runTypes!.includes(decisionRunType(x)))
+    .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
+  return r && r.company_count > 0 ? `${r.completed_count} of ${r.company_count}` : null;
+}
+
+/** The Ask ARP card's question box, only for someone who may ask: its accessible name and placeholder. */
+export const askBox = (w: Workspace, canAsk: boolean): { label: string } | null => (canAsk ? { label: `Ask about ${w.short ?? w.name}` } : null);
 
 /** The start page hero's sentence on working agents: a run that is running or pending is an agent at work. */
 export function workingSentence(runs: RunManifest[]): string {

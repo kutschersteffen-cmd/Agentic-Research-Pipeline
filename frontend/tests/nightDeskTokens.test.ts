@@ -144,7 +144,8 @@ test("ac13_amber_usage_unchanged", (t) => {
   // Deferred polish minors: a waiting Argus document row tints its whole phone card (the cells' amber, moved to the card).
   // Expressive UI Orb, slice 2: the rail's wait segment, the waiting glow of a start card and its figure area, the
   // drawing's status part, and the hero's "n items need you" link, which the spec sets in the signal colour.
-  const allowed = /\.hub-rail \[data-seg="wait"\] \{|@keyframes rail-breathe \{|\.hub-card-await \.hub-card-fig \{|\.ws-drawing \.ws-lit-wait \{|\.hub-hero-lead a \{|\.source-excerpt-page mark|\.hub-status-wait|\.hub-mark-wait|\.ws-accent-wait|\.hub-card-await \{|td\[data-status="needs-you"\]::before|tr\.argus-row-await \{|<rect x="26" y="2" width="10" height="10" fill="var\(--hi\)" \/>/;
+  // Slice 3: the waiting glow of a workspace's figure area and of a process panel.
+  const allowed = /\.hub-ws-fig\[data-tone="wait"\] \{|\.hub-process\[data-state="wait"\] \{|\.hub-rail \[data-seg="wait"\] \{|@keyframes rail-breathe \{|\.hub-card-await \.hub-card-fig \{|\.ws-drawing \.ws-lit-wait \{|\.hub-hero-lead a \{|\.source-excerpt-page mark|\.hub-status-wait|\.hub-mark-wait|\.ws-accent-wait|\.hub-card-await \{|td\[data-status="needs-you"\]::before|tr\.argus-row-await \{|<rect x="26" y="2" width="10" height="10" fill="var\(--hi\)" \/>/;
   const cmd = (ref: string) => `git grep -h -E "var\\(--(hi|hi-ink|await|await-edge)\\)" ${ref} -- src`;
   const main = onMain(t, cmd("origin/main"));
   const head = onMain(t, cmd("HEAD"));
