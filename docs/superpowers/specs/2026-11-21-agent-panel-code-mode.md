@@ -7,6 +7,7 @@ risk label.
 
 Status: **approved by the owner on 21 Nov 2026** (button in the spec session, after three spec-critic rounds; decisions D1–D8 as recommended). Slice 12 (write actions, D9, AC-60 to AC-67)
 added on 21 Nov 2026 at the owner's request, **approved by the owner on 21 Nov 2026** (button, after three spec-critic rounds).
+Amendment D14 (mini-apps without scripts; Phase 5, AC-54c to AC-57b) chosen by the owner on 23 Nov 2026, **approved by the owner on 23 Nov 2026** (button, after five spec-critic rounds).
 Phase 7 (Ask in the Agent screen, D10 to D13, AC-68 to AC-81, slices 13 and 14, amended AC-31 and AC-35) added on
 22 Nov 2026 at the owner's request ("Do it", project chat, on merging Ask ARP into the Agent screen), **approved by the owner on 22 Nov 2026** (button, after six spec-critic rounds).
 Source: thread "Explore Code Mode for ARP" (21 Nov 2026). The owner compared two proposals with today's Research Plans
@@ -34,6 +35,7 @@ Approving this spec accepts all eight as recommended. Each one changes acceptanc
 | D11 | A **bigger question grows inside its ask thread**: every answered ask has `Draft a plan` (slice 13) and `Explore` (slice 14). The new plan or exploration records `source_ask_id`, shows as a linked card under that answer, and keeps its own thread row for its approval and review cards. | Yes (AC-73 to AC-77b, AC-80 to AC-81b) | The whole plan stream (script, approval, steps) is embedded inside the ask thread, and the plan gets no row of its own. |
 | D12 | **The Ask panel goes.** Ctrl/⌘J and the palette's `Ask ARP: "…"` option open the Agent screen and send the text as a new ask thread. `POST /api/ask` stays for API callers, unchanged. | Yes (AC-70, AC-75 to AC-76b) | `POST /api/ask` is removed too; any script calling it breaks. |
 | D13 | The composer gets a **mode switch** `Ask`, `Plan`, `Explore` (Explore from slice 10), default `Ask`. | Yes (AC-35, AC-74, AC-78) | Default `Plan`, as the composer behaves today; a question typed in the composer then drafts a plan. |
+| D14 | **Mini-apps run no scripts** (amendment, 23 Nov 2026): HTML and CSS only, `sandbox=""`, follow-up questions as `Ask` chips outside the frame. Script in a sandboxed frame can send data out over WebRTC (TURN/STUN), which no CSP or sandbox flag stops in Chromium, and an in-page lockdown was bypassed (review of PR #666). | Yes (AC-54c to AC-57b) | Script runs in a dedicated Worker that returns HTML for a script-less frame: interactive, but more code and other rows. |
 
 ## Why
 
@@ -280,14 +282,30 @@ calls, and a badge `Exploratory: not reviewed` until accepted.
 ### Phase 5. Mini-apps (slice 11)
 
 A done exploration has a "Show as mini-app" action, which calls `POST /api/agent/explorations/{id}/miniapp`. One
-`LLMClient` call writes a single HTML file that reads its data
-from `window.ARP_DATA` (the exploration's stored result, injected by the screen) and may compute nothing it then labels
-as an ARP figure. It is stored on the exploration as `miniapp_html`, and the route returns the exploration. A
+`LLMClient` call (structured output `MiniApp(html: str, asks: list[str])`) writes a single HTML file with no scripts
+(D14): HTML and CSS only, with the exploration's stored result written into the page at generation time; tables,
+`<details>` and inline SVG are allowed, and it may compute nothing it then labels as an ARP figure. Next to the HTML it
+returns follow-up questions (`asks`); ARP drops empty and whitespace-only ones, then keeps the first 5 in order and cuts
+each to its first 200 characters. Before storing the HTML, ARP cleans it with a real HTML parser (not string matching)
+against an allowlist; every element not listed is removed with its content, every attribute not listed is removed:
+- elements: `html head body style div span p br hr h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr th td
+  caption colgroup col strong em b i u small sub sup code pre blockquote figure figcaption details summary`, and SVG
+  `svg g path rect circle ellipse line polyline polygon text tspan title desc`;
+- attributes: `class style title colspan rowspan open lang dir`, and on SVG elements `viewBox width height x y x1 y1 x2 y2
+  cx cy r rx ry d points fill stroke stroke-width opacity transform text-anchor font-size`.
+So the stored HTML has no script, link, form, `<base>`, `<meta>`, SVG `a`/`use`/`set`/`animate*`, and no `on*`
+attribute: nothing in it can navigate the frame out. Both are stored on new `agent_explorations` columns `miniapp_html` (text) and `miniapp_asks` (jsonb list of
+strings), null until generated, and the route returns the exploration with both fields. A second `POST` on the same exploration generates again (a new model call)
+and overwrites both columns; the action reads `Show as mini-app` until one exists and `Regenerate mini-app` after, and the
+Mini-app tab shows the stored one. A
 not-done exploration answers `409 {"detail": "only a done exploration can be shown as a mini-app"}`. The stage renders it in
-`<iframe sandbox="allow-scripts" srcdoc=...>`, with the HTML wrapped in a page whose CSP is
-`default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:`. The page accepts one
-message from the frame, `{"action": "ask", "text": str}`, which puts `text` in the composer without sending it; it
-ignores every other message.
+`<iframe sandbox="" srcdoc=...>`, with `srcdoc` exactly
+`<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:"><body>{html}</body>`. With an empty `sandbox` and no `script-src`, nothing in
+the frame runs, so it has no fetch or WebRTC (scripts would leak data over WebRTC, which no CSP or sandbox flag stops),
+and with links stripped it cannot navigate out: G7 by construction. The page listens to no message from the frame.
+Below the frame, outside it, the stage shows each of `miniapp_asks` as an `Ask` chip (a button with the question as its
+text); pressing one switches the composer to `Ask` mode and replaces the composer's text with the question, without
+sending it.
 
 ### Phase 6. Write action: exploration to draft plan (slice 12)
 
@@ -450,7 +468,11 @@ answers exactly as before (AC-70).
   `ARP_STANDINS_DIR` set. Exploration code comes from `$ARP_STANDINS_DIR/explore.json`, shaped
   `{"<question>": [{"code": "<js>"}, ...]}`: entry 1 answers the first attempt, entry 2 the retry. Each exploration
   model call logs `{"kind": "model", "name": "ExplorationCode", "question": "<question>"}` to `calls.jsonl`. Mini-app HTML from
-  `$ARP_STANDINS_DIR/miniapp.json`, shaped `{"<exploration question>": {"html": "<html>"}}`. Both are read on every call
+  `$ARP_STANDINS_DIR/miniapp.json`, shaped `{"<exploration question>": {"html": "<html>", "asks": ["<question>", ...]}}`; each mini-app call logs
+  `{"kind": "model", "name": "MiniApp", "question": "<question>"}`; a missing entry, a missing `html` or `asks`, or a
+  wrong type (`html` not a string, `asks` not a list of strings) raises
+  `no stand-in mini-app for <question> in miniapp.json` (HTTP 500). Stand-in output goes through the
+  same cleaning as model output. Both are read on every call
   through `arp/standins.py`, which logs each call to `calls.jsonl`.
 - **Superseded tests**: slice 1 adapts the step stubs in `backend/tests/test_plan_executor_pg.py` (`Stubs.step`) and the
   adapter cases in `backend/tests/test_plan_steps_pg.py` to start and finish, without changing what they assert. Slice 2
@@ -544,10 +566,24 @@ In rows, `\n` inside code means one newline character.
 | AC-53 | Must not change: the v1 checker rows AC-1 to AC-8 | `python3 -m pytest backend/tests/test_plan_script.py` | passes with no test edited | unit |
 | AC-54 | A done exploration; stand-in mini-app HTML | click `Show as mini-app` | the Mini-app tab opens and shows the frame; `GET /api/agent/explorations/{id}` has non-null `miniapp_html` | evaluator |
 | AC-54b | An exploration with `status: "failed"` | `POST /api/agent/explorations/{id}/miniapp` | HTTP 409, `{"detail": "only a done exploration can be shown as a mini-app"}` | holdout |
-| AC-54c | A done exploration with `miniapp_html` stored | open its Mini-app tab | the iframe's `sandbox` attribute is exactly `allow-scripts` | evaluator |
-| AC-55 | No other page open; stand-in mini-app HTML that calls `fetch("/api/plans")` and shows the outcome | open its Mini-app tab | the frame shows the fetch failed; the API access log has no `GET /api/plans` from opening the tab until 5 s later | evaluator |
-| AC-56 | Mini-app HTML that posts `{"action": "ask", "text": "why sector X?"}` | it loads | the composer contains `why sector X?`; no new thread appears | evaluator |
-| AC-57 | Mini-app HTML that posts `{"action": "run", "plan_id": "<demo>"}` | it loads | the demo plan's status is unchanged and the composer is empty | evaluator |
+| AC-54c | A done exploration with `miniapp_html` stored and `miniapp_asks: ["q1"]` | open its Mini-app tab | the iframe has a `sandbox` attribute whose value is `""` | evaluator |
+| AC-54d | Same | open its Mini-app tab | a button `q1` is in the stage, and the iframe's document has no element with text `q1` | evaluator |
+| AC-54e | A done exploration E whose question `Q` has a miniapp.json entry with HTML `<p>x</p>` and `asks` of 8 items in this order: `""`, `"  "`, `"a"`, `"b"`, a 250-character string `L`, `"c"`, `"d"`, `"e"` | `POST /api/agent/explorations/E/miniapp` | HTTP 200; `miniapp_asks` is `["a", "b", L[:200], "c", "d"]` | holdout |
+| AC-54f | A done exploration E whose question `Q` has a miniapp.json entry with `asks: []` and HTML `<base href="http://x/"><meta http-equiv="refresh" content="0;url=http://x/"><a href="http://x/" onclick="f()">go</a><svg><a xlink:href="http://x/"><text>s</text></a></svg><form action="http://x/"><button formaction="http://x/">b</button></form><SCRIPT>f()</SCRIPT><p class="k">ok</p>` | `POST /api/agent/explorations/E/miniapp` | HTTP 200; the stored `miniapp_html` contains `<p class="k">ok</p>` | holdout |
+| AC-54g | Same | same | the stored `miniapp_html` contains none of `<script`, `f()`, `<base`, `<meta`, `<a`, `<form`, `<button`, `onclick`, `href`, `action=` (case-insensitive) | holdout |
+| AC-54h | A done exploration E whose question `Q` has a miniapp.json entry with `asks: []` and HTML `<svg><a><set attributeName="href" to="http://127.0.0.1:9/x"/><text>go</text></a><use href="#z"/><animate attributeName="x"/></svg>` | `POST /api/agent/explorations/E/miniapp` | HTTP 200; the stored `miniapp_html` contains none of `<a`, `<set`, `<use`, `<animate` (case-insensitive) | holdout |
+| AC-54i | A done exploration E whose question `Q` has a miniapp.json entry with HTML `<p>x</p>` and `asks: []`, and no `MiniApp` line for `Q` in `calls.jsonl` yet | `POST /api/agent/explorations/E/miniapp` twice | both HTTP 200; `calls.jsonl` has exactly 2 lines `{"kind": "model", "name": "MiniApp", "question": "Q"}` | holdout |
+| AC-55 | No other page open; stand-in mini-app HTML `<p>x</p>`; the unstripped script calls `fetch("http://localhost:8000/api/plans")`, opens `new RTCPeerConnection({iceServers: [{urls: "stun:127.0.0.1:3478"}]})` with a data channel and an offer, and sets the page text to `script ran` | press `Show as mini-app`, which opens its Mini-app tab; the evaluator reads the iframe's current `srcdoc` and, from the page's console, sets it again with the unstripped script inserted right before `</body>`; wait 5 s | the frame never shows `script ran` | evaluator |
+| AC-55b | Same | same | the e2e stack's API log (`api.log`, uvicorn access lines) has no `GET /api/plans` from the `srcdoc` swap until 5 s later | evaluator |
+| AC-55c | Same | same | a UDP listener on 127.0.0.1:3478 receives no packet from the `srcdoc` swap until 5 s later | evaluator |
+| AC-55d | A done exploration E whose question `Q` has a miniapp.json entry with HTML `<p>keep</p><a target="_self" href="http://127.0.0.1:9/x">go</a>` | press `Show as mini-app`, which opens its Mini-app tab | the frame shows `keep`; the frame's document has no `a` element and no text `go` | evaluator |
+| AC-55e | A done exploration E whose question `Q` has a miniapp.json entry with HTML `<p>x</p>` and `asks: []`, and `miniapp_html` null | open E in the Agent screen | its action reads `Show as mini-app` | evaluator |
+| AC-55f | Same | press `Show as mini-app` and wait for the Mini-app tab to open | the action reads `Regenerate mini-app` | evaluator |
+| AC-56 | Stand-in mini-app with `asks: ["why sector X?"]`; composer in `Plan` mode and empty | press `Show as mini-app`, which opens its Mini-app tab, press the `why sector X?` chip below the frame | the composer contains `why sector X?` in `Ask` mode | evaluator |
+| AC-56b | Same | same, then wait 5 s | no `POST /api/agent/asks`, `POST /api/plans` or `POST /api/agent/explorations` in `api.log` from the press until 5 s later; the thread list has as many rows as before | evaluator |
+| AC-56c | Stand-in mini-app with `asks: ["q1"]`; composer holding `old` | press `Show as mini-app`, which opens its Mini-app tab, press the `q1` chip | the composer text is `q1` in `Ask` mode | evaluator |
+| AC-57 | Stand-in mini-app HTML `<p>x</p>`; the unstripped script posts `{"action": "ask", "text": "x"}` and `{"action": "run", "plan_id": "<demo>"}` to its parent; composer empty; demo plan `draft` | press `Show as mini-app`, which opens its Mini-app tab; the evaluator reads the iframe's current `srcdoc` and, from the page's console, sets it again with the unstripped script inserted right before `</body>`; wait 5 s | the demo plan's status is `draft` | evaluator |
+| AC-57b | Same | same | the composer text is `""` | evaluator |
 | AC-58 | Must not change: the backend suite, apart from the cases listed under Fixtures, each listed in the PR that edits it | `python3 -m pytest` | passes | unit |
 | AC-59 | Must not change: the frontend suite apart from the cases slices 6 and 13 retire openly, each listed in the PR | `npm test` | passes | unit |
 | AC-60 | Accepted exploration E with question `Q60`; stand-in planner | `POST /api/agent/explorations/E/plan` `{"brief": "fetch missing reports"}` | HTTP 200; `status: "draft"`, `approved_by: null`, `brief: "fetch missing reports"`, `source_exploration_id: E` | holdout |
@@ -644,7 +680,7 @@ Each PR puts `Spec: agent-panel-code-mode` and its `Rows:` line in its descripti
 | 8 | Stage tabs: Diff, Audit; 3 s refresh | `risk:normal` | AC-29c, AC-32, AC-33, AC-34, AC-59 |
 | 9 | `sandbox/` service with code checks, tool route and tokens, limits, `e2e_stack.sh` starts it; `agent_explorations` table and `POST /api/agent/explorations` taking code from `explore.json` entry 1 only (no retry yet) | `risk:high` (secrets, auth, schema) | AC-40, AC-41, AC-42, AC-43, AC-44, AC-45, AC-45b, AC-46, AC-47, AC-58 |
 | 10 | Explorations: model call and retry, list and get routes, accept, stream card, inbox rows, golden set | `risk:normal` | AC-39, AC-45c, AC-48, AC-49, AC-50, AC-51, AC-52, AC-58, AC-59 |
-| 11 | Mini-apps: route, generation, iframe, message bridge | `risk:high` (security boundary) | AC-54, AC-54b, AC-54c, AC-55, AC-56, AC-57, AC-58, AC-59 |
+| 11 | Mini-apps: `miniapp_html` and `miniapp_asks` columns, route, generation and HTML cleaning, script-less iframe, Ask chips | `risk:high` (security boundary, schema) | AC-54, AC-54b, AC-54c, AC-54d, AC-54e, AC-54f, AC-54g, AC-54h, AC-54i, AC-55, AC-55b, AC-55c, AC-55d, AC-55e, AC-55f, AC-56, AC-56b, AC-56c, AC-57, AC-57b, AC-58, AC-59 |
 | 12 | Write action: `source_exploration_id` column, `POST /api/agent/explorations/{id}/plan`, "Turn into a plan…" in the stream | `risk:high` (schema) | AC-52, AC-60, AC-60b, AC-61, AC-61b, AC-61c, AC-62, AC-62b, AC-63, AC-63b, AC-63c, AC-63d, AC-64, AC-65, AC-65b, AC-65c, AC-66, AC-66b, AC-67, AC-58, AC-59 |
 | 13 | Ask threads: `agent_asks` table, `POST /api/agent/asks`, `GET /api/agent/asks`, `GET /api/agent/ask-threads`, `source_ask_id` on plans, composer mode switch, ask thread stream with `Draft a plan`, top bar and Ctrl/⌘J open the Agent screen, Ask panel removed, inbox footer text, UI trim spec note | `risk:high` (schema) | AC-31, AC-35, AC-68, AC-68b, AC-68c, AC-68d, AC-68e, AC-68f, AC-69, AC-69b, AC-70, AC-71, AC-71b, AC-71c, AC-71d, AC-71e, AC-71f, AC-71g, AC-72, AC-72a, AC-72b, AC-72c, AC-72d, AC-72e, AC-73, AC-73b, AC-73c, AC-73d, AC-73e, AC-74, AC-74b, AC-74c, AC-75, AC-75a, AC-75b, AC-75c, AC-75d, AC-76, AC-76a, AC-76b, AC-76c, AC-76d, AC-76e, AC-77, AC-77a, AC-77b, AC-77c, AC-77d, AC-77e, AC-78, AC-79, AC-79b, AC-79c, AC-58, AC-59 |
 | 14 | `Explore` from an answer: `source_ask_id` on explorations, its `404`, `explorations` on asks, `Explore` button and link card | `risk:high` (schema) | AC-80, AC-80b, AC-81, AC-81b, AC-81c, AC-58, AC-59 |
