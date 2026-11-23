@@ -13,10 +13,10 @@ Approving this spec accepts all of them as recommended. Each one changes accepta
 
 | # | Decision | Recommended | If not |
 |---|---|---|---|
-| D1 | **How wide a step is at 100%.** Every step card is 180 px wide at 100%, the width a card has today in a four-step flow. A flow that needs more room than the page gives scrolls sideways instead of shrinking its cards. Today the seven cards of "Build a thematic portfolio" are about 150 px wide on its own page and under 100 px inside R&D Lab. | 180 px (AC-2, AC-3, AC-10, AC-14) | 220 px: roomier, but then four-step flows scroll too inside a workspace. |
+| D1 | **How wide a step is at 100%.** Every step card is 180 px wide at 100%, the width a card has today in a four-step flow. A flow that needs more room than the page gives scrolls sideways instead of shrinking its cards. Today the seven cards of "Build a thematic portfolio" are about 150 px wide on its own page and under 100 px inside R&D Lab. | 180 px (AC-2, AC-3, AC-13, AC-14) | 220 px: roomier, but then four-step flows scroll too inside a workspace. |
 | D2 | **On a phone the flow is one row that scrolls sideways**, as on a laptop. Today the steps stack in one long column below 900 px. | One row at every width (AC-3, AC-5, AC-17) | The column stays below 900 px and the viewer applies only above it; AC-3 and AC-17 are struck. |
-| D3 | **Zoom runs from 50% to 200% and is remembered** in this browser, one value for every flow. | Remembered (AC-36 to AC-38) | Every visit starts at 100%; AC-36 to AC-38 are struck. |
-| D4 | **A flow opens on the step that needs attention**: the first step waiting on a person, else the first running, else the first failed is scrolled into the middle of the window. | Yes (AC-39 to AC-41) | Every flow opens at step 1; AC-39 and AC-41 are struck. |
+| D3 | **Zoom runs from 50% to 200% and is remembered** in this browser, one value for every flow. | Remembered (AC-40 to AC-42) | Every visit starts at 100%; AC-40 to AC-42 are struck. |
+| D4 | **A flow opens on the step that needs attention**: the first step waiting on a person, else the first running, else the first failed is scrolled into the middle of the window. | Yes (AC-43 to AC-45) | Every flow opens at step 1; AC-43 and AC-45 are struck. |
 
 ## Why
 
@@ -259,7 +259,7 @@ Terms used in the rows:
 | AC-46 | runs R1 | open `#/designStrategy` | the section's rail has seven `data-seg` elements reading `now`, then six `idle` (expressive-ui-orb AC-82) | holdout |
 | AC-47 | runs R1 | open `#/rdLab` | in the section labelled "Build a thematic portfolio" the `.hub-step-title` texts read, in order, Spot, Define, Match, Review, Score, Construct, Report, and pressing `#step-thematic-0` sets its `aria-expanded` to `true` (expressive-ui-orb AC-87) | holdout |
 | AC-48 | | open `#/rdLab` at 390 × 844, and `#/transitionIntel` at 390 × 844 | `document.documentElement.scrollWidth` is at most 390 on both (expressive-ui-orb AC-80) | holdout |
-| AC-49 | card 1's details panel is open and the focus is in it | press Escape | the panel is gone and card 1 has the focus (top-bar AC-38) | holdout |
+| AC-49 | card 1's details panel is open and the focus is on its "Open" link | press Escape | the panel is gone and card 1 has the focus (top-bar AC-37) | holdout |
 | AC-50 | runs R0, `GET /api/waiting` answered with all four counts 0, `localStorage["arp.orb"] = "still"` | open `#/rdLab`, press "Show 7 steps" | no visible element has a computed `color`, `background-color` or `border-top-color` of `rgb(224, 178, 90)` | holdout |
 | AC-51 | the frontend suite | `cd frontend && npm run lint && npx tsc -b && npm test` | exits 0 | unit |
 
