@@ -1,6 +1,6 @@
 # Process flow viewer: scroll and zoom every process flow
 
-Status: **draft, waiting for the owner's approval**
+Status: **approved by the owner on 23 Nov 2026** (button in the spec session, after two spec-critic rounds; decisions D1 to D4 as recommended).
 Slug: `process-flow-viewer`
 Risk: this spec PR is `risk:low`. The build is 1 PR, `risk:normal`.
 Size: S
