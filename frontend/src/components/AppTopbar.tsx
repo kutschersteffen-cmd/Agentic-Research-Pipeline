@@ -7,7 +7,6 @@ import { useDisclosure } from "../lib/useDisclosure";
 import { useHouseFlow, useRuns } from "../pages/ProcessHub";
 import { ReviewerField } from "./ReviewerField";
 import { SignedInAs } from "./SignedInAs";
-import { ThemeSwitch } from "./ThemeSwitch";
 
 const mac = /Mac|iPhone|iPad/.test(navigator.userAgent);
 
@@ -43,7 +42,7 @@ function WorkspaceLinks({ current }: { current: string }) {
 }
 
 /** The top bar on every page but the landing page. Everything the old sidebar said about the person (reviewer
- * name, sign-in, theme) is in the user menu; the workspaces are in the Workspaces menu. */
+ * name, sign-in) is in the user menu; the workspaces are in the Workspaces menu. */
 export function AppTopbar({ active, canAsk, waiting, onSearch }: Props) {
   const me = useMe();
   const name = me?.name ?? "Account";
@@ -123,7 +122,6 @@ export function AppTopbar({ active, canAsk, waiting, onSearch }: Props) {
             <div ref={user.popRef} id={userPopId} className="start-topbar-pop" hidden={!user.open}>
               {!me && <ReviewerField hint={false} />}
               <SignedInAs />
-              <ThemeSwitch />
               <a href="#/arcade" onClick={() => user.setOpen(false)}>
                 Arcade
               </a>
