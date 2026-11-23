@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, StringConstraints
 from starlette.concurrency import run_in_threadpool
 
 from arp import ask
-from arp.agent.explorations import ExplorationStore, explore, plan_context
+from arp.agent.explorations import ExplorationStore, NotDone, explore, plan_context, write_miniapp
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store, settings_dep
 from arp.api.routers import plans
@@ -173,6 +173,8 @@ class Exploration(BaseModel):
     label: Literal["exploratory", "accepted"]
     source_ask_id: str | None
     source_ask: SourceAsk | None
+    miniapp_html: str | None
+    miniapp_asks: list[str] | None
 
 
 @router.post("/explorations", response_model=Exploration)
@@ -210,6 +212,24 @@ def accept_exploration(exploration_id: str, store: ExplorationStore = Depends(ex
                        principal: Principal = Depends(current_user)) -> dict:
     """A person accepts the exploration's result; its label becomes `accepted`."""
     found = store.accept(exploration_id, principal.user_id)
+    if found is None:
+        raise HTTPException(404, "exploration not found")
+    return found
+
+
+@router.post("/explorations/{exploration_id}/miniapp", response_model=Exploration)
+async def create_miniapp(exploration_id: str, store: ExplorationStore = Depends(exploration_store),
+                         settings: Settings = Depends(settings_dep)) -> dict:
+    """"Show as mini-app" (and "Regenerate mini-app"): one model call writes a script-free page and follow-up questions
+    for the done exploration's result, cleaned and stored on it."""
+    try:
+        found = await write_miniapp(store, settings, exploration_id)
+    except NotDone:
+        raise HTTPException(409, "only a done exploration can be shown as a mini-app") from None
+    except NotConfigured:
+        raise
+    except RuntimeError as exc:
+        raise HTTPException(500, str(exc)) from exc
     if found is None:
         raise HTTPException(404, "exploration not found")
     return found

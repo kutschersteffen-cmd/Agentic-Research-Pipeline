@@ -301,6 +301,7 @@ export const api = {
   listExplorations: () => request<Exploration[]>("/api/agent/explorations"),
   getExploration: (id: string) => request<Exploration>(`/api/agent/explorations/${encodeURIComponent(id)}`),
   acceptExploration: (id: string) => request<Exploration>(`/api/agent/explorations/${encodeURIComponent(id)}/accept`, { method: "POST" }),
+  createMiniapp: (id: string) => request<Exploration>(`/api/agent/explorations/${encodeURIComponent(id)}/miniapp`, { method: "POST" }),
   getBoard: (planId: string) => request<Board>(board(planId)),
   addBlock: (planId: string, body: { kind: string; title: string; source: unknown; origin?: string; unverified?: number[]; position?: number }) =>
     request<BoardBlock>(board(planId, "/blocks"), jsonBody("POST", body)),

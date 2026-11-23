@@ -193,6 +193,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/agent/explorations/{exploration_id}/miniapp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Miniapp
+         * @description "Show as mini-app" (and "Regenerate mini-app"): one model call writes a script-free page and follow-up questions
+         *     for the done exploration's result, cleaned and stored on it.
+         */
+        post: operations["create_miniapp_api_agent_explorations__exploration_id__miniapp_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/agent/explorations/{exploration_id}/plan": {
         parameters: {
             query?: never;
@@ -13904,6 +13925,10 @@ export interface components {
              * @enum {string}
              */
             label: "exploratory" | "accepted";
+            /** Miniapp Asks */
+            miniapp_asks: string[] | null;
+            /** Miniapp Html */
+            miniapp_html: string | null;
             /** Model */
             model: string | null;
             /** Question */
@@ -21923,6 +21948,37 @@ export interface operations {
         };
     };
     accept_exploration_api_agent_explorations__exploration_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exploration"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_miniapp_api_agent_explorations__exploration_id__miniapp_post: {
         parameters: {
             query?: never;
             header?: never;

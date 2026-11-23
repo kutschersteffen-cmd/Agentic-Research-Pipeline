@@ -14,6 +14,14 @@ from sqlalchemy.orm import Session
 
 from arp import standins
 from arp.agent import sandbox
+from arp.agent.miniapp_html import (
+    ATTRIBUTES,
+    HTML_ELEMENTS,
+    SVG_ATTRIBUTES,
+    SVG_ELEMENTS,
+    clean_miniapp_html,
+    trim_asks,
+)
 from arp.agent.models import AgentExploration
 from arp.api.auth import Principal
 from arp.config import Settings
@@ -97,6 +105,15 @@ class ExplorationStore:
                 return None
             if row.accepted_at is None:
                 row.accepted_by, row.accepted_at = user_id, datetime.now(UTC)
+        return self.get(exploration_id)
+
+    def set_miniapp(self, exploration_id: str, html: str, asks: list[str]) -> dict | None:
+        key = _uuid(exploration_id)
+        with Session(self.engine, expire_on_commit=False) as s, s.begin():
+            row = s.get(AgentExploration, key, with_for_update=True) if key else None
+            if row is None:
+                return None
+            row.miniapp_html, row.miniapp_asks = html, asks
         return self.get(exploration_id)
 
 
@@ -217,3 +234,61 @@ async def explore(store: ExplorationStore, settings: Settings, question: str, pr
     """Answers the question in the sandbox and stores the outcome, whatever it is."""
     code, model, cost, run = await run_question(settings, question, principal, llm=llm)
     return store.add(question=question, code=code, run=run, model=model, cost_usd=cost, source_ask_id=source_ask_id)
+
+
+class NotDone(Exception):
+    """Only a done exploration can be shown as a mini-app."""
+
+
+class MiniApp(BaseModel):
+    html: str = Field(description="One HTML file with no scripts: markup and CSS only, the data written into it.")
+    asks: list[str] = Field(description="Up to 5 follow-up questions a person may ask about this result.")
+
+
+MINIAPP_SYSTEM = f"""You write a small web page (a "mini-app") that shows the result of an exploration of ARP's data,
+and up to 5 follow-up questions a person may want to ask about it. Return them as `html` and `asks`.
+
+The page runs no scripts and can reach nothing: write HTML and CSS only, with the data below written into the page.
+Use tables, lists, <details> and inline SVG for charts. Before the page is shown, every element not listed here is
+removed together with everything inside it, and every attribute not listed here is removed:
+- HTML elements: {", ".join(sorted(HTML_ELEMENTS))}
+- SVG elements: {", ".join(sorted(SVG_ELEMENTS))}
+- Attributes: {", ".join(sorted(ATTRIBUTES))}; on SVG elements also {", ".join(sorted(SVG_ATTRIBUTES))}
+So never wrap content in <main>, <section>, <article>, <header>, <footer> or <nav>: use <div>. No scripts, links
+(<a>), forms, images, <iframe>, <meta>, <base> or external styles or fonts; style with <style> and style="...".
+
+Rules:
+- Show the data; you may sort it and chart it. Never compute a new figure and present it as an ARP figure: every number
+  labelled as ARP's comes straight from the data.
+- Set the page's own background and text colours, and keep it readable in a narrow column (about 360 px wide).
+- Each follow-up question in `asks` stands alone, in one sentence, at most 200 characters; ARP shows them as buttons
+  next to the page."""
+
+MINIAPP_CONTEXT_BYTES = 20_000  # the same cut as the planner's exploration context
+
+
+def miniapp_prompt(exploration: dict) -> str:
+    data = json.dumps(exploration["result"], indent=1, default=str)
+    if len(data.encode()) > MINIAPP_CONTEXT_BYTES:
+        data = data.encode()[:MINIAPP_CONTEXT_BYTES].decode(errors="ignore") + "\n… (cut)"
+    return f"Question: {exploration['question']}\n\nResult:\n```json\n{data}\n```"
+
+
+async def write_miniapp(store: ExplorationStore, settings: Settings, exploration_id: str, *,
+                        llm: LLMClient | None = None) -> dict | None:
+    """One model call writes the exploration's mini-app: its HTML, cleaned, as `miniapp_html`, and its follow-up
+    questions as `miniapp_asks`. None when there is no such exploration; raises NotDone for one that is not `done`."""
+    found = store.get(exploration_id)
+    if found is None:
+        return None
+    if found["status"] != "done":
+        raise NotDone
+    if settings.standins_dir is not None:
+        html, asks = standins.miniapp(settings.standins_dir, found["question"])
+    else:
+        from arp.llm.factory import build_llm_client
+
+        llm = llm or build_llm_client(settings)
+        out, _ = await llm.complete_structured(system=MINIAPP_SYSTEM, prompt=miniapp_prompt(found), output_model=MiniApp)
+        html, asks = out.html, out.asks
+    return store.set_miniapp(exploration_id, clean_miniapp_html(html), trim_asks(asks))

@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { canTurnIntoPlan, draftPlanFromExploration, explorationBadge, focusAfterDraft, resultTable, type FocusAfter } from "../lib/agent";
+import { miniappAction } from "../lib/miniapp";
 import type { Plan } from "../lib/plans";
 import type { Exploration } from "../types";
 
 /** An exploration in the Agent stream (spec agent-panel-code-mode, Phase 4): the question, the code (collapsed), the
  * result as a table when it is a list of flat objects (JSON otherwise), the tool calls, and a badge until accepted.
  * A done, accepted exploration offers "Turn into a plan…" (Phase 6), which drafts a plan and hands it to `onDrafted`. */
-export function ExplorationCard({ exploration: e, busy, onAccept, onDrafted }: {
-  exploration: Exploration; busy: boolean; onAccept: () => void; onDrafted: (plan: Plan) => void;
+export function ExplorationCard({ exploration: e, busy, onAccept, onMiniapp, onDrafted }: {
+  exploration: Exploration; busy: boolean; onAccept: () => void; onMiniapp: () => void; onDrafted: (plan: Plan) => void;
 }) {
   const badge = explorationBadge(e);
   // Accept removes its own button: once the card shows the acceptance, focus moves to that line (WCAG 2.4.3).
@@ -32,9 +33,10 @@ export function ExplorationCard({ exploration: e, busy, onAccept, onDrafted }: {
           <span className={`status-pill status-${e.status}`}>{e.status}</span>{" "}
           {badge ? <span className="agent-badge">{badge}</span> : <span ref={acceptedLine} tabIndex={-1} className="muted">Accepted by {e.accepted_by}</span>}
         </p>
-        {badge && (
+        {(badge || e.status === "done") && (
           <div className="toolbar">
-            <button disabled={busy} onClick={() => { accepting.current = true; onAccept(); }}>Accept</button>
+            {badge && <button disabled={busy} onClick={() => { accepting.current = true; onAccept(); }}>Accept</button>}
+            {e.status === "done" && <button id="agent-show-miniapp" className="secondary" disabled={busy} onClick={onMiniapp}>{miniappAction(e)}</button>}
           </div>
         )}
         {canTurnIntoPlan(e) && <TurnIntoPlan exploration={e} onDrafted={onDrafted} />}

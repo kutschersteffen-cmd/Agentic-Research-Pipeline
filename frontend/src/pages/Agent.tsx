@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { AgentBoard } from "../components/AgentBoard";
 import { AskCard } from "../components/AskCards";
 import { ExplorationCard } from "../components/ExplorationCard";
+import { MiniAppFrame } from "../components/MiniAppFrame";
 import { Orb } from "../components/Orb";
 import { RefinePicker, RefineStage, RefineStream, useRefine, useRefineThreads } from "../components/RefineThread";
 import { StepTabs } from "../components/StepTabs";
@@ -18,9 +19,10 @@ const POLL_MS = 3000;
 const NARROW = "(max-width: 899.98px)";
 
 type Drawer = "threads" | "stage" | null;
-type StageTab = "board" | "script" | "diff" | "audit";
+type StageTab = "board" | "script" | "diff" | "audit" | "miniapp";
 const STAGE_TABS: { id: StageTab; label: string }[] = [
   { id: "board", label: "Board" }, { id: "script", label: "Script" }, { id: "diff", label: "Diff" }, { id: "audit", label: "Audit" },
+  { id: "miniapp", label: "Mini-app" },
 ];
 
 const Chip = ({ status }: { status: string }) => <span className={`status-pill status-${status}`}>{chipLabel(status)}</span>;
@@ -80,6 +82,18 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const follow = useRef(true); // the stream follows new content down; the Refine picker is a list, not a chat
   const [jump, setJump] = useState(false);
   const refocus = useRef(false);
+  const miniappFocus = useRef<"tab" | "button" | null>(null); // where focus goes once Show as mini-app has answered
+  // The drawer Show as mini-app opened: focus was on <body> then (the button was disabled), so the dialog would give
+  // it back there on close. It goes back to the button instead. An Ask chip closes the drawer (it covers the composer)
+  // and sends focus to the composer that now holds the question.
+  const drawerReturn = useRef<"button" | "brief" | null>(null);
+  useEffect(() => {
+    if (drawer !== null || !drawerReturn.current) return;
+    const where = drawerReturn.current;
+    drawerReturn.current = null;
+    if (where === "brief") input.current?.focus();
+    else if (document.activeElement === document.body) document.getElementById("agent-show-miniapp")?.focus();
+  }, [drawer]);
   const current = useRef(selected); // the selection now, for a request that answers after it changed
   current.current = selected;
   const modes = composerModes(canAsk);
@@ -127,6 +141,14 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     refocus.current = false;
     input.current?.focus();
   }, [sending]);
+  // After Show as mini-app: the Mini-app tab where the stage shows (the drawer below 900 px), or the button on failure.
+  useEffect(() => {
+    if (busy || !miniappFocus.current) return;
+    const where = miniappFocus.current;
+    miniappFocus.current = null;
+    const scope = drawer === "stage" ? document.getElementById("agent-drawer") : document.querySelector(".agent-stage");
+    (where === "tab" ? scope?.querySelector<HTMLElement>('[data-tab="miniapp"]') : document.getElementById("agent-show-miniapp"))?.focus();
+  }, [busy, tab, drawer]);
   // A plan just drafted from an exploration opens at its brief, which takes focus (WCAG 2.4.3); the stream does not
   // follow it down until another thread is opened or the reader sends.
   const briefFirst = useRef<string | null>(null);
@@ -377,7 +399,19 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
         {close && <button type="button" className="link-button" onClick={close}>Close</button>}
       </div>
       <div id={`${id}-panel`} role="tabpanel" aria-label={STAGE_TABS.find((t) => t.id === tab)!.label}>
-        {tab === "board" ? (
+        {tab === "miniapp" ? (
+          exploration && explorationId && exploration.miniapp_html != null ? (
+            <MiniAppFrame key={exploration.id} title={`Mini-app: ${exploration.question}`} html={exploration.miniapp_html} asks={exploration.miniapp_asks ?? []}
+              onAsk={(q) => {
+                if (canAsk) setMode("Ask");
+                setText(q);
+                if (drawer === null) input.current?.focus();
+                else { drawerReturn.current = "brief"; setDrawer(null); }
+              }} />
+          ) : (
+            <p className="muted">{exploration && explorationId ? "Show as mini-app, on a done exploration, builds a small page for its result here." : "A done exploration can be shown here as a mini-app."}</p>
+          )
+        ) : tab === "board" ? (
           plan ? (
             <AgentBoard key={plan.id} planId={plan.id} planStatus={plan.status} idPrefix={id} />
           ) : (
@@ -429,6 +463,15 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
             refine.doc ? <RefineStream refine={refine} emptyLine={refineCtl.emptyLine} /> : <RefinePicker />
           ) : exploration && explorationId ? (
             <ExplorationCard key={exploration.id} exploration={exploration} busy={busy} onAccept={() => act(() => api.acceptExploration(exploration.id))}
+              onMiniapp={async () => {
+                const made = await act(() => api.createMiniapp(exploration.id));
+                miniappFocus.current = made ? "tab" : "button"; // the button was disabled while it ran: focus fell to <body>
+                if (!made) return;
+                setTab("miniapp");
+                if (!window.matchMedia(NARROW).matches) return;
+                setDrawer("stage");
+                drawerReturn.current = "button";
+              }}
               onDrafted={(p) => { briefFirst.current = briefFocus.current = p.id; loadList(); onSelect({ kind: "plan", id: p.id }); }} />
           ) : plan && planId ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />
