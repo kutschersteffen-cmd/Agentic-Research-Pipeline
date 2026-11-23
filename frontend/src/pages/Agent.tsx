@@ -4,6 +4,7 @@ import { AgentBoard } from "../components/AgentBoard";
 import { AskCard } from "../components/AskCards";
 import { ExplorationCard } from "../components/ExplorationCard";
 import { MiniAppFrame } from "../components/MiniAppFrame";
+import { Orb } from "../components/Orb";
 import { RefinePicker, RefineStage, RefineStream, useRefine, useRefineThreads } from "../components/RefineThread";
 import { StepTabs } from "../components/StepTabs";
 import {
@@ -443,6 +444,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   return (
     <div className="page agent-page">
       <div className="agent-head">
+        <Orb place="agent" working={asking !== null} />
         <h1>Agent</h1>
         <div className="agent-drawer-buttons">
           {drawerButton("threads", "Threads")}

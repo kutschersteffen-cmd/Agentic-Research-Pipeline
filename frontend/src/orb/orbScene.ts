@@ -285,7 +285,9 @@ export function createOrbScene(canvas: HTMLCanvasElement, context: WebGL2Renderi
   camera.position.set(0, 0, 12);
   camera.updateMatrixWorld();
   const FT = renderer.extensions.has("EXT_color_buffer_float") ? HalfFloatType : UnsignedByteType;
-  const rt = new WebGLRenderTarget(8, 8, { type: FT, samples: 4, depthBuffer: false });
+  // No MSAA: 4x multisampling more than doubled the frame time of high and medium in a software renderer, which
+  // kept slow machines from stepping down in time (AC-26); bloom and grain already soften the line edges.
+  const rt = new WebGLRenderTarget(8, 8, { type: FT, samples: 0, depthBuffer: false });
   const composer = new EffectComposer(renderer, rt);
   composer.addPass(new RenderPass(scene, camera));
   const bloom = new UnrealBloomPass(new Vector2(256, 256), 0.62, 0.62, 0.5);

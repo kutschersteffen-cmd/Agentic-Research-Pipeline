@@ -71,20 +71,23 @@ def test_status_pill_in_phone_card(page):  # noqa: F811
     assert page.evaluate("() => document.documentElement.scrollWidth") <= 390
 
 
-HEAD_DRAWING = ".page.hub > svg.ws-drawing"
+# expressive-ui-orb slice 3 supersedes the 120 px header drawing (app-wide-top-bar AC-30, AC-30b): the drawing sits in
+# a 300 x 240 px figure box right of the title, and on phones full width under the status line.
+HEAD_DRAWING = ".hub-ws-fig > svg.ws-drawing"
+FIG = ".hub-ws-fig"
 
 
 def test_ac30_drawing_right_of_title(page):  # noqa: F811
     _open(page, "/#/stewardiq")
     assert page.locator(".page svg.ws-drawing").count() == 1
-    d, h1 = _box(page.locator(HEAD_DRAWING)), _box(page.locator(".page > h1"))
-    assert abs(d["width"] - 120) <= 1, d
+    d, h1 = _box(page.locator(FIG)), _box(page.locator(".page > h1"))
+    assert abs(d["width"] - 300) <= 1, d
     assert d["x"] >= h1["x"] + h1["width"] - 0.5, (d, h1)
 
 
-def test_ac30b_drawing_hidden_on_phone(page):  # noqa: F811
+def test_ac30b_drawing_shown_on_phone(page):  # noqa: F811
     _open(page, "/#/stewardiq", 390, 844)
-    assert _style(page.locator(HEAD_DRAWING), "display") == "none"
+    assert _style(page.locator(HEAD_DRAWING), "display") != "none"
 
 
 def test_ac31_wait_accent(page):  # noqa: F811
@@ -107,14 +110,14 @@ def _overlap(a, b):
 @pytest.mark.parametrize("width", [1100, 1280, 1440])
 def test_drawing_clears_intro(page, width):  # noqa: F811
     _open(page, "/#/stewardiq", width, 900)
-    d, intro = _box(page.locator(HEAD_DRAWING)), _box(page.locator(".page > h1 + p"))
+    d, intro = _box(page.locator(FIG)), _box(page.locator(".page > h1 + p"))
     assert intro["x"] + intro["width"] <= d["x"] + 0.5, (intro, d)
 
 
 @pytest.mark.parametrize("width", [900, 1024])
 def test_drawing_clears_head_tablet(page, width):  # noqa: F811
     _open(page, "/#/stewardiq", width, 900)
-    d = _box(page.locator(HEAD_DRAWING))
-    assert d and abs(d["width"] - 120) <= 1
+    d = _box(page.locator(FIG))
+    assert d and abs(d["width"] - 300) <= 1
     for sel in (".page > h1", ".page > h1 + p"):
         assert not _overlap(_box(page.locator(sel)), d), sel

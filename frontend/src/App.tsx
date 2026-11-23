@@ -223,6 +223,8 @@ function App() {
   // Ask ARP lives on the Agent screen: Ctrl/⌘J focuses its composer, the palette's ask sends a new ask thread there.
   const [agentFocus, setAgentFocus] = useState(0);
   const [agentAsk, setAgentAsk] = useState<{ id: number; question: string } | null>(null);
+  // The palette's ask and a workspace's Ask ARP box send a new ask thread on the Agent screen.
+  const askAgent = (question: string) => { setAgentAsk({ id: Date.now(), question }); navigate("agent"); };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -283,7 +285,7 @@ function App() {
         <CommandPalette
           items={[...PALETTE_ITEMS, ...recentRuns.map(runItem)]}
           onClose={() => setPaletteOpen(false)}
-          onAsk={canAsk ? (question) => { setAgentAsk({ id: Date.now(), question }); navigate("agent"); } : undefined}
+          onAsk={canAsk ? askAgent : undefined}
         />
       )}
       <main className="app-main" id="main" tabIndex={-1}>
@@ -301,7 +303,7 @@ function App() {
         {active === "home" && <StartPage />}
         {active === "argus" && route.params[0] === "new" && <ArgusNew preset={route.params[1] ?? null} />}
         {active === "argus" && route.params[0] !== "new" && (route.params[0] ? <ArgusFlow key={route.params[0]} flowId={route.params[0]} step={stepFromUrl(route.params[1])} /> : <ArgusStart />)}
-        {isWorkspace(active) && active !== "argus" && !(active === "stewardiq" && route.params[0] === "cockpit") && <WorkspaceOverview key={active} id={active} />}
+        {isWorkspace(active) && active !== "argus" && !(active === "stewardiq" && route.params[0] === "cockpit") && <WorkspaceOverview key={active} id={active} onAsk={canAsk ? askAgent : undefined} />}
         {active === "stewardiq" && route.params[0] === "cockpit" && <StewardCockpit key={route.params[1] ?? "today"} asOf={route.params[1]} />}
         {active === "search" && <Search />}
         {active === "securityMaster" && <SecurityMaster />}

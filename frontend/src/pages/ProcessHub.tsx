@@ -5,8 +5,9 @@ import { ACTIVE_STATUSES, REVIEWABLE_RUN_TYPES, decisionRunType, waitingCount } 
 import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { useMe } from "../lib/reviewer";
-import { STATE_LABEL, cardView, failedProcesses, flowTrack, openCount, processState, stepActivity, stepState, stepStatusLine, type Activity, type StepState } from "../lib/workspaceCard";
+import { STATE_LABEL, askBox, cardView, heroCaption, needsYouText, runningDetail, workingSentence, workspaceCaption, failedProcesses, flowTrack, openCount, processState, stepActivity, stepCount, stepRail, stepState, stepStatusLine, type Activity, type StepState } from "../lib/workspaceCard";
 import { Drawing, WorkspaceDrawing } from "../components/WorkspaceDrawing";
+import { Orb } from "../components/Orb";
 import { cockpitDrawing } from "../lib/workspaceDrawing";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
@@ -57,30 +58,34 @@ export function useActivity(): Activity | null {
   return activity;
 }
 
-/** A workspace as a card: a way into it. A drawing, its purpose, one square per process and one
- * status line naming what matters now; the label carries each process's state for screen readers. */
-function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+/** A workspace as a card: a way into it. A drawing whose status part lights up, its purpose, a rail with one
+ * segment per process and one status line naming what matters now; the label carries each process's state for
+ * screen readers. */
+function WorkspaceCard({ w, runs, flow, known }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null; known: boolean }) {
   const v = cardView(w, runs, flow, new Date());
-  const { word, tone, detail } = v.status;
+  const { word, tone } = v.status;
+  // Running: name the step and where it sits; every other detail stays as cardStatus() gives it.
+  const detail = (tone === "now" && runningDetail(w, runs, flow)) || v.status.detail;
   const n = w.processes.length;
+  const lit = tone === "wait" ? "wait" : tone === "now" ? "now" : null;
   return (
-    <a className={`hub-card${tone === "wait" ? " hub-card-await" : ""}`} href={`#/${w.id}`} aria-label={v.label}>
+    <a className={`hub-card${tone === "wait" ? " hub-card-await" : tone === "now" ? " hub-card-run" : ""}`} href={`#/${w.id}`} aria-label={v.label}>
       <span className="hub-card-fig">
         <span className="hub-card-cap">{`${n} ${n === 1 ? "process" : "processes"}`}</span>
-        <WorkspaceDrawing id={w.id} accent={tone === "wait" ? "wait" : tone === "now" ? "now" : null} />
+        <WorkspaceDrawing id={w.id} accent={lit} known={known} />
       </span>
       <span className="hub-card-body">
         <span className="hub-card-name">{w.name}</span>
         <span className="hub-card-purpose">{w.purpose}</span>
         <span className="hub-card-status">
-          <span className="hub-marks" aria-hidden="true">
-            {v.dots.map((d, i) => (
-              <span key={i} className={`hub-mark hub-mark-${d}`} />
-            ))}
-          </span>
-          <span>
+          <span className="hub-card-line">
             <span className={`hub-status-${tone}`}>{word}</span>
-            {detail && <span className="hub-status-detail"> · {detail}</span>}
+            {detail && <span className="hub-status-detail">{detail}</span>}
+          </span>
+          <span className="hub-rail" data-rail aria-hidden="true">
+            {v.dots.map((d, i) => (
+              <span key={i} data-seg={d} />
+            ))}
           </span>
         </span>
       </span>
@@ -88,26 +93,53 @@ function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | 
   );
 }
 
+/** `GET /api/waiting`'s total, loaded once; null until it answers or when it fails. */
+function useWaitingTotal() {
+  const [total, setTotal] = useState<number | null>(null);
+  useEffect(() => {
+    api.getWaiting().then((w) => setTotal(w.total), () => setTotal(null));
+  }, []);
+  return total;
+}
+
 const COCKPIT_SHAPES = cockpitDrawing();
 
 export function StartPage() {
   const { runs, error, retry } = useRuns();
-  const { flow } = useHouseFlow();
+  const { flow, error: flowError } = useHouseFlow();
+  // A drawing's first known status is drawn in place. A workspace that reads the stewardship flow waits for it
+  // too, so its answer arriving after the runs does not read as a change.
+  const flowSettled = flow !== null || flowError !== null;
+  const drawnKnown = (w: Workspace) => runs !== null && (flowSettled || !w.processes.some((p) => p.steps.some((s) => s.stage)));
   const reviewer = useMe()?.name ?? "";
+  const [opened] = useState(() => new Date());
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const name = reviewer.trim();
   const known = runs !== null;
+  const waiting = useWaitingTotal();
+  // Unknown counts are left out, never shown as zero.
+  const working = known && !error ? workingSentence(runs) : null;
+  const needs = needsYouText(waiting);
 
   return (
     <div className="page hub hub-start">
       <header className="hub-hero">
-        <h1>
-          <span className="hub-hero-greet">
+        <div className="hub-hero-copy">
+          <p className="hub-hero-cap">{heroCaption(opened)}</p>
+          <h1>
             {greeting}
             {name ? `, ${name}` : ""}.
-          </span>
-        </h1>
+          </h1>
+          <p className="hub-hero-lead" data-hero-lead>
+            {working}
+            {working && needs ? " " : ""}
+            {needs && <a href="#/review">{needs}</a>}
+          </p>
+        </div>
+        <div className="hub-hero-stage">
+          <Orb place="start" label />
+        </div>
       </header>
       {error && (
         <p className="error-text" role="alert">
@@ -119,7 +151,7 @@ export function StartPage() {
       )}
       <div className="hub-cards">
         {WORKSPACES.map((w) => (
-          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} />
+          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} known={drawnKnown(w)} />
         ))}
       </div>
       {/* Not a workspace card: one StewardIQ screen with its own way in, so the cards stay five workspaces. */}
@@ -173,6 +205,7 @@ export function ProcessFlow({ p, runs, flow, activity, foldable = true }: { p: P
   };
   const views = p.steps.map((s) => stepView(s, runs, flow, activity));
   const { reached, runInto } = flowTrack(views.map((v) => v.state));
+  const rail = stepRail(p, runs, flow, activity);
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== "Escape" || open === null) return;
     e.stopPropagation(); // Esc closes this panel only, not the Ask ARP panel listening on window
@@ -181,10 +214,16 @@ export function ProcessFlow({ p, runs, flow, activity, foldable = true }: { p: P
   };
   const steps = (
     <div onKeyDown={onKeyDown}>
+      {/* One segment per step (DESIGN.md, Status Rail); inside the fold, so a folded process shows none. */}
+      <span className="hub-rail hub-step-rail" data-rail aria-hidden="true">
+        {rail.map((seg, i) => (
+          <span key={i} data-seg={seg} />
+        ))}
+      </span>
       <ol className="hub-flow">
         {p.steps.map((s, i) => (
           <li key={`${s.tab}-${s.sub ?? ""}-${i}`} className={`hub-flow-item${i <= reached ? " reached" : ""}${runInto[i] ? " run-into" : ""}`}>
-            <StepCard s={s} i={i} p={p} view={views[i]} open={open === i} onToggle={() => toggle(i)} />
+            <StepCard s={s} i={i} p={p} view={views[i]} count={views[i].state === "now" ? stepCount(s, runs) : null} open={open === i} onToggle={() => toggle(i)} />
           </li>
         ))}
       </ol>
@@ -192,7 +231,7 @@ export function ProcessFlow({ p, runs, flow, activity, foldable = true }: { p: P
     </div>
   );
   return (
-    <section className="hub-process" aria-labelledby={`process-${p.id}`}>
+    <section className="hub-process" data-state={state ?? "unknown"} aria-labelledby={`process-${p.id}`}>
       <div className="section-heading">
         <h2 id={`process-${p.id}`}>{p.title}</h2>
         <span className="hub-process-meta">
@@ -292,7 +331,7 @@ function stepView(s: Step, runs: RunManifest[] | null, flow: StewardshipFlow | n
   return { state, line, last, stage, fromRuns: waiting > 0 };
 }
 
-function StepCard({ s, i, p, view, open, onToggle }: { s: Step; i: number; p: Process; view: StepView; open: boolean; onToggle: () => void }) {
+function StepCard({ s, i, p, view, count, open, onToggle }: { s: Step; i: number; p: Process; view: StepView; count: string | null; open: boolean; onToggle: () => void }) {
   const { state, line, last, stage } = view;
   if (s.planned) {
     return (
@@ -315,6 +354,7 @@ function StepCard({ s, i, p, view, open, onToggle }: { s: Step; i: number; p: Pr
           {s.optional && <span className="muted"> (optional)</span>}
         </span>
       </span>
+      {count && <span className="hub-step-count">{count}</span>}
       <span className={`hub-step-status hub-step-status-${line.tone}${line.tone === "wait" ? " hub-step-banner" : ""}`}>{line.text}</span>
       <span className="hub-step-about">{s.does}</span>
       {last && (
@@ -392,34 +432,71 @@ export const HandoffLegend = () => (
   </p>
 );
 
-/** A workspace: its processes, each drawn step by step, then every screen it
- * owns so a single step can be run by hand. */
-export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
+/** A workspace: a header (caption, pixel title, purpose, status line, the drawing in its figure box), an Ask ARP card
+ * with the Orb for those who may ask, then its processes as panels, each drawn step by step. */
+export function WorkspaceOverview({ id, onAsk }: { id: WorkspaceId; onAsk?: (question: string) => void }) {
   const w = WORKSPACES.find((x) => x.id === id)!;
   const { runs, error } = useRuns();
   const { flow, error: flowError } = useHouseFlow();
   const usesFlow = w.processes.some((p) => p.steps.some((s) => s.stage));
   const activity = useActivity();
-  // The header drawing lights up like the workspace's start-page card: waiting, running, or not at all.
-  const tone = cardView(w, runs, flow, new Date()).status.tone;
+  // The header lights up like the workspace's start-page card: waiting, running, or not at all.
+  const { word, tone, detail } = cardView(w, runs, flow, new Date()).status;
+  const shown = (tone === "now" && runningDetail(w, runs, flow, true)) || detail;
+  const lit = tone === "wait" ? "wait" : tone === "now" ? "now" : null;
+  const ask = askBox(w, onAsk !== undefined);
 
   return (
-    <div className="page hub">
+    <div className={`page hub hub-ws${ask ? " hub-ws-ask" : ""}`}>
+      <p className="hub-ws-cap">{workspaceCaption(w)}</p>
       <h1>{w.name}</h1>
       <p className="help-text">{w.purpose}</p>
-      <WorkspaceDrawing id={w.id} accent={tone === "wait" ? "wait" : tone === "now" ? "now" : null} />
-      {error && <p className="error-text" role="alert">Runs could not be loaded: {error}. Step states are unknown until the backend responds.</p>}
-      {usesFlow && flowError && <p className="error-text" role="alert">The stewardship flow could not be loaded: {flowError}. Stage numbers are unknown.</p>}
-      {failedProcesses(w, runs, flow, activity).map((title) => (
-        <p key={title} className="hub-failed-line">
-          Last run failed: {title}. <a href="#/history">Open Run history →</a>
-        </p>
-      ))}
-      {w.processes.map((p) => (
-        <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} activity={activity} />
-      ))}
-      <HandoffLegend />
+      <p className="hub-ws-status" data-ws-status>
+        <span className={`hub-mark hub-mark-${tone}`} aria-hidden />
+        <span className={`hub-status-${tone}`}>{word}</span> {shown && <span className="hub-status-detail">{shown}</span>}
+      </p>
+      <div className="hub-ws-fig" data-tone={lit ?? "none"}>
+        <WorkspaceDrawing id={w.id} accent={lit} known={runs !== null && (flow !== null || flowError !== null)} />
+      </div>
+      {ask && <WorkspaceAsk label={ask.label} onAsk={onAsk!} />}
+      <div className="hub-ws-body">
+        {error && <p className="error-text" role="alert">Runs could not be loaded: {error}. Step states are unknown until the backend responds.</p>}
+        {usesFlow && flowError && <p className="error-text" role="alert">The stewardship flow could not be loaded: {flowError}. Stage numbers are unknown.</p>}
+        {failedProcesses(w, runs, flow, activity).map((title) => (
+          <p key={title} className="hub-failed-line">
+            Last run failed: {title}. <a href="#/history">Open Run history →</a>
+          </p>
+        ))}
+        {w.processes.map((p) => (
+          <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} activity={activity} />
+        ))}
+        <HandoffLegend />
+      </div>
     </div>
+  );
+}
+
+/** Ask ARP inside a workspace: the Orb and one question box. Enter sends the trimmed question, as typed, as a new ask
+ * thread on the Agent screen; an empty box sends nothing. */
+function WorkspaceAsk({ label, onAsk }: { label: string; onAsk: (question: string) => void }) {
+  const [text, setText] = useState("");
+  return (
+    <aside className="hub-ask" aria-label="Ask ARP">
+      <div className="hub-ask-stage">
+        <span className="hub-ask-cap" aria-hidden="true">Ask ARP</span>
+        <Orb place="workspace" label />
+      </div>
+      <form
+        className="hub-ask-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const q = text.trim();
+          if (q) onAsk(q);
+        }}
+      >
+        <input type="text" aria-label={label} placeholder={label} value={text} onChange={(e) => setText(e.target.value)} autoComplete="off" enterKeyHint="send" />
+      </form>
+    </aside>
   );
 }
 
