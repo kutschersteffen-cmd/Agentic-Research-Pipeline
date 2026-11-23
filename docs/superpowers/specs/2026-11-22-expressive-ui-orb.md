@@ -3,6 +3,8 @@
 Status: **approved by the owner on 22 Nov 2026** (button in the spec session, after two spec-critic rounds; decisions D1 to D8 as recommended).
 Amended on 23 Nov 2026 (fixture R3; AC-44 and AC-79 use runs R1 and R3): runs R1 and R2 together leave no running
 card, because R2's `theme` run also makes R&D Lab wait.
+Amended again on 23 Nov 2026: the list of new signal-colour uses under `## Supersedes` now names the hero's
+"items need you" link, which the Design section already sets in that colour.
 Slug: `expressive-ui-orb`
 Risk: this spec PR is `risk:low`. The build is 3 PRs (see `## Slices`), each `risk:normal`.
 Size: M
@@ -421,8 +423,8 @@ change is listed in that PR.
   two dark blocks or a value in the token table above. `frontend/tests/nightDeskTokens.test.ts` then pins the one
   token block; its contrast tests keep their thresholds and run on that block. Slice 1. Its
   `ac13_amber_usage_unchanged` allow-list gains, in slices 2 and 3, the new uses of the signal colour and only
-  these: the rail's `wait` segment, the waiting glow of a start card, of a figure area and of a process panel,
-  and the drawing's status part.
+  these: the start page hero's "items need you" link, the rail's `wait` segment, the waiting glow of a start
+  card, of a figure area and of a process panel, and the drawing's status part.
 - Night Desk landing and landing brand refresh (`2026-11-09-night-desk-landing-design.md`,
   `2026-11-14-landing-brand-refresh-design.md`): the dot animation, its phases, the serif headline, the
   see-through intro and the light `--orb` / `--brand-apex` values. In `frontend/tests/landing.test.ts`:
