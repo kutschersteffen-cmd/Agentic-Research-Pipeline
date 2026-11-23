@@ -2,10 +2,11 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import { api } from "../api/client";
 import { AskCard } from "../components/AskCards";
 import { ExplorationCard } from "../components/ExplorationCard";
+import { RefinePicker, RefineStage, RefineStream, useRefine, useRefineThreads } from "../components/RefineThread";
 import { StepTabs } from "../components/StepTabs";
 import {
   answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  askingIn, nearEnd, needsYouLine, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
+  askingIn, nearEnd, needsYouLine, REFINE_COPY, REFINE_PLACEHOLDER, refineControls, refineDoc, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
 } from "../lib/agent";
 import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
 import { when } from "../lib/runs";
@@ -71,12 +72,20 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const atEnd = useRef(true); // the reader was near the stream's end at the last scroll
+  const follow = useRef(true); // the stream follows new content down; the Refine picker is a list, not a chat
   const [jump, setJump] = useState(false);
   const refocus = useRef(false);
   const current = useRef(selected); // the selection now, for a request that answers after it changed
   current.current = selected;
   const modes = composerModes(canAsk);
-  const copy = COMPOSER_COPY[mode];
+  // A Refine thread (spec refine-chat-design): its own stream, composer copy and stage; `#/agent/refine` is the picker.
+  const refineSel = selected?.kind === "refine" ? selected.id : null;
+  const refine = useRefine(refineSel ? refineDoc(refineSel) : null);
+  const refineThreads = useRefineThreads();
+  const refineCtl = refineControls(canAsk);
+  const copy = refine.doc ? REFINE_COPY : COMPOSER_COPY[mode];
+  const sending = refine.doc ? refine.busy : busy;
+  const closed = sending || (refine.doc !== null && refine.turns === null); // a Refine thread's history must load first
 
   const loadInbox = useCallback(() => {
     api.getAgentInbox().then(setInbox).catch((e: Error) => setError(`The inbox could not be loaded: ${e.message}.`));
@@ -109,21 +118,24 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   // A viewer's composer opens in Plan; once the signed-in user is known to be able to ask, it opens in Ask.
   useEffect(() => setMode(composerModes(canAsk).initial), [canAsk]);
   useEffect(() => {
-    if (busy || !refocus.current) return;
+    if (sending || !refocus.current) return;
     refocus.current = false;
     input.current?.focus();
-  }, [busy]);
+  }, [sending]);
   // A plan just drafted from an exploration opens at its brief, which takes focus (WCAG 2.4.3); the stream does not
   // follow it down until another thread is opened or the reader sends.
   const briefFirst = useRef<string | null>(null);
-  // Opening a thread shows its newest turn.
+  // Opening a thread shows its newest turn; the Refine picker opens at its heading, a just-drafted plan at its brief.
   useLayoutEffect(() => {
     if (briefFirst.current !== null && briefFirst.current !== planId) briefFirst.current = null;
-    atEnd.current = briefFirst.current === null;
+    const picker = refineSel === "";
+    const top = picker || briefFirst.current !== null;
+    atEnd.current = !top;
+    follow.current = !top;
     setJump(false);
     const el = scroller.current;
-    if (el && briefFirst.current === null) el.scrollTop = el.scrollHeight;
-  }, [planId, askId, explorationId]);
+    if (el && briefFirst.current === null) el.scrollTop = picker ? 0 : el.scrollHeight;
+  }, [planId, askId, explorationId, refineSel]);
   useEffect(() => {
     if (!plan || plan.id !== briefFirst.current) return;
     const h = document.getElementById("agent-brief-h");
@@ -136,10 +148,14 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     if (!el || !content.current) return;
     let prev = { height: el.scrollHeight, box: el.clientHeight };
     const ro = new ResizeObserver(() => {
+      if (!follow.current) {
+        prev = { height: el.scrollHeight, box: el.clientHeight };
+        return;
+      }
       const before = { scrollHeight: prev.height, clientHeight: prev.box };
       const next = streamResized({ wasNearEnd: wasNearEnd(atEnd.current, el.scrollTop, before), contentGrew: el.scrollHeight > prev.height, boxShrank: el.clientHeight < prev.box, nowNearEnd: nearEnd(el) });
       prev = { height: el.scrollHeight, box: el.clientHeight };
-      if (next.scrollToEnd && briefFirst.current === null) el.scrollTop = el.scrollHeight;
+      if (next.scrollToEnd) el.scrollTop = el.scrollHeight;
       if (next.jump !== null) setJump(next.jump);
     });
     ro.observe(content.current);
@@ -163,7 +179,10 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   // grows the stream, which then follows it down. (Scrolling here, before that turn lands, would fire a scroll event
   // that reads the grown stream as scrolled up.)
   function followOwnSend() {
-    briefFirst.current = null;
+    if (briefFirst.current !== null) {
+      briefFirst.current = null;
+      follow.current = true;
+    }
     atEnd.current = true;
     setJump(false);
   }
@@ -246,7 +265,16 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
 
   async function send() {
     const t = text.trim();
-    if (busy || !t) return;
+    if (closed || !t) return;
+    if (refine.doc) {
+      followOwnSend();
+      const sentFrom = refineSel;
+      const ok = await refine.send(t);
+      if (current.current?.kind !== "refine" || current.current.id !== sentFrom) return; // another thread is open now
+      if (ok) setText("");
+      refocus.current = true; // the text box stays disabled while the turn runs
+      return;
+    }
     if (mode === "Ask") {
       setText("");
       return ask(t, false);
@@ -274,7 +302,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     loadList();
   }
 
-  const rows = threadRows(plans, askThreads, explorations);
+  const rows = threadRows(plans, askThreads, explorations, refineThreads.threads);
   const isSelected = (r: ThreadRow) => r.kind === selected?.kind && r.id === selected.id;
   // `id` keeps the column's and the drawer's ids apart; `close` is set inside a drawer.
   const threads = (id: string, close?: () => void) => (
@@ -283,6 +311,13 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
         <h2 id={`${id}-h`}>Threads</h2>
         {close && <button type="button" className="link-button" onClick={close}>Close</button>}
       </div>
+      {refineThreads.error && <p className="error-text">{refineThreads.error}</p>}
+      {refineCtl.picker && (
+        <button type="button" className="secondary agent-refine-new" aria-current={refineSel === "" ? "true" : undefined}
+          onClick={() => { close?.(); onSelect({ kind: "refine", id: "" }); }}>
+          Refine a document
+        </button>
+      )}
       {rows.length === 0 ? (
         <p className="muted">No threads yet. Ask a question or write a brief to start one.</p>
       ) : (
@@ -314,7 +349,10 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
       {waiting !== null && <p className="agent-inbox-foot"><a href="#/review" onClick={close}>{needsYouLine(waiting)}</a></p>}
     </>
   );
-  const stage = (id: string, close?: () => void) => (
+  const closeButton = (close?: () => void) => close && <button type="button" className="link-button" onClick={close}>Close</button>;
+  const stage = (id: string, close?: () => void) => refineSel !== null ? (
+    <RefineStage refine={refine} canEdit={refineCtl.undo} idPrefix={id} head={closeButton(close)} />
+  ) : (
     <>
       <div className="agent-side-head">
         <StepTabs label="Stage" tabs={STAGE_TABS} active={tab} onSelect={(t) => setTab(t as StageTab)} />
@@ -356,13 +394,15 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
 
-      <div className="agent-shell">
+      <div className={refineSel !== null ? "agent-shell agent-shell-refine" : "agent-shell"}>
         <aside className="agent-side agent-threads" aria-labelledby="agent-threads-h">{threads("agent-threads")}</aside>
 
         <section className="agent-stream" aria-label="Stream">
           <div className="agent-scroll" ref={scroller} onScroll={onStreamScroll} tabIndex={0} role="region" aria-label="Conversation">
           <div ref={content}>
-          {exploration && explorationId ? (
+          {refineSel !== null ? (
+            refine.doc ? <RefineStream refine={refine} emptyLine={refineCtl.emptyLine} /> : <RefinePicker />
+          ) : exploration && explorationId ? (
             <ExplorationCard key={exploration.id} exploration={exploration} busy={busy} onAccept={() => act(() => api.acceptExploration(exploration.id))}
               onDrafted={(p) => { briefFirst.current = p.id; loadList(); onSelect({ kind: "plan", id: p.id }); }} />
           ) : plan && planId ? (
@@ -379,29 +419,34 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
               <button type="button" className="secondary" onClick={jumpToLatest}>Jump to latest</button>
             </div>
           )}
+          {(refineSel === null || (refine.doc && refineCtl.composer)) && (
           <form className="agent-composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
+            {!refine.doc && (
             <div className="agent-modes" role="group" aria-label="Mode">
               {modes.modes.map((m) => (
                 <button key={m} type="button" className="secondary" aria-pressed={mode === m} onClick={() => setMode(m)}>{m}</button>
               ))}
             </div>
+            )}
             <label className="visually-hidden" htmlFor="agent-brief">{copy.label}</label>
-            <textarea id="agent-brief" ref={input} rows={2} value={text} disabled={busy} onChange={(e) => setText(e.target.value)}
+            <textarea id="agent-brief" ref={input} rows={2} value={text} disabled={closed} onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
                 if (sendsComposer({ key: e.key, shiftKey: e.shiftKey, isComposing: e.nativeEvent.isComposing })) {
                   e.preventDefault();
                   send();
                 }
               }}
-              aria-describedby="agent-brief-help" maxLength={mode === "Ask" ? 1000 : undefined} placeholder={copy.placeholder} />
+              aria-describedby="agent-brief-help" maxLength={mode === "Ask" && !refine.doc ? 1000 : undefined} placeholder={refine.doc ? REFINE_PLACEHOLDER[refine.doc.kind] : copy.placeholder} />
             <div className="agent-composer-foot">
               <p id="agent-brief-help" className="muted">{copy.help}</p>
-              <button type="submit" disabled={busy || !text.trim()}>{busy ? copy.sending : copy.submit}</button>
+              <button type="submit" disabled={closed || !text.trim()}>{sending ? copy.sending : copy.submit}</button>
             </div>
+            {refine.doc && refine.error && <p className="error-text" role="alert">{refine.error}</p>}
           </form>
+          )}
         </section>
 
-        <aside className="agent-side agent-stage" aria-label="Stage">{stage("agent-stage")}</aside>
+        <aside className={refineSel !== null ? "agent-side agent-stage refine-stage" : "agent-side agent-stage"} aria-label="Stage">{stage("agent-stage")}</aside>
       </div>
       {drawer && (
         <DrawerDialog key={drawer} side={drawer === "threads" ? "left" : "right"} label={drawer === "threads" ? "Threads" : "Stage"} onClose={() => setDrawer(null)}>
