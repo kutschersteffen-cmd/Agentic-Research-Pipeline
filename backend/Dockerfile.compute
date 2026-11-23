@@ -1,5 +1,5 @@
-# The Cloud Run GPU image for arp/compute/server.py, deployed as arp-parse and arp-models by
-# scripts/gcp/deploy_compute.sh. It installs backend/ from the same pyproject.toml as a local install,
+# A GPU image for arp/compute/server.py (the arp-parse and arp-models services), listening on $PORT
+# (default 8080). It installs backend/ from the same pyproject.toml as a local install,
 # so docling reports the same parser_version(), then swaps the CPU onnxruntime for the GPU build.
 # The CUDA libraries come from the PyTorch wheels docling pulls in; Cloud Run provides the driver.
 # Models are baked in so a cold start downloads nothing. Build context: the repo root.
