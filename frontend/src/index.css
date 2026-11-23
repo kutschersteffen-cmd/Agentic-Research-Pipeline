@@ -2400,7 +2400,7 @@ dialog.agent-drawer::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .landing-cap { margin: 0; display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .landing-cap i { width: 8px; height: 8px; background: var(--brand-apex); }
 .landing-copy h1 { margin: 0; max-width: 13ch; font-family: var(--font-pixel); font-weight: 400; font-size: clamp(40px, 5.4vw, 80px); line-height: 0.96; letter-spacing: 0; }
-.landing-copy p { margin: 0; max-width: 34ch; font-size: 1.1875rem; line-height: 1.45; color: var(--muted); }
+.landing-copy h1 + p { margin: 0; max-width: 34ch; font-size: 1.1875rem; line-height: 1.45; color: var(--muted); }
 .landing-open { display: inline-flex; align-items: center; gap: var(--s-3); height: 48px; padding: 0 22px; border-radius: var(--r-md); background: var(--accent); color: var(--on-accent); font-weight: 600; font-size: var(--text-md); text-decoration: none; transition: transform var(--dur-slow) var(--ease-out); }
 .landing-open:hover { transform: translateY(-2px); }
 .landing-open:focus-visible { outline: 2px solid var(--run); outline-offset: 3px; }

@@ -5,8 +5,8 @@ import {
   OrbClock,
   PHASE_LABEL,
   QualityRule,
+  MAX_STEP,
   pinnedLevel,
-  startLevel,
   type OrbColour,
   type OrbLevel,
   type OrbPhase,
@@ -57,12 +57,14 @@ export function Orb({ place, intro = false, label = false, speaking = false, wor
     const el = root.current!;
     const agent = place === "agent";
     const pin = pinnedLevel(read(() => localStorage, PIN_KEY));
-    const level: OrbLevel = agent ? "low" : startLevel(pin, read(() => sessionStorage, SESSION_KEY));
+    // With a pin the session level is neither read nor written.
+    const stored = pin ?? pinnedLevel(read(() => sessionStorage, SESSION_KEY));
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (level === "still" || reduce) {
+    if (stored === "still" || reduce) {
       setMode("still");
       return;
     }
+    const level: OrbLevel = agent ? "low" : (stored ?? "high");
     const canvas = document.createElement("canvas");
     const gl = canvas.getContext("webgl2", { antialias: false, alpha: false, depth: true, stencil: false, powerPreference: "high-performance" });
     if (!gl) {
@@ -144,12 +146,14 @@ export function Orb({ place, intro = false, label = false, speaking = false, wor
       const ev = clock.tick(dt);
       if (ev.started) scene.transform();
       if (ev.committed) scene.commit();
-      scene.frame(Math.min(dt, 0.25), clock.phase, voice.current && (clock.phase === "speaking" || agent));
+      scene.frame(Math.min(dt, MAX_STEP), clock.phase, voice.current && (clock.phase === "speaking" || agent));
       if (!canvas.isConnected) {
         el.appendChild(canvas);
         setMode("live");
       }
       show(false);
+      // The hint shows only while the pointer is over the sphere and the Orb is idle, also when the phase changes under a still pointer.
+      if (hint.current) hint.current.hidden = !(over && clock.phase === "idle");
       raf = requestAnimationFrame(loop);
     };
     const run = () => {
@@ -172,6 +176,7 @@ export function Orb({ place, intro = false, label = false, speaking = false, wor
     });
     const ro = new ResizeObserver(() => scene?.resize(side(), dpr()));
 
+    let over = false;
     const local = (e: PointerEvent) => {
       const r = el.getBoundingClientRect();
       return [e.clientX - r.left, e.clientY - r.top] as const;
@@ -179,7 +184,7 @@ export function Orb({ place, intro = false, label = false, speaking = false, wor
     const onMove = (e: PointerEvent) => {
       if (!scene || agent) return;
       const [x, y] = local(e);
-      const over = scene.pointer(x, y, true);
+      over = scene.pointer(x, y, true);
       const h = hint.current;
       if (!h) return;
       h.hidden = !(over && clock.phase === "idle");
@@ -187,6 +192,7 @@ export function Orb({ place, intro = false, label = false, speaking = false, wor
       h.style.top = `${el.offsetTop + y}px`;
     };
     const onLeave = () => {
+      over = false;
       scene?.pointer(null, null, false);
       if (hint.current) hint.current.hidden = true;
     };
