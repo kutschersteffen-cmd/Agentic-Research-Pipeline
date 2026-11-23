@@ -271,7 +271,7 @@ Terms used in the rows:
 | AC-50 | runs R0, `GET /api/waiting` answered with all four counts 0, `localStorage["arp.orb"] = "still"` | open `#/rdLab`, press "Show 7 steps" | no visible element has a computed `color`, `background-color` or `border-top-color` of `rgb(224, 178, 90)` | holdout |
 | AC-52 | the flow is focused, a `keydown` listener on `window` | press Control+`=`, then Control+`-` | the reading stays "100%" and both events have `defaultPrevented === false` | holdout |
 | AC-53 | | open `#/designStrategy`, then hover and focus each of the bar's buttons in turn | no element of the bar ever has a computed `color`, `background-color` or `border-top-color` of `rgb(95, 176, 255)` (the running blue) or `rgb(224, 178, 90)` (amber) | holdout |
-| AC-54 | | in one `evaluate` call, click "Zoom in" and measure | card 0 is 198 ± 1 wide, the flow's `getAnimations({subtree: true})` is empty and its computed `scroll-behavior` is `auto` | holdout |
+| AC-54 | runs R0 | in one `evaluate` call, click "Zoom in", await two animation frames, then measure | card 0 is 198 ± 1 wide, the flow's `getAnimations({subtree: true})` is empty and its computed `scroll-behavior` is `auto` | holdout |
 | AC-55 | no stored zoom | open `#/designStrategy` | the reading is "100%" | holdout |
 | AC-56 | runs R0 | open `#/rdLab`, press "Show 7 steps" | exactly one `[data-flow-zoom-bar]` is visible | holdout |
 | AC-51 | the frontend suite | `cd frontend && npm run lint && npx tsc -b && npm test` | exits 0 | unit |
