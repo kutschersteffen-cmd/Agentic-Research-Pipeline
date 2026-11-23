@@ -2956,3 +2956,10 @@ dialog.agent-drawer::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .refine-frame { overflow: hidden; border: 1px solid var(--panel-border); border-radius: var(--r-sm); }
 .refine-frame iframe { border: 0; transform-origin: 0 0; display: block; background: #fff; }
 .refine-overflow { margin: var(--s-1_5) 0 0; font-size: var(--text-sm); font-weight: 600; color: var(--low); }
+/* A link styled as a secondary button (Refine in Agent beside a primary button); in a toolbar it lines up with buttons. */
+a.button-link.secondary, .toolbar a.button-link.secondary { background: transparent; color: var(--accent); border: 1px solid var(--panel-border); padding: 8px var(--s-4); }
+a.button-link.secondary:hover, .toolbar a.button-link.secondary:hover { background: var(--accent-tint); border-color: var(--accent); }
+.toolbar a.button-link.secondary { margin-top: var(--s-3); }
+/* The selected thumbnail is tinted, so it differs from the keyboard focus ring. */
+.refine-thumb.active, .refine-thumb.active:hover { background: var(--accent-tint); }
+.refine-thumb-hit:focus-visible { outline-offset: 3px; }

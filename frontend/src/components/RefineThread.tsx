@@ -18,11 +18,15 @@ const IDLE_MS = 3000; // otherwise: the document and the turn list, so other peo
 
 export type RefineDocRef = { kind: RefineKind; docId: string };
 
-/** Every document with a turn, re-read every 3 s, for the threads column. */
-export function useRefineThreads(onError: (message: string) => void): RefineThread[] {
+/** Every document with a turn, re-read every 3 s, for the threads column; `error` holds only the last read's failure. */
+export function useRefineThreads(): { threads: RefineThread[]; error: string | null } {
   const [threads, setThreads] = useState<RefineThread[]>([]);
-  usePoll(() => api.listRefineThreads().then(setThreads, (e: Error) => onError(`Refine threads could not be loaded: ${e.message}.`)), IDLE_MS);
-  return threads;
+  const [error, setError] = useState<string | null>(null);
+  usePoll(() => api.listRefineThreads().then(
+    (t) => { setThreads(t); setError(null); },
+    (e: Error) => setError(`Refine threads could not be loaded: ${e.message}.`),
+  ), IDLE_MS);
+  return { threads, error };
 }
 
 /** A turn as `GET /api/refine/turns/<id>` reads it, laid over the same turn from the list. */
@@ -43,11 +47,13 @@ export function useRefine(doc: RefineDocRef | null) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null); // under the composer
   const [undoError, setUndoError] = useState<string | null>(null); // under Undo
+  const [exportError, setExportError] = useState<string | null>(null); // in the export notice
   const [posting, setPosting] = useState(false);
   const [undoing, setUndoing] = useState(false);
   const [exporting, setExporting] = useState(false);
   const shown = useRef(key); // the thread on screen, so an answer for another one is dropped
   shown.current = key;
+  const latest = useRef(0); // the newest read of the turn list and document: an older one that answers later is dropped
 
   const running = turns ? refineRunning(turns) : null;
 
@@ -68,14 +74,15 @@ export function useRefine(doc: RefineDocRef | null) {
   const reload = useCallback(async () => {
     if (!doc) return;
     const asked = key;
+    const n = ++latest.current;
     try {
       const [list, show] = await Promise.all([api.listRefineTurns(doc.kind, doc.docId), fetchDoc()]);
-      if (shown.current !== asked) return;
+      if (shown.current !== asked || n !== latest.current) return;
       setTurns(list);
       show();
       setLoadError(null);
     } catch (e) {
-      if (shown.current === asked) setLoadError((e as Error).message);
+      if (shown.current === asked && n === latest.current) setLoadError((e as Error).message);
     }
   }, [doc?.kind, doc?.docId, fetchDoc]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -87,20 +94,24 @@ export function useRefine(doc: RefineDocRef | null) {
     setManifest(null);
     setError(null);
     setUndoError(null);
+    setExportError(null);
     setLoadError(null);
     void reload();
   }, [reload]);
 
+  // Also while nothing has loaded yet: a failed first read is tried again on the next tick.
   usePoll(async () => {
     if (!running) return reload();
     const asked = key;
+    const n = latest.current;
     try {
       // The turn is read before the document, so a finished reply never shows before its edits; both show together.
       const out = await api.getRefineTurn(running.turn_id);
       const show = await fetchDoc();
-      if (shown.current !== asked) return;
+      if (shown.current !== asked || n !== latest.current) return;
       setTurns((ts) => ts && ts.map((t) => withTurn(t, out)));
       show();
+      setLoadError(null);
       if (out.status !== "running") {
         announce(out.status === "failed" ? "The change failed." : "The change finished.");
         void reload(); // the list has the finished turn as stored
@@ -108,29 +119,31 @@ export function useRefine(doc: RefineDocRef | null) {
     } catch (e) {
       if (shown.current === asked) setLoadError((e as Error).message);
     }
-  }, running ? RUNNING_MS : IDLE_MS, doc !== null && turns !== null);
+  }, running ? RUNNING_MS : IDLE_MS, doc !== null);
 
   /** Posts an instruction; true once the API took it (202). */
   async function send(message: string): Promise<boolean> {
     if (!doc || !turns) return false;
+    const asked = key;
     setPosting(true);
     setError(null);
     const r = await api.refineWrite(`/api/refine/${doc.kind}/${encodeURIComponent(doc.docId)}/turns`, { message, history: refineHistory(turns) });
     if (r.status === 202) await reload(); // shows the new turn as `Working…`
-    else setError(refineErrorText(r.status, r.body));
+    else if (shown.current === asked) setError(refineErrorText(r.status, r.body));
     setPosting(false);
     return r.status === 202;
   }
 
   async function undo() {
     if (!doc) return;
+    const asked = key;
     setUndoing(true);
     setUndoError(null);
     const r = await api.refineWrite(`/api/refine/${doc.kind}/${encodeURIComponent(doc.docId)}/undo`);
     if (r.status === 200) {
       announce("Last turn undone.");
       await reload();
-    } else {
+    } else if (shown.current === asked) {
       setUndoError(refineErrorText(r.status, r.body));
     }
     setUndoing(false);
@@ -138,13 +151,14 @@ export function useRefine(doc: RefineDocRef | null) {
 
   async function exportDeck() {
     if (!doc || doc.kind !== "deck") return;
+    const asked = key;
     setExporting(true);
-    setUndoError(null);
+    setExportError(null);
     try {
       const m = await api.renderReport(doc.docId);
-      if (shown.current === `deck/${doc.docId}`) setManifest(m);
+      if (shown.current === asked) setManifest(m);
     } catch (e) {
-      setUndoError((e as Error).message);
+      if (shown.current === asked) setExportError((e as Error).message);
     } finally {
       setExporting(false);
     }
@@ -153,7 +167,7 @@ export function useRefine(doc: RefineDocRef | null) {
   const title = doc?.kind === "rfp" && project ? refineTitle("rfp", project.investor)
     : doc?.kind === "deck" && manifest ? refineTitle("deck", manifest.title || manifest.report_id) : null;
   return {
-    doc, turns, running, title, project, html, manifest, loadError, error, undoError, exporting,
+    doc, turns, running, title, project, html, manifest, loadError, error, undoError, exportError, exporting,
     /** The composer is closed while anyone's turn runs on the document, and while this one is being sent. */
     busy: posting || running !== null,
     undoing, send, undo, exportDeck,
@@ -218,7 +232,7 @@ export function RefineStream({ refine, emptyLine }: { refine: Refine; emptyLine:
                   : t.status === "failed" ? <p className="error-text">{t.error ?? "The change failed."}</p>
                   : <p>{t.reply}</p>}
                 {t.status === "undone" && <p><span className="chip refine-undone">undone</span></p>}
-                {t.status !== "running" && refineResultLines(doc.kind, t).map((line) => <p key={line} className="muted refine-line">{line}</p>)}
+                {t.status !== "running" && refineResultLines(doc.kind, t).map((line, i) => <p key={i} className="muted refine-line">{line}</p>)}
               </div>
             </li>
           ))}
@@ -228,9 +242,10 @@ export function RefineStream({ refine, emptyLine }: { refine: Refine; emptyLine:
   );
 }
 
-/** The stage of a Refine thread: `Undo last turn`, then one tab, `Document`, holding the live view. */
-export function RefineStage({ refine, canUndo, idPrefix, head }: { refine: Refine; canUndo: boolean; idPrefix: string; head?: ReactNode }) {
-  const { doc, turns, running, project, html, manifest, undoError, undoing, exporting } = refine;
+/** The stage of a Refine thread: `Undo last turn`, then one tab, `Document`, holding the live view. `canEdit` false (a
+ * viewer, D3) hides Undo and the export button: the export notice still shows. */
+export function RefineStage({ refine, canEdit, idPrefix, head }: { refine: Refine; canEdit: boolean; idPrefix: string; head?: ReactNode }) {
+  const { doc, turns, running, project, html, manifest, undoError, exportError, undoing, exporting } = refine;
   const changed = turns ? refineChanged(turns) : [];
   return (
     <>
@@ -238,7 +253,7 @@ export function RefineStage({ refine, canUndo, idPrefix, head }: { refine: Refin
         <StepTabs label="Stage" tabs={[{ id: "document", label: "Document" }]} active="document" onSelect={() => {}} />
         {head}
       </div>
-      {doc && canUndo && (
+      {doc && canEdit && (
         <div className="refine-undo">
           <button type="button" className="secondary" disabled={undoing || running !== null || turns === null} onClick={() => void refine.undo()}>
             Undo last turn
@@ -258,9 +273,12 @@ export function RefineStage({ refine, canUndo, idPrefix, head }: { refine: Refin
                 {manifest?.deck_edited_since_render && (
                   <div className="refine-export">
                     <p className="muted">Preview changed since last export</p>
-                    <button type="button" disabled={exporting || running !== null} onClick={() => void refine.exportDeck()}>
-                      {exporting ? "Exporting…" : "Export .pptx"}
-                    </button>
+                    {canEdit && (
+                      <button type="button" disabled={exporting || running !== null} onClick={() => void refine.exportDeck()}>
+                        {exporting ? "Exporting…" : "Export .pptx"}
+                      </button>
+                    )}
+                    {exportError && <p className="error-text" role="alert">{exportError}</p>}
                   </div>
                 )}
                 <DeckView html={html} changed={changed} />
@@ -305,6 +323,14 @@ function DeckView({ html, changed }: { html: string | null; changed: number[] })
   const [over, setOver] = useState<string[]>([]);
   const count = useMemo(() => (html ? new DOMParser().parseFromString(html, "text/html").querySelectorAll("section[data-slide]").length : 0), [html]);
   const [wrapRef, width] = useChartWidth(600, 200);
+  // When a turn changes slides, the first of them opens, so the change shows without a click.
+  const firstChanged = changed.join(",");
+  useEffect(() => {
+    if (firstChanged) {
+      setOver([]);
+      setSelected(Number(firstChanged.split(",")[0]));
+    }
+  }, [firstChanged]);
   if (html === null) return <p className="muted">Loading…</p>;
   const slide = Math.min(selected, count);
   return (
@@ -334,7 +360,7 @@ function DeckView({ html, changed }: { html: string | null; changed: number[] })
 const CANVAS = { w: 1920, h: 1080 };
 const MARK_CSS =
   ".arp-overflow{outline:8px solid #c8323f!important;outline-offset:-8px}" +
-  ".arp-overflow-label{position:absolute;top:0;right:0;z-index:9;background:#c8323f;color:#fff;font:600 40px/1.3 system-ui,sans-serif;padding:6px 16px}";
+  ".arp-overflow-label{position:absolute;bottom:0;right:0;z-index:9;background:#c8323f;color:#fff;font:600 40px/1.3 system-ui,sans-serif;padding:6px 16px}";
 
 /** One slide of the deck HTML, scaled to `width`, in a sandboxed iframe (no scripts; same origin so the screen can mark
  * slots whose text does not fit: a red outline and the label `Text doesn't fit`). */

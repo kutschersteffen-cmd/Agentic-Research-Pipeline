@@ -81,7 +81,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   // A Refine thread (spec refine-chat-design): its own stream, composer copy and stage; `#/agent/refine` is the picker.
   const refineSel = selected?.kind === "refine" ? selected.id : null;
   const refine = useRefine(refineSel ? refineDoc(refineSel) : null);
-  const refineThreads = useRefineThreads(setError);
+  const refineThreads = useRefineThreads();
   const refineCtl = refineControls(canAsk);
   const copy = refine.doc ? REFINE_COPY : COMPOSER_COPY[mode];
   const sending = refine.doc ? refine.busy : busy;
@@ -253,7 +253,10 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     if (closed || !t) return;
     if (refine.doc) {
       followOwnSend();
-      if (await refine.send(t)) setText("");
+      const sentFrom = refineSel;
+      const ok = await refine.send(t);
+      if (current.current?.kind !== "refine" || current.current.id !== sentFrom) return; // another thread is open now
+      if (ok) setText("");
       refocus.current = true; // the text box stays disabled while the turn runs
       return;
     }
@@ -284,7 +287,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     loadList();
   }
 
-  const rows = threadRows(plans, askThreads, explorations, refineThreads);
+  const rows = threadRows(plans, askThreads, explorations, refineThreads.threads);
   const isSelected = (r: ThreadRow) => r.kind === selected?.kind && r.id === selected.id;
   // `id` keeps the column's and the drawer's ids apart; `close` is set inside a drawer.
   const threads = (id: string, close?: () => void) => (
@@ -293,6 +296,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
         <h2 id={`${id}-h`}>Threads</h2>
         {close && <button type="button" className="link-button" onClick={close}>Close</button>}
       </div>
+      {refineThreads.error && <p className="error-text">{refineThreads.error}</p>}
       {refineCtl.picker && (
         <button type="button" className="secondary agent-refine-new" aria-current={refineSel === "" ? "true" : undefined}
           onClick={() => { close?.(); onSelect({ kind: "refine", id: "" }); }}>
@@ -332,7 +336,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   );
   const closeButton = (close?: () => void) => close && <button type="button" className="link-button" onClick={close}>Close</button>;
   const stage = (id: string, close?: () => void) => refineSel !== null ? (
-    <RefineStage refine={refine} canUndo={refineCtl.undo} idPrefix={id} head={closeButton(close)} />
+    <RefineStage refine={refine} canEdit={refineCtl.undo} idPrefix={id} head={closeButton(close)} />
   ) : (
     <>
       <div className="agent-side-head">

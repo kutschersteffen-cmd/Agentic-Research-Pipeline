@@ -81,9 +81,11 @@ test("a refused write shows the API's detail, else Request failed (<status>)", (
   assert.equal(refineErrorText("network", null), "Request failed (network)");
 });
 
-test("a slot overflows when its text needs more height than its box", () => {
-  assert.equal(overflowing({ scrollHeight: 120, clientHeight: 100 }), true);
-  assert.equal(overflowing({ scrollHeight: 100, clientHeight: 100 }), false);
+test("a slot overflows when its text needs more height or width than its box", () => {
+  const box = { scrollHeight: 100, clientHeight: 100, scrollWidth: 200, clientWidth: 200 };
+  assert.equal(overflowing({ ...box, scrollHeight: 120 }), true);
+  assert.equal(overflowing({ ...box, scrollWidth: 260 }), true);
+  assert.equal(overflowing(box), false);
 });
 
 test("a thread title is cut to 60 characters, prefix included", () => {

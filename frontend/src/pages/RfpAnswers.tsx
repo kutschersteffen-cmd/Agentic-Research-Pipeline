@@ -315,7 +315,7 @@ function ProjectView({ id, onBack }: { id: number; onBack: () => void }) {
           </button>
         )}
         <button onClick={() => (unapproved > 0 ? setConfirmExport(true) : download())}>Download filled file</button>
-        <a href={`#/agent/refine/rfp/${id}`} className="button-link">Refine in Agent</a>
+        <a href={`#/agent/refine/rfp/${id}`} className="button-link secondary">Refine in Agent</a>
       </div>
       {confirmExport && (
         <div className="card" role="alertdialog" aria-label="Unapproved questions">

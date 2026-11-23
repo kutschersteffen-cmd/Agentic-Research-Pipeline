@@ -124,3 +124,31 @@ def test_a_refused_turn_shows_its_detail(page, api):  # spec: any response other
     box.press("Enter")
     page.locator("form.agent-composer").get_by_text("A change is already running on this document.").wait_for()
     assert box.input_value() == "shorter"
+
+
+def test_a_failed_first_load_is_tried_again(page, api):  # code review #668 finding 1
+    calls = {"n": 0}
+
+    def turns(route):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return route.fulfill(status=502, content_type="application/json", body=json.dumps({"detail": "Bad gateway"}))
+        route.fulfill(content_type="application/json", body="[]")
+
+    page.route(f"**/api/refine/deck/{R}/turns", turns)
+    page.goto(f"{URL}/#/agent/refine/deck/{R}")
+    page.get_by_text("No changes yet. Type an instruction below.").wait_for()  # the next poll loads it
+    assert page.get_by_label("Instruction").is_enabled()
+    assert page.get_by_text("Bad gateway").count() == 0
+
+
+def test_a_viewer_reads_the_deck_without_export_or_undo(page, api):  # D3, AC-71; code review #668 finding 2
+    page.route("**/api/me", lambda r: r.fulfill(json={"user_id": "vic", "name": "vic", "role": "viewer"}))
+    page.route(f"**/api/reports/{R}", lambda r: r.fulfill(json={**MANIFEST, "deck_edited_since_render": True}))
+    page.goto(f"{URL}/#/agent/refine/deck/{R}")
+    stage = page.locator("aside.agent-stage")
+    stage.get_by_text("Preview changed since last export").wait_for()
+    page.get_by_text("No changes yet.", exact=True).wait_for()
+    assert stage.get_by_role("button", name="Export .pptx").count() == 0
+    assert stage.get_by_role("button", name="Undo last turn").count() == 0
+    assert page.get_by_label("Instruction").count() == 0

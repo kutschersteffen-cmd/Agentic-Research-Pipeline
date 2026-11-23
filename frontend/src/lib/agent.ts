@@ -265,8 +265,9 @@ export function refineErrorText(status: number | "network", body: unknown): stri
   return typeof detail === "string" && detail ? detail : `Request failed (${status})`;
 }
 
-/** A slot whose text does not fit its box. */
-export const overflowing = (el: { scrollHeight: number; clientHeight: number }): boolean => el.scrollHeight > el.clientHeight;
+/** A slot whose text does not fit its box, down or across (as `reporting/browser.py` measures it). */
+export const overflowing = (el: { scrollHeight: number; clientHeight: number; scrollWidth: number; clientWidth: number }): boolean =>
+  el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth;
 
 /** A thread title as the API cuts it: `RFP: <investor>` or `Deck: <report title>`, 60 characters in all. */
 export const refineTitle = (kind: RefineKind, name: string): string => `${kind === "rfp" ? "RFP" : "Deck"}: ${name}`.slice(0, 60);
