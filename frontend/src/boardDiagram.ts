@@ -1,7 +1,7 @@
 // The diagram frame's page (board-diagram.html): Mermaid draws one diagram here, inside a sandboxed iframe whose
 // Content-Security-Policy blocks every outside load (spec agent-board, Amendment 1d/1e: the frame is the security
 // boundary). Plain TypeScript, no React. Mermaid and ELK load with a dynamic import() on the first draw (AC-55).
-import { themedSource, type DiagramTheme, type FromFrame, type ToFrame } from "./lib/board";
+import { diagramWidth, themedSource, type DiagramTheme, type FromFrame, type ToFrame } from "./lib/board";
 
 type Mermaid = typeof import("mermaid").default;
 let mermaid: Promise<Mermaid> | null = null;
@@ -107,7 +107,19 @@ function linkFree(svg: string): DocumentFragment {
   return t.content;
 }
 
-const height = () => Math.ceil(root.getBoundingClientRect().height);
+let available = 0;
+
+/** Lays the drawing out at its shown width (diagramWidth) and tells the Board its size. */
+function fit() {
+  const svg = root.querySelector("svg");
+  if (!svg) return;
+  const natural = svg.viewBox.baseVal?.width || svg.getBoundingClientRect().width;
+  const width = diagramWidth(natural, available);
+  svg.style.maxWidth = "none";
+  svg.setAttribute("width", String(width));
+  svg.removeAttribute("height");
+  reply({ type: "drawn", width, height: Math.ceil(root.getBoundingClientRect().height) });
+}
 
 async function draw(source: string, theme: DiagramTheme) {
   document.documentElement.style.colorScheme = theme.dark ? "dark" : "light";
@@ -116,11 +128,12 @@ async function draw(source: string, theme: DiagramTheme) {
   document.body.style.fontFamily = theme.font;
   try {
     const m = await loadMermaid();
-    await document.fonts.ready;
+    // Measure text in the house font: wait for the weights Mermaid uses before it lays anything out.
+    await Promise.all([`400 14px ${theme.font}`, `600 14px ${theme.font}`].map((f) => document.fonts.load(f).catch(() => [])));
     m.initialize(config(theme));
     const { svg } = await m.render(`d${++n}`, themedSource(source, theme));
     root.replaceChildren(linkFree(svg));
-    reply({ type: "drawn", height: height() });
+    fit();
   } catch (e) {
     root.replaceChildren();
     reply({ type: "error", message: String((e as Error)?.message ?? e) });
@@ -129,10 +142,7 @@ async function draw(source: string, theme: DiagramTheme) {
 
 window.addEventListener("message", (e: MessageEvent<ToFrame>) => {
   if (e.source !== window.parent || e.origin !== location.origin) return;
+  if (typeof e.data?.available === "number") available = e.data.available;
   if (e.data?.type === "draw" && typeof e.data.source === "string") void draw(e.data.source, e.data.theme);
+  else if (e.data?.type === "fit") fit();
 });
-
-// The frame's width follows the board; tell the Board when the drawing's height changes.
-new ResizeObserver(() => {
-  if (root.firstChild) reply({ type: "drawn", height: height() });
-}).observe(root);

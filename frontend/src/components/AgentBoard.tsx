@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { api } from "../api/client";
 import {
   BOARD_POLL_MS, DRAW_PLACEHOLDER, EMPTY_BOARD, GROUP_SLOTS, UNDO_BAR_MS, boardNeedsReload, detailOf, diagramGroups, download, editText,
@@ -21,13 +21,20 @@ export function AgentBoard({ planId, planStatus, idPrefix }: { planId: string; p
   const field = useRef<HTMLInputElement>(null);
 
   const load = useCallback(
-    () => api.getBoard(planId).then((b) => setBlocks(b.blocks)).catch((e) => setError(`The board could not be loaded: ${detailOf(e)}.`)),
+    () => api.getBoard(planId).then((b) => { setBlocks(b.blocks); setError((e) => (e?.startsWith("The board could not be loaded") ? null : e)); })
+      .catch((e) => setError(`The board could not be loaded: ${detailOf(e)}.`)),
     [planId],
   );
   useEffect(() => { void load(); }, [load]);
 
   // Every 10 s: the plan's status; the blocks too while it runs, and once more on the first status after it ran.
   const status = useRef(planStatus);
+  // The page re-reads the plan every 3 s while it is active: a run that starts and ends between two 10 s polls
+  // still redraws the live blocks.
+  useEffect(() => {
+    if (planStatus !== status.current && boardNeedsReload(status.current, planStatus)) void load();
+    status.current = planStatus;
+  }, [planStatus, load]);
   useEffect(() => {
     const t = setInterval(() => {
       api.getPlan(planId).then((p) => {
@@ -291,7 +298,7 @@ function BlockContent({ block: b, theme, onTick }: { block: BoardBlock; theme: D
     }
     case "chart": {
       const svg = theme && b.rendered ? (theme.dark ? b.rendered.dark : b.rendered.light) : null;
-      if (svg) return <img className="board-chart" src={svgDataUrl(svg)} alt={b.title} />;
+      if (svg) return <ChartImage svg={svg} title={b.title} />;
       return b.live_error ? null : <p className="muted">This chart could not be drawn.</p>;
     }
     case "flow":
@@ -328,6 +335,12 @@ function BlockContent({ block: b, theme, onTick }: { block: BoardBlock; theme: D
       );
     }
   }
+}
+
+/** A chart's SVG as an image; the base64 step runs again only when the SVG changes, not on every keystroke. */
+function ChartImage({ svg, title }: { svg: string; title: string }) {
+  const src = useMemo(() => svgDataUrl(svg), [svg]);
+  return <img className="board-chart" src={src} alt={title} />;
 }
 
 function BoardTable({ columns, rows }: { columns: string[]; rows: Cell[][] }) {
@@ -373,14 +386,18 @@ const FRAME_SRC = `${import.meta.env.BASE_URL}board-diagram.html`;
 /** A diagram or flow, drawn by Mermaid inside its own sandboxed frame (Amendment 1d), then the group legend. */
 function BoardDiagram({ source, title, theme }: { source: string; title: string; theme: DiagramTheme | null }) {
   const frame = useRef<HTMLIFrameElement>(null);
+  const box = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState(false);
-  const [height, setHeight] = useState<number | null>(null);
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent<FromFrame>) => {
       if (!frame.current || e.source !== frame.current.contentWindow || e.origin !== location.origin) return;
-      if (e.data?.type === "drawn" && typeof e.data.height === "number") { setFailed(null); setHeight(e.data.height); }
+      if (e.data?.type === "drawn" && typeof e.data.height === "number" && typeof e.data.width === "number") {
+        setFailed(null);
+        setSize({ width: e.data.width, height: e.data.height });
+      }
       else if (e.data?.type === "error") setFailed(firstLine(String(e.data.message)));
     };
     window.addEventListener("message", onMessage);
@@ -388,16 +405,33 @@ function BoardDiagram({ source, title, theme }: { source: string; title: string;
   }, []);
   useEffect(() => {
     if (!loaded || !theme) return;
-    const msg: ToFrame = { type: "draw", source, theme };
+    const msg: ToFrame = { type: "draw", source, theme, available: box.current?.clientWidth ?? 0 };
     frame.current?.contentWindow?.postMessage(msg, location.origin);
   }, [loaded, source, theme]);
+  // A narrower or wider card lays the drawing out again, without drawing it again.
+  useEffect(() => {
+    const el = box.current;
+    if (!el || !loaded) return;
+    const ro = new ResizeObserver(() => {
+      const msg: ToFrame = { type: "fit", available: el.clientWidth };
+      frame.current?.contentWindow?.postMessage(msg, location.origin);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [loaded]);
 
   const groups = diagramGroups(source);
   const emphasis = hasEmphasis(source);
   return (
     <div className="board-diagram">
-      <iframe ref={frame} src={FRAME_SRC} sandbox="allow-scripts allow-same-origin" title={`Diagram: ${title}`}
-        className="board-frame" hidden={failed !== null} style={{ height: height ?? 64 }} onLoad={() => setLoaded(true)} />
+      {/* Wider than the card, the drawing scrolls inside this box (text never below 11 px). A failed frame stays laid
+          out but takes no room: Mermaid measures nothing in a frame hidden with display: none. */}
+      <div ref={box} className="board-diagram-box" tabIndex={size && box.current && size.width > box.current.clientWidth ? 0 : undefined}
+        role="region" aria-label={`Diagram: ${title}`}>
+        <iframe ref={frame} src={FRAME_SRC} sandbox="allow-scripts allow-same-origin" title={`Diagram: ${title}`}
+          className={failed !== null ? "board-frame board-frame-failed" : "board-frame"} onLoad={() => setLoaded(true)}
+          style={{ height: failed !== null ? 0 : size?.height ?? 64, width: size ? `max(100%, ${size.width}px)` : "100%" }} />
+      </div>
       {failed !== null ? (
         <>
           <p className="board-note-line">This diagram could not be drawn: {failed}</p>

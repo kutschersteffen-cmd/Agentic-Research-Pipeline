@@ -208,7 +208,7 @@ export type MdBlock =
   | { t: "p"; children: Inline[] }
   | { t: "ul" | "ol"; items: Inline[][] };
 
-const INLINE = /`([^`]+)`|\*\*(.+?)\*\*|__(.+?)__|\*([^*\s](?:[^*]*[^*\s])?)\*|_([^_\s](?:[^_]*[^_\s])?)_|\[([^\]]+)\]\(([^)\s]+)\)/;
+const INLINE = /`([^`]+)`|\*\*(.+?)\*\*|(?<!\w)__(.+?)__(?!\w)|\*([^*\s](?:[^*]*[^*\s])?)\*|(?<!\w)_([^_\s](?:[^_]*[^_\s])?)_(?!\w)|\[([^\]]+)\]\(([^)\s]+)\)/;
 
 /** Inline Markdown. Raw HTML stays text; a link whose target is not `http://` or `https://` stays as written. */
 export function parseInline(src: string): Inline[] {
@@ -301,8 +301,16 @@ export interface DiagramTheme {
 }
 
 /** What the Board posts to a diagram frame, and what the frame answers. */
-export type ToFrame = { type: "draw"; source: string; theme: DiagramTheme };
-export type FromFrame = { type: "drawn"; height: number } | { type: "error"; message: string };
+export type ToFrame = { type: "draw"; source: string; theme: DiagramTheme; available: number } | { type: "fit"; available: number };
+export type FromFrame = { type: "drawn"; width: number; height: number } | { type: "error"; message: string };
+
+/** Mermaid draws text at 14 px; a diagram is never shrunk below 11 px text, it scrolls inside its card instead. */
+export const MIN_DIAGRAM_SCALE = 11 / 14;
+
+/** The width a diagram is shown at: its natural width when that fits, else the card's width, but never so narrow that
+ * its text drops below 11 px. */
+export const diagramWidth = (natural: number, available: number): number =>
+  Math.ceil(Math.min(natural, Math.max(available, natural * MIN_DIAGRAM_SCALE)));
 
 /** The source Mermaid draws: no config and no `classDef` of its own (front matter, `%%{…}%%` and `classDef`
  * statements dropped), then ARP's group colours and the `emphasis` style. */

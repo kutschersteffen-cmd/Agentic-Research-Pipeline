@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import {
-  boardNeedsReload, csvToTable, detailOf, diagramGroups, diagramType, download, downloadName, DRAW_PLACEHOLDER, editedSource, editText,
+  boardNeedsReload, csvToTable, diagramWidth, MIN_DIAGRAM_SCALE, detailOf, diagramGroups, diagramType, download, downloadName, DRAW_PLACEHOLDER, editedSource, editText,
   EMPTY_BOARD, firstLine, groupLabel, GROUP_SLOTS, hasEmphasis, liveLabel, menuItems, parseInline, parseMarkdown, svgDataUrl, themedSource,
   tileChange, tileValue, toCsv, unverifiedLine, type BoardBlock, type DiagramTheme,
 } from "../src/lib/board.ts";
@@ -202,4 +202,18 @@ test("DESIGN.md names the diagram group colours (agent-board slice 3)", () => {
   const design = read("../DESIGN.md");
   const para = design.split("\n").find((l) => l.startsWith("**Chart Colours.**")) ?? "";
   assert.ok(para.includes("`--cat-1`, `--cat-4`, `--cat-2`, then `--muted`"), para);
+});
+
+test("a diagram keeps its natural width when it fits, else shrinks no further than 11 px text and scrolls", () => {
+  assert.equal(diagramWidth(200, 294), 200);
+  assert.equal(diagramWidth(350, 294), 294);
+  assert.equal(diagramWidth(1000, 294), Math.ceil(1000 * MIN_DIAGRAM_SCALE));
+  assert.ok(14 * (diagramWidth(1000, 294) / 1000) >= 11);
+});
+
+test("underscores inside words stay text in notes", () => {
+  assert.deepEqual(parseInline("sector_weight_total"), [{ t: "text", text: "sector_weight_total" }]);
+  assert.deepEqual(parseInline("set_a__b__c"), [{ t: "text", text: "set_a__b__c" }]);
+  assert.deepEqual(parseInline("an _aside_ here")[1], { t: "i", children: [{ t: "text", text: "aside" }] });
+  assert.deepEqual(parseInline("__bold__ start")[0], { t: "b", children: [{ t: "text", text: "bold" }] });
 });

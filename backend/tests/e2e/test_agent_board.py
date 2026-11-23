@@ -187,7 +187,8 @@ def test_diagrams_draw_in_a_sealed_frame(page):  # noqa: F811  AC-47, AC-49, AC-
     _board(page, pid)
     page.get_by_text("This diagram could not be drawn:").wait_for()
     assert "flowchart LR\n  a -->" in page.locator(".board-source").inner_text()
-    frames = page.locator("iframe.board-frame:not([hidden])")
+    assert page.locator("iframe.board-frame-failed").bounding_box()["height"] == 0  # no blank gap above the message
+    frames = page.locator("iframe.board-frame:not(.board-frame-failed)")
     assert frames.count() == 3
     for i in range(3):
         assert frames.nth(i).get_attribute("sandbox") == "allow-scripts allow-same-origin"
@@ -214,6 +215,11 @@ def test_diagrams_draw_in_a_sealed_frame(page):  # noqa: F811  AC-47, AC-49, AC-
     link = next(f for t, f in drawn.items() if t.strip() and "Give notice" not in t and "Grow newsletter" not in t)
     assert link.evaluate("document.querySelectorAll('svg a').length") == 0
     assert link.evaluate("[...document.querySelectorAll('svg *')].filter((e) => e.hasAttribute('href') || e.hasAttribute('xlink:href')).length") == 0
+    # Text is never shrunk below 11 px to fit the narrow stage; a wide diagram scrolls inside its card instead.
+    for f in by_path:
+        size = f.evaluate("(() => { const s = document.querySelector('#diagram svg'); return s && 14 * s.getBoundingClientRect().width / s.viewBox.baseVal.width; })()")
+        assert size is None or size >= 10.99, size
+    assert page.evaluate("document.documentElement.scrollWidth") <= 1440
     allowed = {URL.split("/")[2], API.split("/")[2], "localhost:8000", "fonts.googleapis.com", "fonts.gstatic.com"}
     assert set(hosts) <= allowed, set(hosts) - allowed
 
