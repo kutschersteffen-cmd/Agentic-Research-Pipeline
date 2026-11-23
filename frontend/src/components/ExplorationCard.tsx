@@ -27,7 +27,7 @@ export function ExplorationCard({ exploration: e, busy, onAccept, onMiniapp }: {
         {(badge || e.status === "done") && (
           <div className="toolbar">
             {badge && <button disabled={busy} onClick={() => { accepting.current = true; onAccept(); }}>Accept</button>}
-            {e.status === "done" && <button className="secondary" disabled={busy} onClick={onMiniapp}>Show as mini-app</button>}
+            {e.status === "done" && <button id="agent-show-miniapp" className="secondary" disabled={busy} onClick={onMiniapp}>Show as mini-app</button>}
           </div>
         )}
         <details className="agent-exploration-code">

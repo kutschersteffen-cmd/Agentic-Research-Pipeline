@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { AskCard } from "../components/AskCards";
 import { ExplorationCard } from "../components/ExplorationCard";
 import { MiniAppFrame } from "../components/MiniAppFrame";
+import { usedTheme } from "../lib/miniapp";
 import { StepTabs } from "../components/StepTabs";
 import {
   answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, INBOX_KIND, lineDiff,
@@ -76,6 +77,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const atEnd = useRef(true); // the reader was near the stream's end at the last scroll
   const [jump, setJump] = useState(false);
   const refocus = useRef(false);
+  const miniappFocus = useRef<"tab" | "button" | null>(null); // where focus goes once Show as mini-app has answered
   const current = useRef(selected); // the selection now, for a request that answers after it changed
   current.current = selected;
   const modes = composerModes(canAsk);
@@ -116,6 +118,14 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     refocus.current = false;
     input.current?.focus();
   }, [busy]);
+  // After Show as mini-app: the Mini-app tab where the stage shows (the drawer below 900 px), or the button on failure.
+  useEffect(() => {
+    if (busy || !miniappFocus.current) return;
+    const where = miniappFocus.current;
+    miniappFocus.current = null;
+    const scope = drawer === "stage" ? document.getElementById("agent-drawer") : document.querySelector(".agent-stage");
+    (where === "tab" ? scope?.querySelector<HTMLElement>('[data-tab="miniapp"]') : document.getElementById("agent-show-miniapp"))?.focus();
+  }, [busy, tab, drawer]);
   // Opening a thread shows its newest turn.
   useLayoutEffect(() => {
     atEnd.current = true;
@@ -315,7 +325,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
       <div id={`${id}-panel`} role="tabpanel" aria-label={STAGE_TABS.find((t) => t.id === tab)!.label}>
         {tab === "miniapp" ? (
           exploration && explorationId && exploration.miniapp_html != null ? (
-            <MiniAppFrame key={exploration.id} html={exploration.miniapp_html} data={exploration.result} onAsk={setText} />
+            <MiniAppFrame key={exploration.id} title={`Mini-app: ${exploration.question}`} html={exploration.miniapp_html} data={exploration.result} theme={usedTheme()} onAsk={setText} />
           ) : (
             <p className="muted">{exploration && explorationId ? "Show as mini-app, on a done exploration, builds a small page for its result here." : "A done exploration can be shown here as a mini-app."}</p>
           )
@@ -363,7 +373,9 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
           {exploration && explorationId ? (
             <ExplorationCard key={exploration.id} exploration={exploration} busy={busy} onAccept={() => act(() => api.acceptExploration(exploration.id))}
               onMiniapp={async () => {
-                if (!(await act(() => api.createMiniapp(exploration.id)))) return;
+                const made = await act(() => api.createMiniapp(exploration.id));
+                miniappFocus.current = made ? "tab" : "button"; // the button was disabled while it ran: focus fell to <body>
+                if (!made) return;
                 setTab("miniapp");
                 if (window.matchMedia(NARROW).matches) setDrawer("stage");
               }} />

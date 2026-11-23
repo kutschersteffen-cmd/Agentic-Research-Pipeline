@@ -14,20 +14,30 @@ const scriptJson = (v: unknown) =>
   JSON.stringify(v ?? null).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
 const attr = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 
-/** The mini-app's HTML wrapped in a page whose CSP comes first, with `window.ARP_DATA` set before its scripts run. */
-export const miniappPage = (html: string, data: unknown): string =>
+export type Theme = "light" | "dark";
+
+/** The theme the app shows now: the one pinned on <html>, else the system's. */
+export const usedTheme = (): Theme =>
+  document.documentElement.dataset.theme === "dark" || (document.documentElement.dataset.theme !== "light" &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+
+/** The mini-app's HTML wrapped in a page whose CSP comes first, with `window.ARP_DATA` (and `window.ARP_THEME`) set
+ * before its scripts run. `color-scheme` gives an unstyled page the app's theme. */
+export const miniappPage = (html: string, data: unknown, theme: Theme = "light"): string =>
   `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${MINIAPP_CSP}">` +
-  `<script>window.ARP_DATA = ${scriptJson(data)};</script></head><body>${html}</body></html>`;
+  `<meta name="color-scheme" content="${theme}">` +
+  `<script>window.ARP_DATA = ${scriptJson(data)}; window.ARP_THEME = "${theme}";</script></head><body>${html}</body></html>`;
 
 // Passes on the inner frame's messages, so a mini-app's `parent.postMessage` reaches the screen.
 const RELAY = `var f=document.querySelector("iframe");addEventListener("message",function(e){if(e.source===f.contentWindow)parent.postMessage(e.data,"*")});`;
 
 /** The frame's srcdoc: a shell that frames nothing, holding the mini-app page in its own `allow-scripts` frame. The
  * shell has no script but the relay, and a sandboxed frame cannot navigate its parent, so neither page can leave. */
-export const miniappDocument = (html: string, data: unknown): string =>
+export const miniappDocument = (html: string, data: unknown, theme: Theme = "light"): string =>
   `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${MINIAPP_SHELL_CSP}">` +
+  `<meta name="color-scheme" content="${theme}">` +
   `<style>html,body{margin:0;height:100%}iframe{display:block;border:0;width:100%;height:100%}</style></head><body>` +
-  `<iframe sandbox="${MINIAPP_SANDBOX}" title="Mini-app" srcdoc="${attr(miniappPage(html, data))}"></iframe>` +
+  `<iframe sandbox="${MINIAPP_SANDBOX}" title="Mini-app" srcdoc="${attr(miniappPage(html, data, theme))}"></iframe>` +
   `<script>${RELAY}</script></body></html>`;
 
 /** The text of a `{"action": "ask", "text": str}` message, cut to an Ask question's length; null for every other message. */

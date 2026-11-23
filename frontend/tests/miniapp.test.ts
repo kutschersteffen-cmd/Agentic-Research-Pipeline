@@ -24,11 +24,18 @@ test("the data cannot close its script tag", () => {
   assert.ok(miniappPage("", undefined).includes("window.ARP_DATA = null;"));
 });
 
+test("both pages get the app theme as their color-scheme, and the mini-app as window.ARP_THEME", () => {
+  const doc = miniappDocument("", [], "dark");
+  assert.ok(doc.indexOf('<meta name="color-scheme" content="dark">') < doc.indexOf("<iframe"));
+  assert.ok(miniappPage("", [], "dark").includes('<meta name="color-scheme" content="dark"><script>window.ARP_DATA = []; window.ARP_THEME = "dark";'));
+  assert.ok(miniappPage("", []).includes('content="light"'));
+});
+
 test("the mini-app sits in a sandboxed frame under a shell that frames nothing", () => {
   assert.equal(MINIAPP_SHELL_CSP, "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src 'none'");
   const doc = miniappDocument('<a href="x">&</a>', [1]);
   assert.ok(doc.indexOf(`content="${MINIAPP_SHELL_CSP}"`) < doc.indexOf("<iframe"));
-  const inner = miniappPage('<a href="x">&</a>', [1]).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+  const inner = miniappPage('<a href="x">&</a>', [1], "light").replace(/&/g, "&amp;").replace(/"/g, "&quot;");
   assert.ok(doc.includes(`<iframe sandbox="allow-scripts" title="Mini-app" srcdoc="${inner}"></iframe>`));
   assert.equal(doc.split("<iframe").length, 2); // the mini-app's own markup is only inside the srcdoc attribute
 });

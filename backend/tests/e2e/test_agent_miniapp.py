@@ -107,3 +107,44 @@ def test_miniapp_reaches_nothing_and_only_fills_the_composer(page, exploration, 
     assert popups == []
     assert page.url.startswith(URL) and "/agent/exploration/" in page.url  # the app page was not navigated
     assert page.frame_locator("iframe.agent-miniapp").locator("iframe").count() == 1  # the shell still holds the mini-app
+
+
+@pytest.fixture
+def plain():
+    """A done exploration without a mini-app yet."""
+    return ExplorationStore(DSN).add(question="miniapp focus e2e", code="return []", model="stand-in",
+                                     run={"status": "done", "result": [{"a": 1}], "error": None, "tool_calls": []})["id"]
+
+
+def _answer_miniapp(page, exploration, ok):
+    """The stack has no model: the route's answer is stored here, as the real route would, or it fails with 502."""
+    def handle(route):
+        if not ok:
+            return route.fulfill(status=502, json={"detail": "no mini-app was written: test"})
+        row = ExplorationStore(DSN).set_miniapp(exploration, "<p>hi</p>")
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(row, default=str))
+    page.route(f"**/api/agent/explorations/{exploration}/miniapp", handle)
+
+
+@pytest.mark.parametrize("width", [1400, 390])
+def test_show_as_miniapp_moves_focus_to_the_selected_miniapp_tab(page, plain, width):  # WCAG 2.4.3
+    page.set_viewport_size({"width": width, "height": 900})
+    _answer_miniapp(page, plain, ok=True)
+    page.goto(f"{URL}/#/agent/exploration/{plain}")
+    page.locator("#agent-show-miniapp").focus()
+    page.keyboard.press("Enter")
+    page.wait_for_function("document.activeElement && document.activeElement.dataset.tab === 'miniapp'", timeout=10_000)
+    focused = page.evaluate("""() => { const e = document.activeElement;
+        return {selected: e.getAttribute('aria-selected'), visible: !!e.offsetParent, inDrawer: !!e.closest('#agent-drawer')}; }""")
+    assert focused == {"selected": "true", "visible": True, "inDrawer": width < 900}
+    shown = page.frame_locator("dialog iframe.agent-miniapp" if width < 900 else ".agent-stage iframe.agent-miniapp")
+    shown.frame_locator("iframe").locator("p").wait_for()  # the stored page shows in the stage that has focus
+
+
+def test_a_failed_show_as_miniapp_returns_focus_to_the_button(page, plain):
+    _answer_miniapp(page, plain, ok=False)
+    page.goto(f"{URL}/#/agent/exploration/{plain}")
+    page.locator("#agent-show-miniapp").focus()
+    page.keyboard.press("Enter")
+    page.get_by_role("alert").wait_for()
+    page.wait_for_function("document.activeElement && document.activeElement.id === 'agent-show-miniapp'", timeout=10_000)

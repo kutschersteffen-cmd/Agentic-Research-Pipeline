@@ -2397,8 +2397,8 @@ a.vc-box:hover { border-color: var(--text); }
 .agent-script-line { display: grid; grid-template-columns: 3ch minmax(0, 1fr); gap: var(--s-3); }
 .agent-script-line > :last-child { white-space: pre-wrap; overflow-wrap: anywhere; }
 .agent-ln { text-align: right; color: var(--muted); user-select: none; }
-/* Mini-app tab: the frame fills the column; the page inside picks its own colours. */
-.agent-miniapp { display: block; width: 100%; height: min(70vh, 640px); border: 1px solid var(--panel-border); border-radius: var(--r-sm); background: #fff; }
+/* Mini-app tab: the frame fills the column; the page inside gets the app theme as its color-scheme. */
+.agent-miniapp { display: block; width: 100%; height: min(70vh, 640px); border: 1px solid var(--panel-border); border-radius: var(--r-sm); background: var(--panel); }
 /* Diff and Audit tabs. */
 .agent-stage-h { font-size: var(--text-sm); margin: var(--s-3) 0 var(--s-1_5); }
 .agent-stage-h:first-child { margin-top: 0; }
