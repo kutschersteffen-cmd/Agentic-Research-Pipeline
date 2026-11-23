@@ -96,6 +96,9 @@ export function useRefine(doc: RefineDocRef | null) {
     setUndoError(null);
     setExportError(null);
     setLoadError(null);
+    setPosting(false);
+    setUndoing(false);
+    setExporting(false);
     void reload();
   }, [reload]);
 
@@ -117,7 +120,10 @@ export function useRefine(doc: RefineDocRef | null) {
         void reload(); // the list has the finished turn as stored
       }
     } catch (e) {
-      if (shown.current === asked) setLoadError((e as Error).message);
+      if (shown.current !== asked) return;
+      setLoadError((e as Error).message);
+      // The turn may be gone (an undo's lock row is deleted once the undo ends): the list says what runs now.
+      void reload();
     }
   }, running ? RUNNING_MS : IDLE_MS, doc !== null);
 
@@ -156,7 +162,10 @@ export function useRefine(doc: RefineDocRef | null) {
     setExportError(null);
     try {
       const m = await api.renderReport(doc.docId);
-      if (shown.current === asked) setManifest(m);
+      if (shown.current === asked) {
+        latest.current++; // a list read started before the export would bring the old manifest back
+        setManifest(m);
+      }
     } catch (e) {
       if (shown.current === asked) setExportError((e as Error).message);
     } finally {
@@ -281,7 +290,7 @@ export function RefineStage({ refine, canEdit, idPrefix, head }: { refine: Refin
                     {exportError && <p className="error-text" role="alert">{exportError}</p>}
                   </div>
                 )}
-                <DeckView html={html} changed={changed} />
+                <DeckView key={doc.docId} html={html} changed={changed} />
               </>
             )}
           </>

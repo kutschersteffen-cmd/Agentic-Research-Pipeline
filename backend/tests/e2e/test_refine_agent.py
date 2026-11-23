@@ -131,7 +131,7 @@ def test_a_failed_first_load_is_tried_again(page, api):  # code review #668 find
 
     def turns(route):
         calls["n"] += 1
-        if calls["n"] == 1:
+        if calls["n"] <= 2:  # both reads on open (mount and the poll's first tick) fail, so only the 3 s retry can load it
             return route.fulfill(status=502, content_type="application/json", body=json.dumps({"detail": "Bad gateway"}))
         route.fulfill(content_type="application/json", body="[]")
 
@@ -152,3 +152,23 @@ def test_a_viewer_reads_the_deck_without_export_or_undo(page, api):  # D3, AC-71
     assert stage.get_by_role("button", name="Export .pptx").count() == 0
     assert stage.get_by_role("button", name="Undo last turn").count() == 0
     assert page.get_by_label("Instruction").count() == 0
+
+
+def test_a_turn_that_vanishes_does_not_leave_the_thread_working(page, api):  # code review #668 round 2 finding 1
+    """Another person's undo shows in the list as a `running` lock row that is deleted when the undo ends; its turn read
+    is 404 from then on. The screen reads the list again instead of waiting on that turn forever."""
+    calls = {"n": 0}
+    lock = turn("running", turn_id=999, user_id="anna", message="undo")
+
+    def turns(route):
+        calls["n"] += 1
+        route.fulfill(content_type="application/json", body=json.dumps([lock] if calls["n"] == 3 else []))
+
+    page.route(f"**/api/refine/deck/{R}/turns", turns)
+    page.route("**/api/refine/turns/999", lambda r: r.fulfill(status=404, content_type="application/json",
+                                                             body=json.dumps({"detail": "Turn not found"})))
+    page.goto(f"{URL}/#/agent/refine/deck/{R}")
+    page.get_by_role("list", name="Turns").get_by_text("Working…").wait_for()  # the lock row, on the third read
+    page.get_by_text("No changes yet. Type an instruction below.").wait_for()
+    assert page.get_by_label("Instruction").is_enabled()
+    assert page.locator("aside.agent-stage").get_by_role("button", name="Undo last turn").is_enabled()
