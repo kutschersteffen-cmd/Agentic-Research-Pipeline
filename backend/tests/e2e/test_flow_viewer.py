@@ -95,7 +95,7 @@ def test_small_zoom_grows_cards_to_fill(page):  # noqa: F811
 
 
 def test_ctrl_wheel_zooms_the_flow_not_the_page(page):  # noqa: F811
-    flow = _start(page)
+    _start(page)
     page.evaluate("window.__seen = []; window.addEventListener('wheel', (e) => window.__seen.push(e.defaultPrevented))")
     box = page.locator("#step-thematic-3").bounding_box()
     x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
@@ -106,10 +106,10 @@ def test_ctrl_wheel_zooms_the_flow_not_the_page(page):  # noqa: F811
     page.wait_for_function("() => document.querySelector('#process-thematic').closest('section').querySelector('[data-flow-zoom]').textContent === '130%'")
     assert page.evaluate("window.__seen") == [True]
     assert page.evaluate(f"document.elementFromPoint({x}, {y}).closest('#step-thematic-3') !== null")
-    page.mouse.wheel(0, 100)  # no modifier: scrolls, does not zoom
-    page.wait_for_timeout(200)
+    y0 = page.evaluate("window.scrollY")
+    page.mouse.wheel(0, 100)  # no modifier: scrolls the page, does not zoom
+    page.wait_for_function(f"window.scrollY > {y0}")
     assert _reading(page) == "130%"
-    assert flow.evaluate("f => f.scrollLeft") > 0
 
 
 def test_keys_zoom_and_scroll_and_leave_browser_zoom_alone(page):  # noqa: F811
@@ -184,23 +184,26 @@ def test_folded_flow_has_its_bar_inside_the_fold(page):  # noqa: F811
 
 def test_pinch_zooms_the_flow_only(page):  # noqa: F811
     ctx = page.context.browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
-    pg = ctx.new_page()
-    flow = _start(pg, width=390, height=844)
-    box = flow.bounding_box()
-    cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
-    cdp = ctx.new_cdp_session(pg)
+    try:
+        pg = ctx.new_page()
+        flow = _start(pg, width=390, height=844)
+        box = flow.bounding_box()
+        cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+        cdp = ctx.new_cdp_session(pg)
 
-    def touch(kind, half):
-        pts = [] if kind == "touchEnd" else [{"x": cx - half, "y": cy, "id": 0}, {"x": cx + half, "y": cy, "id": 1}]
-        cdp.send("Input.dispatchTouchEvent", {"type": kind, "touchPoints": pts})
+        def touch(kind, half):
+            pts = [] if kind == "touchEnd" else [{"x": cx - half, "y": cy, "id": 0}, {"x": cx + half, "y": cy, "id": 1}]
+            cdp.send("Input.dispatchTouchEvent", {"type": kind, "touchPoints": pts})
 
-    touch("touchStart", 50)
-    for half in range(55, 80, 5):
-        touch("touchMove", half)
-    touch("touchEnd", 75)
-    assert 140 <= int(_reading(pg).rstrip("%")) <= 160, _reading(pg)
-    assert pg.evaluate("window.visualViewport.scale") == 1
-    ctx.close()
+        touch("touchStart", 50)
+        for half in range(55, 80, 5):
+            touch("touchMove", half)
+        touch("touchEnd", 75)
+        assert 140 <= int(_reading(pg).rstrip("%")) <= 160, _reading(pg)
+        assert pg.evaluate("window.visualViewport.scale") == 1
+    finally:
+        ctx.close()
+
 
 
 def test_no_bar_before_the_runs_answer(page):  # noqa: F811
@@ -215,3 +218,33 @@ def test_no_bar_before_the_runs_answer(page):  # noqa: F811
     page.goto(URL + "/#/rdLab")
     page.locator(f"{SECTION} button.hub-step").first.wait_for(state="attached")
     assert page.locator("[data-flow-zoom-bar]:visible").count() == 0
+
+
+def test_release_outside_ends_the_drag(page):  # noqa: F811
+    flow = _start(page)
+    box = flow.bounding_box()
+    page.mouse.move(box["x"] + 700, box["y"] + 3)
+    page.mouse.down()
+    page.mouse.move(box["x"] + 700, box["y"] - 20, steps=3)
+    page.mouse.up()
+    page.mouse.move(box["x"] + 700, box["y"] + 60)
+    page.mouse.move(box["x"] + 500, box["y"] + 60, steps=10)  # no button held
+    assert flow.evaluate("f => f.scrollLeft") == 0
+    assert flow.get_attribute("data-dragging") is None
+
+
+def test_reset_keeps_the_middle_of_stretched_cards(page):  # noqa: F811
+    flow = _start(page, zoom="50")
+    middle = "f => { const r = f.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2).closest('.hub-step')?.id; }"
+    before = flow.evaluate(middle)
+    _bar(page, "Reset zoom").click()
+    assert _reading(page) == "100%"
+    assert flow.evaluate(middle) == before
+
+
+def test_bar_shows_when_runs_fail(page):  # noqa: F811
+    page.route("**/api/runs*", lambda route: route.fulfill(status=500, body="boom"))
+    page.add_init_script("localStorage.setItem('arp.orb', 'low');")
+    _open(page, "/#/rdLab")
+    page.get_by_text("Runs could not be loaded").wait_for()
+    assert page.locator("ol.hub-flow:visible").count() == page.locator("[data-flow-zoom-bar]:visible").count() > 0

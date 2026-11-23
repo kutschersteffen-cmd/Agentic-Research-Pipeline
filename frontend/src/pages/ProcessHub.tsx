@@ -207,8 +207,10 @@ function useFlowWindow() {
   const olRef = useRef<HTMLOListElement | null>(null);
   const [zoom, setZoomState] = useState(readZoom);
   const zoomRef = useRef(zoom);
-  // The point to hold still across a zoom change, in the window's own px, and the scroll it had before.
-  const anchor = useRef<{ x: number; y: number; from: number; left: number; top: number } | null>(null);
+  const shownZoom = useRef(zoom); // the zoom the window is laid out at
+  // The point to hold still across a zoom change: where it is in the window (px), and its share of the content measured
+  // before the change. Shares, not the zoom ratio, because cards stretched to fill the window grow by less than it.
+  const anchor = useRef<{ x: number; y: number; fx: number; fy: number } | null>(null);
   const bind = useCallback((el: HTMLOListElement | null) => {
     olRef.current = el;
     setOl(el);
@@ -218,9 +220,12 @@ function useFlowWindow() {
     const el = olRef.current;
     const z = clampZoom(next);
     if (z === zoomRef.current) return;
-    if (el) {
-      const held = anchor.current; // several changes before one layout: keep the scroll they all started from
-      anchor.current = { x: x ?? el.clientWidth / 2, y: y ?? el.clientHeight / 2, from: held?.from ?? zoomRef.current, left: held?.left ?? el.scrollLeft, top: held?.top ?? el.scrollTop };
+    if (z === shownZoom.current) anchor.current = null; // back to the laid-out zoom before a render: nothing to move
+    else if (el) {
+      const ax = x ?? el.clientWidth / 2;
+      const ay = y ?? el.clientHeight / 2;
+      const held = anchor.current; // several changes before one layout: its shares were measured on that layout
+      anchor.current = { x: ax, y: ay, fx: held?.fx ?? (el.scrollLeft + ax) / el.scrollWidth, fy: held?.fy ?? (el.scrollTop + ay) / el.scrollHeight };
     }
     zoomRef.current = z;
     setZoomState(z);
@@ -235,11 +240,10 @@ function useFlowWindow() {
     const a = anchor.current;
     const el = olRef.current;
     anchor.current = null;
+    shownZoom.current = zoom;
     if (!a || !el) return;
-    const cs = getComputedStyle(el);
-    const scale = (at: number, pad: number) => pad + (at - pad) * (zoom / a.from);
-    el.scrollLeft = scale(a.left + a.x, parseFloat(cs.paddingLeft)) - a.x;
-    el.scrollTop = scale(a.top + a.y, parseFloat(cs.paddingTop)) - a.y;
+    el.scrollLeft = a.fx * el.scrollWidth - a.x;
+    el.scrollTop = a.fy * el.scrollHeight - a.y;
   }, [zoom]);
 
   // Ctrl or cmd + wheel and a two-finger pinch zoom the flow, never the page; both need a listener that may cancel.
@@ -254,19 +258,22 @@ function useFlowWindow() {
       e.preventDefault();
       setZoom(wheelZoom(zoomRef.current, e.deltaY), ...local(e.clientX, e.clientY));
     };
+    // A pinch counts only fingers on the flow (a thumb resting elsewhere on the screen is not one of them).
     let pinch: { d: number; z: number } | null = null;
-    const span = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const onFlow = (e: TouchEvent) => [...e.touches].filter((t) => ol.contains(t.target as Node));
+    const span = (t: Touch[]) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
     const onTouchStart = (e: TouchEvent) => {
-      pinch = e.touches.length === 2 ? { d: span(e.touches), z: zoomRef.current } : null;
+      const t = onFlow(e);
+      pinch = t.length === 2 ? { d: span(t), z: zoomRef.current } : null;
     };
     const onTouchMove = (e: TouchEvent) => {
-      if (!pinch || e.touches.length !== 2 || pinch.d === 0) return;
+      const t = onFlow(e);
+      if (!pinch || t.length !== 2 || pinch.d === 0) return;
       e.preventDefault();
-      const [a, b] = [e.touches[0], e.touches[1]];
-      setZoom(pinch.z * (span(e.touches) / pinch.d), ...local((a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2));
+      setZoom(pinch.z * (span(t) / pinch.d), ...local((t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2));
     };
     const onTouchEnd = (e: TouchEvent) => {
-      if (e.touches.length < 2) pinch = null;
+      if (onFlow(e).length < 2) pinch = null;
     };
     ol.addEventListener("wheel", onWheel, { passive: false });
     ol.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -295,6 +302,12 @@ function useFlowWindow() {
     const d = drag.current;
     if (!d || d.id !== e.pointerId) return;
     const el = e.currentTarget;
+    if ((e.buttons & 1) === 0) {
+      // released where the window did not see it (outside it, or on its scrollbar): the drag is over
+      drag.current = null;
+      delete el.dataset.dragging;
+      return;
+    }
     const dx = e.clientX - d.x;
     const dy = e.clientY - d.y;
     if (!d.on) {
@@ -388,7 +401,7 @@ function attentionStep(states: StepState[]): number {
 
 /** One process drawn as its steps in order: each card carries the step's live
  * state and what it hands on; a click opens its details panel under the flow. */
-export function ProcessFlow({ p, runs, flow, activity, foldable = true, flowSettled = flow !== null }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null; activity: Activity | null; foldable?: boolean; flowSettled?: boolean }) {
+export function ProcessFlow({ p, runs, flow, activity, foldable = true, flowSettled = flow !== null, runsSettled = runs !== null }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null; activity: Activity | null; foldable?: boolean; flowSettled?: boolean; runsSettled?: boolean }) {
   const state = runs ? processState(p, runs, flow, activity) : null;
   const [open, setOpen] = useState<number | null>(null);
   // While a panel is open the flow keeps the fold it had when the panel opened, so a poll never folds it away under the reader.
@@ -407,12 +420,12 @@ export function ProcessFlow({ p, runs, flow, activity, foldable = true, flowSett
   // first unfold (until then it has no width); later polls never scroll it again.
   const [unfolds, setUnfolds] = useState(0);
   // The zoom bar only exists while the steps show: not inside a closed fold, and not while a foldable flow does not
-  // know yet whether it folds (its runs have not answered), so a hidden flow never shows a bar.
+  // know yet whether it folds (its runs have not answered or failed), so a hidden flow never shows a bar.
   const [foldOpen, setFoldOpen] = useState(false);
   useEffect(() => {
     if (!folded) setFoldOpen(false); // a fold that comes back starts closed
   }, [folded]);
-  const barShown = folded ? foldOpen : !(foldable && runs === null);
+  const barShown = folded ? foldOpen : !foldable || runsSettled; // runs that failed to load count as answered
   const attended = useRef(false);
   const statesKnown = runs !== null && (flowSettled || !p.steps.some((s) => s.stage));
   const attention = attentionStep(views.map((v) => v.state));
@@ -708,7 +721,7 @@ export function WorkspaceOverview({ id, onAsk }: { id: WorkspaceId; onAsk?: (que
           </p>
         ))}
         {w.processes.map((p) => (
-          <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} activity={activity} flowSettled={flow !== null || flowError !== null} />
+          <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} activity={activity} flowSettled={flow !== null || flowError !== null} runsSettled={runs !== null || error !== null} />
         ))}
         <HandoffLegend />
       </div>
