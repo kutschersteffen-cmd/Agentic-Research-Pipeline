@@ -62,6 +62,10 @@ import type {
   RfpLibraryEntry,
   RfpProject,
   RfpProjectSummary,
+  RefineDocument,
+  RefineThread,
+  RefineTurn,
+  RefineTurnOut,
   SignalComparison,
   SignalExperimentDetail,
   SignalExperimentSummary,
@@ -329,6 +333,29 @@ export const api = {
   leaveRfpBlank: (id: number, qid: number) => request<RfpProject>(rfpQuestion(id, qid, "/leave-blank"), { method: "POST" }),
   approveRfp: (id: number, qid: number, confirmedFlags: string[]) =>
     request<RfpProject>(rfpQuestion(id, qid, "/approve"), jsonBody("POST", { confirmed_flags: confirmedFlags })),
+  // Refine threads on the Agent screen (spec refine-chat-design): `kind` is rfp (doc id = project id) or deck (report id).
+  listRefineThreads: () => request<RefineThread[]>("/api/refine/threads"),
+  listRefineDocuments: () => request<RefineDocument[]>("/api/refine/documents"),
+  listRefineTurns: (kind: string, docId: string) => request<RefineTurn[]>(`/api/refine/${kind}/${encodeURIComponent(docId)}/turns`),
+  getRefineTurn: (turnId: number) => request<RefineTurnOut>(`/api/refine/turns/${turnId}`),
+  getDeckHtml: async (reportId: string) => (await authFetch(`${API_BASE}/api/reports/${encodeURIComponent(reportId)}/deck/html`)).text(),
+  /** A Refine write (a turn or an undo): its status and parsed body, never a throw, so the screen can show the API's
+   * own `detail`; a request that never got an answer has status `network`. */
+  refineWrite: async (path: string, body?: unknown): Promise<{ status: number | "network"; body: unknown }> => {
+    const token = getToken();
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch {
+      return { status: "network", body: null };
+    }
+    if (res.status === 401) clearToken();
+    return { status: res.status, body: await res.json().catch(() => null) };
+  },
   rfpExportUrl: (id: number) => `${API_BASE}/api/rfp/projects/${id}/export`,
   listReviewItems: (runId?: string) =>
     request<{ items: ReviewItem[] }>(`/api/review/items${runId ? `?run_id=${encodeURIComponent(runId)}` : ""}`),

@@ -656,6 +656,7 @@ export function ReportBuilder() {
             {storyline.approved && manifest.status === "failed" && (
               <button onClick={approveAndBuild} disabled={busy}>{busy ? "Building..." : "Retry build"}</button>
             )}
+            {manifest.has_deck && <a href={`#/agent/refine/deck/${encodeURIComponent(manifest.report_id)}`} className="button-link">Refine in Agent</a>}
             {manifest.status === "completed" && (
               <>
                 <button className="link-button" onClick={() => openPreview(manifest.report_id, storyline.title || manifest.title)}>
