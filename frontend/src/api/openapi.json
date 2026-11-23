@@ -11643,6 +11643,20 @@
       "title": "Label",
       "type": "string"
      },
+     "miniapp_asks": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Miniapp Asks"
+     },
      "miniapp_html": {
       "anyOf": [
        {
@@ -11726,7 +11740,8 @@
      "label",
      "source_ask_id",
      "source_ask",
-     "miniapp_html"
+     "miniapp_html",
+     "miniapp_asks"
     ],
     "title": "Exploration",
     "type": "object"
@@ -31473,7 +31488,7 @@
   },
   "/api/agent/explorations/{exploration_id}/miniapp": {
    "post": {
-    "description": "\"Show as mini-app\": one model call writes a page for the done exploration's result, stored on it.",
+    "description": "\"Show as mini-app\" (and \"Regenerate mini-app\"): one model call writes a script-free page and follow-up questions\nfor the done exploration's result, cleaned and stored on it.",
     "operationId": "create_miniapp_api_agent_explorations__exploration_id__miniapp_post",
     "parameters": [
      {

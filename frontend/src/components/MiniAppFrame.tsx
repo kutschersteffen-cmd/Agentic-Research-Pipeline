@@ -1,21 +1,17 @@
-import { useEffect, useRef } from "react";
-import { bridgeAsk, MINIAPP_SANDBOX, miniappDocument, type Theme } from "../lib/miniapp";
+import { MINIAPP_SANDBOX, miniappDocument } from "../lib/miniapp";
 
-/** A mini-app on the stage (spec agent-panel-code-mode, Phase 5): its HTML in a frame that may run scripts and reach
- * nothing, with the exploration's result as `window.ARP_DATA`. Of its messages, only `{action: "ask", text}` counts:
- * `onAsk` gets the text, which goes in the composer unsent. */
-export function MiniAppFrame({ title, html, data, theme, onAsk }: { title: string; html: string; data: unknown; theme: Theme; onAsk: (text: string) => void }) {
-  const frame = useRef<HTMLIFrameElement>(null);
-  const ask = useRef(onAsk);
-  ask.current = onAsk;
-  useEffect(() => {
-    const onMessage = (e: MessageEvent) => {
-      if (!frame.current || e.source !== frame.current.contentWindow) return;
-      const text = bridgeAsk(e.data);
-      if (text !== null) ask.current(text);
-    };
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, []);
-  return <iframe ref={frame} className="agent-miniapp" title={title} sandbox={MINIAPP_SANDBOX} srcDoc={miniappDocument(html, data, theme)} />;
+/** A mini-app on the stage (spec agent-panel-code-mode, Phase 5, D14): its script-free HTML in a frame where nothing
+ * runs, and below it, outside the frame, one `Ask` chip per follow-up question. A chip puts its question in the
+ * composer in `Ask` mode, unsent. */
+export function MiniAppFrame({ title, html, asks, onAsk }: { title: string; html: string; asks: string[]; onAsk: (text: string) => void }) {
+  return (
+    <>
+      <iframe className="agent-miniapp" title={title} sandbox={MINIAPP_SANDBOX} srcDoc={miniappDocument(html)} />
+      {asks.length > 0 && (
+        <div className="agent-miniapp-asks" role="group" aria-label="Ask a follow-up">
+          {asks.map((q, i) => <button key={i} type="button" className="secondary" onClick={() => onAsk(q)}>{q}</button>)}
+        </div>
+      )}
+    </>
+  );
 }

@@ -204,7 +204,8 @@ export interface paths {
         put?: never;
         /**
          * Create Miniapp
-         * @description "Show as mini-app": one model call writes a page for the done exploration's result, stored on it.
+         * @description "Show as mini-app" (and "Regenerate mini-app"): one model call writes a script-free page and follow-up questions
+         *     for the done exploration's result, cleaned and stored on it.
          */
         post: operations["create_miniapp_api_agent_explorations__exploration_id__miniapp_post"];
         delete?: never;
@@ -13903,6 +13904,8 @@ export interface components {
              * @enum {string}
              */
             label: "exploratory" | "accepted";
+            /** Miniapp Asks */
+            miniapp_asks: string[] | null;
             /** Miniapp Html */
             miniapp_html: string | null;
             /** Model */

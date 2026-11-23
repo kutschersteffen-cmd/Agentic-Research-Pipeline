@@ -172,6 +172,7 @@ class Exploration(BaseModel):
     source_ask_id: str | None
     source_ask: SourceAsk | None
     miniapp_html: str | None
+    miniapp_asks: list[str] | None
 
 
 @router.post("/explorations", response_model=Exploration)
@@ -217,7 +218,8 @@ def accept_exploration(exploration_id: str, store: ExplorationStore = Depends(ex
 @router.post("/explorations/{exploration_id}/miniapp", response_model=Exploration)
 async def create_miniapp(exploration_id: str, store: ExplorationStore = Depends(exploration_store),
                          settings: Settings = Depends(settings_dep)) -> dict:
-    """"Show as mini-app": one model call writes a page for the done exploration's result, stored on it."""
+    """"Show as mini-app" (and "Regenerate mini-app"): one model call writes a script-free page and follow-up questions
+    for the done exploration's result, cleaned and stored on it."""
     try:
         found = await write_miniapp(store, settings, exploration_id)
     except NotDone:
@@ -225,7 +227,7 @@ async def create_miniapp(exploration_id: str, store: ExplorationStore = Depends(
     except NotConfigured:
         raise
     except RuntimeError as exc:
-        raise HTTPException(502, f"no mini-app was written: {exc}") from exc
+        raise HTTPException(500, str(exc)) from exc
     if found is None:
         raise HTTPException(404, "exploration not found")
     return found

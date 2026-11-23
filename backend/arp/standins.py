@@ -147,14 +147,17 @@ def exploration_code(folder: Path, question: str, attempt: int = 1) -> str:
     return entry["code"]
 
 
-def miniapp_html(folder: Path, question: str) -> str:
-    """The miniapp.json `html` for the exploration's question: `{"<exploration question>": {"html": "<html>"}}`."""
+def miniapp(folder: Path, question: str) -> tuple[str, list[str]]:
+    """The miniapp.json entry for the exploration's question, `{"<question>": {"html": "<html>", "asks": [...]}}`,
+    as (html, asks)."""
     _record(folder, {"kind": "model", "name": "MiniApp", "question": question})
+    missing = RuntimeError(f"no stand-in mini-app for {question} in miniapp.json")
     try:
         entries = _read(folder / "miniapp.json")
     except ValueError:
-        raise RuntimeError("stand-in miniapp.json is not valid JSON") from None
+        raise missing from None
     entry = entries.get(question) if isinstance(entries, dict) else None
-    if not isinstance(entry, dict) or not isinstance(entry.get("html"), str):
-        raise RuntimeError(f"no stand-in mini-app for {question!r} in miniapp.json")
-    return entry["html"]
+    if not isinstance(entry, dict) or not isinstance(entry.get("html"), str) or not isinstance(entry.get("asks"), list) \
+            or not all(isinstance(a, str) for a in entry["asks"]):
+        raise missing
+    return entry["html"], entry["asks"]

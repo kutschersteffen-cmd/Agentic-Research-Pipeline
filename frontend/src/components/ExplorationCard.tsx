@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { explorationBadge, resultTable } from "../lib/agent";
+import { miniappAction } from "../lib/miniapp";
 import type { Exploration } from "../types";
 
 /** An exploration in the Agent stream (spec agent-panel-code-mode, Phase 4): the question, the code (collapsed), the
@@ -30,7 +31,7 @@ export function ExplorationCard({ exploration: e, busy, onAccept, onMiniapp }: {
         {(badge || e.status === "done") && (
           <div className="toolbar">
             {badge && <button disabled={busy} onClick={() => { accepting.current = true; onAccept(); }}>Accept</button>}
-            {e.status === "done" && <button id="agent-show-miniapp" className="secondary" disabled={busy} onClick={onMiniapp}>Show as mini-app</button>}
+            {e.status === "done" && <button id="agent-show-miniapp" className="secondary" disabled={busy} onClick={onMiniapp}>{miniappAction(e)}</button>}
           </div>
         )}
         <details className="agent-exploration-code">

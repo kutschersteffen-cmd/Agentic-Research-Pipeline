@@ -4,7 +4,6 @@ import { AgentBoard } from "../components/AgentBoard";
 import { AskCard } from "../components/AskCards";
 import { ExplorationCard } from "../components/ExplorationCard";
 import { MiniAppFrame } from "../components/MiniAppFrame";
-import { usedTheme } from "../lib/miniapp";
 import { RefinePicker, RefineStage, RefineStream, useRefine, useRefineThreads } from "../components/RefineThread";
 import { StepTabs } from "../components/StepTabs";
 import {
@@ -380,7 +379,8 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
       <div id={`${id}-panel`} role="tabpanel" aria-label={STAGE_TABS.find((t) => t.id === tab)!.label}>
         {tab === "miniapp" ? (
           exploration && explorationId && exploration.miniapp_html != null ? (
-            <MiniAppFrame key={exploration.id} title={`Mini-app: ${exploration.question}`} html={exploration.miniapp_html} data={exploration.result} theme={usedTheme()} onAsk={setText} />
+            <MiniAppFrame key={exploration.id} title={`Mini-app: ${exploration.question}`} html={exploration.miniapp_html} asks={exploration.miniapp_asks ?? []}
+              onAsk={(q) => { if (canAsk) setMode("Ask"); setText(q); }} />
           ) : (
             <p className="muted">{exploration && explorationId ? "Show as mini-app, on a done exploration, builds a small page for its result here." : "A done exploration can be shown here as a mini-app."}</p>
           )
