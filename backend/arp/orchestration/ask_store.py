@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from arp.agent.models import AgentExploration
 from arp.orchestration.plan_models import AgentAsk, ResearchPlan
 
 HISTORY_TURNS = 5  # the limit POST /api/ask has
@@ -55,15 +56,20 @@ class AskStore:
         return self.asks(list(ids))
 
     def asks(self, ids: list[str]) -> list[dict]:
-        """The asks in `ids` order, each with the plans drafted from it (oldest first). `explorations` stays `[]`
-        until explorations can be drafted from an ask (slice 14)."""
+        """The asks in `ids` order, each with the plans and the explorations started from it (oldest first)."""
         with Session(self.engine) as s:
             rows = {a.id: a for a in s.scalars(select(AgentAsk).where(AgentAsk.id.in_(ids)))}
             plans: dict[str, list[dict]] = {}
             for p in s.scalars(select(ResearchPlan).where(ResearchPlan.source_ask_id.in_(ids)).order_by(ResearchPlan.created_at)):
                 plans.setdefault(p.source_ask_id, []).append({"plan_id": p.id, "brief": p.brief, "status": p.status})
+            explorations: dict[str, list[dict]] = {}
+            for e in s.scalars(select(AgentExploration).where(AgentExploration.source_ask_id.in_(ids))
+                               .order_by(AgentExploration.created_at)):
+                explorations.setdefault(e.source_ask_id, []).append(
+                    {"exploration_id": str(e.id), "question": e.question, "status": e.status,
+                     "label": "accepted" if e.accepted_at else "exploratory"})
             return [{**{c.name: getattr(rows[i], c.name) for c in AgentAsk.__table__.columns},
-                     "plans": plans.get(i, []), "explorations": []} for i in ids]
+                     "plans": plans.get(i, []), "explorations": explorations.get(i, [])} for i in ids]
 
     def threads(self) -> list[dict[str, Any]]:
         """One row per thread, newest first by its first ask's `created_at`."""

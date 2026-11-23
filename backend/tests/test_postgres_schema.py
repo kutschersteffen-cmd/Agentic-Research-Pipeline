@@ -254,6 +254,24 @@ def test_plan_source_ask_fk_added_to_an_existing_database(current_schema):
     assert _execute(fk) == [(1,)]
 
 
+def test_exploration_source_ask_fk_added_to_an_existing_database(current_schema):
+    """agent-panel-code-mode slice 14: the same for agent_explorations.source_ask_id."""
+    from arp.storage.postgres_schema import ensure_schema
+    from tests.postgres_helpers import reset_postgres_tables
+
+    reset_postgres_tables(DSN)
+    _execute("ALTER TABLE agent_explorations DROP COLUMN source_ask_id")
+    _execute("DELETE FROM schema_migrations WHERE name = 'exploration_source_ask_fk'")
+    result = ensure_schema(DSN)
+    assert "agent_explorations.source_ask_id" in result["columns_added"]
+    assert result["steps_applied"] == ["exploration_source_ask_fk"]
+    fk = "SELECT 1 FROM pg_constraint WHERE conname = 'agent_explorations_source_ask_id_fkey'"
+    assert _execute(fk) == [(1,)]
+    _execute("DELETE FROM schema_migrations WHERE name = 'exploration_source_ask_fk'")
+    assert ensure_schema(DSN)["steps_applied"] == ["exploration_source_ask_fk"]
+    assert _execute(fk) == [(1,)]
+
+
 def test_a_missing_table_does_not_hide_missing_columns_in_later_tables(current_schema):
     """schema_report lists a later table's missing column even when an earlier table (in model order) is missing."""
     from arp.storage.postgres_schema import ensure_schema, schema_report
@@ -266,4 +284,5 @@ def test_a_missing_table_does_not_hide_missing_columns_in_later_tables(current_s
         assert "research_plans.budget_usd" in report["missing_columns"]
     finally:
         _execute("DELETE FROM schema_migrations WHERE name = 'plan_source_ask_fk'")  # re-adds the dropped FK
+        _execute("DELETE FROM schema_migrations WHERE name = 'exploration_source_ask_fk'")  # and this one
         ensure_schema(DSN)

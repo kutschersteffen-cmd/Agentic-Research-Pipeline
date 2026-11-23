@@ -118,7 +118,7 @@ export function composerRequest(mode: Mode, text: string, selected: Selection): 
 export const ctrlJTarget = (canAsk: boolean): string | null => (canAsk ? "#/agent" : null);
 
 /** The buttons under an answered ask. */
-export const answerActions = (canAsk: boolean): string[] => (canAsk ? ["Draft a plan"] : []);
+export const answerActions = (canAsk: boolean): string[] => (canAsk ? ["Draft a plan", "Explore"] : []);
 
 /** `Draft a plan`: a plan from the ask's standalone question, linked to the ask. Any failure resolves to its detail. */
 export async function draftPlanFromAsk(
@@ -129,6 +129,28 @@ export async function draftPlanFromAsk(
   } catch (e) {
     return { ok: false, error: askErrorText(e) };
   }
+}
+
+/** `Explore`: an exploration of the ask's standalone question, linked to the ask. Any failure resolves to its detail. */
+export async function exploreFromAsk(
+  ask: Pick<AgentAsk, "id" | "standalone_question">, request: (path: string, body: unknown) => Promise<Exploration>,
+): Promise<{ ok: true; exploration: Exploration } | { ok: false; error: string }> {
+  try {
+    return { ok: true, exploration: await request("/api/agent/explorations", { question: ask.standalone_question, source_ask_id: ask.id }) };
+  } catch (e) {
+    return { ok: false, error: askErrorText(e) };
+  }
+}
+
+/** Where focus goes once `Draft a plan` or `Explore` under an answer finishes: the new link card's link on success,
+ * else back to the pressed button (which was disabled while the request ran, so focus had dropped to <body>). */
+export function focusAfterFromAsk(
+  kind: "plan" | "exploration",
+  out: { ok: true; plan: Plan } | { ok: true; exploration: Exploration } | { ok: false; error: string },
+): { href: string } | { button: "Draft a plan" | "Explore" } {
+  if (!out.ok) return { button: kind === "plan" ? "Draft a plan" : "Explore" };
+  if ("plan" in out) return { href: `#/agent/${encodeURIComponent(out.plan.id)}` };
+  return { href: `#/agent/exploration/${encodeURIComponent(out.exploration.id)}` };
 }
 
 /** The ask in flight: its question and the thread it was sent in (`null` starts a new thread). */

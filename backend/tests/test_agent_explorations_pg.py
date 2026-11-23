@@ -236,3 +236,48 @@ def test_golden_case_passes_on_done_with_every_expected_capability(monkeypatch):
                       (runs("failed", [], "boom"), "failed: boom")]:
         monkeypatch.setattr(golden, "run_question", fake)
         assert asyncio.run(golden.run_case(None, None, case)) == why
+
+
+ZERO = "00000000-0000-0000-0000-000000000000"
+
+
+def _ask(pg, question="Sector weights?") -> dict:
+    from arp.orchestration.ask_store import AskStore
+
+    return AskStore(pg).add(thread_id=None, question=question, asked_by="alice", tool="benchmark_sectors",
+                            standalone_question=question)
+
+
+def test_exploration_from_an_ask_links_both_ways(pg, client, standins, sandbox_service):  # AC-80 (unit side)
+    from arp.orchestration.ask_store import AskStore
+
+    client.app.dependency_overrides[agent.ask_store] = lambda: AskStore(pg)
+    a = _ask(pg, "Sector weights of MSCI World?")
+    (standins / "explore.json").write_text(json.dumps({"q80": [{"code": "return 1"}]}))
+    res = client.post("/api/agent/explorations", json={"question": "q80", "source_ask_id": a["id"]})
+    assert res.status_code == 200, res.text
+    e = res.json()
+    source = {"question": "Sector weights of MSCI World?", "thread_id": a["id"]}
+    assert (e["source_ask_id"], e["source_ask"]) == (a["id"], source)
+    assert client.get(f"/api/agent/explorations/{e['id']}").json()["source_ask"] == source
+    assert client.get("/api/agent/explorations").json()[0]["source_ask"] == source
+    [row] = client.get("/api/agent/asks", params={"thread_id": a["id"]}).json()
+    assert row["explorations"] == [{"exploration_id": e["id"], "question": "q80", "status": "done",
+                                    "label": "exploratory"}]
+    client.post(f"/api/agent/explorations/{e['id']}/accept")
+    [row] = client.get("/api/agent/asks", params={"thread_id": a["id"]}).json()
+    assert row["explorations"][0]["label"] == "accepted"
+
+
+def test_exploration_without_ask_has_null_source(client, standins, sandbox_service):
+    e = _explore(client, standins, "q", "return 1").json()
+    assert (e["source_ask_id"], e["source_ask"]) == (None, None)
+
+
+def test_exploration_from_unknown_ask_is_404(pg, client, standins, sandbox_service):  # AC-80b (unit side)
+    (standins / "explore.json").write_text(json.dumps({"q": [{"code": "return 1"}]}))
+    for bad in ("abc", ZERO):
+        res = client.post("/api/agent/explorations", json={"question": "q", "source_ask_id": bad})
+        assert (res.status_code, res.json()) == (404, {"detail": "ask not found"})
+    assert client.get("/api/agent/explorations").json() == []
+    assert sandbox_service["requests"] == []

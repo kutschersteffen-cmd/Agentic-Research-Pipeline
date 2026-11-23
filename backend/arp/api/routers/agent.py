@@ -141,6 +141,12 @@ def list_ask_threads(asks: AskStore = Depends(ask_store)) -> list[dict]:
 
 class ExplorationRequest(BaseModel):
     question: str = Field(min_length=1)
+    source_ask_id: str | None = None  # the ask whose `Explore` sent this question
+
+
+class SourceAsk(BaseModel):
+    question: str
+    thread_id: str
 
 
 class ToolCall(BaseModel):
@@ -163,6 +169,8 @@ class Exploration(BaseModel):
     accepted_by: str | None
     accepted_at: datetime | None
     label: Literal["exploratory", "accepted"]
+    source_ask_id: str | None
+    source_ask: SourceAsk | None
     miniapp_html: str | None
 
 
@@ -170,9 +178,12 @@ class Exploration(BaseModel):
 async def create_exploration(req: ExplorationRequest, store: ExplorationStore = Depends(exploration_store),
                              settings: Settings = Depends(settings_dep),
                              principal: Principal = Depends(current_user)) -> dict:
-    """Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed."""
+    """Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed.
+    A `source_ask_id` that names no ask answers 404 and runs nothing."""
+    if req.source_ask_id is not None and not await run_in_threadpool(AskStore(store.dsn).exists, req.source_ask_id):
+        raise HTTPException(404, "ask not found")
     try:
-        return await explore(store, settings, req.question, principal)
+        return await explore(store, settings, req.question, principal, source_ask_id=req.source_ask_id)
     except NotConfigured:
         raise
     except RuntimeError as exc:
