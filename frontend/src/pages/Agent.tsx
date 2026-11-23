@@ -83,12 +83,15 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const refocus = useRef(false);
   const miniappFocus = useRef<"tab" | "button" | null>(null); // where focus goes once Show as mini-app has answered
   // The drawer Show as mini-app opened: focus was on <body> then (the button was disabled), so the dialog would give
-  // it back there on close. It goes back to the button instead.
-  const drawerReturn = useRef(false);
+  // it back there on close. It goes back to the button instead. An Ask chip closes the drawer (it covers the composer)
+  // and sends focus to the composer that now holds the question.
+  const drawerReturn = useRef<"button" | "brief" | null>(null);
   useEffect(() => {
     if (drawer !== null || !drawerReturn.current) return;
-    drawerReturn.current = false;
-    if (document.activeElement === document.body) document.getElementById("agent-show-miniapp")?.focus();
+    const where = drawerReturn.current;
+    drawerReturn.current = null;
+    if (where === "brief") input.current?.focus();
+    else if (document.activeElement === document.body) document.getElementById("agent-show-miniapp")?.focus();
   }, [drawer]);
   const current = useRef(selected); // the selection now, for a request that answers after it changed
   current.current = selected;
@@ -380,7 +383,12 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
         {tab === "miniapp" ? (
           exploration && explorationId && exploration.miniapp_html != null ? (
             <MiniAppFrame key={exploration.id} title={`Mini-app: ${exploration.question}`} html={exploration.miniapp_html} asks={exploration.miniapp_asks ?? []}
-              onAsk={(q) => { if (canAsk) setMode("Ask"); setText(q); }} />
+              onAsk={(q) => {
+                if (canAsk) setMode("Ask");
+                setText(q);
+                if (drawer === null) input.current?.focus();
+                else { drawerReturn.current = "brief"; setDrawer(null); }
+              }} />
           ) : (
             <p className="muted">{exploration && explorationId ? "Show as mini-app, on a done exploration, builds a small page for its result here." : "A done exploration can be shown here as a mini-app."}</p>
           )
@@ -442,7 +450,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
                 setTab("miniapp");
                 if (!window.matchMedia(NARROW).matches) return;
                 setDrawer("stage");
-                drawerReturn.current = true;
+                drawerReturn.current = "button";
               }} />
           ) : plan && planId ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />

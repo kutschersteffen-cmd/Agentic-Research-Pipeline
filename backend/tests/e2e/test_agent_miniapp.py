@@ -76,11 +76,11 @@ def udp():
     sock.close()
 
 
-def _seed(question, asks):
+def _seed(question, asks, html="<p>x</p>"):
     store = ExplorationStore(DSN)
     row = store.add(question=question, code="return []", model="stand-in",
                     run={"status": "done", "result": RESULT, "error": None, "tool_calls": []})
-    store.set_miniapp(row["id"], "<p>x</p>", asks)
+    store.set_miniapp(row["id"], html, asks)
     return row["id"]
 
 
@@ -126,6 +126,34 @@ def test_an_ask_chip_fills_the_composer_in_ask_mode_and_sends_nothing(page):  # 
             sent = f.read()
         for route in (b"POST /api/agent/asks", b"POST /api/plans", b"POST /api/agent/explorations"):
             assert route not in sent, (log.name, route)
+
+
+def test_the_keyboard_can_scroll_a_mini_app_taller_than_its_frame(page):  # WCAG 2.1.1, UI review r3
+    _open_miniapp(page, _seed("miniapp scroll e2e", ["next?"], '<div style="height:4000px">top</div><p>end</p>'))
+    end = page.frame_locator(".agent-stage iframe.agent-miniapp").get_by_text("end")
+    before = end.bounding_box()["y"]
+    page.locator(".agent-stage [data-tab='miniapp']").focus()
+    page.keyboard.press("Tab")
+    assert page.evaluate("document.activeElement.textContent") == "Scroll the mini-app"
+    page.keyboard.press("Enter")
+    assert page.evaluate("document.activeElement.classList.contains('agent-miniapp')")
+    page.keyboard.press("End")
+    time.sleep(0.5)
+    assert end.bounding_box()["y"] < before - 1000
+    page.keyboard.press("Tab")  # Tab leaves the frame for the first chip: no trap
+    page.wait_for_function("document.activeElement && document.activeElement.textContent === 'next?'", timeout=5_000)
+
+
+def test_below_900px_an_ask_chip_closes_the_drawer_and_focuses_the_composer(page):  # UI review r3
+    exploration = _seed("miniapp drawer chip e2e", ["why sector Y?"])
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(f"{URL}/#/agent/exploration/{exploration}")
+    page.get_by_role("button", name="Stage").click()
+    page.locator("#agent-drawer").get_by_role("tab", name="Mini-app").click()
+    page.locator("#agent-drawer").get_by_role("button", name="why sector Y?").click()
+    page.wait_for_function("!document.querySelector('#agent-drawer')", timeout=5_000)
+    page.wait_for_function("document.activeElement && document.activeElement.id === 'agent-brief'", timeout=5_000)
+    assert page.locator("#agent-brief").input_value() == "why sector Y?"
 
 
 @pytest.fixture

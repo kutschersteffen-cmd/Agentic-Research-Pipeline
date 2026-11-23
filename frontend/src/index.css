@@ -2401,6 +2401,10 @@ a.vc-box:hover { border-color: var(--text); }
  * system canvas in either theme. The Ask chips sit below it, outside the frame. */
 .agent-miniapp { display: block; width: 100%; height: min(70vh, 640px); border: 1px solid var(--panel-border); border-radius: var(--r-sm); color-scheme: light; background: Canvas; }
 .agent-miniapp-asks { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-2); }
+/* Shown only while focused: the keyboard way into the frame (MiniAppFrame). The frame then shows the focus ring. */
+.agent-miniapp-enter { margin-bottom: var(--s-2); }
+.agent-miniapp-enter:not(:focus) { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.agent-miniapp:focus { outline: 2px solid var(--text); outline-offset: 2px; }
 /* Diff and Audit tabs. */
 .agent-stage-h { font-size: var(--text-sm); margin: var(--s-3) 0 var(--s-1_5); }
 .agent-stage-h:first-child { margin-top: 0; }
