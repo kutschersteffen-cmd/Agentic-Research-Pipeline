@@ -201,3 +201,17 @@ def test_pinch_zooms_the_flow_only(page):  # noqa: F811
     assert 140 <= int(_reading(pg).rstrip("%")) <= 160, _reading(pg)
     assert pg.evaluate("window.visualViewport.scale") == 1
     ctx.close()
+
+
+def test_no_bar_before_the_runs_answer(page):  # noqa: F811
+    """A foldable flow does not know yet whether it folds, so it shows no zoom bar until its runs answer."""
+
+    def slow(route):
+        page.wait_for_timeout(1500)
+        route.fulfill(json={"runs": []})
+
+    page.route("**/api/runs*", slow)
+    page.add_init_script("localStorage.setItem('arp.orb', 'low');")
+    page.goto(URL + "/#/rdLab")
+    page.locator(f"{SECTION} button.hub-step").first.wait_for(state="attached")
+    assert page.locator("[data-flow-zoom-bar]:visible").count() == 0

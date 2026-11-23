@@ -406,6 +406,13 @@ export function ProcessFlow({ p, runs, flow, activity, foldable = true, flowSett
   // Once per mount, when the states are known: open on the step that needs attention. A folded flow waits for its
   // first unfold (until then it has no width); later polls never scroll it again.
   const [unfolds, setUnfolds] = useState(0);
+  // The zoom bar only exists while the steps show: not inside a closed fold, and not while a foldable flow does not
+  // know yet whether it folds (its runs have not answered), so a hidden flow never shows a bar.
+  const [foldOpen, setFoldOpen] = useState(false);
+  useEffect(() => {
+    if (!folded) setFoldOpen(false); // a fold that comes back starts closed
+  }, [folded]);
+  const barShown = folded ? foldOpen : !(foldable && runs === null);
   const attended = useRef(false);
   const statesKnown = runs !== null && (flowSettled || !p.steps.some((s) => s.stage));
   const attention = attentionStep(views.map((v) => v.state));
@@ -422,21 +429,23 @@ export function ProcessFlow({ p, runs, flow, activity, foldable = true, flowSett
   };
   const steps = (
     <div onKeyDown={onKeyDown}>
-      <div className="hub-flow-zoom" data-flow-zoom-bar role="group" aria-label={`Zoom, ${p.title}`}>
-        <button type="button" aria-label="Zoom out" disabled={shown <= MIN_ZOOM} onClick={() => win.setZoom(stepZoom(win.zoom, -1))}>
-          −
-        </button>
-        <output data-flow-zoom aria-live="polite">{shown}%</output>
-        <button type="button" aria-label="Zoom in" disabled={shown >= MAX_ZOOM} onClick={() => win.setZoom(stepZoom(win.zoom, 1))}>
-          +
-        </button>
-        <button type="button" aria-label="Reset zoom" disabled={shown === 100} onClick={() => win.setZoom(100)}>
-          Reset
-        </button>
-        <button type="button" aria-label="Fit to width" onClick={win.fit}>
-          Fit
-        </button>
-      </div>
+      {barShown && (
+        <div className="hub-flow-zoom" data-flow-zoom-bar role="group" aria-label={`Zoom, ${p.title}`}>
+          <button type="button" aria-label="Zoom out" disabled={shown <= MIN_ZOOM} onClick={() => win.setZoom(stepZoom(win.zoom, -1))}>
+            −
+          </button>
+          <output data-flow-zoom aria-live="polite">{shown}%</output>
+          <button type="button" aria-label="Zoom in" disabled={shown >= MAX_ZOOM} onClick={() => win.setZoom(stepZoom(win.zoom, 1))}>
+            +
+          </button>
+          <button type="button" aria-label="Reset zoom" disabled={shown === 100} onClick={() => win.setZoom(100)}>
+            Reset
+          </button>
+          <button type="button" aria-label="Fit to width" onClick={win.fit}>
+            Fit
+          </button>
+        </div>
+      )}
       {/* One segment per step (DESIGN.md, Status Rail); inside the fold, so a folded process shows none. */}
       <span className="hub-rail hub-step-rail" data-rail aria-hidden="true">
         {rail.map((seg, i) => (
@@ -473,8 +482,16 @@ export function ProcessFlow({ p, runs, flow, activity, foldable = true, flowSett
       {p.run && <RunProcess p={p} />}
       {/* A process nobody has run is folded away so the ones with activity stand out; one click opens it. */}
       {folded ? (
-        <details className="hub-process-fold" onToggle={(e) => e.currentTarget.open && setUnfolds((n) => n + 1)}>
-          <summary>Show {p.steps.length} steps</summary>
+        <details
+          className="hub-process-fold"
+          onToggle={(e) => {
+            const isOpen = e.currentTarget.open;
+            setFoldOpen(isOpen);
+            if (isOpen) setUnfolds((n) => n + 1);
+          }}
+        >
+          {/* The click already renders the bar; the toggle event that confirms it comes a task later. */}
+          <summary onClick={(e) => setFoldOpen(!(e.currentTarget.parentElement as HTMLDetailsElement).open)}>Show {p.steps.length} steps</summary>
           {steps}
         </details>
       ) : (
