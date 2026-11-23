@@ -1744,11 +1744,13 @@ button.hub-step:hover:not(:disabled) { background: var(--panel); }
 @media (max-width: 760px) { .hub-step-panel .button-link { min-height: 44px; display: inline-flex; align-items: center; } }
 
 /* Inside a workspace (expressive-ui-orb): caption, pixel title, purpose and status line on the left, the drawing in
-   its figure box on the right; the Ask ARP card is the right column above 1080px, between the header and the
-   panels below it. Each process is a panel with a rail of one segment per step. */
-.page.hub-ws { display: grid; grid-template-columns: minmax(0, 1fr) 300px 340px; grid-template-areas: "cap fig ask" "title fig ask" "intro fig ask" "status fig ask" "body body ask"; column-gap: 32px; align-items: start; }
+   its figure box on the right; with asking allowed, the Ask ARP card is the right column above 1080px and sits between
+   the header and the panels below it. Each process is a panel with a rail of one segment per step. */
+.page.hub-ws { display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-areas: "cap fig" "title fig" "intro fig" "status fig" "ask ask" "body body"; column-gap: 32px; align-items: start; container-type: inline-size; --ws-title-col: calc(100cqi - 332px); }
 .hub-ws > .hub-ws-cap { grid-area: cap; margin: var(--s-4) 0 0; font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; color: var(--muted); }
-.page.hub-ws > h1 { grid-area: title; margin: 14px 0 16px; font-family: var(--font-pixel); font-weight: 400; font-size: clamp(48px, 6.4vw, 92px); line-height: 0.94; color: var(--text); overflow-wrap: break-word; }
+/* The title follows its column, not the viewport: at the column's width over 5.6 the longest single word
+   ("Intelligence", 12 glyphs) fits, so a long name wraps between words only. */
+.page.hub-ws > h1 { grid-area: title; margin: 14px 0 16px; font-family: var(--font-pixel); font-weight: 400; font-size: clamp(48px, min(6.4vw, var(--ws-title-col) / 5.6), 92px); line-height: 0.94; color: var(--text); overflow-wrap: break-word; }
 .page.hub-ws > h1 + .help-text { grid-area: intro; margin: 0; }
 .hub-ws > .hub-ws-status { grid-area: status; margin: 22px 0 0; font-size: 15px; line-height: 1.5; }
 .hub-ws-status .hub-mark { margin-right: 10px; vertical-align: 1px; }
@@ -1758,40 +1760,47 @@ button.hub-step:hover:not(:disabled) { background: var(--panel); }
 .hub-ws-fig[data-tone="wait"] { --fig-glow: color-mix(in srgb, var(--hi) 14%, transparent); border-color: color-mix(in srgb, var(--hi) 60%, transparent); }
 .hub-ws-fig:has(> .ws-drawing[data-flash]) { animation: ws-flash 950ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .hub-ws-fig .ws-drawing { position: absolute; left: 0; top: 14px; width: 100%; height: calc(100% - 20px); }
-.hub-ws-body { grid-area: body; display: flex; flex-direction: column; gap: 16px; min-width: 0; margin-top: var(--s-8); }
+.hub-ws-body { grid-area: body; display: flex; flex-direction: column; gap: 16px; min-width: 0; margin-top: 20px; }
 .hub-ws-body > * { margin: 0; }
-/* Ask ARP: the Orb's stage, then the question box. */
-.hub-ask { grid-area: ask; position: sticky; top: calc(var(--topbar-h, 0px) + var(--s-4)); margin-top: var(--s-4); overflow: hidden; border: 1px solid var(--panel-border); border-radius: 12px; background: var(--panel); }
-.hub-ask-stage { position: relative; height: 180px; display: grid; place-items: center; container-type: size; background: #000; border-bottom: 1px solid var(--panel-border); }
+/* Ask ARP: the Orb's stage, then the question box. Not clipped, so the hover hint can run past the card's edge. */
+.hub-ask { grid-area: ask; margin-top: var(--s-6); border: 1px solid var(--panel-border); border-radius: 12px; background: var(--panel); }
+.hub-ask-stage { position: relative; height: 180px; display: grid; place-items: center; container-type: size; background: #000; border-bottom: 1px solid var(--panel-border); border-radius: 11px 11px 0 0; }
 .hub-ask-stage .orb { width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); }
 .hub-ask-cap { position: absolute; left: 14px; top: 12px; z-index: 2; font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.04em; color: var(--muted); pointer-events: none; }
 .hub-ask-stage .orb-label { right: 14px; bottom: 12px; z-index: 2; }
 .hub-ask-form { padding: var(--s-4); }
-.hub-ask-form input { width: 100%; height: 42px; padding: 0 12px; border: 1px solid var(--panel-border-strong); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; font-size: var(--text-sm); }
+/* 16px, so phone browsers do not zoom in on focus. */
+.hub-ask-form input { width: 100%; height: 42px; padding: 0 12px; border: 1px solid var(--panel-border-strong); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; font-size: 16px; }
 .hub-ask-form input::placeholder { color: var(--muted); }
 .hub-ask-form input:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
-@media (max-width: 1080px) {
-  .page.hub-ws { grid-template-columns: minmax(0, 1fr) 300px; grid-template-areas: "cap fig" "title fig" "intro fig" "status fig" "ask ask" "body body"; column-gap: 24px; }
-  .hub-ask { position: static; margin-top: var(--s-6); }
-  .hub-ws-body { margin-top: 20px; }
+@media (min-width: 1081px) {
+  .page.hub-ws-ask { grid-template-columns: minmax(0, 1fr) 300px 340px; grid-template-areas: "cap fig ask" "title fig ask" "intro fig ask" "status fig ask" "body body ask"; --ws-title-col: calc(100cqi - 704px); }
+  .hub-ws-body { margin-top: var(--s-8); }
+  .hub-ask { position: sticky; top: calc(var(--topbar-h, 0px) + var(--s-4)); margin-top: var(--s-4); }
 }
 @media (max-width: 760px) {
-  .page.hub-ws { grid-template-columns: minmax(0, 1fr); grid-template-areas: "cap" "title" "intro" "status" "fig" "ask" "body"; }
+  .page.hub-ws { grid-template-columns: minmax(0, 1fr); grid-template-areas: "cap" "title" "intro" "status" "fig" "ask" "body"; --ws-title-col: 100cqi; }
   .hub-ws-fig { align-self: stretch; height: 200px; margin-top: var(--s-6); }
 }
 /* A process panel: hairline, 12px corners; a running one glows blue, a waiting one has the waiting edge and glows amber. */
-.hub-process { padding: 20px 22px 22px; border: 1px solid var(--panel-border); border-radius: 12px; background: linear-gradient(180deg, var(--panel-2), var(--panel)); }
+.hub-process { padding: 20px 22px 22px; border: 1px solid var(--panel-border); border-radius: 12px; background: linear-gradient(180deg, var(--panel-2), var(--panel)); container: hub-process / inline-size; }
 .hub-process[data-state="now"] { box-shadow: 0 0 44px -18px var(--run); }
 .hub-process[data-state="wait"] { border-color: var(--await-edge); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--await-edge) 55%, transparent), 0 0 40px -12px var(--hi); }
 @media (max-width: 760px) { .hub-process { padding: 16px; } }
 .hub-step-rail { margin-top: var(--s-4); }
 .hub-rail [data-seg="planned"] { outline: 1px dashed color-mix(in srgb, var(--text) 30%, transparent); outline-offset: -1px; }
 .hub-step-count { font-family: var(--font-mono); color: var(--muted); }
-/* Next to the Ask ARP card a long flow leaves narrow steps: their label and value rows then stack instead of overlapping. */
+/* A narrow step stacks its "Last run / Updated" labels over their values instead of letting them overlap. */
 .hub-flow-item { container-type: inline-size; }
 @container (max-width: 140px) { .hub-step-rows > span { grid-template-columns: minmax(0, 1fr); } }
+/* A flow whose steps would get narrower than about 110px (a long flow next to the Ask ARP card) stacks its steps, as
+   on a phone: n steps need n × 128px of the panel. */
+@container hub-process (max-width: 895px) { .hub-flow:has(> :nth-child(7)) { flex-direction: column; } .hub-flow:has(> :nth-child(7)) > .hub-flow-item + .hub-flow-item::before { left: 50%; top: -16px; width: 2px; height: 14px; } }
+@container hub-process (max-width: 767px) { .hub-flow:has(> :nth-child(6)) { flex-direction: column; } .hub-flow:has(> :nth-child(6)) > .hub-flow-item + .hub-flow-item::before { left: 50%; top: -16px; width: 2px; height: 14px; } }
+@container hub-process (max-width: 639px) { .hub-flow:has(> :nth-child(5)) { flex-direction: column; } .hub-flow:has(> :nth-child(5)) > .hub-flow-item + .hub-flow-item::before { left: 50%; top: -16px; width: 2px; height: 14px; } }
+@container hub-process (max-width: 511px) { .hub-flow:has(> :nth-child(4)) { flex-direction: column; } .hub-flow:has(> :nth-child(4)) > .hub-flow-item + .hub-flow-item::before { left: 50%; top: -16px; width: 2px; height: 14px; } }
 /* Argus's start page keeps its own head; its title takes the workspace title's pixel type. */
-.argus-head h1 { font-family: var(--font-pixel); font-weight: 400; font-size: clamp(48px, 6.4vw, 92px); line-height: 0.94; overflow-wrap: break-word; }
+.argus-head h1 { padding-bottom: 6px; font-family: var(--font-pixel); font-weight: 400; font-size: clamp(48px, 6.4vw, 92px); line-height: 0.94; overflow-wrap: break-word; }
 /* The Agent screen's Orb: 56 × 56px before the title. */
 .agent-head > .orb { flex: none; width: 56px; height: 56px; }
 .agent-head > .orb + h1 { margin-right: auto; }

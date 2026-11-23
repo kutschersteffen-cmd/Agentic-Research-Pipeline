@@ -447,7 +447,7 @@ export function WorkspaceOverview({ id, onAsk }: { id: WorkspaceId; onAsk?: (que
   const ask = askBox(w, onAsk !== undefined);
 
   return (
-    <div className="page hub hub-ws">
+    <div className={`page hub hub-ws${ask ? " hub-ws-ask" : ""}`}>
       <p className="hub-ws-cap">{workspaceCaption(w)}</p>
       <h1>{w.name}</h1>
       <p className="help-text">{w.purpose}</p>
@@ -494,7 +494,7 @@ function WorkspaceAsk({ label, onAsk }: { label: string; onAsk: (question: strin
           if (q) onAsk(q);
         }}
       >
-        <input type="text" aria-label={label} placeholder={label} value={text} onChange={(e) => setText(e.target.value)} autoComplete="off" />
+        <input type="text" aria-label={label} placeholder={label} value={text} onChange={(e) => setText(e.target.value)} autoComplete="off" enterKeyHint="send" />
       </form>
     </aside>
   );

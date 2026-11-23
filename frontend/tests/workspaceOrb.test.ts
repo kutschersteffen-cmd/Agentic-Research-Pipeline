@@ -73,8 +73,8 @@ test("eo_ac57_58_agent_orb", () => {
 });
 
 test("eo_ac47_pixel_titles", () => {
-  assert.match(css, /\.page\.hub-ws > h1 \{[^}]*font-family: var\(--font-pixel\); font-weight: 400; font-size: clamp\(48px, 6\.4vw, 92px\); line-height: 0\.94;/);
-  assert.match(css, /\.argus-head h1 \{ font-family: var\(--font-pixel\); font-weight: 400;/);
+  assert.match(css, /\.page\.hub-ws > h1 \{[^}]*font-family: var\(--font-pixel\); font-weight: 400; font-size: clamp\(48px, min\(6\.4vw, var\(--ws-title-col\) \/ 5\.6\), 92px\); line-height: 0\.94;/);
+  assert.match(css, /\.argus-head h1 \{ padding-bottom: 6px; font-family: var\(--font-pixel\); font-weight: 400;/);
 });
 
 test("eo_panels_and_figure", () => {
