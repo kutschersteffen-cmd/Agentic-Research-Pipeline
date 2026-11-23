@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import {
-  answerActions, budgetLine, canTurnIntoPlan, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, INBOX_KIND, lineDiff,
+  answerActions, budgetLine, canTurnIntoPlan, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, exploreFromAsk, focusAfterFromAsk, INBOX_KIND, lineDiff,
   askingIn, COMPOSER_COPY, draftPlanFromExploration, explorationBadge, focusAfterDraft, nearEnd, needsYouLine, resultTable, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState,
   threadRows, threadTitle, untilCancelled, usd,
 } from "../src/lib/agent.ts";
@@ -125,7 +125,7 @@ test("Ask mode follows up in the selected ask thread, else starts one", () => {
 
 test("a viewer gets no buttons under an answer (AC-79c)", () => {
   assert.deepEqual(answerActions(false), []);
-  assert.deepEqual(answerActions(true), ["Draft a plan"]);
+  assert.deepEqual(answerActions(true), ["Draft a plan", "Explore"]);  // slice 14 adds Explore, as AC-79c says
 });
 
 test("Draft a plan shows the API's detail when the request fails (AC-77b)", async () => {
@@ -139,6 +139,26 @@ test("Draft a plan sends the standalone question and the ask's id", async () => 
   const out = await draftPlanFromAsk({ id: "a1", standalone_question: "S?" }, (path, body) => (sent.push([path, body]), Promise.resolve(plan)));
   assert.deepEqual(out, { ok: true, plan });
   assert.deepEqual(sent, [["/api/plans", { brief: "S?", source_ask_id: "a1" }]]);
+});
+
+test("Explore sends the standalone question and the ask's id (AC-80, AC-81)", async () => {
+  const sent: unknown[] = [];
+  const exploration = { id: "e1" } as Exploration;
+  const out = await exploreFromAsk({ id: "a1", standalone_question: "S?" }, (path, body) => (sent.push([path, body]), Promise.resolve(exploration)));
+  assert.deepEqual(out, { ok: true, exploration });
+  assert.deepEqual(sent, [["/api/agent/explorations", { question: "S?", source_ask_id: "a1" }]]);
+});
+
+test("Explore shows the API's detail when the request fails", async () => {
+  const ask = { id: "a1", standalone_question: "S?" };
+  assert.deepEqual(await exploreFromAsk(ask, () => Promise.reject(new Error("404: ask not found"))), { ok: false, error: "ask not found" });
+});
+
+test("after Draft a plan or Explore, focus goes to the new link card, or back to the button on failure", () => {
+  assert.deepEqual(focusAfterFromAsk("exploration", { ok: true, exploration: { id: "e 1" } as Exploration }), { href: "#/agent/exploration/e%201" });
+  assert.deepEqual(focusAfterFromAsk("plan", { ok: true, plan: { id: "plan_1" } as Plan }), { href: "#/agent/plan_1" });
+  assert.deepEqual(focusAfterFromAsk("exploration", { ok: false, error: "x" }), { button: "Explore" });
+  assert.deepEqual(focusAfterFromAsk("plan", { ok: false, error: "x" }), { button: "Draft a plan" });
 });
 
 test("plans and ask threads share one list, newest first", () => {
