@@ -57,9 +57,10 @@ services:
       ARP_POSTGRES_DSN: postgresql+psycopg://arp:arp@postgres:5432/arp  # required; run `arp db init-postgres` once
       ARP_NEO4J_URI: bolt://neo4j:7687  # optional (`docker compose up -d neo4j`); no depends_on on purpose
       ARP_NEO4J_PASSWORD: arp_neo4j_test
-      # The browser calls the API as localhost:8000 (VITE_API_BASE), which the
+      # The page calls the API on its own origin (localhost:5173/api/...), and
+      # the frontend's nginx forwards it here as Host: localhost, which the
       # default ARP_TRUSTED_HOSTS allows; set ARP_TRUSTED_HOSTS (JSON list) if
-      # you reach it under another host name. On Docker hosts whose compose
+      # you call port 8000 under another host name. On Docker hosts whose compose
       # subnets come from 192.168.0.0/16, change the trusted range above to match.
     volumes:
       - arp_runs:/app/runs
@@ -84,7 +85,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE: http://localhost:8000
+        VITE_API_BASE: ""
     # Loopback too, for the same reason.
     ports:
       - "127.0.0.1:5173:80"
