@@ -16,7 +16,7 @@ const OY = 112;
 const pt = (x: number, y: number, z: number): [number, number] => [OX + (x - y) * C, OY + (x + y) * 0.5 - z];
 const path = (pts: [number, number][]) => `M${pts.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join("L")}Z`;
 const quad = (x: number, y: number, z: number, w: number, d: number) => path([pt(x, y, z), pt(x + w, y, z), pt(x + w, y + d, z), pt(x, y + d, z)]);
-const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+export const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
 /** A box: two side faces and a top, drawn back to front. `slot` marks the status part. */
 function box(x: number, y: number, z: number, w: number, d: number, h: number, slot = false): Shape[] {
@@ -90,6 +90,9 @@ export const cockpitDrawing = (): Shape[] => [
   ...box(-62, -26, 0, 124, 52, 5),
   ...[-56, -16, 24].flatMap((x, i) => box(x, -14, 5, 32, 5, i === 1 ? 54 : 44)),
 ];
+
+/** Whether two lit statuses light the same part: everywhere but Transition Intel, whose fin differs. */
+export const samePart = (id: WorkspaceId, a: Accent, b: Accent) => id !== "transitionIntel" || a === b;
 
 /** A workspace's drawing. With an accent, exactly one shape (the status part's top) carries it and the part is
  * out by `out` (default: fully out); without one, the part is in place. */

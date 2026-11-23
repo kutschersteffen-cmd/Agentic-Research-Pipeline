@@ -1,12 +1,11 @@
 import { useId, useLayoutEffect, useRef, useState } from "react";
-import { drawing, type Accent, type Shape } from "../lib/workspaceDrawing";
+import { clamp01, drawing, samePart, type Accent, type Shape } from "../lib/workspaceDrawing";
 import type { WorkspaceId } from "../lib/processes";
 
 type Status = Accent | "none";
 /** Milliseconds of the status part's move and of the figure area's flash. */
 const MOVE_MS = 850;
 const FLASH_MS = 950;
-const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 // Out with a slight overshoot; back in eased.
 const back = (x: number) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
 const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
@@ -22,6 +21,9 @@ const rest = (s: Status): Pose => ({ acc: s === "none" ? null : s, out: s === "n
 export function WorkspaceDrawing({ id, accent, known = true }: { id: WorkspaceId; accent: Accent | null; known?: boolean }) {
   const status: Status = known && accent ? accent : "none";
   const [pose, setPose] = useState<Pose>(() => rest(status));
+  // Where the part is now, so a move starts from there, also when the status changes during a move.
+  const at = useRef(pose);
+  at.current = pose;
   const seen = useRef<{ known: boolean; status: Status }>({ known, status });
 
   useLayoutEffect(() => {
@@ -34,7 +36,12 @@ export function WorkspaceDrawing({ id, accent, known = true }: { id: WorkspaceId
       return;
     }
     const going = status !== "none";
-    const acc = going ? (status as Accent) : (prev.status as Accent);
+    const now0 = at.current;
+    // Going out: the part keeps its place when the lit part stays the same one (running -> waiting), else the
+    // newly lit part starts in place. Going in: the lit part returns from wherever it is.
+    const acc = going ? (status as Accent) : (now0.acc ?? (prev.status as Accent));
+    const from = going ? (now0.acc === null || samePart(id, now0.acc, acc) ? now0.out : 0) : now0.acc ? now0.out : 1;
+    const to = going ? 1 : 0;
     const t0 = performance.now();
     let raf = 0;
     const frame = (now: number) => {
@@ -43,17 +50,17 @@ export function WorkspaceDrawing({ id, accent, known = true }: { id: WorkspaceId
         setPose((p) => ({ ...rest(status), flash: p.flash }));
         return;
       }
-      setPose({ acc, out: going ? back(k) : 1 - ease(k), moving: true, flash: true });
+      setPose({ acc, out: from + (to - from) * (going ? back(k) : ease(k)), moving: true, flash: true });
       raf = requestAnimationFrame(frame);
     };
-    setPose({ acc, out: going ? 0 : 1, moving: true, flash: true });
+    setPose({ acc, out: from, moving: true, flash: true });
     raf = requestAnimationFrame(frame);
     const off = window.setTimeout(() => setPose((p) => ({ ...p, flash: false })), FLASH_MS);
     return () => {
       cancelAnimationFrame(raf);
       window.clearTimeout(off);
     };
-  }, [known, status]);
+  }, [id, known, status]);
 
   return <Drawing shapes={drawing(id, pose.acc, pose.out)} accent={pose.acc} status={status} moving={pose.moving} flash={pose.flash} />;
 }

@@ -1579,10 +1579,9 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-hero-copy { align-self: center; display: flex; flex-direction: column; gap: 22px; padding: 56px 0 40px; min-width: 0; }
 .hub-hero-cap { margin: 0; font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; color: var(--muted); }
 .hub-start .hub-hero h1 { margin: 0; font-family: var(--font-pixel); font-weight: 400; font-size: clamp(52px, 7.2vw, 104px); line-height: 0.92; letter-spacing: 0; color: var(--text); text-wrap: balance; overflow-wrap: anywhere; }
-.hub-hero-lead { margin: 0; max-width: 30ch; font-size: 19px; line-height: 1.45; text-wrap: balance; }
+.hub-hero-lead { margin: 0; max-width: 36ch; font-size: 19px; line-height: 1.45; text-wrap: balance; }
 .hub-hero-lead:empty { display: none; }
-.hub-hero-lead a { color: var(--hi-ink); text-decoration: none; }
-.hub-hero-lead a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.hub-hero-lead a { color: var(--hi-ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 /* The Orb's box: the largest square that fits the stage, at most 410px (radius 205px). */
 .hub-hero-stage { position: relative; container-type: size; min-height: 540px; display: grid; place-items: center; }
 .hub-hero-stage .orb { width: min(100cqw, 100cqh, 410px); height: min(100cqw, 100cqh, 410px); }
@@ -1646,7 +1645,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-card-status { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: var(--s-1); font-size: 13px; font-weight: 500; }
 .hub-card-line { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 8px; min-width: 0; }
 .hub-card-line > :first-child { white-space: nowrap; }
-.hub-card-line .hub-status-detail { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: var(--text-xs); }
+.hub-card-line .hub-status-detail { max-width: 100%; min-width: 0; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--text-xs); }
 /* The status rail (DESIGN.md, Status Rail): one 10px segment per process, 3px apart. Running flows, waiting
    breathes; nothing else moves. */
 .hub-rail { display: flex; gap: 3px; height: 10px; }
@@ -1691,7 +1690,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-entry:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .hub-entry, .hub-entry:hover { transition: none; transform: none; } }
 .hub-entry-fig { display: grid; place-items: center; padding: var(--s-4); border-right: 1px solid var(--panel-border); background: var(--bg); }
-.hub-entry-fig .ws-drawing { width: 152px; height: 118px; }
+.hub-entry-fig .ws-drawing { width: 161px; height: 144px; } /* the 212 × 190 viewBox at the old 0.76 scale */
 .hub-entry .hub-card-body { justify-content: center; }
 .hub-entry-cap { position: static; }
 @media (max-width: 760px) {

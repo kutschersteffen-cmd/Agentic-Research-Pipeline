@@ -107,9 +107,10 @@ const COCKPIT_SHAPES = cockpitDrawing();
 export function StartPage() {
   const { runs, error, retry } = useRuns();
   const { flow, error: flowError } = useHouseFlow();
-  // A drawing's first known status is drawn in place: wait for the stewardship flow too, so its answer arriving
-  // after the runs does not read as a change.
-  const settled = runs !== null && (flow !== null || flowError !== null);
+  // A drawing's first known status is drawn in place. A workspace that reads the stewardship flow waits for it
+  // too, so its answer arriving after the runs does not read as a change.
+  const flowSettled = flow !== null || flowError !== null;
+  const drawnKnown = (w: Workspace) => runs !== null && (flowSettled || !w.processes.some((p) => p.steps.some((s) => s.stage)));
   const reviewer = useMe()?.name ?? "";
   const [opened] = useState(() => new Date());
   const hour = new Date().getHours();
@@ -150,7 +151,7 @@ export function StartPage() {
       )}
       <div className="hub-cards">
         {WORKSPACES.map((w) => (
-          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} known={settled} />
+          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} known={drawnKnown(w)} />
         ))}
       </div>
       {/* Not a workspace card: one StewardIQ screen with its own way in, so the cards stay five workspaces. */}
