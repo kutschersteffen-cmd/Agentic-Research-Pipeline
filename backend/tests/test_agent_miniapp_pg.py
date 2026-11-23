@@ -4,8 +4,8 @@ from __future__ import annotations
 import asyncio
 import json
 
-from arp.agent.explorations import ExplorationStore, MiniApp, write_miniapp
-from arp.agent.miniapp_html import clean_miniapp_html
+from arp.agent.explorations import MINIAPP_SYSTEM, ExplorationStore, MiniApp, write_miniapp
+from arp.agent.miniapp_html import ATTRIBUTES, HTML_ELEMENTS, SVG_ATTRIBUTES, SVG_ELEMENTS, clean_miniapp_html
 from arp.config import Settings
 
 RUN = {"status": "done", "result": [{"sector": "IT", "weight": 0.25}], "error": None, "tool_calls": []}
@@ -81,6 +81,18 @@ def test_cleaning_keeps_the_allowlist_and_nothing_else():
         '<details open><summary>s</summary></details><svg viewbox="0 0 1 1"><rect fill="red" width="1"></rect></svg>')
     # Inside <svg> a browser parses <style> as markup: no '<' is left in any style text.
     assert clean_miniapp_html("<svg><style><a href=x>go</a></style></svg>") == "<svg><style>\\3C a href=x>go\\3C /a></style></svg>"
+
+
+def test_the_prompt_names_the_allowlist_the_asks_field_and_what_is_removed():
+    # The cleaner drops an unlisted element with its content: a model that wraps its page in <main> gets an empty page.
+    for name in HTML_ELEMENTS | SVG_ELEMENTS | ATTRIBUTES | SVG_ATTRIBUTES:
+        assert name in MINIAPP_SYSTEM, name
+    for name in ("<main>", "<section>", "scripts", "links", "`asks`", "`html`"):
+        assert name in MINIAPP_SYSTEM, name
+
+
+def test_a_deeply_nested_page_is_cleaned_not_a_500():
+    assert clean_miniapp_html("<div>" * 5000 + "x" + "<main>y</main>").count("<div>") == 5000
 
 
 def test_each_post_writes_again(pg, tmp_path):  # AC-54i

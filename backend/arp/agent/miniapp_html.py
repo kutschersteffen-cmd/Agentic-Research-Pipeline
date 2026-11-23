@@ -16,25 +16,28 @@ SVG_ATTRIBUTES = frozenset(a.lower() for a in ["viewBox", "width", "height", "x"
 ASKS_KEPT, ASK_CHARS = 5, 200
 
 
-def _clean(tag: Tag) -> None:
-    for child in list(tag.children):
-        if isinstance(child, Tag):
-            name = child.name.lower()
-            if name not in HTML_ELEMENTS and name not in SVG_ELEMENTS:
-                child.decompose()
-                continue
-            svg = name in SVG_ELEMENTS
-            child.attrs = {k: v for k, v in child.attrs.items()
-                           if k.lower() in ATTRIBUTES or (svg and k.lower() in SVG_ATTRIBUTES)}
-            if name == "style":
-                # Inside <svg> a browser parses <style> as markup, not raw text: no '<' may reach it either way.
-                css = child.get_text().replace("<", "\\3C ")
-                child.clear()
-                child.append(NavigableString(css))
-                continue
-            _clean(child)
-        elif isinstance(child, PreformattedString):  # comments, doctypes, CDATA, processing instructions
-            child.extract()
+def _clean(root: Tag) -> None:
+    stack = [root]  # a stack, not recursion: a deeply nested page must not raise RecursionError
+    while stack:
+        tag = stack.pop()
+        for child in list(tag.children):
+            if isinstance(child, Tag):
+                name = child.name.lower()
+                if name not in HTML_ELEMENTS and name not in SVG_ELEMENTS:
+                    child.decompose()
+                    continue
+                svg = name in SVG_ELEMENTS
+                child.attrs = {k: v for k, v in child.attrs.items()
+                               if k.lower() in ATTRIBUTES or (svg and k.lower() in SVG_ATTRIBUTES)}
+                if name == "style":
+                    # Inside <svg> a browser parses <style> as markup, not raw text: no '<' may reach it either way.
+                    css = child.get_text().replace("<", "\\3C ")
+                    child.clear()
+                    child.append(NavigableString(css))
+                    continue
+                stack.append(child)
+            elif isinstance(child, PreformattedString):  # comments, doctypes, CDATA, processing instructions
+                child.extract()
 
 
 def clean_miniapp_html(html: str) -> str:

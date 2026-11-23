@@ -14,7 +14,14 @@ from sqlalchemy.orm import Session
 
 from arp import standins
 from arp.agent import sandbox
-from arp.agent.miniapp_html import clean_miniapp_html, trim_asks
+from arp.agent.miniapp_html import (
+    ATTRIBUTES,
+    HTML_ELEMENTS,
+    SVG_ATTRIBUTES,
+    SVG_ELEMENTS,
+    clean_miniapp_html,
+    trim_asks,
+)
 from arp.agent.models import AgentExploration
 from arp.api.auth import Principal
 from arp.config import Settings
@@ -225,19 +232,24 @@ class MiniApp(BaseModel):
     asks: list[str] = Field(description="Up to 5 follow-up questions a person may ask about this result.")
 
 
-MINIAPP_SYSTEM = """You write a small web page (a "mini-app") that shows the result of an exploration of ARP's data,
-and up to 5 follow-up questions a person may want to ask about it.
+MINIAPP_SYSTEM = f"""You write a small web page (a "mini-app") that shows the result of an exploration of ARP's data,
+and up to 5 follow-up questions a person may want to ask about it. Return them as `html` and `asks`.
 
 The page runs no scripts and can reach nothing: write HTML and CSS only, with the data below written into the page.
-Use tables, lists, <details> and inline SVG (rect, circle, line, path, polyline, polygon, text) for charts. Scripts,
-links, forms, images from URLs and external styles or fonts are removed before the page is shown.
+Use tables, lists, <details> and inline SVG for charts. Before the page is shown, every element not listed here is
+removed together with everything inside it, and every attribute not listed here is removed:
+- HTML elements: {", ".join(sorted(HTML_ELEMENTS))}
+- SVG elements: {", ".join(sorted(SVG_ELEMENTS))}
+- Attributes: {", ".join(sorted(ATTRIBUTES))}; on SVG elements also {", ".join(sorted(SVG_ATTRIBUTES))}
+So never wrap content in <main>, <section>, <article>, <header>, <footer> or <nav>: use <div>. No scripts, links
+(<a>), forms, images, <iframe>, <meta>, <base> or external styles or fonts; style with <style> and style="...".
 
 Rules:
 - Show the data; you may sort it and chart it. Never compute a new figure and present it as an ARP figure: every number
   labelled as ARP's comes straight from the data.
 - Set the page's own background and text colours, and keep it readable in a narrow column (about 360 px wide).
-- Each follow-up question stands alone, in one sentence, at most 200 characters; ARP shows them as buttons next to the
-  page."""
+- Each follow-up question in `asks` stands alone, in one sentence, at most 200 characters; ARP shows them as buttons
+  next to the page."""
 
 MINIAPP_CONTEXT_BYTES = 20_000  # the same cut as the planner's exploration context
 
