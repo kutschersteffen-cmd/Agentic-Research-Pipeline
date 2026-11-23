@@ -1,6 +1,6 @@
 # Portable Docker images
 
-Status: **draft, waiting for the owner's approval**
+Status: **approved by the owner on 23 Nov 2026** (button in the dispatcher thread, after two spec-critic rounds)
 Slug: `portable-docker-images`
 Risk: this spec PR is `risk:low`. The build is `risk:high` (a new `.github/workflows/` file, and
 `backend/arp/compute/**` and `backend/Dockerfile.compute`, all in the steward table's `risk:high` row): the
