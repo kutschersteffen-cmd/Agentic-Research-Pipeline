@@ -19765,6 +19765,29 @@
     "title": "RedlineOut",
     "type": "object"
    },
+   "RefineDocument": {
+    "properties": {
+     "doc_id": {
+      "title": "Doc Id",
+      "type": "string"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "doc_id",
+     "title"
+    ],
+    "title": "RefineDocument",
+    "type": "object"
+   },
    "RefineHistoryItem": {
     "properties": {
      "message": {
@@ -19812,6 +19835,45 @@
      "reason"
     ],
     "title": "RefineNotChanged",
+    "type": "object"
+   },
+   "RefineThread": {
+    "properties": {
+     "doc_id": {
+      "title": "Doc Id",
+      "type": "string"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "last_turn_at": {
+      "format": "date-time",
+      "title": "Last Turn At",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "turns": {
+      "title": "Turns",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "kind",
+     "doc_id",
+     "title",
+     "status",
+     "last_turn_at",
+     "turns"
+    ],
+    "title": "RefineThread",
     "type": "object"
    },
    "RefineTurn": {
@@ -42795,6 +42857,58 @@
     ]
    }
   },
+  "/api/refine/documents": {
+   "get": {
+    "description": "Every RFP project, then every report with a deck, each group newest first. Any signed-in role.",
+    "operationId": "get_documents_api_refine_documents_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RefineDocument"
+         },
+         "title": "Response Get Documents Api Refine Documents Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Documents",
+    "tags": [
+     "refine"
+    ]
+   }
+  },
+  "/api/refine/threads": {
+   "get": {
+    "description": "One row per document with at least one turn, newest first by its newest turn. Any signed-in role.",
+    "operationId": "get_threads_api_refine_threads_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RefineThread"
+         },
+         "title": "Response Get Threads Api Refine Threads Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Threads",
+    "tags": [
+     "refine"
+    ]
+   }
+  },
   "/api/refine/turns/{turn_id}": {
    "get": {
     "operationId": "get_turn_api_refine_turns__turn_id__get",
@@ -42844,19 +42958,19 @@
     "parameters": [
      {
       "in": "path",
-      "name": "doc_id",
+      "name": "kind",
       "required": true,
       "schema": {
-       "title": "Doc Id",
+       "title": "Kind",
        "type": "string"
       }
      },
      {
       "in": "path",
-      "name": "kind",
+      "name": "doc_id",
       "required": true,
       "schema": {
-       "title": "Kind",
+       "title": "Doc Id",
        "type": "string"
       }
      }
@@ -42897,19 +43011,19 @@
     "parameters": [
      {
       "in": "path",
-      "name": "doc_id",
+      "name": "kind",
       "required": true,
       "schema": {
-       "title": "Doc Id",
+       "title": "Kind",
        "type": "string"
       }
      },
      {
       "in": "path",
-      "name": "kind",
+      "name": "doc_id",
       "required": true,
       "schema": {
-       "title": "Kind",
+       "title": "Doc Id",
        "type": "string"
       }
      }
@@ -42958,19 +43072,19 @@
     "parameters": [
      {
       "in": "path",
-      "name": "doc_id",
+      "name": "kind",
       "required": true,
       "schema": {
-       "title": "Doc Id",
+       "title": "Kind",
        "type": "string"
       }
      },
      {
       "in": "path",
-      "name": "kind",
+      "name": "doc_id",
       "required": true,
       "schema": {
-       "title": "Kind",
+       "title": "Doc Id",
        "type": "string"
       }
      }
@@ -43972,6 +44086,93 @@
      }
     },
     "summary": "Get Report",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
+  "/api/reports/{report_id}/deck": {
+   "get": {
+    "operationId": "get_deck_api_reports__report_id__deck_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Deck Api Reports  Report Id  Deck Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Deck",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
+  "/api/reports/{report_id}/deck/html": {
+   "get": {
+    "description": "The deck as the house HTML, for the Refine live view; the same renderer the export starts from.",
+    "operationId": "get_deck_html_api_reports__report_id__deck_html_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "text/html": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Deck Html",
     "tags": [
      "reporting"
     ]

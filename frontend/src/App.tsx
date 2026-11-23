@@ -108,6 +108,7 @@ const PALETTE_ITEMS: PaletteItem[] = [
   ...TABS.map((t) => ({ label: t.label, hint: hubOf(t.id)?.label.replace(t.label, "") || undefined, href: `#/${t.id}` })),
   ...STAGE_TABS.map((t) => ({ label: t.label, hint: "Steward Workflow", href: `#/stewardship/${t.id}` })),
   ...RISK_TABS.map((t) => ({ label: t.label, hint: "Risk Monitoring", href: `#/portfolio-monitoring/${t.id}` })),
+  { label: "Refine a document", hint: "Agent", href: "#/agent/refine" },
 ];
 
 /** A run in the palette opens where its decisions are made, else in Run History. */
@@ -138,10 +139,18 @@ function readRoute() {
 }
 
 /** `#/agent/<plan_id>` selects a plan, `#/agent/ask/<thread_id>` an ask thread, `#/agent/exploration/<id>` an
- * exploration. */
+ * exploration, `#/agent/refine/<kind>/<doc_id>` a Refine thread and `#/agent/refine` the Refine picker. */
 function agentSelection(params: string[]): Selection {
+  if (params[0] === "refine") return { kind: "refine", id: params[1] && params[2] ? `${params[1]}/${params[2]}` : "" };
   if (params[0] === "ask" || params[0] === "exploration") return params[1] ? { kind: params[0], id: params[1] } : null;
   return params[0] ? { kind: "plan", id: params[0] } : null;
+}
+
+/** The address params of an Agent selection (the inverse of agentSelection). */
+function agentParams(s: NonNullable<Selection>): string[] {
+  if (s.kind === "plan") return [s.id];
+  if (s.kind === "refine") return s.id ? ["refine", s.id.slice(0, s.id.indexOf("/")), s.id.slice(s.id.indexOf("/") + 1)] : ["refine"];
+  return [s.kind, s.id];
 }
 
 function navigate(tab: TabId, ...params: string[]) {
@@ -315,7 +324,7 @@ function App() {
         {active === "agent" && (
           <Agent selected={agentSelection(route.params)} canAsk={canAsk} focusToken={agentFocus} pendingAsk={agentAsk}
             onPendingAskTaken={() => setAgentAsk(null)}
-            onSelect={(s) => (s ? navigate("agent", ...(s.kind === "plan" ? [s.id] : [s.kind, s.id])) : navigate("agent"))} />
+            onSelect={(s) => (s ? navigate("agent", ...agentParams(s)) : navigate("agent"))} />
         )}
         {active === "stewardship" && <StewardWorkflow initialTab={route.params[0]} />}
         {active === "engagement" && <EngagementDashboard />}

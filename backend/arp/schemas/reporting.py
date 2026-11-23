@@ -380,3 +380,5 @@ class ReportManifest(BaseModel):
     model: str | None = None
     output_files: list[str] = Field(default_factory=list)
     rerun_of: str | None = Field(default=None, description="The report this one was re-run from (ReportingService.rerun).")
+    has_deck: bool = Field(default=False, description="deck.json exists; read from the folder on every load, never trusted from disk.")
+    deck_edited_since_render: bool = Field(default=False, description="A Refine chat edit or undo changed the deck after its last render.")

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
+import { AgentBoard } from "../components/AgentBoard";
 import { AskCard } from "../components/AskCards";
 import { ExplorationCard } from "../components/ExplorationCard";
+import { RefinePicker, RefineStage, RefineStream, useRefine, useRefineThreads } from "../components/RefineThread";
 import { StepTabs } from "../components/StepTabs";
 import {
   answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  askingIn, nearEnd, needsYouLine, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
+  askingIn, nearEnd, needsYouLine, REFINE_COPY, REFINE_PLACEHOLDER, refineControls, refineDoc, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
 } from "../lib/agent";
 import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
 import { when } from "../lib/runs";
@@ -15,8 +17,10 @@ const POLL_MS = 3000;
 const NARROW = "(max-width: 899.98px)";
 
 type Drawer = "threads" | "stage" | null;
-type StageTab = "script" | "diff" | "audit";
-const STAGE_TABS: { id: StageTab; label: string }[] = [{ id: "script", label: "Script" }, { id: "diff", label: "Diff" }, { id: "audit", label: "Audit" }];
+type StageTab = "board" | "script" | "diff" | "audit";
+const STAGE_TABS: { id: StageTab; label: string }[] = [
+  { id: "board", label: "Board" }, { id: "script", label: "Script" }, { id: "diff", label: "Diff" }, { id: "audit", label: "Audit" },
+];
 
 const Chip = ({ status }: { status: string }) => <span className={`status-pill status-${status}`}>{chipLabel(status)}</span>;
 
@@ -66,17 +70,26 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<Drawer>(null);
-  const [tab, setTab] = useState<StageTab>("script");
+  const [tab, setTab] = useState<StageTab>("board");
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
   const input = useRef<HTMLTextAreaElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const atEnd = useRef(true); // the reader was near the stream's end at the last scroll
+  const follow = useRef(true); // the stream follows new content down; the Refine picker is a list, not a chat
   const [jump, setJump] = useState(false);
   const refocus = useRef(false);
   const current = useRef(selected); // the selection now, for a request that answers after it changed
   current.current = selected;
   const modes = composerModes(canAsk);
-  const copy = COMPOSER_COPY[mode];
+  // A Refine thread (spec refine-chat-design): its own stream, composer copy and stage; `#/agent/refine` is the picker.
+  const refineSel = selected?.kind === "refine" ? selected.id : null;
+  const refine = useRefine(refineSel ? refineDoc(refineSel) : null);
+  const refineThreads = useRefineThreads();
+  const refineCtl = refineControls(canAsk);
+  const copy = refine.doc ? REFINE_COPY : COMPOSER_COPY[mode];
+  const sending = refine.doc ? refine.busy : busy;
+  const closed = sending || (refine.doc !== null && refine.turns === null); // a Refine thread's history must load first
 
   const loadInbox = useCallback(() => {
     api.getAgentInbox().then(setInbox).catch((e: Error) => setError(`The inbox could not be loaded: ${e.message}.`));
@@ -109,23 +122,30 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   // A viewer's composer opens in Plan; once the signed-in user is known to be able to ask, it opens in Ask.
   useEffect(() => setMode(composerModes(canAsk).initial), [canAsk]);
   useEffect(() => {
-    if (busy || !refocus.current) return;
+    if (sending || !refocus.current) return;
     refocus.current = false;
     input.current?.focus();
-  }, [busy]);
-  // Opening a thread shows its newest turn.
+  }, [sending]);
+  // Opening a thread shows its newest turn and its Board; the Refine picker opens at its heading.
   useLayoutEffect(() => {
-    atEnd.current = true;
+    setTab("board");
+    const picker = refineSel === "";
+    atEnd.current = !picker;
+    follow.current = !picker;
     setJump(false);
     const el = scroller.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [planId, askId, explorationId]);
+    if (el) el.scrollTop = picker ? 0 : el.scrollHeight;
+  }, [planId, askId, explorationId, refineSel]);
   // When the stream grows, or its box shrinks under a taller composer, follow it down only if the reader was at the end.
   useEffect(() => {
     const el = scroller.current;
     if (!el || !content.current) return;
     let prev = { height: el.scrollHeight, box: el.clientHeight };
     const ro = new ResizeObserver(() => {
+      if (!follow.current) {
+        prev = { height: el.scrollHeight, box: el.clientHeight };
+        return;
+      }
       const before = { scrollHeight: prev.height, clientHeight: prev.box };
       const next = streamResized({ wasNearEnd: wasNearEnd(atEnd.current, el.scrollTop, before), contentGrew: el.scrollHeight > prev.height, boxShrank: el.clientHeight < prev.box, nowNearEnd: nearEnd(el) });
       prev = { height: el.scrollHeight, box: el.clientHeight };
@@ -185,7 +205,10 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   // Widening past 900 px shows the columns again, so an open drawer goes.
   useEffect(() => {
     const mq = window.matchMedia(NARROW);
-    const onChange = () => { if (!mq.matches) setDrawer(null); };
+    const onChange = () => {
+      setNarrow(mq.matches);
+      if (!mq.matches) setDrawer(null);
+    };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
@@ -235,7 +258,16 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
 
   async function send() {
     const t = text.trim();
-    if (busy || !t) return;
+    if (closed || !t) return;
+    if (refine.doc) {
+      followOwnSend();
+      const sentFrom = refineSel;
+      const ok = await refine.send(t);
+      if (current.current?.kind !== "refine" || current.current.id !== sentFrom) return; // another thread is open now
+      if (ok) setText("");
+      refocus.current = true; // the text box stays disabled while the turn runs
+      return;
+    }
     if (mode === "Ask") {
       setText("");
       return ask(t, false);
@@ -263,7 +295,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     loadList();
   }
 
-  const rows = threadRows(plans, askThreads, explorations);
+  const rows = threadRows(plans, askThreads, explorations, refineThreads.threads);
   const isSelected = (r: ThreadRow) => r.kind === selected?.kind && r.id === selected.id;
   // `id` keeps the column's and the drawer's ids apart; `close` is set inside a drawer.
   const threads = (id: string, close?: () => void) => (
@@ -272,6 +304,13 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
         <h2 id={`${id}-h`}>Threads</h2>
         {close && <button type="button" className="link-button" onClick={close}>Close</button>}
       </div>
+      {refineThreads.error && <p className="error-text">{refineThreads.error}</p>}
+      {refineCtl.picker && (
+        <button type="button" className="secondary agent-refine-new" aria-current={refineSel === "" ? "true" : undefined}
+          onClick={() => { close?.(); onSelect({ kind: "refine", id: "" }); }}>
+          Refine a document
+        </button>
+      )}
       {rows.length === 0 ? (
         <p className="muted">No threads yet. Ask a question or write a brief to start one.</p>
       ) : (
@@ -303,14 +342,23 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
       {waiting !== null && <p className="agent-inbox-foot"><a href="#/review" onClick={close}>{needsYouLine(waiting)}</a></p>}
     </>
   );
-  const stage = (id: string, close?: () => void) => (
+  const closeButton = (close?: () => void) => close && <button type="button" className="link-button" onClick={close}>Close</button>;
+  const stage = (id: string, close?: () => void) => refineSel !== null ? (
+    <RefineStage refine={refine} canEdit={refineCtl.undo} idPrefix={id} head={closeButton(close)} />
+  ) : (
     <>
       <div className="agent-side-head">
         <StepTabs label="Stage" tabs={STAGE_TABS} active={tab} onSelect={(t) => setTab(t as StageTab)} />
         {close && <button type="button" className="link-button" onClick={close}>Close</button>}
       </div>
       <div id={`${id}-panel`} role="tabpanel" aria-label={STAGE_TABS.find((t) => t.id === tab)!.label}>
-        {!plan ? (
+        {tab === "board" ? (
+          plan ? (
+            <AgentBoard key={plan.id} planId={plan.id} planStatus={plan.status} idPrefix={id} />
+          ) : (
+            <p className="muted">{explorationId ? "An exploration has no board yet." : "The selected plan’s board shows here."}</p>
+          )
+        ) : !plan ? (
           <p className="muted">{explorationId ? "An exploration has no script, changes or audit trail: its code and tool calls are in the stream." : "The selected plan’s script, changes and audit trail show here."}</p>
         ) : tab === "script" ? (
           <pre className="mono agent-script" aria-label="Plan script, read-only">
@@ -345,13 +393,15 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
 
-      <div className="agent-shell">
+      <div className={refineSel !== null ? "agent-shell agent-shell-refine" : "agent-shell"}>
         <aside className="agent-side agent-threads" aria-labelledby="agent-threads-h">{threads("agent-threads")}</aside>
 
         <section className="agent-stream" aria-label="Stream">
           <div className="agent-scroll" ref={scroller} onScroll={onStreamScroll} tabIndex={0} role="region" aria-label="Conversation">
           <div ref={content}>
-          {exploration && explorationId ? (
+          {refineSel !== null ? (
+            refine.doc ? <RefineStream refine={refine} emptyLine={refineCtl.emptyLine} /> : <RefinePicker />
+          ) : exploration && explorationId ? (
             <ExplorationCard key={exploration.id} exploration={exploration} busy={busy} onAccept={() => act(() => api.acceptExploration(exploration.id))} />
           ) : plan && planId ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />
@@ -367,29 +417,35 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
               <button type="button" className="secondary" onClick={jumpToLatest}>Jump to latest</button>
             </div>
           )}
+          {(refineSel === null || (refine.doc && refineCtl.composer)) && (
           <form className="agent-composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
+            {!refine.doc && (
             <div className="agent-modes" role="group" aria-label="Mode">
               {modes.modes.map((m) => (
                 <button key={m} type="button" className="secondary" aria-pressed={mode === m} onClick={() => setMode(m)}>{m}</button>
               ))}
             </div>
+            )}
             <label className="visually-hidden" htmlFor="agent-brief">{copy.label}</label>
-            <textarea id="agent-brief" ref={input} rows={2} value={text} disabled={busy} onChange={(e) => setText(e.target.value)}
+            <textarea id="agent-brief" ref={input} rows={2} value={text} disabled={closed} onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
                 if (sendsComposer({ key: e.key, shiftKey: e.shiftKey, isComposing: e.nativeEvent.isComposing })) {
                   e.preventDefault();
                   send();
                 }
               }}
-              aria-describedby="agent-brief-help" maxLength={mode === "Ask" ? 1000 : undefined} placeholder={copy.placeholder} />
+              aria-describedby="agent-brief-help" maxLength={mode === "Ask" && !refine.doc ? 1000 : undefined} placeholder={refine.doc ? REFINE_PLACEHOLDER[refine.doc.kind] : copy.placeholder} />
             <div className="agent-composer-foot">
               <p id="agent-brief-help" className="muted">{copy.help}</p>
-              <button type="submit" disabled={busy || !text.trim()}>{busy ? copy.sending : copy.submit}</button>
+              <button type="submit" disabled={closed || !text.trim()}>{sending ? copy.sending : copy.submit}</button>
             </div>
+            {refine.doc && refine.error && <p className="error-text" role="alert">{refine.error}</p>}
           </form>
+          )}
         </section>
 
-        <aside className="agent-side agent-stage" aria-label="Stage">{stage("agent-stage")}</aside>
+        {/* Below 900 px the stage lives in its drawer only, so the Board polls and draws once. */}
+        <aside className={refineSel !== null ? "agent-side agent-stage refine-stage" : "agent-side agent-stage"} aria-label="Stage">{!narrow && stage("agent-stage")}</aside>
       </div>
       {drawer && (
         <DrawerDialog key={drawer} side={drawer === "threads" ? "left" : "right"} label={drawer === "threads" ? "Threads" : "Stage"} onClose={() => setDrawer(null)}>

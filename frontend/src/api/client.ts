@@ -1,6 +1,7 @@
 import { plainDetail } from "../lib/setupErrors";
 import { clearToken, getToken } from "../lib/auth";
 import type { Plan } from "../lib/plans";
+import type { Board, BoardBlock } from "../lib/board";
 import { filenameFromDisposition, inlineSafe } from "../lib/files";
 import { profileEmbedParams } from "../lib/biEmbed";
 import { cockpitPath } from "../lib/cockpit";
@@ -62,6 +63,10 @@ import type {
   RfpLibraryEntry,
   RfpProject,
   RfpProjectSummary,
+  RefineDocument,
+  RefineThread,
+  RefineTurn,
+  RefineTurnOut,
   SignalComparison,
   SignalExperimentDetail,
   SignalExperimentSummary,
@@ -276,6 +281,8 @@ const rfpQuestion = (projectId: number, qid: number, action = "") => `/api/rfp/p
 const research = (dossierId: string, action = "") => `/api/dossiers/${encodeURIComponent(dossierId)}/research${action}`;
 const step5 = (dossierId: string, path: string) => `/api/dossiers/${encodeURIComponent(dossierId)}/${path}`;
 const jsonBody = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
+const board = (planId: string, rest = "") => `/api/agent/boards/plan/${encodeURIComponent(planId)}${rest}`;
+const boardBlock = (planId: string, blockId: string, rest = "") => board(planId, `/blocks/${encodeURIComponent(blockId)}${rest}`);
 
 export const api = {
   listPlans: () => request<Plan[]>("/api/plans"),
@@ -294,6 +301,17 @@ export const api = {
   listExplorations: () => request<Exploration[]>("/api/agent/explorations"),
   getExploration: (id: string) => request<Exploration>(`/api/agent/explorations/${encodeURIComponent(id)}`),
   acceptExploration: (id: string) => request<Exploration>(`/api/agent/explorations/${encodeURIComponent(id)}/accept`, { method: "POST" }),
+  getBoard: (planId: string) => request<Board>(board(planId)),
+  addBlock: (planId: string, body: { kind: string; title: string; source: unknown; origin?: string; unverified?: number[]; position?: number }) =>
+    request<BoardBlock>(board(planId, "/blocks"), jsonBody("POST", body)),
+  patchBlock: (planId: string, blockId: string, body: { title?: string; source?: unknown; position?: number }) =>
+    request<BoardBlock>(boardBlock(planId, blockId), jsonBody("PATCH", body)),
+  undoBlock: (planId: string, blockId: string) => request<BoardBlock>(boardBlock(planId, blockId, "/undo"), { method: "POST" }),
+  deleteBlock: async (planId: string, blockId: string) => {
+    await authFetch(`${API_BASE}${boardBlock(planId, blockId)}`, { method: "DELETE" }); // 204: no body to parse
+  },
+  drawBlock: (planId: string, prompt: string, blockId?: string) =>
+    request<BoardBlock>(board(planId, "/draw"), jsonBody("POST", blockId ? { prompt, block_id: blockId } : { prompt })),
   listRfpLibrary: () => request<RfpLibraryEntry[]>("/api/rfp/library"),
   importRfpLibrary: (files: File[]) => {
     const form = new FormData();
@@ -328,6 +346,29 @@ export const api = {
   leaveRfpBlank: (id: number, qid: number) => request<RfpProject>(rfpQuestion(id, qid, "/leave-blank"), { method: "POST" }),
   approveRfp: (id: number, qid: number, confirmedFlags: string[]) =>
     request<RfpProject>(rfpQuestion(id, qid, "/approve"), jsonBody("POST", { confirmed_flags: confirmedFlags })),
+  // Refine threads on the Agent screen (spec refine-chat-design): `kind` is rfp (doc id = project id) or deck (report id).
+  listRefineThreads: () => request<RefineThread[]>("/api/refine/threads"),
+  listRefineDocuments: () => request<RefineDocument[]>("/api/refine/documents"),
+  listRefineTurns: (kind: string, docId: string) => request<RefineTurn[]>(`/api/refine/${kind}/${encodeURIComponent(docId)}/turns`),
+  getRefineTurn: (turnId: number) => request<RefineTurnOut>(`/api/refine/turns/${turnId}`),
+  getDeckHtml: async (reportId: string) => (await authFetch(`${API_BASE}/api/reports/${encodeURIComponent(reportId)}/deck/html`)).text(),
+  /** A Refine write (a turn or an undo): its status and parsed body, never a throw, so the screen can show the API's
+   * own `detail`; a request that never got an answer has status `network`. */
+  refineWrite: async (path: string, body?: unknown): Promise<{ status: number | "network"; body: unknown }> => {
+    const token = getToken();
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch {
+      return { status: "network", body: null };
+    }
+    if (res.status === 401) clearToken();
+    return { status: res.status, body: await res.json().catch(() => null) };
+  },
   rfpExportUrl: (id: number) => `${API_BASE}/api/rfp/projects/${id}/export`,
   listReviewItems: (runId?: string) =>
     request<{ items: ReviewItem[] }>(`/api/review/items${runId ? `?run_id=${encodeURIComponent(runId)}` : ""}`),

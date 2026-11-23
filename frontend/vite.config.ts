@@ -15,6 +15,8 @@ export default defineConfig({
   // relative, so it also works under a path prefix such as Jupyter's /user/<id>/proxy/8000/.
   base: process.env.VITE_API_BASE === '.' ? './' : '/',
   plugins: [react()],
+  // board-diagram.html is the Agent board's sandboxed diagram frame (spec agent-board, Amendment 1d).
+  build: { rollupOptions: { input: { main: 'index.html', 'board-diagram': 'board-diagram.html' } } },
   server: { headers: isolation },
   preview: { headers: isolation },
 })

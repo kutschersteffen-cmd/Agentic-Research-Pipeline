@@ -186,7 +186,7 @@ An ink-on-black palette with one reserved signal and a small set of status colou
 
 **The Status Is Not The Signal Rule.** Status colours describe runs and ratings. Red marks a failed run and also a Low (L) rating on Transition Barriers; that second use is a deliberate, confirmed exception, because the matrix reads as a traffic light. It never marks something waiting on a person.
 
-**Chart Colours.** Charts with categories use four slots, `--cat-1` to `--cat-4` (blue, magenta, gold, violet; `lib/palette.ts` explains the validation). They are neither status nor signal.
+**Chart Colours.** Charts with categories use four slots, `--cat-1` to `--cat-4` (blue, magenta, gold, violet; `lib/palette.ts` explains the validation). They are neither status nor signal. Board diagrams colour up to four flowchart groups with `--cat-1`, `--cat-4`, `--cat-2`, then `--muted`, never gold or amber, because amber means a person must act.
 
 **The Arcade Exception.** The hidden arcade games draw in their own neon palette. They sit outside the product and are the only place where neon is decoration.
 

@@ -266,3 +266,24 @@ def test_reaped_while_drafting_writes_nothing(p):
 
     run(p, [{"op": "rewrite", "question_ids": [p["Q1"]]}], ReapsWhileDrafting(grounded(p)))
     assert state(p["Q1"])["answer"] == "A1"  # no write without an undo record
+
+
+def test_leave_blank_on_reaped_turn_writes_nothing(p):  # security review #656, optional 1
+    tid = turns.start_turn("rfp", str(p["P"]), "alice", "msg")
+    turns.reap_stale_turns()  # reaped during the op-planning model call
+    out = asyncio.run(apply_rfp_ops(tid, p["P"], [{"op": "leave_blank", "question_ids": [p["Q1"]]}], Standin(),
+                                    today=TODAY, verifier=Passes()))
+    assert state(p["Q1"])["status"] == "drafted" and out["changed"] == []
+
+
+def test_change_logged_with_the_write(p):  # security review #656, optional 1: a reap after a write keeps its undo record
+    class ReapsAfterQ1(Standin):
+        async def complete_structured(self, **kw):
+            if len(self.prompts) == 1:  # Q1 is saved; the turn is reaped while Q2 drafts
+                turns.reap_stale_turns()
+            return await super().complete_structured(**kw)
+
+    tid, _ = run(p, [{"op": "rewrite", "question_ids": [p["Q1"], p["Q2"]]}], ReapsAfterQ1(grounded(p)))
+    with transaction() as s:
+        t = s.get(m.RefineTurn, tid)
+        assert (t.status, list(t.before), t.before[str(p["Q1"])]["answer"]) == ("failed", [str(p["Q1"])], "A1")
