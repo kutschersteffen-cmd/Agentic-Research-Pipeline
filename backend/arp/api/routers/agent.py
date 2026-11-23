@@ -1,5 +1,5 @@
 """The Agent screen's routes: the inbox, what waits on a person in the agent lanes (spec agent-panel-code-mode,
-Phase 3), and ask threads (Phase 7)."""
+Phase 3), explorations and the plans drafted from them (Phases 4 and 6), and ask threads (Phase 7)."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -10,9 +10,10 @@ from pydantic import BaseModel, Field, StringConstraints
 from starlette.concurrency import run_in_threadpool
 
 from arp import ask
-from arp.agent.explorations import ExplorationStore, explore
+from arp.agent.explorations import ExplorationStore, explore, plan_context
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store, settings_dep
+from arp.api.routers import plans
 from arp.api.routers.ask import ERROR_DETAIL, AskDeps, answer, ask_deps
 from arp.api.routers.plans import plan_store
 from arp.config import Settings
@@ -20,6 +21,7 @@ from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.errors import NotConfigured
 from arp.orchestration.ask_store import AskStore
+from arp.orchestration.plan_planner import PlanRejected, draft_plan
 from arp.orchestration.plan_store import PlanStore
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
@@ -211,3 +213,30 @@ def accept_exploration(exploration_id: str, store: ExplorationStore = Depends(ex
     if found is None:
         raise HTTPException(404, "exploration not found")
     return found
+
+
+class ExplorationPlanRequest(BaseModel):
+    brief: str | None = None  # missing, null or blank: the exploration's question
+
+
+@router.post("/explorations/{exploration_id}/plan")
+async def plan_from_exploration(exploration_id: str, req: ExplorationPlanRequest | None = None,
+                                store: ExplorationStore = Depends(exploration_store),
+                                plan_store_: PlanStore = Depends(plan_store)) -> dict:
+    """"Turn into a plan…" (D9): the planner drafts a plan from an accepted exploration. The plan stays a draft, so
+    nothing runs until a person approves it. Answers the plan as `GET /api/plans/{id}` does."""
+    from arp.api.deps import get_llm_client
+
+    found = await run_in_threadpool(store.get, exploration_id)
+    if found is None:
+        raise HTTPException(404, "exploration not found")
+    if found["status"] != "done" or found["accepted_at"] is None:
+        raise HTTPException(409, "only an accepted exploration can become a plan")
+    brief = req.brief if req and req.brief and req.brief.strip() else found["question"]
+    context = await run_in_threadpool(plans._context) + "\n\n" + plan_context(found)
+    try:
+        plan_id = await draft_plan(brief, get_llm_client(), plan_store_, context, check=plans._check_sources,
+                                   source_exploration_id=found["id"])
+    except PlanRejected as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return await run_in_threadpool(plans.get_plan, plan_id, plan_store_)

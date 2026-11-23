@@ -29,7 +29,8 @@ class _MemoryStore:
     def __init__(self) -> None:
         self.dry_runs: dict[str, list[dict]] = {}
 
-    def create(self, brief: str, script: str, check=None, planner_cost_usd: float = 0.0, source_ask_id: str | None = None) -> str:
+    def create(self, brief: str, script: str, check=None, planner_cost_usd: float = 0.0, source_ask_id: str | None = None,
+               source_exploration_id: str | None = None) -> str:
         plan_id = f"golden_{len(self.dry_runs) + 1}"
         self.dry_runs[plan_id] = _checked_dry_run(script, check=check)
         return plan_id

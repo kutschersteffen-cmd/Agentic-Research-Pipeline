@@ -126,16 +126,30 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     refocus.current = false;
     input.current?.focus();
   }, [sending]);
-  // Opening a thread shows its newest turn and its Board; the Refine picker opens at its heading.
+  // A plan just drafted from an exploration opens at its brief, which takes focus (WCAG 2.4.3); the stream does not
+  // follow it down until another thread is opened or the reader sends.
+  const briefFirst = useRef<string | null>(null);
+  // Opening a thread shows its newest turn and its Board; the Refine picker opens at its heading, a just-drafted plan
+  // at its brief.
   useLayoutEffect(() => {
     setTab("board");
+    if (briefFirst.current !== null && briefFirst.current !== planId) briefFirst.current = null;
     const picker = refineSel === "";
-    atEnd.current = !picker;
-    follow.current = !picker;
+    const top = picker || briefFirst.current !== null;
+    atEnd.current = !top;
+    follow.current = !top;
     setJump(false);
     const el = scroller.current;
-    if (el) el.scrollTop = picker ? 0 : el.scrollHeight;
+    if (el && briefFirst.current === null) el.scrollTop = picker ? 0 : el.scrollHeight;
   }, [planId, askId, explorationId, refineSel]);
+  const briefFocus = useRef<string | null>(null); // the drafted plan whose brief has yet to take focus, once
+  useEffect(() => {
+    if (!plan || plan.id !== briefFocus.current) return;
+    briefFocus.current = null; // a reload (every 3 s while the plan runs) leaves scroll and focus where the reader put them
+    const h = document.getElementById("agent-brief-h");
+    h?.scrollIntoView({ block: "start" });
+    h?.focus({ preventScroll: true });
+  }, [plan]);
   // When the stream grows, or its box shrinks under a taller composer, follow it down only if the reader was at the end.
   useEffect(() => {
     const el = scroller.current;
@@ -173,6 +187,10 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   // grows the stream, which then follows it down. (Scrolling here, before that turn lands, would fire a scroll event
   // that reads the grown stream as scrolled up.)
   function followOwnSend() {
+    if (briefFirst.current !== null) {
+      briefFirst.current = null;
+      follow.current = true;
+    }
     atEnd.current = true;
     setJump(false);
   }
@@ -408,7 +426,8 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
           {refineSel !== null ? (
             refine.doc ? <RefineStream refine={refine} emptyLine={refineCtl.emptyLine} /> : <RefinePicker />
           ) : exploration && explorationId ? (
-            <ExplorationCard key={exploration.id} exploration={exploration} busy={busy} onAccept={() => act(() => api.acceptExploration(exploration.id))} />
+            <ExplorationCard key={exploration.id} exploration={exploration} busy={busy} onAccept={() => act(() => api.acceptExploration(exploration.id))}
+              onDrafted={(p) => { briefFirst.current = briefFocus.current = p.id; loadList(); onSelect({ kind: "plan", id: p.id }); }} />
           ) : plan && planId ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />
           ) : askId || askingIn(asking, null) ? (
@@ -468,13 +487,16 @@ function Stream({ plan, busy, act }: { plan: Plan; busy: boolean; act: (fn: () =
   return (
     <>
       <article className="card agent-card" aria-labelledby="agent-brief-h">
-        <h2 id="agent-brief-h">{plan.brief}</h2>
+        <h2 id="agent-brief-h" tabIndex={-1}>{plan.brief}</h2>
         <p className="agent-meta">
           <Chip status={plan.status} /> <span className="muted">version {plan.version}</span>
           {plan.approved_by && <span className="muted"> · approved by {plan.approved_by}</span>}
         </p>
         {plan.source_ask && (
           <p className="agent-meta"><a href={`#/agent/ask/${encodeURIComponent(plan.source_ask.thread_id)}`}>From ask: {plan.source_ask.question}</a></p>
+        )}
+        {plan.source_exploration_id && plan.source_exploration && (
+          <p className="agent-meta"><a href={`#/agent/exploration/${encodeURIComponent(plan.source_exploration_id)}`}>From exploration: {plan.source_exploration.question}</a></p>
         )}
         {(plan.status === "approved" || ACTIVE.has(plan.status)) && (
           <div className="toolbar">
