@@ -51,8 +51,3 @@ test("pr2_review_marks", () => {
   const panel = readFileSync(new URL("../src/components/EngagementIssuePanel.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(panel, /: "running"\}`/, "an open issue is not running work");
 });
-// Final review: no width where neither header rule applies (browser zoom gives fractional widths).
-test("pr2_review_breakpoint_gap", () => {
-  assert.match(css, /\.page\.hub:not\(\.hub-start\) > \.ws-drawing \{ display: none; \}/); // hidden unless a range shows it
-  assert.match(css, /@media \(min-width: 761px\) and \(max-width: 1099\.98px\)/);
-});

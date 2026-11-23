@@ -28,12 +28,14 @@ def _box(loc):
     return loc.bounding_box()
 
 
+# expressive-ui-orb slice 3 supersedes the title | intro head: the intro sits directly under the pixel title, the
+# drawing's figure box to their right (DESIGN.md, Workspace overview header).
 @pytest.mark.parametrize("path", ["/#/stewardiq", "/#/rdLab"])
 def test_ac11_two_column_head(page, path):  # noqa: F811
     _open(page, path)
     h1, intro = _box(page.locator(".page > h1")), _box(page.locator(".page > h1 + p"))
-    assert intro["x"] >= h1["x"] + h1["width"] - 0.5, (h1, intro)
-    assert abs((intro["y"] + intro["height"]) - (h1["y"] + h1["height"])) <= 4, (h1, intro)
+    assert intro["y"] >= h1["y"] + h1["height"] - 0.5, (h1, intro)
+    assert abs(intro["x"] - h1["x"]) <= 4, (h1, intro)
 
 
 @pytest.mark.parametrize("path,width", [("/#/stewardiq", 1099), ("/#/review", 1440)])
