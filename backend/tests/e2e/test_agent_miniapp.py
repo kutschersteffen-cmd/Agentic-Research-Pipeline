@@ -141,6 +141,18 @@ def test_show_as_miniapp_moves_focus_to_the_selected_miniapp_tab(page, plain, wi
     shown.frame_locator("iframe").locator("p").wait_for()  # the stored page shows in the stage that has focus
 
 
+def test_closing_the_drawer_show_as_miniapp_opened_returns_focus_to_the_button(page, plain):  # WCAG 2.4.3, below 900 px
+    page.set_viewport_size({"width": 390, "height": 844})
+    _answer_miniapp(page, plain, ok=True)
+    page.goto(f"{URL}/#/agent/exploration/{plain}")
+    page.locator("#agent-show-miniapp").focus()
+    page.keyboard.press("Enter")
+    page.wait_for_function("document.activeElement && document.activeElement.dataset.tab === 'miniapp'", timeout=10_000)
+    page.keyboard.press("Escape")
+    page.wait_for_function("!document.querySelector('#agent-drawer')", timeout=5_000)
+    assert page.evaluate("document.activeElement.id") == "agent-show-miniapp"
+
+
 def test_a_failed_show_as_miniapp_returns_focus_to_the_button(page, plain):
     _answer_miniapp(page, plain, ok=False)
     page.goto(f"{URL}/#/agent/exploration/{plain}")

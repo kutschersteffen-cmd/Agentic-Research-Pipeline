@@ -78,6 +78,14 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const [jump, setJump] = useState(false);
   const refocus = useRef(false);
   const miniappFocus = useRef<"tab" | "button" | null>(null); // where focus goes once Show as mini-app has answered
+  // The drawer Show as mini-app opened: focus was on <body> then (the button was disabled), so the dialog would give
+  // it back there on close. It goes back to the button instead.
+  const drawerReturn = useRef(false);
+  useEffect(() => {
+    if (drawer !== null || !drawerReturn.current) return;
+    drawerReturn.current = false;
+    if (document.activeElement === document.body) document.getElementById("agent-show-miniapp")?.focus();
+  }, [drawer]);
   const current = useRef(selected); // the selection now, for a request that answers after it changed
   current.current = selected;
   const modes = composerModes(canAsk);
@@ -377,7 +385,9 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
                 miniappFocus.current = made ? "tab" : "button"; // the button was disabled while it ran: focus fell to <body>
                 if (!made) return;
                 setTab("miniapp");
-                if (window.matchMedia(NARROW).matches) setDrawer("stage");
+                if (!window.matchMedia(NARROW).matches) return;
+                setDrawer("stage");
+                drawerReturn.current = true;
               }} />
           ) : plan && planId ? (
             <Stream key={plan.id} plan={plan} busy={busy} act={act} />
