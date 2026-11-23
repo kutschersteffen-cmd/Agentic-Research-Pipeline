@@ -1687,8 +1687,13 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 /* On a phone the note goes under the button instead of wrapping around it. */
 @media (max-width: 640px) { .hub-run > .muted { display: block; margin-top: var(--s-2); } }
 .hub-run ul { margin: var(--s-1) 0; }
-.hub-flow { list-style: none; display: flex; gap: 18px; margin: var(--s-4) 0 0; padding: 0; }
-.hub-flow-item { flex: 1 1 0; min-width: 0; position: relative; display: flex; }
+/* The flow is its own scroll window (process-flow-viewer): one row of steps, 180px each at 100% (--fz 1), growing by
+   equal shares when the window is wider. Each step is zoomed as a whole (text, paddings, number, connector) by --fz;
+   a grid, not flex, so a flow taller than the window keeps its cards' full height and scrolls up and down. */
+.hub-flow { list-style: none; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(calc(180px * var(--fz, 1)), 1fr); column-gap: calc(18px * var(--fz, 1)); margin: var(--s-4) 0 0; padding: 14px; max-height: 70vh; overflow: auto; border: 1px solid var(--panel-border); border-radius: 8px; background: var(--well); scrollbar-width: thin; scrollbar-color: var(--panel-border-strong) transparent; overscroll-behavior-x: contain; touch-action: pan-x pan-y; scroll-behavior: auto; }
+.hub-flow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hub-flow[data-dragging], .hub-flow[data-dragging] * { cursor: grabbing; user-select: none; }
+.hub-flow-item { min-width: 0; position: relative; display: flex; zoom: var(--fz, 1); }
 /* The arrow into each step after the first, as on the extraction pipeline. */
 .hub-flow-item + .hub-flow-item::before { content: ""; position: absolute; left: -18px; top: 50%; width: 14px; height: 2px; background: var(--panel-border); }
 /* The track: ink after a reached (done) step, the running colour into the step being run. */
@@ -1737,10 +1742,6 @@ button.hub-step:hover:not(:disabled) { background: var(--panel); }
 .hub-step-panel dt { color: var(--muted); }
 .hub-step-panel dd { margin: 0; display: flex; align-items: center; gap: var(--s-1_5); min-width: 0; overflow-wrap: anywhere; }
 
-@media (max-width: 900px) {
-  .hub-flow { flex-direction: column; }
-  .hub-flow-item + .hub-flow-item::before { left: 50%; top: -16px; width: 2px; height: 14px; }
-}
 @media (max-width: 760px) { .hub-step-panel .button-link { min-height: 44px; display: inline-flex; align-items: center; } }
 
 /* Inside a workspace (expressive-ui-orb): caption, pixel title, purpose and status line on the left, the drawing in
@@ -1793,12 +1794,13 @@ button.hub-step:hover:not(:disabled) { background: var(--panel); }
 /* A narrow step stacks its "Last run / Updated" labels over their values instead of letting them overlap. */
 .hub-flow-item { container-type: inline-size; }
 @container (max-width: 140px) { .hub-step-rows > span { grid-template-columns: minmax(0, 1fr); } }
-/* A flow whose steps would get narrower than about 110px (a long flow next to the Ask ARP card) stacks its steps, as
-   on a phone: n steps need n × 128px of the panel. */
-@container hub-process (max-width: 895px) { .hub-flow:has(> :nth-child(7)) { flex-direction: column; } .hub-flow:has(> :nth-child(7)) > .hub-flow-item + .hub-flow-item::before { left: 50%; top: -16px; width: 2px; height: 14px; } }
-@container hub-process (max-width: 767px) { .hub-flow:has(> :nth-child(6)) { flex-direction: column; } .hub-flow:has(> :nth-child(6)) > .hub-flow-item + .hub-flow-item::before { left: 50%; top: -16px; width: 2px; height: 14px; } }
-@container hub-process (max-width: 639px) { .hub-flow:has(> :nth-child(5)) { flex-direction: column; } .hub-flow:has(> :nth-child(5)) > .hub-flow-item + .hub-flow-item::before { left: 50%; top: -16px; width: 2px; height: 14px; } }
-@container hub-process (max-width: 511px) { .hub-flow:has(> :nth-child(4)) { flex-direction: column; } .hub-flow:has(> :nth-child(4)) > .hub-flow-item + .hub-flow-item::before { left: 50%; top: -16px; width: 2px; height: 14px; } }
+/* The zoom bar above a flow's rail: mono, hairline buttons; neither the amber signal nor the running blue. */
+.hub-flow-zoom { display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: var(--s-3); font-family: var(--font-mono); font-size: var(--text-xs); }
+.hub-flow-zoom button { height: 28px; min-width: 28px; margin: 0; padding: 0 10px; border: 1px solid var(--panel-border); border-radius: var(--r-sm); background: transparent; color: var(--text); font: inherit; letter-spacing: 0.04em; }
+.hub-flow-zoom button:hover:not(:disabled) { background: var(--accent-tint); border-color: var(--panel-border-strong); }
+.hub-flow-zoom button:disabled { background: transparent; color: var(--muted); border-style: dashed; }
+.hub-flow-zoom output { min-width: 5ch; text-align: center; color: var(--text-2); font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) { .hub-flow-zoom button { min-width: 44px; min-height: 44px; } }
 /* Argus's start page keeps its own head; its title takes the workspace title's pixel type. */
 .argus-head h1 { padding-bottom: 6px; font-family: var(--font-pixel); font-weight: 400; font-size: clamp(48px, 6.4vw, 92px); line-height: 0.94; overflow-wrap: break-word; }
 /* The Agent screen's Orb: 56 × 56px before the title. */
