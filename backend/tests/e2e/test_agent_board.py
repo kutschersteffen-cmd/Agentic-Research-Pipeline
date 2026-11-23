@@ -215,6 +215,15 @@ def test_diagrams_draw_in_a_sealed_frame(page):  # noqa: F811  AC-47, AC-49, AC-
     link = next(f for t, f in drawn.items() if t.strip() and "Give notice" not in t and "Grow newsletter" not in t)
     assert link.evaluate("document.querySelectorAll('svg a').length") == 0
     assert link.evaluate("[...document.querySelectorAll('svg *')].filter((e) => e.hasAttribute('href') || e.hasAttribute('xlink:href')).length") == 0
+    # The clickable box keeps the place and label Mermaid gave it on the <a> wrapper: inside the drawing, left of `b`.
+    boxes = link.evaluate("""() => {
+        const svg = document.querySelector('#diagram svg').getBoundingClientRect();
+        return ['a', 'b'].map((t) => {
+            const n = [...document.querySelectorAll('g.node')].find((g) => g.textContent.trim() === t).getBoundingClientRect();
+            return { left: n.left - svg.left, top: n.top - svg.top, width: n.width, right: svg.right - n.right }; }); }""")
+    a_box, b_box = boxes
+    assert a_box["left"] > 0 and a_box["top"] > 0 and a_box["width"] > 20, a_box
+    assert a_box["left"] + a_box["width"] < b_box["left"], boxes
     # Text is never shrunk below 11 px to fit the narrow stage; a wide diagram scrolls inside its card instead.
     for f in by_path:
         size = f.evaluate("(() => { const s = document.querySelector('#diagram svg'); return s && 14 * s.getBoundingClientRect().width / s.viewBox.baseVal.width; })()")

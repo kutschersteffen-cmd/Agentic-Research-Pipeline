@@ -97,10 +97,20 @@ function config(t: DiagramTheme) {
 
 /** Mermaid's SVG as nodes, with every `<a>` replaced by its children and every `href` and `xlink:href` removed
  * (Amendment 1b). A <template> parses without running anything or loading anything. */
+const SVG_NS = "http://www.w3.org/2000/svg";
+const LINK_ATTRS = new Set(["href", "target", "rel", "download", "ping", "referrerpolicy", "hreflang", "type"]);
+
 function linkFree(svg: string): DocumentFragment {
   const t = document.createElement("template");
   t.innerHTML = svg;
-  for (const a of [...t.content.querySelectorAll("a")]) a.replaceWith(...a.childNodes);
+  // Mermaid puts a clickable node's `transform` and classes on its <a> wrapper, so the <a> becomes a plain group
+  // (an SVG <g>, or a <span> inside an HTML label) that keeps every attribute except the link ones.
+  for (const a of [...t.content.querySelectorAll("a")]) {
+    const plain = document.createElementNS(a.namespaceURI ?? SVG_NS, a.namespaceURI === SVG_NS ? "g" : "span");
+    for (const attr of [...a.attributes]) if (!LINK_ATTRS.has(attr.localName)) plain.setAttributeNS(attr.namespaceURI, attr.name, attr.value);
+    plain.append(...a.childNodes);
+    a.replaceWith(plain);
+  }
   for (const el of t.content.querySelectorAll("*")) {
     for (const attr of [...el.attributes]) if (attr.localName === "href") el.removeAttributeNode(attr);
   }
