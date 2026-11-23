@@ -161,8 +161,13 @@ row here; their own specs' rows stay in the hidden regression set.
 
 ## Supersedes
 
-No earlier acceptance row changes. The column layout below 900 px is removed; no row of the top-bar, night-desk,
-ui-polish or expressive-ui-orb specs pins it.
+One clause of an earlier row changes. The column layout below 900 px is removed. It was pinned by one clause of
+top-bar AC-41, "All step cards in that process share one left edge (±1px)" at `#/stewardiq`, 390 × 844. AC-3 of this
+spec replaces that clause: on a phone the step cards share one top edge and the flow scrolls sideways. The rest of
+AC-41 stays: the "Open …" link is at least 44 px tall and `scrollWidth` is at most 390. The owner approved this on
+23 Nov 2026 in a spec question on PR #677, which changed only that assertion in
+`backend/tests/e2e/test_top_bar_pr3.py::test_ac41_phone`. No row of the night-desk, ui-polish or expressive-ui-orb
+specs pins the column.
 
 ## Acceptance
 
