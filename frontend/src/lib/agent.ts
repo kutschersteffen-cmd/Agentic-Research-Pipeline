@@ -1,6 +1,6 @@
 // The Agent screen's rules, kept out of the page so they are testable without rendering it
 // (spec 2026-11-21-agent-panel-code-mode, Phase 3).
-import type { AgentAsk, AskThread, Exploration, InboxRow } from "../types";
+import type { AgentAsk, AskThread, Exploration, InboxRow, RefineHistoryItem, RefineThread, RefineTurn } from "../types";
 import { askErrorText } from "./askError.ts";
 import type { Plan } from "./plans";
 
@@ -87,8 +87,9 @@ export const needsYouLine = (n: number): string => `${n} more in Needs you`;
 
 export type Mode = "Ask" | "Plan" | "Explore";
 
-/** The selected thread: a plan, an ask thread or an exploration. */
-export type Selection = { kind: "plan" | "ask" | "exploration"; id: string } | null;
+/** The selected thread: a plan, an ask thread, an exploration or a Refine thread. A Refine selection's id is
+ * `<kind>/<doc_id>` (see `refineDoc`), or "" for the picker. */
+export type Selection = { kind: "plan" | "ask" | "exploration" | "refine"; id: string } | null;
 
 /** The composer's mode buttons, and the one pressed when it opens: a viewer cannot ask. */
 export const composerModes = (canAsk: boolean): { modes: Mode[]; initial: Mode } =>
@@ -167,15 +168,18 @@ export function untilCancelled<T>(load: Promise<T>, onValue: (v: T) => void, onE
   return () => { live = false; };
 }
 
-/** One row of the thread list: a plan, an ask thread or an exploration (its chip is its label). */
-export type ThreadRow = { kind: "plan" | "ask" | "exploration"; id: string; title: string; status: string; created_at: string };
+/** One row of the thread list: a plan, an ask thread, an exploration or a Refine thread (its chip is its label).
+ * `created_at` is the time the list sorts by: a Refine thread's newest turn. */
+export type ThreadRow = { kind: "plan" | "ask" | "exploration" | "refine"; id: string; title: string; status: string; created_at: string };
 
-/** Plans, ask threads and explorations in one list, newest first by `created_at`. */
-export function threadRows(plans: Plan[], asks: AskThread[], explorations: Exploration[] = []): ThreadRow[] {
+/** Plans, ask threads, explorations and Refine threads in one list, newest first by `created_at` (a Refine thread by
+ * `last_turn_at`). */
+export function threadRows(plans: Plan[], asks: AskThread[], explorations: Exploration[] = [], refines: RefineThread[] = []): ThreadRow[] {
   return [
     ...plans.map((p) => ({ kind: "plan" as const, id: p.id, title: threadTitle(p.brief), status: p.status, created_at: p.created_at })),
     ...asks.map((a) => ({ kind: "ask" as const, id: a.thread_id, title: a.title, status: a.status, created_at: a.created_at })),
     ...explorations.map((e) => ({ kind: "exploration" as const, id: e.id, title: threadTitle(e.question), status: e.label, created_at: e.created_at })),
+    ...refines.map((r) => ({ kind: "refine" as const, id: `${r.kind}/${r.doc_id}`, title: r.title, status: r.status, created_at: r.last_turn_at })),
   ].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 }
 
@@ -220,3 +224,72 @@ export function streamResized(r: { wasNearEnd: boolean; contentGrew: boolean; bo
   if (r.nowNearEnd) return { scrollToEnd: false, jump: false };
   return { scrollToEnd: false, jump: r.contentGrew ? true : null };
 }
+
+// Refine threads (spec refine-chat-design, amendment 2026-11-22): one per RFP project or house deck, the chat in the
+// stream and the document in the stage.
+
+export type RefineKind = "rfp" | "deck";
+
+/** The document a Refine selection's id names (`<kind>/<doc_id>`), or null for the picker or an unknown kind. */
+export function refineDoc(id: string): { kind: RefineKind; docId: string } | null {
+  const cut = id.indexOf("/");
+  const kind = id.slice(0, cut);
+  const docId = id.slice(cut + 1);
+  return cut > 0 && docId && (kind === "rfp" || kind === "deck") ? { kind, docId } : null;
+}
+
+/** What a Refine thread shows for the signed-in user: a viewer reads the stream and the document only. */
+export const refineControls = (canAsk: boolean): { composer: boolean; undo: boolean; picker: boolean; emptyLine: string } =>
+  canAsk
+    ? { composer: true, undo: true, picker: true, emptyLine: "No changes yet. Type an instruction below." }
+    : { composer: false, undo: false, picker: true, emptyLine: "No changes yet." };
+
+/** The composer on a Refine thread: no mode buttons, one label, button and help line. */
+export const REFINE_COPY = { label: "Instruction", submit: "Refine", sending: "Refining…",
+  help: "Enter sends the instruction; Shift+Enter adds a line.", placeholder: "" };
+/** The example in a Refine thread's empty text box, by document kind. */
+export const REFINE_PLACEHOLDER: Record<RefineKind, string> = { rfp: "Make every ESG answer shorter", deck: "Make slide 3 a bar chart" };
+
+/** The `history` a turn sends: the thread's newest 5 `done` turns, oldest first. */
+export const refineHistory = (turns: Pick<RefineTurn, "message" | "reply" | "status">[]): RefineHistoryItem[] =>
+  turns.filter((t) => t.status === "done").slice(-5).map((t) => ({ message: t.message, reply: t.reply }));
+
+/** An id in a result line: `Q<id>` for an RFP question, `Slide <n>` for a deck slide. */
+const refineId = (kind: RefineKind, id: number | null): string =>
+  id === null ? (kind === "rfp" ? "(no question named)" : "(no slide named)") : kind === "rfp" ? `Q${id}` : `Slide ${id}`;
+
+/** The lines under a finished turn's reply, each only when its list is not empty. */
+export function refineResultLines(kind: RefineKind, turn: Pick<RefineTurn, "changed" | "not_changed" | "check_figures">): string[] {
+  const ids = (xs: number[]) => xs.map((x) => refineId(kind, x)).join(", ");
+  return [
+    ...(turn.changed.length ? [`Changed: ${ids(turn.changed)}`] : []),
+    ...turn.not_changed.map((n) => `Not changed: ${refineId(kind, n.id)} (${n.reason})`),
+    ...(turn.check_figures.length ? [`Check figures: ${ids(turn.check_figures)}`] : []),
+  ];
+}
+
+/** The newest turn still running on the document (anyone's), if any. */
+export const refineRunning = <T extends Pick<RefineTurn, "status">>(turns: T[]): T | null =>
+  turns.findLast((t) => t.status === "running") ?? null;
+
+/** The items that carry `changed`: the newest turn's, unless it was undone. */
+export function refineChanged(turns: Pick<RefineTurn, "status" | "changed">[]): number[] {
+  const last = turns.at(-1);
+  return last && last.status !== "undone" ? last.changed : [];
+}
+
+/** The stage's progress line while an RFP turn runs. */
+export const refineProgress = (t: Pick<RefineTurn, "done" | "total">): string => (t.total > 0 ? `Rewriting… ${t.done} of ${t.total}` : "Rewriting…");
+
+/** What shows under the composer or Undo when a write is refused: the API's `detail`, or `Request failed (<status>)`. */
+export function refineErrorText(status: number | "network", body: unknown): string {
+  const detail = body && typeof body === "object" ? (body as { detail?: unknown }).detail : undefined;
+  return typeof detail === "string" && detail ? detail : `Request failed (${status})`;
+}
+
+/** A slot whose text does not fit its box, down or across (as `reporting/browser.py` measures it). */
+export const overflowing = (el: { scrollHeight: number; clientHeight: number; scrollWidth: number; clientWidth: number }): boolean =>
+  el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth;
+
+/** A thread title as the API cuts it: `RFP: <investor>` or `Deck: <report title>`, 60 characters in all. */
+export const refineTitle = (kind: RefineKind, name: string): string => `${kind === "rfp" ? "RFP" : "Deck"}: ${name}`.slice(0, 60);
