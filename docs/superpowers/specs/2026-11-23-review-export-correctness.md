@@ -2,7 +2,8 @@
 
 Status: Draft, for owner approval
 Slug: `review-export-correctness`
-Risk: `risk:normal` (backend only; no auth, schema, money or workflow path)
+Risk: `risk:normal` (backend; slice 2 also commits the two generated API files under `frontend/src/api/`,
+so it owes the UI review gate; no auth, schema, money or workflow path)
 Size: two slices, each `S`
 
 ## Decisions for the owner
@@ -28,8 +29,8 @@ decide on it. Three return the wrong answer when something is missing.
   accepted value, instead of an empty card.
 - Read why a Signals run could not start (503 with the reason) instead of "Run failed: NotConfigured".
 - Get a 422 that names the missing `file` part when an upload is sent without a file, instead of a 500.
-- Retry a company again after a Retry whose job could not be launched; the run no longer keeps the
-  company marked as retrying.
+- After a Retry whose job could not be launched, the run is exactly as it was before: its manifest no
+  longer keeps the company marked as retrying (today the stale mark skews the minutes-left estimate).
 
 ## Three versions
 
@@ -83,11 +84,11 @@ rows that seed a real conflict in the running app.
 4. A conflict's context bundle carries the queued field as `value`, with evidence and confidence.
 5. A Signals run that fails with `NotConfigured` answers 503 with the reason.
 6. `POST /api/documents/upload` without a file answers 422.
-7. A Retry whose launch fails leaves the run as it was before the Retry.
+7. A Retry whose launch fails leaves no `retrying` key in the run manifest.
 
 ## Non-goals
 
-- No frontend change. The generated API files change with goal 6 only.
+- No hand-written frontend change. The two generated API files change with goal 6 only.
 - No change to other export branches (theme, financials, transition plan, barrier, XLSX) or to TNFD.
 - No change to how conflicts are raised, keyed or decided, and no change to facts.
 - Strategy Replication (item 1), path confinement and upload size caps (item 3).
@@ -145,8 +146,7 @@ fills in the same way as for a value item. The accepted value stays where it is,
 
 ### Status codes (goals 5 and 6)
 
-- `signals.run`: an `HTTPException` or `NotConfigured` raised inside the run is re-raised before the
-  catch-all, so the app's handler answers `503 {"detail": "<message>"}`. Every other exception still
+- `signals.run`: a `NotConfigured` raised inside the run is re-raised before the catch-all, so the app's handler answers `503 {"detail": "<message>"}`. Every other exception still
   answers `500 {"detail": "Run failed: <type>"}` and is logged.
 - `documents.upload_document`: `file: UploadFile = File(...)`. The request then fails validation with the
   app's 422 body. Regenerate `frontend/src/api/openapi.json` and `frontend/src/api/schema.gen.ts`
@@ -199,6 +199,9 @@ queue row, no decision) and `n2` (value 2.0, route `review`, no queue row, one d
 - A kept conflict is not counted as approved by Argus: the run's value was turned down. The count is
   about the run's values, the export about what may leave the app.
 - The Argus count reads final decisions (`effective_decisions`), as the export does, not the latest row.
+  So a value with decision rows but no final decision and no queue row (an `escalate` on an auto-accepted
+  value, or a legacy `edit` still waiting for its co-sign) is counted neither as approved nor as waiting.
+  On `main` such an `edit` counts as approved.
 - The Signals and Retry rows are `unit`: they need a launcher or a run that fails on purpose, which a
   hidden test could only do by patching names inside the builder's code.
 - A conflict on a high-risk field is still not marked `high_risk` (`review/items.py`); not in this item.
@@ -218,33 +221,36 @@ queue row, no decision) and `n2` (value 2.0, route `review`, no queue row, one d
 | AC-9 | Must not change. Fixture E | `GET /api/runs/R/export.csv` | the body has 9 lines: the header of `main` (17 columns, `company_id` first, `review_status` last) and one line per field in fixture order | holdout |
 | AC-10 | Must not change. Run `R2` like Fixture E's but with no queue rows, one record with `issuer_key` `ISS` and four fields: `w` (route `review`, no decision), `a` (route `review`, decision `approve`), `h` (route `hold`, decision `reject`), `o` (no `route` key, no decision); values 1.0 to 4.0 | `GET /api/runs/R2/export.csv` | `(value, review_status)` per row is `w`: (empty, `awaiting review`); `a`: (`2.0`, `approve`); `h`: (empty, `reject`); `o`: (`4.0`, empty) | holdout |
 | AC-11 | Fixture E; a flow whose company list is `c1` (`CompanyRef(company_id="c1", name="N")`), `R` being `c1`'s newest extraction run | the flow's rows are built (`arp.argus.rows.flow_rows`, the `rows` of `GET /api/argus/flows/{flow_id}`) | `c1`'s `extracted_before.approved` is 3 (`plain`, `taken`, `fixed`) | holdout |
-| AC-12 | Must not change. As AC-11 | the same read | `c1`'s `extracted_before.waiting` is 2 (`open`, `esc`) and `label` is `S v2`, `date` is `2026-11-01` | holdout |
+| AC-12 | Must not change. As AC-11 | the same read | `c1`'s `extracted_before.waiting` is 2 (`open`, `esc`) | holdout |
 | AC-13 | Fixture N; a flow whose company list is `c2`, `RN` being `c2`'s newest extraction run | the flow's rows are built as in AC-11 | `c2`'s `extracted_before.approved` is 2 | holdout |
 | AC-14 | Fixture E | `GET /api/review/runs/R/items/ISS:open:2024-12-31/context` as a signed-in user who may read review items | 200; `item.kind` is `conflict`; `value.value` is 2.0 and `value.field_id` is `open` | holdout |
 | AC-15 | The response of AC-14 | `evidence` is read | it has exactly one entry, with `doc_id` `d1`, `quote` `Revenue was 2.0`, `char_start` 10 | holdout |
 | AC-16 | The response of AC-14 | `confidence` is read | `confidence.final` is 0.9 and `confidence.grounded` is true | holdout |
-| AC-17 | The response of AC-14 | `item.payload.accepted` and `conflict` are read | `item.payload.accepted.value` is 20.0; `conflict` is `{"conflicting_sources": false, "alternatives": []}` | holdout |
+| AC-17 | The response of AC-14 | `conflict` is read | it is `{"conflicting_sources": false, "alternatives": []}` | holdout |
 | AC-18 | Must not change. Run `R2` of AC-10 with a queue row for `w` that has `field` set and no `kind` and no `accepted` | `GET /api/review/runs/R2/items/ISS:w:2024-12-31/context` | 200; `item.kind` is `value`; `value.value` is 1.0 | holdout |
 | AC-19 | A valid Signals run request (recipe and prices parts as in `backend/tests/test_api_signals.py`), with `arp.api.routers.signals.run_recipe` replaced by a function that raises `arp.errors.NotConfigured("ARP_GEMINI_API_KEY is not set")` | `POST /api/signals/runs` as an analyst | 503 with body `{"detail": "ARP_GEMINI_API_KEY is not set"}` | unit |
 | AC-20 | Must not change. As AC-19, but the function raises `RuntimeError("secret detail")` | `POST /api/signals/runs` | 500 with `detail` `Run failed: RuntimeError`; the body does not contain `secret detail` | unit |
 | AC-21 | Must not change. A Signals run request without the `prices` part | `POST /api/signals/runs` as an analyst | 422 with `detail` `missing file part 'prices'` | holdout |
 | AC-22 | The app; form fields `company_id=acme`, `doc_type=other`, and no `file` part | `POST /api/documents/upload` as a user allowed to upload | 422; `detail` is a list holding one entry with `type` `missing` and `loc` `["body", "file"]` | holdout |
-| AC-23 | The request of AC-22 | the documents directory is read afterwards | no directory `acme` exists under `documents_dir` | holdout |
-| AC-24 | Must not change. The same form fields with a file part `r.pdf` (3 bytes) | `POST /api/documents/upload` | 200, and `documents_dir/acme/other/r.pdf` holds those 3 bytes | holdout |
+| AC-23 | The request of AC-22, sent with an empty `documents_dir` | the documents directory is read afterwards | no directory `acme` exists under `documents_dir` | holdout |
+| AC-24 | Must not change. An empty `documents_dir`; the same form fields with a file part `r.pdf` (3 bytes) | `POST /api/documents/upload` | 200, and `documents_dir/acme/other/r.pdf` holds those 3 bytes | holdout |
 | AC-25 | The committed `frontend/src/api/openapi.json` | the request body schema of `POST /api/documents/upload` is read | its `required` list holds `file`, `company_id` and `doc_type` | unit |
 | AC-26 | A started flow whose run has status `partially_completed`, company `aapl` failed, one kept file for `aapl` (the fixture of `backend/tests/test_argus_retry.py`); the job launcher's `launch` raises `RuntimeError` | `POST /api/argus/flows/{flow_id}/companies/aapl/retry` as an analyst | the request does not succeed (a 500 response, or the `RuntimeError` raised by a test client that re-raises server errors), and afterwards the run manifest's `params` has no key `retrying` | unit |
-| AC-27 | The state after AC-26 | the run manifest is read | `status` is `partially_completed` | unit |
-| AC-28 | The state after AC-26, with a launcher that works again | the same `POST` is sent again | 200, and `aapl`'s status in the response is `Waiting` | unit |
+| AC-27 | Must not change. The state after AC-26 | the run manifest is read | `status` is `partially_completed` | unit |
+| AC-28 | Must not change. The state after AC-26, with a launcher that works again | the same `POST` is sent again | 200, and `aapl`'s status in the response is `Waiting` | unit |
+| AC-29 | Must not change. As AC-11 | the same read | `c1`'s `extracted_before.label` is `S v2` and its `date` is `2026-11-01` (the run's label line) | holdout |
+| AC-30 | Must not change. The response of AC-14 | `item.payload.accepted` is read | `item.payload.accepted.value` is 20.0 | holdout |
 
 Must not change: the export of values with no review item (AC-8), the export's shape (AC-9), today's
-handling of values routed to review or hold (AC-10), the Argus `waiting` number and run label (AC-12), the
-context of a value item (AC-18), Signals' 500 for other errors (AC-20) and its 422s (AC-21), an upload
-with a file (AC-24).
+handling of values routed to review or hold (AC-10), the Argus `waiting` number (AC-12) and run label
+(AC-29), the context of a value item (AC-18), the accepted value in a conflict's payload (AC-30), Signals'
+500 for other errors (AC-20) and its 422s (AC-21), an upload with a file (AC-24), the restored run status
+after a failed launch (AC-27) and a working second Retry (AC-28).
 
 ## Slices
 
 1. `S`: export rule, Argus count, conflict card. Rows: AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8,
-   AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15, AC-16, AC-17, AC-18.
+   AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15, AC-16, AC-17, AC-18, AC-29, AC-30.
 2. `S`: status codes and Retry rollback, with the regenerated API files. Rows: AC-19, AC-20, AC-21,
    AC-22, AC-23, AC-24, AC-25, AC-26, AC-27, AC-28. Item 3 (upload caps) may touch
    `documents.upload_document` too; whichever merges second merges `origin/main` first.
