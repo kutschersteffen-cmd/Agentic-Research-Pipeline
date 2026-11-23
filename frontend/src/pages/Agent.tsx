@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
+import { AgentBoard } from "../components/AgentBoard";
 import { AskCard } from "../components/AskCards";
 import { ExplorationCard } from "../components/ExplorationCard";
 import { MiniAppFrame } from "../components/MiniAppFrame";
@@ -18,9 +19,10 @@ const POLL_MS = 3000;
 const NARROW = "(max-width: 899.98px)";
 
 type Drawer = "threads" | "stage" | null;
-type StageTab = "script" | "diff" | "audit" | "miniapp";
+type StageTab = "board" | "script" | "diff" | "audit" | "miniapp";
 const STAGE_TABS: { id: StageTab; label: string }[] = [
-  { id: "script", label: "Script" }, { id: "diff", label: "Diff" }, { id: "audit", label: "Audit" }, { id: "miniapp", label: "Mini-app" },
+  { id: "board", label: "Board" }, { id: "script", label: "Script" }, { id: "diff", label: "Diff" }, { id: "audit", label: "Audit" },
+  { id: "miniapp", label: "Mini-app" },
 ];
 
 const Chip = ({ status }: { status: string }) => <span className={`status-pill status-${status}`}>{chipLabel(status)}</span>;
@@ -71,7 +73,8 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<Drawer>(null);
-  const [tab, setTab] = useState<StageTab>("script");
+  const [tab, setTab] = useState<StageTab>("board");
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
   const input = useRef<HTMLTextAreaElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -143,8 +146,9 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     const scope = drawer === "stage" ? document.getElementById("agent-drawer") : document.querySelector(".agent-stage");
     (where === "tab" ? scope?.querySelector<HTMLElement>('[data-tab="miniapp"]') : document.getElementById("agent-show-miniapp"))?.focus();
   }, [busy, tab, drawer]);
-  // Opening a thread shows its newest turn; the Refine picker opens at its heading.
+  // Opening a thread shows its newest turn and its Board; the Refine picker opens at its heading.
   useLayoutEffect(() => {
+    setTab("board");
     const picker = refineSel === "";
     atEnd.current = !picker;
     follow.current = !picker;
@@ -221,7 +225,10 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   // Widening past 900 px shows the columns again, so an open drawer goes.
   useEffect(() => {
     const mq = window.matchMedia(NARROW);
-    const onChange = () => { if (!mq.matches) setDrawer(null); };
+    const onChange = () => {
+      setNarrow(mq.matches);
+      if (!mq.matches) setDrawer(null);
+    };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
@@ -371,6 +378,12 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
           ) : (
             <p className="muted">{exploration && explorationId ? "Show as mini-app, on a done exploration, builds a small page for its result here." : "A done exploration can be shown here as a mini-app."}</p>
           )
+        ) : tab === "board" ? (
+          plan ? (
+            <AgentBoard key={plan.id} planId={plan.id} planStatus={plan.status} idPrefix={id} />
+          ) : (
+            <p className="muted">{explorationId ? "An exploration has no board yet." : "The selected plan’s board shows here."}</p>
+          )
         ) : !plan ? (
           <p className="muted">{explorationId ? "An exploration has no script, changes or audit trail: its code and tool calls are in the stream." : "The selected plan’s script, changes and audit trail show here."}</p>
         ) : tab === "script" ? (
@@ -466,7 +479,8 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
           )}
         </section>
 
-        <aside className={refineSel !== null ? "agent-side agent-stage refine-stage" : "agent-side agent-stage"} aria-label="Stage">{stage("agent-stage")}</aside>
+        {/* Below 900 px the stage lives in its drawer only, so the Board polls and draws once. */}
+        <aside className={refineSel !== null ? "agent-side agent-stage refine-stage" : "agent-side agent-stage"} aria-label="Stage">{!narrow && stage("agent-stage")}</aside>
       </div>
       {drawer && (
         <DrawerDialog key={drawer} side={drawer === "threads" ? "left" : "right"} label={drawer === "threads" ? "Threads" : "Stage"} onClose={() => setDrawer(null)}>
