@@ -142,7 +142,9 @@ test("ac13_amber_usage_unchanged", (t) => {
   // The ARP logo's highlight square (sidebar and landing page) is the brand mark, not a status.
   // UI polish 2 L9: the Argus phone card's "Needs you" status dot is a waiting state.
   // Deferred polish minors: a waiting Argus document row tints its whole phone card (the cells' amber, moved to the card).
-  const allowed = /\.source-excerpt-page mark|\.hub-status-wait|\.hub-mark-wait|\.ws-accent-wait|\.hub-card-await \{|td\[data-status="needs-you"\]::before|tr\.argus-row-await \{|<rect x="26" y="2" width="10" height="10" fill="var\(--hi\)" \/>/;
+  // Expressive UI Orb, slice 2: the rail's wait segment, the waiting glow of a start card and its figure area, the
+  // drawing's status part, and the hero's "n items need you" link, which the spec sets in the signal colour.
+  const allowed = /\.hub-rail \[data-seg="wait"\] \{|@keyframes rail-breathe \{|\.hub-card-await \.hub-card-fig \{|\.ws-drawing \.ws-lit-wait \{|\.hub-hero-lead a \{|\.source-excerpt-page mark|\.hub-status-wait|\.hub-mark-wait|\.ws-accent-wait|\.hub-card-await \{|td\[data-status="needs-you"\]::before|tr\.argus-row-await \{|<rect x="26" y="2" width="10" height="10" fill="var\(--hi\)" \/>/;
   const cmd = (ref: string) => `git grep -h -E "var\\(--(hi|hi-ink|await|await-edge)\\)" ${ref} -- src`;
   const main = onMain(t, cmd("origin/main"));
   const head = onMain(t, cmd("HEAD"));

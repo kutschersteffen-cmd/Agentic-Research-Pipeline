@@ -123,7 +123,9 @@ def test_ac5_heading_weights(page):
     _open(page, "/#/home")
     for el in (page.locator(".hub-start .hub-hero h1"), page.locator(".hub-card-name").first):
         assert float(_style(el, "fontSize")[:-2]) >= 20
-        assert _style(el, "fontWeight") == "500"
+    # expressive-ui-orb supersedes the greeting's font (start-page-simplified AC-1e): Geist Pixel Square, weight 400.
+    assert _style(page.locator(".hub-start .hub-hero h1"), "fontWeight") == "400"
+    assert _style(page.locator(".hub-card-name").first, "fontWeight") == "500"
     _open(page, "/#/stewardiq")
     h1 = page.locator(".page > h1")
     assert float(_style(h1, "fontSize")[:-2]) >= 20 and _style(h1, "fontWeight") == "500"

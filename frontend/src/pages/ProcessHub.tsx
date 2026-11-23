@@ -5,8 +5,9 @@ import { ACTIVE_STATUSES, REVIEWABLE_RUN_TYPES, decisionRunType, waitingCount } 
 import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { useMe } from "../lib/reviewer";
-import { STATE_LABEL, cardView, failedProcesses, flowTrack, openCount, processState, stepActivity, stepState, stepStatusLine, type Activity, type StepState } from "../lib/workspaceCard";
+import { STATE_LABEL, cardView, heroCaption, needsYouText, runningDetail, workingSentence, failedProcesses, flowTrack, openCount, processState, stepActivity, stepState, stepStatusLine, type Activity, type StepState } from "../lib/workspaceCard";
 import { Drawing, WorkspaceDrawing } from "../components/WorkspaceDrawing";
+import { Orb } from "../components/Orb";
 import { cockpitDrawing } from "../lib/workspaceDrawing";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
@@ -57,30 +58,34 @@ export function useActivity(): Activity | null {
   return activity;
 }
 
-/** A workspace as a card: a way into it. A drawing, its purpose, one square per process and one
- * status line naming what matters now; the label carries each process's state for screen readers. */
-function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+/** A workspace as a card: a way into it. A drawing whose status part lights up, its purpose, a rail with one
+ * segment per process and one status line naming what matters now; the label carries each process's state for
+ * screen readers. */
+function WorkspaceCard({ w, runs, flow, known }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null; known: boolean }) {
   const v = cardView(w, runs, flow, new Date());
-  const { word, tone, detail } = v.status;
+  const { word, tone } = v.status;
+  // Running: name the step and where it sits; every other detail stays as cardStatus() gives it.
+  const detail = (tone === "now" && runningDetail(w, runs, flow)) || v.status.detail;
   const n = w.processes.length;
+  const lit = tone === "wait" ? "wait" : tone === "now" ? "now" : null;
   return (
-    <a className={`hub-card${tone === "wait" ? " hub-card-await" : ""}`} href={`#/${w.id}`} aria-label={v.label}>
+    <a className={`hub-card${tone === "wait" ? " hub-card-await" : tone === "now" ? " hub-card-run" : ""}`} href={`#/${w.id}`} aria-label={v.label}>
       <span className="hub-card-fig">
         <span className="hub-card-cap">{`${n} ${n === 1 ? "process" : "processes"}`}</span>
-        <WorkspaceDrawing id={w.id} accent={tone === "wait" ? "wait" : tone === "now" ? "now" : null} />
+        <WorkspaceDrawing id={w.id} accent={lit} known={known} />
       </span>
       <span className="hub-card-body">
         <span className="hub-card-name">{w.name}</span>
         <span className="hub-card-purpose">{w.purpose}</span>
         <span className="hub-card-status">
-          <span className="hub-marks" aria-hidden="true">
-            {v.dots.map((d, i) => (
-              <span key={i} className={`hub-mark hub-mark-${d}`} />
-            ))}
-          </span>
-          <span>
+          <span className="hub-card-line">
             <span className={`hub-status-${tone}`}>{word}</span>
-            {detail && <span className="hub-status-detail"> · {detail}</span>}
+            {detail && <span className="hub-status-detail">{detail}</span>}
+          </span>
+          <span className="hub-rail" data-rail aria-hidden="true">
+            {v.dots.map((d, i) => (
+              <span key={i} data-seg={d} />
+            ))}
           </span>
         </span>
       </span>
@@ -88,26 +93,53 @@ function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | 
   );
 }
 
+/** `GET /api/waiting`'s total, loaded once; null until it answers or when it fails. */
+function useWaitingTotal() {
+  const [total, setTotal] = useState<number | null>(null);
+  useEffect(() => {
+    api.getWaiting().then((w) => setTotal(w.total), () => setTotal(null));
+  }, []);
+  return total;
+}
+
 const COCKPIT_SHAPES = cockpitDrawing();
 
 export function StartPage() {
   const { runs, error, retry } = useRuns();
-  const { flow } = useHouseFlow();
+  const { flow, error: flowError } = useHouseFlow();
+  // A drawing's first known status is drawn in place. A workspace that reads the stewardship flow waits for it
+  // too, so its answer arriving after the runs does not read as a change.
+  const flowSettled = flow !== null || flowError !== null;
+  const drawnKnown = (w: Workspace) => runs !== null && (flowSettled || !w.processes.some((p) => p.steps.some((s) => s.stage)));
   const reviewer = useMe()?.name ?? "";
+  const [opened] = useState(() => new Date());
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const name = reviewer.trim();
   const known = runs !== null;
+  const waiting = useWaitingTotal();
+  // Unknown counts are left out, never shown as zero.
+  const working = known && !error ? workingSentence(runs) : null;
+  const needs = needsYouText(waiting);
 
   return (
     <div className="page hub hub-start">
       <header className="hub-hero">
-        <h1>
-          <span className="hub-hero-greet">
+        <div className="hub-hero-copy">
+          <p className="hub-hero-cap">{heroCaption(opened)}</p>
+          <h1>
             {greeting}
             {name ? `, ${name}` : ""}.
-          </span>
-        </h1>
+          </h1>
+          <p className="hub-hero-lead" data-hero-lead>
+            {working}
+            {working && needs ? " " : ""}
+            {needs && <a href="#/review">{needs}</a>}
+          </p>
+        </div>
+        <div className="hub-hero-stage">
+          <Orb place="start" label />
+        </div>
       </header>
       {error && (
         <p className="error-text" role="alert">
@@ -119,7 +151,7 @@ export function StartPage() {
       )}
       <div className="hub-cards">
         {WORKSPACES.map((w) => (
-          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} />
+          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} known={drawnKnown(w)} />
         ))}
       </div>
       {/* Not a workspace card: one StewardIQ screen with its own way in, so the cards stay five workspaces. */}
@@ -407,7 +439,7 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
     <div className="page hub">
       <h1>{w.name}</h1>
       <p className="help-text">{w.purpose}</p>
-      <WorkspaceDrawing id={w.id} accent={tone === "wait" ? "wait" : tone === "now" ? "now" : null} />
+      <WorkspaceDrawing id={w.id} accent={tone === "wait" ? "wait" : tone === "now" ? "now" : null} known={runs !== null && (flow !== null || flowError !== null)} />
       {error && <p className="error-text" role="alert">Runs could not be loaded: {error}. Step states are unknown until the backend responds.</p>}
       {usesFlow && flowError && <p className="error-text" role="alert">The stewardship flow could not be loaded: {flowError}. Stage numbers are unknown.</p>}
       {failedProcesses(w, runs, flow, activity).map((title) => (

@@ -1573,36 +1573,100 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 /* Start page: the four processes are the page. One status line above,
    one row of run chips below; the highlight colour (--hi) only ever marks
    what waits on a person. */
-.hub-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-6) var(--s-8); flex-wrap: wrap; margin: var(--s-4) 0 var(--s-8); }
-.hub-start .hub-hero h1 { margin: 0; max-width: 24ch; font-size: clamp(2rem, 1.2rem + 2.4vw, 3.25rem); line-height: 1.02; font-weight: 500; letter-spacing: var(--track-display); text-wrap: balance; }
-.hub-hero-greet { display: block; color: var(--muted); }
-.hub-cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px; }
+/* The start page hero (expressive-ui-orb): the Orb's stage. The greeting on the left in pixel type, the Orb on
+   the right; at 860px and below the Orb sits above the text. */
+.hub-hero { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: var(--s-6); min-height: 660px; margin: calc(-1 * var(--s-6)) 0 var(--s-6); }
+.hub-hero-copy { align-self: center; display: flex; flex-direction: column; gap: 22px; padding: 56px 0 40px; min-width: 0; }
+.hub-hero-cap { margin: 0; font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; color: var(--muted); }
+.hub-start .hub-hero h1 { margin: 0; font-family: var(--font-pixel); font-weight: 400; font-size: clamp(52px, 7.2vw, 104px); line-height: 0.92; letter-spacing: 0; color: var(--text); text-wrap: balance; overflow-wrap: anywhere; }
+.hub-hero-lead { margin: 0; max-width: 36ch; font-size: 19px; line-height: 1.45; text-wrap: balance; }
+.hub-hero-lead:empty { display: none; }
+.hub-hero-lead a { color: var(--hi-ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+/* The Orb's box: the largest square that fits the stage, at most 410px (radius 205px). */
+.hub-hero-stage { position: relative; container-type: size; min-height: 540px; display: grid; place-items: center; }
+.hub-hero-stage .orb { width: min(100cqw, 100cqh, 410px); height: min(100cqw, 100cqh, 410px); }
+@media (max-width: 860px) {
+  .hub-hero { grid-template-columns: minmax(0, 1fr); gap: 0; min-height: 0; margin-top: 0; }
+  .hub-hero-stage { order: -1; min-height: 0; height: min(calc(100vw - 2 * var(--s-4)), 410px); }
+  .hub-hero-copy { padding: var(--s-6) 0 var(--s-8); }
+}
+
+/* The five workspace cards: five in a row, three at 1180px and below, two at 760px, one at 480px. */
+.hub-cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 1180px) { .hub-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .hub-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .hub-cards { grid-template-columns: minmax(0, 1fr); } }
 .hub-card {
-  grid-column: span 2; min-width: 0; overflow: hidden;
+  position: relative; min-width: 0; overflow: hidden;
   border-radius: var(--r-lg);
   display: flex; flex-direction: column;
-  border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none;
-  transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
+  border: 1px solid var(--panel-border); background: linear-gradient(180deg, var(--panel-2), var(--panel)); color: inherit; text-decoration: none;
+  transition: border-color var(--dur) var(--ease), transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.hub-card:nth-child(n+4) { grid-column: span 3; }
-.hub-card:hover { border-color: var(--text); transform: translateY(-2px); }
+.hub-card:hover { border-color: var(--panel-border-strong); transform: translateY(-3px); }
 .hub-card:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .hub-card, .hub-card:hover { transition: none; transform: none; } }
-.hub-card-await { border-color: var(--await-edge); }
-/* The figure: a wireframe drawing of the workspace, captioned like a plate in a manual. */
-.hub-card-fig { position: relative; display: grid; place-items: end center; min-height: 200px; padding: var(--s-8) var(--s-4) var(--s-2); border-bottom: 1px solid var(--panel-border); background: var(--bg); }
-.hub-card-cap { position: absolute; left: var(--s-4); top: var(--s-3); font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+/* Glows are status light: blue while a workspace runs, amber (with the waiting edge) while it waits on you. */
+.hub-card-run { box-shadow: 0 0 44px -18px var(--run); }
+.hub-card-await { border-color: var(--await-edge); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--await-edge) 55%, transparent), 0 0 40px -12px var(--hi); }
+/* The figure: the workspace's drawing on near-black, a soft glow behind it in the status colour. */
+.hub-card-fig { position: relative; display: block; height: 200px; border-bottom: 1px solid var(--panel-border); background: radial-gradient(60% 70% at 50% 62%, var(--fig-glow, rgb(255 255 255 / 0.05)), transparent 70%), #030304; }
+.hub-card-run .hub-card-fig { --fig-glow: color-mix(in srgb, var(--run) 13%, transparent); }
+.hub-card-await .hub-card-fig { --fig-glow: color-mix(in srgb, var(--hi) 13%, transparent); }
+.hub-card-fig:has(> .ws-drawing[data-flash]) { animation: ws-flash 950ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+@keyframes ws-flash { from { filter: brightness(2.1); } to { filter: brightness(1); } }
+.hub-card-fig .ws-drawing { position: absolute; left: 0; right: 0; top: 30px; width: 100%; height: calc(100% - 36px); }
+.hub-card-cap { position: absolute; left: 14px; top: 12px; z-index: 1; font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+/* The drawings: dark gradient faces; only the status part lights up (DESIGN.md, The Icon Accent Rule). */
 .ws-drawing { display: block; width: 190px; height: 148px; overflow: visible; }
-.ws-drawing path { stroke-width: 1px; stroke: color-mix(in srgb, var(--text) 25%, transparent); stroke-linejoin: round; }
-.ws-face { fill: var(--panel); }
-.ws-top { fill: var(--panel); }
-.ws-drawing .ws-accent-wait { stroke: var(--hi); }
-.ws-drawing .ws-accent-now { stroke: var(--run); }
-.hub-card-body { display: flex; flex-direction: column; gap: var(--s-2); flex: 1; padding: 20px var(--s-6); }
+.ws-drawing path { stroke-width: 1px; stroke-linejoin: round; }
+.ws-drawing .ws-face { stroke: color-mix(in srgb, var(--text) 30%, transparent); }
+.ws-drawing .ws-top { stroke: color-mix(in srgb, var(--text) 55%, transparent); }
+.ws-drawing .ws-shadow { fill: rgb(255 255 255 / 0.04); stroke: none; }
+.ws-drawing .ws-detail { fill: none; stroke: color-mix(in srgb, var(--text) 45%, transparent); stroke-dasharray: 2 4; }
+.ws-g-face-0 { stop-color: #15181f; }
+.ws-g-face-1 { stop-color: #07080a; }
+.ws-g-top-0 { stop-color: #262a33; }
+.ws-g-top-1 { stop-color: #12141a; }
+.ws-g-now-0 { stop-color: #1d4a7a; }
+.ws-g-now-1 { stop-color: #0a1a2e; }
+.ws-g-wait-0 { stop-color: #5a4519; }
+.ws-g-wait-1 { stop-color: #241b08; }
+.ws-drawing .ws-accent-wait { stroke: var(--hi); stroke-width: 1.6px; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--hi) 85%, transparent)); }
+.ws-drawing .ws-lit-wait { stroke: var(--hi); stroke-width: 1.6px; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--hi) 85%, transparent)); }
+.ws-drawing .ws-accent-now { stroke: var(--run); stroke-width: 1.6px; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--run) 90%, transparent)); }
+.ws-drawing .ws-lit-now { stroke: var(--run); stroke-width: 1.6px; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--run) 90%, transparent)); }
+.ws-drawing .ws-extra { fill: color-mix(in srgb, var(--run) 10%, transparent); stroke: var(--run); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--run) 90%, transparent)); }
+.ws-drawing .ws-extra.ws-dash { fill: none; stroke-dasharray: 3 3; filter: none; }
+.hub-card-body { display: flex; flex-direction: column; gap: 10px; flex: 1; padding: 16px 18px 18px; }
 .hub-card-name { font-size: 1.25rem; font-weight: 500; line-height: 1.2; letter-spacing: var(--track-title); }
-.hub-card-purpose { color: var(--text-2); line-height: 1.55; }
-/* One status line: a mark per process, then the state in words. */
-.hub-card-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) 10px; margin-top: auto; padding-top: var(--s-3); font-size: var(--text-sm); font-weight: 500; }
+.hub-card-purpose { color: var(--text-2); line-height: 1.4; font-size: var(--text-sm); }
+/* The status: the word, the detail to its right in mono, then the rail. */
+.hub-card-status { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: var(--s-1); font-size: 13px; font-weight: 500; }
+.hub-card-line { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 8px; min-width: 0; }
+.hub-card-line > :first-child { white-space: nowrap; }
+.hub-card-line .hub-status-detail { max-width: 100%; min-width: 0; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--text-xs); }
+/* The status rail (DESIGN.md, Status Rail): one 10px segment per process, 3px apart. Running flows, waiting
+   breathes; nothing else moves. */
+.hub-rail { display: flex; gap: 3px; height: 10px; }
+.hub-rail [data-seg] { flex: 1; position: relative; overflow: hidden; border-radius: 1px; }
+.hub-rail [data-seg="done"] { background: color-mix(in srgb, var(--text) 78%, transparent); }
+.hub-rail [data-seg="idle"] { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 22%, transparent); }
+.hub-rail [data-seg="unknown"] { outline: 1px dashed color-mix(in srgb, var(--text) 30%, transparent); outline-offset: -1px; }
+.hub-rail [data-seg="failed"] { background: var(--low); }
+.hub-rail [data-seg="now"] { background: color-mix(in srgb, var(--run) 18%, transparent); box-shadow: 0 0 12px -2px var(--run); }
+.hub-rail [data-seg="now"]::before { content: ""; position: absolute; inset: 0 -10px 0 -10px; background: repeating-linear-gradient(90deg, var(--run) 0 6px, transparent 6px 10px); opacity: 0.9; animation: rail-flow 0.9s linear infinite; }
+.hub-rail [data-seg="now"]::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.9), transparent); animation: rail-sweep 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+.hub-rail [data-seg="wait"] { background: var(--hi); animation: rail-breathe 1.8s ease-in-out infinite; }
+.hub-rail [data-seg="wait"]::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 6px, rgb(0 0 0 / 0.35) 6px 8px); }
+@keyframes rail-flow { from { transform: translateX(-10px); } to { transform: translateX(0); } }
+@keyframes rail-sweep { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+@keyframes rail-breathe { 50% { box-shadow: 0 0 14px 1px var(--hi); filter: brightness(1.25); } }
+@media (prefers-reduced-motion: reduce) {
+  .hub-rail [data-seg], .hub-rail [data-seg]::before, .hub-rail [data-seg]::after { animation: none; }
+  .hub-card-fig:has(> .ws-drawing[data-flash]) { animation: none; }
+}
+/* A status square per process (top bar menu, process headers). */
 .hub-marks { display: inline-flex; gap: 3px; }
 .hub-mark { display: inline-block; width: 8px; height: 8px; }
 .hub-mark-done { background: var(--text); }
@@ -1626,7 +1690,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-entry:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .hub-entry, .hub-entry:hover { transition: none; transform: none; } }
 .hub-entry-fig { display: grid; place-items: center; padding: var(--s-4); border-right: 1px solid var(--panel-border); background: var(--bg); }
-.hub-entry-fig .ws-drawing { width: 152px; height: 118px; }
+.hub-entry-fig .ws-drawing { width: 161px; height: 144px; } /* the 212 × 190 viewBox at the old 0.76 scale */
 .hub-entry .hub-card-body { justify-content: center; }
 .hub-entry-cap { position: static; }
 @media (max-width: 760px) {
@@ -1634,16 +1698,6 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
   .hub-entry-fig { border-right: 0; border-bottom: 1px solid var(--panel-border); }
 }
 
-
-@media (max-width: 1100px) {
-  .hub-card, .hub-card:nth-child(n+4) { grid-column: span 3; }
-  /* Two per row leaves Data Hub alone beside an empty cell: let it fill the row. */
-  .hub-card:nth-child(5) { grid-column: 1 / -1; }
-}
-@media (max-width: 760px) {
-  .hub-cards { grid-template-columns: minmax(0, 1fr); }
-  .hub-card, .hub-card:nth-child(n+4) { grid-column: auto; }
-}
 
 .hub-run { margin: 0 0 var(--s-3); }
 /* On a phone the note goes under the button instead of wrapping around it. */

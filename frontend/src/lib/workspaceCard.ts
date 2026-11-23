@@ -130,6 +130,31 @@ export function cardView(w: Workspace, runs: RunManifest[] | null, flow: Steward
   return { dots, now: line, status, label, awaits: firstWait >= 0 };
 }
 
+/** A running card's detail: "<step> · step i of n" for the first running step of the first running process.
+ * Null when no process runs. */
+export function runningDetail(w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null): string | null {
+  if (!runs) return null;
+  const p = w.processes.find((x) => processState(x, runs, flow) === "now");
+  const i = p ? p.steps.findIndex((s) => stepState(s, runs, flow) === "now") : -1;
+  return p && i >= 0 ? `${p.steps[i].label} · step ${i + 1} of ${p.steps.length}` : null;
+}
+
+/** The start page hero's sentence on working agents: a run that is running or pending is an agent at work. */
+export function workingSentence(runs: RunManifest[]): string {
+  const n = runs.filter((r) => r.status === "running" || r.status === "pending").length;
+  return n === 0 ? "No agent is working right now." : n === 1 ? "1 agent is working for you." : `${n} agents are working for you.`;
+}
+
+/** The hero's link to "Needs you": absent at 0 or when the count is unknown. */
+export const needsYouText = (total: number | null): string | null =>
+  total === null || !Number.isInteger(total) || total <= 0 ? null : total === 1 ? "1 item needs you." : `${total} items need you.`;
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** The hero caption, in local time: "Sunday 22 Nov · 22:15". */
+export const heroCaption = (d: Date): string =>
+  `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} · ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
 export type StatusTone = StepState;
 /** One line under a step's title: what waits on a person first, then the run state. */
 export function stepStatusLine(state: StepState, waiting: number, decisions: number, lastUpdated: string | null, locale?: string): { text: string; tone: StatusTone } {
