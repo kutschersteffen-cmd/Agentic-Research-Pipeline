@@ -5,8 +5,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, Text, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -54,6 +55,8 @@ class ResearchPlan(Base):
     planner_cost_usd: Mapped[Decimal] = mapped_column(Numeric, default=0, server_default="0")
     # The ask whose `Draft a plan` drafted this plan; no cascade.
     source_ask_id: Mapped[str | None] = mapped_column(Text, ForeignKey("agent_asks.id"), nullable=True)
+    # The accepted exploration whose "Turn into a plan…" drafted this plan; no cascade.
+    source_exploration_id: Mapped[UUID | None] = mapped_column(Uuid, ForeignKey("agent_explorations.id"), nullable=True)
 
 
 class ResearchPlanCall(Base):

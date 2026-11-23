@@ -193,6 +193,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/agent/explorations/{exploration_id}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Plan From Exploration
+         * @description "Turn into a plan…" (D9): the planner drafts a plan from an accepted exploration. The plan stays a draft, so
+         *     nothing runs until a person approves it. Answers the plan as `GET /api/plans/{id}` does.
+         */
+        post: operations["plan_from_exploration_api_agent_explorations__exploration_id__plan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/agent/inbox": {
         parameters: {
             query?: never;
@@ -13900,6 +13921,11 @@ export interface components {
             /** Tool Calls */
             tool_calls: components["schemas"]["ToolCall"][];
         };
+        /** ExplorationPlanRequest */
+        ExplorationPlanRequest: {
+            /** Brief */
+            brief?: string | null;
+        };
         /** ExplorationRequest */
         ExplorationRequest: {
             /** Question */
@@ -21914,6 +21940,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Exploration"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    plan_from_exploration_api_agent_explorations__exploration_id__plan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ExplorationPlanRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

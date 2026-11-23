@@ -25,6 +25,9 @@ export interface Plan {
   /** The ask whose `Draft a plan` drafted it, and that ask's question and thread. */
   source_ask_id: string | null;
   source_ask: { question: string; thread_id: string } | null;
+  /** The accepted exploration whose `Turn into a plan…` drafted it, and that exploration's question. */
+  source_exploration_id: string | null;
+  source_exploration: { question: string } | null;
   budget_usd?: number | null; // the plan budget, once the API serves it (agent-panel-code-mode slice 5)
   spent_usd?: number;
 }

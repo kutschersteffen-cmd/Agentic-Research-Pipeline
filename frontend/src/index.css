@@ -2309,6 +2309,8 @@ a.vc-box:hover { border-color: var(--text); }
 .agent-ask-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .agent-ask-actions button { margin: 0; }
 .agent-link-card { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin: 0; padding: var(--s-2) var(--s-3); border: 1px solid var(--panel-border); border-radius: var(--r-sm); }
+.agent-turn-into-plan { display: grid; gap: var(--s-2); margin-top: var(--s-2); }
+.agent-turn-into-plan textarea { width: 100%; }
 /* Long lines wrap under their own text, so the number column stays clear and nothing scrolls sideways. */
 .agent-script { margin: 0; font-size: var(--text-sm); line-height: 1.5; }
 .agent-script-line { display: grid; grid-template-columns: 3ch minmax(0, 1fr); gap: var(--s-3); }
