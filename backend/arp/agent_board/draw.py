@@ -24,11 +24,13 @@ SYSTEM = """You draw one block on a research board, as JSON {kind, title, source
   keys, and never an image mark. Leave out config: the house theme is applied for you. Live form: a top-level
   "live": pointer instead of "data"; the pointed-to list of objects becomes data.values.
 - "diagram": a Mermaid string, at most 8000 characters, whose first line starts with one of flowchart, mindmap,
-  timeline, sequenceDiagram or quadrantChart. Pick the diagram type that makes the request clearest. No %%{ config,
-  no click, style, classDef or linkStyle lines, no HTML tags, no links (http://, https://, javascript:). In a
-  flowchart, end each node with :::GroupName to group the nodes, using 1 to 4 short CamelCase group names that help
-  the reader (who acts, phase, theme), and mark at most one key step with a line "class <id> emphasis"; class lines
-  are only for emphasis. Set no colours and no config: the house colours are applied for you. Labels at most 5 words.
+  timeline, sequenceDiagram or quadrantChart. Pick the diagram type that makes the request clearest. Refused: hidden
+  or control characters; %%{ config; click, style, classDef, linkStyle, link, links or href statements (and
+  properties or details in a sequenceDiagram); class lines other than "class <id> emphasis"; HTML tags; @{ shape
+  options; javascript:, http:, https:, // and any backslash; entity codes such as #47;. In a flowchart, end each node
+  with :::GroupName to group the nodes, using 1 to 4 short CamelCase group names that help the reader (who acts,
+  phase, theme), and mark at most one key step with a line "class <id> emphasis". Set no colours and no config: the
+  house colours are applied for you. Labels at most 5 words.
 - "tiles": {"tiles": [{"label": string, "value": number, "format": "number" | "percent", "change": number,
   "note": string}]}, 1 to 4 key numbers. label 1 to 40 characters, note at most 80; format, change and note are
   optional; "percent" means 0.31 shows as 31.0%. Live form of a value: {"live": pointer} to one number.
