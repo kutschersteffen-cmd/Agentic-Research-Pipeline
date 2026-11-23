@@ -20,6 +20,9 @@ export function ExplorationCard({ exploration: e, busy, onAccept }: { exploratio
     <>
       <article className="card agent-card" aria-labelledby="agent-exploration-h">
         <h2 id="agent-exploration-h">{e.question}</h2>
+        {e.source_ask && (
+          <p className="agent-meta"><a href={`#/agent/ask/${encodeURIComponent(e.source_ask.thread_id)}`}>From ask: {e.source_ask.question}</a></p>
+        )}
         <p className="agent-meta">
           <span className={`status-pill status-${e.status}`}>{e.status}</span>{" "}
           {badge ? <span className="agent-badge">{badge}</span> : <span ref={acceptedLine} tabIndex={-1} className="muted">Accepted by {e.accepted_by}</span>}

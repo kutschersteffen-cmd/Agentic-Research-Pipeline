@@ -421,6 +421,17 @@ def _plan_source_ask_fk(conn: Connection) -> None:
         conn.execute(text(f"ALTER TABLE research_plans ADD CONSTRAINT {name} FOREIGN KEY (source_ask_id) REFERENCES agent_asks (id)"))
 
 
+def _exploration_source_ask_fk(conn: Connection) -> None:
+    """agent_explorations.source_ask_id, added by reconciliation without its foreign key: add it, named as
+    create_all names it, so a fresh database (which already has it) and an existing one end the same."""
+    from sqlalchemy import text
+
+    name = "agent_explorations_source_ask_id_fkey"
+    if not conn.execute(text("SELECT 1 FROM pg_constraint WHERE conname = :n"), {"n": name}).first():
+        conn.execute(text(f"ALTER TABLE agent_explorations ADD CONSTRAINT {name} "
+                          "FOREIGN KEY (source_ask_id) REFERENCES agent_asks (id)"))
+
+
 # Run before create_all, so a legacy-shaped table does not shadow a new one of the same name.
 PRE_CREATE_STEPS: tuple[SchemaStep, ...] = (
     SchemaStep("0005_rename_legacy_companies", "companies -> legacy_companies", _rename_legacy_companies),
@@ -526,6 +537,11 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         name="plan_source_ask_fk",
         description="research_plans.source_ask_id -> agent_asks.id foreign key, which reconciliation does not add",
         apply=_plan_source_ask_fk,
+    ),
+    SchemaStep(
+        name="exploration_source_ask_fk",
+        description="agent_explorations.source_ask_id -> agent_asks.id foreign key, which reconciliation does not add",
+        apply=_exploration_source_ask_fk,
     ),
 )
 

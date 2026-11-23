@@ -147,6 +147,7 @@ export interface paths {
         /**
          * Create Exploration
          * @description Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed.
+         *     A `source_ask_id` that names no ask answers 404 and runs nothing.
          */
         post: operations["create_exploration_api_agent_explorations_post"];
         delete?: never;
@@ -13888,6 +13889,9 @@ export interface components {
             question: string;
             /** Result */
             result: unknown;
+            source_ask: components["schemas"]["SourceAsk"] | null;
+            /** Source Ask Id */
+            source_ask_id: string | null;
             /**
              * Status
              * @enum {string}
@@ -13900,6 +13904,8 @@ export interface components {
         ExplorationRequest: {
             /** Question */
             question: string;
+            /** Source Ask Id */
+            source_ask_id?: string | null;
         };
         /** ExportRequest */
         ExportRequest: {
@@ -19044,6 +19050,13 @@ export interface components {
             snapshot_id: string;
             /** Supersedes */
             supersedes?: string | null;
+        };
+        /** SourceAsk */
+        SourceAsk: {
+            /** Question */
+            question: string;
+            /** Thread Id */
+            thread_id: string;
         };
         /**
          * SourceCandidate
