@@ -1,7 +1,8 @@
 # Portable Docker images
 
 Status: **approved by the owner on 23 Nov 2026** (button in the dispatcher thread, after two spec-critic rounds).
-Amended 24 Nov 2026: `/api/` proxy host allow-list after the slice-1 security review (DNS rebinding), see Change §2.
+Amended 24 Nov 2026: `/api/` proxy host allow-list after the slice-1 security review (DNS rebinding), see Change §2;
+the database is initialised before the backend starts (slice-1 evaluator, AC-16).
 Slug: `portable-docker-images`
 Risk: this spec PR is `risk:low`. The build is `risk:high` (a new `.github/workflows/` file, and
 `backend/arp/compute/**` and `backend/Dockerfile.compute`, all in the steward table's `risk:high` row): the
@@ -172,8 +173,9 @@ and real sign-in. That needs a decision on the target host and on auth, which St
 With these `##` headings, in this order:
 
 - `Pull and run`: the files a server needs (`docker-compose.yml`, `backend/.env` from
-  `backend/.env.example`, an empty `config/`), `docker compose pull backend frontend`, `docker compose up -d postgres
-  backend frontend`, `docker compose exec backend arp db init-postgres`.
+  `backend/.env.example`, an empty `config/`), `docker compose pull backend frontend`, `docker compose up -d postgres`,
+  `docker compose run --rm backend arp db init-postgres` (once, before the backend first starts: it refuses
+  to start on an uninitialised database), then `docker compose up -d backend frontend`.
 - `Choosing a tag`: `latest`, `main`, `sha-…`, `<semver>`, `pr-<n>`, `-cuda`; how to cut a release
   (`git tag v1.2.3 && git push origin v1.2.3`).
 - `GPU`: what `ARP_COMPUTE_DEVICE` does; the NVIDIA Container Toolkit is needed for `-cuda`; ARM servers use
@@ -243,8 +245,8 @@ set in the environment before the request. They load no model.
 | AC-13 | Same run | read its log | no line contains `FAILED`; the `images.yml` check is green | evaluator |
 | AC-14 | Same run | read the workflow file and log | the arm64 build jobs ran on `ubuntu-24.04-arm` and no step set up QEMU | evaluator |
 | AC-15 | Slice 3 merged; the `images.yml` run on that `main` commit | read its log | it pushed tags `main`, `latest` and `sha-<7>` for all three images, and `-cuda` versions of each for `arp-compute` | evaluator |
-| AC-16 | Must not change: the repo checked out, `backend/.env` filled, Docker available | `docker compose up -d --build backend frontend` | exits 0; `docker compose ps` shows `backend` and `frontend` running | evaluator |
-| AC-17 | AC-16's stack, then `docker compose exec backend arp db init-postgres` | open `http://localhost:5173/` in a browser | the start page shows the workspace list, and every `/api/` request the page makes goes to `http://localhost:5173/api/...` (none to port 8000) with status 200 | evaluator |
+| AC-16 | Must not change: the repo checked out, `backend/.env` filled, Docker available, `docker compose up -d postgres` then `docker compose run --rm backend arp db init-postgres` (the backend refuses to start on an uninitialised database) | `docker compose up -d --build backend frontend` | exits 0; `docker compose ps` shows `backend` and `frontend` running | evaluator |
+| AC-17 | AC-16's stack | open `http://localhost:5173/` in a browser | the start page shows the workspace list, and every `/api/` request the page makes goes to `http://localhost:5173/api/...` (none to port 8000) with status 200 | evaluator |
 | AC-18 | The repo checked out (no `backend/.env`) | `docker compose --profile compute config` | every published port in the output has `host_ip: 127.0.0.1` | holdout |
 | AC-19 | The repo checked out (no `backend/.env`) | `docker compose config --services` | `compute` is not listed; with `--profile compute` it is | holdout |
 | AC-20 | The repo checked out (no `backend/.env`), `ARP_IMAGE_TAG=1.2.3`, `ARP_COMPUTE_IMAGE_TAG` unset | `docker compose --profile compute config` | images `ghcr.io/kutschersteffen-cmd/arp-backend:1.2.3`, `arp-frontend:1.2.3`, `arp-compute:1.2.3` | holdout |
@@ -256,7 +258,7 @@ set in the environment before the request. They load no model.
 | AC-26 | README on the PR head | read the "Setup" section | it links to `docs/DEPLOY_WITH_DOCKER.md` | holdout |
 | AC-27 | `docs/DEPLOY_WITH_DOCKER.md` | read `Building offline` | it names the line `# syntax=docker/dockerfile:1` and says a build without internet needs it removed or the `docker/dockerfile` image mirrored | evaluator |
 | AC-28 | The three packages set to public (Decision 1), Docker logged out of ghcr.io, a directory with only `docker-compose.yml`, `backend/.env` (from `.env.example`) and an empty `config/` | `ARP_IMAGE_TAG=main docker compose pull backend frontend` | exits 0 | evaluator |
-| AC-29 | AC-28's images, `docker compose up -d postgres backend frontend`, then `docker compose exec backend arp db init-postgres` | `GET http://localhost:8000/api/health` and open `http://localhost:5173/` | 200 for `/api/health`; on the page, every `/api/` request goes to `http://localhost:5173/api/...` with status 200, and no image was built (`docker compose up` printed no `Building` line) | evaluator |
+| AC-29 | AC-28's images, `docker compose up -d postgres` then `docker compose run --rm backend arp db init-postgres` (the backend refuses to start on an uninitialised database), then `docker compose up -d backend frontend` | `GET http://localhost:8000/api/health` and open `http://localhost:5173/` | 200 for `/api/health`; on the page, every `/api/` request goes to `http://localhost:5173/api/...` with status 200, and no image was built (`docker compose up` printed no `Building` line) | evaluator |
 | AC-30 | No GPU, `ARP_COMPUTE_DEVICE=cuda` | `POST /parse` with header `X-ARP-Parser-Version` = `parser_version()` and `{"object": "parse/<64 zeros>.pdf"}` | 503; JSON `detail` = `ARP_COMPUTE_DEVICE=cuda but no GPU is visible` | holdout |
 
 AC-15, AC-28 and AC-29 can only be checked after slice 3 merges (and, for AC-28, after the owner made the
