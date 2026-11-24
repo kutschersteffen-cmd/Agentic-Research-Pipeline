@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import { canTurnIntoPlan, draftPlanFromExploration, explorationBadge, focusAfterDraft, resultTable, type FocusAfter } from "../lib/agent";
+import { canAccept, canTurnIntoPlan, draftPlanFromExploration, explorationBadge, focusAfterDraft, resultTable, type FocusAfter } from "../lib/agent";
 import { miniappAction } from "../lib/miniapp";
 import type { Plan } from "../lib/plans";
 import type { Exploration } from "../types";
@@ -33,9 +33,9 @@ export function ExplorationCard({ exploration: e, busy, onAccept, onMiniapp, onD
           <span className={`status-pill status-${e.status}`}>{e.status}</span>{" "}
           {badge ? <span className="agent-badge">{badge}</span> : <span ref={acceptedLine} tabIndex={-1} className="muted">Accepted by {e.accepted_by}</span>}
         </p>
-        {(badge || e.status === "done") && (
+        {(canAccept(e) || e.status === "done") && (
           <div className="toolbar">
-            {badge && <button disabled={busy} onClick={() => { accepting.current = true; onAccept(); }}>Accept</button>}
+            {canAccept(e) && <button disabled={busy} onClick={() => { accepting.current = true; onAccept(); }}>Accept</button>}
             {e.status === "done" && <button id="agent-show-miniapp" className="secondary" disabled={busy} onClick={onMiniapp}>{miniappAction(e)}</button>}
           </div>
         )}

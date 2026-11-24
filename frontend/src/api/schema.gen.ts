@@ -184,7 +184,7 @@ export interface paths {
         put?: never;
         /**
          * Accept Exploration
-         * @description A person accepts the exploration's result; its label becomes `accepted`.
+         * @description A person accepts the exploration's result; its label becomes `accepted`. Only a `done` exploration has a result.
          */
         post: operations["accept_exploration_api_agent_explorations__exploration_id__accept_post"];
         delete?: never;
@@ -244,7 +244,7 @@ export interface paths {
         };
         /**
          * Inbox
-         * @description Draft plans, calls awaiting review and explorations not yet accepted, oldest first (a plan or an exploration
+         * @description Draft plans, calls awaiting review and `done` explorations not yet accepted, oldest first (a plan or an exploration
          *     by its `created_at`, a call by its `started_at`).
          */
         get: operations["inbox_api_agent_inbox_get"];
