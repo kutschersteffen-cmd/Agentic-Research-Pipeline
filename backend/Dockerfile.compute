@@ -26,7 +26,10 @@ COPY backend/ ./
 # into a 503 that `arp compute check` reports.
 # cpu: torch and torchvision from the PyTorch CPU index first (no CUDA libraries), which the
 # ".[models]" install then keeps. torchvision 0.29.1 is the release paired with torch 2.14.1.
-RUN if [ "$VARIANT" = "cuda" ]; then \
+# A compiler for the dependencies without a wheel for the platform (pystemmer on arm64), installed and
+# removed in this same layer, so the image ships without it.
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
+    && if [ "$VARIANT" = "cuda" ]; then \
         pip install --no-cache-dir ".[models]" "torch==2.14.1" \
         && FASTEMBED_VERSION="$(pip show fastembed | sed -n 's/^Version: //p')" \
         && pip uninstall -y onnxruntime fastembed \
@@ -36,7 +39,9 @@ RUN if [ "$VARIANT" = "cuda" ]; then \
         && pip install --no-cache-dir ".[models]"; \
     else \
         echo "VARIANT must be cpu or cuda, got: $VARIANT" >&2 && exit 1; \
-    fi
+    fi \
+    && apt-get purge -y --auto-remove build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 # arp.config creates its data directories on first use, under the installed package's root; create them
 # while still root, so the non-root user below only finds them (the service writes nothing there).
