@@ -1,10 +1,9 @@
-"""The Cloud Run GPU service behind arp/compute/client.py, deployed twice from
-one image (backend/Dockerfile.compute): arp-parse serves /parse, arp-models
-/rerank and /embed (every registry rerank and embed model, each loaded on first
-use). It runs the same functions the backend runs locally, on a GPU. There is
-no auth in here: Cloud Run admits only callers holding run.invoker. Endpoints
-are plain `def` so they run in the threadpool and /healthz still answers during
-a long parse."""
+"""The compute service behind arp/compute/client.py (image: backend/Dockerfile.compute): /parse,
+/rerank and /embed (every registry rerank and embed model, each loaded on first use), /classify,
+/spans and /tag. It runs the same functions the backend runs locally, on the device
+ARP_COMPUTE_DEVICE picks (see _device). There is no auth in here: keep it on a private network.
+Endpoints are plain `def` so they run in the threadpool and /healthz still answers during a long
+parse."""
 
 from __future__ import annotations
 
@@ -25,6 +24,7 @@ from arp.retrieval.embeddings import EMBED_MODEL_NAME
 from arp.schemas.common import TableSpan
 
 MAX_EMBED_TEXTS = 1024
+NO_GPU = "ARP_COMPUTE_DEVICE=cuda but no GPU is visible"
 
 app = FastAPI(title="ARP compute")
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -41,6 +41,24 @@ def _cuda_available() -> bool:
     import torch
 
     return torch.cuda.is_available()
+
+
+def _device() -> str:
+    """Where models load, read on every request: ARP_COMPUTE_DEVICE `cpu` or `cuda`; `auto` (the default,
+    also for any other value) is `cuda` when torch sees a GPU, else `cpu`."""
+    mode = os.environ.get("ARP_COMPUTE_DEVICE", "auto")
+    if mode in ("cpu", "cuda"):
+        return mode
+    return "cuda" if _cuda_available() else "cpu"
+
+
+def _model_device() -> str:
+    """The device for a model endpoint; its first check, before any header check or model load:
+    503 when ARP_COMPUTE_DEVICE=cuda and no GPU is visible."""
+    device = _device()
+    if device == "cuda" and not _cuda_available():
+        raise HTTPException(503, NO_GPU)
+    return device
 
 
 # What clients send in X-ARP-Model for the two original models; every other one is named hf_id@revision.
@@ -63,42 +81,44 @@ class _MaxSim:
 class _ClsEmbedder:
     """bge-m3 dense vectors (transformers): the CLS token's last hidden state, L2-normalised, as its model card does."""
 
-    def __init__(self, e) -> None:
+    def __init__(self, e, device: str) -> None:
         import torch
         from transformers import AutoModel, AutoTokenizer
 
         self._torch = torch
+        self._device = device
         self._tokenizer = AutoTokenizer.from_pretrained(e.hf_id, revision=e.revision)
-        self._net = AutoModel.from_pretrained(e.hf_id, revision=e.revision, torch_dtype=torch.float16).to("cuda").eval()
+        dtype = torch.float16 if device == "cuda" else torch.float32  # CPUs have no fast float16
+        self._net = AutoModel.from_pretrained(e.hf_id, revision=e.revision, torch_dtype=dtype).to(device).eval()
 
     def embed(self, texts: list[str], batch_size: int = 16):
         for start in range(0, len(texts), batch_size):
             batch = self._tokenizer(texts[start : start + batch_size], padding=True, truncation=True,
-                                    max_length=8192, return_tensors="pt").to("cuda")  # 8,192 tokens covers any chunk
+                                    max_length=8192, return_tensors="pt").to(self._device)  # 8,192 tokens covers any chunk
             with self._torch.no_grad():
                 cls = self._net(**batch).last_hidden_state[:, 0]
             yield from self._torch.nn.functional.normalize(cls.float(), dim=-1).cpu().numpy()
 
 
-def _load_reranker(key: str = "rerank"):
+def _load_reranker(key: str = "rerank", device: str = "cpu"):
     import torch  # noqa: F401 -- loads the CUDA/cuDNN libraries onnxruntime-gpu needs
 
     if key == "rerank":
         from fastembed.rerank.cross_encoder import TextCrossEncoder
 
-        return TextCrossEncoder(CLOUD_RERANK_MODEL, cuda=True)
+        return TextCrossEncoder(CLOUD_RERANK_MODEL, cuda=device == "cuda")
     from fastembed import LateInteractionTextEmbedding
 
-    return _MaxSim(LateInteractionTextEmbedding(entry(key).hf_id, cuda=True))
+    return _MaxSim(LateInteractionTextEmbedding(entry(key).hf_id, cuda=device == "cuda"))
 
 
-def _load_embedder(key: str = "embed"):
+def _load_embedder(key: str = "embed", device: str = "cpu"):
     if key == "embed_bge_m3":
-        return _ClsEmbedder(_torch_model(key))
+        return _ClsEmbedder(entry(key), device)
     import torch  # noqa: F401 -- loads the CUDA/cuDNN libraries onnxruntime-gpu needs
     from fastembed import TextEmbedding
 
-    return TextEmbedding(EMBED_MODEL_NAME if key == "embed" else entry(key).hf_id, cuda=True)
+    return TextEmbedding(EMBED_MODEL_NAME if key == "embed" else entry(key).hf_id, cuda=device == "cuda")
 
 
 def _require_cuda(model):
@@ -109,28 +129,27 @@ def _require_cuda(model):
     return model
 
 
-def _model(name: str, load, check=_require_cuda):
+def _model(name: str, load, check):
     with _models_lock:  # a burst on a cold instance must not load several copies onto one GPU
         if name not in _models:
             _models[name] = check(load())
         return _models[name]
 
 
-# One loaded model per registry key; the original models' getters and loaders are still called without one.
+def _check(device: str, onnx: bool = True):
+    """On CUDA, an onnxruntime model must really be on the GPU; on CPU there is nothing to check."""
+    return _require_cuda if device == "cuda" and onnx else (lambda m: m)
+
+
+# One loaded model per registry key, on the device of the request that loaded it.
 def _reranker(key: str = "rerank"):
-    return _model(key, _load_reranker if key == "rerank" else lambda: _load_reranker(key))
+    device = _device()
+    return _model(key, lambda: _load_reranker(key, device), _check(device))
 
 
 def _embedder(key: str = "embed"):
-    load = _load_embedder if key == "embed" else lambda: _load_embedder(key)
-    return _model(key, load, (lambda m: m) if key == "embed_bge_m3" else _require_cuda)  # torch, checked on load
-
-
-def _torch_model(key: str):
-    """The registry entry for `key`, after making sure torch sees the GPU (503 otherwise)."""
-    if not _cuda_available():
-        raise HTTPException(503, "CUDA not available")
-    return entry(key)
+    device = _device()
+    return _model(key, lambda: _load_embedder(key, device), _check(device, onnx=key != "embed_bge_m3"))
 
 
 def _served(received: str | None, capability: str) -> str:
@@ -167,6 +186,8 @@ class EmbedRequest(BaseModel):
 
 @app.post("/parse", response_model=ParseResponse)
 def parse(request: ParseRequest, x_arp_parser_version: str | None = Header(default=None)) -> ParseResponse:
+    # docling's accelerator reads DOCLING_DEVICE when the (cached) converter is built on the first parse
+    os.environ["DOCLING_DEVICE"] = _model_device()
     service = parser_version()
     if x_arp_parser_version != service:  # a parse stored under another version would mix the cache
         raise HTTPException(409, f"parser_version mismatch: service={service} client={x_arp_parser_version or 'missing'}")
@@ -182,6 +203,7 @@ def parse(request: ParseRequest, x_arp_parser_version: str | None = Header(defau
 
 @app.post("/rerank")
 def rerank(request: RerankRequest, x_arp_model: str | None = Header(default=None)) -> dict:
+    _model_device()
     key = _served(x_arp_model, "rerank")
     model = _reranker() if key == "rerank" else _reranker(key)
     return {"scores": [float(s) for s in model.rerank(request.query, request.texts)]}
@@ -189,6 +211,7 @@ def rerank(request: RerankRequest, x_arp_model: str | None = Header(default=None
 
 @app.post("/embed")
 def embed(request: EmbedRequest, x_arp_model: str | None = Header(default=None)) -> dict:
+    _model_device()
     key = _served(x_arp_model, "embed")
     model = _embedder() if key == "embed" else _embedder(key)
     return {"vectors": np.asarray(list(model.embed(request.texts)), dtype=np.float32).tolist()}
@@ -213,22 +236,23 @@ class TagRequest(BaseModel):
 
 @app.post("/classify")
 def classify(request: ClassifyRequest, x_arp_model: str | None = Header(default=None)) -> dict:
+    device = _model_device()
     e = entry("nli")
     _check_model(x_arp_model, model_header(e))
-    _torch_model("nli")
-    return {"scores": local.nli_scores(e, request.texts, request.labels, request.hypothesis, device=0)}
+    return {"scores": local.nli_scores(e, request.texts, request.labels, request.hypothesis, device=device)}
 
 
 @app.post("/spans")
 def spans(request: SpansRequest, x_arp_model: str | None = Header(default=None)) -> dict:
+    device = _model_device()
     e = entry("gliner")
     _check_model(x_arp_model, model_header(e))
-    _torch_model("gliner")
-    return {"spans": local.span_scores(e, request.texts, request.labels, request.threshold, device="cuda")}
+    return {"spans": local.span_scores(e, request.texts, request.labels, request.threshold, device=device)}
 
 
 @app.post("/tag")
 def tag(request: TagRequest, x_arp_model: str | None = Header(default=None)) -> dict:
+    device = _model_device()
     try:
         e = entry(request.key)
     except KeyError as exc:
@@ -236,10 +260,9 @@ def tag(request: TagRequest, x_arp_model: str | None = Header(default=None)) -> 
     if e.capability != "tag":
         raise HTTPException(404, f"not a tag model: {request.key}")
     _check_model(x_arp_model, model_header(e))
-    _torch_model(request.key)
-    return {"results": local.tag_scores(e, request.texts, device=0)}
+    return {"results": local.tag_scores(e, request.texts, device=device)}
 
 
 @app.get("/healthz")
 def healthz() -> dict:
-    return {"parser_version": parser_version(), "cuda": _cuda_available()}
+    return {"parser_version": parser_version(), "cuda": _cuda_available(), "device": _device()}

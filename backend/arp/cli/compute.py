@@ -11,7 +11,7 @@ from arp.config import get_settings
 from arp.ingestion import local_files
 from arp.retrieval import embeddings, rerank
 
-compute_app = typer.Typer(help="Cloud compute (arp/compute/): the Cloud Run GPU services for parsing, rerank, embed.")
+compute_app = typer.Typer(help="Compute service (arp/compute/): parsing, rerank, embed, on CPU or GPU.")
 
 @compute_app.callback()
 def _group() -> None:
@@ -20,6 +20,11 @@ def _group() -> None:
 
 _QUERY = "revenue"
 _TEXTS = ["Revenue grew 5% in 2025.", "The cat sat on the mat.", "Weather was mild."]
+
+
+def _ok(name: str, url: str) -> str:
+    """`<name> OK (device=…)`, the device the service at `url` loads its models on (its /healthz)."""
+    return f"{name} OK (device={(client.healthz(url) or {}).get('device', 'unknown')})"
 
 
 def _check_parse() -> str:
@@ -36,15 +41,14 @@ def _check_parse() -> str:
         remote = client.parse_pdf(path, local_files.parser_version())
         if remote is None:
             return f"parse FAIL: {client.last_error.get('parse', 'no result')}"
-        if not (client.healthz(url) or {}).get("cuda"):
-            return "parse FAIL: the service reports no GPU (/healthz cuda is not true)"
         if remote[0] != local_files._extract_pdf_text_local(path)[0]:
             return "parse FAIL: the cloud text differs from the local parse"
-    return "parse OK"
+    return _ok("parse", url)
 
 
 def _check_rerank() -> str:
-    if not get_settings().compute_models_url:
+    url = get_settings().compute_models_url
+    if not url:
         return "rerank FAIL: ARP_COMPUTE_MODELS_URL not set"
     scores = client.rerank_scores(_QUERY, _TEXTS)
     if scores is None:
@@ -52,11 +56,12 @@ def _check_rerank() -> str:
     local = [float(s) for s in rerank._get_model().rerank(_QUERY, _TEXTS)]
     if int(np.argmax(scores)) != int(np.argmax(local)):
         return "rerank FAIL: the cloud and local rerankers rank a different text first"
-    return "rerank OK"
+    return _ok("rerank", url)
 
 
 def _check_embed() -> str:
-    if not get_settings().compute_models_url:
+    url = get_settings().compute_models_url
+    if not url:
         return "embed FAIL: ARP_COMPUTE_MODELS_URL not set"
     remote = client.embed(_TEXTS[:1])
     if remote is None:
@@ -65,7 +70,7 @@ def _check_embed() -> str:
     cosine = float(remote[0] @ local[0] / (np.linalg.norm(remote[0]) * np.linalg.norm(local[0])))
     if cosine < 0.99:
         return f"embed FAIL: cosine(cloud, local) = {cosine:.3f} < 0.99"
-    return "embed OK"
+    return _ok("embed", url)
 
 
 @compute_app.command("check")
