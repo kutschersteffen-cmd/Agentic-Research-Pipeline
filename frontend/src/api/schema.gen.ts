@@ -30370,9 +30370,9 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
-                "application/json": components["schemas"]["ApproveSpecRequest"];
+                "application/json": components["schemas"]["ApproveSpecRequest"] | null;
             };
         };
         responses: {
