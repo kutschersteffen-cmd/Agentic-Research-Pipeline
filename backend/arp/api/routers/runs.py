@@ -20,7 +20,7 @@ from arp.orchestration.review_queue import effective_decisions
 from arp.research.pipeline import load_theme_run_matches, rank_theme_matches
 from arp.research.results_diff import diff_theme_results
 from arp.schemas.common import JobStatus
-from arp.schemas.review import field_item_key, period_key
+from arp.schemas.review import results_field_key
 from arp.schemas.thematic import CompanyMatch
 from arp.schemas.transition_barrier import BarrierRefreshFinding
 from arp.storage.run_store import RunStore
@@ -207,13 +207,14 @@ def diff_theme_runs(run_id_a: str, run_id_b: str, run_store: RunStore = Depends(
     return diff.model_dump(mode="json")
 
 
-def _reviewed_value(record: dict, f: dict, decided: dict[str, dict]) -> tuple[object, object, str]:
-    """A field's value and canonical value as an export may carry them, and its review status. A value routed to
-    review leaves the app only once a person approved it (as corrected, when it was corrected); a value that needed
-    no review, or was written before routing, is exported as it is."""
-    if f.get("route") not in ("review", "hold"):
+def _reviewed_value(record: dict, f: dict, decided: dict[str, dict], queued: dict[str, dict], decided_keys: set[str]) -> tuple[object, object, str]:
+    """A field's value and canonical value as an export may carry them, and its review status. A value is held back
+    while a person still has to decide on it: it was routed to review or hold, has a review item in the run's queue
+    (a conflict with an accepted fact, say) or has a decision row. It leaves the app once a person approved it (as
+    corrected, when it was corrected); a kept conflict exports the accepted value. Anything else is exported as it is."""
+    key = results_field_key(record, f)
+    if f.get("route") not in ("review", "hold") and key not in queued and key not in decided_keys:
         return f["value"], f.get("canonical_value"), ""
-    key = field_item_key(record["issuer_key"], f["field_id"], period_key(f)) if record.get("issuer_key") else f"{record['company_id']}:{f.get('field_id')}"
     decision = decided.get(key)
     kind = decision["decision"] if decision else "awaiting review"
     if kind == "approve":
@@ -221,6 +222,9 @@ def _reviewed_value(record: dict, f: dict, decided: dict[str, dict]) -> tuple[ob
     if kind in ("correct", "edit"):
         corrected = decision.get("corrected_value") or decision.get("edited_value") or {}
         return corrected.get("value"), None, kind  # the canonical value belonged to the value that was replaced
+    row = queued.get(key)
+    if kind == "reject" and row and row.get("kind") == "conflict" and "accepted" in row:
+        return row["accepted"].get("value"), None, kind
     return None, None, kind
 
 
@@ -242,9 +246,11 @@ def export_run_csv(run_id: str, run_store: RunStore = Depends(get_run_store)) ->
         writer.writerow(["company_id", "ticker", "name", "field_name", "value", "confidence", "grounded", "needs_review", "verifier_notes",
              "value_state", "unit", "canonical_value", "canonical_unit", "period_start", "period_end", "basis", "review_status"])
         decided = effective_decisions(run_store, run_id)
+        queued = {r["item_key"]: r for r in run_store.read_review_queue(run_id) if r.get("item_key")}
+        decided_keys = {d["item_key"] for d in run_store.read_decisions(run_id)}
         for record in rows:
             for f in record.get("fields", []):
-                value, canonical, status = _reviewed_value(record, f, decided)
+                value, canonical, status = _reviewed_value(record, f, decided, queued, decided_keys)
                 writer.writerow(
                     [record["company_id"], record.get("ticker"), record["name"], f["field_name"], value,
                      f["confidence"], f["grounded"], record["needs_review"], f.get("verifier_notes"),

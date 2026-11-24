@@ -82,7 +82,7 @@ def _results_row(run_store: RunStore, run_id: str, payload: dict) -> dict | None
 
 
 def _value(item: ReviewItem, row: dict | None) -> dict | None:
-    if item.kind is ReviewItemKind.VALUE:
+    if item.kind in (ReviewItemKind.VALUE, ReviewItemKind.CONFLICT):
         return item.payload.get("field")
     if item.kind is ReviewItemKind.RESTATEMENT_CANDIDATE and row:
         issuer = row.get("issuer_key", "")
