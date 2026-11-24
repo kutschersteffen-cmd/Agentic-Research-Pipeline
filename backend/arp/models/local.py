@@ -1,6 +1,7 @@
-"""Local (CPU) loaders for the registry's transformers models. transformers is imported lazily."""
+"""Local loaders (device from ARP_MODEL_DEVICE, see arp.models.device) for the registry's transformers models. transformers is imported lazily."""
 import threading
 
+from arp.models import device as _device
 from arp.models.registry import RegistryEntry
 
 _pipes: dict[str, object] = {}
@@ -8,9 +9,12 @@ _lock = threading.Lock()
 
 
 def _pipeline(task: str, e: RegistryEntry, **kwargs):
-    from transformers import pipeline
+    if "device" not in kwargs:  # the compute server passes its own; that wins over the setting
+        kwargs["device"] = _device.torch_device()
+        _device.log_models()
+    import transformers  # the attribute is looked up at call time
 
-    return pipeline(task, model=e.hf_id, revision=e.revision, **kwargs)
+    return transformers.pipeline(task, model=e.hf_id, revision=e.revision, **kwargs)
 
 
 def _get(task: str, e: RegistryEntry, **kwargs):
@@ -40,7 +44,9 @@ def text_embedding(model_name: str):
         if key not in _pipes:
             from fastembed import TextEmbedding
 
-            _pipes[key] = TextEmbedding(model_name=model_name)
+            cuda = _device.onnx_cuda()
+            _device.log_embeddings()
+            _pipes[key] = TextEmbedding(model_name=model_name, cuda=cuda)
         return _pipes[key]
 
 
@@ -51,15 +57,20 @@ def cross_encoder(model_name: str):
         if key not in _pipes:
             from fastembed.rerank.cross_encoder import TextCrossEncoder
 
-            _pipes[key] = TextCrossEncoder(model_name=model_name)
+            cuda = _device.onnx_cuda()
+            _device.log_embeddings()
+            _pipes[key] = TextCrossEncoder(model_name=model_name, cuda=cuda)
         return _pipes[key]
 
 
 def _gliner(e: RegistryEntry, device: str | None):
+    if not device:
+        device = _device.torch_device()
+        _device.log_models()
     from gliner import GLiNER
 
     model = GLiNER.from_pretrained(e.hf_id, revision=e.revision)
-    return model.to(device) if device else model
+    return model.to(device)
 
 
 def span_scores(e: RegistryEntry, texts: list[str], labels: list[str], threshold: float,

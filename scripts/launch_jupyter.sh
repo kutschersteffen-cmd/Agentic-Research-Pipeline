@@ -4,7 +4,7 @@
 #
 #   scripts/launch_jupyter.sh up      # init the database, build the frontend if stale, start, print the URL
 #   scripts/launch_jupyter.sh down
-#   scripts/launch_jupyter.sh check   # readiness: 7 lines, each should start with "ok" (arp preflight)
+#   scripts/launch_jupyter.sh check   # readiness: 8 lines, each should start with "ok" (arp preflight)
 #   scripts/launch_jupyter.sh users   # two named approvers for real sign-in (a second review needs a second person)
 #
 # Settings come from the environment or backend/.env.

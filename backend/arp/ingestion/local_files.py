@@ -11,12 +11,14 @@ from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 from arp.compute import client as compute_client
+from arp.config import get_settings
 from arp.ingestion import esef
 from arp.ingestion.base import DocumentSource
 from arp.ingestion.doc_identity import CORRECTION_MARKERS, assign_identity, published_at_for
 from arp.ingestion.html_text import extract_html_text
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.intake import IntakeResult, IntakeState, append_intake, check_intake
+from arp.models.device import torch_device
 from arp.normalise.locale import decimal_for, detect_language
 from arp.normalise.units import lookup_scale
 from arp.schemas.common import CompanyRef, DocType, SourceDocument, TableCell, TableSpan
@@ -67,6 +69,13 @@ def _docling_converter(ocr: bool = True):
     from docling.document_converter import DocumentConverter, PdfFormatOption
 
     options = PdfPipelineOptions(do_ocr=ocr)
+    mode = get_settings().model_device
+    if mode != "auto":  # auto keeps docling's own choice (DOCLING_DEVICE, mps)
+        from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
+
+        device = torch_device()  # cuda without a GPU raises here
+        options.accelerator_options = AcceleratorOptions(
+            device=AcceleratorDevice.CUDA if device == "cuda" else AcceleratorDevice.CPU)
     return DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=options)})
 
 
