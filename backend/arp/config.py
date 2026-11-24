@@ -230,7 +230,7 @@ class Settings(BaseSettings):
         description="Which reranker runs when rerank_enabled: the bge-reranker cross-encoder (arp-models, else local "
         "CPU) or mLateOn ColBERT (arp-models only; without it retrieval order is kept).",
     )
-    # Cloud Run GPU services (arp/compute/), set up by scripts/gcp/setup_compute.sh. Empty = compute locally.
+    # Cloud Run GPU services (arp/compute/). Empty = compute locally.
     compute_parse_url: str | None = Field(default=None, description="arp-parse service URL: PDF parsing on a GPU.")
     compute_models_url: str | None = Field(default=None, description="arp-models service URL: rerank and embeddings.")
     models_universe_funnel_enabled: bool = Field(
