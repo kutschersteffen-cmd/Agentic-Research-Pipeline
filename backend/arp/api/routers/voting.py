@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from arp.api.deps import get_engagement_store, get_registry, get_run_store, settings_dep
 from arp.api.review_endpoints import get_review_history, get_review_queue, submit_review
 from arp.api.run_scheduling import schedule_llm_run
+from arp.api.saved_universe import load_saved_universe
 from arp.config import Settings
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.factory import batch_settings
@@ -13,7 +14,6 @@ from arp.schemas.common import CompanyRef
 from arp.stewardship.tracking import watch_flags_by_company
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.run_store import RunStore
-from arp.universe import load_company_universe
 from arp.voting.ballot_casting import ManualInstructionBallotPlatform
 from arp.voting.pipeline import cast_approved_votes, create_voting_run, execute_voting_run, get_ballots, get_cast_votes
 
@@ -36,7 +36,7 @@ async def start_voting_run(
     engagement_store: EngagementStore = Depends(get_engagement_store),
 ) -> dict:
     settings = batch_settings(settings, req.batch)
-    companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
+    companies = req.companies or (load_saved_universe(req.universe_path, settings) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
 

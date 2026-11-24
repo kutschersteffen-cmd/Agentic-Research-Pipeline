@@ -15,6 +15,7 @@ from arp.api.deps import (
     get_xbrl_source,
     settings_dep,
 )
+from arp.api.saved_universe import check_schedule_universe, load_saved_universe
 from arp.config import Settings
 from arp.emerging_themes.pipeline import (
     create_emerging_themes_run,
@@ -33,7 +34,6 @@ from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
 from arp.themes.dossiers import DossierStore, TaxonomyTaken, get_dossier_store
-from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/emerging-themes", tags=["emerging-themes"])
 
@@ -55,7 +55,7 @@ async def start_emerging_themes_run(
     """Manual trigger: scan public news/filings/regulatory flow across the
     given (or referenced) universe for emerging themes. Uses the exact
     same pipeline the automatic schedule uses."""
-    companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
+    companies = req.companies or (load_saved_universe(req.universe_path, settings) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
 
@@ -147,11 +147,14 @@ def get_schedule(scheduler: EmergingThemesScheduler = Depends(get_emerging_theme
 
 @router.put("/schedule", response_model=EmergingThemesScheduleConfig)
 def update_schedule(
-    config: EmergingThemesScheduleConfig, scheduler: EmergingThemesScheduler = Depends(get_emerging_themes_scheduler)
+    config: EmergingThemesScheduleConfig,
+    scheduler: EmergingThemesScheduler = Depends(get_emerging_themes_scheduler),
+    settings: Settings = Depends(settings_dep),
 ) -> EmergingThemesScheduleConfig:
     """Enable/disable and configure the automatic recurring scan (interval
     + universe file path). Takes effect immediately."""
     if config.interval_hours <= 0:  # checked here, not on the stored model, so an older file holding 0 still loads
         raise HTTPException(422, "Interval must be greater than 0 hours.")
+    check_schedule_universe(config.universe_path, lambda: scheduler.load_config().universe_path, settings)
     scheduler.save_config(config)
     return config

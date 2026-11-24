@@ -18,6 +18,7 @@ from arp.api.deps import (
 )
 from arp.api.routers.decision import template_for_run
 from arp.api.run_scheduling import schedule_llm_run
+from arp.api.saved_universe import load_saved_universe
 from arp.config import Settings
 from arp.db.company_view import results_by_company
 from arp.db.fields import SchemaRegistry
@@ -43,7 +44,6 @@ from arp.schemas.review import BulkAcceptRequest
 from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
-from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/extraction", tags=["extraction"])
 
@@ -165,7 +165,7 @@ async def start_extraction_run(
     principal: Principal = Depends(current_user),
 ) -> dict:
     settings = batch_settings(settings, req.batch)
-    companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
+    companies = req.companies or (load_saved_universe(req.universe_path, settings) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
 
@@ -244,7 +244,7 @@ async def start_extraction(
 async def _dispatch(req: StartRequest, settings: Settings, run_store: RunStore, registry, decision_store, xbrl_source, principal) -> dict:
     from arp.api.routers import financials, tnfd
 
-    companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
+    companies = req.companies or (load_saved_universe(req.universe_path, settings) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
     common = {

@@ -38,3 +38,16 @@ def safe_filename(filename: str | None, *, label: str = "filename") -> str:
     if not filename or Path(filename).name != filename or filename in (".", ".."):
         raise UnsafeIdentifierError(f"Invalid {label}: {filename!r}")
     return filename
+
+
+def file_inside(path: str | Path, folder: str | Path) -> Path | None:
+    """The resolved `path` when it is a regular file inside `folder` (at any
+    depth, after symlinks and ".." are resolved), else None. Never raises: a
+    NUL byte, an over-long name or a symlink loop is simply a "no"."""
+    try:
+        resolved = Path(path).resolve()
+        if resolved.is_relative_to(Path(folder).resolve()) and resolved.is_file():
+            return resolved
+    except (OSError, ValueError, RuntimeError):  # RuntimeError: symlink loop on older Pythons
+        pass
+    return None

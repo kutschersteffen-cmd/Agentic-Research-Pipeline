@@ -105,3 +105,30 @@ async def test_upload_keeps_both_files_with_the_same_name(tmp_path):
     second = await upload_document("acme", DocType.OTHER, UploadFile(io.BytesIO(b"two"), filename="r.pdf"), settings)
     assert first["path"] != second["path"]
     assert sorted(p.read_bytes() for p in (tmp_path / "acme" / "other").iterdir()) == [b"one", b"two"]
+
+
+def test_upload_without_a_file_part_is_422_and_creates_nothing(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from arp.api.deps import settings_dep
+    from arp.api.main import app
+    from arp.config import Settings
+
+    app.dependency_overrides[settings_dep] = lambda: Settings(documents_dir=tmp_path)
+    try:
+        r = TestClient(app).post("/api/documents/upload", data={"company_id": "acme", "doc_type": "other"})
+    finally:
+        app.dependency_overrides.pop(settings_dep, None)
+    assert r.status_code == 422
+    assert [(e["type"], e["loc"]) for e in r.json()["detail"]] == [("missing", ["body", "file"])]
+    assert not (tmp_path / "acme").exists()
+
+
+def test_committed_openapi_requires_the_upload_file():
+    import json
+    from pathlib import Path
+
+    spec = json.loads((Path(__file__).parents[2] / "frontend/src/api/openapi.json").read_text())
+    body = spec["paths"]["/api/documents/upload"]["post"]["requestBody"]["content"]["multipart/form-data"]["schema"]
+    schema = spec["components"]["schemas"][body["$ref"].rsplit("/", 1)[1]] if "$ref" in body else body
+    assert {"file", "company_id", "doc_type"} <= set(schema["required"])
