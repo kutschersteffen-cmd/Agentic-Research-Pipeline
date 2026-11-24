@@ -11,6 +11,7 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_llm_client, get_registry, get_run_store, get_taxonomy_store, settings_dep
 from arp.api.review_endpoints import ReviewDecisionRequest, get_review_queue, submit_review
 from arp.api.run_scheduling import schedule_llm_run
+from arp.api.saved_universe import load_saved_universe
 from arp.company_graph import CompanyGraphError
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
@@ -31,7 +32,6 @@ from arp.schemas.revenue_exposure import ActivityCatalogueMapping, MetricExposur
 from arp.schemas.thematic import ThemeDefinition
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
-from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/themes", tags=["themes"])
 
@@ -95,7 +95,7 @@ async def start_theme_run(
         raise HTTPException(400, THEME_NOT_ALLOWED)
     if req.taxonomy_id is None:
         raise HTTPException(400, "Provide `taxonomy_id`.")
-    companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
+    companies = req.companies or (load_saved_universe(req.universe_path, settings) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
     try:

@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from arp.api.deps import settings_dep
+from arp.api.saved_universe import require_saved_universe
 from arp.config import Settings
 from arp.db.session import require_dsn
 from arp.orchestration.job_manager import JobManager
@@ -69,7 +70,9 @@ async def start_run(
     companies = req.companies
     if not companies and req.universe_path:
         try:
-            companies = load_company_universe(req.universe_path)
+            companies = load_company_universe(require_saved_universe(req.universe_path, settings))
+        except HTTPException:
+            raise
         except Exception as exc:  # whatever the file parsers raise: never echo the path or content
             logger.warning("universe file unreadable: %s", exc)
             raise HTTPException(400, "Could not read the universe file.") from exc

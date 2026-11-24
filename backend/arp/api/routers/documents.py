@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from arp.api.deps import get_document_content_store, settings_dep
+from arp.api.saved_universe import UNREADABLE, require_saved_universe
 from arp.config import Settings
 from arp.ingestion.parsing import DEFAULT_CHUNK_CHARS, DEFAULT_OVERLAP_CHARS, chunk_document
 from arp.ingestion.pdf_page import find_boxes, render_page
@@ -79,12 +80,15 @@ def document_readiness(
     """Splits a company list into `ready` (documents already on disk or
     registered, so identity resolution and discovery can be skipped) and
     `onboard`. Read-only."""
-    try:
-        companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
-    except FileNotFoundError as exc:
-        raise HTTPException(400, f"Universe file not found: {req.universe_path}") from exc
-    except ValueError as exc:  # unsupported type, bad JSON, or rows that fail CompanyRef validation
-        raise HTTPException(400, f"Universe file could not be read: {exc}") from exc
+    companies = req.companies
+    if not companies and req.universe_path:
+        path = require_saved_universe(req.universe_path, settings)
+        try:
+            companies = load_company_universe(path)
+        except ValueError as exc:  # unsupported type, bad JSON, or rows that fail CompanyRef validation
+            raise HTTPException(400, f"Universe file could not be read: {exc}") from exc
+        except Exception as exc:  # noqa: BLE001 - any other unreadable file is the caller's 400
+            raise HTTPException(400, UNREADABLE) from exc
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
     stored = store.readiness_by_company([c.company_id for c in companies])
