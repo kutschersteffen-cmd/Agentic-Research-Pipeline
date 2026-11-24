@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
+import { safeDecode } from "../lib/nav";
 import { excerptView, highlightParts } from "../lib/sourceText";
 import type { PageBox } from "../types";
 import { FileFrame, FileImg, FileLink } from "./FileLink";
 
-const isPdfUrl = (src: string) => !!src && decodeURIComponent(src.split("#")[0]).toLowerCase().endsWith(".pdf/raw");
+const isPdfUrl = (src: string) => !!src && safeDecode(src.split("#")[0]).toLowerCase().endsWith(".pdf/raw");
 
 /** A page of a document's stored text, with the cited span when there is one. */
 export interface SourceText {

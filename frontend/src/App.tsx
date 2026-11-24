@@ -7,16 +7,18 @@ import { ArgusNew, ArgusStart, openNewFlow } from "./pages/ArgusStart";
 import { WORKSPACES, workspaceOfProcess, type WorkspaceId } from "./lib/processes";
 import { STAGE_TABS } from "./pages/steward/common";
 import { SUB_TABS as RISK_TABS } from "./lib/subTabs";
-import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
+import { CommandPalette } from "./components/CommandPalette";
+import { runItem, type PaletteItem } from "./lib/commandPalette";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ctrlJTarget, rfpId, type Selection } from "./lib/agent";
 import { useMe } from "./lib/reviewer";
 import { AppTopbar } from "./components/AppTopbar";
 import { WorkspaceRow } from "./components/WorkspaceRow";
 import type { ReviewableRunKind, RunManifest, WaitingCounts } from "./types";
-import { REVIEWABLE_RUN_TYPES, runTypeLabel } from "./lib/runs";
+import { REVIEWABLE_RUN_TYPES } from "./lib/runs";
 import { api } from "./api/client";
 import { listAllRuns } from "./lib/poll";
-import { HUBS, entryTab, redirectHash } from "./lib/nav";
+import { HUBS, entryTab, redirectHash, safeDecode } from "./lib/nav";
 import { Landing } from "./pages/Landing";
 
 // Pages load on demand so the first screen does not ship every page and its editors.
@@ -111,18 +113,11 @@ const PALETTE_ITEMS: PaletteItem[] = [
   { label: "Refine a document", hint: "Agent", href: "#/agent/refine" },
 ];
 
-/** A run in the palette opens where its decisions are made, else in Run History. */
-const runItem = (r: RunManifest): PaletteItem => ({
-  label: `${runTypeLabel(r.run_type)} ${r.run_id}`,
-  hint: "Run",
-  href: r.run_type === "proxy_voting" ? `#/voting/${r.run_id}` : REVIEWABLE_RUN_TYPES.has(r.run_type) ? `#/review/${r.run_type}/${r.run_id}` : "#/history",
-});
-
 /** The URL is the source of truth for where you are: `#/<tab>/<param>...`,
  * so refresh, Back and a pasted link all land on the same view -- e.g.
  * `#/voting/<run id>` or `#/review/extraction/<run id>`. */
 function parseHash(hash = window.location.hash): { tab: TabId; params: string[] } {
-  const [tab, ...params] = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+  const [tab, ...params] = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(safeDecode);
   // Old links: the Theme Machine and Design Studio boxes merged into R&D Lab;
   // the Processes screen's processes now live on their workspace pages.
   if (tab === "themeMachine" || tab === "designStudio") return { tab: "rdLab", params: [] };
@@ -300,6 +295,7 @@ function App() {
             ))}
           </nav>
         )}
+        <ErrorBoundary>
         <Suspense fallback={<p className="muted" role="status">Loading…</p>}>
         {active === "home" && <StartPage />}
         {active === "argus" && route.params[0] === "new" && <ArgusNew preset={route.params[1] ?? null} />}
@@ -344,6 +340,7 @@ function App() {
         {active === "library" && <DataLibrary />}
         {active === "companies" && <Company companyRef={route.params[0]} />}
         </Suspense>
+        </ErrorBoundary>
       </main>
     </div>
   );

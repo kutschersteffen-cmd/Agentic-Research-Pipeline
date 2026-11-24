@@ -1,6 +1,7 @@
 import { getDefaultContext, instantiateNapiModule, WASI } from "@napi-rs/wasm-runtime";
 import wasmUrl from "@gorules/zen-engine-wasm32-wasi/zen-engine.wasm32-wasi.wasm?url";
 import type { RuleGraph } from "../types";
+import { wasmBytes } from "./wasmFetch";
 
 // The GoRules ZEN engine compiled to WebAssembly: the same 2.0.2 build the
 // backend scores with (backend/pyproject.toml pins it in lockstep), so a
@@ -52,7 +53,7 @@ async function instantiate(): Promise<ZenEngine> {
     throw new Error("the page is not cross-origin isolated (COOP/COEP headers missing), so the browser engine cannot start");
   }
   const memory = new WebAssembly.Memory({ initial: 1024, maximum: 16384, shared: true });
-  const bytes = await fetch(wasmUrl).then((response) => response.arrayBuffer());
+  const bytes = await wasmBytes(await fetch(wasmUrl));
   const { napiModule } = await instantiateNapiModule(bytes, {
     context: getDefaultContext(),
     asyncWorkPoolSize: 4,
