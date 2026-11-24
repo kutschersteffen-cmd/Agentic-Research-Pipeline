@@ -37,8 +37,10 @@ permissions:
 
 env:
   REGISTRY: ghcr.io/kutschersteffen-cmd
-  # A fork's PR gets a read-only token: build, never push.
-  PUSH: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+  # Publish only from main, a v* tag, or a PR from this repository. A fork's PR (read-only token) and a
+  # workflow_dispatch on any other branch build without pushing, so sha-<7> always names a main commit.
+  # The manifest job repeats this condition (env is not available in a job's if).
+  PUSH: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
 
 jobs:
   build:
@@ -88,6 +90,9 @@ jobs:
           outputs: type=image,name=${{ env.REGISTRY }}/${{ matrix.image }},push-by-digest=true,name-canonical=true,push=${{ env.PUSH }}
           cache-from: type=gha,scope=${{ matrix.key }}-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.key }}-${{ matrix.arch }}
+          # Images are public: keep the GitHub event (PR text, actor) out of their provenance. PR images get
+          # none, published ones the minimal record.
+          provenance: ${{ github.event_name == 'pull_request' && 'false' || 'mode=min' }}
 
       - name: Keep the digest for the manifest
         if: env.PUSH == 'true'
@@ -100,7 +105,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: env.PUSH == 'true'
         with:
-          name: digests-${{ matrix.key }}-${{ matrix.arch }}
+          name: digests-${{ matrix.key }}__${{ matrix.arch }}
           path: ${{ runner.temp }}/digests/*
           if-no-files-found: error
           retention-days: 1
@@ -108,7 +113,7 @@ jobs:
   manifest:
     name: Manifest ${{ matrix.key }}
     needs: build
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -122,7 +127,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: digests-${{ matrix.key }}-*
+          pattern: digests-${{ matrix.key }}__*
           path: ${{ runner.temp }}/digests
           merge-multiple: true
 
@@ -156,6 +161,15 @@ jobs:
             echo "::group::docker buildx imagetools inspect $IMAGE:$t$SUFFIX"
             docker buildx imagetools inspect "$IMAGE:$t$SUFFIX"
             echo "::endgroup::"
+          done
+          # Each platform exactly once per tag: a second linux/amd64 entry would make the pulled image
+          # depend on manifest order. Attestation entries (unknown/unknown) are left out.
+          for t in $tags; do
+            dupes=$(docker buildx imagetools inspect --raw "$IMAGE:$t$SUFFIX" \
+              | jq -r '.manifests[].platform | select(.os != "unknown") | "\(.os)/\(.architecture)\(if .variant then "/" + .variant else "" end)"' \
+              | sort | uniq -d)
+            if [ -n "$dupes" ]; then echo "::error::$IMAGE:$t$SUFFIX lists a platform twice: $dupes"; exit 1; fi
+            echo "$IMAGE:$t$SUFFIX: one manifest per platform"
           done
 
   smoke:
