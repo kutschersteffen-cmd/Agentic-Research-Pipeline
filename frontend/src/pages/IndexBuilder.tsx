@@ -18,6 +18,9 @@ import type {
   SelectionRule,
   TiltRule,
 } from "../types";
+import { specProblem } from "../lib/indexSpecCheck";
+import { DraftInput } from "../components/DraftInput";
+import { listText, multipliersText, parseList, parseMultipliers } from "../lib/draftInput";
 
 /**
  * Compose an index methodology out of named rules, save it as a versioned
@@ -89,19 +92,22 @@ function num(value: number | null | undefined, digits = 2): string {
   return value.toLocaleString(undefined, { maximumFractionDigits: digits });
 }
 
-/** A number input that keeps an empty box empty instead of coercing to 0. */
+/** A number input that keeps an empty box empty while it has focus; a `fallback` fills it when focus leaves. */
 function NumberField({
   label,
   value,
   onChange,
   step = "any",
   placeholder,
+  fallback,
 }: {
   label: string;
   value: number | null | undefined;
   onChange: (next: number | null) => void;
   step?: string;
   placeholder?: string;
+  /** What an empty field becomes when focus leaves it; without one it stays empty. */
+  fallback?: number;
 }) {
   return (
     <label className="field-label" style={{ flex: 1 }}>
@@ -112,6 +118,9 @@ function NumberField({
         placeholder={placeholder}
         value={value === null || value === undefined ? "" : value}
         onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+        onBlur={(e) => {
+          if (fallback !== undefined && e.target.value === "") onChange(fallback);
+        }}
       />
     </label>
   );
@@ -293,8 +302,9 @@ export function IndexBuilder() {
   }
 
   async function runReview(persist: boolean) {
-    if (spec.constraints.solver?.method === "max_score" && !spec.constraints.solver.score_field) {
-      setError("Choose the field to maximise under 5 · Constraints before running a max_score methodology.");
+    const problem = specProblem(spec);
+    if (problem) {
+      setError(problem);
       setSub("compose");
       return;
     }
@@ -650,18 +660,16 @@ function ScreensCard({
             <div className="inline-fields">
               <label className="field-label" style={{ flex: 1 }}>
                 Allow only (comma separated)
-                <input
-                  type="text"
-                  value={(screen.allow ?? []).join(", ")}
-                  onChange={(e) => update(i, { allow: e.target.value.split(",").map((v) => v.trim()).filter(Boolean) } as Partial<ScreenRule>)}
+                <DraftInput
+                  value={listText(screen.allow ?? [])}
+                  onText={(t) => update(i, { allow: parseList(t) } as Partial<ScreenRule>)}
                 />
               </label>
               <label className="field-label" style={{ flex: 1 }}>
                 Deny (comma separated)
-                <input
-                  type="text"
-                  value={(screen.deny ?? []).join(", ")}
-                  onChange={(e) => update(i, { deny: e.target.value.split(",").map((v) => v.trim()).filter(Boolean) } as Partial<ScreenRule>)}
+                <DraftInput
+                  value={listText(screen.deny ?? [])}
+                  onText={(t) => update(i, { deny: parseList(t) } as Partial<ScreenRule>)}
                 />
               </label>
             </div>
@@ -740,9 +748,9 @@ function SelectionCard({
       {selection.type === "best_in_class_coverage" && (
         <>
           <div className="inline-fields">
-            <NumberField label="Coverage target (0-1)" value={selection.target_pct} onChange={(v) => update({ target_pct: v })} step="0.01" />
+            <NumberField label="Coverage target (0-1)" value={selection.target_pct} onChange={(v) => update({ target_pct: v })} step="0.01" fallback={0.5} />
             <SelectField label="Measured by" value={selection.basis ?? "float_mcap"} options={["float_mcap", "count"]} onChange={(v) => update({ basis: v })} />
-            <NumberField label="Buffer (0-1)" value={selection.buffer_pct} onChange={(v) => update({ buffer_pct: v })} step="0.01" />
+            <NumberField label="Buffer (0-1)" value={selection.buffer_pct} onChange={(v) => update({ buffer_pct: v })} step="0.01" fallback={0} />
           </div>
           <p className="muted">
             The buffer is one-sided hysteresis: an incumbent just past the target stays in, a newcomer does not get in on
@@ -754,14 +762,14 @@ function SelectionCard({
       {selection.type === "absolute_threshold" && (
         <>
           <div className="inline-fields">
-            <NumberField label="Threshold" value={selection.threshold} onChange={(v) => update({ threshold: v ?? 0 })} />
+            <NumberField label="Threshold" value={selection.threshold} onChange={(v) => update({ threshold: v })} fallback={0} />
             <SelectField
               label="If a group is empty"
               value={selection.on_empty_group ?? "leave_empty"}
               options={["leave_empty", "fallback_relative", "block"]}
               onChange={(v) => update({ on_empty_group: v })}
             />
-            <NumberField label="Fallback coverage" value={selection.fallback_target_pct} onChange={(v) => update({ fallback_target_pct: v })} step="0.01" />
+            <NumberField label="Fallback coverage" value={selection.fallback_target_pct} onChange={(v) => update({ fallback_target_pct: v })} step="0.01" fallback={0.25} />
           </div>
           <p className="muted">
             An absolute bar can leave a whole sector empty where a relative rank never can, so the fallback is declared up
@@ -770,7 +778,7 @@ function SelectionCard({
         </>
       )}
 
-      {selection.type === "top_n" && <NumberField label="N per group" value={selection.n} onChange={(v) => update({ n: v ?? 1 })} step="1" />}
+      {selection.type === "top_n" && <NumberField label="N per group" value={selection.n} onChange={(v) => update({ n: v })} step="1" fallback={1} />}
     </div>
   );
 }
@@ -787,7 +795,11 @@ function WeightingCard({ spec, setSpec, fields }: { spec: ConstructionSpec; setS
           label="Scheme"
           value={spec.base_weighting.scheme}
           options={["free_float_mcap", "equal", "metric", "inverse_metric"]}
-          onChange={(scheme) => setSpec({ ...spec, base_weighting: { ...spec.base_weighting, scheme: scheme as never } })}
+          onChange={(scheme) => {
+            const withField = scheme === "metric" || scheme === "inverse_metric";
+            const field = withField && !spec.base_weighting.field ? fields.metrics[0] : spec.base_weighting.field;
+            setSpec({ ...spec, base_weighting: { ...spec.base_weighting, scheme: scheme as never, ...(field ? { field } : {}) } });
+          }}
         />
         {needsField && (
           <SelectField
@@ -869,15 +881,18 @@ function TiltsCard({
                   label="Normalisation"
                   value={tilt.normalisation ?? "max"}
                   options={["none", "max", "group_max", "rank_percentile", "zscore"]}
-                  onChange={(normalisation) => update(i, { normalisation })}
+                  onChange={(normalisation) => {
+                    const group = fields.categories.includes(tilt.group_by ?? "") ? tilt.group_by : fields.categories[0];
+                    update(i, normalisation === "group_max" && group ? { normalisation, group_by: group } : { normalisation });
+                  }}
                 />
                 {tilt.normalisation === "group_max" && (
-                  <SelectField label="Within" value={tilt.group_by ?? "sector"} options={fields.categories} onChange={(group_by) => update(i, { group_by })} />
+                  <SelectField label="Within" value={tilt.group_by ?? ""} options={fields.categories} onChange={(group_by) => update(i, { group_by })} />
                 )}
               </div>
               <div className="inline-fields">
-                <NumberField label="Floor multiplier" value={tilt.floor} onChange={(floor) => update(i, { floor })} step="0.05" />
-                <NumberField label="Ceiling multiplier" value={tilt.ceiling} onChange={(ceiling) => update(i, { ceiling })} step="0.05" />
+                <NumberField label="Floor multiplier" value={tilt.floor} onChange={(floor) => update(i, { floor })} step="0.05" fallback={0.5} />
+                <NumberField label="Ceiling multiplier" value={tilt.ceiling} onChange={(ceiling) => update(i, { ceiling })} step="0.05" fallback={2} />
               </div>
               <label className="checkbox-label">
                 <input type="checkbox" checked={tilt.higher_is_better !== false} onChange={(e) => update(i, { higher_is_better: e.target.checked })} />
@@ -889,21 +904,14 @@ function TiltsCard({
               <SelectField label="Category field" value={tilt.field} options={fields.categories} onChange={(field) => update(i, { field })} />
               <label className="field-label">
                 Multipliers, one &quot;value = factor&quot; per line
-                <textarea
+                <DraftInput
+                  multiline
                   rows={4}
-                  value={Object.entries(tilt.multipliers ?? {}).map(([k, v]) => `${k} = ${v}`).join("\n")}
-                  onChange={(e) => {
-                    const multipliers: Record<string, number> = {};
-                    for (const line of e.target.value.split("\n")) {
-                      const [key, value] = line.split("=");
-                      const factor = Number((value ?? "").trim());
-                      if (key?.trim() && Number.isFinite(factor) && factor > 0) multipliers[key.trim()] = factor;
-                    }
-                    update(i, { multipliers });
-                  }}
+                  value={multipliersText(tilt.multipliers ?? {})}
+                  onText={(t) => update(i, { multipliers: parseMultipliers(t) })}
                 />
               </label>
-              <NumberField label="Default multiplier" value={tilt.default_multiplier} onChange={(v) => update(i, { default_multiplier: v ?? 1 })} step="0.05" />
+              <NumberField label="Default multiplier" value={tilt.default_multiplier} onChange={(v) => update(i, { default_multiplier: v })} step="0.05" fallback={1} />
             </>
           )}
         </RuleShell>
@@ -992,7 +1000,8 @@ function ConstraintsCard({
             label="Max weight"
             value={cap.max_weight}
             step="0.01"
-            onChange={(max_weight) => update({ group_caps: c.group_caps.map((g, idx) => (idx === i ? { ...g, max_weight: max_weight ?? 0.4 } : g)) })}
+            fallback={0.4}
+            onChange={(max_weight) => update({ group_caps: c.group_caps.map((g, idx) => (idx === i ? { ...g, max_weight: max_weight as number } : g)) })}
           />
           <button className="link-button" onClick={() => update({ group_caps: c.group_caps.filter((_, idx) => idx !== i) })}>
             remove
@@ -1097,7 +1106,7 @@ function ConstraintsCard({
                   options={["SCIP", "HIGHS", "GUROBI", "MOSEK", "CPLEX"]}
                   onChange={(name) => setSolver({ mip_solver: name as ConstraintSolver["mip_solver"] })}
                 />
-                <NumberField label="Optimality gap" value={solver.mip_gap} step="0.0001" onChange={(v) => setSolver({ mip_gap: v ?? 0 })} />
+                <NumberField label="Optimality gap" value={solver.mip_gap} step="0.0001" fallback={0} onChange={(v) => setSolver({ mip_gap: v as number })} />
                 <NumberField
                   label="Time limit (s)"
                   value={solver.mip_time_limit_seconds}
@@ -1153,29 +1162,23 @@ function ConstraintsCard({
                   label="Lookback periods"
                   value={solver.risk_model.lookback_periods}
                   step="10"
-                  onChange={(v) => setSolver({ risk_model: { ...solver.risk_model, lookback_periods: v ?? 260 } })}
+                  fallback={260}
+                  onChange={(v) => setSolver({ risk_model: { ...solver.risk_model, lookback_periods: v as number } })}
                 />
                 <NumberField
                   label="Periods per year"
                   value={solver.risk_model.periods_per_year}
                   step="1"
-                  onChange={(v) => setSolver({ risk_model: { ...solver.risk_model, periods_per_year: v ?? 252 } })}
+                  fallback={252}
+                  onChange={(v) => setSolver({ risk_model: { ...solver.risk_model, periods_per_year: v as number } })}
                 />
               </div>
               {solver.risk_model.source === "factor" && (
                 <label className="field-label">
                   Factor fields (comma separated) — numeric fields are standardised, categorical ones become dummies
-                  <input
-                    type="text"
-                    value={solver.risk_model.factor_fields.join(", ")}
-                    onChange={(e) =>
-                      setSolver({
-                        risk_model: {
-                          ...solver.risk_model,
-                          factor_fields: e.target.value.split(",").map((v) => v.trim()).filter(Boolean),
-                        },
-                      })
-                    }
+                  <DraftInput
+                    value={listText(solver.risk_model.factor_fields)}
+                    onText={(t) => setSolver({ risk_model: { ...solver.risk_model, factor_fields: parseList(t) } })}
                   />
                 </label>
               )}
@@ -1215,7 +1218,7 @@ function TrajectoryCard({ spec, setSpec, fields }: { spec: ConstructionSpec; set
         <>
           <div className="inline-fields">
             <SelectField label="Metric" value={t.metric_field} options={fields.metrics} onChange={(metric_field) => update({ metric_field })} />
-            <NumberField label="Annual reduction (0-1)" value={t.annual_reduction_rate} onChange={(v) => update({ annual_reduction_rate: v ?? 0.07 })} step="0.005" />
+            <NumberField label="Annual reduction (0-1)" value={t.annual_reduction_rate} onChange={(v) => update({ annual_reduction_rate: v as number })} step="0.005" fallback={0.07} />
             <NumberField
               label="Reduction vs. universe (0-1)"
               value={t.universe_reduction_pct}
@@ -1277,6 +1280,11 @@ function CalibrationsTab({
   }, [loaded]);
 
   async function save(asNewVersion: boolean) {
+    const problem = specProblem(spec);
+    if (problem) {
+      setError(problem);
+      return;
+    }
     setError(null);
     const body = {
       name: asNewVersion ? (loaded?.name ?? name) : name,
@@ -1304,6 +1312,7 @@ function CalibrationsTab({
     try {
       await api.approveIndexCalibration(v.calibration_id);
       setVersions(await api.listIndexCalibrationVersions(v.calibration_id));
+      refresh();
       setStatus(`Approved ${v.name} v${v.version}.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

@@ -100,9 +100,10 @@ const ownItems = (rows: ArgusRow[], items: ReviewItem[]) => {
 export function waiting(rows: ArgusRow[], items: ReviewItem[]): { total: number; groups: { label: string; count: number }[] } {
   const own = ownItems(rows, items);
   const docs = own.filter((i) => i.kind === "quarantined_document").length;
+  const conflicts = own.filter((i) => i.kind === "conflict").length;
   const groups = [
-    { label: "Conflicts", count: 0 }, // shortcut: conflicts arrive with the data rule in slice 7
-    { label: "Values to review", count: own.length - docs },
+    { label: "Conflicts", count: conflicts },
+    { label: "Values to review", count: own.length - docs - conflicts },
     { label: "Documents to check", count: docs },
     { label: "Errors", count: rows.filter((r) => r.status === "Failed").length },
   ].filter((g) => g.count > 0);

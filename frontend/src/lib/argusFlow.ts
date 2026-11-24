@@ -9,6 +9,21 @@ import { rowWalkthroughHref } from "./walkthrough.ts";
 
 // An Argus flow (#/argus/<flow_id>/<step>): step 1's text, as the spec writes it.
 
+/** The review a kept company's run opens in: its profile's review, else the extraction review. */
+export const flowReviewHref = (choice: { kind: string; profile?: string } | null | undefined, runId: string) =>
+  `#/review/${choice?.kind === "profile" && (choice.profile === "financials" || choice.profile === "tnfd") ? choice.profile : "extraction"}/${encodeURIComponent(runId)}`;
+
+/** Reads every id; one that fails is listed in `failed` and the rest still load. Never rejects. */
+export async function readEach<T>(ids: string[], read: (id: string) => Promise<T>): Promise<{ loaded: { runId: string; value: T }[]; failed: string[] }> {
+  const results = await Promise.allSettled(ids.map(read));
+  const loaded: { runId: string; value: T }[] = [];
+  const failed: string[] = [];
+  results.forEach((r, i) => (r.status === "fulfilled" ? loaded.push({ runId: ids[i], value: r.value }) : failed.push(ids[i])));
+  return { loaded, failed };
+}
+
+export const earlierFailedLine = (runId: string) => `Earlier results of ${runId} could not be loaded.`;
+
 export const flowHref = (flowId: string, step: number) => `#/argus/${flowId}/${step}`;
 
 export const extractedBeforeText = (p: PriorRun | null) =>

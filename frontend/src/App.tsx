@@ -8,7 +8,7 @@ import { WORKSPACES, workspaceOfProcess, type WorkspaceId } from "./lib/processe
 import { STAGE_TABS } from "./pages/steward/common";
 import { SUB_TABS as RISK_TABS } from "./lib/subTabs";
 import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
-import { ctrlJTarget, type Selection } from "./lib/agent";
+import { ctrlJTarget, rfpId, type Selection } from "./lib/agent";
 import { useMe } from "./lib/reviewer";
 import { AppTopbar } from "./components/AppTopbar";
 import { WorkspaceRow } from "./components/WorkspaceRow";
@@ -173,6 +173,7 @@ function App() {
       if (window.location.hash !== shownHash.current && !canLeave()) {
         // hashchange cannot be cancelled; replaceState restores the URL without firing it again.
         history.replaceState(null, "", shownHash.current || "#");
+        setAgentAsk(null); // a refused move to the Agent screen must not leave its question queued
         return;
       }
       shownHash.current = window.location.hash;
@@ -338,7 +339,7 @@ function App() {
         {active === "decision" && <DecisionStudio key={route.params.join("/")} initialSource={route.params[0]} initialRunId={route.params[1]} />}
         {active === "index" && <IndexBuilder />}
         {active === "argusWalkthrough" && <ArgusWalkthrough key={route.params.join("/")} params={route.params} />}
-        {active === "rfp" && <RfpAnswers projectId={route.params[0] ? Number(route.params[0]) : null} onOpen={(id) => (id === null ? navigate("rfp") : navigate("rfp", String(id)))} />}
+        {active === "rfp" && <RfpAnswers projectId={rfpId(route.params[0])} onOpen={(id) => (id === null ? navigate("rfp") : navigate("rfp", String(id)))} />}
         {active === "xbrl" && <XbrlFacts selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("xbrl", id)} />}
         {active === "library" && <DataLibrary />}
         {active === "companies" && <Company companyRef={route.params[0]} />}
