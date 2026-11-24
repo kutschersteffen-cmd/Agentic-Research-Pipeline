@@ -60,7 +60,10 @@ async def raw_upload(file: UploadFile, settings: Settings = Depends(settings_dep
     dest_dir = settings.runs_dir / "_universes"
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest_path = dest_dir / f"_raw_{safe_name}"
-    dest_path.write_bytes(await file.read())
+    data = await file.read(settings.max_upload_bytes + 1)
+    if len(data) > settings.max_upload_bytes:
+        raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
+    dest_path.write_bytes(data)
     return {"path": str(dest_path)}
 
 

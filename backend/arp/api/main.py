@@ -26,6 +26,7 @@ from arp.api.deps import (
     get_taxonomy_researcher_scheduler,
     settings_dep,
 )
+from arp.api.request_limit import RequestSizeLimit
 from arp.api.routers import (
     agent,
     agent_board,
@@ -168,6 +169,9 @@ app = FastAPI(title="Agentic Research Pipeline", version="0.1.0", lifespan=lifes
 # Host check for every route: a host check, not auth. Stops
 # DNS rebinding from turning a foreign site into a loopback "dev" caller.
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings_dep().trusted_hosts)
+
+# Whole-request size limit: inside CORS (the browser can read the 413), before sign-in and any body read.
+app.add_middleware(RequestSizeLimit)
 
 app.add_middleware(
     CORSMiddleware,
