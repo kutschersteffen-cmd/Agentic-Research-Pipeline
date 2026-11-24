@@ -36,8 +36,8 @@ LISTED = {
     ("POST /api/themes/runs", "revenue_catalogue_path"): "runs/_universes (uploaded catalogue)",
     INSTANTIATE: UNIVERSES + " or a saved universe's file name",
     ("POST /api/authority-taxonomy/runs/{run_id}/sources", "files"): "documents_dir",
-    ("POST /api/replication/specs/{spec_run_id}/backtest", "prices_ref"): "unconfined until slice 5",
-    ("POST /api/replication/specs/{spec_run_id}/backtest", "characteristics_refs"): "unconfined until slice 5",
+    ("POST /api/replication/specs/{spec_run_id}/backtest", "prices_ref"): "the spec's own uploads in its run folder, by file name",
+    ("POST /api/replication/specs/{spec_run_id}/backtest", "characteristics_refs"): "the spec's own uploads in its run folder, by file name",
     ("POST /api/rfp/library/import", "files"): "not a server path: the uploaded file parts",
     ("POST /api/engagement/records/{company_id}/issues/{issue_id}/log-outreach-sent", "doc_ref"):
         "not a server path: a label stored with the log entry, never opened",

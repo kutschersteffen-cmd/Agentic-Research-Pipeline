@@ -4738,7 +4738,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Upload Characteristics Dataset */
+        /**
+         * Upload Characteristics Dataset
+         * @description `name` may hold `/` ("B/M"); only the stored file name is slugged, the name itself is not changed.
+         */
         post: operations["upload_characteristics_dataset_api_replication_specs__spec_run_id__datasets_characteristics__name__post"];
         delete?: never;
         options?: never;
@@ -10267,7 +10270,7 @@ export interface components {
             benchmark?: string | null;
             /**
              * Characteristics Refs
-             * @description characteristic_name -> path returned by POST .../datasets/characteristics/{name}.
+             * @description characteristic_name -> file name returned by POST .../datasets/characteristics/{name}.
              */
             characteristics_refs?: {
                 [key: string]: string;
@@ -10283,7 +10286,7 @@ export interface components {
             price_kind: string;
             /**
              * Prices Ref
-             * @description Path returned by POST .../datasets/prices.
+             * @description File name returned by POST .../datasets/prices.
              */
             prices_ref: string;
             /** Tickers */
@@ -12926,6 +12929,25 @@ export interface components {
             source: string;
             /** Source Ref */
             source_ref?: string | null;
+        };
+        /** DatasetUploadResponse */
+        DatasetUploadResponse: {
+            /** First Date */
+            first_date: string;
+            /** Last Date */
+            last_date: string;
+            /**
+             * Ref
+             * @description Stored file name; pass it back as prices_ref or a characteristics_refs value.
+             */
+            ref: string;
+            /** Rows */
+            rows: number;
+            /**
+             * Tickers
+             * @description The header's ticker names, in file order.
+             */
+            tickers: string[];
         };
         /**
          * DecarbonisationTrajectory
@@ -30457,9 +30479,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DatasetUploadResponse"];
                 };
             };
             /** @description Validation Error */
@@ -30494,9 +30514,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DatasetUploadResponse"];
                 };
             };
             /** @description Validation Error */

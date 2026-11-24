@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
@@ -12,6 +13,7 @@ from arp.discovery.academic_search import ArxivSearchClient, CompositeSearchClie
 from arp.discovery.site_finder import build_web_search_client
 from arp.llm.base import LLMClient
 from arp.orchestration.review_queue import decision_history, latest_decisions, record_review_decision
+from arp.replication._wide_csv import check_wide_csv
 from arp.replication.characteristics_data import CsvCharacteristicSource
 from arp.replication.paper_discovery import discover_candidate_papers, rank_candidate_papers
 from arp.replication.pipeline import run_replication
@@ -58,12 +60,25 @@ class ApproveSpecRequest(BaseModel):
 
 class BacktestRequest(BaseModel):
     tickers: list[str]
-    prices_ref: str = Field(description="Path returned by POST .../datasets/prices.")
-    characteristics_refs: dict[str, str] = Field(default_factory=dict, description="characteristic_name -> path returned by POST .../datasets/characteristics/{name}.")
+    prices_ref: str = Field(description="File name returned by POST .../datasets/prices.")
+    characteristics_refs: dict[str, str] = Field(default_factory=dict, description="characteristic_name -> file name returned by POST .../datasets/characteristics/{name}.")
     price_kind: str = "price"
     benchmark: str | None = None
     out_of_sample_start: str | None = None
     out_of_sample_end: str | None = None
+
+
+class DatasetUploadResponse(BaseModel):
+    ref: str = Field(description="Stored file name; pass it back as prices_ref or a characteristics_refs value.")
+    tickers: list[str] = Field(description="The header's ticker names, in file order.")
+    rows: int
+    first_date: str
+    last_date: str
+
+
+_MAX_CHARACTERISTIC_NAME = 100
+_PRICES_FILE = "prices.csv"
+_CHARACTERISTICS_FILE = re.compile(rf"characteristics_[A-Za-z0-9_-]{{1,{_MAX_CHARACTERISTIC_NAME}}}\.csv")
 
 
 def _spec_run_or_404(run_store: RunStore, spec_run_id: str) -> RunManifest:
@@ -224,22 +239,48 @@ def approve_spec_draft(
 # ---- Stage C: datasets, backtest, results ------------------------------------
 
 
-@router.post("/specs/{spec_run_id}/datasets/prices")
-async def upload_price_dataset(spec_run_id: str, file: UploadFile, run_store: RunStore = Depends(get_run_store)) -> dict:
+async def _store_dataset(run_store: RunStore, spec_run_id: str, file_name: str, file: UploadFile, max_bytes: int) -> DatasetUploadResponse:
+    """Size cap, then content check, then write: a refused upload leaves an earlier file as it was."""
+    data = await file.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise HTTPException(413, f"File is larger than the {max_bytes // 1_000_000} MB upload limit.")
+    try:
+        summary = check_wide_csv(data)
+    except ValueError as exc:
+        raise HTTPException(400, f"Not a usable CSV: {exc}") from exc
+    (run_store.run_dir(spec_run_id) / file_name).write_bytes(data)
+    return DatasetUploadResponse(ref=file_name, **vars(summary))
+
+
+@router.post("/specs/{spec_run_id}/datasets/prices", response_model=DatasetUploadResponse)
+async def upload_price_dataset(
+    spec_run_id: str, file: UploadFile, run_store: RunStore = Depends(get_run_store), settings: Settings = Depends(settings_dep)
+) -> DatasetUploadResponse:
     _spec_run_or_404(run_store, spec_run_id)
-    dest = run_store.run_dir(spec_run_id) / "prices.csv"
-    dest.write_bytes(await file.read())
-    return {"ref": str(dest)}
+    return await _store_dataset(run_store, spec_run_id, _PRICES_FILE, file, settings.max_upload_bytes)
 
 
-@router.post("/specs/{spec_run_id}/datasets/characteristics/{name}")
+@router.post("/specs/{spec_run_id}/datasets/characteristics/{name:path}", response_model=DatasetUploadResponse)
 async def upload_characteristics_dataset(
-    spec_run_id: str, name: str, file: UploadFile, run_store: RunStore = Depends(get_run_store)
-) -> dict:
+    spec_run_id: str, name: str, file: UploadFile, run_store: RunStore = Depends(get_run_store), settings: Settings = Depends(settings_dep)
+) -> DatasetUploadResponse:
+    """`name` may hold `/` ("B/M"); only the stored file name is slugged, the name itself is not changed."""
     _spec_run_or_404(run_store, spec_run_id)
-    dest = run_store.run_dir(spec_run_id) / f"characteristics_{name}.csv"
-    dest.write_bytes(await file.read())
-    return {"ref": str(dest)}
+    if not name:
+        raise HTTPException(400, "Characteristic name is empty.")
+    if len(name) > _MAX_CHARACTERISTIC_NAME:
+        raise HTTPException(400, f"Characteristic name is longer than {_MAX_CHARACTERISTIC_NAME} characters.")
+    slug = re.sub(r"[^A-Za-z0-9_-]", "_", name)
+    return await _store_dataset(run_store, spec_run_id, f"characteristics_{slug}.csv", file, settings.max_upload_bytes)
+
+
+def _data_file(run_dir: Path, ref: str) -> Path:
+    """The spec's own uploaded file named by `ref`; anything else is the same 400, so a caller learns nothing about the server's files."""
+    if ref == _PRICES_FILE or _CHARACTERISTICS_FILE.fullmatch(ref):
+        path = run_dir / ref
+        if path.is_file():
+            return path
+    raise HTTPException(400, f"Data file not found: {ref.rsplit('/', 1)[-1]}")
 
 
 @router.post("/specs/{spec_run_id}/backtest")
@@ -252,8 +293,9 @@ def run_backtest_from_spec(spec_run_id: str, req: BacktestRequest, run_store: Ru
     if not _is_approved(run_store, spec_run_id):
         raise HTTPException(403, "Spec is not approved -- approve it before running a backtest.")
     spec = _current_spec(run_store, spec_run_id)
-    price_source = CsvPriceSource(Path(req.prices_ref), kind=req.price_kind)
-    characteristics_sources = {name: CsvCharacteristicSource(Path(ref)) for name, ref in req.characteristics_refs.items()}
+    run_dir = run_store.run_dir(spec_run_id)
+    price_source = CsvPriceSource(_data_file(run_dir, req.prices_ref), kind=req.price_kind)
+    characteristics_sources = {name: CsvCharacteristicSource(_data_file(run_dir, ref)) for name, ref in req.characteristics_refs.items()}
     try:
         run_id, report = run_replication(
             spec,
@@ -266,7 +308,8 @@ def run_backtest_from_spec(spec_run_id: str, req: BacktestRequest, run_store: Ru
             out_of_sample_end=req.out_of_sample_end,
         )
     except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
+        # The sources name a file by its full path; the screen only ever sees the file name.
+        raise HTTPException(400, str(exc).replace(f"{run_dir}/", "")) from exc
     return {"run_id": run_id, "verdict": report.verdict.value}
 
 
