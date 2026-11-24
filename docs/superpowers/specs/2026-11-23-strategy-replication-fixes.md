@@ -1,6 +1,6 @@
 # Strategy Replication fixes: approve works, edits survive, data files are checked
 
-Status: **draft, waiting for the owner's approval**
+Status: **approved by the owner on 24 Nov 2026** (button in the spec session, after two spec-critic rounds; decisions D1 and D2 as recommended).
 Slug: `strategy-replication-fixes`
 Risk: this spec PR is `risk:low`. The build is 3 PRs, each `risk:normal` (no `risk:high` path is touched).
 Size: M, delivered as three slices of size S (see `## Slices`).
