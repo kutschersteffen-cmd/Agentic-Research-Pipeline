@@ -2,9 +2,11 @@ import { useState } from "react";
 import { api } from "../api/client";
 import { LineChart, type LineSeries } from "../components/LineChart";
 import { BarChart, type BarDatum } from "../components/BarChart";
+import { drawdownDepthSeries, tickersAfterUpload, uploadErrorText, uploadSummary } from "../lib/replication";
 import type {
   BacktestResult,
   PaperCandidate,
+  ReplicationDatasetUpload,
   ReplicationRunDetail,
   SpecReviewState,
   StrategySpec,
@@ -20,20 +22,6 @@ function cumulativeIndex(periods: BacktestResult["periods"], field: "long_return
   return periods.map((p) => {
     level = level * (1 + p[field] / 100);
     return level;
-  });
-}
-
-/** Drawdown DEPTH (always >= 0, 0 = at a new high) rather than signed
- * drawdown -- LineChart assumes a non-negative 0-based magnitude scale
- * (every other caller only ever charts positive metrics like WACI or
- * emissions); feeding it negative values breaks its y-axis scaling
- * entirely. A bigger depth number still reads as "worse", same as a
- * signed drawdown would, just flipped to fit the chart's actual scale. */
-function drawdownDepthSeries(index: number[]): number[] {
-  let runningMax = -Infinity;
-  return index.map((v) => {
-    runningMax = Math.max(runningMax, v);
-    return (1 - v / runningMax) * 100;
   });
 }
 
@@ -336,18 +324,58 @@ function BacktestStage({ specRunId, spec }: { specRunId: string; spec: StrategyS
   const [detail, setDetail] = useState<ReplicationRunDetail | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [pricesStatus, setPricesStatus] = useState("");
+  const [pricesError, setPricesError] = useState<string | null>(null);
+  const [charStatus, setCharStatus] = useState("");
+  const [charError, setCharError] = useState<string | null>(null);
 
   const tickerList = tickers.split(/[\s,]+/).map((t) => t.trim()).filter(Boolean);
 
-  async function uploadPrices(file: File) {
-    const res = await api.uploadPriceDataset(specRunId, file);
-    setPricesRef(res.ref);
+  /** One upload: status line while it runs, summary or alert after, file input cleared either way. */
+  async function upload(
+    input: HTMLInputElement,
+    file: File,
+    send: () => Promise<ReplicationDatasetUpload>,
+    ui: { setStatus: (s: string) => void; setError: (s: string | null) => void; setRef: (r: string | null) => void },
+    onDone?: (res: ReplicationDatasetUpload) => void,
+  ) {
+    setUploading(true);
+    ui.setError(null);
+    ui.setStatus(`Uploading ${file.name}…`);
+    try {
+      const res = await send();
+      ui.setRef(res.ref);
+      ui.setStatus(uploadSummary(file.name, res));
+      onDone?.(res);
+    } catch (err) {
+      ui.setRef(null);
+      ui.setStatus("");
+      ui.setError(uploadErrorText(err));
+    } finally {
+      setUploading(false);
+      input.value = "";
+    }
   }
 
-  async function uploadCharacteristics(file: File) {
-    if (!spec.characteristic_name) return;
-    const res = await api.uploadCharacteristicsDataset(specRunId, spec.characteristic_name, file);
-    setCharacteristicsRef(res.ref);
+  function uploadPrices(input: HTMLInputElement, file: File) {
+    return upload(
+      input,
+      file,
+      () => api.uploadPriceDataset(specRunId, file),
+      { setStatus: setPricesStatus, setError: setPricesError, setRef: setPricesRef },
+      (res) => setTickers((cur) => tickersAfterUpload(cur, res.tickers)),
+    );
+  }
+
+  function uploadCharacteristics(input: HTMLInputElement, file: File) {
+    const name = spec.characteristic_name;
+    if (!name) return Promise.resolve();
+    return upload(input, file, () => api.uploadCharacteristicsDataset(specRunId, name, file), {
+      setStatus: setCharStatus,
+      setError: setCharError,
+      setRef: setCharacteristicsRef,
+    });
   }
 
   async function runBacktest() {
@@ -417,17 +445,37 @@ function BacktestStage({ specRunId, spec }: { specRunId: string; spec: StrategyS
 
       <label className="field-label">
         Price panel CSV (date column + one column per ticker)
-        <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && uploadPrices(e.target.files[0])} />
+        <input
+          type="file"
+          accept=".csv"
+          disabled={uploading}
+          onChange={(e) => {
+            const input = e.currentTarget;
+            const file = input.files?.[0];
+            if (file) void uploadPrices(input, file);
+          }}
+        />
       </label>
-      {pricesRef && <p className="muted">Uploaded.</p>}
+      <p className="muted" data-upload-status="prices" aria-live="polite">{pricesStatus}</p>
+      {pricesError && <p className="error-text" role="alert" data-upload-error="prices">{pricesError}</p>}
 
       {spec.characteristic_name && (
         <>
           <label className="field-label">
             {spec.characteristic_name} characteristics CSV
-            <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && uploadCharacteristics(e.target.files[0])} />
+            <input
+              type="file"
+              accept=".csv"
+              disabled={uploading}
+              onChange={(e) => {
+                const input = e.currentTarget;
+                const file = input.files?.[0];
+                if (file) void uploadCharacteristics(input, file);
+              }}
+            />
           </label>
-          {characteristicsRef && <p className="muted">Uploaded.</p>}
+          <p className="muted" data-upload-status="characteristics" aria-live="polite">{charStatus}</p>
+          {charError && <p className="error-text" role="alert" data-upload-error="characteristics">{charError}</p>}
         </>
       )}
 
@@ -436,7 +484,7 @@ function BacktestStage({ specRunId, spec }: { specRunId: string; spec: StrategyS
         <input aria-label="Out-of-sample start (optional)" value={oosStart} onChange={(e) => setOosStart(e.target.value)} placeholder="Out-of-sample start (optional)" />
         <input aria-label="Out-of-sample end (optional)" value={oosEnd} onChange={(e) => setOosEnd(e.target.value)} placeholder="Out-of-sample end (optional)" />
       </div>
-      <button onClick={runBacktest} disabled={busy || !pricesRef || tickerList.length === 0}>
+      <button onClick={runBacktest} disabled={busy || uploading || !pricesRef || tickerList.length === 0}>
         Run backtest
       </button>
       {error && <p className="error-text" role="alert">{error}</p>}
@@ -599,9 +647,17 @@ function ResultsView({
 
 export function StrategyReplication() {
   const [specState, setSpecState] = useState<SpecReviewState | null>(null);
+  // Bumped every time a spec is loaded or drafted, so the review part starts from the answer even for the id already shown.
+  const [loadSeq, setLoadSeq] = useState(0);
 
   function onSpecCreated(id: string, spec: StrategySpec) {
     setSpecState({ spec_run_id: id, spec, approved: false, history: [] });
+    setLoadSeq((n) => n + 1);
+  }
+
+  function onSpecLoaded(state: SpecReviewState) {
+    setSpecState(state);
+    setLoadSeq((n) => n + 1);
   }
 
   return (
@@ -609,17 +665,18 @@ export function StrategyReplication() {
       <h1>Strategy Replication</h1>
       <p className="help-text">Propose a strategy from a paper or your own description, approve its spec sheet, then backtest it. Nothing runs on real data until you approve the spec.</p>
 
-      <ProposeStage onSpecCreated={onSpecCreated} onSpecLoaded={setSpecState} />
+      <ProposeStage onSpecCreated={onSpecCreated} onSpecLoaded={onSpecLoaded} />
 
       {specState && (
         <ReviewStage
+          key={`${specState.spec_run_id}:${loadSeq}`}
           specRunId={specState.spec_run_id}
           state={specState}
           onRefresh={setSpecState}
         />
       )}
 
-      {specState?.approved && <BacktestStage specRunId={specState.spec_run_id} spec={specState.spec} />}
+      {specState?.approved && <BacktestStage key={specState.spec_run_id} specRunId={specState.spec_run_id} spec={specState.spec} />}
     </div>
   );
 }
