@@ -162,7 +162,7 @@ import type { DecisionInput, DocType, DocumentPassages, PublishedDecision, Readi
 import { formatValidationErrors } from "../lib/projects";
 import type { BIChartPlan, BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
 import type { Finding, QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, Storyline, TemplateStyleProfile } from "../types";
-import type { PaperCandidate, ReplicationRunDetail, RegimeStratifiedReport, SanityCheckAssessment, SpecReviewState, StrategySpec } from "../types";
+import type { PaperCandidate, ReplicationDatasetUpload, ReplicationRunDetail, RegimeStratifiedReport, SanityCheckAssessment, SpecReviewState, StrategySpec } from "../types";
 import type {
   BarrierCriterionDetail,
   BarrierMatrix,
@@ -1258,7 +1258,7 @@ export const api = {
   uploadPriceDataset: (specRunId: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
-    return request<{ ref: string }>(`/api/replication/specs/${encodeURIComponent(specRunId)}/datasets/prices`, {
+    return request<ReplicationDatasetUpload>(`/api/replication/specs/${encodeURIComponent(specRunId)}/datasets/prices`, {
       method: "POST",
       headers: {},
       body: form,
@@ -1267,7 +1267,7 @@ export const api = {
   uploadCharacteristicsDataset: (specRunId: string, name: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
-    return request<{ ref: string }>(
+    return request<ReplicationDatasetUpload>(
       `/api/replication/specs/${encodeURIComponent(specRunId)}/datasets/characteristics/${encodeURIComponent(name)}`,
       { method: "POST", headers: {}, body: form }
     );

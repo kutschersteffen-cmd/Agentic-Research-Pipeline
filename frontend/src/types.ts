@@ -1416,6 +1416,7 @@ export interface ProvenanceInfo {
 }
 
 export type StrategySpec = Served<S["StrategySpec"]>;
+export type ReplicationDatasetUpload = Served<S["DatasetUploadResponse"]>;
 
 export interface SpecReviewDecision {
   item_key: string;

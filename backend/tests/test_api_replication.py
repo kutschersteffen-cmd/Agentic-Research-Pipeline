@@ -1,9 +1,14 @@
 import csv
+import io
 import random
 
 import pytest
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi.testclient import TestClient
 
+from arp.api import deps
+from arp.api.auth import current_user
+from arp.api.routers import replication
 from arp.api.routers.replication import (
     ApproveSpecRequest,
     BacktestRequest,
@@ -18,7 +23,10 @@ from arp.api.routers.replication import (
     trigger_regime_report,
     trigger_sanity_check,
     update_spec_draft,
+    upload_characteristics_dataset,
+    upload_price_dataset,
 )
+from arp.config import Settings
 from arp.replication.spec_extractor_agent import StrategySpecDraft
 from arp.replication.spec_revision import _current_revision_draft
 from arp.replication.spec_verifier_agent import SpecVerifierOutput
@@ -157,17 +165,27 @@ def _write_price_csv(path, n_months=48, seed=11):
     return tickers
 
 
+def _upload_file(data: bytes) -> UploadFile:
+    return UploadFile(file=io.BytesIO(data), filename="f.csv")
+
+
+async def _upload_prices(run_store, spec_run_id, tmp_path):
+    prices_path = tmp_path / "p48.csv"
+    tickers = _write_price_csv(prices_path)
+    upload = await upload_price_dataset(spec_run_id, _upload_file(prices_path.read_bytes()), run_store=run_store, settings=_settings())
+    return tickers, upload
+
+
 async def test_full_flow_backtest_then_results_then_regime_report(tmp_path, fake_llm):
     run_store = _run_store(tmp_path)
     spec_run_id = await _drafted_spec_run_id(run_store, fake_llm)
     approve_spec_draft(spec_run_id, ApproveSpecRequest(), run_store=run_store, principal=PRINCIPAL)
 
-    prices_path = tmp_path / "prices.csv"
-    tickers = _write_price_csv(prices_path)
+    tickers, upload = await _upload_prices(run_store, spec_run_id, tmp_path)
 
     result = run_backtest_from_spec(
         spec_run_id,
-        BacktestRequest(tickers=tickers, prices_ref=str(prices_path), out_of_sample_start=None, out_of_sample_end=None),
+        BacktestRequest(tickers=tickers, prices_ref=upload.ref, out_of_sample_start=None, out_of_sample_end=None),
         run_store=run_store,
     )
     run_id = result["run_id"]
@@ -197,9 +215,8 @@ async def test_trigger_sanity_check_appends_and_is_returned_on_next_fetch(tmp_pa
     run_store = _run_store(tmp_path)
     spec_run_id = await _drafted_spec_run_id(run_store, fake_llm)
     approve_spec_draft(spec_run_id, ApproveSpecRequest(), run_store=run_store, principal=PRINCIPAL)
-    prices_path = tmp_path / "prices.csv"
-    tickers = _write_price_csv(prices_path)
-    result = run_backtest_from_spec(spec_run_id, BacktestRequest(tickers=tickers, prices_ref=str(prices_path)), run_store=run_store)
+    tickers, upload = await _upload_prices(run_store, spec_run_id, tmp_path)
+    result = run_backtest_from_spec(spec_run_id, BacktestRequest(tickers=tickers, prices_ref=upload.ref), run_store=run_store)
     run_id = result["run_id"]
 
     assessment = SanityCheckAssessment(plausible=True, findings=[], summary="Looks fine.")
@@ -226,3 +243,179 @@ async def test_approve_keeps_the_latest_edit(tmp_path, fake_llm):
     state = get_spec_draft(spec_run_id, run_store=run_store)
     assert state["spec"]["holding_period_months"] == 12 and state["approved"] is True
     assert len(state["history"]) == 3
+
+
+async def _approved(run_store, fake_llm) -> str:
+    spec_run_id = await _drafted_spec_run_id(run_store, fake_llm)
+    approve_spec_draft(spec_run_id, None, run_store=run_store, principal=PRINCIPAL)
+    return spec_run_id
+
+
+def _small_cap() -> Settings:
+    return Settings(max_upload_bytes=1_000_000)
+
+
+def _padded_price_csv(size: int) -> bytes:
+    """A valid price file of exactly `size` bytes: two rows, then empty lines."""
+    head = b"date,T0\n1965-01-01,1.5\n1965-02-01,1.6\n"
+    return head + b"\n" * (size - len(head))
+
+
+async def test_upload_over_the_cap_is_413_for_both_routes(tmp_path, fake_llm):
+    run_store = _run_store(tmp_path)
+    spec_run_id = await _drafted_spec_run_id(run_store, fake_llm)
+    big = b"x" * 1_000_001
+    for call in (
+        lambda: upload_price_dataset(spec_run_id, _upload_file(big), run_store=run_store, settings=_small_cap()),
+        lambda: upload_characteristics_dataset(spec_run_id, "x", _upload_file(big), run_store=run_store, settings=_small_cap()),
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            await call()
+        assert exc_info.value.status_code == 413
+        assert exc_info.value.detail == "File is larger than the 1 MB upload limit."
+
+
+async def test_upload_of_exactly_the_cap_is_accepted(tmp_path, fake_llm):
+    run_store = _run_store(tmp_path)
+    spec_run_id = await _drafted_spec_run_id(run_store, fake_llm)
+    data = _padded_price_csv(1_000_000)
+    assert len(data) == 1_000_000
+    upload = await upload_price_dataset(spec_run_id, _upload_file(data), run_store=run_store, settings=_small_cap())
+    assert upload.ref == "prices.csv" and upload.rows == 2
+
+
+async def test_refused_upload_keeps_the_earlier_file(tmp_path, fake_llm):
+    run_store = _run_store(tmp_path)
+    spec_run_id = await _approved(run_store, fake_llm)
+    tickers, first = await _upload_prices(run_store, spec_run_id, tmp_path)
+    with pytest.raises(HTTPException) as too_big:
+        await upload_price_dataset(spec_run_id, _upload_file(b"x" * 1_000_001), run_store=run_store, settings=_small_cap())
+    assert too_big.value.status_code == 413
+    with pytest.raises(HTTPException) as bad:
+        await upload_price_dataset(spec_run_id, _upload_file(b"date,T0\n1965-01-01,1.5\n1965-02-01,abc\n"), run_store=run_store, settings=_settings())
+    assert bad.value.status_code == 400
+    result = run_backtest_from_spec(spec_run_id, BacktestRequest(tickers=tickers, prices_ref=first.ref), run_store=run_store)
+    assert "run_id" in result
+
+
+async def test_upload_answers_the_file_name_and_what_it_holds(tmp_path, fake_llm):
+    run_store = _run_store(tmp_path)
+    spec_run_id = await _drafted_spec_run_id(run_store, fake_llm)
+    tickers, upload = await _upload_prices(run_store, spec_run_id, tmp_path)
+    assert upload.model_dump() == {"ref": "prices.csv", "tickers": tickers, "rows": 48, "first_date": "1965-01-01", "last_date": "1968-12-01"}
+
+
+@pytest.mark.parametrize(
+    ("data", "detail"),
+    [
+        (b"", "the file is empty."),
+        (b"\n\n", "the file is empty."),
+        (b"date,T0\n", "no data rows."),
+        (b"date,T0\n\n\n", "no data rows."),
+        (b"date\n1965-01-01\n", "needs a date column and at least one ticker column."),
+        (b"date,\n1965-01-01,1\n", "needs a date column and at least one ticker column."),
+        (b"date,T0\n1965-01-01,1.5\n1965-02-01,abc\n", 'row 3, column T0: "abc" is not a number.'),
+        (b"date,T0\n01/31/1965,1.5\n", 'row 2: date "01/31/1965" does not start with YYYY-MM-DD.'),
+        (b"date,T0\n1965-13-01,1.5\n", 'row 2: date "1965-13-01" does not start with YYYY-MM-DD.'),
+        (b"\xff\xfe\x00", "not UTF-8 text."),
+        (b"date,T0\n\n1965-01-01,abc\n", 'row 3, column T0: "abc" is not a number.'),
+    ],
+)
+async def test_unusable_file_is_refused_with_the_reason(tmp_path, fake_llm, data, detail):
+    run_store = _run_store(tmp_path)
+    spec_run_id = await _drafted_spec_run_id(run_store, fake_llm)
+    with pytest.raises(HTTPException) as exc_info:
+        await upload_price_dataset(spec_run_id, _upload_file(data), run_store=run_store, settings=_settings())
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == f"Not a usable CSV: {detail}"
+
+
+async def test_blank_cells_long_dates_bom_and_leading_empty_line_are_accepted(tmp_path, fake_llm):
+    run_store = _run_store(tmp_path)
+    spec_run_id = await _approved(run_store, fake_llm)
+    data = b"\xef\xbb\xbf\ndate,T0,T1\n1965-01-31 00:00:00,1.5,\n1965-02-28 00:00:00,,2\n"
+    upload = await upload_price_dataset(spec_run_id, _upload_file(data), run_store=run_store, settings=_settings())
+    assert (upload.tickers, upload.rows, upload.first_date, upload.last_date) == (["T0", "T1"], 2, "1965-01-31", "1965-02-28")
+    # The stored file reads back through the backtest's own reader, so the check and the reader agree.
+    with pytest.raises(HTTPException) as exc_info:
+        run_backtest_from_spec(spec_run_id, BacktestRequest(tickers=["ZZZ"], prices_ref="prices.csv"), run_store=run_store)
+    assert exc_info.value.detail == "prices.csv: no column(s) for ['ZZZ']"
+
+
+def _client(run_store) -> TestClient:
+    app = FastAPI()
+    app.include_router(replication.router)
+    app.dependency_overrides[deps.get_run_store] = lambda: run_store
+    app.dependency_overrides[current_user] = lambda: PRINCIPAL
+    return TestClient(app)
+
+
+_CHARACTERISTICS_CSV = b"date,T0\n1965-01-01,0.5\n"
+
+
+@pytest.mark.parametrize(
+    ("name", "ref"),
+    [
+        ("book to market", "characteristics_book_to_market.csv"),
+        ("B%2FM", "characteristics_B_M.csv"),
+        ("..%2F..%2Fx", f"characteristics_{'_' * 6}x.csv"),
+        ("a" * 100, f"characteristics_{'a' * 100}.csv"),
+    ],
+)
+async def test_characteristic_names_are_slugged_into_the_stored_file_name(tmp_path, fake_llm, name, ref):
+    run_store = _run_store(tmp_path)
+    spec_run_id = await _drafted_spec_run_id(run_store, fake_llm)
+    res = _client(run_store).post(f"/api/replication/specs/{spec_run_id}/datasets/characteristics/{name}", files={"file": ("c.csv", _CHARACTERISTICS_CSV)})
+    assert res.status_code == 200, res.text
+    assert res.json()["ref"] == ref
+
+
+async def test_characteristic_name_must_be_1_to_100_characters(tmp_path, fake_llm):
+    run_store = _run_store(tmp_path)
+    spec_run_id = await _drafted_spec_run_id(run_store, fake_llm)
+    client = _client(run_store)
+    base = f"/api/replication/specs/{spec_run_id}/datasets/characteristics/"
+    empty = client.post(base, files={"file": ("c.csv", _CHARACTERISTICS_CSV)})
+    assert (empty.status_code, empty.json()["detail"]) == (400, "Characteristic name is empty.")
+    long = client.post(base + "a" * 101, files={"file": ("c.csv", _CHARACTERISTICS_CSV)})
+    assert (long.status_code, long.json()["detail"]) == (400, "Characteristic name is longer than 100 characters.")
+
+
+async def test_backtest_reads_only_the_specs_own_uploads(tmp_path, fake_llm):
+    run_store = _run_store(tmp_path)
+    spec_run_id = await _approved(run_store, fake_llm)
+    other_run_id = await _drafted_spec_run_id(run_store, fake_llm)
+    tickers, _ = await _upload_prices(run_store, other_run_id, tmp_path)
+    outside = tmp_path / "outside.csv"
+    _write_price_csv(outside)
+
+    def refused(ref, expected):
+        with pytest.raises(HTTPException) as exc_info:
+            run_backtest_from_spec(spec_run_id, BacktestRequest(tickers=tickers, prices_ref=ref), run_store=run_store)
+        assert (exc_info.value.status_code, exc_info.value.detail) == (400, f"Data file not found: {expected}")
+
+    refused("prices.csv", "prices.csv")  # nothing uploaded for this spec yet
+    refused(f"../{other_run_id}/prices.csv", "prices.csv")  # another spec's upload
+    refused(str(outside), "outside.csv")
+    refused("/etc/passwd", "passwd")
+    refused("characteristics_x.csv", "characteristics_x.csv")
+    refused("prices.csv/", "")
+
+
+async def test_backtest_refuses_a_missing_or_foreign_characteristics_file(tmp_path, fake_llm):
+    run_store = _run_store(tmp_path)
+    spec_run_id = await _approved(run_store, fake_llm)
+    tickers, upload = await _upload_prices(run_store, spec_run_id, tmp_path)
+    for refs, expected in (({"b": "characteristics_b.csv"}, "characteristics_b.csv"), ({"b": "/etc/passwd"}, "passwd")):
+        with pytest.raises(HTTPException) as exc_info:
+            run_backtest_from_spec(spec_run_id, BacktestRequest(tickers=tickers, prices_ref=upload.ref, characteristics_refs=refs), run_store=run_store)
+        assert exc_info.value.detail == f"Data file not found: {expected}"
+
+
+async def test_backtest_errors_name_the_file_not_the_server_path(tmp_path, fake_llm):
+    run_store = _run_store(tmp_path)
+    spec_run_id = await _approved(run_store, fake_llm)
+    _, upload = await _upload_prices(run_store, spec_run_id, tmp_path)
+    with pytest.raises(HTTPException) as exc_info:
+        run_backtest_from_spec(spec_run_id, BacktestRequest(tickers=["ZZZ"], prices_ref=upload.ref), run_store=run_store)
+    assert (exc_info.value.status_code, exc_info.value.detail) == (400, "prices.csv: no column(s) for ['ZZZ']")
