@@ -236,3 +236,19 @@ def test_background_adapter_start_finds_its_run_by_launch_key(run_store, univers
     step.finish(first, universe_run_id=universe_run)
     step.finish(first, universe_run_id=universe_run)  # ended: attaching reads it, never runs it again
     assert executed == [first]
+
+
+def test_universe_source_stays_inside_the_universes_folder(tmp_path, monkeypatch):  # server-paths-upload-limits D1
+    from arp.universe import universe_source_path
+
+    saved = tmp_path / "runs" / "_universes" / "u.csv"
+    saved.parent.mkdir(parents=True)
+    saved.write_text("company_id,name\n")
+    (tmp_path / "outside.csv").write_text("company_id,name\n")
+    monkeypatch.chdir(tmp_path)  # a relative path is resolved against the working directory
+    runs = tmp_path / "runs"
+    assert universe_source_path(runs, "u.csv") == saved
+    assert universe_source_path(runs, str(saved)) == saved
+    assert universe_source_path(runs, "runs/_universes/u.csv") == saved
+    for source in ("outside.csv", str(tmp_path / "outside.csv"), "../../outside.csv", "", "a\x00b"):
+        assert universe_source_path(runs, source) is None, source
