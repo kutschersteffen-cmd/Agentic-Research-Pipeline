@@ -108,9 +108,10 @@ services:
 
   # Optional (profile `compute`, so a plain `docker compose up` leaves it out):
   # the compute service, arp/compute/server.py (rerank, embeddings, spans,
-  # tags, classify). Point the backend at it with
-  # ARP_COMPUTE_MODELS_URL=http://compute:8080. It has no sign-in of its own:
-  # keep it on the compose network and its port loopback-bound. The default
+  # tags, classify), called directly over HTTP. The backend cannot use a
+  # self-hosted compute container yet (its client also expects Google
+  # credentials), so it keeps computing in-process. It has no sign-in of its
+  # own: keep it on the compose network and its port loopback-bound. The default
   # image runs on any CPU; on an NVIDIA host set ARP_COMPUTE_IMAGE_TAG=<tag>-cuda
   # and uncomment the GPU block below (needs the NVIDIA Container Toolkit).
   compute:

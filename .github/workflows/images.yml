@@ -24,6 +24,8 @@ on:
       - backend/pyproject.toml
       - backend/arp/compute/**
       - .github/workflows/images.yml
+      - .github/scripts/image_smoke.sh
+      - .dockerignore
   workflow_dispatch:
 
 # Two quick pushes to main finish in order, so latest ends on the newer commit.

@@ -7,13 +7,13 @@ Every push to `main` publishes ready-made images to GitHub Container Registry
 |---|---|
 | `ghcr.io/kutschersteffen-cmd/arp-backend` | the API and the `arp` CLI |
 | `ghcr.io/kutschersteffen-cmd/arp-frontend` | the web app (nginx), forwarding `/api/` to the backend |
-| `ghcr.io/kutschersteffen-cmd/arp-compute` | optional model service: rerank, embeddings, spans, tags, classify, parse |
+| `ghcr.io/kutschersteffen-cmd/arp-compute` | optional model service: rerank, embeddings, spans, tags, classify (and parse, which needs a `/gcs` mount and `ARP_COMPUTE_BUCKET`) |
 
 A server pulls them and runs; it needs no checkout of this repository and builds nothing.
 
 ## Pull and run
 
-On any Linux server with Docker and Docker Compose, create a directory with exactly these files:
+On any Linux server with Docker and Docker Compose 2.24 or newer (for the optional `backend/.env` entry), create a directory with exactly these files:
 
 - `docker-compose.yml`, copied from the root of this repository;
 - `backend/.env`, copied from [`backend/.env.example`](../backend/.env.example) and filled in (at least
@@ -60,8 +60,10 @@ The workflow then publishes `1.2.3` for all three images (and `1.2.3-cuda` for `
 ## GPU
 
 ARP runs fully on CPU. Only the optional compute service uses a GPU. Start it with
-`docker compose --profile compute up -d compute` and point the backend at it with
-`ARP_COMPUTE_MODELS_URL=http://compute:8080` in `backend/.env`.
+`docker compose --profile compute up -d compute` and call it directly over HTTP (port 8080 on the server,
+`http://compute:8080` from other containers). The backend cannot use a self-hosted compute container yet:
+its compute client also expects Google credentials (`ARP_COMPUTE_CREDENTIALS_FILE`), so setting
+`ARP_COMPUTE_MODELS_URL` alone changes nothing and the backend keeps ranking and embedding in-process.
 
 `ARP_COMPUTE_DEVICE` (set in `docker-compose.yml`) picks where its models load:
 
