@@ -78,6 +78,11 @@ def test_a_file_route_with_a_path_parameter_gets_the_250_mb_limit():
     assert (status, body) == (413, b'{"detail":"Request is larger than the 250 MB limit."}')
 
 
+def test_a_route_that_reads_its_form_by_hand_gets_the_250_mb_limit():
+    status, body = _headers_only("/api/signals/runs", b"multipart/form-data; boundary=x", 250_000_001)
+    assert (status, body) == (413, b'{"detail":"Request is larger than the 250 MB limit."}')
+
+
 def test_ac47_chunked_body_without_content_length_is_413_once_over(monkeypatch):
     _settings(monkeypatch, max_body_bytes=1_000_000)
 
