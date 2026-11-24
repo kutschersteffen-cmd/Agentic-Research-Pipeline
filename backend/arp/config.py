@@ -120,6 +120,8 @@ class Settings(BaseSettings):
     reground_sample_size: int = Field(default=20, ge=0)
     snapshot_day: int = Field(default=1, ge=1, le=10)  # n-th business day of the month the snapshot is built
     max_upload_bytes: int = Field(default=100_000_000, description="Largest manual document upload accepted, in bytes.")
+    max_request_bytes: int = Field(default=250_000_000, description="Largest multipart/form-data request accepted, in bytes (whole body).")
+    max_body_bytes: int = Field(default=20_000_000, description="Largest request of any other kind accepted, in bytes (whole body).")
     cache_dir: Path = Field(default=REPO_ROOT / "backend" / ".cache")
     document_store_dir: Path = Field(
         default=REPO_ROOT / "backend" / ".document_store",
