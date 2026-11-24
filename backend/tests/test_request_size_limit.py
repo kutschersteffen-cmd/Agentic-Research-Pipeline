@@ -30,7 +30,8 @@ def test_ac44_json_body_over_20_mb_is_413():
     assert r.json() == {"detail": "Request is larger than the 20 MB limit."}
 
 
-def test_ac46_multipart_content_length_over_250_mb_is_413_before_the_body_is_read():
+def _headers_only(path: str, content_type: bytes, length: int) -> tuple[int, bytes]:
+    """Calls the app with headers only: its receive fails the test if the body is read."""
     sent: list[dict] = []
 
     async def receive():
@@ -45,21 +46,36 @@ def test_ac46_multipart_content_length_over_250_mb_is_413_before_the_body_is_rea
         "http_version": "1.1",
         "method": "POST",
         "scheme": "http",
-        "path": "/api/universe/raw-upload",
-        "raw_path": b"/api/universe/raw-upload",
+        "path": path,
+        "raw_path": path.encode(),
         "query_string": b"",
         "root_path": "",
-        "headers": [
-            (b"host", b"testserver"),
-            (b"content-type", b"multipart/form-data; boundary=x"),
-            (b"content-length", b"250000001"),
-        ],
+        "headers": [(b"host", b"testserver"), (b"content-type", content_type), (b"content-length", str(length).encode())],
         "client": ("127.0.0.1", 50000),
         "server": ("testserver", 80),
     }
     asyncio.run(app(scope, receive, send))
-    assert sent[0]["status"] == 413
-    assert b"".join(m.get("body", b"") for m in sent[1:]) == b'{"detail":"Request is larger than the 250 MB limit."}'
+    return sent[0]["status"], b"".join(m.get("body", b"") for m in sent[1:])
+
+
+def test_ac46_multipart_content_length_over_250_mb_is_413_before_the_body_is_read():
+    status, body = _headers_only("/api/universe/raw-upload", b"multipart/form-data; boundary=x", 250_000_001)
+    assert (status, body) == (413, b'{"detail":"Request is larger than the 250 MB limit."}')
+
+
+def test_multipart_type_is_matched_in_any_case():
+    status, body = _headers_only("/api/universe/raw-upload", b"Multipart/Form-Data; boundary=x", 250_000_001)
+    assert (status, body) == (413, b'{"detail":"Request is larger than the 250 MB limit."}')
+
+
+def test_a_route_without_files_keeps_the_20_mb_limit_when_the_body_claims_multipart():
+    status, body = _headers_only(WORKBENCH, b"multipart/form-data; boundary=x", 20_000_001)
+    assert (status, body) == (413, b'{"detail":"Request is larger than the 20 MB limit."}')
+
+
+def test_a_file_route_with_a_path_parameter_gets_the_250_mb_limit():
+    status, body = _headers_only("/api/argus/flows/f1/documents/upload", b"multipart/form-data; boundary=x", 250_000_001)
+    assert (status, body) == (413, b'{"detail":"Request is larger than the 250 MB limit."}')
 
 
 def test_ac47_chunked_body_without_content_length_is_413_once_over(monkeypatch):
