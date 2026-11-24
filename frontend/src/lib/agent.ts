@@ -254,8 +254,13 @@ export function refineDoc(id: string): { kind: RefineKind; docId: string } | nul
   const cut = id.indexOf("/");
   const kind = id.slice(0, cut);
   const docId = id.slice(cut + 1);
+  if (kind === "rfp" && rfpId(docId) === null) return null;
   return cut > 0 && docId && (kind === "rfp" || kind === "deck") ? { kind, docId } : null;
 }
+
+/** An RFP project id from a route or Refine id: plain digits only, else null. */
+export const rfpId = (param: string | undefined): number | null =>
+  param !== undefined && /^[0-9]+$/.test(param) ? Number(param) : null;
 
 /** What a Refine thread shows for the signed-in user: a viewer reads the stream and the document only. */
 export const refineControls = (canAsk: boolean): { composer: boolean; undo: boolean; picker: boolean; emptyLine: string } =>

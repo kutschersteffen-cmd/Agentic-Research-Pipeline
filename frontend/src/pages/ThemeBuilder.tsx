@@ -14,6 +14,8 @@ import { ProposedTag } from "../components/ProposedTag";
 import { ThemeLayersTable } from "../components/ThemeLayersTable";
 import { errorDetail } from "../lib/themeLayers";
 import { companies as companiesWord, savedDraftLine } from "../lib/themeBuilder";
+import { DraftInput } from "../components/DraftInput";
+import { listText, parseList } from "../lib/draftInput";
 
 const EXPOSURE_RANK: Record<string, number> = { pure_play: 3, significant: 2, minor: 1, none: 0 };
 
@@ -220,7 +222,7 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
 
   function updateMappingLabels(idx: number, labelsText: string) {
     setCatalogueMappings((prev) =>
-      prev.map((m, i) => (i === idx ? { ...m, matched_labels: labelsText.split(",").map((s) => s.trim()).filter(Boolean) } : m))
+      prev.map((m, i) => (i === idx ? { ...m, matched_labels: parseList(labelsText) } : m))
     );
   }
 
@@ -383,9 +385,9 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
               </label>
               <label className="field-label">
                 Seed keywords (comma-separated)
-                <input
-                  value={a.seed_keywords.join(", ")}
-                  onChange={(e) => updateActivity(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+                <DraftInput
+                  value={listText(a.seed_keywords)}
+                  onText={(t) => updateActivity(idx, { seed_keywords: parseList(t) })}
                 />
               </label>
               <button className="link-button" onClick={() => removeActivity(idx)}>
@@ -445,7 +447,7 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
                     <td>{activityName(m.activity_id)}</td>
                     <td>{m.metric}</td>
                     <td>
-                      <input aria-label={`Matched labels for ${activityName(m.activity_id)} ${m.metric}`} value={m.matched_labels.join(", ")} onChange={(e) => updateMappingLabels(idx, e.target.value)} />
+                      <DraftInput aria-label={`Matched labels for ${activityName(m.activity_id)} ${m.metric}`} value={listText(m.matched_labels)} onText={(t) => updateMappingLabels(idx, t)} />
                     </td>
                     <td className="muted">{m.rationale}</td>
                   </tr>

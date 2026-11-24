@@ -43,8 +43,12 @@ export function excerptParts(text: string, start: number, end: number) {
 /** What the source panel's excerpt card shows: the stored page around the span, else the quote, else nothing. */
 export function excerptView(source: ActiveSource) {
   const t = source.text;
-  const caption = source.title + (typeof t?.page === "number" && t.page >= 1 ? ` · p. ${t.page}` : "");
-  const parts = t && t.char_start != null && t.char_end != null ? excerptParts(t.page_text, t.char_start, t.char_end) : null;
+  const page = typeof t?.page === "number" && t.page >= 1 ? t.page : null;
+  const named = page !== null && new RegExp(`(^|\\s)p\\. ${page}$`).test(source.title);
+  const caption = source.title + (page !== null && !named ? ` · p. ${page}` : "");
+  // char offsets are in the document; page_text starts at page_start
+  const base = t?.page_start ?? 0;
+  const parts = t && t.char_start != null && t.char_end != null ? excerptParts(t.page_text, t.char_start - base, t.char_end - base) : null;
   if (parts) return { caption, parts };
   const quote = source.quote?.trim();
   return quote ? { caption, quote } : null;
