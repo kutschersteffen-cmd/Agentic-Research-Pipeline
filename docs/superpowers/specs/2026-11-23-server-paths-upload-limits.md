@@ -1,6 +1,6 @@
 # Server file paths and upload limits
 
-Status: **draft, waiting for the owner's approval** (two spec-critic rounds; all 25 findings fixed)
+Status: **approved by the owner on 24 Nov 2026** (button in the spec session, after two spec-critic rounds; decisions D1 to D3 as recommended).
 Slug: `server-paths-upload-limits`
 Risk: this spec PR is `risk:low`. The build is 5 PRs, each `risk:high` (backend security; the owner merges them).
 Size: each slice S
