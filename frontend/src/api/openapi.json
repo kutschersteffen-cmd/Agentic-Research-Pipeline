@@ -43663,11 +43663,18 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/ApproveSpecRequest"
+        "anyOf": [
+         {
+          "$ref": "#/components/schemas/ApproveSpecRequest"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Req"
        }
       }
-     },
-     "required": true
+     }
     },
     "responses": {
      "200": {

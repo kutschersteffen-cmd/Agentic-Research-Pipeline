@@ -83,9 +83,10 @@ def _draft_row(run_store: RunStore, spec_run_id: str) -> dict:
 
 def _current_spec(run_store: RunStore, spec_run_id: str) -> StrategySpec:
     draft_row = _draft_row(run_store, spec_run_id)
-    decision = latest_decisions(run_store, spec_run_id).get(_SPEC_ITEM_KEY)
-    if decision is not None and decision.get("edited_value") is not None:
-        return StrategySpec.model_validate(decision["edited_value"])
+    # The newest decision that carries a spec wins; an approval carries none, so it must not hide an edit.
+    for decision in reversed(decision_history(run_store, spec_run_id, _SPEC_ITEM_KEY)):
+        if decision.get("edited_value") is not None:
+            return StrategySpec.model_validate(decision["edited_value"])
     return StrategySpec.model_validate({k: v for k, v in draft_row.items() if k != "type"})
 
 
@@ -211,7 +212,7 @@ async def revise_spec_draft(
 @router.post("/specs/{spec_run_id}/approve")
 def approve_spec_draft(
     spec_run_id: str,
-    req: ApproveSpecRequest,
+    req: ApproveSpecRequest | None = None,
     run_store: RunStore = Depends(get_run_store),
     principal: Principal = Depends(current_user),
 ) -> dict:

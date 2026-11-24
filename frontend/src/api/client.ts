@@ -1253,6 +1253,7 @@ export const api = {
   approveSpecDraft: (specRunId: string) =>
     request<{ spec_run_id: string; spec: StrategySpec; approved: boolean }>(`/api/replication/specs/${encodeURIComponent(specRunId)}/approve`, {
       method: "POST",
+      body: JSON.stringify({}),
     }),
   uploadPriceDataset: (specRunId: string, file: File) => {
     const form = new FormData();

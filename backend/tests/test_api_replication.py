@@ -210,3 +210,19 @@ async def test_trigger_sanity_check_appends_and_is_returned_on_next_fetch(tmp_pa
     detail = get_replication_run(run_id, run_store=run_store)
     assert detail.sanity_check is not None
     assert detail.sanity_check.summary == "Looks fine."
+
+
+async def test_approve_keeps_the_latest_edit(tmp_path, fake_llm):
+    run_store = _run_store(tmp_path)
+    spec_run_id = await _drafted_spec_run_id(run_store, fake_llm)
+    edited = StrategySpec.model_validate(get_spec_draft(spec_run_id, run_store=run_store)["spec"])
+    edited.holding_period_months = 12
+    update_spec_draft(spec_run_id, edited, run_store=run_store, principal=PRINCIPAL)
+
+    approved = approve_spec_draft(spec_run_id, None, run_store=run_store, principal=PRINCIPAL)
+    assert approved["spec"]["holding_period_months"] == 12
+    again = approve_spec_draft(spec_run_id, None, run_store=run_store, principal=PRINCIPAL)
+    assert again["spec"]["holding_period_months"] == 12
+    state = get_spec_draft(spec_run_id, run_store=run_store)
+    assert state["spec"]["holding_period_months"] == 12 and state["approved"] is True
+    assert len(state["history"]) == 3
