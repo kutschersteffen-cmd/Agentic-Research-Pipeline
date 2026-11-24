@@ -91,6 +91,11 @@ export type Mode = "Ask" | "Plan" | "Explore";
  * `<kind>/<doc_id>` (see `refineDoc`), or "" for the picker. */
 export type Selection = { kind: "plan" | "ask" | "exploration" | "refine"; id: string } | null;
 
+/** Whether two selections name the same thread: both none, or the same kind and id. Never compares the objects:
+ * App builds a new selection on every render. */
+export const sameThread = (a: Selection, b: Selection): boolean =>
+  a === null || b === null ? a === null && b === null : a.kind === b.kind && a.id === b.id;
+
 /** The composer's mode buttons, and the one pressed when it opens: a viewer cannot ask. */
 export const composerModes = (canAsk: boolean): { modes: Mode[]; initial: Mode } =>
   canAsk ? { modes: ["Ask", "Plan", "Explore"], initial: "Ask" } : { modes: ["Plan", "Explore"], initial: "Plan" };
