@@ -1,0 +1,209 @@
+name: Images
+
+# Builds and publishes the ARP images to ghcr.io (docs/DEPLOY_WITH_DOCKER.md), one multi-arch manifest each:
+#   arp-backend   backend/Dockerfile                       linux/amd64 + linux/arm64
+#   arp-frontend  frontend/Dockerfile                      linux/amd64 + linux/arm64
+#   arp-compute   backend/Dockerfile.compute VARIANT=cpu   linux/amd64 + linux/arm64
+#   arp-compute   backend/Dockerfile.compute VARIANT=cuda  linux/amd64 only, every tag with -cuda appended
+# Each platform builds on its own native runner (no QEMU); the per-platform digests are then merged into one
+# manifest per image. Tags: push to main -> main, latest, sha-<7>; tag v1.2.3 -> 1.2.3 (latest unmoved);
+# PR from this repo -> pr-<n>; PR from a fork -> builds both platforms, pushes nothing, no smoke.
+# After the push, the smoke job runs every image on each platform's native runner (.github/scripts/image_smoke.sh).
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+    paths:
+      - "**/Dockerfile*"
+      - docker-compose.yml
+      - frontend/nginx.conf
+      - frontend/package*.json
+      - backend/pyproject.toml
+      - backend/arp/compute/**
+      - .github/workflows/images.yml
+  workflow_dispatch:
+
+# Two quick pushes to main finish in order, so latest ends on the newer commit.
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io/kutschersteffen-cmd
+  # A fork's PR gets a read-only token: build, never push.
+  PUSH: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+
+jobs:
+  build:
+    name: Build ${{ matrix.key }} ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { key: backend, image: arp-backend, file: backend/Dockerfile, context: ., variant: "", platform: linux/amd64, arch: amd64, runner: ubuntu-latest }
+          - { key: backend, image: arp-backend, file: backend/Dockerfile, context: ., variant: "", platform: linux/arm64, arch: arm64, runner: ubuntu-24.04-arm }
+          - { key: frontend, image: arp-frontend, file: frontend/Dockerfile, context: frontend, variant: "", platform: linux/amd64, arch: amd64, runner: ubuntu-latest }
+          - { key: frontend, image: arp-frontend, file: frontend/Dockerfile, context: frontend, variant: "", platform: linux/arm64, arch: arm64, runner: ubuntu-24.04-arm }
+          - { key: compute, image: arp-compute, file: backend/Dockerfile.compute, context: ., variant: cpu, platform: linux/amd64, arch: amd64, runner: ubuntu-latest }
+          - { key: compute, image: arp-compute, file: backend/Dockerfile.compute, context: ., variant: cpu, platform: linux/arm64, arch: arm64, runner: ubuntu-24.04-arm }
+          - { key: compute-cuda, image: arp-compute, file: backend/Dockerfile.compute, context: ., variant: cuda, platform: linux/amd64, arch: amd64, runner: ubuntu-latest }
+    steps:
+      - uses: actions/checkout@v4
+
+      # The compute images (torch, docling and baked-in models; CUDA libraries for -cuda) outgrow the
+      # runner's free disk otherwise.
+      - name: Free disk space
+        if: startsWith(matrix.key, 'compute')
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        if: env.PUSH == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build, push by digest (a fork PR builds only)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          platforms: ${{ matrix.platform }}
+          build-args: ${{ matrix.variant && format('VARIANT={0}', matrix.variant) || '' }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ matrix.image }},push-by-digest=true,name-canonical=true,push=${{ env.PUSH }}
+          cache-from: type=gha,scope=${{ matrix.key }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.key }}-${{ matrix.arch }}
+
+      - name: Keep the digest for the manifest
+        if: env.PUSH == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+
+      - uses: actions/upload-artifact@v4
+        if: env.PUSH == 'true'
+        with:
+          name: digests-${{ matrix.key }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  manifest:
+    name: Manifest ${{ matrix.key }}
+    needs: build
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { key: backend, image: arp-backend, suffix: "" }
+          - { key: frontend, image: arp-frontend, suffix: "" }
+          - { key: compute, image: arp-compute, suffix: "" }
+          - { key: compute-cuda, image: arp-compute, suffix: "-cuda" }
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digests-${{ matrix.key }}-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push the manifest
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ matrix.image }}
+          SUFFIX: ${{ matrix.suffix }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          case "$EVENT:$GITHUB_REF" in
+            pull_request:*) tags="pr-$PR" ;;
+            push:refs/tags/v*) tags="${GITHUB_REF_NAME#v}" ;;
+            push:refs/heads/main) tags="main latest sha-${GITHUB_SHA::7}" ;;
+            *) tags="sha-${GITHUB_SHA::7}" ;;  # workflow_dispatch
+          esac
+          args=()
+          for t in $tags; do args+=(-t "$IMAGE:$t$SUFFIX"); done
+          for d in *; do args+=("$IMAGE@sha256:$d"); done
+          docker buildx imagetools create "${args[@]}"
+          for t in $tags; do
+            echo "::group::docker buildx imagetools inspect $IMAGE:$t$SUFFIX"
+            docker buildx imagetools inspect "$IMAGE:$t$SUFFIX"
+            echo "::endgroup::"
+          done
+
+  smoke:
+    name: Smoke ${{ matrix.name }} ${{ matrix.platform }}
+    needs: manifest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: arp-backend, platform: linux/amd64, runner: ubuntu-latest }
+          - { name: arp-backend, platform: linux/arm64, runner: ubuntu-24.04-arm }
+          - { name: arp-frontend, platform: linux/amd64, runner: ubuntu-latest }
+          - { name: arp-frontend, platform: linux/arm64, runner: ubuntu-24.04-arm }
+          - { name: arp-compute, platform: linux/amd64, runner: ubuntu-latest }
+          - { name: arp-compute, platform: linux/arm64, runner: ubuntu-24.04-arm }
+          - { name: arp-compute-cuda, platform: linux/amd64, runner: ubuntu-latest }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        if: startsWith(matrix.name, 'arp-compute')
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Smoke
+        env:
+          NAME: ${{ matrix.name }}
+          PLATFORM: ${{ matrix.platform }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          case "$EVENT:$GITHUB_REF" in
+            pull_request:*) tag="pr-$PR" ;;
+            push:refs/tags/v*) tag="${GITHUB_REF_NAME#v}" ;;
+            *) tag="sha-${GITHUB_SHA::7}" ;;
+          esac
+          case "$NAME" in
+            arp-compute-cuda) image="$REGISTRY/arp-compute:$tag-cuda" ;;
+            *) image="$REGISTRY/$NAME:$tag" ;;
+          esac
+          backend="$REGISTRY/arp-backend:$tag"
+          docker pull -q --platform "$PLATFORM" "$image"
+          [ "$NAME" = arp-frontend ] && docker pull -q --platform "$PLATFORM" "$backend"
+          bash .github/scripts/image_smoke.sh "$NAME" "$PLATFORM" "$image" "$backend"

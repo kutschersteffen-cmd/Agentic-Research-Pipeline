@@ -10,7 +10,9 @@ FROM python:3.11-slim
 ARG VARIANT=cpu
 
 RUN apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 1000 --shell /usr/sbin/nologin arp \
+    && mkdir -p /models && chown arp:arp /models
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONUTF8=1 \
@@ -23,18 +25,26 @@ COPY backend/ ./
 # the cuDNN that torch ships. A mismatch puts the models on the CPU, which server._require_cuda turns
 # into a 503 that `arp compute check` reports.
 # cpu: torch and torchvision from the PyTorch CPU index first (no CUDA libraries), which the
-# ".[models]" install then keeps.
+# ".[models]" install then keeps. torchvision 0.29.1 is the release paired with torch 2.14.1.
 RUN if [ "$VARIANT" = "cuda" ]; then \
         pip install --no-cache-dir ".[models]" "torch==2.14.1" \
         && FASTEMBED_VERSION="$(pip show fastembed | sed -n 's/^Version: //p')" \
         && pip uninstall -y onnxruntime fastembed \
         && pip install --no-cache-dir "fastembed-gpu==${FASTEMBED_VERSION}" "onnxruntime-gpu==1.31.0"; \
     elif [ "$VARIANT" = "cpu" ]; then \
-        pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu "torch==2.14.1" torchvision \
+        pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu "torch==2.14.1" "torchvision==0.29.1" \
         && pip install --no-cache-dir ".[models]"; \
     else \
         echo "VARIANT must be cpu or cuda, got: $VARIANT" >&2 && exit 1; \
     fi
+
+# arp.config creates its data directories on first use, under the installed package's root; create them
+# while still root, so the non-root user below only finds them (the service writes nothing there).
+RUN python -c "from arp.config import get_settings; get_settings()"
+
+# Non-root from here on, like backend/Dockerfile. The models are fetched as arp, so the service can
+# read (and lock) its own cache under /models.
+USER arp
 
 # The same converters the service builds (with and without OCR), plus both fastembed models.
 RUN python -c "\

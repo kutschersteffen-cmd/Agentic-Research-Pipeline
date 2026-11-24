@@ -71,6 +71,9 @@ Windows / corporate proxy / VS Code + conda: see
 [`docs/INSTALLATION.md`](docs/INSTALLATION.md), which ships scripts under
 `scripts/windows/` that automate everything below.
 
+Deploying on a server with Docker, from the published images (no checkout, no build): see
+[`docs/DEPLOY_WITH_DOCKER.md`](docs/DEPLOY_WITH_DOCKER.md).
+
 ```bash
 # Backend
 cd backend
