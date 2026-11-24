@@ -11,7 +11,14 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from arp.api.auth import ROLE_RANK, Principal, current_user
-from arp.api.deps import authoritative_store_dep, get_decision_store, get_portfolio_store, get_run_store, settings_dep
+from arp.api.deps import (
+    authoritative_store_dep,
+    get_decision_store,
+    get_portfolio_store,
+    get_run_store,
+    read_capped,
+    settings_dep,
+)
 from arp.authoritative.evaluate import check_outputs
 from arp.authoritative.source_values import SourcePick
 from arp.config import Settings
@@ -136,7 +143,7 @@ async def _save_upload(file: UploadFile, settings: Settings) -> Path:
     dest_dir = settings.frameworks_dir / "_uploads"
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest_path = dest_dir / name
-    dest_path.write_bytes(await file.read())
+    dest_path.write_bytes(await read_capped(file, settings))
     return dest_path
 
 

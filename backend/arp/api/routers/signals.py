@@ -12,8 +12,8 @@ from starlette.datastructures import UploadFile
 
 import arp.signal_lab.methods  # noqa: F401  (importing registers every method)
 from arp.api.auth import Principal, require_role
-from arp.api.deps import get_run_store
-from arp.config import get_settings
+from arp.api.deps import get_run_store, read_capped, settings_dep
+from arp.config import Settings, get_settings
 from arp.db.session import require_dsn
 from arp.errors import ClientInputError
 from arp.signal_lab.compare import Comparison, compare_experiments
@@ -184,6 +184,7 @@ async def run(
     request: Request,
     _: Principal = Depends(require_role("analyst")),
     registry: Registry = Depends(_registry),
+    settings: Settings = Depends(settings_dep),
 ) -> ExperimentDetail:
     # Read the form by hand: the panel parts are named panel_<name>, a set FastAPI can't declare.
     async with request.form() as form:
@@ -191,14 +192,13 @@ async def run(
             if not isinstance(form.get(key), UploadFile):
                 raise HTTPException(422, detail=f"missing file part {key!r}")
         panel_bytes = {
-            key.removeprefix("panel_"): await part.read()
+            key.removeprefix("panel_"): await read_capped(part, settings)
             for key, part in form.multi_items()
             if key.startswith("panel_") and isinstance(part, UploadFile)
         }
+        recipe_bytes, prices_bytes = await read_capped(form["recipe"], settings), await read_capped(form["prices"], settings)
         try:
-            return await run_in_threadpool(
-                _run_upload, await form["recipe"].read(), await form["prices"].read(), panel_bytes, registry
-            )
+            return await run_in_threadpool(_run_upload, recipe_bytes, prices_bytes, panel_bytes, registry)
         except ValueError as exc:
             raise _http(exc) from exc
         except Exception as exc:  # may carry library or database detail: the type only, never a traceback
