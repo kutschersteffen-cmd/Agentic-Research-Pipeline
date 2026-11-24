@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { api } from "../api/client";
+import { api, type BoardKind } from "../api/client";
 import {
   BOARD_POLL_MS, DRAW_PLACEHOLDER, EMPTY_BOARD, GROUP_SLOTS, UNDO_BAR_MS, boardNeedsReload, detailOf, diagramGroups, download, editText,
   editedSource, firstLine, groupLabel, hasEmphasis, liveLabel, menuItems, parseMarkdown, svgDataUrl, tileChange, tileValue, unverifiedLine,
@@ -9,7 +9,7 @@ import {
 /** The Board tab (spec agent-board, slice 3): a plan's blocks top to bottom, a `⋯` menu on each, and one field at the
  * bottom that asks the agent to draw. While the tab is open it re-reads the plan every 10 s and redraws the blocks
  * while the plan runs (D9). */
-export function AgentBoard({ planId, planStatus, idPrefix }: { planId: string; planStatus: string; idPrefix: string }) {
+export function AgentBoard({ planId, planStatus, idPrefix, kind = "plan" }: { planId: string; planStatus: string; idPrefix: string; kind?: BoardKind }) {
   const [blocks, setBlocks] = useState<BoardBlock[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
@@ -21,9 +21,9 @@ export function AgentBoard({ planId, planStatus, idPrefix }: { planId: string; p
   const field = useRef<HTMLInputElement>(null);
 
   const load = useCallback(
-    () => api.getBoard(planId).then((b) => { setBlocks(b.blocks); setError((e) => (e?.startsWith("The board could not be loaded") ? null : e)); })
+    () => api.getBoard(planId, kind).then((b) => { setBlocks(b.blocks); setError((e) => (e?.startsWith("The board could not be loaded") ? null : e)); })
       .catch((e) => setError(`The board could not be loaded: ${detailOf(e)}.`)),
-    [planId],
+    [planId, kind],
   );
   useEffect(() => { void load(); }, [load]);
 
@@ -36,6 +36,7 @@ export function AgentBoard({ planId, planStatus, idPrefix }: { planId: string; p
     status.current = planStatus;
   }, [planStatus, load]);
   useEffect(() => {
+    if (kind !== "plan") return; // an exploration is finished when it is stored: nothing to follow
     const t = setInterval(() => {
       api.getPlan(planId).then((p) => {
         if (boardNeedsReload(status.current, p.status)) void load();
@@ -43,7 +44,7 @@ export function AgentBoard({ planId, planStatus, idPrefix }: { planId: string; p
       }).catch(() => {});
     }, BOARD_POLL_MS);
     return () => clearInterval(t);
-  }, [planId, load]);
+  }, [planId, kind, load]);
 
   // The `Block deleted · Undo` bar stays 5 s.
   useEffect(() => {
@@ -72,7 +73,7 @@ export function AgentBoard({ planId, planStatus, idPrefix }: { planId: string; p
     setDrawing(true);
     setDrawError(null);
     try {
-      await api.drawBlock(planId, p);
+      await api.drawBlock(planId, p, undefined, kind);
       setPrompt("");
       await load();
     } catch (e) {
@@ -85,17 +86,17 @@ export function AgentBoard({ planId, planStatus, idPrefix }: { planId: string; p
 
   function remove(b: BoardBlock) {
     setBlocks((xs) => xs?.filter((x) => x.id !== b.id) ?? null);
-    void change(() => api.deleteBlock(planId, b.id)).then((ok) => ok && setDeleted(b));
+    void change(() => api.deleteBlock(planId, b.id, kind)).then((ok) => ok && setDeleted(b));
   }
   function restore(b: BoardBlock) {
     setDeleted(null);
-    void change(() => api.addBlock(planId, { kind: b.kind, title: b.title, source: b.source, origin: b.origin, unverified: b.unverified, position: b.position }));
+    void change(() => api.addBlock(planId, { kind: b.kind, title: b.title, source: b.source, origin: b.origin, unverified: b.unverified, position: b.position }, kind));
   }
-  const move = (b: BoardBlock, position: number) => change(() => api.patchBlock(planId, b.id, { position }));
+  const move = (b: BoardBlock, position: number) => change(() => api.patchBlock(planId, b.id, { position }, kind));
   /** A tick shows at once; the board read after the PATCH confirms it. */
   function tick(b: BoardBlock, items: ChecklistItem[]) {
     setBlocks((xs) => xs?.map((x) => (x.id === b.id ? { ...x, source: { items } } : x)) ?? null);
-    void change(() => api.patchBlock(planId, b.id, { source: { items } }));
+    void change(() => api.patchBlock(planId, b.id, { source: { items } }, kind));
   }
 
   const list = blocks ?? [];
@@ -109,7 +110,7 @@ export function AgentBoard({ planId, planStatus, idPrefix }: { planId: string; p
       ) : (
         <ol className="board-blocks" aria-label="Board">
           {list.map((b, i) => (
-            <BlockCard key={b.id} block={b} index={i} count={list.length} planId={planId} theme={theme} idPrefix={idPrefix}
+            <BlockCard key={b.id} block={b} index={i} count={list.length} planId={planId} kind={kind} theme={theme} idPrefix={idPrefix}
               dragging={dragId === b.id} onDragStart={() => setDragId(b.id)} onDragEnd={() => setDragId(null)}
               onDrop={() => {
                 const from = list.find((x) => x.id === dragId);
@@ -144,7 +145,7 @@ export function AgentBoard({ planId, planStatus, idPrefix }: { planId: string; p
 }
 
 function BlockCard(p: {
-  block: BoardBlock; index: number; count: number; planId: string; theme: DiagramTheme | null; idPrefix: string; dragging: boolean;
+  block: BoardBlock; index: number; count: number; planId: string; kind: BoardKind; theme: DiagramTheme | null; idPrefix: string; dragging: boolean;
   onDragStart: () => void; onDragEnd: () => void; onDrop: () => void;
   change: (fn: () => Promise<unknown>) => Promise<boolean>; onMove: (to: number) => void; onDelete: () => void;
   onTick: (items: ChecklistItem[]) => void;
@@ -165,7 +166,7 @@ function BlockCard(p: {
     if ("error" in out) return setEditError(out.error);
     setEditError(null);
     try {
-      await api.patchBlock(planId, b.id, { source: out.source });
+      await api.patchBlock(planId, b.id, { source: out.source }, p.kind);
       setEditing(null);
     } catch (e) {
       return setEditError(detailOf(e));
@@ -178,7 +179,7 @@ function BlockCard(p: {
     setAskBusy(true);
     setAskError(null);
     try {
-      await api.drawBlock(planId, text, b.id);
+      await api.drawBlock(planId, text, b.id, p.kind);
       setAsking(null);
       await p.change(async () => {});
     } catch (e) {
@@ -192,7 +193,7 @@ function BlockCard(p: {
     else if (item === "Change with agent…") { setAsking(""); setAskError(null); }
     else if (item === "Move up") p.onMove(p.index - 1);
     else if (item === "Move down") p.onMove(p.index + 1);
-    else if (item === "Undo last change") void p.change(() => api.undoBlock(planId, b.id));
+    else if (item === "Undo last change") void p.change(() => api.undoBlock(planId, b.id, p.kind));
     else if (item === "Download") save_(b);
     else if (item === "Delete") p.onDelete();
   }

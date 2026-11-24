@@ -22,7 +22,7 @@ from arp.llm.base import LLMClient
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/agent/boards", tags=["agent-board"])
-THREAD_KINDS = ("plan",)  # `exploration` joins in slice 4
+THREAD_KINDS = ("plan", "exploration")
 
 
 def board_store() -> BoardStore:
@@ -39,7 +39,7 @@ def draw_llm() -> Callable[[], LLMClient]:
 def _thread(thread_kind: str, thread_id: str, store: BoardStore) -> None:
     if thread_kind not in THREAD_KINDS:
         raise HTTPException(404, "unknown thread kind")
-    if not store.plan_exists(thread_id):
+    if not store.thread_exists(thread_kind, thread_id):
         raise HTTPException(404, "thread not found")
 
 
@@ -82,9 +82,9 @@ def _out(row: dict, shown: dict | None = None, data: Any = None) -> dict:
     return out
 
 
-def _data_for(store: BoardStore, thread_id: str, rows: list[dict]) -> dict | None:
+def _data_for(store: BoardStore, thread_kind: str, thread_id: str, rows: list[dict]) -> dict | None:
     """The thread data, loaded only when a block holds a live pointer."""
-    return store.plan_data(thread_id) if any(is_live(r["kind"], r["source"]) for r in rows) else None
+    return store.thread_data(thread_kind, thread_id) if any(is_live(r["kind"], r["source"]) for r in rows) else None
 
 
 def _checked(kind: Any, title: Any, source: Any, data: Any = None) -> dict:
@@ -98,7 +98,7 @@ def _checked(kind: Any, title: Any, source: Any, data: Any = None) -> dict:
 def get_board(thread_kind: str, thread_id: str, store: BoardStore = Depends(board_store)) -> dict:
     _thread(thread_kind, thread_id, store)
     rows = store.blocks(thread_kind, thread_id)
-    data = _data_for(store, thread_id, rows)
+    data = _data_for(store, thread_kind, thread_id, rows)
     blocks = [_out(r, data=data) for r in rows]
     return {"thread_kind": thread_kind, "thread_id": thread_id, "blocks": blocks}
 
@@ -106,7 +106,7 @@ def get_board(thread_kind: str, thread_id: str, store: BoardStore = Depends(boar
 def _create(thread_kind: str, thread_id: str, body: dict, store: BoardStore) -> dict:
     _thread(thread_kind, thread_id, store)
     kind, title, source = body.get("kind"), body.get("title"), body.get("source")
-    data = store.plan_data(thread_id) if isinstance(kind, str) and is_live(kind, source) else None
+    data = store.thread_data(thread_kind, thread_id) if isinstance(kind, str) and is_live(kind, source) else None
     shown = _checked(kind, title, source, data)
     origin = body.get("origin", "person")
     unverified = body.get("unverified", [])
@@ -149,7 +149,7 @@ def _patch(thread_kind: str, thread_id: str, block_id: str, body: dict, store: B
     source, shown, missing = body.get("source"), None, None
     d4 = source is not None and row["kind"] in ("chart", "table", "tiles")
     live = is_live(row["kind"], row["source"] if source is None else source)
-    data = store.plan_data(thread_id) if d4 or live else None
+    data = store.thread_data(thread_kind, thread_id) if d4 or live else None
     if source is not None:
         shown = _checked(row["kind"], title or row["title"], source, data)
         if d4:  # D4: a person's edit keeps the line for numbers still missing
@@ -178,7 +178,7 @@ def undo_block(thread_kind: str, thread_id: str, block_id: str, store: BoardStor
         raise HTTPException(404, "block not found") from None
     except NothingToUndo:
         raise HTTPException(409, "nothing to undo") from None
-    return _out(row, data=_data_for(store, thread_id, [row]))
+    return _out(row, data=_data_for(store, thread_kind, thread_id, [row]))
 
 
 @router.delete("/{thread_kind}/{thread_id}/blocks/{block_id}", status_code=204)
@@ -203,7 +203,7 @@ def _draw_checks(thread_kind: str, thread_id: str, body: dict, store: BoardStore
         current = _get_block(store, thread_kind, thread_id, body["block_id"])
     elif len(store.blocks(thread_kind, thread_id)) >= MAX_BLOCKS:
         raise HTTPException(409, "board is full (50 blocks)")
-    return prompt.strip(), current, store.plan_data(thread_id)  # padding never reaches the model
+    return prompt.strip(), current, store.thread_data(thread_kind, thread_id)  # padding never reaches the model
 
 
 @router.post("/{thread_kind}/{thread_id}/draw")

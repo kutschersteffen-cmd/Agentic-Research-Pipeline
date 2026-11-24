@@ -281,8 +281,10 @@ const rfpQuestion = (projectId: number, qid: number, action = "") => `/api/rfp/p
 const research = (dossierId: string, action = "") => `/api/dossiers/${encodeURIComponent(dossierId)}/research${action}`;
 const step5 = (dossierId: string, path: string) => `/api/dossiers/${encodeURIComponent(dossierId)}/${path}`;
 const jsonBody = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
-const board = (planId: string, rest = "") => `/api/agent/boards/plan/${encodeURIComponent(planId)}${rest}`;
-const boardBlock = (planId: string, blockId: string, rest = "") => board(planId, `/blocks/${encodeURIComponent(blockId)}${rest}`);
+export type BoardKind = "plan" | "exploration";
+const board = (id: string, rest = "", kind: BoardKind = "plan") => `/api/agent/boards/${kind}/${encodeURIComponent(id)}${rest}`;
+const boardBlock = (id: string, blockId: string, rest = "", kind: BoardKind = "plan") =>
+  board(id, `/blocks/${encodeURIComponent(blockId)}${rest}`, kind);
 
 export const api = {
   listPlans: () => request<Plan[]>("/api/plans"),
@@ -302,17 +304,18 @@ export const api = {
   getExploration: (id: string) => request<Exploration>(`/api/agent/explorations/${encodeURIComponent(id)}`),
   acceptExploration: (id: string) => request<Exploration>(`/api/agent/explorations/${encodeURIComponent(id)}/accept`, { method: "POST" }),
   createMiniapp: (id: string) => request<Exploration>(`/api/agent/explorations/${encodeURIComponent(id)}/miniapp`, { method: "POST" }),
-  getBoard: (planId: string) => request<Board>(board(planId)),
-  addBlock: (planId: string, body: { kind: string; title: string; source: unknown; origin?: string; unverified?: number[]; position?: number }) =>
-    request<BoardBlock>(board(planId, "/blocks"), jsonBody("POST", body)),
-  patchBlock: (planId: string, blockId: string, body: { title?: string; source?: unknown; position?: number }) =>
-    request<BoardBlock>(boardBlock(planId, blockId), jsonBody("PATCH", body)),
-  undoBlock: (planId: string, blockId: string) => request<BoardBlock>(boardBlock(planId, blockId, "/undo"), { method: "POST" }),
-  deleteBlock: async (planId: string, blockId: string) => {
-    await authFetch(`${API_BASE}${boardBlock(planId, blockId)}`, { method: "DELETE" }); // 204: no body to parse
+  getBoard: (planId: string, kind: BoardKind = "plan") => request<Board>(board(planId, "", kind)),
+  addBlock: (planId: string, body: { kind: string; title: string; source: unknown; origin?: string; unverified?: number[]; position?: number }, kind: BoardKind = "plan") =>
+    request<BoardBlock>(board(planId, "/blocks", kind), jsonBody("POST", body)),
+  patchBlock: (planId: string, blockId: string, body: { title?: string; source?: unknown; position?: number }, kind: BoardKind = "plan") =>
+    request<BoardBlock>(boardBlock(planId, blockId, "", kind), jsonBody("PATCH", body)),
+  undoBlock: (planId: string, blockId: string, kind: BoardKind = "plan") =>
+    request<BoardBlock>(boardBlock(planId, blockId, "/undo", kind), { method: "POST" }),
+  deleteBlock: async (planId: string, blockId: string, kind: BoardKind = "plan") => {
+    await authFetch(`${API_BASE}${boardBlock(planId, blockId, "", kind)}`, { method: "DELETE" }); // 204: no body to parse
   },
-  drawBlock: (planId: string, prompt: string, blockId?: string) =>
-    request<BoardBlock>(board(planId, "/draw"), jsonBody("POST", blockId ? { prompt, block_id: blockId } : { prompt })),
+  drawBlock: (planId: string, prompt: string, blockId?: string, kind: BoardKind = "plan") =>
+    request<BoardBlock>(board(planId, "/draw", kind), jsonBody("POST", blockId ? { prompt, block_id: blockId } : { prompt })),
   listRfpLibrary: () => request<RfpLibraryEntry[]>("/api/rfp/library"),
   importRfpLibrary: (files: File[]) => {
     const form = new FormData();
