@@ -70,6 +70,13 @@ def field_item_key(issuer_key: str, field_id: str, period: str = "unspecified") 
     return f"{issuer_key}:{field_id}:{period}"
 
 
+def results_field_key(record: dict, f: dict) -> str:
+    """The review item key of a results field; a record without `issuer_key` falls back to `<company_id>:<field_id>`."""
+    if record.get("issuer_key"):
+        return field_item_key(record["issuer_key"], f["field_id"], period_key(f))
+    return f"{record['company_id']}:{f.get('field_id')}"
+
+
 def period_key(f) -> str:
     """`period_end` of an ExtractedField (model or dict), else "unspecified"; a list-item basis
     (`action:`, `region:`, `target:`, `phaseout:`) is appended as `|<basis>`, its ':' as '|', so each item gets its own review item (P4)."""

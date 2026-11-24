@@ -1,6 +1,8 @@
 # Portable Docker images
 
-Status: **approved by the owner on 23 Nov 2026** (button in the dispatcher thread, after two spec-critic rounds)
+Status: **approved by the owner on 23 Nov 2026** (button in the dispatcher thread, after two spec-critic rounds).
+Amended 24 Nov 2026: `/api/` proxy host allow-list after the slice-1 security review (DNS rebinding), see Change §2;
+the database is initialised before the backend starts (slice-1 evaluator, AC-16).
 Slug: `portable-docker-images`
 Risk: this spec PR is `risk:low`. The build is `risk:high` (a new `.github/workflows/` file, and
 `backend/arp/compute/**` and `backend/Dockerfile.compute`, all in the steward table's `risk:high` row): the
@@ -87,10 +89,17 @@ and real sign-in. That needs a decision on the target host and on auth, which St
 - Proxied responses are not buffered (`proxy_buffering off`), so streamed answers arrive as produced.
 - Toward the backend, the proxy sends `Host: localhost` (accepted by the backend's default
   `ARP_TRUSTED_HOSTS` wherever the server lives) and the original host in `X-Forwarded-Host`.
-- Origin: when the request's `Origin` equals the page's own origin (`$scheme://$http_host`), the proxy
-  sends `Origin: http://localhost:5173` (in the backend's default `ARP_ALLOWED_ORIGINS`), so dev sign-in
-  works behind any address. Any other `Origin` is passed through unchanged, so a foreign site still gets no
-  dev bypass (401). No `Origin` header stays absent.
+- Host allow-list (against DNS rebinding): env `ARP_PUBLIC_HOSTS`, a space-separated list of host names
+  (port ignored), default `localhost 127.0.0.1`. A `/api/` request whose `Host` is not in the list gets
+  **421** from nginx and never reaches the backend. Static files are served for any Host.
+- Origin: for an allowed Host, when the request's `Origin` equals the page's own origin
+  (`$scheme://$http_host`), the proxy sends `Origin: http://localhost:5173` (in the backend's default
+  `ARP_ALLOWED_ORIGINS`), so dev sign-in works under every allowed name. Any other `Origin` is passed through
+  unchanged, so a foreign site still gets no dev bypass (401). No `Origin` header stays absent.
+- Uploads through the proxy are capped at `client_max_body_size 100m` (413 above it).
+- `frontend/Dockerfile` and the compose `frontend` port say, as the backend's comment does, that the
+  frontend port must stay loopback-bound in dev sign-in mode: every request through it reaches the backend
+  from a trusted address.
 - The cross-origin isolation headers stay on every page and asset response.
 
 ### 3. Build and publish workflow (`.github/workflows/images.yml`, new)
@@ -129,8 +138,10 @@ and real sign-in. That needs a decision on the target host and on auth, which St
     does) and no `ARP_BACKEND_URL` set:
     `root` (`GET /` → 200), `coop` (`/` has `Cross-Origin-Opener-Policy: same-origin` and
     `Cross-Origin-Embedder-Policy: require-corp`), `api-proxy` (`GET /api/health` on the frontend's port →
-    200 with `"status": "ok"`), `api-proxy-other-host` (same request with `Host: arp.example.test` and
-    `Origin: http://arp.example.test` → 200 from `/api/me`), `foreign-origin` (`GET /api/me` with
+    200 with `"status": "ok"`), `api-proxy-other-host` (frontend started with
+    `ARP_PUBLIC_HOSTS="localhost 127.0.0.1 arp.example.test"`; `GET /api/me` with `Host: arp.example.test`
+    and `Origin: http://arp.example.test` → 200), `rebind-host` (default `ARP_PUBLIC_HOSTS`; `GET /api/me`
+    with `Host: rebind.example.test` and `Origin: http://rebind.example.test` → 421), `foreign-origin` (`GET /api/me` with
     `Origin: http://evil.example.test` → 401).
   - `arp-compute`: `healthz-device-cpu` (`GET /healthz` → 200 with `"device": "cpu"`), `embed`
     (`POST /embed` `{"texts": ["hello"]}` with header `X-ARP-Model: <EMBED_MODEL_NAME>` → 200, `vectors` has 1 item), `no-onnxruntime-gpu`
@@ -162,14 +173,16 @@ and real sign-in. That needs a decision on the target host and on auth, which St
 With these `##` headings, in this order:
 
 - `Pull and run`: the files a server needs (`docker-compose.yml`, `backend/.env` from
-  `backend/.env.example`, an empty `config/`), `docker compose pull backend frontend`, `docker compose up -d postgres
-  backend frontend`, `docker compose exec backend arp db init-postgres`.
+  `backend/.env.example`, an empty `config/`), `docker compose pull backend frontend`, `docker compose up -d postgres`,
+  `docker compose run --rm backend arp db init-postgres` (once, before the backend first starts: it refuses
+  to start on an uninitialised database), then `docker compose up -d backend frontend`.
 - `Choosing a tag`: `latest`, `main`, `sha-…`, `<semver>`, `pr-<n>`, `-cuda`; how to cut a release
   (`git tag v1.2.3 && git push origin v1.2.3`).
 - `GPU`: what `ARP_COMPUTE_DEVICE` does; the NVIDIA Container Toolkit is needed for `-cuda`; ARM servers use
   the CPU image; `ARP_COMPUTE_IMAGE_TAG`.
 - `Reaching ARP from another machine`: ports are loopback-only on purpose; use an SSH tunnel, or put TLS in
-  front and switch to real sign-in (README "Sign-in").
+  front and switch to real sign-in (README "Sign-in"); a new host name must also be added to
+  `ARP_PUBLIC_HOSTS` on the frontend.
 - `Building offline`: `# syntax=docker/dockerfile:1` makes BuildKit fetch its Dockerfile frontend from Docker
   Hub when building, so building (not pulling) without internet needs that line removed or the
   `docker/dockerfile` image mirrored. Pulling published images needs no build.
@@ -228,24 +241,24 @@ set in the environment before the request. They load no model.
 | AC-9 | No GPU, `ARP_COMPUTE_DEVICE` unset, loaders for `/rerank`, `/spans`, `/tag`, `/classify` replaced by stand-ins | `POST` each endpoint with a valid body | each answers 200 (none 503); the stand-ins were asked for device `cpu`, and bge-m3's loader for dtype `float32` | unit |
 | AC-10 | The slice-3 PR's `images.yml` run (tag `pr-<n>`) | read its log | `imagetools inspect` of `arp-backend:pr-<n>`, `arp-frontend:pr-<n>` and `arp-compute:pr-<n>` each lists `linux/amd64` and `linux/arm64` | evaluator |
 | AC-11 | Same run | read its log | `imagetools inspect` of `arp-compute:pr-<n>-cuda` lists `linux/amd64` and no `linux/arm64` | evaluator |
-| AC-12 | Same run | read its log | it has all 20 lines `smoke arp-backend <p>: api-health ok`, `smoke arp-frontend <p>: root ok` / `coop ok` / `api-proxy ok` / `api-proxy-other-host ok` / `foreign-origin ok`, `smoke arp-compute <p>: healthz-device-cpu ok` / `embed ok` / `no-onnxruntime-gpu ok` for `<p>` = `linux/amd64` and `linux/arm64`, plus `smoke arp-compute linux/amd64: torch-cpu ok` and `smoke arp-compute-cuda linux/amd64: healthz-device-cpu ok` | evaluator |
+| AC-12 | Same run | read its log | it has all 22 lines `smoke arp-backend <p>: api-health ok`, `smoke arp-frontend <p>: root ok` / `coop ok` / `api-proxy ok` / `api-proxy-other-host ok` / `rebind-host ok` / `foreign-origin ok`, `smoke arp-compute <p>: healthz-device-cpu ok` / `embed ok` / `no-onnxruntime-gpu ok` for `<p>` = `linux/amd64` and `linux/arm64`, plus `smoke arp-compute linux/amd64: torch-cpu ok` and `smoke arp-compute-cuda linux/amd64: healthz-device-cpu ok` | evaluator |
 | AC-13 | Same run | read its log | no line contains `FAILED`; the `images.yml` check is green | evaluator |
 | AC-14 | Same run | read the workflow file and log | the arm64 build jobs ran on `ubuntu-24.04-arm` and no step set up QEMU | evaluator |
 | AC-15 | Slice 3 merged; the `images.yml` run on that `main` commit | read its log | it pushed tags `main`, `latest` and `sha-<7>` for all three images, and `-cuda` versions of each for `arp-compute` | evaluator |
-| AC-16 | Must not change: the repo checked out, `backend/.env` filled, Docker available | `docker compose up -d --build backend frontend` | exits 0; `docker compose ps` shows `backend` and `frontend` running | evaluator |
-| AC-17 | AC-16's stack, then `docker compose exec backend arp db init-postgres` | open `http://localhost:5173/` in a browser | the start page shows the workspace list, and every `/api/` request the page makes goes to `http://localhost:5173/api/...` (none to port 8000) with status 200 | evaluator |
+| AC-16 | Must not change: the repo checked out, `backend/.env` filled, Docker available, `docker compose up -d postgres` then `docker compose run --rm backend arp db init-postgres` (the backend refuses to start on an uninitialised database) | `docker compose up -d --build backend frontend` | exits 0; `docker compose ps` shows `backend` and `frontend` running | evaluator |
+| AC-17 | AC-16's stack | open `http://localhost:5173/` in a browser | the start page shows the workspace list, and every `/api/` request the page makes goes to `http://localhost:5173/api/...` (none to port 8000) with status 200 | evaluator |
 | AC-18 | The repo checked out (no `backend/.env`) | `docker compose --profile compute config` | every published port in the output has `host_ip: 127.0.0.1` | holdout |
 | AC-19 | The repo checked out (no `backend/.env`) | `docker compose config --services` | `compute` is not listed; with `--profile compute` it is | holdout |
 | AC-20 | The repo checked out (no `backend/.env`), `ARP_IMAGE_TAG=1.2.3`, `ARP_COMPUTE_IMAGE_TAG` unset | `docker compose --profile compute config` | images `ghcr.io/kutschersteffen-cmd/arp-backend:1.2.3`, `arp-frontend:1.2.3`, `arp-compute:1.2.3` | holdout |
 | AC-21 | The repo checked out (no `backend/.env`), `ARP_IMAGE_TAG=1.2.3`, `ARP_COMPUTE_IMAGE_TAG=1.2.3-cuda` | `docker compose --profile compute config` | backend and frontend images end in `:1.2.3`, compute's in `:1.2.3-cuda` | holdout |
 | AC-22 | `docs/DEPLOY_WITH_DOCKER.md` on the PR head | read its `##` headings | exactly, in order: `Pull and run`, `Choosing a tag`, `GPU`, `Reaching ARP from another machine`, `Building offline`, `Private images` | holdout |
-| AC-23 | The frontend image of slice 1, built locally by the builder, on a Docker network with the backend image (started with `ARP_DEV_TRUSTED_NETWORKS` = that network's subnet) as host `backend` | the builder's PR description | it quotes the output of `curl -si` for `/`, `/api/health` and `/api/me` with `Host: arp.example.test` / `Origin: http://arp.example.test`, and `/api/me` with `Origin: http://evil.example.test`: 200, 200, 200, 401 | evaluator |
+| AC-23 | The frontend image of slice 1, built locally by the builder, on a Docker network with the backend image (started with `ARP_DEV_TRUSTED_NETWORKS` = that network's subnet) as host `backend` | the builder's PR description | it quotes the output of `curl -si` for `/`, `/api/health`, `/api/me` with `Host: arp.example.test` / `Origin: http://arp.example.test` (frontend started with `ARP_PUBLIC_HOSTS="localhost 127.0.0.1 arp.example.test"`), `/api/me` with `Origin: http://evil.example.test`, and, with default `ARP_PUBLIC_HOSTS`, `/api/me` with `Host: rebind.example.test` / `Origin: http://rebind.example.test`: 200, 200, 200, 401, 421 | evaluator |
 | AC-24 | A compute app with no GPU, `ARP_COMPUTE_DEVICE` unset, `ARP_COMPUTE_MODELS_URL` pointing at it, embed and rerank stand-ins | `arp compute check` | the `rerank` and `embed` lines read `rerank OK (device=cpu)` and `embed OK (device=cpu)`; no line says `no GPU` | unit |
 | AC-25 | `backend/Dockerfile.compute` | read it | it declares `ARG VARIANT=cpu`, and the `cuda` path installs `onnxruntime-gpu==1.31.0` and `torch==2.14.1` | unit |
 | AC-26 | README on the PR head | read the "Setup" section | it links to `docs/DEPLOY_WITH_DOCKER.md` | holdout |
 | AC-27 | `docs/DEPLOY_WITH_DOCKER.md` | read `Building offline` | it names the line `# syntax=docker/dockerfile:1` and says a build without internet needs it removed or the `docker/dockerfile` image mirrored | evaluator |
 | AC-28 | The three packages set to public (Decision 1), Docker logged out of ghcr.io, a directory with only `docker-compose.yml`, `backend/.env` (from `.env.example`) and an empty `config/` | `ARP_IMAGE_TAG=main docker compose pull backend frontend` | exits 0 | evaluator |
-| AC-29 | AC-28's images, `docker compose up -d postgres backend frontend`, then `docker compose exec backend arp db init-postgres` | `GET http://localhost:8000/api/health` and open `http://localhost:5173/` | 200 for `/api/health`; on the page, every `/api/` request goes to `http://localhost:5173/api/...` with status 200, and no image was built (`docker compose up` printed no `Building` line) | evaluator |
+| AC-29 | AC-28's images, `docker compose up -d postgres` then `docker compose run --rm backend arp db init-postgres` (the backend refuses to start on an uninitialised database), then `docker compose up -d backend frontend` | `GET http://localhost:8000/api/health` and open `http://localhost:5173/` | 200 for `/api/health`; on the page, every `/api/` request goes to `http://localhost:5173/api/...` with status 200, and no image was built (`docker compose up` printed no `Building` line) | evaluator |
 | AC-30 | No GPU, `ARP_COMPUTE_DEVICE=cuda` | `POST /parse` with header `X-ARP-Parser-Version` = `parser_version()` and `{"object": "parse/<64 zeros>.pdf"}` | 503; JSON `detail` = `ARP_COMPUTE_DEVICE=cuda but no GPU is visible` | holdout |
 
 AC-15, AC-28 and AC-29 can only be checked after slice 3 merges (and, for AC-28, after the owner made the
@@ -254,4 +267,5 @@ on the merged PR; they are not merge gates for that PR.
 
 Must not change: `npm run dev` reaching `http://localhost:8000` (AC-5); local `docker compose up --build`
 (AC-16, AC-17); all compose ports bound to `127.0.0.1` (AC-18); `/healthz`'s `parser_version` and `cuda`
-keys and the meaning of `cuda` (AC-1, AC-4); a foreign `Origin` gets no dev bypass (AC-12 `foreign-origin`).
+keys and the meaning of `cuda` (AC-1, AC-4); a foreign `Origin` gets no dev bypass (AC-12 `foreign-origin`); a Host not in `ARP_PUBLIC_HOSTS` never
+reaches the backend through the proxy (AC-12 `rebind-host`, AC-23).
