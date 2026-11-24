@@ -341,6 +341,7 @@ function DeckView({ html, changed }: { html: string | null; changed: number[] })
     }
   }, [firstChanged]);
   if (html === null) return <p className="muted">Loading…</p>;
+  if (count === 0) return <p className="muted">This deck has no slides.</p>;
   const slide = Math.min(selected, count);
   return (
     <>
@@ -377,6 +378,14 @@ function SlideFrame({ html, slide, width, title, hidden = false, onOverflow }: {
   html: string; slide: number; width: number; title: string; hidden?: boolean; onOverflow?: (slots: string[]) => void;
 }) {
   const ref = useRef<HTMLIFrameElement>(null);
+  // A frame that was unmounted while its fonts loaded must not report to the screen now showing another slide.
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   // data-slide is the 0-based index; `slide` is the 1-based position.
   const srcDoc = html.replace("</head>", `<style>section.slide:not([data-slide="${slide - 1}"]){display:none}${MARK_CSS}</style></head>`);
   const scale = width / CANVAS.w;
@@ -384,6 +393,7 @@ function SlideFrame({ html, slide, width, title, hidden = false, onOverflow }: {
     const doc = ref.current?.contentDocument;
     if (!doc) return;
     void doc.fonts.ready.then(() => {
+      if (!alive.current) return;
       const over = [...doc.querySelectorAll<HTMLElement>(`[data-slide="${slide - 1}"][data-slot]`)].filter(overflowing);
       for (const el of over) {
         el.classList.add("arp-overflow");

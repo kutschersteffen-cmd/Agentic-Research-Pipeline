@@ -27,6 +27,7 @@ import type {
 } from "../types";
 import { activatable } from "../lib/activatable";
 import { setLeaveGuard } from "../lib/leaveGuard";
+import { latestGate } from "../lib/latest";
 import { ConfirmSignedIn } from "../components/ConfirmSignedIn";
 import { newDimension } from "../lib/dimensions";
 import { TIER_STARTER } from "../lib/ruleGraphs";
@@ -170,6 +171,11 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
   const unsaved = config !== null && withoutLayout(config) !== withoutLayout(stored);
 
   function loadConfig(next: MechanismConfig | null) {
+    // What was published or probed belongs to one framework version: another one starts clean.
+    if (!next || !config || next.framework_id !== config.framework_id || next.version !== config.version) {
+      setPublished(null);
+      setSensitivity(null);
+    }
     setConfig(next);
     setStored(next);
   }
@@ -356,15 +362,19 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
   // is on screen is exactly what the audit trail records.
   // Bumped when a reviewer sets or removes a level override, to score again.
   const [overridesTick, setOverridesTick] = useState(0);
+  const scoreGate = useRef(latestGate());
   useEffect(() => {
     if (!dataset || !config) return;
     window.clearTimeout(scoreTimer.current);
+    const stillLatest = scoreGate.current.next();
     scoreTimer.current = window.setTimeout(async () => {
       try {
-        setResult(await api.scoreDecision({ dataset_id: dataset.dataset_id, config }));
+        const scored = await api.scoreDecision({ dataset_id: dataset.dataset_id, config });
+        if (!stillLatest()) return;
+        setResult(scored);
         setError("");
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        if (stillLatest()) setError(e instanceof Error ? e.message : String(e));
       }
     }, 300);
     return () => window.clearTimeout(scoreTimer.current);
@@ -456,7 +466,10 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
     setConfirmingRatify(false);
     if (!config) return;
     const saved = await guard("Ratifying…", () => api.ratifyMechanism(config.framework_id, config.version));
-    if (saved) loadConfig(saved);
+    if (saved) {
+      loadConfig(saved);
+      refreshTemplates();
+    }
   }
 
   async function onPublish() {
@@ -1343,11 +1356,14 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
               ) : (
                 <button onClick={() => setConfirmingRatify(true)}>Ratify version {config.version}…</button>
               )}
-              {config.ratified && !unsaved && dataset && (
+              {config.ratified && !unsaved && dataset && config.purpose !== "authoritative" && (
                 <button onClick={() => {
                   setIdColumn(defaultIdColumn(dataset, config));
                   setConfirmingPublish(true);
                 }}>Publish to stewardship and index…</button>
+              )}
+              {config.ratified && !unsaved && dataset && config.purpose === "authoritative" && (
+                <span className="muted">This framework is authoritative: it publishes values, not tiers, so it has no Publish button here.</span>
               )}
             </div>
             {confirmingRatify && (

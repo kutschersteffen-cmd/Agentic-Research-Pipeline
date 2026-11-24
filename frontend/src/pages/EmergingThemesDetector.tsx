@@ -10,6 +10,7 @@ import { ContextBriefBody } from "../components/ContextBrief";
 import type { DossierItem, EmergingThemeCandidate, EmergingThemesScheduleConfig, RunManifest } from "../types";
 import { dossierHref, dossierOfCandidate } from "../lib/dossiers";
 import { activatable } from "../lib/activatable";
+import { errorDetail } from "../lib/themeLayers";
 import { intervalError, NO_COMPANIES, NOVELTY_HELP, SCANNING, SCHEDULE_SAVED, scanActive } from "../lib/emergingThemes";
 
 interface Props {
@@ -22,6 +23,16 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
   const [runId, setRunId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Which load the page error came from, so the next good load of that list clears it and nothing else.
+  const errorFrom = useRef<"recent" | "candidates" | null>(null);
+  const showError = (message: string | null, from: "recent" | "candidates" | null = null) => {
+    errorFrom.current = message ? from : null;
+    setError(message);
+  };
+  const clearErrorFrom = (from: "recent" | "candidates") => {
+    if (errorFrom.current === from) showError(null);
+  };
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [gated, setGated] = useState<{ taxonomyId: string; reason: string } | null>(null);
 
   const [recentRuns, setRecentRuns] = useState<RunManifest[]>([]);
@@ -38,14 +49,23 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
   const prevSelectedStatus = useRef(selectedStatus);
 
   useEffect(() => {
-    refreshRecentRuns();
-    api.getEmergingThemesSchedule().then((s) => setSchedule(s));
+    loadRecentRuns();
+    api.getEmergingThemesSchedule().then(
+      (s) => setSchedule(s),
+      (e) => setScheduleError(`The schedule could not be loaded: ${errorDetail(e)}`),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function refreshRecentRuns() {
     const res = (await api.listRuns("emerging_themes")) as { runs: RunManifest[] };
     setRecentRuns(res.runs);
+    clearErrorFrom("recent");
+  }
+
+  /** For the first load and the Refresh button: a failure is shown, not dropped. */
+  function loadRecentRuns() {
+    refreshRecentRuns().catch((e) => showError(`Recent scans could not be loaded: ${errorDetail(e)}`, "recent"));
   }
 
   // While a listed scan works, reload the list every 2.5 s; a failed reload schedules the next one too.
@@ -61,7 +81,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
     const was = prevSelectedStatus.current;
     prevSelectedStatus.current = selectedStatus;
     if (selectedRunId && scanActive(was) && selectedStatus && !scanActive(selectedStatus)) {
-      refreshCandidates(selectedRunId).catch((err) => setError((err as Error).message));
+      loadCandidates(selectedRunId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRunId, selectedStatus]);
@@ -69,14 +89,20 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
   async function refreshCandidates(id: string) {
     const res = await api.getEmergingThemesCandidates(id);
     setCandidates(res.candidates);
+    clearErrorFrom("candidates");
     // No dossiers loaded just means no "Open dossier" links.
     api.listDossiers().then((r) => setDossiers(r.items), () => setDossiers([]));
+  }
+
+  /** For selecting a run and the refresh buttons: a failure is shown, not dropped. */
+  function loadCandidates(id: string) {
+    refreshCandidates(id).catch((e) => showError(`Candidates could not be loaded: ${errorDetail(e)}`, "candidates"));
   }
 
   async function runNow() {
     if (!universePath) return;
     setBusy(true);
-    setError(null);
+    showError(null);
     try {
       const res = await api.startEmergingThemesRun({ universe_path: universePath });
       setRunId(res.run_id);
@@ -84,7 +110,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
       setCandidates([]);
       refreshRecentRuns();
     } catch (err) {
-      setError((err as Error).message);
+      showError((err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -93,7 +119,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
   function selectRun(id: string) {
     setSelectedRunId(id);
     setExpanded(null);
-    refreshCandidates(id);
+    loadCandidates(id);
   }
 
   async function promote(candidate: EmergingThemeCandidate) {
@@ -101,12 +127,12 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
     const reason = (reasonInputs[candidate.theme_id] ?? "").trim();
     if (!reason) return;
     setBusy(true);
-    setError(null);
+    showError(null);
     try {
       await api.promoteEmergingThemeCandidate(selectedRunId, candidate.theme_id, reason, taxonomyIdInputs[candidate.theme_id] || null);
       await refreshCandidates(selectedRunId);
     } catch (err) {
-      setError((err as Error).message);
+      showError((err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -117,12 +143,12 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
     const reason = (reasonInputs[candidate.theme_id] ?? "").trim();
     if (!reason) return;
     setBusy(true);
-    setError(null);
+    showError(null);
     try {
       await api.rejectEmergingThemeCandidate(selectedRunId, candidate.theme_id, reason);
       await refreshCandidates(selectedRunId);
     } catch (err) {
-      setError((err as Error).message);
+      showError((err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -133,12 +159,12 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
     const reason = (reasonInputs[candidate.theme_id] ?? "").trim();
     if (!reason) return;
     setBusy(true);
-    setError(null);
+    showError(null);
     try {
       await api.disconfirmEmergingThemeCandidate(selectedRunId, candidate.theme_id, reason);
       await refreshCandidates(selectedRunId);
     } catch (err) {
-      setError((err as Error).message);
+      showError((err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -146,16 +172,17 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
   async function runCompanyExposure(candidate: EmergingThemeCandidate) {
     if (!candidate.promoted_to_taxonomy_id) return;
+    if (!universePath) return showError('Choose the company universe under "Run a scan now" first.');
     setBusy(true);
-    setError(null);
+    showError(null);
     try {
-      await api.startThemeRun({ taxonomy_id: candidate.promoted_to_taxonomy_id, universe_path: universePath });
-      onNavigate?.("theme");
+      const started = await api.startThemeRun({ taxonomy_id: candidate.promoted_to_taxonomy_id, universe_path: universePath });
+      window.location.hash = `#/theme/${encodeURIComponent(started.run_id)}`;
     } catch (err) {
       const message = (err as Error).message;
       // A promoted taxonomy is a draft: it runs once ratified and its schema released in the Library.
       setGated(message.startsWith("409") ? { taxonomyId: candidate.promoted_to_taxonomy_id, reason: message.replace(/^409: /, "") } : null);
-      if (!message.startsWith("409")) setError(message);
+      if (!message.startsWith("409")) showError(message);
     } finally {
       setBusy(false);
     }
@@ -200,7 +227,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
       <section className="card">
         <h2>Recent scans</h2>
-        <button className="secondary" onClick={refreshRecentRuns}>Refresh</button>
+        <button className="secondary" onClick={loadRecentRuns}>Refresh</button>
         {recentRuns.length === 0 ? (
           <p className="muted">No scans yet — run one above, or enable the automatic schedule below.</p>
         ) : (
@@ -236,7 +263,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
       {selectedRunId && (
         <section className="card">
           <h2>Candidates — {selectedRunId}</h2>
-          <button onClick={() => refreshCandidates(selectedRunId)}>Refresh candidates</button>
+          <button onClick={() => loadCandidates(selectedRunId)}>Refresh candidates</button>
           {scanActive(selectedStatus) && candidates.length === 0 ? (
             <p className="muted" role="status">{SCANNING}</p>
           ) : candidates.length === 0 ? (
@@ -416,6 +443,12 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
         </section>
       )}
 
+      {scheduleError && !schedule && (
+        <section className="card">
+          <h2>Automatic schedule</h2>
+          <p className="error-text" role="alert">{scheduleError}</p>
+        </section>
+      )}
       {schedule && (
         <section className="card">
           <h2>Automatic schedule</h2>
