@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from arp import preflight
-from arp.config import Settings
+from arp.config import Settings, get_settings
 
 MODEL, VERIFIER = "gemini-3.6-flash", "gemini-3.6-pro"
 FETCH = "https://example.test/doc.pdf"
@@ -28,6 +28,8 @@ class FakeLLM:
 @pytest.fixture
 def world(tmp_path, monkeypatch):
     """Everything healthy; a test breaks one part."""
+    monkeypatch.setenv("ARP_MODEL_DEVICE", "cpu")  # the `local models` line must not depend on this machine's GPU
+    get_settings.cache_clear()
     w = type("World", (), {})()
     w.settings = Settings(
         _env_file=None, cache_dir=tmp_path, anthropic_api_key="sk-ant-other-provider", gemini_api_key="k",

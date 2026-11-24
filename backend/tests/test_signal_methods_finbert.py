@@ -5,6 +5,7 @@ import sys
 
 import pytest
 
+from arp.config import get_settings
 from arp.replication.price_data import PricePanel
 from arp.signal_lab.methods import finbert
 from arp.signal_lab.methods.base import MethodInput, run_method
@@ -145,6 +146,8 @@ def test_default_finbert_turns_a_broken_install_into_the_same_error(monkeypatch)
 
 
 def test_default_finbert_maps_labels_by_name_and_counts_long_texts(monkeypatch):
+    monkeypatch.setenv("ARP_MODEL_DEVICE", "cpu")  # not this machine's GPU
+    get_settings.cache_clear()
     class FakePipe:
         @staticmethod
         def tokenizer(texts, truncation):
