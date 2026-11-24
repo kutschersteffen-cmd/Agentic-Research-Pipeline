@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -43,8 +44,8 @@ def load_saved_universe(universe_path: str, settings: Settings) -> list[CompanyR
         raise HTTPException(400, UNREADABLE) from exc
 
 
-def check_schedule_universe(universe_path: str | None, current: str | None, settings: Settings) -> None:
+def check_schedule_universe(universe_path: str | None, current: Callable[[], str | None], settings: Settings) -> None:
     """A schedule's universe_path may be empty, a saved universe file, or the
-    string the schedule holds now (an operator's env setting keeps working)."""
-    if universe_path and universe_path != current:
+    string the schedule holds now (`current()`; an operator's env setting keeps working)."""
+    if universe_path and saved_universe_file(universe_path, settings) is None and universe_path != current():
         require_saved_universe(universe_path, settings)

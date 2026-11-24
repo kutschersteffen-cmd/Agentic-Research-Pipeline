@@ -89,6 +89,6 @@ def update_schedule(
 ) -> DiscoveryScheduleConfig:
     """Enable/disable and configure the automatic recurring discovery run
     (interval + universe file path). Takes effect immediately."""
-    check_schedule_universe(config.universe_path, scheduler.load_config().universe_path, settings)
+    check_schedule_universe(config.universe_path, lambda: scheduler.load_config().universe_path, settings)
     scheduler.save_config(config)
     return config

@@ -155,6 +155,6 @@ def update_schedule(
     + universe file path). Takes effect immediately."""
     if config.interval_hours <= 0:  # checked here, not on the stored model, so an older file holding 0 still loads
         raise HTTPException(422, "Interval must be greater than 0 hours.")
-    check_schedule_universe(config.universe_path, scheduler.load_config().universe_path, settings)
+    check_schedule_universe(config.universe_path, lambda: scheduler.load_config().universe_path, settings)
     scheduler.save_config(config)
     return config
