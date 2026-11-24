@@ -4,7 +4,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import {
   answerActions, budgetLine, canAccept, canTurnIntoPlan, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, exploreFromAsk, focusAfterFromAsk, INBOX_KIND, lineDiff,
   askingIn, COMPOSER_COPY, draftPlanFromExploration, explorationBadge, focusAfterDraft, nearEnd, needsYouLine, resultTable, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState,
-  threadRows, threadTitle, untilCancelled, usd,
+  sameThread, threadRows, threadTitle, untilCancelled, usd,
 } from "../src/lib/agent.ts";
 import type { Plan } from "../src/lib/plans.ts";
 import type { AskThread, Exploration } from "../src/types.ts";
@@ -321,4 +321,15 @@ test("a refused Draft plan keeps the field open with the detail and drafts no th
 test("after Draft plan, focus goes to the error when refused and leaves the card when drafted", () => {
   assert.equal(focusAfterDraft({ ok: false }), "error");
   assert.equal(focusAfterDraft({ ok: true }), null);
+});
+
+// Agent screen fixes (docs/superpowers/specs/2026-11-24-agent-screen-fixes.md).
+
+test("the same thread is the same kind and id, not the same object (AC-1, AC-2)", () => {
+  assert.equal(sameThread({ kind: "plan", id: "p1" }, { kind: "plan", id: "p1" }), true);
+  assert.equal(sameThread(null, null), true);
+  assert.equal(sameThread({ kind: "plan", id: "p1" }, { kind: "exploration", id: "p1" }), false);
+  assert.equal(sameThread({ kind: "plan", id: "p1" }, { kind: "plan", id: "p2" }), false);
+  assert.equal(sameThread({ kind: "plan", id: "p1" }, null), false);
+  assert.equal(sameThread(null, { kind: "ask", id: "t1" }), false);
 });
