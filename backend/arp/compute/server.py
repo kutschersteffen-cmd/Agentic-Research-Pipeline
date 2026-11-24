@@ -46,7 +46,7 @@ def _cuda_available() -> bool:
 def _device() -> str:
     """Where models load, read on every request: ARP_COMPUTE_DEVICE `cpu` or `cuda`; `auto` (the default,
     also for any other value) is `cuda` when torch sees a GPU, else `cpu`."""
-    mode = os.environ.get("ARP_COMPUTE_DEVICE", "auto")
+    mode = os.environ.get("ARP_COMPUTE_DEVICE")
     if mode in ("cpu", "cuda"):
         return mode
     return "cuda" if _cuda_available() else "cpu"
@@ -100,7 +100,7 @@ class _ClsEmbedder:
             yield from self._torch.nn.functional.normalize(cls.float(), dim=-1).cpu().numpy()
 
 
-def _load_reranker(key: str = "rerank", device: str = "cpu"):
+def _load_reranker(key: str, device: str):
     import torch  # noqa: F401 -- loads the CUDA/cuDNN libraries onnxruntime-gpu needs
 
     if key == "rerank":
@@ -112,7 +112,7 @@ def _load_reranker(key: str = "rerank", device: str = "cpu"):
     return _MaxSim(LateInteractionTextEmbedding(entry(key).hf_id, cuda=device == "cuda"))
 
 
-def _load_embedder(key: str = "embed", device: str = "cpu"):
+def _load_embedder(key: str, device: str):
     if key == "embed_bge_m3":
         return _ClsEmbedder(entry(key), device)
     import torch  # noqa: F401 -- loads the CUDA/cuDNN libraries onnxruntime-gpu needs
@@ -136,7 +136,7 @@ def _model(name: str, load, check):
         return _models[name]
 
 
-def _check(device: str, onnx: bool = True):
+def _check(device: str, onnx: bool):
     """On CUDA, an onnxruntime model must really be on the GPU; on CPU there is nothing to check."""
     return _require_cuda if device == "cuda" and onnx else (lambda m: m)
 
@@ -144,7 +144,7 @@ def _check(device: str, onnx: bool = True):
 # One loaded model per registry key, on the device of the request that loaded it.
 def _reranker(key: str = "rerank"):
     device = _device()
-    return _model(key, lambda: _load_reranker(key, device), _check(device))
+    return _model(key, lambda: _load_reranker(key, device), _check(device, onnx=True))
 
 
 def _embedder(key: str = "embed"):

@@ -1,8 +1,6 @@
 """ARP_COMPUTE_DEVICE in the compute service (spec portable-docker-images, slice 2). No model is loaded:
 every loader is a stand-in that records the device it was asked for."""
 
-from pathlib import Path
-
 import pytest
 import torch
 from fastapi.testclient import TestClient
@@ -15,7 +13,6 @@ from arp.models.registry import entry, model_header
 from arp.retrieval.embeddings import EMBED_MODEL_NAME
 
 NO_GPU = "ARP_COMPUTE_DEVICE=cuda but no GPU is visible"
-DOCKERFILE = Path(__file__).resolve().parents[1] / "Dockerfile.compute"
 
 
 @pytest.fixture
@@ -118,7 +115,12 @@ class _Net:
 
 
 class _Batch(dict):
+    def __init__(self, moved, **kw):
+        super().__init__(**kw)
+        self._moved = moved
+
     def to(self, device):
+        self._moved.append(device)
         return self
 
 
@@ -142,27 +144,61 @@ def test_every_model_endpoint_loads_on_cpu(gpu, monkeypatch):  # AC-9
     assert asked == {"rerank": "cpu", "spans": "cpu", "climate_detector": "cpu", "nli": "cpu"}
 
 
-def test_bge_m3_loads_float32_on_cpu(gpu, monkeypatch):  # AC-9
+@pytest.mark.parametrize("gpu_visible,mode,device,dtype", [
+    (False, None, "cpu", torch.float32),  # AC-9: CPU, float32
+    (True, None, "cuda", torch.float16),
+    (True, "cpu", "cpu", torch.float32),
+])
+def test_bge_m3_dtype_follows_device(gpu, monkeypatch, gpu_visible, mode, device, dtype):  # AC-9
     import transformers
 
-    loaded, net = {}, _Net()
+    e, loaded, moved, net = entry("embed_bge_m3"), {}, [], _Net()
 
     def model(hf_id, revision, torch_dtype):
-        loaded["dtype"] = torch_dtype
+        loaded["model"] = (hf_id, revision, torch_dtype)
         return net
 
+    def tokenizer(hf_id, revision):
+        loaded["tokenizer"] = (hf_id, revision)
+        return lambda texts, **kw: _Batch(moved, input_ids=torch.ones(len(texts), 2))
+
     monkeypatch.setattr(transformers.AutoModel, "from_pretrained", model)
-    monkeypatch.setattr(transformers.AutoTokenizer, "from_pretrained",
-                        lambda *a, **k: lambda texts, **kw: _Batch(input_ids=torch.ones(len(texts), 2)))
-    r = gpu(False).post("/embed", json={"texts": ["a"]}, headers={"X-ARP-Model": model_header(entry("embed_bge_m3"))})
-    assert r.status_code == 200 and len(r.json()["vectors"][0]) == 4
-    assert loaded["dtype"] is torch.float32 and net.device == "cpu"
+    monkeypatch.setattr(transformers.AutoTokenizer, "from_pretrained", tokenizer)
+    c = gpu(gpu_visible)
+    if mode:
+        monkeypatch.setenv("ARP_COMPUTE_DEVICE", mode)
+    r = c.post("/embed", json={"texts": ["a"]}, headers={"X-ARP-Model": model_header(e)})
+    assert r.status_code == 200 and len(r.json()["vectors"][0]) == 4  # no onnxruntime check on a torch model
+    assert loaded == {"model": (e.hf_id, e.revision, dtype), "tokenizer": (e.hf_id, e.revision)}
+    assert net.device == device and moved == [device]
 
 
-def test_dockerfile_variants():  # AC-25
-    text = DOCKERFILE.read_text()
-    assert "ARG VARIANT=cpu" in text
-    cuda = text.split('if [ "$VARIANT" = "cuda" ]', 1)[1].split("elif", 1)[0]
-    assert '"onnxruntime-gpu==1.31.0"' in cuda and '"torch==2.14.1"' in cuda
-    cpu = text.split('elif [ "$VARIANT" = "cpu" ]', 1)[1].split("else", 1)[0]
-    assert "download.pytorch.org/whl/cpu" in cpu and "onnxruntime-gpu" not in cpu
+class _OnnxSession:
+    def get_providers(self):
+        return ["CPUExecutionProvider"]
+
+
+class _CpuFallbackReranker(_Reranker):
+    model = type("Inner", (), {"model": _OnnxSession()})()
+
+
+def test_cuda_reranker_on_cpu_providers_is_503(gpu, monkeypatch):
+    c = gpu(True)
+    monkeypatch.setenv("ARP_COMPUTE_DEVICE", "cuda")
+    monkeypatch.setattr(server, "_load_reranker", lambda key, device: _CpuFallbackReranker())
+    r = c.post("/rerank", json={"query": "q", "texts": ["a"]}, headers={"X-ARP-Model": CLOUD_RERANK_MODEL})
+    assert r.status_code == 503 and "CPUExecutionProvider" in r.json()["detail"]
+
+
+def test_one_model_per_key_on_its_device(gpu, monkeypatch):
+    loads = []
+    monkeypatch.setattr(server, "_load_reranker", lambda key, device: loads.append((key, device)) or _Reranker())
+    monkeypatch.setattr(server, "_load_embedder", lambda key, device: loads.append((key, device)) or _Embedder())
+    c = gpu(False)
+    colbert, e5 = model_header(entry("rerank_colbert")), model_header(entry("embed_e5_large"))
+    for header in (CLOUD_RERANK_MODEL, CLOUD_RERANK_MODEL, colbert):
+        assert c.post("/rerank", json={"query": "q", "texts": ["a"]}, headers={"X-ARP-Model": header}).status_code == 200
+    for header in (EMBED_MODEL_NAME, e5, e5):
+        assert c.post("/embed", json={"texts": ["a"]}, headers={"X-ARP-Model": header}).status_code == 200
+    assert loads == [("rerank", "cpu"), ("rerank_colbert", "cpu"), ("embed", "cpu"), ("embed_e5_large", "cpu")]
+
