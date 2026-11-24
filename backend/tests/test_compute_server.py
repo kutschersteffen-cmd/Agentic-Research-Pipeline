@@ -117,10 +117,11 @@ def test_healthz_answers_during_parse(c, tmp_path, monkeypatch):  # Review 5
 
     monkeypatch.setattr(server, "parse_file_to_text_with_pages", slow_parse)
     monkeypatch.setattr(server, "_cuda_available", lambda: False)
+    monkeypatch.delenv("ARP_COMPUTE_DEVICE", raising=False)
     worker = threading.Thread(target=lambda: c.post("/parse", json={"object": OBJ}, headers=V1))
     worker.start()
     assert started.wait(5)
-    assert c.get("/healthz").json() == {"parser_version": "v1", "cuda": False}
+    assert c.get("/healthz").json() == {"parser_version": "v1", "cuda": False, "device": "cpu"}
     release.set()
     worker.join(5)
 
@@ -138,8 +139,10 @@ class _CpuEmbedder:
         self.model = type("Inner", (), {"model": _Session(["CPUExecutionProvider"])})()
 
 
-def test_model_on_cpu_is_503(monkeypatch):  # final review I4
-    monkeypatch.setattr(server, "_load_embedder", _CpuEmbedder)
+def test_model_on_cpu_is_503(monkeypatch):  # final review I4: on a CUDA device, an onnxruntime CPU fallback
+    monkeypatch.setenv("ARP_COMPUTE_DEVICE", "cuda")
+    monkeypatch.setattr(server, "_cuda_available", lambda: True)
+    monkeypatch.setattr(server, "_load_embedder", lambda key, device: _CpuEmbedder())
     monkeypatch.setattr(server, "_models", {})
     r = TestClient(server.app).post("/embed", json={"texts": ["a"]}, headers={"X-ARP-Model": EMBED_MODEL_NAME})
     assert r.status_code == 503 and "CPUExecutionProvider" in r.json()["detail"]

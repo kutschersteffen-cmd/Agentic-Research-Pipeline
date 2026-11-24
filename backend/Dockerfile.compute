@@ -1,9 +1,13 @@
-# A GPU image for arp/compute/server.py (the arp-parse and arp-models services), listening on $PORT
-# (default 8080). It installs backend/ from the same pyproject.toml as a local install,
-# so docling reports the same parser_version(), then swaps the CPU onnxruntime for the GPU build.
-# The CUDA libraries come from the PyTorch wheels docling pulls in; Cloud Run provides the driver.
+# An image for arp/compute/server.py, listening on $PORT (default 8080). It installs backend/ from the
+# same pyproject.toml as a local install, so docling reports the same parser_version().
+# VARIANT=cpu (default, linux/amd64 and linux/arm64): CPU-only torch, plain onnxruntime and fastembed.
+# VARIANT=cuda (linux/amd64 only, no onnxruntime-gpu wheels for ARM): swaps in the GPU onnxruntime and
+# fastembed; the CUDA libraries come from the PyTorch wheels, the host provides the driver (NVIDIA
+# Container Toolkit). Either image serves on CPU when no GPU is visible (ARP_COMPUTE_DEVICE=auto).
 # Models are baked in so a cold start downloads nothing. Build context: the repo root.
 FROM python:3.11-slim
+
+ARG VARIANT=cpu
 
 RUN apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
@@ -15,13 +19,22 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app/backend
 COPY backend/ ./
-# torch and onnxruntime-gpu pinned as a pair: both built for CUDA 13 (the Cloud Run L4 driver), and
-# onnxruntime-gpu loads the cuDNN that torch ships. A mismatch puts the models on the CPU, which
-# server._require_cuda turns into a 503 that `arp compute check` reports.
-RUN pip install --no-cache-dir ".[models]" "torch==2.14.1" \
-    && FASTEMBED_VERSION="$(pip show fastembed | sed -n 's/^Version: //p')" \
-    && pip uninstall -y onnxruntime fastembed \
-    && pip install --no-cache-dir "fastembed-gpu==${FASTEMBED_VERSION}" "onnxruntime-gpu==1.31.0"
+# cuda: torch and onnxruntime-gpu pinned as a pair, both built for CUDA 13, and onnxruntime-gpu loads
+# the cuDNN that torch ships. A mismatch puts the models on the CPU, which server._require_cuda turns
+# into a 503 that `arp compute check` reports.
+# cpu: torch and torchvision from the PyTorch CPU index first (no CUDA libraries), which the
+# ".[models]" install then keeps.
+RUN if [ "$VARIANT" = "cuda" ]; then \
+        pip install --no-cache-dir ".[models]" "torch==2.14.1" \
+        && FASTEMBED_VERSION="$(pip show fastembed | sed -n 's/^Version: //p')" \
+        && pip uninstall -y onnxruntime fastembed \
+        && pip install --no-cache-dir "fastembed-gpu==${FASTEMBED_VERSION}" "onnxruntime-gpu==1.31.0"; \
+    elif [ "$VARIANT" = "cpu" ]; then \
+        pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu "torch==2.14.1" torchvision \
+        && pip install --no-cache-dir ".[models]"; \
+    else \
+        echo "VARIANT must be cpu or cuda, got: $VARIANT" >&2 && exit 1; \
+    fi
 
 # The same converters the service builds (with and without OCR), plus both fastembed models.
 RUN python -c "\
