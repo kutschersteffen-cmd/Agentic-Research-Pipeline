@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_scheduler, settings_dep
+from arp.api.saved_universe import check_schedule_universe, load_saved_universe
 from arp.config import Settings
 from arp.db.session import require_dsn
 from arp.discovery.change_detector import ChangeDetector
@@ -16,7 +17,6 @@ from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.discovery import DiscoveryScheduleConfig
 from arp.storage.run_store import RunStore
-from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/discovery", tags=["discovery"])
 
@@ -41,7 +41,7 @@ async def start_discovery_run(
     """Manual trigger: 'search now' for new/updated investor-disclosure
     documents across the given (or referenced) company universe. Uses the
     exact same pipeline the automatic schedule uses."""
-    companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
+    companies = req.companies or (load_saved_universe(req.universe_path, settings) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
 
@@ -83,9 +83,12 @@ def get_schedule(scheduler: DiscoveryScheduler = Depends(get_scheduler)) -> Disc
 
 @router.put("/schedule", response_model=DiscoveryScheduleConfig)
 def update_schedule(
-    config: DiscoveryScheduleConfig, scheduler: DiscoveryScheduler = Depends(get_scheduler)
+    config: DiscoveryScheduleConfig,
+    scheduler: DiscoveryScheduler = Depends(get_scheduler),
+    settings: Settings = Depends(settings_dep),
 ) -> DiscoveryScheduleConfig:
     """Enable/disable and configure the automatic recurring discovery run
     (interval + universe file path). Takes effect immediately."""
+    check_schedule_universe(config.universe_path, lambda: scheduler.load_config().universe_path, settings)
     scheduler.save_config(config)
     return config
