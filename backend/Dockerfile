@@ -44,8 +44,12 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     if [ -n "$EXTRAS" ]; then pip install ".[${EXTRAS}]"; else pip install .; fi
 
 COPY backend/ ./
+# Editable, so arp runs from /app/backend (copied to the runtime stage as is) and
+# config.REPO_ROOT is /app, where the volume paths below live. A plain install puts
+# arp in site-packages, REPO_ROOT becomes /opt/venv/lib/python3.11, and the API
+# exits at start trying to create runs/ there as the non-root user.
 RUN --mount=type=cache,target=/root/.cache/pip \
-    if [ -n "$EXTRAS" ]; then pip install ".[${EXTRAS}]"; else pip install .; fi
+    if [ -n "$EXTRAS" ]; then pip install -e ".[${EXTRAS}]"; else pip install -e .; fi
 
 # ---- runtime: slim image, non-root, only what's needed to run ----
 FROM python:${PYTHON_VERSION} AS runtime
