@@ -11,7 +11,7 @@ MODEL, VERIFIER = "gemini-3.6-flash", "gemini-3.6-pro"
 FETCH = "https://example.test/doc.pdf"
 ALL_OK = [
     "ok postgres", f"ok model {MODEL}", f"ok verifier {VERIFIER}", "ok compute models", "ok compute parse",
-    "ok frontend", "ok fetch",
+    "ok local models: models on cpu (no GPU visible); embeddings on cpu (no GPU visible)", "ok frontend", "ok fetch",
 ]
 
 
@@ -76,7 +76,7 @@ async def test_fetch_identifies_itself(world):
 async def test_bad_model_fails_without_fallback(world):
     lines = await world.run(world.settings.model_copy(update={"llm_model": "nope"}))
     assert lines[1] == "FAIL model nope: model not found"
-    assert len(lines) == 7 and all(line.startswith("ok ") for i, line in enumerate(lines) if i != 1)
+    assert len(lines) == 8 and all(line.startswith("ok ") for i, line in enumerate(lines) if i != 1)
     # the check asked for exactly that model, with no other provider able to answer for it
     assert world.built[0] == ("nope", "sk-ant-other-provider", False)  # a non-Gemini id: Gemini is taken away
 
@@ -84,7 +84,7 @@ async def test_bad_model_fails_without_fallback(world):
 async def test_bad_verifier(world):
     lines = await world.run(world.settings.model_copy(update={"llm_verifier_model": "nope"}))
     assert lines[2] == "FAIL verifier nope: model not found"
-    assert len(lines) == 7
+    assert len(lines) == 8
 
 
 async def test_gemini_model_check_keeps_gemini_and_drops_anthropic(world):
@@ -95,7 +95,7 @@ async def test_gemini_model_check_keeps_gemini_and_drops_anthropic(world):
 async def test_unset_compute_is_skip(world):
     lines = await world.run(world.settings.model_copy(update={"compute_models_url": None}))
     assert lines[3] == "skip compute models"
-    assert len(lines) == 7 and not any(line.startswith("FAIL") for line in lines)
+    assert len(lines) == 8 and not any(line.startswith("FAIL") for line in lines)
 
 
 async def test_unmigrated_db(world, monkeypatch):
@@ -105,19 +105,19 @@ async def test_unmigrated_db(world, monkeypatch):
     monkeypatch.setattr(preflight, "require_cutover", not_migrated)
     lines = await world.run()
     assert lines[0].startswith("FAIL postgres: the database schema is not current")
-    assert len(lines) == 7
+    assert len(lines) == 8
 
 
 async def test_frontend_404(world):
     world.frontend_status = 404
     lines = await world.run()
-    assert lines[5].startswith("FAIL frontend:")
+    assert lines[6].startswith("FAIL frontend:")
 
 
 async def test_fetch_timeout(world):
     world.fetch_error = "timeout"
     lines = await world.run()
-    assert lines[6] == "FAIL fetch: timeout"
+    assert lines[7] == "FAIL fetch: timeout"
     assert FETCH in world.requested
 
 
@@ -159,7 +159,7 @@ async def test_a_check_that_hangs_times_out(world, monkeypatch):
     async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(200))) as http:
         lines = await preflight.run_preflight(world.settings, llm_factory=lambda s, **kw: Hangs(kw["model"]), http=http)
     assert lines[1] == f"FAIL model {MODEL}: no answer within 0.05 s"
-    assert len(lines) == 7
+    assert len(lines) == 8
 
 
 async def test_lines_are_reported_as_they_finish(world):

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import math
 
+from arp.models.device import log_models, torch_device
 from arp.replication.characteristics_data import CharacteristicPanel
 from arp.signal_lab.methods.base import MethodInput, MethodResult, register_method, text_buckets
 
@@ -22,8 +23,11 @@ def default_finbert(model_name: str = "ProsusAI/finbert"):
         name = model_name
 
         def __init__(self) -> None:
+            device = torch_device()
+            log_models()
             self._pipe = pipeline(
-                "text-classification", model=model_name, top_k=None, truncation=True, max_length=_MAX_TOKENS
+                "text-classification", model=model_name, top_k=None, truncation=True, max_length=_MAX_TOKENS,
+                device=device,
             )
 
         def score(self, texts: list[str]) -> list[tuple[float, float, float]]:

@@ -1,3 +1,4 @@
+import logging
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -232,6 +233,11 @@ class Settings(BaseSettings):
     )
     # Cloud Run GPU services (arp/compute/). Empty = compute locally.
     compute_parse_url: str | None = Field(default=None, description="arp-parse service URL: PDF parsing on a GPU.")
+    model_device: str = Field(
+        default="auto",
+        description="Device for the models the backend loads itself: auto (GPU when visible, else CPU), cpu, "
+        "or cuda (fail if no GPU)",
+    )
     compute_models_url: str | None = Field(default=None, description="arp-models service URL: rerank and embeddings.")
     models_universe_funnel_enabled: bool = Field(
         default=False,
@@ -621,6 +627,17 @@ class Settings(BaseSettings):
     _BACKEND_REQUIREMENTS = (
         ("retrieval_backend", "opensearch", "opensearch_url", "ARP_OPENSEARCH_URL", "ARP_RETRIEVAL_BACKEND=bm25"),
     )
+
+    @field_validator("model_device", mode="before")
+    @classmethod
+    def _model_device_known(cls, value: object) -> str:
+        text = str(value).strip().lower()
+        if text in ("auto", "cpu", "cuda"):
+            return text
+        if text:
+            logging.getLogger(__name__).warning(
+                "ARP_MODEL_DEVICE=%r is not auto, cpu or cuda; using auto", str(value))
+        return "auto"
 
     @field_validator("llm_batch")
     @classmethod
