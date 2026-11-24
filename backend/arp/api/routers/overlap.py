@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from pathlib import Path
-
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from arp.api.deps import settings_dep
+from arp.api.saved_universe import saved_universe_file
+from arp.config import Settings
 from arp.research.taxonomy_sources.etf_holdings import load_holdings_with_weights
 from arp.research.taxonomy_sources.overlap import compute_holdings_overlap
 from arp.schemas.taxonomy_sources import HoldingsOverlapResult
@@ -17,13 +18,11 @@ class OverlapRequest(BaseModel):
 
 
 @router.post("", response_model=HoldingsOverlapResult)
-def compute_overlap(req: OverlapRequest) -> HoldingsOverlapResult:
+def compute_overlap(req: OverlapRequest, settings: Settings = Depends(settings_dep)) -> HoldingsOverlapResult:
     if len(req.funds) < 2:
         raise HTTPException(400, "Provide at least two funds to compare.")
-    fund_holdings = {}
-    for name, path_str in req.funds.items():
-        path = Path(path_str)
-        if not path.exists():
-            raise HTTPException(404, f"Holdings file not found: {path_str}")
-        fund_holdings[name] = load_holdings_with_weights(path)
+    paths = {name: saved_universe_file(path_str, settings) for name, path_str in req.funds.items()}
+    if None in paths.values():
+        raise HTTPException(400, "Holdings file must be an uploaded file.")
+    fund_holdings = {name: load_holdings_with_weights(path) for name, path in paths.items()}
     return compute_holdings_overlap(fund_holdings)

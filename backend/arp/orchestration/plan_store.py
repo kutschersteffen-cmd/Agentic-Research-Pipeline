@@ -164,11 +164,11 @@ class PlanStore:
                              .order_by(ResearchPlan.created_at))
             return [(r.id, r.status) for r in rows]
 
-    def update_script(self, plan_id: str, script: str) -> None:
+    def update_script(self, plan_id: str, script: str, check: Callable[[list[dict]], list[str]] | None = None) -> None:
         """An edit always returns the plan to draft and clears its approval. A re-planned plan keeps the calls kept at
         re-planning: the edited script reads them as `previous` and starts after them."""
         previous, first_seq = kept_calls(self.get(plan_id), self.calls(plan_id))
-        steps = _checked_dry_run(script, previous, first_seq)
+        steps = _checked_dry_run(script, previous, first_seq, check)
         self._set(plan_id, script=script, dry_run=steps, status="draft", approved_by=None, approved_at=None)
         with Session(self.engine) as s, s.begin():  # a new script must not reuse an old script's results
             s.execute(delete(ResearchPlanCall).where(ResearchPlanCall.plan_id == plan_id,
@@ -322,10 +322,11 @@ class PlanStore:
                 raise TemplateNotFound(name)
             return _row(row)
 
-    def instantiate(self, name: str, source: str, version: int | None = None) -> str:
+    def instantiate(self, name: str, source: str, version: int | None = None,
+                    check: Callable[[list[dict]], list[str]] | None = None) -> str:
         """A draft plan from the template with `source` in every `universe_build` call. Raises TemplateNotFound, and
         ValueError when the source cannot be replaced or the checker rejects the result."""
         tpl = self.template(name, version)
         script = with_source(tpl["script"], source)
         return self.create(f"From template {name} v{tpl['version']} with source {source}", script,
-                           template=(name, tpl["version"]))
+                           check=check, template=(name, tpl["version"]))

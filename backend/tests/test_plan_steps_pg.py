@@ -201,6 +201,10 @@ def test_universe_adapter_takes_best_exposure(run_store, monkeypatch, tmp_path):
         match("acme", "minor", "exclude"), match("acme", "significant", "include")])
     monkeypatch.setattr("arp.research.indirect_exposure.factory.resolve_indirect_exposure_model", lambda *a, **k: None)
     monkeypatch.setattr("arp.api.deps.get_registry", lambda: None)
+    (tmp_path / "runs" / "_universes").mkdir(parents=True)  # a plan's source must be a saved universe
+    (tmp_path / "runs" / "_universes" / "u.csv").write_text("company_id,name\n")
+    monkeypatch.setenv("ARP_RUNS_DIR", str(tmp_path / "runs"))
+    get_settings.cache_clear()
     out = build_steps(get_settings(), run_store)["universe_build"](taxonomy_id="tax", source="u.csv")
     by_id = {c["id"]: c for c in out["companies"]}
     assert by_id["acme"] == {"id": "acme", "name": "Acme", "exposure": "significant", "included": True}

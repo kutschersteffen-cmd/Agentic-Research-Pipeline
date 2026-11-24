@@ -18,7 +18,19 @@ def store(pg):
 
 
 @pytest.fixture
-def client(store):
+def saved_universes(pg, tmp_path, monkeypatch):
+    """A plan's source must be a saved universe (spec server-paths-upload-limits D1)."""
+    from arp.config import get_settings
+
+    (tmp_path / "runs" / "_universes").mkdir(parents=True)
+    for name in ("us_listed.csv", "x.csv"):
+        (tmp_path / "runs" / "_universes" / name).write_text("company_id,name\nA,Acme\n")
+    monkeypatch.setenv("ARP_RUNS_DIR", str(tmp_path / "runs"))
+    get_settings.cache_clear()
+
+
+@pytest.fixture
+def client(store, saved_universes):
     app = FastAPI()
     app.include_router(plans.router)
     app.include_router(plans.templates_router)
