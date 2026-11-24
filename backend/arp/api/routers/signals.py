@@ -15,7 +15,7 @@ from arp.api.auth import Principal, require_role
 from arp.api.deps import get_run_store
 from arp.config import get_settings
 from arp.db.session import require_dsn
-from arp.errors import ClientInputError
+from arp.errors import ClientInputError, NotConfigured
 from arp.signal_lab.compare import Comparison, compare_experiments
 from arp.signal_lab.cutoffs import CutoffTable, load_cutoff_table
 from arp.signal_lab.inputs import load_inputs
@@ -201,6 +201,8 @@ async def run(
             )
         except ValueError as exc:
             raise _http(exc) from exc
+        except NotConfigured:  # the app's handler answers 503 with its message
+            raise
         except Exception as exc:  # may carry library or database detail: the type only, never a traceback
             logger.exception("signals run failed")
             raise HTTPException(500, detail=f"Run failed: {type(exc).__name__}") from exc

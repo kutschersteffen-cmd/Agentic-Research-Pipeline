@@ -4,7 +4,7 @@ import bisect
 import mimetypes
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -39,7 +39,7 @@ def _safe_document_path(documents_dir: Path, company_id: str, doc_type: str, fil
 async def upload_document(
     company_id: str = Form(...),
     doc_type: DocType = Form(...),
-    file: UploadFile = None,
+    file: UploadFile = File(...),
     settings: Settings = Depends(settings_dep),
 ) -> dict:
     """Manually drops a document into the same

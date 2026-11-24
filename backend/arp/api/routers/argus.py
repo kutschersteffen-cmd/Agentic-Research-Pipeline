@@ -518,6 +518,7 @@ async def retry_company(
         with run_store.lock(run_id):
             current = run_store.load_manifest(run_id)
             current.status = previous
+            current.params = {k: v for k, v in current.params.items() if k != "retrying"}
             run_store.save_manifest(current)
         raise
     return flow_progress(flow_id, store=store, run_store=run_store, principal=view.principal)

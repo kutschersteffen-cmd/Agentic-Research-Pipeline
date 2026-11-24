@@ -10793,7 +10793,7 @@ export interface components {
             company_id: string;
             doc_type: components["schemas"]["DocType"];
             /** File */
-            file?: string;
+            file: string;
         };
         /** Body_upload_document_api_rfp_documents_post */
         Body_upload_document_api_rfp_documents_post: {

@@ -545,3 +545,16 @@ def test_run_unexpected_failure_is_500_and_logged(client, run_files, monkeypatch
     assert "secret detail" not in resp.text
     logged = [r for r in caplog.records if r.message == "signals run failed"]
     assert logged and "secret detail" in str(logged[0].exc_info[1])
+
+
+def test_run_not_configured_is_503_with_its_reason(client, run_files, monkeypatch):
+    from arp.errors import NotConfigured
+
+    tmp_path, dates, prices = run_files
+
+    def unset(*a, **k):
+        raise NotConfigured("ARP_GEMINI_API_KEY is not set")
+
+    monkeypatch.setattr(signals_router, "run_recipe", unset)
+    resp = _post_run(client, _recipe_file(tmp_path / "r.json", dates), prices)
+    assert (resp.status_code, resp.json()) == (503, {"detail": "ARP_GEMINI_API_KEY is not set"})
