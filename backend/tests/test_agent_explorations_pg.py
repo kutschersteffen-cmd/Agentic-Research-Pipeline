@@ -204,6 +204,19 @@ def test_accept_labels_it_accepted_by_the_user(client, standins, sandbox_service
     assert (res.status_code, res.json()) == (404, {"detail": "exploration not found"})
 
 
+def test_accept_refuses_a_failed_or_timed_out_exploration(pg, client):
+    from arp.agent.explorations import ExplorationStore
+
+    store = ExplorationStore(pg)
+    ids = {st: store.add(question=st, code="return 1", model="stand-in", run={
+        "status": st, "result": None, "error": "boom", "tool_calls": []})["id"] for st in ("failed", "timeout")}
+    for st, eid in ids.items():
+        res = client.post(f"/api/agent/explorations/{eid}/accept")
+        assert (res.status_code, res.json()) == (409, {"detail": "only a done exploration can be accepted"})
+        got = client.get(f"/api/agent/explorations/{eid}").json()
+        assert (got["accepted_at"], got["label"], got["status"]) == (None, "exploratory", st)
+
+
 def test_inbox_lists_explorations_not_yet_accepted(pg, client, standins, sandbox_service):  # AC-50
     from arp.api.deps import get_run_store
     from arp.api.routers import plans

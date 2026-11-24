@@ -51,7 +51,7 @@ def exploration_store(settings: Settings = Depends(settings_dep)) -> Exploration
 @router.get("/inbox", response_model=list[InboxRow])
 def inbox(store: PlanStore = Depends(plan_store), run_store: RunStore = Depends(get_run_store),
           explorations: ExplorationStore = Depends(exploration_store)) -> list[InboxRow]:
-    """Draft plans, calls awaiting review and explorations not yet accepted, oldest first (a plan or an exploration
+    """Draft plans, calls awaiting review and `done` explorations not yet accepted, oldest first (a plan or an exploration
     by its `created_at`, a call by its `started_at`)."""
     rows = [(p["created_at"], InboxRow(kind="plan_approval", plan_id=p["id"], seq=None, exploration_id=None,
                                        title=p["brief"][:60], href=f"#/agent/{p['id']}"))
@@ -61,7 +61,7 @@ def inbox(store: PlanStore = Depends(plan_store), run_store: RunStore = Depends(
              for c in store.calls_awaiting_review()]
     rows += [(e["created_at"], InboxRow(kind="exploration", plan_id=None, seq=None, exploration_id=e["id"],
                                         title=e["question"][:60], href=f"#/agent/exploration/{e['id']}"))
-             for e in explorations.list() if e["accepted_at"] is None]
+             for e in explorations.list() if e["status"] == "done" and e["accepted_at"] is None]
     return [row for _, row in sorted(rows, key=lambda r: r[0])]
 
 
@@ -210,7 +210,12 @@ def get_exploration(exploration_id: str, store: ExplorationStore = Depends(explo
 @router.post("/explorations/{exploration_id}/accept", response_model=Exploration)
 def accept_exploration(exploration_id: str, store: ExplorationStore = Depends(exploration_store),
                        principal: Principal = Depends(current_user)) -> dict:
-    """A person accepts the exploration's result; its label becomes `accepted`."""
+    """A person accepts the exploration's result; its label becomes `accepted`. Only a `done` exploration has a result."""
+    current = store.get(exploration_id)
+    if current is None:
+        raise HTTPException(404, "exploration not found")
+    if current["status"] != "done":
+        raise HTTPException(409, "only a done exploration can be accepted")
     found = store.accept(exploration_id, principal.user_id)
     if found is None:
         raise HTTPException(404, "exploration not found")

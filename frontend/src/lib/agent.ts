@@ -186,6 +186,9 @@ export function threadRows(plans: Plan[], asks: AskThread[], explorations: Explo
 /** The badge an exploration's card shows until a person accepts it (AC-49); none once accepted. */
 export const explorationBadge = (e: Pick<Exploration, "label">): string | null => (e.label === "accepted" ? null : "Exploratory: not reviewed");
 
+/** Accept is offered only on a done exploration nobody accepted yet: a failed or timed-out one has no result to accept. */
+export const canAccept = (e: Pick<Exploration, "status" | "accepted_at">): boolean => e.status === "done" && e.accepted_at === null;
+
 /** Only a done exploration a person accepted shows `Turn into a plan…` (Phase 6). */
 export const canTurnIntoPlan = (e: Pick<Exploration, "status" | "accepted_at">): boolean => e.status === "done" && e.accepted_at !== null;
 

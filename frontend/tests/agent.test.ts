@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import {
-  answerActions, budgetLine, canTurnIntoPlan, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, exploreFromAsk, focusAfterFromAsk, INBOX_KIND, lineDiff,
+  answerActions, budgetLine, canAccept, canTurnIntoPlan, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, exploreFromAsk, focusAfterFromAsk, INBOX_KIND, lineDiff,
   askingIn, COMPOSER_COPY, draftPlanFromExploration, explorationBadge, focusAfterDraft, nearEnd, needsYouLine, resultTable, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState,
   threadRows, threadTitle, untilCancelled, usd,
 } from "../src/lib/agent.ts";
@@ -225,6 +225,20 @@ test("Explore mode sends the question to the sandbox lane, never with source_ask
 test("an exploration shows the badge Exploratory: not reviewed until accepted (AC-49)", () => {
   assert.equal(explorationBadge({ label: "exploratory" }), "Exploratory: not reviewed");
   assert.equal(explorationBadge({ label: "accepted" }), null);
+});
+
+test("Accept is offered only on a done exploration nobody accepted yet (AC-11 to AC-13)", () => {
+  assert.equal(canAccept({ status: "done", accepted_at: null }), true);
+  assert.equal(canAccept({ status: "failed", accepted_at: null }), false);
+  assert.equal(canAccept({ status: "timeout", accepted_at: null }), false);
+  assert.equal(canAccept({ status: "done", accepted_at: "2026-11-24T09:00:00+00:00" }), false);
+});
+
+test("the exploration card gates Accept on canAccept and keeps the badge on every unaccepted card (AC-14, AC-14b, AC-15)", () => {
+  const card = readFileSync(new URL("../src/components/ExplorationCard.tsx", import.meta.url), "utf8");
+  assert.match(card, /\{canAccept\(e\) && <button /);
+  assert.doesNotMatch(card, /\{badge && <button/);
+  assert.match(card, /explorationBadge\(e\)/);
 });
 
 test("a result is a table only when it is a list of flat objects", () => {
