@@ -25,9 +25,17 @@
 #   docker compose up -d neo4j                         # optional: company graph for theme exposure layers
 #   docker compose --env-file backend/.env up -d postgres superset   # BI (arp/bi/), then:
 #          arp db init-postgres && arp bi bootstrap
+#   docker compose --profile compute up -d compute     # optional: compute service (rerank, embeddings, ...)
+#
+# Published images (docs/DEPLOY_WITH_DOCKER.md): `backend`, `frontend` and
+# `compute` name their ghcr.io image next to `build:`. `docker compose pull
+# backend frontend` fetches them (tag: ARP_IMAGE_TAG, default latest; compute:
+# ARP_COMPUTE_IMAGE_TAG, default ARP_IMAGE_TAG), and `up` then runs them
+# without building; `up --build` still builds from this checkout.
 
 services:
   backend:
+    image: ghcr.io/kutschersteffen-cmd/arp-backend:${ARP_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -48,8 +56,9 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:8000:8000"
-    env_file:
-      - backend/.env
+    env_file:  # optional, so `docker compose config` works on a fresh checkout
+      - path: backend/.env
+        required: false
     environment:  # overrides backend/.env
       ARP_AUTH_MODE: dev
       ARP_DEV_TRUSTED_NETWORKS: '["172.16.0.0/12"]'
@@ -81,6 +90,7 @@ services:
       - ./config:/app/config:ro
 
   frontend:
+    image: ghcr.io/kutschersteffen-cmd/arp-frontend:${ARP_IMAGE_TAG:-latest}
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -95,6 +105,34 @@ services:
       - "127.0.0.1:5173:80"
     depends_on:
       - backend
+
+  # Optional (profile `compute`, so a plain `docker compose up` leaves it out):
+  # the compute service, arp/compute/server.py (rerank, embeddings, spans,
+  # tags, classify), called directly over HTTP. The backend cannot use a
+  # self-hosted compute container yet (its client also expects Google
+  # credentials), so it keeps computing in-process. It has no sign-in of its
+  # own: keep it on the compose network and its port loopback-bound. The default
+  # image runs on any CPU; on an NVIDIA host set ARP_COMPUTE_IMAGE_TAG=<tag>-cuda
+  # and uncomment the GPU block below (needs the NVIDIA Container Toolkit).
+  compute:
+    image: ghcr.io/kutschersteffen-cmd/arp-compute:${ARP_COMPUTE_IMAGE_TAG:-${ARP_IMAGE_TAG:-latest}}
+    profiles: [compute]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.compute
+      args:
+        VARIANT: cpu
+    environment:
+      ARP_COMPUTE_DEVICE: auto  # cpu | cuda (GPU required: 503 without one) | auto
+    ports:
+      - "127.0.0.1:8080:8080"
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
 
   postgres:
     image: pgvector/pgvector:pg16

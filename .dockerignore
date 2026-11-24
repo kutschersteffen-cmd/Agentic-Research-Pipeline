@@ -37,8 +37,10 @@ portfolios/
 data/documents/
 engagements/
 ballots/
-.env
-.env.*
+# At any depth, not only the context root: a filled backend/.env must never
+# reach an image (the ! lines below keep the templates).
+**/.env
+**/.env.*
 !backend/.env.example
 backend/.gcp/
 !frontend/.env.example
