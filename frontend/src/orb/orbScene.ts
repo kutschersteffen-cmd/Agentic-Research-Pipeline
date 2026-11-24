@@ -287,18 +287,25 @@ export function createOrbScene(canvas: HTMLCanvasElement, context: WebGL2Renderi
   const FT = renderer.extensions.has("EXT_color_buffer_float") ? HalfFloatType : UnsignedByteType;
   // No MSAA: 4x multisampling more than doubled the frame time of high and medium in a software renderer, which
   // kept slow machines from stepping down in time (AC-26); bloom and grain already soften the line edges.
-  const rt = new WebGLRenderTarget(8, 8, { type: FT, samples: 0, depthBuffer: false });
-  const composer = new EffectComposer(renderer, rt);
-  composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new Vector2(256, 256), 0.62, 0.62, 0.5);
-  [bloom.renderTargetBright, ...bloom.renderTargetsHorizontal, ...bloom.renderTargetsVertical].forEach((t) => { t.texture.type = FT; });
-  composer.addPass(bloom);
-  const finalPass = new ShaderPass({
-    uniforms: { tDiffuse: { value: null }, uC: { value: new Vector2(0.5, 0.5) }, uTime: { value: 0 }, uCA: { value: 0.0032 }, uExp: { value: 1.4 }, uGrain: { value: 0.06 }, uRes: { value: new Vector2(1, 1) } },
-    vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-    fragmentShader: FINAL_FRAG,
-  });
-  composer.addPass(finalPass);
+  // The composer, bloom and final pass cost memory and a shader compile, so they are built on the first layout
+  // whose quality is not "low" and kept from then on.
+  type Post = { composer: EffectComposer; bloom: UnrealBloomPass; finalPass: ShaderPass };
+  let post: Post | null = null;
+  function buildPost(): Post {
+    const rt = new WebGLRenderTarget(8, 8, { type: FT, samples: 0, depthBuffer: false });
+    const composer = new EffectComposer(renderer, rt);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloom = new UnrealBloomPass(new Vector2(256, 256), 0.62, 0.62, 0.5);
+    [bloom.renderTargetBright, ...bloom.renderTargetsHorizontal, ...bloom.renderTargetsVertical].forEach((t) => { t.texture.type = FT; });
+    composer.addPass(bloom);
+    const finalPass = new ShaderPass({
+      uniforms: { tDiffuse: { value: null }, uC: { value: new Vector2(0.5, 0.5) }, uTime: { value: 0 }, uCA: { value: 0.0032 }, uExp: { value: 1.4 }, uGrain: { value: 0.06 }, uRes: { value: new Vector2(1, 1) } },
+      vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+      fragmentShader: FINAL_FRAG,
+    });
+    composer.addPass(finalPass);
+    return { composer, bloom, finalPass };
+  }
 
   const U: Record<string, IUniform> = {
     uTime: { value: 0 }, uCol: { value: PAL[0].col.clone() }, uHot: { value: PAL[0].hot.clone() },
@@ -524,12 +531,15 @@ export function createOrbScene(canvas: HTMLCanvasElement, context: WebGL2Renderi
     const pr = pixelRatio(quality, dpr, size, size);
     renderer.setPixelRatio(pr);
     renderer.setSize(size, size, false);
-    composer.setPixelRatio(pr);
-    composer.setSize(size, size);
-    if (quality === "medium") bloom.setSize(Math.round(size / 2), Math.round(size / 2));
+    if (quality !== "low") post ??= buildPost();
+    if (post) {
+      post.composer.setPixelRatio(pr);
+      post.composer.setSize(size, size);
+      if (quality === "medium") post.bloom.setSize(Math.round(size / 2), Math.round(size / 2));
+      (post.finalPass.uniforms.uRes.value as Vector2).set(size, size);
+    }
     U.uPx.value = pr;
     rPx = size / 2 / EXTENT;
-    (finalPass.uniforms.uRes.value as Vector2).set(size, size);
     U.uDof.value = quality === "high" ? 1.15 : 0;
     // Without post-processing nothing blooms: lift the lines so the low Orb still reads as lit gold.
     U.uGainAll.value = quality === "low" ? 1.35 : 1;
@@ -583,7 +593,7 @@ export function createOrbScene(canvas: HTMLCanvasElement, context: WebGL2Renderi
     frame(dt, phase, voiceOn) {
       T += dt;
       U.uTime.value = T;
-      finalPass.uniforms.uTime.value = T % 100;
+      if (post) post.finalPass.uniforms.uTime.value = T % 100;
       runTweens(dt);
       if (phase === "locked" && prevPhase !== "locked") S.punch = 1;
       prevPhase = phase;
@@ -651,8 +661,9 @@ export function createOrbScene(canvas: HTMLCanvasElement, context: WebGL2Renderi
 
       if (quality === "low") renderer.render(scene, camera);
       else {
-        bloom.strength = 0.62 + S.punch * 0.55 + S.voice * 0.1;
-        composer.render();
+        post ??= buildPost();
+        post.bloom.strength = 0.62 + S.punch * 0.55 + S.voice * 0.1;
+        post.composer.render();
       }
     },
     dispose() {
@@ -662,9 +673,9 @@ export function createOrbScene(canvas: HTMLCanvasElement, context: WebGL2Renderi
         const mats: Material[] = m.material ? ([] as Material[]).concat(m.material) : [];
         mats.forEach((mt) => { (mt as SpriteMaterial).map?.dispose(); mt.dispose(); });
       });
-      bloom.dispose();
-      finalPass.dispose();
-      composer.dispose();
+      post?.bloom.dispose();
+      post?.finalPass.dispose();
+      post?.composer.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
     },

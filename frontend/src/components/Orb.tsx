@@ -79,6 +79,8 @@ export function Orb({ place, intro = false, label = false, speaking = false, wor
     let paused = false;
     let afterPause = true;
     let last = -1;
+    let failed = 0;
+    let logged = false;
     const rule = agent || pin ? null : new QualityRule(level);
     let quality = level as OrbQuality;
     const clock = new OrbClock(intro);
@@ -146,7 +148,17 @@ export function Orb({ place, intro = false, label = false, speaking = false, wor
       const ev = clock.tick(dt);
       if (ev.started) scene.transform();
       if (ev.committed) scene.commit();
-      scene.frame(Math.min(dt, MAX_STEP), clock.phase, voice.current && (clock.phase === "speaking" || agent));
+      try {
+        scene.frame(Math.min(dt, MAX_STEP), clock.phase, voice.current && (clock.phase === "speaking" || agent));
+        failed = 0;
+      } catch (error) {
+        if (!logged) console.error("Orb frame failed", error);
+        logged = true;
+        if (++failed >= 3) {
+          toStill();
+          return;
+        }
+      }
       if (!canvas.isConnected) {
         el.appendChild(canvas);
         setMode("live");

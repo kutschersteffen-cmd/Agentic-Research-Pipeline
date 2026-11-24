@@ -1,18 +1,18 @@
 // The diagram frame's page (board-diagram.html): Mermaid draws one diagram here, inside a sandboxed iframe whose
 // Content-Security-Policy blocks every outside load (spec agent-board, Amendment 1d/1e: the frame is the security
 // boundary). Plain TypeScript, no React. Mermaid and ELK load with a dynamic import() on the first draw (AC-55).
+import { latestGate, memoUntilRejected } from "./lib/latest";
 import { diagramWidth, themedSource, type DiagramTheme, type FromFrame, type ToFrame } from "./lib/board";
 
 type Mermaid = typeof import("mermaid").default;
-let mermaid: Promise<Mermaid> | null = null;
-
-function loadMermaid(): Promise<Mermaid> {
-  mermaid ??= Promise.all([import("mermaid"), import("@mermaid-js/layout-elk")]).then(([m, elk]) => {
+// A failed import is forgotten, so the next draw tries again.
+const loadMermaid = memoUntilRejected<Mermaid>(() =>
+  Promise.all([import("mermaid"), import("@mermaid-js/layout-elk")]).then(([m, elk]) => {
     m.default.registerLayoutLoaders(elk.default);
     return m.default;
-  });
-  return mermaid;
-}
+  }),
+);
+const drawGate = latestGate();
 
 const root = document.getElementById("diagram")!;
 const reply = (msg: FromFrame) => window.parent.postMessage(msg, location.origin);
@@ -136,15 +136,20 @@ async function draw(source: string, theme: DiagramTheme) {
   document.body.style.background = theme.panel;
   document.body.style.color = theme.text;
   document.body.style.fontFamily = theme.font;
+  const current = drawGate.next();
   try {
     const m = await loadMermaid();
+    if (!current()) return;
     // Measure text in the house font: wait for the weights Mermaid uses before it lays anything out.
     await Promise.all([`400 14px ${theme.font}`, `600 14px ${theme.font}`].map((f) => document.fonts.load(f).catch(() => [])));
+    if (!current()) return;
     m.initialize(config(theme));
     const { svg } = await m.render(`d${++n}`, themedSource(source, theme));
+    if (!current()) return;
     root.replaceChildren(linkFree(svg));
     fit();
   } catch (e) {
+    if (!current()) return;
     root.replaceChildren();
     reply({ type: "error", message: String((e as Error)?.message ?? e) });
   }

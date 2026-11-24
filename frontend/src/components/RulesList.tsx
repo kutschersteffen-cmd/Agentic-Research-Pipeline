@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { ProposedTag } from "./ProposedTag";
 import { blankRule, RuleEditor } from "./RuleEditor";
+import { randomId } from "../lib/randomId";
 import { ruleInputs, ruleSentence } from "../lib/ruleSentence";
 import type { DataPointSchema, FieldDefinition, FieldRule, RuleSuggestion } from "../types";
 
@@ -107,7 +108,7 @@ export function RulesList({ schema, waiting, onChange, onSuggestAgain, busy }: P
             <RuleEditor
               fields={schema.fields}
               fieldId={null}
-              rule={blankRule("threshold", `rule_${crypto.randomUUID()}`)}
+              rule={blankRule("threshold", `rule_${randomId()}`)}
               onSave={(fieldId, rule) => done({ schema: withRules(schema.fields, fieldId, (r) => [...r, rule]) })}
               onCancel={() => setEditing(null)}
             />

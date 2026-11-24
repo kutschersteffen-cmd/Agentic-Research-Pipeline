@@ -38,3 +38,12 @@ export function redirectHash(hash: string): string | null {
  * every other hash routes as before, so direct links keep working. */
 export const entryTab = (hash: string): "welcome" | null =>
   ["", "#", "#/", "#/welcome"].includes(hash) ? "welcome" : null;
+
+/** `decodeURIComponent`, but a malformed `%` sequence comes back as it was instead of throwing. */
+export function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
