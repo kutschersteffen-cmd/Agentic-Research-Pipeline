@@ -30,7 +30,13 @@ def test_cli_rejected_twice(pg, fake_llm, monkeypatch):  # AC-12
     assert "line 1: arithmetic not allowed" in result.stdout
 
 
-def test_cli_draft_prints_plan(pg, fake_llm, monkeypatch):
+def test_cli_draft_prints_plan(pg, fake_llm, monkeypatch, tmp_path):
+    from arp.config import get_settings
+
+    (tmp_path / "runs" / "_universes").mkdir(parents=True)  # a plan's source must be a saved universe
+    (tmp_path / "runs" / "_universes" / "u.csv").write_text("company_id,name\n")
+    monkeypatch.setenv("ARP_RUNS_DIR", str(tmp_path / "runs"))
+    get_settings.cache_clear()
     monkeypatch.setattr(plan_cli, "_llm", lambda: fake_llm({"PlanScript": [GOOD]}))
     monkeypatch.setattr(plan_cli, "_context", lambda: "")
     result = CliRunner().invoke(plan_cli.plan_app, ["draft", "grid storage"])

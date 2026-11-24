@@ -158,7 +158,7 @@ def test_readme_lines():  # AC-27
 def _git(*args: str):
     import subprocess
 
-    return subprocess.run(["git", *args], cwd=PACK.parents[1], capture_output=True, text=True)
+    return subprocess.run(["git", *args], cwd=PACK.resolve().parents[1], capture_output=True, text=True)
 
 
 def test_documents_pdf_ignored():  # AC-13

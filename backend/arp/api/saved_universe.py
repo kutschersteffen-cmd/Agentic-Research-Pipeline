@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 NOT_SAVED = "Universe file must be a saved universe."
 UNREADABLE = "Could not read the universe file."
+CATALOGUE_NOT_UPLOADED = "Catalogue file must be an uploaded file."
 
 
 def saved_universe_file(universe_path: str, settings: Settings) -> Path | None:

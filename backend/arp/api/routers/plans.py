@@ -75,7 +75,7 @@ def _context() -> str:
 
 
 def _check_sources(steps: list[dict]) -> list[str]:
-    """A drafted or re-planned script may only name a saved universe or an existing universe file."""
+    """A plan's script may only name a saved universe."""
     from arp.universe import universe_source_errors
 
     return universe_source_errors(get_settings().runs_dir, steps)
@@ -117,7 +117,7 @@ def edit_plan(plan_id: str, req: ScriptRequest, store: PlanStore = Depends(plan_
         raise HTTPException(422, "budget_usd must be a finite number >= 0, or null for no budget")
     if req.script is not None:
         try:
-            store.update_script(plan_id, req.script)
+            store.update_script(plan_id, req.script, check=_check_sources)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
     if "budget_usd" in req.model_fields_set:
@@ -234,7 +234,7 @@ def get_template(name: str, version: int | None = None, store: PlanStore = Depen
 def instantiate_template(name: str, req: InstantiateRequest, store: PlanStore = Depends(plan_store)) -> dict:
     """A draft plan from the template, with `source` in every `universe_build` call; it runs only after approval."""
     try:
-        plan_id = store.instantiate(name, req.source, req.version)
+        plan_id = store.instantiate(name, req.source, req.version, check=_check_sources)
     except TemplateNotFound as exc:
         raise HTTPException(404, "template not found") from exc
     except ValueError as exc:

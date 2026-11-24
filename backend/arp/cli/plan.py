@@ -64,6 +64,13 @@ def _context() -> str:
                            saved_universes(get_settings().runs_dir))
 
 
+def _check_sources(steps: list[dict]) -> list[str]:
+    from arp.config import get_settings
+    from arp.universe import universe_source_errors
+
+    return universe_source_errors(get_settings().runs_dir, steps)
+
+
 def _print_steps(calls: list[dict]) -> None:
     for c in calls:
         dep = f"  (depends on {c['depends_on']})" if c["depends_on"] else ""
@@ -75,7 +82,7 @@ def draft(brief: str) -> None:
     """Have the planner write a plan script for a research brief; stores it as a draft."""
     store = _store()
     try:
-        plan_id = asyncio.run(draft_plan(brief, _llm(), store, _context()))
+        plan_id = asyncio.run(draft_plan(brief, _llm(), store, _context(), check=_check_sources))
     except PlanRejected as exc:
         typer.echo(str(exc))
         raise typer.Exit(1) from exc
@@ -168,7 +175,7 @@ def replan(plan_id: str, user: str | None = typer.Option(None, "--user", help="W
     store = _store()
     _plan_or_exit(store, plan_id)
     try:
-        asyncio.run(replan_plan(plan_id, _llm(), store, _context(), user))
+        asyncio.run(replan_plan(plan_id, _llm(), store, _context(), user, check=_check_sources))
     except (PlanRejected, PlanNotReplannable) as exc:
         typer.echo(str(exc))
         raise typer.Exit(1) from exc
