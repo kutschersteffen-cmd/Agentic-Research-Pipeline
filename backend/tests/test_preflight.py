@@ -11,7 +11,7 @@ MODEL, VERIFIER = "gemini-3.6-flash", "gemini-3.6-pro"
 FETCH = "https://example.test/doc.pdf"
 ALL_OK = [
     "ok postgres", f"ok model {MODEL}", f"ok verifier {VERIFIER}", "ok compute models", "ok compute parse",
-    "ok local models: models on cpu (no GPU visible); embeddings on cpu (no GPU visible)", "ok frontend", "ok fetch",
+    "ok local models: models on cpu (ARP_MODEL_DEVICE=cpu); embeddings on cpu (ARP_MODEL_DEVICE=cpu)", "ok frontend", "ok fetch",
 ]
 
 
