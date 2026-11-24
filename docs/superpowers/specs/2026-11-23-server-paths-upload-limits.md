@@ -214,9 +214,11 @@ plan's script comes in or runs:
 - the plan worker when it runs the step: the step fails with that sentence and the file is not read. The
   worker's order stays as it is (the taxonomy lookup comes before the source).
 
-**Strategy Replication backtest.** `prices_ref` and every value of `characteristics_refs` must be a regular
-file inside `run_store.run_dir(spec_run_id)`; else (an empty string too) 400
-`{"detail": "Dataset must be an uploaded file."}`. The
+**Strategy Replication backtest.** `prices_ref` and every value of `characteristics_refs` must name a file
+the spec's own uploads stored in `run_store.run_dir(spec_run_id)`; else (an empty string too) 400
+`{"detail": "Data file not found: <name>"}`, where `<name>` is the text after the last `/` of the value sent.
+That is bug-list item 1's rule and sentence (`strategy-replication-fixes`, merged in #707); this spec keeps it
+rather than give the same request a second sentence. The
 check comes after the existing 404 (unknown spec run) and 403 (spec not approved). What a path inside that
 folder that does not load answers is item 1's subject and is not changed here.
 
@@ -315,7 +317,7 @@ run beside slice 1.
 | 2 | ETF overlap, revenue catalogue, plans; the path guard test | AC-26 to AC-35, AC-57 to AC-60, AC-64, AC-67, AC-68, AC-70 to AC-73 | S |
 | 3 | `read_capped` on reads 1 to 11, the image read; the upload guard test | AC-36 to AC-43 | S |
 | 4 | The whole-request limit | AC-44 to AC-50, AC-61 | S |
-| 5 | Strategy Replication backtest paths. Starts only after bug-list item 1 has merged, and merges `origin/main` first. Adds its two fields to the path guard's list. | AC-53 to AC-56, AC-65, AC-74 | S |
+| 5 | Strategy Replication backtest paths. Starts only after bug-list item 1 has merged, and merges `origin/main` first. Adds its two fields to the path guard's list. Satisfied without a code change: item 1 (#707) confines the two fields, and the path guard test already lists them as the spec's own uploads. | AC-53 to AC-56, AC-65, AC-74 | S |
 
 AC-51 and AC-52 were not used.
 
@@ -396,9 +398,9 @@ with the body `{"detail": "Universe file must be a saved universe."}`.
 | AC-48 | D3 accepted; `max_request_bytes` = 3,000,000 and `max_upload_bytes` = 2,000,000 | `POST /api/universe/raw-upload` with one 2,000,001-byte file (the request is under 3,000,000 bytes) | status 413 with the per-file sentence `File is larger than the 2 MB upload limit.` | unit |
 | AC-49 | D3 accepted; the environment has `ARP_MAX_REQUEST_BYTES=5000000` and `ARP_MAX_BODY_BYTES=3000000` | `Settings()` is built | `max_request_bytes` is 5,000,000 and `max_body_bytes` is 3,000,000 | unit |
 | AC-50 | D3 accepted; default settings | `GET /api/health`, and `POST /api/universe/upload` with the AC-41 file | 200 and 200 (must not change) | holdout |
-| AC-53 | an approved spec run R; OUTSIDE-P is an existing prices CSV outside R's folder | `POST /api/replication/specs/R/backtest` with `prices_ref` = OUTSIDE-P | status 400, body `{"detail": "Dataset must be an uploaded file."}` | unit |
-| AC-54 | an approved spec run R with an uploaded prices file | the backtest request with `characteristics_refs` = `{"x": OUTSIDE-P}` | the AC-53 answer | unit |
-| AC-55 | an approved spec run R | the backtest request with `prices_ref` = MISSING | the status and the body are the same bytes as in AC-53 | unit |
+| AC-53 | an approved spec run R; OUTSIDE-P is an existing prices CSV outside R's folder | `POST /api/replication/specs/R/backtest` with `prices_ref` = OUTSIDE-P | status 400, body `{"detail": "Data file not found: <name>"}`, `<name>` the text after the last `/` of OUTSIDE-P | unit |
+| AC-54 | an approved spec run R with an uploaded prices file | the backtest request with `characteristics_refs` = `{"x": OUTSIDE-P}` | the AC-53 answer (status 400, `Data file not found: <name>` for OUTSIDE-P) | unit |
+| AC-55 | an approved spec run R | the backtest request with `prices_ref` = MISSING | status 400, body `{"detail": "Data file not found: x.csv"}` | unit |
 | AC-56 | an approved spec run R; prices and one characteristics file were uploaded through the two replication upload routes | the backtest request with the two returned `ref` values | the answer is not the AC-53 answer and has no 5xx status (must not change) | unit |
 | AC-57 | a copy of the app's OpenAPI document in which one request body gains a property `foo_path` | the path guard test's check is run on that copy | it fails and its message names `foo_path`; on the real document it passes | unit |
 | AC-58 | D1 accepted; OUTSIDE exists; a failed plan; the planner stand-in answers a script with `source` = OUTSIDE | `arp plan replan` re-plans it | it exits non-zero and prints a line that contains `is not a saved universe` | unit |
@@ -417,7 +419,7 @@ with the body `{"detail": "Universe file must be a saved universe."}`.
 | AC-71 | D1 accepted; OUTSIDE exists; the planner stand-in answers a script with `source` = OUTSIDE | a failed plan is re-planned with `POST /api/plans/{id}/replan`, and a plan is drafted through the agent route (`routers/agent.py`) | replan answers 422 with a `detail` list whose first item contains `is not a saved universe`, and the plan is still `failed`; the agent route creates no plan | unit |
 | AC-72 | C as in AC-67 | `POST /api/themes/runs` with `{"taxonomy_id": "none", "companies": [{"company_id": "a", "name": "A"}], "revenue_catalogue_path": X}`, once with X = `""` and once with X = C | status 404, body `{"detail": "Taxonomy not found: none"}` both times (must not change for `""`; an uploaded catalogue passes the path check) | holdout |
 | AC-73 | H as in AC-26 | `POST /api/etf-overlap` with `{"funds": {"a": H, "b": ""}}` | the AC-26 answer | holdout |
-| AC-74 | an approved spec run R | the backtest request with `prices_ref` = `""` | the AC-53 answer | unit |
+| AC-74 | an approved spec run R | the backtest request with `prices_ref` = `""` | status 400, body `{"detail": "Data file not found: "}` | unit |
 
 Must not change: the answers of the routes that already check a path (AC-18, AC-19) or a size (AC-40, AC-42);
 "Provide either…" (AC-16); XBRL's and readiness's own sentences (AC-17, AC-62); the order of checks (AC-63 to AC-65); `companies` wins over `universe_path` (AC-20); a saved
