@@ -252,3 +252,26 @@ def test_non_finite_string_values_are_not_numbers_on_patch(client, plan):
     res = client.patch(f"{_b(plan)}/blocks/{c['id']}", json={"source": INF_CHART})
     assert res.status_code == 200, res.text
     assert res.json()["unverified"] == [0.77]
+
+
+@pytest.fixture
+def exploration(pg):
+    from arp.agent.explorations import ExplorationStore
+
+    run = {"status": "done", "result": {"n": 3}, "error": None, "tool_calls": []}
+    return ExplorationStore(pg).add(question="how many?", code="x=1", run=run, model=None)["id"]
+
+
+def test_board_on_an_exploration(client, exploration, tmp_path):  # AC-27, slice 4
+    b = f"/api/agent/boards/exploration/{exploration}"
+    assert client.get(b).json() == {"thread_kind": "exploration", "thread_id": exploration, "blocks": []}
+    _standin(tmp_path, {"output": {"kind": "note", "title": "Count", "source": "three"}})
+    res = client.post(f"{b}/draw", json={"prompt": "summarise"})
+    assert res.status_code == 200 and res.json()["origin"] == "agent"
+    prompt = _calls(tmp_path)[0]["prompt"]
+    assert '"question":"how many?"' in prompt and '"result":{"n":3}' in prompt
+    block = res.json()["id"]
+    assert client.patch(f"{b}/blocks/{block}", json={"title": "Total"}).json()["version"] == 2
+    assert client.post(f"{b}/blocks/{block}/undo").json()["title"] == "Count"
+    assert client.delete(f"{b}/blocks/{block}").status_code == 204
+    assert client.get("/api/agent/boards/exploration/not-a-uuid").json() == {"detail": "thread not found"}

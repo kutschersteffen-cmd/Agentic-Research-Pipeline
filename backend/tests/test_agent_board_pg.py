@@ -77,7 +77,7 @@ def test_unknown_thread_and_kind(client, pg):  # AC-2, AC-2b
     assert client.get("/api/agent/boards/plan/nope").json() == {"detail": "thread not found"}
     res = client.get("/api/agent/boards/folder/x")
     assert (res.status_code, res.json()) == (404, {"detail": "unknown thread kind"})
-    assert client.get("/api/agent/boards/exploration/x").json() == {"detail": "unknown thread kind"}
+    assert client.get("/api/agent/boards/exploration/x").json() == {"detail": "thread not found"}  # slice 4
 
 
 def test_create_note(client, plan):  # AC-3

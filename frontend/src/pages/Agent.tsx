@@ -414,8 +414,10 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
         ) : tab === "board" ? (
           plan ? (
             <AgentBoard key={plan.id} planId={plan.id} planStatus={plan.status} idPrefix={id} />
+          ) : exploration && explorationId ? (
+            <AgentBoard key={exploration.id} kind="exploration" planId={exploration.id} planStatus={exploration.status} idPrefix={id} />
           ) : (
-            <p className="muted">{explorationId ? "An exploration has no board yet." : "The selected plan’s board shows here."}</p>
+            <p className="muted">The selected plan’s or exploration’s board shows here.</p>
           )
         ) : !plan ? (
           <p className="muted">{explorationId ? "An exploration has no script, changes or audit trail: its code and tool calls are in the stream." : "The selected plan’s script, changes and audit trail show here."}</p>

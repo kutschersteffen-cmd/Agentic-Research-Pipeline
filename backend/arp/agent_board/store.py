@@ -43,11 +43,30 @@ class BoardStore:
 
         self.engine = get_engine(dsn)
 
-    def plan_exists(self, plan_id: str) -> bool:
+    def thread_exists(self, thread_kind: str, thread_id: str) -> bool:
+        if thread_kind == "exploration":
+            from arp.agent.models import AgentExploration
+
+            try:
+                key = uuid.UUID(thread_id)
+            except ValueError:
+                return False
+            with Session(self.engine) as s:
+                return s.get(AgentExploration, key) is not None
         from arp.orchestration.plan_models import ResearchPlan
 
         with Session(self.engine) as s:
-            return s.get(ResearchPlan, plan_id) is not None
+            return s.get(ResearchPlan, thread_id) is not None
+
+    def thread_data(self, thread_kind: str, thread_id: str) -> dict:
+        """The thread data for a draw (spec "Drawing"): a plan's, or an exploration's question, status and result."""
+        if thread_kind == "exploration":
+            from arp.agent.models import AgentExploration
+
+            with Session(self.engine) as s:
+                e = s.get(AgentExploration, uuid.UUID(thread_id))
+                return {"question": e.question, "status": e.status, "result": e.result}
+        return self.plan_data(thread_id)
 
     def plan_data(self, plan_id: str) -> dict:
         """The plan's thread data for a draw (spec "Drawing"): brief, status and its stored calls by `seq`."""
