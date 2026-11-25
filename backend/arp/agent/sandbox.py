@@ -143,6 +143,8 @@ async def execute(code: str, principal: Principal, settings: Settings | None = N
         status, result, error = out["status"], out.get("result"), out.get("error")
     except (httpx.HTTPError, ValueError, KeyError) as exc:
         status, result, error = "failed", None, f"sandbox at {settings.sandbox_url} did not answer: {type(exc).__name__}"
+        if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429:
+            error = f"sandbox at {settings.sandbox_url} is busy (too many code runs at once); try again in a moment"
     execution = release(token)
     calls = execution.tool_calls if execution else []
     if execution and execution.breach and status != "timeout":

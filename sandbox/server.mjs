@@ -13,15 +13,22 @@ import { fileURLToPath } from "node:url";
 import { checkCode } from "./check.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const WORKERD = createRequire(import.meta.url)("workerd").default; // the native binary, not a node shim
+const WORKERD = process.env.ARP_SANDBOX_WORKERD || createRequire(import.meta.url)("workerd").default; // the native binary, not a node shim
 const WALL_MS = Number(process.env.ARP_SANDBOX_WALL_MS ?? 30000);
 const API_URL = new URL(process.env.ARP_API_URL ?? "http://127.0.0.1:8000");
 const MEMORY_MB = Number(process.env.ARP_SANDBOX_MEMORY_MB ?? 512);
 const BODY_LIMIT = 1 << 20;
+const MAX_PARALLEL = process.env.ARP_SANDBOX_MAX_PARALLEL || "4";
+if (!/^[1-9][0-9]*$/.test(MAX_PARALLEL)) {
+  console.error("ARP_SANDBOX_MAX_PARALLEL must be a whole number of at least 1");
+  process.exit(1);
+}
+let running = 0; // /execute requests in progress
 
-function rssMb(pid) {  // Linux: resident set size from /proc; null where it cannot be read
+function rssMb(pid) {  // Linux: resident set size from the VmRSS line (kB) of /proc; null where it cannot be read
   try {
-    return (Number(readFileSync(`/proc/${pid}/statm`, "utf8").split(" ")[1]) * 4096) / (1 << 20);
+    const kb = readFileSync(`/proc/${pid}/status`, "utf8").match(/^VmRSS:\s*(\d+) kB/m);
+    return kb ? Number(kb[1]) / 1024 : null;
   } catch {
     return null;
   }
@@ -44,6 +51,7 @@ function startWorkerd() {
       const line = buf.split("\n").find((l) => l.includes('"listen"'));
       if (line) resolve(JSON.parse(line).port);
     });
+    child.on("error", reject); // a missing or non-executable binary fails this execution, not the service
     child.on("exit", (code) => reject(new Error(`workerd exited (${code}): ${stderr.trim()}`)));
   });
   return { child, port };
@@ -109,9 +117,17 @@ export function createSandboxServer() {
     try {
       if (req.method === "GET" && req.url === "/health") return send(res, 200, { ok: true });
       if (req.method !== "POST" || !["/check", "/execute"].includes(req.url)) return send(res, 404, { detail: "not found" });
-      const body = await readJson(req);
-      if (req.url === "/check") return send(res, 200, checkCode(body?.code));
-      return send(res, 200, await execute(body ?? {}));
+      if (req.url === "/check") return send(res, 200, checkCode((await readJson(req))?.code));
+      if (running >= Number(MAX_PARALLEL)) {
+        for await (const _ of req); // read and discard the body
+        return send(res, 429, { detail: `sandbox busy: ${MAX_PARALLEL} of ${MAX_PARALLEL} executions running` });
+      }
+      running++;
+      try {
+        return send(res, 200, await execute((await readJson(req)) ?? {}));
+      } finally {
+        running--;
+      }
     } catch (err) {
       return send(res, 400, { detail: err.message });
     }
@@ -120,5 +136,9 @@ export function createSandboxServer() {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.ARP_SANDBOX_PORT ?? 8790);
-  createSandboxServer().listen(port, "127.0.0.1", () => console.log(`sandbox listening on 127.0.0.1:${port}`));
+  const host = process.env.ARP_SANDBOX_HOST || "127.0.0.1";
+  if (rssMb("self") === null) {
+    console.error("memory limit off: cannot read process memory on this system, so ARP_SANDBOX_MEMORY_MB is not enforced");
+  }
+  createSandboxServer().listen(port, host, () => console.log(`sandbox listening on ${host}:${port}`));
 }

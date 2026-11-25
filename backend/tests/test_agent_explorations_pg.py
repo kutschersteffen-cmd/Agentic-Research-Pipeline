@@ -113,6 +113,14 @@ def test_sandbox_down_is_a_failed_exploration(client, standins, monkeypatch):
     assert (body["status"], body["error"]) == ("failed", "sandbox at http://sandbox.test did not answer: ConnectError")
 
 
+def test_a_busy_sandbox_says_so(client, standins, monkeypatch):
+    busy = httpx.MockTransport(lambda request: httpx.Response(429, json={"detail": "sandbox busy: 4 of 4 executions running"}))
+    monkeypatch.setattr(sandbox.httpx, "AsyncClient", lambda **kw: REAL_CLIENT(transport=busy, **kw))
+    body = _explore(client, standins, "q5b", "return 1").json()
+    assert (body["status"], body["error"]) == (
+        "failed", "sandbox at http://sandbox.test is busy (too many code runs at once); try again in a moment")
+
+
 def test_no_stand_in_code_is_502(client, standins, sandbox_service):
     (standins / "explore.json").write_text("{}")
     res = client.post("/api/agent/explorations", json={"question": "unknown"})
