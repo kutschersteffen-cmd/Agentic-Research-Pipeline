@@ -119,6 +119,11 @@ def _fill_observations(settings) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = settings_dep()
+    if settings.auth_mode == "dev" and "*" in settings.allowed_origins:
+        raise NotConfigured(
+            'ARP_AUTH_MODE=dev with "*" in ARP_ALLOWED_ORIGINS lets any website act as the dev approver. '
+            "List the real origins in ARP_ALLOWED_ORIGINS, or set ARP_AUTH_MODE=local."
+        )
     check_rule_book()  # an invalid rule book stops startup, naming its first error
     check_benchmarks()  # so does an invalid benchmarks file
     require_postgres(settings)  # Postgres is the system of record: no DSN or no answer, no app

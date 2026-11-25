@@ -105,8 +105,8 @@ class _PrefixProxy(BaseHTTPRequestHandler):
 def proxied_app(relative_dist):
     api_port, proxy_port = _free_port(), _free_port()
     env = {**os.environ, "ARP_FRONTEND_DIST": str(relative_dist), "ARP_POSTGRES_DSN": DSN, "ARP_AUTH_MODE": "dev",
-           # as in the bank's .env: the browser's Origin is the proxy's, not one the API knows
-           "ARP_ALLOWED_ORIGINS": '["*"]', "ARP_TRUSTED_HOSTS": '["*"]', "ARP_NEO4J_URI": ""}
+           # the browser's Origin is the proxy's; dev mode refuses "*" (spec signin-headers-containers), so name it
+           "ARP_ALLOWED_ORIGINS": f'["http://127.0.0.1:{proxy_port}"]', "ARP_TRUSTED_HOSTS": '["*"]', "ARP_NEO4J_URI": ""}
     api = subprocess.Popen([sys.executable, "-m", "uvicorn", "arp.api.main:app", "--host", "127.0.0.1", "--port", str(api_port)],
                            cwd=REPO / "backend", env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     _PrefixProxy.upstream = f"http://127.0.0.1:{api_port}"

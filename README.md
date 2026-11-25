@@ -116,9 +116,9 @@ header not in `ARP_ALLOWED_ORIGINS` gets no bypass, so only the origins listed
 there can act as you), and the API only answers the host names in `ARP_TRUSTED_HOSTS`
 (default `localhost`, `127.0.0.1`, `[::1]`, `backend`), which blocks DNS
 rebinding; this host check applies to every route, voting included. Dev mode has a single user, so four-eyes
-steps (calibration approval, co-sign) need local mode. Never combine
-`ARP_AUTH_MODE=dev` with `ARP_ALLOWED_ORIGINS=["*"]`: `"*"` lets any website
-open in the same browser act as the dev approver.
+steps (calibration approval, co-sign) need local mode. The API
+refuses to start with `ARP_AUTH_MODE=dev` and `"*"` in `ARP_ALLOWED_ORIGINS`: `"*"` would let any website open in
+the same browser act as the dev approver.
 
 **Switching to local mode** (real per-person sign-in):
 
@@ -131,7 +131,7 @@ open in the same browser act as the dev approver.
 2. Set `ARP_AUTH_MODE=local` in `backend/.env` (Docker: in the `backend`
    service's `environment:` in `docker-compose.yml`, and remove
    `ARP_DEV_TRUSTED_NETWORKS` there).
-3. Restart the API (also after every later edit of the users file: it is read once).
+3. Restart the API. Later edits of the users file take effect on the next request, no restart needed.
 4. Each person pastes their token into the sidebar; the UI keeps it in the
    browser's `localStorage` until they sign out (or the API rejects it).
 5. CLI commands that write (`arp index calibration-save`, `arp index approve`, …)
