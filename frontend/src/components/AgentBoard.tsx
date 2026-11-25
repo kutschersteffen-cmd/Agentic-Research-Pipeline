@@ -394,7 +394,7 @@ function BoardDiagram({ source, title, theme }: { source: string; title: string;
 
   useEffect(() => {
     const onMessage = (e: MessageEvent<FromFrame>) => {
-      if (!frame.current || e.source !== frame.current.contentWindow) return;
+      if (!frame.current || e.source !== frame.current.contentWindow || e.origin !== "null") return;
       if (e.data?.type === "drawn" && typeof e.data.height === "number" && typeof e.data.width === "number") {
         setFailed(null);
         setSize({ width: e.data.width, height: e.data.height });
