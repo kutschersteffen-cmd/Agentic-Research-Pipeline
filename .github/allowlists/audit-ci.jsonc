@@ -1,0 +1,10 @@
+{
+  "high": true,
+  "package-manager": "npm",
+  "allowlist": [
+    // katex prototype pollution; fix only with mermaid@12 (breaking); KaTeX renders only the app's own board diagrams; review by 2027-02-28
+    "GHSA-238p-pmpm-9mq7",
+    // zod memory use via @gorules/jdm-editor@1.52.0; npm's only fix is a downgrade; review by 2027-02-28
+    "GHSA-mrhx-c7xc-m3w5"
+  ]
+}

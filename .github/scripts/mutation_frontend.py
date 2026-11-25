@@ -21,7 +21,7 @@ from pathlib import Path
 
 FRONTEND = Path("frontend")
 REPORT = FRONTEND / "reports" / "mutation" / "mutation.json"
-STRYKER = ["npx", "--yes", "-p", "@stryker-mutator/core@10.0.0", "-p", "typescript@5.9.2", "stryker", "run"]
+STRYKER = ["npx", "--yes", "-p", "@stryker-mutator/core@10.0.0", "-p", "typescript@~6.0.2", "stryker", "run"]
 SHOW_SURVIVORS = 5
 # Stryker copies only frontend/ into <tempDirName>/sandbox-*/, so a test's "../../DESIGN.md" lands in the
 # temp dir instead of the repo root. A copy there keeps those tests passing on the sandbox's initial run.
