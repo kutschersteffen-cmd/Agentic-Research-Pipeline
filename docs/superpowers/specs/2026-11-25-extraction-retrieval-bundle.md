@@ -1,6 +1,6 @@
 # Extraction retrieval quality: field query, reranking small pieces, overlap removal
 
-Status: Draft, for owner approval
+Status: Approved by Steffen, 2026-11-25
 Slug: `extraction-retrieval-bundle`
 Risk: `risk:normal` (backend retrieval only: `arp/retrieval/select_evidence.py`, `arp/retrieval/rerank.py`,
 `arp/extraction/field_graph.py`, `arp/config.py`; no auth, schema, money, workflow or UI file)
