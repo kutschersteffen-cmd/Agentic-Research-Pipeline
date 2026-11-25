@@ -189,12 +189,12 @@ test("board-diagram.html opens with the frame's Content-Security-Policy and load
   const entry = read("src/boardDiagram.ts");
   assert.ok(!/from "react"|from "react-dom"/.test(entry));
   assert.ok(entry.includes('import("mermaid")') && entry.includes('import("@mermaid-js/layout-elk")'));
-  assert.ok(entry.includes("e.source !== window.parent || e.origin !== location.origin"));
+  assert.ok(entry.includes("if (e.source !== window.parent) return;"));
 });
 
-test("the Board's frame is sandboxed to scripts and its own origin only (AC-49d)", () => {
+test("the Board's frame is sandboxed to scripts only (signin-headers-containers AC-34, supersedes AC-49d)", () => {
   const board = read("src/components/AgentBoard.tsx");
-  assert.ok(board.includes('sandbox="allow-scripts allow-same-origin"'));
+  assert.ok(board.includes('sandbox="allow-scripts"'));
   assert.ok(board.includes("e.source !== frame.current.contentWindow"));
 });
 

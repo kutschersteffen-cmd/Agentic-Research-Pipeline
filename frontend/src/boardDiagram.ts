@@ -156,7 +156,7 @@ async function draw(source: string, theme: DiagramTheme) {
 }
 
 window.addEventListener("message", (e: MessageEvent<ToFrame>) => {
-  if (e.source !== window.parent || e.origin !== location.origin) return;
+  if (e.source !== window.parent) return;
   if (typeof e.data?.available === "number") available = e.data.available;
   if (e.data?.type === "draw" && typeof e.data.source === "string") void draw(e.data.source, e.data.theme);
   else if (e.data?.type === "fit") fit();

@@ -12,6 +12,8 @@
 # nginx proxies /api/ only for the host names in ARP_PUBLIC_HOSTS (space-separated,
 # default "localhost 127.0.0.1"); any other Host gets 421. Add the name you reach
 # ARP under, e.g. ARP_PUBLIC_HOSTS="localhost 127.0.0.1 arp.internal".
+# ARP_SUPERSET_ORIGIN (default http://127.0.0.1:8088) is the one origin the CSP lets
+# the page frame for the Superset embed; set it to the origin of VITE_SUPERSET_URL.
 #   docker build -t arp-frontend frontend/
 #   docker run -e ARP_BACKEND_URL=http://my-backend:8000 -p 127.0.0.1:5173:80 arp-frontend
 #
@@ -40,8 +42,9 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 ENV ARP_BACKEND_URL=http://backend:8000 \
     ARP_PUBLIC_HOSTS="localhost 127.0.0.1" \
+    ARP_SUPERSET_ORIGIN=http://127.0.0.1:8088 \
     NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1 \
-    NGINX_ENVSUBST_FILTER="^(ARP_BACKEND_URL|ARP_PUBLIC_HOSTS|NGINX_LOCAL_RESOLVERS)$"
+    NGINX_ENVSUBST_FILTER="^(ARP_BACKEND_URL|ARP_PUBLIC_HOSTS|ARP_SUPERSET_ORIGIN|NGINX_LOCAL_RESOLVERS)$"
 
 EXPOSE 80
 
