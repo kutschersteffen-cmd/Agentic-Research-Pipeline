@@ -19,7 +19,7 @@
 #
 # Usage:
 #   docker compose up --build                        # everything
-#   docker compose up backend frontend --build        # just the app
+#   docker compose up backend frontend --build        # just the app (starts `sandbox` too: Agent explorations)
 #   docker compose up -d postgres                      # required; then: arp db init-postgres
 #   docker compose up -d opensearch minio              # optional; then: arp db init-opensearch && arp db init-object-store
 #   docker compose up -d neo4j                         # optional: company graph for theme exposure layers
@@ -54,6 +54,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      sandbox:
+        condition: service_started
     ports:
       - "127.0.0.1:8000:8000"
     env_file:  # optional, so `docker compose config` works on a fresh checkout
@@ -66,6 +68,7 @@ services:
       ARP_POSTGRES_DSN: postgresql+psycopg://arp:arp@postgres:5432/arp  # required; run `arp db init-postgres` once
       ARP_NEO4J_URI: bolt://neo4j:7687  # optional (`docker compose up -d neo4j`); no depends_on on purpose
       ARP_NEO4J_PASSWORD: arp_neo4j_test
+      ARP_SANDBOX_URL: http://sandbox:8790
       # The page calls the API on its own origin (localhost:5173/api/...), and
       # the frontend's nginx forwards it here as Host: localhost, which the
       # default ARP_TRUSTED_HOSTS allows; set ARP_TRUSTED_HOSTS (JSON list) if
@@ -105,6 +108,14 @@ services:
       - "127.0.0.1:5173:80"
     depends_on:
       - backend
+
+  # Runs the Agent's exploration code (sandbox/server.mjs, one workerd isolate per run, no network in the
+  # isolate). No published port: only the backend calls it, over the compose network. Its tool calls go
+  # back to the backend with a per-run token.
+  sandbox:
+    build: ./sandbox
+    environment:
+      ARP_API_URL: http://backend:8000
 
   # Optional (profile `compute`, so a plain `docker compose up` leaves it out):
   # the compute service, arp/compute/server.py (rerank, embeddings, spans,

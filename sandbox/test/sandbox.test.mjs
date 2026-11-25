@@ -1,6 +1,9 @@
 // node --test: the sandbox against a stand-in ARP tool route.
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import fs from "node:fs";
 import { createServer } from "node:http";
+import { syncBuiltinESMExports } from "node:module";
 import { after, before, test } from "node:test";
 
 let api;
@@ -105,4 +108,31 @@ test("a throw whose message or string form itself throws still fails", async () 
   assert.deepEqual(await run(getter), { status: "failed", result: null, error: "code threw a value" });
   assert.deepEqual(await run("throw {toJSON() { throw 1 }, toString() { throw 2 }}"),
     { status: "failed", result: null, error: "code threw a value" });
+});
+
+test("memory is read as kB from the VmRSS line of the process status", async () => {
+  const read = fs.readFileSync;
+  fs.readFileSync = (path, ...rest) => /^\/proc\/\d+\/status$/.test(path) ? "Name:\tworkerd\nVmRSS:\t300000 kB\n" : read(path, ...rest);
+  syncBuiltinESMExports();
+  try {
+    assert.deepEqual(await run("while (true) {}"),
+      { status: "failed", result: null, error: "execution exceeded the 256 MB memory limit" });
+  } finally {
+    fs.readFileSync = read;
+    syncBuiltinESMExports();
+  }
+});
+
+test("without a VmRSS line the service starts and says the memory limit is off", async () => {
+  // Preloaded into the service: its own process status has no VmRSS line, as on a system without /proc.
+  const noRss = `import fs from "node:fs"; import { syncBuiltinESMExports } from "node:module"; const read = fs.readFileSync;
+    fs.readFileSync = (p, ...r) => p === "/proc/self/status" ? "Name:\\tnode\\n" : read(p, ...r); syncBuiltinESMExports();`;
+  const child = spawn(process.execPath, ["--import", `data:text/javascript,${encodeURIComponent(noRss)}`, "server.mjs"],
+    { cwd: new URL("..", import.meta.url), env: { ...process.env, ARP_SANDBOX_PORT: "0" } });
+  let out = "", err = "";
+  child.stderr.on("data", (d) => { err += d; });
+  await new Promise((resolve) => child.stdout.on("data", (d) => { out += d; if (out.includes("listening")) resolve(); }));
+  child.kill();
+  assert.match(out, /^sandbox listening on 127\.0\.0\.1:0/);
+  assert.match(err, /memory limit off: cannot read process memory on this system, so ARP_SANDBOX_MEMORY_MB is not enforced/);
 });
