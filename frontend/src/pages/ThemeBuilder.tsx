@@ -13,7 +13,7 @@ import { activatable } from "../lib/activatable";
 import { ProposedTag } from "../components/ProposedTag";
 import { ThemeLayersTable } from "../components/ThemeLayersTable";
 import { errorDetail } from "../lib/themeLayers";
-import { companies as companiesWord, savedDraftLine } from "../lib/themeBuilder";
+import { activityOptions, companies as companiesWord, savedDraftLine } from "../lib/themeBuilder";
 import { DraftInput } from "../components/DraftInput";
 import { listText, parseList } from "../lib/draftInput";
 
@@ -22,11 +22,13 @@ const EXPOSURE_RANK: Record<string, number> = { pure_play: 3, significant: 2, mi
 interface Props {
   onSendToArgus?: (path: string) => Promise<void>;
   pendingTaxonomyId?: string | null;
+  /** Called once the pending taxonomy has been taken (loaded, or found missing), so it is not loaded again. */
+  onPendingTaxonomyTaken?: () => void;
   /** A stored run to open, from `#/theme/<run id>`. */
   initialRunId?: string | null;
 }
 
-export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }: Props = {}) {
+export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, onPendingTaxonomyTaken, initialRunId }: Props = {}) {
   const [name, setName] = useState("Electrification");
   const [description, setDescription] = useState(
     "The shift of energy generation, transport, industry, and buildings from fossil fuels to electricity."
@@ -60,19 +62,22 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
   const [savedDraft, setSavedDraft] = useState<Taxonomy | null>(null);
 
+  const [taxonomiesLoaded, setTaxonomiesLoaded] = useState(false);
   useEffect(() => {
-    api.listTaxonomies().then((res) => setTaxonomies((res as { taxonomies: Taxonomy[] }).taxonomies)).catch(() => {});
+    api.listTaxonomies().then((res) => setTaxonomies((res as { taxonomies: Taxonomy[] }).taxonomies)).catch(() => {}).finally(() => setTaxonomiesLoaded(true));
   }, []);
 
   // A taxonomy sent over from the Taxonomy Library's "Use in Thematic
   // Universe" button arrives here as an id -- load it as soon as the
   // taxonomy list itself has loaded, same as picking it from the dropdown
   // by hand.
+  // It is taken once, on the first loaded list: later list changes and later visits load nothing.
   useEffect(() => {
-    if (!pendingTaxonomyId || taxonomies.length === 0) return;
+    if (!pendingTaxonomyId || !taxonomiesLoaded) return;
     loadTaxonomyById(pendingTaxonomyId);
+    onPendingTaxonomyTaken?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingTaxonomyId, taxonomies]);
+  }, [pendingTaxonomyId, taxonomiesLoaded]);
 
   async function decompose() {
     setBusy(true);
@@ -473,7 +478,7 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
           <h2>4. Run progress</h2>
           <RunProgress runId={runId} onFinish={() => refreshResults().catch((e) => setError(errorDetail(e)))} />
           <div className="toolbar">
-            <button onClick={refreshResults}>Refresh results</button>
+            <button onClick={() => refreshResults().catch((e) => setError(errorDetail(e)))}>Refresh results</button>
             <FileLink url={api.exportRunCsvUrl(runId)} name={`${runId}.csv`}>
               Export CSV
             </FileLink>
@@ -489,8 +494,8 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
                 </select>
                 <select aria-label="Filter by activity" value={activityFilter} onChange={(e) => setActivityFilter(e.target.value)}>
                   <option value="all">All activities</option>
-                  {theme?.activities.map((a) => (
-                    <option key={a.activity_id} value={a.activity_id}>
+                  {activityOptions(theme, results).map((a) => (
+                    <option key={a.id} value={a.id}>
                       {a.name}
                     </option>
                   ))}
