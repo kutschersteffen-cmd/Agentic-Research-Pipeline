@@ -25,6 +25,11 @@ _NORMALIZE_CACHE_SIZE = 16
 
 # Below this many normalised chars: numbers need a label, nothing goes fuzzy.
 SHORT_QUOTE_CHARS = 20
+# Letters of any script ([^\W\d_]); the CJK pattern also needs each letter inside Hiragana/Katakana,
+# CJK Unified Ideographs (+ Ext. A, compatibility) or Hangul syllables. Punctuation there is not \w.
+_LETTERS_2 = re.compile(r"[^\W\d_]{2,}")
+_LETTERS_3 = re.compile(r"[^\W\d_]{3,}")
+_CJK_LETTERS_2 = re.compile(r"(?:(?=[^\W\d_])[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]){2}")
 
 _DASHES = dict.fromkeys(map(ord, "\u2010\u2011\u2012\u2013\u2014\u2212"), "-")
 _SINGLE_QUOTES = dict.fromkeys(map(ord, "\u2018\u2019\u201a\u201b"), "'")
@@ -169,12 +174,13 @@ def _find_match(
         return None
     nq = _normalize(quote)
     # Short quotes (< SHORT_QUOTE_CHARS normalised chars): numeric evidence must carry
-    # its label too (bare "42" is rejected); non-numeric evidence ("Yes") may ground
-    # by exact/normalised match only, and must hold a word of 2+ letters ("-" never
-    # grounds). Neither ever takes the fuzzy path.
-    if len(nq) < SHORT_QUOTE_CHARS and re.search(r"\d", nq) and not re.search(r"[a-z]{3,}", nq):
+    # its label too, a word of 3+ letters of any script, or of 2+ CJK letters ("売上 42");
+    # bare "42" is rejected. Non-numeric evidence ("Yes", "Да") may ground by
+    # exact/normalised match only, and must hold a word of 2+ letters of any script
+    # ("-" never grounds). Neither ever takes the fuzzy path.
+    if len(nq) < SHORT_QUOTE_CHARS and re.search(r"\d", nq) and not (_LETTERS_3.search(nq) or _CJK_LETTERS_2.search(nq)):
         return None
-    if len(nq) < SHORT_QUOTE_CHARS and not re.search(r"\d", nq) and not re.search(r"[a-z]{2,}", nq):
+    if len(nq) < SHORT_QUOTE_CHARS and not re.search(r"\d", nq) and not _LETTERS_2.search(nq):
         return None  # "-" or "n/a"-style punctuation is not evidence; "Yes" still is
     if within is None:
         return _find_in_span(quote, source_text, fuzzy_threshold, 0, len(source_text))
