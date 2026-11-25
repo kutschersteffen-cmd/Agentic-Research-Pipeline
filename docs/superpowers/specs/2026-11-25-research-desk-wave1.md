@@ -1,6 +1,6 @@
 # Research Desk, wave 1: chat with stored reports, saved data and uploads
 
-Status: Draft, for owner approval
+Status: Approved by the owner on 2026-11-25 (spec thread, Approve on head 22f7a8a)
 Slug: `research-desk-wave1`
 Risk: slices 1 to 3 `risk:normal`; slice 4 `risk:high` (file uploads and deletion; the owner merges it)
 Size: `L`, four slices, one PR each, built in order 1, 2, 3, 4 (Argus and Research Desk plan, PRs 1 to 4)
