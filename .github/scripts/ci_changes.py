@@ -28,7 +28,6 @@ RULES = [
     ("notes/*", NONE),
     ("README.md", NONE),
     ("GLOSSARY.md", NONE),
-    ("PRODUCT.md", NONE),
 ]
 
 
@@ -53,6 +52,7 @@ CASES = [  # (name, changed files, jobs that run)
     (".claude only", [".claude/skills/steward/SKILL.md", ".claude/hooks/check.sh"], ""),
     ("mixed", ["backend/arp/api/main.py", "frontend/src/App.tsx", "docs/x.md"], "backend frontend app"),
     (".github", [".github/scripts/test_guard.py", "docs/x.md"], "backend frontend app"),
+    ("PRODUCT.md", ["PRODUCT.md"], "backend frontend app"),
     ("API contract", ["frontend/src/api/openapi.json"], "backend frontend app"),
     ("review.py", ["backend/arp/schemas/review.py"], "backend frontend app"),
     ("routing.py", ["backend/arp/extraction/routing.py"], "backend frontend app"),
