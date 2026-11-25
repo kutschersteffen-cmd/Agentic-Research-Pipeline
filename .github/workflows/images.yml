@@ -83,7 +83,7 @@ jobs:
 
       - name: Build, push by digest (a fork PR builds only)
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
