@@ -74,3 +74,7 @@ demo/showcase/documents/*.pdf
 
 # Local engineering playbook execution ledgers (publish redacted evidence separately)
 .engineering-playbook/
+
+# Local screenshots and review captures, not for the repo
+docs/design-shots/
+.impeccable/review/
