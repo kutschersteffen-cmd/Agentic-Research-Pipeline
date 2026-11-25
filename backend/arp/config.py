@@ -3,7 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, IPvAnyNetwork, field_validator, model_validator
+from pydantic import AliasChoices, Field, IPvAnyNetwork, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -12,7 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 class Settings(BaseSettings):
     """Central runtime configuration, loaded from environment / .env."""
 
-    model_config = SettingsConfigDict(env_prefix="ARP_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="ARP_", env_file=".env", extra="ignore", populate_by_name=True)
 
     # LLM
     anthropic_api_key: str | None = Field(default=None)
@@ -110,7 +110,10 @@ class Settings(BaseSettings):
     snapshot_pull_dir: Path = REPO_ROOT / "data" / "snapshots"  # where `arp snapshots pull` writes
     holdings_api_url: str | None = None  # base URL of the ARP instance snapshots are pulled from
     holdings_api_token: str | None = None
-    esg_api_base_url: str | None = None  # corporate ESG provider; ARP_ESG_API_URL
+    esg_api_base_url: str | None = Field(  # corporate ESG provider; ARP_ESG_API_URL (or ARP_ESG_API_BASE_URL)
+        default=None,
+        validation_alias=AliasChoices("ARP_ESG_API_URL", "ARP_ESG_API_BASE_URL"),
+    )
     esg_api_token: str | None = None  # Bearer token, ARP_ESG_API_TOKEN: never logged or stored in a load detail
     news_api_url: str = "https://api.refinitiv.com"  # Refinitiv Data Platform; ARP_NEWS_API_URL (portfolio/news/api_source.py)
     news_api_client_id: str | None = None  # RDP service account, ARP_NEWS_API_CLIENT_ID

@@ -384,3 +384,33 @@ def test_short_punctuation_quote_never_grounds():
     assert not is_grounded("-", "Scope 3 emissions: - (not reported)")
     assert not is_grounded("n/a", "Scope 3 emissions: n/a")
     assert is_grounded("Yes", "Board oversight of climate: Yes. Next row.")
+
+
+def test_short_non_ascii_label_with_number_grounds():
+    assert is_grounded("Größe 5", "Tabelle 3: Größe 5 Mitarbeiter")
+    assert is_grounded("Été 12", "Saison Été 12 semaines")
+    assert is_grounded("Выручка 7", "Итого: Выручка 7 млрд руб.")
+    assert not is_grounded("Größe 5", "Die Größe 6 gilt")
+
+
+def test_short_two_cjk_letters_with_number_ground():
+    assert is_grounded("売上 42", "当期 売上 42 億円")
+    assert is_grounded("매출 42", "올해 매출 42 억원")
+    assert is_grounded("ドル 5", "為替 ドル 5 円")
+
+
+def test_short_weak_labels_with_number_still_rejected():
+    assert not is_grounded("EU 42", "EU 42 bn")
+    assert not is_grounded("円 5", "合計 円 5")
+    assert not is_grounded("・・ 5", "x ・・ 5")
+    assert not is_grounded("\U0002000b\U0002000b 5", "x \U0002000b\U0002000b 5")  # Han ext. B: not in the CJK pair rule
+    assert is_grounded("\U0002000b\U0002000b\U0002000b 5", "x \U0002000b\U0002000b\U0002000b 5")
+
+
+def test_short_non_ascii_word_without_number_grounds():
+    assert is_grounded("Да", "Ответ: Да.")
+    assert is_grounded("売上", "今期の売上は増加")
+
+
+def test_short_non_ascii_quote_never_fuzzy():
+    assert not is_grounded("Umsatzerlöse 42 Mix", "Umsatzerlöse 42 Mio.")
