@@ -88,3 +88,6 @@ CVE-2026-8927 exp:2027-02-28
 CVE-2026-92392 exp:2027-02-28
 CVE-2026-93990 exp:2027-02-28
 CVE-2026-9947 exp:2027-02-28
+
+# libzstd1 in the backend image: fixed in Debian 1.5.7+dfsg-1+deb13u1; clears on the next base-image rebuild (Dockerfiles are bundle E's); review by 2026-12-31
+CVE-2026-124851 exp:2026-12-31
