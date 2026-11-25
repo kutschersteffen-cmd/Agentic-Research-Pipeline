@@ -692,15 +692,16 @@ def _gaps(conn: Connection, existing_tables: set[str]) -> tuple[list[str], list[
     return missing, [s.name for s in (*PRE_CREATE_STEPS, *SCHEMA_STEPS) if s.name not in applied], applied
 
 
-def schema_gaps(dsn: str) -> tuple[list[str], list[str]]:
-    """(missing tables, pending steps) as `schema_report` lists them, without its column and row scans:
-    the startup check (`arp.db.session.require_cutover`)."""
+def schema_gaps(dsn: str) -> tuple[list[str], list[str], list[str]]:
+    """(missing tables, missing "table.column" strings, pending steps) as `schema_report` lists them, without its row
+    scan: the startup check (`arp.db.session.require_cutover`)."""
     _sqlalchemy()
     from sqlalchemy import inspect
 
     with get_engine(dsn).connect() as conn:
         missing, pending, _ = _gaps(conn, set(inspect(conn).get_table_names()))
-    return missing, pending
+        columns = [f"{t}.{c}" for t, c in _missing_columns(conn)]
+    return missing, columns, pending
 
 
 def schema_report(dsn: str) -> dict:

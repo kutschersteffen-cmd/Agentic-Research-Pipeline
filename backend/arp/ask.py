@@ -132,7 +132,7 @@ def benchmark_sectors(streams_root: Path, benchmark_id: str | None) -> tuple[Ben
         b = store.get(benchmark_id)
         weights = [(c["sector"], c["weight_pct"]) for c in b["constituents"]]
         source, as_of, dropped, name = b["source"], b["as_of"], b["dropped"], b["name"]
-        text = f"Sector weights of {name} as of {as_of}."
+        text = f"Sector weights of {name} as of {as_of}." if as_of else f"Sector weights of {name}."
     else:
         issuers = json.loads(SAMPLE_PATH.read_text())["issuers"]
         weights = [(i["sector"], i["holding"]["index_weight_pct"]) for i in issuers]

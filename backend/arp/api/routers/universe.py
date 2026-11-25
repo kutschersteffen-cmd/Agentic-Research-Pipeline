@@ -102,7 +102,7 @@ class FromCompaniesRequest(BaseModel):
 
 
 @router.post("/from-companies")
-async def universe_from_companies(req: FromCompaniesRequest, settings: Settings = Depends(settings_dep)) -> dict:
+def universe_from_companies(req: FromCompaniesRequest, settings: Settings = Depends(settings_dep)) -> dict:
     """Saves an already-in-hand company list (e.g. the matched companies
     from a completed thematic run, filtered down to a verdict/exposure
     subset in the UI) as a reusable universe file -- the bridge from a

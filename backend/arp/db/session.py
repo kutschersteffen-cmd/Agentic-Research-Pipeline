@@ -48,7 +48,7 @@ def require_postgres(settings) -> str:
 
 def require_cutover(settings) -> None:
     """Startup check (app lifespan, every CLI command but `arp db ...`): the schema has no missing
-    table or pending step, and every file-era run directory (`runs_dir/<id>/manifest.json`) has its
+    table, column or pending step, and every file-era run directory (`runs_dir/<id>/manifest.json`) has its
     `runs` row. `ARP_SKIP_CUTOVER_CHECK=1` skips it."""
     from sqlalchemy import select
 
@@ -58,9 +58,12 @@ def require_cutover(settings) -> None:
     if settings.skip_cutover_check:
         return
     dsn = require_dsn(settings)
-    missing, pending = schema_gaps(dsn)
-    if missing or pending:
-        problem = f"the database schema is not current (missing tables: {missing}, pending steps: {pending})"
+    missing, columns, pending = schema_gaps(dsn)
+    if missing or columns or pending:
+        problem = (
+            f"the database schema is not current (missing tables: {missing}, missing columns: {columns}, "
+            f"pending steps: {pending})"
+        )
     else:
         legacy = sorted(p.parent.name for p in Path(settings.runs_dir).glob("*/manifest.json"))
         with transaction(dsn) as s:

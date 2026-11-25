@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import logging
 from collections.abc import Awaitable, Callable
 
 from arp.api.auth import Principal
@@ -11,6 +13,22 @@ from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import get_job_launcher
 from arp.storage.run_store import RunStore
+
+logger = logging.getLogger(__name__)
+_tasks: set[asyncio.Task] = set()  # strong refs: a running task is never garbage-collected
+
+
+def _log_failure(task: asyncio.Task) -> None:
+    _tasks.discard(task)
+    if not task.cancelled() and task.exception() is not None:
+        logger.error("Background run failed", exc_info=task.exception())
+
+
+def keep_task(coro: Awaitable[None]) -> None:
+    """create_task that keeps the task until it is done and logs its failure."""
+    task = asyncio.ensure_future(coro)
+    _tasks.add(task)
+    task.add_done_callback(_log_failure)
 
 
 def mark_batch_run(run_store: RunStore, run_id: str) -> None:
