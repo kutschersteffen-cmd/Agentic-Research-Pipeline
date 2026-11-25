@@ -464,7 +464,7 @@ and a users file with `alice` (analyst), `bob` (analyst), `ada` (approver) and `
 token; "Alice's chat" is one Alice created. `ARP_STANDINS_DIR` is a temp folder (**the fake model**: answers come
 from `model/DeskAnswer.json` and `model/DeskSubQuestions.json`, calls are logged in `calls.jsonl`),
 `ARP_HYBRID_RETRIEVAL_ENABLED=false` and `ARP_RERANK_ENABLED=false` unless a row says otherwise,
-`ARP_DOCUMENTS_DIR`, `ARP_XBRL_DIR`, `ARP_RUNS_DIR` and `ARP_DESK_UPLOADS_DIR` temp folders. **Report "acme-2025"**
+`ARP_DOCUMENTS_DIR`, `ARP_XBRL_DIR`, `ARP_RUNS_DIR`, `ARP_BLOB_STORE_DIR` and `ARP_DESK_UPLOADS_DIR` temp folders. **Report "acme-2025"**
 is `$ARP_DOCUMENTS_DIR/acme/other/acme-2025.txt`, 120 paragraphs of about 600 characters (at least 20 chunks under
 `chunk_document`'s defaults), each holding the word
 `capex`. Report acme-2025 exists in every row unless the row says otherwise. Neither `acme` nor `beta` has a `companies` row unless a row says so (name = key). **Report "beta-2025"** is `$ARP_DOCUMENTS_DIR/beta/other/beta-2025.txt`, three lines only (one passage, so
@@ -516,7 +516,7 @@ copied from the seeded reports, so the running app answers with no real model.
 | AC-29 | a chat titled `New chat` | first turn with a 70-character question | `GET` the chat: `title` is the question's first 60 characters | unit |
 | AC-30 | a `running` turn whose `updated_at` is 11 minutes old | another `POST .../turns` in that chat | the old turn is `failed` with `error` `interrupted`; the new one `202` | unit |
 | AC-31 | two `done` turns in the chat | a third turn | its `DeskAnswer` prompt contains both earlier questions | unit |
-| AC-81 | `$ARP_RUNS_DIR/_universes/utilities.csv`, in the format `load_company_universe` reads, with `company_id` `acme` and `beta` | `PUT .../scope` with `{"kind": "universe", "ref": "_universes/utilities.csv"}` (the path form `load_saved_universe` accepts) | `200`; the item's `label` is `utilities.csv`; a Quick turn then has sources from both `acme-2025.txt` and `beta-2025.txt` | holdout |
+| AC-81 | `$ARP_RUNS_DIR/_universes/utilities.csv`, in the format `load_company_universe` reads, with `company_id` `acme` and `beta` | `PUT .../scope` with `{"kind": "universe", "ref": "_universes/utilities.csv"}` (the path form `load_saved_universe` accepts) | `200`; the item's `label` is `utilities.csv`; a Quick turn then has `pick_sources.detail` `{"companies": 2, "documents": 2}` | holdout |
 | AC-82 | Alice's chat | `PUT .../scope` with `{"kind": "run", "ref": "nosuch"}` | `422`, detail `Unknown run: nosuch` | holdout |
 | AC-83 | Alice's chat with scope acme and 2 finished turns | Alice `GET /api/desk/chats/{id}` | `scope` as put; `turns` has the 2 turn ids, oldest first | holdout |
 | AC-84 | report folders `acme`, `beta` | `GET /api/desk/companies?q=AC`; then `?limit=0` | first `200` with `total` 1 and the one item `company_id` `acme`, `reports` 1; second `422` | holdout |
@@ -584,7 +584,7 @@ copied from the seeded reports, so the running app answers with no real model.
 | AC-78 | on `#/argus/desk/7`, routed upload answering `415` with the type detail | drop `a.txt` | the row shows `Only PDF, Word (.docx) or Excel (.xlsx) files can be uploaded.` | holdout |
 | AC-79 | on `#/argus/desk/7`, routed save answering `200` with `saved_company_id` `acme`, `saved_company_name` `Acme Power` | click `Save to the company` | `POST /api/desk/chats/7/uploads/<id>/save`; the row shows `Saved to Acme Power` | holdout |
 | AC-80 | the running app, two seeded PDFs of two registry companies, a stand-in answer quoting both | the evaluator drops both on Research Desk and asks | both rows show the found company; the answer cites both uploads with `Uploaded report` chips and FigureCheck shows `Every figure checked.` | evaluator |
-| AC-86 | run folder `$ARP_RUNS_DIR/r9` with a finished status and one file `out.json` aged 3651 days; one original in `blob_store_dir` aged 3651 days; unsaved upload U1 31 days old (default retention settings) | `arp retention cleanup` | output has `would delete: <path of r9/out.json>`, `would delete: <path of the original>` and `would delete: desk upload <U1>`; the summary line starts `would delete <n>, held 0,` where n is the number of `would delete:` lines | holdout |
+| AC-86 | `$ARP_RUNS_DIR/r9/manifest.json` `{"status": "done"}` and `r9/out.json`, both aged 3651 days; one original in `blob_store_dir` aged 3651 days; unsaved upload U1 31 days old (default retention settings) | `arp retention cleanup` | output has `would delete:` lines for both r9 files, `would delete: <path of the original>` and `would delete: desk upload <U1>`; the summary line starts `would delete <n>, held 0,` where n is the number of `would delete:` lines | holdout |
 
 Must not change: Argus routes and pages (AC-48); Refine endpoints and `select_evidence.py`, `local_files.py` (code
 review: unchanged files); `arp retention cleanup` output for run files and originals (AC-86).
