@@ -14,6 +14,12 @@ Answered by the owner in the spec thread on 2026-11-25:
 2. **Sandbox on a machine where worker memory cannot be measured** (macOS, Windows; row AC-61): start, and print a
    warning that the memory limit is off.
 
+Amendment 1 (owner, 2026-11-25, after slice 2 merged: "Nothing should be blocked"): the CSP must not block
+anything that works today. The CSP text gains `data:` in `font-src` (Refine slide fonts), the Monaco path in
+`script-src`/`style-src`/`font-src` and `blob:` in `worker-src` (rule editor JSON-schema editors); AC-22 changes to
+match and AC-30b is new. AC-30 no longer requires the browser engine to run: the Zen wasm engine fails to load on
+main with or without the CSP (an older bug, its own backlog item), so the row checks only for no CSP error.
+
 Every other choice is under "Defaults taken"; approving the spec approves them.
 
 ## Why
@@ -159,7 +165,7 @@ restart." Bundle F may edit the same README section (its L22): the second PR to 
 The CSP, as written in the template (one line, exactly this text):
 
 ```
-default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self'; frame-src 'self' blob: ${ARP_SUPERSET_ORIGIN}; object-src 'self' blob:; base-uri 'self'; form-action 'self'; frame-ancestors 'self'
+default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; frame-src 'self' blob: ${ARP_SUPERSET_ORIGIN}; object-src 'self' blob:; base-uri 'self'; form-action 'self'; frame-ancestors 'self'
 ```
 
 Why each allowance:
@@ -169,6 +175,9 @@ Why each allowance:
 | `script-src` | `'wasm-unsafe-eval'` | Decision Studio compiles the Zen rule engine with WebAssembly (`lib/zenEngine.ts`). |
 | `style-src` | `'unsafe-inline'` | React `style=` attributes, Mermaid's inline `<style>` in the diagram frame, the Refine slide preview's injected `<style>`. |
 | `style-src` / `font-src` | Google Fonts hosts | `index.html` and `board-diagram.html` load Geist / Source Serif 4 from there. |
+| `font-src` | `data:` | the Refine slide preview's deck HTML embeds its fonts as `data:` URIs (`arp/reporting/html_render.py` `_font_faces`), and its `srcdoc` frame inherits this policy. Amendment 1. |
+| `script-src` / `style-src` / `font-src` | `https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/` | the rule editor's Monaco JSON-schema editors (Decision Studio > Rules: Request/Response node > Configure) load Monaco from this path (`@gorules/jdm-editor` via `@monaco-editor/loader` 1.7.0). Path-restricted to that one package version; a loader upgrade that changes the version must update this line. Amendment 1. |
+| `worker-src` | `blob:` | Monaco starts its workers from `blob:` URLs. Amendment 1. |
 | `img-src` | `data: blob:` | Mermaid labels, mini-app images (`data:`), authenticated images shown through object URLs (`FileImg`). |
 | `worker-src` | `'self'` | the Zen engine worker is a same-origin module (`zenWorker.ts`). |
 | `frame-src` | `'self'` | `board-diagram.html`; `srcdoc` frames (mini-apps, Refine preview). |
@@ -319,7 +328,7 @@ console shows no message containing `Content Security Policy` or `Refused to`.
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
 | AC-21 | nginx as in the preamble | `GET /`, `/index.html`, `/board-diagram.html`, `/assets/app.js`, `/assets/app.css`, `/assets/x.wasm`, `/favicon.svg`, `/some/app/route`, `/assets/missing.js` | every answer (the last one 404) has `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: SAMEORIGIN`, `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp` | holdout |
-| AC-22 | as AC-21 | the same requests | every answer's `Content-Security-Policy` is exactly `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self'; frame-src 'self' blob: http://127.0.0.1:8088; object-src 'self' blob:; base-uri 'self'; form-action 'self'; frame-ancestors 'self'` | holdout |
+| AC-22 | as AC-21 | the same requests | every answer's `Content-Security-Policy` is exactly `default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; frame-src 'self' blob: http://127.0.0.1:8088; object-src 'self' blob:; base-uri 'self'; form-action 'self'; frame-ancestors 'self'` | holdout |
 | AC-23 | as AC-21 but `ARP_SUPERSET_ORIGIN=https://bi.example.com` | `GET /` | the CSP contains `frame-src 'self' blob: https://bi.example.com;` | holdout |
 | AC-24 | as AC-21 | `GET /index.html`, `/assets/app.js`, `/assets/x.wasm` | `/index.html`: the only `Cache-Control` value is `no-cache`; `/assets/app.js`: one of its `Cache-Control` header lines is exactly `public, max-age=604800, immutable` (today's `expires 7d` line `max-age=604800` and the `Expires` header stay); `/assets/x.wasm`: the only `Cache-Control` value is `public, max-age=604800, immutable` (all unchanged) | holdout |
 | AC-25 | as AC-21 | `GET /assets/app.js`, `/assets/app.css`, `/assets/x.wasm`, `/index.html` with `Accept-Encoding: gzip` | each has `Content-Encoding: gzip` | holdout |
@@ -327,7 +336,8 @@ console shows no message containing `Content Security Policy` or `Refused to`.
 | AC-27 | as AC-21 | `GET /api/ping` with `Host: attacker.example` | 421 (unchanged host allow-list) | holdout |
 | AC-28 | `frontend/Dockerfile` | read its text | `NGINX_ENVSUBST_FILTER` matches `ARP_SUPERSET_ORIGIN` as well as `ARP_BACKEND_URL`, `ARP_PUBLIC_HOSTS`, `NGINX_LOCAL_RESOLVERS`, and an `ENV` line sets `ARP_SUPERSET_ORIGIN=http://127.0.0.1:8088` | holdout |
 | AC-29 | evaluator setup | open Home, then the Agent screen and a board with a diagram | the page and the diagram draw; no CSP error | evaluator |
-| AC-30 | evaluator setup | open Decision Studio and run a rule preview on a seeded rule | the preview shows a result (the wasm engine ran); no CSP error | evaluator |
+| AC-30 | evaluator setup | open Decision Studio and run a rule preview on a seeded rule | the preview shows a result (from the browser engine or the server fallback); no CSP error | evaluator |
+| AC-30b | evaluator setup | in Decision Studio > Rules, open the Request (Input) node's Configure, then the Response (Output) node's Configure | each shows the Monaco JSON-schema editor; no CSP error | evaluator |
 | AC-31 | evaluator setup, a seeded PDF document with a cited value | open the citation's source in the source panel; then open its `/raw` link with `#page=N` in a new tab | both show the PDF in the browser's viewer at page N; no CSP error | evaluator |
 | AC-32 | evaluator setup, a Refine deck thread | open a slide preview | the slide shows with its fonts; no CSP error | evaluator |
 | AC-33 | evaluator setup | in the console, `fetch('/api/health').then(r => r.status)` | `200` (connect-src `'self'` and the proxy work) | evaluator |
@@ -389,3 +399,4 @@ and 3 both edit `docker-compose.yml` (a comment line vs. a new service), so the 
 | 1 | S | Backend sign-in and `/raw`: `api/main.py` startup check, `api/auth.py` reload, `routers/documents.py` headers, README sign-in lines, compose users.json comment, tests | AC-1 to AC-15 |
 | 2 | M | nginx headers + gzip, `frontend/Dockerfile` (`ARP_SUPERSET_ORIGIN`), diagram frame without `allow-same-origin` (`AgentBoard.tsx`, `boardDiagram.ts`, `vite.config.ts` if needed), `test_agent_board.py:193`. Needs `UI review (factory)` | AC-21 to AC-42 |
 | 3 | M | `sandbox/Dockerfile`, `sandbox/.dockerignore`, `server.mjs` (host, cap, workerd path, spawn error, VmRSS), `sandbox/test`, `arp/agent/sandbox.py` busy message, compose `sandbox` service | AC-51 to AC-74 (AC-61, AC-61b `unit`) |
+| 4 | S | Amendment 1: the CSP line in `frontend/nginx.conf` only | AC-22, AC-30, AC-30b, AC-32 |
