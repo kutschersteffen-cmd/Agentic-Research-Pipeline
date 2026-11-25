@@ -12,7 +12,7 @@ function sourceLine(r: AskResponse): string | null {
   if (r.transition_plan) return `Source: run ${r.transition_plan.run_id} · ${r.transition_plan.run_date.slice(0, 10)}`;
   if (r.benchmark_sectors) {
     const b = r.benchmark_sectors;
-    return b.is_sample ? "Source: synthetic sample" : `Source: ${b.name} · as of ${b.check.as_of}`;
+    return b.is_sample ? "Source: synthetic sample" : `Source: ${b.name}${b.check.as_of ? ` · as of ${b.check.as_of}` : ""}`;
   }
   return null;
 }

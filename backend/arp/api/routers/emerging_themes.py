@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import asyncio
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -15,6 +13,7 @@ from arp.api.deps import (
     get_xbrl_source,
     settings_dep,
 )
+from arp.api.run_scheduling import keep_task
 from arp.api.saved_universe import check_schedule_universe, load_saved_universe
 from arp.config import Settings
 from arp.emerging_themes.pipeline import (
@@ -68,7 +67,7 @@ async def start_emerging_themes_run(
             xbrl_source=xbrl_source if settings.xbrl_facts_enabled else None,
         )
 
-    asyncio.create_task(_background())
+    keep_task(_background())
     return {"run_id": run_id, "company_count": len(companies)}
 
 
