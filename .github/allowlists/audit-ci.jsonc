@@ -5,6 +5,10 @@
     // katex prototype pollution; fix only with mermaid@12 (breaking); KaTeX renders only the app's own board diagrams; review by 2027-02-28
     "GHSA-238p-pmpm-9mq7",
     // zod memory use via @gorules/jdm-editor@1.52.0; npm's only fix is a downgrade; review by 2027-02-28
-    "GHSA-mrhx-c7xc-m3w5"
+    "GHSA-mrhx-c7xc-m3w5",
+    // lodash-es and uuid, pulled in by mermaid 11.4.1; mermaid 11.17.2 breaks the sealed-frame diagram test (test_diagrams_draw_in_a_sealed_frame), so the upgrade is a follow-up item; review by 2027-02-28
+    "GHSA-r5fr-rjxr-66jc",
+    "GHSA-xxjr-mmjv-4gpg",
+    "GHSA-w5hq-g745-h8pq"
   ]
 }

@@ -44,7 +44,7 @@ Three PRs, each with `Spec: ci-hardening-hygiene` and its `Rows:` line, every ch
 | Slice | Risk | Size | Contents | Rows |
 |---|---|---|---|---|
 | 1 | `risk:normal` | S | LM2, L3, L4, L16, L19 (backend and Ask UI; needs a UI review because it edits `frontend/src/**`) | AC-1 to AC-14 |
-| 2 | `risk:high`, owner merges | M | M4, M5, L25, the dead `ci_changes.py` rule; the `mermaid` bump | AC-15 to AC-33 |
+| 2 | `risk:high`, owner merges | M | M4, M5, L25, the dead `ci_changes.py` rule | AC-15 to AC-33 |
 | 3 | `risk:high`, owner merges | S | L18 | AC-34 to AC-37 |
 
 Bundle E runs at the same time. This spec does **not** touch: any Dockerfile, `.dockerignore`, `docker-compose.yml`, nginx config, `sandbox/`, auth or token code, the `/raw` documents route, or `.github/workflows/images.yml`.
@@ -87,7 +87,7 @@ The four steps lose `continue-on-error: true` and take `continue-on-error: ${{ g
 | Scan | Finding | Verdict |
 |---|---|---|
 | pip-audit | `pillow 12.3.0`, 42 advisories, fix 13.0.0 | Allow-list (Appendix A): Pillow 13 conflicts with docling's pins, see Decisions. Review by 2027-02-28 |
-| npm audit | `lodash-es` (GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg) and `uuid` (GHSA-w5hq-g745-h8pq), pulled in by `mermaid@11.4.1` | **Fix in this slice**: pin `mermaid` to `11.17.2` in `frontend/package.json` and regenerate `package-lock.json`. I tried it: `npm audit` then no longer lists `lodash-es` or `uuid` |
+| npm audit | `lodash-es` (GHSA-r5fr-rjxr-66jc, GHSA-xxjr-mmjv-4gpg) and `uuid` (GHSA-w5hq-g745-h8pq), pulled in by `mermaid@11.4.1` | Allow-list (owner, 2026-11-25): mermaid 11.17.2 breaks the sealed-frame diagram test; upgrade is a follow-up item. Review by 2027-02-28 |
 | npm audit | `katex` GHSA-238p-pmpm-9mq7 (prototype pollution), fix only with `mermaid@12`, a breaking change | Allow-list. KaTeX renders only text from the app's own board diagrams (`src/boardDiagram.ts`). Review by 2027-02-28 |
 | npm audit | `zod` GHSA-mrhx-c7xc-m3w5 (memory use on oversized collections) via `@gorules/jdm-editor@1.52.0`; npm's only "fix" is a downgrade to 1.10.0 | Allow-list. Review by 2027-02-28 |
 | Trivy backend image, Debian 13.8 | 92 findings (91 HIGH, 1 CRITICAL); the 89 I could read are all `affected` or `fix_deferred`, none has a fixed version | Not blocking: `ignore-unfixed` |
@@ -152,7 +152,7 @@ A backend that started before may now refuse to start. That is the intent: it wa
 4. **`audit-ci@7.1.0`** is run through `npx` at a pinned version; it is the only new tool.
 5. **Trivy `scanners: vuln`** drops secret scanning of image layers. `gitleaks` still scans the repository, and the image "secrets" were false positives.
 6. **No allow-list for `images.yml`**, and no pinning of its actions: bundle E owns that file.
-7. **The `mermaid` bump is `11.4.1` → `11.17.2`**, the version `npm audit` names. The builder runs `npm test` and the diagram-related tests; if mermaid 11.17.2 breaks them, the builder stops and asks (`factory:blocked`).
+7. **`mermaid` stays 11.4.1** (owner decision 2026-11-25 after 11.17.2 broke `test_diagrams_draw_in_a_sealed_frame`); the upgrade is a follow-up item.
 8. **The scans fail only pull-request runs.** On a push to `main` they print and pass (`continue-on-error: ${{ github.event_name != 'pull_request' }}`), so Main guard never reverts a merge over a newly published advisory.
 9. **Slice 3 touches `schema_gaps` only.** `schema_report`, the drift check and `ensure_schema` are unchanged.
 
@@ -204,7 +204,7 @@ Backend rows call the named function or route inside a running event loop (`pyte
 | AC-25 | `.github/allowlists/audit-ci.jsonc` (comments stripped) | parsed | `allowlist` contains `GHSA-238p-pmpm-9mq7` and `GHSA-mrhx-c7xc-m3w5` (a superset is fine), `high` is `true` | holdout |
 | AC-26 | `.github/allowlists/pip-audit.txt` | the IDs on entry lines are collected | the set contains every ID of Appendix A | holdout |
 | AC-27 | `.github/allowlists/trivy.ignore` | the IDs on entry lines are collected | the set contains every ID of Appendix B and Appendix C | holdout |
-| AC-28 | `frontend/package.json` and `frontend/package-lock.json` | parsed | `dependencies.mermaid == "11.17.2"`, the lockfile's `packages["node_modules/mermaid"].version == "11.17.2"`, no `lodash-es` entry in `packages` has a version below `4.17.23`, and no `uuid` entry has a version below `11.1.1` | holdout |
+| AC-28 | `frontend/package.json` and `.github/allowlists/audit-ci.jsonc` (comments stripped) | parsed | `dependencies.mermaid == "11.4.1"`, and `allowlist` contains `GHSA-r5fr-rjxr-66jc`, `GHSA-xxjr-mmjv-4gpg` and `GHSA-w5hq-g745-h8pq` (a superset is fine) | holdout |
 | AC-29 | `.github/scripts/mutation_frontend.py` | the `STRYKER` list is read | it contains `typescript@~6.0.2` and not `typescript@5.9.2` | holdout |
 | AC-30 | `frontend/tsconfig.app.json` and `frontend/tsconfig.node.json` | parsed | `compilerOptions.strict` is `true` in both | holdout |
 | AC-31 | `.github/scripts/ci_changes.py` | `jobs(["PRODUCT.md"])` | returns `{"backend": True, "frontend": True, "app": True}` | holdout |
