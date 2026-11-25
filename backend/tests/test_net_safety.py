@@ -30,3 +30,13 @@ def test_accepts_public_ip_literal():
     # private/loopback/link-local/reserved/multicast, so it should pass
     # the IP-range check itself (no DNS resolution needed for a literal).
     assert_safe_fetch_target("https://8.8.8.8/")
+
+
+async def test_request_hook_checks_the_target(monkeypatch):
+    import httpx
+
+    from arp import net_safety
+
+    monkeypatch.setattr(net_safety.socket, "getaddrinfo", lambda *a, **k: [(2, 1, 6, "", ("127.0.0.1", 0))])
+    with pytest.raises(UnsafeURLError):
+        await net_safety.ssrf_guard_request_hook(httpx.Request("GET", "http://internal.test/"))

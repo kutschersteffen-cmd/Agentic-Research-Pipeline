@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import hashlib
 from datetime import date
 
@@ -9,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import blob_store_dep, get_run_store, settings_dep
+from arp.api.run_scheduling import keep_task
 from arp.config import Settings
 from arp.schemas.transition_barrier import (
     BarrierCriterion,
@@ -148,7 +148,7 @@ async def start_refresh_run(
     except RefreshDisabledError as exc:
         raise HTTPException(409, str(exc)) from exc
 
-    asyncio.create_task(execute_refresh_run(run_id, settings=settings, run_store=run_store))
+    keep_task(execute_refresh_run(run_id, settings=settings, run_store=run_store))
     return {"run_id": run_id, "source_count": coverage_summary()["automatable"]}
 
 

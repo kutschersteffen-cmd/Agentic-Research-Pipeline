@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Literal
 
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.portfolio import analytics, datapoint_mapping
@@ -95,7 +96,7 @@ async def answer_question(
     `portfolio_ids`, `as_of` and `date_range` are the screen's selection: the
     portfolios apply when the question names none, the dates always.
     """
-    portfolios = store.list_portfolios()
+    portfolios = await run_in_threadpool(store.list_portfolios)
     prompt = (
         f"Company directory (company_id: name):\n{_company_directory(companies)}\n\n"
         "Portfolio directory (portfolio_id: name):\n" + "\n".join(f"{p.portfolio_id}: {p.name}" for p in portfolios)
@@ -125,7 +126,7 @@ async def answer_question(
 
     portfolio_filter = parsed.portfolio_filter or list(portfolio_ids)
     scoped = portfolio_filter or [p.portfolio_id for p in portfolios]
-    dates_of = {pid: store.list_snapshot_dates(pid) for pid in scoped}
+    dates_of = await run_in_threadpool(lambda: {pid: store.list_snapshot_dates(pid) for pid in scoped})
     dates = sorted({d for ds in dates_of.values() for d in ds})
     if not dates:
         return unanswered("No holdings snapshots for that selection.")

@@ -594,7 +594,11 @@ def get_client_report(
 def _deck_response(build, data, filename: str, background: BackgroundTasks) -> FileResponse:
     """`build(data, path, pdf=False)` into a temp dir that is removed once the file is sent."""
     tmp = Path(tempfile.mkdtemp(prefix="arp_deck_"))
-    path = build(data, tmp / filename, pdf=False)  # tmp is deleted: no PDF
+    try:
+        path = build(data, tmp / filename, pdf=False)  # tmp is deleted: no PDF
+    except BaseException:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
     background.add_task(shutil.rmtree, tmp, ignore_errors=True)
     return FileResponse(
         path,

@@ -24,6 +24,7 @@ from arp.api.deps import (
 )
 from arp.api.routers import extraction
 from arp.api.routers.universe_workbench import MAX_COMPANIES
+from arp.api.run_scheduling import keep_task
 from arp.argus.companies import Refused, add_companies, parse_rows, register, reregister, ticker_ciks, with_register_ids
 from arp.argus.documents import FlowFile, decide, expected_year, flow_files, passes_check, store_upload
 from arp.argus.flows import ArgusFlow, FlowSettings, FlowStore, SchemaChoice, SkippedUpload, get_flow_store, is_starting
@@ -288,8 +289,8 @@ async def find_documents(
         companies = [with_register_ids(session, c) for c in flow.companies]
     run_id = create_discovery_run(companies, None, "argus", run_store)
     JobManager(run_store).set_started_by(run_id, principal.user_id, principal.name)
-    asyncio.create_task(execute_discovery_run(run_id, companies, settings=settings, run_store=run_store,
-                                              web=flow.source == "filings_web", expected_year=expected_year(flow)))
+    keep_task(execute_discovery_run(run_id, companies, settings=settings, run_store=run_store,
+                                    web=flow.source == "filings_web", expected_year=expected_year(flow)))
     return view(store.update(flow_id, lambda f: setattr(f, "discovery_run_id", run_id)))
 
 

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import asyncio
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_scheduler, settings_dep
+from arp.api.run_scheduling import keep_task
 from arp.api.saved_universe import check_schedule_universe, load_saved_universe
 from arp.config import Settings
 from arp.db.session import require_dsn
@@ -53,7 +52,7 @@ async def start_discovery_run(
             run_id, companies, settings=settings, run_store=run_store, doc_types=req.doc_types
         )
 
-    asyncio.create_task(_background())
+    keep_task(_background())
     return {"run_id": run_id, "company_count": len(companies)}
 
 
